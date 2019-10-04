@@ -16,8 +16,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/reshape.hpp"
+#include "api/reshape.hpp"
 #include "primitive_inst.h"
+#include "error_handler.h"
 #include <string>
 #include <memory>
 
@@ -33,10 +34,13 @@ struct typed_program_node<reshape> : public typed_program_node_base<reshape> {
 public:
     using parent::parent;
 
-    program_node& input() const { return get_dependency(0); }
+    program_node& input() const {
+        CLDNN_ERROR_LESS_THAN(id(), "the number of dependencies", dependencies.size(), "1", 1, "ERROR: the node has no input");
+        return get_dependency(0);
+    }
 
     bool is_in_place() const {
-        if (this->is_output() || this->get_fused_activation_func() != activation_none)
+        if (this->is_output() || !this->get_fused_activations_funcs().empty())
             return false;
         return (!this->get_output_layout().data_padding && !input().get_output_layout(false).data_padding);
     }

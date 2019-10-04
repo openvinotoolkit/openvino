@@ -43,7 +43,7 @@ protected:
 
     virtual void SetUp() {
         mock_plugin_impl.reset(new MockInferencePluginInternal());
-        plugin = details::shared_from_irelease(make_ie_compatible_plugin({2, 0, "test", "version"}, mock_plugin_impl));
+        plugin = details::shared_from_irelease(make_ie_compatible_plugin({{2, 1}, "test", "version"}, mock_plugin_impl));
         mockExeNetworkInternal = make_shared<MockExecutableNetworkInternal>();
     }
 
@@ -183,7 +183,7 @@ protected:
 
     virtual void SetUp() {
         mockPluginImpl = make_shared<MockInferencePluginInternal2>();
-        plugin = details::shared_from_irelease(make_ie_compatible_plugin({2, 0, "test", "version"}, mockPluginImpl));
+        plugin = details::shared_from_irelease(make_ie_compatible_plugin({{2, 1}, "test", "version"}, mockPluginImpl));
         mockExeNetwork = make_shared<MockIExecutableNetwork>();
     }
 

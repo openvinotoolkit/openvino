@@ -383,8 +383,8 @@ void PassImpl::replicateStage(
         }
 
         auto tileStage = model->duplicateStage(
-            stage->name() + postfix,
             stage,
+            postfix,
             newInputs,
             newOutputs);
 

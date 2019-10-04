@@ -51,7 +51,13 @@ TEST_F(BlobProxyTests, shouldNotDeAllocate)
     SizeVector v = {1, 2, 3};
     auto allocator = createMockAllocator();
 
-    TBlobProxy<float> proxy(Precision::FP32, C, TBlob<float>({ Precision::FP32, v, CHW}, dynamic_pointer_cast<IAllocator>(allocator)), 2, {2});
+    TBlob<float> blob({ Precision::FP32, v, CHW }, dynamic_pointer_cast<IAllocator>(allocator));
+
+    Blob::Ptr spBlob(&blob, [](Blob*) {
+        //don't delete
+    });
+
+    TBlobProxy<float> proxy(Precision::FP32, C, spBlob, 2, {2});
 
     EXPECT_EQ(((Blob&)proxy).deallocate(), false);
 }
@@ -72,7 +78,11 @@ TEST_F(BlobProxyTests, canAccessProxyBlobUsingBaseMethod)
     TBlob<float> blob({ Precision::FP32, v, CHW }, dynamic_pointer_cast<IAllocator>(allocator));
     blob.allocate();
 
-    TBlobProxy<float> proxy(Precision::FP32, C, move(blob), 2, {2});
+    Blob::Ptr spBlob(&blob, [](Blob*) {
+        //don't delete
+    });
+
+    TBlobProxy<float> proxy(Precision::FP32, C, spBlob, 2, {2});
 
     auto proxyBuffer = proxy.buffer();
     float *ptr = (float*)(void*)proxyBuffer;
@@ -95,7 +105,11 @@ TEST_F(BlobProxyTests, canAccessProxyBlobUsingHelpers)
     TBlob<float> blob({Precision::FP32, v, CHW }, dynamic_pointer_cast<IAllocator>(allocator));
     blob.allocate();
 
-    TBlobProxy<float> proxy(Precision::FP32, C, std::move(blob), 2, {2});
+    Blob::Ptr spBlob(&blob, [](Blob*) {
+        //don't delete
+    });
+
+    TBlobProxy<float> proxy(Precision::FP32, C, spBlob, 2, {2});
 
     auto proxyData = proxy.data();
     float *ptr = (float * )&proxyData[0];

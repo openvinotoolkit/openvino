@@ -16,9 +16,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/CPP/eltwise.hpp"
-#include "api/CPP/pooling.hpp"
-#include "api/CPP/upsampling.hpp"
+#include "api/eltwise.hpp"
+#include "api/pooling.hpp"
+#include "api/upsampling.hpp"
 #include "primitive_inst.h"
 #include "activation_inst.h"
 #include "concatenation_inst.h"
@@ -37,7 +37,6 @@
 using namespace cldnn;
 
 // ToDo remove friendship relation from  program_node
-
 void prepare_buffer_fusing::run(program_impl& p) {
     bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
     /*
@@ -49,7 +48,7 @@ void prepare_buffer_fusing::run(program_impl& p) {
     If crop is before concat there can be padding mismtach, since concat changes padding.
     */
     auto can_optimize = [](const program_node* node) {
-        if (node->is_output() || (node->get_fused_activation_func() != cldnn_activation_func_t::activation_none)) {
+        if (node->is_output() || (!node->get_fused_activations_funcs().empty())) {
             return false;
         }
         return true;
@@ -272,123 +271,10 @@ void prepare_buffer_fusing::run(program_impl& p) {
             continue;
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
             node.get_output_layout();
-            if (node.is_in_place() && node.get_fused_activation_func() == activation_none)
+            if (node.is_in_place() && node.get_fused_activations_funcs().empty())
                 node.can_be_optimized(true);
             else
                 node.can_be_optimized(false);
-        });
-        program_helpers::do_for_types<reorder>(*node, [&p](reorder_node& node) {
-            auto& input = node.input();
-
-            auto output_layout = node.get_output_layout();
-            // This is WA for topologies that due to additional reorders added perform worse with conv1x1 optimization
-            auto remove_bf8_xy_opt = ((input.is_type<pooling>() || input.is_type<concatenation>()) &&
-                                      output_layout.format == format::bf8_xy16 && input.get_users().size() == 1);
-            // Remove reorder from convolution 1x1 to bfyx in some conditions
-            auto remove_byxf_opt = (input.is_type<convolution>() && input.get_users().size() == 1 &&
-                                    input.get_output_layout().format == format::byxf);
-
-            // Work-around to propagate blocked formats to first convolution - fs_byx_fsv32, bfyx_f16
-            // Pattern of convolution -> pooling -> reorder
-            auto blocked_conv_pool_reorder =
-                input.is_type<pooling>() &&
-                input.get_dependencies().front()->is_type<convolution>() &&   // Input to pooling is convolution
-                input.get_dependencies().front()->get_users().size() == 1 &&  // Convolution has only one user (pooling)
-                input.get_dependencies().front()->get_output_layout().format ==
-                    format::bfyx;  // Convolution outputs bfyx format
-            // Pattern of convolution -> reorder
-            auto blocked_conv_reorder = input.is_type<convolution>() && input.get_users().size() == 1 &&
-                                        input.get_output_layout().format == format::bfyx;
-            auto remove_bfyx_to_blocked =
-                (output_layout.format == format::fs_b_yx_fsv32 ||
-                 // For bfyx_f16 if the size is large enough it is more optimal to sink reorder into convolution
-                 (output_layout.format == format::bfyx_f16 &&
-                  output_layout.count() > 500000
-                  // bfyx -> bfyx_f16 implementation can only handle 3 input features
-                  && input.get_output_layout().size.feature[0] == 3)) &&
-                (blocked_conv_pool_reorder || blocked_conv_reorder);
-
-            // check if all inputs user have the same format
-            auto all_users_same_format = true;
-            auto input_user_layout_format = input.get_users().front()->get_output_layout().format;
-            for (auto const& user : input.get_users()) {
-                if (user->get_output_layout().format != input_user_layout_format) {
-                    all_users_same_format = false;
-                    break;
-                }
-            }
-            auto same_data_type = input.get_output_layout().data_type == output_layout.data_type;
-            // Optimization only available in case of layers that support different input and output formats.
-            // todo: new api needs to be created to read such caps
-            if (!(input.is_type<pooling>() &&
-                  (output_layout.format == format::bfyx || output_layout.format == format::yxfb ||
-                   output_layout.format == format::byxf) &&
-                  input.get_output_layout().format != format::fs_b_yx_fsv32 &&
-                  input.get_output_layout().format != format::bfyx_f16 && all_users_same_format && same_data_type) &&
-                !remove_bf8_xy_opt &&
-                !(input.is_type<convolution>() && (input.get_output_layout().format == format::bf8_xy16)) &&
-                !(input.is_type<eltwise>() &&
-                  (output_layout.format == format::bfyx || output_layout.format == format::yxfb ||
-                   output_layout.format == format::byxf) &&
-                  input.get_output_layout().format != format::fs_b_yx_fsv32 &&
-                  input.get_output_layout().format != format::bfyx_f16 && all_users_same_format && same_data_type) &&
-                !(remove_byxf_opt &&
-                  (node.get_users().front()->is_type<eltwise>() || node.get_users().front()->is_type<pooling>()) &&
-                  output_layout.format != format::fs_b_yx_fsv32) &&
-                !(remove_bfyx_to_blocked))
-                return;
-
-            if (remove_bf8_xy_opt) {
-                auto users_user_layout = node.get_users().front()->get_users().front()->get_output_layout();
-                // if users_user_layout is still bf8_yx16 (stacked convolutions) then leave the reorder
-                if (users_user_layout.format == format::bf8_xy16)
-                    return;
-                auto input_layout = input.get_output_layout();
-                auto target_layout = layout(input_layout.data_type,
-                                            users_user_layout.format,
-                                            input_layout.size,
-                                            input_layout.data_padding);
-                input.set_output_layout(target_layout, false);
-            } else if (remove_byxf_opt) {
-                for (auto user : node.get_users()) {
-                    auto users_users = user->get_users();
-
-                    for (auto const& users_user : users_users) {
-                        if (users_user->get_output_layout().format != format::byxf && !users_user->is_type<eltwise>()) {
-                            remove_byxf_opt = false;
-                            return;
-                        }
-                    }
-                }
-
-                for (auto user : node.get_users()) {
-                    if (remove_byxf_opt) {
-                        auto input_layout = input.get_output_layout();
-                        user->set_output_layout(input_layout, false);
-                    }
-                }
-            } else if (remove_bfyx_to_blocked) {
-                auto& conv_node = blocked_conv_reorder ? input : *(input.get_dependencies().front());
-                auto original_layout = conv_node.get_output_layout();
-                auto output_format = output_layout.format;
-                // Change convolution output layout since it can handle bfyx -> blocked format change
-                auto target_layout = layout(original_layout.data_type,
-                                            output_format,
-                                            original_layout.size,
-                                            original_layout.data_padding);
-
-                if (blocked_conv_pool_reorder) {
-                    input.set_output_padding(output_layout.data_padding);
-                } else {
-                    target_layout.data_padding = output_layout.data_padding;
-                }
-
-                conv_node.set_output_layout(target_layout);
-            } else {
-                input.set_output_layout(output_layout, false);
-            }
-            node.can_be_optimized(true);
-            p.extract_and_remove(node);  // try to remove redundant reorders
         });
     }
 }

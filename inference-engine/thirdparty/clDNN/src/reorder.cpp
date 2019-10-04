@@ -25,7 +25,7 @@
 
 namespace cldnn {
 
-primitive_type_id reorder_type_id() {
+primitive_type_id reorder::type_id() {
     static primitive_type_base<reorder> instance;
     return &instance;
 }
@@ -37,6 +37,10 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
     auto odt = *node.get_primitive()->output_data_type;
     auto ofmt = node.get_primitive()->output_format;
     auto op = node.get_primitive()->output_padding;
+
+    if (ofmt == format::any) {
+        ofmt = ifmt;
+    }
 
     if (ofmt.is_winograd() && ifmt.is_winograd()) {
         if (ofmt == ifmt)
@@ -151,7 +155,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
     }
 
     if (ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::bs_xs_xsv8_bsv16 || ofmt == format::bs_x_bsv16 ||
-        ofmt == format::bfzyx || ifmt == format::bfzyx) {
+        ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::bfzyx_f16 || ifmt == format::bfzyx_f16) {
         return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
     } else if (ofmt != ifmt && (ofmt == format::bfwzyx || ifmt == format::bfwzyx)) {
         // TODO Shouldn't transform be called every time ifmt != ofmt?

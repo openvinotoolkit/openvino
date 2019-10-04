@@ -13,10 +13,16 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+import importlib
 import logging as log
 import os
 import re
+
+# WA for abseil bug that affects logging while importing TF starting 1.14 version
+# Link to original issue: https://github.com/abseil/abseil-py/issues/99
+if importlib.util.find_spec('absl') is not None:
+    import absl.logging
+    log.root.removeHandler(absl.logging._absl_handler)
 
 handler_num = 0
 
@@ -77,3 +83,16 @@ def init_logger(lvl: str, silent: bool):
     if handler_num == 0:
         logger.addHandler(handler)
         handler_num += 1
+
+
+def log_step(flag, step):
+    messages = {
+        'LOAD': 'Model loading step',
+        'FRONT': 'Front phase execution step',
+        'MIDDLE': 'Middle phase execution step',
+        'BACK': 'Back phase execution step',
+        'EMIT': 'IR emitting step',
+    }
+    if flag:
+        assert step in messages.keys()
+        print('[ INFO ] {}'.format(messages[step]))

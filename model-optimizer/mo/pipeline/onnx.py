@@ -48,10 +48,12 @@ from mo.pipeline.common import prepare_emit_ir
 from mo.utils import class_registration
 from mo.utils.cli_parser import get_meta_info
 from mo.utils.error import Error
+from mo.utils.logger import log_step
 from mo.utils.utils import refer_to_faq_msg
 
 
 def driver(argv: argparse.Namespace, model_file_name: str, output_model_name: str, output_dir: str):
+    log_step(argv.steps, 'LOAD')
     meta_info = get_meta_info(argv)
 
     model_proto = load_onnx_model(model_file_name)
@@ -92,7 +94,9 @@ def driver(argv: argparse.Namespace, model_file_name: str, output_model_name: st
     extract_node_attrs(graph, lambda node: onnx_op_extractor(node, check_for_duplicates(onnx_op_extractors)))
 
     # --------------------------------- LOAD END ------------------------------------------------------
+    log_step(argv.steps, 'FRONT')
     class_registration.apply_replacements(graph, class_registration.ClassType.FRONT_REPLACER)
+    log_step(argv.steps, 'MIDDLE')
     class_registration.apply_replacements(graph, class_registration.ClassType.MIDDLE_REPLACER)
 
     fuse_pad(graph)
@@ -164,6 +168,8 @@ def driver(argv: argparse.Namespace, model_file_name: str, output_model_name: st
     permute_op_nodes_attrs(graph)
 
     graph_clean_up_onnx(graph)
+
+    log_step(argv.steps, 'BACK')
     class_registration.apply_replacements(graph, class_registration.ClassType.BACK_REPLACER)
 
     for_graph_and_each_sub_graph_recursively(graph, remove_const_ops)
@@ -172,6 +178,7 @@ def driver(argv: argparse.Namespace, model_file_name: str, output_model_name: st
 
     for_graph_and_each_sub_graph_recursively(graph, remove_output_ops)
 
+    log_step(argv.steps, 'EMIT')
     prepare_emit_ir(graph=graph, data_type=argv.data_type, output_dir=output_dir, output_model_name=output_model_name,
                     meta_info=meta_info)
 

@@ -84,23 +84,21 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = reduce_gpu::create;
-        implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-        implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-        implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
-        implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
-        implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
-        implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), val_fw);
-        implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
-        implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
-        implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfwzyx), val_fw);
-    }
-    ~attach() = default;
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_reduce_gpu::attach_reduce_gpu() {
+    auto val_fw = reduce_gpu::create;
+    implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
+    implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), val_fw);
+    implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
+    implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
+    implementation_map<reduce>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfwzyx), val_fw);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

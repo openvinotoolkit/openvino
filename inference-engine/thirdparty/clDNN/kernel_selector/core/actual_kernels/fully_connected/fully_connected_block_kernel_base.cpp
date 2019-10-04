@@ -14,8 +14,20 @@
 
 
 #include "fully_connected_block_kernel_base.h"
+#include <algorithm>
 
 namespace kernel_selector {
+
+    size_t FullyConnectedBlockKernelBase::GetBatchesPerWorkItem(const fully_connected_params& params) const {
+        auto batchSize = params.output.Batch().v;
+        return std::min(batchSize, static_cast<size_t>(32U));
+    }
+
+    size_t FullyConnectedBlockKernelBase::GetLocalGroupsSize(const fully_connected_params& params) const {
+        auto batchSize = params.output.Batch().v;
+        return std::max(static_cast<size_t>(1U), batchSize / GetBatchesPerWorkItem(params));
+    }
+
 JitConstants FullyConnectedBlockKernelBase::GetJitConstants(
     const fully_connected_params& params,
     const FullyConnectedBlockKernelBase::DispatchData& data) const {

@@ -32,4 +32,3 @@ if (ENABLE_OPENCV)
 endif()
 
 add_subdirectory(vpu)
-

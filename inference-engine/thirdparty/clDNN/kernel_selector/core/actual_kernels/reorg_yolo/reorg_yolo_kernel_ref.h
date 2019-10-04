@@ -24,7 +24,7 @@ namespace kernel_selector {
 // reorg_yolo_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct reorg_yolo_params : public base_params {
-    reorg_yolo_params() : base_params(KernelType::REORG_YOLO) {}
+    reorg_yolo_params() : base_params(KernelType::REORG_YOLO), stride(0) {}
 
     uint32_t stride;
 

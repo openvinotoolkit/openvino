@@ -21,7 +21,7 @@
 #include <array>
 #include <algorithm>
 #include <type_traits>
-#include "api/CPP/layout.hpp"
+#include "api/layout.hpp"
 #include <string>
 #include <utility>
 

@@ -16,22 +16,20 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/embed.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/tensor.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
-#include <api/CPP/data.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/embed.hpp"
+#include <api/topology.hpp>
+#include <api/tensor.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
+#include <api/data.hpp>
 #include "test_utils/test_utils.h"
-
 
 #include <cmath>
 
 using namespace cldnn;
 using namespace tests;
-
 
 TEST(embed_gpu, seq3num4) {
     //  Input  : 1x1x1x3

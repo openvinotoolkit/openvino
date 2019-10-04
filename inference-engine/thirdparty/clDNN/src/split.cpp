@@ -22,7 +22,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id split_type_id() {
+primitive_type_id split::type_id() {
     static primitive_type_base<split> instance;
     return &instance;
 }

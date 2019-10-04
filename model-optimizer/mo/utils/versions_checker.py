@@ -44,7 +44,40 @@ def check_python_version():
         return 1
 
 
-def get_module_version_list_from_file(file_name):
+def parse_versions_list(required_fw_versions: str, version_list: list()):
+    """
+    Parsing requirements versions
+    :param required_fw_versions: String with fw versions from requirements file
+    :param version_list: List for append
+    :return: list of tuples of strings like (name_of_module, sign, version)
+
+    Returned object is:
+    [('tensorflow', '>=', '1.2.0'), ('networkx', '==', '2.1'), ('numpy', None, None)]
+    """
+
+    line = required_fw_versions.strip('\n')
+    line = line.strip(' ')
+    if line == '':
+        return []
+    splited_versions_by_conditions = re.split(r"==|>=|<=|>|<", line)
+    splited_versions_by_conditions = [l.strip(',') for l in splited_versions_by_conditions]
+
+    if len(splited_versions_by_conditions) == 0:
+        return []
+    if len(splited_versions_by_conditions) == 1:
+        version_list.append((splited_versions_by_conditions[0], None, None))
+    else:
+        splited_required_versions= re.split(r",", line)
+        for i, l in enumerate(splited_required_versions):
+            comparisons = ['==', '>=', '<=', '<', '>']
+            for comparison in comparisons:
+                if comparison in l:
+                    version_list.append((splited_versions_by_conditions[0], comparison, splited_versions_by_conditions[i + 1]))
+                    break
+    return version_list
+
+
+def get_module_version_list_from_file(file_name: str):
     """
     Please do not add parameter type annotations (param:type).
     Because we import this file while checking Python version.
@@ -65,25 +98,7 @@ def get_module_version_list_from_file(file_name):
     req_dict = list()
     with open(file_name) as f:
         for line in f:
-            line = line.strip('\n')
-            line = line.strip(' ')
-            if line == '':
-                continue
-            splited_line = re.split(r"==|>=|<=|>|<", line)
-            splited_line = [l.strip(',') for l in splited_line]
-            if len(splited_line) == 1:
-                req_dict.append((splited_line[0], None, None))
-            else:
-                if '==' in line:
-                    req_dict.append((splited_line[0], '==', splited_line[1]))
-                elif '>=' in line:
-                    req_dict.append((splited_line[0], '>=', splited_line[1]))
-                elif '<=' in line:
-                    req_dict.append((splited_line[0], '<=', splited_line[1]))
-                elif '<' in line:
-                    req_dict.append((splited_line[0], '<', splited_line[1]))
-                elif '>' in line:
-                    req_dict.append((splited_line[0], '>', splited_line[1]))
+            req_dict = parse_versions_list(line, req_dict)
     return req_dict
 
 

@@ -8,6 +8,7 @@
 #include <string>
 #include <set>
 #include <vector>
+#include <utility>
 
 #include <vpu/compile_env.hpp>
 
@@ -23,12 +24,10 @@ protected:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+            ScalePropagationStep step,
+            StageDataInfo<float>& scaleInfo) override {
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         auto inputScale = inputScales[0];
 
@@ -36,12 +35,12 @@ protected:
             IE_ASSERT(output->usage() == DataUsage::Output);
             IE_ASSERT(step == ScalePropagationStep::Propagate);
 
-            _scaleInfo.setInput(_inputEdges[0], 1.0f);
-            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
+            scaleInfo.setInput(inputEdge(0), 1.0f);
+            scaleInfo.setOutput(outputEdge(0), 1.0f);
         } else {
             IE_ASSERT(input->usage() == DataUsage::Input);
 
-            _scaleInfo.setOutput(_outputEdges[0], inputScale);
+            scaleInfo.setOutput(outputEdge(0), inputScale);
 
             if (step == ScalePropagationStep::ScaleInput) {
                 attrs().get<float>("scale") *= inputScale;
@@ -50,40 +49,34 @@ protected:
         }
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         if (_type == StageType::Convert_f16f32) {
-            IE_ASSERT(output->usage() == DataUsage::Output);
+            IE_ASSERT(output->usage() == DataUsage::Output || output->usage() == DataUsage::Intermediate);
 
             auto outDimsOrder = output->desc().dimsOrder();
 
             // HCW is not supported
             IE_ASSERT(outDimsOrder.dimInd(Dim::C) != 1);
 
-            _orderInfo.setInput(_inputEdges[0], outDimsOrder);
+            orderInfo.setInput(inputEdge(0), outDimsOrder);
         } else {
-            IE_ASSERT(input->usage() == DataUsage::Input);
+            IE_ASSERT(input->usage() == DataUsage::Input || input->usage() == DataUsage::Intermediate);
 
             auto inDimsOrder = input->desc().dimsOrder();
 
             // HCW is not supported
             IE_ASSERT(inDimsOrder.dimInd(Dim::C) != 1);
 
-            _orderInfo.setOutput(_outputEdges[0], inDimsOrder);
+            orderInfo.setOutput(outputEdge(0), inDimsOrder);
         }
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         auto inDimsOrder = input->desc().dimsOrder();
 
@@ -95,22 +88,22 @@ protected:
         }
 
         if (_type == StageType::Convert_f16f32) {
-            IE_ASSERT(output->usage() == DataUsage::Output);
+            IE_ASSERT(output->usage() == DataUsage::Output || output->usage() == DataUsage::Intermediate);
 
-            _stridesInfo.setInput(_inputEdges[0], reqs);
-            _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
+            stridesInfo.setInput(inputEdge(0), reqs);
+            stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
         } else {
-            IE_ASSERT(input->usage() == DataUsage::Input);
+            IE_ASSERT(input->usage() == DataUsage::Input || input->usage() == DataUsage::Intermediate);
 
-            _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
-            _stridesInfo.setOutput(_outputEdges[0], reqs);
+            stridesInfo.setInput(inputEdge(0), StridesRequirement::compact());
+            stridesInfo.setOutput(outputEdge(0), reqs);
         }
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
         // Convert will support batch by merging it with previous dimension.
     }
 
@@ -119,7 +112,22 @@ protected:
         return StageSHAVEsRequirements::TwoOrOne;
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        const auto expectedTypes = EnumMap<StageType, std::pair<DataType, DataType>>{
+            {StageType::Convert_u8f16, {DataType::U8, DataType::FP16}},
+            {StageType::Convert_f16f32, {DataType::FP16, DataType::FP32}},
+            {StageType::Convert_f32f16, {DataType::FP32, DataType::FP16}},
+        };
+
+        auto match = expectedTypes.find(_type);
+        if (match == expectedTypes.end()) {
+            VPU_THROW_EXCEPTION << "unknown type";
+        }
+        const auto& types = match->second;
+
+        const auto& srcType = types.first;
+        const auto& dstType = types.second;
+        assertInputsOutputsTypes(this, {{srcType}}, {{dstType}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -135,12 +143,8 @@ protected:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         if (input->desc().dimsOrder() == DimsOrder::NC) {
             input->serializeOldBuffer(
@@ -230,46 +234,14 @@ void FrontEnd::addDataTypeConvertStages(const Model::Ptr& model) {
         env.log->warning("[VPU] GraphTransformer : INPUT_BIAS option is deprecated");
     }
 
+    const bool hasScaleBias = env.config.inputScale != 1.0f || env.config.inputBias != 0.0f;
     for (const auto& input : model->datas()) {
         if (input->usage() != DataUsage::Input)
             continue;
 
-        if (input->desc().type() != DataType::FP16) {
-            env.log->debug("convert input %s to FP16", input->name());
+        const auto& type = input->desc().type();
 
-            auto fp16Desc = input->desc();
-            fp16Desc.setType(DataType::FP16);
-
-            auto inputFP16 = model->duplicateData(
-                input,
-                "@FP16",
-                fp16Desc);
-
-            input->attrs().set<Data>("fp16_copy", inputFP16);
-
-            bindData(inputFP16, input->origData());
-
-            auto stageType = StageType::None;
-            switch (input->desc().type()) {
-            case DataType::U8:
-                stageType = StageType::Convert_u8f16;
-                break;
-            case DataType::FP32:
-                stageType = StageType::Convert_f32f16;
-                break;
-            default:
-                VPU_THROW_EXCEPTION << "Unsupported input data type : " << input->desc().type();
-            }
-
-            _stageBuilder->createConvertStage(
-                model,
-                inputFP16->name(),
-                input,
-                inputFP16,
-                stageType,
-                env.config.inputScale,
-                env.config.inputBias);
-        } else if (env.config.inputScale != 1.0f || env.config.inputBias != 0.0f) {
+        if (type == DataType::FP16 && hasScaleBias) {
             std::ostringstream postfixOstr;
             if (env.config.inputScale != 1.0f) {
                 postfixOstr << "@SCALE=" << std::to_string(env.config.inputScale);
@@ -281,57 +253,99 @@ void FrontEnd::addDataTypeConvertStages(const Model::Ptr& model) {
             auto postfix = postfixOstr.str();
 
             auto scaledInput = model->duplicateData(
-                input,
-                postfix);
+                    input,
+                    postfix);
 
             bindData(scaledInput, input->origData());
 
             _stageBuilder->addPowerStage(
-                model,
-                scaledInput->name(),
-                nullptr,
-                env.config.inputScale,
-                1.0f,
-                env.config.inputBias,
-                input,
-                scaledInput);
+                    model,
+                    scaledInput->name(),
+                    nullptr,
+                    env.config.inputScale,
+                    1.0f,
+                    env.config.inputBias,
+                    input,
+                    scaledInput);
         }
+
+        if (type != DataType::FP32 && type != DataType::U8) {
+            continue;
+        }
+
+        env.log->debug("convert input %s to FP16", input->name());
+
+        auto fp16Desc = input->desc();
+        fp16Desc.setType(DataType::FP16);
+
+        auto inputFP16 = model->duplicateData(
+                input,
+                "@FP16",
+                fp16Desc);
+
+        input->attrs().set<Data>("fp16_copy", inputFP16);
+
+        bindData(inputFP16, input->origData());
+
+        auto stageType = StageType::None;
+        switch (input->desc().type()) {
+            case DataType::U8:
+                stageType = StageType::Convert_u8f16;
+                break;
+            case DataType::FP32:
+                stageType = StageType::Convert_f32f16;
+                break;
+            default:
+                VPU_THROW_EXCEPTION << "Unsupported input data type : " << input->desc().type();
+        }
+
+        _stageBuilder->createConvertStage(
+                model,
+                inputFP16->name(),
+                input,
+                inputFP16,
+                stageType,
+                env.config.inputScale,
+                env.config.inputBias);
     }
 
     for (const auto& output : model->datas()) {
         if (output->usage() != DataUsage::Output)
             continue;
 
-        if (output->desc().type() != DataType::FP16) {
-            env.log->debug("convert output %s from FP16", output->name());
-
-            IE_ASSERT(output->desc().type() == DataType::FP32);
-
-            auto fp16Desc = output->desc();
-            fp16Desc.setType(DataType::FP16);
-
-            auto outputFP16 = model->duplicateData(
-                output,
-                "@FP16",
-                fp16Desc);
-
-            output->attrs().set<Data>("fp16_copy", outputFP16);
-
-            bindData(outputFP16, output->origData());
-
-            auto stage = _stageBuilder->createConvertStage(
-                model,
-                outputFP16->name(),
-                outputFP16,
-                output,
-                StageType::Convert_f16f32);
-
-            auto withDetectionOutput = model->attrs().getOrDefault<bool>("withDetectionOutput", false);
-            stage->attrs().set<bool>("convertFromDetOutput", withDetectionOutput);
-
-            auto haveBatch = _unbatchedOutputs.count(output->origData()) == 0;
-            stage->attrs().set<bool>("haveBatch", haveBatch);
+        const auto& actualType = output->desc().type();
+        if (actualType != DataType::FP32) {
+            // Output datas keep their precision (intermeadiate have been forced to FP16 in case of FP32 from IR).
+            // If FP32 output has been requested VPU executes in FP16 with following convert FP16 -> FP32
+            continue;
         }
+
+        env.log->debug("convert output %s from FP16", output->name());
+
+        auto fp16Desc = output->desc();
+        fp16Desc.setType(DataType::FP16);
+
+        auto outputFP16 = model->duplicateData(
+            output,
+            "@FP16",
+            fp16Desc);
+
+        output->attrs().set<Data>("fp16_copy", outputFP16);
+
+        bindData(outputFP16, output->origData());
+
+        auto stage = _stageBuilder->createConvertStage(
+            model,
+            outputFP16->name(),
+            outputFP16,
+            output,
+            StageType::Convert_f16f32);
+
+        auto withDetectionOutput = model->attrs().getOrDefault<bool>("withDetectionOutput", false);
+        stage->attrs().set<bool>("convertFromDetOutput", withDetectionOutput);
+
+        auto haveBatch = _unbatchedOutputs.count(output->origData()) == 0;
+        stage->attrs().set<bool>("haveBatch", haveBatch);
     }
 }
 

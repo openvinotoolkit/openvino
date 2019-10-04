@@ -18,7 +18,9 @@ import logging as log
 import numpy as np
 
 from extensions.back.CreateConstNodes import CreateConstNodesReplacement
+from extensions.back.CutMemory import CutMemory
 from extensions.back.ElementwiseOpsToEltwiseOps import DivideToEltwises, SubtractToEltwises, SimpleEltwiseToEltwiseOp
+from extensions.back.ForceStrictPrecision import ForceStrictPrecision
 from extensions.back.LeakyReluToReluWithNegativeSlope import LeakyReluToReluWithNegativeSlope
 from extensions.back.ParameterToPlaceholder import ParameterToInput
 from extensions.back.TransposeToPermute import TransposeToPermute
@@ -28,10 +30,13 @@ from extensions.front.kaldi.eliminate_redundant_reshape import EliminateRedundan
 from extensions.front.kaldi.fuse_repeated_reshape import FuseRepeatedReshapes
 from extensions.front.kaldi.replace_lstm_node_pattern import ReplaceLSTMNodePattern
 from extensions.middle.EltwiseChecker import EltwiseChecker
-from extensions.middle.RemoveDuplicationMemory import RemoveMemoryDuplicationPattern
+from extensions.middle.InsertSelect import AddSelectBeforeMemoryNodePattern
+from extensions.middle.RemoveDuplicationMemory import RemoveMemoryDuplicationPattern, MergeNeighborSplicePattern
 from extensions.middle.RemoveIdentity import RemoveIdentity
 from extensions.middle.RemoveUselessCrops import RemoveUselessCropsPattern
-from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetNodePattern, ReplaceMemoryOffsetWithMemoryNodePattern
+from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetNodePattern, \
+    ReplaceMemoryOffsetWithMemoryNodePattern
+from extensions.middle.ReplacePNorm import ReplacePNormNodePattern
 from extensions.middle.ReplaceSpliceNodePattern import ReplaceSpliceNodePattern
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
 from mo.front.extractor import extract_node_attrs, remove_output_ops
@@ -47,6 +52,7 @@ from mo.utils import class_registration
 from mo.utils.cli_parser import get_meta_info
 from mo.utils.error import Error
 from mo.utils.find_inputs import find_outputs
+from mo.utils.logger import log_step
 from mo.utils.utils import refer_to_faq_msg
 
 
@@ -113,14 +119,15 @@ def apply_biases_to_last_layer(graph, counts):
 
 
 def driver(argv, input_model, output_model_name, output_dir):
+    log_step(argv.steps, 'LOAD')
     meta_info = get_meta_info(argv)
 
     EltwiseChecker.enabled = False
 
     try:
-        graph, input_shapes = load_kaldi_model(input_model)
+        graph = load_kaldi_model(input_model)
     except Exception as e:
-        raise Error('Model Optimizer is not able to read Kaldi model {}. '.format(input_model) +
+        raise Error('Model Optimizer is not able to parse Kaldi model {}. '.format(input_model) +
                     refer_to_faq_msg(91)) from e
     graph.check_empty_graph('load_kaldi_nnet_model')
     graph.graph['cmd_params'] = argv
@@ -136,17 +143,22 @@ def driver(argv, input_model, output_model_name, output_dir):
     extract_node_attrs(graph, lambda node: kaldi_extractor(node))
 
     # --------------------------------- LOAD END ------------------------------------------------------
+    log_step(argv.steps, 'FRONT')
     ReplaceLSTMNodePattern().find_and_replace_pattern(graph)
     class_registration.apply_replacements(graph, class_registration.ClassType.FRONT_REPLACER)
-
+    log_step(argv.steps, 'MIDDLE')
     graph = partial_infer(graph)
 
+    ReplacePNormNodePattern().find_and_replace_pattern(graph)
     ReplaceMemoryOffsetNodePattern().find_and_replace_pattern(graph)
     ReplaceMemoryOffsetWithMemoryNodePattern().find_and_replace_pattern(graph)
     RemoveMemoryDuplicationPattern().find_and_replace_pattern(graph)
+    MergeNeighborSplicePattern().find_and_replace_pattern(graph)
     RemoveUselessCropsPattern().find_and_replace_pattern(graph)
     RemoveIdentity().find_and_replace_pattern(graph)
     graph_clean_up(graph)
+
+    AddSelectBeforeMemoryNodePattern().find_and_replace_pattern(graph)
 
     ReplaceSpliceNodePattern().find_and_replace_pattern(graph)
     graph_clean_up(graph)
@@ -171,7 +183,7 @@ def driver(argv, input_model, output_model_name, output_dir):
         log.debug("After removing softmax")
         graph.print_graph_stat()
 
-    ParameterToInput().find_and_replace_pattern(graph)
+    log_step(argv.steps, 'BACK')
     LeakyReluToReluWithNegativeSlope().find_and_replace_pattern(graph)
     TransposeToPermute().find_and_replace_pattern(graph)
     DivideToEltwises().find_and_replace_pattern(graph)
@@ -180,10 +192,17 @@ def driver(argv, input_model, output_model_name, output_dir):
     for_graph_and_each_sub_graph_recursively(graph, convert_matmul_to_fully_connected)
 
     # Intentionally after all transformations
+    if argv.remove_memory:
+        CutMemory().find_and_replace_pattern(graph)
+        graph_clean_up(graph)
+    ParameterToInput().find_and_replace_pattern(graph)
+
     KaldiRemoveMemoryOutputBackReplacementPattern().find_and_replace_pattern(graph)
+    ForceStrictPrecision().find_and_replace_pattern(graph)
     remove_const_ops(graph)
     CreateConstNodesReplacement().find_and_replace_pattern(graph)
 
     remove_output_ops(graph)
+    log_step(argv.steps, 'EMIT')
     prepare_emit_ir(graph, argv.data_type, output_dir, output_model_name, meta_info=meta_info)
     return 0

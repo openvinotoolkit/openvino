@@ -1,17 +1,5 @@
-//
-// Copyright 2019 Intel Corporation.
-//
-// This software and the related documents are Intel copyrighted materials,
-// and your use of them is governed by the express license under which they
-// were provided to you (End User License Agreement for the Intel(R) Software
-// Development Products (Version May 2017)). Unless the License provides
-// otherwise, you may not use, modify, copy, publish, distribute, disclose or
-// transmit this software or the related documents without Intel's prior
-// written permission.
-//
-// This software and the related documents are provided as is, with no
-// express or implied warranties, other than those that are expressly
-// stated in the License.
+// Copyright (C) 2018-2019 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/frontend/frontend.hpp>
@@ -55,69 +43,60 @@ protected:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        if (step == ScalePropagationStep::Propagate) {
-            _scaleInfo.setOutput(_outputEdges[0], inputScales[0]);
-        } else {
-            // Gather can only propagate scaling.
-            for (const auto& inEdge : _inputEdges) {
-                _scaleInfo.setInput(inEdge, 1.0f);
-            }
-            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
-        }
+            ScalePropagationStep step,
+            StageDataInfo<float>& scaleInfo) override {
+         if (step == ScalePropagationStep::Propagate) {
+             scaleInfo.setOutput(outputEdge(0), inputScales[0]);
+         } else {
+             // Gather can only propagate scaling.
+             for (const auto& inEdge : inputEdges()) {
+                 scaleInfo.setInput(inEdge, 1.0f);
+             }
+             scaleInfo.setOutput(outputEdge(0), 1.0f);
+         }
     }
 
-    void propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        for (const auto& inEdge : _inputEdges) {
-            _stridesInfo.setInput(inEdge, StridesRequirement::compact());
-        }
-        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+         for (const auto& inEdge : inputEdges()) {
+             stridesInfo.setInput(inEdge, StridesRequirement::compact());
+         }
+         stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
         return StageSHAVEsRequirements::NotNeeded;
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
+         auto input = inputEdge(0)->input();
 
-        auto input = _inputEdges[0]->input();
+         auto axis = attrs().get<Dim>("axis");
+         auto axisInd = input->desc().dimsOrder().dimInd(axis);
 
-        auto axis = attrs().get<Dim>("axis");
-        auto axisInd = input->desc().dimsOrder().dimInd(axis);
-
-        serializer.append(static_cast<int>(axisInd));
+         serializer.append(static_cast<int>(axisInd));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
+         auto input0 = inputEdge(0)->input();
+         auto input1 = inputEdge(1)->input();
+         auto output = outputEdge(0)->output();
 
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
-
-        input0->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
-        input1->serializeNewBuffer(serializer);
+         input0->serializeNewBuffer(serializer);
+         output->serializeNewBuffer(serializer);
+         input1->serializeNewBuffer(serializer);
     }
 };
 

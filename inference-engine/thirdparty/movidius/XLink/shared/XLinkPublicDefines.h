@@ -62,8 +62,7 @@ typedef enum{
 typedef uint32_t streamId_t;
 typedef uint8_t linkId_t;
 
-typedef struct deviceDesc_t
-{
+typedef struct {
     XLinkProtocol_t protocol;
     XLinkPlatform_t platform;
     char name[XLINK_MAX_NAME_SIZE];
@@ -73,7 +72,6 @@ typedef struct streamPacketDesc_t
 {
     uint8_t* data;
     uint32_t length;
-
 } streamPacketDesc_t;
 
 typedef struct XLinkProf_t
@@ -90,15 +88,33 @@ typedef struct XLinkGlobalHandler_t
 {
     int profEnable;
     XLinkProf_t profilingData;
+
+    //Deprecated fields. Begin.
+    int loglevel;
+    int protocol;
+    //Deprecated fields. End.
 } XLinkGlobalHandler_t;
 
 typedef struct
 {
     char* devicePath;
     char* devicePath2;
-    linkId_t linkId;
+    int linkId;
     XLinkProtocol_t protocol;
 } XLinkHandler_t;
+
+
+//Deprecated defines. Begin.
+
+typedef enum{
+    USB_VSC = 0,
+    USB_CDC,
+    PCIE,
+    IPC,
+    NMB_OF_PROTOCOLS
+} XLinkProtocol_deprecated_t;
+
+//Deprecated defines. End.
 
 #ifdef __cplusplus
 }

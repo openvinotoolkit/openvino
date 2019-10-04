@@ -35,9 +35,7 @@ ie::CNNNetwork FrontEnd::detectNetworkBatch(
     if (batchSize == 1 || !env.config.detectBatch) {
         env.log->debug("Keep original network");
 
-        IE_SUPPRESS_DEPRECATED_START
-        return ie::CNNNetwork(const_cast<ie::ICNNNetwork*>(&origNetwork));
-        IE_SUPPRESS_DEPRECATED_END
+        return ie::CNNNetwork(ie::ICNNNetwork::Ptr(const_cast<ie::ICNNNetwork*>(&origNetwork), [](void *) {}));
     }
 
     model->setBatchSize(batchSize);
@@ -72,16 +70,16 @@ ie::CNNNetwork FrontEnd::detectNetworkBatch(
         env.log->debug("Input [%s] : %v", p.first, ieShapes);
 
         switch (ieData->getLayout()) {
-            case ie::Layout::NCHW:
-            case ie::Layout::NHWC:
-            case ie::Layout::NC:
-                ieShapes[0] = 1;
-                break;
-            case ie::Layout::CN:
-                ieShapes[1] = 1;
-                break;
-            default:
-                VPU_THROW_EXCEPTION << "Unexpected input layout : " << ieData->getLayout();
+        case ie::Layout::NCDHW:
+        case ie::Layout::NDHWC:
+        case ie::Layout::NCHW:
+        case ie::Layout::NHWC:
+        case ie::Layout::NC:
+        case ie::Layout::CN:
+            ieShapes[0] = 1;
+            break;
+        default:
+            VPU_THROW_EXCEPTION << "Unexpected input layout : " << ieData->getLayout();
         }
 
         inputShapes[ieData->getName()] = ieShapes;

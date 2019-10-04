@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/input_layout.hpp"
+#include "api/input_layout.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>

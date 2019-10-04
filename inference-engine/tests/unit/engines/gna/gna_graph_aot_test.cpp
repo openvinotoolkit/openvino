@@ -30,7 +30,7 @@ class GNAAOTTests : public GNATest {
     }
 };
 
-TEST_F(GNAAOTTests, AffineWith2AffineOutputs_canbe_export_imported) {
+TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_export_imported) {
 
     const std::string X = registerFileForRemove("unit_tests.bin");
 
@@ -44,7 +44,7 @@ TEST_F(GNAAOTTests, AffineWith2AffineOutputs_canbe_export_imported) {
 }
 
 
-TEST_F(GNAAOTTests, AffineWith2AffineOutputs_canbe_imported_verify_structure) {
+TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_imported_verify_structure) {
 
     auto & nnet_type = storage<intel_nnet_type_t>();
 

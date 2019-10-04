@@ -42,7 +42,7 @@ public:
     MOCK_QUALIFIED_METHOD1(setBatchSize, noexcept, StatusCode (const size_t size));
     MOCK_QUALIFIED_METHOD2(setBatchSize, noexcept, StatusCode (const size_t size, ResponseDesc*));
     MOCK_QUALIFIED_METHOD0(getBatchSize, const noexcept, size_t ());
-    MOCK_QUALIFIED_METHOD0(getStats, const noexcept, InferenceEngine::ICNNNetworkStats& ());
+    MOCK_QUALIFIED_METHOD2(getStats, const noexcept, InferenceEngine::StatusCode (InferenceEngine::ICNNNetworkStats** /*stats*/, InferenceEngine::ResponseDesc* /*resp*/));
     MOCK_QUALIFIED_METHOD0(Release, noexcept, void ());
     MOCK_QUALIFIED_METHOD1(getInputShapes, const noexcept, void (ICNNNetwork::InputShapes &));
     MOCK_QUALIFIED_METHOD2(reshape, noexcept, StatusCode (const ICNNNetwork::InputShapes &, ResponseDesc *));

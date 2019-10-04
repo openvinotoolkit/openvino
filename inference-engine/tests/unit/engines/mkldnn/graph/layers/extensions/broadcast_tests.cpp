@@ -19,6 +19,7 @@ using namespace std;
 using namespace mkldnn;
 
 struct broadcast_test_params {
+    std::string                 shape_precision;
     std::string                 precision;
     InferenceEngine::SizeVector in_shape;
     InferenceEngine::SizeVector out_shape;
@@ -33,6 +34,11 @@ void ref_broadcast(InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob<d
     const data_t *src_data = src.data();
     InferenceEngine::SizeVector src_dims = src.getTensorDesc().getDims();
     InferenceEngine::SizeVector srcStrides = src.getTensorDesc().getBlockingDesc().getStrides();
+
+    if (!src_dims.size())
+        src_dims = InferenceEngine::SizeVector(1, 1);
+    if (!srcStrides.size())
+        srcStrides = InferenceEngine::SizeVector(1, 1);
     data_t* dst_data = dst.data();
     InferenceEngine::SizeVector dst_dims = dst.getTensorDesc().getDims();
     InferenceEngine::SizeVector dstStrides = dst.getTensorDesc().getBlockingDesc().getStrides();
@@ -86,7 +92,7 @@ class MKLDNNCPUExtBroadcastTests : public TestsCommon, public WithParamInterface
                 </port>
             </output>
         </layer>
-        <layer name="shape" type="Input" precision="I32" id="2">
+        <layer name="shape" type="Input" precision="_ISDXP_" id="2">
             <output>
                 <port id="2">
                     <dim>_DIM_SIZE_</dim>
@@ -119,10 +125,11 @@ class MKLDNNCPUExtBroadcastTests : public TestsCommon, public WithParamInterface
 
     std::string getModel(broadcast_test_params p) {
         std::string model = model_t;
-        std::string in_shape;
+        std::string in_shape = "";
         std::string out_shape;
 
         REPLACE_WITH_STR(model, "_IIDXP_", p.precision);
+        REPLACE_WITH_STR(model, "_ISDXP_", p.shape_precision);
         for (size_t i = 0; i < p.in_shape.size(); i++) {
             in_shape += "<dim>";
             in_shape += std::to_string(p.in_shape[i]) + "</dim>\n";
@@ -166,20 +173,31 @@ protected:
             // Input Data
             InferenceEngine::Blob::Ptr dims;
             InferenceEngine::SizeVector vector_dim(1, p.out_shape.size());
-            dims = InferenceEngine::make_shared_blob<int32_t>({ InferenceEngine::Precision::I32, vector_dim, InferenceEngine::TensorDesc::getLayoutByDims(vector_dim) });
-            dims->allocate();
-            for (size_t i = 0; i < p.out_shape.size(); i++) {
-                static_cast<int32_t*>(dims->buffer())[i] = static_cast<int32_t>(p.out_shape[i]);
+            if (p.shape_precision == "I32") {
+                dims = InferenceEngine::make_shared_blob<int32_t>({ InferenceEngine::Precision::I32, vector_dim, InferenceEngine::TensorDesc::getLayoutByDims(vector_dim) });
+                dims->allocate();
+                for (size_t i = 0; i < p.out_shape.size(); i++) {
+                    static_cast<int32_t*>(dims->buffer())[i] = static_cast<int32_t>(p.out_shape[i]);
+                }
+                auto * dimsPtr = dynamic_cast<InferenceEngine::TBlob<int32_t>*>(dims.get());
+                if (dimsPtr == nullptr)
+                    FAIL() << "Cannot cast blob to TBlob<int32_t>.";
+            }  else if (p.shape_precision == "FP32") {
+                dims = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, vector_dim, InferenceEngine::TensorDesc::getLayoutByDims(vector_dim) });
+                dims->allocate();
+                for (size_t i = 0; i < p.out_shape.size(); i++) {
+                    static_cast<float*>(dims->buffer())[i] = static_cast<float>(p.out_shape[i]);
+                }
+                auto * dimsPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(dims.get());
+                if (dimsPtr == nullptr)
+                    FAIL() << "Cannot cast blob to TBlob<float>.";
             }
-            auto * dimsPtr = dynamic_cast<InferenceEngine::TBlob<int32_t>*>(dims.get());
-            if (dimsPtr == nullptr)
-                FAIL() << "Cannot cast blob to TBlob<int32_t>.";
 
             InferenceEngine::BlobMap srcs;
             InferenceEngine::Blob::Ptr src;
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
             if (p.precision == "I32") {
-                src = InferenceEngine::make_shared_blob<int32_t>({ InferenceEngine::Precision::I32, p.in_shape, InferenceEngine::TensorDesc::getLayoutByDims(p.in_shape) });
+                src = InferenceEngine::make_shared_blob<int32_t>({InferenceEngine::Precision::I32, p.in_shape, InferenceEngine::TensorDesc::getLayoutByDims(p.in_shape)});
                 src->allocate();
                 for (size_t i = 0; i < src->size(); i++)
                     static_cast<int32_t*>(src->buffer())[i] = static_cast<int32_t>(i);
@@ -207,9 +225,8 @@ protected:
                     if (dst_ref.data()[i] != (*output).data()[i])
                         FAIL() << "The difference between res_ptr[i] and ref_ptr[i]";
                 }
-            }
-            else if (p.precision == "FP32") {
-                src = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, p.in_shape, InferenceEngine::TensorDesc::getLayoutByDims(p.in_shape) });
+            } else if (p.precision == "FP32") {
+                src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, p.in_shape, InferenceEngine::TensorDesc::getLayoutByDims(p.in_shape)});
                 src->allocate();
                 fill_data_dbgval(src->buffer(), src->size());
                 auto * srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
@@ -249,17 +266,18 @@ TEST_P(MKLDNNCPUExtBroadcastTests, TestsBroadcast) {}
 INSTANTIATE_TEST_CASE_P(
     TestsBroadcast, MKLDNNCPUExtBroadcastTests,
     ::testing::Values(
-        // Params: precision, in_shape, out_shape
-        broadcast_test_params{ "I32", { 1 }, { 2, 3, 4 } },
-        broadcast_test_params{ "I32", { 4, 1, 2 }, { 4, 2, 2 } },
-        broadcast_test_params{ "I32", { 4, 2, 1 }, { 4, 2, 2 } },
-        broadcast_test_params{ "I32", { 4, 2 }, { 2, 4, 2 } },
-        broadcast_test_params{ "I32", { 4, 1, 1 }, { 4, 2, 1 } },
-        broadcast_test_params{ "I32", { 2, 1, 3, 1 },{ 2, 2, 2, 3, 1 } },
-        broadcast_test_params{"FP32", { 1 }, { 2, 3, 4 } },
-        broadcast_test_params{"FP32", { 4, 1, 2 }, { 4, 2, 2 } },
-        broadcast_test_params{"FP32", { 4, 2, 1 }, { 4, 2, 2 } },
-        broadcast_test_params{"FP32", { 4, 2 }, { 2, 4, 2 } },
-        broadcast_test_params{"FP32", { 4, 1, 1 }, { 4, 2, 1 } },
-        broadcast_test_params{"FP32", { 2, 1, 3, 1 },{ 2, 2, 2, 3, 1 } }
+        // Params: shape_precision, precision, in_shape, out_shape
+        broadcast_test_params{ "I32", "I32",{},{ 2, 3, 4 } },
+        broadcast_test_params{ "I32", "I32",{ 4, 1, 2 },{ 4, 2, 2 } },
+        broadcast_test_params{ "I32", "I32",{ 4, 2, 1 },{ 4, 2, 2 } },
+        broadcast_test_params{ "I32", "I32",{ 4, 2 },{ 2, 4, 2 } },
+        broadcast_test_params{ "I32", "I32",{ 4, 1, 1 },{ 4, 2, 1 } },
+        broadcast_test_params{ "I32", "I32",{ 2, 1, 3, 1 },{ 2, 2, 2, 3, 1 } },
+        broadcast_test_params{ "I32","FP32",{},{ 2, 3, 4 } },
+        broadcast_test_params{ "I32","FP32",{ 4, 1, 2 },{ 4, 2, 2 } },
+        broadcast_test_params{ "I32","FP32",{ 4, 2, 1 },{ 4, 2, 2 } },
+        broadcast_test_params{ "I32","FP32",{ 4, 2 },{ 2, 4, 2 } },
+        broadcast_test_params{ "I32","FP32",{ 4, 1, 1 },{ 4, 2, 1 } },
+        broadcast_test_params{ "I32","FP32", { 2, 1, 3, 1 },{ 2, 2, 2, 3, 1 } },
+        broadcast_test_params{"FP32","FP32",{ 2, 1, 3, 1 },{ 2, 2, 2, 3, 1 } }
 ));

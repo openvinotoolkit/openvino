@@ -12,6 +12,7 @@
 
 #include <vpu/utils/perf_report.hpp>
 #include <vpu/utils/ie_helpers.hpp>
+#include <vpu/utils/profiling.hpp>
 
 #include "myriad_executable_network.h"
 #include "myriad_infer_request.h"
@@ -35,23 +36,27 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
         _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
         _inputInfo(inputInfo), _outputInfo(outputInfo),
         _graphDesc(graphDesc) {
-    _deviceLayout = _config->compileConfig.hwOptimization ? NCHW : NHWC;
-    if (_config->compileConfig.forceLayout == ComputeLayout::NCHW)
-        _deviceLayout = NCHW;
-    if (_config->compileConfig.forceLayout == ComputeLayout::NHWC)
-        _deviceLayout = NHWC;
+    VPU_PROFILE(MyriadInferRequest);
+    _layoutPreference = _config->compileConfig.hwOptimization ?
+                            LayoutPreference::ChannelMajor :
+                            LayoutPreference::ChannelMinor;
+    if (_config->compileConfig.forceLayout == ComputeLayout::NCHW ||
+        _config->compileConfig.forceLayout == ComputeLayout::NCDHW)
+        _layoutPreference = LayoutPreference::ChannelMajor;
+    if (_config->compileConfig.forceLayout == ComputeLayout::NHWC ||
+        _config->compileConfig.forceLayout == ComputeLayout::NDHWC)
+        _layoutPreference = LayoutPreference::ChannelMinor;
+
+    const auto& ioStrides = _config->compileConfig.ioStrides;
     // allocate inputs
     for (auto &networkInput : _networkInputs) {
+        IE_ASSERT(ioStrides.find(networkInput.first) == ioStrides.end())
+            << " input blob with strides is not supported";
+
         SizeVector dims      = networkInput.second->getTensorDesc().getDims();
         Precision  precision = networkInput.second->getTensorDesc().getPrecision();
         Layout     layout    = networkInput.second->getTensorDesc().getLayout();
 
-        if (precision != Precision::FP32 &&
-            precision != Precision::FP16 &&
-            precision != Precision::U8) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported input precision: "
-                                   << precision << "! Supported precisions: FP32, FP16 and U8";
-        }
         Blob::Ptr inputBlob = make_blob_with_precision(TensorDesc(
             precision,
             dims,
@@ -64,15 +69,13 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
     }
     // allocate outputs
     for (auto &networkOutput : _networkOutputs) {
+        IE_ASSERT(ioStrides.find(networkOutput.first) == ioStrides.end())
+            << " output blob with strides is not supported";
+
         SizeVector dims      = networkOutput.second->getTensorDesc().getDims();
         Precision  precision = networkOutput.second->getTensorDesc().getPrecision();
         Layout     layout    = networkOutput.second->getTensorDesc().getLayout();
 
-        if (precision != Precision::FP32 &&
-            precision != Precision::FP16) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported output precision: "
-                                << precision << "! Supported precisions: FP32, FP16";
-        }
         Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(
             precision,
             dims,
@@ -97,19 +100,7 @@ void MyriadInferRequest::InferImpl() {
 }
 
 void MyriadInferRequest::InferAsync() {
-    for (auto input : _inputs) {
-        auto const inputBlobPtr = input.second;
-        if (inputBlobPtr->getTensorDesc().getPrecision() != Precision::FP16
-            && inputBlobPtr->getTensorDesc().getPrecision() != Precision::FP32
-            && inputBlobPtr->getTensorDesc().getPrecision() != Precision::U8)
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported input blob precision";
-    }
-    for (auto output : _outputs) {
-        auto const outputBlobPtr = output.second;
-        if (outputBlobPtr->getTensorDesc().getPrecision() != Precision::FP16
-            && outputBlobPtr->getTensorDesc().getPrecision() != Precision::FP32)
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported output blob precision";
-    }
+    VPU_PROFILE(InferAsync);
 
     // execute input pre-processing
     execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
@@ -124,14 +115,14 @@ void MyriadInferRequest::InferAsync() {
             auto inputBlob = input.second;
             size_t byteSize = inputBlob->byteSize();
             Layout layout = inputBlob->getTensorDesc().getLayout();
-            if (layout != _deviceLayout && (layout == NCHW || layout == NHWC)) {
-                // TODO copyBlob allocates new memory, but we already have allocated buffer of enough size
-                inputBlob = copyBlob(inputBlob, _deviceLayout);
+            Layout vpuLayout = deviceLayout(layout, _layoutPreference);
+            if (layout != vpuLayout) {
+                inputBlob = copyBlob(inputBlob, vpuLayout);
             }
 
             const auto input_offset_it = _inputInfo.offset.find(input.first);
             if (input_offset_it != _inputInfo.offset.end()) {
-                size_t required_buff_size = checked_cast<size_t>(input_offset_it->second) + byteSize;
+                size_t required_buff_size = vpu::checked_cast<size_t>(input_offset_it->second) + byteSize;
                 IE_ASSERT(required_buff_size <= inputBuffer.size());
                 MEMCPY(&inputBuffer[input_offset_it->second], inputBlob->buffer().as<uint8_t*>(), byteSize);
             }
@@ -146,9 +137,9 @@ void MyriadInferRequest::InferAsync() {
 
         tmpBlob = foundInputBlob->second;
         Layout layout = tmpBlob->getTensorDesc().getLayout();
-        if (layout != _deviceLayout && (layout == NCHW || layout == NHWC)) {
-            // TODO copyBlob allocates new memory, but we already have allocated buffer of enough size
-            tmpBlob = copyBlob(tmpBlob, _deviceLayout);
+        Layout vpuLayout = deviceLayout(layout, _layoutPreference);
+        if (layout != vpuLayout) {
+            tmpBlob = copyBlob(tmpBlob, vpuLayout);
         }
 
         inputPtr = tmpBlob->buffer();
@@ -158,13 +149,14 @@ void MyriadInferRequest::InferAsync() {
 }
 
 void MyriadInferRequest::GetResult() {
+    VPU_PROFILE(GetResult);
     _executor->getResult(_graphDesc, resultBuffer.data(), resultBuffer.size());
 
     for (auto pp : _outputs) {
         const auto offset_it = _outputInfo.offset.find(pp.first);
 
         if (offset_it !=  _outputInfo.offset.end()) {
-            size_t resultOffset = checked_cast<size_t>(offset_it->second);
+            size_t resultOffset = vpu::checked_cast<size_t>(offset_it->second);
             if (resultOffset > resultBuffer.size()) {
                 THROW_IE_EXCEPTION << "unexpected result data size";
             }
@@ -173,7 +165,7 @@ void MyriadInferRequest::GetResult() {
             auto outDesc = outputBlob->getTensorDesc();
 
             // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
-            auto vpuLayout = (outDesc.getLayout() == NCHW || outDesc.getLayout() == NHWC) ? _deviceLayout : outDesc.getLayout();
+            auto vpuLayout = deviceLayout(outDesc.getLayout(), _layoutPreference);
             ie::TensorDesc tempTensorDesc(outDesc.getPrecision(), outDesc.getDims(), vpuLayout);
             auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset);
 

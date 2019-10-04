@@ -29,7 +29,7 @@ struct Indexer {
       }
   }
 
-  const int operator()(const std::vector<int>& idx) const {
+  int operator()(const std::vector<int>& idx) const {
       int flat_idx = 0;
       assert(idx.size() == dims_.size());
       for (size_t i = 0; i < dims_.size(); ++i) {

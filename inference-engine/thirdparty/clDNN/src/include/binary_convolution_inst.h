@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/binary_convolution.hpp"
+#include "api/binary_convolution.hpp"
 #include "primitive_inst.h"
 
 #include <memory>
@@ -24,14 +24,6 @@
 #include <vector>
 
 namespace cldnn {
-
-struct fused_primitive_desc {
-    std::shared_ptr<const primitive> prim;
-    size_t dep_start_idx;
-    std::vector<primitive_id> deps;
-    cldnn_activation_func_t activation;
-    cldnn_activation_additional_params activation_params;
-};
 
 template <>
 struct typed_program_node<binary_convolution> : public typed_program_node_base<binary_convolution> {
@@ -63,39 +55,9 @@ public:
 
     bool bias_term() const { return false; }
 
-    void add_fused_primitive(const program_node* p) {
-        fused_primitive_desc local_desc;
-        local_desc.prim = p->get_primitive();
-        local_desc.dep_start_idx = this->get_dependencies().size();
-        local_desc.activation = cldnn_activation_func_t::activation_none;
-        if (p->get_fused_activation_func() != cldnn_activation_func_t::activation_none) {
-            local_desc.activation = p->get_fused_activation_func();
-            local_desc.activation_params = p->get_fused_activation_params();
-        }
-
-        for (size_t i = 1; i < p->get_dependencies().size(); i++) {
-            auto& dep = p->get_dependency(i);
-            this->dependencies.push_back(&dep);
-            local_desc.deps.push_back(dep.id());
-            dep.users.push_back(this);
-        }
-        fused_prims.push_back(local_desc);
-    }
-
-    const std::vector<fused_primitive_desc>& get_fused_primitives() const { return fused_prims; }
-
-    size_t get_fused_inputs_count() const {
-        size_t count = 0;
-        for (auto& fp : get_fused_primitives()) {
-            count += fp.deps.size();
-        }
-        return count;
-    }
-
 private:
     int32_t split;
     bool depthwise_sep_opt;
-    std::vector<fused_primitive_desc> fused_prims;
 };
 
 using binary_convolution_node = typed_program_node<binary_convolution>;
@@ -118,12 +80,6 @@ public:
 
         return dep_memory(1 + index);
     }
-
-    memory_impl& fused_memory(size_t dep_id) const { return dep_memory(1 + node.get_split() + dep_id); }
-
-    bool has_fused_primitives() const { return !node.get_fused_primitives().empty(); }
-
-    size_t get_fused_mem_count() const { return node.get_fused_inputs_count(); }
 };
 
 using binary_convolution_inst = typed_primitive_inst<binary_convolution>;

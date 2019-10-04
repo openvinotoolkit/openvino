@@ -19,33 +19,28 @@ private:
         return std::make_shared<PSROIPoolingStage>(*this);
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input0 = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
-        auto input0 = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        _orderInfo.setInput(_inputEdges[0], input0->desc().dimsOrder().createMovedDim(Dim::C, 2));
-        _orderInfo.setOutput(_outputEdges[0], output->desc().dimsOrder().createMovedDim(Dim::C, 2));
+        orderInfo.setInput(inputEdge(0), input0->desc().dimsOrder().createMovedDim(Dim::C, 2));
+        orderInfo.setOutput(outputEdge(0), output->desc().dimsOrder().createMovedDim(Dim::C, 2));
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
-        _stridesInfo.setInput(_inputEdges[1], StridesRequirement::compact());
-        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        stridesInfo.setInput(inputEdge(0), StridesRequirement::compact());
+        stridesInfo.setInput(inputEdge(1), StridesRequirement::compact());
+        stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -59,13 +54,9 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
-
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
+        auto input0 = inputEdge(0)->input();
+        auto input1 = inputEdge(1)->input();
+        auto output = outputEdge(0)->output();
 
         input0->serializeNewBuffer(serializer);
         output->serializeNewBuffer(serializer);

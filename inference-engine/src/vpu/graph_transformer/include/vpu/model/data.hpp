@@ -263,7 +263,10 @@ public:
 
     bool checkStrides(const StridesRequirement& reqs) const;
 
-    inline void resetRequiredStrides() { _requiredStrides = StridesRequirement::empty(); }
+    inline void resetRequiredStrides() {
+        _requiredStrides = StridesRequirement::empty();
+    }
+
     void updateRequiredStrides(const StridesRequirement& newReqs);
 
     //
@@ -306,7 +309,7 @@ public:
             const Stage& stage,
             BlobSerializer& serializer,
             DimsOrder newOrder = DimsOrder(),
-            const EnumMap<Dim, SmallVector<Dim, MAX_DIMS_64>>& dimsReloc = EnumMap<Dim, SmallVector<Dim, MAX_DIMS_64>>());
+            const EnumMap<Dim, DimVector>& dimsReloc = EnumMap<Dim, DimVector>());
 
     void serializeOldBufferNC(
             const Stage& stage,

@@ -402,8 +402,8 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
         unsupported.report(log.error, "List of operations that cannot be converted to Inference Engine IR:")
         raise Error('Part of the nodes was not converted to IR. Stopped. ' +
                     refer_to_faq_msg(24))
-    with open(file_name, 'w') as file:
-        file.write(pretty_xml_as_string)
+    with open(file_name, 'wb') as file:
+        file.write(bytes(pretty_xml_as_string, "UTF-8"))
 
 
 def port_renumber(graph: Graph):

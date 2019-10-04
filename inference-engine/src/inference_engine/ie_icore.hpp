@@ -10,7 +10,8 @@
 
 #include <memory>
 #include <string>
-#include <ie_plugin_ptr.hpp>
+#include "ie_plugin_ptr.hpp"
+#include "cpp_interfaces/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
 

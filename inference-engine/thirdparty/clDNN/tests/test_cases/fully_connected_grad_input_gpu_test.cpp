@@ -17,13 +17,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/fully_connected_grad_input.hpp"
-#include <api/CPP/data.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/fully_connected_grad_input.hpp"
+#include <api/data.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 
 using namespace cldnn;
@@ -49,7 +49,6 @@ TEST(fully_connected_grad_input_gpu, basic_bfyx) {
     //
     //  Output:
     //  -1.125  5.625   10.125
-
 
     const auto& engine = get_test_engine();
 

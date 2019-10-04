@@ -8,16 +8,16 @@ file(GLOB SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
 )
 
-add_library(${TARGET_NAME} SHARED ${SOURCES})
+file(GLOB_RECURSE HEADERS
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+
+ie_add_plugin(NAME ${TARGET_NAME}
+              DEVICE_NAME "HETERO"
+              SOURCES ${SOURCES} ${HEADERS}
+              VERSION_DEFINES_FOR hetero_plugin.cpp)
 
 target_include_directories(${TARGET_NAME} PRIVATE
     "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
 )
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
-
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
-
-set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
-
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine ade)

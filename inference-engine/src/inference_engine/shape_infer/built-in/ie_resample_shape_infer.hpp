@@ -33,13 +33,33 @@ public:
         validate(&cnnLayer, inBlobs, params, blobs);
         SizeVector outShape;
         if (inBlobs.size() == 2) {
-            auto* buffer = inBlobs[1]->cbuffer().as<float*>();
-            if (buffer != nullptr) {
-                for (int i = 0; i < inBlobs[1]->size(); i++) {
-                    outShape.push_back(static_cast<unsigned long>(buffer[i]));
+            switch (inBlobs[1]->getTensorDesc().getPrecision()) {
+                case Precision::FP32: {
+                    auto *buffer = inBlobs[1]->cbuffer().as<float *>();
+
+                    if (buffer != nullptr) {
+                        for (int i = 0; i < inBlobs[1]->size(); i++) {
+                            outShape.push_back(static_cast<unsigned long>(buffer[i]));
+                        }
+                    } else {
+                        THROW_IE_EXCEPTION << "Second input must have allocated data";
+                    }
+                    break;
                 }
-            } else {
-                THROW_IE_EXCEPTION << "Second input must have allocated data";
+                case Precision::I32: {
+                    auto *buffer = inBlobs[1]->cbuffer().as<int32_t *>();
+
+                    if (buffer != nullptr) {
+                        for (int i = 0; i < inBlobs[1]->size(); i++) {
+                            outShape.push_back(static_cast<unsigned long>(buffer[i]));
+                        }
+                    } else {
+                        THROW_IE_EXCEPTION << "Second input must have allocated data";
+                    }
+                    break;
+                }
+                default:
+                    THROW_IE_EXCEPTION << "Unsupported second input precision";
             }
         } else {
             auto scale = cnnLayer.GetParamAsFloat("factor");

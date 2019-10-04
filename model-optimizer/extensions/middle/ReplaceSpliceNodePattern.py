@@ -13,9 +13,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
-
 from extensions.front.kaldi.replace_lstm_node_pattern import unique_id
+from extensions.ops.splitv import SplitV
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat
@@ -55,11 +55,9 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         node = match['op']
-        input_node = node.in_nodes()[0]
-        out_node = node.out_node(0)
-
-        graph.remove_edge(input_node.id, node.id)
-        graph.remove_edge(node.id, out_node.id)
+        in_shape = node.in_port(0).data.get_shape().copy()
+        memory_element = in_shape[1] - node.const_dim
+        memory_size = memory_element * len(node.context)
 
         memory_pair_id = unique_id('id')
         # Memory(in)
@@ -67,33 +65,81 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
                                       'id': memory_pair_id,
                                       'index': 1,
                                       'size': 2,
-                                      'shape': np.array(([input_node.shape[1] * len(node.context)]),
-                                                        dtype=np.int64)}).create_node_with_data()
+                                      'shape': int64_array([memory_size])}).create_node()
         # Memory(in)  \
         #             Crop
         # Input(temp) /
         crop = Crop(graph, {'name': 'Splice_Crop',
-                            'axis': np.array([1], dtype=np.int64),
-                            'offset': np.array([input_node.shape[1]], dtype=np.int64),
-                            'dim': np.array([input_node.shape[1] * (len(node.context) - 1)],
-                                            dtype=np.int64)}).create_node_with_data([input_memory])
+                            'axis': int64_array([1]),
+                            'offset': int64_array([memory_element]),
+                            'dim': int64_array([memory_size - memory_element])}).create_node()
+        crop.in_port(0).connect(input_memory.out_port(0))
 
         # Crop   \
         #         Concat
         # Input  /
         concat_node = Concat(graph, {'name': 'Splice_Concat',
                                      'in_ports_count': 2,
-                                     'axis': 1}).create_node([crop, input_node])
+                                     'axis': 1}).create_node()
+        concat_node.in_port(0).connect(crop.out_port(0))
 
         # Concat -> Memory(out)
         mem_out = Memory(graph, {'name': 'out_splice_memory',
                                  'id': memory_pair_id,
                                  'index': 0,
                                  'size': 2,
-                                 'shape': np.array([input_node.shape[1] * len(node.context)], dtype=np.int64)}).create_node_with_data()
+                                 'shape': int64_array([memory_size])}).create_node()
+        mem_out.in_port(0).connect(concat_node.out_port(0))
+        Result(graph).create_node().in_port(0).connect(mem_out.out_port(0))
 
-        Result(graph).create_node([mem_out])
+        if node.const_dim != 0:
+            memory_element_constdim = node.const_dim
+            memory_size_constdim = memory_element_constdim * len(node.context)
+            split = SplitV(graph, {'name': node.id + '_split_const', 'axis': 1, 'out_ports_count': 2,
+                                   'size_splits': int64_array([memory_element, memory_element_constdim])}).create_node()
+            split.out_port(0).connect(concat_node.in_port(1))
 
-        graph.add_edge(concat_node.id, out_node.id, **{'in': 0, 'out': 0})
-        out_node.add_output_port(1)
-        graph.add_edge(out_node.id, mem_out.in_node(0).id, **{'in': 0, 'out': 1})
+            # create separate splice construction for const_dim
+            memory_pair_id = unique_id('memory_for_const_dim')
+            input_memory_const_dim = Memory(graph, {'name': 'const_dim_in_memory',
+                                                    'id': memory_pair_id,
+                                                    'index': 1,
+                                                    'size': 2,
+                                                    'shape': int64_array([memory_size_constdim])}).create_node()
+            crop_const_dim = Crop(graph, {'name': 'const_dim_crop',
+                                          'axis': int64_array([1]),
+                                          'offset': int64_array([memory_element_constdim]),
+                                          'dim': int64_array([memory_size_constdim - memory_element_constdim])}).create_node()
+            crop_const_dim.in_port(0).connect(input_memory_const_dim.out_port(0))
+
+            concat_node_const_dim = Concat(graph, {'name': 'const_dim_concat',
+                                                   'in_ports_count': 2,
+                                                   'axis': 1}).create_node()
+            concat_node_const_dim.in_port(0).connect(crop_const_dim.out_port(0))
+
+            mem_out_const_dim = Memory(graph, {'name': 'const_dim_out_memory',
+                                               'id': memory_pair_id,
+                                               'index': 0,
+                                               'size': 2,
+                                               'shape': int64_array([memory_size_constdim])}).create_node()
+            mem_out_const_dim.in_port(0).connect(concat_node_const_dim.out_port(0))
+            Result(graph).create_node().in_port(0).connect(mem_out_const_dim.out_port(0))
+
+            # connect splice to Split as begin and Concat as the end
+            split.out_port(1).connect(concat_node_const_dim.in_port(1))
+            crop_first = Crop(graph, {'name': 'const_dim_crop_first',
+                                      'axis': int64_array([1]),
+                                      'offset': int64_array([0]),
+                                      'dim': int64_array([memory_element_constdim])}).create_node()
+            crop_first.in_port(0).connect(concat_node_const_dim.out_port(0))
+
+            concat_const = Concat(graph, {'name': node.id+'_concat_const', 'axis': 1,
+                                          'in_ports_count': 2}).create_node()
+            concat_const.in_port(1).connect(crop_first.out_port(0))
+            concat_const.in_port(0).connect(concat_node.out_port(0))
+
+            node.in_port(0).get_connection().set_destination(split.in_port(0))
+            node.out_port(0).get_connection().set_source(concat_const.out_port(0))
+        else:
+            node.in_port(0).get_connection().set_destination(concat_node.in_port(1))
+            node.out_port(0).get_connection().set_source(concat_node.out_port(0))
