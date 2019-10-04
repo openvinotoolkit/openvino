@@ -14,7 +14,6 @@
 #include "shape_infer/ie_reshape_launcher.hpp"
 #include "shape_infer/ie_reshape_io_controllers.hpp"
 #include "ie_reshape_launcher.hpp"
-
 #include "built-in/ie_tensor_iterator_shape_infer.hpp"
 
 using namespace InferenceEngine;

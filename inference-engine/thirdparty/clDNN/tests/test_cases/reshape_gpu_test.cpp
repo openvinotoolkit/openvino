@@ -16,13 +16,13 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 
-#include <api/CPP/data.hpp>
-#include <api/CPP/reshape.hpp>
-#include <api/CPP/input_layout.hpp>
+#include <api/data.hpp>
+#include <api/reshape.hpp>
+#include <api/input_layout.hpp>
 
 #include "test_utils/test_utils.h"
 
@@ -458,11 +458,11 @@ TEST(reshape_gpu_f32, multiple_users_with_reorder) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(activation("relu", "input", activation_relu));
+    topology.add(activation("relu", "input", activation_func::relu));
     topology.add(reshape("reshape", "relu", tensor(batch(4))));
     topology.add(reorder("reorder1", "reshape", format::yxfb, data_types::f32));
-    topology.add(activation("relu1", "reorder1", activation_relu));
-    topology.add(activation("relu2", "reshape", activation_relu));
+    topology.add(activation("relu1", "reorder1", activation_func::relu));
+    topology.add(activation("relu2", "reshape", activation_func::relu));
 
     std::vector<float> input_vec = {-1.f, 2.f, -3.f, 4.f};
     std::vector<float> out1 = {0.f, 0.f, 2.f, 4.0f};

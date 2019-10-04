@@ -49,7 +49,7 @@ class PreAllocator : public IAllocator {
             return _actualData;
         }
 
-        return this;
+        return nullptr;
     }
     /**
      * @brief The PreAllocator class cannot release the handle

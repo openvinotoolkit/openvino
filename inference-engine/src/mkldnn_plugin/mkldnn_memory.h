@@ -101,7 +101,7 @@ public:
     void Create(mkldnn::memory::dims dims, mkldnn::memory::data_type data_type, mkldnn::memory::format format,
                 const void* data = nullptr);
 
-    void Create(const mkldnn::memory::desc& desc, const void* data = nullptr);
+    void Create(const mkldnn::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
 
     void SetData(mkldnn::memory::data_type dataType, mkldnn::memory::format format, const void* data, size_t size, bool ftz = true) const;
     void SetData(const MKLDNNMemory& memory, bool ftz = true) const;

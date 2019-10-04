@@ -24,7 +24,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id reduce_type_id() {
+primitive_type_id reduce::type_id() {
     static primitive_type_base<reduce> instance;
     return &instance;
 }

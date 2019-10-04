@@ -34,34 +34,26 @@ private:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>&,
-            ScalePropagationStep) override {
+            ScalePropagationStep,
+            StageDataInfo<float>&) override {
         VPU_THROW_EXCEPTION << "Must never be called";
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _orderInfo.setInput(_inputEdges[0], DimsOrder::NCHW);
-        _orderInfo.setOutput(_outputEdges[0], DimsOrder::NCHW);
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        orderInfo.setInput(inputEdge(0), DimsOrder::NCHW);
+        orderInfo.setOutput(outputEdge(0), DimsOrder::NCHW);
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement().add(1, DimStride::Aligned));
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        stridesInfo.setOutput(outputEdge(0), StridesRequirement().add(1, DimStride::Aligned));
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
-        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
+        batchInfo.setInput(inputEdge(0), BatchSupport::Split);
+        batchInfo.setOutput(outputEdge(0), BatchSupport::Split);
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
@@ -69,6 +61,7 @@ private:
     }
 
     void finalCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -94,12 +87,8 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         input->serializeNewBuffer(serializer);
         output->serializeNewBuffer(serializer);
@@ -110,10 +99,8 @@ private:
 class DeconvolutionToConvolutionContent final : public CalculatedDataContent {
 public:
     DeconvolutionToConvolutionContent(
-            const DataContent::Ptr& origContent,
-            int kernelSizeX, int kernelSizeY) :
-            CalculatedDataContent({origContent}),
-            _kerneSizeX(kernelSizeX), _kernelSizeY(kernelSizeY) {
+            const DataContent::Ptr& origContent) :
+            CalculatedDataContent({origContent}) {
     }
 
     void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const {
@@ -124,10 +111,6 @@ public:
 
         deconv_to_conv(baseContents[0]->get<fp16_t>(), static_cast<fp16_t*>(tempBuf), _desc);
     }
-
-private:
-    int _kerneSizeX;
-    int _kernelSizeY;
 };
 
 
@@ -202,7 +185,7 @@ void PassImpl::run(const Model::Ptr& model) {
             continue;
         }
 
-        model->disconnectStageDatas(stage);
+        model->disconnectStage(stage);
 
         DataDesc newDesc({1, 1, output->desc().dim(Dim::C), output->desc().dim(Dim::N)});
         newDesc.setDim(Dim::N, input->desc().dim(Dim::N));
@@ -212,7 +195,7 @@ void PassImpl::run(const Model::Ptr& model) {
 
         auto newOutput = model->duplicateData(output, "@upsampleData", newDesc);
         auto newWeights = model->duplicateData(weights, "@upsampleData", weights->desc(),
-                     std::make_shared<DeconvolutionToConvolutionContent>(weights->content(), kernelSizeX, kernelSizeY));
+                     std::make_shared<DeconvolutionToConvolutionContent>(weights->content()));
 
         auto upsampleStage = model->addNewStage<UpsamplingStage>(
                 stage->origLayerName() + "@Upsample",

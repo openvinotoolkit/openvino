@@ -21,7 +21,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id normalize_type_id() {
+primitive_type_id normalize::type_id() {
     static primitive_type_base<normalize> instance;
     return &instance;
 }
@@ -55,10 +55,10 @@ std::string normalize_inst::to_string(normalize_node const& node) {
 }
 
 normalize_inst::typed_primitive_inst(network_impl& network, normalize_node const& node) : parent(network, node) {
-    /// Scale x dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale per channel).
+    /// Scale f dimension should be 1 (if all channels have the same scale) or equal to input feature size (one scale per channel).
     auto scale_layout = node.scale().get_output_layout();
     auto scale_size = scale_layout.size;
-    auto scale_feature_size = scale_size.spatial[0];
+    auto scale_feature_size = scale_size.feature[0];
     auto input_layout = node.input().get_output_layout();
     auto input_feature_size = input_layout.size.feature[0];
 

@@ -15,7 +15,7 @@
 """
 import numpy as np
 
-from extensions.ops.elementwise import Add, Mul, Pow
+from extensions.ops.elementwise import Add, Mul, Pow, Less, Equal, Greater, LogicalAnd, LogicalOr
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.graph.graph import Node
@@ -76,6 +76,16 @@ class NegFrontExtractor(FrontExtractorOp):
         return __class__.enabled
 
 
+class SqrtExtractor(FrontExtractorOp):
+    op = 'Sqrt'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Power.update_node_stat(node, {'power': 0.5})
+        return __class__.enabled
+
+
 class ScaleFrontExtractor(FrontExtractorOp):
     op = 'Scale'
     enabled = True
@@ -94,4 +104,54 @@ class MaxExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node: Node):
         EltwiseNMax.update_node_stat(node)
+        return __class__.enabled
+
+
+class EqualExtractor(FrontExtractorOp):
+    op = 'Equal'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Equal.update_node_stat(node)
+        return __class__.enabled
+
+
+class LessExtractor(FrontExtractorOp):
+    op = 'Less'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Less.update_node_stat(node)
+        return __class__.enabled
+
+
+class GreaterExtractor(FrontExtractorOp):
+    op = 'Greater'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Greater.update_node_stat(node)
+        return __class__.enabled
+
+
+class AndExtractor(FrontExtractorOp):
+    op = 'And'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        LogicalAnd.update_node_stat(node)
+        return __class__.enabled
+
+
+class OrExtractor(FrontExtractorOp):
+    op = 'Or'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        LogicalOr.update_node_stat(node)
         return __class__.enabled

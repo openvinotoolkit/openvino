@@ -78,6 +78,8 @@ class ReduceReplacer(BackReplacementPattern):
         axis_data_value = node.in_port(1).data.get_value()
         axis = int64_array([axis_data_value.item()]) if axis_data_value.size == 1 else axis_data_value
         axis = [get_canonical_axis_index(input_shape, a) for a in axis]
+        assert 0 not in axis, 'The node "{}" is a Reduce operation for batch dimension which is not supported'.format(
+            node.name)
 
         # Check that values in axis list are consecutive
         for idx in range(1, len(axis)):
@@ -94,10 +96,11 @@ class ReduceReplacer(BackReplacementPattern):
 
         # 2. Create reshape with appropriate shape
         if len(begin_dims) > 2:
-            begin_dims = np.array([np.prod(begin_dims[0:-1]), begin_dims[-1]], dtype=np.int64)
+            begin_dims = int64_array([begin_dims[0], np.prod(begin_dims[1:])])
         else:
             # Expand begin_dims to 2
-            begin_dims = np.array(np.append(begin_dims, [1] * (2 - len(begin_dims))), dtype=np.int64)
+            begin_dims = int64_array(np.append(begin_dims, [1] * (2 - len(begin_dims))))
+
         reshape_shape = np.array([*begin_dims, reduction_dim, end_dim], dtype=np.int64)
         pool_window = np.array([1, 1, reduction_dim, 1], dtype=np.int64)
 
@@ -105,7 +108,8 @@ class ReduceReplacer(BackReplacementPattern):
         reshape_op = Reshape(graph, {'name': node.id + '/Reshape'})
         reshape_dim_const_data = Const(graph, {'name': node.id + '/Reshape/Dim',
                                                'value': reshape_shape}).create_node_with_data()
-        final_reshape_op = Reshape(graph, {'name': node.id + '/FinalReshape', 'dim': output_shape})
+
+        final_reshape_op = Reshape(graph, {'name': node.id + '/FinalReshape'})
         final_reshape_dim_const_data = Const(graph, {'name': node.id + '/FinalReshape/Dim',
                                                      'value': output_shape}).create_node_with_data()
         pooling_op = Pooling(graph,
@@ -126,6 +130,10 @@ class ReduceReplacer(BackReplacementPattern):
                 )]
             ), final_reshape_dim_const_data],
             data_nodes=output_data)
+
+        # convert batch dimension to 0 to produce reshape-able IR over the batch dimension
+        reshape_dim_const_data.in_node(0).value[0] = 0
+        final_reshape_dim_const_data.in_node(0).value[0] = 0
 
         # 4. If it is reduction with summation, we need to multiply by size of the reduction slice with Mul op
         if reduce_type == 'ReduceSum':

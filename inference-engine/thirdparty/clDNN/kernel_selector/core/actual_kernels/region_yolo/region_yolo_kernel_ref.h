@@ -24,7 +24,8 @@ namespace kernel_selector {
 // region_yolo_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct region_yolo_params : public base_params {
-    region_yolo_params() : base_params(KernelType::REGION_YOLO) {}
+    region_yolo_params() : base_params(KernelType::REGION_YOLO),
+    coords(0), classes(0), num(0), mask_size(0), do_softmax(false) {}
 
     uint32_t coords;
     uint32_t classes;

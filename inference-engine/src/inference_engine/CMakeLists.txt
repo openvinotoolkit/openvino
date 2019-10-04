@@ -6,6 +6,10 @@ set (TARGET_NAME "inference_engine")
 
 if (WIN32)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
+elseif(ENABLE_LTO)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto")
+  set(CMAKE_AR  "gcc-ar")
+  set(CMAKE_RANLIB "gcc-ranlib")
 endif()
 
 file (GLOB LIBRARY_SRC
@@ -18,7 +22,6 @@ file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/built-in/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/const_infer/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/hetero/*.cpp
       )
 
 file (GLOB LIBRARY_HEADERS
@@ -31,7 +34,6 @@ file (GLOB LIBRARY_HEADERS
        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/base/*.hpp
        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/impl/*.hpp
        ${CMAKE_CURRENT_SOURCE_DIR}/cpp_interfaces/interface/*.hpp
-       ${CMAKE_CURRENT_SOURCE_DIR}/hetero/*.hpp
       )
 
 if( (NOT DEFINED ENABLE_SSE42) OR ENABLE_SSE42)
@@ -43,21 +45,39 @@ if( (NOT DEFINED ENABLE_SSE42) OR ENABLE_SSE42)
            ${LIBRARY_HEADERS}
            ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.hpp
           )
+
+    file (GLOB SSE_SRC
+           ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.cpp
+          )
+    file (GLOB SSE_HEADERS
+           ${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/*.hpp
+          )
+
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42)
+
     if (WIN32)
-        set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/blob_transform_sse42.cpp"
-                "${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/ie_preprocess_data_sse42.cpp"
-                "${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/ie_preprocess_gapi_kernels_sse42.cpp" PROPERTIES COMPILE_FLAGS /arch:SSE2)
+        if("${CMAKE_CXX_COMPILER_ID}" STREQUAL MSVC)
+            set_source_files_properties(${SSE_SRC}
+                PROPERTIES COMPILE_FLAGS /arch:SSE4.2
+                )       
+        elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL Intel)
+            set_source_files_properties(${SSE_SRC}
+                PROPERTIES COMPILE_FLAGS /arch:SSE4.2 /QxSSE4.2 /Qvc14
+                )       
+        elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL Clang)
+            set_source_files_properties(${SSE_SRC}
+                PROPERTIES COMPILE_FLAGS -msse4.2
+                )       
+        endif()
     else()
-        set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/blob_transform_sse42.cpp"
-                "${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/ie_preprocess_data_sse42.cpp"
-                "${CMAKE_CURRENT_SOURCE_DIR}/cpu_x86_sse42/ie_preprocess_gapi_kernels_sse42.cpp" PROPERTIES COMPILE_FLAGS -msse4.2)
+        set_source_files_properties(${SSE_SRC}
+                PROPERTIES COMPILE_FLAGS -msse4.2
+                )
     endif()
     add_definitions(-DHAVE_SSE=1)
 endif()
 
 addVersionDefines(ie_version.cpp CI_BUILD_NUMBER)
-addVersionDefines(hetero/hetero_plugin.cpp CI_BUILD_NUMBER)
 
 set (PUBLIC_HEADERS_DIR "${IE_MAIN_SOURCE_DIR}/include")
 
@@ -82,7 +102,7 @@ add_library(${TARGET_NAME} SHARED
             ${PUBLIC_HEADERS})
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE fluid ngraph ade ${INTEL_ITT_LIBS} pugixml PUBLIC ${CMAKE_DL_LIBS})
+target_link_libraries(${TARGET_NAME} PRIVATE fluid ngraph ${INTEL_ITT_LIBS} pugixml PUBLIC ${CMAKE_DL_LIBS})
 
 if(WIN32)
     #To disable min/max macro in windows.h
@@ -91,8 +111,7 @@ endif()
 
 # Properties->C/C++->General->Additional Include Directories
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
-                                          PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
-                                                  "${IE_MAIN_SOURCE_DIR}/src/dumper")
+                                          PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src")
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/ngraph/src")
@@ -100,6 +119,10 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/
 
 if(ENABLE_MKL_DNN)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/xbyak")
+endif()
+
+if(ENABLE_UNICODE_PATH_SUPPORT)
+    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_UNICODE_PATH_SUPPORT)
 endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
@@ -132,6 +155,10 @@ if(WIN32)
     target_compile_definitions(${TARGET_NAME}_s PRIVATE -DNOMINMAX)
 endif()
 
+if(ENABLE_UNICODE_PATH_SUPPORT)
+    target_compile_definitions(${TARGET_NAME}_s PUBLIC ENABLE_UNICODE_PATH_SUPPORT)
+endif()
+
 set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 
 target_link_libraries(${TARGET_NAME}_s PRIVATE fluid
@@ -145,7 +172,7 @@ target_link_libraries(${TARGET_NAME}_s PRIVATE fluid
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS clDNNPlugin dliaPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
+                    POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin dliaPlugin GNAPlugin MKLDNNPlugin myriadPlugin HDDLPlugin)
 
 # export targets
 export(TARGETS ${TARGET_NAME} NAMESPACE IE:: FILE "${CMAKE_BINARY_DIR}/targets.cmake")

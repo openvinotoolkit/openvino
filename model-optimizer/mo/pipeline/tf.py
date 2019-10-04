@@ -51,6 +51,7 @@ from mo.pipeline.common import prepare_emit_ir
 from mo.utils import class_registration, tensorboard
 from mo.utils.cli_parser import get_meta_info
 from mo.utils.error import Error
+from mo.utils.logger import log_step
 from mo.utils.utils import refer_to_faq_msg
 
 try:
@@ -66,6 +67,7 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
     The specific TF structure assumes each GraphDef node is converted to a single
     NetworkX node, node id is an original TF node name, and edges go directly from one op   to another op.
     """
+    log_step(argv.steps, 'LOAD')
     meta_info = get_meta_info(argv)
 
     if argv.tensorflow_custom_layer_libraries:
@@ -130,7 +132,9 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
     extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
 
     # --------------------------------- LOAD END ------------------------------------------------------
+    log_step(argv.steps, 'FRONT')
     class_registration.apply_replacements(graph, class_registration.ClassType.FRONT_REPLACER)
+    log_step(argv.steps, 'MIDDLE')
     class_registration.apply_replacements(graph, class_registration.ClassType.MIDDLE_REPLACER)
 
     fuse_pad(graph)
@@ -218,6 +222,8 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
     for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
     graph.graph['layout'] = 'NCHW'
+
+    log_step(argv.steps, 'BACK')
     class_registration.apply_replacements(graph, class_registration.ClassType.BACK_REPLACER)
     for_graph_and_each_sub_graph_recursively(graph, graph_clean_up_tf)
 
@@ -226,6 +232,7 @@ def tf2nx(argv: argparse.Namespace, model_file_name: str, output_model_name: str
 
     for_graph_and_each_sub_graph_recursively(graph, remove_output_ops)
 
+    log_step(argv.steps, 'EMIT')
     prepare_emit_ir(graph=graph, data_type=argv.data_type, output_dir=output_dir, output_model_name=output_model_name,
                     meta_info=meta_info)
 

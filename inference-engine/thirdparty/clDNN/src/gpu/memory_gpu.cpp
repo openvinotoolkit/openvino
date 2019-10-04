@@ -18,6 +18,7 @@
 #include "memory_gpu.h"
 #include "engine_impl.h"
 #include "ocl_base_event.h"
+#include <stdexcept>
 
 namespace cldnn {
 namespace gpu {
@@ -94,7 +95,7 @@ gpu_image2d::gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const la
             order = CL_RGBA;
             break;
         default:
-            throw error("unsupported image type!");
+            throw std::invalid_argument("unsupported image type!");
     }
 
     cl_channel_type type = layout.data_type == data_types::f16 ? CL_HALF_FLOAT : CL_FLOAT;
@@ -114,6 +115,7 @@ gpu_image2d::gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine,
       _context(engine->get_context()),
       _lock_count(0),
       _buffer(buffer),
+      _width(0), _height(0), _row_pitch(0), _slice_pitch(0),
       _mapped_ptr(nullptr) {}
 
 void* gpu_image2d::lock() {

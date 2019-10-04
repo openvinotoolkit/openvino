@@ -15,10 +15,11 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include "api_impl.h"
 #include <immintrin.h>
+#include <stdint.h>
 
 namespace cldnn {
+
 float half_to_float(uint16_t value) {
     static const uint32_t FLOAT16_EXP_SHIFT = (23 - 10);
     static const uint32_t FLOAT16_EXP_MASK = 0x7C00;

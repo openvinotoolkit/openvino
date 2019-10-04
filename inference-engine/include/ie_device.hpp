@@ -28,8 +28,10 @@ enum class TargetDevice : uint8_t {
     eGPU = 3,
     eFPGA = 4,
     eMYRIAD = 5,
+    eHDDL = 6,
     eGNA = 7,
     eHETERO = 8,
+    eMULTI = 10,
 };
 
 /**
@@ -53,8 +55,10 @@ class INFERENCE_ENGINE_DEPRECATED TargetDeviceInfo {
             DECL_DEVICE(GPU),
             DECL_DEVICE(FPGA),
             DECL_DEVICE(MYRIAD),
+            DECL_DEVICE(HDDL),
             DECL_DEVICE(GNA),
-            DECL_DEVICE(HETERO)
+            DECL_DEVICE(HETERO),
+            DECL_DEVICE(MULTI)
         };
 #undef DECLARE
         return g_allDeviceInfos;
@@ -64,6 +68,8 @@ class INFERENCE_ENGINE_DEPRECATED TargetDeviceInfo {
     /**
      * @deprecated Deprecated since InferenceEngine::TargetDevice is deprecated
      * @brief Converts string representation of device to InferenceEngine::TargetDevice enum value
+     * @param deviceName A string representation of a device name
+     * @return An instance of InferenceEngine::TargetDevice
      */
     INFERENCE_ENGINE_DEPRECATED
     static TargetDevice fromStr(const std::string &deviceName) {
@@ -72,9 +78,11 @@ class INFERENCE_ENGINE_DEPRECATED TargetDeviceInfo {
             { "GPU", InferenceEngine::TargetDevice::eGPU },
             { "FPGA", InferenceEngine::TargetDevice::eFPGA },
             { "MYRIAD", InferenceEngine::TargetDevice::eMYRIAD },
+            { "HDDL", InferenceEngine::TargetDevice::eHDDL },
             { "GNA", InferenceEngine::TargetDevice::eGNA },
             { "BALANCED", InferenceEngine::TargetDevice::eBalanced },
-            { "HETERO", InferenceEngine::TargetDevice::eHETERO }
+            { "HETERO", InferenceEngine::TargetDevice::eHETERO },
+            { "MULTI", InferenceEngine::TargetDevice::eMULTI}
         };
         auto val = deviceFromNameMap.find(deviceName);
         return val != deviceFromNameMap.end() ? val->second : InferenceEngine::TargetDevice::eDefault;
@@ -82,7 +90,9 @@ class INFERENCE_ENGINE_DEPRECATED TargetDeviceInfo {
 
     /**
      * @deprecated Deprecated since InferenceEngine::TargetDevice is deprecated
-     * @brief Converts InferenceEngine::TargetDevice enum value to string representation
+     * @brief Converts an instance of InferenceEngine::TargetDevice to string representation
+     * @param device Instance of InferenceEngine::TargetDevice
+     * @return A c-string with the name
      */
     INFERENCE_ENGINE_DEPRECATED
     static const char * name(TargetDevice device) {

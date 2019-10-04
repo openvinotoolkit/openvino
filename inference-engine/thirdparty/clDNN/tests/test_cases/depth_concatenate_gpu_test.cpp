@@ -17,20 +17,20 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/concatenation.hpp"
-#include "api/CPP/convolution.hpp"
-#include "api/CPP/data.hpp"
-#include "api/CPP/eltwise.hpp"
-#include "api/CPP/fully_connected.hpp"
-#include "api/CPP/pooling.hpp"
-#include "api/CPP/crop.hpp"
-#include "api/CPP/upsampling.hpp"
-#include "api/CPP/reshape.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/concatenation.hpp"
+#include "api/convolution.hpp"
+#include "api/data.hpp"
+#include "api/eltwise.hpp"
+#include "api/fully_connected.hpp"
+#include "api/pooling.hpp"
+#include "api/crop.hpp"
+#include "api/upsampling.hpp"
+#include "api/reshape.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 
 using namespace cldnn;
@@ -266,10 +266,10 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
                          {1, 1, 2, 1}, /*kernel*/
                          {1, 1, 1, 1}  /*stride*/
                          ));
-    topology.add(upsampling("unpool1", "input1", 1, 0, upsampling_sample_type::nearest));
+    topology.add(upsampling("unpool1", "input1", tensor(1, 1, 2, 2), 0, upsampling_sample_type::nearest));
     topology.add(concatenation("concat1", {"pool1", "unpool1"}, cldnn::concatenation::along_x));
-    topology.add(data("weights", weights)),
-        topology.add(convolution("conv", "concat1", {"weights"}));
+    topology.add(data("weights", weights));
+    topology.add(convolution("conv", "concat1", {"weights"}));
 
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
@@ -297,14 +297,14 @@ TEST(depth_concatenate_f32_gpu, test03_cascade_concat_opt) {
 
     topology topology;
     topology.add(input_layout("input1", input1.get_layout()));
-    topology.add(activation("relu1", "input1", activation_relu));
-    topology.add(activation("relu2", "relu1", activation_sqrt));
+    topology.add(activation("relu1", "input1", activation_func::relu));
+    topology.add(activation("relu2", "relu1", activation_func::sqrt));
     topology.add(concatenation("depth1", {"relu2", "relu1"}, concatenation::along_f));
-    topology.add(activation("relu3", "depth1", activation_sqrt));
+    topology.add(activation("relu3", "depth1", activation_func::sqrt));
     topology.add(concatenation("depth2", {"relu3", "depth1"}, concatenation::along_f));
-    topology.add(activation("relu4", "depth2", activation_sqrt));
+    topology.add(activation("relu4", "depth2", activation_func::sqrt));
     topology.add(concatenation("depth3", {"relu4", "depth2"}, concatenation::along_f));
-    topology.add(activation("relu5", "depth3", activation_relu));
+    topology.add(activation("relu5", "depth3", activation_func::relu));
 
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
@@ -356,7 +356,7 @@ TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
     topology.add(input_layout("input1", input1.get_layout()));
     topology.add(input_layout("input2", input2.get_layout()));
     topology.add(concatenation("depth1", {"input1", "input2"}, concatenation::along_f));
-    topology.add(activation("relu1", "depth1", activation_relu));
+    topology.add(activation("relu1", "depth1", activation_func::relu));
 
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
@@ -552,7 +552,6 @@ TEST(depth_concatenate_f32_gpu, concat_with_reshape_input) {
         EXPECT_FLOAT_EQ(values[i], output_ptr[i]);
     }
 }
-
 
 TEST(depth_concatenate_i32_gpu, optimize_data01) {
     const auto& engine = get_test_engine();
@@ -893,23 +892,21 @@ public:
             delete generic_params;
         }
 
-        for (auto layer_params : all_layer_params) {
-            delete layer_params;
-        }
+        all_layer_params.clear();
     }
 
-    static std::vector<cldnn::primitive*> generate_specific_test_params(int i) {
-        std::vector<cldnn::primitive*> all_layer_params;
+    static std::vector<std::shared_ptr<cldnn::primitive>> generate_specific_test_params(int i) {
+        std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 
         switch (i) {
             case 1:
-                all_layer_params.push_back(new concatenation("depth_concatenate", {"input0"}, concatenation::along_f));
+                all_layer_params.emplace_back(new concatenation("depth_concatenate", {"input0"}, concatenation::along_f));
                 break;
             case 2:
-                all_layer_params.push_back(new concatenation("depth_concatenate", {"input0", "input1"}, concatenation::along_f));
+                all_layer_params.emplace_back(new concatenation("depth_concatenate", {"input0", "input1"}, concatenation::along_f));
                 break;
             case 3:
-                all_layer_params.push_back(new concatenation("depth_concatenate", {"input0", "input1", "input2"}, concatenation::along_f));
+                all_layer_params.emplace_back(new concatenation("depth_concatenate", {"input0", "input1", "input2"}, concatenation::along_f));
                 break;
             default:
                 assert(0);
@@ -974,8 +971,8 @@ public:
         return all_generic_params;
     }
 
-    static std::vector<std::tuple<test_params*, cldnn::primitive*>> generate_all_test_params() {
-        std::vector<std::tuple<test_params*, cldnn::primitive*>> res;
+    static std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> generate_all_test_params() {
+        std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> res;
 
         for (int i = 1; i <= 3; ++i) {
             auto tpv = generate_generic_test_params(i);
@@ -1063,7 +1060,7 @@ public:
         }
     }
 
-    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<test_params*, cldnn::primitive*>>& info) {
+    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>>& info) {
         std::stringstream res;
 
         const auto& p = std::get<0>(info.param);
@@ -1089,10 +1086,10 @@ public:
 
 private:
     static std::vector<tests::test_params*> all_generic_params;
-    static std::vector<cldnn::primitive*> all_layer_params;
+    static std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 };
 
-std::vector<cldnn::primitive*> depth_concatenate_test::all_layer_params = {};
+std::vector<std::shared_ptr<cldnn::primitive>> depth_concatenate_test::all_layer_params = {};
 std::vector<tests::test_params*> depth_concatenate_test::all_generic_params = {};
 
 TEST_P(depth_concatenate_test, DEPTHCONCATENATE) {

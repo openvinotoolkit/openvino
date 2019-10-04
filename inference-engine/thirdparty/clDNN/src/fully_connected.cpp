@@ -22,7 +22,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id fully_connected_type_id() {
+primitive_type_id fully_connected::type_id() {
     static primitive_type_base<fully_connected> instance;
     return &instance;
 }
@@ -85,14 +85,12 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     auto node_info = node.desc_to_json();
     auto bias_id = desc->bias != "" ? desc->bias : "no bias";
     auto weights_id = desc->weights;
-    auto activation = desc->with_activation ? " true" : "false";
 
     std::stringstream primitive_description;
 
     json_composite fc_info;
     fc_info.add("weights id", weights_id);
     fc_info.add("bias id", bias_id);
-    fc_info.add("with activation", activation);
 
     node_info->add("fully connected info", fc_info);
     node_info->dump(primitive_description);

@@ -23,17 +23,15 @@ private:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 2 || _inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
+            ScalePropagationStep step,
+            StageDataInfo<float>& scaleInfo) override {
         auto inputScale = inputScales[0];
 
-        _scaleInfo.setInput(_inputEdges[1], step == ScalePropagationStep::Propagate ? 1.0f : inputScale);
-        if (_inputEdges.size() == 3) {
-            _scaleInfo.setInput(_inputEdges[2], inputScale);
+        scaleInfo.setInput(inputEdge(1), step == ScalePropagationStep::Propagate ? 1.0f : inputScale);
+        if (numInputs() == 3) {
+            scaleInfo.setInput(inputEdge(2), inputScale);
         }
-        _scaleInfo.setOutput(_outputEdges[0], inputScale);
+        scaleInfo.setOutput(outputEdge(0), inputScale);
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {

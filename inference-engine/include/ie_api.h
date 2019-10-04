@@ -57,10 +57,15 @@
     #define IE_DO_PRAGMA(x)
 #endif
 
-#ifdef _MSC_VER
+#if defined (_MSC_VER) && !defined (__clang__)
 #define IE_SUPPRESS_DEPRECATED_START \
     IE_DO_PRAGMA(warning(push)) \
     IE_DO_PRAGMA(warning(disable: 4996))
+#define IE_SUPPRESS_DEPRECATED_END IE_DO_PRAGMA(warning(pop))
+#elif defined(__INTEL_COMPILER)
+#define IE_SUPPRESS_DEPRECATED_START \
+    IE_DO_PRAGMA(warning(push)) \
+    IE_DO_PRAGMA(warning(disable:1478))
 #define IE_SUPPRESS_DEPRECATED_END IE_DO_PRAGMA(warning(pop))
 #elif defined(__clang__) || ((__GNUC__)  && (__GNUC__*100 + __GNUC_MINOR__ > 405))
 #define IE_SUPPRESS_DEPRECATED_START \
@@ -70,4 +75,12 @@
 #else
 #define IE_SUPPRESS_DEPRECATED_START
 #define IE_SUPPRESS_DEPRECATED_END
+#endif
+
+#ifndef ENABLE_UNICODE_PATH_SUPPORT
+    #if defined(_WIN32)
+        #define ENABLE_UNICODE_PATH_SUPPORT
+    #elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2))
+        #define ENABLE_UNICODE_PATH_SUPPORT
+    #endif
 #endif

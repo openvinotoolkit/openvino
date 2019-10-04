@@ -17,7 +17,6 @@
 #pragma once
 #include "include/math_utils.h"
 
-
 struct FLOAT16
 {
     struct representation
@@ -78,7 +77,6 @@ struct FLOAT16
         return *this;
     }
 };
-
 
 inline FLOAT16 operator +(const FLOAT16 &v1, const FLOAT16 &v2)
 {

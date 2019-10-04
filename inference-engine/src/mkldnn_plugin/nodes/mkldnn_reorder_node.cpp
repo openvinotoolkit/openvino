@@ -77,10 +77,10 @@ void MKLDNNReorderNode::createPrimitive() {
 
 void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDesc, void* srcPtr, const mkldnn::memory::desc &dstDesc, void* dstPtr) {
     src_blocked = std::make_shared<MKLDNNMemory>(getEngine());
-    src_blocked->Create(srcDesc, srcPtr);
+    src_blocked->Create(srcDesc, srcPtr, false);
 
     dst_blocked = std::make_shared<MKLDNNMemory>(getEngine());
-    dst_blocked->Create(dstDesc, dstPtr);
+    dst_blocked->Create(dstDesc, dstPtr, false);
 
     mkldnn::primitive_attr attr;
 
@@ -126,6 +126,7 @@ bool MKLDNNReorderNode::created() const {
 void MKLDNNReorderNode::execute(mkldnn::stream strm) {
     src_blocked->GetPrimitivePtr()->set_data_handle(getParentEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
     dst_blocked->GetPrimitivePtr()->set_data_handle(getChildEdgeAt(0)->getMemory().GetPrimitive().get_data_handle());
+
     MKLDNNNode::execute(strm);
 }
 

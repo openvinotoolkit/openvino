@@ -15,12 +15,12 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
 
-#include <api/CPP/engine.hpp>
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/memory.hpp>
-#include <api/CPP/contract.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
+#include <api/engine.hpp>
+#include <api/input_layout.hpp>
+#include <api/memory.hpp>
+#include <api/contract.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
 
 #include "test_utils/test_utils.h"
 #include "test_utils/uniform_quantized_real_distribution.hpp"
@@ -189,7 +189,6 @@ void generic_contract_test_float(cldnn::format test_input_fmt, int input_b, int 
     EXPECT_EQ(f_size, (int)output_cpu[0].size());
     EXPECT_EQ(b_size, (int)output_cpu.size());
 
-
     bool test_is_correct = true;
     VF<T> output_cpu_vec = flatten_4d<T>(test_input_fmt, output_cpu);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
@@ -250,7 +249,6 @@ void generic_contract_test_int(cldnn::format test_input_fmt, int input_b, int in
     EXPECT_EQ(x_size, (int)output_cpu[0][0][0].size());
     EXPECT_EQ(f_size, (int)output_cpu[0].size());
     EXPECT_EQ(b_size, (int)output_cpu.size());
-
 
     bool test_is_correct = true;
     VF<T> output_cpu_vec = flatten_4d<T>(test_input_fmt, output_cpu);

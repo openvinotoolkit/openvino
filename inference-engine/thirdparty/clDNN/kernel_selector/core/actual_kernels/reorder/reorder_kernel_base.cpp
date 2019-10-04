@@ -34,6 +34,8 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::os_is_yx_osv32_isv32p:
         case WeightsLayout::o_i_yx_i16_o16:
         case WeightsLayout::oiyx_o16:
+        case WeightsLayout::o_i_zyx_i16_o16:
+        case WeightsLayout::i_o_zyx_o16_i16:
             return 16;
         case WeightsLayout::os_i_osv8__ai8:
         case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:
@@ -102,7 +104,7 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
 
     // half->half without subtraction and activation (so plain reorder) can be done on shorts without explicit fp16 support
     bool useUshort = (params.inputs[0].GetDType() == Datatype::F16 && params.output.GetDType() == Datatype::F16 &&
-                      params.mode == MeanSubtractMode::NONE && params.activation.function == ActivationFunction::NONE);
+                      params.mode == MeanSubtractMode::NONE && params.activations.empty());
 
     Datatype calc_type = useUshort ? Datatype::UINT16 : params.inputs[0].GetDType();
     Datatype output_reorder_type = useUshort ? Datatype::UINT16 : params.output.GetDType();
@@ -115,7 +117,7 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
     jit.AddConstant(MakeJitConstant("MEAN_OP(val, mean_val)", getMeanOpString(params.mean_op)));
 
     // Type parametrized activation:
-    jit.Merge(MakeActivationJitConstants(params.activation, "_TYPED", true));
+    jit.Merge(MakeActivationJitConstants(params.activations, "_TYPED", true));
 
     // TODO: Move to lower classes
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", SubGroupSize(params.output.GetLayout())));

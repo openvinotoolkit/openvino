@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <limits>
 #include <list>
 #include <map>
 #include <mutex>
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <limits>
 
 struct TensorStatistic {
     TensorStatistic(float* data, size_t count, size_t nbuckets = 1000);
@@ -51,7 +51,7 @@ public:
     void getDataMinMax(const std::string& name, size_t channel, float& min, float& max, float threshold = 100.f);
 protected:
     struct statsPair {
-        float _min = std::numeric_limits<float>::max();;
+        float _min = std::numeric_limits<float>::max();
         float _max = std::numeric_limits<float>::min();
     };
     std::unordered_map<std::string, std::unordered_map<size_t, statsPair>> _data;

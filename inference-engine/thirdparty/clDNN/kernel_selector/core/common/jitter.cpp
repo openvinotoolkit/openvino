@@ -350,9 +350,22 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         };
         bool is_common_5d_layout = is_common_nd_layout(base_5d_channels, layout);
         if (is_common_5d_layout) {
-            definitions.push_back({ _name + "_GET_INDEX(b, f, z, y, x)",  "GET_DATA_INDEX_5D("+_name+", b, f, z, y, x)" });
-            definitions.push_back({ _name + "_GET_INDEX_SAFE(b, f, z, y, x)",  "GET_DATA_INDEX_5D_SAFE("+_name+", b, f, z, y, x)" });
-            definitions.push_back({ _name + "_GET_INDEX_RAW(b, f, z, y, x)",  "GET_DATA_INDEX_5D_RAW("+_name+", b, f, z, y, x)" });
+            auto index_func_name = _name + "_GET_INDEX(b, f, z, y, x)";
+            auto safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, z, y, x)";
+            auto raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, z, y, x)";
+            if (_tensor.SimpleLayout()) {
+                definitions.push_back({ index_func_name,  "GET_DATA_INDEX_5D("+_name+", b, f, z, y, x)" });
+                definitions.push_back({ safe_index_func_name,  "GET_DATA_INDEX_5D_SAFE("+_name+", b, f, z, y, x)" });
+                definitions.push_back({ raw_index_func_name,  "GET_DATA_INDEX_5D_RAW("+_name+", b, f, z, y, x)" });
+            } else if (layout == DataLayout::bfzyx_f16) {
+                definitions.push_back({ index_func_name, "GET_DATA_BFZYX_F16_INDEX(" + _name + ", b, f, z, y, x)" });
+                definitions.push_back({ raw_index_func_name, "GET_DATA_BFZYX_F16_INDEX(" + _name + ", b, f, z, y, x)" });
+                definitions.push_back({ safe_index_func_name, "GET_DATA_BFZYX_F16_INDEX(" + _name + ", b, f, z, y, x)" });
+            } else {
+                definitions.push_back({ index_func_name,  "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)" });
+                definitions.push_back({ safe_index_func_name,  "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)" });
+                definitions.push_back({ raw_index_func_name,  "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)" });
+            }
         } else {
             // TODO: implement support of non-default layouts with 5 channels
             assert(0);
@@ -428,7 +441,8 @@ std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const Weig
 
 JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
                                         const std::string& suffix,
-                                        bool use_type_parameter) {
+                                        bool use_type_parameter,
+                                        bool disable_type_conversion) {
     std::string name = "ACTIVATION_FUNC" + suffix;
     JitConstants jitConstants = {};
 
@@ -480,267 +494,193 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
     std::string macro_def = name + (use_type_parameter ? "(jit_type, input, m, n)" : "(input, m, n)");
     std::string macro_def_grad = name + (use_type_parameter ? "(jit_type, input_grad, input, m, n)"
                                                             : "(input_grad, input, m, n)");
+    std::string macro_def_params = use_type_parameter ? "(jit_type, input, params)" : "(input, params)";
+
+    jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
+
     // TODO: use native_exp and use cast for APL
     switch (activation_function) {
         case ActivationFunction::LOGISTIC:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, (one / (one + exp(neg(input)))).str()));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::HYPERBOLIC_TAN:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(tanh(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::RELU:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, max_func(zero, input).str()));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::RELU_NEGATIVE_SLOPE: {
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
-            const JitTerm slope = to_type("m"_jit);
+            const JitTerm slope = disable_type_conversion ? "m"_jit : to_type("m"_jit);
             jitConstants.AddConstant(MakeJitConstant(
                 macro_def,
                 ternary(isinf(slope),
                         ternary(input.ge(zero), input, neg(slope)),
                         max_func(input, zero) + (slope * min_func(input, zero)))
                     .str()));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         }
         case ActivationFunction::ELU: {
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
-            auto alpha = "m"_jit;
+            auto alpha = disable_type_conversion ? "m"_jit : to_type("m"_jit);
             jitConstants.AddConstant(MakeJitConstant(
                 macro_def,
-                (max_func(input, zero) + (to_type(alpha) * (exp(min_func(input, zero)) - one)))
+                (max_func(input, zero) + (alpha * (exp(min_func(input, zero)) - one)))
                     .str()));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         }
-        case ActivationFunction::CLAMP:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
+        case ActivationFunction::CLAMP: {
+            const JitTerm m = disable_type_conversion ? "m"_jit : to_type("m"_jit);
+            const JitTerm n = disable_type_conversion ? "n"_jit : to_type("n"_jit);
             jitConstants.AddConstant(MakeJitConstant(
-                macro_def,
-                max_func(to_type("m"_jit), min_func(to_type("n"_jit), input)).str()));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
+                 macro_def,
+                 max_func(m, min_func(n, input)).str()));
             break;
+        }
         case ActivationFunction::SOFTRELU:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, log(one + exp(input)).str()));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::ABS:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(fabs(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
-        case ActivationFunction::LINEAR:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
-            jitConstants.AddConstant(MakeJitConstant(macro_def, (to_type("m"_jit) * input + to_type("n"_jit)).str()));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
+        case ActivationFunction::LINEAR: {
+            const JitTerm m = disable_type_conversion ? "m"_jit : to_type("m"_jit);
+            const JitTerm n = disable_type_conversion ? "n"_jit : to_type("n"_jit);
+            jitConstants.AddConstant(MakeJitConstant(macro_def, (m * input + n).str()));
             break;
+        }
         case ActivationFunction::SQUARE:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(input*input)"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::SQRT:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(sqrt(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::SIN:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(sin(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::ASIN:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(asin(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::SINH:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(sinh(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::ASINH:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(asinh(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::COS:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(cos(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::ACOS:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(acos(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::COSH:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(cosh(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::ACOSH:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(acosh(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::LOG:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(log(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::LOG2:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(log2(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::EXP:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(exp(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
-        case ActivationFunction::POW:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
-            jitConstants.AddConstant(MakeJitConstant(macro_def, "(pow(input," + (to_type("m"_jit).str()) + "))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
+        case ActivationFunction::POW: {
+            const JitTerm m = disable_type_conversion ? "m"_jit : to_type("m"_jit);
+            jitConstants.AddConstant(MakeJitConstant(macro_def, "(pow(input," + m.str() + "))"));
             break;
+        }
         case ActivationFunction::RELU_GRAD:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(
                 macro_def_grad,
                 ("input_grad"_jit * ternary(input.gt(zero), one, zero)).str()));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input_grad, input, params)", name + "(input_grad, input, params)"));
+            macro_def_params = use_type_parameter ? "(jit_type, input_grad, input, params)" : "(input_grad, input, params)";
             break;
         case ActivationFunction::RELU_NEGATIVE_SLOPE_GRAD: {
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
-            auto slope = "m"_jit;
+            const JitTerm slope = disable_type_conversion ? "m"_jit : to_type("m"_jit);
             jitConstants.AddConstant(MakeJitConstant(
                 macro_def_grad,
                 ("input_grad"_jit * (ternary(input.gt(zero), one, zero) + (to_type(slope) * ternary(input.le(zero), one, zero))))
                     .str()));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input_grad, input, params)", name + "(input_grad, input, params)"));
+            macro_def_params = use_type_parameter ? "(jit_type, input_grad, input, params)" : "(input_grad, input, params)";
             break;
         }
         case ActivationFunction::NONE_GRAD:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def_grad, "input_grad"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input_grad, input, params)", name + "(input_grad, input, params)"));
+            macro_def_params = use_type_parameter ? "(jit_type, input_grad, input, params)" : "(input_grad, input, params)";
             break;
         case ActivationFunction::TAN:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(tan(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::ATAN:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(atan(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::ATANH:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(atanh(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::FLOOR:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(floor(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::CEIL:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(ceil(input))"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::NEGATIVE:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(-input)"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::ERF:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "erf(input)"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::HARD_SIGMOID: {
-            jitConstants.AddConstant(
-                    MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
-            auto alpha = "m"_jit;
-            auto beta = "n"_jit;
+            auto alpha = disable_type_conversion ? "m"_jit : to_type("m"_jit);
+            auto beta =  disable_type_conversion ? "n"_jit : to_type("n"_jit);
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
                     max_func(zero, min_func(one, (JitTerm)((alpha * input + beta).str()))).str()));
-            jitConstants.AddConstant(
-                    MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         }
         case ActivationFunction::SIGN:
-            jitConstants.AddConstant(
-                    MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
                     ternary(input.gt(zero), one, ternary(input.eq(zero), zero, neg(one))).str()));
-            jitConstants.AddConstant(
-                    MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::RECIPROCAL:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, (one / input).str()));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::SELU: {
-            jitConstants.AddConstant(
-                    MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
-            auto alpha = "m"_jit;
-            auto gamma = "n"_jit;
+            auto alpha = disable_type_conversion ? "m"_jit : to_type("m"_jit);
+            auto gamma = disable_type_conversion ? "n"_jit : to_type("n"_jit);
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
                     ternary(input.le(zero), gamma * (alpha * exp(input) - alpha), gamma * input).str()));
-            jitConstants.AddConstant(
-                    MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            jitConstants.AddConstant(
-                    MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
                     log(exp(input) + one).str()));
-            jitConstants.AddConstant(
-                    MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         }
         case ActivationFunction::SOFTSIGN: {
-            jitConstants.AddConstant(
-                    MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
                     (input / (one + abs_func(input))).str()));
-            jitConstants.AddConstant(
-                    MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         }
         case ActivationFunction::NOT:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(
                 macro_def,
                 ternary(input.eq(zero), one, zero)
                     .str()));  // the workaround for OpenCL's vector type result (!input)
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
         case ActivationFunction::NONE:
         default:
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
             jitConstants.AddConstant(MakeJitConstant(macro_def, "input"));
-            jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + "(input, params)", name + "(input, params)"));
             break;
     }
+
+    jitConstants.AddConstant(MakeJitConstant("ACTIVATION" + suffix + macro_def_params, name + macro_def_params));
+
     return jitConstants;
 }
 
@@ -924,12 +864,54 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
 
 JitConstants MakeActivationJitConstants(const base_activation_params& params,
                                         const std::string& suffix,
-                                        bool use_type_parameter) {
+                                        bool use_type_parameter,
+                                        bool disable_type_conversion) {
     auto jitConstants = JitConstants{MakeJitConstant("NL_M" + suffix, params.m),
                                      MakeJitConstant("NL_N" + suffix, params.n)};
     jitConstants.Merge(MakeActivationJitConstants(
-        params.function, suffix, use_type_parameter));
+        params.function, suffix, use_type_parameter, disable_type_conversion));
     return jitConstants;
+}
+
+JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activation_params> params,
+                                        const std::string& suffix,
+                                        bool use_type_parameter,
+                                        bool disable_type_conversion) {
+    JitConstants res = {};
+    if (params.empty()) {
+        return MakeActivationJitConstants({ActivationFunction::NONE, 0.f, 0.f}, suffix, use_type_parameter, disable_type_conversion);
+    }
+    std::string res_activation = "";
+    std::string activation_params = "";
+    for (size_t i = 0; i < params.size(); i++) {
+        std::string activation_suffix = suffix + "_" + std::to_string(i);
+        auto jitConstants = JitConstants{MakeJitConstant("NL_M" + activation_suffix, params[i].m),
+                                         MakeJitConstant("NL_N" + activation_suffix, params[i].n)};
+        jitConstants.Merge(MakeActivationJitConstants(
+                params[i].function, activation_suffix, use_type_parameter, disable_type_conversion));
+        res.Merge(jitConstants);
+
+        if (i == 0) {
+            if (params[i].gradient) {
+                activation_params = use_type_parameter ? "(jit_type, input_grad, input, params)" : "(input_grad, input, params)";
+            } else {
+                activation_params = use_type_parameter ? "(jit_type, input, params)" : "(input, params)";
+            }
+            res_activation = "ACTIVATION_FUNC" + activation_suffix + activation_params;
+        } else {
+            res_activation = "ACTIVATION" + activation_suffix + "(" + (use_type_parameter ? "jit_type, " : "") +
+                             (params[i].gradient ? "input_grad, " : "") +
+                             res_activation + ", ACTIVATION_PARAMS" + activation_suffix + ")";
+        }
+    }
+    if (params[params.size() - 1].gradient) {
+        activation_params = use_type_parameter ? "(jit_type, input_grad, input, params)" : "(input_grad, input, params)";
+    } else {
+        activation_params = use_type_parameter ? "(jit_type, input, params)" : "(input, params)";
+    }
+    res.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "ACTIVATION_PARAMS" + suffix + "_0"));
+    res.AddConstant(MakeJitConstant("ACTIVATION" + suffix + activation_params, res_activation));
+    return res;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

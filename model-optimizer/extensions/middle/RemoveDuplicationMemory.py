@@ -15,7 +15,7 @@
 """
 import numpy as np
 
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.crop import Crop
 
@@ -34,41 +34,118 @@ class RemoveMemoryDuplicationPattern(MiddleReplacementPattern):
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
-        if len(match['op'].in_nodes()) == 0:
-            return
-
         mem = match['op']
-        in_mem = mem.in_node(0)
+        mem_shape = mem.in_port(0).data.get_shape()
+        mem_parent = mem.in_port(0).get_source()
         context = mem['context']
-        outs = in_mem.out_nodes()
 
-        for out in outs:
-            if out['op'] == 'Splice' and out.id != mem.id and set(out['context']).issubset(set(context)):
-                left_cont_out = out['context'][0]
+        for child_port in mem_parent.get_destinations():
+            child = child_port.node
+            # check if we find Splice containing context 'context'
+            if child['op'] == 'Splice' and child.id != mem.id and set(child['context']).issubset(set(context)):
+                left_cont_out = child['context'][0]
                 left_cont = context[0]
 
-                out_node = out.out_node()
-                for out_name, out_edge in out_node.get_outputs():
-                    out_transfer = Node(graph, out_name)
+                for child_of_child in child.out_port(0).get_destinations():
+                    out_transfer = child_of_child.node
+                    out_transfer_port = child_of_child
                     if out_transfer['op'] == 'Crop':
                         # modify existing Crop to get right data from larger Splice
-                        out_transfer['offset'] = out_transfer['offset'] + (left_cont_out - left_cont) * in_mem.shape[-1]
+                        out_transfer['offset'] = out_transfer['offset'] + (left_cont_out - left_cont) * mem_shape[-1]
                     else:
                         # insert Crop if we have not one
-                        out_transfer.in_port(out_edge['in']).disconnect()
+                        child_of_child.disconnect()
                         crop_node = Crop(graph, {'name': graph.unique_id(prefix='Splice_crop_'),
-                                                 'offset': (left_cont_out - left_cont) * in_mem.shape[-1],
-                                                 'dim': np.array([len(out['context']) * in_mem.shape[-1]]),
+                                                 'offset': (left_cont_out - left_cont) * mem_shape[-1],
+                                                 'dim': np.array([len(child['context']) * mem_shape[-1]]),
                                                  'axis': np.array([-1])}).create_node()
-                        out.out_port(0).connect(crop_node.in_port(0))
-                        crop_node.out_port(0).connect(out_transfer.in_port(out_edge['in']))
-                        crop_node.out_node(0).shape = out_node.shape
+                        child.out_port(0).connect(crop_node.in_port(0))
+                        crop_node.out_port(0).connect(child_of_child)
+                        crop_node.out_port(0).data.set_shape(child.out_port(0).data.get_shape())
 
-                        out_transfer = crop_node
+                        out_transfer_port = crop_node.in_port(0)
 
-                    # move edge from old Splice to larger
-                    in_port = graph.get_edge_data(out_node.id, out_transfer.id)[0]['in']
-                    out_transfer.in_port(0).disconnect()
-                    mem.out_port(0).connect(out_transfer.in_port(in_port))
+                    # move edge to child from old Splice to larger
+                    out_transfer_port.disconnect()
+                    mem.out_port(0).connect(out_transfer_port)
 
-                graph.remove_node(out.id)
+                graph.remove_node(child.id)
+
+
+class MergeNeighborSplicePattern(MiddleReplacementPattern):
+    """
+    Merge Splices with neighbor contexts, for example: [-5, 0] and [0, 3] to context [-5, 3]
+    """
+    enabled = False
+
+    @staticmethod
+    def pattern():
+        return dict(
+            nodes=[('op', dict(op='Splice'))],
+            edges=[])
+
+    @staticmethod
+    def replace_pattern(graph: Graph, match: dict):
+        mem = match['op']
+        mem_shape = mem.in_port(0).data.get_shape()
+        mem_parent = mem.in_port(0).get_source()
+        context = mem['context']
+
+        for child_port in mem_parent.get_destinations():
+            child = child_port.node
+            if child['op'] == 'Splice' and child.id != mem.id and \
+               (child['context'][0] == context[-1] or child['context'][0] == context[-1]):
+
+                new_context = list(context)
+                new_context.extend(list(child['context']))
+                new_context = list(set(new_context))
+                new_context.sort()
+                if child['context'][0] == context[-1]:
+                    new_node = mem
+                    rem_node = child
+                else:
+                    new_node = child
+                    rem_node = mem
+
+                # reset edges from rem_node to new_node
+                for out_port_rem in rem_node.out_port(0).get_destinations():
+                    out_transfer = out_port_rem.node
+                    out_transfer_shape = out_port_rem.data.get_shape().copy()
+
+                    out_port_rem.disconnect()
+
+                    if out_transfer['op'] == 'Crop':
+                        # modify existing Crop to get right data from larger Splice
+                        out_transfer['offset'] = out_transfer['offset'] + (len(new_context) - len(rem_node.context)) * mem_shape[-1]
+                        out_port_rem.connect(new_node.out_port(0))
+                    else:
+                        # insert Crop if we have not one
+                        crop_node = Crop(graph, {'name': graph.unique_id(prefix='Splice_crop_'),
+                                                 'offset': (len(new_context) - len(rem_node.context)) * mem_shape[-1],
+                                                 'dim': np.array([len(rem_node['context']) * mem_shape[-1]]),
+                                                 'axis': np.array([-1])}).create_node()
+                        new_node.out_port(0).connect(crop_node.in_port(0))
+                        crop_node.out_port(0).connect(out_port_rem)
+                        crop_node.out_port(0).data.set_shape(out_transfer_shape)
+
+                for out_port_rem in new_node.out_port(0).get_destinations():
+                    out_transfer = out_port_rem.node
+                    out_transfer_shape = out_port_rem.data.get_shape().copy()
+
+                    if out_transfer['op'] != 'Crop':
+                        # insert Crop if we have not one
+                        crop_node = Crop(graph, {'name': graph.unique_id(prefix='Splice_crop_'),
+                                                 'offset': np.array([0]),
+                                                 'dim': np.array([len(new_node['context']) * mem_shape[-1]]),
+                                                 'axis': np.array([-1])}).create_node()
+                        new_node.out_port(0).connect(crop_node.in_port(0))
+                        out_port_rem.disconnect()
+                        crop_node.out_port(0).connect(out_port_rem)
+                        crop_node.out_port(0).data.set_shape(out_transfer_shape)
+
+                new_shape = new_node.out_port(0).data.get_shape()
+                new_shape[1] += rem_node.out_port(0).data.get_shape()[1] - rem_node.in_port(0).data.get_shape()[1]
+                new_node.out_port(0).data.set_shape(new_shape)
+                new_node.context = new_context
+
+                graph.remove_node(rem_node.id)

@@ -214,13 +214,13 @@ public:
                 }
                 case ParametersValues::FLOAT_POSITIVE: {
                     for (int j = 0; j < magicNumber; ++j) {
-                        paramsValues.push_back(std::to_string(distFloatPositive(gen)));
+                        paramsValues.push_back(to_string_c_locale(distFloatPositive(gen)));
                     }
                     break;
                 }
                 case ParametersValues::FLOAT_NEGATIVE: {
                     for (int j = 0; j < magicNumber; ++j) {
-                        paramsValues.push_back(std::to_string(distFloatNegative(gen)));
+                        paramsValues.push_back(to_string_c_locale(distFloatNegative(gen)));
                     }
                     break;
                 }

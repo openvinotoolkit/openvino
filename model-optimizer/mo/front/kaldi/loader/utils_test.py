@@ -88,9 +88,14 @@ class TestKaldiUtilsLoading(unittest.TestCase):
         test_file = b'<Nnet>somefakeinfo<another>info' + component + b'<tag><!EndOfComponent></Nnet>'
         self.assertEqual(find_next_component(self.bytesio_from(test_file)), component.decode('ascii').lower()[1:-1])
 
+    def test_find_next_component_eoc(self):
+        component = b'<LstmProjectedStreams>'
+        test_file = b'<!EndOfComponent>' + component + b'<tag><!EndOfComponent></Nnet>'
+        self.assertEqual(find_next_component(self.bytesio_from(test_file)), component.decode('ascii').lower()[1:-1])
+
     def test_find_next_component_end_of_nnet(self):
         test_file = b'<Nnet>somefakeinfo<another>info<tag><!EndOfComponent></Nnet>'
-        self.assertEqual(find_next_component(self.bytesio_from(test_file)), end_of_nnet_tag.lower()[1:-1])
+        self.assertRaises(Error, find_next_component, self.bytesio_from(test_file))
 
     def test_find_end_of_component(self):
         component = '<AffineComponent>'

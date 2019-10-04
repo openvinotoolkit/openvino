@@ -35,7 +35,9 @@ public:
      * @brief Move constructor
      * @param parameter Parameter object
      */
-    Parameter(Parameter &&parameter) noexcept: ptr(std::move(parameter.ptr)) {}
+    Parameter(Parameter &&parameter) noexcept {
+        std::swap(ptr, parameter.ptr);
+    }
 
     /**
      * @brief Copy constructor
@@ -233,11 +235,11 @@ private:
         }
 
         T& get() & {
-            return std::get<0>(*this);
+            return std::get<0>(*static_cast<std::tuple<T>*>(this));
         }
 
         const T& get() const & {
-            return std::get<0>(*this);
+            return std::get<0>(*static_cast<const std::tuple<T>*>(this));
         }
 
         template <class U>

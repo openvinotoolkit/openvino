@@ -16,8 +16,17 @@
 namespace vpu {
 namespace MyriadPlugin {
 
+VPU_DECLARE_ENUM(PowerConfig,
+    FULL         = 0,
+    INFER        = 1,
+    STAGE        = 2,
+    STAGE_SHAVES = 3,
+    STAGE_NCES   = 4,
+)
+
 struct MyriadConfig final : ParsedConfig {
     bool forceReset = false;
+    PowerConfig powerConfig = PowerConfig::FULL;
     ncDevicePlatform_t platform = NC_ANY_PLATFORM;
     ncDeviceProtocol_t protocol = NC_ANY_PROTOCOL;
     std::chrono::milliseconds watchdogInterval = std::chrono::milliseconds(1000);

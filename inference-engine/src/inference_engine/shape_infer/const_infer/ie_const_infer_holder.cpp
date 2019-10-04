@@ -20,12 +20,15 @@
 #include "ie_gather_const_infer.hpp"
 #include "ie_split_const_infer.hpp"
 #include "ie_concat_const_infer.hpp"
+#include "ie_convert_const_infer.hpp"
 #include "ie_in_place_const_infer.hpp"
 #include "ie_strided_slice_const_infer.hpp"
 #include "ie_fill_const_infer.hpp"
 #include "ie_range_const_infer.hpp"
 #include "ie_broadcast_const_infer.hpp"
+#include "ie_permute_const_infer.hpp"
 #include "ie_onehot_const_infer.hpp"
+#include "ie_reduce_const_infer.hpp"
 #include <list>
 #include <memory>
 #include <string>
@@ -81,6 +84,20 @@ REG_CONST_INFER_FOR_TYPE(FillConstInfer, Fill);
 REG_CONST_INFER_FOR_TYPE(RangeConstInfer, Range);
 REG_CONST_INFER_FOR_TYPE(BroadcastConstInfer, Broadcast);
 REG_CONST_INFER_FOR_TYPE(OneHotConstInfer, OneHot);
+REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceAnd);
+REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceL1);
+REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceL2);
+REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceLogSum);
+REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceLogSumExp);
+REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceMax);
+REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceMean);
+REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceMin);
+REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceOr);
+REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceProd);
+REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceSum);
+REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceSumSquare);
+REG_CONST_INFER_FOR_TYPE(PermuteConstInfer, Permute);
+REG_CONST_INFER_FOR_TYPE(ConvertConstInfer, Convert);
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine

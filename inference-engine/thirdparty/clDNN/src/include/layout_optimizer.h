@@ -53,36 +53,20 @@ class primitive_inst;
 // it's programmers responsiblity to choose between 'get_reorder', which creates reorder to best format
 // for given primitive (or nullptr if it's already optimal) and user shall insert it into it's own topology.
 //  (note: layout_optimizer has internal caching mechanism, so if there's already reorder added for given (mem,format)
-//   pair during 'get_reorder' call, it will be reused);
-// or 'add_weights_for_optimization' which, beside creating the reorder, adds both primitives (data and reorder) to its
-// internal network which allows later to call 'optimize' and get already reordered data to be exchanged in target
-// topology.
-class layout_optimizer {
-public:
-    enum class data_type { weights, bias, input };
-    enum class optimization_attributes_type {
-        splitted_convolution,
-        group_convolution,
-        deformable_convolution,
-        bfyx_only_layer,
-        only_fsv32_layers,
-        bfyx_f16_network
-    };
+//   pair during 'get_reorder' call, it will be reused).
 
-    struct optimization_attributes {
-        int32_t splitted_convolution = 0;
-        int32_t group_convolution = 0;
-        int32_t deformable_convolution = 0;
-        int32_t bfyx_only_layer = 0;
-        int32_t only_fsv32_layers = 0;
-        int32_t bfyx_f16_network = 0;
-    };
+class reorder_factory {
+public:
+    // pair.first is reorder (may be nullptr if reorder is not needed), pair.second tells if returned reorder was cached
+    // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
+    std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id, layout in_layout, layout out_layout);
+
+    std::vector<std::pair<std::shared_ptr<primitive>, bool>> get_weights_reorder(
+        primitive_id input_id,
+        const layout& old_layout,
+        const kernel_selector::weights_reorder_params& reorder_params);
 
 private:
-    optimization_attributes _optimization_attributes;
-    // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
-    bool _output_size_handling_enabled;
-
     struct cache_key {
         primitive_id data_source;
         layout expected_layout;
@@ -101,124 +85,109 @@ private:
     };
 
     std::map<cache_key, std::shared_ptr<reorder>> _cached_reorders;
-    std::map<cache_key, std::shared_ptr<generic_layer>> _cached_generic_layers;
+    std::map<cache_key, std::shared_ptr<generic_layer>> _cached_generic_reorders;
+};
+
+class layout_optimizer {
+public:
+    enum class optimization_attributes_type {
+        splitted_convolution,
+        group_convolution,
+        deformable_convolution,
+        bfyx_only_layer,
+        only_fsv32_layers,
+        bfyx_f16_network,
+        bfzyx_f16_network
+    };
+
+    struct optimization_attributes {
+        int32_t splitted_convolution = 0;
+        int32_t group_convolution = 0;
+        int32_t deformable_convolution = 0;
+        int32_t bfyx_only_layer = 0;
+        int32_t only_fsv32_layers = 0;
+        int32_t bfyx_f16_network = 0;
+        int32_t bfzyx_f16_network = 0;
+    };
+
+private:
+    optimization_attributes _optimization_attributes;
+    // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
+    bool _output_size_handling_enabled;
 
     layout get_expected_layout(layout const& current_layout,
-                               data_type type,
                                convolution_node const& node,
                                layout const& output_or_weights_layout);
     layout get_expected_layout(layout const& current_layout,
-                               data_type type,
                                deconvolution_node const& node,
                                layout const& output_or_weights_layout);
     layout get_expected_layout(layout const& current_layout,
-                               data_type type,
-                               fully_connected_node const& node,
-                               layout const& output_or_weights_layout);
-    layout get_expected_layout(layout const& current_layout,
-                               data_type type,
                                detection_output_node const& node,
                                layout const& output_or_weights_layout);
     layout get_expected_layout(layout const& current_layout,
-                               data_type type,
-                               embed_node const& node,
-                               layout const& output_or_weights_layout);
-    layout get_expected_layout(layout const& current_layout,
-                               data_type type,
-                               lstm_gemm_node const& node,
-                               layout const& output_or_weights_layout);
-    layout get_expected_layout(layout const& current_layout,
-                               data_type type,
                                binary_convolution_node const& node,
                                layout const& output_or_weights_layout);
 
     bool convolution_bfyx_opt(const layout& output_layout,
                               const layout& weights_layout,
                               std::shared_ptr<const convolution> conv);
-    bool convolution_byxf_opt(const layout& output_layout,
+    bool convolution_byxf_opt(const layout& input_layout,
+                              const layout& output_layout,
                               const layout& weights_layout,
                               std::shared_ptr<const convolution> conv);
     bool convolution_bfyx_f16_opt(const layout& output_layout,
                                   const layout& weights_layout,
                                   std::shared_ptr<const convolution> conv);
+    bool convolution_bfzyx_f16_opt(const layout& output_layout,
+                                   const layout& weights_layout,
+                                   std::shared_ptr<const convolution> conv);
+    bool deconvolution_bfzyx_f16_opt(const layout& output_layout,
+                                     const layout& weights_layout,
+                                     std::shared_ptr<const deconvolution> conv);
     bool users_for_convolution_byxf_opt(program_node const& node, uint32_t depth);
-    bool deps_depth_in_same_format(program_node const& node, const cldnn::format format, uint32_t depth);
-
-    // pair.first is reorder (may be nullptr if reorder is not needed), pair.second tells if returned reorder was cached
-    // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
-    std::pair<std::shared_ptr<cldnn::reorder>, bool> create_reorder_if_needed(const layout& current_layout,
-                                                                              const cldnn::primitive_id& memid,
-                                                                              layout const& expected_layout);
-
-    std::pair<std::shared_ptr<cldnn::generic_layer>, bool> create_reorder_from_given_source(
-        const cldnn::primitive_id& memid,
-        layout const& expected_layout,
-        const kernel_selector::weights_reorder_params& reorder_params);
+    bool deps_for_convolution_byxf_opt(program_node const& node, uint32_t depth);
 
 public:
     explicit layout_optimizer(bool output_size_handling_enabled = true);
 
-    // this method creates reorder for data, which is currently in 'data_layout' format, to best format in context of
-    // 'user' primitive. data is used by 'user' in a way described by 'type' (i.e. weights/bias/input). id shall be
-    // primitive_id of data's source (used as reorder's input and for cache checks). user_layout is optional parameter
-    // (required for weights and bias, optional for input) which tells what kind of output 'user'
-    //  is supposed to compute - it's used for example to decide if weights shall be converted to fp16.
-    //
-    // if 'data_layout' is already optimal, nullptr is returned
-    // currently optimizations are supported only for convolution and fully-connected.
-    //
-    // returns a pair<reorder,bool> - where pair.first is a pointer to the reorder primitive and pair.second tells if
-    // it's been reused from cache, pair.second == false means this is a newly created primitive and probably needs to be
-    // added to topology etc.
-    template <class T>
-    auto get_reorder(layout const& data_layout,
-                     primitive_id const& id,
-                     data_type type,
-                     T& node,
-                     layout const& user_layout) ->
-        typename std::enable_if<meta::is_any_of<T,
-                                                convolution_node,
-                                                fully_connected_node,
-                                                deconvolution_node,
-                                                detection_output_node,
-                                                embed_node,
-                                                lstm_gemm_node,
-                                                binary_convolution_node>::value,
-                                meta::deduce_ret_type_t<decltype(&layout_optimizer::create_reorder_if_needed)>>::type {
-        auto expected_layout = get_expected_layout(data_layout, type, node, user_layout);
-        return create_reorder_if_needed(data_layout, id, expected_layout);
+    format get_preferred_format(program_node& node) {
+        format expected = format::any;
+        auto output_layout = node.get_output_layout();
+
+        if (node.is_type<convolution>()) {
+            auto& conv_node = node.as<convolution>();
+            auto weights_layout = conv_node.weights(0).get_output_layout();
+            expected = get_expected_layout(output_layout, conv_node, weights_layout).format;
+        } else if (node.is_type<binary_convolution>()) {
+            auto& bconv_node = node.as<binary_convolution>();
+            auto weights_layout = bconv_node.weights(0).get_output_layout();
+            expected = get_expected_layout(output_layout, bconv_node, weights_layout).format;
+        } else if (node.is_type<detection_output>()) {
+            expected = get_expected_layout(
+                output_layout,
+                node.as<detection_output>(),
+                layout{ data_types::f32, format::bfyx, tensor{} }).format;
+        } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
+            expected = node.get_output_layout().format;
+        } else if (node.is_type<deconvolution>()) {
+            auto& deconv_node = node.as<deconvolution>();
+            auto weights_layout = deconv_node.weights(0).get_output_layout();
+            expected = get_expected_layout(output_layout, deconv_node, weights_layout).format;
+        }
+
+        return expected;
     }
 
-    // case for unsupported 'user' primitives
-    template <class T>
-    auto get_reorder(layout const& data_layout,
-                     primitive_id const& id,
-                     data_type type,
-                     T& node,
-                     layout const& user_layout) ->
-        typename std::enable_if<!meta::is_any_of<T,
-                                                 convolution_node,
-                                                 fully_connected_node,
-                                                 deconvolution_node,
-                                                 detection_output_node,
-                                                 embed_node,
-                                                 lstm_gemm_node,
-                                                 binary_convolution_node>::value,
-                                meta::deduce_ret_type_t<decltype(&layout_optimizer::create_reorder_if_needed)>>::type {
-        static_assert(meta::always_false<T>::value,
-                      "Layout optimization for given primitive type is currently unsupported!");
-        return meta::deduce_ret_type_t<decltype(&layout_optimizer::create_reorder_if_needed)>();
-    }
+    bool is_format_supported(program_node& node, format::type fmt);
 
-    std::vector<std::pair<std::shared_ptr<primitive>, bool>> get_generic_layer(
-        const kernel_selector::weights_reorder_params& reorder_params,
-        primitive_id input_id,
-        const layout& old_layout,
-        data_type type);
+    // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
+    // can be fused into next.
+    bool can_fuse_reorder(program_node& prev, program_node& next, format fmt_prev, format fmt_next);
 
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
 
     bool is_format_optimized(const convolution_node& node, const format& format);
+    bool is_format_optimized(const deconvolution_node& node, const format& format);
 };
 }  // namespace cldnn

@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/reorg_yolo.hpp"
+#include "api/reorg_yolo.hpp"
 #include "primitive_inst.h"
 #include <string>
 

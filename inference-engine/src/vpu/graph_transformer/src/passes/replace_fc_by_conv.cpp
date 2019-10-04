@@ -22,21 +22,24 @@ namespace vpu {
 
 namespace {
 
-using ReplicatedDataMap = std::unordered_map<int, Data>;
-
 void setConvParameters(const vpu::Stage& stage, int kX, int kY) {
-    stage->attrs().set<int>("kernelSizeX", kX);
-    stage->attrs().set<int>("kernelSizeY", kY);
-    stage->attrs().set<int>("kernelStrideX", 1);
-    stage->attrs().set<int>("kernelStrideY", 1);
-    stage->attrs().set<int>("padLeft", 0);
-    stage->attrs().set<int>("padRight", 0);
-    stage->attrs().set<int>("padTop", 0);
-    stage->attrs().set<int>("padBottom", 0);
-    stage->attrs().set<int>("dilationX", 1);
-    stage->attrs().set<int>("dilationY", 1);
-    stage->attrs().set<int>("groupSize", 1);
-    stage->attrs().set<bool>("tryHW", true);
+    stage->attrs().set("kernelSizeX", kX);
+    stage->attrs().set("kernelSizeY", kY);
+
+    stage->attrs().set("kernelStrideX", kX);
+    stage->attrs().set("kernelStrideY", kY);
+
+    stage->attrs().set("padLeft", 0);
+    stage->attrs().set("padRight", 0);
+    stage->attrs().set("padTop", 0);
+    stage->attrs().set("padBottom", 0);
+
+    stage->attrs().set("dilationX", 1);
+    stage->attrs().set("dilationY", 1);
+
+    stage->attrs().set("groupSize", 1);
+
+    stage->attrs().set("tryHW", true);
 }
 
 class PassImpl final : public Pass {
@@ -57,129 +60,202 @@ void PassImpl::run(const Model::Ptr& model) {
             continue;
         }
 
-        auto tryHW = stage->attrs().getOrDefault<bool>("tryHW", false);
+        const auto tryHW = stage->attrs().getOrDefault<bool>("tryHW", false);
         if (!tryHW) {
             continue;
         }
 
-        auto input = stage->input(0);
-        auto weights = stage->input(1);
-        auto biases  = stage->input(2);
-        auto output = stage->output(0);
+        const auto input = stage->input(0);
+        const auto weights = stage->input(1);
+        const auto biases  = stage->input(2);
+        const auto output = stage->output(0);
 
-        auto dims = input->desc().dims();
+        const auto inDims = input->desc().dims();
 
-        if (input->desc().numDims() == 4) {
-            bool required = dims.has(Dim::N);
-            required &= dims.has(Dim::C);
-            required &= dims.has(Dim::H);
-            required &= dims.has(Dim::W);
+        if (inDims.size() != 2 && inDims.size() != 4) {
+            continue;
+        }
 
-            if (required &&
-                input->desc().dim(Dim::H, 1) < 16 &&
-                input->desc().dim(Dim::W, 1) < 16) {
-                /* can convert to convolution layers */
-                model->disconnectStageDatas(stage);
+        const auto inBatch = inDims[Dim::N];
+        const auto inSize  = input->desc().totalDimSize() / inBatch;
 
-                auto kernelSizeX = input->desc().dim(Dim::W, 1);
-                auto kernelSizeY = input->desc().dim(Dim::H, 1);
-                IE_ASSERT(weights->desc().totalDimSize() >=
-                        kernelSizeX * kernelSizeY * (input->desc().dim(Dim::C)) * output->desc().dim(Dim::C));
+        IE_ASSERT(output->desc().dim(Dim::N) == inBatch);
 
-                auto newWeights = model->duplicateData(
-                    weights,
-                    "",
-                    DataDesc({
-                        kernelSizeX,
-                        kernelSizeY,
-                        input->desc().dim(Dim::C),
-                        output->desc().dim(Dim::C)}));
+        // HW restriction for kernel stride (we use stride equal to kernel size).
+        const int maxKernelSize = 8;
 
-                auto newBiases = model->addFakeData();
-                if (biases->usage() != DataUsage::Fake) {
-                    IE_ASSERT(biases->desc().totalDimSize() >= output->desc().dim(Dim::C));
-                    newBiases = model->duplicateData(biases,
-                        biases->name(),
-                        DataDesc({output->desc().dim(Dim::C)}));
+        // TODO: something more sophisticated?
+        int convKernelSizeX = -1;
+        int convKernelSizeY = -1;
+        for (int k = maxKernelSize; k >= 1; --k) {
+            if (inSize >= (k * k) && inSize % (k * k) == 0 && isPowerOfTwo(inSize / (k * k))) {
+                convKernelSizeX = k;
+                convKernelSizeY = k;
+                break;
+            }
+        }
+        if (convKernelSizeX == -1 || convKernelSizeY == -1) {
+            for (int k = maxKernelSize; k >= 1; --k) {
+                if (inSize >= (k * k) && inSize % (k * k) == 0) {
+                    convKernelSizeX = k;
+                    convKernelSizeY = k;
+                    break;
                 }
-
-                DataDesc newDesc({1, 1, output->desc().dim(Dim::C), output->desc().dim(Dim::N)});
-                auto newOutput = model->duplicateData(output, "@reshapeData", newDesc);
-
-                auto newStage = model->addNewStage<StubStage>(
-                    stage->origLayerName(),
-                    StageType::StubConv,
-                    stage->origLayer(),
-                    {input, newWeights, newBiases},
-                    {newOutput});
-                newStage->attrs().copyFrom(stage->attrs());
-                setConvParameters(newStage, kernelSizeX, kernelSizeY);
-
-                _stageBuilder->addReshapeStage(
-                    model,
-                    stage->name() + "@reshapeOut",
-                    stage->origLayer(),
-                    newOutput,
-                    output);
-
-                model->removeStage(stage);
             }
-        } else if (dims.has(Dim::N) &&
-                   dims.has(Dim::C) &&
-                   (!dims.has(Dim::H)) &&
-                   (!dims.has(Dim::W))) {
-            IE_ASSERT(weights->desc().totalDimSize() >=
-                    (input->desc().dim(Dim::C)) * output->desc().dim(Dim::C));
+        }
 
-            model->disconnectStageDatas(stage);
+        if (convKernelSizeX == -1 || convKernelSizeY == -1) {
+            continue;
+        }
 
-            auto newWeights = model->duplicateData(weights,
-                weights->name(),
-                DataDesc({
-                    1,
-                    1,
-                    input->desc().dim(Dim::C),
-                    output->desc().dim(Dim::C)}));
+        const auto convInputC = inSize / (convKernelSizeX * convKernelSizeY);
 
-            auto newBiases =  model->addFakeData();
-            if (biases->usage() != DataUsage::Fake) {
-                IE_ASSERT(biases->desc().totalDimSize() >= output->desc().dim(Dim::C));
-                newBiases = model->duplicateData(biases,
-                                                  biases->name(),
-                                                  DataDesc({output->desc().dim(Dim::C)}));
+        model->disconnectStage(stage);
+
+        // TODO: something more sophisticated?
+        int batchStepW = 1;
+        int batchStepH = 1;
+        for (auto div : {100, 50, 20, 10}) {
+            if (inBatch >= div && inBatch % div == 0) {
+                batchStepW = div;
+                batchStepH = inBatch / div;
+                break;
             }
+        }
 
-            DataDesc newDescIn({1, 1, input->desc().dim(Dim::C), input->desc().dim(Dim::N)});
-            auto newInput = model->duplicateData(output, "@reshapeDataIn", newDescIn);
-
-            DataDesc newDescOut({1, 1, output->desc().dim(Dim::C), output->desc().dim(Dim::N)});
-            auto newOutput = model->duplicateData(output, "@reshapeDataOut", newDescOut);
+        Data convInput;
+        if (batchStepW == 1 && batchStepH == 1) {
+            convInput = model->duplicateData(
+                input,
+                "@reshape",
+                DataDesc{convKernelSizeX, convKernelSizeY, convInputC, inBatch});
 
             _stageBuilder->addReshapeStage(
                 model,
-                stage->name() + "@reshapeIn",
+                convInput->name(),
                 stage->origLayer(),
                 input,
-                newInput);
-
-            auto newStage = model->addNewStage<StubStage>(
-                stage->origLayerName(),
-                StageType::StubConv,
-                stage->origLayer(),
-                {newInput, newWeights, newBiases},
-                {newOutput});
-            newStage->attrs().copyFrom(stage->attrs());
-            setConvParameters(newStage, 1, 1);
+                convInput);
+        } else {
+            // NCDHW
+            const auto reshaped = model->duplicateData(
+                input,
+                "@reshape",
+                DataDesc{convKernelSizeX, convKernelSizeY, convInputC, batchStepW, batchStepH});
 
             _stageBuilder->addReshapeStage(
                 model,
-                stage->name() + "@reshapeOut",
+                reshaped->name(),
                 stage->origLayer(),
-                newOutput,
+                input,
+                reshaped);
+
+            // NCDHW
+            const auto permuted = model->duplicateData(
+                input,
+                "@permute-batch",
+                DataDesc{convKernelSizeX, batchStepW, convKernelSizeY, batchStepH, convInputC});
+
+            _stageBuilder->addPermuteStage(
+                model,
+                permuted->name(),
+                stage->origLayer(),
+                reshaped,
+                permuted,
+                DimValues_<Dim>{{Dim::W, Dim::W}, {Dim::H, Dim::C}, {Dim::D, Dim::H}, {Dim::C, Dim::N}, {Dim::N, Dim::D}});
+
+            // NCHW
+            const auto merged = model->duplicateData(
+                input,
+                "@merge-batch",
+                DataDesc{convKernelSizeX * batchStepW, convKernelSizeY * batchStepH, convInputC, 1});
+
+            _stageBuilder->addReshapeStage(
+                model,
+                merged->name(),
+                stage->origLayer(),
+                permuted,
+                merged);
+
+            convInput = merged;
+        }
+
+        Data convOutput;
+        if (batchStepW == 1 && batchStepH == 1) {
+            convOutput = model->duplicateData(
+                output,
+                "@reshape",
+                DataDesc{1, 1, output->desc().dim(Dim::C), inBatch});
+
+            _stageBuilder->addReshapeStage(
+                model,
+                convOutput->name(),
+                stage->origLayer(),
+                convOutput,
+                output);
+        } else {
+            // NCDHW
+            const auto reshaped = model->duplicateData(
+                output,
+                "@reshape",
+                DataDesc{1, 1, output->desc().dim(Dim::C), batchStepW, batchStepH});
+
+            _stageBuilder->addReshapeStage(
+                model,
+                reshaped->name(),
+                stage->origLayer(),
+                reshaped,
                 output);
 
-            model->removeStage(stage);
+            // NCDHW
+            const auto permuted = model->duplicateData(
+                output,
+                "@permute-batch",
+                DataDesc{1, batchStepW, 1, batchStepH, output->desc().dim(Dim::C)});
+
+            _stageBuilder->addPermuteStage(
+                model,
+                permuted->name(),
+                stage->origLayer(),
+                permuted,
+                reshaped,
+                DimValues_<Dim>{{Dim::W, Dim::W}, {Dim::H, Dim::D}, {Dim::D, Dim::N}, {Dim::C, Dim::H}, {Dim::N, Dim::C}});
+
+            // NCHW
+            const auto merged = model->duplicateData(
+                output,
+                "@merge-batch",
+                DataDesc{batchStepW, batchStepH, output->desc().dim(Dim::C), 1});
+
+            _stageBuilder->addReshapeStage(
+                model,
+                merged->name(),
+                stage->origLayer(),
+                merged,
+                permuted);
+
+            convOutput = merged;
         }
+
+        const auto convWeights = model->duplicateData(
+            weights,
+            "@fc-to-conv",
+            DataDesc({
+                convKernelSizeX,
+                convKernelSizeY,
+                convInputC,
+                output->desc().dim(Dim::C)}));
+
+        auto convStage = model->addNewStage<StubStage>(
+            stage->name() + "@fc-to-conv",
+            StageType::StubConv,
+            stage->origLayer(),
+            {convInput, convWeights, biases},
+            {convOutput});
+        convStage->attrs().copyFrom(stage->attrs());
+        setConvParameters(convStage, convKernelSizeX, convKernelSizeY);
+
+        model->removeStage(stage);
     }
 }
 

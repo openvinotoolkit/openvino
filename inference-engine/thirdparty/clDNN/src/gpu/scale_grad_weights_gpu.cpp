@@ -71,27 +71,25 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = scale_grad_weights_gpu::create;
+namespace detail {
 
-        implementation_map<scale_grad_weights>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                                    val_fw);
-        implementation_map<scale_grad_weights>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                                    val_fw);
-        implementation_map<scale_grad_weights>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                                    val_fw);
-        implementation_map<scale_grad_weights>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                                    val_fw);
-        implementation_map<scale_grad_weights>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
-                                                    val_fw);
-        implementation_map<scale_grad_weights>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
-                                                    val_fw);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_scale_grad_weights_gpu::attach_scale_grad_weights_gpu() {
+    auto val_fw = scale_grad_weights_gpu::create;
+
+    implementation_map<scale_grad_weights>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                                val_fw);
+    implementation_map<scale_grad_weights>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+                                                val_fw);
+    implementation_map<scale_grad_weights>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                                val_fw);
+    implementation_map<scale_grad_weights>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                                val_fw);
+    implementation_map<scale_grad_weights>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
+                                                val_fw);
+    implementation_map<scale_grad_weights>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+                                                val_fw);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

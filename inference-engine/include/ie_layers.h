@@ -139,6 +139,16 @@ public:
             return res;
         }
     }
+    /**
+      * @brief serialize float with c_locale formating
+      * used for default values serializing
+      */
+    static std::string ie_serialize_float(float value) {
+        std::stringstream val_stream;
+        val_stream.imbue(std::locale("C"));
+        val_stream << value;
+        return val_stream.str();
+    }
 
     /**
      * @brief Gets float value for the given parameter
@@ -147,7 +157,7 @@ public:
      * @return float value
      */
     float GetParamAsFloat(const char* param, float def) const {
-        std::string val = GetParamAsString(param, std::to_string(def).c_str());
+        std::string val = GetParamAsString(param, ie_serialize_float(def).c_str());
         try {
             return ie_parse_float(val);
         } catch (...) {
@@ -391,11 +401,11 @@ public:
         return result;
     }
     /**
-     * @brief Returns an boolean value for the given parameter.
+     * @brief Returns a boolean value for the given parameter.
      * The valid values are (true, false, 1, 0).
      * @param param Name of the layer parameter
      * @param def Default value of the parameter if not found
-     * @return An bool value for the specified parameter
+     * @return A bool value for the specified parameter
      */
     bool GetParamAsBool(const char *param, bool def) const {
         std::string val = GetParamAsString(param, std::to_string(def).c_str());
@@ -414,7 +424,29 @@ public:
         return result;
     }
     /**
-     * @deprecated Use CNNLayer::GetParamAsBool
+     * @brief Returns a boolean value for the given parameter
+     * @param param Name of the layer parameter
+     * @return A bool value for the specified parameter
+     */
+    bool GetParamAsBool(const char *param) const {
+        std::string val = GetParamAsString(param);
+        std::string loweredCaseValue;
+        std::transform(val.begin(), val.end(), std::back_inserter(loweredCaseValue), [](char value) {
+            return std::tolower(value);
+        });
+
+        bool result = false;
+
+        if (!(std::istringstream(loweredCaseValue) >> std::boolalpha >> result)) {
+            // attempting parse using non alpha bool
+            return (GetParamAsInt(param) != 0);
+        }
+
+        return result;
+    }
+
+    /**
+     * @deprecated Use GetParamAsBool function for that functionality
      */
     INFERENCE_ENGINE_DEPRECATED
     bool GetParamsAsBool(const char *param, bool def) const {
@@ -589,10 +621,6 @@ public:
         return *this;
     }
     /**
-     * @brief move assignment operator
-     */
-    ConvolutionLayer& operator = (ConvolutionLayer &&) = default;
-    /**
      * @brief copy constructor
      */
     ConvolutionLayer(const ConvolutionLayer & that) : WeightableLayer(that) {
@@ -697,11 +725,6 @@ public:
         return *this;
     }
     /**
-     * @brief move assignment operator
-     */
-    PoolingLayer& operator = (PoolingLayer &&) = default;
-
-    /**
      * @brief copy constructor
      */
     PoolingLayer(const PoolingLayer & that) : CNNLayer(that) {
@@ -799,10 +822,6 @@ public:
         }
         return *this;
     }
-    /**
-     * @brief move assignment operator
-     */
-    BinaryConvolutionLayer& operator = (BinaryConvolutionLayer &&) = default;
     /**
      * @brief copy constructor
      */
@@ -1020,7 +1039,7 @@ public:
     enum eOperation {
         Sum = 0, Prod, Max, Sub, Min, Div, Squared_diff, Floor_mod, Pow,
         Equal, Not_equal, Less, Less_equal, Greater, Greater_equal,
-        Logical_AND, Logical_OR, Logical_XOR, Logical_NOT, Mean, Select
+        Logical_AND, Logical_OR, Logical_XOR, Logical_NOT, Mean
     };
 
     /**
@@ -1249,7 +1268,11 @@ public:
  * - Ct = ft (.) Ct-1 + it (.) ct
  * - Ht = ot (.) _h(Ct)
  */
-using LSTMCell = RNNCellBase;
+class LSTMCell : public RNNCellBase {
+ public:
+    using RNNCellBase::RNNCellBase;
+    using RNNCellBase::operator=;
+};
 
 /**
  * @brief GRU Cell layer
@@ -1284,7 +1307,11 @@ using LSTMCell = RNNCellBase;
  * - ht = _g(Wh*[rt (.) Ht-1, Xt] + Bh)
  * - Ht = (1 - zt) (.) ht + zt (.) Ht-1
  */
-using GRUCell  = RNNCellBase;
+class GRUCell : public RNNCellBase {
+ public:
+    using RNNCellBase::RNNCellBase;
+    using RNNCellBase::operator=;
+};
 
 /**
  * @brief RNN Cell layer
@@ -1314,7 +1341,12 @@ using GRUCell  = RNNCellBase;
  *
  * - Ht = _f(Wi*[Ht-1, Xt] + Bi)
  */
-using RNNCell  = RNNCellBase;
+class RNNCell : public RNNCellBase {
+ public:
+    using RNNCellBase::RNNCellBase;
+    using RNNCellBase::operator=;
+};
+
 
 /**
  * @brief Sequence of recurrent cells
@@ -1604,6 +1636,19 @@ public:
 
 
 /**
+ * @brief This class represents SparseFillEmptyRows layer
+ * SparseFillEmptyRows fills empty rows in a sparse tensor
+ */
+class SparseFillEmptyRowsLayer : public CNNLayer {
+public:
+    /**
+    * @brief Creates a new SparseFillEmptyRowsLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
 * @brief This class represents a standard Reverse Sequence layer
 * Reverse Sequence modifies input tensor according parameters
 */
@@ -1786,5 +1831,62 @@ public:
     using CNNLayer::CNNLayer;
 };
 
+
+/**
+ * @brief This class represents Unique layer.
+ * The Unique operation searches for unique elements in 1-D input
+ */
+class UniqueLayer : public CNNLayer {
+public:
+    /**
+    * @brief A flag indicating whether to sort unique elements
+    */
+    bool sorted;
+    /**
+    * @brief A flag indicating whether to return indices of input data elements in the output of uniques
+    */
+    bool return_inverse;
+    /**
+    * @brief A flag indicating whether to return a number of occurences for each unique element
+    */
+    bool return_counts;
+
+    /**
+    * @brief Creates a new UniqueLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+ * @brief This class represents a standard NonMaxSuppression layer
+ */
+class NonMaxSuppressionLayer : public CNNLayer {
+public:
+    /**
+    * @brief The 'center_point_box' indicates the format of the box data
+    */
+    bool center_point_box = false;
+    /**
+    * @brief Creates a new NonMaxSuppressionLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
+
+
+/**
+ * @brief This class represents a standard Scatter layer
+ */
+class ScatterLayer : public CNNLayer {
+public:
+    /**
+    * @brief The axis in Dictionary to scatter Indexes from
+    */
+    int axis = 0;
+    /**
+    * @brief Creates a new ScatterLayer instance.
+    */
+    using CNNLayer::CNNLayer;
+};
 
 }  // namespace InferenceEngine

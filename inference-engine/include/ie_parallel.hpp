@@ -24,6 +24,7 @@
 #include "tbb/parallel_for.h"
 #include "tbb/task_arena.h"
 
+#include "tbb/parallel_sort.h"
 #include "tbb/parallel_reduce.h"
 #include "tbb/blocked_range.h"
 #include "tbb/blocked_range2d.h"
@@ -40,6 +41,7 @@ inline int  parallel_get_env_threads() { return 0; }
     #define PARTITIONING
 #endif
 #elif IE_THREAD == IE_THREAD_OMP
+#include <algorithm>
 #include <cstdlib>
 #include <string>
 #include <omp.h>
@@ -66,6 +68,7 @@ inline int  parallel_get_env_threads() {
 }
 
 #elif IE_THREAD == IE_THREAD_SEQ
+#include <algorithm>  // NOLINT
 inline int  parallel_get_env_threads() { return 1; }
 inline int  parallel_get_max_threads() { return 1; }
 inline int  parallel_get_num_threads() { return 1; }
@@ -127,6 +130,18 @@ void parallel_nt_static(int nthr, const F &func) {
     {
         func(parallel_get_thread_num(), parallel_get_num_threads());
     }
+#endif
+}
+
+template <typename I, typename F>
+void parallel_sort(I begin, I end, const F &comparator) {
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+    tbb::parallel_sort(begin, end, comparator);
+#elif IE_THREAD == IE_THREAD_OMP
+    // TODO: propose OpenMP version
+    std::sort(begin, end, comparator);
+#elif IE_THREAD == IE_THREAD_SEQ
+    std::sort(begin, end, comparator);
 #endif
 }
 

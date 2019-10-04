@@ -99,6 +99,10 @@ extern int pthread_getname_np (pthread_t , char *, size_t);
 #define MVLOG_FATAL_COLOR ANSI_COLOR_RED
 #endif
 
+#ifndef MVLOG_MAXIMUM_THREAD_NAME_SIZE
+#define MVLOG_MAXIMUM_THREAD_NAME_SIZE 20
+#endif
+
 typedef enum mvLog_t{
     MVLOG_DEBUG = 0,
     MVLOG_INFO,

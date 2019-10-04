@@ -14,24 +14,33 @@
 #include <cctype>
 #include <chrono>
 
-#ifdef WIN32
-#define UNUSED
+#ifdef _WIN32
+# define UNUSED
 #else
-#define UNUSED  __attribute__((unused))
+# define UNUSED  __attribute__((unused))
 #endif
 
 #include "stdlib.h"
 #include "stdio.h"
 #include "string.h"
 #ifdef _WIN32
-	#include "Psapi.h"
+# include "Psapi.h"
 #endif
+
+template <class T>
+inline std::string to_string_c_locale(T value) {
+    std::stringstream val_stream;
+    val_stream.imbue(std::locale("C"));
+    val_stream << value;
+    return val_stream.str();
+}
 
 class BaseTestCreator {
 protected:
     std::string _type;
 public:
     explicit BaseTestCreator(const std::string& type) : _type(type) {}
+    virtual ~BaseTestCreator() = default;
 
     virtual InferenceEngine::CNNLayerPtr create(const std::string& type)  = 0;
 
@@ -104,6 +113,7 @@ private:
                 std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Floor"),
                 std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("HardSigmoid"),
                 std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Log"),
+                std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Exp"),
                 std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Reciprocal"),
                 std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Selu"),
                 std::make_shared<LayerTestCreator<InferenceEngine::MathLayer>>("Sign"),
@@ -124,7 +134,9 @@ private:
                 std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceProd"),
                 std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceSum"),
                 std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceSumSquare"),
-                std::make_shared<LayerTestCreator<InferenceEngine::TopKLayer>>("TopK")
+                std::make_shared<LayerTestCreator<InferenceEngine::TopKLayer>>("TopK"),
+                std::make_shared<LayerTestCreator<InferenceEngine::NonMaxSuppressionLayer>>("NonMaxSuppression"),
+                std::make_shared<LayerTestCreator<InferenceEngine::ScatterLayer>>("ScatterUpdate")
         };
         return creators;
     }
@@ -365,23 +377,25 @@ public:
     }
 
     std::string replace(std::string& str, const std::string& from, const int& to) {
-        replace(str, from, std::to_string(to));
+        replace(str, from, to_string_c_locale(to));
         return str;
     }
 
     std::string replace(std::string& str, const std::string& from, const size_t& to) {
-        replace(str, from, std::to_string(to));
+        replace(str, from, to_string_c_locale(to));
         return str;
     }
 
     std::string replace(std::string& str, const std::string& from, const float& to) {
-        replace(str, from, std::to_string(to));
+        replace(str, from, to_string_c_locale(to));
         return str;
     }
     // trim from both ends (in place)
     static inline std::string &trim(std::string &s) {
-        s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-        s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+        s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int c){
+            return !std::isspace(c);}));
+        s.erase(std::find_if(s.rbegin(), s.rend(), [](int c){
+            return !std::isspace(c);}).base(), s.end());
         return s;
     }
 

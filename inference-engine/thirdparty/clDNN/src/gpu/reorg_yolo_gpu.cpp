@@ -52,22 +52,18 @@ struct reorg_yolo_gpu : typed_primitive_gpu_impl<reorg_yolo> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = reorg_yolo_gpu::create;
-        implementation_map<reorg_yolo>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-        implementation_map<reorg_yolo>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-        implementation_map<reorg_yolo>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
-        implementation_map<reorg_yolo>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);
-        implementation_map<reorg_yolo>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
-        implementation_map<reorg_yolo>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
-    }
-    ~attach() {}
-};
+namespace detail {
 
-attach attach_impl;
-}  // namespace
+attach_reorg_yolo_gpu::attach_reorg_yolo_gpu() {
+    auto val_fw = reorg_yolo_gpu::create;
+    implementation_map<reorg_yolo>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<reorg_yolo>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<reorg_yolo>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
+    implementation_map<reorg_yolo>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);
+    implementation_map<reorg_yolo>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
+    implementation_map<reorg_yolo>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
+}
 
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

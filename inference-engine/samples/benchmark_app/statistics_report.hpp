@@ -22,51 +22,51 @@ static constexpr char detailedCntReport[] = "detailed_counters";
 /// @brief Responsible for collecting of statistics and dumping to .csv file
 class StatisticsReport {
 public:
+    typedef std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> PerformaceCounters;
+    typedef std::vector<std::pair<std::string, std::string>> Parameters;
+
     struct Config {
-        std::string device;
-        std::string api;
-        size_t batch;
-        size_t nireq;
-        size_t niter;
-        uint64_t duration;
-        size_t cpu_nthreads;
-        std::map<std::string, uint32_t> nstreams;
-        std::string cpu_pin;
         std::string report_type;
         std::string report_folder;
     };
 
+    enum class Category {
+        COMMAND_LINE_PARAMETERS,
+        RUNTIME_CONFIG,
+        EXECUTION_RESULTS,
+    };
+
     explicit StatisticsReport(Config config) : _config(std::move(config)) {
-        if (_config.nireq > 0) {
-            _performanceCounters.reserve(_config.nireq);
-        }
+        _separator =
+#if defined _WIN32 || defined __CYGWIN__
+    #   if defined UNICODE
+        L"\\";
+    #   else
+        "\\";
+    #   endif
+#else
+        "/";
+#endif
+        if (_config.report_folder.empty())
+            _separator = "";
     }
 
-    void addPerfCounts(const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &pmStat);
+    void addParameters(const Category &category, const Parameters& parameters);
 
-    void addLatencies(const std::vector<double> &latency);
+    void dump();
 
-    void dump(const double &fps, const size_t &numProcessedReq, const double &totalExecTime);
-
-    double getMedianLatency();
+    void dumpPerformanceCounters(const std::vector<PerformaceCounters> &perfCounts);
 
 private:
-    std::vector<std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>> preparePmStatistics();
-
-    template <typename T>
-    T getMedianValue(const std::vector<T> &vec);
-
-    // Contains PM data for each processed infer request
-    std::vector<std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>> _performanceCounters;
-    // Contains latency of each processed infer request
-    std::vector<double> _latencies;
+    void dumpPerformanceCountersRequest(CsvDumper& dumper,
+                                        const PerformaceCounters& perfCounts);
 
     // configuration of current benchmark execution
     const Config _config;
 
-    // mapping from network layer to a vector of calculated RealTime values from each processed infer request.
-    std::map<std::string, std::vector<long long>> _perLayerRealTime;
-    // mapping from network layer to a vector of calculated CPU Time values from each processed infer request.
-    std::map<std::string, std::vector<long long>> _perLayerCpuTime;
-    std::vector<long long> _totalLayersTime;
+    // parameters
+    std::map<Category, Parameters> _parameters;
+
+    // csv separator
+    std::string _separator;
 };

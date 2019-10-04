@@ -24,7 +24,7 @@
 #include <limits>
 
 namespace cldnn {
-primitive_type_id arg_max_min_type_id() {
+primitive_type_id arg_max_min::type_id() {
     static primitive_type_base<arg_max_min> instance;
     return &instance;
 }

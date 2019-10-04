@@ -112,7 +112,7 @@ void PassImpl::run(const Model::Ptr& model) {
                 //
 
                 if (connectionStage->type() == StageType::Concat ||
-                    connectionStage->type() == StageType::Broadcast) {
+                    connectionStage->type() == StageType::Expand) {
                     IE_ASSERT(producer == child);
                     IE_ASSERT(consumer == parent);
                 } else if (connectionStage->type() == StageType::Split ||

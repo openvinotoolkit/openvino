@@ -4,22 +4,18 @@
 
 #pragma once
 
+#include "ie_parallel.hpp"
+#include "config.h"
+#include "mkldnn_memory.h"
+#include "mean_image.h"
+#include "mkldnn_node.h"
+#include "mkldnn_edge.h"
+#include "mkldnn_streams.h"
+
 #include <map>
 #include <string>
 #include <vector>
 #include <memory>
-#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-
-#include "ie_parallel.hpp"
-#include "mkldnn_memory.h"
-#include "config.h"
-#include "perf_count.h"
-#include "mkldnn_dims.h"
-#include "mean_image.h"
-#include "mkldnn_node.h"
-#include "mkldnn_edge.h"
-#include "mkldnn_extension_utils.h"
-#include "mkldnn_streams.h"
 
 namespace MKLDNNPlugin {
 
@@ -184,39 +180,6 @@ private:
         InferenceEngine::CNNLayerPtr cnnLayer;
         size_t outIdx;
     };
-};
-
-
-class MKLDNNExecNetwork: public InferenceEngine::ExecutableNetworkThreadSafeDefault {
-public:
-    typedef std::shared_ptr<MKLDNNExecNetwork> Ptr;
-
-    InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
-                                                                      InferenceEngine::OutputsDataMap networkOutputs) override;
-
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
-
-    MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network, const Config &cfg,
-                      const MKLDNNExtensionManager::Ptr& extMgr);
-
-    ~MKLDNNExecNetwork() {
-        graphs.clear();
-        extensionManager.reset();
-    }
-
-    void setProperty(const std::map<std::string, std::string> &properties);
-
-    void GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const override;
-
-    void GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const override;
-
-    void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
-
-protected:
-    std::vector<MKLDNNGraph::Ptr> graphs;
-    MKLDNNExtensionManager::Ptr extensionManager;
-
-    bool CanProcessDynBatch(const InferenceEngine::ICNNNetwork &network) const;
 };
 
 }  // namespace MKLDNNPlugin

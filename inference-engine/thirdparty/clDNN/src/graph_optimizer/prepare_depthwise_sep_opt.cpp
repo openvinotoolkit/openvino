@@ -32,7 +32,7 @@ void prepare_depthwise_sep_opt::optimize_depthwise_sep_pre(T& node) {
         // are not reused in other primitives as they will be overriden with concatenated ones
         for (size_t i = 1; i < node.get_dependencies().size(); i++) {
             auto& weights_or_biases = node.get_dependency(i);
-            if (weights_or_biases.get_users().size() > 1 || weights_or_biases.type() != data::type_id())
+            if (weights_or_biases.get_users().size() > 1 || !weights_or_biases.template is_type<data>())
                 return;
         }
     } else {
@@ -52,9 +52,9 @@ template void prepare_depthwise_sep_opt::optimize_depthwise_sep_pre<deconvolutio
 void prepare_depthwise_sep_opt::run(program_impl& p) {
     // depthiwise separated convolution/deconvolution optimization
     for (auto& prim : p.get_processing_order()) {
-        if (prim->type() == convolution::type_id()) {
+        if (prim->is_type<convolution>()) {
             optimize_depthwise_sep_pre(prim->as<convolution>());
-        } else if (prim->type() == deconvolution::type_id()) {
+        } else if (prim->is_type<deconvolution>()) {
             optimize_depthwise_sep_pre(prim->as<deconvolution>());
         }
     }

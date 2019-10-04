@@ -49,5 +49,12 @@ class SpliceFrontExtractor(FrontExtractorOp):
             mapping_rule['context'] = read_binary_vector(pb, False, dtype=np.int32)
         else:
             raise Error('Unknown token {} in SpliceComponent node {}'.format(tag, node.id))
+
+        tag = find_next_tag(pb)
+        if tag == '<ConstComponentDim>':
+            read_placeholder(pb, 1)
+            const_dim = read_binary_integer32_token(pb)
+            mapping_rule['const_dim'] = const_dim
+
         Splice.update_node_stat(node, mapping_rule)
         return __class__.enabled

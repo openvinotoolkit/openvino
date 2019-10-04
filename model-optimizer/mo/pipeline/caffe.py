@@ -41,12 +41,14 @@ from mo.utils import class_registration
 from mo.utils.cli_parser import get_meta_info
 from mo.utils.error import Error
 from mo.utils.find_inputs import find_inputs
+from mo.utils.logger import log_step
 from mo.utils.utils import refer_to_faq_msg
 
 
 def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str, output_model_name: str,
            output_dir: str, caffe_proto_path: str, mean_file: str = "",
-           mean_file_offsets: tuple = None, custom_layers_mapping_path: str = None):
+           mean_file_offsets: tuple = None, custom_layers_mapping_path:str = None):
+    log_step(argv.steps, 'LOAD')
     meta_info = get_meta_info(argv)
 
     caffe_pb2 = loader.import_caffe_pb2(caffe_proto_path)
@@ -91,7 +93,9 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
     extract_node_attrs(graph, lambda node: caffe_extractor(node, check_for_duplicates(caffe_type_extractors)))
 
     # --------------------------------- LOAD END ------------------------------------------------------
+    log_step(argv.steps, 'FRONT')
     class_registration.apply_replacements(graph, class_registration.ClassType.FRONT_REPLACER)
+    log_step(argv.steps, 'MIDDLE')
     class_registration.apply_replacements(graph, class_registration.ClassType.MIDDLE_REPLACER)
 
     # Mark nodes with attr 'can_be_fused': False to disable fusing for specified nodes
@@ -150,13 +154,14 @@ def driver(argv: argparse.Namespace, proto_file_name: str, model_file_name: str,
     permute_op_nodes_attrs(graph)
 
     graph_clean_up(graph)
+    log_step(argv.steps, 'BACK')
     class_registration.apply_replacements(graph, class_registration.ClassType.BACK_REPLACER)
 
     remove_const_ops(graph)
     CreateConstNodesReplacement().find_and_replace_pattern(graph)
 
     remove_output_ops(graph)
-
+    log_step(argv.steps, 'EMIT')
     prepare_emit_ir(graph=graph, data_type=argv.data_type, output_dir=output_dir, output_model_name=output_model_name,
                     mean_data=mf,
                     input_names=input_names,

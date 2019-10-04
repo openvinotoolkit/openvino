@@ -71,8 +71,8 @@ public:
 private:
     std::vector<std::shared_ptr<LT>> sortedLayers;
     std::shared_ptr<LT> currentLayer;
-    size_t currentIdx;
     NT *network = nullptr;
+    size_t currentIdx;
 
     std::shared_ptr<LT> getNextLayer() {
         return (sortedLayers.size() > currentIdx) ? sortedLayers[currentIdx++] : nullptr;

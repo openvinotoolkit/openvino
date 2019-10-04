@@ -18,10 +18,12 @@
 #include "binary_convolution_kernel_ref.h"
 #include "binary_convolution_kernel_generic.h"
 #include "binary_convolution_kernel_1x1.h"
+#include "binary_convolution_kernel_1x1_b_fs_yx_fsv16.h"
 
 namespace kernel_selector {
 binary_convolution_kernel_selector::binary_convolution_kernel_selector() {
     Attach<BinaryConvolutionKernel1x1>();
+    Attach<BinaryConvolutionKernel1x1_b_fs_yx_fsv16>();
     Attach<BinaryConvolutionKernelGeneric>();
     Attach<BinaryConvolutionKernelRef>();
 }

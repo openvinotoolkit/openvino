@@ -27,48 +27,43 @@ protected:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(!_inputEdges.empty());
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto output = _outputEdges[0]->output();
+            ScalePropagationStep step,
+            StageDataInfo<float>& scaleInfo) override {
+        auto output = outputEdge(0)->output();
 
         if (step == ScalePropagationStep::Propagate) {
             // Keep the largest input scale factor.
             auto maxScale = std::numeric_limits<float>::lowest();
-            for (const auto& inEdge : _inputEdges) {
+            for (const auto& inEdge : inputEdges()) {
                 maxScale = std::max(maxScale, inputScales[inEdge->portInd()]);
             }
 
             IE_ASSERT(maxScale > 0.0f);
 
-            for (const auto& inEdge : _inputEdges) {
+            for (const auto& inEdge : inputEdges()) {
                 auto curScale = inputScales[inEdge->portInd()];
 
                 if (!isFloatEqual(curScale, maxScale)) {
-                    _scaleInfo.setInput(inEdge, maxScale / curScale);
+                    scaleInfo.setInput(inEdge, maxScale / curScale);
                 }
             }
 
-            _scaleInfo.setOutput(_outputEdges[0], maxScale);
+            scaleInfo.setOutput(outputEdge(0), maxScale);
         } else {
             // Concat can only propagate scaling.
-            for (const auto& inEdge : _inputEdges) {
-                _scaleInfo.setInput(inEdge, 1.0f);
+            for (const auto& inEdge : inputEdges()) {
+                scaleInfo.setInput(inEdge, 1.0f);
             }
 
-            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
+            scaleInfo.setOutput(outputEdge(0), 1.0f);
         }
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(!_inputEdges.empty());
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto output = _outputEdges[0]->output();
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto output = outputEdge(0)->output();
 
         DimsOrderMap<int> dimsOrderVotes;
-        for (const auto& inEdge : _inputEdges) {
+        for (const auto& inEdge : inputEdges()) {
             dimsOrderVotes[inEdge->input()->desc().dimsOrder()]++;
         }
 
@@ -96,18 +91,15 @@ protected:
         IE_ASSERT(finalOrder.numDims() > 0);
         IE_ASSERT(curVotes > 0);
 
-        for (const auto& inEdge : _inputEdges) {
-            _orderInfo.setInput(inEdge, finalOrder);
+        for (const auto& inEdge : inputEdges()) {
+            orderInfo.setInput(inEdge, finalOrder);
         }
 
-        _orderInfo.setOutput(_outputEdges[0], finalOrder);
+        orderInfo.setOutput(outputEdge(0), finalOrder);
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(!_inputEdges.empty());
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto output = _outputEdges[0]->output();
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        auto output = outputEdge(0)->output();
 
         auto dimsOrder = output->desc().dimsOrder();
 
@@ -117,7 +109,7 @@ protected:
 
         auto minConcatDimInd = dimsOrder.numDims() - 1;
 
-        for (const auto& inEdge : _inputEdges) {
+        for (const auto& inEdge : inputEdges()) {
             auto input = inEdge->input();
 
             for (const auto& p : output->desc().dims()) {
@@ -144,7 +136,7 @@ protected:
         // Merge input StridesRequirement.
         //
 
-        for (const auto& inEdge : _inputEdges) {
+        for (const auto& inEdge : inputEdges()) {
             auto curInput = inEdge->input();
             auto curInputReqs = curInput->requiredStrides();
 
@@ -183,19 +175,24 @@ protected:
         // Return merged StridesRequirement.
         //
 
-        for (const auto& inEdge : _inputEdges) {
-            _stridesInfo.setInput(inEdge, inputReqs);
+        for (const auto& inEdge : inputEdges()) {
+            stridesInfo.setInput(inEdge, inputReqs);
         }
-        _stridesInfo.setOutput(_outputEdges[0], outputReqs);
+        stridesInfo.setOutput(outputEdge(0), outputReqs);
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        IE_ASSERT(numInputs() > 0);
+        IE_ASSERT(numOutputs() == 1);
+
+        const auto& firstInputPrecision = input(0)->desc().type();
+        assertAllInputsOutputsTypes(this, {firstInputPrecision}, {firstInputPrecision});
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {

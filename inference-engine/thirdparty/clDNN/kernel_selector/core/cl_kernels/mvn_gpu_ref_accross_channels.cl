@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "include/common.cl"
+#include "include/fetch.cl"
 #include "include/data_types.cl"
 
 
@@ -40,6 +40,13 @@ KERNEL (mvn_gpu_ref_accross_channels)(const __global UNIT_TYPE* input, __global 
             {
                 for (uint x = 0; x < INPUT0_SIZE_X; x++)
                 {
+#if INPUT0_LAYOUT_BFZYX_F16
+                    input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, z, y, x);
+                    mean += (float)input[input_idx];
+                }
+            }
+        }
+#else
                     mean += (float)input[input_idx];
                     input_idx += INPUT0_X_PITCH;
                 }
@@ -48,8 +55,13 @@ KERNEL (mvn_gpu_ref_accross_channels)(const __global UNIT_TYPE* input, __global 
             input_idx += INPUT0_Z_PITCH - INPUT0_Y_PITCH*INPUT0_SIZE_Y;
         }
         input_idx += INPUT0_FEATURE_PITCH - INPUT0_Z_PITCH*INPUT0_SIZE_Z;
+#endif
     }
+#if INPUT0_LAYOUT_BFZYX_F16
+    uint output_idx;
+#else
     uint output_idx = OUTPUT_OFFSET + b * OUTPUT_BATCH_PITCH;
+#endif
     mean /= INPUT0_FEATURE_NUM * INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X;
 
 #if NORMALIZE_VARIANCE == 0
@@ -63,6 +75,14 @@ KERNEL (mvn_gpu_ref_accross_channels)(const __global UNIT_TYPE* input, __global 
             {
                 for (uint x = 0; x < INPUT0_SIZE_X; x++)
                 {
+#if INPUT0_LAYOUT_BFZYX_F16
+                    input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, z, y, x);
+                    output_idx = GET_DATA_BFZYX_F16_INDEX(OUTPUT, b, f, z, y, x);
+                    output[output_idx] = ACTIVATION(input[input_idx] - UNIT_CVT_FUNC(mean), ACTIVATION_PARAMS);
+                }
+            }
+        }
+#else
                     output[output_idx] = ACTIVATION(input[input_idx] - UNIT_CVT_FUNC(mean), ACTIVATION_PARAMS);
                     input_idx += INPUT0_X_PITCH;
                     output_idx += OUTPUT_X_PITCH;
@@ -75,7 +95,7 @@ KERNEL (mvn_gpu_ref_accross_channels)(const __global UNIT_TYPE* input, __global 
         }
         input_idx += INPUT0_FEATURE_PITCH - INPUT0_Z_PITCH*INPUT0_SIZE_Z;
         output_idx += OUTPUT_FEATURE_PITCH - INPUT0_SIZE_Z*OUTPUT_Z_PITCH;
-
+#endif
     }
 
 #else //NORMALIZE_VARIANCE
@@ -91,6 +111,14 @@ KERNEL (mvn_gpu_ref_accross_channels)(const __global UNIT_TYPE* input, __global 
             {
                 for (uint x = 0; x < INPUT0_SIZE_X; x++)
                 {
+#if INPUT0_LAYOUT_BFZYX_F16
+                    input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, z, y, x);
+                    float res = (float)input[input_idx] - mean;
+                    variance = fma(res, res, variance);
+                }
+            }
+        }
+#else
                     float res = (float)input[input_idx] - mean;
                     variance = fma(res, res, variance);
                     input_idx += INPUT0_X_PITCH;
@@ -100,6 +128,7 @@ KERNEL (mvn_gpu_ref_accross_channels)(const __global UNIT_TYPE* input, __global 
             input_idx += INPUT0_Z_PITCH - INPUT0_Y_PITCH*INPUT0_SIZE_Y;
         }
         input_idx += INPUT0_FEATURE_PITCH - INPUT0_Z_PITCH*INPUT0_SIZE_Z;
+#endif
     }
 
     //normalize variance
@@ -115,6 +144,14 @@ KERNEL (mvn_gpu_ref_accross_channels)(const __global UNIT_TYPE* input, __global 
             {
                 for (uint x = 0; x < INPUT0_SIZE_X; x++)
                 {
+#if INPUT0_LAYOUT_BFZYX_F16
+                    input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, z, y, x);
+                    output_idx = GET_DATA_BFZYX_F16_INDEX(OUTPUT, b, f, z, y, x);
+                    output[output_idx] = ACTIVATION((input[input_idx] - UNIT_CVT_FUNC(mean)) * UNIT_CVT_FUNC(variance), ACTIVATION_PARAMS);
+                }
+            }
+        }
+#else
                     output[output_idx] = ACTIVATION((input[input_idx] - UNIT_CVT_FUNC(mean)) * UNIT_CVT_FUNC(variance), ACTIVATION_PARAMS);
                     input_idx += INPUT0_X_PITCH;
                     output_idx += OUTPUT_X_PITCH;
@@ -127,6 +164,7 @@ KERNEL (mvn_gpu_ref_accross_channels)(const __global UNIT_TYPE* input, __global 
         }
         input_idx += INPUT0_FEATURE_PITCH - INPUT0_Z_PITCH*INPUT0_SIZE_Z;
         output_idx += OUTPUT_FEATURE_PITCH - INPUT0_SIZE_Z*OUTPUT_Z_PITCH;
+#endif
     }
 #endif
 }

@@ -57,20 +57,16 @@ struct pyramid_roi_align_gpu : typed_primitive_gpu_impl<pyramid_roi_align> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = pyramid_roi_align_gpu::create;
-        implementation_map<pyramid_roi_align>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                                   val_fw);
-        implementation_map<pyramid_roi_align>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                                   val_fw);
-    }
-    ~attach() = default;
-};
+namespace detail {
 
-attach attach_impl;
+attach_pyramid_roi_align_gpu::attach_pyramid_roi_align_gpu() {
+    auto val_fw = pyramid_roi_align_gpu::create;
+    implementation_map<pyramid_roi_align>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                               val_fw);
+    implementation_map<pyramid_roi_align>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                               val_fw);
+}
 
-}  // namespace
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

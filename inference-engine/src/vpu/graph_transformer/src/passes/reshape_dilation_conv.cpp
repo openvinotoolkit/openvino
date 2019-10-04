@@ -66,6 +66,10 @@ void PassImpl::run(const Model::Ptr& model) {
         auto padTop = stage->attrs().get<int>("padTop");
         auto padBottom = stage->attrs().get<int>("padBottom");
 
+        auto scaleFactor = stage->attrs().getOrDefault<float>("scaleFactor", 1.0f);
+
+        IE_ASSERT(dilationX >= 1);
+        IE_ASSERT(dilationY >= 1);
         if (dilationX <= 1 && dilationY <= 1) {
             continue;
         }
@@ -75,17 +79,13 @@ void PassImpl::run(const Model::Ptr& model) {
             continue;
         }
 
-        if ((padTop != padBottom) || (padLeft != padRight)) {
+        if (((padLeft % dilationX) !=0) || ((padTop % dilationY) !=0)) {
             stage->attrs().set<bool>("tryHW", false);
             continue;
         }
 
-        if ((dilationX != dilationY) || (dilationX != 2)) {
-            stage->attrs().set<bool>("tryHW", false);
-            continue;
-        }
-
-        if ((kernelStrideX != 1) || (kernelStrideY != 1)) {
+        if ((std::max(dilationX, kernelStrideX) % std::min(dilationX, kernelStrideX)) ||
+                (std::max(dilationY, kernelStrideY) % std::min(dilationY, kernelStrideY))) {
             stage->attrs().set<bool>("tryHW", false);
             continue;
         }
@@ -94,7 +94,6 @@ void PassImpl::run(const Model::Ptr& model) {
         auto weights = stage->input(1);
         auto biases = stage->input(2);
         auto output = stage->output(0);
-        auto input_org = input;
 
         if (input->desc().dim(Dim::N) > 1) {
             stage->attrs().set<bool>("tryHW", false);
@@ -107,9 +106,7 @@ void PassImpl::run(const Model::Ptr& model) {
             continue;
         }
 
-        bool Expand_mark = false;
-        // TODO
-        const bool Use_pixel_alignment = false;
+        const bool Use_pixel_alignment = true;
         int pixel_stride_alignment = STRIDE_ALIGNMENT
                 / input->desc().elemSize();
         int InputExtended_width = input->desc().dim(Dim::W);
@@ -119,26 +116,14 @@ void PassImpl::run(const Model::Ptr& model) {
             InputExtended_width = divUp(input->desc().dim(Dim::W),
                     dilationX * pixel_stride_alignment) * dilationX
                     * pixel_stride_alignment;
-            InputExtended_height = divUp(input->desc().dim(Dim::H),
-                    dilationY * pixel_stride_alignment) * dilationY
-                    * pixel_stride_alignment;
-        } else if ((divUp(input->desc().dim(Dim::W), dilationX)
-                < pixel_stride_alignment)
-                || (divUp(input->desc().dim(Dim::H), dilationY)
-                        < pixel_stride_alignment)) {
-            InputExtended_width = pixel_stride_alignment * dilationX;
-            InputExtended_height = pixel_stride_alignment * dilationY;
+
+            InputExtended_height = divUp(input->desc().dim(Dim::H), dilationY)
+                    * dilationY;
         } else {
             InputExtended_width = divUp(input->desc().dim(Dim::W), dilationX)
                     * dilationX;
             InputExtended_height = divUp(input->desc().dim(Dim::H), dilationY)
                     * dilationY;
-        }
-
-        if ((((InputExtended_width % pixel_stride_alignment) == 0) && (InputExtended_width % (dilationX * pixel_stride_alignment) != 0))
-                || (((InputExtended_height % pixel_stride_alignment) == 0) && (InputExtended_height % (dilationX * dilationY) != 0))) {
-            stage->attrs().set<bool>("tryHW", false);
-            continue;
         }
 
         float InputExtended_scale = std::max(
@@ -150,14 +135,16 @@ void PassImpl::run(const Model::Ptr& model) {
         const float MAX_INPUTEXTENDED_SCALE = 1.8;
         const float MIN_INPUTEXTENDED_SCALE = 1;
 
-        if (InputExtended_scale  >= MAX_INPUTEXTENDED_SCALE) {
+        if (InputExtended_scale >= MAX_INPUTEXTENDED_SCALE) {
             stage->attrs().set<bool>("tryHW", false);
             continue;
         }
 
+        bool Expand_mark = false;
+
         Expand_mark = (InputExtended_scale > MIN_INPUTEXTENDED_SCALE);
 
-        model->disconnectStageDatas(stage);
+        model->disconnectStage(stage);
 
         // Expand input if need
         auto newDesc_input = input->desc();
@@ -170,15 +157,24 @@ void PassImpl::run(const Model::Ptr& model) {
             InputExtended = model->duplicateData(input, "@extended-input",
                     newDesc_input);
 
-            _stageBuilder->addBroadcastStage(model,
-                    stage->name() + "@expand-input", stage->origLayer(), input,
+            _stageBuilder->addPadStage(model, stage->name() + "@padding",
+                    stage->origLayer(),
+                    PadMode::Constant, 0.0f, DimValues(),
+                    DimValues({ { Dim::W, (InputExtended_width - input->desc().dim(Dim::W)) },
+                    { Dim::H, (InputExtended_height - input->desc().dim(Dim::H)) }, }),
+                    input,
                     InputExtended);
         }
 
-        DataDesc Reinterpret_inputdataDesc(DataType::FP16, DimsOrder::NCHW,
-                { dilationX, InputExtended->desc().dim(Dim::W) / dilationX,
-                        InputExtended->desc().dim(Dim::H),
-                        InputExtended->desc().dim(Dim::C) });
+        DataDesc Reinterpret_inputdataDesc(
+            DataType::FP16,
+            DimsOrder::NCHW,
+            {
+                dilationX,
+                InputExtended->desc().dim(Dim::W) / dilationX,
+                InputExtended->desc().dim(Dim::H),
+                InputExtended->desc().dim(Dim::C)
+            });
 
         Data Reinterpret_inputdata;
         Reinterpret_inputdata = model->duplicateData(InputExtended,
@@ -188,44 +184,27 @@ void PassImpl::run(const Model::Ptr& model) {
                 stage->name() + "@copy-reinterpret-input-data",
                 stage->origLayer(), InputExtended, Reinterpret_inputdata);
 
-        DataDesc Permuted_inputdataDesc(DataType::FP16, DimsOrder::NCHW,
-                { InputExtended->desc().dim(Dim::W) / dilationX,
-                        InputExtended->desc().dim(Dim::H),
-                        InputExtended->desc().dim(Dim::C),
-                        dilationX });
+        DataDesc Permuted_inputdataDesc(
+            DataType::FP16,
+            DimsOrder::NCHW,
+            {
+                InputExtended->desc().dim(Dim::W) / dilationX,
+                InputExtended->desc().dim(Dim::H),
+                InputExtended->desc().dim(Dim::C),
+                dilationX
+            });
 
         Data Permuted_inputdata;
         Permuted_inputdata = model->duplicateData(InputExtended,
                 "@permuted-input-data", Permuted_inputdataDesc);
 
-        SmallVector<int, MAX_DIMS_64> ieOrder(4, -1);
-
-        ieOrder[0] = 3;
-        ieOrder[1] = 0;
-        ieOrder[2] = 1;
-        ieOrder[3] = 2;
-
-        _stageBuilder->addPermuteStage(model,
-                stage->origLayerName() + "@permute-input-data",
-                stage->origLayer(), { Reinterpret_inputdata }, {
-                        Permuted_inputdata }, ieOrder);
-
-        // for conv output of subtensors
-        auto padx_new = padLeft - (kernelSizeX - 1) * (dilationX - 1) / 2;
-        auto pady_new = padTop - (kernelSizeY - 1) * (dilationY - 1) / 2;
-
-        auto newDesc_Permuted_input = InputExtended->desc();
-        newDesc_Permuted_input.setDim(Dim::W,
-                (((InputExtended->desc().dim(Dim::W) + 2 * padx_new
-                        - kernelSizeX) / kernelStrideX) + 1) / dilationX);
-        newDesc_Permuted_input.setDim(Dim::H,
-                ((InputExtended->desc().dim(Dim::H) + 2 * pady_new
-                        - kernelSizeY) / kernelStrideY) + 1);
-        newDesc_Permuted_input.setDim(Dim::C, output->desc().dim(Dim::C));
-        newDesc_Permuted_input.setDim(Dim::N, dilationX);
-
-        auto Subtensors_outputdata = model->duplicateData(output,
-                "@SubTensors-OutputData", newDesc_Permuted_input);
+        _stageBuilder->addPermuteStage(
+            model,
+            stage->origLayerName() + "@permute-input-data",
+            stage->origLayer(),
+            Reinterpret_inputdata,
+            Permuted_inputdata,
+            DimValues_<Dim>{{Dim::W, Dim::H}, {Dim::H, Dim::C}, {Dim::C, Dim::N}, {Dim::N, Dim::W}});
 
         // for skip rows, use reshape n c h w/2 -> n c h/2 w
         auto Reshape_Permuted_inputdata_Desc = Permuted_inputdata->desc();
@@ -242,36 +221,82 @@ void PassImpl::run(const Model::Ptr& model) {
                 stage->origLayer(), Permuted_inputdata,
                 Reshape_Permuted_inputdata);
 
-        auto Reshape_Permuted_outputdata_Desc = Subtensors_outputdata->desc();
-        Reshape_Permuted_outputdata_Desc.setDim(Dim::H,
-                Subtensors_outputdata->desc().dim(Dim::H) / dilationY);
-        Reshape_Permuted_outputdata_Desc.setDim(Dim::W,
-                Subtensors_outputdata->desc().dim(Dim::W) * dilationY);
-        auto Reshape_Permuted_outputdata = model->duplicateData(
-                Subtensors_outputdata, "@Reshape-Permuted-outputdata",
-                Reshape_Permuted_outputdata_Desc);
-
         // Desc of sub input tensor
         DataDesc Sub_inputdataDesc(
                 { Permuted_inputdata->desc().dim(Dim::W),
                         Permuted_inputdata->desc().dim(Dim::H) / dilationY,
-                        Permuted_inputdata->desc().dim(Dim::C),
-                        1 });
+                        Permuted_inputdata->desc().dim(Dim::C), 1 });
 
         Sub_inputdataDesc.reorder(DimsOrder::NCHW);
 
-        // Desc of sub output tensor
-        auto Sub_outputdataDesc = Subtensors_outputdata->desc();
+        auto Sub_output_dilationX_dimenion = (dilationX / kernelStrideX) > 1 ? (dilationX / kernelStrideX) : 1;
+        auto Sub_output_dilationY_dimenion = (dilationY / kernelStrideY) > 1 ? (dilationY / kernelStrideY) : 1;
+        auto kernelStrideX_new = (dilationX / kernelStrideX) > 1 ? 1 : (kernelStrideX / dilationX);
+        auto kernelStrideY_new = (dilationY / kernelStrideY) > 1 ? 1 : (kernelStrideY / dilationY);
 
-        Sub_outputdataDesc.setDim(Dim::N, 1);
-        Sub_outputdataDesc.setDim(Dim::C,
+        // for conv output of subtensors
+        auto padLeft_new = padLeft / dilationX;
+        auto padRight_new = padRight / dilationX;
+        auto padTop_new =  padTop / dilationY;
+        auto padBottom_new = padBottom / dilationY;
+
+        auto Subtensors_outputdataDesc = InputExtended->desc();
+
+        Subtensors_outputdataDesc.setDim(Dim::W,
+                ((InputExtended->desc().dim(Dim::W) + padLeft + padRight
+                        - dilationX * (kernelSizeX - 1) - 1 + kernelStrideX)
+                        / kernelStrideX) / Sub_output_dilationX_dimenion);
+
+        Subtensors_outputdataDesc.setDim(Dim::H,
+                (InputExtended->desc().dim(Dim::H) + padTop + padBottom
+                        - dilationY * (kernelSizeY - 1) - 1 + kernelStrideY)
+                        / kernelStrideY);
+
+        Subtensors_outputdataDesc.setDim(Dim::C, output->desc().dim(Dim::C));
+        Subtensors_outputdataDesc.setDim(Dim::N, Sub_output_dilationX_dimenion);
+
+        auto Subtensors_outputdata = model->duplicateData(output,
+                "@SubTensors-OutputData", Subtensors_outputdataDesc);
+
+        // Desc of sub output tensor
+        auto Real_sub_outputdataDesc = Subtensors_outputdata->desc();
+
+        int Real_sub_outputdata_width = ((Sub_inputdataDesc.dim(Dim::W)
+                + padLeft_new + padRight_new - kernelSizeX) / kernelStrideX_new)
+                + 1;
+        int Real_sub_outputdata_height = ((Sub_inputdataDesc.dim(Dim::H)
+                + padTop_new + padBottom_new - kernelSizeY) / kernelStrideY_new)
+                + 1;
+
+        if (Real_sub_outputdata_width != Subtensors_outputdataDesc.dim(Dim::W)) {
+            padRight_new = (Subtensors_outputdataDesc.dim(Dim::W) - 1) * kernelStrideX_new
+                    + kernelSizeX - padLeft_new - Sub_inputdataDesc.dim(Dim::W);
+            Real_sub_outputdata_width = Subtensors_outputdataDesc.dim(Dim::W);
+        }
+
+        if (Real_sub_outputdata_height != (Subtensors_outputdataDesc.dim(Dim::H) / Sub_output_dilationY_dimenion)) {
+            padBottom_new = (Subtensors_outputdataDesc.dim(Dim::H) - 1) * kernelStrideY_new
+                    + kernelSizeY - padTop_new - Sub_inputdataDesc.dim(Dim::H);
+            Real_sub_outputdata_height = (Subtensors_outputdataDesc.dim(Dim::H) / Sub_output_dilationY_dimenion);
+        }
+
+        bool Sub_outputdata_expand = false;
+        int Sub_outputdata_width = Real_sub_outputdata_width;
+
+        if ((Real_sub_outputdata_width % pixel_stride_alignment) != 0) {
+            Sub_outputdata_expand = true;
+            Sub_outputdata_width = divUp(Real_sub_outputdata_width,
+                    pixel_stride_alignment) * pixel_stride_alignment;
+            padRight_new = (Sub_outputdata_width - 1) * kernelStrideX_new
+                    + kernelSizeX - padLeft_new - Sub_inputdataDesc.dim(Dim::W);
+        }
+
+        Real_sub_outputdataDesc.setDim(Dim::N, 1);
+        Real_sub_outputdataDesc.setDim(Dim::C,
                 Subtensors_outputdata->desc().dim(Dim::C));
-        Sub_outputdataDesc.setDim(Dim::H,
-                ((Sub_inputdataDesc.dim(Dim::H) + 2 * pady_new - kernelSizeY)
-                        / kernelStrideY) + 1);
-        Sub_outputdataDesc.setDim(Dim::W,
-                ((Sub_inputdataDesc.dim(Dim::W) + 2 * padx_new - kernelSizeX)
-                        / kernelStrideX) + 1);
+
+        Real_sub_outputdataDesc.setDim(Dim::H, Real_sub_outputdata_height);
+        Real_sub_outputdataDesc.setDim(Dim::W, Real_sub_outputdata_width);
 
         DataVector V_Sub_inputdata;
         std::vector<DimValues> V_Sub_inputdatasOffsets;
@@ -282,17 +307,18 @@ void PassImpl::run(const Model::Ptr& model) {
         DataVector V_newWeights;
         DataVector V_newbiases;
 
-        V_Sub_inputdata.reserve(dilationX * dilationY);
-        V_Sub_inputdatasOffsets.reserve(dilationX * dilationY);
-        V_Sub_outputdata.reserve(dilationX * dilationY);
-        V_Sub_outputdatasOffsets.reserve(dilationX * dilationY);
+        V_Sub_inputdata.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
+        V_Sub_inputdatasOffsets.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
 
-        V_newWeights.reserve(dilationX * dilationY);
-        V_newbiases.reserve(dilationX * dilationY);
+        V_newWeights.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
+        V_newbiases.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
 
-        for (int dilationXInd = 0; dilationXInd < dilationX; ++dilationXInd) {
+        V_Sub_outputdata.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
+        V_Sub_outputdatasOffsets.reserve(Sub_output_dilationX_dimenion * Sub_output_dilationY_dimenion);
+
+        for (int dilationXInd = 0; dilationXInd < dilationX; dilationXInd += (dilationX / Sub_output_dilationX_dimenion)) {
             for (int dilationYInd = 0; dilationYInd < dilationY;
-                    ++dilationYInd) {
+                    dilationYInd += (dilationY / Sub_output_dilationY_dimenion)) {
                 Data Sub_inputdata;
                 Sub_inputdata = model->duplicateData(Permuted_inputdata,
                         "@Sub-InputData", Sub_inputdataDesc);
@@ -302,25 +328,27 @@ void PassImpl::run(const Model::Ptr& model) {
                 Sub_inputdatasOffsets.set(Dim::W,
                         dilationYInd * Sub_inputdataDesc.dim(Dim::W));
 
-                Data Sub_outputdata;
-                Sub_outputdata = model->duplicateData(Subtensors_outputdata,
-                        "@Sub_OutputData", Sub_outputdataDesc);
+                V_Sub_inputdata.emplace_back(Sub_inputdata);
+                V_Sub_inputdatasOffsets.emplace_back(Sub_inputdatasOffsets);
+
+                Data Real_sub_outputdata;
+                Real_sub_outputdata = model->duplicateData(
+                        Subtensors_outputdata, "@Sub_OutputData",
+                        Real_sub_outputdataDesc);
 
                 DimValues Sub_outputdatasOffsets;
-                Sub_outputdatasOffsets.set(Dim::N, dilationXInd);
+                Sub_outputdatasOffsets.set(Dim::N, dilationXInd * Sub_output_dilationX_dimenion / dilationX);
                 Sub_outputdatasOffsets.set(Dim::W,
-                        dilationYInd * Sub_outputdataDesc.dim(Dim::W));
+                        (dilationYInd * Sub_output_dilationY_dimenion / dilationY) * Real_sub_outputdataDesc.dim(Dim::W));
+
+                V_Sub_outputdata.emplace_back(Real_sub_outputdata);
+                V_Sub_outputdatasOffsets.emplace_back(Sub_outputdatasOffsets);
 
                 // reuse weights and biases
                 auto newWeights = model->duplicateData(weights, "@NewWeights",
                         weights->desc());
                 auto newbiases = model->duplicateData(biases, "@Newbiases",
                         biases->desc());
-
-                V_Sub_inputdata.emplace_back(Sub_inputdata);
-                V_Sub_inputdatasOffsets.emplace_back(Sub_inputdatasOffsets);
-                V_Sub_outputdata.emplace_back(Sub_outputdata);
-                V_Sub_outputdatasOffsets.emplace_back(Sub_outputdatasOffsets);
 
                 V_newWeights.emplace_back(newWeights);
                 V_newbiases.emplace_back(newbiases);
@@ -333,27 +361,72 @@ void PassImpl::run(const Model::Ptr& model) {
                 V_Sub_inputdata);
 
         // sub tensors convolution
-        for (int index = 0; index < dilationX * dilationY; ++index) {
+        for (int Sub_output_XInd = 0; Sub_output_XInd < Sub_output_dilationX_dimenion; ++Sub_output_XInd) {
+            for (int Sub_output_YInd = 0; Sub_output_YInd < Sub_output_dilationY_dimenion;
+                    ++Sub_output_YInd) {
             // Add SubDataConv stage
+            auto Sub_outputdataDesc = Real_sub_outputdataDesc;
+            Sub_outputdataDesc.setDim(Dim::W, Sub_outputdata_width);
+
+            Data Sub_outputdata;
+            Sub_outputdata = model->duplicateData(Subtensors_outputdata,
+                    "@Sub_OutputData", Sub_outputdataDesc);
+
             auto newStage = model->addNewStage<StubStage>(
                     stage->origLayerName() + "@SubDataConv",
                     StageType::StubConv, stage->origLayer(), {
-                            V_Sub_inputdata[index], V_newWeights[index],
-                            V_newbiases[index] }, { V_Sub_outputdata[index] });
+                            V_Sub_inputdata[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd],
+                            V_newWeights[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd],
+                            V_newbiases[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd] }, { Sub_outputdata });
 
             newStage->attrs().set<int>("kernelSizeX", kernelSizeX);
             newStage->attrs().set<int>("kernelSizeY", kernelSizeY);
-            newStage->attrs().set<int>("kernelStrideX", kernelStrideX);
-            newStage->attrs().set<int>("kernelStrideY", kernelStrideY);
-            newStage->attrs().set<int>("padLeft", padx_new);
-            newStage->attrs().set<int>("padRight", padx_new);
-            newStage->attrs().set<int>("padTop", pady_new);
-            newStage->attrs().set<int>("padBottom", pady_new);
+
+            newStage->attrs().set<int>("kernelStrideX", kernelStrideX_new);
+            newStage->attrs().set<int>("kernelStrideY", kernelStrideY_new);
+
+            newStage->attrs().set<int>("padLeft", padLeft_new);
+            newStage->attrs().set<int>("padRight", padRight_new);
+
+            newStage->attrs().set<int>("padTop", padTop_new);
+            newStage->attrs().set<int>("padBottom", padBottom_new);
             newStage->attrs().set<int>("dilationX", 1);
             newStage->attrs().set<int>("dilationY", 1);
             newStage->attrs().set<int>("groupSize", groupSize);
             newStage->attrs().set<bool>("tryHW", true);
+
+            newStage->attrs().set<float>("scaleFactor", scaleFactor);
+
+            if (Sub_outputdata_expand) {
+                _stageBuilder->addShrinkStage(model,
+                        stage->name() + "@SubConvOutputData",
+                        stage->origLayer(), Sub_outputdata,
+                        V_Sub_outputdata[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd]);
+            } else {
+                V_Sub_outputdata[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd] = Sub_outputdata;
+            }
         }
+        }
+
+        auto Reshape_Permuted_outputdata_Desc = Subtensors_outputdata->desc();
+
+        Reshape_Permuted_outputdata_Desc.setDim(Dim::H,
+                Subtensors_outputdata->desc().dim(Dim::H) / Sub_output_dilationY_dimenion);
+        Reshape_Permuted_outputdata_Desc.setDim(Dim::W,
+                Subtensors_outputdata->desc().dim(Dim::W) * Sub_output_dilationY_dimenion);
+
+        auto Reshape_Permuted_outputdata = model->duplicateData(
+                Subtensors_outputdata, "@Reshape-Permuted-outputdata",
+                Reshape_Permuted_outputdata_Desc);
+
+        auto n = 0;
+        auto c = 0;
+        auto h = 0;
+        auto w = 0;
+        V_Sub_outputdatasOffsets[0].get(Dim::N, n);
+        V_Sub_outputdatasOffsets[0].get(Dim::C, c);
+        V_Sub_outputdatasOffsets[0].get(Dim::H, h);
+        V_Sub_outputdatasOffsets[0].get(Dim::W, w);
 
         auto ConcatSubOutputDataStage = _stageBuilder->addConcatStage(model,
                 stage->name() + "@Concat-Sub-OutputData", stage->origLayer(),
@@ -366,34 +439,21 @@ void PassImpl::run(const Model::Ptr& model) {
 
         // output permute
         DataDesc permute_outputdataDesc(DataType::FP16, DimsOrder::NCHW,
-                { Subtensors_outputdata->desc().dim(Dim::C),
-                        Subtensors_outputdata->desc().dim(Dim::H),
+                { Subtensors_outputdata->desc().dim(Dim::N),
                         Subtensors_outputdata->desc().dim(Dim::W),
-                        Subtensors_outputdata->desc().dim(Dim::N) });
-
-        permute_outputdataDesc.setDim(Dim::N,
-                Subtensors_outputdata->desc().dim(Dim::C));
-        permute_outputdataDesc.setDim(Dim::C,
-                Subtensors_outputdata->desc().dim(Dim::H));
-        permute_outputdataDesc.setDim(Dim::H,
-                Subtensors_outputdata->desc().dim(Dim::W));
-        permute_outputdataDesc.setDim(Dim::W,
-                Subtensors_outputdata->desc().dim(Dim::N));
+                        Subtensors_outputdata->desc().dim(Dim::H),
+                        Subtensors_outputdata->desc().dim(Dim::C) });
 
         auto permute_outputdata = model->duplicateData(Subtensors_outputdata,
                 "@Permuted-OutputData", permute_outputdataDesc);
 
-        SmallVector<int, MAX_DIMS_64> ieOrder2(4, -1);
-
-        ieOrder2[0] = 1;
-        ieOrder2[1] = 2;
-        ieOrder2[2] = 3;
-        ieOrder2[3] = 0;
-
-        _stageBuilder->addPermuteStage(model,
-                stage->origLayerName() + "@Permute-OutputData",
-                stage->origLayer(), { Subtensors_outputdata }, {
-                        permute_outputdata }, ieOrder2);
+        _stageBuilder->addPermuteStage(
+            model,
+            stage->origLayerName() + "@Permute-OutputData",
+            stage->origLayer(),
+            Subtensors_outputdata,
+            permute_outputdata,
+            DimValues_<Dim>{{Dim::W, Dim::N}, {Dim::H, Dim::W}, {Dim::C, Dim::H}, {Dim::N, Dim::C}});
 
         // Expand output if need
         if (Expand_mark) {
@@ -427,7 +487,6 @@ void PassImpl::run(const Model::Ptr& model) {
                     stage->name() + "@copy-Permute-OutputData",
                     stage->origLayer(), permute_outputdata, output);
         }
-
         model->removeStage(stage);
     }
 }

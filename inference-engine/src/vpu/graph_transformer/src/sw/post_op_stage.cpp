@@ -11,36 +11,28 @@
 
 namespace vpu {
 
-void PostOpStage::propagateDataOrderImpl() const {
-    IE_ASSERT(!_inputEdges.empty());
-    IE_ASSERT(_outputEdges.size() == 1);
-
-    auto input = _inputEdges[0]->input();
+void PostOpStage::propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) {
+    auto input = inputEdge(0)->input();
 
     auto inDimsOrder = input->desc().dimsOrder();
 
-    _orderInfo.setOutput(_outputEdges[0], inDimsOrder);
+    orderInfo.setOutput(outputEdge(0), inDimsOrder);
 }
 
-void PostOpStage::getDataStridesRequirementsImpl() const {
-    IE_ASSERT(!_inputEdges.empty());
-    IE_ASSERT(_outputEdges.size() == 1);
-
-    auto input = _inputEdges[0]->input();
+void PostOpStage::getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) {
+    auto input = inputEdge(0)->input();
 
     StridesRequirement reqs;
     reqs.add(2, DimStride::Compact);
 
-    _stridesInfo.setInput(_inputEdges[0], reqs);
-    _stridesInfo.setOutput(_outputEdges[0], reqs);
+    stridesInfo.setInput(inputEdge(0), reqs);
+    stridesInfo.setOutput(outputEdge(0), reqs);
 }
 
 void PostOpStage::finalizeDataLayoutImpl() {
 }
 
-void PostOpStage::getBatchSupportInfoImpl() const {
-    IE_ASSERT(!_inputEdges.empty());
-    IE_ASSERT(_outputEdges.size() == 1);
+void PostOpStage::getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& /*batchInfo*/) {
 }
 
 StageSHAVEsRequirements PostOpStage::getSHAVEsRequirementsImpl() const {
@@ -48,22 +40,21 @@ StageSHAVEsRequirements PostOpStage::getSHAVEsRequirementsImpl() const {
     return StageSHAVEsRequirements::TwoOrOne;
 }
 
-void PostOpStage::finalCheckImpl() const {
+void PostOpStage::initialCheckImpl() const {
+    IE_ASSERT(numInputs() > 0);
+    IE_ASSERT(numOutputs() == 1);
+    assertAllInputsOutputsTypes(this, DataType::FP16, DataType::FP16);
 }
 
 void PostOpStage::serializeDataImpl(BlobSerializer& serializer) const {
-    IE_ASSERT(!_inputEdges.empty());
-    IE_ASSERT(_outputEdges.size() == 1);
-    IE_ASSERT(_tempBufferEdges.empty());
-
-    auto input = _inputEdges[0]->input();
-    auto output = _outputEdges[0]->output();
+    auto input = inputEdge(0)->input();
+    auto output = outputEdge(0)->output();
 
     input->serializeNewBuffer(serializer);
     output->serializeNewBuffer(serializer);
 
-    for (int i = 1; i < _inputEdges.size(); ++i) {
-        _inputEdges[i]->input()->serializeNewBuffer(serializer);
+    for (int i = 1; i < numInputs(); ++i) {
+        this->input(i)->serializeNewBuffer(serializer);
     }
 }
 

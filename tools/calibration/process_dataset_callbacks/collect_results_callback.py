@@ -46,13 +46,18 @@ class CollectResultsCallback:
         self._infer_raw_results = InferRawResults() if collect_resuls else None
         self._latencies = list()
 
-    def callback(self, value, latency = None):
+    def callback(self, value, latency=None, **kwargs):
+        network = kwargs.get('network')
+        exec_network = kwargs.get('exec_network')
+        if not network or not exec_network:
+            network = self._network
+            exec_network = self._exec_network
         if self._collect_aggregated_statistics:
             if not self._aggregated_statistics:
                 self._aggregated_statistics = AggregatedStatistics(
                     iterations_count = self._iterations_count,
                     dataset_size = self._dataset_size)
-            self._aggregated_statistics.add(self._network, self._exec_network, value)
+            self._aggregated_statistics.add(network, exec_network, value)
 
         if self._collect_results:
             if self._collect_layers:

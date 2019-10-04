@@ -21,15 +21,13 @@ private:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>&,
-            ScalePropagationStep) override {
+            ScalePropagationStep,
+            StageDataInfo<float>&) override {
         VPU_THROW_EXCEPTION << "Must never be called";
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
 
         auto finalOrder = input->desc().dimsOrder();
         if (input->desc().dim(Dim::N, 1) > 1) {
@@ -37,15 +35,12 @@ private:
             finalOrder = finalOrder.createMovedDim(Dim::C, 2);
         }
 
-        _orderInfo.setInput(_inputEdges[0], finalOrder);
-        _orderInfo.setOutput(_outputEdges[0], finalOrder);
+        orderInfo.setInput(inputEdge(0), finalOrder);
+        orderInfo.setOutput(outputEdge(0), finalOrder);
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        auto input = inputEdge(0)->input();
 
         auto dimsOrder = input->desc().dimsOrder();
 
@@ -56,8 +51,8 @@ private:
             reqs.add(dimsOrder.dimInd(Dim::N), DimStride::Compact);
         }
 
-        _stridesInfo.setInput(_inputEdges[0], reqs);
-        _stridesInfo.setOutput(_outputEdges[0], reqs);
+        stridesInfo.setInput(inputEdge(0), reqs);
+        stridesInfo.setOutput(outputEdge(0), reqs);
 
         //
         // * AvgPool/MaxPool support both YXZ and ZYX orders:
@@ -68,7 +63,7 @@ private:
 
         if (_type == StageType::MaxPool || _type == StageType::AvgPool) {
             if (dimsOrder.dimInd(Dim::C) == 0) {
-                _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
+                stridesInfo.setInput(inputEdge(0), StridesRequirement::compact());
             }
         }
     }
@@ -76,11 +71,12 @@ private:
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const  override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>&) override {
         // Pooling will support batch by merging it with previous dimension.
     }
 
     void finalCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -102,11 +98,8 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         if (_type == StageType::GlobalMaxPool ||
             _type == StageType::GlobalAvgPool) {
@@ -169,7 +162,7 @@ void PassImpl::run(const Model::Ptr& model) {
         auto padBottom = stage->attrs().get<int>("padBottom");
         auto excludePad = stage->attrs().get<bool>("excludePad");
 
-        model->disconnectStageDatas(stage);
+        model->disconnectStage(stage);
 
         auto stageType = StageType::None;
         if (stage->type() == StageType::StubMaxPool) {

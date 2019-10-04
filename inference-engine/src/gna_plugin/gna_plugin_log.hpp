@@ -42,7 +42,7 @@ inline GnaLog & gnawarn() {
 #ifdef __PRETTY_FUNCTION__
 #undef __PRETTY_FUNCTION__
 #endif
-#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
+#ifdef _WIN32
 # define __PRETTY_FUNCTION__ __FUNCSIG__
 #else
 # define __PRETTY_FUNCTION__ __FUNCTION__

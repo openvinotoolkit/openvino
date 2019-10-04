@@ -26,8 +26,11 @@ if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308")
 endif()
 
-set(NGRAPH_TOOLS_ENABLE FALSE)
-set(NGRAPH_STATIC_LIB_ENABLE TRUE)
+set(NGRAPH_TOOLS_ENABLE OFF)
+set(NGRAPH_STATIC_LIB_ENABLE ON)
+set(NGRAPH_JSON_ENABLE OFF)
+set(NGRAPH_ADDRESS_SANITIZER OFF)
+
 set(NGRAPH_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ngraph/src/ngraph")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/ngraph/src"
     "${NGRAPH_SOURCE_DIR}")
@@ -46,6 +49,11 @@ if (HAS_MAYBE_UNINITIALIZED)
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-maybe-uninitialized -Wno-return-type")
         endif()
 endif()
+
+if(UNIX AND CMAKE_CXX_COMPILER_ID MATCHES Intel)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-warning=1011")
+endif()
+
 # WA for GCC 7.0
 if (UNIX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-return-type")

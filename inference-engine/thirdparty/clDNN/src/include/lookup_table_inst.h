@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/lookup_table.hpp"
+#include "api/lookup_table.hpp"
 #include "primitive_inst.h"
 
 #include <memory>

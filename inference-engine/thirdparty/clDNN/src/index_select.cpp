@@ -22,7 +22,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id index_select_type_id() {
+primitive_type_id index_select::type_id() {
     static primitive_type_base<index_select> instance;
     return &instance;
 }

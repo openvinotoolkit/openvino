@@ -16,9 +16,11 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.eltwise import eltwise_infer
+from mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer
 from mo.graph.graph import Graph
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.op import Op
+from mo.utils.error import Error
 
 
 class Elementwise(Op):
@@ -32,12 +34,22 @@ class Elementwise(Op):
             'op': self.op,
             'type': self.op_type,
             'infer': lambda node: eltwise_infer(node, self.operation),
+            'type_infer': self.type_infer,
             'can_be_bias': True,
             'can_be_fused': True,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'is_eltwise': True
+            'is_eltwise': True,
         }, attrs)
+
+    @staticmethod
+    def type_infer(node):
+        in_type_0 = node.in_port(0).get_data_type()
+        in_type_1 = node.in_port(1).get_data_type()
+        if in_type_0 != in_type_1:
+            raise Error('Elementwise operation {} has inputs of different data types: {} and {}'.format(
+                        node.soft_get('name'), in_type_0, in_type_1))
+        node.out_port(0).set_data_type(in_type_0)
 
 
 class Add(Elementwise):
@@ -45,6 +57,14 @@ class Add(Elementwise):
     op = 'Add'
     op_type = 'Add'
     operation = staticmethod(lambda a, b: a + b)
+
+
+class BiasAdd(Add):
+    op_type = 'BiasAdd'
+
+    def __init__(self, graph: Graph, attrs: dict):
+        attrs.update({'infer': lambda node: bias_add_infer(node, self.operation)})
+        super().__init__(graph, attrs)
 
 
 class Sub(Elementwise):
@@ -72,7 +92,22 @@ class Pow(Elementwise):
     enabled = False
     op = 'Pow'
     op_type = 'Pow'
-    operation = staticmethod(lambda a, b: a ** b)
+
+    @staticmethod
+    def operation(a, b):
+        if np.any(b < 0) and np.issubdtype(a.dtype, np.signedinteger):
+            return np.array(a.astype(np.float32) ** b, dtype=np.float32)
+        return a ** b
+
+    @staticmethod
+    def type_infer(node):
+        # dynamic power output data type is complicate to predict, so we set float data type by default,
+        # if we haven't got actual value
+        value = node.out_port(0).data.get_value()
+        if value is not None:
+            node.out_port(0).set_data_type(value.dtype)
+        else:
+            node.out_port(0).set_data_type(data_type_str_to_np(node.graph.graph['cmd_params'].data_type))
 
 
 class Greater(Elementwise):

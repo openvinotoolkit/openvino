@@ -14,7 +14,7 @@
 using namespace InferenceEngine;
 
 Builder::Layer::Layer(const std::string& type, const std::string& name):
-        name(name), type(type), id((std::numeric_limits<idx_t>::max)()) {}
+    id((std::numeric_limits<idx_t>::max)()), type(type), name(name) {}
 
 Builder::Layer::Layer(const ILayer::CPtr& layer) {
     id = layer->getId();

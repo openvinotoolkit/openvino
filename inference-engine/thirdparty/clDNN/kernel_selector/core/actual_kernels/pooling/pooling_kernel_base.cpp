@@ -74,7 +74,7 @@ PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_para
     kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     if (output.GetLayout() == DataLayout::bfyx || output.GetLayout() == DataLayout::byxf ||
-        output.GetLayout() == DataLayout::bfzyx) {
+        output.GetLayout() == DataLayout::bfzyx || output.GetLayout() == DataLayout::bfzyx_f16) {
         // Determine global work sizes.
         kd.gws2 = output.Batch().v * output.Feature().v;  // B, F
         kd.gws0 = Align(output.X().v, 32);                // X

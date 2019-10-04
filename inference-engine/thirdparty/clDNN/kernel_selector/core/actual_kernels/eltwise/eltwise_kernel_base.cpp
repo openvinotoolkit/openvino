@@ -112,14 +112,14 @@ bool EltwiseKernelBase::Validate(const Params& p, const optional_params& o) cons
 JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& params, bool useVload8) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    auto GetIdxOrderForLayout = [&](DataLayout l, bool layoutBased, uSize stride) -> std::string {
+    auto GetIdxOrderVecForLayout = [&](DataLayout l, bool layoutBased, uSize stride) -> std::vector<std::string> {
         // TODO: Generalize this method
         std::vector<std::string> bfyx_idx_order = {};
         if (layoutBased) {
             bfyx_idx_order = { "d4", "d3", "d2", "d1" };
         } else {
             if (l == DataLayout::yxfb) {
-                bfyx_idx_order = { "d1", "d2", "d3", "d4" };
+                bfyx_idx_order = { "d1", "d2", "d4", "d3" };
             } else if (l == DataLayout::fyxb) {
                 bfyx_idx_order = { "d1", "d4", "d3", "d2" };
             } else {
@@ -131,6 +131,12 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
             bfyx_idx_order[2] = "(" + bfyx_idx_order[2] + "*" + std::to_string(stride.y) + ")";
             bfyx_idx_order[3] = "(" + bfyx_idx_order[3] + "*" + std::to_string(stride.x) + ")";
         }
+
+        return bfyx_idx_order;
+    };
+
+    auto GetIdxOrderStringForLayout = [&](DataLayout l, bool layoutBased, uSize stride) -> std::string {
+        std::vector<std::string> bfyx_idx_order = GetIdxOrderVecForLayout(l, layoutBased, stride);
 
         return bfyx_idx_order[0] + "," +
                bfyx_idx_order[1] + "," +
@@ -168,9 +174,9 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
         } else {
             size_t out_c = DataTensor::ChannelsCount(params.output.GetLayout());
             if (out_c <= 4) {
-                jit.AddConstant(MakeJitConstant(out_idx_order, GetIdxOrderForLayout(params.output.GetLayout(),
-                                                                                    params.layoutBased || params.broadcast,
-                                                                                    out_stride)));
+                jit.AddConstant(MakeJitConstant(out_idx_order, GetIdxOrderStringForLayout(params.output.GetLayout(),
+                                                                                          params.layoutBased || params.broadcast,
+                                                                                          out_stride)));
             } else if (out_c == 5) {
                 jit.AddConstant(MakeJitConstant(out_idx_order, "d5,d4,d3,d2,d1"));
             } else {
@@ -219,9 +225,9 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
                 size_t out_c = DataTensor::ChannelsCount(params.output.GetLayout());
                 auto in_stride = params.stride.empty() ? out_stride : params.stride[i];
                 if (out_c <= 4 && in_c <= 4) {
-                    jit.AddConstant(MakeJitConstant(idx_order, GetIdxOrderForLayout(params.inputs[i].GetLayout(),
-                                                                                    params.layoutBased || params.broadcast,
-                                                                                    in_stride)));
+                    jit.AddConstant(MakeJitConstant(idx_order, GetIdxOrderStringForLayout(params.inputs[i].GetLayout(),
+                                                                                          params.layoutBased || params.broadcast,
+                                                                                          in_stride)));
                 } else if (out_c == 5) {
                     if (in_c < 5) {
                         // Skip Z coord for 4d tensors
@@ -474,7 +480,7 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         }
 
         size_t n_dims;
-        if (out.GetLayout() == DataLayout::bfzyx)
+        if ((out.GetLayout() == DataLayout::bfzyx)  || (out.GetLayout() == DataLayout::bfzyx_f16))
             n_dims = 5;
         else
             n_dims = 4;

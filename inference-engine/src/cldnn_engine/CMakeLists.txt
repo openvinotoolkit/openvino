@@ -14,12 +14,11 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${INTEL_ITT_LIBS} inference_engine clDNN_shlib pugixml)
+target_link_libraries(${TARGET_NAME} PRIVATE ${INTEL_ITT_LIBS} inference_engine clDNN_lib pugixml)
 
 set (CLDNN_TOP_FOLDER ${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN)
 target_include_directories(${TARGET_NAME} PRIVATE
-        ${CLDNN_TOP_FOLDER}/api
-        ${CLDNN_TOP_FOLDER}/include
+        ${CLDNN_TOP_FOLDER}
         ${IE_MAIN_SOURCE_DIR}/src/inference_engine
         ${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src)
 

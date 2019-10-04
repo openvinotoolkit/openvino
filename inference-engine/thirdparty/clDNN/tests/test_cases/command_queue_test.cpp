@@ -15,12 +15,12 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
-#include <api/CPP/input_layout.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
+#include <api/input_layout.hpp>
 #include "test_utils/test_utils.h"
-#include "api/CPP/arg_max_min.hpp"
+#include "api/arg_max_min.hpp"
 
 using namespace cldnn;
 using namespace tests;
@@ -56,7 +56,6 @@ unsigned long GetMilliseconds(void)
     return ms;
 }
 #endif
-
 
 // Run some topology too see if command queue does work correctly
 // Coppied from arg_max_gpu.base test.

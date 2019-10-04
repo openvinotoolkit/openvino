@@ -46,53 +46,55 @@ class ReplaceMemoryOffsetNodePattern(MiddleReplacementPattern):
         if pair_node.has_default:
             return
 
-        if len(node.in_nodes()) != 0:
-            input_node = node.in_node(0)
-            op_output = node.out_node().out_node()
-            out_node = pair_node.out_node(0)
+        if node.in_port(0).get_source() is not None:
+            input_node_out_port = node.in_port(0).get_source()
+            op_output_id = node.out_port(0).get_destination().node.id
+            out_node_in_ports = pair_node.out_port(0).get_destinations()
         else:
-            input_node = pair_node.in_node(0)
-            op_output = pair_node.out_node().out_node()
-            out_node = node.out_node(0)
+            input_node_out_port = pair_node.in_port(0).get_source()
+            op_output_id = pair_node.out_port(0).get_destination().node.id
+            out_node_in_ports = node.out_port(0).get_destinations()
 
-        in_shape = input_node.shape
+        in_shape = input_node_out_port.data.get_shape().copy()
 
         node_id = node.id
         node_name = node.name
         node_t = node.t
 
-        graph.remove_node(op_output.id)
-        graph.remove_node(node.id)
-        graph.remove_node(pair_node.id)
-
         splice = Splice(graph, {'name': node_name,
                                 'id': node_id,
-                                'context': int64_array(range(-abs(node_t), abs(node_t) + 1))}).create_node([input_node])
+                                'context': int64_array(range(node_t, 1)) if node_t < 0 else int64_array(range(0, node_t+1))}).create_node()
+        splice.in_port(0).connect(input_node_out_port)
 
-        # offset of Crop will be 0 (first element) if node_t < 0 and in_shape[1]*2*node_t (last element) if node_t > 0
+        # offset of Crop will be 0 (first element) if node_t < 0 and in_shape[1]*node_t (last element) if node_t > 0
         crop = Crop(graph, {'name': 'Splice_Crop',
                             'axis': int64_array([1]),
-                            'offset': int64_array([max(0, in_shape[1] * 2 * node_t)]),
+                            'offset': int64_array([max(0, in_shape[1] * node_t)]),
                             'dim': int64_array([in_shape[1]])}).create_node()
 
         splice.out_port(0).connect(crop.in_port(0))
-        splice.out_node(0).shape = int64_array([in_shape[0], (2 * abs(node_t) + 1) * in_shape[1]])
+        splice.out_port(0).data.set_shape(int64_array([in_shape[0], (abs(node_t) + 1) * in_shape[1]]))
 
-        outs = input_node.out_nodes()
-        for out_ in outs:
+        outs = input_node_out_port.get_destinations()
+        for in_port in outs:
+            out_ = in_port.node
             if out_['op'] != 'MemoryOffset' and out_['op'] != 'Splice':
                 crop_input = Crop(graph, {'name': 'Splice_Crop',
                                           'axis': int64_array([1]),
-                                          'offset': int64_array([input_node.shape[1] * abs(node_t)]),
-                                          'dim': int64_array([input_node.shape[1]])}).create_node()
+                                          'offset': int64_array([-min(0, in_shape[1] * node_t)]),
+                                          'dim': int64_array([in_shape[1]])}).create_node()
                 splice.out_port(0).connect(crop_input.in_port(0))
 
-                in_port = graph.get_edge_data(input_node.id, out_.id)[0]['in']
-                graph.remove_edge(input_node.id, out_.id)
-                crop_input.out_port(0).connect(out_.in_port(in_port))
-                crop_input.out_node(0).shape = input_node.shape
+                in_port.disconnect()
+                crop_input.out_port(0).connect(in_port)
+                crop_input.out_port(0).data.set_shape(in_shape)
 
-        graph.add_edge(crop.id, out_node.id, **{'in': 0, 'out': 0})
+        for dest_port in out_node_in_ports:
+            dest_port.connect(crop.out_port(0))
+
+        graph.remove_node(op_output_id)
+        graph.remove_node(node.id)
+        graph.remove_node(pair_node.id)
 
 
 class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
@@ -115,15 +117,15 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
         if node.t >= 0:
             raise Error('Does not support IfDefined with t > 0')
 
-        if len(node.in_nodes()) != 0:
+        if node.in_port(0).get_source() is not None:
             input_port = node.in_port(0).get_source()
-            op_output = node.out_node().out_node()
+            op_output_id = node.out_port(0).get_destination().node.id
             out_port = pair_node.out_port(0)
             node_name = node.name
             pair_name = pair_node.name
         else:
             input_port = pair_node.in_port(0).get_source()
-            op_output = pair_node.out_node().out_node()
+            op_output_id = pair_node.out_port(0).get_destination().node.id
             out_port = node.out_port(0)
             node_name = pair_node.name
             pair_name = node.name
@@ -169,6 +171,6 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
             out_port.get_connection().set_source(memory_out.out_port(0))
             memory_out.out_port(0).data.set_shape(np.array([in_shape[0], memory_out.shape[0]]))
 
-        graph.remove_node(op_output.id)
+        graph.remove_node(op_output_id)
         graph.remove_node(node.id)
         graph.remove_node(pair_node.id)

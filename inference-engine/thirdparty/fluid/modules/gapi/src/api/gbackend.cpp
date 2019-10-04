@@ -8,8 +8,8 @@
 #include "precomp.hpp"
 #include <memory> // unique_ptr
 
-#include "opencv2/gapi/gkernel.hpp"
-#include "opencv2/gapi/own/convert.hpp"
+#include <opencv2/gapi/gkernel.hpp>
+#include <opencv2/gapi/own/convert.hpp>
 
 #include "api/gbackend_priv.hpp"
 #include "backends/common/gbackend.hpp"
@@ -43,6 +43,11 @@ void cv::gapi::GBackend::Priv::addBackendPasses(ade::ExecutionEngineSetupContext
 {
     // Do nothing by default, plugins may override this to
     // add custom (backend-specific) graph transformations
+}
+
+cv::gapi::GKernelPackage cv::gapi::GBackend::Priv::auxiliaryKernels() const
+{
+    return {};
 }
 
 // GBackend public implementation //////////////////////////////////////////////
@@ -98,7 +103,7 @@ void bindInArg(Mag& mag, const RcDesc &rc, const GRunArg &arg, bool is_umat)
                 auto& mag_umat = mag.template slot<cv::UMat>()[rc.id];
                 mag_umat = to_ocv(util::get<cv::gapi::own::Mat>(arg)).getUMat(ACCESS_READ);
 #else
-                util::throw_error(std::logic_error("UMat is not supported in stadnalone build"));
+                util::throw_error(std::logic_error("UMat is not supported in standalone build"));
 #endif // !defined(GAPI_STANDALONE)
             }
             else

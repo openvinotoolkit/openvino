@@ -60,18 +60,16 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = shuffle_channels_gpu::create;
-        implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                                  val_fw);
-        implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                                  val_fw);
-    }
-    ~attach() = default;
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_shuffle_channels_gpu::attach_shuffle_channels_gpu() {
+    auto val_fw = shuffle_channels_gpu::create;
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                              val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                              val_fw);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

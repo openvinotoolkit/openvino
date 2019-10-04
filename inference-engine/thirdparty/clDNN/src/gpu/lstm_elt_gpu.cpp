@@ -58,7 +58,7 @@ public:
             }
         }
 
-        lstm_elt_params.SetOffsetOrder(arg.offset_order());
+        lstm_elt_params.SetOffsetOrder(static_cast<int32_t>(arg.offset_order()));
         lstm_elt_params.clip = arg.clip();
         lstm_elt_params.input_forget = arg.input_forget();
         lstm_elt_params.direction = arg.direction();
@@ -77,21 +77,19 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = lstm_elt_gpu::create;
+namespace detail {
 
-        implementation_map<lstm_elt>::add({
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::fyxb), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::fyxb), val_fw},
-        });
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_lstm_elt_gpu::attach_lstm_elt_gpu() {
+    auto val_fw = lstm_elt_gpu::create;
+
+    implementation_map<lstm_elt>::add({
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::fyxb), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::fyxb), val_fw},
+    });
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

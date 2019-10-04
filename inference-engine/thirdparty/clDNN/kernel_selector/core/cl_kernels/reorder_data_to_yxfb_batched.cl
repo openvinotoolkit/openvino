@@ -94,6 +94,6 @@ KERNEL (reorder_data_to_yxfb_batched)(
         CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
     #endif
 
-        output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), NL_M, NL_N);
+        output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
     }
 }

@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/strided_slice.hpp"
+#include "api/strided_slice.hpp"
 #include "primitive_inst.h"
 #include <string>
 

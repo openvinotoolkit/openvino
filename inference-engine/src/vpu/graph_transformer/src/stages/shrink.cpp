@@ -25,25 +25,20 @@ protected:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>&,
-            ScalePropagationStep) override {
+            ScalePropagationStep,
+            StageDataInfo<float>&) override {
         VPU_THROW_EXCEPTION << "Must never be called";
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
 
-        auto input = _inputEdges[0]->input();
-
-        _orderInfo.setOutput(_outputEdges[0], input->desc().dimsOrder());
+        orderInfo.setOutput(outputEdge(0), input->desc().dimsOrder());
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         auto dimsOrder = input->desc().dimsOrder();
 
@@ -100,17 +95,19 @@ protected:
         // Return merged StridesRequirements.
         //
 
-        _stridesInfo.setInput(_inputEdges[0], inputReqs);
-        _stridesInfo.setOutput(_outputEdges[0], outputReqs);
+        stridesInfo.setInput(inputEdge(0), inputReqs);
+        stridesInfo.setOutput(outputEdge(0), outputReqs);
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        const auto& firstInputPrecision = input(0)->desc().type();
+        assertInputsOutputsTypes(this, {{firstInputPrecision}}, {{firstInputPrecision}});
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {

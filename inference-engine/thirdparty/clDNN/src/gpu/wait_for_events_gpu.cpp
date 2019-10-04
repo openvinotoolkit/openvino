@@ -19,6 +19,7 @@
 #include "prior_box_inst.h"
 #include "input_layout_inst.h"
 #include "implementation_map.h"
+#include "register_gpu.hpp"
 
 #include "network_impl.h"
 #include "events_waiter.h"
@@ -51,19 +52,20 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<data>::add({{engine_types::ocl, wait_for_events_gpu::create_data}});
+namespace detail {
 
-        implementation_map<input_layout>::add({{engine_types::ocl, wait_for_events_gpu::create_input_layout}});
+attach_data_gpu::attach_data_gpu() {
+    implementation_map<data>::add({ {engine_types::ocl, wait_for_events_gpu::create_data} });
+}
 
-        implementation_map<prior_box>::add({{engine_types::ocl, wait_for_events_gpu::create_prior_box}});
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_input_layout_gpu::attach_input_layout_gpu() {
+    implementation_map<input_layout>::add({{engine_types::ocl, wait_for_events_gpu::create_input_layout}});
+}
 
+attach_prior_box_gpu::attach_prior_box_gpu() {
+    implementation_map<prior_box>::add({{engine_types::ocl, wait_for_events_gpu::create_prior_box}});
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

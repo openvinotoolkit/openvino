@@ -41,7 +41,7 @@ private:
     void getMetaData(
             const Model::Ptr& model,
             const std::vector<ie::CNNLayerPtr>& allLayers,
-            std::vector<StageMetaInfo>& metaData);
+            GraphMetaInfo& graphMetaData);
 
     void extractDataInfo(
             const Model::Ptr& model,

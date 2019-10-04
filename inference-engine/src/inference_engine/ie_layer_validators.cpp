@@ -189,10 +189,6 @@ LayerValidator::Ptr LayerValidators::getValidator(const std::string& type) {
     return _validators[type];
 }
 
-void LayerValidators::addImpl(const std::string& type, const LayerValidator::Ptr& validator) {
-    _validators[type] = validator;
-}
-
 LayerValidators* LayerValidators::_instance = nullptr;
 
 GeneralValidator::GeneralValidator(const std::string& _type) : LayerValidator(_type) {}
@@ -224,7 +220,7 @@ void FullyConnectedValidator::checkCorrespondence(const CNNLayer* layer,
 FullyConnectedValidator::FullyConnectedValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void FullyConnectedValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
-    checkNumOfInput(inShapes, {1});
+    checkNumOfInput(inShapes, {1, 2, 3});
 }
 
 void CropValidator::parseParams(CNNLayer* layer) {
@@ -437,7 +433,7 @@ void ConvolutionValidator::checkCorrespondence(const CNNLayer* layer,
 }
 
 void ConvolutionValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
-    checkNumOfInput(inShapes, {1});
+    checkNumOfInput(inShapes, {1, 2, 3});
 }
 
 void DeconvolutionValidator::parseParams(CNNLayer* layer) {
@@ -498,7 +494,7 @@ void DeconvolutionValidator::checkCorrespondence(const CNNLayer* layer,
 }
 
 void DeconvolutionValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
-    checkNumOfInput(inShapes, {1});
+    checkNumOfInput(inShapes, {1, 2, 3});
 }
 
 void DeformableConvolutionValidator::parseParams(CNNLayer* layer) {
@@ -543,7 +539,7 @@ void DeformableConvolutionValidator::checkCorrespondence(const CNNLayer* layer,
 }
 
 void DeformableConvolutionValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
-    checkNumOfInput(inShapes, {2});
+    checkNumOfInput(inShapes, {2, 3, 4});
 }
 
 PoolingValidator::PoolingValidator(const std::string& _type) : LayerValidator(_type) {}
@@ -858,8 +854,6 @@ void EltwiseValidator::parseParams(CNNLayer* layer) {
         casted->_operation = EltwiseLayer::Pow;
     } else if (op == "mean") {
         casted->_operation = EltwiseLayer::Mean;
-    } else if (op == "select") {
-        casted->_operation = EltwiseLayer::Select;
     } else {
         THROW_IE_EXCEPTION << "Unsupported element wise operation: " << op;
     }
@@ -1447,6 +1441,52 @@ void SpaceToDepthValidator::checkShapes(const CNNLayer* layer, const vector<Size
 }
 
 
+SparseFillEmptyRowsValidator::SparseFillEmptyRowsValidator(const std::string& _type) : LayerValidator(_type) {}
+
+void SparseFillEmptyRowsValidator::parseParams(CNNLayer* layer) {
+    auto casted = dynamic_cast<SparseFillEmptyRowsLayer*>(layer);
+    if (!casted) {
+        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of SparseFillEmptyRows class";
+    }
+}
+
+void SparseFillEmptyRowsValidator::checkParams(const CNNLayer* layer) {
+    LayerValidator::checkParams(layer);
+}
+
+void SparseFillEmptyRowsValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
+    auto casted = dynamic_cast<const SparseFillEmptyRowsLayer*>(layer);
+    if (!casted) {
+        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of SparseFillEmptyRows class";
+    }
+
+    size_t numInputs = inShapes.size();
+    if (numInputs != 4)
+        THROW_IE_EXCEPTION << layer->name << " SparseFillEmptyRows must have 4 inputs, but actually it has: " << numInputs;
+
+    // Check dimensions of a tensor with input indices
+    if (inShapes[0].size() != 2)
+        THROW_IE_EXCEPTION << layer->name << " Input indices of SparseFillEmptyRows must be 2-D tensor";
+    if (inShapes[0][1] != 2)
+        THROW_IE_EXCEPTION << layer->name << " Input indices must be two-dimensional";
+
+    // Check dimensions of a tensor with input values
+    if (inShapes[1].size() != 1)
+        THROW_IE_EXCEPTION << layer->name << " Input values of SparseFillEmptyRows must be 1-D tensor";
+    if (inShapes[1][0] != inShapes[0][0])
+        THROW_IE_EXCEPTION << layer->name << " Number of input indices and values must match";
+
+    // Check dimensions of a tensor with a dense shape
+    if (inShapes[2].size() != 1)
+        THROW_IE_EXCEPTION << layer->name << " Dense shape of SparseFillEmptyRows must be 1-D tensor";
+    // TODO: check that dense shape value is set
+
+    // Check dimensions of a tensor with default value
+    if (inShapes[3].size() != 1)
+        THROW_IE_EXCEPTION << layer->name << " Default value of SparseFillEmptyRows must be 1-D tensor";
+}
+
+
 ReverseSequenceValidator::ReverseSequenceValidator(const std::string& _type) : LayerValidator(_type) {}
 
 void ReverseSequenceValidator::parseParams(CNNLayer* layer) {
@@ -1665,59 +1705,31 @@ static RNNSequenceLayer::Direction direction_from(string direction_name) {
            RNNSequenceLayer::FWD;
 }
 
-template<>
-std::vector<std::string>
-RNNBaseValidator<RNNSequenceLayer::LSTM>::def_acts = {"sigmoid", "tanh", "tanh"};
-template<>
-std::vector<float>
-RNNBaseValidator<RNNSequenceLayer::LSTM>::def_alpha = {0, 0, 0};
-template<>
-std::vector<float>
-RNNBaseValidator<RNNSequenceLayer::LSTM>::def_beta = {0, 0, 0};
-template<>
-size_t
-RNNBaseValidator<RNNSequenceLayer::LSTM>::G = 4;
-template<>
-size_t
-RNNBaseValidator<RNNSequenceLayer::LSTM>::NS = 2;
+RNNBaseValidator::RNNBaseValidator(const std::string& _type, RNNSequenceLayer::CellType CELL) : LayerValidator(_type) {
+    if (RNNSequenceLayer::LSTM == CELL) {
+        def_acts = {"sigmoid", "tanh", "tanh"};
+        def_alpha = {0, 0, 0};
+        def_beta = {0, 0, 0};
+        G = 4;
+        NS = 2;
+    } else if (RNNSequenceLayer::GRU == CELL) {
+        def_acts = {"sigmoid", "tanh"};
+        def_alpha = {0, 0};
+        def_beta = {0, 0};
+        G = 3;
+        NS = 1;
+    } else if (RNNSequenceLayer::RNN == CELL) {
+        def_acts = {"tanh"};
+        def_alpha = {0};
+        def_beta = {0};
+        G = 1;
+        NS = 1;
+    } else {
+        IE_ASSERT(false);
+    }
+}
 
-template<>
-std::vector<std::string>
-RNNBaseValidator<RNNSequenceLayer::GRU>::def_acts = {"sigmoid", "tanh"};
-template<>
-std::vector<float>
-RNNBaseValidator<RNNSequenceLayer::GRU>::def_alpha = {0, 0};
-template<>
-std::vector<float>
-RNNBaseValidator<RNNSequenceLayer::GRU>::def_beta = {0, 0};
-template<>
-size_t
-RNNBaseValidator<RNNSequenceLayer::GRU>::G = 3;
-template<>
-size_t
-RNNBaseValidator<RNNSequenceLayer::GRU>::NS = 1;
-
-template<>
-std::vector<std::string>
-RNNBaseValidator<RNNSequenceLayer::RNN>::def_acts = {"tanh"};
-template<>
-std::vector<float>
-RNNBaseValidator<RNNSequenceLayer::RNN>::def_alpha = {0};
-template<>
-std::vector<float>
-RNNBaseValidator<RNNSequenceLayer::RNN>::def_beta = {0};
-template<>
-size_t
-RNNBaseValidator<RNNSequenceLayer::RNN>::G = 1;
-template<>
-size_t
-RNNBaseValidator<RNNSequenceLayer::RNN>::NS = 1;
-
-template<RNNSequenceLayer::CellType CELL>
-RNNBaseValidator<CELL>::RNNBaseValidator(const std::string& _type) : LayerValidator(_type) {}
-
-template<RNNSequenceLayer::CellType CELL>
-void RNNBaseValidator<CELL>::parseParams(CNNLayer* layer) {
+void RNNBaseValidator::parseParams(CNNLayer* layer) {
     auto rnn = dynamic_cast<RNNCellBase*>(layer);
     if (!rnn)
         THROW_IE_EXCEPTION << "Layer is not instance of RNNLayer class";
@@ -1735,8 +1747,7 @@ void RNNBaseValidator<CELL>::parseParams(CNNLayer* layer) {
     }
 }
 
-template<RNNSequenceLayer::CellType CELL>
-void RNNBaseValidator<CELL>::checkParams(const InferenceEngine::CNNLayer *layer) {
+void RNNBaseValidator::checkParams(const InferenceEngine::CNNLayer *layer) {
     auto rnn = dynamic_cast<const RNNCellBase*>(layer);
     if (!rnn)
         THROW_IE_EXCEPTION << "Layer is not instance of RNNLayer class";
@@ -1761,8 +1772,7 @@ void RNNBaseValidator<CELL>::checkParams(const InferenceEngine::CNNLayer *layer)
                            << "but provided " << rnn->activation_beta.size();
 }
 
-template<RNNSequenceLayer::CellType CELL>
-void RNNBaseValidator<CELL>::checkCorrespondence(const CNNLayer* layer,
+void RNNBaseValidator::checkCorrespondence(const CNNLayer* layer,
          const map<string, Blob::Ptr>& blobs,
          const vector<SizeVector>& inShapes) const {
     auto rnn = dynamic_cast<const RNNCellBase*>(layer);
@@ -1799,11 +1809,11 @@ void RNNBaseValidator<CELL>::checkCorrespondence(const CNNLayer* layer,
 }
 
 template<RNNSequenceLayer::CellType CELL>
-RNNSequenceValidator<CELL>::RNNSequenceValidator(const std::string& _type) : RNNBaseValidator<CELL>(_type) {}
+RNNSequenceValidator<CELL>::RNNSequenceValidator(const std::string& _type) : RNNBaseValidator(_type, CELL) {}
 
 template<RNNSequenceLayer::CellType CELL>
 void RNNSequenceValidator<CELL>::parseParams(CNNLayer* layer) {
-    RNNBaseValidator<CELL>::parseParams(layer);
+    RNNBaseValidator::parseParams(layer);
 
     auto casted = dynamic_cast<RNNSequenceLayer*>(layer);
     if (!casted)
@@ -1817,7 +1827,7 @@ void RNNSequenceValidator<CELL>::parseParams(CNNLayer* layer) {
 
 template<RNNSequenceLayer::CellType CELL>
 void RNNSequenceValidator<CELL>::checkParams(const InferenceEngine::CNNLayer *layer) {
-    RNNBaseValidator<CELL>::checkParams(layer);
+    RNNBaseValidator::checkParams(layer);
 
     auto casted = dynamic_cast<const RNNSequenceLayer*>(layer);
     if (!casted)
@@ -1873,7 +1883,7 @@ template class details::RNNSequenceValidator<RNNSequenceLayer::GRU>;
 template class details::RNNSequenceValidator<RNNSequenceLayer::LSTM>;
 
 template<RNNSequenceLayer::CellType CELL>
-RNNCellValidator<CELL>::RNNCellValidator(const std::string& _type) : RNNBaseValidator<CELL>(_type) {}
+RNNCellValidator<CELL>::RNNCellValidator(const std::string& _type) : RNNBaseValidator(_type, CELL) {}
 
 template<RNNSequenceLayer::CellType CELL>
 void RNNCellValidator<CELL>::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
@@ -2737,6 +2747,244 @@ void TopKValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>&
     size_t numInputs = inShapes.size();
     if (numInputs != 2)
         THROW_IE_EXCEPTION << layer->name << " TopK can take only 2 inputs, but actually it has: " << numInputs;
+}
+
+
+UniqueValidator::UniqueValidator(const std::string& _type) : LayerValidator(_type) {}
+
+void UniqueValidator::parseParams(CNNLayer* layer) {
+    auto casted = dynamic_cast<UniqueLayer*>(layer);
+    if (!casted) {
+        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of Unique class";
+    }
+
+    casted->sorted = layer->GetParamAsBool("sorted");
+    casted->return_inverse = layer->GetParamAsBool("return_inverse");
+    casted->return_counts = layer->GetParamAsBool("return_counts");
+}
+
+void UniqueValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
+    size_t numInputs = inShapes.size();
+    if (numInputs != 1)
+        THROW_IE_EXCEPTION << layer->name << " Unique can take only 1 input, but actually it has: " << numInputs;
+}
+
+
+NMSValidator::NMSValidator(const std::string& _type) : LayerValidator(_type) {}
+
+void NMSValidator::parseParams(CNNLayer* layer) {
+    auto casted = dynamic_cast<NonMaxSuppressionLayer*>(layer);
+    if (!casted) {
+        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of NonMaxSuppression class";
+    }
+
+    casted->center_point_box = layer->GetParamAsBool("center_point_box", false);
+}
+
+void NMSValidator::checkParams(const CNNLayer* layer) {
+    LayerValidator::checkParams(layer);
+}
+
+void NMSValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
+    size_t numInputs = inShapes.size();
+    if (numInputs < 2 || numInputs > 5)
+        THROW_IE_EXCEPTION << layer->name << " NonMaxSuppression can take 2 - 5 inputs, but actually it has: " << numInputs;
+
+    if (inShapes[0].size() != 3 || inShapes[0][2] != 4)
+        THROW_IE_EXCEPTION << layer->name << " 'boxes' should be with shape [num_batches, spatial_dimension, 4]";
+
+    if (inShapes[1].size() != 3)
+        THROW_IE_EXCEPTION << layer->name << " 'scores' should be with shape [num_batches, num_classes, spatial_dimension]";
+
+    if (inShapes[0][0] != inShapes[1][0])
+        THROW_IE_EXCEPTION << layer->name << " num_batches is different in 'boxes' and 'scores' tensors";
+
+    if (inShapes[0][1] != inShapes[1][2])
+        THROW_IE_EXCEPTION << layer->name << " spatial_dimension is different in 'boxes' and 'scores' tensors";
+
+    if (numInputs > 2 && !(inShapes[2].size() == 1 && inShapes[2][0] == 1))
+        THROW_IE_EXCEPTION << layer->name << " 'max_output_boxes_per_class' should be scalar";
+
+    if (numInputs > 3 && !(inShapes[3].size() == 1 && inShapes[3][0] == 1))
+        THROW_IE_EXCEPTION << layer->name << " 'iou_threshold' should be scalar";
+
+    if (numInputs > 4 && !(inShapes[4].size() == 1 && inShapes[4][0] == 1))
+        THROW_IE_EXCEPTION << layer->name << " 'score_threshold' should be scalar";
+}
+
+
+ScatterValidator::ScatterValidator(const std::string& _type) : LayerValidator(_type) {}
+
+void ScatterValidator::parseParams(CNNLayer* layer) {
+    auto casted = dynamic_cast<ScatterLayer*>(layer);
+    if (!casted) {
+        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of ScatterLayer class";
+    }
+
+    casted->axis = casted->GetParamAsInt("axis", 0);
+}
+
+void ScatterValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
+    auto casted = dynamic_cast<const ScatterLayer*>(layer);
+    if (!casted) {
+        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of ScatterLayer class";
+    }
+
+    size_t numInputs = inShapes.size();
+    if (numInputs != 3)
+        THROW_IE_EXCEPTION << layer->name << " Scatter can take only 3 inputs, but actually it has: " << numInputs;
+
+    if (!(-static_cast<int>(inShapes[0].size()) <= casted->axis && casted->axis < static_cast<int>(inShapes[0].size())))
+        THROW_IE_EXCEPTION << layer->name << " Incorrect input parameters dimensions and axis number!";
+
+    if (inShapes[0].size() == 0 || (inShapes[0].size() == 1 && inShapes[0][0] == 1))
+        THROW_IE_EXCEPTION << layer->name << " 'Data' tensor rank should be >= 1";
+
+    if (inShapes[1].size() == 0 || (inShapes[1].size() == 1 && inShapes[1][0] == 1))
+        THROW_IE_EXCEPTION << layer->name << " 'Indexes' tensor rank should be >= 1";
+
+    if (inShapes[1].size() == 0 || (inShapes[1].size() == 1 && inShapes[1][0] == 1))
+        THROW_IE_EXCEPTION << layer->name << " 'Updates' tensor rank should be >= 1";
+
+    if (inShapes[1] != inShapes[2])
+        THROW_IE_EXCEPTION << layer->name << " Incorrect number of 'indexes' and 'updates' tensors dimension";
+
+    const size_t SCATTER_DATA = 0;
+    const size_t SCATTER_INDEXES = 1;
+    const size_t SCATTER_UPDATES = 2;
+
+    Precision inIdxPrecision = layer->insData[SCATTER_INDEXES].lock()->getTensorDesc().getPrecision();
+    if (inIdxPrecision != Precision::FP32 && inIdxPrecision != Precision::I32)
+        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Indexes' precision. Only FP32 or I32 are supported!";
+
+    if (layer->insData[SCATTER_DATA].lock()->getTensorDesc().getPrecision() !=
+        layer->insData[SCATTER_UPDATES].lock()->getTensorDesc().getPrecision())
+        THROW_IE_EXCEPTION << layer->name << " Precision should be equal for input tensors 'Data' and 'Updates'";
+}
+
+
+#define REG_LAYER_VALIDATOR_FOR_TYPE(__validator, __type) \
+_validators[#__type] = std::make_shared<__validator>(#__type)
+
+LayerValidators::LayerValidators() {
+    REG_LAYER_VALIDATOR_FOR_TYPE(ActivationValidator, Activation);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ArgMaxValidator, ArgMax);
+    REG_LAYER_VALIDATOR_FOR_TYPE(BatchNormalizationValidator, BatchNormalization);
+    REG_LAYER_VALIDATOR_FOR_TYPE(CTCGreedyDecoderValidator, CTCGreedyDecoder);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ClampValidator, Clamp);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ConcatValidator, Concat);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ConstValidator, Const);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ConvolutionValidator, Convolution);
+    REG_LAYER_VALIDATOR_FOR_TYPE(CopyValidator, Copy);
+    REG_LAYER_VALIDATOR_FOR_TYPE(CropValidator, Crop);
+    REG_LAYER_VALIDATOR_FOR_TYPE(DeconvolutionValidator, Deconvolution);
+    REG_LAYER_VALIDATOR_FOR_TYPE(DeformableConvolutionValidator, DeformableConvolution);
+    REG_LAYER_VALIDATOR_FOR_TYPE(DetectionOutputValidator, DetectionOutput);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ELUValidator, ELU);
+    REG_LAYER_VALIDATOR_FOR_TYPE(EltwiseValidator, Eltwise);
+    REG_LAYER_VALIDATOR_FOR_TYPE(FullyConnectedValidator, InnerProduct);
+    REG_LAYER_VALIDATOR_FOR_TYPE(FullyConnectedValidator, FullyConnected);
+    REG_LAYER_VALIDATOR_FOR_TYPE(GRNValidator, GRN);
+    REG_LAYER_VALIDATOR_FOR_TYPE(InputValidator, Input);
+    REG_LAYER_VALIDATOR_FOR_TYPE(InterpValidator, Interp);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MVNValidator, MVN);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MemoryValidator, Memory);
+    REG_LAYER_VALIDATOR_FOR_TYPE(NormValidator, Norm);
+    REG_LAYER_VALIDATOR_FOR_TYPE(NormValidator, LRN);
+    REG_LAYER_VALIDATOR_FOR_TYPE(NormalizeValidator, Normalize);
+    REG_LAYER_VALIDATOR_FOR_TYPE(PReLUValidator, PReLU);
+    REG_LAYER_VALIDATOR_FOR_TYPE(PSROIPoolingValidator, PSROIPooling);
+    REG_LAYER_VALIDATOR_FOR_TYPE(PermuteValidator, Permute);
+    REG_LAYER_VALIDATOR_FOR_TYPE(PoolingValidator, Pooling);
+    REG_LAYER_VALIDATOR_FOR_TYPE(PowerValidator, Power);
+    REG_LAYER_VALIDATOR_FOR_TYPE(PowerFileValidator, PowerFile);
+    REG_LAYER_VALIDATOR_FOR_TYPE(PriorBoxClusteredValidator, PriorBoxClustered);
+    REG_LAYER_VALIDATOR_FOR_TYPE(PriorBoxValidator, PriorBox);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ProposalValidator, Proposal);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ROIPoolingValidator, ROIPooling);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReLUValidator, ReLU);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReLU6Validator, ReLU6);
+    REG_LAYER_VALIDATOR_FOR_TYPE(RegionYoloValidator, RegionYolo);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReorgYoloValidator, ReorgYolo);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ResampleValidator, Resample);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReshapeValidator, Reshape);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReshapeValidator, Flatten);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ScaleShiftValidator, ScaleShift);
+    REG_LAYER_VALIDATOR_FOR_TYPE(SigmoidValidator, Sigmoid);
+    REG_LAYER_VALIDATOR_FOR_TYPE(SigmoidValidator, Logistic);
+    REG_LAYER_VALIDATOR_FOR_TYPE(SimplerNMSValidator, SimplerNMS);
+    REG_LAYER_VALIDATOR_FOR_TYPE(SoftMaxValidator, SoftMax);
+    REG_LAYER_VALIDATOR_FOR_TYPE(SpatialTransformerValidator, SpatialTransformer);
+    REG_LAYER_VALIDATOR_FOR_TYPE(SplitValidator, Split);
+    REG_LAYER_VALIDATOR_FOR_TYPE(SplitValidator, Slice);
+    REG_LAYER_VALIDATOR_FOR_TYPE(GemmValidator, Gemm);
+    REG_LAYER_VALIDATOR_FOR_TYPE(PadValidator, Pad);
+    REG_LAYER_VALIDATOR_FOR_TYPE(GatherValidator, Gather);
+    REG_LAYER_VALIDATOR_FOR_TYPE(StridedSliceValidator, StridedSlice);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ShuffleChannelsValidator, ShuffleChannels);
+    REG_LAYER_VALIDATOR_FOR_TYPE(DepthToSpaceValidator, DepthToSpace);
+    REG_LAYER_VALIDATOR_FOR_TYPE(SpaceToDepthValidator, SpaceToDepth);
+    REG_LAYER_VALIDATOR_FOR_TYPE(SparseFillEmptyRowsValidator, SparseFillEmptyRows);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReverseSequenceValidator, ReverseSequence);
+    REG_LAYER_VALIDATOR_FOR_TYPE(RNNCellValidator<RNNSequenceLayer::RNN>, RNNCell);
+    REG_LAYER_VALIDATOR_FOR_TYPE(RNNCellValidator<RNNSequenceLayer::GRU>, GRUCell);
+    REG_LAYER_VALIDATOR_FOR_TYPE(RNNCellValidator<RNNSequenceLayer::LSTM>, LSTMCell);
+    REG_LAYER_VALIDATOR_FOR_TYPE(RNNSequenceValidator<RNNSequenceLayer::RNN>, RNNSequence);
+    REG_LAYER_VALIDATOR_FOR_TYPE(RNNSequenceValidator<RNNSequenceLayer::GRU>, GRUSequence);
+    REG_LAYER_VALIDATOR_FOR_TYPE(RNNSequenceValidator<RNNSequenceLayer::LSTM>, LSTMSequence);
+    REG_LAYER_VALIDATOR_FOR_TYPE(SelectValidator, Select);
+    REG_LAYER_VALIDATOR_FOR_TYPE(SqueezeValidator, Squeeze);
+    REG_LAYER_VALIDATOR_FOR_TYPE(UnsqueezeValidator, Unsqueeze);
+    REG_LAYER_VALIDATOR_FOR_TYPE(RangeValidator, Range);
+    REG_LAYER_VALIDATOR_FOR_TYPE(FillValidator, Fill);
+    REG_LAYER_VALIDATOR_FOR_TYPE(BroadcastValidator, Broadcast);
+    REG_LAYER_VALIDATOR_FOR_TYPE(TanHValidator, TanH);
+    REG_LAYER_VALIDATOR_FOR_TYPE(TileValidator, Tile);
+    REG_LAYER_VALIDATOR_FOR_TYPE(UnpoolingValidator, Unpooling);
+    REG_LAYER_VALIDATOR_FOR_TYPE(UpsamplingValidator, Upsampling);
+    REG_LAYER_VALIDATOR_FOR_TYPE(OneHotValidator, OneHot);
+    REG_LAYER_VALIDATOR_FOR_TYPE(QuantizeValidator, Quantize);
+    REG_LAYER_VALIDATOR_FOR_TYPE(BinaryConvolutionValidator, BinaryConvolution);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Abs);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Acos);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Acosh);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Asin);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Asinh);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Atan);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Atanh);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Ceil);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Cos);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Cosh);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Erf);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Floor);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, HardSigmoid);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Log);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Neg);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Reciprocal);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Selu);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Sign);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Sin);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Sinh);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Softplus);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Softsign);
+    REG_LAYER_VALIDATOR_FOR_TYPE(MathValidator, Tan);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceAnd);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceL1);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceL2);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceLogSum);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceLogSumExp);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceMax);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceMean);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceMin);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceOr);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceProd);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceSum);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ReduceValidator, ReduceSumSquare);
+    REG_LAYER_VALIDATOR_FOR_TYPE(GatherTreeValidator, GatherTree);
+    REG_LAYER_VALIDATOR_FOR_TYPE(TopKValidator, TopK);
+    REG_LAYER_VALIDATOR_FOR_TYPE(UniqueValidator, Unique);
+    REG_LAYER_VALIDATOR_FOR_TYPE(NMSValidator, NonMaxSuppression);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ScatterValidator, ScatterUpdate);
 }
 
 }  // namespace InferenceEngine

@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
 
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/memory.hpp>
-#include <api/CPP/shuffle_channels.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
+#include <api/input_layout.hpp>
+#include <api/memory.hpp>
+#include <api/shuffle_channels.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
 
 #include <cstddef>
 #include <tests/test_utils/test_utils.h>
@@ -70,7 +68,6 @@ TEST(shuffle_channels_fp32_gpu, d1_15_2_2_ax1_g5) {
         EXPECT_EQ(expected_results[i], output_ptr[i]);
     }
 }
-
 
 TEST(shuffle_channels_fp32_gpu, d1_15_2_2_axm3_g5) {
     engine engine;

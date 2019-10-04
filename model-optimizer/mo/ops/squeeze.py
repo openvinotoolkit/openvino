@@ -69,8 +69,8 @@ class Squeeze(Op):
         if node.in_port(1).get_source().node.op == 'Const':
             node.in_port(1).data.set_value(real_squeeze_dims)
 
-        if node.in_node().value is not None:
-            node.out_node().value = np.array(np.reshape(node.in_node().value, output_shape))
+        if node.in_port(0).data.get_value() is not None:
+            node.out_port(0).data.set_value(node.in_port(0).data.get_value().reshape(output_shape))
 
         # the squeeze_dim attribute will be converted to the second input in the end of the Middle phase
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')

@@ -7,13 +7,6 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set(CMAKE_CC_FLAGS "${CMAKE_CC_FLAGS} -Wno-unknown-warning-option -Wno-inconsistent-missing-override -Wno-pass-failed")
 endif()
 
-add_subdirectory(pugixml)
-export(TARGETS pugixml NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
-export(TARGETS pugixml NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
-
-add_subdirectory(stb_lib)
-add_subdirectory(ade)
-
 if (ENABLE_CLDNN)
     set(CLDNN__OUTPUT_BIN_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
     set(CLDNN__OUTPUT_LIB_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
@@ -35,20 +28,35 @@ if (ENABLE_CLDNN)
     add_subdirectory(clDNN)
 endif()
 
-if (UNIX OR APPLE AND ${CMAKE_BUILD_TYPE} STREQUAL "Release")
-    remove_definitions(-fvisibility=hidden)
-    add_definitions(-fvisibility=default)
-endif()
+function(build_with_lto)
+    if(ENABLE_LTO)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto")
+        set(CMAKE_AR  "gcc-ar")
+        set(CMAKE_RANLIB "gcc-ranlib")
+    endif()
 
-include(ngraph.cmake)
+    add_subdirectory(pugixml)
+    export(TARGETS pugixml NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
+    export(TARGETS pugixml NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
 
-if (UNIX OR APPLE AND ${CMAKE_BUILD_TYPE} STREQUAL "Release")
-    remove_definitions(-fvisibility=default)
-    add_definitions(-fvisibility=hidden)
-endif()
+    if (TARGET pugixml_mt)
+        export(TARGETS pugixml_mt NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
+        export(TARGETS pugixml_mt NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
+    endif()
+
+    add_subdirectory(stb_lib)
+
+    add_subdirectory(ade)
+    export(TARGETS ade NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
+
+    include(ngraph.cmake)
+
+    add_subdirectory(fluid/modules/gapi)
+    export(TARGETS fluid NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
+endfunction()
+
+build_with_lto()
 
 if(ENABLE_MKL_DNN)
     include(mkldnn.cmake)
 endif()
-
-add_subdirectory("${IE_MAIN_SOURCE_DIR}/thirdparty/fluid/modules/gapi")

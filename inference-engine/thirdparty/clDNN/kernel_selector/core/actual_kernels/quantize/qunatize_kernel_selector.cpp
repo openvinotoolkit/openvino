@@ -18,7 +18,9 @@
 
 namespace kernel_selector {
 
-quantize_kernel_selector::quantize_kernel_selector() { Attach<QuantizeKernelRef>(); }
+quantize_kernel_selector::quantize_kernel_selector() {
+    Attach<QuantizeKernelRef>();
+}
 
 KernelsData quantize_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
     return GetNaiveBestKernel(params, options, KernelType::QUANTIZE);

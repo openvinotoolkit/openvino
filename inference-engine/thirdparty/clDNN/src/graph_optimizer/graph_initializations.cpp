@@ -91,7 +91,7 @@ void graph_initializations::replace_nodes(program_impl& p) {
                 }
 
                 // For all the other dimensions, copy from the split_input
-                for (int dimension = 0; dimension < CLDNN_TENSOR_DIM_MAX; dimension++) {
+                for (int dimension = 0; dimension < tensor_dim_max; dimension++) {
                     reference_input_size.raw[dimension] = (reference_input_size.raw[dimension] == 0)
                                                               ? output_layout_size.raw[dimension]
                                                               : reference_input_size.raw[dimension];
@@ -131,14 +131,19 @@ void graph_initializations::replace_nodes(program_impl& p) {
             auto num_filter = upsampling_prim->num_filter;
 
             // setting deconvolution parameters based on upsampling input
-            auto scale = static_cast<tensor::value_type>(upsampling_prim->scale);
-            tensor stride(1, 1, scale, scale);
-            auto offset = static_cast<tensor::value_type>(std::ceil((scale - 1) / 2.f));
-            tensor input_offset(0, 0, -offset, -offset);
+            auto upsampled_size = node->get_output_layout().size;
+            auto input_size = input_node.get_output_layout().size;
+            auto scale_x = static_cast<tensor::value_type>(upsampled_size.spatial[0] / input_size.spatial[0]);
+            auto scale_y = static_cast<tensor::value_type>(upsampled_size.spatial[1] / input_size.spatial[1]);
+            tensor stride(1, 1, scale_x, scale_y);
+            auto offset_x = static_cast<tensor::value_type>(std::ceil((scale_x - 1) / 2.f));
+            auto offset_y = static_cast<tensor::value_type>(std::ceil((scale_y - 1) / 2.f));
+            tensor input_offset(0, 0, -offset_x, -offset_y);
 
             // setting weights for deconvolution
-            auto kernel_size = static_cast<tensor::value_type>((2 * scale) - (scale % 2));
-            layout weights_layout(data_types::f32, format::bfyx, tensor(1, 1, kernel_size, kernel_size));
+            auto kernel_size_x = static_cast<tensor::value_type>((2 * scale_x) - (static_cast<tensor::value_type>(scale_x) % 2));
+            auto kernel_size_y = static_cast<tensor::value_type>((2 * scale_y) - (static_cast<tensor::value_type>(scale_y) % 2));
+            layout weights_layout(data_types::f32, format::bfyx, tensor(1, 1, kernel_size_x, kernel_size_y));
 
             std::vector<primitive_id> weights_vec;
             for (uint32_t weights_idx = 0; weights_idx < num_filter; weights_idx++) {
@@ -146,14 +151,16 @@ void graph_initializations::replace_nodes(program_impl& p) {
                 mem_lock<float> dst{data_to_allocate};
                 float* dst_data = dst.data();
                 // initialize with bilinear weights data
-                auto f = static_cast<uint32_t>(std::ceil(kernel_size / 2.0f));
-                float c = (2 * f - 1 - f % 2) / (2.f * f);
+                auto f_x = static_cast<uint32_t>(std::ceil(kernel_size_x / 2.0f));
+                auto f_y = static_cast<uint32_t>(std::ceil(kernel_size_y / 2.0f));
+                float c_x = (2 * f_x - 1 - f_x % 2) / (2.f * f_x);
+                float c_y = (2 * f_y - 1 - f_y % 2) / (2.f * f_y);
                 float x = 0.f;
                 float y = 0.f;
                 for (size_t i = 0; i < weights_layout.count(); ++i) {
-                    x = static_cast<float>(i % kernel_size);
-                    y = static_cast<float>((i / kernel_size) % kernel_size);
-                    dst_data[i] = (1 - std::abs(x / f - c)) * (1 - std::abs(y / f - c));
+                    x = static_cast<float>(i % kernel_size_x);
+                    y = static_cast<float>((i / kernel_size_x) % kernel_size_y);
+                    dst_data[i] = (1 - std::abs(x / f_x - c_x)) * (1 - std::abs(y / f_y - c_y));
                 }
 
                 // create weights primitive, with dummy memory which will be replaced in firther step
@@ -214,7 +221,8 @@ void graph_initializations::replace_nodes(program_impl& p) {
             auto& input_node = node->get_dependency(0);
 
             // disable for 5D
-            if (input_node.get_output_layout().format == format::bfzyx)
+            if (input_node.get_output_layout().format == format::bfzyx ||
+                input_node.get_output_layout().format == format::bfzyx_f16)
                 continue;
 
             primitive_id input_id = deconv_prim->input[0];
@@ -228,8 +236,6 @@ void graph_initializations::replace_nodes(program_impl& p) {
             std::vector<primitive_id> bias_vec;
             for (auto& bias_id : biases) bias_vec.push_back(bias_id);
             auto input_offset = deconv_prim->input_offset;
-            auto with_activation = deconv_prim->with_activation;
-            auto activation_negative_slope = deconv_prim->activation_negative_slope;
             auto output_padding = deconv_prim->output_padding;
 
             // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized
@@ -267,8 +273,6 @@ void graph_initializations::replace_nodes(program_impl& p) {
                                                                stride,
                                                                input_offset,
                                                                tensor{1, 1, 1, 1},
-                                                               with_activation,
-                                                               activation_negative_slope,
                                                                output_padding);
                 p.get_or_create(conv_prim);
             } else {
@@ -278,8 +282,6 @@ void graph_initializations::replace_nodes(program_impl& p) {
                                                                stride,
                                                                input_offset,
                                                                tensor{1, 1, 1, 1},
-                                                               with_activation,
-                                                               activation_negative_slope,
                                                                output_padding);
                 p.get_or_create(conv_prim);
             }
@@ -456,10 +458,10 @@ void graph_initializations::handle_lstm(program_impl& p) {
                 }
             }
 
-            bool emit_last_cell = lstm_prim->output_selection == cldnn_lstm_output_hidden_cell ||
-                                  lstm_prim->output_selection == cldnn_lstm_output_sequence_cell;
-            bool emit_sequence = lstm_prim->output_selection == cldnn_lstm_output_sequence_cell ||
-                                 lstm_prim->output_selection == cldnn_lstm_output_sequence;
+            bool emit_last_cell = lstm_prim->output_selection == lstm_output_selection::hidden_cell ||
+                                  lstm_prim->output_selection == lstm_output_selection::sequence_cell;
+            bool emit_sequence = lstm_prim->output_selection == lstm_output_selection::sequence_cell ||
+                                 lstm_prim->output_selection == lstm_output_selection::sequence;
 
             std::vector<program_node*> cell_list(directions * sequence_len);
             std::vector<program_node*> hidden_list(directions * sequence_len);

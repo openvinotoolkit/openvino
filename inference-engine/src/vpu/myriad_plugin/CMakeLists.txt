@@ -11,6 +11,11 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES}
               VERSION_DEFINES_FOR api/myriad_api.cpp)
 
+add_dependencies(${TARGET_NAME} vpu_copy_firmware)
+if(TARGET vpu_compile_custom_kernels)
+    add_dependencies(${TARGET_NAME} vpu_compile_custom_kernels)
+endif()
+
 target_include_directories(${TARGET_NAME}
     PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -31,8 +36,3 @@ endif()
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         ${INTEL_ITT_LIBS} inference_engine vpu_graph_transformer mvnc)
-if (LINUX)
-    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/../vpu_custom_kernels
-                                                     $<TARGET_FILE_DIR:${TARGET_NAME}>/vpu_custom_kernels)
-endif()

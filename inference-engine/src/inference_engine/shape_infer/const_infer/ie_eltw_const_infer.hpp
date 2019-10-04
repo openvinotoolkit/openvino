@@ -7,6 +7,7 @@
 #include "ie_div_const_infer.hpp"
 #include "ie_add_const_infer.hpp"
 #include "ie_mul_const_infer.hpp"
+#include "ie_pow_const_infer.hpp"
 #include <ie_blob.h>
 #include <map>
 #include <memory>
@@ -26,6 +27,7 @@ public:
         _sum = std::shared_ptr<ConstInferImpl>(new AddConstInfer(_type));
         _mul = std::shared_ptr<ConstInferImpl>(new MulConstInfer(_type));
         _div = std::shared_ptr<ConstInferImpl>(new DivConstInfer(_type));
+        _pow = std::shared_ptr<ConstInferImpl>(new PowConstInfer(_type));
     }
 
     void inferImpl(const std::vector<Blob::CPtr>& inData,
@@ -43,6 +45,8 @@ public:
             actual = _mul;
         else if (operation == "div")
             actual = _div;
+        else if (operation == "pow")
+            actual = _pow;
         else
             THROW_IE_EXCEPTION << "Unsupported eltwise operation type " << operation << ". "
                                   "IE cannot propagate constants through this layer.";
@@ -51,7 +55,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ConstInferImpl> _mul, _div, _sum;
+    std::shared_ptr<ConstInferImpl> _mul, _div, _sum, _pow;
 };
 
 }  // namespace ShapeInfer

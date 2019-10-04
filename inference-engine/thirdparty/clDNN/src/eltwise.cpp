@@ -24,7 +24,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id eltwise_type_id() {
+primitive_type_id eltwise::type_id() {
     static primitive_type_base<eltwise> instance;
     return &instance;
 }
@@ -36,10 +36,14 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
     auto input_node_layout = node.input().get_non_padded_output_layout();
 
     auto size = input_node_layout.size;
+    auto format = input_node_layout.format;
     for (size_t i = 1; i < node.inputs_count(); i++) {
-        size = tensor::max(size, node.input(i).get_non_padded_output_layout().size);
+        auto l = node.input(i).get_non_padded_output_layout();
+        size = tensor::max(size, l.size);
+        if (l.format == format::bfzyx_f16)  // use optimized 5D
+            format = format::bfzyx_f16;
     }
-    auto output_layout = layout(input_node_layout.data_type, input_node_layout.format, size);
+    auto output_layout = layout(input_node_layout.data_type, format, size);
     auto mode = node.get_primitive()->mode;
     // list of operations supported for integer types
     if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
@@ -76,8 +80,6 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
                                                     eltwise_mode::logic_xor};
     if (std::find(eltwise_bool_modes.begin(), eltwise_bool_modes.end(), mode) != eltwise_bool_modes.end()) {
         output_layout.data_type = data_types::i8;
-        if (node.get_primitive()->with_activation)
-            CLDNN_ERROR_MESSAGE(node.id(), "Activations are not supported for logical operations.");
     }
 
     auto eltw = std::static_pointer_cast<const eltwise>((node.get_primitive()));
@@ -111,7 +113,6 @@ static inline std::string stringify_vector(const std::vector<float>& v) {
 std::string eltwise_inst::to_string(eltwise_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();
-    auto activation = desc->with_activation ? " true" : "false";
 
     std::stringstream primitive_description;
     std::string str_mode;
@@ -186,10 +187,6 @@ std::string eltwise_inst::to_string(eltwise_node const& node) {
     eltwise_info.add("mode", str_mode);
     if (desc->mode == eltwise_mode::sum) {
         eltwise_info.add("coefficients", stringify_vector(desc->coefficients));
-    }
-    if (desc->with_activation) {
-        eltwise_info.add("with activation", activation);
-        eltwise_info.add("slope", desc->activation_negative_slope);
     }
     node_info->add("eltwise info", eltwise_info);
     node_info->dump(primitive_description);

@@ -22,7 +22,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id average_unpooling_type_id() {
+primitive_type_id average_unpooling::type_id() {
     static primitive_type_base<average_unpooling> instance;
     return &instance;
 }

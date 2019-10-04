@@ -120,7 +120,8 @@ void MKLDNNGenericNode::execLayer() {
         } else {
             // TODO: Ask the right dims using getShape() from previous node
             inputDescs.push_back(inputs[inputs.size() - 1]->getTensorDesc());
-            inputDescs[inputDescs.size() - 1].getDims()[0] = static_cast<size_t>(batchToProcess());
+            if (inputDescs[inputDescs.size() - 1].getDims().size() > 0)
+                inputDescs[inputDescs.size() - 1].getDims()[0] = static_cast<size_t>(batchToProcess());
         }
     }
 

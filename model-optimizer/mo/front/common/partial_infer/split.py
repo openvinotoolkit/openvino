@@ -88,8 +88,10 @@ def split(input_data_node: Node, node: Node, axis: int, part_sizes: list):
         return
 
     splitted = None
-    if input_data_node.value is not None:
-        splitted = np.split(input_data_node.value, part_sizes_to_indices(part_sizes), axis)
+    input_value = input_data_node.value
+    if input_value is not None:
+        splitted = [np.array(part, dtype=input_value.dtype)
+                    for part in np.split(input_value, part_sizes_to_indices(part_sizes), axis)]
 
     # not all outputs from the split could be used so it is necessary to iterate over output edges and infer shape for
     # necessary nodes only
@@ -104,7 +106,6 @@ def split(input_data_node: Node, node: Node, axis: int, part_sizes: list):
             out_node.value = splitted[out_port]
             assert all(out_node.value.shape == out_node.shape)
 
-    assert not node.has_valid('axis') or node.axis == axis
     node.axis = axis
     # WARNING: != 4 is supposed to work for NHWC to NCHW translation only.
     # if other global permutations happen this will fail

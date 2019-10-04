@@ -15,6 +15,7 @@ namespace MKLDNNPlugin {
 
 class PortMapHelper {
 public:
+    virtual ~PortMapHelper() = default;
     virtual void execute(int n_iter, mkldnn::stream strm) = 0;
 protected:
     std::vector<mkldnn::reorder> reorders;

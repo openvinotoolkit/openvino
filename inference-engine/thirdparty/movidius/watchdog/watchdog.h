@@ -35,7 +35,8 @@ typedef enum {
 WD_API wd_error_t watchdog_init_context(wd_context *ctx);
 
 /**
- * @brief creates watchdog thread, if not created, and registers new watchee device, and initialise opaque handle to it
+ * @brief Creates watchdog thread, if not created, and registers new watchee device, and initialise opaque handle to it.
+ *        To avoid a memory leak, the registered device must be unregister with watchdog_unregister_device().
  * @param d - newly connected device descriptor
  * @return
  */

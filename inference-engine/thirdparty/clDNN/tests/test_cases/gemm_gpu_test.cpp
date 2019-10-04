@@ -15,18 +15,17 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
 
-#include <api/CPP/engine.hpp>
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/memory.hpp>
-#include <api/CPP/gemm.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
+#include <api/engine.hpp>
+#include <api/input_layout.hpp>
+#include <api/memory.hpp>
+#include <api/gemm.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
 
 #include "test_utils/test_utils.h"
 #include "test_utils/uniform_quantized_real_distribution.hpp"
 
 #include <cstddef>
-
 
 using namespace cldnn;
 using namespace ::tests;
@@ -76,7 +75,6 @@ TEST(gemm_gpu, basic_bfyx_t1) {
     auto output = outputs.at("output").get_memory();
     auto output_ptr = output.pointer<float>();
 
-
     EXPECT_EQ(output_ptr.size(), (uint32_t)3);
     for (uint32_t i = 0; i < out_data.size(); ++i) {
         EXPECT_FLOAT_EQ(output_ptr[i], out_data[i]);
@@ -122,7 +120,6 @@ TEST(gemm_gpu, basic_bfyx_t2) {
 
     auto output = outputs.at("output").get_memory();
     auto output_ptr = output.pointer<float>();
-
 
     EXPECT_EQ(output_ptr.size(), (uint32_t)3);
     for (uint32_t i = 0; i < out_data.size(); ++i) {
@@ -180,7 +177,6 @@ TEST(gemm_gpu, basic_bfyx_t1t2) {
     auto output = outputs.at("output").get_memory();
     auto output_ptr = output.pointer<float>();
 
-
     EXPECT_EQ(output_ptr.size(), (uint32_t)6);
     for (uint32_t i = 0; i < out_data.size(); ++i) {
         EXPECT_FLOAT_EQ(output_ptr[i], out_data[i]);
@@ -194,7 +190,6 @@ TEST(gemm_gpu, basic_input3) {
     auto input3 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
     float alpha = 2.f;
     float beta = 10.f;
-
 
     std::vector<float> input_data = { 
         1.0f, 2.0f, 3.0f,
@@ -258,7 +253,6 @@ TEST(gemm_gpu, basic_input3_t1t2) {
     auto input3 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 4 } });
     float alpha = 2.f;
     float beta = 3.f;
-
 
     std::vector<float> input_data = {
         1.0f, 2.0f, 3.0f, 4.0f,
@@ -396,14 +390,12 @@ TEST(gemm_gpu, basic_input3_t2) {
     float alpha = 2.f;
     float beta = 3.f;
 
-
     std::vector<float> input_data = {
         1.0f, 1.0f, 0.0f,
         2.0f, 0.0f, 0.0f,
         3.0f, 1.0f, 0.0f,
         4.0f, 0.0f, 0.0f
     };
-
 
     std::vector<float> input_data2 = {
         3.0f, 3.0f, 1.0f,
@@ -465,7 +457,6 @@ TEST(gemm_gpu, basic_input3_t1) {
     auto input3 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 4 } });
     float alpha = 2.f;
     float beta = 3.f;
-
 
     std::vector<float> input_data = {
         1.0f, 2.0f, 3.0f, 4.0f,
@@ -3181,13 +3172,10 @@ TEST(gemm_gpu, basic3_bfyx) {
     auto output = outputs.at("output").get_memory();
     auto output_ptr = output.pointer<float>();
 
-
     EXPECT_EQ(output_ptr.size(), (uint32_t)45);
     for (uint32_t  i = 0; i < out_data.size(); ++i) {
         EXPECT_NEAR(output_ptr[i], out_data[i], 0.0001);
     }
-
-
 
 }
 
@@ -3242,7 +3230,6 @@ TEST(gemm_gpu, basic_smarcink2) {
 
     auto output = outputs.at("output").get_memory();
     auto output_ptr = output.pointer<float>();
-
 
     EXPECT_EQ(output_ptr.size(), (uint32_t)8);
     for (uint32_t i = 0; i < out_data.size(); ++i) {         

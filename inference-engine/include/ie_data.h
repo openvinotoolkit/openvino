@@ -74,6 +74,7 @@ public:
      * @brief An empty constructor (dimensionless)
      * @param name Name of the data node
      * @param _precision Precision of the data
+     * @param layout Data layout
      */
     Data(const std::string &name, Precision _precision, Layout layout = NCHW);
 
@@ -82,6 +83,7 @@ public:
      * @param name Name of the data node
      * @param a_dims Data tensor dimensions
      * @param _precision Precision of the data
+     * @param layout Data layout
      */
     Data(const std::string &name, const SizeVector &a_dims, Precision _precision, Layout layout = NCHW);
     /**
@@ -183,7 +185,7 @@ public:
 
     /**
      * @brief Sets a name the Data object
-     * @param name Name of the data node
+     * @param newName Name of the data node
      */
 
     void setName(const std::string& newName);

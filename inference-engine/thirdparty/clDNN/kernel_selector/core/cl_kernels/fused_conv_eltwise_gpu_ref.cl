@@ -92,7 +92,13 @@ KERNEL(kernel_name)(
 {
     // Convolution part.
     const uint x = get_global_id(0);
+#if  OUTPUT_DIMS > 4
+    const uint y = get_global_id(1) % OUTPUT_SIZE_Y;
+    const uint z = get_global_id(1) / OUTPUT_SIZE_Y;
+#else
     const uint y = get_global_id(1);
+    const uint z = 0;
+#endif
 #if OUTPUT_BATCH_NUM == 1
     const uint f = get_global_id(2);
     const uint b = 0;
@@ -104,6 +110,11 @@ KERNEL(kernel_name)(
     ACCUMULATOR_TYPE dotProd = (ACCUMULATOR_TYPE)0;
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
+#if  OUTPUT_DIMS > 4
+    const int input_z = z * STRIDE_SIZE_Z - PADDING_SIZE_Z;
+#else
+    const int input_z = 0;
+#endif
 
 #if DEPTHWISE_SEPARABLE_OPT
     const uint in_split_offset = (f / FILTER_OFM_NUM) * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
@@ -112,33 +123,42 @@ KERNEL(kernel_name)(
 #endif
     for (uint k = 0; k < FILTER_IFM_NUM; ++k)
     {
-        for (uint j = 0; j < FILTER_SIZE_Y ; ++j)
+        for (uint l = 0; l < FILTER_SIZE_Z ; ++l)
         {
-            const int input_offset_y = input_y + j * DILATION_SIZE_Y;
-            const bool zero_y = input_offset_y >= INPUT0_SIZE_Y || input_offset_y < 0;
+            const int input_offset_z = input_z + l * DILATION_SIZE_Z;
+            const bool zero_z = input_offset_z >= INPUT0_SIZE_Z || input_offset_z < 0;
 
-            if(!zero_y)
+            if(!zero_z)
             {
-                for (uint i = 0; i < FILTER_SIZE_X ; ++i)
+                for (uint j = 0; j < FILTER_SIZE_Y ; ++j)
                 {
-                    const int input_offset_x = input_x + i * DILATION_SIZE_X;
-                    const bool zero_x = input_offset_x >= INPUT0_SIZE_X || input_offset_x < 0;
+                    const int input_offset_y = input_y + j * DILATION_SIZE_Y;
+                    const bool zero_y = input_offset_y >= INPUT0_SIZE_Y || input_offset_y < 0;
 
-                    if(!zero_x)
+                    if(!zero_y)
                     {
-                        uint input_idx =
-                            GET_DATA_INDEX(
-                                INPUT0, b, k, input_offset_y, input_offset_x)
-                            + in_split_offset;
-                        uint filter_idx = GET_FILTER_INDEX(FILTER, f, k, j, i);
+                        for (uint i = 0; i < FILTER_SIZE_X ; ++i)
+                        {
+                            const int input_offset_x = input_x + i * DILATION_SIZE_X;
+                            const bool zero_x = input_offset_x >= INPUT0_SIZE_X || input_offset_x < 0;
+
+                            if(!zero_x)
+                            {
+                                uint input_idx =
+                                    GET_DATA_INDEX_5D(
+                                        INPUT0, b, k, input_offset_z, input_offset_y, input_offset_x)
+                                    + in_split_offset;
+                                uint filter_idx = GET_FILTER_INDEX_5D(FILTER, f, k, l, j, i);
 #if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-                        filter_idx += split_idx * FILTER_LENGTH;
+                                filter_idx += split_idx * FILTER_LENGTH;
 #endif
 #ifdef LOCAL_CONVOLUTION
-                        filter_idx += FILTER_SIZE_X * FILTER_SIZE_Y
-                            * (x + OUTPUT_SIZE_X * y);
+                                filter_idx += FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z
+                                    * (x + OUTPUT_SIZE_X * y + OUTPUT_SIZE_X * OUTPUT_SIZE_Y * z);
 #endif
-                        dotProd += TO_ACCUMULATOR_TYPE(conv_input[input_idx]) * TO_ACCUMULATOR_TYPE(weights[filter_idx]);
+                                dotProd += TO_ACCUMULATOR_TYPE(conv_input[input_idx]) * TO_ACCUMULATOR_TYPE(weights[filter_idx]);
+                            }
+                        }
                     }
                 }
             }
@@ -152,7 +172,7 @@ KERNEL(kernel_name)(
         const uint bias_offset = 0;
     #endif
     #if   BIAS_PER_OUTPUT
-        const uint bias_index = bias_offset + GET_DATA_INDEX(BIAS, b, f, y, x);
+        const uint bias_index = bias_offset + GET_DATA_INDEX_5D(BIAS, b, f, z, y, x);
     #elif BIAS_PER_OFM
         const uint bias_index = bias_offset + f;
     #endif
@@ -185,7 +205,7 @@ KERNEL(kernel_name)(
 #endif
 
     ACTIVATION_TYPE after_activation =
-        ACTIVATION_FUNC_CONV_TYPED(ACTIVATION_TYPE_BASE, dequantized, NL_M_CONV_TYPED, NL_N_CONV_TYPED);
+        ACTIVATION_CONV_TYPED(ACTIVATION_TYPE_BASE, dequantized, ACTIVATION_PARAMS_CONV_TYPED);
 
 #if CALIBRATION_TERM
     #if GROUPED && !DEPTHWISE_SEPARABLE_OPT
@@ -204,7 +224,7 @@ KERNEL(kernel_name)(
     after_output_calibration = AFTER_CALIBRATION_ROUND(after_output_calibration);
 
     const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
-    const uint dst_index = GET_DATA_INDEX(OUTPUT, b, f, y, x) + out_split_offset;
+    const uint dst_index = GET_DATA_INDEX_5D(OUTPUT, b, f, z, y, x) + out_split_offset;
 
 #if !defined(ACTIVATION_ELTW_TYPED)
     output[dst_index] = TO_OUTPUT_TYPE_SAT(after_output_calibration);
@@ -213,7 +233,7 @@ KERNEL(kernel_name)(
 #    if IN_OUT_OPT == 1
     OUTPUT_TYPE eltw_elem = output[dst_index];
 #    else
-    INPUT1_TYPE eltw_elem = eltw_input[GET_DATA_INDEX(INPUT1, b, f, y * ELTW_STRIDE_Y, x * ELTW_STRIDE_X)];
+    INPUT1_TYPE eltw_elem = eltw_input[GET_DATA_INDEX_5D(INPUT1, b, f, z * ELTW_STRIDE_Z, y * ELTW_STRIDE_Y, x * ELTW_STRIDE_X)];
 #    endif
 
 #    if defined(NON_CONV_SCALE)
@@ -228,11 +248,10 @@ KERNEL(kernel_name)(
     // TODO: Support other eltwise operations.
     ACTIVATION_TYPE before_eltw_activation = after_output_calibration + eltw_elem_scaled;
     ACTIVATION_TYPE after_eltw_activation =
-        ACTIVATION_FUNC_ELTW_TYPED(
+        ACTIVATION_ELTW_TYPED(
             ACTIVATION_TYPE_BASE,
             before_eltw_activation,
-            NL_M_ELTW_TYPED,
-            NL_N_ELTW_TYPED);
+            ACTIVATION_PARAMS_ELTW_TYPED);
 
     after_eltw_activation =
         AFTER_ELTW_CALIBRATION_ROUND(after_eltw_activation

@@ -114,7 +114,7 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
                 int num_of_bias_elements = static_cast<int>(weights_bias_params.bias[0].PhysicalSize());
                 bias_buffers.push_back(engine->allocate_memory({from_data_type(weights_bias_params.bias[0].GetDType()),
                                                                 format::bfyx,
-                                                                tensor(1, 1, num_of_bias_elements, 1)},
+                                                                tensor(1, num_of_bias_elements, 1, 1)},
                                                                0));
             }
             args.bias = bias_buffers[0];
@@ -124,10 +124,10 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
     args.split = 0;
 }
 
-std::vector<uint64_t> kernel_runner::run_kernels(const kernel_selector::KernelsData& kernels_data) {
+std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_selector::KernelsData& kernels_data) {
     auto context = engine->get_context();
 
-    std::vector<uint64_t> run_times;
+    std::vector<std::chrono::nanoseconds> run_times;
 
     int num_of_kernels_to_run = static_cast<int>(kernels_data.size());
 
@@ -150,7 +150,7 @@ std::vector<uint64_t> kernel_runner::run_kernels(const kernel_selector::KernelsD
         int i = 0;
         for (auto it = batch_start; it < batch_end; it++) {
             std::vector<event_impl::ptr> events;
-            uint64_t kernel_run_time = 0;
+            auto kernel_run_time = std::chrono::nanoseconds::zero();
             int num_of_runs = 0;
 
             for (int iteration = 0; iteration < runs_per_kernel; iteration++) {
@@ -169,8 +169,8 @@ std::vector<uint64_t> kernel_runner::run_kernels(const kernel_selector::KernelsD
                 if (event.get() != NULL) {
                     auto profiling_intervals = event->get_profiling_info();
                     for (auto const& profiling_interval : profiling_intervals) {
-                        if (strcmp(profiling_interval.name, "executing") == 0) {
-                            kernel_run_time += profiling_interval.nanoseconds;
+                        if (profiling_interval.name == "executing") {
+                            kernel_run_time += profiling_interval.value->value();
                             num_of_runs++;
                             break;
                         }
@@ -181,7 +181,7 @@ std::vector<uint64_t> kernel_runner::run_kernels(const kernel_selector::KernelsD
             if (num_of_runs > 0) {
                 run_times.push_back(kernel_run_time / num_of_runs);
             } else {
-                run_times.push_back(std::numeric_limits<uint64_t>::max());
+                run_times.push_back(std::chrono::nanoseconds::max());
             }
             i++;
         }

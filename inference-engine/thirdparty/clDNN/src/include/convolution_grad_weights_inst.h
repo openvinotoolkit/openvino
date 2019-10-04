@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/convolution_grad_weights.hpp"
+#include "api/convolution_grad_weights.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>

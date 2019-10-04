@@ -41,6 +41,7 @@ enum DataLayout {
     yxfb,                  // 3D+batch
     byxf,                  // 3D+batch
     fyxb,                  // 3D+batch
+    bfxy,                  // 3D+batch
     bfyx_f16,              // 3D+batch
     bs_f_bsv8__af8,        // for optimized FC
     bs_f_bsv16__af8,       // for optimized FC
@@ -54,6 +55,7 @@ enum DataLayout {
     fs_b_yx_fsv32,         // for FP16 kernels, 32 features to avoid partial writes
     b_fs_yx_32fp,          // bfyx with blocks of 16 packed binary input channels
     bfwzyx,                // batch, feature, 4D spatial
+    bfzyx_f16,             // batch, feature, 3D spatial. Blocks of 16 input channels
     DataLayoutCount        // NUMBER OF ELEMENTS IN ENUM
 };
 
@@ -88,6 +90,7 @@ enum WeightsLayout {
                                              // 3x3 with stride 1
     image_2d_weights_winograd_6x3_s1_xfbyb,  // image 2d winograd convolution weights for fused kernel, F(2, 3) --filter
                                              // 3x3 with stride 1
+    dlstm_dir_io,                            // dlstm weights layout direction, input_size, 4* hiden_size
     os_is_yx_isa8_osv8_isv4,                 // for MMAD convolution
     os_is_yx_isa8_osv8_isv4_swizzled_by_4,   // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
                                              // 1,5...
@@ -99,7 +102,9 @@ enum WeightsLayout {
     bf_lyx_yx,                           // local convolution
     os_is_yx_osv16_isv4,                 // swizzled weights for convolution using IMAD
     oizyx,
-    os_is_yx_osv32_isv32p,  // 2 blocks: 16 packed binary in channels and 16 output channels
+    os_is_yx_osv32_isv32p,  // 2 blocks: 32 packed binary in channels and 32 output channels
+    o_i_zyx_i16_o16,
+    i_o_zyx_o16_i16,
     WeightsLayoutCount      // NUMBER OF ELEMENTS IN ENUM
 };
 
@@ -142,6 +147,7 @@ inline bool SimpleLayout(WeightsLayout l) {
         case WeightsLayout::iyxo:
         case WeightsLayout::yxio:
         case WeightsLayout::oizyx:
+        case WeightsLayout::dlstm_dir_io:
             return true;
         default:
             return false;
@@ -173,6 +179,15 @@ inline bool IsImageType(WeightsLayout l) {
             return true;
         default:
             return false;
+    }
+}
+
+inline bool IsDynamicLSTMType(WeightsLayout l) {
+    switch (l) {
+    case WeightsLayout::dlstm_dir_io:
+        return true;
+    default:
+        return false;
     }
 }
 

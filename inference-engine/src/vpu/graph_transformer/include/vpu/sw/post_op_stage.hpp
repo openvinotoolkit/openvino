@@ -10,17 +10,17 @@ namespace vpu {
 
 class PostOpStage : public StageNode {
 protected:
-    void propagateDataOrderImpl() const override;
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override;
 
-    void getDataStridesRequirementsImpl() const override;
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override;
 
     void finalizeDataLayoutImpl() override;
 
-    void getBatchSupportInfoImpl() const override;
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override;
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override;
 
-    void finalCheckImpl() const override;
+    void initialCheckImpl() const override;
 
     void serializeDataImpl(BlobSerializer& serializer) const override;
 };

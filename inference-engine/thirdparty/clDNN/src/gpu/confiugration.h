@@ -17,13 +17,15 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <string>
-#include "api/C/cldnn.h"
+#include "api/cldnn.hpp"
+#include "api/engine.hpp"
 
 namespace cl {
 class Context;
 }
 namespace cldnn {
 namespace gpu {
+
 struct configuration {
     enum device_types { default_device = 0, cpu, gpu, accelerator };
 
@@ -39,8 +41,8 @@ struct configuration {
     bool host_out_of_order;
     std::string log;
     std::string ocl_sources_dumps_dir;
-    cldnn_priority_mode_type priority_mode;
-    cldnn_throttle_mode_type throttle_mode;
+    priority_mode_types priority_mode;
+    throttle_mode_types throttle_mode;
     uint16_t queues_num;
     cl::Context* user_context;
     std::string tuning_cache_path;

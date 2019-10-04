@@ -69,6 +69,11 @@ PyObject* parse_parameter(const InferenceEngine::Parameter & param){
         auto val = param.as<int>();
         return PyLong_FromLong((long)val);
     }
+        // Check for unsinged int
+    else if (param.is<unsigned int>()) {
+        auto val = param.as<unsigned int>();
+        return PyLong_FromLong((unsigned long)val);
+    }
         // Check for float
     else if (param.is<float>()) {
         auto val = param.as<float>();
@@ -92,6 +97,15 @@ PyObject* parse_parameter(const InferenceEngine::Parameter & param){
         // Check for std::vector<int>
     else if (param.is<std::vector<int>>()){
         auto val = param.as<std::vector<int>>();
+        PyObject *list = PyList_New(0);
+        for (const auto & it : val){
+            PyList_Append(list, PyLong_FromLong(it));
+        }
+        return list;
+    }
+        // Check for std::vector<unsigned int>
+    else if (param.is<std::vector<unsigned int>>()){
+        auto val = param.as<std::vector<unsigned int>>();
         PyObject *list = PyList_New(0);
         for (const auto & it : val){
             PyList_Append(list, PyLong_FromLong(it));
@@ -243,7 +257,7 @@ const std::map<std::string, InferenceEnginePython::InputInfo> InferenceEnginePyt
     const InferenceEngine::InputsDataMap &inputsInfo = actual.getInputsInfo();
     for (auto &in : inputsInfo) {
         InferenceEnginePython::InputInfo info;
-        info.actual = *in.second;
+        info.actual = in.second;
         const InferenceEngine::TensorDesc &inputTensorDesc = in.second->getTensorDesc();
         info.dims = inputTensorDesc.getDims();
         for (auto it : precision_map)
@@ -277,16 +291,8 @@ const std::map<std::string, InferenceEnginePython::OutputInfo> InferenceEnginePy
 }
 
 void
-InferenceEnginePython::IENetwork::addOutput(const std::string &out_layer, size_t port_id, const std::string &precision) {
+InferenceEnginePython::IENetwork::addOutput(const std::string &out_layer, size_t port_id) {
     actual.addOutput(out_layer, port_id);
-    InferenceEngine::OutputsDataMap outputsDataMapUpd = actual.getOutputsInfo();
-    if (outputsDataMapUpd.count(out_layer)) {
-        outputsDataMapUpd[out_layer]->setPrecision(precision_map[precision]);
-    } else if (outputsDataMapUpd.count(out_layer + "." + std::to_string(port_id))){
-        outputsDataMapUpd[out_layer + "." + std::to_string(port_id)]->setPrecision(precision_map[precision]);
-    } else {
-        THROW_IE_EXCEPTION << "Failed to set precision for layer " << out_layer;
-    }
 }
 
 void InferenceEnginePython::IENetwork::setBatch(const size_t size) {
@@ -329,11 +335,11 @@ void InferenceEnginePython::IENetwork::setStats(const std::map<std::string, std:
 }
 
 void InferenceEnginePython::InputInfo::setPrecision(std::string precision) {
-    actual.setPrecision(precision_map[precision]);
+    actual->setPrecision(precision_map[precision]);
 }
 
 void InferenceEnginePython::InputInfo::setLayout(std::string layout) {
-    actual.setLayout(layout_map[layout]);
+    actual->setLayout(layout_map[layout]);
 }
 
 void InferenceEnginePython::OutputInfo::setPrecision(std::string precision) {
@@ -567,6 +573,7 @@ InferenceEnginePython::InferRequestWrap::getPerformanceCounts() {
         profile_info.layer_type = it.second.layer_type;
         profile_info.cpu_time = it.second.cpu_uSec;
         profile_info.real_time = it.second.realTime_uSec;
+        profile_info.execution_index = it.second.execution_index;
         perf_map[it.first] = profile_info;
     }
     return perf_map;

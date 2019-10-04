@@ -107,10 +107,11 @@ using WBlob = TBlob<uint8_t>::Ptr;
 
 class BodyParser {
 public:
-    BodyParser(pugi::xml_node &net_node, size_t ir_version) :
-        body(net_node), parser(FormatParser(ir_version)) {}
+    BodyParser(pugi::xml_node &net_node, size_t ir_version, Precision prec) :
+            body(net_node), parser(FormatParser(ir_version)), default_precision(prec) {}
 
     void parse(PortSet in_request, PortSet out_request) {
+        body.append_attribute("precision").set_value(default_precision.name());
         auto net = parser.Parse(body);
 
         for (const auto &pi : in_request)
@@ -148,6 +149,7 @@ public:
 private:
     pugi::xml_node &body;
     FormatParser parser;
+    Precision default_precision;
 
     PortMap inputs;
     PortMap outputs;
@@ -163,7 +165,7 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
     auto all_inputs = allRequiredInputs(node);
     auto all_outputs = allRequiredOutputs(node);
 
-    auto parser = std::make_shared<BodyParser>(body, layerParsePrms.underIRVersion);
+    auto parser = std::make_shared<BodyParser>(body, layerParsePrms.underIRVersion, layerParsePrms.prms.precision);
     parser->parse(all_inputs, all_outputs);
 
     auto ins = parser->getInsMap();

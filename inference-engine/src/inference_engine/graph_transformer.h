@@ -24,6 +24,7 @@ namespace InferenceEngine {
 class INFERENCE_ENGINE_API_CLASS(ConstTransformer) {
 public:
     explicit ConstTransformer(details::CNNNetworkImpl* _network);
+    virtual ~ConstTransformer() = default;
 
     /**
      * @brief calculates const layers, combines const subgraph into a single const layers

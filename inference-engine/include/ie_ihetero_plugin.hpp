@@ -23,8 +23,10 @@ namespace InferenceEngine {
  * plugin during setting of affinity and loading of split sub-network to the plugins
  * The custom loader can define addition settings for the plugins or network loading
  * Examples of cases when this interface should be implemented in the application:
+ * 
  * 1. add custom layers to existing plugins if it is not pointed to the heterogeneous plugin
  *  or registration of custom layer is different than supported in available public plugins
+ * 
  * 2. set affinity manually for the same plugin being initialized by different parameters,
  *  e.g different device id
  *  In this case there will be mapping of
@@ -89,18 +91,29 @@ public:
     INFERENCE_ENGINE_DEPRECATED
     virtual void QueryNetwork(const std::string &device,
                               const ICNNNetwork &network,
-                              const std::map<std::string, std::string>& /*config*/,
+                              const std::map<std::string, std::string>& config,
                               QueryNetworkResult &res) noexcept = 0;
 
-    INFERENCE_ENGINE_DEPRECATED
+
+    /**
+     * @deprecated Use InferenceEngine::Core with HETERO device in InferenceEngine::Core::QueryNetwork.
+     * @brief Sets log callback
+     * @param listener A reference to IErrorListener object
+     */
     virtual void SetLogCallback(IErrorListener &listener) = 0;
 
     IE_SUPPRESS_DEPRECATED_START
+    /**
+     * @brief Shared pointer to IHeteroDeviceLoader instance
+     */
     using Ptr = std::shared_ptr<IHeteroDeviceLoader>;
     IE_SUPPRESS_DEPRECATED_END
 };
 
 IE_SUPPRESS_DEPRECATED_START
+/**
+ * @brief Represents map from device name to device-specific loader
+ */
 using MapDeviceLoaders = std::map<std::string, InferenceEngine::IHeteroDeviceLoader::Ptr>;
 IE_SUPPRESS_DEPRECATED_END
 

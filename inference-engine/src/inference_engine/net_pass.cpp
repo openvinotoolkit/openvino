@@ -635,9 +635,9 @@ static CNNLayerPtr _pwr(std::string name, Precision prc, SizeVector dims, float 
     res->power = 1.0;
     res->scale = scale;
     res->offset = shift;
-    res->params["power"] = std::to_string(res->power);
-    res->params["scale"] = std::to_string(res->scale);
-    res->params["shift"] = std::to_string(res->offset);
+    res->params["power"] = CNNLayer::ie_serialize_float(res->power);
+    res->params["scale"] = CNNLayer::ie_serialize_float(res->scale);
+    res->params["shift"] = CNNLayer::ie_serialize_float(res->offset);
 
     res->insData.resize(1);
     res->outData.resize(1);
@@ -747,8 +747,8 @@ static void _link_with_clip(CNNLayerPtr src, CNNLayerPtr dst, const float clip_v
         auto clip_prc = dst->precision;
         auto clip_shape = src->outData[src_port]->getTensorDesc().getDims();
         auto clip = _act(clip_name, clip_prc, clip_shape, "clamp");
-        clip->params["min"] = std::to_string(-clip_val);
-        clip->params["max"] = std::to_string(clip_val);
+        clip->params["min"] = CNNLayer::ie_serialize_float(-clip_val);
+        clip->params["max"] = CNNLayer::ie_serialize_float(clip_val);
 
         _link(src, clip, src_port, 0);
         _link(clip, dst, 0, dst_port);
@@ -1197,6 +1197,11 @@ std::vector<CNNLayerPtr> TopolSort(const TensorIterator::Body &net) {
     return TIBodySortTopologically(net);
 }
 
+void restore_net_consistency(ICNNNetwork &net) {
+    // At first all layers should be available via findByName() api.
+    // In other words all layers should be present in internal map<name, layer>
+    for (auto &l : TopolSort(net)) net.addLayer(l);
+}
 
 template <typename N, typename T>
 bool ApplyForAll(N &net, T action) {
@@ -1208,7 +1213,6 @@ bool ApplyForAll(N &net, T action) {
 
     return sts;
 }
-
 
 
 template <typename N, typename T, typename P>
@@ -1224,14 +1228,19 @@ bool ApplyForAll_if(N &net, T action, P pred) {
 }
 
 bool CombineRNNSeq(ICNNNetwork &net) {
-    return ApplyForAll(net, convertToRNNSeq<ICNNNetwork>);
+    auto res = ApplyForAll(net, convertToRNNSeq<ICNNNetwork>);
+    restore_net_consistency(net);
+    return res;
 }
+
 bool CombineRNNSeq(TensorIterator::Body &net) {
     return ApplyForAll(net, convertToRNNSeq<TensorIterator::Body>);
 }
 
 bool UnrollTI(ICNNNetwork &net) {
-    return ApplyForAll(net, unrollTI);
+    auto res = ApplyForAll(net, unrollTI);
+    restore_net_consistency(net);
+    return res;
 }
 
 
@@ -1256,7 +1265,9 @@ bool UnrollRNN_if_impl(NET &net, const std::function<bool(const RNNCellBase&)> p
 }
 
 bool UnrollRNN_if(ICNNNetwork &net, const std::function<bool(const RNNCellBase&)> pred) {
-    return UnrollRNN_if_impl(net, pred);
+    auto res = UnrollRNN_if_impl(net, pred);
+    restore_net_consistency(net);
+    return res;
 }
 
 bool UnrollRNN_if(TensorIterator::Body &net, const std::function<bool(const RNNCellBase&)> pred) {

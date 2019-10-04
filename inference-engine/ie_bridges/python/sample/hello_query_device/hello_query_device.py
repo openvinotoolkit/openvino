@@ -22,14 +22,19 @@ def main():
         print("\tDevice: {}".format(device))
         print("\tMetrics:")
         for metric in ie.get_metric(device, "SUPPORTED_METRICS"):
-            metric_val = ie.get_metric(device, metric)
-            print("\t\t{}: {}".format(metric, param_to_string(metric_val)))
+            try:
+              metric_val = ie.get_metric(device, metric)
+              print("\t\t{}: {}".format(metric, param_to_string(metric_val)))
+            except TypeError:
+              print("\t\t{}: UNSUPPORTED TYPE".format(metric))
 
         print("\n\tDefault values for device configuration keys:")
         for cfg in ie.get_metric(device, "SUPPORTED_CONFIG_KEYS"):
-            cfg_val = ie.get_config(device, cfg)
-            print("\t\t{}: {}".format(cfg, param_to_string(cfg_val)))
-
+            try:
+              cfg_val = ie.get_config(device, cfg)
+              print("\t\t{}: {}".format(cfg, param_to_string(cfg_val)))
+            except TypeError:
+              print("\t\t{}: UNSUPPORTED TYPE".format(cfg))
 
 if __name__ == '__main__':
     sys.exit(main() or 0)

@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/scale.hpp"
+#include "api/scale.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>

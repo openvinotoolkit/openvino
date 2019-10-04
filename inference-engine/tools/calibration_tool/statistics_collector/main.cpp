@@ -35,7 +35,7 @@ static const char model_message[] = "Required. Path to an .xml file with a train
 static const char plugin_message[] = "Plugin name. For example, CPU. If this parameter is passed, "
                                      "the sample looks for a specified plugin only.";
 /// @brief Message for assigning cnn calculation to device
-static const char target_device_message[] = "Target device to infer on: CPU (default), GPU, FPGA or MYRIAD."
+static const char target_device_message[] = "Target device to infer on: CPU (default), GPU, FPGA, HDDL or MYRIAD."
                                             " The application looks for a suitable plugin for the specified device.";
 /// @brief Message for batch argument type
 static const char batch_message[] = "Batch size value. If not specified, the batch size value is taken from IR";
@@ -178,15 +178,10 @@ int main(int argc, char *argv[]) {
         showUsage();
         return ex.exitCode();
     } catch (const UserExceptions& ex) {
-        if (ex.list().size() == 1) {
-            slog::err << "Input problem: " << ex.what() << slog::endl;
-            showUsage();
+        slog::err << "Input problems: \n" << ex.what() << slog::endl;
+        showUsage();
+        if (!ex.list().empty())
             return ex.list().begin()->exitCode();
-        } else {
-            slog::err << "Input problems: \n" << ex.what() << slog::endl;
-            showUsage();
-            return ex.list().begin()->exitCode();
-        }
     } catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
         return 1;

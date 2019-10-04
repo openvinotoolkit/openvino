@@ -123,8 +123,8 @@ public:
             const DataVector& outputs);
 
     Stage duplicateStage(
-            const std::string& name,
             const Stage& origStage,
+            const std::string& postfix,
             const DataVector& inputs,
             const DataVector& outputs);
 
@@ -238,13 +238,13 @@ public:
     // Nodes removal
     //
 
-    void disconnectStageDatas(const Stage& stage);
+    void disconnectStage(const Stage& stage);
 
     void removeStage(const Stage& stage);
 
     void removeUnusedData(const Data& data);
 
-    void cleanUpDatas();
+    void cleanUp();
 
     //
     // Stage order

@@ -101,39 +101,31 @@ private:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>&,
-            ScalePropagationStep) override {
+            ScalePropagationStep,
+            StageDataInfo<float>&) override {
         VPU_THROW_EXCEPTION << "Must never be called";
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        _orderInfo.setInput(_inputEdges[0], input->desc().dimsOrder().createMovedDim(Dim::C, 2));
-        _orderInfo.setOutput(_outputEdges[0], output->desc().dimsOrder().createMovedDim(Dim::C, 2));
+        orderInfo.setInput(inputEdge(0), input->desc().dimsOrder().createMovedDim(Dim::C, 2));
+        orderInfo.setOutput(outputEdge(0), output->desc().dimsOrder().createMovedDim(Dim::C, 2));
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        auto output = outputEdge(0)->output();
 
-        auto output = _outputEdges[0]->output();
-
-        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement().add(1, DimStride::Aligned));
+        stridesInfo.setOutput(outputEdge(0), StridesRequirement().add(1, DimStride::Aligned));
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
-        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
+        batchInfo.setInput(inputEdge(0), BatchSupport::Split);
+        batchInfo.setOutput(outputEdge(0), BatchSupport::Split);
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
@@ -141,18 +133,15 @@ private:
     }
 
     void finalCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         input->serializeOldBuffer(handle_from_this(), serializer);
         output->serializeOldBuffer(handle_from_this(), serializer);
@@ -273,10 +262,10 @@ void PassImpl::run(const Model::Ptr& model) {
             continue;
         }
 
-        model->disconnectStageDatas(origStage);
+        model->disconnectStage(origStage);
 
         //
-        // Broadcast input/output if needed
+        // Expand input/output if needed
         //
 
         auto origInputDimC = hwInput->desc().dim(Dim::C);
@@ -291,9 +280,9 @@ void PassImpl::run(const Model::Ptr& model) {
                 "@extended",
                 newDesc);
 
-            _stageBuilder->addBroadcastStage(
+            _stageBuilder->addExpandStage(
                 model,
-                origStage->name() + "@broadcast-input",
+                origStage->name() + "@expand-input",
                 origStage->origLayer(),
                 hwInput,
                 hwInputExtended);

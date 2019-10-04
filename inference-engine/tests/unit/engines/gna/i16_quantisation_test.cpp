@@ -272,10 +272,10 @@ TEST_F(I16QuantisationTest, ClampFollowedByTanh_ResultInDiagonalInsertion) {
         .gna().propagate_forward().called_with().diagonal_inserted_into_nnet().twice();
 }
 
-TEST_F(I16QuantisationTest, EltwiseWithMemoryAndActivationInput_ResultInDiagonalInsertion) {
+TEST_F(I16QuantisationTest, EltwiseWithMemoryAndActivationInput_ResultInTwoDiagonalsInsertion) {
     assert_that().onInferModel(eltwiseWithMemoryAndActivationInputModel())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
-        .gna().propagate_forward().called_with().diagonal_inserted_into_nnet().once();
+        .gna().propagate_forward().called_with().diagonal_inserted_into_nnet().twice();
 }
 
 TEST_F(I16QuantisationTest, AffineWith2AffineOutputs_ResultInOnlyOneIdentityInsertion) {
@@ -362,7 +362,9 @@ TEST_F(I16QuantisationTest, MultipleActivationsAfterAffine_ResultInMultipleDiago
     // extra identity inserted for affine
     assert_that().onInferModel(AffineWithReluSigmoid())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
-        .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActRelu, kActSigmoid});
+        .gna().propagate_forward().called_with()
+         // 1 diag for second activation, 1 for eltwise
+        .pwls_inserted_into_nnet({kActRelu, kActSigmoid}).diagonal_inserted_into_nnet().times(3);
 }
 
 // TODO: build a regression test on top of it using real quantisation accuracy checking
@@ -410,4 +412,10 @@ TEST_F(I16QuantisationTest, PowerWithScaleFactorPropagateForward) {
     assert_that().onInferModel(PowerWithScaleFactor1())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActIdentity}).And().diagonal_inserted_into_nnet();
+}
+
+TEST_F(I16QuantisationTest, ConcatWithDifferentInputScaleFactorsPropagateForward) {
+    assert_that().onInferModel(ConcatWithDiffScaleFactor())
+            .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+            .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActIdentity});
 }

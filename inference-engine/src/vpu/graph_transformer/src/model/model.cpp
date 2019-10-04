@@ -186,8 +186,8 @@ Data Model::duplicateData(
 }
 
 Stage Model::duplicateStage(
-        const std::string& name,
         const Stage& origStage,
+        const std::string& postfix,
         const DataVector& inputs,
         const DataVector& outputs) {
     //
@@ -230,7 +230,7 @@ Stage Model::duplicateStage(
 
     auto stage = origStage->cloneImpl();
 
-    stage->_name = name;
+    stage->_name = origStage->name() + postfix;
     stage->_type = origStage->_type;
     stage->_origLayer = origStage->_origLayer;
     stage->_model = handle_from_this();
@@ -1305,7 +1305,7 @@ SharedAllocation Model::connectDatasImpl(
         //
 
         if (connectionStage->_type == StageType::Concat ||
-            connectionStage->_type == StageType::Broadcast) {
+            connectionStage->_type == StageType::Expand) {
             IE_ASSERT(producer == child);
             IE_ASSERT(consumer == parent);
         } else if (connectionStage->_type == StageType::Split ||
@@ -1415,7 +1415,7 @@ SharedAllocation Model::connectDatasImpl(
     return edge;
 }
 
-void Model::disconnectStageDatas(const Stage& stage) {
+void Model::disconnectStage(const Stage& stage) {
     //
     // Check that objects belong to the same Model.
     //
@@ -1507,7 +1507,7 @@ void Model::removeStage(const Stage& stage) {
 
     _resetStageOrder = true;;
 
-    disconnectStageDatas(stage);
+    disconnectStage(stage);
 
     _initialStages.erase(stage);
 
@@ -1515,7 +1515,7 @@ void Model::removeStage(const Stage& stage) {
     _stagePtrList.erase(stage->_ptrPosInModel);
 }
 
-void Model::cleanUpDatas() {
+void Model::cleanUp() {
     bool needAllocatorPreprocess = false;
 
     for (const auto& data : datas()) {

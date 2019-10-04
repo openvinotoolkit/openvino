@@ -12,9 +12,9 @@
 #include <map>
 #include <algorithm>
 #include "cpp/ie_cnn_network.h"
-#include <CPP/memory.hpp>
-#include <CPP/primitive.hpp>
-#include <CPP/network.hpp>
+#include <api/memory.hpp>
+#include <api/primitive.hpp>
+#include <api/network.hpp>
 
 // Debugging options flags
 // #define _DEBUG_LAYER_CONTENT
@@ -68,11 +68,10 @@ protected:
         auto ptr = mem.pointer<T>();
         auto data = ptr.data();  // +offset;
         auto elements = std::min(layout.count(), numElements);
-        cldnn::status_t status = CLDNN_SUCCESS;
         for (size_t i = 0; i < elements;) {
             // size_t linearAddress = ... // todo calc linear with pitches
             std::cout << std::setprecision(10)
-                      << ((layout.data_type == cldnn::data_types::f32) ? data[i] : cldnn_half_to_float(uint16_t(data[i]), &status))
+                      << ((layout.data_type == cldnn::data_types::f32) ? data[i] : cldnn::half_to_float(uint16_t(data[i])))
                       << ", ";
             i++;
             for (auto& pitch : pitches) {

@@ -50,7 +50,7 @@ void PassImpl::run(const Model::Ptr& model) {
     StageVector hwStages;
     std::list<Stage> swStages;
 
-    hwStages.reserve(model->numStages());
+    hwStages.reserve(checked_cast<size_t>(model->numStages()));
     for (const auto& stage : model->getStages()) {
         if (stage->category() == StageCategory::HW) {
             hwStages.emplace_back(stage);
@@ -66,10 +66,14 @@ void PassImpl::run(const Model::Ptr& model) {
     // Try to merge HW and SW stages
     //
 
-    for (const auto& hwStage : hwStages) {
-        for (const auto& swStage : swStages) {
-            model->buildStageOrder();
+    StageVector swCandidates;
 
+    for (const auto& hwStage : hwStages) {
+        swCandidates.clear();
+
+        model->buildStageOrder();
+
+        for (const auto& swStage : swStages) {
             auto hwInd = hwStage->index();
             IE_ASSERT(hwInd >= 0);
 
@@ -115,10 +119,12 @@ void PassImpl::run(const Model::Ptr& model) {
                 }
             }
 
-            if (!isOK) {
-                continue;
+            if (isOK) {
+                swCandidates.push_back(swStage);
             }
+        }
 
+        for (const auto& swStage : swCandidates) {
             //
             // Try to inject and check allocation, if it is failed -> revert
             //

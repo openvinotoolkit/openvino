@@ -20,6 +20,7 @@
 #include "gpu/primitive_gpu_base.h"
 #include "fully_connected/fully_connected_params.h"
 #include <memory>
+#include <stdexcept>
 
 /*
 This pass checks if if primitive's input format matches implementation's input format
@@ -39,12 +40,11 @@ program_node& post_input_reorder::add_reorder(program_impl& p,
     // ToDo: add a method to program_impl class which adds an intermediate node given a node and its user
     auto it = std::find(usr->get_dependencies().begin(), usr->get_dependencies().end(), node);
     if (it == usr->get_dependencies().end()) {
-        throw error("Inconcistency in topology description: user of a node is not present among its dependecies.",
-                    CLDNN_ERROR);
+        throw std::runtime_error("Inconcistency in topology description: user of a node is not present among its dependecies.");
     }
     auto idx = it - usr->get_dependencies().begin();
     if (idx < 0 || (size_t)idx >= usr->get_dependencies().size()) {
-        throw error("Internal Error: container index out of range exception.", CLDNN_ERROR);
+        throw std::runtime_error("Internal Error: container index out of range exception.");
     }
     p.add_intermediate(new_reorder_node, *usr, idx);
     return new_reorder_node;

@@ -8,7 +8,6 @@
 #include "ie_layer_parsers.h"
 #include "xml_parse_utils.h"
 #include "ie_blob_proxy.hpp"
-#include "range_iterator.hpp"
 #include <fstream>
 #include <sstream>
 #include "ie_icnn_network_stats.hpp"
@@ -82,6 +81,8 @@ void FormatParser::ParseGenericParams(pugi::xml_node& node, LayerParseParameters
             LayerParseParameters::LayerPortData port;
             port.precision = prms.precision;
             ParsePort(port, _cn);
+            if (prms.type == "Const")
+                prms.precision = port.precision;
             layerParsePrms.addOutputPort(port);
         }
     }
@@ -192,6 +193,7 @@ FormatParser::FormatParser(size_t version): _version(version) {
         std::make_shared<LayerCreator<ShuffleChannelsLayer>>("ShuffleChannels"),
         std::make_shared<LayerCreator<DepthToSpaceLayer>>("DepthToSpace"),
         std::make_shared<LayerCreator<SpaceToDepthLayer>>("SpaceToDepth"),
+        std::make_shared<LayerCreator<SparseFillEmptyRowsLayer>>("SparseFillEmptyRows"),
         std::make_shared<LayerCreator<ReverseSequenceLayer>>("ReverseSequence"),
         std::make_shared<LayerCreator<CNNLayer>>("Squeeze"),
         std::make_shared<LayerCreator<CNNLayer>>("Unsqueeze"),
@@ -251,7 +253,10 @@ FormatParser::FormatParser(size_t version): _version(version) {
         std::make_shared<LayerCreator<ReduceLayer>>("ReduceSum"),
         std::make_shared<LayerCreator<ReduceLayer>>("ReduceSumSquare"),
         std::make_shared<LayerCreator<CNNLayer>>("GatherTree"),
-        std::make_shared<LayerCreator<TopKLayer>>("TopK")
+        std::make_shared<LayerCreator<TopKLayer>>("TopK"),
+        std::make_shared<LayerCreator<UniqueLayer>>("Unique"),
+        std::make_shared<LayerCreator<NonMaxSuppressionLayer>>("NonMaxSuppression"),
+        std::make_shared<LayerCreator<ScatterLayer>>("ScatterUpdate")
     };
     creators.emplace_back(_version < 6 ? std::make_shared<LayerCreator<QuantizeLayer>>("Quantize") :
             std::make_shared<LayerCreator<QuantizeLayer>>("FakeQuantize"));

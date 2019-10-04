@@ -45,7 +45,7 @@ class Range(Op):
         if not start.has_valid('value') or not limit.has_valid('value') or not delta.has_valid('value'):
             log.error("Range operation is supported with constant inputs only")
             return
-        if 'type' in node.pb.attr:
+        if node.has_valid('pb') and 'type' in node.pb.attr:
             from mo.front.tf.extractors.utils import tf_dtype_extractor
             result_data_type = tf_dtype_extractor(node.pb.attr["type"].type)
         else:

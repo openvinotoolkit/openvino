@@ -38,7 +38,7 @@ public:
             get_default_optional_params<kernel_selector::quantize_optional_params>(arg.get_program());
 
         quantize_params.levels = arg.get_primitive()->levels;
-        quantize_params.packed_binary_output = arg.get_packed_binary_output();
+        quantize_params.packed_binary_output = arg.get_output_layout().data_type == data_types::bin;
 
         for (size_t i = 1; i < arg.inputs_count(); i++) {
             quantize_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
@@ -60,18 +60,20 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = quantize_gpu::create;
+namespace detail {
 
-        implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
-        implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-        implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_quantize_gpu::attach_quantize_gpu() {
+    auto val_fw = quantize_gpu::create;
+
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx_f16), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx_f16), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

@@ -36,6 +36,9 @@ void prepare_padding::run(program_impl& p) {
                 if (!prim->with_output_size)
                     continue;
 
+                if (node->get_output_layout().format == format::bfzyx_f16)
+                    continue;
+
                 auto filter_size = prim_node.weights(0).get_output_layout().size;
 
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
@@ -119,7 +122,8 @@ void prepare_padding::run(program_impl& p) {
             conv_layout.format != cldnn::format::byxf_af32 &&
             conv_layout.format != cldnn::format::fs_bs_yx_bsv4_fsv32 &&
             conv_layout.format != cldnn::format::b_fs_yx_fsv4 &&
-            conv_layout.format != cldnn::format::fs_b_yx_fsv32) {
+            conv_layout.format != cldnn::format::fs_b_yx_fsv32 &&
+            conv_layout.format != cldnn::format::b_fs_yx_32fp) {
             continue;
         }
 

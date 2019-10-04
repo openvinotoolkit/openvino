@@ -6,7 +6,7 @@
 #include <string>
 #include <map>
 #include <functional>
-#include <CPP/detection_output.hpp>  // todo: find a way to remove this
+#include <api/detection_output.hpp>  // todo: find a way to remove this
 #include <description_buffer.hpp>
 #include "cldnn_infer_request.h"
 #include "cldnn_streams_task_executor.h"
@@ -356,7 +356,6 @@ void CLDNNInferRequest::SetBatch(int new_batch) {
 
         size_t offset = 0;
         size_t bsz = single_batch;
-        int b = 0;
 
         // calculate metadata for input buffers
         for (unsigned nb = 0; nb < m_graph->GetNetworksCount(); nb++) {

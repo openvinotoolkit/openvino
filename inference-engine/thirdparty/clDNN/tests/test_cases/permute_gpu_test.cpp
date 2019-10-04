@@ -16,18 +16,18 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/permute.hpp"
-#include "api/CPP/reorder.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/permute.hpp"
+#include "api/reorder.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include <api/CPP/data.hpp>
-#include <api/CPP/fully_connected.hpp>
-#include <api/CPP/reshape.hpp>
-#include <api/CPP/crop.hpp>
+#include <api/data.hpp>
+#include <api/fully_connected.hpp>
+#include <api/reshape.hpp>
+#include <api/crop.hpp>
 #include <cmath>
 #include <gmock/gmock.h>
 #include <limits>
@@ -36,11 +36,9 @@ using namespace cldnn;
 using namespace tests;
 using namespace testing;
 
-
 TEST(permute_gpu_f32, output_ordering_test)
 {
     const auto& engine = get_test_engine();
-
 
     std::vector<std::vector<int32_t>> input_tensors =
     {
@@ -108,7 +106,6 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_2_3)
     //
     //  Output = input
 
-
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 2, 3, 2 } });
@@ -142,7 +139,6 @@ TEST(permute_gpu_f32, basic_bfyx_permute_0_1_2_3)
     EXPECT_EQ(outputs.begin()->first, "permute");
 
     auto output = outputs.begin()->second.get_memory();
-
 
     auto output_ptr = output.pointer<float>();
     for (int i = 0; i < 24; i++)

@@ -53,12 +53,12 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() { implementation_map<reshape>::add({{engine_types::ocl, reshape_gpu::create}}); }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_reshape_gpu::attach_reshape_gpu() {
+    implementation_map<reshape>::add({{engine_types::ocl, reshape_gpu::create}});
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

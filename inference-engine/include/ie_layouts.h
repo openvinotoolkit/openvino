@@ -226,6 +226,7 @@ public:
                 inconsistentLayout = dims.size() != 1;
                 break;
             case Layout::BLOCKED:
+            case Layout::ANY:
                 inconsistentLayout = false;
                 break;
             case Layout::NCDHW:

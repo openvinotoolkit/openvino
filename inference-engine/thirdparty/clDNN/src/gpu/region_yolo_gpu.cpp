@@ -55,20 +55,16 @@ struct region_yolo_gpu : typed_primitive_gpu_impl<region_yolo> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<region_yolo>::add(
-            {{std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), region_yolo_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), region_yolo_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), region_yolo_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), region_yolo_gpu::create}});
-    }
-    ~attach() {}
-};
+namespace detail {
 
-attach attach_impl;
-}  // namespace
+attach_region_yolo_gpu::attach_region_yolo_gpu() {
+    implementation_map<region_yolo>::add(
+        {{std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), region_yolo_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), region_yolo_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), region_yolo_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), region_yolo_gpu::create}});
+}
 
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

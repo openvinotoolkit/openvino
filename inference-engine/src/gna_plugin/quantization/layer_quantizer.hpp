@@ -376,7 +376,9 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
             }
         } else {
                 if (LayerInfo(*cnnLayer).isActivation() ||
-                        LayerInfo(*cnnLayer).isCopy()) {
+                    LayerInfo(*cnnLayer).isCopy() ||
+                    LayerInfo(*cnnLayer).isReshape() ||
+                    LayerInfo(*cnnLayer).isPermute()) {
                 // precision of activation layers is always equal input precision
                 for (auto &&outData : cnnLayer->outData) {
                     outData->setPrecision(Desc::mandatory().getInputPrecision());

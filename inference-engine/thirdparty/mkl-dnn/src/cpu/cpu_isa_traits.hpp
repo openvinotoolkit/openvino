@@ -49,6 +49,7 @@ typedef enum {
     avx512_mic,
     avx512_mic_4ops,
     avx512_core_bf16,
+    avx512_vpopcnt,
 } cpu_isa_t;
 
 template <cpu_isa_t> struct cpu_isa_traits {}; /* ::vlen -> 32 (for avx2) */
@@ -129,6 +130,9 @@ static inline bool mayiuse(const cpu_isa_t cpu_isa) {
         return true
             && mayiuse(avx512_core_vnni)
             && cpu.has(Cpu::tAVX512_BF);
+    case avx512_vpopcnt:
+        return true
+            && cpu.has(Cpu::tAVX512_VPOPCNTDQ);
     case isa_any:
         return true;
     }

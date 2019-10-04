@@ -275,7 +275,16 @@ public:
 // the logic.
 JitConstants MakeActivationJitConstants(const base_activation_params& params,
                                         const std::string& suffix = "",
-                                        bool use_type_parameter = false);
+                                        bool use_type_parameter = false,
+                                        bool disable_type_conversion = false);
+JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
+                                        const std::string& suffix,
+                                        bool use_type_parameter,
+                                        bool disable_type_conversion = false);
+JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activation_params> params,
+                                        const std::string& suffix = "",
+                                        bool use_type_parameter = false,
+                                        bool disable_type_conversion = false);
 JitConstants MakeBaseParamsJitConstants(const base_params& params);
 JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount);
 JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroName);

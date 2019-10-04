@@ -25,6 +25,8 @@ ParamsKey LSTM_DynamicInputKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableInputWeightsType(WeightsType::F16);
+    k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableDifferentTypes();
@@ -32,6 +34,9 @@ ParamsKey LSTM_DynamicInputKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableLSTMGEMMBias();
+    k.EnableNonBiasTerm();
+    k.EnableBiasPerFeature();
+    k.EnableBiasPerOutput();
     return k;
 }
 

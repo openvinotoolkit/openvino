@@ -965,6 +965,11 @@ struct memory: public primitive  {
                 "could not set native handle");
     }
 
+    inline void set_data_handle_no_pads_proc(void *handle) const {
+        error::wrap_c_api(mkldnn_memory_set_data_handle_no_pads_proc(get(), handle),
+                          "could not set native handle");
+    }
+
     // Must go away or be private:
     static mkldnn_data_type_t convert_to_c(data_type adata_type) {
         return static_cast<mkldnn_data_type_t>(adata_type);

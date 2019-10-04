@@ -27,7 +27,7 @@
 #include <ie_blob.h>
 
 #ifndef UNUSED
-  #ifdef WIN32
+  #if defined (_MSC_VER) && !defined (__clang__)
     #define UNUSED
   #else
     #define UNUSED  __attribute__((unused))
@@ -1120,5 +1120,4 @@ inline void showAvailableDevices() {
     for (const auto& device : devices) {
         std::cout << "  " << device;
     }
-    std::cout << "  HDDL" << std::endl;
 }

@@ -16,17 +16,17 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/max_unpooling.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/max_unpooling.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include <api/CPP/reorder.hpp>
-#include <api/CPP/data.hpp>
-#include <api/CPP/mutable_data.hpp>
-#include <api/CPP/pooling.hpp>
+#include <api/reorder.hpp>
+#include <api/data.hpp>
+#include <api/mutable_data.hpp>
+#include <api/pooling.hpp>
 #include "test_utils/float16.h"
 
 using namespace cldnn;
@@ -390,7 +390,6 @@ TEST(max_unpooling_gpu, basic_in2x2x3x2_max_with_argmax_pooling_unpooling) {
     //  f0: b0:  0    4  0   b1:   0.5  0    0
     //  f1: b0:  0    0  0   b1:   0    0    0
     //  f1: b0:  0    8  16  b1:   12   0    17
-
 
     const auto& engine = get_test_engine();
 

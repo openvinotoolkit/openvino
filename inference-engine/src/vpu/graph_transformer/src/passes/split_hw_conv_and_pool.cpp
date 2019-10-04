@@ -104,8 +104,8 @@ void PassImpl::run(const Model::Ptr& model) {
 
         auto numTiles = (convOutput->desc().dim(Dim::C) + tileSize - 1) / tileSize;
 
-        model->disconnectStageDatas(convStage);
-        model->disconnectStageDatas(poolStage);
+        model->disconnectStage(convStage);
+        model->disconnectStage(poolStage);
 
         DataVector subOutputs(numTiles);
 
@@ -187,14 +187,14 @@ void PassImpl::run(const Model::Ptr& model) {
             }
 
             model->duplicateStage(
-                convStage->name() + postfix,
                 convStage,
+                postfix,
                 {convInput, tileWeights, tileBiases},
                 {convOutputTile});
 
             model->duplicateStage(
-                poolStage->name() + postfix,
                 poolStage,
+                postfix,
                 {convOutputTile},
                 {poolOutputTile});
 

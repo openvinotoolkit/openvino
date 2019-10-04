@@ -24,7 +24,7 @@ namespace kernel_selector {
 // reduce_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct reduce_params : public base_params {
-    reduce_params() : base_params(KernelType::REDUCE) {}
+    reduce_params() : base_params(KernelType::REDUCE), reduceMode(ReduceMode::MAX), keepDims(0) {}
 
     ReduceMode reduceMode;
     std::vector<uint16_t> reduceAxes;

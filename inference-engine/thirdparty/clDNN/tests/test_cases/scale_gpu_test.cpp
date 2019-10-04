@@ -16,14 +16,14 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/scale.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/scale.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include "api/CPP/reorder.hpp"
+#include "api/reorder.hpp"
 
 #include <iostream>
 
@@ -1193,7 +1193,6 @@ TEST(scale_gpu, basic_in2x2x2x3x2_scale_same_size_bfzyx) {
     //  Input  : 2x2x2x3x2
     //  Output : 2x2x2x3x2
 
-
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 2, 2, 2, 3, 2 } });
@@ -1507,14 +1506,14 @@ public:
     }
 
     //TODO: use an enum instead of int i
-    static std::vector<cldnn::primitive*> generate_specific_test_params(int variant)
+    static std::vector<std::shared_ptr<cldnn::primitive>> generate_specific_test_params(int variant)
     {
-        std::vector<cldnn::primitive*> all_layer_params;
+        std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 
         switch(variant)
         {
-            case 0: all_layer_params.push_back(new scale("scale", "input0", "input1")); break;
-            case 1: all_layer_params.push_back(new scale("scale", "input0", "input1", "input2")); break;
+            case 0: all_layer_params.emplace_back(new scale("scale", "input0", "input1")); break;
+            case 1: all_layer_params.emplace_back(new scale("scale", "input0", "input1", "input2")); break;
                     //    case 3: all_layer_params.push_back(new scale("scale", "input0", "input1", true));    // This case should be checked by negative_scale_test
                     //    case 4: all_layer_params.push_back(new scale("scale", "input0", "input1", false));    // This case should be checked by negative_scale_test
             default: assert(0);
@@ -1570,9 +1569,9 @@ public:
         return all_generic_params;
     }
 
-    static std::vector<std::tuple<test_params*, cldnn::primitive*>> generate_all_test_params()
+    static std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> generate_all_test_params()
     {
-        std::vector<std::tuple<test_params*, cldnn::primitive*>> res;
+        std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> res;
 
         for (int variant = 0; variant <= 1; ++variant)
         {
@@ -1702,7 +1701,7 @@ public:
         }
     }
 
-    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<test_params*, cldnn::primitive*>>& info)
+    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>>& info)
     {
         std::stringstream res;
 
@@ -1732,10 +1731,10 @@ public:
 
 private:
     static std::vector<std::unique_ptr<tests::test_params>> all_generic_params;
-    static std::vector<std::unique_ptr<cldnn::primitive>> all_layer_params;
+    static std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 };
 
-std::vector<std::unique_ptr<cldnn::primitive>> scale_test::all_layer_params = {};
+std::vector<std::shared_ptr<cldnn::primitive>> scale_test::all_layer_params = {};
 std::vector<std::unique_ptr<tests::test_params>> scale_test::all_generic_params = {};
 
 TEST_P(scale_test, SCALE)

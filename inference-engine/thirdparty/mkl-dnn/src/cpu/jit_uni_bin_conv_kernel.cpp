@@ -174,35 +174,41 @@ void jit_uni_bin_conv_fwd_kernel<isa>::apply_filter(int ur_w, int pad_l, int pad
                         if (jcp.ic_padded != jcp.ic && last_icb && ifm2 == (ic_blocks - 1))
                             uni_vandps(vmm_tmp, vmm_tmp, ptr[reg_table + 7 * vlen]);
 
-                        if (isa == sse42) {
-                            movups(vmm_tmp1, vmm_tmp);
-                            pand(vmm_tmp1, vmm_mask);
-                        } else {
-                            uni_vandps(vmm_tmp1, vmm_mask, vmm_tmp);
-                        }
-
-                        uni_vpsrld(vmm_tmp, vmm_tmp, 4);
-                        uni_vandps(vmm_tmp, vmm_tmp, vmm_mask);
-
-                        if (isa == sse42) {
-                            movups(vmm_tmp2, vmm_lookup);
-                            pshufb(vmm_tmp2, vmm_tmp);
-                            movups(vmm_tmp, vmm_lookup);
-                            pshufb(vmm_tmp, vmm_tmp1);
-                            paddb(vmm_tmp, vmm_tmp2);
-                        } else {
-                            uni_vpshufb(vmm_tmp, vmm_lookup, vmm_tmp);
-                            uni_vpshufb(vmm_tmp1, vmm_lookup, vmm_tmp1);
-                            uni_vpaddb(vmm_tmp, vmm_tmp, vmm_tmp1);
-                        }
-
-                        if (mayiuse(avx512_core_vnni)) {
-                            vpdpbusd(Vmm(1 + r * jcp.ur_w * jcp.nb_oc_blocking + ur_w * ii + jj), vmm_tmp, vmm_one_u8);
-                        } else {
-                            uni_vpmaddubsw(vmm_tmp, vmm_tmp, vmm_one_u8);
-                            uni_vpmaddwd(vmm_tmp, vmm_tmp, vmm_one_s16);
+                        if (mayiuse(avx512_vpopcnt)) {
+                            vpopcntd(vmm_tmp, vmm_tmp);
                             uni_vpaddd(Vmm(1 + r * jcp.ur_w * jcp.nb_oc_blocking + ur_w * ii + jj),
                                        Vmm(1 + r * jcp.ur_w * jcp.nb_oc_blocking + ur_w * ii + jj), vmm_tmp);
+                        } else {
+                            if (isa == sse42) {
+                                movups(vmm_tmp1, vmm_tmp);
+                                pand(vmm_tmp1, vmm_mask);
+                            } else {
+                                uni_vandps(vmm_tmp1, vmm_mask, vmm_tmp);
+                            }
+
+                            uni_vpsrld(vmm_tmp, vmm_tmp, 4);
+                            uni_vandps(vmm_tmp, vmm_tmp, vmm_mask);
+
+                            if (isa == sse42) {
+                                movups(vmm_tmp2, vmm_lookup);
+                                pshufb(vmm_tmp2, vmm_tmp);
+                                movups(vmm_tmp, vmm_lookup);
+                                pshufb(vmm_tmp, vmm_tmp1);
+                                paddb(vmm_tmp, vmm_tmp2);
+                            } else {
+                                uni_vpshufb(vmm_tmp, vmm_lookup, vmm_tmp);
+                                uni_vpshufb(vmm_tmp1, vmm_lookup, vmm_tmp1);
+                                uni_vpaddb(vmm_tmp, vmm_tmp, vmm_tmp1);
+                            }
+
+                            if (mayiuse(avx512_core_vnni)) {
+                                vpdpbusd(Vmm(1 + r * jcp.ur_w * jcp.nb_oc_blocking + ur_w * ii + jj), vmm_tmp, vmm_one_u8);
+                            } else {
+                                uni_vpmaddubsw(vmm_tmp, vmm_tmp, vmm_one_u8);
+                                uni_vpmaddwd(vmm_tmp, vmm_tmp, vmm_one_s16);
+                                uni_vpaddd(Vmm(1 + r * jcp.ur_w * jcp.nb_oc_blocking + ur_w * ii + jj),
+                                           Vmm(1 + r * jcp.ur_w * jcp.nb_oc_blocking + ur_w * ii + jj), vmm_tmp);
+                            }
                         }
                     }
                 }

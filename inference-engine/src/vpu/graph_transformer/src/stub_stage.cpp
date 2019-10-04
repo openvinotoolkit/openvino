@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <vector>
+#include <utility>
 
 #include <vpu/model/edges.hpp>
 #include <vpu/model/data.hpp>
@@ -18,44 +19,39 @@ StagePtr StubStage::cloneImpl() const {
 
 void StubStage::propagateScaleFactorsImpl(
         const SmallVector<float>& inputScales,
-        ScalePropagationStep step) {
+        ScalePropagationStep step,
+        StageDataInfo<float>& scaleInfo) {
     if (_type == StageType::StubConv ||
         _type == StageType::StubFullyConnected ||
         _type == StageType::StubDeconv) {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto weights = _inputEdges[1]->input();
-        auto biases = _inputEdges[2]->input();
+        auto weights = inputEdge(1)->input();
+        auto biases = inputEdge(2)->input();
 
         IE_ASSERT(weights->usage() == DataUsage::Const);
         IE_ASSERT(biases->usage() == DataUsage::Const || biases->usage() == DataUsage::Fake);
 
         auto inputScale = inputScales[0];
 
-        _scaleInfo.setInput(_inputEdges[1], step == ScalePropagationStep::Propagate ? 1.0f : inputScale);
+        scaleInfo.setInput(inputEdge(1), step == ScalePropagationStep::Propagate ? 1.0f : inputScale);
         if (biases->usage() == DataUsage::Const) {
-            _scaleInfo.setInput(_inputEdges[2], inputScale);
+            scaleInfo.setInput(inputEdge(2), inputScale);
         }
-        _scaleInfo.setOutput(_outputEdges[0], inputScale);
+        scaleInfo.setOutput(outputEdge(0), inputScale);
     } else {
         IE_ASSERT(_type == StageType::StubMaxPool || _type == StageType::StubAvgPool);
 
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
-
-        _scaleInfo.setOutput(_outputEdges[0], inputScales[0]);
+        scaleInfo.setOutput(outputEdge(0), inputScales[0]);
     }
 }
 
-void StubStage::propagateDataOrderImpl() const {
+void StubStage::propagateDataOrderImpl(StageDataInfo<DimsOrder>&) {
     VPU_THROW_EXCEPTION << "Must be replaced with real stage";
 }
 
-void StubStage::getDataStridesRequirementsImpl() const {
+void StubStage::getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>&) {
     VPU_THROW_EXCEPTION << "Must be replaced with real stage";
 }
 
@@ -63,28 +59,34 @@ void StubStage::finalizeDataLayoutImpl() {
     VPU_THROW_EXCEPTION << "Must be replaced with real stage";
 }
 
-void StubStage::getBatchSupportInfoImpl() const {
+void StubStage::getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) {
     if (_type == StageType::StubConv ||
         _type == StageType::StubFullyConnected ||
         _type == StageType::StubDeconv) {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto weights = _inputEdges[1]->input();
-        auto biases = _inputEdges[2]->input();
+        auto weights = inputEdge(1)->input();
+        auto biases = inputEdge(2)->input();
 
         IE_ASSERT(weights->usage() == DataUsage::Const);
         IE_ASSERT(biases->usage() == DataUsage::Const || biases->usage() == DataUsage::Fake);
 
-        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
-        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
+        batchInfo.setInput(inputEdge(0), BatchSupport::Split);
+        batchInfo.setOutput(outputEdge(0), BatchSupport::Split);
     } else {
         IE_ASSERT(_type == StageType::StubMaxPool || _type == StageType::StubAvgPool);
 
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
         // Pooling will support batch by merging it with previous dimension.
+    }
+}
+
+void StubStage::initialCheckImpl() const {
+    if (_type == StageType::StubConv || _type == StageType::StubFullyConnected || _type == StageType::StubDeconv) {
+        assertInputsOutputsTypes(this,
+            {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}},
+            {{DataType::FP16}});
+    } else if (_type == StageType::StubMaxPool || _type == StageType::StubAvgPool) {
+        assertInputsOutputsTypes(this, {{DataType::FP16}}, {{DataType::FP16}});
+    } else {
+        VPU_THROW_EXCEPTION << "unknown type";
     }
 }
 

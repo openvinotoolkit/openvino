@@ -16,7 +16,7 @@
 
 #include "cldnn_custom_layer.h"
 
-#include <CPP/network.hpp>
+#include <api/network.hpp>
 
 namespace CLDNNPlugin {
 

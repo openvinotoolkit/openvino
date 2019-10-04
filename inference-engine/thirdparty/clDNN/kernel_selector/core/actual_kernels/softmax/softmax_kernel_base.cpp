@@ -92,7 +92,7 @@ bool SoftmaxKernelBaseBF::Validate(const Params& p, const optional_params& o) co
     const softmax_params& params = static_cast<const softmax_params&>(p);
     const auto& input = params.inputs[0];
 
-    if (params.activation.function != ActivationFunction::NONE) {
+    if (!params.activations.empty()) {
         return false;
     }
 

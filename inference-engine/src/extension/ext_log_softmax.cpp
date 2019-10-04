@@ -31,6 +31,8 @@ public:
                 THROW_IE_EXCEPTION << layer->name << " Incorrect input data tensor precision. Only FP32 is supported!";
 
             SizeVector dims = layer->insData[0].lock()->getTensorDesc().getDims();
+            if (!dims.size())
+                dims = SizeVector(1, 1);
             int axis = layer->GetParamAsInt("axis", -1);
             if (axis < 0)
                 axis += dims.size();

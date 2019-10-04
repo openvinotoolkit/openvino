@@ -475,19 +475,6 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
                      uint32_t num_bytes_per_element_input,
                      uint32_t num_bytes_per_element);
 
-    friend void GNAPluginNS::ConvertToInt16(int16_t *ptr_dst,
-                    const float *ptr_src,
-                    const uint32_t num_rows,
-                    const uint32_t num_columns,
-                    const float scale_factor);
-    friend void GNAPluginNS::ConvertToFloat(float *ptr_dst,
-                    int32_t *ptr_src,
-                    const uint32_t num_rows,
-                    const uint32_t num_columns,
-                    const float scale_factor);
-
-    friend int16_t GNAPluginNS::ConvertFloatToInt16(float src);
-
     template <typename T, typename U>
     void copyInputData(T *dst,
                     const U *src,
@@ -509,8 +496,6 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
     intel_dnn_component_t * find_first_unused_input(InferenceEngine::CNNLayerPtr current);
     std::map<std::string, int> bytes_alllocated_for_input;
     InferenceEngine::InputsDataMap inputsDataMap;
-
-    InferenceEngine::SizeVector outputDims;
     InferenceEngine::OutputsDataMap outputsDataMap;
 };
 }  // namespace GNAPluginNS

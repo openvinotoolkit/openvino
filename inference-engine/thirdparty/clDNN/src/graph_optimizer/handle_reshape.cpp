@@ -42,7 +42,7 @@ void handle_reshape::run(program_impl& p) {
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
-            if (node.is_output() || node.get_users().size() > 1 || node.get_fused_activation_func() != activation_none)
+            if (node.is_output() || node.get_users().size() > 1 || !node.get_fused_activations_funcs().empty())
                 return;
 
             auto& out_node = node.get_users().front();

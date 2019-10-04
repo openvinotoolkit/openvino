@@ -54,6 +54,11 @@ public:
             addConfig(layer, {DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN)});
             if (type == "caffe.ResampleParameter.NEAREST")
                 addConfig(layer, {DataConfigurator(blk_layout)}, {DataConfigurator(blk_layout)});
+
+            // WA to enable the implementation only for equal input and output precisions
+            for (auto &conf : confs) {
+                conf.inConfs[0].desc.setPrecision(conf.outConfs[0].desc.getPrecision());
+            }
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
@@ -63,7 +68,7 @@ public:
                        ResponseDesc *resp) noexcept override {
         const auto *src_data = inputs[0]->cbuffer().as<const float *>();
         auto *dst_data = outputs[0]->buffer().as<float *>();
-#ifdef WIN32
+#ifdef _WIN32
 #undef IN
 #endif
         const Layout &layout = inputs[0]->getTensorDesc().getLayout();

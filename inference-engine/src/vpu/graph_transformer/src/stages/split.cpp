@@ -23,42 +23,34 @@ protected:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(!_outputEdges.empty());
-
+            ScalePropagationStep step,
+            StageDataInfo<float>& scaleInfo) override {
         if (step == ScalePropagationStep::Propagate) {
             auto inputScale = inputScales[0];
 
-            for (const auto& outEdge : _outputEdges) {
-                _scaleInfo.setOutput(outEdge, inputScale);
+            for (const auto& outEdge : outputEdges()) {
+                scaleInfo.setOutput(outEdge, inputScale);
             }
         } else {
             // Split can only propagate scaling.
-            _scaleInfo.setInput(_inputEdges[0], 1.0f);
+            scaleInfo.setInput(inputEdge(0), 1.0f);
 
-            for (const auto& outEdge : _outputEdges) {
-                _scaleInfo.setOutput(outEdge, 1.0f);
+            for (const auto& outEdge : outputEdges()) {
+                scaleInfo.setOutput(outEdge, 1.0f);
             }
         }
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(!_outputEdges.empty());
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
 
-        auto input = _inputEdges[0]->input();
-
-        for (const auto& outEdge : _outputEdges) {
-            _orderInfo.setOutput(outEdge, input->desc().dimsOrder());
+        for (const auto& outEdge : outputEdges()) {
+            orderInfo.setOutput(outEdge, input->desc().dimsOrder());
         }
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(!_outputEdges.empty());
-
-        auto input = _inputEdges[0]->input();
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        auto input = inputEdge(0)->input();
 
         auto dimsOrder = input->desc().dimsOrder();
 
@@ -68,7 +60,7 @@ protected:
 
         auto minSplitDimInd = dimsOrder.numDims();
 
-        for (const auto& outEdge : _outputEdges) {
+        for (const auto& outEdge : outputEdges()) {
             auto output = outEdge->output();
 
             for (const auto& p : input->desc().dims()) {
@@ -90,7 +82,7 @@ protected:
         // Merge output consumers StridesRequirement.
         //
 
-        for (const auto& outEdge : _outputEdges) {
+        for (const auto& outEdge : outputEdges()) {
             auto curOutput = outEdge->output();
 
             for (const auto& consumerEdge : curOutput->consumerEdges()) {
@@ -123,19 +115,23 @@ protected:
         // Return merged StridesRequirements.
         //
 
-        _stridesInfo.setInput(_inputEdges[0], inputReqs);
-        for (const auto& outEdge : _outputEdges) {
-            _stridesInfo.setOutput(outEdge, outputReqs);
+        stridesInfo.setInput(inputEdge(0), inputReqs);
+        for (const auto& outEdge : outputEdges()) {
+            stridesInfo.setOutput(outEdge, outputReqs);
         }
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& /*batchInfo*/) override {
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        IE_ASSERT(numInputs() == 1);
+        IE_ASSERT(numOutputs() > 0);
+        const auto& firstInputPrecision = input(0)->desc().type();
+        assertAllInputsOutputsTypes(this, {firstInputPrecision}, {firstInputPrecision});
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {
@@ -164,6 +160,15 @@ void FrontEnd::parseSplit(
 
     auto inDesc = input->desc();
     auto perm = inDesc.dimsOrder().toPermutation();
+
+    // Detect unused data
+    DataVector onlyUsedOutputs;
+    for (const auto& output : outputs) {
+        if (!output->origData()->getInputTo().empty()) {
+            onlyUsedOutputs.push_back(output);
+        }
+    }
+    IE_ASSERT(!onlyUsedOutputs.empty());
 
     // Check whether it is Split(copy) or Slice Caffe layer
     // and we do not trust to IE layer type value.
@@ -235,7 +240,7 @@ void FrontEnd::parseSplit(
             }
         }
 
-        _stageBuilder->addSplitStage(model, layer->name, layer, axis, input, outputs);
+        _stageBuilder->addSplitStage(model, layer->name, layer, axis, input, onlyUsedOutputs);
     }
 }
 

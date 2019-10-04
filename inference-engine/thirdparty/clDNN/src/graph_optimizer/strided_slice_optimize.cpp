@@ -77,8 +77,8 @@ void strided_slice_optimize::run(program_impl& p) {
 
             auto& reshape_prim_node = p.get_or_create(reshape_prim);
 
-            reshape_prim_node.set_output_layout(
-                {node_layout.data_type, node_layout.format, reshape_prim->output_shape});
+            layout output_layout = { node_layout.data_type, node_layout.format, reshape_prim->output_shape };
+            reshape_prim_node.set_output_layout(output_layout);
 
             p.add_intermediate(reshape_prim_node, *node, 0, true);
             p.extract_and_remove(*node);

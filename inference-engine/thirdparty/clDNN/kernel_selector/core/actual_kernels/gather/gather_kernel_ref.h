@@ -23,7 +23,7 @@ namespace kernel_selector {
 // gather_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct gather_params : public base_params {
-    gather_params() : base_params(KernelType::GATHER) {}
+    gather_params() : base_params(KernelType::GATHER), axis(GatherAxis::BATCH) {}
 
     GatherAxis axis;
 

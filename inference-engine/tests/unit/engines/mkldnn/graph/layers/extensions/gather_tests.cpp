@@ -21,8 +21,9 @@ using namespace mkldnn;
 
 struct gather_test_params {
     std::string inIdxPrecision;
-    InferenceEngine::SizeVector inIdx;
     InferenceEngine::SizeVector inDict;
+    InferenceEngine::SizeVector inIdx;
+
     int axis;
     InferenceEngine::SizeVector out;
 
@@ -40,34 +41,23 @@ void ref_gather(InferenceEngine::TBlob<data_t> &srcIdx, InferenceEngine::TBlob<f
     float *dst_data = dst.data();
     size_t src_size = srcIdx.size();
 
-    std::vector<size_t> dims = srcDct.getTensorDesc().getDims();
-    std::vector<size_t> dims_actual;
-
-    //  Remove redundant dimensions
-    for (size_t i = 0; i < dims.size(); i++) {
-        if (dims[i] > 1) {
-            for (size_t j = i; j < dims.size(); j++)
-                dims_actual.push_back(dims[j]);
-            break;
-        }
-    }
+    std::vector<size_t> dictionary_dims = srcDct.getTensorDesc().getDims();
 
     //  Find number of dictionaries, index range and data length
     size_t numDictionaries = 1;
     for (i = 0; i < axis; i++)
-        numDictionaries *= dims_actual[i];
-    size_t indexRange = dims_actual[axis];
+        numDictionaries *= dictionary_dims[i];
+    size_t indexRange = dictionary_dims[axis];
     size_t dataLength = 1;
-    for (i = axis + 1; i < dims_actual.size(); i++)
-        dataLength *= dims_actual[i];
+    for (i = axis + 1; i < dictionary_dims.size(); i++)
+        dataLength *= dictionary_dims[i];
 
     //  The gathering process
     for (i = 0; i < src_size; i++) {
         unsigned int idx = static_cast<unsigned int>(src_dataIdx[i]);
 
         //  Index clipping
-        if (idx < indexRange)
-        {
+        if (idx < indexRange) {
             //  Copying data to destination from Dictionary
             for (j = 0; j < numDictionaries; j++) {
                 memcpy(&dst_data[dataLength * (i + j * src_size)],
@@ -85,17 +75,17 @@ class MKLDNNCPUExtGatherTests: public TestsCommon, public WithParamInterface<gat
     std::string model_t = R"V0G0N(
 <net Name="Gather_net" version="2" precision="FP32" batch="1">
     <layers>
-        <layer name="InputText" type="Input" precision="_IIDXP_" id="1">
+        <layer name="InputDictionary" type="Input" precision="FP32" id="1">
             <output>
                 <port id="1">
-                    _IIDX_
+                    _IDICT_
                 </port>
             </output>
         </layer>
-        <layer name="InputDictionary" type="Input" precision="FP32" id="2">
+        <layer name="InputText" type="Input" precision="_IIDXP_" id="2">
             <output>
                 <port id="2">
-                    _IDICT_
+                    _IIDX_
                 </port>
             </output>
         </layer>
@@ -117,17 +107,17 @@ class MKLDNNCPUExtGatherTests: public TestsCommon, public WithParamInterface<gat
         </layer>
     </layers>
     <edges>
-        <edge from-layer="1" from-port="1" to-layer="3" to-port="2"/>
-        <edge from-layer="2" from-port="2" to-layer="3" to-port="1"/>
+        <edge from-layer="1" from-port="1" to-layer="3" to-port="1"/>
+        <edge from-layer="2" from-port="2" to-layer="3" to-port="2"/>
     </edges>
 </net>
 )V0G0N";
 
     std::string getModel(gather_test_params p) {
         std::string model = model_t;
-        std::string inIdx;
+        std::string inIdx = "";
         std::string inDict;
-        std::string out;
+        std::string out = "";
 
         for (auto& idx : p.inIdx) {
             inIdx += "<dim>";
@@ -193,7 +183,6 @@ protected:
                               node->getSelectedPrimitiveDescriptor()->getImplementationType() & p.selectedType);
                 }
             }
-            ASSERT_EQ(4, nodes.size());
 
             // Input Dictionary
             InferenceEngine::Blob::Ptr srcDict = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, p.inDict, InferenceEngine::TensorDesc::getLayoutByDims(p.inDict) });
@@ -309,26 +298,31 @@ TEST_P(MKLDNNCPUExtGatherTests, TestsGather) {}
 INSTANTIATE_TEST_CASE_P(
         TestsGather, MKLDNNCPUExtGatherTests,
             ::testing::Values(
-                gather_test_params{ "FP32", {1, 1, 12, 256}, {1, 1, 71, 16}, 0, {1, 12, 256, 16}, 1, MKLDNNPlugin::impl_desc_type::unknown },
-                gather_test_params{  "I32", {1, 1, 12, 256}, {1, 1, 71, 16}, 0, {1, 12, 256, 16}, 1, MKLDNNPlugin::impl_desc_type::unknown },
-                gather_test_params{  "I32", {12, 256}, {71, 16}, 0, {12, 256, 16}, 1, MKLDNNPlugin::impl_desc_type::unknown },
-                gather_test_params{  "I32", {3, 4}, {2, 5, 6}, 0, {3, 4, 5, 6}, 1, MKLDNNPlugin::impl_desc_type::unknown },
-                gather_test_params{  "I32", {3, 4}, {5, 1}, 0, {3, 4, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown },
-                gather_test_params{ "FP32", {1, 1, 12, 256}, {1, 1, 71, 16}, 1, {1, 71, 12, 256}, 1, MKLDNNPlugin::impl_desc_type::unknown },
-                gather_test_params{  "I32", {1, 1, 3, 4}, {1, 2, 5, 6}, 1, {2, 3, 4, 6}, 1, MKLDNNPlugin::impl_desc_type::unknown },
-                gather_test_params{  "I32", {1, 1, 3, 4}, {1, 2, 5, 6}, 2, {2, 5, 3, 4}, 1, MKLDNNPlugin::impl_desc_type::unknown },
-                gather_test_params{  "I32", {12, 4, 9, 8}, {6, 13, 10, 3}, 1, {6, 12, 4, 9, 8, 10, 3}, 1, MKLDNNPlugin::impl_desc_type::unknown }
+// Params: inIdxPrecision, inDict, inIdx, axis, out, num_prim_desc, selectedType
+                gather_test_params{  "I32",{ 31 },{}, 0,{}, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                gather_test_params{ "FP32",{ 31 },{}, 0,{}, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                gather_test_params{ "FP32",{ 1, 31, 4 },{ 10 }, 1,{ 1, 10, 4 }, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                gather_test_params{ "FP32",{ 31, 7 },{ 1,12,1 }, 0,{ 1, 12, 1, 7 }, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                gather_test_params{ "FP32", {71, 16}, {1, 12, 256}, 0, {1, 12, 256, 16}, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                gather_test_params{  "I32", {71, 16}, {1, 12, 256}, 0, {1, 12, 256, 16}, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                gather_test_params{  "I32", {71, 16}, {12, 256}, 0, {12, 256, 16}, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                gather_test_params{  "I32", {2, 5, 6}, {3, 4}, 0, {3, 4, 5, 6}, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                gather_test_params{  "I32", {5, 1}, {3, 4}, 0, {3, 4, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                gather_test_params{ "FP32", {71, 16}, {1, 12, 256}, 1, {1, 71, 12, 256}, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                gather_test_params{  "I32", {2, 5, 6}, {1, 1, 3, 4}, 1, {2, 3, 4, 6}, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                gather_test_params{  "I32", {2, 5, 6}, {1, 1, 3, 4}, 2, {2, 5, 3, 4}, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                gather_test_params{  "I32", {6, 13, 10, 3}, {12, 4, 9, 8}, 1, {6, 12, 4, 9, 8, 10, 3}, 1, MKLDNNPlugin::impl_desc_type::unknown }
             ));
 
 
 
 
 struct gatherTF_test_params {
-    InferenceEngine::SizeVector in_dim;
-    std::vector<int32_t> in;
-
     InferenceEngine::SizeVector dct_dim;
     std::vector<float> dct;
+
+    InferenceEngine::SizeVector in_dim;
+    std::vector<int32_t> in;
 
     int axis;
 
@@ -342,17 +336,17 @@ class MKLDNNCPUExtGatherTFTests : public TestsCommon, public WithParamInterface<
     std::string model_t = R"V0G0N(
 <net Name="Gather_net" version="2" precision="FP32" batch="1">
     <layers>
-        <layer name="InputText" type="Input" precision="I32" id="1">
+        <layer name="InputDictionary" type="Input" precision="FP32" id="1">
             <output>
                 <port id="1">
-                    _IIDX_
+                    _IDICT_
                 </port>
             </output>
         </layer>
-        <layer name="InputDictionary" type="Input" precision="FP32" id="2">
+        <layer name="InputText" type="Input" precision="I32" id="2">
             <output>
                 <port id="2">
-                    _IDICT_
+                    _IIDX_
                 </port>
             </output>
         </layer>
@@ -374,8 +368,8 @@ class MKLDNNCPUExtGatherTFTests : public TestsCommon, public WithParamInterface<
         </layer>
     </layers>
     <edges>
-        <edge from-layer="1" from-port="1" to-layer="3" to-port="2"/>
-        <edge from-layer="2" from-port="2" to-layer="3" to-port="1"/>
+        <edge from-layer="1" from-port="1" to-layer="3" to-port="1"/>
+        <edge from-layer="2" from-port="2" to-layer="3" to-port="2"/>
     </edges>
 </net>
 )V0G0N";
@@ -474,8 +468,6 @@ protected:
 TEST_P(MKLDNNCPUExtGatherTFTests, TestsGather) {}
 
 //  Test data vectors
-std::vector<int32_t> in0 = { 0, 1, 1, 0 };
-std::vector<int32_t> in1 = { 0, 1, 2, 1 };
 std::vector<float> dict = { 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f };
 std::vector<float> ref_in0_a0_d223 = { 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f }; // 2x2x2x3
 std::vector<float> ref_in0_a2_d232 = { 1.f, 2.f, 2.f, 1.f, 3.f, 4.f, 4.f, 3.f, 5.f, 6.f, 6.f, 5.f, 7.f, 8.f, 8.f, 7.f, 9.f, 10.f, 10.f, 9.f, 11.f, 12.f, 12.f, 11.f }; // 2x3x2x2
@@ -486,34 +478,37 @@ std::vector<float> ref_in1_a2_d223 = { 1.f, 2.f, 3.f, 2.f, 4.f, 5.f, 6.f, 5.f, 7
 INSTANTIATE_TEST_CASE_P(
         TestsGather, MKLDNNCPUExtGatherTFTests,
         ::testing::Values(
-        gatherTF_test_params{ { 2, 2 }, in0,{ 2, 2, 3 }, dict, 0, { 2, 2, 2, 3 }, ref_in0_a0_d223 },
-        gatherTF_test_params{ { 2, 2 }, in0,{ 2, 2, 3 }, dict,-3, { 2, 2, 2, 3 }, ref_in0_a0_d223 },
-        gatherTF_test_params{ { 2, 2 }, in0,{ 2, 3, 2 }, dict, 2, { 2, 3, 2, 2 }, ref_in0_a2_d232 },
-        gatherTF_test_params{ { 2, 2 }, in0,{ 2, 3, 2 }, dict,-1, { 2, 3, 2, 2 }, ref_in0_a2_d232 },
-        gatherTF_test_params{ { 2, 2 }, in1,{ 3, 2, 2 }, dict, 0, { 2, 2, 2, 2 }, ref_in1_a0_d322 },
-        gatherTF_test_params{ { 2, 2 }, in1,{ 3, 2, 2 }, dict,-3, { 2, 2, 2, 2 }, ref_in1_a0_d322 },
-        gatherTF_test_params{ { 2, 2 }, in1,{ 2, 3, 2 }, dict, 1, { 2, 2, 2, 2 }, ref_in1_a1_d232 },
-        gatherTF_test_params{ { 2, 2 }, in1,{ 2, 3, 2 }, dict,-2, { 2, 2, 2, 2 }, ref_in1_a1_d232 },
-        gatherTF_test_params{ { 2, 2 }, in1,{ 2, 2, 3 }, dict, 2, { 2, 2, 2, 2 }, ref_in1_a2_d223 },
-        gatherTF_test_params{ { 2, 2 }, in1,{ 2, 2, 3 }, dict,-1, { 2, 2, 2, 2 }, ref_in1_a2_d223 }));
+// Params: dct_dim, dct, in_dim, in, axis, ref_dim, ref
+        gatherTF_test_params{ { 3,2 }, {1.0, 1.2, 2.3, 3.4, 4.5, 5.7 }, { 2, 2 }, { 0, 1, 1, 2 },0, { 2, 2, 2 }, {1.0, 1.2, 2.3, 3.4,2.3, 3.4,4.5, 5.7 } },
+        gatherTF_test_params{ { 3,3 },{ 1.0, 1.2, 1.9,2.3, 3.4, 3.9,4.5, 5.7, 5.9 }, { 1, 2 }, { 0, 2 },1,{ 3, 2 },{ 1.0, 1.9,2.3, 3.9,4.5, 5.9 } },
+        gatherTF_test_params{ { 2, 2, 3 }, dict, { 2, 2 }, { 0, 1, 1, 0 },0, { 2, 2, 2, 3 }, ref_in0_a0_d223 },
+        gatherTF_test_params{ { 2, 2, 3 }, dict,{ 2, 2 }, { 0, 1, 1, 0 },-3, { 2, 2, 2, 3 }, ref_in0_a0_d223 },
+        gatherTF_test_params{ { 2, 3, 2 }, dict, { 2, 2 }, { 0, 1, 1, 0 },2, { 2, 3, 2, 2 }, ref_in0_a2_d232 },
+        gatherTF_test_params{ { 2, 3, 2 }, dict,{ 2, 2 }, { 0, 1, 1, 0 },-1, { 2, 3, 2, 2 }, ref_in0_a2_d232 },
+        gatherTF_test_params{ { 3, 2, 2 }, dict,{ 2, 2 }, { 0, 1, 2, 1 }, 0, { 2, 2, 2, 2 }, ref_in1_a0_d322 },
+        gatherTF_test_params{ { 3, 2, 2 }, dict,{ 2, 2 }, { 0, 1, 2, 1 },-3, { 2, 2, 2, 2 }, ref_in1_a0_d322 },
+        gatherTF_test_params{ { 2, 3, 2 }, dict,{ 2, 2 }, { 0, 1, 2, 1 }, 1, { 2, 2, 2, 2 }, ref_in1_a1_d232 },
+        gatherTF_test_params{ { 2, 3, 2 }, dict,{ 2, 2 }, { 0, 1, 2, 1 },-2, { 2, 2, 2, 2 }, ref_in1_a1_d232 },
+        gatherTF_test_params{ { 2, 2, 3 }, dict,{ 2, 2 }, { 0, 1, 2, 1 }, 2, { 2, 2, 2, 2 }, ref_in1_a2_d223 },
+        gatherTF_test_params{ { 2, 2, 3 }, dict,{ 2, 2 }, { 0, 1, 2, 1 },-1, { 2, 2, 2, 2 }, ref_in1_a2_d223 }));
 
 
 class MKLDNNCPUExtGatherHolesTests : public TestsCommon, public WithParamInterface<gatherTF_test_params> {
     std::string model_t = R"V0G0N(
 <net Name="Gather_net" version="2" precision="FP32" batch="1">
     <layers>
-        <layer name="InputText" type="Input" precision="I32" id="1">
+        <layer name="InputDictionary" type="Input" precision="FP32" id="1">
             <output>
                 <port id="1">
+                    <dim>3</dim>
                     <dim>2</dim>
                     <dim>2</dim>
                 </port>
             </output>
         </layer>
-        <layer name="InputDictionary" type="Input" precision="FP32" id="2">
+        <layer name="InputText" type="Input" precision="I32" id="2">
             <output>
                 <port id="2">
-                    <dim>3</dim>
                     <dim>2</dim>
                     <dim>2</dim>
                 </port>
@@ -578,8 +573,8 @@ class MKLDNNCPUExtGatherHolesTests : public TestsCommon, public WithParamInterfa
         </layer>
     </layers>
     <edges>
-        <edge from-layer="1" from-port="1" to-layer="4" to-port="2"/>
-        <edge from-layer="2" from-port="2" to-layer="4" to-port="1"/>
+        <edge from-layer="1" from-port="1" to-layer="4" to-port="1"/>
+        <edge from-layer="2" from-port="2" to-layer="4" to-port="2"/>
         <edge from-layer="4" from-port="3" to-layer="5" to-port="1"/>
         <edge from-layer="3" from-port="3" to-layer="5" to-port="2"/>
     </edges>
@@ -686,5 +681,6 @@ TEST_P(MKLDNNCPUExtGatherHolesTests, TestsGather) {}
 INSTANTIATE_TEST_CASE_P(
     TestsGather, MKLDNNCPUExtGatherHolesTests,
     ::testing::Values(
-        gatherTF_test_params{ { 1, 5, 2, 2 }, in1,{ 1, 3, 2, 2 }, dict, 1,{ 2, 2, 2, 2 }, ref_in1_a0_d322 }));
+        // Params: dct_dim, dct, in_dim, in, axis, ref_dim, ref
+        gatherTF_test_params{ { 1, 3, 2, 2 }, dict,{ 1, 5, 2, 2 },{ 0, 1, 2, 1 }, 1,{ 2, 2, 2, 2 }, ref_in1_a0_d322 }));
 

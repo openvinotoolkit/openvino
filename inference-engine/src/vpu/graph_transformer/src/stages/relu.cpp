@@ -26,24 +26,22 @@ private:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>& inputScales,
-            ScalePropagationStep step) override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
+            ScalePropagationStep step,
+            StageDataInfo<float>& scaleInfo) override {
         if (step == ScalePropagationStep::Propagate) {
             auto inputScale = inputScales[0];
-            _scaleInfo.setOutput(_outputEdges[0], inputScale);
+            scaleInfo.setOutput(outputEdge(0), inputScale);
         } else {
             // ReLU can only propagate scaling, not generate.
-            _scaleInfo.setInput(_inputEdges[0], 1.0f);
-            _scaleInfo.setOutput(_outputEdges[0], 1.0f);
+            scaleInfo.setInput(inputEdge(0), 1.0f);
+            scaleInfo.setOutput(outputEdge(0), 1.0f);
         }
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         auto negativeSlope = attrs().get<float>("negativeSlope");
 
-        serializer.append(static_cast<uint32_t>(_inputEdges.size() == 2));
+        serializer.append(static_cast<uint32_t>(numInputs() == 2));
         serializer.append(negativeSlope);
     }
 };

@@ -29,58 +29,6 @@ T readFromBlob(const std::vector<char>& blob, uint32_t& offset) {
     return *reinterpret_cast<const T*>(srcPtr);
 }
 
-ie::Precision vpuDataTypeToIE(DataType dataType) {
-    auto iePrecision = ie::Precision::UNSPECIFIED;
-
-    switch (dataType) {
-    case DataType::U8:
-        iePrecision = ie::Precision::U8;
-        break;
-    case DataType::FP16:
-        iePrecision = ie::Precision::FP16;
-        break;
-    case DataType::FP32:
-        iePrecision = ie::Precision::FP32;
-        break;
-    default:
-        VPU_THROW_EXCEPTION << "BlobReader error: unsupported dataType " << dataType;
-    }
-
-    return iePrecision;
-}
-
-ie::Layout vpuDimsOrderToIE(DimsOrder dimsOrder) {
-    auto ieLayout = ie::Layout::ANY;
-
-    if (DimsOrder::C == dimsOrder) {
-        ieLayout = ie::Layout::C;
-    } else if (DimsOrder::NC == dimsOrder) {
-        ieLayout = ie::Layout::NC;
-    } else if (DimsOrder::CHW == dimsOrder) {
-        ieLayout = ie::Layout::CHW;
-    } else if (DimsOrder::NCHW == dimsOrder) {
-        ieLayout = ie::Layout::NCHW;
-    } else if (DimsOrder::NHWC == dimsOrder) {
-        ieLayout = ie::Layout::NHWC;
-    } else {
-        VPU_THROW_EXCEPTION << "BlobReader error: unsupported dimsOrder " << toString(dimsOrder);
-    }
-
-    return ieLayout;
-}
-
-ie::SizeVector vpuDimsToIE(const DimValues& dimValues) {
-    auto order = DimsOrder::fromNumDims(dimValues.size());
-    auto perm = order.toPermutation();
-
-    ie::SizeVector ieDims(perm.size());
-    for (int i = 0; i < perm.size(); ++i) {
-        ieDims[ieDims.size() - 1 - i] = dimValues[perm[i]];
-    }
-
-    return ieDims;
-}
-
 }  // namespace
 
 void BlobReader::parse(const std::vector<char>& blob) {
@@ -134,11 +82,7 @@ void BlobReader::parse(const std::vector<char>& blob) {
         // Skip strides
         inputInfoSecOffset += perm.size() * sizeof(uint32_t);
 
-        auto iePrecision = vpuDataTypeToIE(dataType);
-        auto ieLayout    = vpuDimsOrderToIE(dimsOrder);
-        auto ieDims = vpuDimsToIE(vpuDims);
-
-        ie::TensorDesc ieDesc(iePrecision, ieDims, ieLayout);
+        ie::TensorDesc ieDesc = DataDesc(dataType, dimsOrder, vpuDims).toTensorDesc();
         ie::Data inputData(inputName, ieDesc);
 
         ie::InputInfo input;
@@ -181,11 +125,7 @@ void BlobReader::parse(const std::vector<char>& blob) {
         // Skip strides
         outputInfoSecOffset += perm.size() * sizeof(uint32_t);
 
-        auto iePrecision = vpuDataTypeToIE(dataType);
-        auto ieLayout    = vpuDimsOrderToIE(dimsOrder);
-        auto ieDims = vpuDimsToIE(vpuDims);
-
-        ie::TensorDesc ieDesc(iePrecision, ieDims, ieLayout);
+        ie::TensorDesc ieDesc = DataDesc(dataType, dimsOrder, vpuDims).toTensorDesc();
         ie::Data outputData(outputName, ieDesc);
 
         _networkOutputs[outputData.getName()]    = std::make_shared<ie::Data>(outputData);

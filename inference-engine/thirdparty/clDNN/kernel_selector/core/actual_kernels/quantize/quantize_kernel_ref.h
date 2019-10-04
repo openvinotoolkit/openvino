@@ -15,36 +15,20 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "quantize_kernel_base.h"
 
 namespace kernel_selector {
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// quantize_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct quantize_params : public base_params {
-    quantize_params() : base_params(KernelType::QUANTIZE) {}
 
-    int levels;
-    bool packed_binary_output;
-
-    virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// quantize_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct quantize_optional_params : optional_params {
-    quantize_optional_params() : optional_params(KernelType::QUANTIZE) {}
-};
-
-class QuantizeKernelRef : public common_kernel_base {
+class QuantizeKernelRef : public QuantizeKernelBase {
 public:
-    QuantizeKernelRef() : common_kernel_base("quantize_ref") {}
+    using Parent = QuantizeKernelBase;
+
+    QuantizeKernelRef() : QuantizeKernelBase("quantize_gpu_ref") {}
     virtual ~QuantizeKernelRef() {}
 
-    virtual JitConstants GetJitConstants(const quantize_params& params) const;
-    virtual CommonDispatchData SetDefault(const quantize_params& params, const optional_params&) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    JitConstants GetJitConstants(const quantize_params& params) const override;
+    CommonDispatchData SetDefault(const quantize_params& params, const optional_params&) const override;
+    bool Validate(const Params& p, const optional_params& o) const override;
     ParamsKey GetSupportedKey() const override;
 };
 }  // namespace kernel_selector

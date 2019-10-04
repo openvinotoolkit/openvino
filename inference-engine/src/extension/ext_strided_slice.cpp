@@ -168,6 +168,9 @@ public:
         InferenceEngine::SizeVector dst_dims = outputs[0]->getTensorDesc().getDims();
         InferenceEngine::SizeVector dstStrides = outputs[0]->getTensorDesc().getBlockingDesc().getStrides();
 
+        auto dst_size = outputs[0]->byteSize();
+        memset(dst_data, 0, dst_size);
+
         size_t i, j, k, bj, ej, sj;
         InferenceEngine::SizeVector our_dims;
         InferenceEngine::SizeVector out_dims;

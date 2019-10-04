@@ -10,7 +10,7 @@
 #include <xml_helper.hpp>
 #include <../shape_infer/built_in_shape_infer_general_test.hpp>
 #include <memory>
-#include <../include/ie_data.h>
+#include <ie_data.h>
 
 #include "layer_builder.h"
 #include "shapes.h"

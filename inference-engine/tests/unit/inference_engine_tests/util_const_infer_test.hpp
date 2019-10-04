@@ -74,6 +74,10 @@ protected:
 
     IE::BlobMap initConstLayers(const std::vector<std::string>& constLayers);
 
+    IE::BlobMap fillConstDataDiffPrec(const std::vector<std::string>& constLayers);
+
+    IE::BlobMap initConstLayersDiffPrec(const std::vector<std::string>& constLayers);
+
     NetBuilder netBuilder;
     IE::details::CNNNetworkImplPtr net;
     size_t originalLayersNum;

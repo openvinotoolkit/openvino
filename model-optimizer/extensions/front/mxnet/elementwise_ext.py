@@ -15,7 +15,7 @@
 """
 import numpy as np
 
-from extensions.ops.elementwise import Mul, Sub, Add, Maximum, Minimum
+from extensions.ops.elementwise import Mul, Sub, Add, Maximum, Minimum, Div, Greater, GreaterEqual, Equal, Less, LessEqual, Pow, NotEqual, LogicalAnd, LogicalOr
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.graph.graph import Node
@@ -40,6 +40,26 @@ class BroadcastAddFrontExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node):
         Add.update_node_stat(node)
+        return __class__.enabled
+
+
+class BroadcastDivFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_div'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Div.update_node_stat(node)
+        return __class__.enabled
+
+
+class BroadcastSubFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_sub'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Sub.update_node_stat(node)
         return __class__.enabled
 
 
@@ -100,6 +120,126 @@ class ElemwiseSubFrontExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node):
         Sub.update_node_stat(node, {})
+        return __class__.enabled
+
+
+class ElemwiseDivFrontExtractor(FrontExtractorOp):
+    op = 'elemwise_div'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Div.update_node_stat(node, {})
+        return __class__.enabled
+
+
+class BroadcastMaximumFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_maximum'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Maximum.update_node_stat(node)
+        return __class__.enabled
+
+
+class BroadcastMinimumFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_minimum'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Minimum.update_node_stat(node)
+        return __class__.enabled
+
+
+class BroadcastGreaterFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_greater'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Greater.update_node_stat(node)
+        return __class__.enabled
+
+
+class BroadcastGreaterEqualFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_greater_equal'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        GreaterEqual.update_node_stat(node)
+        return __class__.enabled
+
+
+class BroadcastEqualFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_equal'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Equal.update_node_stat(node)
+        return __class__.enabled
+
+
+class BroadcastNotEqualFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_not_equal'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        NotEqual.update_node_stat(node)
+        return __class__.enabled
+
+
+class BroadcastLesserFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_lesser'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Less.update_node_stat(node)
+        return __class__.enabled
+
+
+class BroadcastLesserEqualFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_lesser_equal'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        LessEqual.update_node_stat(node)
+        return __class__.enabled
+
+
+class BroadcastPowerFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_power'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        Pow.update_node_stat(node)
+        return __class__.enabled
+
+
+class BroadcastLogicalAndFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_logical_and'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        LogicalAnd.update_node_stat(node)
+        return __class__.enabled
+
+
+class BroadcastLogicalOrFrontExtractor(FrontExtractorOp):
+    op = 'broadcast_logical_or'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        LogicalOr.update_node_stat(node)
         return __class__.enabled
 
 
@@ -175,6 +315,83 @@ class GreaterScalarFrontExtractor(FrontExtractorOp):
     def extract(node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         node['scalar'] = np.array([attrs.float('scalar', 1.0)])
+        return __class__.enabled
+
+
+class GreaterEqualScalarFrontExtractor(FrontExtractorOp):
+    op = '_greater_equal_scalar'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        attrs = get_mxnet_layer_attrs(node.symbol_dict)
+        node['scalar'] = np.array([attrs.float('scalar', 1.0)])
+        return __class__.enabled
+
+
+class EqualScalarFrontExtractor(FrontExtractorOp):
+    op = '_equal_scalar'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        attrs = get_mxnet_layer_attrs(node.symbol_dict)
+        node['scalar'] = np.array([attrs.float('scalar', 1.0)])
+        return __class__.enabled
+
+
+class NotEqualScalarFrontExtractor(FrontExtractorOp):
+    op = '_not_equal_scalar'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        attrs = get_mxnet_layer_attrs(node.symbol_dict)
+        node['scalar'] = np.array([attrs.float('scalar', 1.0)])
+        return __class__.enabled
+
+
+class LesserScalarFrontExtractor(FrontExtractorOp):
+    op = '_lesser_scalar'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        attrs = get_mxnet_layer_attrs(node.symbol_dict)
+        node['scalar'] = np.array([attrs.float('scalar', 1.0)])
+        return __class__.enabled
+
+
+class LesserEqualScalarFrontExtractor(FrontExtractorOp):
+    op = '_lesser_equal_scalar'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        attrs = get_mxnet_layer_attrs(node.symbol_dict)
+        node['scalar'] = np.array([attrs.float('scalar', 1.0)])
+        return __class__.enabled
+
+
+class MinimumScalarFrontExtractor(FrontExtractorOp):
+    op = '_minimum_scalar'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        attrs = get_mxnet_layer_attrs(node.symbol_dict)
+        node['scalar'] = attrs.float('scalar', 1.0)
+        return __class__.enabled
+
+
+class MaximumScalarFrontExtractor(FrontExtractorOp):
+    op = '_maximum_scalar'
+    enabled = True
+
+    @staticmethod
+    def extract(node):
+        attrs = get_mxnet_layer_attrs(node.symbol_dict)
+        node['scalar'] = attrs.float('scalar', 1.0)
         return __class__.enabled
 
 

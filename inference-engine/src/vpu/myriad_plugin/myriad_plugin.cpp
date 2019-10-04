@@ -13,6 +13,7 @@
 
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/parsed_config.hpp>
+#include <vpu/utils/profiling.hpp>
 
 #include "myriad_plugin.h"
 
@@ -23,6 +24,7 @@ using namespace vpu::MyriadPlugin;
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore * /*core*/, ICNNNetwork &network,
                                                           const std::map<std::string, std::string> &config) {
+    VPU_PROFILE(LoadExeNetworkImpl);
     InputsDataMap networkInputs;
     OutputsDataMap networkOutputs;
 
@@ -76,6 +78,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, QueryNetworkResult& res) c
 
 void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                           QueryNetworkResult& res) const {
+    VPU_PROFILE(QueryNetwork);
     auto layerNames = getSupportedLayers(
         network,
         Platform::MYRIAD_2,
@@ -107,6 +110,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
 // ImportNetwork gets a config provided by an user. LoadNetwork gets the plugin config and merge it with user's config.
 // Need to found a common way to handle configs
 IExecutableNetwork::Ptr Engine::ImportNetwork(const std::string &modelFileName, const std::map<std::string, std::string> &config) {
+    VPU_PROFILE(ImportNetwork);
     std::ifstream blobFile(modelFileName, std::ios::binary);
 
     if (!blobFile.is_open()) {

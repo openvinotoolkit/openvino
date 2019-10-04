@@ -44,7 +44,7 @@ cdef c_map_to_dict(map[string, string] c_map):
 supported_precisions = ["FP32", "FP16", "Q78", "I32", "I16", "I8", "U32", "U16", "U8"]
 
 supported_layouts = ["NCHW", "NHWC", "OIHW", "C", "CHW", "HW", "NC", "CN", "BLOCKED", "NCDHW"]
-known_plugins = ['CPU', 'GPU', 'FPGA', 'MYRIAD', 'HETERO', 'HDDL']
+known_plugins = ['CPU', 'GPU', 'FPGA', 'MYRIAD', 'HETERO', 'HDDL', 'MULTI']
 
 ctypedef enum StatusCode:
     OK = 0
@@ -336,7 +336,7 @@ cdef class InferRequest:
             # TODO: add execution index. Check if unsigned int is properly converted to int in python.
             profile[l.first.decode()] = {"status": info.status.decode(), "exec_type": info.exec_type.decode(),
                                          "layer_type": info.layer_type.decode(), "real_time": info.real_time,
-                                         "cpu_time": info.cpu_time}
+                                         "cpu_time": info.cpu_time, "execution_index": info.execution_index}
         return profile
 
     @property
@@ -493,18 +493,14 @@ cdef class IENetwork:
         cdef IENetwork net = IENetwork(model, weights)
         return net
 
-        # TODO: Use enum with precision type instead of srting parameter when python2 support will not be required.
-    def add_outputs(self, outputs, precision="FP32"):
-        if precision.upper() not in supported_precisions:
-            raise AttributeError(
-                "Unsupported precision {}! List of supported precisions: {}".format(precision, supported_precisions))
+    def add_outputs(self, outputs):
         if not isinstance(outputs, list):
             outputs = [outputs]
         for i, l in enumerate(outputs):
             if isinstance(l, str):
-                self.impl.addOutput(l.encode(), 0, precision.upper().encode())
+                self.impl.addOutput(l.encode(), 0)
             elif isinstance(l, tuple) and len(l) == 2:
-                self.impl.addOutput(l[0].encode(), l[1], precision.upper().encode())
+                self.impl.addOutput(l[0].encode(), l[1])
             else:
                 raise TypeError("Incorrect type {type} for layer to add at index {ind}. "
                                 "Expected string with layer name or tuple with two elements: layer name as "

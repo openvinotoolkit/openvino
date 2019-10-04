@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/fully_connected.hpp"
+#include "api/fully_connected.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>

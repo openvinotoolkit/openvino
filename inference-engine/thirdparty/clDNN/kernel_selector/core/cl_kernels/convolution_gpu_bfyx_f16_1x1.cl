@@ -32,7 +32,9 @@ KERNEL(convolution_bfyx_f16_1x1)(
 #if BIAS_TERM
     __global BIAS_TYPE* biases,
 #endif
-    FUSED_OPS_DECLS
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
+#endif
     uint split_idx) {
     const int xy = get_global_id(0);
     const int f_block = get_group_id(1);
@@ -193,8 +195,10 @@ KERNEL(convolution_bfyx_f16_1x1)(
             int xi = (x+i) % OUTPUT_SIZE_X;
             int yi = y + ((x+i) / OUTPUT_SIZE_X);
 
-            FUSED_OPS_LOAD_DATA;
-            DO_ELTWISE_FUSED_OPS;
+#if HAS_FUSED_OPS
+            FUSED_OPS_SCALAR;
+            dst[i] = FINAL_NAME_SCALAR;
+#endif
 
             output[output_offset + yi * output_y_pitch + xi * output_x_pitch + lid] = dst[i];
         }
@@ -204,8 +208,10 @@ KERNEL(convolution_bfyx_f16_1x1)(
     {
 #if !PADDED_OUTPUT
         if (xy * X_BLOCK_SIZE + X_BLOCK_SIZE <= OUTPUT_SIZE_X * OUTPUT_SIZE_Y) {
-            FUSED_OPS_LOAD_DATA_VEC;
-            DO_ELTWISE_FUSED_OPS_VEC;
+#if HAS_FUSED_OPS
+            FUSED_OPS_VEC;
+            dst = FINAL_NAME_VEC;
+#endif
 #if X_BLOCK_SIZE == 8
             UNIT_BLOCK_WRITE8(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
 #elif X_BLOCK_SIZE == 4
@@ -216,8 +222,10 @@ KERNEL(convolution_bfyx_f16_1x1)(
         } else {
 #else
         if (x * X_BLOCK_SIZE + X_BLOCK_SIZE <= OUTPUT_SIZE_X) {
-            FUSED_OPS_LOAD_DATA_VEC;
-            DO_ELTWISE_FUSED_OPS_VEC;
+#if HAS_FUSED_OPS
+            FUSED_OPS_VEC;
+            dst = FINAL_NAME_VEC;
+#endif
 #if X_BLOCK_SIZE == 8
             UNIT_BLOCK_WRITE8(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
 #elif X_BLOCK_SIZE == 4
@@ -234,8 +242,10 @@ KERNEL(convolution_bfyx_f16_1x1)(
                 int xi = (x+i) % OUTPUT_SIZE_X;
                 int yi = y + ((x+i) / OUTPUT_SIZE_X);
 
-                FUSED_OPS_LOAD_DATA;
-                DO_ELTWISE_FUSED_OPS;
+#if HAS_FUSED_OPS
+                FUSED_OPS_SCALAR;
+                dst[i] = FINAL_NAME_SCALAR;
+#endif
 
                 UNIT_BLOCK_WRITE(output, output_offset + yi * output_y_pitch + xi * output_x_pitch, dst[i]);
             }

@@ -955,6 +955,11 @@ void CNNNetworkInt8Normalizer::QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr
 
             // debug scales. Need to compare with actual values in FP32 scoring
             target_layer->blobs["ext-scale"] = target_layer->blobs["o-scale"];
+        } else {
+            // we do not have statistics here, we cannot calculate requantizatin scales,
+            // next layer will be calculated in fp32
+            // it's time to return forcedly edge to fp32 as well
+            target_layer->outData[0]->setPrecision(Precision::FP32);
         }
 
         // Normalizing the weights
@@ -1619,9 +1624,7 @@ void precisionColoring(const CNNLayerPtr layer,
 }
 
 void CNNNetworkInt8Normalizer::NormalizeNetwork(ICNNNetwork& network, ICNNNetworkStats& netStats) {
-    IE_SUPPRESS_DEPRECATED_START
-    CNNNetwork cnnn(&network);
-    IE_SUPPRESS_DEPRECATED_END
+    CNNNetwork cnnn(ICNNNetwork::Ptr(&network, [](void *) {}));
 
     int maxSign = 0x7F;
     int maxUnsign = 0xFF;

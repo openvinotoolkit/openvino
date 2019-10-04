@@ -41,6 +41,7 @@ protected:
             WeightsLayout::yxio,
             WeightsLayout::iyxo,
             WeightsLayout::oyxi,
+            WeightsLayout::oizyx,
             // TODO: Verify that local convolution works as expected.
             // WeightsLayout::bf_lyx_yx,
         };

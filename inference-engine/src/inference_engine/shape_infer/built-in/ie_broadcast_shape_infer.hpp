@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ie_built_in_impl.hpp"
+#include "precision_utils.h"
 #include <map>
 #include <memory>
 #include <string>
@@ -38,8 +39,31 @@ public:
             } else {
                 THROW_IE_EXCEPTION << "Second input must have allocated data";
             }
+        } else if (inBlobs[1]->getTensorDesc().getPrecision() == Precision::FP32) {
+            auto* buffer = inBlobs[1]->cbuffer().as<float*>();
+            if (buffer != nullptr) {
+                for (int i = 0; i < inBlobs[1]->size(); i++) {
+                    shapes.push_back(static_cast<int>(buffer[i]));
+                }
+            } else {
+                THROW_IE_EXCEPTION << "Second input must have allocated data";
+            }
+        } else if (inBlobs[1]->getTensorDesc().getPrecision() == Precision::FP16) {
+            auto* buffer = inBlobs[1]->cbuffer().as<uint16_t*>();
+            if (buffer != nullptr) {
+                for (int i = 0; i < inBlobs[1]->size(); i++) {
+                    shapes.push_back(static_cast<int>(PrecisionUtils::f16tof32(buffer[i])));
+                }
+            }
+        } else if (inBlobs[1]->getTensorDesc().getPrecision() == Precision::I64) {
+            auto *buffer = inBlobs[1]->cbuffer().as<int64_t *>();
+            if (buffer != nullptr) {
+                shapes.assign(buffer, buffer + inBlobs[1]->size());
+            } else {
+                THROW_IE_EXCEPTION << "Second input must have allocated data";
+            }
         } else {
-            THROW_IE_EXCEPTION << "Second input must have I32 precision";
+            THROW_IE_EXCEPTION << "Second input must have I32 or FP32 or FP16 precision";
         }
 
         outShapes = {shapes};

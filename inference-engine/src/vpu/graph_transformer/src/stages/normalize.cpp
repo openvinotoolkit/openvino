@@ -20,37 +20,29 @@ private:
         return std::make_shared<NormalizeStage>(*this);
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
 
-        auto input = _inputEdges[0]->input();
-
-        _orderInfo.setOutput(_outputEdges[0], input->desc().dimsOrder());
+        orderInfo.setOutput(outputEdge(0), input->desc().dimsOrder());
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        if (_inputEdges[0]->input()->desc().dimsOrder().dimInd(Dim::C) == 0) {
-            _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
-            _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        if (input(0)->desc().dimsOrder().dimInd(Dim::C) == 0) {
+            stridesInfo.setInput(inputEdge(0), StridesRequirement::compact());
+            stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
         }
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
-        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
+        batchInfo.setInput(inputEdge(0), BatchSupport::Split);
+        batchInfo.setOutput(outputEdge(0), BatchSupport::Split);
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -64,16 +56,11 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.empty());
-
-        auto input = _inputEdges[0]->input();
-        auto scales = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto scales = inputEdge(1)->input();
+        auto output = outputEdge(0)->output();
 
         auto inputDesc  = input->desc();
-        auto outputDesc = input->desc();
         auto iDimsOrder = inputDesc.dimsOrder();
 
         if (iDimsOrder == DimsOrder::NC || iDimsOrder == DimsOrder::C) {

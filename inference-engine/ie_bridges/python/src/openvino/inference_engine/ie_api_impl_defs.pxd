@@ -91,7 +91,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         const vector[pair[string, IENetLayer]] getLayers() except +
         map[string, InputInfo] getInputs() except +
         map[string, OutputInfo] getOutputs() except +
-        void addOutput(string &, size_t, string &) except +
+        void addOutput(string &, size_t) except +
         void setAffinity(map[string, string] & types_affinity_map, map[string, string] & layers_affinity_map) except +
         void setBatch(size_t size) except +
         void setLayerParams(map[string, map[string, string]] params_map) except +

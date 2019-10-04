@@ -21,7 +21,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id activation_grad_type_id() {
+primitive_type_id activation_grad::type_id() {
     static primitive_type_base<activation_grad> instance;
     return &instance;
 }
@@ -40,7 +40,7 @@ std::string activation_grad_inst::to_string(activation_grad_node const& node) {
     std::stringstream primitive_description;
 
     json_composite activation_grad_info;
-    activation_grad_info.add("activation_grad_func", desc->activation_grad_func);
+    activation_grad_info.add("activation_grad_func", static_cast<int>(desc->activation_grad_function));
     activation_grad_info.add("additional_params.a", desc->additional_params.a);
     activation_grad_info.add("additional_params.b", desc->additional_params.b);
     activation_grad_info.add("additional_params input", desc->additional_params_input);

@@ -17,7 +17,8 @@ void ConstInferImpl::infer(const std::vector<Blob::CPtr>& inData,
     std::string errorPrefix = "Ref infer error for Layer with `" + _type + "` type: ";
     if (outData.empty()) THROW_IE_EXCEPTION << errorPrefix + "output data is empty";
     for (auto const& data : outData) {
-        if (data->buffer() == nullptr) THROW_IE_EXCEPTION << errorPrefix + "output data is not allocated";
+        if (data->buffer() == nullptr)
+            THROW_IE_EXCEPTION << errorPrefix + "output data is not allocated";
     }
     // TODO: check for direct (NCHW, NCH, NC) and FP32
     inferImpl(inData, params, blobs, outData);

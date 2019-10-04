@@ -95,28 +95,28 @@ private:
         return std::make_shared<DetectionOutputStage>(*this);
     }
 
-    void propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 3 || _inputEdges.size() == 5);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        for (const auto& inEdge : _inputEdges) {
-            _stridesInfo.setInput(inEdge, StridesRequirement::compact());
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        for (const auto& inEdge : inputEdges()) {
+            stridesInfo.setInput(inEdge, StridesRequirement::compact());
         }
-        for (const auto& outEdge : _outputEdges) {
-            _stridesInfo.setOutput(outEdge, StridesRequirement::compact());
+        for (const auto& outEdge : outputEdges()) {
+            stridesInfo.setOutput(outEdge, StridesRequirement::compact());
         }
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        IE_ASSERT(numInputs() == 3 || numInputs() == 5);
+        IE_ASSERT(numOutputs() == 1);
+        assertAllInputsOutputsTypes(this, DataType::FP16, DataType::FP16);
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -126,25 +126,21 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 3 || _inputEdges.size() == 5);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.size() == 1);
-
-        auto loc = _inputEdges[0]->input();
-        auto conf = _inputEdges[1]->input();
-        auto priors = _inputEdges[2]->input();
-        auto output = _outputEdges[0]->output();
+        auto loc = inputEdge(0)->input();
+        auto conf = inputEdge(1)->input();
+        auto priors = inputEdge(2)->input();
+        auto output = outputEdge(0)->output();
 
         loc->serializeNewBuffer(serializer);
         conf->serializeNewBuffer(serializer);
         priors->serializeNewBuffer(serializer);
-        if (_inputEdges.size() == 5) {
-            _inputEdges[3]->input()->serializeNewBuffer(serializer);
-            _inputEdges[4]->input()->serializeNewBuffer(serializer);
+        if (numInputs() == 5) {
+            inputEdge(3)->input()->serializeNewBuffer(serializer);
+            inputEdge(4)->input()->serializeNewBuffer(serializer);
         }
         output->serializeNewBuffer(serializer);
 
-        _tempBufferEdges[0]->tempBuffer()->serializeNewBuffer(serializer);
+        tempBuffer(0)->serializeNewBuffer(serializer);
     }
 };
 

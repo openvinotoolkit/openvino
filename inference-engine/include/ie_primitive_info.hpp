@@ -17,17 +17,44 @@
 
 namespace InferenceEngine {
 
+/**
+* @brief Structure with information about Primitive
+*/
 struct PrimitiveInfo {
+    /**
+    * @brief A shared pointer to PrimitiveInfo object
+    */
     using Ptr = std::shared_ptr<PrimitiveInfo>;
 
-    std::string sId;          // some internal id, could be used as a name
-    std::string sType;        // implementation type of this kernel
-    int iPreAllocatedMemory;  // mainly the allocation of the output tensor
+    /**
+    * @brief Some internal id, could be used as a name
+    */
+    std::string sId;
 
+    /**
+    * @brief Implementation type of this kernel
+    */
+    std::string sType;
+
+    /**
+    * @brief Mainly the allocation of the output tensor
+    */
+    int iPreAllocatedMemory;
+
+    /**
+    * @brief Vector of TensorInfo objects that are related to input tensors
+    */
     std::vector<TensorInfo::Ptr> inputs;
+
+    /**
+    * @brief Vector of TensorInfo object that are related to outputs tensors
+    */
     std::vector<TensorInfo::Ptr> outputs;
 
-    std::map<std::string, std::string> extraInfo;  // any other important textual information user might find interesting about this kernel
+    /**
+    * @brief Any other important textual information user might find interesting about this kernel
+    */
+    std::map<std::string, std::string> extraInfo;
 };
 
 }  // namespace InferenceEngine

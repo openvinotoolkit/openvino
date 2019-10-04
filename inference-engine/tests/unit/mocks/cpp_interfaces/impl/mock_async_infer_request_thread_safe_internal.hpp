@@ -20,7 +20,7 @@ public:
     void setRequestBusy() {
         AsyncInferRequestThreadSafeInternal::setIsRequestBusy(true);
     }
-
+    using AsyncInferRequestThreadSafeInternal::isRequestBusy;
     bool isRequestBusy() {
         return AsyncInferRequestThreadSafeInternal::isRequestBusy();
     }

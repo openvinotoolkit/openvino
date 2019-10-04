@@ -15,19 +15,18 @@
 */
 
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/lookup_table.hpp"
-#include "api/CPP/arg_max_min.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/lookup_table.hpp"
+#include "api/arg_max_min.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 
 using namespace cldnn;
 using namespace std;
 using namespace tests;
-
 
 TEST(lookup_table_base, base) {
     //  Input  : 2x3x2x2

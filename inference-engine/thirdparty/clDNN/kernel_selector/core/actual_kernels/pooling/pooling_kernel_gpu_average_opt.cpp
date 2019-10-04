@@ -36,7 +36,7 @@ bool PoolingKernelGPUAverageOpt::Validate(const Params& p, const optional_params
 
     const pooling_params& params = static_cast<const pooling_params&>(p);
 
-    if (params.activation.function != ActivationFunction::NONE) {
+    if (!params.activations.empty()) {
         return {};
     }
 
