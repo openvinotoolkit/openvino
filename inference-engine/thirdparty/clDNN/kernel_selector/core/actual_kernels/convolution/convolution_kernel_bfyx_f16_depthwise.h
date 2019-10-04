@@ -38,6 +38,5 @@ protected:
     bool NeedPaddedInput() const override { return true; }
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
-    JitConstants GetFusedPrimitivesJitConstants(const convolution_params& params, const DispatchData& kd) const override;
 };
 }  // namespace kernel_selector

@@ -22,7 +22,7 @@ class PluginBaseTests: public ::testing::Test {
     }
     virtual void SetUp() {
         mock_impl.reset(new MockPluginImpl());
-        plugin = details::shared_from_irelease(make_ie_compatible_plugin({2, 0, "test", "version"}, mock_impl));
+        plugin = details::shared_from_irelease(make_ie_compatible_plugin({{2, 1}, "test", "version"}, mock_impl));
     }
 };
 
@@ -33,7 +33,7 @@ TEST_F(PluginBaseTests, canReportVersion) {
     EXPECT_STREQ(V->buildNumber, "test");
     EXPECT_STREQ(V->description, "version");
     EXPECT_EQ(V->apiVersion.major, 2);
-    EXPECT_EQ(V->apiVersion.minor, 0);
+    EXPECT_EQ(V->apiVersion.minor, 1);
 
 }
 

@@ -23,7 +23,7 @@ namespace kernel_selector {
 // shuffle_channels_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct shuffle_channels_params : public base_params {
-    shuffle_channels_params() : base_params(KernelType::SHUFFLE_CHANNELS) {}
+    shuffle_channels_params() : base_params(KernelType::SHUFFLE_CHANNELS), group(0), axis(0) {}
 
     int32_t group;
     int32_t axis;

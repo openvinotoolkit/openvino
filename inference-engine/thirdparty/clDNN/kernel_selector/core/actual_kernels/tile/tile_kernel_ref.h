@@ -21,7 +21,7 @@ namespace kernel_selector {
 // tile_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct tile_params : public base_params {
-    tile_params() : base_params(KernelType::TILE) {}
+    tile_params() : base_params(KernelType::TILE), axis(TileAxis::BATCH), tiles(0) {}
 
     TileAxis axis;
     int tiles;

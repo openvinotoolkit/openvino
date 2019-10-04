@@ -148,18 +148,6 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
     invertVectorCopyUtoI(allPads.end, paddingR);
 
     MKLDNNDims weightsDims = MKLDNNDims(weightDims);
-
-    for (int i = 0; i < paddingR.size(); i++) {
-        int with_group = (isGrouped || isMerged) ? 1 : 0;
-        int krn = weightsDims[with_group + 2 + i];
-        int src = getParentEdgeAt(0)->getDims()[2 + i];
-        int dst = getChildEdgeAt(0)->getDims()[2 + i];
-
-        krn = (krn - 1)*(dilation[i] + 1) + 1;
-        int calc_dst = (src - krn + paddingL[i]) / stride[i] + 1;
-        paddingR[i] = (dst - calc_dst) * stride[i];
-    }
-
     withSum = isFusedWith(Eltwise);
 
     for (auto &node : fusedWith) {
@@ -176,6 +164,17 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 dw_conv_strides.push_back(convLayer->_stride[i]);
             }
             dw_conv_in_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(convLayer->outData[0]->getPrecision());
+
+            for (int i = 0; i < paddingR.size(); i++) {
+                int with_group = (isGrouped || isMerged) ? 1 : 0;
+                int krn = weightsDims[with_group + 2 + i];
+                int src = getParentEdgeAt(0)->getDims()[2 + i];
+                int dst = getChildEdgeAt(0)->getDims()[2 + i];
+
+                krn = (krn - 1)*(dilation[i] + 1) + 1;
+                int calc_dst = (src - krn + paddingL[i]) / stride[i] + 1;
+                paddingR[i] = (dst - calc_dst) * stride[i];
+            }
         }
     }
 
@@ -480,48 +479,44 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
     setPostOps(attr);
 
     for (auto& desc : descs) {
-        try {
-            primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
-            do {
-                InferenceEngine::LayerConfig config;
-                config.dynBatchSupport = true;
-                for (size_t i = 0; i < desc.inputNumbers(); i++) {
-                    InferenceEngine::DataConfig dataConfig;
+        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
+        while (itpd.is_not_end()) {
+            InferenceEngine::LayerConfig config;
+            config.dynBatchSupport = true;
+            for (size_t i = 0; i < desc.inputNumbers(); i++) {
+                InferenceEngine::DataConfig dataConfig;
+                dataConfig.inPlace = -1;
+                dataConfig.constant = false;
+                dataConfig.desc = getSrcMemDesc(itpd, i);
+                if (!isGrouped)
+                    dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
+                config.inConfs.push_back(dataConfig);
+            }
+
+            std::vector<memory::format> outFormats;
+            for (size_t i = 0; i < desc.outputNumbers(); i++) {
+                InferenceEngine::DataConfig dataConfig;
+                if (withSum) {
+                    dataConfig.inPlace = 1;
+                }
+
+                dataConfig.constant = false;
+                dataConfig.desc = getDstMemDesc(itpd, i);
+                if (!isGrouped)
+                    dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
+                config.outConfs.push_back(dataConfig);
+
+                if (withSum) {
                     dataConfig.inPlace = -1;
-                    dataConfig.constant = false;
-                    dataConfig.desc = getSrcMemDesc(itpd, i);
-                    if (!isGrouped)
-                        dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
                     config.inConfs.push_back(dataConfig);
                 }
 
-                std::vector<memory::format> outFormats;
-                for (size_t i = 0; i < desc.outputNumbers(); i++) {
-                    InferenceEngine::DataConfig dataConfig;
-                    if (withSum) {
-                        dataConfig.inPlace = 1;
-                    }
+                outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
+            }
+            impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
 
-                    dataConfig.constant = false;
-                    dataConfig.desc = getDstMemDesc(itpd, i);
-                    if (!isGrouped)
-                        dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
-                    config.outConfs.push_back(dataConfig);
-
-                    if (withSum) {
-                        dataConfig.inPlace = -1;
-                        config.inConfs.push_back(dataConfig);
-                    }
-
-                    outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
-                }
-                impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
-
-                supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
-            } while (itpd.next());
-        } catch (std::exception& e) {
-            // it throw exception in case of no implementation found
-            continue;
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
+            itpd++;
         }
     }
 }
@@ -599,20 +594,24 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::
     MKLDNNMemoryDesc wgh_candidate{blocked_weightDims, wdt, memory::any};
 
     for (auto alg : {algorithm::convolution_winograd, algorithm::convolution_direct}) {
-        std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
-        if (withBiases) {
-            MKLDNNMemoryDesc bias_candidate{blocked_biasesDims, bdt, memory::any};
+        try {
+            std::shared_ptr<mkldnn::convolution_forward::desc> conv_desc;
+            if (withBiases) {
+                MKLDNNMemoryDesc bias_candidate{blocked_biasesDims, bdt, memory::any};
 
-            conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
-                                                          in_candidate, wgh_candidate, bias_candidate, out_candidate,
-                                                          stride, dilation, paddingL, paddingR, padding_kind::zero));
-        } else {
-            conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
-                                                          in_candidate, wgh_candidate, out_candidate, stride, dilation,
-                                                          paddingL, paddingR, padding_kind::zero));
+                conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
+                            in_candidate, wgh_candidate, bias_candidate, out_candidate,
+                            stride, dilation, paddingL, paddingR, padding_kind::zero));
+            } else {
+                conv_desc.reset(new convolution_forward::desc(prop_kind::forward_scoring, alg,
+                            in_candidate, wgh_candidate, out_candidate, stride, dilation,
+                            paddingL, paddingR, padding_kind::zero));
+            }
+
+            descs.emplace_back(conv_desc);
+        } catch (...) {
+            THROW_IE_EXCEPTION << "Cannot create convolution forward descriptor for layer: " << getName();
         }
-
-        descs.emplace_back(conv_desc);
     }
 }
 
@@ -659,48 +658,45 @@ void MKLDNNConvolutionNode::initDescriptor(const InferenceEngine::LayerConfig& c
     size_t selected_count = 0;
     for (size_t i = 0; i < descs.size(); i++) {
         const auto& desc = descs[i];
-        try {
-            primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
-            do {
-                InferenceEngine::LayerConfig cfg;
-                cfg.dynBatchSupport = true;
-                for (size_t j = 0; j < desc.inputNumbers(); j++) {
-                    InferenceEngine::DataConfig dataConfig;
-                    dataConfig.inPlace = -1;
-                    dataConfig.constant = false;
-                    dataConfig.desc = getSrcMemDesc(itpd, j);
+        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
+        while (itpd.is_not_end()) {
+            InferenceEngine::LayerConfig cfg;
+            cfg.dynBatchSupport = true;
+            for (size_t j = 0; j < desc.inputNumbers(); j++) {
+                InferenceEngine::DataConfig dataConfig;
+                dataConfig.inPlace = -1;
+                dataConfig.constant = false;
+                dataConfig.desc = getSrcMemDesc(itpd, j);
+                cfg.inConfs.push_back(dataConfig);
+            }
+
+            for (size_t j = 0; j < desc.outputNumbers(); j++) {
+                InferenceEngine::DataConfig dataConfig;
+                dataConfig.inPlace = -1;
+                dataConfig.constant = false;
+                dataConfig.desc = getDstMemDesc(itpd, j);
+                if (withSum) {
                     cfg.inConfs.push_back(dataConfig);
+                    dataConfig.inPlace = 1;
                 }
 
-                for (size_t j = 0; j < desc.outputNumbers(); j++) {
-                    InferenceEngine::DataConfig dataConfig;
-                    dataConfig.inPlace = -1;
-                    if (withSum) {
-                        cfg.inConfs.push_back(dataConfig);
-                        dataConfig.inPlace = 1;
-                    }
-                    dataConfig.constant = false;
-                    dataConfig.desc = getDstMemDesc(itpd, j);
+                cfg.outConfs.push_back(dataConfig);
+            }
+            impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
 
-                    cfg.outConfs.push_back(dataConfig);
+            if (selected_count == selectedPrimitiveDescriptorIndex) {
+                if (impl_type != selectedPD->getImplementationType()) {
+                    THROW_IE_EXCEPTION << "Cannot get the original layer configuration!";
                 }
-                impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
-
-                if (selected_count == selectedPrimitiveDescriptorIndex) {
-                    if (impl_type != selectedPD->getImplementationType()) {
-                        THROW_IE_EXCEPTION << "Cannot get the original layer configuration!";
-                    }
-                    rightConfig = cfg;
+                rightConfig = cfg;
+            }
+            if (i == descs.size() - 1 && addedNewDesc) {
+                if (impl_type == selectedPD->getImplementationType()) {
+                    rightConfig = config;
                 }
-                if (i == descs.size() - 1 && addedNewDesc) {
-                    if (impl_type == selectedPD->getImplementationType()) {
-                        rightConfig = config;
-                    }
-                }
-                selected_count++;
-            } while (itpd.next());
-        } catch (std::exception& e) {
-            continue;
+            }
+            selected_count++;
+            itpd++;
         }
     }
     selectedPD->getConfig() = rightConfig;

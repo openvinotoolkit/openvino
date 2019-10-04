@@ -32,6 +32,7 @@
 #include <string>
 #include <utility>
 #include <set>
+#include <stdexcept>
 
 namespace cldnn {
 memory_record::memory_record(memory_set users,
@@ -43,13 +44,13 @@ memory_record::memory_record(memory_set users,
 memory_impl::ptr memory_pool::alloc_memory(const layout& layout, uint16_t stream_id) {
     auto context = _engine->get_context();
     if (layout.bytes_count() > context->get_engine_info().max_alloc_mem_size) {
-        throw error("exceeded max size of memory object allocation", CLDNN_ALLOC_SIZE_EXCEEDED);
+        throw std::runtime_error("exceeded max size of memory object allocation");
     }
 
     add_memory_used(layout.bytes_count());
 
     if (_max_peak_memory_used > context->get_engine_info().max_global_mem_size) {
-        throw error("exceeded global device memory", CLDNN_GLOBAL_SIZE_EXCEEDED);
+        throw std::runtime_error("exceeded global device memory");
     }
 
     try {
@@ -66,9 +67,9 @@ memory_impl::ptr memory_pool::alloc_memory(const layout& layout, uint16_t stream
             case CL_OUT_OF_RESOURCES:
             case CL_OUT_OF_HOST_MEMORY:
             case CL_INVALID_BUFFER_SIZE:
-                throw error("out of GPU resources", CLDNN_OUT_OF_RESOURCES);
+                throw std::runtime_error("out of GPU resources");
             default:
-                throw error("GPU buffer allocation failed", CLDNN_ERROR);
+                throw std::runtime_error("GPU buffer allocation failed");
         }
     }
 }

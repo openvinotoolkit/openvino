@@ -293,21 +293,26 @@ bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const Dat
 
 static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
     assert(cp.inputs.size() >= 1);
-    assert(cp.inputs[0].GetDims().size() == 4U);
+    auto ndims = cp.inputs[0].GetDims().size();
 
     DataTensor t = cp.inputs[0];
-    std::vector<Tensor::Pad> pad{{0, 0}, {0, 0}, {0, 0}, {0, 0}};
+    std::vector<Tensor::Pad> pad{{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0} };
 
     pad[0].before = cp.padding.x;
     pad[1].before = cp.padding.y;
+    pad[2].before = cp.padding.z;
+
 
     const auto inputLimitX = (cp.output.X().v - 1) * cp.stride.x + (cp.filterSize.x - 1) * cp.dilation.x + 1;
     const auto inputLimitY = (cp.output.Y().v - 1) * cp.stride.y + (cp.filterSize.y - 1) * cp.dilation.y + 1;
+    const auto inputLimitZ = (cp.output.Z().v - 1) * cp.stride.z + (cp.filterSize.z - 1) * cp.dilation.z + 1;
+
 
     pad[0].after = (size_t)std::max(static_cast<int>(inputLimitX) - static_cast<int>(t.X().v) - static_cast<int>(pad[0].before), static_cast<int>(0));
     pad[1].after = (size_t)std::max(static_cast<int>(inputLimitY) - static_cast<int>(t.Y().v) - static_cast<int>(pad[1].before), static_cast<int>(0));
+    pad[2].after = (size_t)std::max(static_cast<int>(inputLimitZ) - static_cast<int>(t.Z().v) - static_cast<int>(pad[2].before), static_cast<int>(0));
 
-    Tensor::NDims dims(4);
+    Tensor::NDims dims(ndims);
     const Tensor::NDims& orgDims = cp.inputs[0].GetDims();
     size_t pitch = 1;
     for (size_t i = 0; i < dims.size(); i++) {
@@ -379,10 +384,9 @@ KernelsData ConvolutionKernelBase::GetKernelsDataForAutoTune(const Params& param
     return res;
 }
 
-JitConstants ConvolutionKernelBase::GetFusedPrimitivesJitConstants(const convolution_params& params,
+JitConstants ConvolutionKernelBase::GetFusedPrimitivesJitConstants(const convolution_params& /*params*/,
                                                                    const DispatchData& /*kd*/) const {
-    JitConstants jit = {};
-    return jit;
+    return {};
 }
 
 }  // namespace kernel_selector

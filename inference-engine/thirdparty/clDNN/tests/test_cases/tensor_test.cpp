@@ -15,7 +15,7 @@
 */
 
 #include <gtest/gtest.h>
-#include <api/CPP/tensor.hpp>
+#include <api/tensor.hpp>
 
 TEST(tensor_api, order_new_notation)
 {
@@ -24,7 +24,7 @@ TEST(tensor_api, order_new_notation)
     //sizes
     EXPECT_EQ(test.batch.size(), size_t(1));
     EXPECT_EQ(test.feature.size(), size_t(1));
-    EXPECT_EQ(test.spatial.size(), size_t(CLDNN_TENSOR_SPATIAL_DIM_MAX));
+    EXPECT_EQ(test.spatial.size(), size_t(cldnn::tensor_spatial_dim_max));
 
     //passed values
     EXPECT_EQ(test.spatial[0], cldnn::tensor::value_type(2));
@@ -47,7 +47,7 @@ TEST(tensor_api, order_new_notation_feature_default)
     //sizes
     EXPECT_EQ(test.batch.size(), size_t(1));
     EXPECT_EQ(test.feature.size(), size_t(1));
-    EXPECT_EQ(test.spatial.size(), size_t(CLDNN_TENSOR_SPATIAL_DIM_MAX));
+    EXPECT_EQ(test.spatial.size(), size_t(cldnn::tensor_spatial_dim_max));
 
     //passed values
     EXPECT_EQ(test.spatial[0], cldnn::tensor::value_type(2));
@@ -70,7 +70,7 @@ TEST(tensor_api, order)
     //sizes
     EXPECT_EQ(test.batch.size(), size_t(1));
     EXPECT_EQ(test.feature.size(), size_t(1));
-    EXPECT_EQ(test.spatial.size(), size_t(CLDNN_TENSOR_SPATIAL_DIM_MAX));
+    EXPECT_EQ(test.spatial.size(), size_t(cldnn::tensor_spatial_dim_max));
 
     //passed values
     EXPECT_EQ(test.spatial[1], cldnn::tensor::value_type(4));

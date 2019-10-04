@@ -98,23 +98,36 @@ KERNEL(deconvolution_gpu_yxfb_ref)(
                             uint fixed_input_offset_x = (uint)input_offset_x / STRIDE_SIZE_X;
                             uint fixed_input_offset_y = (uint)input_offset_y / STRIDE_SIZE_Y;
                             uint fixed_input_offset_z = (uint)input_offset_z / STRIDE_SIZE_Z;
+#if OUTPUT_LAYOUT_BFZYX_F16
+                            uint input_idx;
+#else
                             uint input_idx = input_offset + (uint)fixed_input_offset_x*INPUT0_X_PITCH + (uint)fixed_input_offset_y*INPUT0_Y_PITCH + (uint)fixed_input_offset_z*INPUT0_Z_PITCH;
-
+#endif
 #if GRADIENT
                             uint filter_idx = filter_offset + ofm_offset*FILTER_IFM_PITCH + (FILTER_SIZE_Z - k - 1)*FILTER_Z_PITCH + (FILTER_SIZE_Y - i - 1)*FILTER_Y_PITCH + (FILTER_SIZE_X - j - 1)*FILTER_X_PITCH;
                             for (uint h = 0; h < FILTER_OFM_NUM; h++)
                             {
+#if OUTPUT_LAYOUT_BFZYX_F16
+                                input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, batch_offset, h, fixed_input_offset_z, fixed_input_offset_y, fixed_input_offset_x);
+#endif
                                 result = fma(input[input_idx], filter[filter_idx], result);
                                 filter_idx += FILTER_OFM_PITCH;
+#ifndef OUTPUT_LAYOUT_BFZYX_F16
                                 input_idx += INPUT0_FEATURE_PITCH;
+#endif
                             }
 #else
                             uint filter_idx = filter_offset + ofm_offset*FILTER_OFM_PITCH + (FILTER_SIZE_Z - k - 1)*FILTER_Z_PITCH + (FILTER_SIZE_Y - i - 1)*FILTER_Y_PITCH + (FILTER_SIZE_X - j - 1)*FILTER_X_PITCH;
                             for (uint h = 0; h < FILTER_IFM_NUM; h++)
                             {
+#if OUTPUT_LAYOUT_BFZYX_F16
+                                input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, batch_offset, h, fixed_input_offset_z, fixed_input_offset_y, fixed_input_offset_x);
+#endif
                                 result = fma(input[input_idx], filter[filter_idx], result);
                                 filter_idx += FILTER_IFM_PITCH;
+#ifndef OUTPUT_LAYOUT_BFZYX_F16
                                 input_idx += INPUT0_FEATURE_PITCH;
+#endif
                             }
 #endif
                         }
@@ -133,9 +146,17 @@ KERNEL(deconvolution_gpu_yxfb_ref)(
     result += bias[ofm_offset + bias_offset];
 #endif
     const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
+#if defined OUTPUT_LAYOUT_BFZYX_F16
+    const uint dst_index = OUTPUT_OFFSET + GET_DATA_BFZYX_F16_INDEX(OUTPUT, batch_offset, ofm_offset, out_z, out_y, out_x);
+#else
     const uint dst_index = OUTPUT_OFFSET + out_split_offset + batch_offset*OUTPUT_BATCH_PITCH + ofm_offset*OUTPUT_FEATURE_PITCH + out_z*OUTPUT_Z_PITCH + out_y*OUTPUT_Y_PITCH + out_x*OUTPUT_X_PITCH;
+#endif
 #if FUSED_ELTWISE
+#if defined OUTPUT_LAYOUT_BFZYX_F16
+    const uint fused_index = INPUT1_OFFSET + GET_DATA_BFZYX_F16_INDEX(INPUT1, batch_offset, ofm_offset, out_z, out_y, out_x);
+#else
     const uint fused_index = INPUT1_OFFSET + split_idx * INPUT1_FEATURE_PITCH * FILTER_OFM_NUM + batch_offset*INPUT1_BATCH_PITCH + ofm_offset*INPUT1_FEATURE_PITCH + out_z*INPUT1_Z_PITCH + out_y*INPUT1_Y_PITCH + out_x*INPUT1_X_PITCH;
+#endif
 #if !GRADIENT
 	output[dst_index] = ACTIVATION(result + fuse_input[fused_index], ACTIVATION_PARAMS);
 #else

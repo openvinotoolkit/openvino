@@ -24,6 +24,7 @@
 #include <list>
 #define _XLINK_ENABLE_PRIVATE_INCLUDE_
 #include <XLinkPrivateDefines.h>
+#include "XLink_tool.h"
 
 namespace {
 
@@ -230,7 +231,11 @@ public:
             threadRunning = true;
 
             poolThread = std::thread([this]() {
-                if (pthread_setname_np(pthread_self(), "WatchdogThread") != 0) {
+                if (pthread_setname_np(
+#ifndef __APPLE__
+                pthread_self(),
+#endif
+                "WatchdogThread") != 0) {
                     perror("Setting name for watchdog thread failed");
                 }
                 watchdog_routine();
@@ -273,7 +278,10 @@ public:
                                     return std::get<0>(item)->getHandle() == ptr->actual->getHandle();
                                 });
         bool bFound = idx != std::end(watchedDevices);
-        watchedDevices.erase(idx);
+        if(bFound) {
+            watchedDevices.erase(idx);
+            delete ptr;
+        }
 
         // wake up thread since we might select removed device as nex to be ping, and there is no more devices available
         notificationReason = WAKE_UP_THREAD;
@@ -281,17 +289,6 @@ public:
         wakeUpPingThread.notify_one();
 
         return bFound;
-    }
-
-    void clear() {
-        {
-            mvLog(MVLOG_INFO, "clear\n");
-            auto __locker = lock();
-            watchedDevices.clear();
-            notificationReason = WAKE_UP_THREAD;
-        }
-        // wake up thread
-        wakeUpPingThread.notify_one();
     }
 
  private:

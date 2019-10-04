@@ -57,29 +57,31 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                     mvn_gpu::create);
-        implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                     mvn_gpu::create);
-        implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                     mvn_gpu::create);
-        implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                     mvn_gpu::create);
-        implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
-                                     mvn_gpu::create);
-        implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
-                                     mvn_gpu::create);
-        implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx),
-                                     mvn_gpu::create);
-        implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx),
-                                     mvn_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_mvn_gpu::attach_mvn_gpu() {
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16),
+        mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16),
+        mvn_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

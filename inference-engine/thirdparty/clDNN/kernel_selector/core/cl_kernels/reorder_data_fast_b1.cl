@@ -21,8 +21,10 @@
 ///////////////////////// Input Index /////////////////////////
 inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x)
 {
-#if   INPUT0_SIMPLE && INPUT0_DIMS < 6
+#if   INPUT0_SIMPLE && INPUT0_DIMS < 5
     return GET_DATA_INDEX(INPUT0, b, f, y, x);
+#elif INPUT0_SIMPLE && INPUT0_DIMS == 5
+    return GET_DATA_INDEX_5D(INPUT0, b, f, z, y, x);
 #elif INPUT0_SIMPLE && INPUT0_DIMS == 6
     return GET_DATA_INDEX_6D(INPUT0, b, f, w, z, y, x);
 #elif defined INPUT0_LAYOUT_BS_F_BSV8__AF8  || \
@@ -32,22 +34,21 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x
     return GET_DATA_BF8_XY16_INDEX(INPUT0, b, f, y, x);
 #elif defined INPUT0_LAYOUT_BFYX_F16
     return GET_DATA_BFYX_F16_INDEX(INPUT0, b, f, y, x);
+#elif defined INPUT0_LAYOUT_BFZYX_F16
+    return GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, z, y, x);
 #else
 #error reorder_data_fast_b1.cl: input format - not supported
 #endif
-}
-
-inline uint FUNC(get_input3d_index)(uint b, uint f, uint z, uint y, uint x)
-{
-    return GET_DATA_INDEX_5D(INPUT0, b, f, z, y, x);
 }
 
 ///////////////////////// Output Index /////////////////////////
 
 inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint x)
 {
-#if   OUTPUT_SIMPLE && OUTPUT_DIMS < 6
+#if   OUTPUT_SIMPLE && OUTPUT_DIMS < 5
     return GET_DATA_INDEX(OUTPUT, b, f, y, x);
+#elif OUTPUT_SIMPLE && OUTPUT_DIMS == 5
+    return GET_DATA_INDEX_5D(OUTPUT, b, f, z, y, x);
 #elif OUTPUT_SIMPLE && OUTPUT_DIMS == 6
     return GET_DATA_INDEX_6D(OUTPUT, b, f, w, z, y, x);
 #elif defined OUTPUT_LAYOUT_BS_F_BSV8__AF8  || \
@@ -57,14 +58,11 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
     return GET_DATA_BF8_XY16_INDEX(OUTPUT, b, f, y, x);
 #elif defined OUTPUT_LAYOUT_BFYX_F16
     return GET_DATA_BFYX_F16_INDEX(OUTPUT, b, f, y, x);
+#elif defined OUTPUT_LAYOUT_BFZYX_F16
+    return GET_DATA_BFZYX_F16_INDEX(OUTPUT, b, f, z, y, x);
 #else
 #error reorder_data_fast_b1.cl: output format - not supported
 #endif
-}
-
-inline uint FUNC(get_output3d_index)(uint b, uint f, uint z, uint y, uint x)
-{
-    return GET_DATA_INDEX_5D(OUTPUT, b, f, z, y, x);
 }
 
 KERNEL (reorder_data_fast_b1)(
@@ -178,6 +176,26 @@ KERNEL (reorder_data_fast_b1)(
     tmp_data_idx  = data_idx / OUTPUT_SIZE_Z;
     const uint z = data_idx - tmp_data_idx * OUTPUT_SIZE_Z;
     const uint w = 0;
+#elif defined OUTPUT_LAYOUT_BFZYX_F16
+    uint tmp_data_idx = data_idx / OUTPUT_BATCH_NUM;
+    const uint b = data_idx - tmp_data_idx * OUTPUT_BATCH_NUM;
+    data_idx = tmp_data_idx;
+
+    tmp_data_idx = data_idx / OUTPUT_FEATURE_NUM;
+    const uint f = data_idx - tmp_data_idx * OUTPUT_FEATURE_NUM;
+    data_idx = tmp_data_idx;
+
+    tmp_data_idx = data_idx / OUTPUT_SIZE_X;
+    const uint x = data_idx - tmp_data_idx * OUTPUT_SIZE_X;
+    data_idx = tmp_data_idx;
+
+    tmp_data_idx  = data_idx / OUTPUT_SIZE_Y;
+    const uint y = data_idx - tmp_data_idx * OUTPUT_SIZE_Y;
+    data_idx = tmp_data_idx;
+
+    tmp_data_idx  = data_idx / OUTPUT_SIZE_Z;
+    const uint z = data_idx - tmp_data_idx * OUTPUT_SIZE_Z;
+    const uint w = 0;
 #elif defined OUTPUT_LAYOUT_BFWZYX
     uint tmp_data_idx = data_idx / OUTPUT_BATCH_NUM;
     const uint b = data_idx - tmp_data_idx * OUTPUT_BATCH_NUM;
@@ -225,20 +243,9 @@ KERNEL (reorder_data_fast_b1)(
     const uint input_idx  = data_idx;
     const uint output_idx = data_idx;
 #else
-#if defined OUTPUT_LAYOUT_BFZYX
-    uint8 ov = FUNC_CALL(reshape_dims3d)(b,f,z,y,x, OUTPUT_SIZE_Z, OUTPUT_SIZE_Y, OUTPUT_SIZE_X, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X, INPUT0_DIMS, OUTPUT_DIMS);
-    const uint input_idx  = FUNC_CALL(get_input3d_index)(b, f, z, y, x);
-    const uint output_idx = FUNC_CALL(get_output3d_index)(ov[0],ov[1],ov[2],ov[3],ov[4]);
-#elif INPUT0_DIMS == 5
-    uint8 ov = RESHAPE_DIMS(OUTPUT, INPUT0, b, f, w, z, y, x);
-    const uint input_idx  = FUNC_CALL(get_input3d_index)(ov[0],ov[1], ov[3], ov[4],ov[5]);
-    const uint output_idx  = FUNC_CALL(get_output_index)(b, f, w, z, y, x);
-#else
     uint8 ov = RESHAPE_DIMS(OUTPUT, INPUT0, b, f, w, z, y, x);
     const uint input_idx = FUNC_CALL(get_input_index)(ov[0],ov[1], ov[2], ov[3], ov[4],ov[5]);
     const uint output_idx  = FUNC_CALL(get_output_index)(b, f, w, z, y, x);
-#endif
-
 #endif
     
 #if   defined MEAN_SUBTRACT_INSIDE_PARAMS
@@ -252,5 +259,5 @@ KERNEL (reorder_data_fast_b1)(
     CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
 #endif
 
-    output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), NL_M, NL_N);
+    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
 }

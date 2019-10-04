@@ -7,6 +7,7 @@
 #include <queue>
 #include <algorithm>
 #include <vector>
+#include <string>
 
 #include <vpu/model/edges.hpp>
 #include <vpu/model/data.hpp>
@@ -66,7 +67,7 @@ const StageDataInfo<float>& StageNode::propagateScaleFactors(
     //
 
     _scaleInfo.init(_inputEdges.size(), _outputEdges.size());
-    propagateScaleFactorsImpl(inputScales, step);
+    propagateScaleFactorsImpl(inputScales, step, _scaleInfo);
 
     //
     // Check that implementation returned valid map.
@@ -81,13 +82,13 @@ const StageDataInfo<float>& StageNode::propagateScaleFactors(
     return _scaleInfo;
 }
 
-const StageDataInfo<DimsOrder>& StageNode::propagateDataOrder() const {
+const StageDataInfo<DimsOrder>& StageNode::propagateDataOrder() {
     //
     // Get result from Stage implementation.
     //
 
     _orderInfo.init(_inputEdges.size(), _outputEdges.size());
-    propagateDataOrderImpl();
+    propagateDataOrderImpl(_orderInfo);
 
     //
     // Merge with the results from injected Stages.
@@ -114,13 +115,13 @@ const StageDataInfo<DimsOrder>& StageNode::propagateDataOrder() const {
     return _orderInfo;
 }
 
-const StageDataInfo<StridesRequirement>& StageNode::getDataStridesRequirements() const {
+const StageDataInfo<StridesRequirement>& StageNode::getDataStridesRequirements() {
     //
     // Get result from Stage implementation.
     //
 
     _stridesInfo.init(_inputEdges.size(), _outputEdges.size());
-    getDataStridesRequirementsImpl();
+    getDataStridesRequirementsImpl(_stridesInfo);
 
     //
     // Merge with the results from injected Stages.
@@ -158,13 +159,13 @@ void StageNode::finalizeDataLayout() {
     finalizeDataLayoutImpl();
 }
 
-const StageDataInfo<BatchSupport>& StageNode::getBatchSupportInfo() const {
+const StageDataInfo<BatchSupport>& StageNode::getBatchSupportInfo() {
     //
     // Get result from Stage implementation.
     //
 
     _batchInfo.init(_inputEdges.size(), _outputEdges.size());
-    getBatchSupportInfoImpl();
+    getBatchSupportInfoImpl(_batchInfo);
 
     //
     // Check that implemenation returned valid map.
@@ -262,11 +263,35 @@ StageSHAVEsRequirements StageNode::getSHAVEsRequirements() const {
     return reqs;
 }
 
-void StageNode::finalCheck() const {
-    finalCheckImpl();
+void StageNode::initialCheck() const {
+    try {
+        initialCheckImpl();
+    } catch (const InferenceEngine::details::InferenceEngineException& exception) {
+        VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
+    }
 
     for (const auto& injectedStageEdge : injectedStageEdges()) {
-        injectedStageEdge->child()->finalCheck();
+        try {
+            injectedStageEdge->child()->initialCheck();
+        } catch (const InferenceEngine::details::InferenceEngineException& exception) {
+            VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
+        }
+    }
+}
+
+void StageNode::finalCheck() const {
+    try {
+        finalCheckImpl();
+    } catch (const InferenceEngine::details::InferenceEngineException& exception) {
+        VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
+    }
+
+    for (const auto& injectedStageEdge : injectedStageEdges()) {
+        try {
+            injectedStageEdge->child()->finalCheck();
+        } catch (const InferenceEngine::details::InferenceEngineException& exception) {
+            VPU_THROW_EXCEPTION << name() << " of type " << type() << ": " << exception.what();
+        }
     }
 }
 
@@ -296,16 +321,17 @@ void StageNode::serialize(BlobSerializer& serializer) const {
 
 void StageNode::propagateScaleFactorsImpl(
         const SmallVector<float>&,
-        ScalePropagationStep) {
+        ScalePropagationStep,
+        StageDataInfo<float>& scaleInfo) {
     //
     // Default implementation assumes no scaling support.
     //
 
     for (const auto& inEdge : _inputEdges) {
-        _scaleInfo.setInput(inEdge, 1.0f);
+        scaleInfo.setInput(inEdge, 1.0f);
     }
     for (const auto& outEdge : _outputEdges) {
-        _scaleInfo.setOutput(outEdge, 1.0f);
+        scaleInfo.setOutput(outEdge, 1.0f);
     }
 }
 
@@ -319,6 +345,51 @@ StageSHAVEsRequirements StageNode::getSHAVEsRequirementsImpl() const {
 
 void printTo(std::ostream& os, const Stage& stage) {
     os << (stage == nullptr ? "<null>" : stage->name());
+}
+
+void assertAllInputsOutputsTypes(const StageNode* stage,
+                                 const DataType& expectedInputsType,
+                                 const DataType& expectedOutputsType) {
+    auto assertTypes = [](const DataType& expectedType,
+                          const std::vector<Data>& datas, const std::string& token) {
+        for (decltype(datas.size()) idx = 0; idx < datas.size(); ++idx) {
+            if (datas[idx]->usage() == DataUsage::Fake)
+                continue;
+            const auto& actualType = datas[idx]->desc().type();
+
+            IE_ASSERT(actualType == expectedType)
+                << ": " << token << "#" << std::to_string(idx) << " of type " << actualType << " given, but one of "
+                << expectedType << " is expected";
+        }
+    };
+
+    assertTypes(expectedInputsType, toVector(stage->inputs()), "input");
+    assertTypes(expectedOutputsType, toVector(stage->outputs()), "output");
+}
+
+
+void assertInputsOutputsTypes(const StageNode* stage,
+                              const std::vector<EnumSet<DataType>>& expectedInputsTypes,
+                              const std::vector<EnumSet<DataType>>& expectedOutputsTypes) {
+    auto assertTypes = [](const std::vector<EnumSet<DataType>>& expectedTypes,
+                          const std::vector<Data>& datas, const std::string& token) {
+        IE_ASSERT(expectedTypes.size() == datas.size())
+            << ": " << datas.size() << " " << token << "s given, but " << expectedTypes.size() << " is expected";
+
+        for (decltype(datas.size()) idx = 0; idx < datas.size(); ++idx) {
+            if (datas[idx]->usage() == DataUsage::Fake)
+                continue;
+            const auto& possibleTypes = expectedTypes[idx];
+            const auto& actualType = datas[idx]->desc().type();
+
+            IE_ASSERT(possibleTypes.find(actualType) != possibleTypes.end())
+                << ": " << token << "#" << std::to_string(idx) << " of type " << actualType << " given, but one of "
+                << toString(possibleTypes) << " is expected";
+        }
+    };
+
+    assertTypes(expectedInputsTypes, toVector(stage->inputs()), "input");
+    assertTypes(expectedOutputsTypes, toVector(stage->outputs()), "output");
 }
 
 }  // namespace vpu

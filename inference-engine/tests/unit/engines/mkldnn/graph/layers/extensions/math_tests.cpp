@@ -180,7 +180,7 @@ class MKLDNNCPUExtMathTests: public TestsCommon, public WithParamInterface<math_
 
     std::string getModel(math_test_params p) {
         std::string model = model_t;
-        std::string in_out;
+        std::string in_out = "";
         std::string alpha;
         std::string beta;
         std::string gamma;
@@ -194,17 +194,17 @@ class MKLDNNCPUExtMathTests: public TestsCommon, public WithParamInterface<math_
         REPLACE_WITH_STR(model, "_MATH_FUNCTION_", p.math_function);
 
         if (p.alpha.size()) {
-            alpha = "alpha=\"" + std::to_string(p.alpha[0]) + "\"";
+            alpha = "alpha=\"" + to_string_c_locale(p.alpha[0]) + "\"";
         }
         REPLACE_WITH_STR(model, "_ALPHA_", alpha);
 
         if (p.beta.size()) {
-            beta = "beta=\"" + std::to_string(p.beta[0]) + "\"";
+            beta = "beta=\"" + to_string_c_locale(p.beta[0]) + "\"";
         }
         REPLACE_WITH_STR(model, "_BETA_", beta);
 
         if (p.gamma.size()) {
-            gamma = "gamma=\"" + std::to_string(p.gamma[0]) + "\"";
+            gamma = "gamma=\"" + to_string_c_locale(p.gamma[0]) + "\"";
         }
         REPLACE_WITH_STR(model, "_GAMMA_", gamma);
         return model;
@@ -294,6 +294,7 @@ INSTANTIATE_TEST_CASE_P(
         TestsMath, MKLDNNCPUExtMathTests,
             ::testing::Values(
                 // Params: math_function, in_out, input_tensor, alpha, beta, gamma, reference
+                math_test_params{ "Erf", {},{},{},{},{},{} },
                 math_test_params{ "Erf", { 1, 1, 12, 256 }, {},{},{},{}, {} },
                 math_test_params{ "Erf", { 12, 256, 3 },{},{},{},{},{} },
                 math_test_params{ "Erf", { 3, 4 },{},{},{},{},{} },

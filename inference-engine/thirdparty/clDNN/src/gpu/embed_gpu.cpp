@@ -24,7 +24,7 @@
 #include "embed/embed_kernel_selector.h"
 #include "embed/embed_params.h"
 
-#include "api/CPP/input_layout.hpp"
+#include "api/input_layout.hpp"
 #include <vector>
 
 namespace cldnn {
@@ -73,18 +73,14 @@ struct embed_gpu : typed_primitive_gpu_impl<embed> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<embed>::add(
-            {{std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), embed_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), embed_gpu::create}});
-    }
-    ~attach() {}
-};
+namespace detail {
 
-attach attach_impl;
-}  // namespace
+attach_embed_gpu::attach_embed_gpu() {
+    implementation_map<embed>::add(
+        {{std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), embed_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), embed_gpu::create}});
+}
 
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

@@ -31,7 +31,7 @@ void CpuExtensions::AddShapeInferImpl(std::string name, const IShapeInferImpl::P
 
 void CpuExtensions::GetVersion(const Version*& versionInfo) const noexcept {
     static Version ExtensionDescription = {
-            { 2, 0 },    // extension API version
+            { 2, 1 },    // extension API version
             "2.0",
             "ie-cpu-ext"  // extension description message
     };

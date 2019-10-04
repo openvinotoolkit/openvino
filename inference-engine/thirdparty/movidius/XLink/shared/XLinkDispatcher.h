@@ -33,7 +33,7 @@ struct dispatcherControlFunctions {
                                 int (*eventReceive) (xLinkEvent_t*);
                                 getRespFunction localGetResponse;
                                 getRespFunction remoteGetResponse;
-                                void (*closeLink) (void* fd);
+                                void (*closeLink) (void* fd, int fullClose);
                                 void (*closeDeviceFd) (xLinkDeviceHandle_t* deviceHandle);
                                 };
 

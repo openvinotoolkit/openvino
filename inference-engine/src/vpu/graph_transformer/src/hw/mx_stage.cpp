@@ -16,7 +16,10 @@ StagePtr MyriadXHwStage::cloneImpl() const {
     return std::make_shared<MyriadXHwStage>(*this);
 }
 
-void MyriadXHwStage::propagateScaleFactorsImpl(const SmallVector<float>&, ScalePropagationStep) {
+void MyriadXHwStage::propagateScaleFactorsImpl(
+        const SmallVector<float>&,
+        ScalePropagationStep,
+        StageDataInfo<float>&) {
     VPU_THROW_EXCEPTION << "Must never be called";
 }
 
@@ -44,81 +47,69 @@ StridesRequirement getHwStridesRequirement(const Stage& stage, const DataDesc& d
 
 }  // namespace
 
-void MyriadXHwStage::propagateDataOrderImpl() const {
-    IE_ASSERT(_inputEdges.size() >= 4);
-    IE_ASSERT(_outputEdges.size() >= 1);
-
+void MyriadXHwStage::propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) {
     if (attrs().get<HwOpType>("hwOpType") != HwOpType::POOL) {
-        auto weights = _inputEdges[1]->input();
-        auto biases = _inputEdges[2]->input();
-        auto scales = _inputEdges[3]->input();
+        auto weights = inputEdge(1)->input();
+        auto biases = inputEdge(2)->input();
+        auto scales = inputEdge(3)->input();
 
         IE_ASSERT(weights->usage() == DataUsage::Const);
         IE_ASSERT(biases->usage() == DataUsage::Const || biases->usage() == DataUsage::Fake);
         IE_ASSERT(scales->usage() == DataUsage::Const || scales->usage() == DataUsage::Fake);
     }
 
-    auto input = _inputEdges[0]->input();
-    auto output = _outputEdges[0]->output();
+    auto input = inputEdge(0)->input();
+    auto output = outputEdge(0)->output();
 
     // TODO: support HCW
 
     if (input->desc().numDims() >= 3) {
-        _orderInfo.setInput(_inputEdges[0], input->desc().dimsOrder().createMovedDim(Dim::C, 2));
+        orderInfo.setInput(inputEdge(0), input->desc().dimsOrder().createMovedDim(Dim::C, 2));
     } else {
         IE_ASSERT(input->desc().dimsOrder() == DimsOrder::NC);
     }
 
     if (output->desc().numDims() >= 3) {
-        _orderInfo.setOutput(_outputEdges[0], output->desc().dimsOrder().createMovedDim(Dim::C, 2));
+        orderInfo.setOutput(outputEdge(0), output->desc().dimsOrder().createMovedDim(Dim::C, 2));
     } else {
         IE_ASSERT(output->desc().dimsOrder() == DimsOrder::NC);
     }
 }
 
-void MyriadXHwStage::getDataStridesRequirementsImpl() const {
-    IE_ASSERT(_inputEdges.size() >= 4);
-    IE_ASSERT(_outputEdges.size() >= 1);
-
+void MyriadXHwStage::getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) {
     if (attrs().get<HwOpType>("hwOpType") != HwOpType::POOL) {
-        auto weights = _inputEdges[1]->input();
-        auto biases = _inputEdges[2]->input();
-        auto scales = _inputEdges[3]->input();
+        auto weights = inputEdge(1)->input();
+        auto biases = inputEdge(2)->input();
+        auto scales = inputEdge(3)->input();
 
         IE_ASSERT(weights->usage() == DataUsage::Const);
         IE_ASSERT(biases->usage() == DataUsage::Const || biases->usage() == DataUsage::Fake);
         IE_ASSERT(scales->usage() == DataUsage::Const || scales->usage() == DataUsage::Fake);
     }
 
-    auto input = _inputEdges[0]->input();
-    auto output = _outputEdges[0]->output();
+    auto input = inputEdge(0)->input();
+    auto output = outputEdge(0)->output();
 
-    _stridesInfo.setInput(_inputEdges[0], getHwStridesRequirement(handle_from_this(), input->desc()));
-    _stridesInfo.setOutput(_outputEdges[0], getHwStridesRequirement(handle_from_this(), output->desc()));
+    stridesInfo.setInput(inputEdge(0), getHwStridesRequirement(handle_from_this(), input->desc()));
+    stridesInfo.setOutput(outputEdge(0), getHwStridesRequirement(handle_from_this(), output->desc()));
 }
 
 void MyriadXHwStage::finalizeDataLayoutImpl() {
 }
 
-void MyriadXHwStage::getBatchSupportInfoImpl() const {
+void MyriadXHwStage::getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) {
     if (attrs().get<HwOpType>("hwOpType") != HwOpType::POOL) {
-        IE_ASSERT(_inputEdges.size() >= 4);
-        IE_ASSERT(_outputEdges.size() >= 1);
-
-        _batchInfo.setInput(_inputEdges[0], BatchSupport::Split);
-        _batchInfo.setOutput(_outputEdges[0], BatchSupport::Split);
+        batchInfo.setInput(inputEdge(0), BatchSupport::Split);
+        batchInfo.setOutput(outputEdge(0), BatchSupport::Split);
     }
 }
 
 void MyriadXHwStage::finalCheckImpl() const {
-    IE_ASSERT(_inputEdges.size() >= 4);
-    IE_ASSERT(_outputEdges.size() >= 1);
-
-    auto input = _inputEdges[0]->input();
-    auto weights = _inputEdges[1]->input();
-    auto biases = _inputEdges[2]->input();
-    auto scales = _inputEdges[3]->input();
-    auto output = _outputEdges[0]->output();
+    auto input = inputEdge(0)->input();
+    auto weights = inputEdge(1)->input();
+    auto biases = inputEdge(2)->input();
+    auto scales = inputEdge(3)->input();
+    auto output = outputEdge(0)->output();
 
     IE_ASSERT(input->memoryOffset() % 16 == 0);
     IE_ASSERT(weights->memoryOffset() % 16 == 0);
@@ -189,9 +180,9 @@ void MyriadXHwStage::serializeParamsImpl(BlobSerializer& serializer) const {
         serializer.append(checked_cast<uint32_t>(hwOpParams.reuseCoeff));
     }
 
-    serializer.append(checked_cast<uint32_t>(_injectedStageEdges.size()));
-    for (const auto& injectedStageEdge : _injectedStageEdges) {
-        injectedStageEdge->child()->serialize(serializer);
+    serializer.append(checked_cast<uint32_t>(numInjectedStages()));
+    for (const auto& injectedStage : injectedStages()) {
+        injectedStage->serialize(serializer);
     }
 }
 
@@ -200,7 +191,7 @@ void MyriadXHwStage::serializeDataImpl(BlobSerializer& serializer) const {
 
     uint32_t numBuffers = 0;
 
-    for (const auto& inEdge : _inputEdges) {
+    for (const auto& inEdge : inputEdges()) {
         if (inEdge->childEdge() != nullptr)
             continue;
 
@@ -212,7 +203,7 @@ void MyriadXHwStage::serializeDataImpl(BlobSerializer& serializer) const {
         ++numBuffers;
     }
 
-    for (const auto& outEdge : _outputEdges) {
+    for (const auto& outEdge : outputEdges()) {
         if (outEdge->childEdge() != nullptr)
             continue;
 

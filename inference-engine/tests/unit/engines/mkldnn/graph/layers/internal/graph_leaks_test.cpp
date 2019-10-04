@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_plugin/mkldnn_exec_network.h"
 
 #include "test_graph.hpp"
 

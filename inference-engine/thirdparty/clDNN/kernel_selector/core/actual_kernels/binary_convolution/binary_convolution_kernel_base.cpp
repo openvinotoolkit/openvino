@@ -48,39 +48,18 @@ bool BinaryConvolutionKernelBase::Validate(const Params& p, const optional_param
 
 JitConstants BinaryConvolutionKernelBase::GetJitConstants(const binary_convolution_params& params,
                                                           const DispatchData& kd) const {
-    JitConstants mem_consts = WeightBiasKernelBase::GetJitConstants(params);
-    mem_consts.Merge(GetFusedPrimitivesJitConstants(params, kd));
-    const auto& padding = params.padding;
-    const auto& input = params.inputs[0];
+    JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
+    jit.Merge(GetFusedPrimitivesJitConstants(params, kd));
 
-    int64_t input_offset_with_padding =
-        (int64_t)input.GetFirstElementOffset() - padding.x * input.X().pitch - input.Y().pitch * padding.y;
-    input_offset_with_padding = std::max(input_offset_with_padding, (int64_t)0);
-
-    mem_consts.AddConstants({
+    jit.AddConstants({
         MakeJitConstant("STRIDE", params.stride),
         MakeJitConstant("PADDING", params.padding),
         MakeJitConstant("DILATION", params.dilation),
-        MakeJitConstant("FILTER_ARRAY_NUM", params.split),
-        MakeJitConstant("INPUT0_OFFSET_WITH_PADDING", input_offset_with_padding),
-        MakeJitConstant("DEPTHWISE_SEPARABLE_OPT", params.depthwise_separable_opt),
     });
 
-    std::vector<uint32_t> unrollLoopParams{params.filterSize.x,
-                                           params.filterSize.y,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDX,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDY,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDZ,
-                                           (uint32_t)kd.gemmStyle.subBlockDimM,
-                                           (uint32_t)kd.gemmStyle.subBlockDimK,
-                                           (uint32_t)kd.gemmStyle.subBlockDimN};
+    jit.Merge(MakeTypeJitConstants(params.out_dt, "CONV_RESULT"));
 
-    auto loopCount = *std::max_element(unrollLoopParams.begin(), unrollLoopParams.end());
-
-    JitConstants mem_consts_loop = MakeLoopUnrollParamsJitConstants(loopCount);
-    mem_consts.Merge(mem_consts_loop);
-
-    return mem_consts;
+    return jit;
 }
 
 JitConstants BinaryConvolutionKernelBase::GetFusedPrimitivesJitConstants(const binary_convolution_params& /*params*/,
@@ -99,36 +78,6 @@ bool BinaryConvolutionKernelBase::CheckWorkGroups(const BinaryConvolutionKernelB
 
     return true;
 }
-
-namespace {
-bool CheckTensorForSplit(const DataTensor& t, uint32_t split) {
-    if (t.PitchesDifferFromLogicalDims()) {
-        auto feature = t.Feature();
-        auto featureIndex = DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::FEATURE);
-        if (featureIndex >= 0 && featureIndex + 1 < static_cast<int>(DataTensor::ChannelsCount(t.GetLayout()))) {
-            if (feature.v * split <= t.GetDims()[featureIndex + 1].pitch) {
-                Tensor::NDims newDims = t.GetDims();
-                newDims[featureIndex].v = feature.v * split;
-
-                DataTensor newTensor{newDims,
-                                     t.GetDType(),
-                                     t.GetLayout(),
-                                     t.GetViewOffset(),
-                                     t.PhysicalSize(),
-                                     t.GetPaddedVal()};
-
-                if (newTensor.PitchesDifferFromLogicalDims() == false) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    return true;
-}
-}  // namespace
 
 BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelBase::SetDefault(
     const binary_convolution_params& params,

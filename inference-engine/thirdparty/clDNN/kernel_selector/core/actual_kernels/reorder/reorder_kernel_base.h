@@ -24,7 +24,8 @@ namespace kernel_selector {
 // reorder_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct reorder_params : public base_params {
-    reorder_params() : base_params(KernelType::REORDER) {}
+    reorder_params() : base_params(KernelType::REORDER),
+    winograd_input_offset_x(0), winograd_input_offset_y(0), winograd_nr_tiles_x(0) {}
 
     MeanSubtractMode mode = MeanSubtractMode::NONE;
     MeanOp mean_op = MeanOp::SUB;

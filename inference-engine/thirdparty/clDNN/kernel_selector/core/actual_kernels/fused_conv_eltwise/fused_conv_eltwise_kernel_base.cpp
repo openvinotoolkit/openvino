@@ -33,10 +33,10 @@ std::string fused_conv_eltwise_params::to_string() const {
         s << "bias_" << bias[0].PhysicalSize() << "_";
     }
 
-    s << conv.filterSize.x << "_" << conv.filterSize.y << "_";
-    s << conv.stride.x << "_" << conv.stride.y << "_";
-    s << conv.dilation.x << "_" << conv.dilation.y << "_";
-    s << conv.padding.x << "_" << conv.padding.y << "_";
+    s << conv.filterSize.x << "_" << conv.filterSize.y << "_" << conv.filterSize.z << "_";
+    s << conv.stride.x << "_" << conv.stride.y << "_" << conv.stride.z << "_";
+    s << conv.dilation.x << "_" << conv.dilation.y << "_" << conv.dilation.z << "_";
+    s << conv.padding.x << "_" << conv.padding.y << "_" << conv.padding.z << "_";
     s << conv.split;
 
     return s.str();
@@ -49,7 +49,7 @@ ParamsKey fused_conv_eltwise_params::GetParamsKey() const {
         k.EnableFusedConvEltwSplitSupport();
     }
 
-    if (conv.dilation.x != 1 || conv.dilation.y != 1) {
+    if (conv.dilation.x != 1 || conv.dilation.y != 1 || conv.dilation.z != 1) {
         k.EnableFusedConvEltwDilation();
     }
 
@@ -140,24 +140,27 @@ JitConstants fused_conv_eltwise_kernel_base::GetJitConstants(const fused_conv_el
         mem_consts.AddConstants({MakeJitConstant("LOCAL_CONVOLUTION", params.conv.local_convolution)});
     }
 
-    JitConstants eltw_activations = MakeActivationJitConstants(params.activation, "_ELTW");
+    JitConstants eltw_activations = MakeActivationJitConstants(params.activations, "_ELTW");
     mem_consts.Merge(eltw_activations);
-    JitConstants conv_activations = MakeActivationJitConstants(params.conv.activation, "_CONV");
+    JitConstants conv_activations = MakeActivationJitConstants(params.conv.activations, "_CONV");
     mem_consts.Merge(conv_activations);
     mem_consts.AddConstant(MakeJitConstant("ELTW_CALIBRATION_TERM", params.eltw.output_calibration));
 
     if (!params.eltw.stride.empty()) {
         mem_consts.AddConstant(MakeJitConstant("ELTW_STRIDE_X", params.eltw.stride[0].x));
         mem_consts.AddConstant(MakeJitConstant("ELTW_STRIDE_Y", params.eltw.stride[0].y));
+        mem_consts.AddConstant(MakeJitConstant("ELTW_STRIDE_Z", params.eltw.stride[0].z));
     } else {
         mem_consts.AddConstant(MakeJitConstant("ELTW_STRIDE_X", 1));
         mem_consts.AddConstant(MakeJitConstant("ELTW_STRIDE_Y", 1));
+        mem_consts.AddConstant(MakeJitConstant("ELTW_STRIDE_Z", 1));
     }
 
     mem_consts.AddConstant(MakeJitConstant("IN_OUT_OPT", params.second_input_in_output ? 1 : 0));
 
     std::vector<uint32_t> unrollLoopParams{params.conv.filterSize.x,
                                            params.conv.filterSize.y,
+                                           params.conv.filterSize.z,
                                            (uint32_t)kd.gemmStyle.globalWorkSizeDX,
                                            (uint32_t)kd.gemmStyle.globalWorkSizeDY,
                                            (uint32_t)kd.gemmStyle.globalWorkSizeDZ,
@@ -228,10 +231,11 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_base::Set
     const auto& out = params.output;
     kd.fp16UnitUsed = out.GetDType() == Datatype::F16;
     std::vector<size_t> global;
-    if (params.output.GetLayout() == DataLayout::bfyx || params.output.GetLayout() == DataLayout::byxf) {
-        global = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
+    if (params.output.GetLayout() == DataLayout::bfyx || params.output.GetLayout() == DataLayout::byxf ||
+        params.output.GetLayout() == DataLayout::bfzyx || params.output.GetLayout() == DataLayout::bfzyx_f16) {
+        global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
     } else {
-        global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
+        global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v * out.Z().v };
     }
 
     auto local = GetOptimalLocalWorkGroupSizes(global);
@@ -358,30 +362,37 @@ KernelsData fused_conv_eltwise_kernel_base::GetKernelsDataForAutoTune(const Para
 }
 
 static DataTensor GetConvolutionBFYXPaddedTensor(const fused_conv_eltwise_params& cp) {
-    assert(cp.inputs[0].GetDims().size() == 4U);
-
     DataTensor t = cp.inputs[0];
-    std::vector<Tensor::Pad> pad{{0, 0}, {0, 0}, {0, 0}, {0, 0}};
+    std::vector<Tensor::Pad> pad{{0, 0}, {0, 0}, {0, 0}, {0, 0}, { 0, 0 } };
 
     auto& conv = cp.conv;
 
     pad[0].before = conv.padding.x;
     pad[1].before = conv.padding.y;
+    pad[2].before = conv.padding.z;
 
     const auto inputLimitX = (cp.output.X().v - 1) * conv.stride.x + (conv.filterSize.x - 1) * conv.dilation.x + 1;
     const auto inputLimitY = (cp.output.Y().v - 1) * conv.stride.y + (conv.filterSize.y - 1) * conv.dilation.y + 1;
+    const auto inputLimitZ = (cp.output.Z().v - 1) * conv.stride.z + (conv.filterSize.z - 1) * conv.dilation.z + 1;
 
     pad[0].after = (size_t)std::max(static_cast<int>(inputLimitX) - static_cast<int>(t.X().v) - static_cast<int>(pad[0].before), static_cast<int>(0));
     pad[1].after = (size_t)std::max(static_cast<int>(inputLimitY) - static_cast<int>(t.Y().v) - static_cast<int>(pad[1].before), static_cast<int>(0));
+    pad[2].after = (size_t)std::max(static_cast<int>(inputLimitZ) - static_cast<int>(t.Z().v) - static_cast<int>(pad[2].before), static_cast<int>(0));
 
-    Tensor::NDims dims(4);
+    Tensor::NDims dims(5);
     const Tensor::NDims& orgDims = cp.inputs[0].GetDims();
     size_t pitch = 1;
-    for (size_t i = 0; i < dims.size(); i++) {
+    size_t i;
+    for (i = 0; i < orgDims.size(); i++) {
         dims[i].pad = pad[i];
         dims[i].v = orgDims[i].v;
         dims[i].pitch = pitch;
         pitch *= dims[i].LogicalDimPadded();
+    }
+    for (size_t j = i; j < dims.size(); j++) {
+        dims[i].pad = { 0, 0 };
+        dims[i].v = 1;
+        dims[i].pitch = pitch;
     }
 
     return {dims, t.GetDType(), t.GetLayout()};
@@ -390,16 +401,19 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const fused_conv_eltwise_params
 bool CheckConvolutionPaddedInputDesc(const fused_conv_eltwise_params& params, const DataTensor& reqDesc) {
     bool properPadding = reqDesc.X().pad.before <= params.inputs[0].X().pad.before &&
                          reqDesc.Y().pad.before <= params.inputs[0].Y().pad.before &&
+                         reqDesc.Z().pad.before <= params.inputs[0].Z().pad.before &&
                          reqDesc.Feature().pad.before <= params.inputs[0].Feature().pad.before &&
                          reqDesc.Batch().pad.before <= params.inputs[0].Batch().pad.before;
 
     properPadding &= reqDesc.X().pad.after <= params.inputs[0].X().pad.after &&
                      reqDesc.Y().pad.after <= params.inputs[0].Y().pad.after &&
+                     reqDesc.Z().pad.after <= params.inputs[0].Z().pad.after &&
                      reqDesc.Feature().pad.after <= params.inputs[0].Feature().pad.after &&
                      reqDesc.Batch().pad.after <= params.inputs[0].Batch().pad.after;
 
     properPadding &=
-        ((params.conv.padding.x == 0 && params.conv.padding.y == 0) || params.inputs[0].GetPaddedVal() == 0.f);
+        ((params.conv.padding.x == 0 && params.conv.padding.y == 0 && params.conv.padding.z == 0) ||
+            params.inputs[0].GetPaddedVal() == 0.f);
 
     return properPadding;
 }

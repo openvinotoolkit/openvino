@@ -27,7 +27,9 @@ __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
 KERNEL(binary_convolution_1x1)(const __global INPUT0_TYPE* input,
                                      __global OUTPUT_TYPE* output,
                                const __global FILTER_TYPE* weights,
-                               FUSED_OPS_DECLS
+#if HAS_FUSED_OPS_DECLS
+                               FUSED_OPS_DECLS,
+#endif
                                uint split_idx)
 {
     const int xy = get_group_id(0);
@@ -171,18 +173,25 @@ KERNEL(binary_convolution_1x1)(const __global INPUT0_TYPE* input,
     }
 
     // Load data for fused operations (scales, biases, quantization thresholds, etc)
+#if CUSTOM_FUSED_OPS
     FUSED_OPS_PREPARE_DATA;
+#endif
 
     UNIT_TYPE dst[OC_BLOCK_SIZE];
     for (int oc = 0; oc < OC_BLOCK_SIZE; oc++)
     {
-        UNIT_TYPE res = TO_UNIT_TYPE(INPUT0_FEATURE_NUM - 2*dst_buf[oc]);
+        CONV_RESULT_TYPE res = TO_CONV_RESULT_TYPE(INPUT0_FEATURE_NUM - 2*dst_buf[oc]);
+#if CUSTOM_FUSED_OPS
         DO_ELTWISE_FUSED_OPS;
-
 // Don't save floating-point intermediate result, since packed one is already computed
 #if !BINARY_PACKED_OUTPUT
         dst[oc] = res;
 #endif
+#elif HAS_FUSED_OPS
+        FUSED_OPS;
+        dst[oc] = FINAL_NAME;
+#endif
+
     }
 
     bool in_x = x < OUTPUT_SIZE_X;

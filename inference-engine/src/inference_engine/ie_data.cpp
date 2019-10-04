@@ -73,7 +73,7 @@ const Precision& Data::getPrecision() const {
 }
 
 const TensorDesc& Data::getTensorDesc() const {
-    if ((tensorDesc.getDims().size() == 0 && tensorDesc.getDims() != dims) ||
+    if ((tensorDesc.getDims().size() == 0 && tensorDesc.getDims() != dims && dims[0] != 1) ||
             (tensorDesc.getLayout() == Layout::ANY && layout != Layout::ANY) ||
             (!tensorDesc.getPrecision() && precision)) {
         THROW_IE_EXCEPTION << "Tensor descriptor is empty!";

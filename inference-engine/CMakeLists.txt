@@ -34,6 +34,9 @@ message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 
+# remove file with exported developer targets to force its regeneration
+file(REMOVE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
+
 add_subdirectory(src)
 
 if(ENABLE_TESTS)

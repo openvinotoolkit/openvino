@@ -16,14 +16,14 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/split.hpp"
-#include "api/CPP/scale.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
-#include <api/CPP/reorder.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/split.hpp"
+#include "api/scale.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
+#include <api/reorder.hpp>
 #include "test_utils/test_utils.h"
 
 #include <sstream>
@@ -113,7 +113,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
         }
 
         // For all the other dimensions, copy from the split_input
-        for (int dimension = 0; dimension < CLDNN_TENSOR_DIM_MAX; dimension++)
+        for (int dimension = 0; dimension < cldnn::tensor_dim_max; dimension++)
         {
             size.raw[dimension]
                 = (size.raw[dimension] == 0) ? reference_input_size.raw[dimension] : size.raw[dimension];
@@ -197,7 +197,6 @@ TEST(split_gpu, split_1d_uneven_2_splits) {
 
     split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
 }
-
 
 TEST(split_gpu, basic_split_concat_optimization) {
 

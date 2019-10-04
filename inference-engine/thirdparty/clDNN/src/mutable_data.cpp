@@ -26,7 +26,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id mutable_data_type_id() {
+primitive_type_id mutable_data::type_id() {
     static primitive_type_base<mutable_data> instance;
     return &instance;
 }
@@ -46,7 +46,7 @@ memory_impl::ptr attach_or_copy_data(network_impl& network, memory_impl& mem) {
 }  // namespace
 
 mutable_data_node::typed_program_node(const std::shared_ptr<mutable_data> dprim, program_impl& prog)
-    : parent(dprim, prog), mem(api_cast(dprim->mem.get())) {
+    : parent(dprim, prog), mem(dprim->mem.get()) {
     recalc_output_layout(false);
     can_share_buffer(false);
     fill_memory();

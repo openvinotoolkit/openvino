@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #pragma once
-#include "api/CPP/pyramid_roi_align.hpp"
+#include "api/pyramid_roi_align.hpp"
 #include "primitive_inst.h"
 
 #include <memory>

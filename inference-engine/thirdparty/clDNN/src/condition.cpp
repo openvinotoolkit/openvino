@@ -20,7 +20,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id condition_type_id() {
+primitive_type_id condition::type_id() {
     static primitive_type_base<condition> instance;
     return &instance;
 }

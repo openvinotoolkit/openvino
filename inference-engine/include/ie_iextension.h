@@ -20,11 +20,15 @@
 
 #include "details/ie_no_copy.hpp"
 
+/**
+ * @def INFERENCE_EXTENSION_API(TYPE)
+ * @brief Defines Inference Engine Extension API method
+ */
 
 #if defined(_WIN32) && defined(IMPLEMENT_INFERENCE_EXTENSION_API)
-#define INFERENCE_EXTENSION_API(TYPE) extern "C"  __declspec(dllexport) TYPE
+# define INFERENCE_EXTENSION_API(TYPE) extern "C"  __declspec(dllexport) TYPE
 #else
-#define INFERENCE_EXTENSION_API(TYPE) INFERENCE_ENGINE_API(TYPE)
+# define INFERENCE_EXTENSION_API(TYPE) INFERENCE_ENGINE_API(TYPE)
 #endif
 
 

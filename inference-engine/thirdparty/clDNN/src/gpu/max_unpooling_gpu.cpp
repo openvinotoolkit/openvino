@@ -70,31 +70,29 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                               max_unpooling_gpu::create);
-        implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                               max_unpooling_gpu::create);
-        implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                               max_unpooling_gpu::create);
-        implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                               max_unpooling_gpu::create);
-        implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx),
-                                               max_unpooling_gpu::create);
-        implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb),
-                                               max_unpooling_gpu::create);
-        implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
-                                               max_unpooling_gpu::create);
-        implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
-                                               max_unpooling_gpu::create);
-        implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf),
-                                               max_unpooling_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_max_unpooling_gpu::attach_max_unpooling_gpu() {
+    implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                           max_unpooling_gpu::create);
+    implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+                                           max_unpooling_gpu::create);
+    implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                           max_unpooling_gpu::create);
+    implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                           max_unpooling_gpu::create);
+    implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx),
+                                           max_unpooling_gpu::create);
+    implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb),
+                                           max_unpooling_gpu::create);
+    implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
+                                           max_unpooling_gpu::create);
+    implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+                                           max_unpooling_gpu::create);
+    implementation_map<max_unpooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf),
+                                           max_unpooling_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

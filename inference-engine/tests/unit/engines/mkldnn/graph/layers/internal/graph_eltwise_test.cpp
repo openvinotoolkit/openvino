@@ -47,7 +47,7 @@ void ref_eltwise(const std::vector<InferenceEngine::TBlob<data_t>> &src, Inferen
         std::istringstream stream(prm.scales);
         std::string str;
         while (getline(stream, str, ',')) {
-            float val = std::stof(str);
+            float val = InferenceEngine::CNNLayer::ie_parse_float(str);
             scales.push_back(val);
         }
     } else {
@@ -344,7 +344,7 @@ protected:
 
         std::string scale;
         if (!p.scales.empty()) {
-            scale = std::string("coeff=\"") + p.scales + std::string("\"");
+            scale = std::string("coeff=\"") + to_string_c_locale(p.scales) + std::string("\"");
         }
         REPLACE_WITH_STR(model, "_OP_", op);
         REPLACE_WITH_STR(model, "_COEFF_", scale);
@@ -588,14 +588,14 @@ protected:
         std::string model = model_t;
         std::string op = select_op(p.op);
 
-        std::string src_dims1;
+        std::string src_dims1 = "";
         for (auto &dim : p.dims1) {
             src_dims1 += "\n                    <dim>";
             src_dims1 += std::to_string(dim) + "</dim>";
         }
         REPLACE_WITH_STR(model, "__SRC_DIMS_1__", src_dims1);
 
-        std::string src_dims2;
+        std::string src_dims2 = "";
         for (auto &dim : p.dims2) {
             src_dims2 += "\n                    <dim>";
             src_dims2 += std::to_string(dim) + "</dim>";
@@ -617,7 +617,7 @@ protected:
 
         std::string scale;
         if (!p.scales.empty()) {
-            scale = std::string("coeff=\"") + p.scales + std::string("\"");
+            scale = std::string("coeff=\"") + to_string_c_locale(p.scales) + std::string("\"");
         }
         REPLACE_WITH_STR(model, "_OP_", op);
         REPLACE_WITH_STR(model, "_COEFF_", scale);
@@ -652,27 +652,7 @@ protected:
                 }
             }
             InferenceEngine::SizeVector dims_src1 = p.dims1;
-            InferenceEngine::Layout layout1 = InferenceEngine::ANY;
-            switch (p.dims1.size()) {
-                case 4:
-                    layout1 = InferenceEngine::NCHW;
-                    break;
-                case 5:
-                    layout1 = InferenceEngine::NCDHW;
-                    break;
-            }
-            InferenceEngine::SizeVector dims_src2 = p.dims2;
-            InferenceEngine::Layout layout2 = InferenceEngine::ANY;
-            switch (p.dims2.size()) {
-                case 4:
-                    layout2 = InferenceEngine::NCHW;
-                    break;
-                case 5:
-                    layout2 = InferenceEngine::NCDHW;
-                    break;
-            }
-
-            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, layout1});
+            InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, InferenceEngine::TensorDesc::getLayoutByDims(p.dims1) });
             src1->allocate();
 
             InferenceEngine::TBlob<float>* srcPtr1 = dynamic_cast<InferenceEngine::TBlob<float>*>(src1.get());
@@ -681,7 +661,9 @@ protected:
                 FAIL() << "Cannot cast blob to TBlob<float>.";
 
             fill_data_sine(src1->buffer(), src1->size(), 0.1, 0.9, 1);
-            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src2, layout2});
+
+            InferenceEngine::SizeVector dims_src2 = p.dims2;
+            InferenceEngine::Blob::Ptr src2 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src2, InferenceEngine::TensorDesc::getLayoutByDims(p.dims2) });
             src2->allocate();
 
             InferenceEngine::TBlob<float>* srcPtr2 = dynamic_cast<InferenceEngine::TBlob<float>*>(src2.get());
@@ -762,22 +744,22 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
         TestsDiffDims, MKLDNNGraphEltwise2InputsTests,
         ::testing::Values(
-                eltwise_test_params{{1},{1, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
-                eltwise_test_params{{1, 3},{1},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{},{1, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3},{},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3},{3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
-                eltwise_test_params{{1},{1, 3, 3},{}, eltwise_test_params::opType::Sum, "", 2, MKLDNNPlugin::impl_desc_type::ref},
-                eltwise_test_params{{1, 3, 3},{1},{}, eltwise_test_params::opType::Sum, "", 2, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{},{1, 3, 3},{}, eltwise_test_params::opType::Sum, "", 2, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3},{},{}, eltwise_test_params::opType::Sum, "", 2, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3, 3},{3},{}, eltwise_test_params::opType::Sum, "", 2, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3},{1, 3, 3},{}, eltwise_test_params::opType::Sum, "", 2, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3, 3},{1, 3},{}, eltwise_test_params::opType::Sum, "", 2, MKLDNNPlugin::impl_desc_type::ref},
-                eltwise_test_params{{1},{1, 3, 3, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
-                eltwise_test_params{{1, 3, 3, 3},{1},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{},{1, 3, 3, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3},{},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3},{1, 3, 3, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3, 3, 3},{1, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3, 3},{1, 3, 3, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
-                eltwise_test_params{{1},{1, 3, 3, 3, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
-                eltwise_test_params{{1, 3, 3, 3, 3},{1},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{},{1, 3, 3, 3, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3, 3},{},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3},{1, 3, 3, 3, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3, 3, 3, 3},{1, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},
                 eltwise_test_params{{1, 3, 3},{1, 3, 3, 3, 3},{}, eltwise_test_params::opType::Sum, "", 1, MKLDNNPlugin::impl_desc_type::ref},

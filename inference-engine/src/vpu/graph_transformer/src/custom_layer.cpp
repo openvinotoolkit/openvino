@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-#ifdef __linux__
+#if defined(__linux__) || defined (__APPLE__)
 # include <dlfcn.h>
 #endif
 
@@ -293,7 +293,7 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
 #ifdef _WIN32
     char path[MAX_PATH];
     auto abs_path_ptr = _fullpath(path, configFile.c_str(), MAX_PATH);
-#elif __linux__
+#elif defined(__linux__) || defined(__APPLE__)
     char path[PATH_MAX];
     auto abs_path_ptr = realpath(configFile.c_str(), path);
 #endif
@@ -427,8 +427,8 @@ void CustomLayer::processKernelNode(const pugi::xml_node& node) {
         contentStream << inputFile.rdbuf();
         _kernelBinary.append(contentStream.str());
 
-        if (_kernelBinary.size() >= 16*1024) {
-            VPU_THROW_EXCEPTION << "Kernel binary exceeds 16KB." << fileName;
+        if (_kernelBinary.size() >= 32*1024) {
+            VPU_THROW_EXCEPTION << "Kernel binary exceeds 32KB." << fileName;
         }
     }
 
@@ -677,6 +677,8 @@ CustomDataFormat CustomLayer::formatFromString(const std::string & str) {
     static const ie::details::caseless_map<std::string, CustomDataFormat> FormatNameToType = {
         { "BFYX" , CustomDataFormat::BFYX },
         { "BYXF" , CustomDataFormat::BYXF },
+        { "FYX" , CustomDataFormat::FYX },
+        { "YXF" , CustomDataFormat::YXF },
         { "ANY"  , CustomDataFormat::Any },
     };
 

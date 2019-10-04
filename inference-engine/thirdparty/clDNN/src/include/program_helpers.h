@@ -65,8 +65,14 @@ struct program_helpers {
 
     // helper function which creates single-element array if it's given anything
     // other than std::vector.
-    // std::vector case -> does not wrap, returns t as-is
-    static const primitive::fixed_size_vector_ref& wrap_if_single(primitive::fixed_size_vector_ref const& t) {
+    // std::vector case -> does not wrap
+    template <typename T>
+    static std::vector<T>& wrap_if_single(std::vector<T>& t) {
+        return t;
+    }
+
+    template <typename T>
+    static const std::vector<T>& wrap_if_single(const std::vector<T>& t) {
         return t;
     }
 
@@ -103,7 +109,7 @@ struct program_helpers {
     }
     static void merge_buffers(engine_impl& engine,
                               program_node& node,
-                              layout target_layout,
+                              const layout& target_layout,
                               size_t begin_offset,
                               size_t end_offset);
     static layout get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split);

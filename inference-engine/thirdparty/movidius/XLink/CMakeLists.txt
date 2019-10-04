@@ -4,29 +4,22 @@
 
 set(TARGET_NAME "XLink")
 
-if(NOT WIN32)
-    find_package(Threads REQUIRED)
+include(XLink.cmake)
 
-    find_path(LIBUSB_INCLUDE_DIR NAMES libusb.h PATH_SUFFIXES "include" "libusb" "libusb-1.0")
-    find_library(LIBUSB_LIBRARY NAMES usb-1.0 PATH_SUFFIXES "lib")
-
-    if(NOT LIBUSB_INCLUDE_DIR OR NOT LIBUSB_LIBRARY)
-        message(FATAL_ERROR "libusb is required")
-    endif()
-endif()
-
-file(GLOB_RECURSE SOURCES *.c *.h)
-file(GLOB_RECURSE SHARED "../shared/*")
-
-# FIXME: WIN_PTHREAD also should be built as a library
+# Windows threads sources
 if(WIN32)
     file(GLOB USB_WIN_SOURCES "../USB_WIN/*")
-    file(GLOB WIN_PTHREAD_SOURCES "../WinPthread/*")
-    list(APPEND SOURCES ${USB_WIN_SOURCES} ${WIN_PTHREAD_SOURCES})
+    set(WIN_PTHREAD_SOURCES
+            "${CMAKE_CURRENT_SOURCE_DIR}/../WinPthread/win_semaphore.c"
+            "${CMAKE_CURRENT_SOURCE_DIR}/../WinPthread/win_pthread.c")
+    list(APPEND XLINK_SOURCES ${USB_WIN_SOURCES} ${WIN_PTHREAD_SOURCES})
+else()
+    list(APPEND XLINK_SOURCES "../WinPthread/pthread_semaphore.c")
 endif()
 
-add_library(${TARGET_NAME} STATIC ${SOURCES} ${SHARED})
+add_library(${TARGET_NAME} STATIC ${XLINK_SOURCES})
 
+# Threads and usb include
 if(WIN32)
     target_include_directories(${TARGET_NAME}
             PRIVATE
@@ -40,36 +33,30 @@ endif()
 
 target_include_directories(${TARGET_NAME}
         PUBLIC
-            "shared"
-            "../shared/include"
-            "pc")
+        ${XLINK_INCLUDE}
+        "../WinPthread")
 
 if(NOT WIN32)
     target_link_libraries(${TARGET_NAME}
             PUBLIC
-                Threads::Threads
-                ${LIBUSB_LIBRARY})
+            Threads::Threads
+            ${LIBUSB_LIBRARY})
 endif()
 
 target_compile_definitions(${TARGET_NAME}
         PRIVATE
-            __PC__
-            HAVE_STRUCT_TIMESPEC
-            _CRT_SECURE_NO_WARNINGS
+        __PC__
+        HAVE_STRUCT_TIMESPEC
+        _CRT_SECURE_NO_WARNINGS
+        USE_USB_VSC
         )
 
 if (ENABLE_MYRIAD_NO_BOOT)
     target_compile_definitions(${TARGET_NAME}
-        PRIVATE
-            NO_BOOT
-            USE_USB_VSC)
-else()
-    target_compile_definitions(${TARGET_NAME}
-        PRIVATE
-            USE_USB_VSC)
+            PRIVATE
+            NO_BOOT)
 endif()
 
+add_dependencies(${TARGET_NAME} vpu_copy_firmware)
 
-if(ENABLE_TESTS)
-    add_subdirectory(tests)
-endif()
+set_property(TARGET ${TARGET_NAME} PROPERTY C_STANDARD 99)

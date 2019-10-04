@@ -16,18 +16,18 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/convolution.hpp"
-#include "api/CPP/eltwise.hpp"
-#include "api/CPP/reorder.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/convolution.hpp"
+#include "api/eltwise.hpp"
+#include "api/reorder.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include <api/CPP/data.hpp>
+#include <api/data.hpp>
 
-#include <api_extension/CPP/fused_conv_eltwise.hpp>
+#include <api_extension/fused_conv_eltwise.hpp>
 
 #include <cassert>
 #include <cmath>
@@ -75,7 +75,6 @@ TEST(fused_conv_eltwise, basic_0)
     EXPECT_EQ(out_layout.size.spatial[0], 4);
     EXPECT_EQ(out_layout.size.spatial[1], 5);
 }
-
 
 TEST(fused_conv_eltwise, dont_fuse_if_conv_elt_are_outputs)
 {
@@ -173,7 +172,7 @@ protected:
 
         auto input_shape = tensor(1, n_features, 4, 1);
         auto weights_shape = tensor(n_features, n_features, 3, 1);
-        auto biases_shape = tensor(1, 1, n_features, 1);
+        auto biases_shape = tensor(1, n_features, 1, 1);
         auto sum_input_shape = tensor(1, n_features, 2, 1);
 
         auto input = memory::allocate(

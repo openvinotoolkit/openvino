@@ -1,17 +1,5 @@
-//
-// Copyright 2019 Intel Corporation.
-//
-// This software and the related documents are Intel copyrighted materials,
-// and your use of them is governed by the express license under which they
-// were provided to you (End User License Agreement for the Intel(R) Software
-// Development Products (Version May 2017)). Unless the License provides
-// otherwise, you may not use, modify, copy, publish, distribute, disclose or
-// transmit this software or the related documents without Intel's prior
-// written permission.
-//
-// This software and the related documents are provided as is, with no
-// express or implied warranties, other than those that are expressly
-// stated in the License.
+// Copyright (C) 2018-2019 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/frontend/frontend.hpp>
@@ -30,52 +18,44 @@ private:
         return std::make_shared<ReverseSequenceStage>(*this);
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        _orderInfo.setOutput(_outputEdges[0], input->desc().dimsOrder());
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+         auto input = inputEdge(0)->input();
+         orderInfo.setOutput(outputEdge(0), input->desc().dimsOrder());
     }
 
-    void getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
+         auto input = inputEdge(0)->input();
+         auto seq_lengths = inputEdge(1)->input();
+         auto output = outputEdge(0)->output();
 
-        auto input = _inputEdges[0]->input();
-        auto seq_lengths = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
+         auto seq_axis = input->desc().dimsOrder().dimInd(attrs().get<Dim>("seq_axis"));
+         auto batch_axis = input->desc().dimsOrder().dimInd(attrs().get<Dim>("batch_axis"));
 
-        auto seq_axis = input->desc().dimsOrder().dimInd(attrs().get<Dim>("seq_axis"));
-        auto batch_axis = input->desc().dimsOrder().dimInd(attrs().get<Dim>("batch_axis"));
-
-        serializer.append(static_cast<int32_t>(seq_axis));
-        serializer.append(static_cast<int32_t>(batch_axis));
+         serializer.append(static_cast<int32_t>(seq_axis));
+         serializer.append(static_cast<int32_t>(batch_axis));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
+         auto input = inputEdge(0)->input();
+         auto seq_lengths = inputEdge(1)->input();
+         auto output = outputEdge(0)->output();
 
-        auto input = _inputEdges[0]->input();
-        auto seq_lengths = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
-
-        input->serializeNewBuffer(serializer);
-        seq_lengths->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
+         input->serializeNewBuffer(serializer);
+         seq_lengths->serializeNewBuffer(serializer);
+         output->serializeNewBuffer(serializer);
     }
 };
 

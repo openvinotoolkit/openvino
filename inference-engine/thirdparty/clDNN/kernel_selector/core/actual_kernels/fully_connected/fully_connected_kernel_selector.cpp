@@ -27,7 +27,6 @@
 #include "fully_connected_kernel_fb_io_b8_f8.h"
 #include "fully_connected_kernel_fb_io_block.h"
 #include "fully_connected_kernel_bf_io_input_spatial.h"
-#include "fully_connected_kernel_image_tutorial.h"
 #include "fully_connected_kernel_mmad.h"
 #include "fully_connected_kernel_mmad_batched.h"
 #include "fully_connected_kernel_imad.h"

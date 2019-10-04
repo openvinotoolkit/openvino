@@ -35,7 +35,7 @@ public:
 
     /**
      * @brief Returns plugins version information
-     * @param Device name to indentify plugin
+     * @param deviceName Device name to indentify plugin
      * @return A vector of versions
      */
     std::map<std::string, Version> GetVersions(const std::string & deviceName) const;
@@ -133,7 +133,8 @@ public:
 
     /** @brief Registers plugin to Inference Engine Core instance using XML configuration file with
      * plugins description. XML file has the following structure:
-     *
+     * 
+     * ```xml
      * <ie>
      *     <plugins>
      *         <plugin name="" location="">
@@ -144,14 +145,16 @@ public:
      *                 <property key="" value=""/>
      *             </properties>
      *         </plugin>
-     *     </plugin>
+     *     </plugins>
      * </ie>
-     *
+     * ```
+     * 
      * - `name` identifies name of device enabled by plugin
      * - `location` specifies absolute path to dynamic library with plugin. A path can also be relative to inference engine shared library.
      *   It allows to have common config for different systems with different configurations.
      * - Properties are set to plugin via the `SetConfig` method.
      * - Extensions are set to plugin via the `AddExtension` method.
+     * @param xmlConfigFile A path to .xml file with plugins to register.
      */
     void RegisterPlugins(const std::string & xmlConfigFile);
 };

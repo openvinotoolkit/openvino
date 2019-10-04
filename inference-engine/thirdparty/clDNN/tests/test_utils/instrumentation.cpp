@@ -22,12 +22,11 @@
 #include <vector>
 #include <iostream>
 
-
 namespace instrumentation {
     // initalize dumping directory for whole run
     const std::string logger::dump_dir = DUMP_DIRECTORY;
 
-    static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false)
+    static float convert_half_to_float(cldnn::half_t val, bool flush_denorm_to_zero = false)
     {
 #if defined HALF_HALF_HPP
         return val;
@@ -82,7 +81,7 @@ namespace instrumentation {
         return f;
     }
 
-    float convert_element(half_t h)
+    float convert_element(cldnn::half_t h)
     {
         return convert_half_to_float(h);
     }
@@ -412,7 +411,7 @@ namespace instrumentation {
         if (mem.get_layout().data_type == cldnn::data_types::f32)
             dump<float>(mem, dump_strings);
         else
-            dump<half_t>(mem, dump_strings);
+            dump<cldnn::half_t>(mem, dump_strings);
 
         for (cldnn::tensor::value_type b = 0; b < batch; b++)
             for (cldnn::tensor::value_type f = 0; f < feature; f++)
@@ -434,7 +433,7 @@ namespace instrumentation {
         if (mem.get_layout().data_type == cldnn::data_types::f32)
             dump<float>(mem, stream);
         else
-            dump<half_t>(mem, stream);
+            dump<cldnn::half_t>(mem, stream);
 
         std::string filename((dump_dir + "/" + prefix + ".txt"));
         std::ofstream file_stream(filename);

@@ -15,18 +15,17 @@
 */
 
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/softmax.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/softmax.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 
 using namespace cldnn;
 using namespace std;
 using namespace tests;
-
 
 class softmax_gpu_xb_f32_test_fixture: public ::testing::Test {
 public:
@@ -35,7 +34,6 @@ public:
         input_x   = 10, input_b   = 2,  // size of whole input buffer
         in_size   = input_x*input_b,
         out_size  = output_x*output_b;
-
 
     float in_buffer[in_size];
     float out_buffer[out_size];
@@ -293,7 +291,6 @@ TEST(softmax_gpu_bfyx_f32, normalize_y) {
 
         0.999962831f,   //b=0, f=2, x=0
         0.993307149f,   //b=0, f=2, x=1
-
 
         0.98201379f,    //b=1, f=0, x=0
         0.99998987f,    //b=1, f=0, x=1
@@ -878,15 +875,12 @@ public:
             delete generic_params;
         }
 
-        for (auto layer_params : all_layer_params)
-        {
-            delete layer_params;
-        }
+        all_layer_params.clear();
     }
 
-    static std::vector<cldnn::primitive*> generate_specific_test_params()
+    static std::vector<std::shared_ptr<cldnn::primitive>> generate_specific_test_params()
     {
-        all_layer_params.push_back(new softmax("softmax", "input0", softmax::normalize_f));
+        all_layer_params.emplace_back(new softmax("softmax", "input0", softmax::normalize_f));
 
         //The test checks only valid combinations.
         //TODO: add more combinations.
@@ -986,7 +980,7 @@ public:
         }
     }
 
-    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<test_params*, cldnn::primitive*>>& info)
+    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>>& info)
     {
         std::stringstream res;
 
@@ -1015,11 +1009,11 @@ public:
 private:
 
     static std::vector<tests::test_params*> all_generic_params;
-    static std::vector<cldnn::primitive*> all_layer_params;
+    static std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 
 };
 
-std::vector<cldnn::primitive*> softmax_test::all_layer_params = {};
+std::vector<std::shared_ptr<cldnn::primitive>> softmax_test::all_layer_params = {};
 std::vector<tests::test_params*> softmax_test::all_generic_params = {};
 
 TEST_P(softmax_test, SOFTMAX)

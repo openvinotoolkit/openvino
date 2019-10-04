@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/softmax.hpp"
+#include "api/softmax.hpp"
 #include "primitive_inst.h"
 #include <string>
 

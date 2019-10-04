@@ -16,12 +16,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/tile.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/tile.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 
 #include <iostream>
@@ -87,7 +87,6 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_b) {
     network network(engine, topology);
     network.set_input_data("input", input);
 
-
     auto outputs = network.execute();
 
     auto output = outputs.at("tile").get_memory();
@@ -120,7 +119,6 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_f) {
     network network(engine, topology);
     network.set_input_data("input", input);
 
-
     auto outputs = network.execute();
 
     auto output = outputs.at("tile").get_memory();
@@ -152,7 +150,6 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_y) {
 
     network network(engine, topology);
     network.set_input_data("input", input);
-
 
     auto outputs = network.execute();
 
@@ -250,7 +247,6 @@ TEST(tile_gpu, basic_in1x2x2x2_axis_z) {
 
     network network(engine, topology);
     network.set_input_data("input", input);
-
 
     auto outputs = network.execute();
 

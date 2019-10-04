@@ -54,3 +54,7 @@ if(UNIX)
     target_link_libraries(${TARGET_NAME} ${LIB_DL} pthread)
 endif()
 set_ie_threading_interface_for(${TARGET_NAME_LIB})
+
+# export for python
+
+export(TARGETS ${TARGET_NAME_LIB} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")

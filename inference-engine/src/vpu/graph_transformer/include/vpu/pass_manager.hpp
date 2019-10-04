@@ -140,6 +140,12 @@ public:
     Pass::Ptr mergeEltwiseAndReLU();
 
     //
+    // StridedSlice processing
+    //
+
+    Pass::Ptr stridedSlice();
+
+    //
     // Data layout adjustment
     //
 
@@ -162,6 +168,7 @@ public:
     //
 
     Pass::Ptr eliminateCopyStages();
+    Pass::Ptr removeUnusedStagesOutputs();
 
     //
     // HW/SW injection
@@ -199,6 +206,9 @@ public:
 
     Pass::Ptr reshapeDilationConv();
 
+    Pass::Ptr addCopyForOutputsInsideNetwork();
+
+    Pass::Ptr initialCheck();
 
 protected:
     StageBuilder::Ptr _stageBuilder;

@@ -49,7 +49,7 @@ struct upsampling_gpu : typed_primitive_gpu_impl<upsampling> {
 
         const auto& primitive = arg.get_primitive();
         if (primitive->with_activation)
-            convert_activation_func_params(primitive, us_params.activation);
+            convert_activation_func_params(primitive, us_params.activations);
 
         us_params.num_filter = primitive->num_filter;
         us_params.sampleType = convert_to_sample_type(primitive->sample_type);
@@ -68,20 +68,18 @@ struct upsampling_gpu : typed_primitive_gpu_impl<upsampling> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<upsampling>::add(
-            {{std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), upsampling_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), upsampling_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), upsampling_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), upsampling_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), upsampling_gpu::create},
-             {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), upsampling_gpu::create}});
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_upsampling_gpu::attach_upsampling_gpu() {
+    implementation_map<upsampling>::add(
+        {{std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), upsampling_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), upsampling_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), upsampling_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), upsampling_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), upsampling_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), upsampling_gpu::create}});
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

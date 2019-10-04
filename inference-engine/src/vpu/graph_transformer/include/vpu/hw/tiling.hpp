@@ -38,8 +38,9 @@ const int CNN_MAX_INPUT_CHANNELS = 2048;
 const int CNN_MAX_OUTPUT_CHANNELS = 2048;
 
 const int CNN_MAX_BYTES = 128 * 1024;
-const int CNN_MAX_CHANNELS_PER_BLOCK = 2048;
 const int CNN_MAX_COEFF_PER_BLOCK = 256;
+
+const int CMX_DATA_BYTE_WIDTH = 16;
 
 //
 // Tiling scheme
@@ -222,19 +223,38 @@ SmallVector<HwPlaneTileInfo> splitIntoPlaneTilesWithPool(
         int pad,
         int maxOutputSize);
 
+// Due to possible junk may return more tiles than requested (1) (O -> I)
 SmallVector<HwPlaneTileInfo> splitIntoPlaneTiles(
         int inputSize, int outputSize,
         int kernelSize, int kernelStride,
         int padBefore, int padAfter,
+        // max size of output tile with junk included
         int maxOutputSize,
-        bool alignInputTile,
         bool useCeil);
+
+//
+// Check HW-unit memory restrictions for tile.
+//
+
+bool checkPoolingHWRestrictions(
+    int inTileWidth, int inTileHeight,
+    int inTileChannels, int outTileChannels,
+    int kernelSizeX, int kernelSizeY,
+    int kernelStride);
+
+bool checkConvHWRestrictions(
+    int inTileWidth, int inTileHeight,
+    int inTileChannels, int outTileChannels,
+    int kernelSizeX, int kernelSizeY,
+    int kernelStride,
+    HwOpMode mode);
 
 //
 // HW Convolution tiling over output channels.
 //
 
 // This function tries to split the output over channels.
+// split OC is invoked at the very end (3)
 HwConvTileInfo splitHwConvIntoOutChannelsTiles(
         int inTileWidth, int inTileHeight, int inTileChannels,
         int outTileChannels,

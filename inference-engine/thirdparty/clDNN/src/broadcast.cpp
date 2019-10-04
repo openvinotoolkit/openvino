@@ -22,7 +22,7 @@
 #include <set>
 
 namespace cldnn {
-primitive_type_id broadcast_type_id() {
+primitive_type_id broadcast::type_id() {
     static primitive_type_base<broadcast> instance;
     return &instance;
 }

@@ -55,14 +55,19 @@ class GnaPluginTestEnvironment {
         matchAffineWeights,
         saveAffineWeights
     };
-    std::vector<MatchWhat> whatToMatch;
     enum {
         kUnset = -1,
         kAnyNotNull= -2
     };
+    struct  MatcherData {
+        MatchWhat type = matchNone;
+        int matchQuantity = kUnset;
+    };
+    std::vector<MatcherData> whatToMatch;
+
     InferenceEngine::TargetDevice target_device =
                             InferenceEngine::TargetDevice::eGNA;
-    int matchQuantity = kUnset;
+
     int numberOfStates = kUnset;
     bool matchInserted = true;
     NnetPrecision nnet_precision;
@@ -103,7 +108,7 @@ class GNATestConfigurability : public GNATestBase{
  protected:
     bool needNextMatcher = true;
     GnaPluginTestEnvironment _env;
-    GnaPluginTestEnvironment::MatchWhat & getMatcher() {
+    GnaPluginTestEnvironment::MatcherData& getMatcher() {
         if (needNextMatcher) {
             needNextMatcher = false;
             _env.whatToMatch.push_back({});
@@ -197,7 +202,7 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
      */
     GNAPropagateMatcher & filledWith(int16_t valueToFill) {
         _env.fillValue = valueToFill;
-        getMatcher() = GnaPluginTestEnvironment::fillOutputValues;
+        getMatcher().type = GnaPluginTestEnvironment::fillOutputValues;
         return *this;
     }
 
@@ -238,14 +243,15 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
 
 
     GNAPropagateMatcher & once() {
-        IE_ASSERT(_env.matchPwlInserted && _env.pwlsToMatchWith.empty());
-        _env.matchQuantity = 1;
-        return *this;
+        return times(1);
     }
 
     GNAPropagateMatcher & twice() {
-        IE_ASSERT(_env.matchPwlInserted && _env.pwlsToMatchWith.empty());
-        _env.matchQuantity = 2;
+        return times(2);
+    }
+
+    GNAPropagateMatcher & times(int n) {
+        getMatcher().matchQuantity = n;
         return *this;
     }
 
@@ -255,24 +261,24 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
 
     GNAPropagateMatcher & exact_nnet_structure(intel_nnet_type_t * pNet) {
 
-        getMatcher() = GnaPluginTestEnvironment::exactNNetStructure;
+        getMatcher().type = GnaPluginTestEnvironment::exactNNetStructure;
         original_nnet = pNet;
         return *this;
     }
 
     GNAPropagateMatcher & pwl_inserted_into_nnet() {
-        getMatcher() = GnaPluginTestEnvironment::matchPwlInserted;
+        getMatcher().type = GnaPluginTestEnvironment::matchPwlInserted;
         return *this;
     }
 
     GNAPropagateMatcher & pwls_inserted_into_nnet(const std::vector<DnnActivationType> &pwls) {
-        getMatcher() = GnaPluginTestEnvironment::matchPwlInserted;
+        getMatcher().type = GnaPluginTestEnvironment::matchPwlInserted;
         _env.pwlsToMatchWith = pwls;
         return *this;
     }
 
     GNAPropagateMatcher & max_pooling_inserted_into_nnet() {
-        getMatcher() = GnaPluginTestEnvironment::matchMaxPoolingInserted;
+        getMatcher().type = GnaPluginTestEnvironment::matchMaxPoolingInserted;
         return *this;
     }
 
@@ -281,37 +287,37 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
     }
 
     GNAPropagateMatcher & convolution_inserted_into_nnet() {
-        getMatcher() = GnaPluginTestEnvironment::matchConvInserted;
+        getMatcher().type = GnaPluginTestEnvironment::matchConvInserted;
         return *this;
     }
 
 
     GNAPropagateMatcher & pwl_quantization_activation(uint32_t activation_type) {
-        getMatcher() = GnaPluginTestEnvironment::matchPwlQuantizeMetrics;
+        getMatcher().type = GnaPluginTestEnvironment::matchPwlQuantizeMetrics;
         _env.type = activation_type;
         return *this;
     }
 
     GNAPropagateMatcher & pwl_quantization_precision_threshold(float threshold) {
-        getMatcher() = GnaPluginTestEnvironment::matchPwlQuantizeMetrics;
+        getMatcher().type = GnaPluginTestEnvironment::matchPwlQuantizeMetrics;
         _env.quantization_presicion_threshold = threshold;
         return *this;
     }
 
     GNAPropagateMatcher & pwl_quantization_segments_threshold(uint16_t threshold) {
-        getMatcher() = GnaPluginTestEnvironment::matchPwlQuantizeMetrics;
+        getMatcher().type = GnaPluginTestEnvironment::matchPwlQuantizeMetrics;
         _env.quantization_segments_threshold = threshold;
         return *this;
     }
 
     GNAPropagateMatcher & diagonal_inserted_into_nnet() {
-        getMatcher() = GnaPluginTestEnvironment::matchDiagonalInserted;
+        getMatcher().type = GnaPluginTestEnvironment::matchDiagonalInserted;
         return *this;
     }
 
     GNAPropagateMatcher &preprocessed_input_data(std::vector<float> input_init, std::vector<int16_t> input_processed,
                                                  InferenceEngine::Precision inputPrecision) {
-        getMatcher() = GnaPluginTestEnvironment::matchInputData;
+        getMatcher().type = GnaPluginTestEnvironment::matchInputData;
         _env.input_processed = std::move(input_processed);
         _env.input_init["placeholder"] = std::move(input_init);
         _env.input_precision = inputPrecision;
@@ -319,60 +325,60 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
     }
 
     GNAPropagateMatcher & copy_inserted_into_nnet() {
-        getMatcher() = GnaPluginTestEnvironment::matchCopyInserted;
+        getMatcher().type = GnaPluginTestEnvironment::matchCopyInserted;
         return *this;
     }
 
 
     GNAPropagateMatcher & affine_weights_transpozed(std::pair<int, int> &&transpozedArgs) {
-        getMatcher() = GnaPluginTestEnvironment::saveAffineWeights;
+        getMatcher().type = GnaPluginTestEnvironment::saveAffineWeights;
         _env.transposedArgsForSaving = std::move(transpozedArgs);
 
         return *this;
     }
 
     GNAPropagateMatcher & affine_weights() {
-        getMatcher() = GnaPluginTestEnvironment::saveAffineWeights;
+        getMatcher().type = GnaPluginTestEnvironment::saveAffineWeights;
         return *this;
     }
 
     GNAPropagateMatcher & affine_weights_eq(std::vector<uint16_t> & sourceWeights) {
-        getMatcher() = GnaPluginTestEnvironment::matchAffineWeights;
+        getMatcher().type = GnaPluginTestEnvironment::matchAffineWeights;
         _env.transposedData = &sourceWeights;
         return *this;
     }
 
 
     GNAPropagateMatcher & affine_weights_transposed(std::vector<uint16_t> & sourceWeights, std::pair<int,int> transposeData) {
-        getMatcher() = GnaPluginTestEnvironment::matchAffineWeightsTranspose;
+        getMatcher().type = GnaPluginTestEnvironment::matchAffineWeightsTranspose;
         _env.transposeArgs = transposeData;
         _env.transposedData = &sourceWeights;
         return *this;
     }
 
     GNAPropagateMatcher & nnet_input_precision(const InferenceEngine::Precision &precision) {
-        getMatcher() = GnaPluginTestEnvironment::matchPrecision;
+        getMatcher().type = GnaPluginTestEnvironment::matchPrecision;
         _env.nnet_precision.input_precision = precision;
         return *this;
     }
     GNAPropagateMatcher & nnet_ouput_precision(const InferenceEngine::Precision &precision) {
-        getMatcher() = GnaPluginTestEnvironment::matchPrecision;
+        getMatcher().type = GnaPluginTestEnvironment::matchPrecision;
         _env.nnet_precision.output_precision = precision;
         return *this;
     }
     GNAPropagateMatcher & nnet_weights_precision(const InferenceEngine::Precision &precision) {
-        getMatcher() = GnaPluginTestEnvironment::matchPrecision;
+        getMatcher().type = GnaPluginTestEnvironment::matchPrecision;
         _env.nnet_precision.weights_precision = precision;
         return *this;
     }
     GNAPropagateMatcher & nnet_biases_precision(const InferenceEngine::Precision &precision) {
-        getMatcher() = GnaPluginTestEnvironment::matchPrecision;
+        getMatcher().type = GnaPluginTestEnvironment::matchPrecision;
         _env.nnet_precision.biases_precision = precision;
         return *this;
     }
 
     GNAPropagateMatcher & proc_type(uint32_t proc_type) {
-        getMatcher() = GnaPluginTestEnvironment::matchProcType;
+        getMatcher().type = GnaPluginTestEnvironment::matchProcType;
         _env.proc_type = proc_type;
         return * this;
     }
@@ -392,6 +398,7 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         _env.target_device = InferenceEngine::TargetDevice::eCPU;
         return *this;
     }
+
  protected:
     void match();
     intel_nnet_type_t * original_nnet = nullptr;
@@ -528,7 +535,7 @@ class GNATest : public ::testing::Test, public GNATestConfigurability<GNATest>  
         return *this;
     }
     GNATest & save_args() {
-        getMatcher() = GnaPluginTestEnvironment::saveArgs;
+        getMatcher().type = GnaPluginTestEnvironment::saveArgs;
         return *this;
     }
     GNATest & save() {
@@ -634,5 +641,16 @@ class GNATest : public ::testing::Test, public GNATestConfigurability<GNATest>  
                 }
             }
         }
+    }
+
+    protected:
+    std::vector<float > getRangeInput(std::size_t max) {
+        std::vector<float> result(max);
+        float value = 1.0f;
+        for(std::size_t i = 0; i < result.size(); i++) {
+            result[i] = value;
+            value++;
+        }
+        return result;
     }
 };

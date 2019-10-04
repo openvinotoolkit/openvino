@@ -17,15 +17,15 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/convolution_grad_input.hpp"
-#include <api/CPP/data.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/convolution_grad_input.hpp"
+#include <api/data.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include "api/CPP/eltwise.hpp"
+#include "api/eltwise.hpp"
 
 using namespace cldnn;
 using namespace tests;
@@ -83,7 +83,6 @@ TEST(convolution_grad_input_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad
         EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 }
-
 
 TEST(convolution_grad_input_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_pad1_output_size) {
     //  Filter : 2x2

@@ -1,21 +1,10 @@
-//
-// Copyright 2019 Intel Corporation.
-//
-// This software and the related documents are Intel copyrighted materials,
-// and your use of them is governed by the express license under which they
-// were provided to you (End User License Agreement for the Intel(R) Software
-// Development Products (Version May 2017)). Unless the License provides
-// otherwise, you may not use, modify, copy, publish, distribute, disclose or
-// transmit this software or the related documents without Intel's prior
-// written permission.
-//
-// This software and the related documents are provided as is, with no
-// express or implied warranties, other than those that are expressly
-// stated in the License.
+// Copyright (C) 2018-2019 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <algorithm>
 #include <memory>
 #include <set>
 
@@ -29,36 +18,30 @@ private:
         return std::make_shared<ReduceStage>(*this);
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+         auto input0 = inputEdge(0)->input();
+         auto input1 = inputEdge(1)->input();
+         auto output = outputEdge(0)->output();
 
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
+         auto in0Desc = input0->desc();
+         auto in1Desc = input1->desc();
+         auto outDesc = output->desc();
 
-        auto in0Desc = input0->desc();
-        auto in1Desc = input1->desc();
-        auto outDesc = output->desc();
+         auto in0Order = DimsOrder::fromNumDims(in0Desc.numDims());
+         auto in1Order = DimsOrder::fromNumDims(in1Desc.numDims());
+         auto outOrder = DimsOrder::fromNumDims(outDesc.numDims());
 
-        auto in0Order = DimsOrder::fromNumDims(in0Desc.numDims());
-        auto in1Order = DimsOrder::fromNumDims(in1Desc.numDims());
-        auto outOrder = DimsOrder::fromNumDims(outDesc.numDims());
-
-        _orderInfo.setInput(_inputEdges[0], in0Order);
-        _orderInfo.setInput(_inputEdges[1], in1Order);
-        _orderInfo.setOutput(_outputEdges[0], outOrder);
+         orderInfo.setInput(inputEdge(0), in0Order);
+         orderInfo.setInput(inputEdge(1), in1Order);
+         orderInfo.setOutput(outputEdge(0), outOrder);
     }
 
-    void getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
     }
 
     void finalizeDataLayoutImpl() override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
+        auto input0 = inputEdge(0)->input();
+        auto input1 = inputEdge(1)->input();
 
         auto in0Desc = input0->desc();
         auto in1Desc = input1->desc();
@@ -68,7 +51,7 @@ private:
         size_t ndims = in0Desc.numDims();
         IE_ASSERT(in1Desc.numDims() == 1);
         size_t indicesSize = in1Desc.totalDimSize();
-        IE_ASSERT(indicesSize < ndims);
+        IE_ASSERT(indicesSize <= ndims);
 
         const auto oldIndices = input1->content()->get<int32_t>();
 
@@ -89,6 +72,7 @@ private:
             index = static_cast<int32_t>(perm[ndims - 1 - index]);
             newIndices[i] = index;
         }
+        std::sort(newIndices, newIndices + indicesSize);
 
         auto newList = _model->duplicateData(
             input1,
@@ -96,17 +80,18 @@ private:
             DataDesc(),
             ieBlobContent(newIndicesBlob));
 
-        _model->replaceStageInput(_inputEdges[1], newList);
+        _model->replaceStageInput(inputEdge(1), newList);
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
         return StageSHAVEsRequirements::CanBeLimited;
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::S32}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -116,16 +101,13 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 1);
+         auto input0 = inputEdge(0)->input();
+         auto input1 = inputEdge(1)->input();
+         auto output = outputEdge(0)->output();
 
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto output = _outputEdges[0]->output();
-
-        input0->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
-        input1->serializeNewBuffer(serializer);
+         input0->serializeNewBuffer(serializer);
+         output->serializeNewBuffer(serializer);
+         input1->serializeNewBuffer(serializer);
     }
 };
 
@@ -145,6 +127,8 @@ void FrontEnd::parseReduce(
     auto stageType = StageType::None;
     if (layer->type == "ReduceAnd") {
         stageType = StageType::ReduceAnd;
+    } else if (layer->type == "ReduceMin") {
+        stageType = StageType::ReduceMin;
     } else {
         VPU_THROW_EXCEPTION << "Reduce operation: " << layer->type << " is not supported";
     }

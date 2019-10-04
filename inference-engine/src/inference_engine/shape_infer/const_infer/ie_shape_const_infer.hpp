@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 #include <ie_layers.h>
-#include "../../precision_utils.h"
+#include "precision_utils.h"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -34,6 +34,16 @@ public:
             auto* outBuffer = outBlob->buffer().as<ie_fp16*>();
             for (int i = 0; i < outBlob->size(); i++) {
                 outBuffer[i] = PrecisionUtils::f32tof16(static_cast<float>(inShape[i]));
+            }
+        } else if (outBlob->getTensorDesc().getPrecision() == Precision::I32) {
+            auto* outBuffer = outBlob->buffer().as<int32_t*>();
+            for (int i = 0; i < outBlob->size(); i++) {
+                outBuffer[i] = static_cast<int32_t>(inShape[i]);
+            }
+        } else if (outBlob->getTensorDesc().getPrecision() == Precision::I64) {
+            auto* outBuffer = outBlob->buffer().as<int64_t*>();
+            for (int i = 0; i < outBlob->size(); i++) {
+                outBuffer[i] = static_cast<int64_t>(inShape[i]);
             }
         } else {
             auto* outBuffer = outBlob->buffer().as<float*>();

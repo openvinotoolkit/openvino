@@ -17,16 +17,16 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <gtest/gtest.h>
-#include <api/CPP/memory.hpp>
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/binary_convolution.hpp"
-#include "api/CPP/reorder.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include <api/memory.hpp>
+#include <api/input_layout.hpp>
+#include "api/binary_convolution.hpp"
+#include "api/reorder.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 #include <iostream>
-#include <api/CPP/data.hpp>
+#include <api/data.hpp>
 #include <src/include/to_string_utils.h>
 #include "float16.h"
 #include "test_utils.h"
@@ -125,7 +125,6 @@ void compute_ref_conv_bin(const cldnn::memory &src,
 
     int PH = p.ph;
     int PW = p.pw;
-
 
     auto extract_bit = [&](data_t_src val, data_t_src bit) -> data_t_src {
         return (data_t_src)((val >> bit) & 0x1);
@@ -256,7 +255,6 @@ TEST_P(binary_convolution_test, conv)
 
     std::map<primitive_id, network_output> outputs = network_bin.execute();
     auto outputMemory = outputs.at(output_name).get_memory();
-
 
     for (size_t i = 0; i < output_ref.count(); i++) {
         if (p.dt == data_types::f32)
@@ -414,7 +412,6 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel)
     auto output_layout = output_memory.get_layout();
     auto output_ptr = output_memory.pointer<float>();
 
-
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(output_layout.data_type, data_types::f32);
     EXPECT_EQ(output_layout.size.batch[0], 1);
@@ -427,7 +424,6 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel)
         EXPECT_EQ(output_ptr[i], output_vec[i]) << "index="<< i;
     }
 }
-
 
 TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     const auto& engine = get_test_engine();
@@ -498,7 +494,6 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     auto output_memory = outputs.at("binary_conv").get_memory();
     auto output_layout = output_memory.get_layout();
     auto output_ptr = output_memory.pointer<uint16_t>();
-
 
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(output_layout.data_type, data_types::f16);

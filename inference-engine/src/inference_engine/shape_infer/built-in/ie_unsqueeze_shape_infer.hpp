@@ -74,6 +74,10 @@ private:
                      const SizeVector &idx_dims) {
         T* idx_data = inBlobs[UNSQUEEZE_INDEXES]->cbuffer().as<T*>() +
                             inBlobs[UNSQUEEZE_INDEXES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        if (!idx_data) {
+            outShape = data_dims;
+            return;
+        }
         size_t max = data_dims.size();
         for (size_t i = 0; i < idx_dims[0]; i++) {
             auto axis = static_cast<size_t>(castToInt32(idx_data[i]));

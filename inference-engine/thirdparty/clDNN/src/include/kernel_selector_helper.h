@@ -14,8 +14,12 @@
 
 #pragma once
 
-#include "api/C/cldnn.h"
-#include "api/CPP/tensor.hpp"
+#include "api/cldnn.hpp"
+#include "api/tensor.hpp"
+#include "api/eltwise.hpp"
+#include "api/scale.hpp"
+#include "api/quantize.hpp"
+#include "api/activation.hpp"
 
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
@@ -23,6 +27,8 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
+#include <memory>
 
 using namespace cldnn;
 
@@ -101,9 +107,9 @@ std::string to_host_version(const cldnn::version_t& version);
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split = 1, const tensor view_offset = tensor {});
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
-kernel_selector::activation_function get_kernel_selector_activation_param(cldnn_activation_func activation_func);
+kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
 kernel_selector::activation_function get_kernel_selector_activation_grad_param(
-    cldnn_activation_grad_func activation_grad_func);
+    activation_grad_func activation_grad_func);
 
 template <typename T = std::uint32_t>
 kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
@@ -117,28 +123,37 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
 }
 
 template <typename p_type>
-inline void convert_activation_func_params(const p_type primitive, kernel_selector::base_activation_params& params) {
+inline void convert_activation_func_params(const p_type primitive, std::vector<kernel_selector::base_activation_params>& params) {
     const float negative_slope = primitive->activation_negative_slope;
     if (negative_slope != 0.0f) {
-        params.m = negative_slope;
-        params.function = kernel_selector::activation_function::RELU_NEGATIVE_SLOPE;
+        params.emplace_back(kernel_selector::activation_function::RELU_NEGATIVE_SLOPE, negative_slope, 0.0f);
     } else {
-        params.function = kernel_selector::activation_function::RELU;
+        params.emplace_back(kernel_selector::activation_function::RELU, 0.0f, 0.0f);
     }
 }
 
 template <typename arg_t>
-inline void convert_fused_activation_func_params(const arg_t& arg, kernel_selector::base_activation_params& params) {
-    params.m = arg.get_fused_activation_params().a;
-    params.n = arg.get_fused_activation_params().b;
-    params.function = get_kernel_selector_activation_param(arg.get_fused_activation_func());
+inline void convert_fused_activation_func_params(const arg_t& arg, std::vector<kernel_selector::base_activation_params>& params) {
+    for (size_t i = 0; i < arg.get_fused_activations_funcs().size(); i++) {
+        params.emplace_back(get_kernel_selector_activation_param(arg.get_fused_activations_funcs()[i]),
+                            arg.get_fused_activations_params()[i].a,
+                            arg.get_fused_activations_params()[i].b);
+    }
 }
 
 template <typename p_type>
-inline void convert_new_activation_func(const p_type primitive, kernel_selector::base_activation_params& params) {
-    params.function = get_kernel_selector_activation_param(primitive->activation_func);
-    params.m = primitive->additional_params.a;
-    params.n = primitive->additional_params.b;
+inline void convert_new_activation_func(const p_type primitive, std::vector<kernel_selector::base_activation_params>& params) {
+    params.insert(params.begin(), {get_kernel_selector_activation_param(primitive->activation_function),
+                                   primitive->additional_params.a,
+                                   primitive->additional_params.b});
+}
+
+template <typename p_type>
+inline void convert_new_activation_grad_func(const p_type primitive, std::vector<kernel_selector::base_activation_params>& params) {
+    params.insert(params.begin(), {get_kernel_selector_activation_grad_param(primitive->activation_grad_function),
+                                   primitive->additional_params.a,
+                                   primitive->additional_params.b,
+                                   true});
 }
 
 void set_params(const program_node& node, kernel_selector::params& params);
@@ -157,7 +172,44 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
 
     params.layerID = arg.id();
 
-    convert_fused_activation_func_params(arg, params.activation);
+    convert_fused_activation_func_params(arg, params.activations);
+    size_t op_id = 0;
+    for (auto& fused_prim : arg.get_fused_primitives()) {
+        using op_type = kernel_selector::base_params::fused_operation_desc::Type;
+        kernel_selector::base_params::fused_operation_desc desc;
+        if (fused_prim.prim->type == eltwise::type_id()) {
+            desc.type = op_type::ELTWISE;
+        } else if (fused_prim.prim->type == scale::type_id()) {
+            desc.type = op_type::SCALE;
+        } else if (fused_prim.prim->type == quantize::type_id()) {
+            desc.type = op_type::QUANTIZE;
+        } else if (fused_prim.prim->type == activation::type_id()) {
+            desc.type = op_type::ACTIVATION;
+            std::shared_ptr<const primitive> p = fused_prim.prim;
+            auto activation_prim = std::static_pointer_cast<const activation>(p);
+            desc.activation.m = activation_prim->additional_params.a;
+            desc.activation.n = activation_prim->additional_params.b;
+            desc.activation.function = get_kernel_selector_activation_param(activation_prim->activation_function);
+        } else {
+            throw std::runtime_error("Invalid fused primitive type in " + arg.id() + " node");
+        }
+
+        desc.dep_idx_start = fused_prim.dep_start_idx;
+        desc.dep_size = fused_prim.deps.size();
+        desc.op_id = op_id++;
+        desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
+
+        for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
+            desc.tensors.push_back(convert_data_tensor(arg.get_dependency(i).get_output_layout()));
+        }
+
+        if (fused_prim.activation != activation_func::none) {
+            desc.activation.m = fused_prim.activation_params.a;
+            desc.activation.n = fused_prim.activation_params.b;
+            desc.activation.function = get_kernel_selector_activation_param(fused_prim.activation);
+        }
+        params.fused_ops.push_back(desc);
+    }
 
     return params;
 }
@@ -186,8 +238,8 @@ inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split
             params.bias.push_back(convert_data_tensor(layout(bias_layout.data_type,
                                                              bias_layout.format,
                                                              {bias_layout.size.batch[0],
-                                                              bias_layout.size.feature[0],
-                                                              bias_layout.size.spatial[0] / static_cast<int>(groups),
+                                                              bias_layout.size.feature[0] / static_cast<int>(groups),
+                                                              bias_layout.size.spatial[0],
                                                               bias_layout.size.spatial[1]}))
                                       .FlattenFeatureAndSpatials());
         }

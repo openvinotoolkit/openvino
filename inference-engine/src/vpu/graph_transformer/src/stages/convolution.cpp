@@ -31,8 +31,10 @@ void FrontEnd::parseConvolution(
     auto input = inputs[0];
     auto output = outputs[0];
 
-    if (!(input->desc().numDims() == 3 || input->desc().numDims() == 4)) {
-        VPU_THROW_EXCEPTION << "Convolution supports only 3D or 4D input";
+    bool is3D = input->desc().numDims() > 4;  // i.e. == 5
+
+    if (input->desc().numDims() < 3 || input->desc().numDims() > 5) {
+        VPU_THROW_EXCEPTION << "Convolution supports only 3D or 4D or 5D input";
     }
     if (output->desc().numDims() != input->desc().numDims()) {
         VPU_THROW_EXCEPTION << "Convolution supports only same num dims in input and output";
@@ -47,18 +49,23 @@ void FrontEnd::parseConvolution(
 
     int kernelSizeX = convLayer->_kernel_x;
     int kernelSizeY = convLayer->_kernel_y;
+    int kernelSizeZ = is3D ? convLayer->_kernel.at(ie::Z_AXIS) : 1;
 
     int kernelStrideX = convLayer->_stride_x;
     int kernelStrideY = convLayer->_stride_y;
+    int kernelStrideZ = is3D ? convLayer->_stride.at(ie::Z_AXIS) : 1;
 
     auto paddings = getPaddings(*convLayer);
     int padLeft = paddings.begin.exist(ie::X_AXIS) ? paddings.begin[ie::X_AXIS] : 0;
     int padRight = paddings.end.exist(ie::X_AXIS) ? paddings.end[ie::X_AXIS] : padLeft;
     int padTop = paddings.begin.exist(ie::Y_AXIS) ? paddings.begin[ie::Y_AXIS] : 0;
     int padBottom = paddings.end.exist(ie::Y_AXIS) ? paddings.end[ie::Y_AXIS] : padTop;
+    int padFront = paddings.begin.exist(ie::Z_AXIS) ? paddings.begin[ie::Z_AXIS] : 0;
+    int padBack = paddings.end.exist(ie::Z_AXIS) ? paddings.end[ie::Z_AXIS] : padFront;
 
     int dilationX = convLayer->_dilation_x;
     int dilationY = convLayer->_dilation_y;
+    int dilationZ = is3D ? convLayer->_dilation.at(ie::Z_AXIS) : 1;
 
     int groupSize = convLayer->_group;
 
@@ -73,11 +80,11 @@ void FrontEnd::parseConvolution(
     }
 
     // TODO: support dilated convolution
-    if ((dilationX != 1 || dilationY != 1) && (!env.config.hwDilation)) {
+    if ((dilationX != 1 || dilationY != 1 || dilationZ != 1) && (!env.config.hwDilation)) {
         tryHW = false;
     }
 
-    if (kernelSizeX > 15 || kernelSizeY > 15 || kernelStrideX > 8) {
+    if (kernelSizeX > 15 || kernelSizeY > 15 || kernelSizeZ > 1 || kernelStrideX > 8) {
         tryHW = false;
     }
 
@@ -85,7 +92,7 @@ void FrontEnd::parseConvolution(
         tryHW = false;
     }
 
-    if (output->desc().numDims() < 4) {
+    if (output->desc().numDims() < 4 || is3D) {
         tryHW = false;
     }
 
@@ -97,15 +104,25 @@ void FrontEnd::parseConvolution(
     std::tie(weights, biases) = getWeightsAndBiases(model, layer);
 
     IE_ASSERT(weights->desc().totalDimSize() >=
-              kernelSizeX * kernelSizeY * (input->desc().dim(Dim::C) / groupSize) * output->desc().dim(Dim::C));
-    weights = model->duplicateData(
-        weights,
-        "@conv",
+              kernelSizeX * kernelSizeY * kernelSizeZ * (input->desc().dim(Dim::C) / groupSize) * output->desc().dim(Dim::C));
+
+    auto weightsDesc = is3D ?
+        DataDesc({
+            kernelSizeX,
+            kernelSizeY,
+            kernelSizeZ,
+            input->desc().dim(Dim::C) / groupSize,
+            output->desc().dim(Dim::C)}) :
         DataDesc({
             kernelSizeX,
             kernelSizeY,
             input->desc().dim(Dim::C) / groupSize,
-            output->desc().dim(Dim::C)}));
+            output->desc().dim(Dim::C)});
+
+    weights = model->duplicateData(
+        weights,
+        "@conv",
+        weightsDesc);
 
     if (biases->usage() != DataUsage::Fake) {
         IE_ASSERT(biases->desc().totalDimSize() >= output->desc().dim(Dim::C));
@@ -139,6 +156,14 @@ void FrontEnd::parseConvolution(
 
     stage->attrs().set<int>("dilationX", dilationX);
     stage->attrs().set<int>("dilationY", dilationY);
+
+    if (is3D) {
+        stage->attrs().set<int>("kernelSizeZ", kernelSizeZ);
+        stage->attrs().set<int>("kernelStrideZ", kernelStrideZ);
+        stage->attrs().set<int>("padFront", padFront);
+        stage->attrs().set<int>("padBack", padBack);
+        stage->attrs().set<int>("dilationZ", dilationZ);
+    }
 
     stage->attrs().set<int>("groupSize", groupSize);
 

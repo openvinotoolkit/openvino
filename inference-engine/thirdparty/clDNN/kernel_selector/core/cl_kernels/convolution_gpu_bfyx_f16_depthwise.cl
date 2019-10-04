@@ -27,7 +27,9 @@ KERNEL(convolution_depthwise)(
 #if BIAS_TERM
     __global BIAS_TYPE* biases,
 #endif
-    FUSED_OPS_DECLS
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
+#endif
     uint split_idx)
 {
     const uint yx = get_global_id(0);
@@ -200,7 +202,6 @@ KERNEL(convolution_depthwise)(
 
     const uint output_fs_pad_before = OUTPUT_PAD_BEFORE_FEATURE_NUM / FEATURE_SLICE_SIZE;
 
-
     const uint output_offset =  b * output_b_pitch +
                                 (f_block + output_fs_pad_before) * output_fs_pitch +
                                 (OUTPUT_PAD_BEFORE_SIZE_Y + y) * output_y_pitch +
@@ -210,27 +211,33 @@ KERNEL(convolution_depthwise)(
     if ((f_block+1)*FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM)
     {
         for (int i = 0; i < X_BLOCK_SIZE; i++) {
-            FUSED_OPS_LOAD_DATA;
-            DO_ELTWISE_FUSED_OPS;
+#if HAS_FUSED_OPS
+            FUSED_OPS_SCALAR;
+            dst[i] = FINAL_NAME_SCALAR;
+#endif  // HAS_FUSED_OPS
             if ((x+i) < OUTPUT_SIZE_X && f_block*FEATURE_SLICE_SIZE + lid < OUTPUT_FEATURE_NUM)
                 output[output_offset + (x+i)*output_x_pitch + lid] = dst[i];
         }
     }
     else
-#endif
+#endif  // OUTPUT_LEFTOVERS
     {
         if (x + X_BLOCK_SIZE <= OUTPUT_SIZE_X)
         {
-            FUSED_OPS_LOAD_DATA_VEC;
-            DO_ELTWISE_FUSED_OPS_VEC;
+#if HAS_FUSED_OPS
+            FUSED_OPS_VEC;
+            dst = FINAL_NAME_VEC;
+#endif  // HAS_FUSED_OPS
             UNIT_BLOCK_WRITE8(output, output_offset + x*output_x_pitch, dst);
         }
         else
         {
             for (int i = 0; i < (OUTPUT_SIZE_X - x); i++)
             {
-                FUSED_OPS_LOAD_DATA;
-                DO_ELTWISE_FUSED_OPS;
+#if HAS_FUSED_OPS
+                FUSED_OPS_SCALAR;
+                dst[i] = FINAL_NAME_SCALAR;
+#endif  // HAS_FUSED_OPS
                 UNIT_BLOCK_WRITE(output, output_offset + (x+i)*output_x_pitch, dst[i]);
             }
         }

@@ -26,7 +26,6 @@
 #include "convolution_kernel_yxfb_yxio_b8.h"
 #include "convolution_kernel_yxfb_yxio_b1_block.h"
 #include "convolution_kernel_yxfb_yxio_b1_block_multiple_x.h"
-#include "convolution_kernel_tutorial.h"
 // #include "convolution_kernel_bfyx_3x3_dw_opt.h"
 #include "convolution_kernel_winograd_2x3_s1.h"
 #include "convolution_kernel_bfyx_1x1.h"
@@ -51,10 +50,10 @@
 #include "convolution_kernel_imad_3x3.h"
 #include "convolution_kernel_imad_1x1.h"
 #include "convolution_kernel_imad_7x7.h"
-#include "convolution_kernel_bfzyx_ref.h"
 #include "convolution_kernel_fs_byx_fsv32.h"
 #include "convolution_kernel_fs_byx_fsv32_1x1.h"
 #include "convolution_kernel_bfyx_to_fs_byx_fsv32.h"
+#include "convolution_kernel_fs_byx_fsv32_depthwise.h"
 #include "convolution_kernel_bfyx_f16_depthwise.h"
 #include "convolution_kernel_bfyx_f16_1x1.h"
 #include "convolution_kernel_bfyx_f16.h"
@@ -62,6 +61,8 @@
 #include "deformable_convolution_kernel_bfyx_ref.h"
 #include "deformable_convolution_kernel_bfyx_conv.h"
 #include "deformable_convolution_kernel_bfyx_interp.h"
+#include "convolution_kernel_bfzyx_f16_fp32.h"
+#include "convolution_kernel_bfzyx_f16_fp16.h"
 
 namespace kernel_selector {
 convolution_kernel_selector::convolution_kernel_selector() {
@@ -98,20 +99,20 @@ convolution_kernel_selector::convolution_kernel_selector() {
     Attach<ConvolutionKernel_mmad_batched_block>();
     Attach<ConvolutionKernel_mmad_batched_block_1x1>();
     //        Attach<ConvolutionKernel_mmad_32x32sg_slm_int8>();
-    // Attach<ConvolutionKernel_Tutorial>(); //In order to use this implementation for tutorial purposes please
-    // uncomment this line
     Attach<ConvolutionKernel_imad_3x3>();
     Attach<ConvolutionKernel_imad_1x1>();
     Attach<ConvolutionKernel_imad_7x7>();
-    Attach<ConvolutionKernel_bfzyx_Ref>();
     Attach<ConvolutionKernel_fs_byx_fsv32>();
     Attach<ConvolutionKernel_fs_byx_fsv32_1x1>();
+    Attach<ConvolutionKernel_fs_byx_fsv32_depthwise>();
     Attach<ConvolutionKernel_bfyx_to_fs_byx_fsv32>();
     Attach<ConvolutionKernel_bfyx_f16_depthwise>();
     Attach<ConvolutionKernel_bfyx_f16_1x1>();
     Attach<ConvolutionKernel_bfyx_f16>();
     Attach<ConvolutionKernel_bfyx_to_bfyx_f16>();
     Attach<DeformableConvolutionKernel_bfyx_Ref>();
+    Attach<ConvolutionKernel_bfzyx_f16_fp32>();
+    Attach<ConvolutionKernel_bfzyx_f16_fp16>();
 }
 
 KernelsData convolution_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {

@@ -81,6 +81,8 @@ void PassImpl::copyHwNetOutputs(const Model::Ptr& model) {
 
             model->replaceStageOutput(stage->outputEdge(0), newOutput);
 
+            newOutput->updateRequiredStrides(stage->getDataStridesRequirements().getOutput(stage->outputEdge(0)));
+
             _stageBuilder->addCopyStage(
                 model,
                 stage->name() + "@flush-output",

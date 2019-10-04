@@ -60,47 +60,49 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = crop_gpu::create;
+namespace detail {
 
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::yxfb), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::yxfb), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::bfyx), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::byxf), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::byxf), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::fyxb), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::fyxb), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::fyxb), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::fyxb), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::fyxb), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::fyxb), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::bfzyx), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw);
-        implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw);
-    }
-    ~attach() {}
-};
+attach_crop_gpu::attach_crop_gpu() {
+    auto val_fw = crop_gpu::create;
 
-attach attach_impl;
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::yxfb), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::yxfb), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::bfyx), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::byxf), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::byxf), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::fyxb), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::fyxb), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::fyxb), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::fyxb), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::fyxb), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::fyxb), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::bfzyx), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i64, format::bfzyx_f16), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx_f16), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx_f16), val_fw);
+    implementation_map<crop>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx_f16), val_fw);
+}
 
-}  // namespace
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

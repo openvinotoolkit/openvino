@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/apply_adam.hpp"
+#include "api/apply_adam.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>

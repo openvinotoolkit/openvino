@@ -35,7 +35,7 @@ public:
 
         auto outBlob = *outData.begin();
         SizeVector outShape = outBlob->getTensorDesc().getDims();
-        auto* outBuffer = outBlob->buffer().as<float*>();
+        auto* outBuffer = outBlob->buffer().as<int8_t *>();
 
         size_t outerSize = 1;
         for (int i = 0; i < layer._axis; i++)
@@ -44,11 +44,16 @@ public:
         size_t outIdx = 0;
         for (size_t osIdx = 0; osIdx < outerSize; osIdx++) {
             for (auto& inBlob : inData) {
-                const auto* inBuffer = inBlob->cbuffer().as<float*>();
+                if (inBlob->getTensorDesc().getPrecision() != outBlob->getTensorDesc().getPrecision())
+                    THROW_IE_EXCEPTION << "Unsupported concat layer with different precisions! Out precision: " +
+                    std::string(outBlob->getTensorDesc().getPrecision().name());
+                const auto* inBuffer = inBlob->cbuffer().as<int8_t*>();
                 size_t innerSize = inBlob->size() / outerSize;
 
                 for (size_t j = 0; j < innerSize; j++, outIdx++) {
-                    outBuffer[outIdx] = inBuffer[osIdx * innerSize + j];
+                    memcpy(outBuffer + outIdx*outBlob->element_size(),
+                           inBuffer + (osIdx * innerSize + j)*inBlob->element_size(),
+                           inBlob->element_size());
                 }
             }
         }

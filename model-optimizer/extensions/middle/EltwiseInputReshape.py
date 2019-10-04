@@ -14,15 +14,10 @@
  limitations under the License.
 """
 
-from copy import deepcopy
-
 import numpy as np
 
 from mo.front.common.layout import get_features_dim, shape_for_layout
-from mo.graph.graph import Node, Graph
-from mo.middle.passes.eliminate import graph_clean_up, graph_clean_up_tf, graph_clean_up_onnx
-from mo.middle.passes.fusing.helpers import get_value_id
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.op import Op
@@ -45,7 +40,7 @@ class Eltwise1DInputReshape(MiddleReplacementPattern):
     change of graph.graph['layout'] may cause an issue
     change in re-layout function: convert_nhwc_to_nchw(graph) may cause an issue
     """
-    enabled = True
+    enabled = False
 
     def run_after(self):
         return [EltwiseInputReshape]
@@ -53,19 +48,20 @@ class Eltwise1DInputReshape(MiddleReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         layout = graph.graph['layout']
         for eltwise_op_node in graph.get_op_nodes(is_eltwise=True):
-            if get_value_id(eltwise_op_node) is None:
-                out_shape = eltwise_op_node.out_node().shape
+                out_shape = eltwise_op_node.out_port().data.get_shape()
                 if 4 <= len(out_shape) <= 5:
                     out_features = out_shape[get_features_dim(layout, len(out_shape))]
                     for port, node in eltwise_op_node.in_nodes().items():
                         if len(node.shape) != len(out_shape) and len(node.shape) == 1 and out_features == node.shape[0]:
-                            in_atts = deepcopy(graph.get_edge_data(node.id, eltwise_op_node.id)[0])
-                            graph.remove_edge(node.id, eltwise_op_node.id)
                             new_shape = shape_for_layout(layout, batch=1, features=out_features, height=1, width=1,
                                                          depth=1 if len(out_shape) == 5 else None)
-                            reshape_data_op = Reshape(graph, attrs={'dim': new_shape, 'name': node.id + '/Broadcast'})
-                            reshape_data_node = reshape_data_op.create_node_with_data([node])
-                            graph.add_edge(reshape_data_node.id, eltwise_op_node.id, **in_atts)
+                            dim_const = Const(graph, {'value': new_shape, 'name': node.id + '/Dim'}).create_node()
+                            reshape_op = Reshape(graph, attrs={'dim': new_shape, 'name': node.id + '/Broadcast'}).create_node()
+
+                            eltwise_op_node.in_port(port).get_source().node.out_port(0).get_connection().set_destination(reshape_op.in_port(0))
+                            reshape_op.in_port(1).connect(dim_const.out_port(0))
+
+                            reshape_op.out_port(0).connect(eltwise_op_node.in_port(port))
 
 
 class EltwiseInputReshape(MiddleReplacementPattern):

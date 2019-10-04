@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/arg_max_min.hpp"
+#include "api/arg_max_min.hpp"
 #include "primitive_inst.h"
 
 #include <memory>

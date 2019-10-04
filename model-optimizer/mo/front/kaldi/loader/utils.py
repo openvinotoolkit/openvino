@@ -28,35 +28,37 @@ end_of_component_tag = '<!EndOfComponent>'
 supported_components = [
     'addshift',
     'affinecomponent',
+    'affinecomponentpreconditionedonline',
     'affinetransform',
+    'backproptruncationcomponent',
+    'batchnormcomponent',
+    'clipgradientcomponent',
     'convolutional1dcomponent',
     'convolutionalcomponent',
     'copy',
+    'elementwiseproductcomponent',
     'fixedaffinecomponent',
+    'linearcomponent',
+    'logsoftmaxcomponent',
+    'lstmnonlinearitycomponent',
     'lstmprojected',
     'lstmprojectedstreams',
     'maxpoolingcomponent',
+    'naturalgradientaffinecomponent',
+    'naturalgradientperelementscalecomponent',
+    'noopcomponent',
+    'normalizecomponent',
     'parallelcomponent',
+    'pnormcomponent',
+    'rectifiedlinearcomponent',
     'rescale',
     'sigmoid',
+    'sigmoidcomponent',
     'softmax',
     'softmaxcomponent',
     'splicecomponent',
+    'sumgroupcomponent',
     'tanhcomponent',
-    'normalizecomponent',
-    'affinecomponentpreconditionedonline',
-    'rectifiedlinearcomponent',
-    'batchnormcomponent',
-    'naturalgradientaffinecomponent',
-    'logsoftmaxcomponent',
-    'naturalgradientperelementscalecomponent',
-    'sigmoidcomponent',
-    'tanhcomponent',
-    'elementwiseproductcomponent',
-    'clipgradientcomponent',
-    'noopcomponent',
-    'lstmnonlinearitycomponent',
-    'backproptruncationcomponent',
 ]
 
 
@@ -191,6 +193,7 @@ def find_next_component(file_desc: io.BufferedReader) -> str:
     :param file_desc:file descriptor
     :return: string like '<component>'
     """
+    is_start = True
     while True:
         tag = find_next_tag(file_desc)
         # Tag is <NameOfTheLayer>. But we want get without '<' and '>'
@@ -201,6 +204,9 @@ def find_next_component(file_desc: io.BufferedReader) -> str:
             return component_name
         elif tag == '<ComponentName>':
             raise Error('Component has unsupported or not specified type')
+        elif not (is_start and tag == end_of_component_tag) and tag.find('Component') != -1:
+            raise Error('Component has unsupported type {}'.format(tag))
+        is_start = False
 
 
 def get_name_from_path(path: str) -> str:

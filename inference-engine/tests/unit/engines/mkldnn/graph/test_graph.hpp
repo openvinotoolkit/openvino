@@ -64,7 +64,11 @@ public:
 
         auto input = inputNodes.find(name);
         if (input != inputNodes.end()) {
-            MKLDNNPlugin::MKLDNNDims outDims = input->second->getChildEdgeAt(0)->getDims();
+            MKLDNNPlugin::MKLDNNDims outDims;
+            if(input->second->getChildEdgeAt(0)->getDims().ndims() == 0 )
+                outDims = MKLDNNPlugin::MKLDNNDims(InferenceEngine::SizeVector(1,1));
+            else
+                outDims = input->second->getChildEdgeAt(0)->getDims();
             if (batch < 1)
                 batch = outDims[0];
 

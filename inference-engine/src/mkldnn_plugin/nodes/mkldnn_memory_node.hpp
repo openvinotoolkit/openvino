@@ -58,7 +58,6 @@ class MKLDNNMemoryNodeVirtualEdge {
         InferenceEngine::details::erase_if(getExisted(), [&](const Holder::value_type & it){
             return it.second == node;
         });
-        // std::cout <<"[remove]   " << node << ", size="<< getExisted().size() <<"\n" << std::flush;
     }
 };
 
@@ -86,12 +85,8 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
     static Register<MKLDNNMemoryOutputNode> reg;
 };
 
-
 class MKLDNNMemoryInputNode : public MKLDNNInputNode, public MKLDNNMemoryNode {
- protected:
-    static std::string nameFromCombinedName(std::string name);
-    static std::string idFromCombinedName(std::string name);
- public:
+public:
     MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
     ~MKLDNNMemoryInputNode() override;
 
@@ -103,8 +98,6 @@ class MKLDNNMemoryInputNode : public MKLDNNInputNode, public MKLDNNMemoryNode {
  private:
     static Register<MKLDNNMemoryInputNode> reg;
 };
-
-
 
 }  // namespace MKLDNNPlugin
 

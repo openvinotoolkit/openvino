@@ -89,7 +89,7 @@ public:
     virtual OutputsDataMap getOutputsInfo() const {
         OutputsDataMap outputs;
         actual->getOutputsInfo(outputs);
-        return std::move(outputs);
+        return outputs;
     }
 
     /**
@@ -99,7 +99,7 @@ public:
     virtual InputsDataMap getInputsInfo() const {
         InputsDataMap inputs;
         actual->getInputsInfo(inputs);
-        return std::move(inputs);
+        return inputs;
     }
 
     /**
@@ -223,7 +223,7 @@ public:
                 }
             }
         }
-        return std::move(shapes);
+        return shapes;
     }
 
     /**

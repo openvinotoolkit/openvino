@@ -45,7 +45,7 @@ struct fused_conv_eltwise_params : public weight_bias_params {
         MultiDataTensor weights_quantization_factors;
         MultiDataTensor output_calibration_factors;
 
-        base_activation_params activation;
+        std::vector<base_activation_params> activations;
     } conv;
 
     struct eltw_data {

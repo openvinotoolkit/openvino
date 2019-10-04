@@ -23,7 +23,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id lookup_table_type_id() {
+primitive_type_id lookup_table::type_id() {
     static primitive_type_base<lookup_table> instance;
     return &instance;
 }

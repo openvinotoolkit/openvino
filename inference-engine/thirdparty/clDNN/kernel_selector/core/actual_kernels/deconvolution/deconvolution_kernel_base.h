@@ -18,6 +18,7 @@
 #include "weight_bias_kernel_base.h"
 #include "kernel_selector_params.h"
 #include <string>
+#include <vector>
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -81,5 +82,15 @@ protected:
     virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const;
     virtual JitConstants GetJitConstants(const deconvolution_params& params) const;
     virtual DispatchData SetDefault(const deconvolution_params& params) const;
+    virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const deconvolution_params&) const {
+        return {
+            WeightsLayout::oiyx,
+            WeightsLayout::iyxo,
+            WeightsLayout::yxio,
+            WeightsLayout::oyxi,
+            WeightsLayout::oizyx
+        };
+    }
+    bool Validate(const Params& p, const optional_params& o) const override;
 };
 }  // namespace kernel_selector

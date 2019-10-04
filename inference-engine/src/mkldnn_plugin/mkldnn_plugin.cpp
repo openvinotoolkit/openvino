@@ -209,7 +209,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc *resp) noexcept {
     try {
         plugin = make_ie_compatible_plugin(
-                {{2, 0},
+                {{2, 1},
                  CI_BUILD_NUMBER,
                  "MKLDNNPlugin"}, std::make_shared<Engine>());
         return OK;

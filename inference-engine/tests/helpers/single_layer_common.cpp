@@ -115,7 +115,62 @@ void BufferWrapper::insert(size_t index, float value) {
     }
 }
 
-void CompareCommon(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance) {
+void CompareCommonAbsolute(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance) {
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(expected, nullptr);
+
+    BufferWrapper res_ptr(actual);
+    BufferWrapper ref_ptr(expected);
+    float max_abs_error = 0;
+    size_t actualMaxErrId = 0;
+    size_t expectedMaxErrId = 0;
+    std::function<void(size_t, size_t)> absoluteErrorUpdater = [&](size_t actualIdx, size_t expectedIdx) {
+        auto actual = res_ptr[actualIdx];
+        auto expected = ref_ptr[expectedIdx];
+        float abs_error = fabsf(actual - expected);
+        if (abs_error > max_abs_error) {
+            max_abs_error = abs_error;
+            actualMaxErrId = actualIdx;
+            expectedMaxErrId = expectedIdx;
+        }
+    };
+    CompareCommon(actual, expected, tolerance, absoluteErrorUpdater);
+
+    ASSERT_NEAR(ref_ptr[expectedMaxErrId], res_ptr[actualMaxErrId], tolerance)
+                        << "expectedMaxErrId = " << expectedMaxErrId
+                        << " actualMaxErrId = " << actualMaxErrId;
+}
+
+void CompareCommonRelative(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance) {
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(expected, nullptr);
+
+    BufferWrapper res_ptr(actual);
+    BufferWrapper ref_ptr(expected);
+    float max_rel_error = 0;
+    size_t actualMaxErrId = 0;
+    size_t expectedMaxErrId = 0;
+    std::function<void(size_t, size_t)> relatedErrorUpdater = [&](size_t actualIdx, size_t expectedIdx) {
+        auto actual = res_ptr[actualIdx];
+        auto expected = ref_ptr[expectedIdx];
+        float abs_error = fabsf(actual - expected);
+        float rel_error = expected != 0.0 ? fabsf(abs_error / expected) : abs_error;
+        if (rel_error > max_rel_error) {
+            max_rel_error = rel_error;
+            actualMaxErrId = actualIdx;
+            expectedMaxErrId = expectedIdx;
+        }
+    };
+    CompareCommon(actual, expected, tolerance, relatedErrorUpdater);
+
+    float abs_threshold = fabsf(ref_ptr[expectedMaxErrId]) * tolerance;
+    ASSERT_NEAR(ref_ptr[expectedMaxErrId], res_ptr[actualMaxErrId], abs_threshold)
+                        << "expectedMaxErrId = " << expectedMaxErrId
+                        << " actualMaxErrId = " << actualMaxErrId;
+}
+
+void CompareCommon(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance,
+                   const std::function<void(size_t, size_t)>& errorUpdater) {
     ASSERT_NE(actual, nullptr);
     ASSERT_NE(expected, nullptr);
 
@@ -123,16 +178,9 @@ void CompareCommon(const Blob::Ptr& actual, const Blob::Ptr& expected, float tol
     Layout ref_layout = expected->getTensorDesc().getLayout();
     SizeVector res_dims = actual->getTensorDesc().getDims();
 
-    BufferWrapper res_ptr(actual);
-    BufferWrapper ref_ptr(expected);
-
     size_t res_size = actual->size();
     size_t ref_size = expected->size();
     ASSERT_EQ(res_size, ref_size);
-
-    float max_error = 0;
-    size_t actualMaxErrId = 0;
-    size_t expectedMaxErrId = 0;
 
     if (res_layout == NCHW || res_layout == NHWC) {
         size_t N = res_dims[0];
@@ -150,12 +198,7 @@ void CompareCommon(const Blob::Ptr& actual, const Blob::Ptr& expected, float tol
                         size_t expectedIdx = ref_layout == NCHW ?
                                              w + h * W + c * W * H + n * W * H * C : c + w * C + h * C * W +
                                                                                      n * C * W * H;
-                        float cur_diff = fabs(res_ptr[actualIdx] - ref_ptr[expectedIdx]);
-                        if (cur_diff > max_error) {
-                            max_error = cur_diff;
-                            actualMaxErrId = actualIdx;
-                            expectedMaxErrId = expectedIdx;
-                        }
+                        errorUpdater(actualIdx, expectedIdx);
                     }
                 }
             }
@@ -168,28 +211,15 @@ void CompareCommon(const Blob::Ptr& actual, const Blob::Ptr& expected, float tol
             for (size_t n = 0; n < N; n++) {
                 for (size_t c = 0; c < C; c++) {
                     size_t actualIdx =   c +  n * C;
-                    float cur_diff = fabs(res_ptr[actualIdx] - ref_ptr[actualIdx]);
-                    if (cur_diff > max_error) {
-                        max_error = cur_diff;
-                        actualMaxErrId = actualIdx;
-                        expectedMaxErrId = actualIdx;
-                    }
+                    errorUpdater(actualIdx, actualIdx);
                 }
             }
         } else {
             for (size_t i = 0; i < ref_size; i++) {
-                float cur_diff = fabs(res_ptr[i] - ref_ptr[i]);
-                if (cur_diff > max_error) {
-                    max_error = cur_diff;
-                    actualMaxErrId = expectedMaxErrId = i;
-                }
+                errorUpdater(i, i);
             }
         }
     }
-
-    ASSERT_NEAR(ref_ptr[expectedMaxErrId], res_ptr[actualMaxErrId], tolerance)
-                                << "expectedMaxErrId = " << expectedMaxErrId
-                                << " actualMaxErrId = " << actualMaxErrId;
 }
 
 void fill_data_common(BufferWrapper& data, size_t size, size_t duty_ratio) {

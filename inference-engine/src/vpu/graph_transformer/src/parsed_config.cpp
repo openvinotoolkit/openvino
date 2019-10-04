@@ -12,6 +12,7 @@
 #include <memory>
 #include <map>
 
+#include <debug.h>
 #include <cpp_interfaces/exception2status.hpp>
 #include <details/caseless.hpp>
 #include <ie_plugin_config.hpp>
@@ -38,39 +39,50 @@ void check_input(const I &input, const T &options, const C &check) {
     }
 }
 
+void checkStridesConfig(std::string configStrides) {
+    try {
+        configStrides.pop_back();
+
+        auto tensorStrides = InferenceEngine::details::split(configStrides, "],");
+
+        for (const auto& stride : tensorStrides) {
+            auto pair = InferenceEngine::details::split(stride, "[");
+            auto message = "Invalid config value '" + stride + "' for VPU_TENSOR_STRIDES, does not match the pattern: tensor_name[strides]";
+            IE_ASSERT(pair.size() == 2) << message;
+
+            auto strideValues = InferenceEngine::details::split(pair.at(1), ",");
+            for (auto entry : strideValues) {
+                std::stoi(entry);
+            }
+        }
+    }
+    catch(const std::out_of_range& e) {
+        auto message = "Invalid config value for VPU_TENSOR_STRIDES, values out of range of unsigned int";
+        THROW_IE_EXCEPTION << message;
+    }
+
+    catch(const std::invalid_argument& e) {
+        auto message = "Invalid config value for VPU_TENSOR_STRIDES, can't cast values to unsigned int";
+        THROW_IE_EXCEPTION << message;
+    }
+}
+
 }  // namespace
 
-ParsedConfig::ParsedConfig(ConfigMode configMode): _mode(configMode) {
-    _log = std::make_shared<Logger>("Config", LogLevel::Warning, consoleOutput());
-}
-
-void ParsedConfig::checkSupportedValues(
-    const std::unordered_map<std::string, std::unordered_set<std::string>> &supported,
-    const std::map<std::string, std::string> &config) const {
-
-    auto contains = [](const std::unordered_set<std::string> &supported, const std::string &option) {
-        return supported.find(option) != supported.end();
-    };
-
-    check_input(config, supported, contains);
-}
+ParsedConfig::ParsedConfig(ConfigMode configMode): ParsedConfigBase(configMode) {}
 
 void ParsedConfig::checkInvalidValues(const std::map<std::string, std::string> &config) const {
+    ParsedConfigBase::checkInvalidValues(config);
+
     const std::unordered_map<std::string, std::unordered_set<std::string>> supported_values = {
-        { CONFIG_KEY(LOG_LEVEL),
-          { CONFIG_VALUE(LOG_NONE), CONFIG_VALUE(LOG_WARNING), CONFIG_VALUE(LOG_INFO), CONFIG_VALUE(LOG_DEBUG) }},
-        { VPU_CONFIG_KEY(LOG_LEVEL),
-          { CONFIG_VALUE(LOG_NONE), CONFIG_VALUE(LOG_WARNING), CONFIG_VALUE(LOG_INFO), CONFIG_VALUE(LOG_DEBUG) }},
         { VPU_CONFIG_KEY(COMPUTE_LAYOUT),
-            { VPU_CONFIG_VALUE(AUTO), VPU_CONFIG_VALUE(NCHW), VPU_CONFIG_VALUE(NHWC) }},
+            { VPU_CONFIG_VALUE(AUTO), VPU_CONFIG_VALUE(NCHW), VPU_CONFIG_VALUE(NHWC), VPU_CONFIG_VALUE(NCDHW), VPU_CONFIG_VALUE(NDHWC) }},
         { VPU_CONFIG_KEY(COPY_OPTIMIZATION),      { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { VPU_CONFIG_KEY(PACK_DATA_IN_CMX),      { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { VPU_CONFIG_KEY(IGNORE_UNKNOWN_LAYERS),  { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { CONFIG_KEY(PERF_COUNT),                 { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
-        { CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),   { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { VPU_CONFIG_KEY(HW_ADAPTIVE_MODE),       { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
-        { VPU_CONFIG_KEY(ALLOW_FP32_MODELS),      { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { VPU_CONFIG_KEY(HW_INJECT_STAGES),       { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { VPU_CONFIG_KEY(HW_POOL_CONV_MERGE),     { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }},
         { VPU_CONFIG_KEY(PERF_REPORT_MODE),
@@ -125,34 +137,21 @@ IE_SUPPRESS_DEPRECATED_END
     if ((number_of_shaves == config.end()) && (number_of_CMX != config.end())) {
         THROW_IE_EXCEPTION << "You should set both option for resource management: VPU_NUMBER_OF_CMX_SLICES and VPU_NUMBER_OF_SHAVES";
     }
-}
 
-void ParsedConfig::checkUnknownOptions(const std::map<std::string, std::string> &config) const {
-    auto knownOptions = getKnownOptions();
-    for (auto &&entry : config) {
-        if (knownOptions.find(entry.first) == knownOptions.end()) {
-            THROW_IE_EXCEPTION << NOT_FOUND_str << entry.first << " key is not supported for VPU";
-        }
-    }
-}
+    auto tensor_strides = config.find(VPU_CONFIG_KEY(TENSOR_STRIDES));
 
-void ParsedConfig::checkOptionsAccordingToMode(const std::map<std::string, std::string> &config) const {
-    auto compileOptions = getCompileOptions();
-    for (auto &&entry : config) {
-        std::stringstream errorMsgStream;
-        if (compileOptions.find(entry.first) != compileOptions.end() && _mode == ConfigMode::RUNTIME_MODE) {
-            _log->warning("%s option will be ignored. Seems you are using compiled graph", entry.first);
-        }
+    if (tensor_strides != config.end()) {
+        checkStridesConfig(tensor_strides->second);
     }
 }
 
 std::unordered_set<std::string> ParsedConfig::getCompileOptions() const {
 IE_SUPPRESS_DEPRECATED_START
     return {
+        VPU_CONFIG_KEY(TENSOR_STRIDES),
         VPU_CONFIG_KEY(COMPUTE_LAYOUT),
         VPU_CONFIG_KEY(NETWORK_CONFIG),
         VPU_CONFIG_KEY(HW_ADAPTIVE_MODE),
-        VPU_CONFIG_KEY(ALLOW_FP32_MODELS),
         VPU_CONFIG_KEY(COPY_OPTIMIZATION),
         VPU_CONFIG_KEY(PACK_DATA_IN_CMX),
         VPU_CONFIG_KEY(DETECT_NETWORK_BATCH),
@@ -176,15 +175,17 @@ IE_SUPPRESS_DEPRECATED_END
 }
 
 std::unordered_set<std::string> ParsedConfig::getRuntimeOptions() const {
-    return {
-        CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
-        CONFIG_KEY(LOG_LEVEL),
-        VPU_CONFIG_KEY(LOG_LEVEL),
+    auto runtimeOptions = ParsedConfigBase::getRuntimeOptions();
+
+    std::unordered_set<std::string> specificOptions = {
         CONFIG_KEY(PERF_COUNT),
         VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME),
         CONFIG_KEY(CONFIG_FILE),
-        VPU_CONFIG_KEY(PERF_REPORT_MODE),
-    };
+        VPU_CONFIG_KEY(PERF_REPORT_MODE) };
+
+    runtimeOptions.insert(specificOptions.begin(), specificOptions.end());
+
+    return runtimeOptions;
 }
 
 std::unordered_set<std::string> ParsedConfig::getKnownOptions() const {
@@ -203,10 +204,14 @@ std::map<std::string, std::string> ParsedConfig::getDefaultConfig() const {
 }
 
 void ParsedConfig::configure(const std::map<std::string, std::string> &config) {
+    ParsedConfigBase::configure(config);
+
     static const std::unordered_map<std::string, ComputeLayout> layouts {
         { VPU_CONFIG_VALUE(AUTO), ComputeLayout::AUTO },
         { VPU_CONFIG_VALUE(NCHW), ComputeLayout::NCHW },
         { VPU_CONFIG_VALUE(NHWC), ComputeLayout::NHWC },
+        { VPU_CONFIG_VALUE(NCDHW), ComputeLayout::NCDHW },
+        { VPU_CONFIG_VALUE(NDHWC), ComputeLayout::NDHWC }
     };
 
     setOption(compileConfig.forceLayout, layouts, config, VPU_CONFIG_KEY(COMPUTE_LAYOUT));
@@ -222,7 +227,6 @@ void ParsedConfig::configure(const std::map<std::string, std::string> &config) {
     setOption(compileConfig.ignoreUnknownLayers, switches, config, VPU_CONFIG_KEY(IGNORE_UNKNOWN_LAYERS));
     setOption(compileConfig.hwOptimization,      switches, config, VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
     setOption(compileConfig.hwAdaptiveMode,      switches, config, VPU_CONFIG_KEY(HW_ADAPTIVE_MODE));
-    setOption(compileConfig.allowFP32Models,     switches, config, VPU_CONFIG_KEY(ALLOW_FP32_MODELS));
     setOption(compileConfig.injectSwOps,         switches, config, VPU_CONFIG_KEY(HW_INJECT_STAGES));
     setOption(compileConfig.mergeHwPoolToConv,   switches, config, VPU_CONFIG_KEY(HW_POOL_CONV_MERGE));
     setOption(compileConfig.ignoreIRStatistic,   switches, config, VPU_CONFIG_KEY(IGNORE_IR_STATISTIC));
@@ -245,19 +249,33 @@ void ParsedConfig::configure(const std::map<std::string, std::string> &config) {
     setOption(compileConfig.numCMXSlices, config, VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES),
               [](const std::string &src) { return std::stoi(src); });
 
-    setOption(exclusiveAsyncRequests, switches, config, CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
+    setOption(compileConfig.ioStrides, config, VPU_CONFIG_KEY(TENSOR_STRIDES),
+              [](const std::string &src) {
+                  auto configStrides = src;
+                  configStrides.pop_back();
+
+                  auto inputs = InferenceEngine::details::split(configStrides, "],");
+                  std::map<std::string, std::vector<int> > stridesMap;
+
+                  for (const auto& input : inputs) {
+                      std::vector<int> strides;
+
+                      auto pair = InferenceEngine::details::split(input, "[");
+                      auto strideValues = InferenceEngine::details::split(pair.at(1), ",");
+
+                      for (const auto& stride : strideValues) {
+                          strides.insert(strides.begin(), std::stoi(stride));
+                      }
+
+                      stridesMap.insert({pair.at(0), strides});
+                  }
+
+                  return stridesMap;
+                });
+
     setOption(printReceiveTensorTime, switches, config, VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME));
     setOption(perfCount,              switches, config, CONFIG_KEY(PERF_COUNT));
 
-    static const std::unordered_map<std::string, LogLevel> logLevels = {
-        { CONFIG_VALUE(LOG_NONE), LogLevel::None },
-        { CONFIG_VALUE(LOG_WARNING), LogLevel::Warning },
-        { CONFIG_VALUE(LOG_INFO), LogLevel::Info },
-        { CONFIG_VALUE(LOG_DEBUG), LogLevel::Debug }
-    };
-
-    setOption(hostLogLevel,   logLevels, config, CONFIG_KEY(LOG_LEVEL));
-    setOption(deviceLogLevel, logLevels, config, VPU_CONFIG_KEY(LOG_LEVEL));
 
     static const std::unordered_map<std::string, PerfReport> perfReports {
         { VPU_CONFIG_VALUE(PER_LAYER), PerfReport::PerLayer },
@@ -273,12 +291,6 @@ IE_SUPPRESS_DEPRECATED_START
     setOption(compileConfig.inputBias, config, VPU_CONFIG_KEY(INPUT_BIAS),
               [](const std::string &src) { return std::stof(src); });
 IE_SUPPRESS_DEPRECATED_END
-
-#ifndef NDEBUG
-    if (auto envVar = std::getenv("IE_VPU_LOG_LEVEL")) {
-        hostLogLevel = logLevels.at(envVar);
-    }
-#endif
 }
 
 }  // namespace vpu

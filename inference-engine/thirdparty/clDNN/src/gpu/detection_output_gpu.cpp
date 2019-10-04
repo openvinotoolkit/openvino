@@ -144,24 +144,21 @@ primitive_impl* runDetectOutSortGpu(const detection_output_sort_node& arg, kerne
     return new detection_output_sort_gpu(arg, kernel);
 }
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                                  detection_output_gpu::create);
-        implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                                  detection_output_gpu::create);
-        implementation_map<detection_output_sort>::add(
-            std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-            detection_output_sort_gpu::create);
-        implementation_map<detection_output_sort>::add(
-            std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-            detection_output_sort_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
 
+attach_detection_output_gpu::attach_detection_output_gpu() {
+    implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                              detection_output_gpu::create);
+    implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                              detection_output_gpu::create);
+    implementation_map<detection_output_sort>::add(
+        std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+        detection_output_sort_gpu::create);
+    implementation_map<detection_output_sort>::add(
+        std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+        detection_output_sort_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

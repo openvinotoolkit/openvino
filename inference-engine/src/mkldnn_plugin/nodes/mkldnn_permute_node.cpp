@@ -504,6 +504,64 @@ static void permute_to_102(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& 
     });
 }
 
+static void permute_to_02341(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const int DIM1 = srcMemPtr->GetDims()[1];
+    const int DIM2 = srcMemPtr->GetDims()[2];
+    const int DIM3 = srcMemPtr->GetDims()[3];
+    const int DIM4 = srcMemPtr->GetDims()[4];
+
+    parallel_for4d(MB, DIM2, DIM3, DIM4, [&](int n, int dim2, int dim3, int dim4) {
+        for (int dim1 = 0; dim1 < DIM1; dim1++) {
+            int src_off = n * DIM1 * DIM2 * DIM3 * DIM4 +
+                          dim1 * DIM2 * DIM3 * DIM4 +
+                          dim2 * DIM3 * DIM4 +
+                          dim3 * DIM4 +
+                          dim4;
+            int dst_off = n * DIM2 * DIM3 * DIM4 * DIM1 +
+                          dim2 * DIM3 * DIM4 * DIM1 +
+                          dim3 * DIM4 * DIM1 +
+                          dim4 * DIM1 +
+                          dim1;
+
+            dst_data[dst_off] = src_data[src_off];
+        }
+    });
+}
+
+static void permute_to_04123(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
+    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const int DIM1 = srcMemPtr->GetDims()[1];
+    const int DIM2 = srcMemPtr->GetDims()[2];
+    const int DIM3 = srcMemPtr->GetDims()[3];
+    const int DIM4 = srcMemPtr->GetDims()[4];
+
+    parallel_for4d(MB, DIM4, DIM1, DIM2, [&](int n, int dim4, int dim1, int dim2) {
+        for (int dim3 = 0; dim3 < DIM3; dim3++) {
+            int src_off = n * DIM1 * DIM2 * DIM3 * DIM4 +
+                          dim1 * DIM2 * DIM3 * DIM4 +
+                          dim2 * DIM3 * DIM4 +
+                          dim3 * DIM4 +
+                          dim4;
+            int dst_off = n * DIM4 * DIM1 * DIM2 * DIM3 +
+                          dim4 * DIM1 * DIM2 * DIM3 +
+                          dim1 * DIM2 * DIM3 +
+                          dim2 * DIM3 +
+                          dim3;
+
+            dst_data[dst_off] = src_data[src_off];
+        }
+    });
+}
+
 std::multimap<InferenceEngine::SizeVector, MKLDNNPermuteNode::PermuteImpl> MKLDNNPermuteNode::OptimizedCases = {
         {{0, 2, 3, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_0231, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return true;
@@ -549,7 +607,13 @@ std::multimap<InferenceEngine::SizeVector, MKLDNNPermuteNode::PermuteImpl> MKLDN
         })},
         {{1, 0, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_102, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat()) && MB == srcMemPtr->GetDims()[0];
-        })}
+        })},
+        {{0, 2, 3, 4, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_02341, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+        })},
+        {{0, 4, 1, 2, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_04123, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
+            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+        })},
 };
 
 void MKLDNNPermuteNode::execute(mkldnn::stream strm) {

@@ -23,7 +23,7 @@
 
 namespace cldnn {
 
-primitive_type_id custom_gpu_primitive_type_id() {
+primitive_type_id custom_gpu_primitive::type_id() {
     static primitive_type_base<custom_gpu_primitive> instance;
     return &instance;
 }
@@ -36,7 +36,7 @@ std::string custom_gpu_primitive_inst::to_string(custom_gpu_primitive_node const
 
     json_composite custom_gpu_prim_info;
     custom_gpu_prim_info.add("entry point", desc->kernel_entry_point);
-    custom_gpu_prim_info.add("kernels code", desc->kernels_code.ref());
+    custom_gpu_prim_info.add("kernels code", desc->kernels_code);
     custom_gpu_prim_info.add("build options", desc->build_options);
     custom_gpu_prim_info.add("gws", desc->gws);
     custom_gpu_prim_info.add("lws", desc->lws);

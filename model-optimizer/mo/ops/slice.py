@@ -40,8 +40,10 @@ class Slice(Op):
 
     @staticmethod
     def infer(node: Node):
+        axis = None
+        steps = None
         if len(node.in_nodes()) == 1:
-            # Caffe or ONNX
+            # Caffe or ONNX before 10 opset
             if node.has('start') and node.has('end') and node.has('axis'):
                 # ONNX case
                 if node.has_valid('start') and node.has_valid('end') and node.has('axis'):
@@ -55,26 +57,49 @@ class Slice(Op):
                 # Caffe case
                 from mo.front.common.partial_infer.slice import caffe_slice_infer
                 caffe_slice_infer(node)
-        elif len(node.in_nodes()) == 3:
-            # TF case
-            start_node = node.in_node(1)
-            size_node = node.in_node(2)
-            if start_node.has_valid('value') and size_node.has_valid('value'):
-                start = np.array(node.in_node(1).value, dtype=np.int64)
-                size = np.array(node.in_node(2).value, dtype=np.int64)
-                end = start + size
-                axis = None
-
-                # Delete edges to start, size nodes
-                node.graph.remove_edge(node.in_node(1).id, node.id)
-                node.graph.remove_edge(node.in_node(2).id, node.id)
-
-                node['start'] = start
-                node['end'] = end
-                node['axis'] = None
+        elif len(node.in_nodes()) >= 3:
+            if node.has('format') and node['format'] == 'onnx':
+                # ONNX 10 opset case
+                starts_node = node.in_node(1)
+                ends_node = node.in_node(2)
+                if starts_node.has_valid('value') and ends_node.has_valid('value'):
+                    start = np.array(node.in_node(1).value, dtype=np.int64)
+                    end = np.array(node.in_node(2).value, dtype=np.int64)
+                    if 3 in node.in_nodes():
+                        if node.in_node(3).has_valid('value'):
+                            axis = np.array(node.in_node(3).value, dtype=np.int64)
+                        else:
+                            log.warning('Incorrect slice operation: axes should be const')
+                            return
+                    if 4 in node.in_nodes():
+                        if node.in_node(4).has_valid('value'):
+                            steps = np.array(node.in_node(4).value, dtype=np.int64)
+                        else:
+                            log.warning('Incorrect slice operation: steps should be const')
+                            return
+                else:
+                    log.warning('Incorrect slice operation: no starts or ends attr')
+                    return
             else:
-                log.warning('Incorrect slice operation: no starts or end attr')
-                return
+                # TF case
+                start_node = node.in_node(1)
+                size_node = node.in_node(2)
+                if start_node.has_valid('value') and size_node.has_valid('value'):
+                    start = np.array(node.in_node(1).value, dtype=np.int64)
+                    size = np.array(node.in_node(2).value, dtype=np.int64)
+                    end = start + size
+                    axis = None
+
+                    # Delete edges to start, size nodes
+                    node.graph.remove_edge(node.in_node(1).id, node.id)
+                    node.graph.remove_edge(node.in_node(2).id, node.id)
+
+                    node['start'] = start
+                    node['end'] = end
+                    node['axis'] = None
+                else:
+                    log.warning('Incorrect slice operation: no starts or end attr')
+                    return
         else:
             log.warning('Incorrect number of input nodes in slice operation')
             return
@@ -96,12 +121,15 @@ class Slice(Op):
         if axis is None:
             axis = [x for x in range(len(start))]
 
+        if steps is None:
+            steps = np.ones(start.size, dtype=np.int64)
+
         # Calculate output value for slice operation
         slice_idx = [None for x in range(len(node.in_node().shape))]
         shrink_axis_mask = [False for x in range(len(node.in_node().shape))]
         for id in range(len(axis)):
             # Ranged for output value for specified axis
-            slice_idx[axis[id]] = slice(start[id], end[id], 1)
+            slice_idx[axis[id]] = slice(start[id], end[id], steps[id])
 
         # TODO: check whether this check is really important
         for axis, s in enumerate(slice_idx):
@@ -113,5 +141,5 @@ class Slice(Op):
         node['shrink_axis_mask'] = np.array(shrink_axis_mask)
 
         value = value[tuple(slice_idx)]
-        node.out_node().value = np.array(value) if node.in_node(0).value is not None else None
+        node.out_node().value = value.copy() if node.in_node(0).value is not None else None
         node.out_node().shape = np.array(value.shape)

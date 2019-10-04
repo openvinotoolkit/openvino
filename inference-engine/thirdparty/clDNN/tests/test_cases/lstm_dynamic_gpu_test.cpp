@@ -1,25 +1,28 @@
 ﻿#include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include "api/CPP/mutable_data.hpp"
-#include "api/CPP/input_layout.hpp"
-#include "api/CPP/lstm.hpp"
-#include "api/CPP/lstm_dynamic.hpp"
-#include "api_extension/CPP/lstm_dynamic_input.hpp"
-#include "api_extension/CPP/lstm_dynamic_timeloop.hpp"
-#include "api/CPP/topology.hpp"
-#include "api/CPP/tensor.hpp"
-#include "api/CPP/network.hpp"
-#include "api/CPP/engine.hpp"
+#include "api/memory.hpp"
+#include "api/mutable_data.hpp"
+#include "api/input_layout.hpp"
+#include "api/lstm.hpp"
+#include "api/lstm_dynamic.hpp"
+#include "api/reorder.hpp"
+#include "api_extension/lstm_dynamic_input.hpp"
+#include "api_extension/lstm_dynamic_timeloop.hpp"
+#include "api/topology.hpp"
+#include "api/tensor.hpp"
+#include "api/network.hpp"
+#include "api/engine.hpp"
 #include "test_utils/test_utils.h"
-#include "api/CPP/data.hpp"
+#include "api/data.hpp"
 #include "instrumentation.h"
 #include <test_utils/float16.h>
-
+#include <chrono>
 #include <sstream>
 #include <iomanip>
 
 #pragma warning( disable : 4503 )
 
+#define MEASURE_PERF false
+#define MEASURE_LOOP 50
 using namespace cldnn;
 using namespace tests;
 
@@ -31,9 +34,9 @@ namespace {
 
 struct offset_order_dynamic {
     size_t it, ot, ft, zt;
-    offset_order_dynamic(size_t scale, const cldnn_lstm_offset_order& t = cldnn_lstm_offset_order_fizo) {
-        static const std::map<cldnn_lstm_offset_order, std::vector<size_t>> offset_map{
-            { cldnn_lstm_offset_order_fizo, { 1, 3, 0, 2 } },
+    offset_order_dynamic(size_t scale, const lstm_weights_order& t = lstm_weights_order::fizo) {
+        static const std::map<lstm_weights_order, std::vector<size_t>> offset_map{
+            { lstm_weights_order::fizo, { 1, 3, 0, 2 } },
         };
         std::vector<size_t> v = offset_map.at(t);
         it = v[0] * scale;
@@ -42,7 +45,7 @@ struct offset_order_dynamic {
         zt = v[3] * scale;
     }
 };
-cldnn_lstm_offset_order default_offset_type_dynamic = cldnn_lstm_offset_order_fizo;
+lstm_weights_order default_offset_type_dynamic = lstm_weights_order::fizo;
 
 namespace dynamic_lstm
 {
@@ -243,7 +246,28 @@ struct lstm_dynamic_input_layer_test : public ::testing::Test
             "weights",
             bias_id));
 
-        network network(engine, topology);
+        build_options opts;
+        opts.set_option(build_option::optimize_data(true));
+        network network(engine, topology, opts);
+
+#if MEASURE_PERF == true
+        using clock = std::chrono::high_resolution_clock;
+        std::vector<std::chrono::nanoseconds> times(MEASURE_LOOP);
+        for (uint32_t i = 0; i < MEASURE_LOOP; i++)
+        {
+            auto t0 = clock::now();
+            network.set_input_data("input", input_mem);
+            network.set_input_data("dynamic_lstm_input", dynamic_length_mem);
+            auto real_outs = network.execute();
+            real_outs.at("dynamic_lstm_input").get_event().wait();
+            auto t1 = clock::now();
+            auto exec_time = t1 - t0;
+            times[i] = exec_time;
+        }
+        std::sort(times.begin(), times.end());
+        std::nth_element(times.begin(), times.begin() + times.size() / 2, times.end());
+        std::cout << "Perf: " << std::chrono::duration_cast<std::chrono::microseconds>(times[times.size() / 2]).count() << " micros. " << std::endl;
+#else
         network.set_input_data("input", input_mem);
         network.set_input_data("dyn_len", dynamic_length_mem);
 
@@ -263,11 +287,17 @@ struct lstm_dynamic_input_layer_test : public ::testing::Test
                 {
                     for (auto x = 0; x < out_tensor.spatial[0]; x++)
                     {
-                        EXPECT_NEAR(output_ref[b][len][dir][x], (float)out_ptr[i++], 1e-3f);
+                        EXPECT_NEAR(output_ref[b][len][dir][x], (float)out_ptr[i++], 1e-3f)
+                            << "b:" << b << ", "
+                            << "len:" << len << ", "
+                            << "dir:" << dir << ", "
+                            << "x:" << x << ", "
+                            << std::endl;
                     }
                 }
             }
         }
+#endif
     }
 };
 
@@ -297,10 +327,6 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
         VF<T> ref_hidden_vec = flatten_4d<T>(cldnn::format::bfyx, ref_hidden);
         VF<T> ref_cell_vec = flatten_4d<T>(cldnn::format::bfyx, ref_cell);
 
-        dynamic_lstm::lstm_dynamic_reference(ref_input, ref_hidden, ref_cell, ref_weights, ref_recurrent, ref_bias, ref_output_hidden,
-            ref_output_cell, has_bias, has_initial_hidden, has_initial_cell,
-            clip_threshold, input_forget);
-
         const auto& engine = get_test_engine();
         constexpr auto dt = std::is_same<T, float>::value ? data_types::f32 : data_types::f16;
         VF<T> ref_dynamic_length;
@@ -322,7 +348,6 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
         set_values<T>(initial_hidden_mem, ref_hidden_vec);
         memory initial_cell_mem = memory::allocate(engine, { dt, format::bfyx,{ batch_size, 1, hidden_size, direction } });
         set_values<T>(initial_cell_mem, ref_cell_vec);
-
 
         topology topology;
         topology.add(input_layout("input", input_mem.get_layout()));
@@ -378,10 +403,33 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
             initial_hidden_id,
             initial_cell_id));
 
-        network network(engine, topology);
+        build_options opts;
+        opts.set_option(build_option::optimize_data(true));
+        network network(engine, topology, opts);
         network.set_input_data("input", input_mem);
         network.set_input_data("dyn_len", dynamic_length_mem);
 
+#if MEASURE_PERF == true
+        using clock = std::chrono::high_resolution_clock;
+        std::vector<std::chrono::nanoseconds> times(MEASURE_LOOP);
+        for (uint32_t i = 0; i < MEASURE_LOOP; i++)
+        {
+            auto t0 = clock::now();
+            network.set_input_data("input", input_mem);
+            network.set_input_data("dyn_len", dynamic_length_mem);
+            auto real_outs = network.execute();
+            real_outs.at("dynamic_lstm").get_event().wait();
+            auto t1 = clock::now();
+            auto exec_time = t1 - t0;
+            times[i] = exec_time;
+        }
+        std::sort(times.begin(), times.end());
+        std::nth_element(times.begin(), times.begin() + times.size() / 2, times.end());
+        std::cout << "Perf: " << std::chrono::duration_cast<std::chrono::microseconds>(times[times.size() / 2]).count() << " micros. " << std::endl;
+#else
+        dynamic_lstm::lstm_dynamic_reference(ref_input, ref_hidden, ref_cell, ref_weights, ref_recurrent, ref_bias, ref_output_hidden,
+            ref_output_cell, has_bias, has_initial_hidden, has_initial_cell,
+            clip_threshold, input_forget);
         auto real_outs = network.execute();
         auto out = real_outs.at("dynamic_lstm");
         auto out_tensor = out.get_memory().get_layout().size;
@@ -400,39 +448,76 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
                         //check hidden
                         if (len < dynamic_lengths[b])
                         {
-                            EXPECT_NEAR((float)ref_output_hidden[b][len][dir][x], (float)out_ptr[i++], epsilon);
+                            EXPECT_NEAR((float)ref_output_hidden[b][len][dir][x], (float)out_ptr[i++], epsilon)
+                                << "check hidden, "
+                                << "b:" << b << ", "
+                                << "len:" << len << ", "
+                                << "dir:" << dir << ", "
+                                << "x:" << x << ", "
+                                << std::endl;
                         }
                         else
                         {
-                            EXPECT_NEAR(0.0f, (float)out_ptr[i++], epsilon);
+                            EXPECT_NEAR(0.0f, (float)out_ptr[i++], epsilon)
+                                << "check hidden, "
+                                << "b:" << b << ", "
+                                << "len:" << len << ", "
+                                << "dir:" << dir << ", "
+                                << "x:" << x << ", "
+                                << std::endl;
                         }
 
                         //check optional last hidden state output
                         if(has_last_hidden_state && len == dynamic_lengths[b] - 1)
                         {
                             auto ratio = (float)ref_output_hidden[b][len][dir][x] / (float)last_hidden_ptr[i_lh++];                 
-                            EXPECT_TRUE(std::abs((1.0f - ratio) < 0.01f));
+                            EXPECT_TRUE(std::abs((1.0f - ratio) < 0.01f))
+                            << "check has_last_hidden_state with ratio: " << ratio << ", "
+                                << "b:" << b << ", "
+                                << "len:" << len << ", "
+                                << "dir:" << dir << ", "
+                                << "x:" << x << ", "
+                                << std::endl;
 
                         }
                         else if (has_last_hidden_state && len == 0 && dynamic_lengths[b] == 0)
                         {
-                            EXPECT_NEAR(0.0f, (float)last_hidden_ptr[i_lh++], epsilon);
+                            EXPECT_NEAR(0.0f, (float)last_hidden_ptr[i_lh++], epsilon)
+                                << "check has_last_hidden_state, "
+                                << "b:" << b << ", "
+                                << "len:" << len << ", "
+                                << "dir:" << dir << ", "
+                                << "x:" << x << ", "
+                                << std::endl;
                         }
 
                         //check optional last cell state output
                         if(has_last_cell_state && len == dynamic_lengths[b] - 1)
                         {
                             auto ratio = (float)ref_output_cell[b][len][dir][x] / (float)last_cell_ptr[i_lc++];
-                            EXPECT_TRUE(std::abs((1.0f - ratio) < 0.01f));
+                            EXPECT_TRUE(std::abs((1.0f - ratio) < 0.01f))
+                                << "check has_last_cell_state with ratio: " << ratio << ", "
+                                << "b:" << b << ", "
+                                << "len:" << len << ", "
+                                << "dir:" << dir << ", "
+                                << "x:" << x << ", "
+                                << std::endl;
                         }
                         else if (has_last_cell_state && len == 0 && dynamic_lengths[b] == 0)
                         {
-                            EXPECT_NEAR(0.0f, (float)last_cell_ptr[i_lc++], epsilon);
+                            EXPECT_NEAR(0.0f, (float)last_cell_ptr[i_lc++], epsilon)
+                                << "check has_last_cell_state, "
+                                << "b:" << b << ", "
+                                << "len:" << len << ", "
+                                << "dir:" << dir << ", "
+                                << "x:" << x << ", "
+                                << std::endl;
                         }
                     }
                 }
             }
         }
+#endif
     }
 
 };
@@ -445,8 +530,6 @@ TYPED_TEST_CASE(lstm_dynamic_input_layer_test, lstm_dynamic_test_types);
         DYNAMIC_LSTM INPUT TEST
 ----------------------------------------------
 */
-//VVVVF<T> lstm_dynamic_input_ref(VVVVF<T>& input, VVVVF<T>& weights, VVVVF<T>& bias,
-//size_t seq, bool hasBias = true, size_t dir = 0) {
 
 TYPED_TEST(lstm_dynamic_input_layer_test, dlstm_input_b1_seq3_is3_hs2)
 {
@@ -460,6 +543,16 @@ TYPED_TEST(lstm_dynamic_input_layer_test, dlstm_input_b3_seq5_is3_hs2)
     auto dir = 1, batch_size = 3, max_seq_len = 5, input_size = 3, hidden_size = 2;
     std::vector<float> dynamic_lengths = { 3, 4, 2 };
     this->input_single_layer_generic_test(dir, batch_size, max_seq_len, input_size, hidden_size, dynamic_lengths, true);
+}
+
+TYPED_TEST(lstm_dynamic_input_layer_test, b10_seq20_is16_hs64)
+{
+    auto dir = 1, batch = 10, max_seq_len = 20, input_size = 16, hidden_size = 64;
+    std::vector<float> dynamic_lengths =
+    {
+        5, 10, 12, 11, 5, 6, 7, 8, 9, 15,
+    };
+    this->input_single_layer_generic_test(dir, batch, max_seq_len, input_size, hidden_size, dynamic_lengths);
 }
 
 TYPED_TEST(lstm_dynamic_input_layer_test, dlstm_input_b8_seq10_is4_hs16)
@@ -481,6 +574,28 @@ TYPED_TEST(lstm_dynamic_input_layer_test, dlstm_input_dir2_b8_seq10_is4_hs16_opt
         this->input_single_layer_generic_test(dir, batch_size, max_seq_len, input_size, hidden_size, dynamic_lengths, bias);
     }
 }
+
+TYPED_TEST(lstm_dynamic_input_layer_test, dlstm_input_1b1_seq1_is32_hs_128)
+{
+    auto dir = 1, batch = 1, max_seq_len = 1, input_size = 32, hidden_size = 128;
+    std::vector<float> dynamic_lengths =
+    {
+        1
+    };
+    bool bias = true;
+    this->input_single_layer_generic_test(dir, batch, max_seq_len, input_size, hidden_size, dynamic_lengths, bias);
+}
+
+TYPED_TEST(lstm_dynamic_input_layer_test, dlstm_input_dir_b8_seq27_is16_hs_56)
+{
+    auto dir = 1, batch = 8, max_seq_len = 27, input_size = 16, hidden_size = 56;
+    std::vector<float> dynamic_lengths =
+    {
+        20, 25, 24, 10, 15, 8, 19, 26
+    };
+    this->input_single_layer_generic_test(dir, batch, max_seq_len, input_size, hidden_size, dynamic_lengths, false);
+}
+
 
 /*
 ----------------------------------------------
@@ -571,12 +686,13 @@ TYPED_TEST(lstm_dynamic_single_layer_test, b10_seq20_is16_hs64)
     auto dir = 1, batch = 10, max_seq_len = 20, input_size = 16, hidden_size = 64;
     std::vector<float> dynamic_lengths =
     {
-        5, 10, 12, 11, 5, 6, 7, 8,  9,  15,
+        5, 10, 12, 11, 5, 6, 7, 8, 9, 15,
     };
     this->single_layer_generic_test(dir, batch, max_seq_len, input_size, hidden_size, dynamic_lengths);
 }
 
-TYPED_TEST(lstm_dynamic_single_layer_test, b16_seq20_is32_hs32_options)
+// DISABLED beacuse it is veeery long
+TYPED_TEST(lstm_dynamic_single_layer_test, DISABLED_b16_seq20_is32_hs32_options)
 {
     auto dir = 1, batch = 16, max_seq_len = 20, input_size = 32, hidden_size = 32;
     std::vector<float> dynamic_lengths =
@@ -606,7 +722,6 @@ TYPED_TEST(lstm_dynamic_single_layer_test, b16_seq20_is32_hs32_options)
     }
 }
 
-
 /*
 ----------------------------------------------
               BIDIRECTIONAL TESTS
@@ -618,6 +733,26 @@ TYPED_TEST(lstm_dynamic_single_layer_test, bidir_b2_seq7_is3_hs4)
     auto dir = 2, batch = 2, max_seq_len = 7, input_size = 3, hidden_size = 4;
     std::vector<float> dynamic_lengths = { 3, 5 };
     this->single_layer_generic_test(dir, batch, max_seq_len, input_size, hidden_size, dynamic_lengths);
+}
+
+TYPED_TEST(lstm_dynamic_input_layer_test, dlstm_input_dir_b1_seq1_is32_hs_512)
+{
+    auto dir = 2, batch = 1, max_seq_len = 1, input_size = 8, hidden_size = 128;
+    std::vector<float> dynamic_lengths =
+    {
+        1
+    };
+    this->input_single_layer_generic_test(dir, batch, max_seq_len, input_size, hidden_size, dynamic_lengths, true);
+}
+
+TYPED_TEST(lstm_dynamic_input_layer_test, dlstm_input_dir_b8_seq5_is32_hs_512)
+{
+    auto dir = 2, batch = 8, max_seq_len = 5, input_size = 8, hidden_size = 128;
+    std::vector<float> dynamic_lengths =
+    {
+        3, 4, 5, 1, 3, 2, 2, 3
+    };
+    this->input_single_layer_generic_test(dir, batch, max_seq_len, input_size, hidden_size, dynamic_lengths, true);
 }
 
 TYPED_TEST(lstm_dynamic_single_layer_test, bidir_b10_seq7_is3_hs4)
@@ -718,19 +853,6 @@ TYPED_TEST(lstm_dynamic_single_layer_test, b16_seq20_is4_hs8_dirs_optional_outpu
         5, 10, 12, 11, 5, 6, 7, 8, 9, 15, 0, 0, 0, 0, 14, 18
     };
     this->single_layer_generic_test(1, batch, max_seq_len, input_size, hidden_size, dynamic_lengths, false, false, false, true, true, 1e-3f);
-    //auto dirs = { 1, 2 };
-    //auto opitonal_hidden_outputs = { false, true };
-    //auto opitonal_cell_outputs = { false, true };
-    //for (auto dir : dirs)
-    //{
-    //    for (auto o_h_o: opitonal_hidden_outputs)
-    //    {
-    //        for (auto o_c_o : opitonal_cell_outputs)
-    //        {
-    //            this->single_layer_generic_test(dir, batch, max_seq_len, input_size, hidden_size, dynamic_lengths, false, false, false, o_h_o, o_c_o);
-    //        }
-    //    }
-    //}
 }
 
 /*
@@ -839,7 +961,6 @@ TEST(lstm_dynamic_negative, wrong_dynamic_length_size_0) {
     ASSERT_ANY_THROW(network network(engine, topology));
 }
 
-
 TEST(lstm_dynamic_negative, wrong_dynamic_length_size_1) {
 
     auto batch_size = 50, max_sequence_len = 10, input_size = 16, hidden_size = 32, direction = 1;
@@ -864,6 +985,5 @@ TEST(lstm_dynamic_negative, wrong_dynamic_length_size_1) {
         "recurrent"));
     ASSERT_ANY_THROW(network network(engine, topology));
 }
-
 
 

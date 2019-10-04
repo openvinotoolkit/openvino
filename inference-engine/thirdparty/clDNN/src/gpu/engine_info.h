@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #pragma once
 #include <cstdint>
 #include <memory>
-#include "api/CPP/engine.hpp"
+#include "api/engine.hpp"
 #include "document.h"
 #include <string>
 
@@ -26,8 +25,6 @@ namespace gpu {
 class gpu_toolkit;
 struct engine_info_internal : cldnn::engine_info {
     std::string dev_id;
-    std::string driver_version;
-    std::string dev_name;
     std::uint32_t compute_units_count;
     std::shared_ptr<rapidjson::Document> device_cache;
 

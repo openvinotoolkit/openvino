@@ -110,9 +110,6 @@ public:
         fuse_params.fused_in_training = arg.is_fused_in_training();
         fuse_params.scale_bias = arg.scale_bias_term();
 
-        if (primitive->with_activation)
-            convert_activation_func_params(primitive, fuse_params.activation);
-
         fuse_params.split = split;
         fuse_params.filterSize = {
             (uint32_t)weights_size.spatial[0],
@@ -148,17 +145,15 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<fused_conv_bn_scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                                     fused_conv_bn_scale_gpu::create);
-        implementation_map<fused_conv_bn_scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                                     fused_conv_bn_scale_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_fused_conv_bn_scale_gpu::attach_fused_conv_bn_scale_gpu() {
+    implementation_map<fused_conv_bn_scale>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                                 fused_conv_bn_scale_gpu::create);
+    implementation_map<fused_conv_bn_scale>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                                 fused_conv_bn_scale_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

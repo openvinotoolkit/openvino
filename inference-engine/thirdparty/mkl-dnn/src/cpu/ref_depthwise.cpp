@@ -74,7 +74,9 @@ void ref_depthwise_fwd_t<data_type>::execute_forward() const {
 
     parallel_nd(MB, C, D, H, W,
         [&](int n, int c, int d, int h, int w) {
-        size_t data_off = data_d.ndims() == 4
+        size_t data_off = data_d.ndims() == 3
+                        ? data_d.off(n, c, d)
+                        : data_d.ndims() == 4
                         ? data_d.off(n, c, h, w)
                         : data_d.ndims() == 5
                             ? data_d.off(n, c, d, h, w)

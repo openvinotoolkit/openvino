@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "api/CPP/program.hpp"
+#include "api/program.hpp"
 
 #include "refcounted_obj.h"
 #include "engine_impl.h"
@@ -49,7 +49,7 @@ struct program_impl : public refcounted_obj<program_impl> {
     friend class prepare_padding;            // to be removed when possible
     friend class propagate_constants;        // to be removed when possible
     friend class prepare_primitive_fusing;   // to be removed when possible
-    friend class prepare_binarization;       // to be removed when possible
+    friend class prepare_quantization;       // to be removed when possible
     friend class prepare_conv_eltw_fusing;   // to be removed when possible
     friend class reorder_inputs;             // to be removed when possible
     friend class remove_redundant_reorders;  // to be removed when possible
@@ -60,9 +60,13 @@ public:
     public:
         typedef std::list<program_node*> list_of_nodes;
         typedef list_of_nodes::const_iterator const_iterator;
+        typedef list_of_nodes::const_reverse_iterator const_reverse_iterator;
         typedef list_of_nodes::iterator node_iterator;
+        typedef list_of_nodes::reverse_iterator node_reverse_iterator;
         const_iterator begin() const { return _processing_order.begin(); }
         const_iterator end() const { return _processing_order.end(); }
+        const_reverse_iterator rbegin() const { return _processing_order.rbegin(); }
+        const_reverse_iterator rend() const { return _processing_order.rend(); }
 
         void calc_processing_order_visit(program_node* node);
         void calc_processing_order(program_impl& p);
@@ -191,6 +195,9 @@ public:
     // returns if 'node' has been extracted and removed successfully
     bool extract_and_remove(program_node& node);
 
+    // Fuses two nodes into fused_node and removes peer_node from graph
+    void fuse_nodes(program_node& fused_node, program_node& peer_node);
+
     // returns if 'node' has been removed
     bool remove_if_dangling(program_node& node);
 
@@ -242,6 +249,7 @@ private:
     void build_program(bool is_internal);
     void init_graph();
     void set_options();
+    void set_layout_optimizer_attributes(layout_optimizer& lo);
 
     void apply_opt_pass(base_pass& pass);
 
@@ -301,5 +309,3 @@ private:
 };
 
 }  // namespace cldnn
-
-API_CAST(::cldnn_program, cldnn::program_impl)

@@ -117,9 +117,6 @@ public:
         auto deconv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::deconvolution_optional_params>(arg.get_program());
 
-        if (primitive->with_activation)
-            convert_activation_func_params(primitive, deconv_params.activation);
-
         deconv_params.depthwise_separable_opt = depthwise_separable_opt;
 
         deconv_params.split = split;
@@ -158,29 +155,31 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                               deconvolution_gpu::create);
-        implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                               deconvolution_gpu::create);
-        implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx),
-                                               deconvolution_gpu::create);
-        implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                               deconvolution_gpu::create);
-        implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                               deconvolution_gpu::create);
-        implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx),
-                                               deconvolution_gpu::create);
-        implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
-                                               deconvolution_gpu::create);
-        implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
-                                               deconvolution_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_deconvolution_gpu::attach_deconvolution_gpu() {
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+                                           deconvolution_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

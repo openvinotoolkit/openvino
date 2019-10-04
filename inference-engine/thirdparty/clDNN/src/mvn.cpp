@@ -20,7 +20,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id mvn_type_id() {
+primitive_type_id mvn::type_id() {
     static primitive_type_base<mvn> instance;
     return &instance;
 }

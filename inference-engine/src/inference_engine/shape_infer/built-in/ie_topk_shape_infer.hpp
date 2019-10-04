@@ -54,7 +54,7 @@ public:
             THROW_IE_EXCEPTION << " Incorrect input parameters dimensions and axis number!";
 
         int *src_k = inBlobs[TOPK_K]->cbuffer().as<int *>();
-        if (src_k != nullptr)
+        if (src_k == nullptr)
             THROW_IE_EXCEPTION << " Only const input for 'k' is supported!";
 
         src_k += inBlobs[TOPK_K]->getTensorDesc().getBlockingDesc().getOffsetPadding();

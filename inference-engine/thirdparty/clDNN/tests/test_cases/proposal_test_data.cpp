@@ -25,7 +25,6 @@
 // post nms topn: 150 -> 25
 // !!!!!!!!
 
-
 float cls_scores_data[] = {
     0.999760f, 0.997614f, 0.999854f, 0.996280f, 0.994689f, 0.999543f, 0.999865f, // 0
     0.999969f, 0.999885f, 0.999879f, 0.999758f, 0.999719f, 0.999626f, 0.999386f, // 7
@@ -858,7 +857,6 @@ float cls_scores_data[] = {
 };
 
 size_t cls_scores_data_size = sizeof(cls_scores_data) / sizeof(cls_scores_data[0]);
-
 
 float bbox_pred_data[] = {
     0.006756f, 0.062491f, 0.113831f, 0.063944f, 0.024297f, 0.009997f, -0.043972f, // 0
@@ -2518,7 +2516,6 @@ float bbox_pred_data[] = {
     -0.042735f, -0.068470f, -0.075152f, -0.063983f, -0.051570f, -0.028071f, -0.039607f, // 11578
     -0.032304f, -0.061007f, 0.021732f, 0.020398f, -0.115368f, -0.094854f, -0.119841f, // 11585
 };
-
 
 size_t bbox_pred_data_size = sizeof(bbox_pred_data) / sizeof(bbox_pred_data[0]);
 

@@ -39,11 +39,19 @@ MyriadConfig::MyriadConfig(const std::map<std::string, std::string> &config, Con
         { CONFIG_VALUE(YES), std::chrono::milliseconds(1000) },
         { CONFIG_VALUE(NO), std::chrono::milliseconds(0) }
     };
+    static const std::unordered_map<std::string, PowerConfig> powerConfigs = {
+        { VPU_MYRIAD_CONFIG_VALUE(POWER_FULL),         PowerConfig::FULL },
+        { VPU_MYRIAD_CONFIG_VALUE(POWER_INFER),        PowerConfig::INFER },
+        { VPU_MYRIAD_CONFIG_VALUE(POWER_STAGE),        PowerConfig::STAGE },
+        { VPU_MYRIAD_CONFIG_VALUE(POWER_STAGE_SHAVES), PowerConfig::STAGE_SHAVES },
+        { VPU_MYRIAD_CONFIG_VALUE(POWER_STAGE_NCES),   PowerConfig::STAGE_NCES },
+    };
 
     setOption(forceReset, boolSwitches, config, VPU_MYRIAD_CONFIG_KEY(FORCE_RESET));
     setOption(platform, platformSwitches, config, VPU_MYRIAD_CONFIG_KEY(PLATFORM));
     setOption(protocol, protocolSwitches, config, VPU_MYRIAD_CONFIG_KEY(PROTOCOL));
     setOption(watchdogInterval, watchdogSwitches, config, VPU_MYRIAD_CONFIG_KEY(WATCHDOG));
+    setOption(powerConfig, powerConfigs, config, VPU_MYRIAD_CONFIG_KEY(POWER_MANAGEMENT));
 
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_map<std::string, ncDevicePlatform_t> platformSwitchesDepr = {
@@ -84,6 +92,10 @@ IE_SUPPRESS_DEPRECATED_START
         {VPU_MYRIAD_CONFIG_KEY(PROTOCOL),
                 { VPU_MYRIAD_CONFIG_VALUE(PCIE), VPU_MYRIAD_CONFIG_VALUE(USB), std::string()}},
         {VPU_MYRIAD_CONFIG_KEY(WATCHDOG),    {CONFIG_VALUE(YES), CONFIG_VALUE(NO)}},
+        {VPU_MYRIAD_CONFIG_KEY(POWER_MANAGEMENT),
+                { VPU_MYRIAD_CONFIG_VALUE(POWER_FULL), VPU_MYRIAD_CONFIG_VALUE(POWER_INFER),
+                  VPU_MYRIAD_CONFIG_VALUE(POWER_STAGE), VPU_MYRIAD_CONFIG_VALUE(POWER_STAGE_SHAVES),
+                  VPU_MYRIAD_CONFIG_VALUE(POWER_STAGE_NCES)}},
 
         {VPU_CONFIG_KEY(FORCE_RESET),        {CONFIG_VALUE(YES), CONFIG_VALUE(NO)}},
         {VPU_CONFIG_KEY(PLATFORM),
@@ -129,6 +141,7 @@ IE_SUPPRESS_DEPRECATED_START
         {VPU_MYRIAD_CONFIG_KEY(PROTOCOL)},
         {VPU_MYRIAD_CONFIG_KEY(WATCHDOG)},
         {VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS)},
+        {VPU_MYRIAD_CONFIG_KEY(POWER_MANAGEMENT)},
 
         {VPU_CONFIG_KEY(FORCE_RESET)},
         {VPU_CONFIG_KEY(PLATFORM)},

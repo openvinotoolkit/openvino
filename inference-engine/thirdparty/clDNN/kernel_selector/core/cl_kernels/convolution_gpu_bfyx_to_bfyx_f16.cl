@@ -26,6 +26,9 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
 #if BIAS_TERM
     __global BIAS_TYPE* biases,
 #endif
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
+#endif
     uint split_idx)
 {
     const int f_block = get_group_id(1);
@@ -159,8 +162,10 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
 #if OUTPUT_LEFTOVERS
     if ((f_block+1)*FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM) {
         for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
-            FUSED_OPS_LOAD_DATA;
-            DO_ELTWISE_FUSED_OPS;
+#if HAS_FUSED_OPS
+            FUSED_OPS_SCALAR;
+            dst[i] = FINAL_NAME_SCALAR;
+#endif
             if ((f_block*FEATURE_SLICE_SIZE + lid < OUTPUT_FEATURE_NUM) && (x + i) < OUTPUT_SIZE_X)
                 output[output_offset + i * output_x_pitch + lid] = dst[i];
         }
@@ -169,8 +174,10 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
 #endif  // OUTPUT_LEFTOVERS
     {
         if (x + OUTPUT_X_BLOCK_SIZE <= OUTPUT_SIZE_X) {
-            FUSED_OPS_LOAD_DATA_VEC;
-            DO_ELTWISE_FUSED_OPS_VEC;
+#if HAS_FUSED_OPS
+            FUSED_OPS_VEC;
+            dst = FINAL_NAME_VEC;
+#endif
             // TODO Generalize for other block sizes
 #if OUTPUT_X_BLOCK_SIZE == 8
             UNIT_BLOCK_WRITE8(output, output_offset, dst);
@@ -186,8 +193,10 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
         } else {
             const int x_tail = OUTPUT_SIZE_X - x;
             for (int i = 0; i < x_tail; i++) {
-                FUSED_OPS_LOAD_DATA;
-                DO_ELTWISE_FUSED_OPS;
+#if HAS_FUSED_OPS
+            FUSED_OPS_SCALAR;
+            dst[i] = FINAL_NAME_SCALAR;
+#endif
                 UNIT_BLOCK_WRITE(output, output_offset + i * output_x_pitch, dst[i]);
             }
         }

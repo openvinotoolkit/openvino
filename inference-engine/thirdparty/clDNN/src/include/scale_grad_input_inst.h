@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/scale_grad_input.hpp"
+#include "api/scale_grad_input.hpp"
 #include "primitive_inst.h"
 #include <string>
 

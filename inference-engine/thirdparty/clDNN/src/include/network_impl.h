@@ -17,9 +17,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#include "api/CPP/network.hpp"
+#include "api/network.hpp"
 
-#include "api_impl.h"
 #include "engine_impl.h"
 #include "event_impl.h"
 #include "program_impl.h"
@@ -111,5 +110,3 @@ private:
     void check_names();
 };
 }  // namespace cldnn
-
-API_CAST(::cldnn_network, cldnn::network_impl)

@@ -45,6 +45,8 @@ class ReduceAxisNormalizer(FrontReplacementSubgraph):
         node = match['reduce']
         connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
         if len(connected_in_ports) == 1:
+            # if the 'axis' is None then we still add a second input to the layer with a 1D array with 1 element equal
+            # to None. The infer function handles this case because the input shape is known at this stage only
             if node.has('axis'):
                 const = Const(graph, {'value': node.axis}).create_node()
                 node.add_input_port(1, skip_if_exist=True)

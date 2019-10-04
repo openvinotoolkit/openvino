@@ -28,6 +28,8 @@ class IAllocator  : public details::IRelease {
 public:
     /**
      * @brief Maps handle to heap memory accessible by any memory manipulation routines.
+     * @param handle Handle to the allocated memory to be locked
+     * @param LockOp Operation to lock memory for
      * @return Generic pointer to memory
      */
     virtual void * lock(void * handle, LockOp = LOCK_FOR_WRITE)  noexcept = 0;
@@ -35,6 +37,7 @@ public:
      * @brief Unmaps memory by handle with multiple sequential mappings of the same handle.
      * The multiple sequential mappings of the same handle are suppose to get the same
      * result while there isn't a ref counter supported.
+     * @param handle Handle to the locked memory to unlock
      */
     virtual void  unlock(void * handle) noexcept = 0;
     /**

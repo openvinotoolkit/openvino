@@ -19,6 +19,7 @@
 #include "util_test.hpp"
 #include "util_const_infer_test.hpp"
 #include <details/ie_cnn_network_tools.h>
+#include <precision_utils.h>
 
 namespace IE = InferenceEngine;
 
@@ -123,7 +124,8 @@ IE::BlobMap RemoveLayerTests::fillConstData(const std::vector<std::string>& cons
             IE::Blob::Ptr blob = make_blob_with_precision(desc);
             blob->allocate();
             auto* buffer = blob->buffer().as<float*>();
-            for (int i = 0; i < blob->size(); i++) {
+            size_t buffer_length = blob->byteSize() / sizeof(float);
+            for (int i = 0; i < buffer_length; i++) {
                 buffer[i] = i + 1;
             }
             constData[outData->getName()] = blob;
@@ -137,6 +139,75 @@ IE::BlobMap RemoveLayerTests::initConstLayers(const std::vector<std::string>& co
         getLayer(name)->type = "Const";
     }
     IE::BlobMap customBlobs = fillConstData(constLayers);
+    for (const auto& layerName: constLayers) {
+        auto layer = getLayer(layerName);
+        layer->type = "Const";
+        layer->blobs["custom"] = customBlobs[layer->outData[0]->getName()];
+    }
+    return customBlobs;
+}
+
+IE::BlobMap RemoveLayerTests::fillConstDataDiffPrec (const std::vector<std::string>& constLayers) {
+    IE::BlobMap constData;
+    for (const auto& name:constLayers) {
+        auto layer = getLayer(name);
+        for (const auto& outData:layer->outData) {
+            IE::TensorDesc desc = outData->getTensorDesc();
+            IE::Blob::Ptr blob = make_blob_with_precision(desc);
+            blob->allocate();
+            switch(layer->precision) {
+                case IE::Precision::U8: {
+                    auto *buffer = blob->buffer().as<uint8_t *>();
+                    for (int i = 0; i < blob->size(); i++) {
+                        buffer[i] = i + 2;
+                    }
+                    break;
+                }
+                case IE::Precision::I32: {
+                    auto *buffer = blob->buffer().as<int *>();
+                    for (int i = 0; i < blob->size(); i++) {
+                        buffer[i] = i + 2;
+                    }
+                    break;
+                }
+                case IE::Precision::I64: {
+                    auto *buffer = blob->buffer().as<long long int *>();
+                    for (int i = 0; i < blob->size(); i++) {
+                        buffer[i] = i + 2;
+                    }
+                    break;
+                }
+                case IE::Precision::FP16: {
+                    auto *buffer = blob->buffer().as<IE::ie_fp16 *>();
+                    float j = 0;
+                    for (int i = 0; i < blob->size(); i++) {
+                        buffer[i] = j + (float)2;
+                        buffer[i] = IE::PrecisionUtils::f32tof16(buffer[i]);
+                        j++;
+                    }
+                    break;
+                }
+                case IE::Precision::FP32: {
+                    auto *buffer = blob->buffer().as<float *>();
+                    for (int i = 0; i < blob->size(); i++) {
+                        buffer[i] = i + 2;
+                    }
+                    break;
+                }
+                default:
+                    THROW_IE_EXCEPTION << "Not supported data type";
+            }
+            constData[outData->getName()] = blob;
+        }
+    }
+    return constData;
+}
+
+IE::BlobMap RemoveLayerTests::initConstLayersDiffPrec(const std::vector<std::string> &constLayers) {
+    for (const auto& name : constLayers) {
+        getLayer(name)->type = "Const";
+    }
+    IE::BlobMap customBlobs = fillConstDataDiffPrec(constLayers);
     for (const auto& layerName: constLayers) {
         auto layer = getLayer(layerName);
         layer->type = "Const";
@@ -827,4 +898,713 @@ TEST_F(AdvancedShapeInferTests, canReshapeWithScalar) {
     ASSERT_EQ(net->allLayers().size(), originalLayersNum - 1);
     ASSERT_EQ(getData("data1")->getTensorDesc().getDims(), newInShape);
     ASSERT_EQ(getData("data3")->getTensorDesc().getDims(), newOutShape);
+}
+
+TEST_F(AdvancedShapeInferTests, canFoldConstWithOneHot) {
+    //   Const-d1-OneHot-d2
+    //                     \
+    //              I1-d3-Eltw(Sum)-d4
+    auto testFunc = [&](IE::Precision precision) {
+        netBuilder = NetBuilder();
+        net = netBuilder
+                .data("data1", IE::SizeVector{2}, precision, IE::Layout::C)
+                .data("data2", IE::SizeVector{2, 10}, precision, IE::Layout::NC)
+                .data("data3", IE::SizeVector{2, 10}, precision, IE::Layout::NC)
+                .data("data4", IE::SizeVector{2, 10}, precision, IE::Layout::NC)
+                .layer<IE::CNNLayer>(IE::LayerParams{"const", "dummy", precision})
+                .layer<IE::CNNLayer>(IE::LayerParams{"oneHot", "OneHot", precision})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input", "input", precision})
+                .layer<IE::CNNLayer>(IE::LayerParams{"eltwise", "Eltwise", precision})
+                .linkToData("const", "data1")
+                .linkDataTo("data1", "oneHot")
+                .linkToData("oneHot", "data2")
+                .linkDataTo("data2", "eltwise")
+                .linkToData("input", "data3")
+                .linkDataTo("data3", "eltwise")
+                .linkToData("eltwise", "data4")
+                .addInput("data3")
+                .finalize();
+        getLayer("oneHot")->params = {
+                {"axis",      "-1"},
+                {"depth",     "10"},
+                {"off_value", "1.0"},
+                {"on_value",  "1.0"}
+        };
+        getLayer("eltwise")->params = {
+                {"operation", "sum"}
+        };
+        originalLayersNum = net->allLayers().size();
+
+        IE::CNNNetwork cnnNetwork(net);
+        initConstLayers({"const"});
+        IE::ConstTransformer transformator(net.get());
+        transformator.fullTrim();
+
+        ASSERT_EQ(net->allLayers().size(), originalLayersNum - 1);
+    };
+
+    testFunc(IE::Precision::FP32);
+    testFunc(IE::Precision::FP16);
+    testFunc(IE::Precision::Q78);
+    testFunc(IE::Precision::I16);
+    testFunc(IE::Precision::U8);
+    testFunc(IE::Precision::I8);
+    testFunc(IE::Precision::U16);
+    testFunc(IE::Precision::I32);
+    testFunc(IE::Precision::I64);
+}
+
+TEST_F(AdvancedShapeInferTests, MulWithTensorConstInferTest) {
+
+    auto testFunc = [&](IE::Precision precisionInData1, IE::Precision precisionInData2, IE::Precision precisionOutData) {
+
+        netBuilder = NetBuilder();
+        net = netBuilder
+                .data("data1", IE::SizeVector{2, 2}, precisionInData1, IE::Layout::NC)
+                .data("data2", IE::SizeVector{2, 2}, precisionInData2, IE::Layout::NC)
+                .data("data3", IE::SizeVector{2, 2}, precisionOutData, IE::Layout::NC)
+                .layer<IE::CNNLayer>(IE::LayerParams{"mulLayer", "Eltwise"})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", precisionInData1})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", precisionInData2})
+                .linkToData("input1", "data1")
+                .linkToData("input2", "data2")
+                .linkDataTo("data1", "mulLayer")
+                .linkDataTo("data2", "mulLayer")
+                .linkToData("mulLayer", "data3")
+                .addInput("data1")
+                .addInput("data2")
+                .finalize();
+
+        getLayer("mulLayer")->params = {
+                {"operation", "mul"}
+        };
+
+        IE::CNNNetwork cnnNetwork(net);
+        initConstLayersDiffPrec({"input1", "input2"});
+        float ref[] = {4, 9, 16, 25};
+        if (precisionOutData == IE::Precision::FP16) {
+            for (int i = 0; i < 4; i++)
+                ref[i] = IE::PrecisionUtils::f32tof16(ref[i]);
+        }
+        IE::ConstTransformer transformator(net.get());
+        transformator.foldConstSubgraphs();
+        switch(precisionOutData) {
+            case IE::Precision::U8: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<uint8_t *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::I32: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<int *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::I64: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<long long int *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::FP16: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::FP32: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<float *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            default:
+                THROW_IE_EXCEPTION << "Unsupported precision!";
+        }
+    };
+
+    testFunc(IE::Precision::U8, IE::Precision::U8, IE::Precision::U8);
+    testFunc(IE::Precision::U8, IE::Precision::I32, IE::Precision::I32);
+    testFunc(IE::Precision::U8, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::U8, IE::Precision::FP16, IE::Precision::FP16);
+    testFunc(IE::Precision::U8, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::I32, IE::Precision::U8, IE::Precision::I32);
+    testFunc(IE::Precision::I32, IE::Precision::I32, IE::Precision::I32);
+    testFunc(IE::Precision::I32, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::I32, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::I32, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::I64, IE::Precision::U8, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::I32, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::I64, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::U8, IE::Precision::FP16);
+    testFunc(IE::Precision::FP16, IE::Precision::I32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::I64, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::FP16, IE::Precision::FP16);
+    testFunc(IE::Precision::FP16, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::U8, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::I32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::I64, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::FP32, IE::Precision::FP16);
+    testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP16);
+}
+
+
+TEST_F(AdvancedShapeInferTests, MulWithScalarConstInferTest) {
+
+    auto testFunc = [&](IE::Precision precisionInData1, IE::Precision precisionInData2, IE::Precision precisionOutData) {
+
+        netBuilder = NetBuilder();
+        net = netBuilder
+                .data("data1", IE::SizeVector{2, 2}, precisionInData1, IE::Layout::NC)
+                .data("data2", IE::SizeVector{}, precisionInData2, IE::Layout::SCALAR)
+                .data("data3", IE::SizeVector{2, 2}, precisionOutData, IE::Layout::NC)
+                .layer<IE::CNNLayer>(IE::LayerParams{"mulLayer", "Eltwise"})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", precisionInData1})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", precisionInData2})
+                .linkToData("input1", "data1")
+                .linkToData("input2", "data2")
+                .linkDataTo("data1", "mulLayer")
+                .linkDataTo("data2", "mulLayer")
+                .linkToData("mulLayer", "data3")
+                .addInput("data1")
+                .addInput("data2")
+                .finalize();
+
+        getLayer("mulLayer")->params = {
+                {"operation", "mul"}
+        };
+
+        IE::CNNNetwork cnnNetwork(net);
+        initConstLayersDiffPrec({"input1", "input2"});
+        float ref[] = {4, 6, 8, 10};
+        if (precisionOutData == IE::Precision::FP16) {
+            for (int i = 0; i < 4; i++)
+                ref[i] = IE::PrecisionUtils::f32tof16(ref[i]);
+        }
+        IE::ConstTransformer transformator(net.get());
+        transformator.foldConstSubgraphs();
+        switch(precisionOutData) {
+            case IE::Precision::U8: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<uint8_t *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::I32: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<int *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::I64: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<long long int *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::FP16: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::FP32: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<float *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            default:
+                THROW_IE_EXCEPTION << "Unsupported precision!";
+        }
+    };
+
+    testFunc(IE::Precision::U8, IE::Precision::U8, IE::Precision::U8);
+    testFunc(IE::Precision::U8, IE::Precision::I32, IE::Precision::I32);
+    testFunc(IE::Precision::U8, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::U8, IE::Precision::FP16, IE::Precision::FP16);
+    testFunc(IE::Precision::U8, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::I32, IE::Precision::U8, IE::Precision::I32);
+    testFunc(IE::Precision::I32, IE::Precision::I32, IE::Precision::I32);
+    testFunc(IE::Precision::I32, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::I32, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::I32, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::I64, IE::Precision::U8, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::I32, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::I64, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::U8, IE::Precision::FP16);
+    testFunc(IE::Precision::FP16, IE::Precision::I32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::I64, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::FP16, IE::Precision::FP16);
+    testFunc(IE::Precision::FP16, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::U8, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::I32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::I64, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::FP32, IE::Precision::FP16);
+    testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP16);
+}
+
+TEST_F(AdvancedShapeInferTests, AddWithScalarConstInferTest) {
+
+    auto testFunc = [&](IE::Precision precisionInData1, IE::Precision precisionInData2, IE::Precision precisionOutData) {
+
+        netBuilder = NetBuilder();
+        net = netBuilder
+                .data("data1", IE::SizeVector{2, 2}, precisionInData1, IE::Layout::NC)
+                .data("data2", IE::SizeVector{}, precisionInData2, IE::Layout::SCALAR)
+                .data("data3", IE::SizeVector{2, 2}, precisionOutData, IE::Layout::NC)
+                .layer<IE::CNNLayer>(IE::LayerParams{"addLayer", "Eltwise"})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", precisionInData1})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", precisionInData2})
+                .linkToData("input1", "data1")
+                .linkToData("input2", "data2")
+                .linkDataTo("data1", "addLayer")
+                .linkDataTo("data2", "addLayer")
+                .linkToData("addLayer", "data3")
+                .addInput("data1")
+                .addInput("data2")
+                .finalize();
+
+        getLayer("addLayer")->params = {
+                {"operation", "sum"}
+        };
+
+        IE::CNNNetwork cnnNetwork(net);
+        initConstLayersDiffPrec({"input1", "input2"});
+        float ref[] = {4, 5, 6, 7};
+        if (precisionOutData == IE::Precision::FP16) {
+            for (int i = 0; i < 4; i++)
+                ref[i] = IE::PrecisionUtils::f32tof16(ref[i]);
+        }
+        IE::ConstTransformer transformator(net.get());
+        transformator.foldConstSubgraphs();
+        switch(precisionOutData) {
+            case IE::Precision::U8: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<uint8_t *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::I32: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<int *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::I64: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<long long int *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::FP16: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::FP32: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<float *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            default:
+                THROW_IE_EXCEPTION << "Unsupported precision!";
+        }
+    };
+
+    testFunc(IE::Precision::U8, IE::Precision::U8, IE::Precision::U8);
+    testFunc(IE::Precision::U8, IE::Precision::I32, IE::Precision::I32);
+    testFunc(IE::Precision::U8, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::U8, IE::Precision::FP16, IE::Precision::FP16);
+    testFunc(IE::Precision::U8, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::I32, IE::Precision::U8, IE::Precision::I32);
+    testFunc(IE::Precision::I32, IE::Precision::I32, IE::Precision::I32);
+    testFunc(IE::Precision::I32, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::I32, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::I32, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::I64, IE::Precision::U8, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::I32, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::I64, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::U8, IE::Precision::FP16);
+    testFunc(IE::Precision::FP16, IE::Precision::I32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::I64, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::FP16, IE::Precision::FP16);
+    testFunc(IE::Precision::FP16, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::U8, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::I32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::I64, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::FP32, IE::Precision::FP16);
+    testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP16);
+}
+
+TEST_F(AdvancedShapeInferTests, AddWithTensorConstInferTest) {
+
+    auto testFunc = [&](IE::Precision precisionInData1, IE::Precision precisionInData2, IE::Precision precisionOutData) {
+
+        netBuilder = NetBuilder();
+        net = netBuilder
+                .data("data1", IE::SizeVector{2, 2}, precisionInData1, IE::Layout::NC)
+                .data("data2", IE::SizeVector{2,2}, precisionInData2, IE::Layout::NC)
+                .data("data3", IE::SizeVector{2, 2}, precisionOutData, IE::Layout::NC)
+                .layer<IE::CNNLayer>(IE::LayerParams{"addLayer", "Eltwise"})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", precisionInData1})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", precisionInData2})
+                .linkToData("input1", "data1")
+                .linkToData("input2", "data2")
+                .linkDataTo("data1", "addLayer")
+                .linkDataTo("data2", "addLayer")
+                .linkToData("addLayer", "data3")
+                .addInput("data1")
+                .addInput("data2")
+                .finalize();
+
+        getLayer("addLayer")->params = {
+                {"operation", "sum"}
+        };
+
+        IE::CNNNetwork cnnNetwork(net);
+        initConstLayersDiffPrec({"input1", "input2"});
+        float ref[] = {4, 6, 8, 10};
+        if (precisionOutData == IE::Precision::FP16) {
+            for (int i = 0; i < 4; i++)
+                ref[i] = IE::PrecisionUtils::f32tof16(ref[i]);
+        }
+        IE::ConstTransformer transformator(net.get());
+        transformator.foldConstSubgraphs();
+        switch(precisionOutData) {
+            case IE::Precision::U8: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<uint8_t *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::I32: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<int *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::I64: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<long long int *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::FP16: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::FP32: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<float *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            default:
+                THROW_IE_EXCEPTION << "Unsupported precision!";
+        }
+    };
+
+    testFunc(IE::Precision::U8, IE::Precision::U8, IE::Precision::U8);
+    testFunc(IE::Precision::U8, IE::Precision::I32, IE::Precision::I32);
+    testFunc(IE::Precision::U8, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::U8, IE::Precision::FP16, IE::Precision::FP16);
+    testFunc(IE::Precision::U8, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::I32, IE::Precision::U8, IE::Precision::I32);
+    testFunc(IE::Precision::I32, IE::Precision::I32, IE::Precision::I32);
+    testFunc(IE::Precision::I32, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::I32, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::I32, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::I64, IE::Precision::U8, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::I32, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::I64, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::U8, IE::Precision::FP16);
+    testFunc(IE::Precision::FP16, IE::Precision::I32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::I64, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::FP16, IE::Precision::FP16);
+    testFunc(IE::Precision::FP16, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::U8, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::I32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::I64, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::FP32, IE::Precision::FP16);
+    testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP16);
+}
+
+TEST_F(AdvancedShapeInferTests, AddWithBroadcastingConstInferTest) {
+
+    auto testFunc = [&](IE::Precision precisionInData1, IE::Precision precisionInData2, IE::Precision precisionOutData) {
+
+        netBuilder = NetBuilder();
+        net = netBuilder
+                .data("data1", IE::SizeVector{2, 2}, precisionInData1, IE::Layout::NC)
+                .data("data2", IE::SizeVector{1, 2}, precisionInData2, IE::Layout::NC)
+                .data("data3", IE::SizeVector{2, 2}, precisionOutData, IE::Layout::NC)
+                .layer<IE::CNNLayer>(IE::LayerParams{"addLayer", "Eltwise"})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", precisionInData1})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", precisionInData2})
+                .linkToData("input1", "data1")
+                .linkToData("input2", "data2")
+                .linkDataTo("data1", "addLayer")
+                .linkDataTo("data2", "addLayer")
+                .linkToData("addLayer", "data3")
+                .addInput("data1")
+                .addInput("data2")
+                .finalize();
+
+        getLayer("addLayer")->params = {
+                {"operation", "sum"}
+        };
+
+        IE::CNNNetwork cnnNetwork(net);
+        initConstLayersDiffPrec({"input1", "input2"});
+        float ref[] = {4, 5, 7, 8};
+        if (precisionOutData == IE::Precision::FP16) {
+            for (int i = 0; i < 4; i++)
+                ref[i] = IE::PrecisionUtils::f32tof16(ref[i]);
+        }
+        IE::ConstTransformer transformator(net.get());
+        transformator.foldConstSubgraphs();
+        switch(precisionOutData) {
+            case IE::Precision::U8: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<uint8_t *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::I32: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<int *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::I64: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<long long int *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::FP16: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::FP32: {
+                auto *l = cnnNetwork.getLayerByName("addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<float *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            default:
+                THROW_IE_EXCEPTION << "Unsupported precision!";
+        }
+    };
+
+    testFunc(IE::Precision::U8, IE::Precision::U8, IE::Precision::U8);
+    testFunc(IE::Precision::U8, IE::Precision::I32, IE::Precision::I32);
+    testFunc(IE::Precision::U8, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::U8, IE::Precision::FP16, IE::Precision::FP16);
+    testFunc(IE::Precision::U8, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::I32, IE::Precision::U8, IE::Precision::I32);
+    testFunc(IE::Precision::I32, IE::Precision::I32, IE::Precision::I32);
+    testFunc(IE::Precision::I32, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::I32, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::I32, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::I64, IE::Precision::U8, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::I32, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::I64, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::U8, IE::Precision::FP16);
+    testFunc(IE::Precision::FP16, IE::Precision::I32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::I64, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::FP16, IE::Precision::FP16);
+    testFunc(IE::Precision::FP16, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::U8, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::I32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::I64, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::FP32, IE::Precision::FP16);
+    testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP16);
+}
+
+TEST_F(AdvancedShapeInferTests, MulWithBroadcastingConstInferTest) {
+
+    auto testFunc = [&](IE::Precision precisionInData1, IE::Precision precisionInData2, IE::Precision precisionOutData) {
+
+        netBuilder = NetBuilder();
+        net = netBuilder
+                .data("data1", IE::SizeVector{2, 2}, precisionInData1, IE::Layout::NC)
+                .data("data2", IE::SizeVector{1, 2}, precisionInData2, IE::Layout::NC)
+                .data("data3", IE::SizeVector{2, 2}, precisionOutData, IE::Layout::NC)
+                .layer<IE::CNNLayer>(IE::LayerParams{"mulLayer", "Eltwise"})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", precisionInData1})
+                .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", precisionInData2})
+                .linkToData("input1", "data1")
+                .linkToData("input2", "data2")
+                .linkDataTo("data1", "mulLayer")
+                .linkDataTo("data2", "mulLayer")
+                .linkToData("mulLayer", "data3")
+                .addInput("data1")
+                .addInput("data2")
+                .finalize();
+
+        getLayer("mulLayer")->params = {
+                {"operation", "mul"}
+        };
+
+        IE::CNNNetwork cnnNetwork(net);
+        initConstLayersDiffPrec({"input1", "input2"});
+        float ref[] = {4, 6, 12, 15};
+        if (precisionOutData == IE::Precision::FP16) {
+            for (int i = 0; i < 4; i++)
+                ref[i] = IE::PrecisionUtils::f32tof16(ref[i]);
+        }
+        IE::ConstTransformer transformator(net.get());
+        transformator.foldConstSubgraphs();
+        switch(precisionOutData) {
+            case IE::Precision::U8: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<uint8_t *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::I32: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<int *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::I64: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<long long int *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::FP16: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            case IE::Precision::FP32: {
+                auto *l = cnnNetwork.getLayerByName("mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<float *>();
+                ASSERT_EQ(l[0], ref[0]);
+                ASSERT_EQ(l[1], ref[1]);
+                ASSERT_EQ(l[2], ref[2]);
+                ASSERT_EQ(l[3], ref[3]);
+                break;
+            }
+            default:
+                THROW_IE_EXCEPTION << "Unsupported precision!";
+        }
+    };
+
+    testFunc(IE::Precision::U8, IE::Precision::U8, IE::Precision::U8);
+    testFunc(IE::Precision::U8, IE::Precision::I32, IE::Precision::I32);
+    testFunc(IE::Precision::U8, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::U8, IE::Precision::FP16, IE::Precision::FP16);
+    testFunc(IE::Precision::U8, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::I32, IE::Precision::U8, IE::Precision::I32);
+    testFunc(IE::Precision::I32, IE::Precision::I32, IE::Precision::I32);
+    testFunc(IE::Precision::I32, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::I32, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::I32, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::I64, IE::Precision::U8, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::I32, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::I64, IE::Precision::I64);
+    testFunc(IE::Precision::I64, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::I64, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::U8, IE::Precision::FP16);
+    testFunc(IE::Precision::FP16, IE::Precision::I32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::I64, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::FP16, IE::Precision::FP16);
+    testFunc(IE::Precision::FP16, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::U8, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::I32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::I64, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP32);
+    testFunc(IE::Precision::FP32, IE::Precision::FP32, IE::Precision::FP32);
+    testFunc(IE::Precision::FP16, IE::Precision::FP32, IE::Precision::FP16);
+    testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP16);
 }

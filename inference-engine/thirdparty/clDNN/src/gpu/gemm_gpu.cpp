@@ -56,22 +56,18 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = gemm_gpu::create;
-        implementation_map<gemm>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-        implementation_map<gemm>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-        implementation_map<gemm>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
-        implementation_map<gemm>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
-        implementation_map<gemm>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
-        implementation_map<gemm>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
-    }
-    ~attach() = default;
-};
+namespace detail {
 
-attach attach_impl;
+attach_gemm_gpu::attach_gemm_gpu() {
+    auto val_fw = gemm_gpu::create;
+    implementation_map<gemm>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<gemm>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<gemm>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<gemm>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<gemm>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
+    implementation_map<gemm>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
+}
 
-}  // namespace
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

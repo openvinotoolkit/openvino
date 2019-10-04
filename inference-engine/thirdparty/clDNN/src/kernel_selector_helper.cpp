@@ -143,6 +143,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::fs_b_yx_fsv32;
         case format::bfwzyx:
             return kernel_selector::data_layout::bfwzyx;
+        case format::bfzyx_f16:
+            return kernel_selector::data_layout::bfzyx_f16;
         default:
             return kernel_selector::data_layout::bfyx;
     }
@@ -252,6 +254,10 @@ kernel_selector::weights_layout to_weights_layout(format f) {
             return kernel_selector::weights_layout::bf_lyx_yx;
         case format::oiyx_o16:
             return kernel_selector::weights_layout::oiyx_o16;
+        case format::o_i_zyx_i16_o16:
+            return kernel_selector::weights_layout::o_i_zyx_i16_o16;
+        case format::i_o_zyx_o16_i16:
+            return kernel_selector::weights_layout::i_o_zyx_o16_i16;
         default:
             throw std::invalid_argument("Unable to convert tensor layout " + fmt_to_str(f) + " to weights layout");
     }
@@ -319,6 +325,10 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_yx_osv32_isv32p;
         case kernel_selector::weights_layout::oizyx:
             return cldnn::format::bfzyx;
+        case kernel_selector::weights_layout::o_i_zyx_i16_o16:
+            return cldnn::format::o_i_zyx_i16_o16;
+        case kernel_selector::weights_layout::i_o_zyx_o16_i16:
+            return cldnn::format::i_o_zyx_o16_i16;
         default:
             return cldnn::format::bfyx;
     }
@@ -424,83 +434,83 @@ layout from_weights_tensor(const kernel_selector::weights_tensor& l) {
     return layout(type, format, t);
 }
 
-kernel_selector::activation_function get_kernel_selector_activation_param(cldnn_activation_func activation_func) {
-    switch (activation_func) {
-        case activation_none:
+kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation) {
+    switch (activation) {
+        case cldnn::activation_func::none:
             return kernel_selector::activation_function::NONE;
-        case activation_logistic:
+        case cldnn::activation_func::logistic:
             return kernel_selector::activation_function::LOGISTIC;
-        case activation_hyperbolic_tan:
+        case cldnn::activation_func::hyperbolic_tan:
             return kernel_selector::activation_function::HYPERBOLIC_TAN;
-        case activation_relu:
+        case cldnn::activation_func::relu:
             return kernel_selector::activation_function::RELU;
-        case activation_relu_negative_slope:
+        case cldnn::activation_func::relu_negative_slope:
             return kernel_selector::activation_function::RELU_NEGATIVE_SLOPE;
-        case activation_clamp:
+        case cldnn::activation_func::clamp:
             return kernel_selector::activation_function::CLAMP;
-        case activation_softrelu:
+        case cldnn::activation_func::softrelu:
             return kernel_selector::activation_function::SOFTRELU;
-        case activation_abs:
+        case cldnn::activation_func::abs:
             return kernel_selector::activation_function::ABS;
-        case activation_linear:
+        case cldnn::activation_func::linear:
             return kernel_selector::activation_function::LINEAR;
-        case activation_square:
+        case cldnn::activation_func::square:
             return kernel_selector::activation_function::SQUARE;
-        case activation_sqrt:
+        case cldnn::activation_func::sqrt:
             return kernel_selector::activation_function::SQRT;
-        case activation_elu:
+        case cldnn::activation_func::elu:
             return kernel_selector::activation_function::ELU;
-        case activation_sin:
+        case cldnn::activation_func::sin:
             return kernel_selector::activation_function::SIN;
-        case activation_asin:
+        case cldnn::activation_func::asin:
             return kernel_selector::activation_function::ASIN;
-        case activation_sinh:
+        case cldnn::activation_func::sinh:
             return kernel_selector::activation_function::SINH;
-        case activation_asinh:
+        case cldnn::activation_func::asinh:
             return kernel_selector::activation_function::ASINH;
-        case activation_cos:
+        case cldnn::activation_func::cos:
             return kernel_selector::activation_function::COS;
-        case activation_acos:
+        case cldnn::activation_func::acos:
             return kernel_selector::activation_function::ACOS;
-        case activation_cosh:
+        case cldnn::activation_func::cosh:
             return kernel_selector::activation_function::COSH;
-        case activation_acosh:
+        case cldnn::activation_func::acosh:
             return kernel_selector::activation_function::ACOSH;
-        case activation_log:
+        case cldnn::activation_func::log:
             return kernel_selector::activation_function::LOG;
-        case activation_log2:
+        case cldnn::activation_func::log2:
             return kernel_selector::activation_function::LOG2;
-        case activation_exp:
+        case cldnn::activation_func::exp:
             return kernel_selector::activation_function::EXP;
-        case activation_tan:
+        case cldnn::activation_func::tan:
             return kernel_selector::activation_function::TAN;
-        case activation_atan:
+        case cldnn::activation_func::atan:
             return kernel_selector::activation_function::ATAN;
-        case activation_atanh:
+        case cldnn::activation_func::atanh:
             return kernel_selector::activation_function::ATANH;
-        case activation_floor:
+        case cldnn::activation_func::floor:
             return kernel_selector::activation_function::FLOOR;
-        case activation_ceil:
+        case cldnn::activation_func::ceil:
             return kernel_selector::activation_function::CEIL;
-        case activation_negative:
+        case cldnn::activation_func::negative:
             return kernel_selector::activation_function::NEGATIVE;
-        case activation_not:
+        case cldnn::activation_func::negation:
             return kernel_selector::activation_function::NOT;
-        case activation_pow:
+        case cldnn::activation_func::pow:
             return kernel_selector::activation_function::POW;
-        case activation_erf:
+        case cldnn::activation_func::erf:
             return kernel_selector::activation_function::ERF;
-        case activation_reciprocal:
+        case cldnn::activation_func::reciprocal:
             return kernel_selector::activation_function::RECIPROCAL;
-        case activation_selu:
+        case cldnn::activation_func::selu:
             return kernel_selector::activation_function::SELU;
-        case activation_sign:
+        case cldnn::activation_func::sign:
             return kernel_selector::activation_function::SIGN;
-        case activation_softplus:
+        case cldnn::activation_func::softplus:
             return kernel_selector::activation_function::SOFTPLUS;
-        case activation_softsign:
+        case cldnn::activation_func::softsign:
             return kernel_selector::activation_function::SOFTSIGN;
-        case activation_hard_sigmoid:
+        case cldnn::activation_func::hard_sigmoid:
             return kernel_selector::activation_function::HARD_SIGMOID;
         default:
             throw std::runtime_error("Unknown activation function");
@@ -509,13 +519,13 @@ kernel_selector::activation_function get_kernel_selector_activation_param(cldnn_
 }
 
 kernel_selector::activation_function get_kernel_selector_activation_grad_param(
-    cldnn_activation_grad_func activation_grad_func) {
+    activation_grad_func activation_grad_func) {
     switch (activation_grad_func) {
-        case activation_grad_none:
+        case cldnn::activation_grad_func::none:
             return kernel_selector::activation_function::NONE_GRAD;
-        case activation_grad_relu:
+        case cldnn::activation_grad_func::relu:
             return kernel_selector::activation_function::RELU_GRAD;
-        case activation_grad_relu_negative_slope:
+        case cldnn::activation_grad_func::relu_negative_slope:
             return kernel_selector::activation_function::RELU_NEGATIVE_SLOPE_GRAD;
         default:
             throw std::runtime_error("Unknown activation_grad function");

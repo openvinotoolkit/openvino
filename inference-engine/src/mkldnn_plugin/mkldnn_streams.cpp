@@ -134,10 +134,10 @@ bool pin_current_thread_to_socket(int socket) {
 MultiWorkerTaskExecutor::MultiWorkerTaskExecutor(const std::vector<Task::Ptr>& init_tasks, std::string name) :
         _isStopped(false), _name(name), _initCount(0) {
     const int sockets = MKLDNNPlugin::cpu::getNumberOfCPUSockets();
-    const int worker_per_sockets = init_tasks.size() / sockets;
+    const int worker_per_sockets = (std::max)(1, static_cast<int>(std::ceil(static_cast<float>(init_tasks.size()) / sockets)));
     for (int t= 0; t < init_tasks.size(); t++) {
         _threads.push_back(std::thread([&, t, init_tasks] {
-            int socket = t/worker_per_sockets;
+            int socket = t / worker_per_sockets;
             pin_current_thread_to_socket(socket);
             // initialization (no contention, every worker thread is doing it's own task)
             init_tasks[t]->runNoThrowNoBusyCheck();

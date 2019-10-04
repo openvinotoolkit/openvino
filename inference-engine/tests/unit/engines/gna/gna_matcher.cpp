@@ -156,7 +156,6 @@ void GNAPropagateMatcher :: match() {
             }
             net_reader.SetWeights(weights);
 
-            net_reader.getNetwork().setTargetDevice(_env.target_device);
 
             if (_env.cb) {
                 auto network = net_reader.getNetwork();
@@ -256,7 +255,7 @@ void GNAPropagateMatcher :: match() {
             std::unique_ptr<NNetComponentMatcher> combined(new NNetComponentMatcher());
 
             for (auto & matchWhat : _env.whatToMatch) {
-                switch(matchWhat) {
+                switch(matchWhat.type) {
                     case GnaPluginTestEnvironment::matchPrecision :
                         combined->add(new NNetPrecisionMatcher(_env.nnet_precision, INTEL_AFFINE));
                         break;
@@ -265,13 +264,13 @@ void GNAPropagateMatcher :: match() {
                             .WillOnce(Return(GNA_NOERROR));
                         break;
                     case GnaPluginTestEnvironment::matchPwlInserted :
-                        combined->add(new PWLMatcher(_env.matchInserted, _env.matchQuantity, _env.pwlsToMatchWith));
+                        combined->add(new PWLMatcher(_env.matchInserted, matchWhat.matchQuantity, _env.pwlsToMatchWith));
                         break;
                     case GnaPluginTestEnvironment::matchConvInserted:
-                        combined->add(new ConvoluionLayerMatcher(_env.matchInserted, _env.matchQuantity));
+                        combined->add(new ConvoluionLayerMatcher(_env.matchInserted, matchWhat.matchQuantity));
                         break;
                     case GnaPluginTestEnvironment::matchMaxPoolingInserted:
-                        combined->add(new PoolingLayerMatcher(_env.matchInserted, _env.matchQuantity, true));
+                        combined->add(new PoolingLayerMatcher(_env.matchInserted, matchWhat.matchQuantity, true));
                         break;
                     case GnaPluginTestEnvironment::matchPwlQuantizeMetrics :
                         combined->add(new PWLQuantizationMetricsMatcher(_env.type,
@@ -279,10 +278,10 @@ void GNAPropagateMatcher :: match() {
                                                                         _env.quantization_segments_threshold));
                         break;
                     case GnaPluginTestEnvironment::matchCopyInserted :
-                        combined->add(new CopyLayerMatcher(_env.matchInserted, _env.matchQuantity));
+                        combined->add(new CopyLayerMatcher(_env.matchInserted, matchWhat.matchQuantity));
                         break;
                     case GnaPluginTestEnvironment::matchDiagonalInserted :
-                        combined->add(new DiagLayerMatcher(_env.matchInserted, _env.matchQuantity));
+                        combined->add(new DiagLayerMatcher(_env.matchInserted, matchWhat.matchQuantity));
                         break;
                     case GnaPluginTestEnvironment::saveArgs :
                         EXPECT_CALL(mockApi, GNAPropagateForward(_, _, _, _, _, _))
@@ -405,8 +404,6 @@ void GNAPluginAOTMatcher :: match() {
     TBlob<float> output({ Precision::FP32, {1, 10}, Layout::NC });
     output.allocate();
 
-    net_reader.getNetwork().setTargetDevice(TargetDevice::eGNA);
-
     if (_env.cb) {
         auto network = net_reader.getNetwork();
         _env.cb(network);
@@ -438,8 +435,6 @@ void GNADumpXNNMatcher::load(GNAPlugin & plugin) {
         weights->allocate();
         GNATest::fillWeights(weights);
         net_reader.SetWeights(weights);
-
-        net_reader.getNetwork().setTargetDevice(TargetDevice::eGNA);
 
         if (_env.cb) {
             auto network = net_reader.getNetwork();
@@ -515,8 +510,6 @@ void GNAQueryStateMatcher :: match() {
         weights->allocate();
         GNATest::fillWeights(weights);
         net_reader.SetWeights(weights);
-
-        net_reader.getNetwork().setTargetDevice(TargetDevice::eGNA);
 
         if (_env.cb) {
             auto network = net_reader.getNetwork();

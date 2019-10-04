@@ -55,7 +55,7 @@ KernelsData ROIPoolingKernelBase::GetCommonKernelsData(const Params& params,
     assert(params.GetType() == KernelType::ROI_POOLING);
     const roi_pooling_params& orgParams = static_cast<const roi_pooling_params&>(params);
 
-    if (orgParams.activation.function != ActivationFunction::NONE) {
+    if (!orgParams.activations.empty()) {
         return {};
     }
 

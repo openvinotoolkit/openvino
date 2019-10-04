@@ -18,14 +18,14 @@ from abc import abstractmethod
 import numpy as np
 import os
 import tempfile
+from pathlib import Path
 from typing import Dict
 
 import openvino.inference_engine as ie
 
-from ..accuracy_checker.accuracy_checker.progress_reporters import TQDMReporter, ProgressReporter
-from ..accuracy_checker.accuracy_checker.config import ConfigReader
-from ..accuracy_checker.accuracy_checker.evaluators.model_evaluator import ModelEvaluator
-from ..accuracy_checker.accuracy_checker.presenters import get_result_format_parameters
+from accuracy_checker.progress_reporters import TQDMReporter, ProgressReporter
+from accuracy_checker.evaluators.model_evaluator import ModelEvaluator
+from accuracy_checker.presenters import get_result_format_parameters
 
 from ..utils.network_info import NetworkInfo
 from ..utils.building.network_builder import NetworkBuilder
@@ -33,14 +33,11 @@ from ..utils.building.layer import Layer
 
 from .logging import info, debug
 from .calibrator_configuration import CalibratorConfiguration
-from .aggregated_statistics import AggregatedStatistics
 from .nrmsd import compare_nrmsd
 from .single_layer_network import SingleLayerNetwork
 from .inference_result import InferenceResult
 from .calibration_metrics import CalibrationMetrics
-from .infer_raw_results import InferRawResults
 from .accuracy.metric_factory import MetricFactory
-from .accuracy.metric_in_percent import MetricInPercent
 
 from .process_dataset_callbacks.collect_results_callback import CollectResultsCallback
 from .process_dataset_callbacks.calculate_accuracy_callback import CalculateAccuracyCallback
@@ -82,24 +79,38 @@ class BaseCalibrator:
         if self._configuration.gpu_extension and self._configuration.device == 'GPU':
             self.plugin.set_config('CONFIG_FILE', self._configuration.gpu_extension)
 
-    def will_be_fused_workaround(self, layer:ie.IENetLayer, network_info:NetworkInfo=None):
-        if layer.type == "Const" or layer.type == "Tile":
-            if not network_info:
-                network_info = NetworkInfo(self._configuration.model)
-            only_expected = network_info.explore_inputs(network_info.get_layer(layer.name), ['Const', 'Tile'])
-            return only_expected, network_info
-        return False, network_info
+    def get_allowed_outputs(self, desired_layers: list=None) -> list:
+        network_tmp = self.create_network()
+        # During network loading some layers are trancated. Outputs could not be added to these layers
+        self.plugin.load(network_tmp)
 
-    def add_outputs(self, network:ie.IENetwork, output_layers: list=None) -> ie.IENetwork:
-        if output_layers is None:
-            output_layers = network.layers.values()
+        output_names = list()
+        excluded_list = ['gather']
+        children_require_stat = ['convolution', 'fullyconnected']
+        for layer in network_tmp.layers.values():
+            add = False
+            for child_name in layer.children:
+                if network_tmp.layers[child_name].type.lower() not in excluded_list:
+                    add = True
+                    break
+            if layer.type.lower() == "gather":
+                add = False
+                for child_name in layer.children:
+                    if network_tmp.layers[child_name].type.lower() in children_require_stat:
+                        add = True
+                        break
+            if add:
+                output_names.append(layer.name)
 
-        network_info = None
-        for layer in output_layers:
-            fused, network_info = self.will_be_fused_workaround(layer, network_info)
-            if not fused:
-                network.add_outputs([layer.name])
-        return network
+        # return just custom layers if they were set
+        if desired_layers:
+            custom_layers_list = list()
+            for name in output_names:
+                if name in desired_layers:
+                    custom_layers_list.append(name)
+            return custom_layers_list
+
+        return output_names
 
     def create_network(self) -> ie.IENetwork:
         network = ie.IENetwork(self._configuration.model, self._configuration.weights)
@@ -272,39 +283,6 @@ class BaseCalibrator:
                 return False
         return True
 
-    # TODO: add_outputs - remove, not neccessary
-    def infer(self,
-              add_outputs=False,
-              statistics=None,
-              quantization_level: dict = None,
-              collect_resuls: bool = False,
-              collect_layers: set = None,
-              collect_aggregated_statistics: bool = False,
-              network: ie.IENetwork = None,
-              collect_performance_counters: bool = False,
-              ignore_layer_names: list = None) -> InferenceResult:
-
-        if network is None:
-            network = self.create_network()
-
-        if add_outputs:
-            self.add_outputs(network)
-
-        if quantization_level:
-            for layer_name, value in quantization_level.items():
-                params = network.layers[layer_name].params
-                params["quantization_level"] = value
-                network.layers[layer_name].params = params
-
-        return self._infer(
-            network=network,
-            statistics=statistics,
-            collect_resuls=collect_resuls,
-            collect_layers=collect_layers,
-            collect_aggregated_statistics=collect_aggregated_statistics,
-            collect_performance_counters=collect_performance_counters,
-            ignore_layer_names=ignore_layer_names)
-
     def infer_single_layer_network(self,
                                    single_layer_network: SingleLayerNetwork,
                                    full_network_result: InferenceResult):
@@ -333,15 +311,16 @@ class BaseCalibrator:
         accuracy_drop = compare_nrmsd(actual_result_data, expected_result_data)
         return accuracy_drop
 
-    def _infer(
+    def infer(
         self,
-        network=None,
-        statistics=None,
-        collect_aggregated_statistics: bool = True,
-        collect_resuls: bool = True,
+        model_path=None,
+        collect_aggregated_statistics: bool = False,
+        collect_resuls: bool = False,
         collect_layers: set = None,
         collect_performance_counters: bool = False,
-        ignore_layer_names: list = None
+        ignore_layer_names: list = None,
+        per_layer_statistics: dict = None,
+        add_outputs=False
     ) -> InferenceResult:
         '''
         Accuracy checker infer and compare results
@@ -349,28 +328,22 @@ class BaseCalibrator:
         accuracy = 0.0
 
         model = self._configuration.config['models'][0]
-        launcher_config = model['launchers'][0]
-        dataset_config = model['datasets'][0]
+        # Need to copy to keep origin configuration here
+        launcher_config = model['launchers'][0].copy()
+        dataset_config = model['datasets'][0].copy()
+
+        if model_path:
+            launcher_config['model'] = Path(model_path)
+            launcher_config['weights'] = Path(model_path[:len(model_path) - 3] + 'bin')
+
+        if add_outputs:
+            launcher_config['outputs'] = self.get_allowed_outputs()
 
         process_dataset_callback = None
         model_evaluator = ModelEvaluator.from_configs(launcher_config, dataset_config)
         try:
-            if network:
-                del model_evaluator.launcher.network
-                del model_evaluator.launcher.exec_network
-                model_evaluator.launcher.reload_network = False
-                model_evaluator.launcher.network = network
-                model_evaluator.launcher.exec_network = model_evaluator.launcher.plugin.load(network)
-
             if collect_performance_counters:
                 model_evaluator.launcher.plugin.set_config({'PERF_COUNT': 'YES'})
-
-            if statistics:
-                network_stats = {}
-                for layer_name, node_statistic in statistics.items():
-                    network_stats[layer_name] = ie.LayerStats(min=tuple(node_statistic.min_outputs),
-                                                              max=tuple(node_statistic.max_outputs))
-                model_evaluator.launcher.network.stats.update(network_stats)
 
             dataset_size = model_evaluator.dataset.size
 
@@ -389,7 +362,7 @@ class BaseCalibrator:
                     model_evaluator.launcher.exec_network,
                     collect_layers=collect_layers,
                     configuration=self._configuration,
-                    statistics=statistics,
+                    per_layer_statistics=per_layer_statistics,
                     normalizer=self,
                     ignore_layer_names=ignore_layer_names)
             else:

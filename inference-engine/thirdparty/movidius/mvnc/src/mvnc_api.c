@@ -53,9 +53,10 @@
 #define MAX_RELATED_PATH_LENGTH   100
 
 //      Timeouts
-#define STATUS_WAIT_TIMEOUT     15
-#define DEVICE_APPEAR_TIMEOUT_ON_OPEN   (2)
-#define DEVICE_APPEAR_TIMEOUT_ON_CLOSE   (10)
+#define DEVICE_CONNECT_TIMEOUT              (2)
+#define PCIE_DEVICE_CONNECT_TIMEOUT         (10)
+#define DEVICE_APPEAR_TIMEOUT_ON_OPEN       (2)
+#define DEVICE_APPEAR_TIMEOUT_ON_CLOSE      (10)
 
 #define SLEEP_MS        250
 #define MAX_ITERATIONS  20
@@ -94,19 +95,20 @@ static int global_lock_fd = -1;
  * @param errorMsg Message to be written in case of error. It is a format string
  */
 #ifndef CHECK_STREAM_ID
-#define CHECK_STREAM_ID(id, callReleasingResources, errorMsg) {                                                   \
-    char errorMsgWithReason[255];                                                                                  \
-    if (id == INVALID_STREAM_ID_OUT_OF_MEMORY) {                                                                   \
-        snprintf(errorMsgWithReason, 255, "%s %s", errorMsg, "due to not enough memory on device");                \
-        mvLog(MVLOG_ERROR, errorMsgWithReason);                                                                    \
-        callReleasingResources;                                                                                        \
-        return NC_OUT_OF_MEMORY;                                                                                   \
-    } else if (id == INVALID_STREAM_ID) {                                                                          \
-         snprintf(errorMsgWithReason, 255, "%s %s", errorMsg, "due to unknown error");              \
-         callReleasingResources;                                                                                       \
-         return NC_ERROR;                                                                                          \
-    }                                                                                                              \
-    mvLog(MVLOG_DEBUG, "Stream opened");                                                                           \
+#define CHECK_STREAM_ID(id, callReleasingResources, errorMsg) {                                                     \
+    char errorMsgWithReason[255];                                                                                   \
+    if (id == INVALID_STREAM_ID_OUT_OF_MEMORY) {                                                                    \
+        snprintf(errorMsgWithReason, 255, "%s %s", errorMsg, "due to not enough memory on device");                 \
+        mvLog(MVLOG_ERROR, errorMsgWithReason);                                                                     \
+        callReleasingResources;                                                                                     \
+        return NC_OUT_OF_MEMORY;                                                                                    \
+    } else if (id == INVALID_STREAM_ID) {                                                                           \
+         snprintf(errorMsgWithReason, 255, "%s %s", errorMsg, "due to unknown error");                              \
+         mvLog(MVLOG_ERROR, errorMsgWithReason);                                                                    \
+         callReleasingResources;                                                                                    \
+         return NC_ERROR;                                                                                           \
+    }                                                                                                               \
+    mvLog(MVLOG_DEBUG, "Stream opened");                                                                            \
 }
 #endif // CHECK_STREAM_ID
 
@@ -206,7 +208,7 @@ static void sleepForSeconds(const unsigned int seconds) {
 
 static char* getProductName(const char* name) {
 
-#if (defined(_WIN32) || defined(_WIN64)) && !defined(PCIE_NAME_STR)
+#if (defined(_WIN32) || defined(_WIN64))
     const char PCIeName[] = "mxlink";
 #else
     const char PCIeName[] = "mxlk";
@@ -284,80 +286,71 @@ static void resetAll()
 #if defined(NO_BOOT)
     mvLog(MVLOG_INFO, "Devices will not be restarted for this configuration (NO_BOOT)");
 #else
-    int index = 0;
-    int stalled_count = 0;
-    int iters = 0;
-    int bootrom_count = 0;
-    int after_reset_count = 0;
-    XLinkError_t rc;
-    deviceDesc_t out_deviceDesc;
+    // Reset only USB devices
     deviceDesc_t in_deviceDesc = {
         .protocol = X_LINK_USB_VSC,
-        .platform = NC_ANY_PLATFORM
+        .platform = X_LINK_ANY_PLATFORM
     };
 
-    double waittm = timeInSeconds() + STATUS_WAIT_TIMEOUT;
-    while (timeInSeconds() < waittm) {
-        rc = XLinkFindDevice(index, X_LINK_ANY_STATE, &in_deviceDesc, &out_deviceDesc);
-        if (rc != X_LINK_SUCCESS)
-            break; //no more devices found
+    unsigned int stalled_count = 0;
+    deviceDesc_t stalledDevices[NC_MAX_DEVICES] = {};
 
-        if (strlen(getProductName(out_deviceDesc.name)) == 1 &&
-            out_deviceDesc.protocol != X_LINK_PCIE) { //name doesn't have product number
-            //device is already booted, need to reset
-            mvLog(MVLOG_DEBUG,"Found stalled device %s\n", out_deviceDesc.name);
+    unsigned int stalled_count_after_reboot = 0;
+
+
+    double waittm = timeInSeconds() + DEVICE_APPEAR_TIMEOUT_ON_OPEN;
+    do {
+        // Find stalled devices
+        stalled_count = 0;
+        XLinkFindAllSuitableDevices(
+                X_LINK_BOOTED, in_deviceDesc, stalledDevices, NC_MAX_DEVICES, &stalled_count);
+
+        if (stalled_count) {
+            mvLog(MVLOG_INFO, "%d stalled devices found, Resetting...", stalled_count);
+        } else {
+            mvLog(MVLOG_DEBUG, "Stalled devices not found");
+            return;
+        }
+
+        // Try to reboot them
+        int i;
+        for (i = 0; i < stalled_count; ++i) {
+            mvLog(MVLOG_DEBUG, "Found stalled device %s", stalledDevices[i].name);
+
             XLinkHandler_t* handler = calloc(1, sizeof(XLinkHandler_t));
-
             if (!handler){
                 mvLog(MVLOG_ERROR, "Memory allocation failed");
-                break;
+                return;
             }
-            handler->protocol = out_deviceDesc.protocol;
-            handler->devicePath = (char*)out_deviceDesc.name;
-            rc = XLinkConnect(handler);
+
+            handler->protocol = stalledDevices[i].protocol;
+            handler->devicePath = (char*)stalledDevices[i].name;
+            XLinkError_t rc = XLinkConnect(handler);
             if (rc) {
                 mvLog(MVLOG_ERROR," Failed to connect to stalled device, rc: %s", XLinkErrorToStr(rc));
+            } else {
+
             }
-            stalled_count++;
             free(handler);
-
-        } else {
-            bootrom_count++;
         }
-        index++;
-    }
 
-    if (stalled_count) {
-        mvLog(MVLOG_INFO,"Stalled devices found, Reseting...");
-        rc = XLinkResetAll();
+        // This command will reset all previously connected devices
+        XLinkError_t rc = XLinkResetAll();
         if (rc) {
             mvLog(MVLOG_WARN,"Failed to reset all device, rc: %s", XLinkErrorToStr(rc));
         }
 
-        iters = 0;
+        // Check that all devices are rebooted
+        stalled_count_after_reboot = 0;
+        deviceDesc_t stalledDevicesAfterReboot[NC_MAX_DEVICES] = {};
+        XLinkFindAllSuitableDevices(
+                X_LINK_BOOTED, in_deviceDesc,
+                stalledDevicesAfterReboot, NC_MAX_DEVICES, &stalled_count_after_reboot);
 
-        while ((after_reset_count < bootrom_count + stalled_count) &&
-                iters < MAX_ITERATIONS) {
-            usleep(SLEEP_MS*1000);
-            after_reset_count = 0;
-            index = 0;
-            waittm = timeInSeconds() + STATUS_WAIT_TIMEOUT;
-            while (timeInSeconds() < waittm) {
-                XLinkError_t rc = XLinkFindDevice(index, X_LINK_ANY_STATE, &in_deviceDesc, &out_deviceDesc);
-                if (rc != X_LINK_SUCCESS)
-                break; //no more devices found
-
-                if (strlen(getProductName(out_deviceDesc.name)) > 1 &&
-                    out_deviceDesc.protocol != X_LINK_PCIE) { //name has product number
-                    after_reset_count++;
-                }
-                index++;
-            }
-            iters++;
-            mvLog(MVLOG_INFO,"...");
-        }
+        mvLog(MVLOG_INFO,"...");
         usleep(SLEEP_MS*1000);
-    }
+
+    } while (stalled_count_after_reboot > 0 && timeInSeconds() < waittm);
 #endif
 }
 
@@ -380,7 +373,7 @@ ncStatus_t ncDeviceResetAll() {
 
 static ncStatus_t initializeXLink()
 {
-    XLinkSetCommonTimeOutMsec(3 * 60 * 10000);
+    XLinkSetCommonTimeOutMsec(60 * 1000);
     // We sanitize the situation by trying to reset the devices that have been left open
     initialized = 1;
     devices = NULL;
@@ -397,17 +390,6 @@ static ncStatus_t initializeXLink()
     }
 #endif  // NO_BOOT
     return NC_OK;
-}
-
-static int isDeviceOpened(const char *name)
-{
-    struct _devicePrivate_t *d = devices;
-    while (d) {
-        if (strcmp(d->dev_addr, name) == 0)
-            return 0;
-        d = d->next;
-    }
-    return -1;
 }
 
 /**
@@ -564,7 +546,11 @@ static ncStatus_t destroyDeviceHandle(struct ncDeviceHandle_t **deviceHandlePtr)
 
 ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     struct ncDeviceDescr_t in_ncDeviceDesc, int watchdogInterval, const char* customFirmwareDirectory) {
-    deviceDesc_t out_deviceDesc = {0};
+
+    //----------------------------------------------------------
+    //      Check input
+
+    deviceDesc_t deviceDescToBoot = {0};
     deviceDesc_t in_deviceDesc = {0};
     copyNcDeviceDescrToXLink(&in_ncDeviceDesc, &in_deviceDesc);
 
@@ -595,7 +581,8 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         return NC_OK;
     }
 
-    // Initialize handler
+    //--------------------------------------------------------
+    //      Initialize global mutex and mutex for deviceOpen
 
     if (!initialized) {
 #if (defined(_WIN32) || defined(_WIN64))
@@ -626,7 +613,13 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     }
 
     GLOBAL_LOCK();
-    CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&deviceOpenMutex), NC_ERROR);
+    int error = pthread_mutex_lock(&deviceOpenMutex);
+    if (error) {
+        GLOBAL_UNLOCK();
+        mvLog(MVLOG_ERROR, "pthread_mutex_lock(&deviceOpenMutex) failed with error: %d", error);
+        return NC_ERROR;
+    }
+
     if (!initialized) {
         ncStatus_t sc;
         if ((sc = initializeXLink()) != 0) {
@@ -636,18 +629,19 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         }
     }
 
+    //--------------------------------------------------------
+    //      Search for device
+
 #if defined(NO_BOOT)
     XLinkDeviceState_t state = X_LINK_BOOTED;
 #else
     XLinkDeviceState_t state = X_LINK_UNBOOTED;
 #endif
 
-    // Find any unbooted device or booted device and create deviceHandle
-    // TODO: PCIE could be found at once. Otherwise, it would cause a lot of errors about the opening file error.
     XLinkError_t rc = X_LINK_ERROR;
     double waittm = timeInSeconds() + DEVICE_APPEAR_TIMEOUT_ON_OPEN;
     while ((rc != X_LINK_SUCCESS) && (timeInSeconds() < waittm)) {
-        rc = XLinkFindDevice(0, state, &in_deviceDesc, &out_deviceDesc);
+        rc = XLinkFindFirstSuitableDevice(state, in_deviceDesc, &deviceDescToBoot);
     }
 
     if (rc != X_LINK_SUCCESS) {
@@ -665,15 +659,16 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         return parseXLinkError(NC_ERROR);
     }
 
-    // Allocate handler
+    //--------------------------------------------------------
+    //      Allocate device handler
 
     struct ncDeviceHandle_t *dH = calloc(1, sizeof(*dH));
     struct _devicePrivate_t *d = calloc(1, sizeof(*d));
 
     if (dH && d) {
         dH->private_data = d;
-        d->protocol = out_deviceDesc.protocol;
-        d->dev_addr = strdup(out_deviceDesc.name);
+        d->protocol = deviceDescToBoot.protocol;
+        d->dev_addr = strdup(deviceDescToBoot.name);
         d->device_mon_stream_id = INVALID_LINK_ID;
         d->graph_monitor_stream_id = INVALID_LINK_ID;
         d->wd_interval = watchdogInterval;
@@ -694,7 +689,9 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         return NC_OUT_OF_MEMORY;
     }
 
-    // Boot device
+    //--------------------------------------------------------
+    //      Boot device
+
     XLinkHandler_t* handler = calloc(1, sizeof(XLinkHandler_t));
     if (!handler) {
         mvLog(MVLOG_ERROR, "Memory allocation failed");
@@ -716,9 +713,9 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     rc = XLinkConnect(handler);
 #else
     if (handler->protocol == X_LINK_PCIE) {          // PCIe
-#if (!defined(_WIN32) && !defined(_WIN64))
         ncStatus_t sc;
         char mv_cmd_file_path[MAX_PATH_LENGTH] = {};
+#if (!defined(_WIN32) && !defined(_WIN64))
         if (customFirmwareDirectory && strnlen(customFirmwareDirectory, MAX_PATH_LENGTH) > 1) {
             mv_strncpy(mv_cmd_file_path, MAX_PATH_LENGTH, customFirmwareDirectory, MAX_PATH_LENGTH - 1);
             addEndPathSeparator(mv_cmd_file_path);
@@ -733,7 +730,8 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
             GLOBAL_UNLOCK();
             return NC_MVCMD_NOT_FOUND;
         }
-        rc = XLinkBootRemote(&out_deviceDesc, mv_cmd_file_path);
+#endif
+        rc = XLinkBoot(&deviceDescToBoot, mv_cmd_file_path);
         if (rc) {
             mvLog(MVLOG_WARN, "%s() XLinkBootRemote returned error %s for %s",
                   __func__, XLinkErrorToStr(rc), d->dev_addr);
@@ -741,12 +739,36 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
             mvLog(MVLOG_INFO, "%s() XLinkBootRemote returned success %s for %s",
                   __func__, XLinkErrorToStr(rc), d->dev_addr);
         }
-#endif
+        // Search for booted device
+        deviceDesc_t tempDeviceDesc = {};
+        waittm = timeInSeconds() + DEVICE_APPEAR_TIMEOUT_ON_CLOSE;
+        do {
+            rc = XLinkFindFirstSuitableDevice(X_LINK_BOOTED, deviceDescToBoot, &tempDeviceDesc);
+        } while (rc != X_LINK_SUCCESS && timeInSeconds() < waittm);
+
+        if (rc != X_LINK_SUCCESS) {
+            mvLog(MVLOG_ERROR, "Device doesn't appear after boot");
+            free(handler);
+            destroyDeviceHandle(deviceHandlePtr);
+            CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
+            GLOBAL_UNLOCK();
+            return NC_ERROR;
+        }
+
         d->protocol_booted = d->protocol;
         d->dev_addr_booted = strdup(d->dev_addr);
         handler->protocol = d->protocol_booted;
         handler->devicePath = d->dev_addr_booted;
-        rc = XLinkConnect(handler);
+
+        // FIXME BSOD
+#if (defined(_WIN32) || defined(_WIN64))
+        sleepForSeconds(5);
+#endif
+        // Connect to booted
+        waittm = timeInSeconds() + PCIE_DEVICE_CONNECT_TIMEOUT;
+        do {
+            rc = XLinkConnect(handler);
+        } while(rc != X_LINK_SUCCESS && timeInSeconds() < waittm);
     } else {                                        // USB
         // Find firmware and boot device with it
         char mv_cmd_file_path[MAX_PATH_LENGTH] = {};
@@ -770,20 +792,19 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
 
         mvLog(MVLOG_INFO, "%s() XLinkBootRemote is running for %s...\n", __func__, d->dev_addr);
 
-        // remember all currently available devices
+        // Remember all currently available devices
         deviceDesc_t beforeBootDevices[NC_MAX_DEVICES] = {{0}};
-        deviceDesc_t simpleDeviceDesc = {
-            .platform = NC_ANY_PLATFORM,
-            .protocol = convertProtocolToXlink(in_ncDeviceDesc.protocol)
+        unsigned int numberOfDevicesBeforeBoot = 0;
+        deviceDesc_t deviceDesc = {
+            .platform = X_LINK_ANY_PLATFORM,
+            .protocol = X_LINK_USB_VSC
         };
 
-        int n = 0;
-        for (; n < NC_MAX_DEVICES; ++n) {
-            if (XLinkFindDevice(n, X_LINK_ANY_STATE, &simpleDeviceDesc, &beforeBootDevices[n]))
-                break;
-        }
+        XLinkFindAllSuitableDevices(X_LINK_ANY_STATE, deviceDesc, beforeBootDevices,
+                NC_MAX_DEVICES, &numberOfDevicesBeforeBoot);
 
-        rc = XLinkBootRemote(&out_deviceDesc, mv_cmd_file_path);
+        // Boot device
+        rc = XLinkBoot(&deviceDescToBoot, mv_cmd_file_path);
         if (rc) {
             mvLog(MVLOG_WARN, "%s() XLinkBootRemote returned error %s for %s",
                   __func__, XLinkErrorToStr(rc), d->dev_addr);
@@ -792,91 +813,131 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
                   __func__, XLinkErrorToStr(rc), d->dev_addr);
         }
 
-        deviceDesc_t booted_device = {0};
+        // After boot name should change. Find
+        deviceDesc_t foundBootedDevice = {0};
+        int found_new_booted_device = 0;
 
-        // After boot name should change
-        double waittm = timeInSeconds() + STATUS_WAIT_TIMEOUT;
-        int deviceBooted = 0;
-        while ((timeInSeconds() < waittm) && !deviceBooted) {
-            int dev_indx = 0;
-            for (; dev_indx < NC_MAX_DEVICES; ++dev_indx) {
-                rc = XLinkFindDevice(dev_indx, X_LINK_ANY_STATE, &simpleDeviceDesc, &booted_device);
-                booted_device.name[NC_MAX_NAME_SIZE - 1] = 0;
-                if (rc != X_LINK_SUCCESS)
-                    break;
+        deviceDesc_t afterBootDevices[NC_MAX_DEVICES] = {{0}};
+        unsigned int numberOfDevicesAfterBoot = 0;
 
-                // if beforeBootDevices contains booted_name this is not a device we are looking for
-                int not_found = 0;
-                n = 0;
-                for (; n < NC_MAX_DEVICES; ++n) {
-                    if (strcmp(booted_device.name, beforeBootDevices[n].name) == 0 ||
-                        booted_device.protocol == X_LINK_PCIE) {
-                        not_found = 1;
-                        break;
+        waittm = timeInSeconds() + DEVICE_APPEAR_TIMEOUT_ON_OPEN;
+        do {
+            XLinkFindAllSuitableDevices(X_LINK_ANY_STATE, deviceDesc, afterBootDevices,
+                                        NC_MAX_DEVICES, &numberOfDevicesAfterBoot);
+            if (numberOfDevicesAfterBoot != numberOfDevicesBeforeBoot) {
+                continue;
+            }
+            deviceDesc_t tempDevicDescr = {};
+
+            // Device should disappear from unbooted list
+            if (X_LINK_DEVICE_NOT_FOUND != XLinkFindFirstSuitableDevice(
+                                                    X_LINK_ANY_STATE,
+                                                    deviceDescToBoot,
+                                                    &tempDevicDescr)) {
+                continue;
+            }
+            int i, j;
+            for (i = 0; i < numberOfDevicesAfterBoot; ++i) {
+                int found_in_before_boot_list = 0;
+                for (j = 0; j < numberOfDevicesBeforeBoot; ++j) {
+                    if(strcmp(afterBootDevices[i].name, beforeBootDevices[j].name) == 0) {
+                        found_in_before_boot_list = 1;
                     }
                 }
-
-                if (not_found)
-                    continue;
-                handler->protocol = booted_device.protocol;
-                handler->devicePath = (char *) booted_device.name;
-
-                rc = XLinkConnect(handler);
-                // Device mustn't be in devices pool
-                if (isDeviceOpened(booted_device.name) < 0 && rc == X_LINK_SUCCESS) {
-                    deviceBooted = 1;
-                    d->protocol_booted = booted_device.protocol;
-                    d->dev_addr_booted = strdup(booted_device.name);
+                if (!found_in_before_boot_list) {
+                    mv_strcpy(foundBootedDevice.name, XLINK_MAX_NAME_SIZE,
+                                        afterBootDevices[i].name);
+                    foundBootedDevice.platform = afterBootDevices[i].platform;
+                    foundBootedDevice.protocol = afterBootDevices[i].protocol;
+                    found_new_booted_device = 1;
                     break;
                 }
             }
+        } while (!found_new_booted_device && timeInSeconds() < waittm);
+
+        if (!found_new_booted_device) {
+            mvLog(MVLOG_ERROR, "Device doesn't appear after boot");
+            free(handler);
+            destroyDeviceHandle(deviceHandlePtr);
+            CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
+            GLOBAL_UNLOCK();
+            return NC_ERROR;
+        }
+
+        // Connect to booted
+        waittm = timeInSeconds() + DEVICE_CONNECT_TIMEOUT;
+
+        d->protocol_booted = d->protocol;
+        d->dev_addr_booted = strdup(foundBootedDevice.name);
+
+        handler->protocol = foundBootedDevice.protocol;
+        handler->devicePath = (char *) foundBootedDevice.name;
+        do {
+            rc = XLinkConnect(handler);
+        } while(rc != X_LINK_SUCCESS && timeInSeconds() < waittm);
+
+        if (rc != X_LINK_SUCCESS) {
+            mvLog(MVLOG_ERROR, "Device doesn't appear after boot");
+            free(handler);
+            destroyDeviceHandle(deviceHandlePtr);
+            CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
+            GLOBAL_UNLOCK();
+            return NC_ERROR;
         }
     }
 #endif
 
     if (rc != X_LINK_SUCCESS) {
-        // If PCIE device was booted then we will find it but can not connect.
-        mvLog_t logLevel = MVLOG_ERROR;
-        if(in_deviceDesc.protocol == X_LINK_PCIE) {
-            logLevel = MVLOG_WARN;
-        }
-
-        mvLog(logLevel, "Failed connection to device (%s) with error %d", d->dev_addr, rc);
+        mvLog(MVLOG_ERROR, "Failed connection to device (%s) with error %d", d->dev_addr, rc);
         free(handler);
         destroyDeviceHandle(deviceHandlePtr);
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
         GLOBAL_UNLOCK();
         return parseXLinkError(rc);
     }
+
+    // After this line calling free(handler) and destroyDeviceHandle after each other is double-free corruption
+    d->xlink = handler;
+    d->next = devices;
+
+    // Check device handle
+    if (d->dev_addr == NULL || d->dev_addr_booted == NULL || d->xlink == NULL) {
+        mvLog(MVLOG_ERROR, "device is invalid");
+        destroyDeviceHandle(deviceHandlePtr);
+        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
+        GLOBAL_UNLOCK();
+        return NC_INVALID_HANDLE;
+    }
+
+    devices = d;
+
     mvLog(MVLOG_INFO, "XLinkConnect done - link Id %d\n", handler->linkId);
 
-    int error = 0;
     if ((error = pthread_mutex_init(&d->dev_data_m, NULL)) != 0) {
         mvLog(MVLOG_ERROR, "pthread_mutex_init (dev_data_m) failed with error: %d", error);
-        free(handler);
         destroyDeviceHandle(deviceHandlePtr);
+        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
+        GLOBAL_UNLOCK();
         return NC_ERROR;
     }
     // If current mutex initialization failed, destroy previous
     if ((error = pthread_mutex_init(&d->dev_stream_m, NULL)) != 0) {
         mvLog(MVLOG_ERROR, "pthread_mutex_init (dev_stream_m) failed with error: %d", error);
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_data_m));
-        free(handler);
         destroyDeviceHandle(deviceHandlePtr);
+        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
+        GLOBAL_UNLOCK();
         return NC_ERROR;
     }
     if ((error = pthread_mutex_init(&d->graph_stream_m, NULL)) != 0) {
         mvLog(MVLOG_ERROR, "pthread_mutex_init (graph_stream_m) failed with error: %d", error);
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_data_m));
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_stream_m));
-        free(handler);
         destroyDeviceHandle(deviceHandlePtr);
+        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
+        GLOBAL_UNLOCK();
         return NC_ERROR;
     }
-
-    d->xlink = handler;
-    d->next = devices;
-    devices = d;
 
     if (handler->protocol != X_LINK_PCIE) {
         mvLog(MVLOG_INFO, "Booted %s (%s) -> %s\n",
@@ -884,7 +945,7 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
               d->dev_file ? d->dev_file : "VSC");
     } else {
         mvLog(MVLOG_INFO, "Booted %s -> %s\n",
-              d->dev_addr, d->dev_file ? d->dev_file : "X_LINK_PCIE");
+              d->dev_addr, d->dev_file ? d->dev_file : "PCIe");
     }
 
     sleepForSeconds(1);
@@ -892,17 +953,22 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
     GLOBAL_UNLOCK();
 
-    streamId_t streamId = XLinkOpenStream(d->xlink->linkId, "deviceMonitor", CONFIG_STREAM_SIZE);
-    CHECK_STREAM_ID(streamId, {}, "can't open deviceMonitor stream");
+    streamId_t deviceMonitorStreamId = XLinkOpenStream(d->xlink->linkId, "deviceMonitor", CONFIG_STREAM_SIZE);
+    CHECK_STREAM_ID(
+        deviceMonitorStreamId,
+        {
+            CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->graph_stream_m));
+            CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_stream_m));
+            CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_data_m));
+            destroyDeviceHandle(deviceHandlePtr);
+        },
+        "can't open deviceMonitor stream");
 
-    d->device_mon_stream_id = streamId;
+    d->device_mon_stream_id = deviceMonitorStreamId;
 
 #if !(defined(NO_BOOT))
-    if(d->protocol != X_LINK_PCIE)
-    {
-        watchdog_init_context(&d->watchdog_ctx);
-        watchdog_register_device(&d->watchdog_ctx, d);
-    }
+    watchdog_init_context(&d->watchdog_ctx);
+    watchdog_register_device(&d->watchdog_ctx, d);
 #endif
 
     getDevAttributes(d);
@@ -911,18 +977,40 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     printfOverXLinkOpen(d);
 #endif
 
-    streamId = XLinkOpenStream(d->xlink->linkId, "graphMonitor",
-                                BLOB_STREAM_SIZE);
+    streamId_t graphMonitorStreamId = XLinkOpenStream(d->xlink->linkId, "graphMonitor", BLOB_STREAM_SIZE);
 
 #if (!defined(_WIN32) && !defined(_WIN64))
-    CHECK_STREAM_ID(streamId, {
-           printfOverXLinkClose(d);
+    CHECK_STREAM_ID(graphMonitorStreamId, {
+        printfOverXLinkClose(d);
+        // TODO NO_BOOT case
+        watchdog_unregister_device(&d->watchdog_ctx);
+        CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_data_m));
+        CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_stream_m));
+        CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->graph_stream_m));
+        XLinkError_t closed = XLinkCloseStream(deviceMonitorStreamId);
+        if (closed != X_LINK_SUCCESS) {
+            mvLog(MVLOG_ERROR, "Failed to close deviceMonitor stream");
+        }
+
+        destroyDeviceHandle(deviceHandlePtr);
     }, "can't open graphMonitor stream");
 #else
-    CHECK_STREAM_ID(streamId, {}, "can't open graphMonitor stream");
+    CHECK_STREAM_ID(graphMonitorStreamId, {
+        // TODO NO_BOOT case
+        watchdog_unregister_device(&d->watchdog_ctx);
+        CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_data_m));
+        CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_stream_m));
+        CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->graph_stream_m));
+        XLinkError_t closed = XLinkCloseStream(deviceMonitorStreamId);
+        if (closed != X_LINK_SUCCESS) {
+            mvLog(MVLOG_ERROR, "Failed to close deviceMonitor stream");
+        }
+
+        destroyDeviceHandle(deviceHandlePtr);
+    }, "can't open graphMonitor stream");
 #endif
 
-    d->graph_monitor_stream_id = streamId;
+    d->graph_monitor_stream_id = graphMonitorStreamId;
     d->state = NC_DEVICE_OPENED;
 
     return NC_OK;
@@ -930,7 +1018,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
 
 ncStatus_t ncAvailableDevices(struct ncDeviceDescr_t *deviceDescrPtr,
                               int maxDevices, int* out_countDevices) {
-    //TODO: PCIe device support can be performed after #-17972 is completed
     CHECK_HANDLE_CORRECT(deviceDescrPtr);
     CHECK_HANDLE_CORRECT(out_countDevices);
 
@@ -938,20 +1025,20 @@ ncStatus_t ncAvailableDevices(struct ncDeviceDescr_t *deviceDescrPtr,
     memset(deviceDescrPtr, 0, maxDevices * sizeof(struct ncDeviceDescr_t));
 
     deviceDesc_t in_deviceDsc = {
-        .platform = NC_ANY_PLATFORM,
-        .protocol = X_LINK_USB_VSC
+        .platform = X_LINK_ANY_PLATFORM,
+        .protocol = X_LINK_ANY_PROTOCOL
     };
 
-    int n = 0;
-    for (; n < maxDevices; ++n) {
-        deviceDesc_t deviceDsc = {0};
-        if (XLinkFindDevice(n, X_LINK_UNBOOTED, &in_deviceDsc, &deviceDsc))
-            break;
-
-        copyXLinkDeviceDescrToNc(&deviceDsc, &deviceDescrPtr[n]);
+    deviceDesc_t deviceDescArray[NC_MAX_DEVICES] = {};
+    unsigned int amountOfFoundDevices = 0;
+    XLinkFindAllSuitableDevices(
+            X_LINK_UNBOOTED, in_deviceDsc, deviceDescArray, NC_MAX_DEVICES, &amountOfFoundDevices);
+    int i;
+    for (i = 0; i < amountOfFoundDevices; ++i) {
+        copyXLinkDeviceDescrToNc(&deviceDescArray[i], &deviceDescrPtr[i]);
     }
 
-    *out_countDevices = n;
+    *out_countDevices = amountOfFoundDevices;
     return NC_OK;
 }
 
@@ -963,11 +1050,11 @@ ncStatus_t ncDeviceLoadFirmware(const ncDevicePlatform_t devicePlatform, const c
     // Find device with specific platform
     deviceDesc_t deviceDesc = {0};
     deviceDesc_t in_deviceDesc = {
-        .platform = devicePlatform,
+        .platform = convertPlatformToXlink(devicePlatform),
         .protocol = X_LINK_USB_VSC
     };
 
-    rc = XLinkFindDevice(0, X_LINK_UNBOOTED, &in_deviceDesc, &deviceDesc);
+    rc = XLinkFindFirstSuitableDevice(X_LINK_UNBOOTED, in_deviceDesc, &deviceDesc);
     if (rc) {
         mvLog(MVLOG_WARN, "Failed to find (%s) platform device", ncPlatformToStr(devicePlatform));
         return NC_DEVICE_NOT_FOUND;
@@ -995,12 +1082,12 @@ ncStatus_t ncDeviceLoadFirmware(const ncDevicePlatform_t devicePlatform, const c
     }
 
     mvLog(MVLOG_INFO, "Trying to boot %s device", deviceDesc.name);
-    rc = XLinkBootRemote(&deviceDesc, mv_cmd_file_path);
+    rc = XLinkBoot(&deviceDesc, mv_cmd_file_path);
     if (rc) {
         mvLog(MVLOG_WARN, "%s() XLinkBootRemote returned error %s\n", __func__, XLinkErrorToStr(rc));
     } else {
         mvLog(MVLOG_INFO, "%s() XLinkBootRemote returned success %s\n", __func__, XLinkErrorToStr(rc));
- 	      sleepForSeconds(DEVICE_APPEAR_TIMEOUT_ON_OPEN);
+          sleepForSeconds(DEVICE_APPEAR_TIMEOUT_ON_OPEN);
     }
 
     return parseXLinkError(rc);
@@ -1087,78 +1174,6 @@ static ncStatus_t getThermalStats(struct _devicePrivate_t *d){
     return NC_OK;
 }
 
-static ncStatus_t getDeviceFrequency(struct _devicePrivate_t *d){
-    deviceCommand_t config;
-    config.type.c0 = CLASS0_DEVICE_QUERY_CLOCKS;
-    config.optionClass = NC_OPTION_CLASS0;
-    CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&d->dev_stream_m), NC_ERROR);
-    XLinkError_t rc = X_LINK_SUCCESS;
-    rc = XLinkWriteData(d->device_mon_stream_id, (const uint8_t*)&config, sizeof(config));
-    if (rc != X_LINK_SUCCESS) {
-        mvLog(MVLOG_ERROR, "Failed to write data, rc: %s", XLinkErrorToStr(rc));
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_stream_m));
-        return parseXLinkError(rc);
-    }
-    streamPacketDesc_t* packet = 0;
-
-    rc = XLinkReadData(d->device_mon_stream_id, &packet);
-    if (rc != X_LINK_SUCCESS || !packet) {
-        mvLog(MVLOG_ERROR, "Failed to read data, rc: %s", XLinkErrorToStr(rc));
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_stream_m));
-        return parseXLinkError(rc);
-    }
-
-    if( packet->length != sizeof(uint32_t)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_stream_m));
-        return NC_ERROR;
-    }
-    mvnc_memcpy(&d->deviceFreq, sizeof(d->deviceFreq), packet->data, packet->length);
-    rc = XLinkReleaseData(d->device_mon_stream_id);
-    CHECK_MUTEX_SUCCESS_RC(pthread_mutex_unlock(&d->dev_stream_m), NC_ERROR);
-    if (rc != X_LINK_SUCCESS) {
-        mvLog(MVLOG_WARN,"Failed to release data, rc: %s", XLinkErrorToStr(rc));
-    }
-    return NC_OK;
-}
-
-static ncStatus_t getDeviceProfilingData(struct _devicePrivate_t *d){
-    deviceCommand_t config;
-    config.type.c0 = CLASS0_DEVICE_PROFILING_DATA;
-    config.optionClass = NC_OPTION_CLASS0;
-    CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&d->dev_stream_m), NC_ERROR);
-    XLinkError_t rc = X_LINK_SUCCESS;
-    rc = XLinkWriteData(d->device_mon_stream_id, (const uint8_t*)&config, sizeof(config));
-    if (rc != X_LINK_SUCCESS) {
-        mvLog(MVLOG_ERROR, "Failed to write data, rc: %s", XLinkErrorToStr(rc));
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_stream_m));
-        return parseXLinkError(rc);
-    }
-    streamPacketDesc_t* packet = 0;
-
-    rc = XLinkReadData(d->device_mon_stream_id, &packet);
-    if (rc != X_LINK_SUCCESS || !packet) {
-        mvLog(MVLOG_ERROR, "Failed to read data, rc: %s", XLinkErrorToStr(rc));
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_stream_m));
-        return parseXLinkError(rc);
-    }
-
-    d->receivedData = packet->length;
-    if (d->profilingBuffer == 0) {
-        d->profilingBuffer = (uint8_t*) malloc(profUpperBound);
-    }
-
-    if( packet->length > profUpperBound) {
-        d->receivedData = profUpperBound;
-    }
-    mvnc_memcpy(d->profilingBuffer, profUpperBound, packet->data, d->receivedData);
-    rc = XLinkReleaseData(d->device_mon_stream_id);
-    CHECK_MUTEX_SUCCESS_RC(pthread_mutex_unlock(&d->dev_stream_m), NC_ERROR);
-    if (rc != X_LINK_SUCCESS) {
-        mvLog(MVLOG_WARN,"Failed to release data, rc: %s", XLinkErrorToStr(rc));
-    }
-    return NC_OK;
-}
-
 static ncStatus_t deviceGetDeviceMemory(struct _devicePrivate_t *d,
                                         uint32_t * mem)
 {
@@ -1236,7 +1251,9 @@ static void fprintfsock( int s, const char* fmt, ... ) {
     }
 
     if(s < 0) {
-        (void) write( 1, ptext, len );
+        if(write( 1, ptext, len) != len) {
+            fprintf(stderr, "Error in fprintfsock: write failed\n");
+        }
     } else {
         if(send( s, ptext, len, 0 ) < 0)
         {
@@ -1566,7 +1583,9 @@ ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr) {
     int wasConnectedToBooted = 0;
     if (d->dev_addr != NULL && d->dev_addr_booted != NULL &&
         strncmp(d->dev_addr, d->dev_addr_booted, NC_MAX_NAME_SIZE) == 0) {
-        wasConnectedToBooted = 1;       // For PCIE that also would work
+        // PCIe device have same booted and unbooted addr
+        if (d->protocol != X_LINK_PCIE)
+            wasConnectedToBooted = 1;
     }
 
     GLOBAL_LOCK();
@@ -1619,17 +1638,29 @@ ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr) {
     printfOverXLinkClose(d);
 #endif
 
+#if !defined(NO_BOOT)
+    watchdog_unregister_device(&d->watchdog_ctx);
+#endif
+
+    // Save all devices before reset
+    deviceDesc_t in_deviceDesc = {
+            .platform = X_LINK_ANY_PLATFORM,
+            .protocol = d->protocol
+    };
+    deviceDesc_t beforeResetDevices[NC_MAX_DEVICES] = {{0}};
+    unsigned int foundDevicesBeforeReset = 0;
+    XLinkFindAllSuitableDevices(X_LINK_ANY_STATE, in_deviceDesc, beforeResetDevices,
+                                NC_MAX_DEVICES, &foundDevicesBeforeReset);
+
     if (d->state != NC_DEVICE_FAILED) {
         // #17801
 #if !defined(NO_BOOT)
-        if (d->device_mon_stream_id != INVALID_LINK_ID &&
-            d->protocol != X_LINK_PCIE) {
-            rc = XLinkCloseStream(d->device_mon_stream_id);
-            if (rc)
-                mvLog(MVLOG_WARN,"Failed to close stream, rc: %s", XLinkErrorToStr(rc));
-        }
-        if (d->graph_monitor_stream_id != INVALID_LINK_ID &&
-            d->protocol != X_LINK_PCIE) {
+        if (d->graph_monitor_stream_id != INVALID_LINK_ID) {
+            if (d->device_mon_stream_id != INVALID_LINK_ID) {
+                rc = XLinkCloseStream(d->device_mon_stream_id);
+                if (rc)
+                    mvLog(MVLOG_WARN,"Failed to close stream, rc: %s", XLinkErrorToStr(rc));
+            }
             rc = XLinkCloseStream(d->graph_monitor_stream_id);
             if (rc)
                 mvLog(MVLOG_WARN,"Failed to close stream, rc: %s", XLinkErrorToStr(rc));
@@ -1648,12 +1679,6 @@ ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr) {
         }
     }
 
-#if !defined(NO_BOOT)
-    if(d->protocol != X_LINK_PCIE) {
-        watchdog_unregister_device(&d->watchdog_ctx);
-    }
-#endif
-
     d->state = NC_DEVICE_CLOSED;
 
     CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->graph_stream_m));
@@ -1662,48 +1687,53 @@ ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr) {
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
     CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_data_m));
 
-    if (!wasConnectedToBooted) {
-        int device_appear_after_reboot = 0;
+
+    if (!wasConnectedToBooted && d->protocol != X_LINK_PCIE) {
+        deviceDesc_t bootedDeviceDesc = {
+                .protocol = d->protocol,
+                .platform = X_LINK_ANY_PLATFORM
+        };
+        mv_strcpy(bootedDeviceDesc.name, XLINK_MAX_NAME_SIZE, d->dev_addr_booted);
+
+        int booted_disappeared = 0;
+        int unbooted_appeared = 0;
 
         //  Wait for unbooted device appear in usb list
         double waittm = timeInSeconds() + DEVICE_APPEAR_TIMEOUT_ON_CLOSE;
-        while (timeInSeconds() < waittm) {
-            // check current devices
-            // wait for booted name to disappear
-            // wait for unbooted name to appear
-            // sometimes both names can be present in the list of usb devices
-            deviceDesc_t device_desc = {0};
-            deviceDesc_t in_deviceDesc = {
-                .platform = NC_ANY_PLATFORM,
-                .protocol = d->protocol
-            };
 
-            int booted_disappeared = 1;
-            int unbooted_appeared = 0;
+        deviceDesc_t afterResetDevices[NC_MAX_DEVICES] = {{0}};
+        unsigned int foundDevicesAfterReset = 0;
+        do {
+            XLinkFindAllSuitableDevices(X_LINK_ANY_STATE, in_deviceDesc, afterResetDevices,
+                                        NC_MAX_DEVICES, &foundDevicesAfterReset);
+            if (foundDevicesAfterReset != foundDevicesBeforeReset) {
+                continue;
+            }
 
-            int n = 0;
-            while (XLinkFindDevice(n++, X_LINK_ANY_STATE, &in_deviceDesc, &device_desc) == X_LINK_SUCCESS) {
-                if (d->dev_addr_booted != NULL &&
-                    strcmp(device_desc.name, d->dev_addr_booted) == 0) {
-                    booted_disappeared = 0;
-                    break;
+            deviceDesc_t deviceDesc = {};
+            rc = XLinkFindFirstSuitableDevice(X_LINK_BOOTED, bootedDeviceDesc, &deviceDesc);
+            if (rc == X_LINK_SUCCESS) {
+                continue;
+            } else {
+                booted_disappeared = 1;
+            }
+            int i, j;
+            for (i = 0; i < foundDevicesAfterReset; ++i) {
+                int found_in_before_reset_list = 0;
+                for (j = 0; j < foundDevicesBeforeReset; ++j) {
+                    if(strcmp(beforeResetDevices[i].name, afterResetDevices[j].name) == 0) {
+                        found_in_before_reset_list = 1;
+                    }
                 }
-
-                if (d->dev_addr != NULL &&
-                    strcmp(device_desc.name, d->dev_addr) == 0) {
+                if (!found_in_before_reset_list) {
                     unbooted_appeared = 1;
                 }
             }
 
-            if (!(booted_disappeared && unbooted_appeared)) {
-                continue;
-            } else {
-                device_appear_after_reboot = 1;
-                break;
-            }
-        }
 
-        if (device_appear_after_reboot == 0) {
+        } while (!(booted_disappeared && unbooted_appeared) && timeInSeconds() < waittm);
+
+        if (!booted_disappeared || !unbooted_appeared) {
             mvLog(MVLOG_ERROR, "Device didn't appear after reboot");
         }
     } else {
@@ -2106,7 +2136,7 @@ ncStatus_t ncGraphSetOption(struct ncGraphHandle_t * graphHandle,
         return NC_INVALID_PARAMETERS;
     }
     if (option < GRAPH_CLASS0_BASE ||
-        option > (GRAPH_CLASS0_BASE + OPTION_CLASS_SIZE * NC_OPTION_CLASS3)) {
+        option > (GRAPH_CLASS0_BASE + OPTION_CLASS_SIZE * NC_OPTION_GRAPH_LAST)) {
         mvLog(MVLOG_ERROR, "Option %d is invalid", option);
         return NC_INVALID_PARAMETERS;
     }
@@ -2415,7 +2445,7 @@ ncStatus_t ncGraphGetOption(struct ncGraphHandle_t * graphHandle,
     }
 
     if (option < GRAPH_CLASS0_BASE ||
-        option > (GRAPH_CLASS0_BASE + OPTION_CLASS_SIZE * NC_OPTION_CLASS3)) {
+        option > (GRAPH_CLASS0_BASE + OPTION_CLASS_SIZE * NC_OPTION_GRAPH_LAST)) {
         mvLog(MVLOG_ERROR, "Option %d is invalid", option);
         return NC_INVALID_PARAMETERS;
     }
@@ -2775,9 +2805,36 @@ static ncStatus_t getDeviceOptionClass0(struct _devicePrivate_t *d,
     return rc;
 }
 
+static ncStatus_t setDeviceOptionClass4(struct _devicePrivate_t *d,
+                                        ncDeviceOption_t option,
+                                        const void *data, unsigned int dataLength){
+    XLinkError_t rc = X_LINK_SUCCESS;
+    deviceCommand_t config;
+
+    if (option != NC_RW_DEVICE_POWER_CONFIG_RESET && option != NC_RW_DEVICE_POWER_CONFIG) {
+        mvLog(MVLOG_ERROR, "No such option");
+        return NC_INVALID_PARAMETERS;
+    }
+
+    config.type.c4 = (option == NC_RW_DEVICE_POWER_CONFIG ? CLASS4_SET_POWER_CONFIG : CLASS4_RESET_POWER_CONFIG);
+    config.optionClass = NC_OPTION_CLASS4;
+    config.data = *(uint32_t*)data;
+
+    rc = XLinkWriteData(d->device_mon_stream_id, (const uint8_t *)&config, sizeof(config));
+
+    if (rc != X_LINK_SUCCESS)
+    {
+        mvLog(MVLOG_ERROR, "Failed to write data, rc: %s", XLinkErrorToStr(rc));
+        return parseXLinkError(rc);
+    }
+
+    return NC_OK;
+}
+
 ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
-                             ncDeviceOption_t option,
-                             const void *data, unsigned int dataLength){
+                            ncDeviceOption_t option,
+                            const void *data, unsigned int dataLength){
+    ncStatus_t rc = NC_OK;
     if (!deviceHandle || !data){
         mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
         return NC_INVALID_PARAMETERS;
@@ -2788,7 +2845,7 @@ ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
     }
 
     if (option < DEVICE_CLASS0_BASE ||
-        option > (DEVICE_CLASS0_BASE + OPTION_CLASS_SIZE * NC_OPTION_CLASS3)) {
+        option > (DEVICE_CLASS0_BASE + OPTION_CLASS_SIZE * NC_OPTION_LAST)) {
         mvLog(MVLOG_ERROR, "Option %d is invalid", option);
         return NC_INVALID_PARAMETERS;
     }
@@ -2809,14 +2866,22 @@ ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
 
         return NC_INVALID_HANDLE;
     }
-    GLOBAL_UNLOCK();
+
     if (opClass > d->dev_attr.max_device_opt_class) {
         mvLog(MVLOG_ERROR, "This device FW does not support NC_OPTION_CLASS%d",
               opClass);
         return NC_UNAUTHORIZED;
     }
 
-    return NC_INVALID_PARAMETERS;
+    switch (opClass) {
+    case NC_OPTION_CLASS4:
+        rc = setDeviceOptionClass4(d, option, data, dataLength);
+        break;
+    default:
+        rc = NC_INVALID_PARAMETERS;
+    }
+    GLOBAL_UNLOCK();
+    return rc;
 }
 
 //static options can be read before device is open
@@ -2844,7 +2909,7 @@ ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t * deviceHandle,
     }
 
     if (option < DEVICE_CLASS0_BASE ||
-        option > (DEVICE_CLASS0_BASE + OPTION_CLASS_SIZE * NC_OPTION_CLASS3)) {
+        option > (DEVICE_CLASS0_BASE + OPTION_CLASS_SIZE * NC_OPTION_LAST)) {
         mvLog(MVLOG_ERROR, "Option %d is invalid", option);
         return NC_INVALID_PARAMETERS;
     }

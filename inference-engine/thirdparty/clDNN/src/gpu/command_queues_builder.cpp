@@ -28,8 +28,8 @@ command_queues_builder::command_queues_builder(const cl::Context& context,
     : _context(context),
       _device(device),
       _platform_id(platform_id),
-      _priority_mode(cldnn_priority_disabled),
-      _throttle_mode(cldnn_throttle_disabled) {}
+      _priority_mode(priority_mode_types::disabled),
+      _throttle_mode(throttle_mode_types::disabled) {}
 
 cl_command_queue_properties command_queues_builder::get_properties() {
     cl_command_queue_properties ret =
@@ -40,7 +40,7 @@ cl_command_queue_properties command_queues_builder::get_properties() {
 void command_queues_builder::build() {
     auto properties = get_properties();
 
-    if (_priority_mode == cldnn_priority_disabled && _throttle_mode == cldnn_throttle_disabled) {
+    if (_priority_mode == priority_mode_types::disabled && _throttle_mode == throttle_mode_types::disabled) {
         _queue = cl::CommandQueue(_context, _device, properties);
         return;
     }
@@ -48,10 +48,10 @@ void command_queues_builder::build() {
     unsigned cl_queue_priority_value = CL_QUEUE_PRIORITY_MED_KHR;
 
     switch (_priority_mode) {
-        case cldnn_priority_high:
+        case priority_mode_types::high:
             cl_queue_priority_value = CL_QUEUE_PRIORITY_HIGH_KHR;
             break;
-        case cldnn_priority_low:
+        case priority_mode_types::low:
             cl_queue_priority_value = CL_QUEUE_PRIORITY_LOW_KHR;
             break;
         default:
@@ -61,10 +61,10 @@ void command_queues_builder::build() {
     unsigned cl_queue_throttle_value = CL_QUEUE_THROTTLE_MED_KHR;
 
     switch (_throttle_mode) {
-        case cldnn_throttle_high:
+        case throttle_mode_types::high:
             cl_queue_throttle_value = CL_QUEUE_THROTTLE_HIGH_KHR;
             break;
-        case cldnn_throttle_low:
+        case throttle_mode_types::low:
             cl_queue_throttle_value = CL_QUEUE_THROTTLE_LOW_KHR;
             break;
         default:
@@ -73,7 +73,7 @@ void command_queues_builder::build() {
 
     cl_int error_code = CL_SUCCESS;
 
-    if (_priority_mode != cldnn_priority_disabled && _throttle_mode != cldnn_throttle_disabled) {
+    if (_priority_mode != priority_mode_types::disabled && _throttle_mode != throttle_mode_types::disabled) {
         cl_queue_properties properties_low[] = {CL_QUEUE_PRIORITY_KHR,
                                                 cl_queue_priority_value,
                                                 CL_QUEUE_THROTTLE_KHR,
@@ -83,7 +83,7 @@ void command_queues_builder::build() {
                                                 0};
 
         _queue = clCreateCommandQueueWithProperties(_context.get(), _device.get(), properties_low, &error_code);
-    } else if (_priority_mode != cldnn_priority_disabled) {
+    } else if (_priority_mode != priority_mode_types::disabled) {
         cl_queue_properties properties_low[] = {CL_QUEUE_PRIORITY_KHR,
                                                 cl_queue_priority_value,
                                                 CL_QUEUE_PROPERTIES,
@@ -91,7 +91,7 @@ void command_queues_builder::build() {
                                                 0};
 
         _queue = clCreateCommandQueueWithProperties(_context.get(), _device.get(), properties_low, &error_code);
-    } else if (_throttle_mode != cldnn_throttle_disabled) {
+    } else if (_throttle_mode != throttle_mode_types::disabled) {
         cl_queue_properties properties_low[] = {CL_QUEUE_THROTTLE_KHR,
                                                 cl_queue_throttle_value,
                                                 CL_QUEUE_PROPERTIES,
@@ -107,8 +107,8 @@ void command_queues_builder::build() {
     }
 }
 
-void command_queues_builder::set_priority_mode(cldnn_priority_mode_type priority, bool extension_support) {
-    if (priority != cldnn_priority_disabled && !extension_support) {
+void command_queues_builder::set_priority_mode(priority_mode_types priority, bool extension_support) {
+    if (priority != priority_mode_types::disabled && !extension_support) {
         CLDNN_ERROR_MESSAGE("Command queues builders - priority_mode",
                             std::string("The param priority_mode is set in engine_configuration, ")
                             .append("but cl_khr_priority_hints or cl_khr_create_command_queue ")
@@ -117,8 +117,8 @@ void command_queues_builder::set_priority_mode(cldnn_priority_mode_type priority
     _priority_mode = priority;
 }
 
-void command_queues_builder::set_throttle_mode(cldnn_throttle_mode_type throttle, bool extension_support) {
-    if (throttle != cldnn_throttle_disabled && !extension_support) {
+void command_queues_builder::set_throttle_mode(throttle_mode_types throttle, bool extension_support) {
+    if (throttle != throttle_mode_types::disabled && !extension_support) {
         CLDNN_ERROR_MESSAGE("Command queues builders - throttle_mode",
                             std::string("The param throttle_mode is set in engine_configuration, ")
                             .append("but cl_khr_throttle_hints is not supported by current OpenCL implementation."));

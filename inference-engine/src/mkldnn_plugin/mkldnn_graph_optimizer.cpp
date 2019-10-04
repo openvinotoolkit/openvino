@@ -2,24 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <blob_factory.hpp>
-#include "nodes/mkldnn_reshape_node.h"
 #include "mkldnn_graph_optimizer.h"
-#include <nodes/mkldnn_activation_node.h>
+
+#include "mkldnn_extension_utils.h"
+#include "nodes/mkldnn_reshape_node.h"
+#include "nodes/mkldnn_activation_node.h"
 #include "nodes/mkldnn_pooling_node.h"
 #include "nodes/mkldnn_eltwise_node.h"
 #include "nodes/mkldnn_depthwise_node.h"
 #include "nodes/mkldnn_concat_node.h"
 #include "nodes/mkldnn_reorder_node.h"
+#include "nodes/mkldnn_conv_node.h"
+#include "nodes/mkldnn_bin_conv_node.h"
+#include "nodes/mkldnn_quantize_node.h"
+
+#include <blob_factory.hpp>
+#include <ie_layers_internal.hpp>
+#include <cpu_isa_traits.hpp>
 
 #include <string>
 #include <list>
 #include <memory>
 #include <set>
-#include <ie_layers_internal.hpp>
-#include <nodes/mkldnn_bin_conv_node.h>
-#include <nodes/mkldnn_quantize_node.h>
-#include "cpu_isa_traits.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -111,8 +115,8 @@ void MKLDNNGraphOptimizer::MergeGroupConvolution(MKLDNNGraph &graph) {
         // TODO: Rewrite topology optimizer at all. it should be clean and understandable
         auto concat = conv->getChildEdgeAt(0)->getChild();
         // Merge and remove Convolution
-        for (size_t i = 1; i < split->getChildEdges().size(); i++) {
-            auto peerInEdge = split->getChildEdgeAt(i);
+        while (split->getChildEdges().size() > 1) {
+            auto peerInEdge = split->getChildEdgeAt(1);
             auto peer = peerInEdge->getChild();
             conv->mergeWith(peer);
             convInDims[1] += (peerInEdge->getDims())[1];
@@ -537,16 +541,28 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
         auto parent1 = graphNode->getParentEdgeAt(0)->getParent();
         auto parent2 = graphNode->getParentEdgeAt(1)->getParent();
 
-        bool isSutableParent1 = (parent1->getType() == Convolution && parent1->fusedWith.empty()) ||
-                                parent1->getType() == BinaryConvolution;
-        bool isSutableParent2 = (parent2->getType() == Convolution && parent2->fusedWith.empty()) ||
-                                parent2->getType() == BinaryConvolution;
+        bool isSutableParent1 = parent1->getType() == Convolution || parent1->getType() == BinaryConvolution;
+        bool isSutableParent2 = parent2->getType() == Convolution || parent2->getType() == BinaryConvolution;
+
+        auto* parentNode1 = dynamic_cast<MKLDNNConvolutionNode *>(parent1.get());
+        if (parentNode1) {
+            if (parentNode1->getCnnLayer()->precision == Precision::FP32) {
+                isSutableParent1 = isSutableParent1 && parentNode1->getFusedWith().empty();
+            }
+        }
+
+        auto* parentNode2 = dynamic_cast<MKLDNNConvolutionNode *>(parent2.get());
+        if (parentNode2) {
+            if (parentNode2->getCnnLayer()->precision == Precision::FP32) {
+                isSutableParent2 = isSutableParent2 && parentNode2->getFusedWith().empty();
+            }
+        }
 
         if (!isSutableParent1 && !isSutableParent2)
             continue;
 
-        auto mergedConv = (parent1->getType() == Convolution || parent1->getType() == BinaryConvolution) ? parent1 : parent2;
-        auto peerNode = (parent1->getType() == Convolution || parent1->getType() == BinaryConvolution) ? parent2 : parent1;
+        auto mergedConv = isSutableParent1 ? parent1 : parent2;
+        auto peerNode = isSutableParent1 ? parent2 : parent1;
         if ((peerNode->getType() == Convolution || peerNode->getType() == BinaryConvolution) &&
             mergedConv->getChildEdges().size() != 1) {
             mergedConv = parent2;

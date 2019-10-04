@@ -111,6 +111,9 @@ public:
             }
         }
 
+        if (!our_dims.size())
+            our_dims = InferenceEngine::SizeVector(1, 1);
+
         InferenceEngine::SizeVector dst_dims = outputs[0]->getTensorDesc().getDims();
         for (size_t i = 0; i < (std::min)(out_dims.size(), dst_dims.size()); i++) {
             if (out_dims[i] != dst_dims[i]) {
@@ -126,7 +129,12 @@ public:
             inputs[REDUCE_DATA]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         float* dst_data = outputs[0]->cbuffer().as<float *>() +
             outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        size_t work_amount_dst = outputs[0]->getTensorDesc().getBlockingDesc().getStrides()[0] * dst_dims[0];
+
+        size_t work_amount_dst;
+        if (!dst_dims.size())
+            work_amount_dst = 1;
+        else
+            work_amount_dst = outputs[0]->getTensorDesc().getBlockingDesc().getStrides()[0] * dst_dims[0];
 
         switch (reduceMode) {
         case Reduce::And:

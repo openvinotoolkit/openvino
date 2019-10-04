@@ -48,7 +48,7 @@ void MKLDNNMemory::Create(memory::dims dims, memory::data_type data_type, memory
     Create(desc, data);
 }
 
-void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data) {
+void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bool pads_zeroing) {
     auto primitive_desc = memory::primitive_desc(desc, eng);
     uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(desc.data.data_type));
 
@@ -64,13 +64,25 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data) {
                 real_size *= prim->get_primitive_desc().desc().data.layout_desc.blocking.padding_dims[i];
             }
         }
-        uint8_t* dataPtr = static_cast<uint8_t*>(GetData());
-        dataPtr += itemSize * prim->get_primitive_desc().desc().data.layout_desc.blocking.offset_padding;
-
-        memset(dataPtr, 0, real_size * itemSize);
     } else {
         // MKLDNN accepts not a const data, probably need to remove some level of consteness in a call stack
-        prim.reset(new memory(primitive_desc, const_cast<void*>(data)));
+
+        // ========================
+        // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
+        // but with ability to skipp pads zeroing.
+        mkldnn_primitive_t result;
+        error::wrap_c_api(mkldnn_primitive_create(&result, primitive_desc.get(), nullptr, nullptr),
+                "could not create a memory primitive");
+        auto *mem = new memory(nullptr);
+        mem->reset(result);
+        if (pads_zeroing)
+            mem->set_data_handle(const_cast<void*>(data));
+        else
+            mem->set_data_handle_no_pads_proc(const_cast<void*>(data));
+        //
+        // ========================
+
+        prim.reset(mem);
     }
 }
 
@@ -83,10 +95,10 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format format, co
 
         std::vector<ptrdiff_t> dims(memData.dims, memData.dims + memData.ndims);
 
-        auto dataType = GetDataType();
+        auto data_type = GetDataType();
 
         MKLDNNMemory src(eng);
-        src.Create(dims, dataType, format, data);
+        src.Create(dims, data_type, format, data);
 
         std::shared_ptr<mkldnn::reorder> pReorder =
                 std::shared_ptr<mkldnn::reorder>(new mkldnn::reorder(src.GetPrimitive(), GetPrimitive()));
@@ -238,6 +250,8 @@ bool MKLDNNMemory::IsPlainFormat(memory::format format) {
 
 memory::format MKLDNNMemory::GetPlainFormat(memory::dims dims) {
     switch (dims.size()) {
+        case 0:
+            return memory::x;
         case 1:
             return memory::x;
         case 2:
@@ -312,6 +326,8 @@ memory::format MKLDNNMemory::Convert(const InferenceEngine::Layout layout) {
         case NC:
             return memory::nc;
         case C:
+            return memory::x;
+        case SCALAR:
             return memory::x;
         default:
             return memory::blocked;
@@ -437,7 +453,12 @@ MKLDNNMemoryDesc::operator mkldnn::memory::desc() const {
 MKLDNNMemoryDesc::MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType,
                                    mkldnn::memory::format format): desc(dims, dataType, mkldnn::memory::any) {
     if (format != memory::blocked) {
-        desc = mkldnn::memory::desc(dims, dataType, format);
+        if (format == memory::x && dims.size() == 0) {
+            desc = mkldnn::memory::desc(mkldnn::memory::dims(1, 1), dataType, format);
+            MKLDNNMemory::CreateBlockingDesc(desc);
+        } else {
+            desc = mkldnn::memory::desc(dims, dataType, format);
+        }
         return;
     }
     MKLDNNMemory::CreateBlockingDesc(desc);

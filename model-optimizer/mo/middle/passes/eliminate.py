@@ -158,10 +158,13 @@ def shape_inference(graph: Graph):
             old_out_shapes = [port.data.get_shape() for port in node.out_ports().values() if not port.disconnected()]
             node.infer(node)
             new_out_shapes = [port.data.get_shape() for port in node.out_ports().values() if not port.disconnected()]
-            for shape1, shape2 in zip(old_out_shapes, new_out_shapes):
-                if shape1 is not None and not np.array_equal(shape1, shape2):
-                    raise Error("After partial shape inference were found shape collision for node {} (old shape: {}, "
-                                "new shape: {})".format(node.name, shape1, shape2))
+            if not node.has_and_set('override_output_shape'):
+                for shape1, shape2 in zip(old_out_shapes, new_out_shapes):
+                    if shape1 is not None and not np.array_equal(shape1, shape2):
+                        raise Error("After partial shape inference were found shape collision for node {} (old shape: "
+                                    "{}, new shape: {})".format(node.name, shape1, shape2))
+            else:
+                del node['override_output_shape']
             node.need_shape_inference = False
 
 

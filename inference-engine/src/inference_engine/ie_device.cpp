@@ -33,10 +33,16 @@ FindPluginResponse InferenceEngine::findPlugin(const FindPluginRequest& req) {
             pluginVec.push_back("myriadPlugin");
 #endif
             break;
+        case TargetDevice::eHDDL:
+            pluginVec.push_back("HDDLPlugin");
+            break;
         case TargetDevice::eGNA:
 #ifdef ENABLE_GNA
             pluginVec.push_back("GNAPlugin");
 #endif
+            break;
+        case TargetDevice::eMULTI:
+            pluginVec.push_back("MultiDevicePlugin");
             break;
         case TargetDevice::eHETERO:
             pluginVec.push_back("HeteroPlugin");

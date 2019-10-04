@@ -12,24 +12,21 @@ file (GLOB LIBRARY_HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
         )
 
-# Find OpenCV components if exist
-find_package(OpenCV COMPONENTS imgcodecs videoio imgproc QUIET)
-if(NOT(OpenCV_FOUND))
-    message(WARNING "OPENCV is disabled or not found, " ${TARGET_NAME} " is built without OPENCV support")
-endif()
-
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})
 
-
 # Create library file from sources.
 add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${LIBRARY_HEADERS})
 
-if(OpenCV_FOUND)
-	target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES})
-	target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
+# Find OpenCV components if exist
+find_package(OpenCV COMPONENTS imgcodecs videoio imgproc QUIET)
+if(NOT OpenCV_FOUND)
+    message(WARNING "OPENCV is disabled or not found, " ${TARGET_NAME} " will be built without OPENCV support")
+else()
+    target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES})
+    target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
 endif()
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_FORMAT_READER)

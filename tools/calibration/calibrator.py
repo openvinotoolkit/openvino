@@ -18,9 +18,9 @@ import platform
 
 from ..utils.network_info import NetworkInfo
 
-from ..benchmark.benchmark import Benchmark
 from ..network import Network
 
+from .benchmark_facade import BenchmarkFacade
 from .logging import info, debug, info_performance_counters, info_layer_accuracy_drop
 from .calibrator_configuration import CalibratorConfiguration
 from .calibrator_factory import CalibratorFactory
@@ -39,7 +39,8 @@ class Calibrator:
         if not self._configuration.simplified_mode:
             self._calibrator = CalibratorFactory.create(self._configuration.precision,
                                                         CalibratorConfiguration(configuration))
-            self._benchmark = Benchmark(configuration)
+            self._benchmark = BenchmarkFacade(self._configuration.device, self._configuration.batch_size,
+                                              self._configuration.benchmark_iterations_count, self._configuration.cpu_extension)
             self._ignore_layer_names = CalibrationConfigurationHelper.read_ignore_layer_names(self._configuration)
             self._quantization_levels = self._calibrator.get_quantization_levels(self._ignore_layer_names)
 
@@ -53,11 +54,11 @@ class Calibrator:
         iterations = self._configuration.benchmark_iterations_count
         fp32_latency = 0.0
         if iterations > 0:
-            fp32_latency = self._benchmark.run(iterations_count=self._configuration.benchmark_iterations_count).latency
+            fp32_latency = self._benchmark.run(self._configuration.model).latency
         accuracy = fp32_stats.metrics.accuracy
         info("Original network accuracy: {0:.4f}{1}, latency: {2:0.4f} ms".format(accuracy.value,
                                                                       accuracy.symbol,
-                                                                      1000 * fp32_latency))
+                                                                      fp32_latency))
         info("Original network performance counters:\n")
         info_performance_counters(fp32_stats.performance_counters)
         return RawResults(fp32_stats=fp32_stats, fp32_latency=fp32_latency)
@@ -79,7 +80,6 @@ class Calibrator:
         threshold_low_boundary = self._configuration.threshold_boundary
         threshold_step = self._configuration.threshold_step
 
-        best_accuracy_drop = None
         while threshold >= threshold_low_boundary:
             info("Validate {} accuracy, threshold for activation statistics: {}%".format(
                 self._configuration.precision,
@@ -87,22 +87,19 @@ class Calibrator:
             lp_latency = best_lp_stats.latency
 
             lp_statistics = fp32_aggregated_statistics.get_node_statistics(threshold)
-            with Network.reload(
-                    model_path=self._configuration.model,
-                    statistics=lp_statistics,
-                    quantization_levels=self._quantization_levels,
-                    batch_size=self._configuration.batch_size
-            ) as reloaded_network:
+            tmp_model_path = Network.serialize_tmp_model(
+                model_path=self._configuration.model,
+                statistics=lp_statistics,
+                quantization_levels=self._quantization_levels)
 
-                with self._calibrator.infer(network=reloaded_network.ie_network,
-                                            collect_performance_counters=True) as lp_result:
-                    lp_accuracy = lp_result.metrics.accuracy
-                    lp_performance_counters = lp_result.performance_counters
-                    iterations = self._configuration.benchmark_iterations_count
-                    if iterations > 0:
-                        lp_latency = self._benchmark.run(
-                            network=reloaded_network,
-                            iterations_count=self._configuration.benchmark_iterations_count).latency
+            with self._calibrator.infer(model_path=tmp_model_path,
+                                        collect_performance_counters=True) as lp_result:
+                lp_accuracy = lp_result.metrics.accuracy
+                lp_performance_counters = lp_result.performance_counters
+                iterations = self._configuration.benchmark_iterations_count
+                if iterations > 0:
+                    lp_latency = self._benchmark.run(tmp_model_path).latency
+            Network.rm_tmp_location(tmp_model_path)
 
             if lp_accuracy.is_better(best_lp_stats.accuracy, fp32_accuracy):
 
@@ -123,14 +120,14 @@ class Calibrator:
                 self._configuration.precision,
                 lp_accuracy.value,
                 lp_accuracy.symbol,
-                1000.0 * lp_latency))
+                lp_latency))
             threshold = threshold - threshold_step
 
         info("Best {0} accuracy is {1:.4f}{2}, latency: {3:0.4f} ms for threshold {4}%".format(
             self._configuration.precision,
             best_lp_stats.accuracy.value,
             best_lp_stats.accuracy.symbol,
-            1000.0 * best_lp_stats.latency,
+            best_lp_stats.latency,
             best_lp_stats.threshold))
 
         info("{} performance counters:\n".format(self._configuration.precision))
@@ -151,11 +148,15 @@ class Calibrator:
             len(quantization_layers),
             len(NetworkInfo(self._configuration.model).layers)))
 
-        with self._calibrator.infer(add_outputs=True,
-                              collect_resuls=True,
-                              collect_layers=quantization_layers,
-                              statistics=lp_results.statistics,
-                              ignore_layer_names=self._ignore_layer_names) as fp32_result_with_raw_data:
+        # collect raw original precision outputs per image and use each output
+        # to calculate layer accuracy drop
+
+        with self._calibrator.infer(
+                add_outputs=True,
+                collect_resuls=True,
+                collect_layers=quantization_layers,
+                per_layer_statistics=lp_results.statistics,
+                ignore_layer_names=self._ignore_layer_names) as fp32_result_with_raw_data:
             if fp32_result_with_raw_data.layers_accuracy_drop:
                 layers_accuracy_drop = fp32_result_with_raw_data.layers_accuracy_drop
             else:
@@ -178,33 +179,31 @@ class Calibrator:
                 self._quantization_levels[layer_accuracy_drop.layer_name] = layer_accuracy_drop.precision
                 best_lp_latency = 0.0
 
-                with Network.reload(
-                        self._configuration.model,
-                        statistics=lp_results.statistics,
-                        quantization_levels=self._quantization_levels,
-                        batch_size=self._configuration.batch_size
-                ) as reloaded_network:
+                tmp_model_path = Network.serialize_tmp_model(
+                    model_path=self._configuration.model,
+                    statistics=lp_results.statistics,
+                    quantization_levels=self._quantization_levels)
 
-                    with self._calibrator.infer(network=reloaded_network.ie_network) as layer_int8_result:
-                        lp_results.accuracy = layer_int8_result.metrics.accuracy
-                        iterations = self._configuration.benchmark_iterations_count
-                        if iterations > 0:
-                            best_lp_latency = self._benchmark.run(
-                                network=reloaded_network,
-                                iterations_count=self._configuration.benchmark_iterations_count).latency
+                with self._calibrator.infer(model_path=tmp_model_path) as layer_int8_result:
+                    lp_results.accuracy = layer_int8_result.metrics.accuracy
+                    fp32_accuracy = raw_results.fp32_stats.metrics.accuracy
+                    accuracy_drop = lp_results.accuracy.calculate_drop(fp32_accuracy)
+                    iterations = self._configuration.benchmark_iterations_count
+                    if iterations > 0:
+                        best_lp_latency = self._benchmark.run(tmp_model_path).latency
+                Network.rm_tmp_location(tmp_model_path)
 
-                fp32_accuracy = raw_results.fp32_stats.metrics.accuracy
-                accuracy_drop = lp_results.accuracy.calculate_drop(fp32_accuracy)
+                lp_results.accuracy_drop = accuracy_drop if accuracy_drop < lp_results.accuracy_drop else lp_results.accuracy_drop
                 if not lp_results.accuracy.is_achieved(fp32_accuracy, self._configuration.threshold):
                     info("Was not achieved: original network accuracy: {0:.4f}{1} (latency: {2:.4} ms) VS {3} accuracy: {4:.4f}{5} "
                          "(latency {6:.4f} ms), accuracy drop {7:.4f}%"
                          .format(fp32_accuracy.value,
                                  fp32_accuracy.symbol,
-                                 1000.0 * raw_results.fp32_latency,
+                                 raw_results.fp32_latency,
                                  self._configuration.precision,
                                  lp_results.accuracy.value,
                                  lp_results.accuracy.symbol,
-                                 1000.0 * best_lp_latency,
+                                 best_lp_latency,
                                  accuracy_drop))
 
                 else:
@@ -213,12 +212,12 @@ class Calibrator:
                          "(latency: {6:.4} ms), accuracy drop {7:.4}%"
                          .format(fp32_accuracy.value,
                                  fp32_accuracy.symbol,
-                                 1000.0 * raw_results.fp32_latency,
+                                 raw_results.fp32_latency,
                                  self._configuration.precision,
                                  lp_results.accuracy.value,
                                  lp_results.accuracy.symbol,
-                                 1000.0 * best_lp_latency,
-                                 accuracy_drop))
+                                 best_lp_latency,
+                                 lp_results.accuracy_drop))
 
                     break
         else:
@@ -259,10 +258,10 @@ class Calibrator:
                   "(latency: {5:0.4f} ms), threshold for activation statistics: {6}%")
                  .format(raw_results.fp32_stats.metrics.accuracy.value,
                          raw_results.fp32_stats.metrics.accuracy.symbol,
-                         1000.0 * raw_results.fp32_latency,
+                         raw_results.fp32_latency,
                          lp_results.accuracy.value,
                          lp_results.accuracy.symbol,
-                         1000.0 * lp_results.latency,
+                         lp_results.latency,
                          lp_results.threshold))
             self.return_back_to_fp32(lp_results, raw_results)
 
@@ -272,10 +271,10 @@ class Calibrator:
                  "{3:.4f}{4} (latency: {5:.4} ms) with threshold for activation statistic: {6}%".format(
                     raw_results.fp32_stats.metrics.accuracy.value,
                     raw_results.fp32_stats.metrics.accuracy.symbol,
-                    1000.0 * raw_results.fp32_latency,
+                    raw_results.fp32_latency,
                     lp_results.accuracy.value,
                     lp_results.accuracy.symbol,
-                    1000.0 * lp_results.latency,
+                    lp_results.latency,
                     lp_results.threshold))
 
             quantized_layers_count = 0

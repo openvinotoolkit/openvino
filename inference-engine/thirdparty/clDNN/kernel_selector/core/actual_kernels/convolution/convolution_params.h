@@ -27,21 +27,6 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct convolution_params : public weight_bias_params {
     convolution_params() : weight_bias_params(KernelType::CONVOLUTION) {}
-
-    struct fused_operation_desc {
-        enum class Type : uint8_t {
-            ELTWISE = 0,
-            UNDEFINED
-        };
-
-        Type type;
-        size_t dep_idx_start;
-        size_t dep_size;
-        MultiDataTensor tensors;
-        kernel_selector::base_activation_params activation;
-    };
-
-
     uSize filterSize;
     uSize stride;
     uSize dilation;
@@ -61,7 +46,6 @@ struct convolution_params : public weight_bias_params {
 
     MultiDataTensor weights_quantization_factors;
     MultiDataTensor output_calibration_factors;
-    std::vector<fused_operation_desc> fused_ops = {};
     std::string to_string() const override;
     ParamsKey GetParamsKey() const override;
 };

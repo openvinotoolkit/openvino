@@ -52,16 +52,14 @@ struct permute_gpu : typed_primitive_gpu_impl<permute> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<permute>::add({
-            {engine_types::ocl, permute_gpu::create},
-        });
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_permute_gpu::attach_permute_gpu() {
+    implementation_map<permute>::add({
+        {engine_types::ocl, permute_gpu::create},
+    });
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

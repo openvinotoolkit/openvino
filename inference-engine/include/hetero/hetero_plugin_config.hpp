@@ -20,6 +20,10 @@ namespace InferenceEngine {
 
 namespace HeteroConfigParams {
 
+/**
+ * @def HETERO_CONFIG_KEY(name)
+ * @brief Shortcut for defining HETERO configuration keys
+ */
 #define HETERO_CONFIG_KEY(name) InferenceEngine::HeteroConfigParams::_CONFIG_KEY(HETERO_##name)
 #define DECLARE_HETERO_CONFIG_KEY(name) DECLARE_CONFIG_KEY(HETERO_##name)
 #define DECLARE_HETERO_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(HETERO_##name)

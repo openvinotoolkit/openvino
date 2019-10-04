@@ -88,24 +88,22 @@ struct softmax_gpu : typed_primitive_gpu_impl<softmax> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = softmax_gpu::create;
-        implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
-        implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);
-        implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
-        implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
-        implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
-        implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
-        implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
-        implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
-    }
-    ~attach() {}
-};
+namespace detail {
 
-attach attach_impl;
-}  // namespace
+attach_softmax_gpu::attach_softmax_gpu() {
+    auto val_fw = softmax_gpu::create;
+    implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
+    implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);
+    implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
+    implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
+    implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16), val_fw);
+    implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16), val_fw);
+}
 
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

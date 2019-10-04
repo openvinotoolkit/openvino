@@ -21,7 +21,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id scale_grad_input_type_id() {
+primitive_type_id scale_grad_input::type_id() {
     static primitive_type_base<scale_grad_input> instance;
     return &instance;
 }

@@ -42,6 +42,7 @@ public:
     Task();
 
     explicit Task(const std::function<void()> &function);
+    virtual ~Task() = default;
 
     /**
      * @brief Executes the task with catching all exceptions. It doesn't check that task is running

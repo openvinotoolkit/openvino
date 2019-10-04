@@ -42,51 +42,111 @@ namespace vpu {
 void BackEnd::getMetaData(
         const Model::Ptr& model,
         const std::vector<ie::CNNLayerPtr>& allLayers,
-        std::vector<StageMetaInfo>& metaData) {
+        GraphMetaInfo& graphMeta) {
     VPU_PROFILE(getMetaData);
 
-    metaData.clear();
-    metaData.reserve(3 * model->numStages() / 2 + 1);
+    std::vector<StageMetaInfo> stagesMeta;
+    std::vector<DataMetaInfo> datasMeta;
 
     std::unordered_set<ie::CNNLayerPtr> visitedLayers;
+    int execOrder{};
+    StageMap<size_t> stageToMetaIndex;
 
-    auto getStageMeta = [&visitedLayers](const Stage& stage) -> StageMetaInfo {
-        StageMetaInfo meta;
+    stagesMeta.reserve(3 * model->numStages() / 2 + 1);
+    datasMeta.reserve(3 * model->numDatas() / 2 + 1);
 
-        meta.stageName = stage->name();
-        meta.stageType = toString(stage->type());
+    graphMeta.graphName = model->name();
+
+    auto getStageMeta = [&](const Stage& stage) -> StageMetaInfo {
+        StageMetaInfo stageMeta;
+
+        stageMeta.displayStageName = stageMeta.stageName = stage->name();
+        stageMeta.stageType = toString(stage->type());
+
+        if (stage->category() != StageCategory::Special) {
+            stageMeta.execOrder = execOrder++;
+        } else {
+            stageMeta.execOrder = -1;
+        }
 
         if (stage->numInjectedStages() > 0) {
-            meta.stageName += " + injected[";
-            meta.stageType += " + injected[";
+            stageMeta.displayStageName += " + injected[";
+            stageMeta.stageType += " + injected[";
 
             int ind = 0;
             for (const auto& injectedStageEdge : stage->injectedStageEdges()) {
                 if (ind != 0) {
-                    meta.stageName += ", ";
-                    meta.stageType += ", ";
+                    stageMeta.displayStageName += ", ";
+                    stageMeta.stageType += ", ";
                 }
 
-                meta.stageName += injectedStageEdge->child()->name();
-                meta.stageType += toString(injectedStageEdge->child()->type());
+                stageMeta.displayStageName += injectedStageEdge->child()->name();
+                stageMeta.stageType += toString(injectedStageEdge->child()->type());
 
                 ++ind;
             }
 
-            meta.stageName += "]";
-            meta.stageType += "]";
+            stageMeta.displayStageName += "]";
+            stageMeta.stageType += "]";
         }
 
         if (stage->origLayer() == nullptr) {
-            meta.layerName = "<Extra>";
-            meta.layerType = "<Extra>";
+            stageMeta.layerName = "<Extra>";
+            stageMeta.layerType = "<Extra>";
         } else {
-            meta.layerName = stage->origLayer()->name;
-            meta.layerType = stage->origLayer()->type;
+            stageMeta.layerName = stage->origLayer()->name;
+            stageMeta.layerType = stage->origLayer()->type;
             visitedLayers.insert(stage->origLayer());
         }
 
-        return meta;
+        return stageMeta;
+    };
+
+    auto getDataMeta = [&](const Data& data) -> DataMetaInfo {
+        DataMetaInfo dataMeta;
+
+        dataMeta.name = data->name();
+        dataMeta.desc = data->desc().toTensorDesc();
+
+        if (data->usage() == DataUsage::Input) {
+            // Create fake input layer
+            StageMetaInfo inputInfo;
+
+            inputInfo.layerType = "Input";
+            inputInfo.layerName = inputInfo.stageName = inputInfo.displayStageName = data->name();
+            inputInfo.stageType = "NONE";
+            inputInfo.outPrecisions.push_back(dataMeta.desc.getPrecision());
+            inputInfo.outLayouts.push_back(dataMeta.desc.getLayout());
+            stagesMeta.push_back(std::move(inputInfo));
+
+            dataMeta.parentIndex = stagesMeta.size() - 1;
+        }  else {
+            auto it = stageToMetaIndex.find(data->producer());
+
+            if (it != stageToMetaIndex.end()) {
+                StageMetaInfo& meta = stagesMeta[it->second];
+
+                meta.outPrecisions.push_back(dataMeta.desc.getPrecision());
+                meta.outLayouts.push_back(dataMeta.desc.getLayout());
+
+                dataMeta.parentIndex = it->second;
+            }
+        }
+
+        if (data->usage() != DataUsage::Output) {
+            for (const auto &child : data->consumers()) {
+                auto it = stageToMetaIndex.find(child);
+
+                if (it != stageToMetaIndex.end()) {
+                    StageMetaInfo& meta = stagesMeta[it->second];
+
+                    meta.inputsNum++;
+                    dataMeta.childrenIndices.push_back(it->second);
+                }
+            }
+        }
+
+        return dataMeta;
     };
 
     //
@@ -98,9 +158,11 @@ void BackEnd::getMetaData(
             continue;
         }
 
-        auto meta = getStageMeta(stage);
-        meta.status = ie::InferenceEngineProfileInfo::EXECUTED;
-        metaData.emplace_back(std::move(meta));
+        auto stageMeta = getStageMeta(stage);
+
+        stageMeta.status = ie::InferenceEngineProfileInfo::EXECUTED;
+        stagesMeta.emplace_back(std::move(stageMeta));
+        stageToMetaIndex[stage] = stagesMeta.size() - 1;
     }
 
     //
@@ -109,12 +171,12 @@ void BackEnd::getMetaData(
 
     // TODO : support config to disable timings and not to add this meta if it is not required by user
     StageMetaInfo receiveTensorMeta;
-    receiveTensorMeta.stageName = "<Receive-Tensor>";
+    receiveTensorMeta.displayStageName = receiveTensorMeta.stageName = "<Receive-Tensor>";
     receiveTensorMeta.stageType = "<Receive-Tensor>";
     receiveTensorMeta.layerName = "<Receive-Tensor>";
     receiveTensorMeta.layerType = "<Receive-Tensor>";
     receiveTensorMeta.status = ie::InferenceEngineProfileInfo::EXECUTED;
-    metaData.emplace_back(std::move(receiveTensorMeta));
+    stagesMeta.emplace_back(std::move(receiveTensorMeta));
 
     //
     // Add special stages
@@ -125,9 +187,10 @@ void BackEnd::getMetaData(
             continue;
         }
 
-        auto meta = getStageMeta(stage);
-        meta.status = ie::InferenceEngineProfileInfo::OPTIMIZED_OUT;
-        metaData.emplace_back(std::move(meta));
+        auto stageMeta = getStageMeta(stage);
+        stageMeta.status = ie::InferenceEngineProfileInfo::NOT_RUN;
+        stagesMeta.emplace_back(std::move(stageMeta));
+        stageToMetaIndex[stage] = stagesMeta.size() - 1;
     }
 
     //
@@ -139,14 +202,32 @@ void BackEnd::getMetaData(
             continue;
         }
 
-        StageMetaInfo meta;
-        meta.stageName = "<none>";
-        meta.stageType = "<none>";
-        meta.layerName = layer->name;
-        meta.layerType = layer->type;
-        meta.status = ie::InferenceEngineProfileInfo::LayerStatus::OPTIMIZED_OUT;
-        metaData.emplace_back(std::move(meta));
+        StageMetaInfo stageMeta;
+        stageMeta.stageName = "<none>";
+        stageMeta.stageType = "<none>";
+        stageMeta.layerName = layer->name;
+        stageMeta.layerType = layer->type;
+        stageMeta.status = ie::InferenceEngineProfileInfo::LayerStatus::OPTIMIZED_OUT;
+        stagesMeta.emplace_back(std::move(stageMeta));
     }
+
+    //
+    // Add data info
+    //
+
+    for (const auto& data : model->datas()) {
+        if (data->usage() != DataUsage::Input &&
+            data->usage() != DataUsage::Intermediate &&
+            data->usage() != DataUsage::Output) {
+            continue;
+        }
+
+        auto dataMeta = getDataMeta(data);
+        datasMeta.emplace_back(std::move(dataMeta));
+    }
+
+    graphMeta.stagesMeta = std::move(stagesMeta);
+    graphMeta.datasMeta = std::move(datasMeta);
 }
 
 }  // namespace vpu

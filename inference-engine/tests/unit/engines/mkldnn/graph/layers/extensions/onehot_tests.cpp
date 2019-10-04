@@ -829,11 +829,6 @@ protected:
 #define case_5d_3 one_hot_base_params({ {1, 3, 2, 3}, {4, 1, 3, 2, 3}, 2, 4, 1.0f, 0.0f })
 #define case_5d_4 one_hot_base_params({ {1, 3, 2, 3}, {2, 1, 3, 4, 3}, 3, 4, 1.0f, 0.0f })
 
-std::string  getTestCaseName(testing::TestParamInfo<one_hot_test_params> obj) {
-    return  obj.param.libraryName +
-            "_" + getDeviceName(obj.param.targetDevice);
-}
-
 one_hot_test_params one_hot_only_1d_test_cases[] = {
     one_hot_test_params("MKLDNNPlugin", case_1d_0),
     one_hot_test_params("MKLDNNPlugin", case_1d_1)

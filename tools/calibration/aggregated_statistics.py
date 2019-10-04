@@ -107,7 +107,9 @@ class AggregatedStatistics:
 
         n_index = sample + n * itteration
         if n_index >= channels.shape[1]:
-            channels.resize((channels.shape[0], channels.shape[1] + 1, channels.shape[2]), refcheck=False)
+            channels.resize((channels.shape[0], n_index + 1, channels.shape[2]), refcheck=False)
+        if channel >= channels.shape[0]:
+            channels.resize((channel + 1, channels.shape[1], channels.shape[2]), refcheck=False)
 
         channels.itemset((channel, n_index, self.INDEX_MIN), data[sample][channel].min())
         channels.itemset((channel, n_index, self.INDEX_MAX), data[sample][channel].max())

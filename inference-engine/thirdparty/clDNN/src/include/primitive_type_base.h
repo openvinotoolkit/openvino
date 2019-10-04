@@ -27,16 +27,9 @@
 
 namespace cldnn {
 template <class PType>
-struct primitive_type_base : ::cldnn_primitive_type {
+struct primitive_type_base : primitive_type {
     static_assert(meta::is_api_primitive<PType>::value,
                   "Primitive type passed to primitive_type_base should derive from cldnn::primitive");
-
-    std::shared_ptr<primitive> from_dto(const CLDNN_PRIMITIVE_DESC(primitive) * dto) const override {
-        if (dto->type != this)
-            throw std::invalid_argument("primitive_type_base::from_dto: primitive type mismatch");
-
-        return std::make_shared<PType>(as_dto<PType>(dto));
-    }
 
     std::shared_ptr<cldnn::program_node> create_node(program_impl& program,
                                                      const std::shared_ptr<primitive> prim) const override {

@@ -8,12 +8,11 @@
 #include "details/ie_exception_conversion.hpp"
 #include "cpp_interfaces/base/ie_plugin_base.hpp"
 #include "details/ie_so_pointer.hpp"
+#include "multi-device/multi_device_config.hpp"
 
-#include "hetero/hetero_plugin.hpp"
 #include "ie_util_internal.hpp"
 #include "file_utils.h"
 #include "ie_icore.hpp"
-#include "cpp_interfaces/ie_itask_executor.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -84,25 +83,31 @@ std::vector<std::string> DeviceIDParser::getHeteroDevices(std::string fallbackDe
     return deviceNames;
 }
 
-class Core::Impl : public ICore {
-    void RegisterHeteroPlugin() {
-        IInferencePlugin * plugin = nullptr;
-        ResponseDesc resp;
-        HeteroPlugin::CreateHeteroPluginEngine(plugin, &resp);
-
-        IInferencePluginAPI * iplugin_api_ptr = getInferencePluginAPIInterface(plugin);
-        IE_ASSERT(iplugin_api_ptr != nullptr);
-
-        // set reference to ICore interface
-        iplugin_api_ptr->SetCore(this);
-
-        std::string name = iplugin_api_ptr->GetName();
-        plugins[name] = InferencePlugin(InferenceEnginePluginPtr(plugin));
-
-        // put info about HETERO plugin to registry as well
-        pluginRegistry[name] = { "", { }, { } };
+std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList) {
+    std::vector<std::string> deviceNames;
+    auto trim_request_info = [] (std::string device_with_requests){
+        auto opening_bracket = device_with_requests.find_first_of('(');
+        return device_with_requests.substr(0, opening_bracket);
+    };
+    std::string device;
+    char delimiter = ',';
+    size_t pos = 0;
+    // in addition to the list of devices, every device can have a #requests in the brackets e.g. "CPU(100)"
+    // we skip the #requests info here
+    while ((pos = devicesList.find(delimiter)) != std::string::npos) {
+        auto d = devicesList.substr(0, pos);
+        deviceNames.push_back(trim_request_info(d));
+        devicesList.erase(0, pos + 1);
     }
 
+    if (!devicesList.empty())
+        deviceNames.push_back(trim_request_info(devicesList));
+
+    return deviceNames;
+}
+
+
+class Core::Impl : public ICore {
     ITaskExecutor::Ptr          _taskExecutor = nullptr;
     mutable std::map<std::string, InferencePlugin, details::CaselessLess<std::string> > plugins;
 
@@ -115,13 +120,6 @@ class Core::Impl : public ICore {
     IErrorListener * listener = nullptr;
 
 public:
-    /**
-     * @brief Constructs Impl with HETERO plugin only
-     */
-    Impl() {
-        RegisterHeteroPlugin();
-    }
-
     ~Impl() override;
 
     /**
@@ -385,6 +383,9 @@ std::map<std::string, Version> Core::GetVersions(const std::string & deviceName)
         if (deviceName.find("HETERO:") == 0) {
             deviceNames = DeviceIDParser::getHeteroDevices(deviceName.substr(7));
             deviceNames.push_back("HETERO");
+        } else  if (deviceName.find("MULTI") == 0) {
+            deviceNames.push_back("MULTI");
+            deviceNames = DeviceIDParser::getMultiDevices(deviceName.substr(6));
         } else {
             deviceNames.push_back(deviceName);
         }
@@ -413,6 +414,9 @@ ExecutableNetwork Core::LoadNetwork(CNNNetwork network, const std::string & devi
     if (deviceName_.find("HETERO:") == 0) {
         deviceName_ = "HETERO";
         config_["TARGET_FALLBACK"] = deviceName.substr(7);
+    } else if (deviceName_.find("MULTI:") == 0) {
+        deviceName_ = "MULTI";
+        config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
     } else {
         DeviceIDParser parser(deviceName_);
         deviceName_ = parser.getDeviceName();
@@ -430,6 +434,9 @@ void Core::AddExtension(IExtensionPtr extension, const std::string & deviceName_
     if (deviceName_.find("HETERO") == 0) {
         THROW_IE_EXCEPTION << "HETERO device does not support extensions. Please, set extensions directly to fallback devices";
     }
+    if (deviceName_.find("MULTI") == 0) {
+        THROW_IE_EXCEPTION << "MULTI device does not support extensions. Please, set extensions directly to fallback devices";
+    }
 
     DeviceIDParser parser(deviceName_);
     std::string deviceName = parser.getDeviceName();
@@ -441,6 +448,9 @@ ExecutableNetwork Core::ImportNetwork(const std::string &modelFileName, const st
                                       const std::map<std::string, std::string> &config_) {
     if (deviceName_.find("HETERO") == 0) {
         THROW_IE_EXCEPTION << "HETERO device does not support ImportNetwork";
+    }
+    if (deviceName_.find("MULTI") == 0) {
+        THROW_IE_EXCEPTION << "MULTI device does not support ImportNetwork";
     }
 
     DeviceIDParser parser(deviceName_);
@@ -462,6 +472,9 @@ QueryNetworkResult Core::QueryNetwork(const ICNNNetwork &network, const std::str
     auto config_ = config;
     std::string deviceName_ = deviceName;
 
+    if (deviceName_.find("MULTI") == 0) {
+        THROW_IE_EXCEPTION << "MULTI device does not support QueryNetwork";
+    }
 
     if (deviceName_.find("HETERO:") == 0) {
         deviceName_ = "HETERO";
@@ -494,6 +507,18 @@ void Core::SetConfig(const std::map<std::string, std::string> & config_, const s
         }
     }
 
+    // MULTI case
+    {
+        if (deviceName_.find("MULTI:") == 0) {
+            THROW_IE_EXCEPTION << "SetConfig is supported only for MULTI itself (without devices). "
+                                  "You can configure the devices with SetConfig before creating the MULTI on top.";
+        }
+
+        if (config_.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES) != config_.end()) {
+            THROW_IE_EXCEPTION << "Please, specify DEVICE_PRIORITIES to the LoadNetwork directly, "
+                                  "as you will need to pass the same DEVICE_PRIORITIES anyway.";
+        }
+    }
 
     if (deviceName_.empty()) {
         _impl->SetConfigForPlugins(config_, std::string());
@@ -519,6 +544,13 @@ Parameter Core::GetConfig(const std::string & deviceName_, const std::string & n
         if (deviceName_.find("HETERO:") == 0) {
             THROW_IE_EXCEPTION << "You can only GetConfig of the HETERO itself (without devices). "
                                   "GetConfig is also possible for the individual devices before creating the HETERO on top.";
+        }
+    }
+    // MULTI case
+    {
+        if (deviceName_.find("MULTI:") == 0) {
+            THROW_IE_EXCEPTION << "You can only GetConfig of the MULTI itself (without devices). "
+                                  "GetConfig is also possible for the individual devices before creating the MULTI on top.";
         }
     }
 
@@ -550,6 +582,14 @@ Parameter Core::GetMetric(const std::string & deviceName_, const std::string & n
         }
     }
 
+    // MULTI case
+    {
+        if (deviceName_.find("MULTI:") == 0) {
+            THROW_IE_EXCEPTION
+                    << "You can get specific metrics with the GetMetric only for the MULTI itself (without devices). "
+                       "To get individual devices's metrics call GetMetric for each device separately";
+        }
+    }
 
     DeviceIDParser device(deviceName_);
     std::string deviceName = device.getDeviceName();
@@ -612,10 +652,6 @@ void Core::RegisterPlugins(const std::string & xmlConfigFile) {
 }
 
 void Core::UnregisterPlugin(const std::string & deviceName_) {
-    if (deviceName_.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION << "HETERO device cannot be unregistered from Inference Engine";
-    }
-
     DeviceIDParser parser(deviceName_);
     std::string deviceName = parser.getDeviceName();
 

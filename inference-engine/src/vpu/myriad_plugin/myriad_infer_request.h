@@ -14,6 +14,7 @@
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 
 #include <vpu/utils/logger.hpp>
+#include <vpu/utils/ie_helpers.hpp>
 
 #include "myriad_executor.h"
 #include "myriad_config.h"
@@ -23,7 +24,7 @@ namespace MyriadPlugin {
 
 class MyriadInferRequest : public InferenceEngine::InferRequestInternal {
     MyriadExecutorPtr _executor;
-    InferenceEngine::Layout _deviceLayout;
+    LayoutPreference _layoutPreference;
     Logger::Ptr _log;
     std::vector<StageMetaInfo> _stagesMetaData;
     std::shared_ptr<MyriadConfig> _config;

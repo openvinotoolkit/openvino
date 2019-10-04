@@ -295,7 +295,10 @@ void StatisticsCollector::fillBlobs(StatisticsCollector* collectorInstance) {
         progress_step = 100lu;
     collectorInstance->_consoleProgress = std::make_shared<ConsoleProgress>(img_number);
 
-    TensorDesc inputDesc = collectorInstance->_cnn_network->getInputsInfo().begin()->second->getTensorDesc();
+    auto inpuInfo = collectorInstance->_cnn_network->getInputsInfo();
+    if (inpuInfo.empty())
+        THROW_IE_EXCEPTION << "Input info is empty";
+    TensorDesc inputDesc = inpuInfo.begin()->second->getTensorDesc();
     const Precision::ePrecision inputPrecision = inputDesc.getPrecision();
 
     PreprocessingOptions preprocessingOptions;

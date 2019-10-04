@@ -19,9 +19,9 @@
 #include "engine_impl.h"
 #include "event_impl.h"
 #include "program_impl.h"
-#include "api/CPP/data.hpp"
-#include "api/CPP/mutable_data.hpp"
-#include "api/CPP/input_layout.hpp"
+#include "api/data.hpp"
+#include "api/mutable_data.hpp"
+#include "api/input_layout.hpp"
 
 #include "error_handler.h"
 #include "primitive_inst.h"
@@ -36,6 +36,8 @@
 #include <vector>
 #include <memory>
 #include <set>
+#include <utility>
+#include <map>
 
 // #define DEBUG_DUMP_PATH "cldnn_dump/"
 
@@ -49,6 +51,103 @@
 #endif
 
 namespace cldnn {
+
+network::network(program const& program, uint16_t stream_id)
+    : _impl(program.get()->get_engine().allocate_network(*program.get(), stream_id).detach()) {}
+
+engine network::get_engine() const {
+    auto impl = engine_impl::ptr(&_impl->get_engine());
+    return engine(impl.detach());
+}
+
+program network::get_program() const {
+    auto impl = program_impl::cptr(&_impl->get_program());
+    return program(const_cast<program_impl*>(impl.detach()));
+}
+
+void network::set_input_data(const primitive_id& id, const memory& mem) const {
+    _impl->set_input_data(id, *mem.get());
+}
+
+void network::set_learning_rate(const float lr) {
+    _impl->set_learning_rate(lr);
+}
+
+float network::get_learning_rate() {
+    return _impl->get_learning_rate();
+}
+
+uint16_t network::get_stream_id() {
+    return _impl->get_stream_id();
+}
+
+std::string network::get_primitive_info(const primitive_id& id) const {
+    return _impl->get_primitive_info(id);
+}
+
+std::vector<primitive_info> network::get_primitives_info() {
+    return _impl->get_primitives_info();
+}
+
+std::vector<std::pair<std::string, std::vector<primitive_info>>> network::get_optimization_steps_info() {
+    return _impl->get_optimizer_passes_info();
+}
+
+std::vector<primitive_id> network::get_executed_primitive_ids() const {
+    return _impl->get_executed_primitive_ids();
+}
+
+std::vector<primitive_id> network::get_all_primitive_ids() const {
+    return _impl->get_all_primitive_ids();
+}
+
+std::vector<primitive_id> network::get_all_primitive_org_ids() const {
+    return _impl->get_all_primitive_org_ids();
+}
+
+std::vector<primitive_id> network::get_output_ids() const {
+    return _impl->get_output_ids();
+}
+
+memory network::get_output_memory(const primitive_id& output_id) const {
+    auto out_mem = memory_impl::ptr(&_impl->get_primitive(output_id)->output_memory());
+    return memory(out_mem.detach());
+}
+
+event network::get_primitive_event(const primitive_id& output_id) const {
+    auto out_event = _impl->get_primitive_event(output_id);
+    return event(out_event.detach());
+}
+
+std::map<primitive_id, network_output> network::execute(const std::vector<event>& dependencies) const {
+    std::vector<refcounted_obj_ptr<event_impl>> dep_impls(dependencies.size());
+
+    std::transform(
+        dependencies.begin(),
+        dependencies.end(),
+        dep_impls.begin(),
+        [](const event& ev) {
+            return event_impl::ptr(ev.get());
+    });
+
+    _impl->execute(dep_impls);
+
+    auto output_ids = get_output_ids();
+    std::map<primitive_id, network_output> result;
+    for (auto& id : output_ids) {
+        result.emplace(id, get_output(id));
+    }
+    return result;
+}
+
+void network::retain() {
+    _impl->add_ref();
+}
+
+void network::release() {
+    _impl->release();
+}
+
 #ifdef DEBUG_DUMP_PATH
 static float convert_half_to_float(half_t val, bool flush_denorm_to_zero = false) {
 #if defined HALF_HALF_HPP
@@ -142,11 +241,13 @@ void dump<uint32_t>(memory_impl& mem, std::ofstream& file_stream) {
 
     for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
         for (cldnn::tensor::value_type f = 0; f < (cldnn::tensor::value_type)ceil_div(size.feature[0], 32); ++f) {
-            for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
-                for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x) {
-                    cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, 0, 0));
-                    size_t input_it = mem.get_layout().get_linear_offset(t);
-                    file_stream << mem_ptr[input_it] << std::endl;
+            for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
+                for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
+                    for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x) {
+                        cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, z, 0));
+                        size_t input_it = mem.get_layout().get_linear_offset(t);
+                        file_stream << mem_ptr[input_it] << std::endl;
+                    }
                 }
             }
         }
@@ -364,6 +465,7 @@ void network_impl::execute(const std::vector<refcounted_obj_ptr<event_impl>>& ev
         {
             log_memory_to_file(get_primitive(inst->id())->output_memory(), layer_name + "_dst_0");
         }
+
         get_engine().flush_network(_stream_id);
 #endif
     }

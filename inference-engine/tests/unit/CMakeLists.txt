@@ -14,14 +14,12 @@ SET (CMAKE_SKIP_RPATH OFF)
 file(GLOB
         TEST_SRC
         graph_tools/*.cpp
+        http_client/*.cpp
         inference_engine_tests/*.cpp
         inference_engine_tests/cpp_interfaces/*.cpp
         inference_engine_tests/normalization/*.cpp
-        mem_solver/*.cpp
         cnn_network/*.cpp
         builders/*.cpp
-        transformations/*.cpp
-        ie_class/*.cpp
         # TODO: apeskov: Please fix issue CVS
         # shape_infer/*.cpp
         shape_infer/built-in/*.cpp
@@ -76,7 +74,7 @@ source_group("include" FILES ${TEST_INCLUDE})
 
 # create target
 
-add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE} ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE} ${DLAI_TESTS} transformations/sub_test.cpp transformations/tranformations_test.hpp)
+add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE} ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE} ${DLIA_TESTS})
 set_ie_threading_interface_for(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE
@@ -92,6 +90,10 @@ set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 ## Mock macros doesn't use "override" specificator
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:Clang>: -Wno-inconsistent-missing-override >)
 target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:AppleClang>: -Wno-inconsistent-missing-override >)
+
+if (ENABLE_MYRIAD)
+    target_link_libraries(${TARGET_NAME} PRIVATE mvnc vpu_graph_transformer_test_static)
+endif ()
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     gtest
@@ -110,6 +112,10 @@ if (ENABLE_MKL_DNN)
     target_link_libraries(${TARGET_NAME} PRIVATE
             test_MKLDNNPlugin
             mkldnn)
+endif ()
+
+if (ENABLE_DLIA)
+    target_link_libraries(${TARGET_NAME} PRIVATE dliaPluginIOTransformations)
 endif ()
 
 add_test(NAME ${TARGET_NAME}

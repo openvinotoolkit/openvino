@@ -513,9 +513,10 @@ TEST_F(BlobTests, cannotIncreaseSizeOfPreallocated) {
 
     float input[] = {0.1f, 0.2f, 0.3f};
     auto  b = make_shared_blob({ Precision::FP32, {1, 2}, HW }, input);
+    ASSERT_NE(nullptr, b->buffer().as<float*>());
 
     b->Resize({1,3});
-    //since allocator isno't releasing, user have to be carefull that this still use old array
+    //since allocator isn't releasing, user have to be carefull that this still use old array
     ASSERT_EQ(nullptr, b->buffer().as<float*>());
 
     b->Resize({1,1});
@@ -530,6 +531,8 @@ TEST_F(BlobTests, canAcceptpreallocatedSize) {
 
     float input[] = {0.1f, 0.2f, 0.3f};
     auto  b = make_shared_blob({ Precision::FP32, {1, 2}, HW }, input, 100);
+    ASSERT_NE(nullptr, b->buffer().as<float*>());
+
     b->Resize({1,101});
     //since allocator isn't releasing, user have to be carefull that this still use old array
     ASSERT_EQ(nullptr, b->buffer().as<float*>());

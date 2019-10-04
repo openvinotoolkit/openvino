@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/depth_to_space.hpp"
+#include "api/depth_to_space.hpp"
 #include "primitive_inst.h"
 #include <string>
 

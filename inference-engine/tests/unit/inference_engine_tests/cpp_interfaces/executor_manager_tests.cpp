@@ -25,23 +25,18 @@ TEST_F(ExecutorManagerTests, canCreateSingleExecutorManager) {
 }
 
 TEST_F(ExecutorManagerTests, createDifferentExecutorsForDifferentDevices) {
-    auto device1 = TargetDeviceInfo::name(TargetDevice::eCPU);
-    auto device2 = TargetDeviceInfo::name(TargetDevice::eGPU);
-
-    auto executor1 = _manager.getExecutor(device1);
-    auto executor2 = _manager.getExecutor(device2);
+    auto executor1 = _manager.getExecutor("CPU");
+    auto executor2 = _manager.getExecutor("GPU");
 
     ASSERT_NE(executor1, executor2);
     ASSERT_EQ(2, _manager.getExecutorsNumber());
 }
 
 TEST_F(ExecutorManagerTests, returnTheSameExecutorForTheSameDevice) {
-    auto device1 = TargetDeviceInfo::name(TargetDevice::eCPU);
-    auto device2 = TargetDeviceInfo::name(TargetDevice::eGPU);
-    auto executor1 = _manager.getExecutor(device1);
-    auto executor2 = _manager.getExecutor(device2);
+    auto executor1 = _manager.getExecutor("CPU");
+    auto executor2 = _manager.getExecutor("GPU");
 
-    auto executor = _manager.getExecutor(device2);
+    auto executor = _manager.getExecutor("GPU");
 
     ASSERT_EQ(executor, executor2);
     ASSERT_EQ(2, _manager.getExecutorsNumber());

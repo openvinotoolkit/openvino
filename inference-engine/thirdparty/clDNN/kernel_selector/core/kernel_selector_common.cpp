@@ -110,6 +110,7 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::bfzyx:                return "BFZYX";
         case kernel_selector::DataLayout::fs_b_yx_fsv32:        return "FS_B_YX_FSV32";
         case kernel_selector::DataLayout::bfwzyx:               return "BFWZYX";
+        case kernel_selector::DataLayout::bfzyx_f16:            return "BFZYX_F16";
         default:
             return "";
     }
@@ -311,6 +312,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::winograd_6x3_s1_fused_weights:          return "WINOGRAD_6x3_S1_FUSED_WEIGHTS";
         case WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb: return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB";
         case WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb: return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB";
+        case WeightsLayout::dlstm_dir_io:                           return "DLSTM_DIR_IO";
         case WeightsLayout::os_is_yx_isa8_osv8_isv4:                return "OS_IS_YX_ISA8_OSV8_ISV4";
         case WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4:  return "OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
         case WeightsLayout::is_o_yx_isv32:                          return "IS_O_YX_ISV32";
@@ -321,6 +323,8 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_yx_osv32_isv32p:                  return "OS_IS_YX_OSV32_ISV32P";
         case WeightsLayout::oizyx:                                  return "OIZYX";
         case WeightsLayout::bf_lyx_yx:                              return "BF_LYX_YX";
+        case WeightsLayout::o_i_zyx_i16_o16:                        return "O_I_ZYX_I16_O16";
+        case WeightsLayout::i_o_zyx_o16_i16:                        return "I_O_ZYX_O16_I16";
         default: throw std::invalid_argument("Failed to convert WeightsLayout " + std::to_string(layout) + " to string");
     }
 }

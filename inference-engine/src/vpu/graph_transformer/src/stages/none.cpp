@@ -21,29 +21,27 @@ private:
 
     void propagateScaleFactorsImpl(
             const SmallVector<float>&,
-            ScalePropagationStep) override {
-        for (const auto& outEdge : _outputEdges) {
-            _scaleInfo.setOutput(outEdge, 1.0f);
+            ScalePropagationStep,
+            StageDataInfo<float>& scaleInfo) override {
+        for (const auto& outEdge : outputEdges()) {
+            scaleInfo.setOutput(outEdge, 1.0f);
         }
     }
 
-    void propagateDataOrderImpl() const override {
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
     }
 
-    void getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
         return StageSHAVEsRequirements::NotNeeded;
-    }
-
-    void finalCheckImpl() const override {
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {

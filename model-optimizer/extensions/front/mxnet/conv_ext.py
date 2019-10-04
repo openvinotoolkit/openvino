@@ -124,6 +124,10 @@ class DeconvFrontExtractor(FrontExtractorOp):
             'get_pad': DeconvFrontExtractor.get_pad,
         }
 
+        output_padding = attr.tuple("adj", int, None)
+        if target_shape is None and output_padding:
+            node_attrs["output_padding"] = np.array([0, 0, *[s for s in output_padding]], dtype=np.int64)
+
         # update the attributes of the node
         Convolution.update_node_stat(node, node_attrs)
         return __class__.enabled

@@ -26,7 +26,9 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
         mandatory_props = dict(
             type=__class__.op,
             op=__class__.op,
-            infer=__class__.infer
+            infer=__class__.infer,
+            in_ports_count=5,
+            out_ports_count=2,
         )
 
         super().__init__(graph, mandatory_props, attrs)
@@ -47,7 +49,5 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
         input_features_level_0_shape = node.in_node(1).shape
         channels_num = input_features_level_0_shape[1]
         node.out_node(0).shape = np.array([rois_num, channels_num, node.output_size, node.output_size], dtype=np.int64)
-        try:
+        if not node.out_port(1).disconnected():
             node.out_node(1).shape = np.array([rois_num, 4], dtype=np.int64)
-        except Exception as ex:
-            print(ex)

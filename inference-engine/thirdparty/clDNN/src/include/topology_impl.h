@@ -16,9 +16,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/primitive.hpp"
-#include "api/CPP/input_layout.hpp"
-#include "api_impl.h"
+#include "api/primitive.hpp"
+#include "api/input_layout.hpp"
 #include "refcounted_obj.h"
 
 #include <map>
@@ -55,7 +54,7 @@ public:
         }
     }
 
-    void change_input_layout(const primitive_id& id, layout new_layout) {
+    void change_input_layout(const primitive_id& id, const layout& new_layout) {
         auto& inp_layout = this->at(id);
         if (inp_layout->type != input_layout::type_id()) {
             throw std::runtime_error("Primitive: " + id + " is not input_layout.");
@@ -76,5 +75,3 @@ private:
     topology_map _primitives;
 };
 }  // namespace cldnn
-
-API_CAST(::cldnn_topology, cldnn::topology_impl)

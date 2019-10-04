@@ -129,6 +129,12 @@ DECL_PASS(UnrollLSTMCell);
 */
 DECL_PASS(UnrollTI);
 
+/**
+* @brief removed const layer before reshape layer
+*/
+DECL_PASS(RemoveConst);
+
+
 class PassManager : public IPassManager, public std::enable_shared_from_this<PassManager> {
     Policy policy;
     InferenceEngine::CNNNetPtr network;

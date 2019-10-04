@@ -238,7 +238,7 @@ void MKLDNNBatchNormalizationNode::initSupportedPrimitiveDescriptors() {
     // BN primitive doesn't support strides
     for (auto& desc : descs) {
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine());
-        do {
+        while (itpd.is_not_end()) {
             InferenceEngine::LayerConfig config;
             config.dynBatchSupport = true;
             for (size_t i = 0; i < desc.inputNumbers(); i++) {
@@ -262,7 +262,8 @@ void MKLDNNBatchNormalizationNode::initSupportedPrimitiveDescriptors() {
             impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
 
             supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
-        } while (itpd.next());
+            itpd++;
+        }
     }
 }
 

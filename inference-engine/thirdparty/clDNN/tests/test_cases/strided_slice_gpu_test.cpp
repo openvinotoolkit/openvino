@@ -16,18 +16,16 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/strided_slice.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include <api/input_layout.hpp>
+#include "api/strided_slice.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include <api/CPP/data.hpp>
-
+#include <api/data.hpp>
 
 using namespace cldnn;
 using namespace tests;
-
 
 TEST(strided_slice_gpu_f32, test_2x2x2x2) {
     // Input (BFYX): 2x2x2x2

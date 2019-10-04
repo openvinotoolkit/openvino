@@ -23,7 +23,7 @@
 #include <vector>
 
 namespace cldnn {
-primitive_type_id strided_slice_type_id() {
+primitive_type_id strided_slice::type_id() {
     static primitive_type_base<strided_slice> instance;
     return &instance;
 }

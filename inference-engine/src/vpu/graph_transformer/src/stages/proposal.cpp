@@ -22,34 +22,29 @@ private:
         return std::make_shared<ProposalStage>(*this);
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input0 = inputEdge(0)->input();
+        auto input1 = inputEdge(1)->input();
 
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-
-        _orderInfo.setInput(_inputEdges[0], input0->desc().dimsOrder().createMovedDim(Dim::C, 2));
-        _orderInfo.setInput(_inputEdges[1], input1->desc().dimsOrder().createMovedDim(Dim::C, 2));
+        orderInfo.setInput(inputEdge(0), input0->desc().dimsOrder().createMovedDim(Dim::C, 2));
+        orderInfo.setInput(inputEdge(1), input1->desc().dimsOrder().createMovedDim(Dim::C, 2));
     }
 
-    void getDataStridesRequirementsImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        _stridesInfo.setInput(_inputEdges[0], StridesRequirement::compact());
-        _stridesInfo.setInput(_inputEdges[1], StridesRequirement::compact());
-        _stridesInfo.setInput(_inputEdges[2], StridesRequirement::compact());
-        _stridesInfo.setOutput(_outputEdges[0], StridesRequirement::compact());
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+        stridesInfo.setInput(inputEdge(0), StridesRequirement::compact());
+        stridesInfo.setInput(inputEdge(1), StridesRequirement::compact());
+        stridesInfo.setInput(inputEdge(2), StridesRequirement::compact());
+        stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -104,20 +99,16 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 3);
-        IE_ASSERT(_outputEdges.size() == 1);
-        IE_ASSERT(_tempBufferEdges.size() == 1);
-
-        auto input0 = _inputEdges[0]->input();
-        auto input1 = _inputEdges[1]->input();
-        auto input2 = _inputEdges[2]->input();
-        auto output = _outputEdges[0]->output();
+        auto input0 = inputEdge(0)->input();
+        auto input1 = inputEdge(1)->input();
+        auto input2 = inputEdge(2)->input();
+        auto output = outputEdge(0)->output();
 
         input0->serializeNewBuffer(serializer);
         output->serializeNewBuffer(serializer);
         input1->serializeNewBuffer(serializer);
         input2->serializeNewBuffer(serializer);
-        _tempBufferEdges[0]->tempBuffer()->serializeNewBuffer(serializer);
+        tempBuffer(0)->serializeNewBuffer(serializer);
     }
 };
 

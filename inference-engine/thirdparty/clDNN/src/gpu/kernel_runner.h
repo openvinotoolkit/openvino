@@ -30,7 +30,7 @@ class kernel_runner : public kernel_selector::KernelRunnerInterface {
 public:
     explicit kernel_runner(engine_impl& engine_ref, bool weights_and_bias_exist = false);
 
-    std::vector<uint64_t> run_kernels(const kernel_selector::KernelsData& kernelsData) override;
+    std::vector<std::chrono::nanoseconds> run_kernels(const kernel_selector::KernelsData& kernelsData) override;
 
 private:
     const int compilation_batch_size = 50;

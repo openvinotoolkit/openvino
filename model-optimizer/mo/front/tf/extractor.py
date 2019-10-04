@@ -73,6 +73,7 @@ tf_op_extractors = {
     'ConcatV2': node_pb_arg(tf_concat_ext),
     'MatMul': node_pb_arg(tf_matmul_ext),
     'BatchMatMul': node_pb_arg(tf_batchmatmul_ext),
+    'BatchMatMulV2': node_pb_arg(tf_batchmatmul_ext),
     'Pack': node_pb_arg(tf_pack_ext),
     'Unpack': node_pb_arg(tf_unpack_ext),
     'Const': node_pb_arg(tf_const_ext),

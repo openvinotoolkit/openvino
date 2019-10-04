@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/upsampling.hpp"
+#include "api/upsampling.hpp"
 #include "primitive_inst.h"
 #include <memory>
 #include "topology_impl.h"

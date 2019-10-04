@@ -23,7 +23,7 @@ namespace kernel_selector {
 // contract_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct contract_params : public base_params {
-    contract_params() : base_params(KernelType::CONTRACT) {}
+    contract_params() : base_params(KernelType::CONTRACT), mode(ContractMode::ANY) {}
     ContractMode mode;
     std::vector<uint16_t> reduction_axes;
 };

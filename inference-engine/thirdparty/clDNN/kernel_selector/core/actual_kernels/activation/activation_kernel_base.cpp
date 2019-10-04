@@ -59,7 +59,7 @@ JitConstants ActivationKernelBase::GetJitConstants(const activation_params& para
     const auto& inputNlParams = params.inputActivationParams;
 
     jit.AddConstants({
-        MakeJitConstant("PARAMS_NUM", GetActivationAdditionalParamsNumber(params.activation.function)),
+        MakeJitConstant("PARAMS_NUM", GetActivationAdditionalParamsNumber(params.activations[0].function)),
     });
 
     if (!inputNlParams.empty()) {

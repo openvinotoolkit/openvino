@@ -59,7 +59,7 @@ CompiledGraph::Ptr BackEnd::build(
     extractDataInfo(model, compiledGraph->inputInfo, compiledGraph->outputInfo);
 
     serialize(model, compiledGraph->blob, compiledGraph->blobHeader, compiledGraph->numActiveStages);
-    getMetaData(model, allLayers, compiledGraph->stagesMeta);
+    getMetaData(model, allLayers, compiledGraph->graphMeta);
 
     return compiledGraph;
 }

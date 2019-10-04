@@ -15,7 +15,7 @@
 */
 #pragma once
 
-#include "api/CPP/primitive.hpp"
+#include "api/primitive.hpp"
 
 #include "primitive_type.h"
 

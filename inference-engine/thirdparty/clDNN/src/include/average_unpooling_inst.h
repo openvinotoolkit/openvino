@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/average_unpooling.hpp"
+#include "api/average_unpooling.hpp"
 #include "primitive_inst.h"
 #include <string>
 

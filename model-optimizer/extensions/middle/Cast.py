@@ -32,7 +32,7 @@ class CastToFloatMark(MiddleReplacementPattern):
         from extensions.middle.pass_separator import PreMiddleStart
         return [PreMiddleStart]
 
-    identity_list = [np.float32, np.double, np.int32, np.int64]
+    identity_list = [np.float32, np.double, np.int32, np.int64, np.uint8, np.bool]
 
     def pattern(self):
         return dict(
@@ -41,8 +41,13 @@ class CastToFloatMark(MiddleReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: dict):
         # resulting network is fully floating point, so casts to float are useless
-        if match['op'].dst_type in [np.int32, np.int64]:
-            log.warning('Deleting Cast node {} to {} from network since Cast operation isn\'t supported yet. Inference results can be'
-                        ' incorrect'.format(match['op'].name, match['op'].dst_type))
+        node = match['op']
+        name = node.soft_get('name', node.id)
+        dst_type = node.dst_type
 
-        match['op']['identity'] = True
+        if node.out_port(0).data.get_value() is None:
+            if dst_type in [np.int32, np.int64]:
+                log.warning('Deleting Cast node {} to {} from network since Cast operation isn\'t supported yet. '
+                            'Inference results can be incorrect'.format(name, dst_type))
+
+            match['op']['identity'] = True

@@ -8,7 +8,7 @@
 #include <map>
 #include <string>
 #include <memory>
-#include <CPP/engine.hpp>
+#include <api/engine.hpp>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 
 namespace CLDNNPlugin {

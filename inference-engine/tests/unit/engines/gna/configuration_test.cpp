@@ -29,40 +29,8 @@ TEST_F(GNAConfigTest, reportAnErrorIfConfigNotFound) {
                {TargetDevice :: eCPU, {Precision::FP32}}});
 
     EXPECT_CALL(net, getPrecision()).WillRepeatedly(Return(Precision::FP32));
-    EXPECT_CALL(net, getTargetDevice()).WillRepeatedly(Return(TargetDevice::eGNA));
 
     ASSERT_ANY_THROW(c.find_configuration(net));
-}
-
-TEST_F(GNAConfigTest, canFindConfiguration) {
-
-    Config c ({{TargetDevice :: eGNA, {Precision::I16}},
-               {TargetDevice :: eCPU, {Precision::FP32}}});
-
-    EXPECT_CALL(net, getPrecision()).WillRepeatedly(Return(Precision::FP32));
-    EXPECT_CALL(net, getTargetDevice()).WillRepeatedly(Return(TargetDevice::eCPU));
-
-    auto match = c.find_configuration(net);
-
-    EXPECT_EQ(match.device, TargetDevice::eCPU);
-    auto matchNetPrec = std::find(match.networkPrec.begin(), match.networkPrec.end(), Precision::FP32) != match.networkPrec.end();
-    EXPECT_EQ(matchNetPrec, true);
-}
-
-TEST_F(GNAConfigTest, canPassTroughNetworkAfterFindConfiguration) {
-
-    Config c ({{TargetDevice :: eGNA, {Precision::I16}},
-               {TargetDevice :: eCPU, {Precision::FP32}}});
-
-    EXPECT_CALL(net, getPrecision()).WillRepeatedly(Return(Precision::FP32));
-    EXPECT_CALL(net, getTargetDevice()).WillRepeatedly(Return(TargetDevice::eCPU));
-
-    auto match = c.find_configuration(net);
-
-    auto net2 = match.convert(net);
-
-    EXPECT_EQ(net2->getTargetDevice(), TargetDevice::eCPU);
-    EXPECT_EQ(net2->getPrecision(), Precision::FP32);
 }
 
 TEST_F(GNAConfigTest, canNotMatchWithDefaultDevice) {
@@ -73,7 +41,6 @@ TEST_F(GNAConfigTest, canNotMatchWithDefaultDevice) {
     c.setDefaultDevice(TargetDevice::eGNA);
 
     EXPECT_CALL(net, getPrecision()).WillRepeatedly(Return(Precision::FP32));
-    EXPECT_CALL(net, getTargetDevice()).WillRepeatedly(Return(TargetDevice::eDefault));
 
     EXPECT_ANY_THROW(c.find_configuration(net).convert(net));
 }
@@ -86,12 +53,6 @@ TEST_F(GNAConfigTest, canMatchWithDefaultDevice) {
     c.setDefaultDevice(TargetDevice::eGNA);
 
     EXPECT_CALL(net, getPrecision()).WillRepeatedly(Return(Precision::I16));
-    EXPECT_CALL(net, getTargetDevice()).WillRepeatedly(Return(TargetDevice::eDefault));
-
-    auto net2 = c.find_configuration(net).convert(net);
-
-    EXPECT_EQ(net2->getTargetDevice(), TargetDevice::eDefault);
-    EXPECT_EQ(net2->getPrecision(), Precision::I16);
 }
 
 TEST_F(GNAConfigTest, canMatchWith1AsyncThread) {

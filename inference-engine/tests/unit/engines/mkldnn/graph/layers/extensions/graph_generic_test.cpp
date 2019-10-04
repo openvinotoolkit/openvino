@@ -151,7 +151,7 @@ public:
 
         size_t data_size = outputs[0]->size();
         for (size_t i = 0; i < data_size; i++) {
-            dst_data[i] = (dst_data[i] + 1)*2;
+            dst_data[i] = 2;
         }
         return InferenceEngine::OK;
     }

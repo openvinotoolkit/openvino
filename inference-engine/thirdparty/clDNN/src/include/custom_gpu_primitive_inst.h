@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/custom_gpu_primitive.hpp"
+#include "api/custom_gpu_primitive.hpp"
 #include "primitive_inst.h"
 #include <string>
 

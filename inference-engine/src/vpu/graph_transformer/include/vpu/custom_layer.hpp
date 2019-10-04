@@ -23,10 +23,12 @@ namespace vpu {
 namespace ie = InferenceEngine;
 
 VPU_DECLARE_ENUM(CustomDataFormat,
-    BYXF = 0,  // HWC used in most software layers
-    BFYX = 1,  // CHW used if HW module is enabled
-    Any  = 2,  // doesn't really matter
-    None = 3
+    BYXF = 0,  // NHWC used in most software layers
+    BFYX = 1,  // NCHW used if HW module is enabled
+    YXF  = 2,  // HWC used in most software layers
+    FYX  = 3,  // CHW used if HW module is enabled
+    Any  = 4,  // doesn't really matter
+    None = 5
 )
 
 VPU_DECLARE_ENUM(CustomParamType,

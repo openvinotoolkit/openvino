@@ -199,7 +199,8 @@ def invert_sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: l
     while len(d) != 0:
         cur_node_name = d.popleft()
         sub_graph_nodes.append(cur_node_name)
-        if cur_node_name not in start_nodes and detect_extra_start_node(Node(graph, cur_node_name)):
+        if cur_node_name not in start_nodes and \
+                detect_extra_start_node is not None and detect_extra_start_node(Node(graph, cur_node_name)):
             extra_start_nodes.append(cur_node_name)
         else:
             if cur_node_name not in end_nodes:  # do not add output nodes of the end_nodes

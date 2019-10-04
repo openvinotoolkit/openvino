@@ -462,7 +462,6 @@ static void initScratchLinear(const cv::GMatDesc& in,
                          cv::gapi::fluid::Buffer& scratch,
                                              int  lpi) {
     using alpha_type = typename Mapper::alpha_type;
-    using index_type = typename Mapper::index_type;
     static const auto unity = Mapper::unity;
 
     auto inSz = in.size;

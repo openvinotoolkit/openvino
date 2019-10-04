@@ -6,7 +6,9 @@
 
 #include <utility>
 #include <memory>
+#include <vector>
 #include "inference_engine.hpp"
+#include "ie_memcpy.h"
 
 template <InferenceEngine::Precision::ePrecision precision>
 class BlobFactory {
@@ -82,8 +84,39 @@ InferenceEngine::Blob::Ptr make_custom_blob(Args &&... args) {
 }
 
 /**
+ * Create blob with custom precision
+ * @tparam T - type off underlined elements
+ * @param args
+ * @return
+ */
+template <class T>
+InferenceEngine::Blob::Ptr make_custom_blob(InferenceEngine::Layout layout, InferenceEngine::SizeVector size) {
+    return InferenceEngine::make_shared_blob<T>(InferenceEngine::TensorDesc(
+            InferenceEngine::Precision::fromType<T>(),
+            size,
+            layout));
+}
+
+/**
  * @brief Creates a TBlob<> object from a Data node
  * @param Data reference to a smart pointer of the Data node
  * @return Smart pointer to TBlob<> with the relevant C type to the precision of the data node
  */
 INFERENCE_ENGINE_API_CPP(InferenceEngine::Blob::Ptr) CreateBlobFromData(const InferenceEngine::DataPtr &data);
+
+/**
+ * Copy data from vector to Blob
+ * @tparam T type of data in vector
+ * @return
+ */
+template <typename T> void CopyVectorToBlob(const InferenceEngine::Blob::Ptr outputBlob, const std::vector<T>& inputVector) {
+    if (outputBlob->size() != inputVector.size())
+        THROW_IE_EXCEPTION << "Size mismatch between dims and vector";
+    if (outputBlob->element_size() != sizeof(T))
+        THROW_IE_EXCEPTION << "Element size mismatch between blob and vector";
+    ie_memcpy(
+            outputBlob->buffer().as<T *>(),
+            outputBlob->byteSize(),
+            &inputVector[0],
+            inputVector.size() * sizeof(T));
+}

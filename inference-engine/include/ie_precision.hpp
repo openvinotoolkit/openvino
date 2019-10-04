@@ -59,7 +59,8 @@ public:
 
     /**
      * @brief Custom precision constructor
-     * @param byteSize size of elements
+     *
+     * @param bitsSize size of elements
      * @param name optional name string, used in serialisation
      */
     explicit Precision(size_t bitsSize, const char * name = nullptr) {
@@ -179,8 +180,9 @@ public:
     }
 
     /**
-     * @brief Returns size in bytes of single element of that precision
-     * @deprecated : size of precision will be reported in bits in future releases
+     * @brief Returns size of single element of that precision in bits
+     *
+     * @returns Number of bits per element
      */
     size_t size() const {
         if (precisionInfo.bitsSize == 0) {
@@ -195,9 +197,21 @@ public:
     }
 
  protected:
+    /**
+     * @brief Returns PrecisionInfo by its name
+     *
+     * @param name Name of precision
+     */
     template<Precision::ePrecision precision>
     static PrecisionInfo makePrecisionInfo(const char * name);
 
+    /**
+     * @brief Compare two c-strings
+     *
+     * @param l Const pointer to first string
+     * @param r Const pointer to another string
+     * @returns True if strings are the same
+     */
     static bool areSameStrings(const char *l, const char *r) noexcept {
         if (l == r)
             return true;
@@ -211,6 +225,9 @@ public:
         return *l == *r;
     }
 
+    /**
+     * @brief Return PrecisionInfo
+     */
     static PrecisionInfo getPrecisionInfo(ePrecision v) {
 #define CASE(x) case x: return makePrecisionInfo<x>(#x);
         switch (v) {
@@ -332,6 +349,13 @@ inline std::ostream & operator << (std::ostream &out, const InferenceEngine::Pre
 
 inline std::ostream & operator << (std::ostream &out, const InferenceEngine::Precision::ePrecision & p) {
     return out << Precision(p).name();
+}
+
+inline constexpr uint32_t getPrecisionMask(InferenceEngine::Precision::ePrecision precision1,
+                                           InferenceEngine::Precision::ePrecision precision2,
+                                           InferenceEngine::Precision::ePrecision precision3 = InferenceEngine::Precision::MIXED,
+                                           InferenceEngine::Precision::ePrecision precision4 = InferenceEngine::Precision::MIXED) {
+    return (precision1) | (precision2 << 8) | (precision3 << 16) | (precision4 << 24);
 }
 
 /** @endcond */

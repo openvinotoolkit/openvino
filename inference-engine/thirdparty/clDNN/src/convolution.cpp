@@ -23,7 +23,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id convolution_type_id() {
+primitive_type_id convolution::type_id() {
     static primitive_type_base<convolution> instance;
     return &instance;
 }
@@ -45,6 +45,10 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
 
     auto input_type = input_layout.data_type;
     auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_type;
+
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
+    }
 
     // TODO: Consider moving general parameter verification to arguments constructor.
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
@@ -173,11 +177,6 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
             CLDNN_ERROR_MESSAGE(node.id(),
                                 "Number of filters (OFM) for winograd 2x3 convolution should be divisable by 32");
 
-        if (node.get_primitive()->with_activation)
-            CLDNN_ERROR_MESSAGE(node.id(),
-                                "Winograd 2x3 convolution should not have activation fused - activation should be "
-                                "performed at transformation from winograd domain stage");
-
         CLDNN_ERROR_LESS_THAN(node.id(),
                               "input width",
                               input_layout.size.spatial[0],
@@ -235,6 +234,10 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1],
                            desc->output_size.spatial[2]);
+        if (output_type == data_types::bin) {
+            return {output_type, format::b_fs_yx_32fp, output_size};
+        }
+
         return {output_type, input_layout.format, output_size};
     }
 
@@ -254,6 +257,11 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
                                 output_range.spatial[1],
                                 output_range.spatial[2]);
 
+
+    if (output_type == data_types::bin) {
+        return {output_type, format::b_fs_yx_32fp, output_size};
+    }
+
     // due to performance reason for using fs_bs_yx_bsv4_fsv32 first convolution have 3 features, so first conv layer
     // will take byxf and return fs_bs_yx_bsv4_fsv32
     if (input_layout.data_type == data_types::i8 && input_layout.format == format::byx8_f4 &&
@@ -271,7 +279,6 @@ std::string convolution_inst::to_string(convolution_node const& node) {
     auto groups = node.get_groups();
     auto dilation = desc->dilation;
     auto node_info = node.desc_to_json();
-    auto activation = desc->with_activation ? " true" : "false";
 
     std::stringstream primitive_description;
 
@@ -283,19 +290,8 @@ std::string convolution_inst::to_string(convolution_node const& node) {
     conv_info.add("split", split);
     conv_info.add("groups", groups);
     conv_info.add("dilation", dilation.to_string());
-    conv_info.add("with activation", activation);
-    conv_info.add("slope", desc->activation_negative_slope);
     conv_info.add("deformable_groups", desc->deformable_groups);
     conv_info.add("groups", desc->groups);
-
-    size_t index = 0;
-    for (auto& fused_desc :  node.get_fused_primitives()) {
-        json_composite fused_node_info;
-        fused_node_info.add("id", fused_desc.prim->id);
-        fused_node_info.add("dependencies", fused_desc.deps);
-        fused_node_info.add("dep start_idx", fused_desc.dep_start_idx);
-        conv_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
-    }
 
     if (desc->with_output_size) {
         json_composite ud_out_size_info;
@@ -343,7 +339,13 @@ convolution_inst::typed_primitive_inst(network_impl& network, convolution_node c
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias feature[0]",
                                   bias_inst.size.feature[0],
-                                  "expected size of feature",
+                                  "expected feature map number",
+                                  output_size.feature[0] / split,
+                                  "Bias/fm mismatch");
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                  "Bias spatial[2]",
+                                  bias_inst.size.spatial[2],
+                                  "expected size of spatial[2]",
                                   1,
                                   "Biases isn't 1D vector.");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
@@ -353,18 +355,11 @@ convolution_inst::typed_primitive_inst(network_impl& network, convolution_node c
                                   1,
                                   "Biases isn't 1D vector.");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Bias spatial[2]",
-                                  bias_inst.size.spatial[2],
-                                  "expected size of spatial[2]",
-                                  1,
-                                  "Biases isn't 1D vector.");
-
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[0]",
                                   bias_inst.size.spatial[0],
-                                  "expected feature map number",
-                                  output_size.feature[0] / split,
-                                  "Bias/fm mismatch");
+                                  "expected size of spatial[0]",
+                                  1,
+                                  "Biases isn't 1D vector.");
         }
 
         auto input_offset = argument.input_offset;

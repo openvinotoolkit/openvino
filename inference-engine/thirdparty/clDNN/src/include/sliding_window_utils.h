@@ -14,8 +14,8 @@
 
 #pragma once
 
-#include <api/CPP/layout.hpp>
-#include <api/CPP/tensor.hpp>
+#include <api/layout.hpp>
+#include <api/tensor.hpp>
 
 #include <algorithm>
 #include <cassert>

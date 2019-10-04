@@ -4,14 +4,19 @@
 
 include (options)
 
-#this options are aimed to optimize build time on development system
+#these options are aimed to optimize build time on development system
 
 #backed targets
 ie_option (ENABLE_GNA "GNA support for inference engine" ON)
+ie_option (ENABLE_ROCKHOPER "use Rockhopper decoder for converting / output scores" ON)
 
 ie_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON)
 
 ie_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON)
+
+ie_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF)
+
+ie_option (ENABLE_CLDNN_BUILD "build clDnn from sources" OFF)
 
 ie_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON)
 
@@ -90,7 +95,17 @@ ie_option (DEVELOPMENT_PLUGIN_MODE "Disabled build of all plugins" OFF)
 
 ie_option (TREAT_WARNING_AS_ERROR "Treat build warnings as errors" ON)
 
+ie_option (ENABLE_CPP_CCT "enables C++ version of Cross Check Tool" OFF)
+
 ie_option (ENABLE_UNICODE_PATH_SUPPORT "Enable loading models from Unicode paths" ON)
+
+ie_option (ENABLE_LTO "Enable Link Time Optimization" OFF)
+
+# FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
+#        this must be addressed in a proper way
+if(CMAKE_CROSSCOMPILING OR NOT (UNIX AND NOT APPLE))
+    set(ENABLE_LTO OFF)
+endif()
 
 if (UNIX AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.3)
     set(ENABLE_UNICODE_PATH_SUPPORT OFF)

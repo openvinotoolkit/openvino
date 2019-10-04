@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -131,7 +131,7 @@ static void ref_topk(InferenceEngine::TBlob<float> &src, InferenceEngine::TBlob<
         }
 
         if (!sort_value)
-            std::sort(src_vector.begin(), src_vector.begin() + src_k, [&src_vector](const pair<int, int> &a, const pair<int, int> &b)
+            std::sort(src_vector.begin(), src_vector.begin() + src_k, [](const pair<int, int> &a, const pair<int, int> &b)
             { return (a.second < b.second); });
 
         for (int j = 0; j < src_k; ++j) {
@@ -367,9 +367,7 @@ class MKLDNNCPUExtTopK1OutTests : public TestsCommon, public WithParamInterface<
         </layer>
         <layer name="src_k" type="Input" precision="I32" id="2">
             <output>
-                <port id="2">
-                    <dim>1</dim>
-                </port>
+                <port id="2"/>
             </output>
         </layer>
         <layer name="output" id="2" type="TopK" precision="_PRECISION_">
@@ -379,7 +377,6 @@ class MKLDNNCPUExtTopK1OutTests : public TestsCommon, public WithParamInterface<
                     _IN_
                 </port>
                 <port id="2">
-                    <dim>1</dim>
                 </port>
             </input>
             <output>
@@ -445,8 +442,8 @@ protected:
             graph.CreateGraph(net_reader.getNetwork(), extMgr);
 
             // Input Data
-            InferenceEngine::Blob::Ptr src;
-            src = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, p.in_shape, InferenceEngine::TensorDesc::getLayoutByDims(p.in_shape) });
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, p.in_shape,
+                                                                                        InferenceEngine::TensorDesc::getLayoutByDims(p.in_shape) });
             src->allocate();
             if (p.input_tensor.size())
                 memcpy(src->buffer(), &p.input_tensor[0], sizeof(float)*p.input_tensor.size());
@@ -458,10 +455,8 @@ protected:
 
             InferenceEngine::BlobMap srcs;
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("value", src));
-
-            InferenceEngine::Blob::Ptr seq_lengthsIdx;
-            InferenceEngine::SizeVector seq_lengths_dim(1, 1);
-            seq_lengthsIdx = InferenceEngine::make_shared_blob<int32_t>({ InferenceEngine::Precision::I32, seq_lengths_dim, InferenceEngine::TensorDesc::getLayoutByDims(seq_lengths_dim) });
+            InferenceEngine::Blob::Ptr seq_lengthsIdx = InferenceEngine::make_shared_blob<int32_t>({ InferenceEngine::Precision::I32, {},
+                                                                                                     InferenceEngine::TensorDesc::getLayoutByDims({})});
             seq_lengthsIdx->allocate();
             memcpy(static_cast<int32_t*>(seq_lengthsIdx->buffer()), &p.src_k[0], sizeof(int32_t));
             auto * seq_lengthsIdxPtr = dynamic_cast<InferenceEngine::TBlob<int32_t>*>(seq_lengthsIdx.get());
@@ -492,7 +487,8 @@ protected:
                 }
             } else {
                 InferenceEngine::TBlob<int32_t>::Ptr output;
-                output = InferenceEngine::make_shared_blob<int32_t>({ InferenceEngine::Precision::I32, p.out_shape, InferenceEngine::TensorDesc::getLayoutByDims(p.out_shape) });
+                output = InferenceEngine::make_shared_blob<int32_t>({ InferenceEngine::Precision::I32, p.out_shape,
+                                                                      InferenceEngine::TensorDesc::getLayoutByDims(p.out_shape) });
                 output->allocate();
                 outputBlobs[item.first] = output;
 

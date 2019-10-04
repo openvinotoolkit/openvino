@@ -95,25 +95,9 @@ TEST_F(PluginDispatcherTests, throwsOnUnknownPlugin) {
     ASSERT_THROW(dispatcher.getPluginByName(nameExt("unknown_plugin")), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST_F(PluginDispatcherTests, throwsOnDeviceWithoutPlugins) {
-    PluginDispatcher dispatcher({ "./", "./lib" });
-    ASSERT_THROW(dispatcher.getSuitablePlugin(TargetDevice::eBalanced),
-                                                    InferenceEngine::details::InferenceEngineException);
-}
-
 ACTION(ThrowException)
 {
     THROW_IE_EXCEPTION << "Exception!";
-}
-
-TEST_F(PluginDispatcherTests, triesToLoadEveryPluginSuitableForDevice) {
-    MockDispatcher disp({ "./", "./lib" });
-
-    ON_CALL(disp, getPluginByName(_)).WillByDefault(ThrowException());
-#ifdef ENABLE_MKL_DNN
-    EXPECT_CALL(disp, getPluginByName(nameExt("MKLDNNPlugin"))).Times(1);
-#endif
-    ASSERT_THROW(disp.getSuitablePlugin(TargetDevice::eCPU), InferenceEngine::details::InferenceEngineException);
 }
 
 #if defined(ENABLE_MKL_DNN)
@@ -123,7 +107,7 @@ TEST_F(PluginDispatcherTests, returnsIfLoadSuccessfull) {
     auto ptr = dispatcher.getPluginByName(nameExt("mock_engine"));
 
     EXPECT_CALL(disp, getPluginByName(_)).WillOnce(Return(ptr));
-    ASSERT_NO_THROW(disp.getSuitablePlugin(TargetDevice::eCPU));
+    ASSERT_NO_THROW(disp.getPluginByName(nameExt("MKLDNNPlugin")));
 }
 
 #if defined ENABLE_MKL_DNN && !defined _WIN32 && !defined __CYGWIN__ && !defined __APPLE__

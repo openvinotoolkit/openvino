@@ -32,7 +32,7 @@ static void generate_anchors(unsigned base_size,
                              bool shift_anchors,
                              bool round_ratios);
 
-primitive_type_id proposal_type_id() {
+primitive_type_id proposal::type_id() {
     static primitive_type_base<proposal> instance;
     return &instance;
 }

@@ -25,14 +25,18 @@ ParamsKey QuantizeKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::BINARY);
     k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::bfyx_f16);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::b_fs_yx_32fp);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableQuantizePackedBinaryOutput();
     return k;
 }
 
@@ -55,50 +59,22 @@ CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params, 
 }
 
 JitConstants QuantizeKernelRef::GetJitConstants(const quantize_params& params) const {
-    JitConstants jit = MakeBaseParamsJitConstants(params);
-
-    jit.AddConstant(MakeJitConstant("PACKED_BINARY_OUTPUT", params.packed_binary_output));
-    assert(params.inputs.size() == 5);
-    if (params.packed_binary_output) {
-        if ((params.inputs[3].LogicalSize() == 1 && params.inputs[4].LogicalSize() == 1) ||
-            (params.inputs[3].LogicalSize() == params.inputs[3].Batch().v &&
-             params.inputs[4].LogicalSize() == params.inputs[4].Batch().v)) {
-            jit.AddConstant(MakeJitConstant("SINGLE_OUT_VAL", 1));
-
-        } else if (params.inputs[3].LogicalSize() == params.output.Feature().v &&
-                   params.inputs[4].LogicalSize() == params.output.Feature().v) {
-            jit.AddConstant(MakeJitConstant("PER_CHANNEL_OUT_VAL", 1));
-        } else {
-            throw std::runtime_error("Unsupported const blob shape in node " + params.layerID);
-        }
-    }
-    jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_NUM_PACKED", CeilDiv(params.output.Feature().v, 32)));
-    jit.AddConstant(MakeJitConstant("OC_BLOCK_SIZE", 32));
-    jit.AddConstant(MakeJitConstant("LEVELS", params.levels));
-
+    JitConstants jit = Parent::GetJitConstants(params);
     return jit;
 }
 
-KernelsData QuantizeKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    assert(params.GetType() == KernelType::QUANTIZE);
+bool QuantizeKernelRef::Validate(const Params& p, const optional_params&) const {
+    const quantize_params& params = static_cast<const quantize_params&>(p);
+    if (params.inputs.size() != 5)
+        return false;
 
-    KernelData kd = KernelData::Default<quantize_params>(params);
-    quantize_params& newParams = *static_cast<quantize_params*>(kd.params.get());
-
-    auto runInfo = SetDefault(newParams, options);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
-    auto cldnn_jit = GetJitConstants(newParams);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
-
-    auto& kernel = kd.kernels[0];
-
-    kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
-    kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
-    kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false, false, false);
-
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
-    return {kd};
+    // Binary packed output is possible only with b_fs_yx_32fp output layout and some input layouts
+    if (params.output.GetDType() == Datatype::BINARY &&
+        (params.output.GetLayout() != DataLayout::b_fs_yx_32fp ||
+        (params.inputs[0].GetLayout() != DataLayout::bfyx &&
+         params.inputs[0].GetLayout() != DataLayout::bfyx_f16)))
+        return false;
+    return true;
 }
+
 }  // namespace kernel_selector

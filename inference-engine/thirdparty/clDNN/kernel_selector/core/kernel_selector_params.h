@@ -31,6 +31,8 @@ using WeightsTensor = Tensor::WeightsTensor;
 using DataLayout = Tensor::DataLayout;
 using WeightsLayout = Tensor::WeightsLayout;
 using MultiDataTensor = std::vector<DataTensor>;
+
+class JitConstants;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ParamsKey
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -194,6 +196,9 @@ public:
                         // fused conv eltw
                         uint32_t rw_out_opt : 1;
                     } fused_conv_eltw;
+                    struct quantize_t {
+                        uint32_t packed_binary_output : 1;
+                    } quantize;
                 } dedicated;
             } val;
             uint64_t raw;
@@ -310,6 +315,8 @@ public:
     void EnableFusedConvEltwOutputCalibration() { key.restrict.val.dedicated.fused_conv_eltw.calibration = 1; }
     void EnableFusedConvEltwEltwiseStride();
 
+    void EnableQuantizePackedBinaryOutput() { key.restrict.val.dedicated.quantize.packed_binary_output = 1; }
+
     void EnableWinogradReorder() { key.restrict.val.dedicated.reorder.winograd = 1; }
     void EnableSoftmaxDim(SoftmaxDim d);
     void EnableConcatAxis(ConcatAxis a);
@@ -394,11 +401,44 @@ struct base_activation_params {
     ActivationFunction function = ActivationFunction::NONE;
     float m = 1.f;
     float n = 0.f;
+    bool gradient = false;
 
     base_activation_params() = default;
     base_activation_params(const float m, const float n) : m(m), n(n) {}
+    base_activation_params(const ActivationFunction f, const float m, const float n, const bool gradinet = false) : function(f),
+                                                                                                                    m(m),
+                                                                                                                    n(n),
+                                                                                                                    gradient(gradinet) {}
 
     virtual std::string to_string() const;
+};
+
+struct FusedOpsConfiguration {
+    std::string suffix;
+    std::vector<std::string> bfyx_idx_order;
+    std::string input_var_name;
+    size_t vec_size;
+    bool aligned_load;
+    bool typed_activation;
+    bool safe_load;
+    bool simple_offset;
+
+    FusedOpsConfiguration(std::string suffix,
+                          std::vector<std::string> bfyx_idx_order,
+                          std::string input_var_name,
+                          size_t vec_size = 1,
+                          bool aligned_load = false,
+                          bool typed_activation = false,
+                          bool safe_load = true,
+                          bool simple_offset = false)
+      : suffix(suffix)
+      , bfyx_idx_order(bfyx_idx_order)
+      , input_var_name(input_var_name)
+      , vec_size(vec_size)
+      , aligned_load(aligned_load)
+      , typed_activation(typed_activation)
+      , safe_load(safe_load)
+      , simple_offset(simple_offset) { }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -407,7 +447,113 @@ struct base_activation_params {
 struct base_params : public Params {
     virtual ~base_params() {}
 
+    // Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program_impl::fuse_nodes
+    // method. In order to process fused ops following modifications should be done in a kernel:
+    // option 1 - using common generator:
+    //     - create FusedOpsConfiguration object that contains configuration for common code generator.
+    //       Multiple objects can be created if a kernel uses different data types at the same time. E.g. kernels that contains scalar and
+    //       vector branches that are chosen in runtime. To handle this case, create 2 configurations with different suffixes, like
+    //       "_SCALAR" and "_VEC" and then use generated macros accordingly.
+    //     - add jit constants returned by KernelBase::MakeFusedOpsJitConstants method to the kernel's constants.
+    //     - insert generated macros in the ocl code:
+    //       in kernel declaration:
+    //         #if HAS_FUSED_OPS_DECLS
+    //           FUSED_OPS_DECLS,
+    //         #endif
+    //       in kernel body:
+    //         #if HAS_FUSED_OPS
+    //           FUSED_OPS<OPTIONAL_SUFFIX>;
+    //           <SOME_VARIABLE> = FINAL_NAME<OPTIONAL_SUFFIX>;
+    //         #endif
+    //   In this case common generator creates set of definitions for each op which are called sequentially in FUSED_OP<OPTIONAL_SUFFIX>
+    //   macro. Example:
+    //     #define FUSED_OPS
+    //       FUSED_OP0_LOAD_VEC
+    //       FUSED_OP0_ACTION_VEC
+    //       FUSED_OP1_LOAD_VEC
+    //       FUSED_OP1_ACTION_VEC
+    //     #define FUSED_OP0_LOAD_VEC
+    //       MAKE_VECTOR_TYPE(FUSED_OP_0_INPUT0_TYPE,2) activation0_data0 = UNIT_BLOCK_READ(activation0_input0,
+    //                                                                      FUSED_OP_0_INPUT0_GET_INDEX_SAFE(0,(f_block*16),0,0));
+    //     #define FUSED_OP0_ACTION_VEC
+    //       float2 dst_0 = dst;
+    //       dst_0 = ACTIVATION_FUSED_OP0_VEC(dst_0, ACTIVATION_PARAMS_FUSED_OP0_VEC);
+    //     #define FUSED_OP1_LOAD_VEC
+    //       MAKE_VECTOR_TYPE(FUSED_OP_1_INPUT0_TYPE,2) eltwise1_data0 = UNIT_BLOCK_READ2(eltwise1_input0,
+    //                                                                   FUSED_OP_1_INPUT0_GET_INDEX_SAFE(0,(f_block*16),y,x));
+    //     #define FUSED_OP1_ACTION_VEC
+    //       float2 dst_0_2 = convert_float2(eltwise1_data0) + convert_float2(dst_0);
+    //     #define FINAL_NAME_VEC dst_0_2
+    // option 2 - using custom generator in a kernel. It can be used if performance is not optimal in the common one or to handle
+    //            some difficult cases that can't be unified. Custom processing of fused ops can be written absolutely independently
+    //            in a kernel, but to make it easier set of helper functions exist:
+    //     - KernelBase::MakeFusedOpsDeclsJitConstants that creates arguments for kernel declaration and macro for all tensors used in
+    //       a fused op (requires FusedOpsConfiguration instance).
+    //     - fused_operation_desc contains a bunch of methods to generate variable/pointer names, type conversions, data loads
+    //  If you need an example of custom code generation for fused ops, check BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants
+    //  method in binary_convolution_kernel_generic.cpp.
+    struct fused_operation_desc {
+        enum class Type : uint8_t {
+            ELTWISE = 0,
+            SCALE = 1,
+            QUANTIZE = 2,
+            ACTIVATION = 3,
+            UNDEFINED
+        };
+
+        struct idx_desc {
+            std::string b;
+            std::string f;
+            std::string z;
+            std::string y;
+            std::string x;
+            size_t dims;
+            explicit idx_desc(std::vector<std::string> idx) : b(""), f(""), z(""), y(""), x(""), dims(0) {
+                dims = idx.size();
+                switch (dims) {
+                    case 1: f = idx[0]; break;
+                    case 2: b = idx[0]; f = idx[1]; break;
+                    case 3: b = idx[0]; f = idx[1]; y = idx[2]; break;
+                    case 4: b = idx[0]; f = idx[1]; y = idx[2]; x = idx[3]; break;
+                    case 5: b = idx[0]; f = idx[1]; z = idx[2]; y = idx[3]; x = idx[4]; break;
+                    default: throw std::runtime_error("More than 5 dimenstions is not supported in fused op generator");
+                }
+            }
+        };
+
+        Type type;
+        size_t dep_idx_start;
+        size_t dep_size;
+        MultiDataTensor tensors;
+        DataTensor output_tensor;
+        base_activation_params activation;
+        size_t op_id;
+
+        JitConstants MakeFusedTensorJitConstants(const FusedOpsConfiguration& conf) const;
+        JitConstants MakeInputDeclsJitConstants(const FusedOpsConfiguration& conf) const;
+        JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf) const;
+        JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf, std::string in_var, std::string& out_var) const;
+
+        // Helper functions for operation generation
+        std::string GetTypeStr() const;
+        std::string GetInputTensorName(size_t input_id) const;
+        std::string GetOutputTensorName() const;
+        std::string GetInputTypeName(size_t input_id, size_t vec_size) const;
+        std::string GetJitLoad(const FusedOpsConfiguration& conf, size_t input_id,
+                               bool reuse_index = false, std::string reused_idx = "") const;
+        std::string GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const;
+        std::string GetInputPtrName(size_t input_id) const;
+        std::string GetInputVarName(size_t input_id) const;
+        std::string GetOutputVarName(std::string input_var_name) const;
+        std::string ConvertToOutputType(std::string var, size_t vec_size = 1) const;
+        std::string ConvertToOutputTypeSat(std::string var, size_t vec_size = 1) const;
+        std::string GetOutputType(size_t vec_size = 1) const;
+    };
+
     base_activation_params activation;
+
+    std::vector<base_activation_params> activations;
+    std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
     DataTensor output;
     bool gradient = false;

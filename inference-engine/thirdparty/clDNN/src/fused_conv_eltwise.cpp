@@ -23,7 +23,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id fused_conv_eltwise_type_id() {
+primitive_type_id fused_conv_eltwise::type_id() {
     static primitive_type_base<fused_conv_eltwise> instance;
     return &instance;
 }
@@ -201,11 +201,18 @@ layout fused_conv_eltwise_inst::calc_output_layout(fused_conv_eltwise_node const
                                        "value",
                                        0,
                                        "must be positive(>= 1)");
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
+            "User defined output spatial Z",
+            desc->conv.output_size.spatial[2],
+            "value",
+            0,
+            "must be positive(>= 1)");
 
         tensor output_size(input_layout.size.batch[0],
                            number_of_features,
                            desc->conv.output_size.spatial[0],
-                           desc->conv.output_size.spatial[1]);
+                           desc->conv.output_size.spatial[1],
+                           desc->conv.output_size.spatial[2]);
         return {output_type, input_layout.format, output_size};
     }
 
@@ -220,7 +227,8 @@ layout fused_conv_eltwise_inst::calc_output_layout(fused_conv_eltwise_node const
     tensor output_size(input_layout.size.batch[0],
                        number_of_features,
                        output_range.spatial[0],
-                       output_range.spatial[1]);
+                       output_range.spatial[1],
+                       output_range.spatial[2]);
 
     // due to performance reason for using fs_bs_yx_bsv4_fsv32 first convolution have 3 features, so first conv layer
     // will take byxf and return fs_bs_yx_bsv4_fsv32
@@ -296,22 +304,21 @@ fused_conv_eltwise_inst::typed_primitive_inst(network_impl& network, fused_conv_
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias feature[0]",
                                   bias_inst.size.feature[0],
-                                  "expected size of feature",
-                                  1,
-                                  "Biases isn't 1D vector.");
+                                  "expected feature map number",
+                                  output_size.feature[0] / split,
+                                  "Bias/fm mismatch");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[1]",
                                   bias_inst.size.spatial[1],
                                   "expected size of spatial[1]",
                                   1,
                                   "Biases isn't 1D vector.");
-
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[0]",
                                   bias_inst.size.spatial[0],
-                                  "expected feature map number",
-                                  output_size.feature[0] / split,
-                                  "Bias/fm mismatch");
+                                  "expected size of spatial[0]",
+                                  1,
+                                  "Biases isn't 1D vector.");
         }
 
         auto input_offset = argument.conv.input_offset;

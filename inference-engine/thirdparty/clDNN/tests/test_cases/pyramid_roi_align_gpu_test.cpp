@@ -15,16 +15,15 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
 
-#include <api/CPP/engine.hpp>
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/pyramid_roi_align.hpp>
-#include <api/CPP/memory.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/mutable_data.hpp>
+#include <api/engine.hpp>
+#include <api/input_layout.hpp>
+#include <api/pyramid_roi_align.hpp>
+#include <api/memory.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/mutable_data.hpp>
 
 #include "test_utils/test_utils.h"
-
 
 using namespace cldnn;
 using namespace tests;

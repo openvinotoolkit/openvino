@@ -22,7 +22,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id depth_to_space_type_id() {
+primitive_type_id depth_to_space::type_id() {
     static primitive_type_base<depth_to_space> instance;
     return &instance;
 }

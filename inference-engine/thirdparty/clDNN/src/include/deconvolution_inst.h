@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/deconvolution.hpp"
+#include "api/deconvolution.hpp"
 #include "primitive_inst.h"
 #include <string>
 #include <memory>

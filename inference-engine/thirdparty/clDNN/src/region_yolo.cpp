@@ -20,7 +20,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id region_yolo_type_id() {
+primitive_type_id region_yolo::type_id() {
     static primitive_type_base<region_yolo> instance;
     return &instance;
 }

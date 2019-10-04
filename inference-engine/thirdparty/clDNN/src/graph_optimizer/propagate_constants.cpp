@@ -79,9 +79,9 @@ void propagate_constants::run(program_impl& p) {
     // with recomputed cldnn::data
     for (auto& cout : to_replace) {
         auto& id_to_replace = cout.first;
+        auto mem_impl = cout.second;
 
-        // TODO: do not use API primitives internally and get rid of this last 'cldnn::memory' internal usage
-        memory api_memory = details::memory_c_to_cpp_converter::convert(api_cast(cout.second.get()));
+        memory api_memory = memory(mem_impl.detach());
         // c-cpp converter does not retain since normally it is done inside API-impl layer (cldnn.cpp) so we need to do
         // it manually
         cout.second->add_ref();

@@ -202,7 +202,9 @@ INSTANTIATE_TEST_CASE_P(
                 permute_test_params{{2, 3, 4, 5, 7}, {0, 2, 4, 3, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown},
                 permute_test_params{{2, 3, 4, 5, 7}, {0, 4, 2, 3, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown},
                 permute_test_params{{2, 3, 4, 5}, {0, 3, 1, 2}, 1, MKLDNNPlugin::impl_desc_type::unknown},
-                permute_test_params{{3, 4, 7}, {1, 0, 2}, 1, MKLDNNPlugin::impl_desc_type::unknown}
+                permute_test_params{{3, 4, 7}, {1, 0, 2}, 1, MKLDNNPlugin::impl_desc_type::unknown},
+                permute_test_params{{3, 4, 7, 8, 4}, {0, 2, 3, 4, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown},
+                permute_test_params{{3, 4, 7, 8, 4}, {0, 4, 1, 2, 3}, 1, MKLDNNPlugin::impl_desc_type::unknown}
         ));
 
 class MKLDNNGraphDynBatchPermuteTests: public MKLDNNGraphPermuteTests {
@@ -288,5 +290,7 @@ INSTANTIATE_TEST_CASE_P(
                 permute_test_params{{2, 3, 4, 5, 7}, {0, 2, 1, 3, 4}, 1, MKLDNNPlugin::impl_desc_type::unknown},
                 permute_test_params{{2, 3, 4, 5, 7}, {0, 2, 4, 3, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown},
                 permute_test_params{{2, 3, 4, 5, 7}, {0, 4, 2, 3, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown},
-                permute_test_params{{2, 3, 4, 5}, {0, 3, 1, 2}, 1, MKLDNNPlugin::impl_desc_type::unknown}
+                permute_test_params{{2, 3, 4, 5}, {0, 3, 1, 2}, 1, MKLDNNPlugin::impl_desc_type::unknown},
+                permute_test_params{{3, 4, 7, 8, 4}, {0, 2, 3, 4, 1}, 1, MKLDNNPlugin::impl_desc_type::unknown},
+                permute_test_params{{3, 4, 7, 8, 4}, {0, 4, 1, 2, 3}, 1, MKLDNNPlugin::impl_desc_type::unknown}
         ));

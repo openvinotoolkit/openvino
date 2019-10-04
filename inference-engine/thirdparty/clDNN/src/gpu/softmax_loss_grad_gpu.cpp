@@ -51,28 +51,24 @@ struct softmax_loss_grad_gpu : typed_primitive_gpu_impl<softmax_loss_grad> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = softmax_loss_grad_gpu::create;
-        implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                                   val_fw);
-        implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                                   val_fw);
-        implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                                   val_fw);
-        implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                                   val_fw);
-        implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
-                                                   val_fw);
-        implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
-                                                   val_fw);
-    }
-    ~attach() {}
-};
+namespace detail {
 
-attach attach_impl;
-}  // namespace
+attach_softmax_loss_grad_gpu::attach_softmax_loss_grad_gpu() {
+    auto val_fw = softmax_loss_grad_gpu::create;
+    implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                               val_fw);
+    implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+                                               val_fw);
+    implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                               val_fw);
+    implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                               val_fw);
+    implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
+                                               val_fw);
+    implementation_map<softmax_loss_grad>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+                                               val_fw);
+}
 
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

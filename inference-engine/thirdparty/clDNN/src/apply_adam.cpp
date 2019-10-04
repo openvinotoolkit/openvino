@@ -22,7 +22,7 @@
 #include <memory>
 
 namespace cldnn {
-primitive_type_id apply_adam_type_id() {
+primitive_type_id apply_adam::type_id() {
     static primitive_type_base<apply_adam> instance;
     return &instance;
 }
