@@ -7,12 +7,12 @@ include (options)
 #these options are aimed to optimize build time on development system
 
 #backed targets
-ie_option (ENABLE_GNA "GNA support for inference engine" ON)
-ie_option (ENABLE_ROCKHOPER "use Rockhopper decoder for converting / output scores" ON)
+ie_option (ENABLE_GNA "GNA support for inference engine" OFF)
+ie_option (ENABLE_ROCKHOPER "use Rockhopper decoder for converting / output scores" OFF)
 
 ie_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON)
 
-ie_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON)
+ie_option (ENABLE_CLDNN "clDnn based plugin for inference engine" OFF)
 
 ie_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF)
 
@@ -37,15 +37,15 @@ if (NOT THREADING STREQUAL "TBB"
         AND NOT THREADING STREQUAL "TBB_AUTO"
         AND NOT THREADING STREQUAL "OMP"
         AND NOT THREADING STREQUAL "SEQ")
-    set (THREADING "TBB")
+    set (THREADING "OMP")
     message(STATUS "THREADING should be set to TBB, TBB_AUTO, OMP or SEQ. Default option is " ${THREADING})
 endif()
 set(THREADING "${THREADING}" CACHE STRING "Threading" FORCE)
 list (APPEND IE_OPTIONS THREADING)
 
-ie_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON)
+ie_option (ENABLE_VPU "vpu targeted plugins for inference engine" OFF)
 
-ie_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" ON)
+ie_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" OFF)
 
 ie_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF)
 
@@ -77,7 +77,7 @@ ie_option (ENABLE_OBJECT_DETECTION_TESTS "object detection tests" ON)
 
 ie_option (ENABLE_DUMP "enables mode for dumping per layer information" OFF)
 
-ie_option (ENABLE_OPENCV "enables OpenCV" ON)
+ie_option (ENABLE_OPENCV "enables OpenCV" OFF)
 
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 

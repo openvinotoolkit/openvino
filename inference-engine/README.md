@@ -52,7 +52,7 @@ The software was validated on:
 ```
 5. Inference Engine uses a CMake-based build system. In the created `build` directory, run `cmake` to fetch project dependencies and create Unix makefiles, then run `make` to build the project:
 ```sh
-  cmake -DCMAKE_BUILD_TYPE=Release -DTHREADING=OMP ..
+  cmake -DCMAKE_BUILD_TYPE=Release ..
   make --jobs=$(nproc --all)
 ```
 
@@ -60,9 +60,7 @@ The software was validated on:
 
 You can use the following additional build options:
 
-- Threading Building Blocks (TBB) is used by default. For MLPerf we recommend to build the Inference Engine with OpenMP* (see previous section).
-
-- Required versions of TBB and OpenCV packages are downloaded automatically by the CMake-based script. If you want to use the automatically downloaded packages but you already have installed TBB or OpenCV packages configured in your environment, you may need to clean the `TBBROOT` and `OpenCV_DIR` environment variables before running the `cmake` command, otherwise they won't be downloaded and the build may fail if incompatible versions were installed. 
+- Required versions of TBB/OMP and OpenCV packages are downloaded automatically by the CMake-based script. If you want to use the automatically downloaded packages but you already have installed TBB or OpenCV packages configured in your environment, you may need to clean the `TBBROOT` and `OpenCV_DIR` environment variables before running the `cmake` command, otherwise they won't be downloaded and the build may fail if incompatible versions were installed. 
 
 - If the CMake-based build script can not find and download the OpenCV package that is supported on your platform, or if you want to use a custom build of the OpenCV library, refer to the [Use Custom OpenCV Builds](#use-custom-opencv-builds-for-inference-engine) section for details. 
 
