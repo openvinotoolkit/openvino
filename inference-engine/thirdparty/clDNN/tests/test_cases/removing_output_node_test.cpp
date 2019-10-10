@@ -16,15 +16,15 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 
-#include <api/CPP/data.hpp>
-#include <api/CPP/reshape.hpp>
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/shuffle_channels.hpp>
-#include <api/CPP/strided_slice.hpp>
+#include <api/data.hpp>
+#include <api/reshape.hpp>
+#include <api/input_layout.hpp>
+#include <api/shuffle_channels.hpp>
+#include <api/strided_slice.hpp>
 
 #include "test_utils/test_utils.h"
 
@@ -141,7 +141,7 @@ TEST(removing_output_node, output_node_optimization) {
     topology.add(input_layout("input", input.get_layout()));
     topology.add(data("weights", weights));
     topology.add(convolution("conv", "input", { "weights" }, { 1,1,1,2 }));
-    topology.add(activation("relu", "conv", activation_relu));
+    topology.add(activation("relu", "conv", activation_func::relu));
 
     network network(engine, topology);
     network.set_input_data("input", input);

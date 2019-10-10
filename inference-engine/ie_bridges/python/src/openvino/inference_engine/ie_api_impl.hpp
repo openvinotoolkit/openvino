@@ -49,7 +49,7 @@ struct IENetLayer {
 };
 
 struct InputInfo {
-    InferenceEngine::InputInfo actual;
+    InferenceEngine::InputInfo::Ptr actual;
     std::vector<size_t> dims;
     std::string precision;
     std::string layout;
@@ -85,7 +85,7 @@ struct IENetwork {
 
     void setBatch(const size_t size);
 
-    void addOutput(const std::string &out_layer, size_t port_id, const std::string &precision);
+    void addOutput(const std::string &out_layer, size_t port_id);
 
     const std::vector<std::pair<std::string, InferenceEnginePython::IENetLayer>> getLayers();
 

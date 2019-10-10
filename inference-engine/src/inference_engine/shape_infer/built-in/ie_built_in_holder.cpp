@@ -39,6 +39,7 @@
 #include "ie_shuffle_channels_shape_infer.hpp"
 #include "ie_depth_to_space_shape_infer.hpp"
 #include "ie_space_to_depth_shape_infer.hpp"
+#include "ie_sparse_fill_empty_rows_shape_infer.hpp"
 #include "ie_reverse_sequence_shape_infer.hpp"
 #include "ie_one_hot_shape_infer.hpp"
 #include "ie_shape_shape_infer.hpp"
@@ -57,6 +58,9 @@
 #include "ie_reduce_shape_infer.hpp"
 #include "ie_gather_tree_shape_infer.hpp"
 #include "ie_topk_shape_infer.hpp"
+#include "ie_unique_shape_infer.hpp"
+#include "ie_scatter_shape_infer.hpp"
+#include "ie_non_max_suppression_shape_infer.hpp"
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -121,6 +125,7 @@ REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, LogSoftMax);
 REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, LRN);
 REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Norm);
 REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Normalize);
+REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Convert);
 // FIXME: Really Copy??? New MO doesn't generate this layer
 REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Copy);
 REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, Power);
@@ -178,6 +183,7 @@ REG_SHAPE_INFER_FOR_TYPE(StridedSliceShapeProp, StridedSlice);
 REG_SHAPE_INFER_FOR_TYPE(ShuffleChannelsShapeProp, ShuffleChannels);
 REG_SHAPE_INFER_FOR_TYPE(DepthToSpaceShapeProp, DepthToSpace);
 REG_SHAPE_INFER_FOR_TYPE(SpaceToDepthShapeProp, SpaceToDepth);
+REG_SHAPE_INFER_FOR_TYPE(SparseFillEmptyRowsShapeProp, SparseFillEmptyRows);
 REG_SHAPE_INFER_FOR_TYPE(ReverseSequenceShapeProp, ReverseSequence);
 REG_SHAPE_INFER_FOR_TYPE(SelectShapeProp, Select);
 REG_SHAPE_INFER_FOR_TYPE(SqueezeShapeProp, Squeeze);
@@ -203,6 +209,7 @@ REG_SHAPE_INFER_FOR_TYPE(MathShapeProp, Erf);
 REG_SHAPE_INFER_FOR_TYPE(MathShapeProp, Floor);
 REG_SHAPE_INFER_FOR_TYPE(MathShapeProp, HardSigmoid);
 REG_SHAPE_INFER_FOR_TYPE(MathShapeProp, Log);
+REG_SHAPE_INFER_FOR_TYPE(MathShapeProp, Exp);
 REG_SHAPE_INFER_FOR_TYPE(MathShapeProp, Neg);
 REG_SHAPE_INFER_FOR_TYPE(MathShapeProp, Reciprocal);
 REG_SHAPE_INFER_FOR_TYPE(MathShapeProp, Selu);
@@ -226,6 +233,9 @@ REG_SHAPE_INFER_FOR_TYPE(ReduceShapeProp, ReduceSum);
 REG_SHAPE_INFER_FOR_TYPE(ReduceShapeProp, ReduceSumSquare);
 REG_SHAPE_INFER_FOR_TYPE(GatherTreeShapeProp, GatherTree);
 REG_SHAPE_INFER_FOR_TYPE(TopKShapeProp, TopK);
+REG_SHAPE_INFER_FOR_TYPE(UniqueShapeProp, Unique);
+REG_SHAPE_INFER_FOR_TYPE(NMSShapeProp, NonMaxSuppression);
+REG_SHAPE_INFER_FOR_TYPE(ScatterShapeProp, Scatter);
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine

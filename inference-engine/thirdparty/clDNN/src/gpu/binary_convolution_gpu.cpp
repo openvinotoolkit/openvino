@@ -14,8 +14,8 @@
 // limitations under the License.
 */
 
-#include <api/CPP/scale.hpp>
-#include <api/CPP/quantize.hpp>
+#include <api/scale.hpp>
+#include <api/quantize.hpp>
 #include "binary_convolution_inst.h"
 #include "primitive_gpu_base.h"
 #include "implementation_map.h"
@@ -63,12 +63,6 @@ protected:
         kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
 
         args.weights = (memory_impl::cptr) &instance.weights_memory(split);
-        if (instance.has_fused_primitives()) {
-            size_t count = instance.get_fused_mem_count();
-            for (size_t i = 0; i < count; i++) {
-                args.fused_op_inputs.push_back((memory_impl::cptr) &instance.fused_memory(i));
-            }
-        }
         return args;
     }
 
@@ -98,38 +92,13 @@ public:
             get_default_weights_bias_optional_params<kernel_selector::binary_convolution_optional_params>(
                 arg.get_program());
 
-        for (auto& fused_prim : arg.get_fused_primitives()) {
-            using op_type = kernel_selector::binary_convolution_params::fused_operation_desc::Type;
-            kernel_selector::binary_convolution_params::fused_operation_desc desc;
-            if (fused_prim.prim->type == scale::type_id()) {
-                desc.type = op_type::SCALE;
-            } else if (fused_prim.prim->type == quantize::type_id()) {
-                desc.type = op_type::QUANTIZE;
-            } else {
-                CLDNN_ERROR_MESSAGE(arg.id(), "Invalid fused primitive type in binary convolution node");
-            }
-
-            desc.dep_idx_start = fused_prim.dep_start_idx;
-            desc.dep_size = fused_prim.deps.size();
-
-            for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
-                desc.tensors.push_back(convert_data_tensor(arg.get_dependency(i).get_output_layout()));
-            }
-
-            if (fused_prim.activation != cldnn_activation_func_t::activation_none) {
-                desc.activation.m = fused_prim.activation_params.a;
-                desc.activation.n = fused_prim.activation_params.b;
-                desc.activation.function = get_kernel_selector_activation_param(fused_prim.activation);
-            }
-            conv_params.fused_ops.push_back(desc);
-        }
-
         const auto additional_offset = tensor::max(input_offset, (tensor) 0);
         if (additional_offset != (tensor) 0) {
             conv_params.inputs[0] = convert_data_tensor(input_layout, actual_split, additional_offset);
         }
 
         conv_params.pad_value = primitive->pad_value;
+        conv_params.out_dt = to_data_type(*primitive->output_data_type);
         conv_params.depthwise_separable_opt = depthwise_separable_opt;
         conv_params.split = static_cast<uint32_t>(split);
         conv_params.groups = static_cast<uint32_t>(groups);
@@ -170,16 +139,14 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<binary_convolution>::add(
-            std::make_tuple(engine_types::ocl, data_types::bin, format::b_fs_yx_32fp),
-            binary_convolution_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_binary_convolution_gpu::attach_binary_convolution_gpu() {
+    implementation_map<binary_convolution>::add(
+        std::make_tuple(engine_types::ocl, data_types::bin, format::b_fs_yx_32fp),
+        binary_convolution_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

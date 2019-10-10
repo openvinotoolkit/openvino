@@ -21,6 +21,7 @@ public:
     typedef std::shared_ptr<TaskSynchronizer> Ptr;
 
     TaskSynchronizer() : _taskCount(0) {}
+    virtual ~TaskSynchronizer() = default;
 
     virtual void lock() {
         auto taskID = _addTaskToQueue();

@@ -124,7 +124,6 @@ bool Allocator::allocateData(const Data& data) {
     if (data->usage() == DataUsage::Input) {
         if (_allocatedData.count(data) == 0) {
             IE_ASSERT(data->parentDataEdge() == nullptr);
-            IE_ASSERT(data->checkStrides(StridesRequirement::compact()));
 
             auto finalByteSize = alignVal(data->totalByteSize() * _modelBatchSize, DATA_ALIGNMENT);
 
@@ -146,7 +145,6 @@ bool Allocator::allocateData(const Data& data) {
     if (data->usage() == DataUsage::Output) {
         if (_allocatedData.count(data) == 0) {
             IE_ASSERT(data->parentDataEdge() == nullptr);
-            IE_ASSERT(data->checkStrides(StridesRequirement::compact()));
 
             int finalByteSize = 0;
             if (data->attrs().getOrDefault<bool>("unbatched", false)) {

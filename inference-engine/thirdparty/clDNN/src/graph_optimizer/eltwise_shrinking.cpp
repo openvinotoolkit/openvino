@@ -34,6 +34,9 @@ void eltwise_shrinking::run(program_impl& p) {
                 }
             }
 
+            if (node->get_output_layout().format == format::fs_b_yx_fsv32)
+                continue;
+
             const auto eltw = std::static_pointer_cast<const eltwise>(node->get_primitive());
             // TODO: support cases which already have stride!
             if (eltw->stride.empty() && !node->get_users().empty()) {

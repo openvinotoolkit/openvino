@@ -18,7 +18,7 @@
 #include <chrono>
 #include <sstream>
 #include <iomanip>
-#include "api/CPP/memory.hpp"
+#include "api/memory.hpp"
 
 #define DUMP_DIRECTORY "./"
 

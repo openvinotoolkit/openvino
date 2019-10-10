@@ -69,8 +69,14 @@ class InferRequest {
     }
 
 public:
+    /**
+     * @brief Default constructor
+     */
     InferRequest() = default;
 
+    /**
+     * @brief Destructor
+     */
     ~InferRequest() {
         actual = nullptr;
     }
@@ -150,8 +156,9 @@ public:
     }
 
     /**
-     * constructs InferRequest from initialised shared_pointer
-     * @param actual
+     * constructs InferRequest from the initialized shared_pointer
+     * @param request Initialized shared pointer
+     * @param plg Plugin to use
      */
     explicit InferRequest(IInferRequest::Ptr request, InferenceEnginePluginPtr plg = {})
     : actual(request), plg(plg) {}
@@ -192,14 +199,25 @@ public:
         return actual;
     }
 
+    /**
+     * @brief Checks if current InferRequest object is not initialized
+     * @return true if current InferRequest object is not initialized, false - otherwise
+     */
     bool operator!() const noexcept {
         return !actual;
     }
 
+    /**
+     * @brief Checks if current InferRequest object is initialized
+     * @return true if current InferRequest object is initialized, false - otherwise
+     */
     explicit operator bool() const noexcept {
         return !!actual;
     }
 
+    /**
+     * @brief A smart pointer to the InferRequest object
+     */
     using Ptr = std::shared_ptr<InferRequest>;
 };
 

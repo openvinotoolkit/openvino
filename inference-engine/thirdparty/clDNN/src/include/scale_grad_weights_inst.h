@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/scale_grad_weights.hpp"
+#include "api/scale_grad_weights.hpp"
 #include "primitive_inst.h"
 #include <string>
 

@@ -109,6 +109,8 @@ inline std::ostream & operator << (std::ostream &out, const Layout & p) {
             PRINT_LAYOUT(ANY);
             PRINT_LAYOUT(NCHW);
             PRINT_LAYOUT(NHWC);
+            PRINT_LAYOUT(NCDHW);
+            PRINT_LAYOUT(NDHWC);
             PRINT_LAYOUT(OIHW);
             PRINT_LAYOUT(C);
             PRINT_LAYOUT(CHW);
@@ -125,7 +127,7 @@ inline std::ostream & operator << (std::ostream &out, const Layout & p) {
     }
 
 /**
- * @enum Color format
+ * @enum ColorFormat
  * @brief Extra information about input color format for preprocessing
  */
 enum ColorFormat : uint32_t {

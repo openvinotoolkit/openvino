@@ -47,24 +47,23 @@ public:
     static primitive_impl* create(const lstm_dynamic_input_node& arg) {
         auto dlstm_input_params = get_default_params<kernel_selector::lstm_dynamic_input_params>(arg);
 
-        // dyn length
-        const auto& dyn_length_tensor = arg.dyn_length().get_output_layout();
-        dlstm_input_params.inputs.push_back(convert_data_tensor(dyn_length_tensor));
-
-        // weights
         const auto& weights_layout = arg.weights().get_output_layout();
-        dlstm_input_params.weights = convert_data_tensor(weights_layout);
+        dlstm_input_params.weights = convert_weights_tensor(weights_layout);
 
         if (arg.bias_term()) {
             const auto& bias_layout = arg.bias().get_output_layout();
-            dlstm_input_params.set_bias(convert_data_tensor(bias_layout));
+            dlstm_input_params.bias.push_back(convert_data_tensor(bias_layout));
         }
+
+        // dyn length
+        const auto& dyn_length_tensor = arg.dyn_length().get_output_layout();
+        dlstm_input_params.inputs.push_back(convert_data_tensor(dyn_length_tensor));
 
         dlstm_input_params.direction = arg.direction();
 
         // finially get best kernel
         auto lstm_dynamic_optional_params =
-            get_default_optional_params<kernel_selector::lstm_dynamic_input_optional_params>(arg.get_program());
+            get_default_weights_bias_optional_params<kernel_selector::lstm_dynamic_input_optional_params>(arg.get_program());
 
         auto& kernel_selector = kernel_selector::lstm_dynamic_input_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(dlstm_input_params, lstm_dynamic_optional_params);
@@ -80,19 +79,17 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = lstm_dynamic_input_gpu::create;
+namespace detail {
 
-        implementation_map<lstm_dynamic_input>::add({
-            {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw},
-            {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw},
-        });
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+attach_lstm_dynamic_input_gpu::attach_lstm_dynamic_input_gpu() {
+    auto val_fw = lstm_dynamic_input_gpu::create;
+
+    implementation_map<lstm_dynamic_input>::add({
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw},
+    });
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

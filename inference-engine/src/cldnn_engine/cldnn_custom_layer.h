@@ -10,7 +10,7 @@
 #include <map>
 #include <ie_common.h>
 #include "pugixml.hpp"
-#include "CPP/tensor.hpp"
+#include "api/tensor.hpp"
 
 namespace CLDNNPlugin {
 
@@ -54,7 +54,7 @@ public:
     const std::vector<std::string>& GlobalSizeRules()const { return m_globalSizeRules; }
     const std::vector<std::string>& LocalSizeRules()const { return m_localSizeRules; }
     const std::vector<KerenlParam>& KernelParams()const { return m_kernelParams; }
-    const int InputDimSourceIndex() { return m_wgDimInputIdx; }
+    int InputDimSourceIndex() { return m_wgDimInputIdx; }
 
 protected:
     CLDNNCustomLayer() : m_wgDimInputIdx(0) {}

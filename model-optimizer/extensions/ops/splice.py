@@ -25,6 +25,7 @@ class Splice(Op):
         mandatory_props = {
             'type': None,
             'op': __class__.op,
+            'const_dim': 0,
             'in_ports_count': 1,
             'out_ports_count': 1,
             'infer': __class__.infer,
@@ -35,4 +36,4 @@ class Splice(Op):
     def infer(node: Node):
         out_node = node.out_node()
         out_node.shape = node.in_node().shape.copy()
-        out_node.shape[1] = node.in_node().shape[1] * len(node.context)
+        out_node.shape[1] = node.const_dim + (node.in_node().shape[1] - node.const_dim) * len(node.context)

@@ -188,10 +188,10 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
             if (implKey.Support(requireKey) && implKey.TuningSupport()) {
                 try {
                     KernelsData kds = implementation->GetKernelsDataForAutoTune(params, options);
-                    std::vector<uint64_t> runTimes = options.tuningParams.runner->run_kernels(kds);
+                    auto runTimes = options.tuningParams.runner->run_kernels(kds);
 
                     for (size_t i = 0; i < kds.size(); i++) {
-                        kds[i].runTime = runTimes[i];
+                        kds[i].runTime = runTimes[i].count();
                         if (kernelsData.size() == 0 || kds[i].runTime < kernelsData[0].runTime) {
                             kernelsData = {kds[i]};
                             kernelName = implementation->GetName();
@@ -211,10 +211,10 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
                 if (implKey.Support(requireKey) && !implKey.TuningSupport()) {
                     try {
                         KernelsData kds = implementation->GetKernelsDataForAutoTune(params, options);
-                        std::vector<uint64_t> runTimes = options.tuningParams.runner->run_kernels(kds);
+                        auto runTimes = options.tuningParams.runner->run_kernels(kds);
 
                         for (size_t i = 0; i < kds.size(); i++) {
-                            kds[i].runTime = runTimes[i];
+                            kds[i].runTime = runTimes[i].count();
                             if (kernelsData.size() == 0 || kds[i].runTime < kernelsData[0].runTime) {
                                 kernelsData = {kds[i]};
                                 kernelName = implementation->GetName();

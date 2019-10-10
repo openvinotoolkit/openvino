@@ -68,25 +68,23 @@ public:
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                           normalize_gpu::create);
-        implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                           normalize_gpu::create);
-        implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                           normalize_gpu::create);
-        implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                           normalize_gpu::create);
-        implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
-                                           normalize_gpu::create);
-        implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
-                                           normalize_gpu::create);
-    }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_normalize_gpu::attach_normalize_gpu() {
+    implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                       normalize_gpu::create);
+    implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                       normalize_gpu::create);
+    implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                       normalize_gpu::create);
+    implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+                                       normalize_gpu::create);
+    implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
+                                       normalize_gpu::create);
+    implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+                                       normalize_gpu::create);
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

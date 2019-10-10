@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/activation.hpp"
+#include "api/activation.hpp"
 #include "primitive_inst.h"
 #include <memory>
 #include <string>

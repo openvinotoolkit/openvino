@@ -26,7 +26,7 @@
 
 namespace cldnn {
 
-primitive_type_id generic_layer_type_id() {
+primitive_type_id generic_layer::type_id() {
     static primitive_type_base<generic_layer> instance;
     return &instance;
 }

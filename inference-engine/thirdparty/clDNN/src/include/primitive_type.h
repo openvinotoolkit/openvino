@@ -16,9 +16,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/memory.hpp"
-#include "api/CPP/primitive.hpp"
-#include "api/CPP/program.hpp"
+#include "api/memory.hpp"
+#include "api/primitive.hpp"
+#include "api/program.hpp"
 
 #include "topology_impl.h"
 
@@ -32,22 +32,22 @@ struct program_node;
 struct primitive_impl;
 class primitive_inst;
 struct program_impl;
-}  // namespace cldnn
-struct cldnn_primitive_type {
-    virtual ~cldnn_primitive_type() = default;
 
-    virtual std::shared_ptr<cldnn::primitive> from_dto(const CLDNN_PRIMITIVE_DESC(primitive) * dto) const = 0;
-    virtual std::shared_ptr<cldnn::program_node> create_node(cldnn::program_impl& program,
-                                                             const std::shared_ptr<cldnn::primitive> prim) const = 0;
-    virtual std::shared_ptr<cldnn::primitive_inst> create_instance(cldnn::network_impl& network,
-                                                                   const cldnn::program_node& node) const = 0;
-    virtual std::unique_ptr<cldnn::primitive_impl> choose_impl(cldnn::engine_impl& engine,
-                                                               const cldnn::program_node& node) const = 0;
-    virtual bool does_an_implementation_exist(cldnn::engine_impl& engine, const cldnn::program_node& node) const = 0;
-    virtual bool does_possible_implementation_exist(cldnn::engine_impl& engine,
-                                                    const cldnn::program_node& node) const = 0;
-    virtual cldnn::layout calc_output_layout(const cldnn::program_node& node) const = 0;
-    virtual std::string to_string(const cldnn::program_node& node) const = 0;
+struct primitive_type {
+    virtual ~primitive_type() = default;
+
+    virtual std::shared_ptr<program_node> create_node(program_impl& program,
+                                                      const std::shared_ptr<primitive> prim) const = 0;
+    virtual std::shared_ptr<primitive_inst> create_instance(network_impl& network,
+                                                            const program_node& node) const = 0;
+    virtual std::unique_ptr<primitive_impl> choose_impl(engine_impl& engine,
+                                                        const program_node& node) const = 0;
+    virtual bool does_an_implementation_exist(engine_impl& engine, const program_node& node) const = 0;
+    virtual bool does_possible_implementation_exist(engine_impl& engine,
+                                                    const program_node& node) const = 0;
+    virtual layout calc_output_layout(const program_node& node) const = 0;
+    virtual std::string to_string(const program_node& node) const = 0;
 
     virtual bool is_internal_type() const { return false; }
 };
+}  // namespace cldnn

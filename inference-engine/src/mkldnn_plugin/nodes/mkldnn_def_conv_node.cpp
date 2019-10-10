@@ -123,40 +123,36 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
     mkldnn::primitive_attr attr;
 
     for (auto& desc : descs) {
-        try {
-            primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
-            do {
-                InferenceEngine::LayerConfig config;
-                config.dynBatchSupport = true;
-                for (size_t i = 0; i < desc.inputNumbers(); i++) {
-                    InferenceEngine::DataConfig dataConfig;
-                    dataConfig.inPlace = -1;
-                    dataConfig.constant = false;
-                    dataConfig.desc = getSrcMemDesc(itpd, i);
-                    if (!isGrouped)
-                        dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
-                    config.inConfs.push_back(dataConfig);
-                }
+        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
+        while (itpd.is_not_end()) {
+            InferenceEngine::LayerConfig config;
+            config.dynBatchSupport = true;
+            for (size_t i = 0; i < desc.inputNumbers(); i++) {
+                InferenceEngine::DataConfig dataConfig;
+                dataConfig.inPlace = -1;
+                dataConfig.constant = false;
+                dataConfig.desc = getSrcMemDesc(itpd, i);
+                if (!isGrouped)
+                    dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
+                config.inConfs.push_back(dataConfig);
+            }
 
-                std::vector<memory::format> outFormats;
-                for (size_t i = 0; i < desc.outputNumbers(); i++) {
-                    InferenceEngine::DataConfig dataConfig;
+            std::vector<memory::format> outFormats;
+            for (size_t i = 0; i < desc.outputNumbers(); i++) {
+                InferenceEngine::DataConfig dataConfig;
 
-                    dataConfig.constant = false;
-                    dataConfig.desc = getDstMemDesc(itpd, i);
-                    if (!isGrouped)
-                        dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
-                    config.outConfs.push_back(dataConfig);
+                dataConfig.constant = false;
+                dataConfig.desc = getDstMemDesc(itpd, i);
+                if (!isGrouped)
+                    dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
+                config.outConfs.push_back(dataConfig);
 
-                    outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
-                }
-                impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+                outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
+            }
+            impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
 
-                supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
-            } while (itpd.next());
-        } catch (std::exception& e) {
-            // it throw exception in case of no implementation found
-            continue;
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
+            itpd++;
         }
     }
 }
@@ -246,44 +242,41 @@ void MKLDNNDeformableConvolutionNode::initDescriptor(const InferenceEngine::Laye
     size_t selected_count = 0;
     for (size_t i = 0; i < descs.size(); i++) {
         const auto& desc = descs[i];
-        try {
-            primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
-            do {
-                InferenceEngine::LayerConfig cfg;
-                cfg.dynBatchSupport = true;
-                for (size_t j = 0; j < desc.inputNumbers(); j++) {
-                    InferenceEngine::DataConfig dataConfig;
-                    dataConfig.inPlace = -1;
-                    dataConfig.constant = false;
-                    dataConfig.desc = getSrcMemDesc(itpd, j);
-                    cfg.inConfs.push_back(dataConfig);
-                }
+        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
+        while (itpd.is_not_end()) {
+            InferenceEngine::LayerConfig cfg;
+            cfg.dynBatchSupport = true;
+            for (size_t j = 0; j < desc.inputNumbers(); j++) {
+                InferenceEngine::DataConfig dataConfig;
+                dataConfig.inPlace = -1;
+                dataConfig.constant = false;
+                dataConfig.desc = getSrcMemDesc(itpd, j);
+                cfg.inConfs.push_back(dataConfig);
+            }
 
-                for (size_t j = 0; j < desc.outputNumbers(); j++) {
-                    InferenceEngine::DataConfig dataConfig;
-                    dataConfig.inPlace = -1;
-                    dataConfig.constant = false;
-                    dataConfig.desc = getDstMemDesc(itpd, j);
+            for (size_t j = 0; j < desc.outputNumbers(); j++) {
+                InferenceEngine::DataConfig dataConfig;
+                dataConfig.inPlace = -1;
+                dataConfig.constant = false;
+                dataConfig.desc = getDstMemDesc(itpd, j);
 
-                    cfg.outConfs.push_back(dataConfig);
-                }
-                impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+                cfg.outConfs.push_back(dataConfig);
+            }
+            impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
 
-                if (selected_count == selectedPrimitiveDescriptorIndex) {
-                    if (impl_type != selectedPD->getImplementationType()) {
-                        THROW_IE_EXCEPTION << "Cannot get the original layer configuration!";
-                    }
-                    rightConfig = cfg;
+            if (selected_count == selectedPrimitiveDescriptorIndex) {
+                if (impl_type != selectedPD->getImplementationType()) {
+                    THROW_IE_EXCEPTION << "Cannot get the original layer configuration!";
                 }
-                if (i == descs.size() - 1 && addedNewDesc) {
-                    if (impl_type == selectedPD->getImplementationType()) {
-                        rightConfig = config;
-                    }
+                rightConfig = cfg;
+            }
+            if (i == descs.size() - 1 && addedNewDesc) {
+                if (impl_type == selectedPD->getImplementationType()) {
+                    rightConfig = config;
                 }
-                selected_count++;
-            } while (itpd.next());
-        } catch (std::exception& e) {
-            continue;
+            }
+            selected_count++;
+            itpd++;
         }
     }
     selectedPD->getConfig() = rightConfig;

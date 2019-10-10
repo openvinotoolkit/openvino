@@ -25,7 +25,7 @@
 #include <algorithm>
 
 namespace cldnn {
-primitive_type_id input_layout_type_id() {
+primitive_type_id input_layout::type_id() {
     static primitive_type_base<input_layout> instance;
     return &instance;
 }

@@ -22,8 +22,8 @@
 // This part of the system is API-unaware by its design.
 //
 
-#include "opencv2/gapi/garg.hpp"
-#include "opencv2/gapi/gkernel.hpp"
+#include <opencv2/gapi/garg.hpp>
+#include <opencv2/gapi/gkernel.hpp>
 
 #include "compiler/gobjref.hpp"
 #include "compiler/gislandmodel.hpp"
@@ -203,8 +203,8 @@ namespace GModel
     GAPI_EXPORTS void redirectReaders(Graph &g, ade::NodeHandle from, ade::NodeHandle to);
     GAPI_EXPORTS void redirectWriter (Graph &g, ade::NodeHandle from, ade::NodeHandle to);
 
-    GAPI_EXPORTS std::vector<ade::NodeHandle> orderedInputs (Graph &g, ade::NodeHandle nh);
-    GAPI_EXPORTS std::vector<ade::NodeHandle> orderedOutputs(Graph &g, ade::NodeHandle nh);
+    GAPI_EXPORTS std::vector<ade::NodeHandle> orderedInputs (ConstGraph &g, ade::NodeHandle nh);
+    GAPI_EXPORTS std::vector<ade::NodeHandle> orderedOutputs(ConstGraph &g, ade::NodeHandle nh);
 
     // Returns input meta array for given op node
     // Array is sparse, as metadata for non-gapi input objects is empty

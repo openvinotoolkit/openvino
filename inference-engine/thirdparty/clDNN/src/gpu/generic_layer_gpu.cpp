@@ -20,6 +20,7 @@
 #include "kernel_selector_helper.h"
 #include "network_impl.h"
 #include "engine_impl.h"
+#include "register_gpu.hpp"
 #include <vector>
 
 using namespace cldnn;
@@ -87,11 +88,11 @@ static primitive_impl* create(const generic_layer_node& arg) {
     }
 }
 
-namespace {
-struct attach {
-    attach() { implementation_map<generic_layer>::add({{cldnn::engine_types::ocl, create}}); }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
 }  // namespace neural
+
+namespace cldnn { namespace gpu { namespace detail {
+    attach_generic_layer_gpu::attach_generic_layer_gpu() {
+        implementation_map<generic_layer>::add({ {cldnn::engine_types::ocl, neural::create} });
+    }
+
+} } }  // namespace cldnn::gpu::detail

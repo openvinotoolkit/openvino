@@ -15,12 +15,12 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
 
-#include <api/CPP/engine.hpp>
-#include <api/CPP/input_layout.hpp>
-#include <api/CPP/memory.hpp>
-#include <api/CPP/one_hot.hpp>
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
+#include <api/engine.hpp>
+#include <api/input_layout.hpp>
+#include <api/memory.hpp>
+#include <api/one_hot.hpp>
+#include <api/topology.hpp>
+#include <api/network.hpp>
 
 #include "test_utils/test_utils.h"
 #include "test_utils/uniform_quantized_real_distribution.hpp"

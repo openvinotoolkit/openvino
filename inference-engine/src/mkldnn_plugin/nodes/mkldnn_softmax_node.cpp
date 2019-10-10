@@ -73,14 +73,15 @@ void MKLDNNSoftMaxNode::createPrimitive() {
     auto prim_desc = softmax_forward::primitive_desc(*selected_desc_ptr, getEngine());
     primitive_desc_iterator itpd = descs[0].createPrimitiveDescriptorIterator(getEngine());
 
-    do {
+    while (itpd.is_not_end()) {
         impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
         auto primitiveDescriptor = getSelectedPrimitiveDescriptor();
         if ((primitiveDescriptor != nullptr) && (impl_type == primitiveDescriptor->getImplementationType())) {
             itpd.getPrimitiveDescriptor(prim_desc);
             break;
         }
-    } while (itpd.next());
+        itpd++;
+    }
 
     prim.reset(new softmax_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
                                 getChildEdgeAt(0)->getMemory().GetPrimitive()));

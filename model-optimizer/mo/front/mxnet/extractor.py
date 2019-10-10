@@ -37,7 +37,6 @@ def extractor_wrapper(mxnet_extractor):
 
 mxnet_op_extractors = {
     'BatchNorm': extractor_wrapper(batch_norm_ext),
-    'Crop': extractor_wrapper(crop_ext),
     'ScaleShift': extractor_wrapper(scale_shift_ext),
     'slice_axis': extractor_wrapper(slice_axis_ext),
     'null': lambda node: null_ext(node.symbol_dict),

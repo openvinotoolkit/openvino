@@ -20,7 +20,7 @@ public:
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-
+    using MKLDNNNode::createDescriptor;
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc,
                           const std::vector<mkldnn::memory::format> &outputFormats);

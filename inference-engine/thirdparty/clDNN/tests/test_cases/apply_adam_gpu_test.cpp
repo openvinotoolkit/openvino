@@ -16,17 +16,17 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/apply_adam.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/apply_adam.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include <api/CPP/reorder.hpp>
-#include <api/CPP/data.hpp>
-#include <api/CPP/activation.hpp>
-#include <api/CPP/mutable_data.hpp>
+#include <api/reorder.hpp>
+#include <api/data.hpp>
+#include <api/activation.hpp>
+#include <api/mutable_data.hpp>
 
 using namespace cldnn;
 using namespace tests;
@@ -61,9 +61,9 @@ TEST(apply_adam_gpu, basic_in2x2x3x2_bfyx) {
     topology.add(data("beta1_power_t1", beta1_power));
     topology.add(data("beta2_power_t1", beta2_power));
     topology.add(apply_adam("apply_adam", "input", "m", "v", "beta1_power_t1", "beta2_power_t1", lr, beta1, beta2, epsilon));
-    topology.add(activation("relu", "input", activation_linear, { 4.f, 0.f }));
-    topology.add(activation("beta1_power_t2", "beta1_power_t1", activation_linear, { beta1, 0.f }));
-    topology.add(activation("beta2_power_t2", "beta2_power_t1", activation_linear, { beta2, 0.f }));
+    topology.add(activation("relu", "input", activation_func::linear, { 4.f, 0.f }));
+    topology.add(activation("beta1_power_t2", "beta1_power_t1", activation_func::linear, { beta1, 0.f }));
+    topology.add(activation("beta2_power_t2", "beta2_power_t1", activation_func::linear, { beta2, 0.f }));
     topology.add(apply_adam("apply_adam2", "relu", "m", "v", "beta1_power_t2", "beta2_power_t2", lr, beta1, beta2, epsilon, "apply_adam"));
     topology.add(mutable_data("var", { "apply_adam", "apply_adam2" }, var));
 

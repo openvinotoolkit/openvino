@@ -190,12 +190,10 @@ public:
         }
     }
 
-    void compareICNNNetworks(const ICNNNetwork& newNetwork, const ICNNNetwork& oldNetwork) {
-        IE_SUPPRESS_DEPRECATED_START
-        CNNNetwork network((ICNNNetwork*)&newNetwork);
-        IE_SUPPRESS_DEPRECATED_END
+    void compareICNNNetworks(const ICNNNetwork::Ptr newNetwork, const ICNNNetwork& oldNetwork) {
+        CNNNetwork network(newNetwork);
 
-        if (newNetwork.layerCount() != oldNetwork.layerCount())
+        if (newNetwork->layerCount() != oldNetwork.layerCount())
             THROW_IE_EXCEPTION << "ICNNNetworks have different numbers of layers!";
         for (const auto& layer : network) {
             CNNLayerPtr oldLayer;
@@ -223,8 +221,8 @@ public:
 
         InputsDataMap newInput;
         OutputsDataMap newOutput;
-        newNetwork.getInputsInfo(newInput);
-        newNetwork.getOutputsInfo(newOutput);
+        newNetwork->getInputsInfo(newInput);
+        newNetwork->getOutputsInfo(newOutput);
         InputsDataMap oldInput;
         OutputsDataMap oldOutput;
         oldNetwork.getInputsInfo(oldInput);
@@ -724,7 +722,7 @@ TEST_F(NetworkBuilderTest, convertFromICNNNetworkToICNNNetwork) {
     std::shared_ptr<ICNNNetwork> network = Builder::convertToICNNNetwork(Builder::Network(net_reader.getNetwork()).build());
 
     try {
-        compareICNNNetworks(*network, net_reader.getNetwork());
+        compareICNNNetworks(network, net_reader.getNetwork());
     } catch (InferenceEngine::details::InferenceEngineException &ex) {
         FAIL() << ex.what();
     }
@@ -1148,7 +1146,7 @@ TEST_F(NetworkBuilderTest, CreateLSTMFromBuilder) {
     builder.addLayer({{lstm, 2}}, Builder::OutputLayer("output2"));
     const auto network = Builder::convertToICNNNetwork(builder.build());
     try {
-        compareICNNNetworks(*network, net_reader.getNetwork());
+        compareICNNNetworks(network, net_reader.getNetwork());
     } catch (InferenceEngine::details::InferenceEngineException &ex) {
         FAIL() << ex.what();
     }
@@ -1187,6 +1185,8 @@ TEST_F(NetworkBuilderTest, CheckPreProcessAlexNet) {
 }
 
 TEST_F(NetworkBuilderTest, ReshapeNetworkTest) {
+    Builder::ReshapeLayer("WA");
+
     std::string model = R"V0G0N(
 <net name="Reshape" version="2" batch="1">
     <layers>
@@ -1231,7 +1231,7 @@ TEST_F(NetworkBuilderTest, ReshapeNetworkTest) {
     network->getLayerByName("flatten", layer, nullptr);
     ASSERT_EQ(layer->outData[0]->getDims().size(), 2);
     try {
-        compareICNNNetworks(*network, net_reader.getNetwork());
+        compareICNNNetworks(network, net_reader.getNetwork());
     } catch (InferenceEngine::details::InferenceEngineException &ex) {
         FAIL() << ex.what();
     }

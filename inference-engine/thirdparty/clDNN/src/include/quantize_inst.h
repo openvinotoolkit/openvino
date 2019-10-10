@@ -16,7 +16,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "api/CPP/quantize.hpp"
+#include "api/quantize.hpp"
 #include "primitive_inst.h"
 #include <string>
 
@@ -31,11 +31,13 @@ public:
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
     size_t inputs_count() const { return get_dependencies().size(); }
-    void set_packed_binary_output(bool _packed_binary_output) { packed_binary_output = _packed_binary_output; }
-    bool get_packed_binary_output() const { return packed_binary_output; }
+    void set_output_data_type(data_types dt) { out_dt = dt; dt_changed = true; }
+    data_types get_output_data_type() const { return out_dt; }
+    bool has_custom_out_dt() const { return dt_changed; }
 
 private:
-    bool packed_binary_output = false;
+    data_types out_dt;
+    bool dt_changed = false;
 };
 
 using quantize_node = typed_program_node<quantize>;

@@ -18,6 +18,7 @@
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/logger.hpp>
+#include <vpu/utils/profiling.hpp>
 
 #include "myriad_executor.h"
 #include "myriad_config.h"
@@ -36,6 +37,7 @@ using namespace vpu;
 static std::mutex device_mutex;
 
 MyriadExecutor::MyriadExecutor(bool forceReset, const LogLevel& vpuLogLevel, const Logger::Ptr& log) : _log(log) {
+    VPU_PROFILE(MyriadExecutor);
     _mvnc = std::make_shared<Mvnc>();
     int ncResetAll = forceReset;
     auto status = ncGlobalSetOption(NC_RW_RESET_ALL, &ncResetAll, sizeof(ncResetAll));
@@ -75,7 +77,9 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
                                           const std::string& configDevName,
                                           const ncDevicePlatform_t &configPlatform,
                                           const ncDeviceProtocol_t &configProtocol,
-                                          int watchdogInterval) {
+                                          int watchdogInterval,
+                                          PowerConfig powerConfig) {
+    VPU_PROFILE(bootNextDevice);
 // #-17972, #-16790
 #if defined(NO_BOOT)
     if (!devicePool.empty()) {
@@ -186,6 +190,14 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
         device._name = deviceName;
     }
 
+    status = ncDeviceSetOption(device._deviceHandle, NC_RW_DEVICE_POWER_CONFIG, reinterpret_cast<void*>(&powerConfig), sizeof(dataLength));
+
+    if (status != NC_OK) {
+        _log->warning("Failed to set configuration for Power Manager");
+        ncDeviceClose(&device._deviceHandle);
+        return status;
+    }
+
     /* TODO: what should we do if we do not know maximum available graphs? What if we got number <= 0? */
     device._graphNum = 1;
     device._deviceIdx = lastDeviceIdx + 1;
@@ -195,6 +207,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
 
 DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr> &devicePool,
                                      const std::shared_ptr<MyriadConfig> &config) {
+    VPU_PROFILE(openDevice);
     std::lock_guard<std::mutex> lock(device_mutex);
 
     auto firstBootedButEmptyDevice = std::find_if(devicePool.begin(), devicePool.end(),
@@ -227,7 +240,7 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr> &devicePool,
     }
 
     ncStatus_t booted = bootNextDevice(devicePool, config->deviceName,
-        config->platform, config->protocol, config->watchdogInterval.count());
+        config->platform, config->protocol, config->watchdogInterval.count(), config->powerConfig);
 
     // TODO Is any tests for this case? #-19309
     // In case, then there is no another not booted device, use already booted with minimum number of executors
@@ -272,6 +285,7 @@ VPU_PACKED(bin_header {
 };)
 
 void MyriadExecutor::closeDevices(std::vector<DevicePtr> &devicePool) {
+    VPU_PROFILE(closeDevices);
     std::lock_guard<std::mutex> lock(device_mutex);
     for (auto &device : devicePool) {
         if (device->_deviceHandle != nullptr) {
@@ -287,6 +301,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
                                    const std::vector<char> &graphFileContent,
                                    const std::pair<const char*, size_t> &graphHeaderDesc,
                                    size_t numStages, const char* networkName, int executors) {
+    VPU_PROFILE(allocateGraph);
     _numStages = numStages;
     graphDesc._name = networkName;
     if (device->_deviceHandle == nullptr) {
@@ -373,6 +388,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
 
 void MyriadExecutor::queueInference(GraphDesc &graphDesc, void *input_data, size_t input_bytes,
                     void *result_data, size_t result_bytes) {
+    VPU_PROFILE(queueInference);
 #ifndef NDEBUG
     if (auto dumpFileName = std::getenv("IE_VPU_DUMP_INPUT_FILE_NAME")) {
         std::ofstream file(dumpFileName, std::ios_base::binary | std::ios_base::out);
@@ -410,6 +426,7 @@ void MyriadExecutor::getResult(GraphDesc &graphDesc, void *result_data, unsigned
 }
 
 void MyriadExecutor::deallocateGraph(DevicePtr &device, GraphDesc &graphDesc) {
+    VPU_PROFILE(deallocateGraph);
     std::lock_guard<std::mutex> lock(device_mutex);
 
     if (graphDesc._inputFifoHandle != nullptr) {

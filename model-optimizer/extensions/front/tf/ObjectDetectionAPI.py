@@ -160,7 +160,7 @@ def _relax_reshape_nodes(graph: Graph, pipeline_config: PipelineConfig):
     for ssd_head_ind in range(num_layers):
         input_node = _find_ssd_head_node(graph, ssd_head_ind, 'box')
         assert (input_node is not None)
-        old_reshape_node = _skip_node_of_type(input_node.out_node(), ['Identity'])
+        old_reshape_node = _skip_node_of_type(input_node.out_node(), ['Identity', 'FakeQuantWithMinMaxVars'])
         assert old_reshape_node.op == 'Reshape'
         reshape_size_node = Const(graph, {'value': int64_array([0, -1, 1, 4])}).create_node([])
         new_reshape_op = Reshape(graph, {'name': input_node.id + '/Reshape'})
@@ -170,7 +170,7 @@ def _relax_reshape_nodes(graph: Graph, pipeline_config: PipelineConfig):
         # fix hard-coded value for the number of items in tensor produced by the convolution to make topology reshapable
         input_node = _find_ssd_head_node(graph, ssd_head_ind, 'class')
         assert (input_node is not None)
-        old_reshape_node = _skip_node_of_type(input_node.out_node(), ['Identity'])
+        old_reshape_node = _skip_node_of_type(input_node.out_node(), ['Identity', 'FakeQuantWithMinMaxVars'])
         assert old_reshape_node.op == 'Reshape'
         reshape_size_node_2 = Const(graph, {'value': int64_array([0, -1, num_classes + 1])}).create_node([])
         new_reshape_op_2 = Reshape(graph, {'name': input_node.id + '/Reshape'})
@@ -191,6 +191,9 @@ def _create_prior_boxes_node(graph: Graph, pipeline_config: PipelineConfig):
     max_scale = pipeline_config.get_param('ssd_anchor_generator_max_scale')
     num_layers = pipeline_config.get_param('ssd_anchor_generator_num_layers')
     aspect_ratios = pipeline_config.get_param('ssd_anchor_generator_aspect_ratios')
+    if not isinstance(aspect_ratios, list):
+        aspect_ratios = [aspect_ratios]
+
     # prior boxes have to be generated using the image size used for training
     image_height = pipeline_config.get_param('resizer_image_height')
     image_width = pipeline_config.get_param('resizer_image_width')
@@ -203,7 +206,11 @@ def _create_prior_boxes_node(graph: Graph, pipeline_config: PipelineConfig):
     if pipeline_config.get_param('ssd_anchor_generator_reduce_lowest') is not None:
         reduce_boxes_in_lowest_layer = pipeline_config.get_param('ssd_anchor_generator_reduce_lowest')
 
-    scales = [min_scale + (max_scale - min_scale) * i / (num_layers - 1) for i in range(num_layers)] + [1.0]
+    if pipeline_config.get_param('ssd_anchor_generator_scales') is not None:
+        scales = pipeline_config.get_param('ssd_anchor_generator_scales') + [1.0]
+    else:
+        scales = [min_scale + (max_scale - min_scale) * i / (num_layers - 1) for i in range(num_layers)] + [1.0]
+
     prior_box_nodes = []
     for ssd_head_ind in range(num_layers):
         ssd_head_node = _find_ssd_head_node(graph, ssd_head_ind, 'box')
@@ -216,8 +223,10 @@ def _create_prior_boxes_node(graph: Graph, pipeline_config: PipelineConfig):
             widths = [scales[ssd_head_ind] * sqrt(ar) for ar in aspect_ratios]
             heights = [scales[ssd_head_ind] / sqrt(ar) for ar in aspect_ratios]
 
-            widths += [sqrt(scales[ssd_head_ind] * scales[ssd_head_ind + 1])]
-            heights += [sqrt(scales[ssd_head_ind] * scales[ssd_head_ind + 1])]
+            interpolated_scale_ar = pipeline_config.get_param('ssd_anchor_generator_interpolated_scale_aspect_ratio')
+            if interpolated_scale_ar > 0.0:
+                widths += [sqrt(scales[ssd_head_ind] * scales[ssd_head_ind + 1]) * interpolated_scale_ar]
+                heights += [sqrt(scales[ssd_head_ind] * scales[ssd_head_ind + 1]) / interpolated_scale_ar]
         widths = [w * image_width * base_anchor_size[1] for w in widths]
         heights = [h * image_height * base_anchor_size[0] for h in heights]
 
@@ -944,8 +953,11 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
                                                              {'name': 'do_reshape_conf'}, activation_conf_node)
         mark_as_correct_data_layout(reshape_conf_node)
 
-        if pipeline_config.get_param('ssd_anchor_generator_num_layers') is not None or \
-                pipeline_config.get_param('multiscale_anchor_generator_min_level') is not None:
+        custom_attributes = match.custom_replacement_desc.custom_attributes
+        if ('disable_prior_boxes_layers_generator' not in custom_attributes or
+            not custom_attributes['disable_prior_boxes_layers_generator']) and \
+            (pipeline_config.get_param('ssd_anchor_generator_num_layers') is not None or
+                pipeline_config.get_param('multiscale_anchor_generator_min_level') is not None):
             # change the Reshape operations with hardcoded number of output elements of the convolution nodes to be
             # reshapable
             _relax_reshape_nodes(graph, pipeline_config)

@@ -34,6 +34,10 @@ ParamsKey fused_conv_eltwise_kernel_ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfzyx_f16);
+    k.EnableOutputLayout(DataLayout::bfzyx_f16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableNonBiasTerm();
@@ -77,8 +81,8 @@ JitConstants fused_conv_eltwise_kernel_ref::GetJitConstants(const fused_conv_elt
     // TODO: This gives both ACTIVATION and ACTIVATION_TYPED. Should we
     // factor that out into a virtual function to avoid creation of similar
     // yet distinct macros?
-    jit.Merge(MakeActivationJitConstants(params.conv.activation, "_CONV_TYPED", true));
-    jit.Merge(MakeActivationJitConstants(params.activation, "_ELTW_TYPED", true));
+    jit.Merge(MakeActivationJitConstants(params.conv.activations, "_CONV_TYPED", true));
+    jit.Merge(MakeActivationJitConstants(params.activations, "_ELTW_TYPED", true));
     // Needs to be done on host to get _MAX_VAL/_MIN_VAL/TO_TYPE macros
     // available (will be used in the activations).
     //

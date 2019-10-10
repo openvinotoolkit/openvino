@@ -32,7 +32,7 @@ python3 classification_sample_async.py -h
 The command yields the following usage message:
 ```
 usage: classification_sample_async.py [-h] -m MODEL -i INPUT [INPUT ...]
-                                      [-l CPU_EXTENSION] [-pp PLUGIN_DIR]
+                                      [-l CPU_EXTENSION]
                                       [-d DEVICE] [--labels LABELS]
                                       [-nt NUMBER_TOP]
 
@@ -47,8 +47,6 @@ Options:
                         Optional. Required for CPU custom layers. Absolute
                         path to a shared library with the kernels
                         implementations.
-  -pp PLUGIN_DIR, --plugin_dir PLUGIN_DIR
-                        Optional. Path to a plugin folder
   -d DEVICE, --device DEVICE
                         Optional. Specify the target device to infer on; CPU,
                         GPU, FPGA, HDDL or MYRIAD is acceptable. The sample
@@ -68,7 +66,7 @@ To run the sample, you can use AlexNet and GoogLeNet or other image classificati
 
 You can do inference of an image using a trained AlexNet network on FPGA with fallback to CPU using the following command:
 ```
-    python3 classification_sample_async.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d HETERO:FPGA,CPU -nireq 2 -ni 200
+    python3 classification_sample_async.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d HETERO:FPGA,CPU
 ```
 
 ## Sample Output

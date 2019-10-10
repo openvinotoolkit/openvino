@@ -151,14 +151,14 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
     auto inputDesc = getInputDesc();
     auto outputDesc = getOutputDesc();
     if (!MKLDNNExtensionUtils::initTensorsAreEqual(outputDesc, inputDesc) ||
-            (inputDesc.getDims()[0] != 1 && inputDesc != outputDesc))
+            (inputDesc.getDims().size() > 0 && inputDesc.getDims()[0] != 1 && inputDesc != outputDesc))
         THROW_IE_EXCEPTION << "Cannot allocate memory. Nodes have primitive descriptors with different formats.";
     if (inputDesc.getLayout() == InferenceEngine::Layout::ANY)
         THROW_IE_EXCEPTION << "Cannot get input descriptor!";
 
     auto parentPtr = getParent();
     memoryPtr.reset(new MKLDNNMemory(parentPtr->getEngine()));
-    memoryPtr->Create(MKLDNNMemoryDesc(inputDesc), mem_ptr);
+    memoryPtr->Create(MKLDNNMemoryDesc(inputDesc), mem_ptr, false);  // no pads zeroing
     status = Status::Allocated;
 }
 
@@ -209,7 +209,7 @@ const MKLDNNDims& MKLDNNEdge::getDims() {
 
         dims = outDims.ndims() ? outDims : inDims;
 
-        if (!dims.ndims())
+        if (!(outDims.ndims() == 0 && inDims.ndims() == 0) && !dims.ndims())
             THROW_IE_EXCEPTION << "Cannot detect right dims for nodes " << getParent()->getName()
                                << " and " << getChild()->getName();
     }
@@ -549,7 +549,7 @@ MKLDNNMemoryPtr &MKLDNNEdge::getMemoryPtr() {
 }
 
 InferenceEngine::Blob::Ptr MKLDNNEdge::getBlob() {
-    if (!memoryPtr || !dims.ndims())
+    if (!memoryPtr)
         THROW_IE_EXCEPTION << "Cannot get blob! Edge isn't initialized.";
     InferenceEngine::TensorDesc desc = getDesc();
 

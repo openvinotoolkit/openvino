@@ -26,32 +26,18 @@ namespace kernel_selector {
 // binary_convolution_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct binary_convolution_params : public weight_bias_params {
-    struct fused_operation_desc {
-        enum class Type : uint8_t {
-            SCALE = 0,
-            QUANTIZE,
-            UNDEFINED
-        };
-
-        Type type;
-        size_t dep_idx_start;
-        size_t dep_size;
-        MultiDataTensor tensors;
-        kernel_selector::base_activation_params activation;
-    };
-
     binary_convolution_params() : weight_bias_params(KernelType::BINARY_CONVOLUTION) {}
 
     uSize filterSize;
     uSize stride;
     uSize dilation;
     uSize padding;
+    Datatype out_dt = Datatype::UNSUPPORTED;
     uint32_t split = 1;
     bool depthwise_separable_opt = false;
     float pad_value = 0.0f;
     uint32_t groups = 1;
 
-    std::vector<fused_operation_desc> fused_ops = {};
     std::string to_string() const override;
     ParamsKey GetParamsKey() const override;
 };

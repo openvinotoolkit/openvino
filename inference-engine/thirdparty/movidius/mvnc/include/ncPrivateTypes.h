@@ -19,10 +19,13 @@
 #include "watchdog.h"
 
 typedef enum {
-    NC_OPTION_CLASS0 = 0,
-    NC_OPTION_CLASS1 = 1,
-    NC_OPTION_CLASS2 = 2,
-    NC_OPTION_CLASS3 = 3,
+    NC_OPTION_CLASS0     = 0,
+    NC_OPTION_CLASS1     = 1,
+    NC_OPTION_CLASS2     = 2,
+    NC_OPTION_CLASS3     = 3,
+    NC_OPTION_CLASS4     = 4,
+    NC_OPTION_LAST       = 4,   // Last configuration option available
+    NC_OPTION_GRAPH_LAST = 2,   // Last configuration option available for graph 
 } ncOptionClass_t;
 
 typedef enum {

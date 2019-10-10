@@ -150,7 +150,7 @@ public:
             const Data& biases,
             Data output);
 
-    Stage addBroadcastStage(
+    Stage addExpandStage(
             const Model::Ptr& model,
             const std::string& name,
             const ie::CNNLayerPtr& layer,
@@ -191,9 +191,7 @@ public:
             float beta,
             bool transposeA,
             bool transposeB,
-            const Data& inputA,
-            const Data& inputB,
-            const Data& inputC,
+            const DataVector& inputs,
             const Data& output);
 
 
@@ -210,9 +208,9 @@ public:
             const Model::Ptr& model,
             const std::string& name,
             const ie::CNNLayerPtr& layer,
-            const DataVector& input,
-            const DataVector& output,
-            const SmallVector<int, MAX_DIMS_64>& ieOrder);
+            const Data& input,
+            const Data& output,
+            const DimValues_<Dim>& permutation);
 };
 
 }  // namespace vpu

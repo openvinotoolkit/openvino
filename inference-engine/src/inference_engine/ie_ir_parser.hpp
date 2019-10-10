@@ -27,7 +27,7 @@ namespace InferenceEngine {
 class IParser {
 public:
     using Ptr = std::shared_ptr<IParser>;
-
+    virtual ~IParser() = default;
     virtual std::shared_ptr<ngraph::Function> parse(const pugi::xml_node &root, const Blob::CPtr& weights) = 0;
 };
 
@@ -35,6 +35,7 @@ class IRParser {
 public:
     explicit IRParser(size_t version);
     std::shared_ptr<ngraph::Function> parse(const pugi::xml_node &root, const Blob::CPtr& weights);
+    virtual ~IRParser() = default;
 
 private:
     IParser::Ptr parser;

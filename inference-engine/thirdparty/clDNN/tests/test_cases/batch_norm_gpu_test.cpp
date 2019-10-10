@@ -16,16 +16,16 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include <gtest/gtest.h>
-#include "api/CPP/memory.hpp"
-#include <api/CPP/input_layout.hpp>
-#include "api/CPP/batch_norm.hpp"
-#include <api/CPP/topology.hpp>
-#include <api/CPP/network.hpp>
-#include <api/CPP/engine.hpp>
+#include "api/memory.hpp"
+#include <api/input_layout.hpp>
+#include "api/batch_norm.hpp"
+#include <api/topology.hpp>
+#include <api/network.hpp>
+#include <api/engine.hpp>
 #include "test_utils/test_utils.h"
-#include <api/CPP/reorder.hpp>
-#include <api/CPP/data.hpp>
-#include <api/CPP/mutable_data.hpp>
+#include <api/reorder.hpp>
+#include <api/data.hpp>
+#include <api/mutable_data.hpp>
 
 using namespace cldnn;
 using namespace tests;
@@ -48,7 +48,6 @@ TEST(batch_normalization_gpu, basic_in2x3x2x2) {
     //  Variance
     //  f0: 44.9305
     //  f1: 107.0624
-
 
     const auto& engine = get_test_engine();
 
@@ -130,8 +129,6 @@ TEST(batch_normalization_gpu, basic_in2x3x2x2_scale_shift) {
 	//  Shift
 	//  f0: 0.0
 	//  f1: 5.0
-
-
 
 	const auto& engine = get_test_engine();
 
@@ -219,7 +216,6 @@ TEST(batch_normalization_gpu, basic_in2x3x2x2_with_var_mean_calc) {
     //  f0: 44.9305
     //  f1: 107.0624
 
-
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 3, 2 } });
@@ -287,7 +283,6 @@ TEST(batch_normalization_gpu, basic_in2x3x2x2_with_var_mean_calc_no_inv_var) {
     //  Variance
     //  f0: 44.9305
     //  f1: 107.0624
-
 
     const auto& engine = get_test_engine();
 
@@ -362,7 +357,6 @@ TEST(batch_normalization_gpu, basic_in2x3x2x2_with_var_mean_calc_scale_shift) {
 	//  Shift
 	//  f0: 0.0
 	//  f1: 5.0
-
 
 	const auto& engine = get_test_engine();
 
@@ -455,7 +449,6 @@ TEST(batch_normalization_gpu, basic_in2x3x2x2_with_var_mean_calc_scale_shift_no_
     //  f0: 0.0
     //  f1: 5.0
 
-
     const auto& engine = get_test_engine();
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 3, 2 } });
@@ -543,7 +536,6 @@ TEST(batch_normalization_gpu, basic_in2x3x2x2_with_var_mean_outputs) {
 	//  Shift
 	//  f0: 0.0
 	//  f1: 5.0
-
 
 	const auto& engine = get_test_engine();
 
@@ -649,7 +641,6 @@ TEST(batch_normalization_gpu, basic_in2x3x2x2_with_var_mean_outputs_no_inv_var) 
     //  Shift
     //  f0: 0.0
     //  f1: 5.0
-
 
     const auto& engine = get_test_engine();
 
@@ -775,7 +766,6 @@ TEST(batch_normalization_gpu, basic_in2x3x2x2_with_var_mean_outputs_error_non_eq
     EXPECT_ANY_THROW(network(engine, topology));
 }
 
-
 TEST(batch_normalization_gpu, basic_in2x2x3x2_bfyx) {
     //  Mean   : 3x2x2
     //  Input  : 2x3x2x2
@@ -794,7 +784,6 @@ TEST(batch_normalization_gpu, basic_in2x2x3x2_bfyx) {
     //  Variance
     //  f0: 44.9305
     //  f1: 107.0624
-
 
     const auto& engine = get_test_engine();
 
@@ -875,7 +864,6 @@ TEST(batch_normalization_gpu, basic_in2x2x3x2_bfyx_padding) {
     //  Variance
     //  f0: 44.9305
     //  f1: 107.0624
-
 
     const auto& engine = get_test_engine();
 
@@ -991,7 +979,6 @@ TEST(batch_normalization_gpu, basic_to_string) {
     EXPECT_NE(network.get_primitive_info("batch_norm6").length(), zero_length);
     EXPECT_NE(network.get_primitive_info("batch_norm7").length(), zero_length);
 }                                         
-
 
 TEST(batch_normalization_gpu, basic_in2x3x2x2_yxfb_scale_shift_different_shapes) {
     const auto& engine = get_test_engine();
@@ -1368,7 +1355,6 @@ TEST(batch_normalization_gpu, basic_in2x2x3x2_byxf_with_var_mean_outputs_no_inv_
         EXPECT_NEAR(varf, val_ref[j], 1e-03F);
     }
 }
-
 
 TEST(batch_normalization_gpu, basic_in2x3x5x2_yxfb_scale_shift_different_shapes) {
     const auto& engine = get_test_engine();
@@ -1876,7 +1862,6 @@ TEST(batch_normalization_gpu, basic_in2x2x3x5_byxf_with_var_mean_outputs_no_inv_
     }
 }
 
-
 TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_b1c2h2w2)
 {
     const auto& engine = get_test_engine();
@@ -1998,15 +1983,12 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_b2c2h2w1)
     topology.add(mutable_data("variance", variance));
     topology.add(batch_norm("batch_norm", "input", eps, "mean", "variance", "gamma", "beta"));
 
-
     set_values<float>(input, { 
         0.54881352f,
         0.71518934f,
 
         0.60276335f,
         0.54488319f,
-
-
 
         0.42365479f,
         0.64589411f,
@@ -2025,7 +2007,6 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_b2c2h2w1)
         -0.0963782f, 
         -0.434702f, 
         
-
 
         -1.4011f, 
         0.548275f, 
@@ -2101,15 +2082,12 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_inference_b2c2h2w1)
     topology.add(data("variance", variance));
     topology.add(batch_norm("batch_norm", "input", eps, "mean", "variance", "gamma", "beta"));
 
-
     set_values<float>(input, { 
         0.54881352f,
         0.71518934f,
 
         0.60276335f,
         0.54488319f,
-
-
 
         0.42365479f,
         0.64589411f,
@@ -2196,15 +2174,12 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_b2c2h2w1_different_shapes)
     topology.add(mutable_data("variance", variance));
     topology.add(batch_norm("batch_norm", "input", eps, "mean", "variance", "gamma", "beta"));
 
-
     set_values<float>(input, {
         0.54881352f,
         0.71518934f,
 
         0.60276335f,
         0.54488319f,
-
-
 
         0.42365479f,
         0.64589411f,
@@ -2222,8 +2197,6 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_b2c2h2w1_different_shapes)
 
         -0.0963782f,
         -0.434702f,
-
-
 
         -1.4011f,
         0.548275f,
@@ -2299,15 +2272,12 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_inference_b2c2h2w1_differen
     topology.add(data("variance", variance));
     topology.add(batch_norm("batch_norm", "input", eps, "mean", "variance", "gamma", "beta"));
 
-
     set_values<float>(input, {
         0.54881352f,
         0.71518934f,
 
         0.60276335f,
         0.54488319f,
-
-
 
         0.42365479f,
         0.64589411f,
@@ -2328,7 +2298,6 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_inference_b2c2h2w1_differen
 
         -0.0963782f,
         -0.434702f,
-
 
         -1.4011f,
         0.548275f,
@@ -2394,7 +2363,6 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_b2c5h2w1_different_shapes)
     topology.add(mutable_data("variance", variance));
     topology.add(batch_norm("batch_norm", "input", eps, "mean", "variance", "gamma", "beta"));
 
-
     set_values<float>(input, {
         0.54881352f,
         0.71518934f,
@@ -2410,8 +2378,6 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_b2c5h2w1_different_shapes)
 
         0.54881352f,
         0.71518934f,
-
-
 
         0.42365479f,
         0.64589411f,
@@ -2447,9 +2413,6 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_b2c5h2w1_different_shapes)
 
         -0.30327f,
         1.1561f,
-
-
-
 
         -1.4011f,
         0.548275f,
@@ -2535,7 +2498,6 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_inference_b2c5h2w1_differen
     topology.add(data("variance", variance));
     topology.add(batch_norm("batch_norm", "input", eps, "mean", "variance", "gamma", "beta"));
 
-
     set_values<float>(input, {
         0.54881352f,
         0.71518934f,
@@ -2551,8 +2513,6 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_inference_b2c5h2w1_differen
 
         0.54881352f,
         0.71518934f,
-
-
 
         0.42365479f,
         0.64589411f,
@@ -2588,9 +2548,6 @@ TEST(ngraph_batch_normalization_gpu, batchnorm_fprop_inference_b2c5h2w1_differen
 
         -0.30327f,
         1.1561f,
-
-
-
 
         -1.4011f,
         0.548275f,

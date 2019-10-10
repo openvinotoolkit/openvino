@@ -28,7 +28,7 @@
 #include "inference_engine.hpp"
 #include <vpu/private_plugin_config.hpp>
 #include "samples/common.hpp"
-#include "vpu/utils/string.hpp"
+#include <vpu/utils/string.hpp>
 
 #include "vpu_tools_common.hpp"
 

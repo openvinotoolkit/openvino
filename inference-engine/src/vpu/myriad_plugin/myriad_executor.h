@@ -132,7 +132,8 @@ private:
                               const std::string& configDevName,
                               const ncDevicePlatform_t &configPlatform,
                               const ncDeviceProtocol_t &configProtocol,
-                              int watchdogInterval);
+                              int watchdogInterval,
+                              PowerConfig powerConfig);
 };
 
 typedef std::shared_ptr<MyriadExecutor> MyriadExecutorPtr;

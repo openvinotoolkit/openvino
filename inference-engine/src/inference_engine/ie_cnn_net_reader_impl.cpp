@@ -134,7 +134,7 @@ StatusCode CNNNetReaderImpl::ReadNetwork(pugi::xml_document& xmlDoc) {
 
         _version = GetFileVersion(root);
         if (_version < 2) THROW_IE_EXCEPTION << "deprecated IR version: " << _version;
-        if (_version > 6) THROW_IE_EXCEPTION << "cannot parse future versions: " << _version;
+        if (_version > 7) THROW_IE_EXCEPTION << "cannot parse future versions: " << _version;
         _parser = parserCreator->create(_version);
         network = _parser->Parse(root);
         name = network->getName();

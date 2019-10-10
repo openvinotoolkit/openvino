@@ -23,7 +23,7 @@
 #include <string>
 
 namespace cldnn {
-primitive_type_id deconvolution_type_id() {
+primitive_type_id deconvolution::type_id() {
     static primitive_type_base<deconvolution> instance;
     return &instance;
 }
@@ -106,7 +106,6 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
     auto strd = desc->stride;
     auto split = desc->split();
     auto node_info = node.desc_to_json();
-    auto activation = desc->with_activation ? " true" : "false";
 
     std::stringstream primitive_description;
     std::stringstream ss_weights, ss_biases;
@@ -133,8 +132,6 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
     deconv_info.add("stride", strd.to_string());
     deconv_info.add("input offset", desc->input_offset.to_string());
     deconv_info.add("split", split);
-    deconv_info.add("with activation", activation);
-    deconv_info.add("slope", desc->activation_negative_slope);
     if (desc->with_output_size) {
         json_composite ud_out_size_info;
         ud_out_size_info.add("size", desc->output_size.to_string());
@@ -182,9 +179,15 @@ deconvolution_inst::typed_primitive_inst(network_impl& network, deconvolution_no
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias feature[0]",
                                   bias_inst.size.feature[0],
+                                  "output feature size / split",
+                                  output_size.feature[0] / split,
+                                  "Biases/output feature maps number does not match.");
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                  "Bias spatial[2]",
+                                  bias_inst.size.spatial[2],
                                   "dimension size",
                                   1,
-                                  "Feature[0] of bias should be 1. Bias isn't 1D vector.");
+                                  "Spatial[2] of bias should be 1. Bias isn't 1D vector.");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[1]",
                                   bias_inst.size.spatial[1],
@@ -192,18 +195,11 @@ deconvolution_inst::typed_primitive_inst(network_impl& network, deconvolution_no
                                   1,
                                   "Spatial[1] of bias should be 1. Bias isn't 1D vector.");
             CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Bias spatial[2]",
-                                  bias_inst.size.spatial[1],
-                                  "dimension size",
-                                  1,
-                                  "Spatial[2] of bias should be 1. Bias isn't 1D vector.");
-
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[0]",
                                   bias_inst.size.spatial[0],
-                                  "output feature size / split",
-                                  output_size.feature[0] / split,
-                                  "Biases/output feature maps number does not match.");
+                                  "dimension size",
+                                  1,
+                                  "Spatial[0] of bias should be 1. Bias isn't 1D vector.");
         }
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "deconvolution padding filling value",

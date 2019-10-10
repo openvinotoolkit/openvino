@@ -79,33 +79,29 @@ struct index_select_gpu : typed_primitive_gpu_impl<index_select> {
     }
 };
 
-namespace {
-struct attach {
-    attach() {
-        auto val_fw = index_select_gpu::create;
-        implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                              val_fw);
-        implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                              val_fw);
-        implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
-        implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
-        implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx),
-                                              val_fw);
+namespace detail {
 
-        implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                              val_fw);
-        implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                              val_fw);
-        implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), val_fw);
-        implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb), val_fw);
-        implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::yxfb),
-                                              val_fw);
-    }
-    ~attach() = default;
-};
+attach_index_select_gpu::attach_index_select_gpu() {
+    auto val_fw = index_select_gpu::create;
+    implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
+                                          val_fw);
+    implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
+                                          val_fw);
+    implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+    implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx),
+                                          val_fw);
 
-attach attach_impl;
+    implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
+                                          val_fw);
+    implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
+                                          val_fw);
+    implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), val_fw);
+    implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb), val_fw);
+    implementation_map<index_select>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::yxfb),
+                                          val_fw);
+}
 
-}  // namespace
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

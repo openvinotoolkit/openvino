@@ -37,7 +37,7 @@ KERNEL(lstm_dynamic_input_ref)(
     for(uint x = 0; x < INPUT0_SIZE_X; ++x )
     {
         const uint input_idx   = GET_DATA_INDEX(INPUT0, batch, timestep, dir, x);
-        const uint weights_idx = GET_DATA_INDEX(WEIGHTS, 0, dir, y, x);
+        const uint weights_idx = GET_FILTER_INDEX(WEIGHTS, 0, dir, y, x);
         dot_prod += (ACCUMULATOR_TYPE)(input[input_idx] * weights[weights_idx]);
     }
 

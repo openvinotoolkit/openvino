@@ -14,6 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from openvino.tools.accuracy_checker.accuracy_checker.main import main
+from accuracy_checker.main import main
 
 main()

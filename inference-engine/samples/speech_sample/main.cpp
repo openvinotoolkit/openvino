@@ -706,7 +706,7 @@ int main(int argc, char *argv[]) {
             outputInfo = netBuilder.getNetwork().getOutputsInfo();
         }
 
-        Blob::Ptr ptrOutputBlob = inferRequests[0].inferRequest.GetBlob(cOutputInfo.rbegin()->first);
+        Blob::Ptr ptrOutputBlob = inferRequests.begin()->inferRequest.GetBlob(cOutputInfo.rbegin()->first);
 
         for (auto &item : outputInfo) {
             DataPtr outData = item.second;
@@ -839,7 +839,7 @@ int main(int argc, char *argv[]) {
                             if (!FLAGS_o.empty()) {
                                 outputFrame =
                                         &ptrScores.front() + numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
-                                Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(cOutputInfo.begin()->first);
+                                Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(cOutputInfo.rbegin()->first);
                                 auto byteSize = inferRequest.numFramesThisBatch * numScoresPerFrame * sizeof(float);
                                 std::memcpy(outputFrame,
                                             outputBlob->buffer(),
@@ -848,7 +848,7 @@ int main(int argc, char *argv[]) {
 
                             if (!FLAGS_r.empty()) {
                                 Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(cOutputInfo.begin()->first);
-                                CompareScores(outputBlob->buffer().as<float *>(),
+                                CompareScores(outputBlob->buffer().as<float*>(),
                                               &ptrReferenceScores[inferRequest.frameIndex *
                                                                   numFrameElementsReference *
                                                                   numBytesPerElementReference],
@@ -876,7 +876,7 @@ int main(int argc, char *argv[]) {
                         ptrInputBlobs.push_back(inferRequest.inferRequest.GetBlob(input.first));
                     }
 
-                    for (size_t i = 0; i < numInputArkFiles; i++) {
+                    for (size_t i = 0; i < numInputArkFiles; ++i) {
                         std::memcpy(ptrInputBlobs[i]->buffer(),
                                     inputFrame[i],
                                     ptrInputBlobs[i]->byteSize());
@@ -890,14 +890,14 @@ int main(int argc, char *argv[]) {
                     frameIndex += numFramesThisBatch;
                     for (size_t j = 0; j < inputArkFiles.size(); j++) {
                         if (FLAGS_cw_l > 0 || FLAGS_cw_r > 0) {
-                            int i = frameIndex - FLAGS_cw_l;
-                            if (i > 0 && i < static_cast<int>(numFramesArkFile)) {
+                            int idx = frameIndex - FLAGS_cw_l;
+                            if (idx > 0 && idx < static_cast<int>(numFramesArkFile)) {
                                 inputFrame[j] += sizeof(float) * numFrameElementsInput[j] * numFramesThisBatch;
-                            } else if (i >= static_cast<int>(numFramesArkFile)) {
-                                inputFrame[j] = &ptrUtterances[0].front() +
+                            } else if (idx >= static_cast<int>(numFramesArkFile)) {
+                                inputFrame[j] = &ptrUtterances[j].front() +
                                         (numFramesArkFile - 1) * sizeof(float) * numFrameElementsInput[j] * numFramesThisBatch;
-                            } else if (i < 0) {
-                                inputFrame[j] = &ptrUtterances[0].front();
+                            } else if (idx <= 0) {
+                                inputFrame[j] = &ptrUtterances[j].front();
                             }
                         } else {
                             inputFrame[j] += sizeof(float) * numFrameElementsInput[j] * numFramesThisBatch;
@@ -905,7 +905,6 @@ int main(int argc, char *argv[]) {
                     }
                     inferRequestFetched |= true;
                 }
-
                 if (!inferRequestFetched) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1));
                     continue;

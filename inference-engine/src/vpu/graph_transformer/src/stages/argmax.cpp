@@ -20,41 +20,36 @@ private:
         return std::make_shared<ArgMaxStage>(*this);
     }
 
-    void propagateDataOrderImpl() const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         auto has_axis = attrs().get<bool>("has_axis");
         if (has_axis) {
-            _orderInfo.setOutput(_outputEdges[0], input->desc().dimsOrder());
+            orderInfo.setOutput(outputEdge(0), input->desc().dimsOrder());
         } else {
             // axis<0 requires flatten so only NCHW layout is supported
-            _orderInfo.setInput(_inputEdges[0], DimsOrder::fromNumDims(input->desc().numDims()));
-            _orderInfo.setOutput(_outputEdges[0], DimsOrder::fromNumDims(output->desc().numDims()));
+            orderInfo.setInput(inputEdge(0), DimsOrder::fromNumDims(input->desc().numDims()));
+            orderInfo.setOutput(outputEdge(0), DimsOrder::fromNumDims(output->desc().numDims()));
         }
     }
 
-    void getDataStridesRequirementsImpl() const override {
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
     }
 
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl() const override {
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
-    void finalCheckImpl() const override {
+    void initialCheckImpl() const override {
+        assertInputsOutputsTypes(this, {{DataType::FP16}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         auto out_max_val = attrs().get<int32_t>("out_max_val");
         auto top_k = attrs().get<int32_t>("top_k");
@@ -73,11 +68,8 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 1);
-        IE_ASSERT(_outputEdges.size() == 1);
-
-        auto input = _inputEdges[0]->input();
-        auto output = _outputEdges[0]->output();
+        auto input = inputEdge(0)->input();
+        auto output = outputEdge(0)->output();
 
         input->serializeNewBuffer(serializer);
         output->serializeNewBuffer(serializer);

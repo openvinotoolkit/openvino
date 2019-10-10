@@ -16,13 +16,15 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "api/CPP/pooling.hpp"
-#include "api/CPP/proposal.hpp"
-#include "api/CPP/roi_pooling.hpp"
+#include "api/pooling.hpp"
+#include "api/proposal.hpp"
+#include "api/roi_pooling.hpp"
 
 #include "program_helpers.h"
 #include "pass_manager.h"
 
+#include "quantize_inst.h"
+#include "binary_convolution_inst.h"
 #include "activation_inst.h"
 #include "batch_norm_inst.h"
 #include "batch_norm_grad_inst.h"
@@ -50,154 +52,274 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include "error_handler.h"
 
-void prepare_primitive_fusing::fuse_skip_layers(program_impl& p, program_node* node) {
-    program_helpers::do_for_types<eltwise>(*node, [&p](eltwise_node& node) {
-        if (node.get_primitive()->mode != eltwise_mode::sum || node.inputs_count() != 2)
-            return;
-
-        // both inputs should be deconvolutions
-        if (!(node.input(0).is_type<deconvolution>() && node.input(1).is_type<deconvolution>())) {
-            return;
-        }
-
-        auto& to_fuse_with = node.input(0);
-        int to_fuse_index = 1;
-
-        // remove dependencies and users of elwtise that is going to be extracted
-        p.add_connection(node.input(to_fuse_index), to_fuse_with);
-        p.remove_connection(node.input(to_fuse_index), node);
-
-        p.get_processing_order().erase(&to_fuse_with);
-        p.get_processing_order().insert(&node, &to_fuse_with);
-
-        if (node.get_fused_activation_func() != activation_none)
-            to_fuse_with.set_fused_activation(node.get_fused_activation_func(), node.get_fused_activation_params());
-        to_fuse_with.set_output_padding(node.get_output_layout().data_padding);
-
-        p.extract_and_remove(node);
-    });
+void prepare_primitive_fusing::run(program_impl& p) {
+    fuse_reorders(p);
+    fuse_simple_primitives(p);
+    fuse_activations(p);
+    fuse_skip_layers(p);
 }
 
-template <typename T>
-static bool node_is_type(program_node* n) {
-    return n->is_type<T>();
-}
+void prepare_primitive_fusing::fuse_reorders(program_impl &p) {
+    // This loop tries fusing several reorders one by one (if present) into one reorder
+    auto itr = p.get_processing_order() .begin();
+    while (itr != p.get_processing_order().end()) {
+        auto node_itr = itr++;
+        auto& node = (*node_itr);
 
-void prepare_primitive_fusing::fuse_conv_bn_scale(program_impl& p, program_node* node) {
-    program_helpers::do_for_types<convolution>(*node, [&p](convolution_node& node) {
-        if (node.get_users().size() > 2)
-            return;
+        if (node->is_output())
+            continue;
 
-        auto found_bn = std::find_if(node.get_users().begin(), node.get_users().end(), node_is_type<batch_norm>);
-        auto bn_node = found_bn != node.get_users().end() ? *found_bn : nullptr;
-        if (bn_node != nullptr) {
-            if (bn_node->get_users().size() > 2)
+        program_helpers::do_for_types<reorder>(*node, [&p](reorder_node& node) {
+            auto& input = node.input();
+
+            // Restrictions:
+            // - inputs cannot be padded
+            // - primitives input cannot be output
+            // - input was optimized
+            if (node.has_padded_dependency() || input.is_output() ||
+                node.get_dependencies().size() != 1 || input.can_be_optimized())
                 return;
 
-            auto found_scale =
-                std::find_if(bn_node->get_users().begin(), bn_node->get_users().end(), node_is_type<scale>);
-            auto sc_node = found_bn != node.get_users().end() ? *found_scale : nullptr;
-            if (sc_node != nullptr) {
-                int bn_index = static_cast<int>(std::distance(node.get_users().begin(), found_bn));
-                int sc_index = static_cast<int>(std::distance(bn_node->get_users().begin(), found_scale));
-                auto scale_prim = std::static_pointer_cast<const scale>(sc_node->get_primitive());
-                auto bn_prim = std::static_pointer_cast<const batch_norm>(bn_node->get_primitive());
-                auto prim = node.get_primitive();
-                bool training = false;
+            // - check if previous node is reorder with 1 user (and if the layouts are the same - remove reorder)
+            // - do not fuse if current node has mean subtract
+            if (input.get_users().size() != 1 || !input.is_type<reorder>() ||
+                input.get_output_layout() != node.get_output_layout() || node.has_mean() ||
+                !node.get_primitive()->subtract_per_feature.empty())
+                return;
 
-                if (node.get_users().size() == 2) {
-                    training = true;
-                    float zero = 0.0f;
-                    layout dummy_layout(data_types::f32, format::bfyx, tensor(1, 1, 1, 1));
+            p.add_optimized_primitive_info(node.id());
 
-                    auto bn_backw = node.get_users().begin();
-                    std::advance(bn_backw, bn_index == 0 ? 1 : 0);
-                    if (!(*bn_backw)->is_type<batch_norm_grad>())
-                        return;
-                    auto sc_backw = bn_node->get_users().begin();
-                    std::advance(sc_backw, sc_index == 0 ? 1 : 0);
-                    if (!(*sc_backw)->is_type<scale_grad_weights>())
-                        return;
+            auto output_layout = node.get_output_layout();
+            input.set_output_layout(output_layout, false);
+            p.extract_and_remove(node);
+        });
+    }
+}
 
-                    auto conv_out_prim = std::make_shared<mutable_data>(prim->id + "_fused_conv_out",
-                                                                        memory::attach(dummy_layout, &zero, 1));
-                    auto& conv_out_node = p.get_or_create(conv_out_prim);
-                    auto conv_out_mem = p.get_engine().allocate_memory(node.get_output_layout(), 0);
-                    conv_out_node.as<mutable_data>().attach_memory(*conv_out_mem, false);
-                    p.add_intermediate(conv_out_node, **bn_backw, 1, true);
+void prepare_primitive_fusing::fuse_activations(program_impl &p) {
+    bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
+    auto itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto node_itr = itr++;
+        auto& node = (*node_itr);
 
-                    auto bn_out_prim = std::make_shared<mutable_data>(prim->id + "_fused_bn_out",
-                                                                      memory::attach(dummy_layout, &zero, 1));
-                    auto& bn_out_node = p.get_or_create(bn_out_prim);
-                    auto bn_out_mem = p.get_engine().allocate_memory(bn_node->get_output_layout(), 0);
-                    bn_out_node.as<mutable_data>().attach_memory(*bn_out_mem, false);
-                    p.add_intermediate(bn_out_node, **sc_backw, 0, true);
+        program_helpers::do_for_types<activation>(*node, [&p, &is_debug](activation_node& node) {
+            auto& input = node.input();
+
+            // Restrictions:
+            // - inputs cannot be padded
+            // - primitives input cannot be output
+            // - no activation additional input
+            // - input was optimized
+            if (node.has_padded_dependency() || (input.is_output() && !is_debug) || node.is_output() ||
+                node.get_dependencies().size() != 1 || input.can_be_optimized())
+                return;
+
+            // - limit to primitives which implementations support activation fusing
+            if (input.get_users().size() != 1 ||
+                // TODO: new api needs to be created to read such caps
+                // right now use whitelist so no new primitives will be affected in case of lack of fused activation
+                // support
+                (!input.is_type<batch_norm>() && !input.is_type<concatenation>() && !input.is_type<convolution>() &&
+                 !input.is_type<crop>() && !input.is_type<deconvolution>() && !input.is_type<eltwise>() &&
+                 !input.is_type<fully_connected>() && !input.is_type<lrn>() && !input.is_type<normalize>() &&
+                 !input.is_type<permute>() && !input.is_type<pooling>() && !input.is_type<reorder>() &&
+                 !input.is_type<reshape>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
+                 !input.is_type<softmax>() && !input.is_type<upsampling>() && !input.is_type<mvn>() &&
+                 !input.is_type<depth_to_space>() && !input.is_type<gather>() && !input.is_type<reverse_sequence>() &&
+                 !input.is_type<shuffle_channels>() && !input.is_type<strided_slice>() &&
+                 !input.is_type<fused_conv_eltwise>() && !input.is_type<activation>()))
+                return;
+
+            if (input.get_fused_primitives().empty()) {
+                input.add_fused_activation(node.get_primitive()->activation_function, node.get_primitive()->additional_params);
+                for (size_t i = 0; i < node.get_fused_activations_funcs().size(); i++) {
+                    input.add_fused_activation(node.get_fused_activations_funcs()[i],
+                                               node.get_fused_activations_params()[i]);
                 }
+                input.set_output_padding(node.get_output_layout().data_padding);
+            } else {
+                // If node already has any fused node using new mechanism,
+                // we can just use the same way and handle any amount of activations
+                p.fuse_nodes(input, node);
+            }
 
-                auto new_conv = std::make_shared<fused_conv_bn_scale>(prim->id + "_fused",
-                                                                      prim->input[0],
-                                                                      prim->weights.ref(),
-                                                                      prim->bias.ref(),
-                                                                      bn_prim->epsilon,
-                                                                      scale_prim->input[1],
-                                                                      scale_prim->bias,
-                                                                      prim->stride,
-                                                                      prim->dilation,
-                                                                      prim->input_offset,
-                                                                      bn_prim->inv_variance,
-                                                                      prim->with_activation,
-                                                                      prim->activation_negative_slope,
-                                                                      prim->output_padding);
-                auto& new_node = p.get_or_create(new_conv);
-                p.replace(node, new_node);
+            p.add_optimized_primitive_info(node.id(), {input.id()});
 
-                while (sc_node->get_dependencies().size() > 1) {
-                    // ToDo: here we modify users and dependencies,
-                    // It should be done through public methods in program_node/program_impl
-                    // to avoid friend declarations
-                    auto& dep = sc_node->get_dependency(sc_node->get_dependencies().size() - 1);
-                    p.remove_connection(dep, *sc_node);
-                    dep.users.push_back(&new_node);
-                    if (sc_node->get_dependencies().size() == 1)
-                        new_node.dependencies.insert(new_node.dependencies.begin() + 1, &dep);
-                    else
-                        new_node.dependencies.push_back(&dep);
-                }
-                p.extract_and_remove(*sc_node);
-                while (bn_node->get_dependencies().size() > 1) {
-                    auto& dep = bn_node->get_dependency(bn_node->get_dependencies().size() - 1);
-                    p.remove_connection(dep, *bn_node);
-                    new_node.dependencies.push_back(&dep);
-                }
-                p.extract_and_remove(*bn_node);
-                auto inv_var_node =
-                    std::find_if(new_node.dependencies.begin(),
-                                 new_node.dependencies.end(),
-                                 [&new_conv](const program_node* node) {
-                                     return node->id().find(new_conv->inv_variance) != std::string::npos;
-                                 });
-                (*inv_var_node)->users.push_back(&new_node);
+            p.extract_and_remove(node);
+        });
+    }
+}
 
-                if (training) {
-                    auto user = std::find_if(new_node.get_users().begin(),
-                                             new_node.get_users().end(),
-                                             [](const program_node* node) {
-                                                 return node->id().find("_fused_conv_out") != std::string::npos;
-                                             });
-                    p.reverse_connection(new_node, **user);
-                    user = std::find_if(
-                        new_node.get_users().begin(),
-                        new_node.get_users().end(),
-                        [](const program_node* node) { return node->id().find("_fused_bn_out") != std::string::npos; });
-                    p.reverse_connection(new_node, **user);
-                    p.get_processing_order()
-                        .calculate_BFS_processing_order();  // this should be avoided, why do we need recalculation of
-                                                            // processing order?
+void prepare_primitive_fusing::fuse_skip_layers(program_impl& p) {
+    // This loop tries fusing eltwise (sum) with deconvolution
+    auto itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto node_itr = itr++;
+        auto& node = (*node_itr);
+
+        program_helpers::do_for_types<eltwise>(*node, [&p](eltwise_node& node) {
+            if (node.get_primitive()->mode != eltwise_mode::sum || node.inputs_count() != 2)
+                return;
+
+            // both inputs should be deconvolutions
+            if (!(node.input(0).is_type<deconvolution>() && node.input(1).is_type<deconvolution>())) {
+                return;
+            }
+
+            auto& to_fuse_with = node.input(0);
+            int to_fuse_index = 1;
+
+            // remove dependencies and users of elwtise that is going to be extracted
+            p.add_connection(node.input(to_fuse_index), to_fuse_with);
+            p.remove_connection(node.input(to_fuse_index), node);
+
+            p.get_processing_order().erase(&to_fuse_with);
+            p.get_processing_order().insert(&node, &to_fuse_with);
+
+            if (!node.get_fused_activations_funcs().empty()) {
+                for (size_t i = 0; i < node.get_fused_activations_funcs().size(); i++) {
+                    to_fuse_with.add_fused_activation(node.get_fused_activations_funcs()[i],
+                                                      node.get_fused_activations_params()[i]);
                 }
             }
-        }
-    });
+            to_fuse_with.set_output_padding(node.get_output_layout().data_padding);
+
+            p.extract_and_remove(node);
+        });
+    }
+}
+
+void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
+    bool recalc_processing_order = false;
+
+    auto itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto node_itr = itr++;
+        auto& node = (*node_itr);
+
+        auto fuse_activation_f = [&p](activation_node& activation_node) {
+            auto& input_data = activation_node.get_dependency(0);
+            if (activation_node.get_dependencies().size() >= 3 ||
+                (!(input_data.is_type<convolution>() && input_data.get_output_layout().format == format::bfyx_f16) &&
+                 !input_data.is_type<binary_convolution>()))
+                return;
+
+            p.fuse_nodes(input_data, activation_node);
+        };
+
+        auto fuse_scale_f = [&p](scale_node& scale_node) {
+            if (scale_node.get_dependencies().empty())
+                CLDNN_ERROR_MESSAGE(scale_node.id(), "scale has invalid count of dependencies");
+
+            auto& input_data = scale_node.get_dependency(0);
+            bool fuse_to_binary_conv = input_data.is_type<binary_convolution>() &&
+                                       input_data.as<binary_convolution>().get_primitive()->dilation == tensor{1};
+            bool fuse_to_conv = input_data.is_type<convolution>() && input_data.get_output_layout().format == format::bfyx_f16;
+
+            bool should_fuse = fuse_to_binary_conv || fuse_to_conv;
+            if (!should_fuse)
+                return;
+
+            p.fuse_nodes(input_data, scale_node);
+        };
+
+        auto fuse_quantize_f = [&p](quantize_node& quantize_node) {
+            auto& input_data = quantize_node.get_dependency(0);
+            auto& input_lo = quantize_node.get_dependency(1);
+            auto& input_hi = quantize_node.get_dependency(2);
+
+            auto out_layout = quantize_node.get_output_layout();
+            auto in_layout = input_data.get_output_layout();
+
+            bool fuse_to_binary_conv = input_data.is_type<binary_convolution>() &&
+                                       ((out_layout.data_type == data_types::bin &&
+                                       quantize_node.get_dependencies().size() == 5 &&
+                                       ((in_layout.size.feature[0] == input_lo.get_output_layout().size.feature[0] &&
+                                         in_layout.size.feature[0] == input_hi.get_output_layout().size.feature[0]) ||
+                                        (input_lo.get_output_layout().size.feature[0] == 1 &&
+                                         input_hi.get_output_layout().size.feature[0] == 1)))) &&
+                                       input_data.as<binary_convolution>().get_primitive()->dilation.spatial[0] == 1 &&
+                                       input_data.as<binary_convolution>().get_primitive()->dilation.spatial[1] == 1;
+
+            bool should_fuse = fuse_to_binary_conv;
+
+            if (!should_fuse)
+                return;
+
+            p.fuse_nodes(input_data, quantize_node);
+        };
+
+        auto fuse_eltwise_f = [&p, &recalc_processing_order, this](eltwise_node& node) {
+            std::shared_ptr<const cldnn::eltwise> prim = node.get_primitive();
+            if (node.is_output() || node.inputs_count() != 2 ||
+                prim->mode != eltwise_mode::sum || !prim->stride.empty())
+                return;
+
+            std::vector<cldnn::program_node*> parents = node.get_dependencies();
+            std::list<cldnn::program_node*> users = node.get_users();
+
+            auto parent1 = parents[0];
+            auto parent2 = parents[1];
+
+            // We should have at least one convolution node
+            if (!parent1->is_type<convolution>() && !parent2->is_type<convolution>())
+                return;
+
+            // Choose a convolution node
+            size_t fused_idx = parent1->is_type<convolution>() ? 0 : 1;
+            size_t peer_idx  = parent1->is_type<convolution>() ? 1 : 0;
+
+            int p1_pnum = p.get_processing_order().get_processing_number(parents[fused_idx]);
+            int p2_pnum = p.get_processing_order().get_processing_number(parents[peer_idx]);
+
+            if (p1_pnum < p2_pnum && parents[peer_idx]->is_type<convolution>()) {
+                std::swap(fused_idx, peer_idx);
+            }
+
+            if (parent1->is_type<convolution>() && !_lo.is_format_optimized(parent1->as<convolution>(), format::bfyx_f16))
+                return;
+            if (parent2->is_type<convolution>() && !_lo.is_format_optimized(parent2->as<convolution>(), format::bfyx_f16))
+                return;
+
+            auto fused_node = parents[fused_idx];
+            auto peer_node = parents[peer_idx];
+
+            // This fusing can be extended to support peer node in any layout and with broadcast
+            // Fusing is allowed only if current layouts are bfyx_f16 (in tests) or bfyx_f16_network attribute is true
+            bool merge_allowed = fused_node->get_users().size() == 1 &&
+                                 (_lo.get_optimization_attributes().bfyx_f16_network ||
+                                 (fused_node->get_output_layout().format == format::bfyx_f16 &&
+                                  peer_node->get_output_layout().format == format::bfyx_f16)) &&
+                                 fused_node->get_output_layout().size == peer_node->get_output_layout().size;
+
+            for (auto& parent : fused_node->get_dependencies())
+                if (parent->id() == peer_node->id())
+                    merge_allowed = false;
+
+            if (!merge_allowed)
+                return;
+
+            if (p.get_processing_order().get_processing_number(fused_node) <
+                p.get_processing_order().get_processing_number(peer_node))
+                recalc_processing_order = true;
+
+            p.fuse_nodes(*fused_node, node);
+        };
+
+        program_helpers::do_for_types<activation, scale, quantize, eltwise>(*node,
+                fuse_activation_f,
+                fuse_scale_f,
+                fuse_quantize_f,
+                fuse_eltwise_f);
+    }
+
+    // Need to update processing order to handle cases when peer node processing number is greater
+    // than fused node one
+    if (recalc_processing_order)
+        p.get_processing_order().calc_processing_order(p);
 }
 
 void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* node) {
@@ -243,9 +365,10 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     }
 
     // TODO Allow to pass arbitrary convolution activation in constructor
-    if (conv_node->get_fused_activation_func() != cldnn_activation_func::activation_none &&
-        conv_node->get_fused_activation_func() != cldnn_activation_func::activation_relu &&
-        conv_node->get_fused_activation_func() != cldnn_activation_func::activation_relu_negative_slope)
+    if (!conv_node->get_fused_activations_funcs().empty() &&
+        !(conv_node->get_fused_activations_funcs().size() == 1 && (conv_node->get_fused_activations_funcs()[0] == activation_func::relu ||
+                                                                   conv_node->get_fused_activations_funcs()[0] == activation_func::relu_negative_slope ||
+                                                                   conv_node->get_fused_activations_funcs()[0] == activation_func::none)))
         return;
 
     // make sure eltwise have only 2 inputs
@@ -298,26 +421,21 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     if (eltw_node->inputs_calibration_term())
         return;
 
-    // TODO Allow to pass arbitrary convolution activation in constructor
-    if (conv_node->get_fused_activation_func() != cldnn_activation_func::activation_none) {
-        conv.with_activation = true;
-
-        if (conv_node->get_fused_activation_func() == cldnn_activation_func::activation_relu_negative_slope) {
-            conv.activation_negative_slope = conv_node->get_fused_activation_params().a;
-        }
-    }
     auto conv_id = conv_node->id();
     auto eltw_id = eltw_node->id();
+
+    bool conv_with_activation = !conv_node->get_fused_activations_funcs().empty();
+    auto conv_netagive_slope = conv_with_activation ? conv_node->get_fused_activations_params().begin()->a : 0.0f;
 
     auto fused_conv_eltw =
         std::make_shared<fused_conv_eltwise>(conv_id + "_fused_" + eltw_id,
                                              conv_node->input().id(),
                                              eltw_node->input(eltw_second_input_idx).id(),
                                              eltw.mode,
-                                             conv.weights.ref(),
-                                             conv.bias.ref(),
-                                             conv.weights_quantization_factors.ref(),
-                                             conv.output_calibration_factors.ref(),
+                                             conv.weights,
+                                             conv.bias,
+                                             conv.weights_quantization_factors,
+                                             conv.output_calibration_factors,
                                              conv.input_quantization_factor,
                                              eltw_scale,  // eltw_scale
                                              eltw.output_calibration_factors,
@@ -325,8 +443,8 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
                                              new_conv_stride,
                                              conv.input_offset,
                                              conv.dilation,
-                                             conv.with_activation,
-                                             conv.activation_negative_slope,
+                                             conv_with_activation,
+                                             conv_netagive_slope,
                                              false,  // eltw.with_activation - use fused activation
                                              0.f);   // eltw.activation_negative_slope - use fused activation
 
@@ -335,7 +453,9 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
 
     auto& new_node = p.get_or_create(fused_conv_eltw);
 
-    new_node.set_fused_activation(eltw_node->get_fused_activation_func(), eltw_node->get_fused_activation_params());
+    for (size_t i = 0; i < eltw_node->get_fused_activations_funcs().size(); i++)
+        new_node.add_fused_activation(eltw_node->get_fused_activations_funcs()[i],
+                                      eltw_node->get_fused_activations_params()[i]);
 
     // Copy output calibration factors pointer as replace will remove eltwise node
     program_node* output_calibration_factors = nullptr;
@@ -378,212 +498,26 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     p.add_optimized_primitive_info(eltw_id, {new_node.id()});
 }
 
-void prepare_primitive_fusing::run(program_impl& p) {
-    bool is_debug = p.get_options().get<build_option_type::debug>()->enabled();
-
-    std::list<program_node*> conv_nodes;
-    auto itr = p.get_processing_order()
-                   .begin();  // note we need to use iterators since currently processed element can be removed
-    while (itr != p.get_processing_order().end()) {
-        auto node_itr = itr++;
-        if ((*node_itr)->is_type<convolution>()) {
-            // Don't push nodes that will be executed in bfyx_f16 layout since
-            // these ones supports eltwise fusing inside common convolution kernel
-            if (!_lo.is_format_optimized((*node_itr)->as<convolution>(), format::bfyx_f16))
-                conv_nodes.push_back(*node_itr);
-        }
-    }
-
-    // Disabled due to kernel being not optimized
-    // itr = conv_nodes.begin();
-    // while (itr != conv_nodes.end())
-    //{
-    //    auto node_itr = itr++;
-    //    auto& node = (*node_itr);
-
-    //    fuse_conv_bn_scale(p, node);
-    //}
-
-    // This loop tries fusing several reorders one by one (if present) into one reorder
-    itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
-        auto node_itr = itr++;
-        auto& node = (*node_itr);
-
-        if (node->is_output())
-            continue;
-
-        program_helpers::do_for_types<reorder>(*node, [&p, is_debug](reorder_node& node) {
-            auto& input = node.input();
-
-            // Restrictions:
-            // - inputs cannot be padded
-            // - primitives input cannot be output
-            // - input was optimized
-            if (node.has_padded_dependency() || (input.is_output() && !is_debug) ||
-                node.get_dependencies().size() != 1 || input.can_be_optimized())
-                return;
-
-            // - check if previous node is reorder with 1 user (and if the layouts are the same - remove reorder)
-            // - do not fuse if current node has mean subtract
-            if (input.get_users().size() != 1 || !input.is_type<reorder>() ||
-                input.get_output_layout() != node.get_output_layout() || node.has_mean() ||
-                !node.get_primitive()->subtract_per_feature.empty())
-                return;
-
-            p.add_optimized_primitive_info(node.id());
-
-            input.set_output_layout(node.get_output_layout(), false);
-            p.extract_and_remove(node);
-        });
-    }
-
-    itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
-        auto node_itr = itr++;
-        auto& node = (*node_itr);
-
-        program_helpers::do_for_types<activation>(*node, [&p, is_debug](activation_node& node) {
-            auto& input = node.input();
-
-            // Restrictions:
-            // - inputs cannot be padded
-            // - primitives input cannot be output
-            // - no activation additional input
-            // - input was optimized
-            if (node.has_padded_dependency() || (input.is_output() && !is_debug) || node.is_output() ||
-                node.get_dependencies().size() != 1 || input.can_be_optimized())
-                return;
-
-            // - check if there is no activation fused already
-            // - limit to primitives which implementations support activation fusing
-            if (input.get_users().size() != 1 || input.get_fused_activation_func() != activation_none ||
-                // TODO: new api needs to be created to read such caps
-                // right now use whitelist so no new primitives will be affected in case of lack of fused activation
-                // support
-                (!input.is_type<batch_norm>() && !input.is_type<concatenation>() && !input.is_type<convolution>() &&
-                 !input.is_type<crop>() && !input.is_type<deconvolution>() && !input.is_type<eltwise>() &&
-                 !input.is_type<fully_connected>() && !input.is_type<lrn>() && !input.is_type<normalize>() &&
-                 !input.is_type<permute>() && !input.is_type<pooling>() && !input.is_type<reorder>() &&
-                 !input.is_type<reshape>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
-                 !input.is_type<softmax>() && !input.is_type<upsampling>() && !input.is_type<mvn>() &&
-                 !input.is_type<depth_to_space>() && !input.is_type<gather>() && !input.is_type<reverse_sequence>() &&
-                 !input.is_type<shuffle_channels>() && !input.is_type<strided_slice>() &&
-                 !input.is_type<fused_conv_eltwise>()))
-                return;
-
-            input.set_fused_activation(node.get_primitive()->activation_func, node.get_primitive()->additional_params);
-            input.set_output_padding(node.get_output_layout().data_padding);
-
-            p.add_optimized_primitive_info(node.id(), {input.id()});
-
-            p.extract_and_remove(node);
-        });
-    }
-
-    // This loop tries fusing eltwise (sum) with deconvolution
-    itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
-        auto node_itr = itr++;
-        auto& node = (*node_itr);
-
-        fuse_skip_layers(p, node);
-    }
-}
-
 void prepare_conv_eltw_fusing::run(program_impl& p) {
-    bool recalc_processing_order = false;
-    auto itr = p.get_processing_order().begin();
-
-    if (bfyx_f16_opt) {
-        while (itr != p.get_processing_order().end()) {
-            auto node_itr = itr++;
-            auto& node = (*node_itr);
-            program_helpers::do_for_types<eltwise>(*node, [&p, this, &recalc_processing_order](eltwise_node& node) {
-                std::shared_ptr<const cldnn::eltwise> prim = node.get_primitive();
-                if (node.is_output() || node.inputs_count() != 2 ||
-                    prim->mode != eltwise_mode::sum || !prim->stride.empty())
-                    return;
-
-                std::vector<cldnn::program_node*> parents = node.get_dependencies();
-                std::list<cldnn::program_node*> users = node.get_users();
-
-                auto parent1 = parents[0];
-                auto parent2 = parents[1];
-
-                // We should have at least one convolution node
-                if (!parent1->is_type<convolution>() && !parent2->is_type<convolution>())
-                    return;
-
-                // Choose a convolution node
-                size_t fused_idx = parent1->is_type<convolution>() ? 0 : 1;
-                size_t peer_idx  = parent1->is_type<convolution>() ? 1 : 0;
-
-                int p1_pnum = p.get_processing_order().get_processing_number(parents[fused_idx]);
-                int p2_pnum = p.get_processing_order().get_processing_number(parents[peer_idx]);
-
-                if (p1_pnum < p2_pnum && parents[peer_idx]->is_type<convolution>()) {
-                    std::swap(fused_idx, peer_idx);
-                }
-
-                if (parent1->is_type<convolution>() && !_lo.is_format_optimized(*parent1, format::bfyx_f16))
-                    return;
-                if (parent2->is_type<convolution>() && !_lo.is_format_optimized(*parent2, format::bfyx_f16))
-                    return;
-
-                auto fused_node = parents[fused_idx];
-                auto peer_node = parents[peer_idx];
-
-                // This fusing can be extended to support peer node in any layout and with broadcast
-                bool merge_allowed = fused_node->get_users().size() == 1 &&
-                                     fused_node->get_output_layout().format == format::bfyx_f16 &&
-                                     peer_node->get_output_layout().format == format::bfyx_f16 &&
-                                     fused_node->get_output_layout().size == peer_node->get_output_layout().size;
-
-                for (auto& parent : fused_node->get_dependencies())
-                    if (parent->id() == peer_node->id())
-                        merge_allowed = false;
-
-                if (!merge_allowed)
-                    return;
-
-                if (p.get_processing_order().get_processing_number(fused_node) <
-                    p.get_processing_order().get_processing_number(peer_node))
-                    recalc_processing_order = true;
-
-                fused_node->set_output_padding(node.get_output_layout().data_padding);
-
-                p.add_optimized_primitive_info(node.id(), { fused_node->id() });
-                fused_node->as<convolution>().add_fused_primitive(&node);
-
-                fused_node->users.remove(&node);
-                peer_node->users.remove(&node);
-                p.replace_all_usages(node, *fused_node);
-                node.dependencies.clear();
-                p.remove_if_dangling(node);
-            });
-        }
-        // Need to update processing order to handle cases when peer node processing number is greater
-        // than fused node one
-        if (recalc_processing_order)
-            p.get_processing_order().calc_processing_order(p);
-    }
-
-
     std::list<program_node*> conv_nodes;
     // note we need to use iterators since currently processed element can be removed
-    itr = p.get_processing_order().begin();
+    auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
-        if ((*node_itr)->is_type<convolution>())
+        if (node_itr != p.get_processing_order().end() &&
+            (*node_itr)->is_type<convolution>())
             if (!bfyx_f16_opt || !_lo.is_format_optimized((*node_itr)->as<convolution>(), format::bfyx_f16))
                 conv_nodes.push_back(*node_itr);
     }
 
     // fuse conv + eltwise after activations
-    itr = conv_nodes.begin();
-    while (itr != conv_nodes.end()) {
-        auto node_itr = itr++;
+    auto conv_itr = conv_nodes.begin();
+    while (conv_itr != conv_nodes.end()) {
+        auto node_itr = conv_itr++;
+
+        if (node_itr == conv_nodes.end())
+            break;
+
         auto& node = (*node_itr);
 
         fuse_conv_eltwise(p, node);
@@ -596,6 +530,13 @@ void prepare_conv_eltw_read_write_opt::conv_eltwise_read_write_opt(program_impl&
     // output layouts must match
     if (fused_conv_eltw_node->get_output_layout() != second_input_node->get_output_layout()) {  // check whole layout
         return;
+    }
+
+    // look for conflicts
+    auto this_node_processing_number = p.get_processing_order().get_processing_number(node);
+    for (auto& user : second_input_node->users) {
+        if (p.get_processing_order().get_processing_number(user) > this_node_processing_number)
+            return;
     }
 
     // buffer shared between primitives, if second input is mutable data, then we can reuse this memory
@@ -656,7 +597,8 @@ void prepare_conv_eltw_read_write_opt::run(program_impl& p) {
                    .begin();  // note we need to use iterators since currently processed element can be removed
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
-        if ((*node_itr)->is_type<fused_conv_eltwise>())
+        if (node_itr != p.get_processing_order().end() &&
+            (*node_itr)->is_type<fused_conv_eltwise>())
             fused_conv_eltw_nodes.push_back(*node_itr);
     }
 

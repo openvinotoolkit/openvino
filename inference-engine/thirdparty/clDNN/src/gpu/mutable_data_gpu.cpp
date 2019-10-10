@@ -37,12 +37,12 @@ public:
     static primitive_impl* create(mutable_data_node const& arg) { return new mutable_data_gpu(arg, {}); }
 };
 
-namespace {
-struct attach {
-    attach() { implementation_map<mutable_data>::add({{engine_types::ocl, mutable_data_gpu::create}}); }
-    ~attach() {}
-};
-attach attach_impl;
-}  // namespace
+namespace detail {
+
+attach_mutable_data_gpu::attach_mutable_data_gpu() {
+    implementation_map<mutable_data>::add({{engine_types::ocl, mutable_data_gpu::create}});
+}
+
+}  // namespace detail
 }  // namespace gpu
 }  // namespace cldnn

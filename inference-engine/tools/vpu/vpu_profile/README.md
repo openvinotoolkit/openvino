@@ -25,7 +25,7 @@ vpu_profile [OPTIONS]
 	-inputs_dir 	 <value> 	Path to folder with images, only bitmap(.bmp) supported. Default: ".".
 	-config     	 <value> 	Path to the configuration file. Default value: "config".
 	-iterations 	 <value> 	Specifies number of iterations. Default value: 16.
-	-plugin     	 <value> 	Specifies plugin. Supported values: myriad.
+	-plugin     	 <value> 	Specifies plugin. Supported values: myriad, hddl.
 	            	         	Default value: "myriad".
 	-report     	 <value> 	Specifies report type. Supported values: per_layer, per_stage.
 	            	         	Overrides value in configuration file if provided. Default value: "per_layer"
@@ -39,6 +39,15 @@ You can use the following command to simply execute network:
 $./vpu_profile -model <path_to_model>/model_name.xml
 ```
 > **NOTE**: Models should be first converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer).
+
+## Plugin Option
+
+You have to select between Myriad and HDDL plugin manually, by default vpu_profile will try to use myriad plugin
+If you need to run HDDL, need to set it explicitly
+
+```sh
+$./vpu_profile -model <path_to_model>/model_name.xml -plugin hddl
+```
 
 ## Iterations Option
 

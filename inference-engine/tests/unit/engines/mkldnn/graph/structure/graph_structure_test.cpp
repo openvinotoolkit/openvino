@@ -3,17 +3,14 @@
 //
 
 #include <gtest/gtest.h>
-#include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_plugin/mkldnn_exec_network.h"
 
-#include "single_layer_common.hpp"
 #include <mkldnn_plugin/mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 #include "../test_graph.hpp"
 #include <ext_list.hpp>
 #include <ie_builders.hpp>
 #include <ie_ir_reader.hpp>
-#include <ngraph/frontend/onnx_import/onnx.hpp>
 
 using namespace ::testing;
 using namespace std;
@@ -3817,7 +3814,7 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersForXceptionTopology) {
 
 TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersForGrayscaleInput) {
     std::string model = R"V0G0N(
-<net batch="1" name="xception" version="2">
+<net batch="1" name="xception" version="4">
 	<layers>
 		<layer id="1" name="data" precision="FP32" type="Input">
 			<output>
@@ -3830,7 +3827,7 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersForGrayscaleInput) {
 			</output>
 		</layer>
 		<layer id="2" name="conv1" precision="FP32" type="Convolution">
-			<data dilation-x="1" dilation-y="1" group="1" kernel-x="3" kernel-y="3" output="32" pad-x="0" pad-y="0" stride-x="1" stride-y="1"/>
+			<data auto_pad="same_upper" dilations="1,1" group="1" kernel="3,3" output="32" pads_begin="0,0" pads_end="2,2" strides="1,1"/>
 			<input>
 				<port id="2">
 					<dim>1</dim>
@@ -4505,7 +4502,7 @@ TEST_F(MKLDNNGraphStructureTests, TestFailedVNect0003) {
 
 TEST_F(MKLDNNGraphStructureTests, TestConvolutionDWConvolutionSumFusing) {
     std::string model = R"V0G0N(
-<net name="net" version="2" batch="1">
+<net name="net" version="4" batch="1">
     <layers>
         <layer name="data0" type="Input" precision="FP32" id="0">
             <output>
@@ -4528,7 +4525,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConvolutionDWConvolutionSumFusing) {
             </output>
         </layer>
         <layer name="conv0" type="Convolution" precision="FP32" id="2">
-            <convolution_data stride-x="1" stride-y="1" pad-x="0" pad-y="0" kernel-x="1" kernel-y="1" output="48" group="1"/>
+			<data auto_pad="same_upper" dilations="1,1" group="1" kernel="1,1" output="48" pads_end="0, 0" pads_begin="150,300" strides="1,1"/>
             <input>
                 <port id="0">
                     <dim>1</dim>
@@ -4549,7 +4546,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConvolutionDWConvolutionSumFusing) {
             <biases offset="6144" size="192"/>
         </layer>
         <layer name="conv1" type="Convolution" precision="FP32" id="3">
-            <convolution_data stride-x="2" stride-y="2" pad-x="1" pad-y="1" kernel-x="3" kernel-y="3" output="48" group="48"/>
+			<data auto_pad="same_upper" dilations="1,1" group="48" kernel="3,3" output="48" pads_end="1,1" pads_begin="1,1" strides="2,2"/>
             <input>
                 <port id="0">
                     <dim>1</dim>
@@ -4570,7 +4567,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConvolutionDWConvolutionSumFusing) {
             <biases offset="7872" size="192"/>
         </layer>
         <layer name="eltwise" type="Eltwise" precision="FP32" id="4">
-            <elementwise_data operation="sum"/>
+            <data operation="sum"/>
             <input>
                 <port id="0">
                     <dim>1</dim>
@@ -4613,7 +4610,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConvolutionDWConvolutionSumFusing) {
             </output>
         </layer>
         <layer name="power" type="Power" precision="FP32" id="6">
-            <power_data power="1" scale="-1" shift="0"/>
+            <data power="1" scale="-1" shift="0"/>
             <input>
                 <port id="0">
                     <dim>1</dim>

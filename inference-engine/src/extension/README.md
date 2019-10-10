@@ -28,6 +28,7 @@ when cross-compiling this library for another platform.
  * LogSoftmax
  * Math (Abs, Acos, Acosh, Asin, Asinh, Atan, Atanh, Ceil, Cos, Cosh, Erf, Floor, HardSigmoid, Log, Neg, Reciprocal, Selu, Sign, Sin, Sinh, Softplus, Softsign, Tan)
  * MVN
+ * NonMaxSuppression
  * Normalize
  * OneHot
  * Pad
@@ -42,6 +43,7 @@ when cross-compiling this library for another platform.
  * ReorgYolo
  * Resample
  * ReverseSequence
+ * ScatterUpdate
  * ShuffleChannels
  * SimplerNMS
  * SpaceToDepth

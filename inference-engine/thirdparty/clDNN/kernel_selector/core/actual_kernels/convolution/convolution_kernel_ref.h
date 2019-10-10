@@ -37,6 +37,8 @@ protected:
             WeightsLayout::iyxo,
             WeightsLayout::oyxi,
             WeightsLayout::bf_lyx_yx,
+            WeightsLayout::oizyx,
+            WeightsLayout::o_i_zyx_i16_o16,
         };
     }
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;

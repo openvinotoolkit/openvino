@@ -8,7 +8,6 @@
 #include <memory>
 #include "ie_format_parser.h"
 #include "xml_parse_utils.h"
-#include "range_iterator.hpp"
 #include "details/caseless.hpp"
 #include <vector>
 #include <string>
