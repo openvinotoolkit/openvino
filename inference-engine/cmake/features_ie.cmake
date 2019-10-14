@@ -8,7 +8,6 @@ include (options)
 #these options are aimed to optimize build time on development system
 
 ie_option (ENABLE_GNA "GNA support for inference engine" ON)
-ie_option (ENABLE_ROCKHOPER "use Rockhopper decoder for converting / output scores" ON)
 
 ie_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ON)
 
