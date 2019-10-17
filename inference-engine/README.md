@@ -58,7 +58,7 @@ The software was validated on:
 ### Build Steps
 1. Clone submodules:
     ```sh
-    cd dldt/inference-engine
+    cd dldt
     git submodule init
     git submodule update --recursive
     ```
@@ -104,7 +104,7 @@ You can use the following additional build options:
     For CMake projects, set an environment variable `InferenceEngine_DIR`:
 
     ```sh
-    export InferenceEngine_DIR=/path/to/dldt/inference-engine/build/
+    export InferenceEngine_DIR=/path/to/dldt/build/
     ```
 
     Then you can find Inference Engine by `find_package`:
@@ -140,10 +140,10 @@ Native compilation of the Inference Engine is the most straightforward solution.
   sudo apt-get install -y git cmake libusb-1.0-0-dev
   ```
 
-2. Go to the `inference-engine` directory of the cloned `dldt` repository:
+2. Go to the cloned `dldt` repository:
 
   ```bash
-  cd dldt/inference-engine
+  cd dldt
   ```
 
 3. Initialize submodules:
@@ -237,10 +237,10 @@ with the following content:
 
 6. While in the container:
 
-    1. Go to the `inference-engine` directory of the cloned `dldt` repository:
+    1. Go to the cloned `dldt` repository:
 
       ```bash
-      cd dldt/inference-engine
+      cd dldt
       ```
 
     2. Create a build folder:
@@ -260,7 +260,7 @@ with the following content:
           -DENABLE_GNA=OFF .. && make --jobs=$(nproc --all)
       ```
 
-7. Press "Ctrl"+"D" to exit from Docker\*. You can find the resulting binaries in the `dldt/inference-engine/bin/armv7l/` directory and the OpenCV* installation in the `dldt/inference-engine/temp`.
+7. Press "Ctrl"+"D" to exit from Docker\*. You can find the resulting binaries in the `dldt/bin/armv7l/` directory and the OpenCV* installation in the `dldt/inference-engine/temp`.
    
 >**NOTE**: Native applications that link to cross-compiled Inference Engine library require an extra compilation flag `-march=armv7-a`.
 
@@ -367,7 +367,7 @@ The software was validated on:
 ### Build Steps
 1. Clone submodules:
     ```sh
-    cd dldt/inference-engine
+    cd dldt
     git submodule init
     git submodule update --recursive
     ```
