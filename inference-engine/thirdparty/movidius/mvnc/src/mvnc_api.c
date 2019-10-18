@@ -860,10 +860,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
             destroyDeviceHandle(deviceHandlePtr);
             CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
             GLOBAL_UNLOCK();
-            free(handler);
-            destroyDeviceHandle(deviceHandlePtr);
-            CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
-            GLOBAL_UNLOCK();
             return NC_ERROR;
         }
 
