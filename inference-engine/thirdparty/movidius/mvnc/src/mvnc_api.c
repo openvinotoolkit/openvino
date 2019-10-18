@@ -1231,6 +1231,7 @@ static void fprintfsock( int s, const char* fmt, ... ) {
     } else {
         va_start( args, fmt );
         len = vsnprintf( 0, 0, fmt, args ) + 1;
+        va_end (args);
         buf = (char*) malloc(len);
         if (buf == NULL) {
             va_end (args);
