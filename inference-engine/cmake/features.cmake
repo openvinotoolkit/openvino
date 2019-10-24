@@ -112,14 +112,14 @@ if (UNIX AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSIO
 endif()
 
 if (UNIX AND NOT APPLE)
-    ie_option(ENABLE_CPPLINT "Enable cpplint checks during the build" ON)
+    ie_option(ENABLE_CPPLINT "Enable cpplint checks during the build" OFF)
     ie_option(ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF)
 else()
     set(ENABLE_CPPLINT OFF)
 endif()
 
 if (UNIX AND NOT APPLE AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.10)
-    ie_option(ENABLE_CPPCHECK "Enable cppcheck during the build" ON)
+    ie_option(ENABLE_CPPCHECK "Enable cppcheck during the build" OFF)
 else()
     set(ENABLE_CPPCHECK OFF)
 endif()
