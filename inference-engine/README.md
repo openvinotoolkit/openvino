@@ -121,10 +121,9 @@ You can use the following additional build options:
 - To build the Python API wrapper, use the `-DENABLE_PYTHON=ON` option. To 
   specify an exact Python version, use the following options:
    
-   ```-DPYTHON_EXECUTABLE=`which python3.7` \
-   -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so \
-   -DPYTHON_INCLUDE_DIR=/usr/include/python3.7
-   ```
+   `-DPYTHON_EXECUTABLE=`which python3.7`` 
+   `-DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so`
+   `-DPYTHON_INCLUDE_DIR=/usr/include/python3.7`
 
 - To switch the CPU and GPU plugins off/on, use the `cmake` options 
   `-DENABLE_MKL_DNN=ON/OFF` and `-DENABLE_CLDNN=ON/OFF` respectively.
