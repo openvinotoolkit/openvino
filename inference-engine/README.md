@@ -324,7 +324,7 @@ The software was validated on:
 ### Software Requirements
 - [CMake]\*3.5 or higher
 - [OpenBLAS]\* and [mingw64\* runtime dependencies].
-- [Intel® C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe) 18.0 to build the Inference Engine on Windows.
+- [Intel® C++ Compiler] 18.0 to build the Inference Engine on Windows.
 - (Optional) [Intel® Graphics Driver for Windows* [25.20] driver package](https://downloadcenter.intel.com/download/28646/Intel-Graphics-Windows-10-DCH-Drivers?product=80939).
 - Python 3.4 or higher for Inference Engine Python API wrapper
 
@@ -334,11 +334,17 @@ The software was validated on:
     git submodule init
     git submodule update --recursive
     ```
-2. Download and install [Intel® C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe) 18.0
+2. Download and install [Intel® C++ Compiler] 18.0
 3. Install OpenBLAS:
-    1. Download [OpenBLAS\*](https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download)
-    2. Unzip the downloaded package to a directory on your machine. In this document, this directory is referred to as `<OPENBLAS_DIR>`.
-4. By default, the build enables the Inference Engine GPU plugin to infer models on your Intel® Processor Graphics. This requires you to [download and install the Intel® Graphics Driver for Windows* [25.20] driver package](https://downloadcenter.intel.com/download/28646/Intel-Graphics-Windows-10-DCH-Drivers?product=80939) before running the build. If you don't want to use the GPU plugin, use the `-DENABLE_CLDNN=OFF` CMake build option and skip the installation of the Intel® Graphics Driver.    
+    1. Download [OpenBLAS] for Windows\*.
+    2. Unzip the downloaded package to a directory on your machine. In this 
+       document, this directory is referred to as `<OPENBLAS_DIR>`.
+4. By default, the build enables the Inference Engine GPU plugin to infer models 
+   on your Intel® Processor Graphics. This requires you to [download and install 
+   the Intel® Graphics Driver for Windows (25.20) [driver package] before 
+   running the build. If you don't want to use the GPU plugin, use the 
+   `-DENABLE_CLDNN=OFF` CMake build option and skip the installation of the 
+   Intel® Graphics Driver.    
 5. Create build directory:
     ```sh
     mkdir build
@@ -517,7 +523,7 @@ the Inference Engine MYRIAD Plugin. See also [Intel® Neural Compute Stick 2 Get
 
         sudo ldconfig
 
-       rm 97-myriad-usbboot.rules
+        rm 97-myriad-usbboot.rules
 
 
 ### For Windows
@@ -562,4 +568,7 @@ OpenVINO™ DLDT, proceed to the Get Started guides:
 [mingw64\* runtime dependencies]:https://sourceforge.net/projects/openblas/files/v0.2.14/mingw64_dll.zip/download
 [https://download.01.org/opencv/2019/openvinotoolkit]:https://download.01.org/opencv/2019/openvinotoolkit
 [build instructions]:https://docs.opencv.org/master/df/d65/tutorial_table_of_content_introduction.html
+[driver package]:https://downloadcenter.intel.com/download/28646/Intel-Graphics-Windows-10-DCH-Drivers?product=80939
 [Intel® Neural Compute Stick 2 Get Started]:https://software.intel.com/en-us/neural-compute-stick/get-started
+[Intel® C++ Compiler]:https://software.intel.com/en-us/intel-parallel-studio-xe
+[OpenBLAS]:https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download
