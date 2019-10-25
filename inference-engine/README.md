@@ -310,12 +310,10 @@ You can use the following additional build options:
   packages using `apt-get`; then install `numpy` and `cython` python modules 
   via `pip3`, adding the following options:
 
-  ```bash
-  -DENABLE_PYTHON=ON \
-  -DPYTHON_EXECUTABLE=/usr/bin/python3.5 \
-  -DPYTHON_LIBRARY=/usr/lib/arm-linux-gnueabihf/libpython3.5m.so \
-  -DPYTHON_INCLUDE_DIR=/usr/include/python3.5
-   ```
+  `-DENABLE_PYTHON=ON` 
+  `-DPYTHON_EXECUTABLE=/usr/bin/python3.5`
+  `-DPYTHON_LIBRARY=/usr/lib/arm-linux-gnueabihf/libpython3.5m.so`
+  `-DPYTHON_INCLUDE_DIR=/usr/include/python3.5`
 
 ## Build on Windows* Systems
 
