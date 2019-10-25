@@ -120,10 +120,11 @@ You can use the following additional build options:
 
 - To build the Python API wrapper, use the `-DENABLE_PYTHON=ON` option. To 
   specify an exact Python version, use the following options:
-   
-   `-DPYTHON_EXECUTABLE=`which python3.7`` 
-   `-DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so`
-   `-DPYTHON_INCLUDE_DIR=/usr/include/python3.7`
+      
+  ```
+   -DPYTHON_EXECUTABLE=`which python3.7` 
+   -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so
+   -DPYTHON_INCLUDE_DIR=/usr/include/python3.7```
 
 - To switch the CPU and GPU plugins off/on, use the `cmake` options 
   `-DENABLE_MKL_DNN=ON/OFF` and `-DENABLE_CLDNN=ON/OFF` respectively.
@@ -376,7 +377,6 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
    ```
 
 ### Building Inference Engine with Ninja* Build System
-
  
     call "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2018\windows\bin\ipsxe-comp-vars.bat" intel64 vs2017
     set CXX=icl
@@ -395,18 +395,21 @@ The software was validated on:
 - macOS\* 10.14, 64-bit
 
 ### Software Requirements
+
 - [CMake]\* 3.5 or higher
 - Clang\* compiler from Xcode\* 10.1
 - Python\* 3.4 or higher for the Inference Engine Python API wrapper
 
 ### Build Steps
+
 1. Clone submodules:
 
     cd dldt/inference-engine
     git submodule init
     git submodule update --recursive
   
-2. Install build dependencies using the `install_dependencies.sh` script in the project root folder.
+2. Install build dependencies using the `install_dependencies.sh` script in the 
+   project root folder.
 
 3. Create a build folder: `mkdir build`
 
@@ -414,8 +417,8 @@ The software was validated on:
    directory, run `cmake` to fetch project dependencies and create Unix makefiles, 
    then run `make` to build the project:
    
-    cmake -DCMAKE_BUILD_TYPE=Release ..
-    make --jobs=$(nproc --all)
+       cmake -DCMAKE_BUILD_TYPE=Release ..
+       make --jobs=$(nproc --all)
 
 ### Additional Build Options
 
