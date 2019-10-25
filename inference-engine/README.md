@@ -497,27 +497,27 @@ the Inference Engine MYRIAD Plugin. See also [Intel® Neural Compute Stick 2 Get
 1. Add the current Linux user to the `users` group; you will need to log out and 
    log in for it to take effect:
  
-    sudo usermod -a -G users "$(whoami)"
+        sudo usermod -a -G users "$(whoami)"
 
 2. To perform inference on Intel® Movidius™ Neural Compute Stick and Intel® 
    Neural Compute Stick 2, install the USB rules as follows:
 
-    cat <<EOF > 97-myriad-usbboot.rules
-    SUBSYSTEM=="usb", ATTRS{idProduct}=="2150", ATTRS{idVendor}=="03e7", GROUP="users", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1"
-    SUBSYSTEM=="usb", ATTRS{idProduct}=="2485", ATTRS{idVendor}=="03e7", GROUP="users", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1"
-    SUBSYSTEM=="usb", ATTRS{idProduct}=="f63b", ATTRS{idVendor}=="03e7", GROUP="users", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1"
-    EOF
+        cat <<EOF > 97-myriad-usbboot.rules
+        SUBSYSTEM=="usb", ATTRS{idProduct}=="2150", ATTRS{idVendor}=="03e7", GROUP="users", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1"
+        SUBSYSTEM=="usb", ATTRS{idProduct}=="2485", ATTRS{idVendor}=="03e7", GROUP="users", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1"
+        SUBSYSTEM=="usb", ATTRS{idProduct}=="f63b", ATTRS{idVendor}=="03e7", GROUP="users", MODE="0666", ENV{ID_MM_DEVICE_IGNORE}="1"
+        EOF
 
 
-    sudo cp 97-myriad-usbboot.rules /etc/udev/rules.d/
+        sudo cp 97-myriad-usbboot.rules /etc/udev/rules.d/
 
-    sudo udevadm control --reload-rules
+        sudo udevadm control --reload-rules
 
-    sudo udevadm trigger
+        sudo udevadm trigger
 
-    sudo ldconfig
+        sudo ldconfig
 
-    rm 97-myriad-usbboot.rules
+       rm 97-myriad-usbboot.rules
 
 
 ### For Windows
@@ -561,5 +561,5 @@ OpenVINO™ DLDT, proceed to the Get Started guides:
 [OpenBLAS]:https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download
 [mingw64\* runtime dependencies]:https://sourceforge.net/projects/openblas/files/v0.2.14/mingw64_dll.zip/download
 [https://download.01.org/opencv/2019/openvinotoolkit]:https://download.01.org/opencv/2019/openvinotoolkit
-[build instructions](https://docs.opencv.org/master/df/d65/tutorial_table_of_content_introduction.html)
+[build instructions]:https://docs.opencv.org/master/df/d65/tutorial_table_of_content_introduction.html
 [Intel® Neural Compute Stick 2 Get Started]:https://software.intel.com/en-us/neural-compute-stick/get-started
