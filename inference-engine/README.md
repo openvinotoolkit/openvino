@@ -173,21 +173,21 @@ However, it might take at least one hour to complete on Raspberry Pi\* 3.
 
 1. Install dependencies:
 
-      sudo apt-get update
-      sudo apt-get install -y git cmake libusb-1.0-0-dev
+        sudo apt-get update
+        sudo apt-get install -y git cmake libusb-1.0-0-dev
 
 2. Go to the `inference-engine` directory of the cloned `dldt` repository:
 
-      cd dldt/inference-engine
+        cd dldt/inference-engine
   
 3. Initialize submodules:
 
-      git submodule init
-      git submodule update --recursive
+        git submodule init
+        git submodule update --recursive
 
 4. Create a build folder:
 
-      mkdir build && cd build
+        mkdir build && cd build
   
 5. Build the Inference Engine:
 
@@ -320,10 +320,11 @@ The software was validated on:
 - [CMake]\*3.5 or higher
 - [OpenBLAS]\* and [mingw64\* runtime dependencies].
 - [Intel® C++ Compiler] 18.0 to build the Inference Engine on Windows.
-- (Optional) [Intel® Graphics Driver for Windows* [25.20] driver package](https://downloadcenter.intel.com/download/28646/Intel-Graphics-Windows-10-DCH-Drivers?product=80939).
+- (Optional) Intel® Graphics Driver for Windows* (25.20) [driver package].
 - Python 3.4 or higher for Inference Engine Python API wrapper
 
 ### Build Steps
+
 1. Clone submodules:
     ```sh
     git submodule init
@@ -405,9 +406,9 @@ The software was validated on:
 
 1. Clone submodules:
 
-    cd dldt/inference-engine
-    git submodule init
-    git submodule update --recursive
+        cd dldt/inference-engine
+        git submodule init
+        git submodule update --recursive
   
 2. Install build dependencies using the `install_dependencies.sh` script in the 
    project root folder.
@@ -418,8 +419,8 @@ The software was validated on:
    directory, run `cmake` to fetch project dependencies and create Unix makefiles, 
    then run `make` to build the project:
    
-       cmake -DCMAKE_BUILD_TYPE=Release ..
-       make --jobs=$(nproc --all)
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        make --jobs=$(nproc --all)
 
 ### Additional Build Options
 
