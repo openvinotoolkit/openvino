@@ -89,17 +89,17 @@ The software was validated on:
 
 You can use the following additional build options:
 
-- Internal JIT GEMM implementation is used by default.
+- The default build uses an internal JIT GEMM implementation.
 
-- To switch to OpenBLAS\* implementation, use the `GEMM=OPENBLAS` option and 
-  `BLAS_INCLUDE_DIRS` and `BLAS_LIBRARIES` CMake options to specify path to the 
-  OpenBLAS headers and library. For example use the following options on CentOS\*: 
+- To switch to an OpenBLAS\* implementation, use the `GEMM=OPENBLAS` option with 
+  `BLAS_INCLUDE_DIRS` and `BLAS_LIBRARIES` CMake options to specify a path to the 
+  OpenBLAS headers and library. For example, the following options on CentOS\*: 
   `-DGEMM=OPENBLAS -DBLAS_INCLUDE_DIRS=/usr/include/openblas -DBLAS_LIBRARIES=/usr/lib64/libopenblas.so.0`.
 
 - To switch to the optimized MKL-ML\* GEMM implementation, use `-DGEMM=MKL` 
   and `-DMKLROOT=<path_to_MKL>` CMake options to specify a path to unpacked 
   MKL-ML with the `include` and `lib` folders. MKL-ML\* package can be downloaded 
-  from the [MKL-DNN repository].
+  from the Intel&reg; [MKL-DNN repository].
 
 - Threading Building Blocks (TBB) is used by default. To build the Inference 
   Engine with OpenMP\* threading, set the `-DTHREADING=OMP` option.
@@ -133,7 +133,7 @@ You can use the following additional build options:
 
    For CMake projects, set an environment variable `InferenceEngine_DIR`:
 
-    export InferenceEngine_DIR=/path/to/dldt/inference-engine/build/
+      export InferenceEngine_DIR=/path/to/dldt/inference-engine/build/
 
   Then you can find Inference Engine by `find_package`:
 
@@ -173,21 +173,21 @@ However, it might take at least one hour to complete on Raspberry Pi\* 3.
 
 1. Install dependencies:
 
-    sudo apt-get update
-    sudo apt-get install -y git cmake libusb-1.0-0-dev
+      sudo apt-get update
+      sudo apt-get install -y git cmake libusb-1.0-0-dev
 
 2. Go to the `inference-engine` directory of the cloned `dldt` repository:
 
-    cd dldt/inference-engine
+      cd dldt/inference-engine
   
 3. Initialize submodules:
 
-    git submodule init
-    git submodule update --recursive
+      git submodule init
+      git submodule update --recursive
 
 4. Create a build folder:
 
-    mkdir build && cd build
+      mkdir build && cd build
   
 5. Build the Inference Engine:
 
@@ -211,13 +211,8 @@ This compilation was tested on the following configuration:
   sudo apt-get install -y docker.io
   ```
 
-2. Add a current user to `docker` group:
-
-  ```bash
-  sudo usermod -a -G docker $USER
-  ```
-
-  Log out and log in for this to take effect.
+2. Add a current user to `docker` group: `sudo usermod -a -G docker $USER`. Log 
+   out and log back in for this to take effect.
 
 3. Create a directory named `ie_cross_armhf` and add a text file named 
    `Dockerfile` with the following content:
