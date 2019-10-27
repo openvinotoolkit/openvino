@@ -24,7 +24,7 @@ if (WIN32)
     if (${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267") #disable some warnings
     endif()
-else()
+elseif (TREAT_WARNING_AS_ERROR)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
 endif()
 
