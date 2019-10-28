@@ -65,6 +65,7 @@ class FIFOQueue(FrontReplacementSubgraph):
         """
         true_placeholder_shape = match['placeholder'].shape
         placeholder_shape = match['fifo_queue'].shapes[0]
+        placeholder_data_type = match['fifo_queue'].types[0]
         assert true_placeholder_shape.ndim <= 1
         if true_placeholder_shape.ndim == 1 and len(true_placeholder_shape) > 1:
             log.warning(
@@ -81,7 +82,8 @@ class FIFOQueue(FrontReplacementSubgraph):
                     graph.remove_node(out.out_node().id)
                 graph.remove_node(out.id)
         graph.remove_node(match['batch_join'].id)
-        placeholder = Parameter(graph, {'name': placeholder_name, 'shape': placeholder_shape}).create_node()
+        placeholder = Parameter(graph, {'name': placeholder_name, 'shape': placeholder_shape,
+                                        'data_type': placeholder_data_type}).create_node()
         graph.create_edge(placeholder, match['image_batch'])
         log.info("FIFOQueueV2 pattern was detected. New shape of placeholder {} is {}. Use -b to set batch size if "
                  "needed".format(placeholder.id, placeholder['shape']))

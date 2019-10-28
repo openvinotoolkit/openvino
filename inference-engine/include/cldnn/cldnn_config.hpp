@@ -15,6 +15,9 @@
 
 namespace InferenceEngine {
 
+/**
+ * @brief GPU plugin configuration
+ */
 namespace CLDNNConfigParams {
 
 /**

@@ -28,6 +28,9 @@
 #include <cpp/ie_executable_network.hpp>
 #include <ie_version.hpp>
 
+/**
+ * @brief Inference Engine API
+ */
 namespace InferenceEngine {
 /**
  * @brief Gets the top n results from a tblob

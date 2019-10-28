@@ -136,7 +136,7 @@ Command line:
 python collect_statistics.py --config ~/inception_v1.yml -d ~/defenitions.yml -M /home/user/intel/openvino/deployment_tools/model_optimizer --models ~/models --source /media/user/calibration/datasets --annotations ~/annotations --converted_models ~/models
 ```
 
-Result model has statistics which allow you to infer this model in INT8 precision. To measure performance, you can use the [Benchmark App](./inference-engine/ie_bridges/python/sample/benchmark_app/README.md).
+Result model has statistics which allow you to infer this model in INT8 precision. To measure performance, you can use the [Benchmark App](./inference-engine/tools/benchmark_tool/README.md).
 
 ### Calibrate the Model
 During calibration process, the model is adjusted for efficient quantization and minimization of accuracy drop on calibration dataset. Calibration tool produces calibrated model which will be executed in low precision 8-bit quantized mode after loading into CPU plugin.
@@ -180,4 +180,6 @@ To run the Calibration Tool in the simplified mode, use the following command:
 ```sh
 python3 calibrate.py -sm -m <path-to-ir.xml> -s <path-to-dataset> -ss <images-number> -e <path-to-extensions-folder> -td <target-device> -precision <output-ir-precision> --output-dir <output-directory-path>
 ```
-It accepts models with FP32, FP16 precisions and image files as the dataset.
+Input:
+- FP32 and FP16 models
+- image files as a dataset
