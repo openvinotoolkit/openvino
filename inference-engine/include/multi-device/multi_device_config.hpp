@@ -16,6 +16,9 @@
 
 namespace InferenceEngine {
 
+/**
+ * @brief Multi Device plugin configuration
+ */
 namespace MultiDeviceConfigParams {
 
 /**

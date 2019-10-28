@@ -27,7 +27,7 @@ class TestFIFOQueueReplacement(unittest.TestCase):
         nodes = {
             'placeholder': {'op': 'Parameter', 'data_type': np.int32, 'kind': 'op', 'shape': np.array(1)},
             'batch_join/fifo_queue': {'op': 'FIFOQueueV2', 'name': 'batch_join/fifo_queue',
-                                      'shapes': np.array([[1, 2, 3]]), 'kind': 'op'},
+                                      'shapes': np.array([[1, 2, 3]]), 'types': np.array([np.float32]), 'kind': 'op'},
             'batch_join': {'op': 'QueueDequeueUpToV2', 'kind': 'op'},
             'image_batch': {'op': 'Identity', 'data_type': np.float32, 'kind': 'op'},
             'label_batch': {'op': 'Identity', 'kind': 'op'},
@@ -56,7 +56,7 @@ class TestFIFOQueueReplacement(unittest.TestCase):
         nodes_no_label = {
             'placeholder': {'op': 'Parameter', 'data_type': np.int32, 'kind': 'op', 'shape': np.array(0)},
             'batch_join/fifo_queue': {'op': 'FIFOQueueV2', 'name': 'batch_join/fifo_queue',
-                                      'shapes': np.array([[1, 2, 3]]), 'kind': 'op'},
+                                      'shapes': np.array([[1, 2, 3]]), 'types': np.array([np.float32]), 'kind': 'op'},
             'batch_join': {'op': 'QueueDequeueUpToV2', 'kind': 'op'},
             'image_batch': {'op': 'Identity', 'data_type': np.float32, 'kind': 'op'},
         }

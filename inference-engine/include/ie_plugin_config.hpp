@@ -17,6 +17,9 @@
 
 namespace InferenceEngine {
 
+/**
+ * @brief %Metrics
+ */
 namespace Metrics {
 
 #ifndef DECLARE_METRIC_KEY_IMPL
@@ -144,6 +147,9 @@ DECLARE_EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS, unsigned int);
 
 }  // namespace Metrics
 
+/**
+ * @brief Generic plugin configuration
+ */
 namespace PluginConfigParams {
 
 /**
