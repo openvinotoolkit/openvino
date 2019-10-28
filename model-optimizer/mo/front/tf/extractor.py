@@ -82,7 +82,6 @@ tf_op_extractors = {
     'SpaceToBatchND': node_pb_arg(tf_space_to_batch_ext),
     'BatchToSpaceND': node_pb_arg(tf_batch_to_space_ext),
     'ReadVariableOp': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
-    'PlaceholderWithDefault': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True}))
 }
 
 

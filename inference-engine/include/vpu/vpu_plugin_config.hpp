@@ -37,6 +37,9 @@
 
 namespace InferenceEngine {
 
+/**
+ * @brief VPU plugin configuration
+ */
 namespace VPUConfigParams {
 
 //

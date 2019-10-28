@@ -24,6 +24,7 @@ from mo.back.replacement import BackReplacementPattern
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.op import Op
 from mo.utils.class_registration import _check_unique_ids, update_registration, get_enabled_and_disabled_transforms
+from mo.utils.model_analysis import AnalyzeAction
 
 
 def import_by_path(path: str, middle_names: list = ()):
@@ -73,6 +74,7 @@ def load_dir(framework: str, path: str, get_front_classes: callable):
     front_classes = get_front_classes()
     internal_dirs = {
                          ('ops', ): [Op],
+                         ('analysis',): [AnalyzeAction],
                          ('front', ): front_classes,
                          ('front', framework): front_classes,
                          ('middle', ): [MiddleReplacementPattern],
