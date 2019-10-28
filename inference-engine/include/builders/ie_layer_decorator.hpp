@@ -9,6 +9,10 @@
 #include <vector>
 
 namespace InferenceEngine {
+
+/**
+ * @brief Neural network builder API
+ */
 namespace Builder {
 
 /**

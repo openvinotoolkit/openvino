@@ -3,10 +3,10 @@
 //
 
 /**
- * @brief A header that defines advanced related properties for VPU plugins.
+ * @brief A header that defines advanced related properties for GNA plugin.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
- * @file vpu_plugin_config.hpp
+ * @file gna_config.hpp
  */
 
 #pragma once
@@ -16,9 +16,20 @@
 
 namespace InferenceEngine {
 
+/**
+ * @brief GNA plugin configuration
+ */
 namespace GNAConfigParams {
 
+/**
+ * @def GNA_CONFIG_KEY(name)
+ * @brief Shortcut for defining configuration keys
+ */
 #define GNA_CONFIG_KEY(name) InferenceEngine::GNAConfigParams::_CONFIG_KEY(GNA_##name)
+/**
+ * @def GNA_CONFIG_VALUE(name)
+ * @brief Shortcut for defining configuration values
+ */
 #define GNA_CONFIG_VALUE(name) InferenceEngine::GNAConfigParams::GNA_##name
 
 #define DECLARE_GNA_CONFIG_KEY(name) DECLARE_CONFIG_KEY(GNA_##name)
