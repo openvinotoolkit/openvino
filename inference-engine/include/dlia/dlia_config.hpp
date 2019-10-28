@@ -16,6 +16,9 @@
 
 namespace InferenceEngine {
 
+/**
+ * @brief DLIA plugin metrics
+ */
 namespace DliaMetrics {
 
 /**
@@ -37,6 +40,9 @@ DECLARE_DLIA_METRIC_VALUE(INPUT_STREAMING);
 
 }  // namespace DliaMetrics
 
+/**
+ * @brief DLIA plugin configuration
+ */
 namespace DLIAConfigParams {
 
 /**

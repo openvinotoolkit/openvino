@@ -22,6 +22,7 @@
   - [Build Steps](#build-steps-2)
   - [Additional Build Options](#additional-build-options-3)
 - [Use Custom OpenCV Builds for Inference Engine](#use-custom-opencv-builds-for-inference-engine)
+- [Adding Inference Engine to your project](#adding-inference-engine-to-your-project)
 - [(Optional) Additional Installation Steps for the Intel® Movidius™ Neural Compute Stick and Neural Compute Stick 2](#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2)
   - [For Linux, Raspbian Stretch* OS](#for-linux-raspbian-stretch-os)
   - [For Windows](#for-windows-1)
@@ -62,7 +63,13 @@ The software was validated on:
     git submodule init
     git submodule update --recursive
     ```
-2. Install build dependencies using the `install_dependencies.sh` script in the project root folder.
+2. Install build dependencies using the `install_dependencies.sh` script in the project root folder:
+   ```sh
+   chmod +x install_dependencies.sh
+   ```
+   ```sh
+   ./install_dependencies.sh
+   ```
 3. By default, the build enables the Inference Engine GPU plugin to infer models on your Intel® Processor Graphics. This requires you to [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.04.12237](https://github.com/intel/compute-runtime/releases/tag/19.04.12237) before running the build. If you don't want to use the GPU plugin, use the `-DENABLE_CLDNN=OFF` CMake build option and skip the installation of the Intel® Graphics Compute Runtime for OpenCL™ Driver.
 4. Create a build folder:
 ```sh
@@ -90,33 +97,20 @@ You can use the following additional build options:
 
 - If the CMake-based build script can not find and download the OpenCV package that is supported on your platform, or if you want to use a custom build of the OpenCV library, refer to the [Use Custom OpenCV Builds](#use-custom-opencv-builds-for-inference-engine) section for details. 
 
-- To build the Python API wrapper, use the `-DENABLE_PYTHON=ON` option. To specify an exact Python version, use the following options:
-   ```sh
-   -DPYTHON_EXECUTABLE=`which python3.7` \
-   -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so \
-   -DPYTHON_INCLUDE_DIR=/usr/include/python3.7
-   ```
+- To build the Python API wrapper: 
+  1. Install all additional packages listed in the `/inference-engine/ie_bridges/python/requirements.txt` file:
+     ```sh
+     pip install -r requirements.txt  
+     ```
+  2. use the `-DENABLE_PYTHON=ON` option. To specify an exact Python version, use the following options:
+     ```sh
+     -DPYTHON_EXECUTABLE=`which python3.7` \
+     -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.7m.so \
+     -DPYTHON_INCLUDE_DIR=/usr/include/python3.7
+     ```
 
 - To switch off/on the CPU and GPU plugins, use the `cmake` options `-DENABLE_MKL_DNN=ON/OFF` and `-DENABLE_CLDNN=ON/OFF` respectively. 
   
-5. Adding to your project
-
-    For CMake projects, set an environment variable `InferenceEngine_DIR`:
-
-    ```sh
-    export InferenceEngine_DIR=/path/to/dldt/inference-engine/build/
-    ```
-
-    Then you can find Inference Engine by `find_package`:
-
-    ```cmake
-    find_package(InferenceEngine)
-
-    include_directories(${InferenceEngine_INCLUDE_DIRS})
-
-    target_link_libraries(${PROJECT_NAME} ${InferenceEngine_LIBRARIES} dl)
-    ```
-
 ## Build for Raspbian Stretch* OS
 
 > **NOTE**: Only the MYRIAD plugin is supported.
@@ -371,7 +365,13 @@ The software was validated on:
     git submodule init
     git submodule update --recursive
     ```
-2. Install build dependencies using the `install_dependencies.sh` script in the project root folder.
+2. Install build dependencies using the `install_dependencies.sh` script in the project root folder:
+   ```sh
+   chmod +x install_dependencies.sh
+   ```
+   ```sh
+   ./install_dependencies.sh
+   ```
 3. Create a build folder:
 ```sh
   mkdir build
@@ -419,6 +419,22 @@ After you got the built OpenCV library, perform the following preparation steps 
 1. Set the `OpenCV_DIR` environment variable to the directory where the `OpenCVConfig.cmake` file of you custom OpenCV build is located.
 2. Disable the package automatic downloading with using the `-DENABLE_OPENCV=OFF` option for CMake-based build script for Inference Engine.
 
+## Adding Inference Engine to your project
+
+For CMake projects, set the `InferenceEngine_DIR` environment variable:
+
+```sh
+export InferenceEngine_DIR=/path/to/dldt/inference-engine/build/
+```
+
+Then you can find Inference Engine by `find_package`:
+
+```cmake
+find_package(InferenceEngine)
+include_directories(${InferenceEngine_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} ${InferenceEngine_LIBRARIES} dl)
+```
+
 ## (Optional) Additional Installation Steps for the Intel® Movidius™ Neural Compute Stick and Neural Compute Stick 2
 
 > **NOTE**: These steps are only required if you want to perform inference on Intel® Movidius™ Neural Compute Stick or the Intel® Neural Compute Stick 2 using the Inference Engine MYRIAD Plugin. See also [Intel® Neural Compute Stick 2 Get Started](https://software.intel.com/en-us/neural-compute-stick/get-started)
@@ -461,7 +477,7 @@ For Intel® Movidius™ Neural Compute Stick and Intel® Neural Compute Stick 2,
 1. Go to the `<DLDT_ROOT_DIR>/inference-engine/thirdparty/movidius/MovidiusDriver` directory, where the `DLDT_ROOT_DIR` is the directory to which the DLDT repository was cloned. 
 2. Right click on the `Movidius_VSC_Device.inf` file and choose **Install** from the pop up menu.
 
-You have installed the driver for your Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2.
+You have installed the driver for your Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2.
 
 ## Next Steps
 
