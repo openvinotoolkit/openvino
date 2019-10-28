@@ -14,8 +14,10 @@
  limitations under the License.
 """
 import functools
+import os
+import re
 import warnings
-import logging as log
+
 import numpy as np
 
 
@@ -77,3 +79,30 @@ def shrink_str_value(value: np.array, max_symbols=100):
     if len(value) > max_symbols:
         value = value.strip('\n')[:max_symbols - 3] + '...'
     return value
+
+
+def files_by_pattern(dir: str, pattern: str, files_only=True, add_prefix=False):
+    """
+    Return a list of files and directories (or only files if the files_only is set to True) in the directory dir that
+    match pattern string pattern.
+    :param dir: Directory to search for files
+    :param pattern: string defining pattern name
+    :param files_only: flag to include only files (not directories) to the result
+    :param add_prefix: flag to include the prefix string to the file names
+    :return: list of file and directory names
+    """
+    pattern_compiled = re.compile(pattern)
+    matched_file_names = []
+    for file_name in os.listdir(dir):
+        if re.match(pattern_compiled, file_name) and (not files_only or os.path.isfile(os.path.join(dir, file_name))):
+            matched_file_names.append(os.path.join(dir, file_name) if add_prefix else file_name)
+    return matched_file_names
+
+
+def get_mo_root_dir():
+    """
+    Return the absolute path to the Model Optimizer root directory (where mo.py file is located)
+    :return: path to the MO root directory
+    """
+    return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath(__file__))), os.pardir,
+                                         os.pardir))

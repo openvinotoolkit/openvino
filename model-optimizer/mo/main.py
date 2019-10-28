@@ -175,10 +175,6 @@ def driver(argv: argparse.Namespace):
     if ret_code:
         return ret_code
 
-    if is_mxnet and not argv.input_shape:
-        raise Error('Input shape is required to convert MXNet model. Please provide it with --input_shape. ' +
-                    refer_to_faq_msg(16))
-
     mean_file_offsets = None
     if is_caffe and argv.mean_file and argv.mean_values:
         raise Error('Both --mean_file and mean_values are specified. Specify either mean file or mean values. ' +
@@ -279,7 +275,7 @@ def driver(argv: argparse.Namespace):
 
     if ret_res != 0:
         return ret_res
-    if not (is_tf and argv.tensorflow_custom_operations_config_update):
+    if not (is_tf and argv.tensorflow_custom_operations_config_update) and not argv.silent:
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
         print('\n[ SUCCESS ] Generated IR model.')
         print('[ SUCCESS ] XML file: {}.xml'.format(os.path.join(output_dir, model_name)))

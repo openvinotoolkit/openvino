@@ -30,6 +30,7 @@ SUPPORTED_DATA_TYPES = {
     'uint8': (np.uint8, 'UI8'),
     'int32': (np.int32, 'I32'),
     'int64': (np.int64, 'I64'),
+    'bool': (np.bool, 'BOOL'),
 }
 
 

@@ -18,6 +18,9 @@
 
 namespace InferenceEngine {
 
+/**
+ * @brief Heterogeneous plugin configuration
+ */
 namespace HeteroConfigParams {
 
 /**
