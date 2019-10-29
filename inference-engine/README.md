@@ -22,6 +22,7 @@
   - [Build Steps](#build-steps-2)
   - [Additional Build Options](#additional-build-options-3)
 - [Use Custom OpenCV Builds for Inference Engine](#use-custom-opencv-builds-for-inference-engine)
+- [Adding Inference Engine to your project](#adding-inference-engine-to-your-project)
 - [(Optional) Additional Installation Steps for the Intel® Movidius™ Neural Compute Stick and Neural Compute Stick 2](#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2)
   - [For Linux, Raspbian Stretch* OS](#for-linux-raspbian-stretch-os)
   - [For Windows](#for-windows-1)
@@ -74,16 +75,16 @@ The software was validated on:
    `-DENABLE_CLDNN=OFF` CMake build option and skip the installation of the 
    Intel® Graphics Compute Runtime for OpenCL™ Driver.
 4. Create a build folder:
-```sh
-  mkdir build && cd build
-```
+   ```sh
+    mkdir build && cd build
+   ```
 5. Inference Engine uses a CMake-based build system. In the created `build` 
    directory, run `cmake` to fetch project dependencies and create Unix 
    makefiles, then run `make` to build the project:
-```sh
-  cmake -DCMAKE_BUILD_TYPE=Release ..
-  make --jobs=$(nproc --all)
-```
+   ```sh
+   cmake -DCMAKE_BUILD_TYPE=Release ..
+   make --jobs=$(nproc --all)
+   ```
 
 ### Additional Build Options
 
@@ -129,13 +130,13 @@ You can use the following additional build options:
 - To switch the CPU and GPU plugins off/on, use the `cmake` options 
   `-DENABLE_MKL_DNN=ON/OFF` and `-DENABLE_CLDNN=ON/OFF` respectively.
   
-5. Adding to your project
+## Adding to your project
 
-   For CMake projects, set an environment variable `InferenceEngine_DIR`:
+For CMake projects, set an environment variable `InferenceEngine_DIR`:
 
       export InferenceEngine_DIR=/path/to/dldt/inference-engine/build/
 
-  Then you can find Inference Engine by `find_package`:
+Then you can find Inference Engine by `find_package`:
 
       find_package(InferenceEngine)
 
@@ -405,6 +406,28 @@ The software was validated on:
 ### Build Steps
 
 1. Clone submodules:
+    ```sh
+    cd dldt/inference-engine
+    git submodule init
+    git submodule update --recursive
+    ```
+2. Install build dependencies using the `install_dependencies.sh` script in the project root folder:
+   ```sh
+   chmod +x install_dependencies.sh
+   ```
+   ```sh
+   ./install_dependencies.sh
+   ```
+3. Create a build folder:
+   ```sh
+   mkdir build
+   ```
+4. Inference Engine uses a CMake-based build system. In the created `build` directory, run `cmake` to fetch project dependencies and create Unix makefiles, then run `make` to build the project:
+   ```sh
+   cmake -DCMAKE_BUILD_TYPE=Release ..
+   make --jobs=$(nproc --all)
+   ```
+### Additional Build Options
 
         cd dldt/inference-engine
         git submodule init
@@ -487,6 +510,22 @@ before running the Inference Engine build:
    `OpenCVConfig.cmake` file of you custom OpenCV build is located.
 2. Disable the package automatic downloading with using the `-DENABLE_OPENCV=OFF` 
    option for CMake-based build script for Inference Engine.
+
+## Adding Inference Engine to your project
+
+For CMake projects, set the `InferenceEngine_DIR` environment variable:
+
+```sh
+export InferenceEngine_DIR=/path/to/dldt/inference-engine/build/
+```
+
+Then you can find Inference Engine by `find_package`:
+
+```cmake
+find_package(InferenceEngine)
+include_directories(${InferenceEngine_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} ${InferenceEngine_LIBRARIES} dl)
+```
 
 ## (Optional) Additional Installation Steps for the Intel® Movidius™ Neural Compute Stick and Neural Compute Stick 2
 
