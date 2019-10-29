@@ -7,7 +7,7 @@ through a high-level C++ Inference Engine API integrated with application logic.
 
 This open source version includes two components: namely [Model Optimizer] and 
 [Inference Engine], as well as CPU, GPU and heterogeneous plugins to accelerate 
-deep learning inferencing on Intel&reg; CPUs and Intel(R) Processor Graphics. 
+deep learning inferencing on Intel&reg; CPUs and Intel&reg; Processor Graphics. 
 It supports pre-trained models from the [Open Model Zoo], along with 100+ open 
 source and public models in popular formats such as Caffe\*, TensorFlow\*, 
 MXNet\* and ONNX\*. 

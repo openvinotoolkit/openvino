@@ -109,7 +109,7 @@ You can use the following additional build options:
   packages but you already have installed TBB or OpenCV packages configured in 
   your environment, you may need to clean the `TBBROOT` and `OpenCV_DIR` 
   environment variables before running the `cmake` command, otherwise they 
-  won't be downloaded and the build may fail if incompatible versions were 
+  will not be downloaded and the build may fail if incompatible versions were 
   installed. 
 
 - If the CMake-based build script can not find and download the OpenCV package 
@@ -531,7 +531,7 @@ install the Movidius™ VSC driver:
    directory, where the `DLDT_ROOT_DIR` is the directory to which the DLDT 
    repository was cloned. 
 2. Right click on the `Movidius_VSC_Device.inf` file and choose **Install** from 
-   the pop up menu.
+   the pop-up menu.
 
 You have installed the driver for your Intel® Movidius™ Neural Compute Stick 
 or Intel® Neural Compute Stick 2.

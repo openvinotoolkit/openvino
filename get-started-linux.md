@@ -15,7 +15,7 @@ the DLDT on Linux\*. With this guide, you will learn how to:
    [build instructions](inference-engine/README.md). 
 2. The original structure of the repository directories remains unchanged.
 
-**NOTE**: Below, the directory to which the `dldt` repository is cloned is 
+> **NOTE**: Below, the directory to which the `dldt` repository is cloned is 
 referred to as `<DLDT_DIR>`.  
 
 ## Configure the Model Optimizer
@@ -82,15 +82,15 @@ next session to download and prepare a model for running a sample inference.
 
 ## Prepare a Model for Sample Inference
 
-This section describes how to get the pre-trained model for sample inference 
-and to prepare the model's optimized Intermediate Representation that Inference 
-Engine uses.
+This section describes how to get a pre-trained model for sample inference
+and how to prepare the optimized Intermediate Representation (IR) that 
+Inference Inference Engine uses.
 
 
 ### Download a Trained Model
 
-To run the Image Classification Sample you'll need a pre-trained model to run 
-the inference on. This guide will use the public SqueezeNet 1.1 Caffe\* model. 
+To run the Image Classification Sample, you need a pre-trained model to run 
+the inference on. This guide uses the public SqueezeNet 1.1 Caffe\* model. 
 You can find and download this model manually or use the OpenVINO™ 
 [Model Downloader]. 
 
@@ -139,12 +139,12 @@ as `<models_dir>` below) with the Model Downloader:
 
    **For CPU (FP32):**
     
-      python3 <DLDT_DIR>/model_optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP32 --output_dir <ir_dir>
+        python3 <DLDT_DIR>/model_optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP32 --output_dir <ir_dir>
    
 
    **For GPU and MYRIAD (FP16):**
       
-      python3 <DLDT_DIR>/model_optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP16 --output_dir <ir_dir>
+        python3 <DLDT_DIR>/model_optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP16 --output_dir <ir_dir>
  
    After the Model Optimizer script is completed, the produced IR files (`squeezenet1.1.xml`, `squeezenet1.1.bin`) are in the specified `<ir_dir>` directory.
 
