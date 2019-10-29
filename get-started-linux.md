@@ -110,9 +110,10 @@ as `<models_dir>` below) with the Model Downloader:
 1. Install the [prerequisites].
 2. Run the `downloader.py` script, specifying the topology name and the path 
    to your `<models_dir>`. For example, to download the model to a directory 
-   named `~/public_models`, you'd run:
+   named `~/public_models`, run:
 
-          ./downloader.py --name squeezenet1.1 --output_dir ~/public_models
+
+            ./downloader.py --name squeezenet1.1 --output_dir ~/public_models
    
    When the model files are successfully downloaded, output similar to the 
    following is printed:
@@ -152,7 +153,7 @@ as `<models_dir>` below) with the Model Downloader:
    folder to the model IR directory. This file contains the classes that ImageNet 
    uses so that the inference results show text instead of classification numbers:
    
-       cp <DLDT_DIR>/inference-engine/samples/sample_data/squeezenet1.1.labels <ir_dir>
+        cp <DLDT_DIR>/inference-engine/samples/sample_data/squeezenet1.1.labels <ir_dir>
 
 Now you are ready to run the Image Classification Sample Application.
 
