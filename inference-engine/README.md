@@ -34,7 +34,7 @@
 The Inference Engine can infer models in different formats with various input 
 and output formats.
 
-The open-source version of Inference Engine includes the following plugins:
+The open source version of Inference Engine includes the following plugins:
 
 | PLUGIN               | DEVICE TYPES |
 | ---------------------| -------------|
@@ -346,33 +346,57 @@ The software was validated on:
     ```sh
     mkdir build
     ```
-6. In the `build` directory, run `cmake` to fetch project dependencies and generate a Visual Studio solution:
-```sh
-cd build
-cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
-    -DCMAKE_BUILD_TYPE=Release ^
-    -DICCLIB="C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2018\windows\compiler\lib" ..
-```
+6. In the `build` directory, run `cmake` to fetch project dependencies and 
+   generate a Visual Studio solution:
+   ```sh
+   cd build
+   cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
+       -DCMAKE_BUILD_TYPE=Release ^
+       -DICCLIB="C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2018\windows\compiler\lib" ..
+   ```
 
-7. Build generated solution in Visual Studio 2017 or run `cmake --build . --config Release` to build from the command line.
+7. Build generated solution in Visual Studio 2017 or run 
+   `cmake --build . --config Release` to build from the command line.
 
-8. Before running the samples, add paths to TBB and OpenCV binaries used for the build to the `%PATH%` environment variable. By default, TBB binaries are downloaded by the CMake-based script to the `<dldt_repo>/inference-engine/temp/tbb/lib` folder, OpenCV binaries - to the `<dldt_repo>/inference-engine/temp/opencv_4.1.0/bin` folder.
+8. Before running the samples, add paths to the TBB and OpenCV binaries used for 
+   the build to the `%PATH%` environment variable. By default, TBB binaries are 
+   downloaded by the CMake-based script to the `<dldt_repo>/inference-engine/temp/tbb/lib` 
+   folder, OpenCV binaries to the `<dldt_repo>/inference-engine/temp/opencv_4.1.0/bin` 
+   folder.
 
 ### Additional Build Options
 
 - Internal JIT GEMM implementation is used by default.
-- To switch to OpenBLAS GEMM implementation, use the `-DGEMM=OPENBLAS` CMake option and specify path to OpenBLAS using the `-DBLAS_INCLUDE_DIRS=<OPENBLAS_DIR>\include` and `-DBLAS_LIBRARIES=<OPENBLAS_DIR>\lib\libopenblas.dll.a` options. Prebuilt OpenBLAS\* package can be downloaded [here](https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download). mingw64* runtime dependencies can be downloaded [here](https://sourceforge.net/projects/openblas/files/v0.2.14/mingw64_dll.zip/download).
-- To switch to the optimized MKL-ML\* GEMM implementation, use the `-DGEMM=MKL` and `-DMKLROOT=<path_to_MKL>` CMake options to specify a path to unpacked MKL-ML with the `include` and `lib` folders. MKL-ML\* package can be downloaded from the [MKL-DNN repository](https://github.com/intel/mkl-dnn/releases/download/v0.19/mklml_win_2019.0.5.20190502.zip).
+- To switch to OpenBLAS GEMM implementation, use the `-DGEMM=OPENBLAS` CMake 
+  option and specify path to OpenBLAS using the `-DBLAS_INCLUDE_DIRS=<OPENBLAS_DIR>\include` 
+  and `-DBLAS_LIBRARIES=<OPENBLAS_DIR>\lib\libopenblas.dll.a` options. Download 
+  a prebuilt OpenBLAS\* package via the [OpenBLAS] link. mingw64* runtime 
+  dependencies can be downloaded via the [mingw64\* runtime dependencies] link.
+- To switch to the optimized MKL-ML\* GEMM implementation, use the 
+  `-DGEMM=MKL` and `-DMKLROOT=<path_to_MKL>` CMake options to specify a path to 
+  unpacked MKL-ML with the `include` and `lib` folders. MKL-ML\* package can be 
+  downloaded from the Intel&reg; [MKL-DNN repository for Windows].
 
-- Threading Building Blocks (TBB) is used by default. To build the Inference Engine with OpenMP* threading, set the `-DTHREADING=OMP` option.
+- Threading Building Blocks (TBB) is used by default. To build the Inference 
+  Engine with OpenMP* threading, set the `-DTHREADING=OMP` option.
 
-- Required versions of TBB and OpenCV packages are downloaded automatically by the CMake-based script. If you want to use the automatically downloaded packages but you already have installed TBB or OpenCV packages configured in your environment, you may need to clean the `TBBROOT` and `OpenCV_DIR` environment variables before running the `cmake` command, otherwise they won't be downloaded and the build may fail if incompatible versions were installed.
+- Required versions of TBB and OpenCV packages are downloaded automatically by 
+  the CMake-based script. If you want to use the automatically-downloaded 
+  packages but you already have installed TBB or OpenCV packages configured in 
+  your environment, you may need to clean the `TBBROOT` and `OpenCV_DIR` 
+  environment variables before running the `cmake` command; otherwise they won't 
+  be downloaded and the build may fail if incompatible versions were installed.
 
-- If the CMake-based build script can not find and download the OpenCV package that is supported on your platform, or if you want to use a custom build of the OpenCV library, refer to the [Use Custom OpenCV Builds](#use-custom-opencv-builds-for-inference-engine) section for details.
+- If the CMake-based build script can not find and download the OpenCV package 
+  that is supported on your platform, or if you want to use a custom build of 
+  the OpenCV library, refer to the [Use Custom OpenCV Builds](#use-custom-opencv-builds-for-inference-engine) 
+  section for details.
 
-- To switch off/on the CPU and GPU plugins, use the `cmake` options `-DENABLE_MKL_DNN=ON/OFF` and `-DENABLE_CLDNN=ON/OFF` respectively.
+- To switch off/on the CPU and GPU plugins, use the `cmake` options 
+  `-DENABLE_MKL_DNN=ON/OFF` and `-DENABLE_CLDNN=ON/OFF` respectively.
 
-- To build the Python API wrapper, use the `-DENABLE_PYTHON=ON` option. To specify an exact Python version, use the following options:
+- To build the Python API wrapper, use the `-DENABLE_PYTHON=ON` option. To 
+  specify an exact Python version, use the following options:
    ```sh
    -DPYTHON_EXECUTABLE="C:\Program Files\Python37\python.exe" ^
    -DPYTHON_LIBRARY="C:\Program Files\Python37\libs\python37.lib" ^
@@ -406,28 +430,6 @@ The software was validated on:
 ### Build Steps
 
 1. Clone submodules:
-    ```sh
-    cd dldt/inference-engine
-    git submodule init
-    git submodule update --recursive
-    ```
-2. Install build dependencies using the `install_dependencies.sh` script in the project root folder:
-   ```sh
-   chmod +x install_dependencies.sh
-   ```
-   ```sh
-   ./install_dependencies.sh
-   ```
-3. Create a build folder:
-   ```sh
-   mkdir build
-   ```
-4. Inference Engine uses a CMake-based build system. In the created `build` directory, run `cmake` to fetch project dependencies and create Unix makefiles, then run `make` to build the project:
-   ```sh
-   cmake -DCMAKE_BUILD_TYPE=Release ..
-   make --jobs=$(nproc --all)
-   ```
-### Additional Build Options
 
         cd dldt/inference-engine
         git submodule init
@@ -450,9 +452,10 @@ The software was validated on:
 You can use the following additional build options:
 
 - Internal JIT GEMM implementation is used by default.
+
 - To switch to the optimized MKL-ML\* GEMM implementation, use `-DGEMM=MKL` and 
   `-DMKLROOT=<path_to_MKL>` cmake options to specify a path to unpacked MKL-ML 
-  with the `include` and `lib` folders. MKL-ML\* package can be downloaded 
+  with the `include` and `lib` folders. MKL-ML\* [package for Mac] can be downloaded 
   [here](https://github.com/intel/mkl-dnn/releases/download/v0.19/mklml_mac_2019.0.5.20190502.tgz)
 
 - Threading Building Blocks (TBB) is used by default. To build the Inference 
@@ -599,6 +602,7 @@ OpenVINO™ DLDT, proceed to the Get Started guides:
 [CMake]:https://cmake.org/download/
 [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.04.12237]:https://github.com/intel/compute-runtime/releases/tag/19.04.12237
 [MKL-DNN repository]:https://github.com/intel/mkl-dnn/releases/download/v0.19/mklml_lnx_2019.0.5.20190502.tgz
+[MKL-DNN repository for Windows](https://github.com/intel/mkl-dnn/releases/download/v0.19/mklml_win_2019.0.5.20190502.zip)
 [OpenBLAS]:https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download
 [mingw64\* runtime dependencies]:https://sourceforge.net/projects/openblas/files/v0.2.14/mingw64_dll.zip/download
 [https://download.01.org/opencv/2019/openvinotoolkit]:https://download.01.org/opencv/2019/openvinotoolkit
