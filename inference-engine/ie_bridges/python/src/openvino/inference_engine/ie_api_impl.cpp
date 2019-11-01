@@ -161,6 +161,7 @@ PyObject* parse_parameter(const InferenceEngine::Parameter & param){
         return (PyObject *) NULL;
     }
 }
+
 InferenceEnginePython::IENetwork::IENetwork(const std::string &model, const std::string &weights, bool ngraph_compatibility = false) {
     if (ngraph_compatibility){
         InferenceEngine::IRReader ir_reader;

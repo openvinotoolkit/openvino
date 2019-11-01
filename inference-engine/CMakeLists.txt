@@ -69,5 +69,8 @@ if (ENABLE_NODE)
     add_subdirectory(ie_bridges/node)
 endif()
 
+if (ENABLE_BRIDGE)
+    add_subdirectory(ie_bridges/common)
+endif()
 
 add_cpplint_report_target()
