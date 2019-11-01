@@ -6,6 +6,7 @@ project (ie_python_api)
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR}/cmake)
 
 string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
+
 if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
     set(ARCH intel64)
 elseif(ARCH STREQUAL "i386")

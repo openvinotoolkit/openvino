@@ -65,4 +65,9 @@ if (ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
 
+if (ENABLE_NODE)
+    add_subdirectory(ie_bridges/node)
+endif()
+
+
 add_cpplint_report_target()
