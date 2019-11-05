@@ -2,14 +2,15 @@
 #define INFERENCEENGINE_BRIDGE_IE_NETWORK_H
 
 #include "ie_core.hpp"
+#include "ie_net_layer.h"
+#include "ie_input_output_info.h"
 
 namespace InferenceEngineBridge {
-    class IENetwork {
-    public:
+    struct IENetwork {
 
-        IENetwork(const std::string &model, const std::string &weights, bool ngraph_compatibility);
+        IENetwork(const std::string &model, const std::string &weights, const bool &ngraph_compatibility);
 
-        IENetwork(const InferenceEngine::CNNNetwork &cnn_network);
+        explicit IENetwork(const InferenceEngine::CNNNetwork &cnn_network);
 
         IENetwork() = default;
 
@@ -17,27 +18,26 @@ namespace InferenceEngineBridge {
 
         void addOutput(const std::string &out_layer, size_t port_id);
 
-        const std::vector <std::pair<std::string, InferenceEngineBridge::IENetLayer>> getLayers();
+        const std::vector<std::pair<std::string, InferenceEngineBridge::IENetLayer>> getLayers();
 
-        const std::map <std::string, InferenceEngineBridge::InputInfo> getInputs();
+        const std::map<std::string, InferenceEngineBridge::InputInfo> getInputs();
 
-        const std::map <std::string, InferenceEngineBridge::OutputInfo> getOutputs();
+        const std::map<std::string, InferenceEngineBridge::OutputInfo> getOutputs();
 
-        void reshape(const std::map <std::string, std::vector<size_t>> &input_shapes);
+        void reshape(const std::map<std::string, std::vector<size_t>> &input_shapes);
 
         void serialize(const std::string &path_to_xml, const std::string &path_to_bin);
 
-        void setStats(const std::map <std::string, std::map<std::string, std::vector < float>>
+        void setStats(const std::map<std::string, std::map<std::string, std::vector<float>>
 
         > &stats);
 
-        const std::map <std::string, std::map<std::string, std::vector < float>>>
+        const std::map<std::string, std::map<std::string, std::vector<float>>>
 
         getStats();
 
-        void load_from_buffer(const char *xml, size_t xml_size, uint8_t *bin, size_t bin_size);
+        void load_from_buffer(const char *xml, size_t xml_size, uint8_t *bin, const size_t &bin_size);
 
-    private:
         InferenceEngine::CNNNetwork actual;
         std::string name;
         std::size_t batch_size;

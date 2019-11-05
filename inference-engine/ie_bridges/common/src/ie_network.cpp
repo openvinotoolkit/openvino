@@ -1,9 +1,16 @@
 #include <cpp/ie_cnn_net_reader.h>
+
 #include "ie_network.h"
-#include "ie_bridge_core.h"
+#include "ie_core.h"
 #include "../../../src/inference_engine/ie_ir_reader.hpp"
 
-InferenceEngineBridge::IENetwork::IENetwork(const std::string &model, const std::string &weights, bool ngraph_compatibility = false) {
+InferenceEngineBridge::IENetwork::IENetwork(const InferenceEngine::CNNNetwork& cnn_network) : actual(cnn_network) {
+    name = actual.getName();
+    batch_size = actual.getBatchSize();
+    precision = actual.getPrecision().name();
+}
+
+InferenceEngineBridge::IENetwork::IENetwork(const std::string &model, const std::string &weights, const bool &ngraph_compatibility = false) {
     if (ngraph_compatibility){
         InferenceEngine::IRReader ir_reader;
         auto ngraph_function = ir_reader.read(model, weights);
@@ -19,14 +26,8 @@ InferenceEngineBridge::IENetwork::IENetwork(const std::string &model, const std:
     precision = actual.getPrecision().name();
 }
 
-InferenceEngineBridge::IENetwork::IENetwork(const InferenceEngine::CNNNetwork& cnn_network)
-        : actual(cnn_network) {
-    name = actual.getName();
-    batch_size = actual.getBatchSize();
-    precision = actual.getPrecision().name();
-}
 
-void InferenceEngineBridge::IENetwork::load_from_buffer(const char *xml, std::size_t xml_size, uint8_t *bin, std::size_t &bin_size) {
+void InferenceEngineBridge::IENetwork::load_from_buffer(const char *xml, std::size_t xml_size, uint8_t *bin, const std::size_t &bin_size) {
     InferenceEngine::CNNNetReader net_reader;
     net_reader.ReadNetwork(xml, xml_size);
     InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, {bin_size}, InferenceEngine::Layout::C);
