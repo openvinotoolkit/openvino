@@ -11,3 +11,8 @@ InferenceEngineBridge::IENetwork InferenceEngineBridge::IEExecNetwork::GetExecGr
     IE_CHECK_CALL(this->exec_network_ptr->GetExecGraphInfo(graph, &response));
     return IENetwork(InferenceEngine::CNNNetwork(graph));
 }
+
+void InferenceEngineBridge::IEExecNetwork::infer() {
+    InferRequestWrap &request = infer_requests[0];
+    request.infer();
+}

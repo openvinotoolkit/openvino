@@ -18,10 +18,11 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     add_definitions("-Wno-register")
 endif()
 
-cython_add_module (${TARGET_NAME} ${SOURCE})
+include_directories("${CMAKE_SOURCE_DIR}/ie_bridges/common/include")
 
+cython_add_module (${TARGET_NAME} ${SOURCE})
 set_target_properties (${TARGET_NAME} PROPERTIES CXX_STANDARD 11 LINKER_LANGUAGE CXX)
-target_link_libraries (${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
+target_link_libraries (${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES} inference_engine_common_bridges)
 
 # perform copy
 ADD_CUSTOM_COMMAND (TARGET ${TARGET_NAME}

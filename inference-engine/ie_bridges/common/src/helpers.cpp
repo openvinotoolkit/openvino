@@ -1,6 +1,28 @@
 #include <ie_plugin_config.hpp>
 
 #include "helpers.h"
+#include "infer_request_wrapper.h"
+
+std::map<std::string, InferenceEngine::Precision> InferenceEngineBridge::precision_map = {{"FP32", InferenceEngine::Precision::FP32},
+                                                                                          {"FP16", InferenceEngine::Precision::FP16},
+                                                                                          {"Q78",  InferenceEngine::Precision::Q78},
+                                                                                          {"I32",  InferenceEngine::Precision::I32},
+                                                                                          {"I16",  InferenceEngine::Precision::I16},
+                                                                                          {"I8",   InferenceEngine::Precision::I8},
+                                                                                          {"U16",  InferenceEngine::Precision::U16},
+                                                                                          {"U8",   InferenceEngine::Precision::U8}};
+
+std::map<std::string, InferenceEngine::Layout> InferenceEngineBridge::layout_map = {{"ANY",     InferenceEngine::Layout::ANY},
+                                                                                    {"NCHW",    InferenceEngine::Layout::NCHW},
+                                                                                    {"NHWC",    InferenceEngine::Layout::NHWC},
+                                                                                    {"OIHW",    InferenceEngine::Layout::OIHW},
+                                                                                    {"C",       InferenceEngine::Layout::C},
+                                                                                    {"CHW",     InferenceEngine::Layout::CHW},
+                                                                                    {"HW",      InferenceEngine::Layout::HW},
+                                                                                    {"NC",      InferenceEngine::Layout::NC},
+                                                                                    {"CN",      InferenceEngine::Layout::CN},
+                                                                                    {"NCDHW",   InferenceEngine::Layout::NCDHW},
+                                                                                    {"BLOCKED", InferenceEngine::Layout::BLOCKED}};
 
 uint32_t InferenceEngineBridge::getOptimalNumberOfRequests(const InferenceEngine::IExecutableNetwork::Ptr &actual) {
     try {
@@ -26,23 +48,18 @@ uint32_t InferenceEngineBridge::getOptimalNumberOfRequests(const InferenceEngine
     }
 }
 
-std::map<std::string, InferenceEngine::Precision> InferenceEngineBridge::precision_map = {{"FP32", InferenceEngine::Precision::FP32},
-                                                                                          {"FP16", InferenceEngine::Precision::FP16},
-                                                                                          {"Q78",  InferenceEngine::Precision::Q78},
-                                                                                          {"I32",  InferenceEngine::Precision::I32},
-                                                                                          {"I16",  InferenceEngine::Precision::I16},
-                                                                                          {"I8",   InferenceEngine::Precision::I8},
-                                                                                          {"U16",  InferenceEngine::Precision::U16},
-                                                                                          {"U8",   InferenceEngine::Precision::U8}};
 
-std::map<std::string, InferenceEngine::Layout> InferenceEngineBridge::layout_map = {{"ANY",     InferenceEngine::Layout::ANY},
-                                                             {"NCHW",    InferenceEngine::Layout::NCHW},
-                                                             {"NHWC",    InferenceEngine::Layout::NHWC},
-                                                             {"OIHW",    InferenceEngine::Layout::OIHW},
-                                                             {"C",       InferenceEngine::Layout::C},
-                                                             {"CHW",     InferenceEngine::Layout::CHW},
-                                                             {"HW",      InferenceEngine::Layout::HW},
-                                                             {"NC",      InferenceEngine::Layout::NC},
-                                                             {"CN",      InferenceEngine::Layout::CN},
-                                                             {"NCDHW",   InferenceEngine::Layout::NCDHW},
-                                                             {"BLOCKED", InferenceEngine::Layout::BLOCKED}};
+void InferenceEngineBridge::latency_callback(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) {
+    if (code != InferenceEngine::StatusCode::OK) {
+        THROW_IE_EXCEPTION << "Async Infer Request failed with status code " << code;
+    }
+    InferenceEngineBridge::InferRequestWrap *requestWrap;
+    InferenceEngine::ResponseDesc dsc;
+    request->GetUserData(reinterpret_cast<void **>(&requestWrap), &dsc);
+    auto end_time = Time::now();
+    auto execTime = std::chrono::duration_cast<ns>(end_time - requestWrap->start_time);
+    requestWrap->exec_time = static_cast<double>(execTime.count()) * 0.000001;
+    if (requestWrap->user_callback) {
+        requestWrap->user_callback(requestWrap->user_data, code);
+    }
+}

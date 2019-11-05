@@ -33,7 +33,7 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const char *description
         apiVersion apiVersion
 
-cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
+cdef extern from "ie_net_layer.h" namespace "InferenceEngineBridge":
     cdef cppclass IENetLayer:
         string name
         string type
@@ -49,6 +49,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         map[string, Blob.Ptr] getWeights() except +
         void setPrecision(string precision) except +
 
+cdef extern from "ie_input_output_info.h" namespace "InferenceEngineBridge":
     cdef cppclass InputInfo:
         vector[size_t] dims
         string precision
@@ -75,12 +76,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         Blob.Ptr & biases;
         map[string, Blob.Ptr] custom_blobs;
 
-    cdef cppclass IEExecNetwork:
-        vector[InferRequestWrap] infer_requests
-        IENetwork GetExecGraphInfo() except +
-        object getMetric(const string & metric_name)
-        object getConfig(const string & metric_name)
-
+cdef extern from "ie_network.h" namespace "InferenceEngineBridge":
     cdef cppclass IENetwork:
         IENetwork() except +
         IENetwork(const string &, const string &, bool ngraph_compatibility) except +
@@ -101,10 +97,11 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         map[string, map[string, vector[float]]] getStats() except +
         void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
 
+cdef extern from "ie_plugin.h" namespace "InferenceEngineBridge":
     cdef cppclass IEPlugin:
         IEPlugin() except +
         IEPlugin(const string &, const vector[string] &) except +
-        unique_ptr[IEExecNetwork] load(IENetwork & net, int num_requests, const map[string, string]& config) except +
+        unique_ptr[IEExecNetworkPython] load(IENetwork & net, int num_requests, const map[string, string]& config) except +
         void addCpuExtension(const string &) except +
         void setConfig(const map[string, string] &) except +
         void setInitialAffinity(IENetwork & net) except +
@@ -112,6 +109,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         string device_name
         string version
 
+cdef extern from "infer_request_wrapper.h" namespace "InferenceEngineBridge":
     cdef cppclass InferRequestWrap:
         double exec_time;
         void getBlobPtr(const string & blob_name, Blob.Ptr & blob_ptr) except +
@@ -122,11 +120,24 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void setBatch(int size) except +
         void setCyCallback(void (*)(void*, int), void *) except +
 
-    cdef cppclass IECore:
-        IECore() except +
-        IECore(const string & xml_config_file) except +
+
+cdef extern from "helpers.h" namespace "InferenceEngineBridge":
+    cdef T*get_buffer[T](Blob &)
+
+    cdef string get_version()
+
+cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
+    cdef cppclass IEExecNetworkPython:
+        vector[InferRequestWrap] infer_requests
+        IENetwork GetExecGraphInfo() except +
+        object getMetric(const string & metric_name)
+        object getConfig(const string & metric_name)
+
+    cdef cppclass IECorePython:
+        IECorePython() except +
+        IECorePython(const string & xml_config_file) except +
         map[string, Version] getVersions(const string & deviceName) except +
-        unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
+        unique_ptr[IEExecNetworkPython] loadNetwork(IENetwork network, const string deviceName,
                                               const map[string, string] & config, int num_requests) except +
         map[string, string] queryNetwork(IENetwork network, const string deviceName,
                                          const map[string, string] & config) except +
@@ -138,7 +149,3 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         vector[string] getAvailableDevices() except +
         object getMetric(const string & deviceName, const string & name) except +
         object getConfig(const string & deviceName, const string & name) except +
-
-    cdef T*get_buffer[T](Blob &)
-
-    cdef string get_version()

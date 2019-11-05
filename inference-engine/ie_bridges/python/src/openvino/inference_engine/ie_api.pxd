@@ -33,9 +33,9 @@ cdef class IENetwork:
     cdef C.IENetwork impl
 
 cdef class ExecutableNetwork:
-    cdef unique_ptr[C.IEExecNetwork] impl
+    cdef unique_ptr[C.IEExecNetworkPython] impl
     cdef C.IEPlugin plugin_impl
-    cdef C.IECore ie_core_impl
+    cdef C.IECorePython ie_core_impl
     cdef public:
         _requests, _infer_requests, inputs, outputs
 
@@ -60,5 +60,5 @@ cdef class LayersStatsMap(dict):
     cdef C.IENetwork net_impl
 
 cdef class IECore:
-    cdef C.IECore impl
+    cdef C.IECorePython impl
     cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config = ?, int num_requests = ?)

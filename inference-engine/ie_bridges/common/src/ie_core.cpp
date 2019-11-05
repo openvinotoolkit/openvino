@@ -17,7 +17,7 @@ InferenceEngineBridge::IECore::loadNetwork(InferenceEngineBridge::IENetwork netw
                                            int &num_requests) {
 
     InferenceEngine::ResponseDesc response;
-    auto exec_network = std::make_unique<InferenceEngineBridge::IEExecNetwork>(network.name,
+    auto exec_network = InferenceEngineBridge::make_unique<InferenceEngineBridge::IEExecNetwork>(network.name,
                                                                                num_requests);
     exec_network->exec_network_ptr = actual.LoadNetwork(network.actual, deviceName, config);
 

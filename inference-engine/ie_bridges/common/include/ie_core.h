@@ -8,6 +8,7 @@
 #include "ie_network.hpp"
 #include "ie_network.h"
 #include "ie_exec_network.h"
+#include "helpers.h"
 
 namespace InferenceEngineBridge {
     struct IECore {

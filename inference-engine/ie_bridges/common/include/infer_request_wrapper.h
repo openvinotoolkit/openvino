@@ -11,6 +11,7 @@
 namespace InferenceEngineBridge {
     using cy_callback = void (*)(void *, int);
     typedef std::chrono::high_resolution_clock Time;
+    typedef std::chrono::nanoseconds ns;
 
     struct InferRequestWrap {
         void infer();
