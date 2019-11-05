@@ -8,6 +8,7 @@
 
 namespace InferenceEngineBridge {
     struct IEExecNetwork {
+
         IEExecNetwork(const std::string &name, std::size_t num_requests);
 
         InferenceEngineBridge::IENetwork GetExecGraphInfo();
@@ -16,7 +17,7 @@ namespace InferenceEngineBridge {
 
         InferenceEngine::IExecutableNetwork::Ptr exec_network_ptr;
         std::vector<InferenceEngineBridge::InferRequestWrap> infer_requests;
-        std::string _name;
+        std::string name;
 
     };
 }

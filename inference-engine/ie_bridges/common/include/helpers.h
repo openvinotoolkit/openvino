@@ -1,9 +1,17 @@
-#ifndef INFERENCEENGINE_HELPERS_H
-#define INFERENCEENGINE_HELPERS_H
+#ifndef INFERENCEENGINE_BRIDGE_HELPERS_H
+#define INFERENCEENGINE_BRIDGE_HELPERS_H
 
-uint32_t getOptimalNumberOfRequests(const InferenceEngine::IExecutableNetwork::Ptr actual);
+#include <ie_iexecutable_network.hpp>
 
-#define stringify(name) # name
+namespace InferenceEngineBridge {
+
+    std::uint32_t getOptimalNumberOfRequests(const InferenceEngine::IExecutableNetwork::Ptr &actual);
+
+    extern std::map<std::string, InferenceEngine::Precision> precision_map;
+
+    extern std::map<std::string, InferenceEngine::Layout> layout_map;
+}
+
 #define IE_CHECK_CALL(expr) {                       \
     auto ret = (expr);                              \
     if (ret != InferenceEngine::StatusCode::OK) {   \
@@ -12,4 +20,5 @@ uint32_t getOptimalNumberOfRequests(const InferenceEngine::IExecutableNetwork::P
 }                                                   \
 
 
-#endif //INFERENCEENGINE_HELPERS_H
+
+#endif //INFERENCEENGINE_BRIDGE_HELPERS_H

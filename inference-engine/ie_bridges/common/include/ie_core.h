@@ -10,8 +10,7 @@
 #include "ie_exec_network.h"
 
 namespace InferenceEngineBridge {
-    class IECore {
-    public:
+    struct IECore {
         explicit IECore(const std::string &xmlConfigFile = std::string());
 
         std::map <std::string, InferenceEngine::Version> getVersions(const std::string &deviceName);
@@ -21,7 +20,8 @@ namespace InferenceEngineBridge {
                                                                            const std::map <std::string, std::string> &config,
                                                                            int &num_requests);
 
-        std::map <std::string, std::string> queryNetwork(IENetwork network, const std::string &deviceName,
+        std::map <std::string, std::string> queryNetwork(IENetwork network,
+                                                         const std::string &deviceName,
                                                          const std::map <std::string, std::string> &config);
 
         void setConfig(const std::map <std::string, std::string> &config,
@@ -37,7 +37,6 @@ namespace InferenceEngineBridge {
 
         std::vector <std::string> getAvailableDevices();
 
-    private:
         InferenceEngine::Core actual;
     };
 }

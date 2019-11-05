@@ -1,11 +1,12 @@
 #ifndef INFERENCEENGINE_BRIDGE_INPUT_OUTPUT_INFO_H
 #define INFERENCEENGINE_BRIDGE_INPUT_OUTPUT_INFO_H
+
+#include "ie_input_info.hpp"
+
 namespace InferenceEngineBridge {
-    class DataInfo {
-    public:
+    struct DataInfo {
         void setPrecision(std::string precision);
 
-    private:
         InferenceEngine::InputInfo::Ptr actual;
         std::vector<std::size_t> dims;
         std::string precision;
@@ -13,12 +14,11 @@ namespace InferenceEngineBridge {
 
     };
 
-    class InputInfo : public DataInfo {
-    public:
+    struct InputInfo : public DataInfo {
         void setLayout(std::string layout);
     };
 
-    class OutputInfo : public DataInfo {
+    struct OutputInfo : public DataInfo {
     };
 }
 #endif //INFERENCEENGINE_BRIDGE_INPUT_OUTPUT_INFO_H

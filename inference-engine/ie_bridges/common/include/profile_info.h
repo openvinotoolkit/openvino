@@ -1,5 +1,5 @@
-#ifndef INFERENCEENGINE_PROFILE_INFO_H
-#define INFERENCEENGINE_PROFILE_INFO_H
+#ifndef INFERENCEENGINE_BRIDGE_PROFILE_INFO_H
+#define INFERENCEENGINE_BRIDGE_PROFILE_INFO_H
 namespace InferenceEngineBridge {
     struct ProfileInfo {
         std::string status;
@@ -10,4 +10,4 @@ namespace InferenceEngineBridge {
         unsigned execution_index;
     };
 }
-#endif //INFERENCEENGINE_PROFILE_INFO_H
+#endif //INFERENCEENGINE_BRIDGE_PROFILE_INFO_H
