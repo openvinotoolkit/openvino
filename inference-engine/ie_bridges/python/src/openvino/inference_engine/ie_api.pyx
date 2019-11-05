@@ -19,7 +19,7 @@ from collections import OrderedDict
 import threading
 
 cdef extern from "<utility>" namespace "std" nogil:
-    cdef unique_ptr[C.IEExecNetworkPython] move(unique_ptr[C.IEExecNetworkPython])
+    cdef unique_ptr[C.IEExecNetwork] move(unique_ptr[C.IEExecNetwork])
 
 cdef string to_std_string(str py_string):
     return py_string.encode()
@@ -66,7 +66,7 @@ def get_version():
 
 cdef  class IECore:
     def __cinit__(self, xml_config_file: str = ""):
-        self.impl = C.IECorePython(xml_config_file.encode())
+        self.impl = C.IECore(xml_config_file.encode())
 
     def get_versions(self, device_name: str):
         cdef  map[string, C.Version] versions_

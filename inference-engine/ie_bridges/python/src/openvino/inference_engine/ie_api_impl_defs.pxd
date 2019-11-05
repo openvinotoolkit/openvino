@@ -97,18 +97,6 @@ cdef extern from "ie_network.h" namespace "InferenceEngineBridge":
         map[string, map[string, vector[float]]] getStats() except +
         void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
 
-cdef extern from "ie_plugin.h" namespace "InferenceEngineBridge":
-    cdef cppclass IEPlugin:
-        IEPlugin() except +
-        IEPlugin(const string &, const vector[string] &) except +
-        unique_ptr[IEExecNetworkPython] load(IENetwork & net, int num_requests, const map[string, string]& config) except +
-        void addCpuExtension(const string &) except +
-        void setConfig(const map[string, string] &) except +
-        void setInitialAffinity(IENetwork & net) except +
-        set[string] queryNetwork(const IENetwork & net) except +
-        string device_name
-        string version
-
 cdef extern from "infer_request_wrapper.h" namespace "InferenceEngineBridge":
     cdef cppclass InferRequestWrap:
         double exec_time;
@@ -127,17 +115,17 @@ cdef extern from "helpers.h" namespace "InferenceEngineBridge":
     cdef string get_version()
 
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
-    cdef cppclass IEExecNetworkPython:
+    cdef cppclass IEExecNetwork:
         vector[InferRequestWrap] infer_requests
         IENetwork GetExecGraphInfo() except +
         object getMetric(const string & metric_name)
         object getConfig(const string & metric_name)
 
-    cdef cppclass IECorePython:
-        IECorePython() except +
-        IECorePython(const string & xml_config_file) except +
+    cdef cppclass IECore:
+        IECore() except +
+        IECore(const string & xml_config_file) except +
         map[string, Version] getVersions(const string & deviceName) except +
-        unique_ptr[IEExecNetworkPython] loadNetwork(IENetwork network, const string deviceName,
+        unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
                                               const map[string, string] & config, int num_requests) except +
         map[string, string] queryNetwork(IENetwork network, const string deviceName,
                                          const map[string, string] & config) except +
@@ -149,3 +137,14 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         vector[string] getAvailableDevices() except +
         object getMetric(const string & deviceName, const string & name) except +
         object getConfig(const string & deviceName, const string & name) except +
+
+    cdef cppclass IEPlugin:
+        IEPlugin() except +
+        IEPlugin(const string &, const vector[string] &) except +
+        unique_ptr[IEExecNetwork] load(IENetwork & net, int num_requests, const map[string, string]& config) except +
+        void addCpuExtension(const string &) except +
+        void setConfig(const map[string, string] &) except +
+        void setInitialAffinity(IENetwork & net) except +
+        set[string] queryNetwork(const IENetwork & net) except +
+        string device_name
+        string version

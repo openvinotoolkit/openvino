@@ -16,10 +16,10 @@ namespace InferenceEngineBridge {
 
         std::map <std::string, InferenceEngine::Version> getVersions(const std::string &deviceName);
 
-        std::unique_ptr <InferenceEngineBridge::IEExecNetwork> loadNetwork(InferenceEngineBridge::IENetwork network,
-                                                                           const std::string &deviceName,
-                                                                           const std::map <std::string, std::string> &config,
-                                                                           int &num_requests);
+//        std::unique_ptr <InferenceEngineBridge::IEExecNetwork> loadNetwork(InferenceEngineBridge::IENetwork network,
+//                                                                           const std::string &deviceName,
+//                                                                           const std::map <std::string, std::string> &config,
+//                                                                           int &num_requests);
 
         std::map <std::string, std::string> queryNetwork(IENetwork network,
                                                          const std::string &deviceName,

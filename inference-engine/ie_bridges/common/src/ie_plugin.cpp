@@ -41,7 +41,7 @@ std::set<std::string> InferenceEngineBridge::IEPlugin::queryNetwork(const Infere
 
     return supportedLayers;
 }
-
+/*
 std::unique_ptr<InferenceEngineBridge::IEExecNetwork>
 InferenceEngineBridge::IEPlugin::load(const InferenceEngineBridge::IENetwork &net,
                                       int num_requests,
@@ -63,7 +63,7 @@ InferenceEngineBridge::IEPlugin::load(const InferenceEngineBridge::IENetwork &ne
 
     return exec_network;
 }
-
+*/
 void InferenceEngineBridge::IEPlugin::setConfig(const std::map<std::string, std::string> &config) {
     actual.SetConfig(config);
 }

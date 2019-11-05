@@ -6,24 +6,25 @@
 
 namespace InferenceEngineBridge {
     struct IEPlugin {
-        std::unique_ptr <InferenceEngineBridge::IEExecNetwork> load(const InferenceEngineBridge::IENetwork &net,
-                                                                    int num_requests,
-                                                                    const std::map <std::string, std::string> &config);
-
+/*
+std::unique_ptr <InferenceEngineBridge::IEExecNetwork> load(const InferenceEngineBridge::IENetwork &net,
+                                                            int num_requests,
+                                                            const std::map <std::string, std::string> &config);
+*/
         std::string device_name;
         std::string version;
 
-        void setConfig(const std::map <std::string, std::string> &);
+        void setConfig(const std::map<std::string, std::string> &);
 
         void addCpuExtension(const std::string &extension_path);
 
         void setInitialAffinity(const InferenceEngineBridge::IENetwork &net);
 
-        IEPlugin(const std::string &device, const std::vector <std::string> &plugin_dirs);
+        IEPlugin(const std::string &device, const std::vector<std::string> &plugin_dirs);
 
         IEPlugin() = default;
 
-        std::set <std::string> queryNetwork(const InferenceEngineBridge::IENetwork &net);
+        std::set<std::string> queryNetwork(const InferenceEngineBridge::IENetwork &net);
 
         InferenceEngine::InferencePlugin actual;
     };

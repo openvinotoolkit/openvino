@@ -9,7 +9,7 @@ std::map<std::string, InferenceEngine::Version>
 InferenceEngineBridge::IECore::getVersions(const std::string &deviceName) {
     return actual.GetVersions(deviceName);
 }
-
+/*
 std::unique_ptr<InferenceEngineBridge::IEExecNetwork>
 InferenceEngineBridge::IECore::loadNetwork(InferenceEngineBridge::IENetwork network,
                                            const std::string &deviceName,
@@ -32,7 +32,7 @@ InferenceEngineBridge::IECore::loadNetwork(InferenceEngineBridge::IENetwork netw
     }
 
     return exec_network;
-}
+}*/
 
 std::map<std::string, std::string> InferenceEngineBridge::IECore::queryNetwork(InferenceEngineBridge::IENetwork network,
                                                                                const std::string &deviceName,

@@ -111,34 +111,83 @@ PyObject *parse_parameter(const InferenceEngine::Parameter &param) {
     }
 }
 
-InferenceEnginePython::IEExecNetworkPython::IEExecNetworkPython(const std::string &name, size_t num_requests) :
-        IEExecNetwork(name, num_requests) {
+InferenceEnginePython::IEExecNetwork::IEExecNetwork(const std::string &name, size_t num_requests) :
+        InferenceEngineBridge::IEExecNetwork(name, num_requests) {
 }
 
-PyObject *InferenceEnginePython::IEExecNetworkPython::getMetric(const std::string &metric_name) {
+PyObject *InferenceEnginePython::IEExecNetwork::getMetric(const std::string &metric_name) {
     InferenceEngine::Parameter parameter;
     InferenceEngine::ResponseDesc response;
     IE_CHECK_CALL(this->exec_network_ptr->GetMetric(metric_name, parameter, &response));
     return parse_parameter(parameter);
 }
 
-PyObject *InferenceEnginePython::IEExecNetworkPython::getConfig(const std::string &metric_name) {
+PyObject *InferenceEnginePython::IEExecNetwork::getConfig(const std::string &metric_name) {
     InferenceEngine::Parameter parameter;
     InferenceEngine::ResponseDesc response;
     IE_CHECK_CALL(this->exec_network_ptr->GetMetric(metric_name, parameter, &response));
     return parse_parameter(parameter);
 }
 
-InferenceEnginePython::IECorePython::IECorePython(const std::string &xmlConfigFile) :
-        IECore(xmlConfigFile) {
+InferenceEnginePython::IECore::IECore(const std::string &xmlConfigFile) :
+        InferenceEngineBridge::IECore(xmlConfigFile) {
 }
 
-PyObject *InferenceEnginePython::IECorePython::getMetric(const std::string &deviceName, const std::string &name) {
+std::unique_ptr<InferenceEnginePython::IEExecNetwork>
+InferenceEnginePython::IECore::loadNetwork(InferenceEngineBridge::IENetwork network,
+                                           const std::string &deviceName,
+                                           const std::map<std::string, std::string> &config,
+                                           int &num_requests) {
+
+    InferenceEngine::ResponseDesc response;
+    auto exec_network = InferenceEngineBridge::make_unique<InferenceEnginePython::IEExecNetwork>(network.name,
+                                                                                                 num_requests);
+    exec_network->exec_network_ptr = actual.LoadNetwork(network.actual, deviceName, config);
+
+    if (0 == num_requests) {
+        num_requests = InferenceEngineBridge::getOptimalNumberOfRequests(exec_network->exec_network_ptr);
+        exec_network->infer_requests.resize(num_requests);
+    }
+
+    for (size_t i = 0; i < num_requests; ++i) {
+        InferenceEngineBridge::InferRequestWrap &infer_request = exec_network->infer_requests[i];
+        IE_CHECK_CALL(exec_network->exec_network_ptr->CreateInferRequest(infer_request.request_ptr, &response))
+    }
+
+    return exec_network;
+}
+
+PyObject *InferenceEnginePython::IECore::getMetric(const std::string &deviceName, const std::string &name) {
     InferenceEngine::Parameter param = actual.GetMetric(deviceName, name);
     return parse_parameter(param);
 }
 
-PyObject *InferenceEnginePython::IECorePython::getConfig(const std::string &deviceName, const std::string &name) {
+PyObject *InferenceEnginePython::IECore::getConfig(const std::string &deviceName, const std::string &name) {
     InferenceEngine::Parameter param = actual.GetConfig(deviceName, name);
     return parse_parameter(param);
+}
+
+InferenceEnginePython::IEPlugin::IEPlugin(const std::string &device, const std::vector<std::string> &plugin_dirs) :
+        InferenceEngineBridge::IEPlugin(device, plugin_dirs) {}
+
+std::unique_ptr<InferenceEnginePython::IEExecNetwork>
+InferenceEnginePython::IEPlugin::load(const InferenceEngineBridge::IENetwork &net,
+                                      int num_requests,
+                                      const std::map<std::string, std::string> &config) {
+    InferenceEngine::ResponseDesc response;
+    auto exec_network = InferenceEngineBridge::make_unique<InferenceEnginePython::IEExecNetwork>(net.name,
+                                                                                                 num_requests);
+    exec_network->exec_network_ptr = actual.LoadNetwork(net.actual, config);
+
+    if (0 == num_requests) {
+        num_requests = InferenceEngineBridge::getOptimalNumberOfRequests(exec_network->exec_network_ptr);
+        exec_network->infer_requests.resize(num_requests);
+    }
+
+    for (size_t i = 0; i < num_requests; ++i) {
+        InferenceEngineBridge::InferRequestWrap &infer_request = exec_network->infer_requests[i];
+        IE_CHECK_CALL(exec_network->exec_network_ptr->CreateInferRequest(infer_request.request_ptr, &response))
+    }
+
+    return exec_network;
 }
