@@ -118,7 +118,7 @@ else()
     set(ENABLE_CPPLINT OFF)
 endif()
 
-if (UNIX AND NOT APPLE AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.10)
+if (UNIX AND NOT APPLE)
     ie_option(ENABLE_CPPCHECK "Enable cppcheck during the build" OFF)
 else()
     set(ENABLE_CPPCHECK OFF)
