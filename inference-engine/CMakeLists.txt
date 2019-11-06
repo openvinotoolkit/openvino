@@ -6,7 +6,7 @@ if (APPLE)
     # due to https://cmake.org/cmake/help/v3.12/policy/CMP0068.html
     cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 else()
-    cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
+    cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 endif()
 
 project(InferenceEngine)
