@@ -274,25 +274,25 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.run_passes(nGraphFunc);
         }
 
-        bool enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
-        if (enableInt8) {
-            OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::LPT");
-            using namespace ngraph::pass::low_precision;
-            ngraph::pass::Manager conversion_manager;
-            // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
-            conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
-            conversion_manager.run_passes(nGraphFunc);
-            auto params = LayerTransformation::Params(true,                                                        // updatePrecisions
-                                                      LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                      LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
-                                                      true);                                                       // supportAsymmetricQuantization
-            LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false))
-                // INT8 StridedSlice not supported
-                .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
-
-            transformer.transform(nGraphFunc);
-        }
+//        bool enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+//        if (enableInt8) {
+//            OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::LPT");
+//            using namespace ngraph::pass::low_precision;
+//            ngraph::pass::Manager conversion_manager;
+//            // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
+//            conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+//            conversion_manager.run_passes(nGraphFunc);
+//            auto params = LayerTransformation::Params(true,                                                        // updatePrecisions
+//                                                      LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+//                                                      LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
+//                                                      true);                                                       // supportAsymmetricQuantization
+//            LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
+//                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false))
+//                // INT8 StridedSlice not supported
+//                .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
+//
+//            transformer.transform(nGraphFunc);
+//        }
 
         {
             OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::RunPasses");

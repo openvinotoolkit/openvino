@@ -209,23 +209,23 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     manager.run_passes(nGraphFunc);
 
-    using namespace ngraph::pass::low_precision;
-    if (conf.lpTransformsMode == Config::LPTransformsMode::On) {
-        auto params = LayerTransformation::Params(
-            true,  // updatePrecisions
-            LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-            LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-            true);  // supportAsymmetricQuantization
-        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-            .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}).setSupportAsymmetricQuantization(true))
-            .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
-            .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
-
-        transformer.transform(nGraphFunc);
-    }
+//    using namespace ngraph::pass::low_precision;
+//    if (conf.lpTransformsMode == Config::LPTransformsMode::On) {
+//        auto params = LayerTransformation::Params(
+//            true,  // updatePrecisions
+//            LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+//            LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+//            true);  // supportAsymmetricQuantization
+//        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
+//            .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
+//                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}).setSupportAsymmetricQuantization(true))
+//            .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
+//                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
+//            .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
+//                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
+//
+//        transformer.transform(nGraphFunc);
+//    }
 
     ngraph::pass::Manager legacyManager;
     legacyManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
