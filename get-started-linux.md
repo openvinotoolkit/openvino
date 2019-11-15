@@ -87,12 +87,12 @@ This paragraph contains the steps to get the pre-trained model for sample infere
 
 ### Download a Trained Model
 
-To run the Image Classification Sample you'll need a pre-trained model to run the inference on. This guide will use the public SqueezeNet 1.1 Caffe* model. You can find and download this model manually or use the OpenVINO™ [Model Downloader](https://github.com/opencv/open_model_zoo/tree/master/model_downloader). 
+To run the Image Classification Sample you'll need a pre-trained model to run the inference on. This guide will use the public SqueezeNet 1.1 Caffe* model. You can find and download this model manually or use the OpenVINO™ [Model Downloader](https://github.com/opencv/open_model_zoo/tree/master/tools/downloader). 
 
-With the Model Downloader, you can download other popular public deep learning topologies and the [OpenVINO™ pre-trained models](https://github.com/opencv/open_model_zoo/tree/master/intel_models) prepared for running inference for a wide list of inference scenarios: object detection, object recognition, object re-identification, human pose estimation, action recognition and others.
+With the Model Downloader, you can download other popular public deep learning topologies and the [OpenVINO™ pre-trained models](https://github.com/opencv/open_model_zoo/tree/master/models/intel) prepared for running inference for a wide list of inference scenarios: object detection, object recognition, object re-identification, human pose estimation, action recognition and others.
 
 To download the SqueezeNet 1.1 Caffe* model to a models folder with the Model Downloader:
-1. Install the [prerequisites](https://github.com/opencv/open_model_zoo/tree/master/model_downloader#prerequisites).
+1. Install the [prerequisites](https://github.com/opencv/open_model_zoo/tree/master/tools/downloader#prerequisites).
 2. Run the `downloader.py` with specifying the topology name and a `<models_dir>` path. For example to download the model to the `~/public_models` directory:
    ```sh
    ./downloader.py --name squeezenet1.1 --output_dir ~/public_models
