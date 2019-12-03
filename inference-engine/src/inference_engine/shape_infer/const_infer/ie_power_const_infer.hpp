@@ -12,10 +12,13 @@
 #include <vector>
 #include <ie_layers.h>
 #include "ie_const_infer_impl.hpp"
+#include "ie_parallel.hpp"
+#include "precision_utils.h"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
 
+using namespace InferenceEngine::PrecisionUtils;
 /**
  *@brief Implementation of Const inference for TBD layer
  */
@@ -42,13 +45,30 @@ public:
         auto* output = outData[0]->buffer().as<float*>();
         size_t dataSize = inData[0]->size();
 
-        if (power == 1.0f) {
-            for (int i = 0; i < dataSize; i++) {
-                output[i] = input[i] * scale + shift;
-            }
+	auto outBlob = *outData.begin();
+        if (outBlob->getTensorDesc().getPrecision() == Precision::FP16) {
+            const auto* inBuffer = inData[0]->cbuffer().as<ie_fp16*>();
+            auto* outBuffer = outData[0]->buffer().as<ie_fp16*>();
+	    if (power == 1.0f) {
+                parallel_for(outBlob->size(), [&](size_t i) {
+                    outBuffer[i] = f32tof16(f16tof32(inBuffer[i]) * scale + shift);
+                });
+	    } else {
+                parallel_for(outBlob->size(), [&](size_t i) {
+                    outBuffer[i] = f32tof16(pow(f16tof32(inBuffer[i]) * scale + shift, power));
+                });
+	    }
         } else {
-            for (int i = 0; i < dataSize; i++) {
-                output[i] = pow(input[i] * scale + shift, power);
+            const auto* inBuffer = inData[0]->cbuffer().as<float*>();
+            auto* outBuffer = outData[0]->buffer().as<float*>();
+            if (power == 1.0f) {
+                parallel_for(outBlob->size(), [&](size_t i) {
+                    outBuffer[i] = inBuffer[i] * scale + shift;
+                });
+            } else {
+                parallel_for(outBlob->size(), [&](size_t i) {
+                    outBuffer[i] = pow(inBuffer[i] * scale + shift, power);
+                });
             }
         }
     }
