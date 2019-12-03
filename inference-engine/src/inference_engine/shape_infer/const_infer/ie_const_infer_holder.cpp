@@ -29,6 +29,8 @@
 #include "ie_permute_const_infer.hpp"
 #include "ie_onehot_const_infer.hpp"
 #include "ie_reduce_const_infer.hpp"
+#include "ie_floor_const_infer.hpp"
+#include "ie_random_uniform_const_infer.hpp"
 #include <list>
 #include <memory>
 #include <string>
@@ -98,6 +100,7 @@ REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceSum);
 REG_CONST_INFER_FOR_TYPE(ReduceConstInfer, ReduceSumSquare);
 REG_CONST_INFER_FOR_TYPE(PermuteConstInfer, Permute);
 REG_CONST_INFER_FOR_TYPE(ConvertConstInfer, Convert);
-
+REG_CONST_INFER_FOR_TYPE(FloorConstInfer, Floor);
+REG_CONST_INFER_FOR_TYPE(RandomUniformConstInfer, RandomUniform);
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine
