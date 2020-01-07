@@ -100,7 +100,7 @@ public:
     /**
      * @brief Destructor
      */
-     virtual ~Parameter();
+    virtual ~Parameter();
 
     /**
      * Copy operator for Parameter

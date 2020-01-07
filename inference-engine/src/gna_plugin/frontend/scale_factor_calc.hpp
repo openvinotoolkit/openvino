@@ -552,7 +552,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConvolutionLayer*> : public ScaleFact
  */
 class ScaleFactorCalculator {
     using Cnt = std::vector<InferenceEngine::CNNLayerPtr>;
-    Cnt  net;
+    Cnt net;
     mutable Cnt::const_iterator idx;
     mutable bool needRestart = false;
     int weightsBytesSize;

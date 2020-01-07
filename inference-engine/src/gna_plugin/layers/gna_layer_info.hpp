@@ -68,7 +68,7 @@ class LayerInfo {
         IS_VALID();
         static InferenceEngine::details::caseless_set<std::string> activations =
             { "clamp", "sigmoid", "identity", "relu",
-              "leakyrelu", "tanh", "prelu", "exp", "log", "sign", "abs", "neghalflog"};
+              "leakyrelu", "tanh", "prelu", "exp", "log", "sign", "abs", "neghalflog", "divbyn"};
         return activations.find(layer->type) != activations.end();
     }
 

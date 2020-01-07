@@ -50,6 +50,9 @@
 #include <builders/ie_roi_pooling_layer.hpp>
 #include <builders/ie_scale_shift_layer.hpp>
 #include <builders/ie_sigmoid_layer.hpp>
+#include <builders/ie_log_layer.hpp>
+#include <builders/ie_exp_layer.hpp>
+#include <builders/ie_divbyn_layer.hpp>
 #include <builders/ie_simpler_nms_layer.hpp>
 #include <builders/ie_softmax_layer.hpp>
 #include <builders/ie_split_layer.hpp>

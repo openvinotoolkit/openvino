@@ -1190,6 +1190,7 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         num_rows = FROM_IR_DIM(inputs, 1);
     }
 
+    uint32_t non_batch_dim = (orientation == kDnnNonInterleavedOrientation) ? num_columns : num_rows;
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
         * outputs->getPrecision().size();
 
@@ -1198,6 +1199,9 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     static InferenceEngine::details::caseless_unordered_map<std::string, DnnActivationType> supportedActivations = {
         {"sigmoid", kActSigmoid},
+        {"divbyn", kActDivByN},
+        {"log", kActLog},
+        {"exp", kActExp},
         {"tanh", kActTanh},
         {"relu", kActRelu},
         {"leakyrelu", kActLeakyRelu},
@@ -1262,12 +1266,14 @@ case name:\
                 &*ptr_pwl_segments.begin(),
                 static_cast<uint32_t>(ptr_pwl_segments.size()),
                 input_pwl_scale_factor,
-                output_pwl_scale_factor);
+                output_pwl_scale_factor,
+                non_batch_dim);
         } else {
             PwlDesignOpt16(activation_type,
                 ptr_pwl_segments,
                 input_pwl_scale_factor,
-                output_pwl_scale_factor);
+                output_pwl_scale_factor,
+                non_batch_dim);
         }
         ptr_pwl_segments_target = reinterpret_cast<intel_pwl_segment_t*>(&ptr_pwl_segments_target);
     }
@@ -1338,7 +1344,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"Split"}, SKIP},  // skip information about which part of prev layer need to consume handle during layer creation
         {{"Slice"}, SKIP},
         {{"link"}, SKIP},
-        {{"clamp", "sigmoid", "relu", "tanh", "identity"}, CREATE(PWLPrimitive)},
+        {{"clamp", "sigmoid", "relu", "tanh", "log", "divbyn", "exp", "identity"}, CREATE(PWLPrimitive)},
         {{"Convolution"}, CREATE(ConvolutionPrimitive)},
         {{"Permute"}, CREATE(PermutePrimitive)},  // permute of certain form (2D transpose) can be assimilated in followed FC layer
         {{"Pooling"}, CREATE(PoolingPrimitive)},

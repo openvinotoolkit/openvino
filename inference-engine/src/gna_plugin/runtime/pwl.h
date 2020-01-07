@@ -27,6 +27,8 @@
 #define XBASEMASK 0xFFFFFFFC  // only top 30 bits are used
 #define KALDI_LSTM_CLIP_LOWER (-50.0)
 #define KALDI_LSTM_CLIP_UPPER (50.0)
+#define LOG_DOMAIN (2981.0)
+#define EXP_DOMAIN (8.0)
 
 typedef struct {
     double t;
@@ -88,8 +90,10 @@ void PwlDesign16(const DnnActivation activation_type,
                  intel_pwl_segment_t *ptr_segment,
                  const uint32_t num_segments,
                  const float scale_in,
-                 const float scale_out);
+                 const float scale_out,
+                 const uint32_t n);
 void PwlDesignOpt16(const DnnActivation activation_type,
                 std::vector<intel_pwl_segment_t> &ptr_segment,
                 const float scale_in,
-                const float scale_out);
+                const float scale_out,
+                const uint32_t n);

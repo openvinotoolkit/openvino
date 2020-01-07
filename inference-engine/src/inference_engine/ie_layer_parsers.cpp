@@ -38,6 +38,9 @@ CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerPar
         {"clamp", std::make_shared<LayerCreator<ClampLayer>>("Clamp")},
         {"elu", std::make_shared<LayerCreator<CNNLayer>>("ELU")},
         {"sigmoid", std::make_shared<LayerCreator<CNNLayer>>("Sigmoid")},
+        {"log", std::make_shared<LayerCreator<CNNLayer>>("Sigmoid")},
+        {"divbyn", std::make_shared<LayerCreator<CNNLayer>>("DivByN")},
+        {"exp", std::make_shared<LayerCreator<CNNLayer>>("Exp")},
         {"tanh", std::make_shared<LayerCreator<CNNLayer>>("TanH")},
     };
 

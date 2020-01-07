@@ -90,6 +90,18 @@ SigmoidLayer::~SigmoidLayer(){
 
 }
 
+DivByNLayer::~DivByNLayer() {
+
+}
+
+LogLayer::~LogLayer() {
+
+}
+
+ExpLayer::~ExpLayer() {
+
+}
+
 ClampLayer::~ClampLayer(){
 
 }

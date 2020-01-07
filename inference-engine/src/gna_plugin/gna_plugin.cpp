@@ -387,10 +387,12 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         switch (gnaPrecision) {
             case Precision::I16:
                 ModelQuantizer<QuantI16> q16;
-                newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+                std::cout << "Config gnaPrecision = I16 ip SF = " << inputsDesc->inputScaleFactors[0] << "\n";
+		newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
             case Precision::I8:
                 ModelQuantizer<QuantI8> q8;
+		std::cout << "Config gnaPrecision = I8 ip SF = " << inputsDesc->inputScaleFactors[0] << "\n";
                 newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
             default:
@@ -501,11 +503,13 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         // auto idx = std::distance(outputsDataMap.begin(), outputPort);
         auto & desc = outputsDesc[idx];
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-
+        std::cout << "is quantized ? " << quantized << "\n";
         desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
         desc.orientation = component.orientation_out;
         desc.num_bytes_per_element = component.num_bytes_per_output;
         desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+        
+        std::cout << "desc.scale_factor " << desc.scale_factor << "\n";
         // TODO: this need to be fixed
         desc.num_elements = component.num_rows_out;
 

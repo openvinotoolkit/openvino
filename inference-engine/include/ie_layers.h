@@ -2119,5 +2119,64 @@ public:
      */
     float negative_slope;
  };
+
+class DivByNLayer : public CNNLayer {
+public:
+    /**
+    * @brief A default constructor. Creates a new ReLULayer instance and initializes layer parameters with the given values.
+    * @param prms Initial layer parameters
+    */
+    // explicit LogLayer(const LayerParams &prms) : CNNLayer(prms), negative_slope(0.0f) {}
+
+    using CNNLayer::CNNLayer;
+
+#if defined(__ANDROID__)
+    virtual ~DivByNLayer();
+#endif
+
+    /**
+     * @brief Negative slope is used to takle negative inputs instead of setting them to 0
+     */
+    float negative_slope;
+};
+
+class ExpLayer : public CNNLayer {
+public:
+    /**
+    * @brief A default constructor. Creates a new ReLULayer instance and initializes layer parameters with the given values.
+    * @param prms Initial layer parameters
+    */
+    // explicit LogLayer(const LayerParams &prms) : CNNLayer(prms), negative_slope(0.0f) {}
+
+    using CNNLayer::CNNLayer;
+
+#if defined(__ANDROID__)
+    virtual ~ExpLayer();
+#endif
+    /**
+     * @brief Negative slope is used to takle negative inputs instead of setting them to 0
+     */
+    float negative_slope;
+};
+
+class LogLayer : public CNNLayer {
+public:
+    /**
+    * @brief A default constructor. Creates a new ReLULayer instance and initializes layer parameters with the given values.
+    * @param prms Initial layer parameters
+    */
+    // explicit LogLayer(const LayerParams &prms) : CNNLayer(prms), negative_slope(0.0f) {}
+
+    using CNNLayer::CNNLayer;
+
+#if defined(__ANDROID__)
+    virtual ~LogLayer();
+#endif
+
+    /**
+     * @brief Negative slope is used to takle negative inputs instead of setting them to 0
+     */
+    float negative_slope;
+  };
  
 }  // namespace InferenceEngine

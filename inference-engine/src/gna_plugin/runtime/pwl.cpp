@@ -30,6 +30,9 @@
 #include "round_float_define.hpp"
 
 double first_deriv_tanh(const double x) { return(1.0 - tanh(x) * tanh(x)); }
+double first_deriv_exp(const double x) { return(exp(x)); }
+double first_deriv_log(const double x) { return(1.0 / x); }
+
 
 double sigmoid(const double x) { return(0.5 * (1.0 + tanh(x / 2))); }
 double first_deriv_sigmoid(const double x) { return(sigmoid(x) * (1.0 - sigmoid(x))); }
@@ -174,6 +177,12 @@ double calculate_error_pct(const DnnActivationType fun,
             min_val = max_val = sigmoid(l_bound); break;
         case kActTanh:
             min_val = max_val = tanh(l_bound); break;\
+        case kActExp:
+            min_val = max_val = exp(l_bound);
+            break;
+        case kActLog:
+            min_val = max_val = log(l_bound);
+            break;
         default:
             break;
     }
@@ -187,6 +196,12 @@ double calculate_error_pct(const DnnActivationType fun,
                 break;
             case kActTanh:
                 val = tanh(arg);
+                break;
+            case kActExp:
+                val = exp(arg);
+                break;
+            case kActLog:
+                val = log(arg);
                 break;
             default:
                 break;
@@ -209,6 +224,7 @@ bool split_search(const DnnActivationType fun,
     switch (fun) {
         case kActSigmoid:
         case kActTanh:
+        case kActExp:
             if ((l_bound < 0.0) && (u_bound > 0.0)) {
                 is_split = true;
             }
@@ -254,7 +270,9 @@ std::vector<pwl_t> pwl_search(const DnnActivationType fun,
         pwl = pwl_search(fun, l_bound, 0.0, threshold, allowed_err_pct, samples, err_pct1);
         pwl = negative_pwl(pwl);
         pwl2 = pwl_search(fun, 0.0, u_bound, threshold, allowed_err_pct, samples, err_pct2);
-
+        if (fun == kActExp) {
+            pwl2 = negative_pwl(pwl2);  // both regions of exp are concave
+        }
         // merge
         pwl.pop_back();  // remove final alpha and beta from first half
         pwl.insert(pwl.end(), pwl2.begin(), pwl2.end());  // concatenate the two halves
@@ -274,10 +292,12 @@ std::vector<pwl_t> pwl_search(const DnnActivationType fun,
             pwl[0].alpha = pwl[0].t = pwl[0].beta = -std::numeric_limits<float>::infinity();
             pwl[0].m = 0.0;
             pwl[0].b = pwl[0].beta = KALDI_LSTM_CLIP_LOWER;
-            pwl[1].alpha = pwl[0].t = pwl[1].beta = KALDI_LSTM_CLIP_LOWER;
+            //pwl[1].alpha = pwl[0].t = pwl[1].beta = KALDI_LSTM_CLIP_LOWER;
+            pwl[1].alpha = pwl[1].t = pwl[1].beta = KALDI_LSTM_CLIP_LOWER;
             pwl[1].m = 1.0;
             pwl[1].b = 0.0;
-            pwl[2].alpha = pwl[0].t = pwl[1].beta = KALDI_LSTM_CLIP_UPPER;
+            //pwl[2].alpha = pwl[0].t = pwl[1].beta = KALDI_LSTM_CLIP_UPPER;
+            pwl[2].alpha = pwl[2].t = pwl[2].beta = KALDI_LSTM_CLIP_UPPER;
             pwl[2].m = 0.0;
             pwl[2].b = KALDI_LSTM_CLIP_UPPER;
             pwl[3].alpha = pwl[3].beta = std::numeric_limits<float>::infinity();
@@ -294,6 +314,13 @@ std::vector<pwl_t> pwl_search(const DnnActivationType fun,
                     if (u_bound == 0) negative = true;  // make left half convex
                     err = pivot_search(pwl, tanh, first_deriv_tanh, n_segments, l_bound, u_bound, threshold, negative);
                     break;
+                case kActExp:
+                    negative = true;  // make function convex
+                    err = pivot_search(pwl, exp, first_deriv_exp, n_segments, l_bound, u_bound, threshold, negative);
+                    break;
+                case kActLog:
+                    err = pivot_search(pwl, log, first_deriv_log, n_segments, l_bound, u_bound, threshold, negative);
+                    break;
                 default:
                     break;
             }
@@ -307,6 +334,12 @@ std::vector<pwl_t> pwl_search(const DnnActivationType fun,
                         break;
                     case kActTanh:
                         err = pivot_search(pwl, tanh, first_deriv_tanh, n_segments, l_bound, u_bound, threshold, negative);
+                        break;
+                    case kActExp:
+                        err = pivot_search(pwl, exp, first_deriv_exp, n_segments, l_bound, u_bound, threshold, negative);
+                        break;
+                    case kActLog:
+                        err = pivot_search(pwl, log, first_deriv_log, n_segments, l_bound, u_bound, threshold, negative);
                         break;
                     default:
                         break;
@@ -326,30 +359,48 @@ std::vector<pwl_t> pwl_search(const DnnActivationType fun,
 void PwlDesignOpt16(const DnnActivation activation_type,
                     std::vector<intel_pwl_segment_t> &ptr_segment,
                     const float scale_in,
-                    const float scale_out) {
+                    const float scale_out,
+                    const uint32_t n) {
     std::vector<pwl_t> pwl;
     double err_pct = 0.0;
     switch (activation_type) {
         case kActSigmoid:
             pwl = pwl_search(kActSigmoid, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, scale_in, scale_out, ptr_segment, n);
             break;
         case kActTanh:
             pwl = pwl_search(kActTanh, -TANH_DOMAIN, TANH_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, -TANH_DOMAIN, TANH_DOMAIN, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, -TANH_DOMAIN, TANH_DOMAIN, scale_in, scale_out, ptr_segment, n);
             break;
         case kActRelu:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment, n);
             break;
         case kActLeakyRelu:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment, n);
             break;
         case kActIdentity:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment, n);
             break;
         case kActKaldiLstmClipping:
-            make_gna_pwl(activation_type, pwl, KALDI_LSTM_CLIP_LOWER, KALDI_LSTM_CLIP_UPPER, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, KALDI_LSTM_CLIP_LOWER, KALDI_LSTM_CLIP_UPPER, scale_in, scale_out, ptr_segment, n);
             break;
+        case kActDivByN:
+            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment, n);
+            break;
+        case kActLog: {
+            double x_min = (1 + ~XBASEMASK) / scale_in;
+            double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
+            pwl = pwl_search(kActLog, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment, n);
+            break;
+        }
+        case kActExp: {
+            double x_min = -log(scale_out);
+            double x_max = x_min + log(INT16_MAX);
+            pwl = pwl_search(kActExp, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.5*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment, n);
+            break;
+        }
         default:
             break;
     }
@@ -359,7 +410,8 @@ void PwlDesign16(const DnnActivation activation_type,
                  intel_pwl_segment_t *ptr_segment,
                  const uint32_t num_segments,
                  const float scale_in,
-                 const float scale_out) {
+                 const float scale_out,
+                 const uint32_t n) {
     switch (activation_type) {
         case kActSigmoid:
            {
@@ -648,6 +700,13 @@ void PwlApply32(intel_dnn_component_t *component,
                     } else {
                         ptr_out[i * num_columns + j] = val;
                     }
+                }
+            }
+            break;
+        case kActDivByN:
+            for (uint32_t i = num_row_start; i <= num_row_end; i++) {
+                for (uint32_t j = num_col_start; j <= num_col_end; j++) {
+                    ptr_out[i * num_columns + j] = ptr_in[i * num_columns + j]/(float)(num_col_end-num_col_start+1);
                 }
             }
             break;

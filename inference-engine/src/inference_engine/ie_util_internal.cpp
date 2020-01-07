@@ -136,6 +136,8 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
                                    &layerCloneImpl<WeightableLayer>,
 #if defined(__ANDROID__)
 			           &layerCloneImpl<TanHLayer              >,
+                                   &layerCloneImpl<LogLayer               >,
+                                   &layerCloneImpl<DivByNLayer               >,
     			           &layerCloneImpl<SigmoidLayer           >,
 #endif
                                    &layerCloneImpl<OneHotLayer>,
