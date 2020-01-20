@@ -97,8 +97,8 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     graph.SortTopologically();
     graph.RemoveDroppedEdges();
 
-    FuseConvolutionAndDWConvolution(graph);
-    graph.RemoveDroppedNodes();
+//    FuseConvolutionAndDWConvolution(graph);
+//    graph.RemoveDroppedNodes();
 
     FuseBinaryConvolutionAndQuantize(graph);
     graph.RemoveDroppedNodes();
