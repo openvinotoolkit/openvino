@@ -117,23 +117,13 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         apiVersion apiVersion
 
     cpdef enum MeanVariant:
-        MEAN_IMAGE
-        MEAN_VALUE
-        NONE
+        pass
 
     cpdef enum ResizeAlgorithm:
-        NO_RESIZE
-        RESIZE_BILINEAR
-        RESIZE_AREA
+        pass
 
     cpdef enum ColorFormat:
-        RAW
-        RGB
-        BGR
-        RGBX
-        BGRX
-        NV12
-        I420
+        pass
 
     cdef enum Layout:
         ANY
