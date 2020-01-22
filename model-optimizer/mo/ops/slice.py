@@ -90,6 +90,12 @@ class Slice(Op):
                     end = start + size
                     axis = None
 
+                    input_shape = node.in_node(0).shape
+                    # Check for situation when size[i] == -1 in TF
+                    for i in range(start.size):
+                        if size[i] == -1:
+                            end[i] = input_shape[i]
+
                     # Delete edges to start, size nodes
                     node.graph.remove_edge(node.in_node(1).id, node.id)
                     node.graph.remove_edge(node.in_node(2).id, node.id)
@@ -105,12 +111,6 @@ class Slice(Op):
             return
 
         input_shape = node.in_node(0).shape
-        # Check for situation when size[i] == -1 in TF
-        for i in range(start.size):
-            if end[i] < start[i]:
-                end[i] = input_shape[i]
-        # Update end param
-        node.end = end
         value = node.in_node(0).value
 
         # If value is None create dummy vaue for shape propogation
@@ -123,6 +123,13 @@ class Slice(Op):
 
         if steps is None:
             steps = np.ones(start.size, dtype=np.int64)
+
+        # Check for situation when end[i] <= 0 in ONNX
+        for i in range(start.size):
+            if end[i] <= 0:
+                end[i] = input_shape[axis[i]] + end[i]
+        # Update end param
+        node.end = end
 
         # Calculate output value for slice operation
         slice_idx = [None for x in range(len(node.in_node().shape))]
