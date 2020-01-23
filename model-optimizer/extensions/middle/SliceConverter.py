@@ -178,7 +178,8 @@ class ConvertSlice(MiddleReplacementPattern):
         else:
             # If Slice use more than one axis use Crop layer
             crop = Crop(graph, dict(axis=axis[axes],
-                                    offset=begin[axes]))
+                                    offset=begin[axes],
+                                    dim=end[axes]-begin[axes]))
             # creating node with data
             crop.create_node_with_data(inputs=[input], data_nodes=[output_data])
 
