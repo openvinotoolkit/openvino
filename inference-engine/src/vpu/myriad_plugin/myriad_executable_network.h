@@ -108,13 +108,10 @@ public:
 
     void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
 
-    void Import(std::istream& strm,
-                std::vector<DevicePtr> &devicePool,
-                const MyriadConfig& config);
-
 private:
     Logger::Ptr _log;
     MyriadExecutorPtr _executor;
+    MyriadDeviceProviderPtr _deviceProvider;
     std::vector<char> _graphBlob;
     GraphDesc _graphDesc;
     DevicePtr _device;
@@ -132,6 +129,10 @@ private:
     ExecutableNetwork(std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr> &devicePool,
         const MyriadConfig& config);
+
+    void Import(std::istream& strm,
+                std::vector<DevicePtr> &devicePool,
+                const MyriadConfig& config);
 
     InferenceEngine::ITaskExecutor::Ptr getNextTaskExecutor() {
         std::string id = _taskExecutorGetResultIds.front();

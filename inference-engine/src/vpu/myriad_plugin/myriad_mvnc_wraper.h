@@ -48,13 +48,33 @@ public:
     std::vector<ncDeviceDescr_t> AvailableDevicesDesc() const override;
     std::vector<std::string> AvailableDevicesNames() const override;
 
+    template<typename T>
+    static std::vector<T> getGraphInfo(ncGraphHandle_t* graphHandle,
+                                       ncGraphOption_t graphOption, int numElems);
+
+    static std::string ncStatusToStr(ncGraphHandle_t *graphHandle, ncStatus_t status);
+
     WatchdogHndl_t* watchdogHndl() override {
         return m_watcdogPtr.get();
     }
-
 private:
     WatchdogUniquePtr m_watcdogPtr;
 };
+
+template<typename T>
+std::vector<T> Mvnc::getGraphInfo(
+    ncGraphHandle_t* graphHandle,
+    ncGraphOption_t graphOption,
+    int numElems) {
+    std::vector<T> out(numElems);
+
+    unsigned int infoByteSize = numElems * sizeof(T);
+    if (ncGraphGetOption(graphHandle, graphOption, out.data(), &infoByteSize) != NC_OK) {
+        out.clear();
+    }
+
+    return out;
+}
 
 }  // namespace MyriadPlugin
 }  // namespace vpu

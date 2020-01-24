@@ -22,7 +22,7 @@ public:
     explicit Engine(std::shared_ptr<IMvnc> mvnc);
 
     ~Engine() override {
-        MyriadExecutor::closeDevices(_devicePool, _mvnc);
+        MyriadDeviceProvider::closeDevices(_devicePool, _mvnc);
     }
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
