@@ -51,7 +51,7 @@ if [ -f /etc/lsb-release ]; then
             gstreamer1.0-plugins-base \
             libusb-1.0-0-dev \
             libopenblas-dev
-    if apt-cache search --names-only '^libpng12'| grep -q libpng12; then
+    if apt-cache search --names-only '^libpng12-dev'| grep -q libpng12; then
         sudo -E apt-get install -y libpng12-dev
     else
         sudo -E apt-get install -y libpng-dev
