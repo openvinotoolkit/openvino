@@ -53,6 +53,7 @@ typedef struct ie_network ie_network_t;
 typedef struct ie_executable ie_executable_network_t;
 typedef struct ie_infer_request ie_infer_request_t;
 typedef struct ie_blob ie_blob_t;
+typedef struct ie_remote_context ie_remote_context_t;
 
 /**
  * @struct ie_version
@@ -303,6 +304,47 @@ typedef struct ie_available_devices {
 }ie_available_devices_t;
 
 /**
+ * @enum shared_context_type_e
+ * @brief Represents the lists of type for supported context.
+ */
+typedef enum {
+    OCL = 0,     // OpenCL context.
+    VA_SHARED,   // VA_Display on Linux and ID3D11Device on Windows.
+}shared_context_type_e;
+
+/**
+ * @struct shared_context_param_t
+ * @brief The structure contains context handle user-supplied and context type paramters
+ * for creating shared context.
+ */
+typedef struct shared_context_param {
+    void *ctx;  // context handle user-supplied, such as cl_context, VADisply, ID3D11Device object handle.
+    shared_context_type_e type;
+}shared_context_param_t;
+
+/**
+ * @enum shared_blob_type_e
+ * @brief Represents the lists of type for supported shared blob.
+ */
+typedef enum {
+    OCL_BUFFER = 0,   // shared OpenCL buffer blob
+    OCL_IMAGE2D,      // shared OpenCL 2D image blob
+    VA_SURFACE,       // shared video decoder surface or D3D 2D texture blob
+    DX_BUFFER,        // shared D3D buffer blob
+}shared_blob_type_e;
+
+/**
+ * @struct shared_blob_param_t
+ * @brief The structure contains shared memory blob handle user-supplied and shared blob type paramters
+ * for creating shared blob.
+ */
+typedef struct shared_blob_param {
+    void *blob_handle;  // memory handle user-supplied, such as cl_mem, VASurfaceID, ID3D11Buffer, ID3D11Texture2D,
+    shared_blob_type_e type;
+    uint32_t plane;
+}shared_blob_param_t;
+
+/**
  * @brief Returns number of version that is exported. Use the ie_version_free() to free memory.
  * @return Version number of the API.
  */
@@ -388,6 +430,34 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network(ie_core_t
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network_from_memory(ie_core_t *core, const uint8_t *xml_content, size_t xml_content_size,
     const ie_blob_t *weight_blob, ie_network_t **network);
+/**
+ * @brief Create a new shared context instance on specified accelerator device
+ * using specified plugin-sepecific low level device API parameters (device handlde, pointer, etc.)
+ * @ingroup Core
+ * @param core A pointer to ie_core_t instance.
+ * @param device_name Name of device to create new shared context on.
+ * @param context_param The shared context paramters to create new shared context.
+ * @param context A pointer to the newly created shared context.
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_create_context(ie_core_t *core, const char *device_name, const shared_context_param_t context_param, ie_remote_context_t **context);
+
+/**
+ * @brief Get a pointer to default(plugin-supplied) shared context object for specified accelerator device.
+ * @ingroup Core
+ * @param core A pointer to ie_core_t instance.
+ * @param device_name A name of a device to get create shared context from.
+ * @param context A shared pointer to a default remote context.
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_get_default_context(ie_core_t *core, const char *device_name, ie_remote_context_t **context);
+
+/**
+ * @brief Releases memory occupied by ie_remote_context_t.
+ * @ingroup Core
+ * @param context A pointer to the ie_remote_context_t to free memory.
+ */
+INFERENCE_ENGINE_C_API(void) ie_core_context_free(ie_remote_context_t **context);
 
 /**
  * @brief Creates an executable network from a network object. Users can create as many networks as they need and use
@@ -401,6 +471,18 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network_from_memo
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network(ie_core_t *core, const ie_network_t *network, const char *device_name, \
+        const ie_config_t *config, ie_executable_network_t **exe_network);
+/**
+ * @brief Creates an executable network form a network instance within a specified remote context.
+ * @ingroup core
+ * @param core A pointer to ie_core_t instance.
+ * @parma network A pointer to ie_network_t instance.
+ * @parma context A pointer to ie_remote_context instance.
+ * @param config The relevant configuration for this load operation.
+ * @param exe_network A pointer to the newly created executable network.
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network_on_context(ie_core_t *core, const ie_network_t *network, const ie_remote_context_t *context, \
         const ie_config_t *config, ie_executable_network_t **exe_network);
 
 /**
@@ -555,6 +637,15 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_exec_network_set_config(ie_
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_exec_network_get_config(const ie_executable_network_t *ie_exec_network, \
         const char *metric_config, ie_param_t *param_result);
+/**
+ * @brief Gets the plugin-specific shared context on remote acclelerator device
+ * that was used to create this executable netowrk.
+ * @ingroup ExecutableNetwork
+ * @param exec_network A pointer to ie_executable_network_t instance.
+ * @param context A pointer to the plugin-specific share context from the remote accelerator device.
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_exec_network_get_context(const ie_executable_network_t *exec_network, ie_remote_context_t **context);
 
 /** @} */ // end of ExecutableNetwork
 
@@ -942,6 +1033,18 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory_nv12(const
 */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory_i420(const ie_blob_t *y, const ie_blob_t *u, const ie_blob_t *v, ie_blob_t **i420Blob);
 
+/**
+ * @brief Allocates memory blob in device memory or wraps user-supplied memory handle
+ * using the specified tensor description and low-level device-specifi paramters.
+ * @ingroup Blob
+ * @param tensor_desc Defines the layout and dims of the blob.
+ * @param context Pointer to the ie_remote_context_t instance.
+ * @param blob_param The shared blob paramters to create the new blob.
+ * @param remote_blob A pointer to the newly created blob.
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_remote(const tensor_desc_t *tensor_desc, const ie_remote_context_t *context, \
+        const shared_blob_param_t blob_param, ie_blob_t **remote_blob);
 /**
  * @brief Gets the total number of elements, which is a product of all the dimensions.
  * @ingroup Blob

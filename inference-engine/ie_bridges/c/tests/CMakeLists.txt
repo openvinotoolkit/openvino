@@ -20,12 +20,15 @@ target_link_libraries(${TARGET_NAME}
         inference_engine_c_api
         ${OpenCV_LIBRARIES}
         commonTestUtils
+        ${CLDNN__IOCL_ICD_LIBPATH}
         )
 
 target_compile_definitions(${TARGET_NAME}
         PUBLIC ${ARGV}
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\" )
+
+target_include_directories(${TARGET_NAME} PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
 
 add_dependencies(${TARGET_NAME} MultiDevicePlugin)
 

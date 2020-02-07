@@ -18,6 +18,8 @@
 #include "inference_engine.hpp"
 #include "details/ie_exception.hpp"
 #include "ie_compound_blob.h"
+#include "gpu/gpu_params.hpp"
+
 #include "c_api/ie_c_api.h"
 
 namespace IE = InferenceEngine;
@@ -60,6 +62,17 @@ struct ie_blob {
  */
 struct ie_network {
     IE::CNNNetwork object;
+};
+
+/**
+ * @struct ie_remote_context
+ * @brief This struct represents an Inference Engine abstraction
+ * for remote (non-CPU) accelerator device-specific execution context.
+ * Such context represents a scope on the device within which executable
+ * networks and remote memory blobs can exist, function and exchange data.
+ */
+struct ie_remote_context {
+    IE::RemoteContext::Ptr object;
 };
 
 std::map<IE::StatusCode, IEStatusCode> status_map = {{IE::StatusCode::GENERAL_ERROR, IEStatusCode::GENERAL_ERROR},
@@ -332,6 +345,63 @@ IEStatusCode ie_core_read_network_from_memory(ie_core_t *core, const uint8_t *xm
     return status;
 }
 
+IEStatusCode ie_core_create_context(ie_core_t *core, const char *device_name, const shared_context_param_t context_param, ie_remote_context_t **context) {
+    if (core == nullptr || device_name == nullptr || context_param.ctx == nullptr || context == nullptr) {
+        return IEStatusCode::GENERAL_ERROR;
+    }
+
+    IE::ParamMap contextParams = {};
+
+    // set contextParams based on context type.
+    switch (context_param.type) {
+        case OCL:
+            contextParams[IE::GPU_PARAM_KEY(CONTEXT_TYPE)] = IE::GPU_PARAM_VALUE(OCL);
+            contextParams[IE::GPU_PARAM_KEY(OCL_CONTEXT)] =  static_cast<IE::gpu_handle_param>(context_param.ctx);
+            break;
+        case VA_SHARED:
+            contextParams[IE::GPU_PARAM_KEY(CONTEXT_TYPE)] = IE::GPU_PARAM_VALUE(VA_SHARED);
+            contextParams[IE::GPU_PARAM_KEY(VA_DEVICE)] = static_cast<IE::gpu_handle_param>(context_param.ctx);
+            break;
+    }
+
+    try {
+        std::unique_ptr<ie_remote_context_t> rem_ctx(new ie_remote_context_t);
+        rem_ctx->object = core->object.CreateContext(device_name, contextParams);
+        *context = rem_ctx.release();
+    } catch (const IE::details::InferenceEngineException& e) {
+        return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
+    } catch (...) {
+        return IEStatusCode::UNEXPECTED;
+    }
+
+    return IEStatusCode::OK;
+}
+
+IEStatusCode ie_core_get_default_context(ie_core_t *core, const char *device_name, ie_remote_context_t **context) {
+    if (core == nullptr || device_name == nullptr || context == nullptr) {
+        return IEStatusCode::GENERAL_ERROR;
+    }
+
+    try {
+        std::unique_ptr<ie_remote_context_t> rem_ctx(new ie_remote_context_t);
+        rem_ctx->object = core->object.GetDefaultContext(device_name);
+        *context = rem_ctx.release();
+   } catch (const IE::details::InferenceEngineException& e) {
+        return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
+    } catch (...) {
+        return IEStatusCode::UNEXPECTED;
+    }
+
+    return IEStatusCode::OK;
+}
+
+void ie_core_context_free(ie_remote_context_t **context) {
+    if (context) {
+        delete *context;
+        *context = NULL;
+    }
+}
+
 IEStatusCode ie_core_load_network(ie_core_t *core, const ie_network_t *network, const char *device_name, \
         const ie_config_t *config, ie_executable_network_t **exe_network) {
     IEStatusCode status = IEStatusCode::OK;
@@ -356,6 +426,27 @@ IEStatusCode ie_core_load_network(ie_core_t *core, const ie_network_t *network, 
     }
 
     return status;
+}
+
+IEStatusCode ie_core_load_network_on_context(ie_core_t *core, const ie_network_t *network, const ie_remote_context_t *context, \
+        const ie_config_t *config, ie_executable_network_t **exe_network) {
+    if (core == nullptr || network == nullptr || context == nullptr || config == nullptr)
+        return IEStatusCode::GENERAL_ERROR;
+
+    try {
+        std::map<std::string, std::string> conf_map;
+        conf_map = config2Map(config);
+        std::unique_ptr<ie_executable_network_t> exe_net(new ie_executable_network_t);
+
+        exe_net->object = core->object.LoadNetwork(network->object, context->object, conf_map);
+        *exe_network = exe_net.release();
+    } catch (const IE::details::InferenceEngineException& e) {
+        return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
+    } catch (...) {
+        return IEStatusCode::UNEXPECTED;
+    }
+
+    return IEStatusCode::OK;
 }
 
 IEStatusCode ie_core_set_config(ie_core_t *core, const ie_config_t *ie_core_config, const char *device_name) {
@@ -628,6 +719,23 @@ IEStatusCode ie_exec_network_get_config(const ie_executable_network_t *ie_exec_n
     }
 
     return status;
+}
+
+IEStatusCode ie_exec_network_get_context(const ie_executable_network_t *exec_network, ie_remote_context_t **context) {
+    if (exec_network == nullptr || context == nullptr)
+        return IEStatusCode::GENERAL_ERROR;
+
+    try {
+        std::unique_ptr<ie_remote_context_t> rem_ctx (new ie_remote_context_t);
+        rem_ctx->object = exec_network->object.GetContext();
+        *context = rem_ctx.release();
+    } catch (const IE::details::InferenceEngineException& e) {
+        return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
+    } catch (const std::exception& e) {
+        return IEStatusCode::UNEXPECTED;
+    }
+
+    return IEStatusCode::OK;
 }
 
 void ie_network_free(ie_network_t **network) {
@@ -1525,7 +1633,7 @@ IEStatusCode ie_blob_make_memory_with_roi(const ie_blob_t *inputBlob, const roi_
         _blob->object = IE::make_shared_blob(inputBlob->object, roi_d);
         *blob = _blob.release();
     } catch (const IE::details::InferenceEngineException& e) {
-       return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
+        return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
     } catch (...) {
         return IEStatusCode::UNEXPECTED;
     }
@@ -1562,6 +1670,70 @@ IEStatusCode ie_blob_make_memory_i420(const ie_blob_t *y, const ie_blob_t *u, co
         *i420Blob = _blob.release();
     } catch (const IE::details::InferenceEngineException& e) {
        return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
+    } catch (...) {
+        return IEStatusCode::UNEXPECTED;
+    }
+
+    return IEStatusCode::OK;
+}
+
+IEStatusCode ie_blob_make_remote(const tensor_desc_t *tensor_desc, const ie_remote_context_t *context, \
+        const shared_blob_param_t blob_param, ie_blob_t **remote_blob) {
+    if (tensor_desc == nullptr || context == nullptr || remote_blob == nullptr)
+        return IEStatusCode::GENERAL_ERROR;
+
+    IE::Precision prec;
+    for (auto it : precision_map) {
+        if (it.second == tensor_desc->precision) {
+            prec = it.first;
+            break;
+        }
+    }
+
+    IE::Layout l = IE::Layout::NCHW;
+    for (auto it : layout_map) {
+        if (it.second == tensor_desc->layout) {
+            l = it.first;
+            break;
+        }
+    }
+
+    IE::SizeVector dims_vector;
+    for (size_t i = 0; i < tensor_desc->dims.ranks; ++i) {
+        dims_vector.push_back(tensor_desc->dims.dims[i]);
+    }
+    IE::TensorDesc _tensor_desc(prec, dims_vector, l);
+
+    IE::ParamMap params = {};
+    if (blob_param.blob_handle) {
+        switch (blob_param.type) {
+            case OCL_BUFFER:
+                params[IE::GPU_PARAM_KEY(SHARED_MEM_TYPE)] = IE::GPU_PARAM_VALUE(OCL_BUFFER);
+                params[IE::GPU_PARAM_KEY(MEM_HANDLE)] = (blob_param.blob_handle);
+                break;
+            case OCL_IMAGE2D:
+                params[IE::GPU_PARAM_KEY(SHARED_MEM_TYPE)] = IE::GPU_PARAM_VALUE(OCL_IMAGE2D);
+                params[IE::GPU_PARAM_KEY(MEM_HANDLE)] = blob_param.blob_handle;
+                break;
+            case VA_SURFACE:
+                params[IE::GPU_PARAM_KEY(SHARED_MEM_TYPE)] = IE::GPU_PARAM_VALUE(VA_SURFACE);
+                params[IE::GPU_PARAM_KEY(DEV_OBJECT_HANDLE)] = blob_param.blob_handle;
+                params[IE::GPU_PARAM_KEY(VA_PLANE)] = blob_param.plane;
+                break;
+            case DX_BUFFER:
+                params[IE::GPU_PARAM_KEY(CONTEXT_TYPE)] = IE::GPU_PARAM_VALUE(VA_SHARED);
+                params[IE::GPU_PARAM_KEY(VA_DEVICE)] = blob_param.blob_handle;
+                break;
+        }
+    }
+
+    try {
+        std::unique_ptr<ie_blob_t> _blob(new ie_blob_t);
+
+        _blob->object = context->object->CreateBlob(_tensor_desc, params);
+        *remote_blob = _blob.release();
+    } catch (const IE::details::InferenceEngineException& e) {
+        return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
     } catch (...) {
         return IEStatusCode::UNEXPECTED;
     }

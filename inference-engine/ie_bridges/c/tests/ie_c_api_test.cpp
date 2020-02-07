@@ -8,6 +8,23 @@
 #include <opencv2/opencv.hpp>
 #include <condition_variable>
 #include <mutex>
+
+#define CL_HPP_MINIMUM_OPENCL_VERSION 120
+#define CL_HPP_TARGET_OPENCL_VERSION 120
+
+#if defined __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-attributes"
+#endif
+
+#ifndef __APPLE__
+#include <CL/cl2.hpp>
+#endif
+
+#if defined __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
 #include <c_api/ie_c_api.h>
 #include <inference_engine.hpp>
 #include "test_model_repo.hpp"
@@ -56,6 +73,24 @@ size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_
     }
     fclose(fp);
     return read_size;
+}
+
+void compare(ie_blob_t *blob1, ie_blob_t *blob2) {
+    int blob1_size = 0, blob2_size = 0;
+    IE_EXPECT_OK(ie_blob_size(blob1, &blob1_size));
+    IE_EXPECT_OK(ie_blob_size(blob2, &blob2_size));
+
+    ASSERT_EQ(blob1_size, blob2_size);
+
+    ie_blob_buffer_t blob1_buffer, blob2_buffer;
+    IE_EXPECT_OK(ie_blob_get_buffer(blob1, &blob1_buffer));
+    float *blob1_data = (float *)blob1_buffer.buffer;
+    IE_EXPECT_OK(ie_blob_get_buffer(blob2, &blob2_buffer));
+    float *blob2_data = (float *)blob2_buffer.buffer;
+
+    for (size_t i = 0; i < blob1_size; ++i) {
+        ASSERT_NEAR(blob1_data[i], blob2_data[i], 0.01) << ", index=" <<i;
+    }
 }
 
 void Mat2Blob(const cv::Mat& img, ie_blob_t *blob)
@@ -2053,6 +2088,330 @@ TEST(ie_blob_make_memory_i420, inferRequestWithI420) {
     ie_core_free(&core);
     free(img_data);
 }
+
+#ifndef __APPLE__
+TEST(ie_core_create_context, createContext) {
+#if defined(_WIN32) || defined(ANDROID)
+    GTEST_SKIP();
+#endif
+
+    ie_core_t *core = NULL;
+    IE_EXPECT_OK(ie_core_create("", &core));
+
+    ie_param_t param;
+    if (ie_core_get_metric(core, "GPU", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
+        ie_core_free(&core);
+        GTEST_SKIP();
+    }
+
+    // inference using remote context
+    cl::Context _context;
+    const unsigned int refVendorID = 0x8086;
+    cl_uint n = 0;
+    cl_int err = clGetPlatformIDs(0, NULL, &n);
+    ASSERT_EQ(err, CL_SUCCESS);
+
+    // Get platform list
+    std::vector<cl_platform_id> platform_ids(n);
+    err = clGetPlatformIDs(n, platform_ids.data(), NULL);
+    ASSERT_EQ(err, CL_SUCCESS);
+
+    for (auto& id : platform_ids) {
+        cl::Platform platform = cl::Platform(id);
+        std::vector<cl::Device> devices;
+        platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+        for (auto& d : devices) {
+            if (refVendorID == d.getInfo<CL_DEVICE_VENDOR_ID>()) {
+                _context = cl::Context(d);
+                break;
+            }
+        }
+    }
+
+    shared_context_param_t context_param = {_context.get(), OCL};
+    ie_remote_context_t *remote_context = NULL;
+    IE_EXPECT_OK(ie_core_create_context(core, "GPU", context_param, &remote_context));
+
+    ie_core_context_free(&remote_context);
+    ie_core_free(&core);
+}
+#endif
+
+TEST(ie_core_get_default_context, getDefaultContext) {
+    ie_core_t *core = NULL;
+    IE_EXPECT_OK(ie_core_create("", &core));
+
+    ie_param_t param;
+    if (ie_core_get_metric(core, "GPU", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
+        ie_core_free(&core);
+        GTEST_SKIP();
+    }
+
+    ie_remote_context_t *remote_context = NULL;
+    IE_EXPECT_OK(ie_core_get_default_context(core, "GPU", &remote_context));
+
+    ie_core_context_free(&remote_context);
+    ie_core_free(&core);
+}
+
+#ifndef __APPLE__
+TEST(ie_core_load_network_on_context, loadNetworkOnContext) {
+#if defined(_WIN32) || defined(ANDROID)
+    GTEST_SKIP();
+#endif
+
+    ie_core_t *core = NULL;
+    IE_EXPECT_OK(ie_core_create("", &core));
+
+    ie_param_t param;
+    if (ie_core_get_metric(core, "GPU", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
+        ie_core_free(&core);
+        GTEST_SKIP();
+    }
+
+    ie_network_t *network = NULL;
+    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+
+    char *input_name = NULL, *output_name = NULL;
+    IE_EXPECT_OK(ie_network_get_input_name(network, 0, &input_name));
+    IE_EXPECT_OK(ie_network_get_output_name(network, 0, &output_name));
+    IE_EXPECT_OK(ie_network_set_input_layout(network, input_name, layout_e::NCHW));
+    IE_EXPECT_OK(ie_network_set_input_precision(network, input_name, precision_e::U8));
+
+    ie_config_t config = {NULL, NULL, NULL};
+    ie_executable_network_t *exe_net_regular = NULL;
+    IE_EXPECT_OK(ie_core_load_network(core, network, "GPU", &config, &exe_net_regular));
+
+    ie_infer_request_t *infer_req_regular = NULL;
+    IE_EXPECT_OK(ie_exec_network_create_infer_request(exe_net_regular, &infer_req_regular));
+
+    // regular inference
+    ie_blob_t *blob = NULL;
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_req_regular, input_name, &blob));
+    cv::Mat image = cv::imread(input_image);
+    Mat2Blob(image, blob);
+
+    IE_EXPECT_OK(ie_infer_request_infer(infer_req_regular));
+    ie_blob_t *output_blob_regular = NULL;
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_req_regular, output_name, &output_blob_regular));
+
+    // inference using remote context
+    cl::Context _context;
+    const unsigned int refVendorID = 0x8086;
+    cl_uint n = 0;
+    cl_int err = clGetPlatformIDs(0, NULL, &n);
+    ASSERT_EQ(err, CL_SUCCESS);
+
+    // Get platform list
+    std::vector<cl_platform_id> platform_ids(n);
+    err = clGetPlatformIDs(n, platform_ids.data(), NULL);
+    ASSERT_EQ(err, CL_SUCCESS);
+
+    for (auto& id : platform_ids) {
+        cl::Platform platform = cl::Platform(id);
+        std::vector<cl::Device> devices;
+        platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+        for (auto& d : devices) {
+            if (refVendorID == d.getInfo<CL_DEVICE_VENDOR_ID>()) {
+                _context = cl::Context(d);
+                break;
+            }
+        }
+    }
+
+    shared_context_param_t context_param = {_context.get(), OCL};
+    ie_remote_context_t *remote_context = NULL;
+    IE_EXPECT_OK(ie_core_create_context(core, "GPU", context_param, &remote_context));
+
+    ie_executable_network_t *exe_net_shared = NULL;
+    IE_EXPECT_OK(ie_core_load_network_on_context(core, network, remote_context, &config, &exe_net_shared));
+
+    ie_infer_request_t *infer_req_shared = NULL;
+    IE_EXPECT_OK(ie_exec_network_create_infer_request(exe_net_shared, &infer_req_shared));
+
+    ie_blob_t *input_blob_shared = NULL;
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_req_shared, input_name, &input_blob_shared));
+
+    Mat2Blob(image, input_blob_shared);
+    IE_EXPECT_OK(ie_infer_request_infer(infer_req_shared));
+
+    ie_blob_t *output_blob_shared = NULL;
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_req_shared, output_name, &output_blob_shared));
+
+    compare(output_blob_regular, output_blob_shared);
+
+    ie_blob_free(&output_blob_shared);
+    ie_blob_free(&input_blob_shared);
+    ie_infer_request_free(&infer_req_shared);
+    ie_exec_network_free(&exe_net_shared);
+    ie_core_context_free(&remote_context);
+    ie_blob_free(&output_blob_regular);
+    ie_blob_free(&blob);
+    ie_infer_request_free(&infer_req_regular);
+    ie_exec_network_free(&exe_net_regular);
+    ie_network_name_free(&output_name);
+    ie_network_name_free(&input_name);
+    ie_network_free(&network);
+    ie_core_free(&core);
+}
+#endif
+
+TEST(ie_exec_network_get_context, getContext) {
+    ie_core_t *core = NULL;
+    IE_EXPECT_OK(ie_core_create("", &core));
+
+    ie_param_t param;
+    if (ie_core_get_metric(core, "GPU", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
+        ie_core_free(&core);
+        GTEST_SKIP();
+    }
+
+    ie_network_t *network = NULL;
+    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+
+    ie_config_t config = {NULL, NULL, NULL};
+    ie_executable_network_t *exe_net = NULL;
+    IE_EXPECT_OK(ie_core_load_network(core, network, "GPU", &config, &exe_net));
+
+    ie_remote_context_t *remote_context = NULL;
+    IE_EXPECT_OK(ie_exec_network_get_context(exe_net, &remote_context));
+
+    ie_core_context_free(&remote_context);
+    ie_exec_network_free(&exe_net);
+    ie_network_free(&network);
+    ie_core_free(&core);
+}
+
+#ifndef __APPLE__
+TEST(ie_blob_make_remote, makeRemote) {
+#if defined(_WIN32) || defined(ANDROID)
+    GTEST_SKIP();
+#endif
+
+    ie_core_t *core = NULL;
+    IE_EXPECT_OK(ie_core_create("", &core));
+
+    ie_param_t param;
+    if (ie_core_get_metric(core, "GPU", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
+        ie_core_free(&core);
+        GTEST_SKIP();
+    }
+
+    ie_network_t *network = NULL;
+    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+
+    char *input_name = NULL, *output_name = NULL;
+    IE_EXPECT_OK(ie_network_get_input_name(network, 0, &input_name));
+    IE_EXPECT_OK(ie_network_get_output_name(network, 0, &output_name));
+    IE_EXPECT_OK(ie_network_set_input_layout(network, input_name, layout_e::NCHW));
+    IE_EXPECT_OK(ie_network_set_input_precision(network, input_name, precision_e::U8));
+
+    ie_config_t config = {NULL, NULL, NULL};
+    ie_executable_network_t *exe_net = NULL;
+    IE_EXPECT_OK(ie_core_load_network(core, network, "GPU", &config, &exe_net));
+
+    ie_infer_request_t *infer_req_regular = NULL;
+    IE_EXPECT_OK(ie_exec_network_create_infer_request(exe_net, &infer_req_regular));
+
+    // regular inference
+    ie_blob_t *blob = NULL;
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_req_regular, input_name, &blob));
+    cv::Mat image = cv::imread(input_image);
+    Mat2Blob(image, blob);
+
+    IE_EXPECT_OK(ie_infer_request_infer(infer_req_regular));
+    ie_blob_t *output_blob_regular = NULL;
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_req_regular, output_name, &output_blob_regular));
+
+    // inference using remote blob
+    cl::Context _context;
+    cl::Device _device;
+    const unsigned int refVendorID = 0x8086;
+    cl_uint n = 0;
+    cl_int err = clGetPlatformIDs(0, NULL, &n);
+    ASSERT_EQ(err, CL_SUCCESS);
+
+    // Get platform list
+    std::vector<cl_platform_id> platform_ids(n);
+    err = clGetPlatformIDs(n, platform_ids.data(), NULL);
+    ASSERT_EQ(err, CL_SUCCESS);
+
+    for (auto& id : platform_ids) {
+        cl::Platform platform = cl::Platform(id);
+        std::vector<cl::Device> devices;
+        platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
+        for (auto& d : devices) {
+            if (refVendorID == d.getInfo<CL_DEVICE_VENDOR_ID>()) {
+                _device = d;
+                _context = cl::Context(_device);
+                break;
+            }
+        }
+    }
+    shared_context_param_t context_param = {_context.get(), OCL};
+    ie_remote_context_t *remote_context = NULL;
+    IE_EXPECT_OK(ie_core_create_context(core, "GPU", context_param, &remote_context));
+
+    ie_executable_network_t *exe_net_shared = NULL;
+    IE_EXPECT_OK(ie_core_load_network_on_context(core, network, remote_context, &config, &exe_net_shared));
+
+    ie_infer_request_t *infer_req_shared = NULL;
+    IE_EXPECT_OK(ie_exec_network_create_infer_request(exe_net_shared, &infer_req_shared));
+
+    // create cl buffer
+    dimensions_t dimens;
+    IE_EXPECT_OK(ie_blob_get_dims(blob, &dimens));
+    size_t channels = dimens.dims[1];
+    size_t width = dimens.dims[3];
+    size_t height = dimens.dims[2];
+    uint8_t *blob_data = (uint8_t *) calloc(channels * width * height, sizeof(uint8_t));
+    cv::Mat resized_image;
+    cv::resize(image, resized_image, cv::Size(width, height));
+    for (size_t c = 0; c < channels; c++) {
+        for (size_t  h = 0; h < height; h++) {
+            for (size_t w = 0; w < width; w++) {
+                blob_data[c * width * height + h * width + w] =
+                        resized_image.at<cv::Vec3b>(h, w)[c];
+            }
+        }
+    }
+
+    cl::Buffer shared_buffer(_context, CL_MEM_READ_WRITE, channels * width * height, NULL, &err);
+    ASSERT_EQ(err, CL_SUCCESS);
+
+    cl_command_queue_properties props = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+    cl::CommandQueue _queue = cl::CommandQueue(_context, _device, props);
+    _queue.enqueueWriteBuffer(shared_buffer, true, 0, channels * width * height, blob_data);
+
+    tensor_desc_t tensor = {layout_e::NCHW, dimens, precision_e::U8};
+    ie_blob_t *input_blob_shared = NULL;
+    shared_blob_param_t blob_param = {shared_buffer.get(), shared_blob_type_e::OCL_BUFFER};
+    IE_EXPECT_OK(ie_blob_make_remote(&tensor, remote_context, blob_param, &input_blob_shared));
+
+    IE_EXPECT_OK(ie_infer_request_set_blob(infer_req_shared, input_name, input_blob_shared));
+    IE_EXPECT_OK(ie_infer_request_infer(infer_req_shared));
+
+    ie_blob_t *output_blob_shared = NULL;
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_req_shared, output_name, &output_blob_shared));
+
+    compare(output_blob_regular, output_blob_shared);
+
+    free(blob_data);
+    ie_blob_free(&output_blob_shared);
+    ie_blob_free(&input_blob_shared);
+    ie_infer_request_free(&infer_req_shared);
+    ie_exec_network_free(&exe_net_shared);
+    ie_core_context_free(&remote_context);
+    ie_blob_free(&output_blob_regular);
+    ie_blob_free(&blob);
+    ie_infer_request_free(&infer_req_regular);
+    ie_exec_network_free(&exe_net);
+    ie_network_name_free(&output_name);
+    ie_network_name_free(&input_name);
+    ie_network_free(&network);
+    ie_core_free(&core);
+}
+#endif
 
 int main(int argc, char *argv[]){
     ::testing::InitGoogleTest(&argc, argv);
