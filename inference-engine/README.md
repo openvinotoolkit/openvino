@@ -198,6 +198,7 @@ with the following content:
       crossbuild-essential-armhf \
       git \
       wget \
+      cmake \
       libusb-1.0-0-dev:armhf \
       libgtk-3-dev:armhf \
       libavcodec-dev:armhf \
@@ -207,12 +208,6 @@ with the following content:
       libgstreamer-plugins-base1.0-dev:armhf \
       libpython3-dev:armhf \
       python3-pip
-      
-  RUN wget https://www.cmake.org/files/v3.14/cmake-3.14.3.tar.gz && \
-      tar xf cmake-3.14.3.tar.gz && \
-      (cd cmake-3.14.3 && ./bootstrap --parallel=$(nproc --all) && make --jobs=$(nproc --all) && make install) && \
-      rm -rf cmake-3.14.3 cmake-3.14.3.tar.gz
-
   ```
 
   It uses the Debian\* Stretch (Debian 9) OS for compilation because it is a base of the Raspbian\* Stretch.
