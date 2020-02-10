@@ -91,8 +91,8 @@ def main():
         log.info("File was added: ")
         log.info("        {}".format(args.input[i]))
         if (ih, iw) != (h, w):
-            image = cv2.resize(image, (w, h))
             log.warning("Image {} is resized from {} to {}".format(args.input[i], image.shape[:-1], (h, w)))
+            image = cv2.resize(image, (w, h))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
     # -----------------------------------------------------------------------------------------------------
