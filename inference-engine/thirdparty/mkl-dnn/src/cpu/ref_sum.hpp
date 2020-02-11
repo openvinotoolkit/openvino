@@ -92,7 +92,7 @@ struct ref_sum_t: public cpu_primitive_t {
                     dummy_attr.output_scales_.set(scales_[i]);
                     reorder_pd_t *r_pd;
                     if (i != 0) {
-                        dummy_attr.post_ops_.append_sum(1.0);
+                        dummy_attr.post_ops_.append_sum(1.0, mkldnn_f32);
                     }
                     if ((*r)(&r_pd, &src_pds_[i], &dst_pd_, &dummy_attr)
                             == status::success) {

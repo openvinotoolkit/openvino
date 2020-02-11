@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include <time.h>
 #include <sys/types.h>
 #if (defined(_WIN32) || defined(_WIN64))
-#include "gettime.h"
+#include "win_time.h"
 #include <windows.h>    // for Sleep()
 #include <io.h>
 #else
@@ -31,10 +31,10 @@
 #include "XLinkPlatform.h"
 
 #define MVLOG_UNIT_NAME ncAPI
-#include "mvLog.h"
+#include "XLinkLog.h"
 #include "mvnc_tool.h"
-#include "mvMacros.h"
-#include "mvStringUtils.h"
+#include "XLinkMacros.h"
+#include "XLinkStringUtils.h"
 #include "watchdog.h"
 
 #define THERMAL_BUFFER_SIZE 100
@@ -48,27 +48,29 @@
 
 #define CONFIG_STREAM_SIZE 2000
 
-#define NAME_LENGTH         40
 #define MAX_PATH_LENGTH         255
 #define MAX_RELATED_PATH_LENGTH   100
 
+//      Firmware
+#define FIRMWARE_DIR_LENGTH         (190)
+#define FIRMWARE_NAME_LENGTH        (60)
+#define FIRMWARE_PROTOCOL_LENGTH    (15)
+#define FIRWMARE_DEVICE_LENGTH      (30)
+#define FIRMWARE_FORMAT_LENGTH      (15)
+
 //      Timeouts
-#define DEVICE_CONNECT_TIMEOUT              (2)
-#define PCIE_DEVICE_CONNECT_TIMEOUT         (10)
-#define DEVICE_APPEAR_TIMEOUT_ON_OPEN       (2)
+#define DEVICE_APPEAR_TIMEOUT_ON_OPEN       (5)
 #define DEVICE_APPEAR_TIMEOUT_ON_CLOSE      (10)
 
 #define SLEEP_MS        250
 #define MAX_ITERATIONS  20
 
-#define GRAPH_CLASS0_BASE   1000
-#define DEVICE_CLASS0_BASE  2000
-#define OPTION_CLASS_SIZE   100
-
 #define FP16_DATA_SIZE 2
 
 static int initialized = 0;
 static int reset_all = 1;
+
+static int g_deviceConnectTimeoutSec = 15;
 
 pthread_mutex_t deviceOpenMutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -82,6 +84,9 @@ static int global_lock_fd = -1;
 #define GLOBAL_LOCK() flock(global_lock_fd, LOCK_EX)
 #define GLOBAL_UNLOCK() flock(global_lock_fd, LOCK_UN)
 #endif
+
+#define STRINGIFY(_text) #_text
+#define CASE(entry) case entry: return STRINGIFY(entry);
 
 
 // To suppress warning in the macro below
@@ -113,10 +118,6 @@ static int global_lock_fd = -1;
 #endif // CHECK_STREAM_ID
 
 static XLinkGlobalHandler_t ghandler;
-
-#define TRACE_SIZE (24)
-
-static const int profUpperBound = 64 * 4 * 1024 * TRACE_SIZE;
 
 devicePrivate_t *devices;
 
@@ -153,6 +154,15 @@ int mvnc_memcpy(void* dest, size_t destsz, void const* src, size_t count) {
     return 0;
 }
 
+static
+char* mvnc_strdup(const char* s) {
+#ifdef _MSC_VER
+    return _strdup(s);
+#else
+    return strdup(s);
+#endif
+}
+
 static ncStatus_t parseXLinkError(XLinkError_t rc) {
     switch (rc) {
     case X_LINK_SUCCESS:
@@ -168,22 +178,38 @@ static ncStatus_t parseXLinkError(XLinkError_t rc) {
 
 static char* ncStatusToStr(const ncStatus_t status) {
     switch(status) {
-    case NC_OK:                 return "NC_OK";
-    case NC_BUSY:               return "NC_BUSY";
-    case NC_OUT_OF_MEMORY:      return "NC_OUT_OF_MEMORY";
-    case NC_DEVICE_NOT_FOUND:   return "NC_DEVICE_NOT_FOUND";
-    case NC_INVALID_PARAMETERS: return "NC_INVALID_PARAMETERS";
-    case NC_TIMEOUT:            return "NC_TIMEOUT";
-    case NC_MVCMD_NOT_FOUND:    return "NC_MVCMD_NOT_FOUND";
-    case NC_NOT_ALLOCATED:      return "NC_NOT_ALLOCATED";
-    case NC_UNAUTHORIZED:       return "NC_UNAUTHORIZED";
-    case NC_UNSUPPORTED_GRAPH_FILE: return "NC_UNSUPPORTED_GRAPH_FILE";
-    case NC_UNSUPPORTED_CONFIGURATION_FILE: return "NC_UNSUPPORTED_CONFIGURATION_FILE";
-    case NC_UNSUPPORTED_FEATURE: return "NC_UNSUPPORTED_FEATURE";
-    case NC_MYRIAD_ERROR:       return "NC_MYRIAD_ERROR";
-    case NC_INVALID_DATA_LENGTH: return "NC_INVALID_DATA_LENGTH";
-    case NC_INVALID_HANDLE:     return "NC_INVALID_HANDLE";
-    default: return "NC_ERROR";
+        CASE(NC_OK)
+        CASE(NC_BUSY)
+        CASE(NC_OUT_OF_MEMORY)
+        CASE(NC_DEVICE_NOT_FOUND)
+        CASE(NC_INVALID_PARAMETERS)
+        CASE(NC_TIMEOUT)
+        CASE(NC_MVCMD_NOT_FOUND)
+        CASE(NC_NOT_ALLOCATED)
+        CASE(NC_UNAUTHORIZED)
+        CASE(NC_UNSUPPORTED_GRAPH_FILE)
+        CASE(NC_UNSUPPORTED_CONFIGURATION_FILE)
+        CASE(NC_UNSUPPORTED_FEATURE)
+        CASE(NC_MYRIAD_ERROR)
+        CASE(NC_INVALID_DATA_LENGTH)
+        CASE(NC_INVALID_HANDLE)
+        default: return STRINGIFY(NC_ERROR);
+    }
+}
+
+static char* ncMvNCIErrorCodeToStr(const ncMvNCIErrorCode_t code) {
+    switch(code) {
+        CASE(MVNCI_SUCCESS)
+        CASE(MVNCI_NULL_PARAM)
+        CASE(MVNCI_MASK_NOTCONTINUOUS)
+        CASE(MVNCI_UNSUPPORTED_NETWORK_ELEMENT)
+        CASE(MVNCI_INVALID_HANDLE)
+        CASE(MVNCI_OUT_OF_RESOURCES)
+        CASE(MVNCI_NOT_IMPLEMENTED)
+        CASE(MVNCI_SHAVES_SLICES_MISMATCH)
+        CASE(MVNCI_TIMEOUT)
+        CASE(MVNCI_OUT_OF_MEMORY)
+        default: return STRINGIFY(MVNCI_INTERNAL_ERROR);
     }
 }
 
@@ -206,26 +232,7 @@ static void sleepForSeconds(const unsigned int seconds) {
 #endif
 }
 
-static char* getProductName(const char* name) {
-
-#if (defined(_WIN32) || defined(_WIN64))
-    const char PCIeName[] = "mxlink";
-#else
-    const char PCIeName[] = "mxlk";
-#endif
-
-    if (!name) return NULL;
-    if (strstr(name, PCIeName)) {
-        return "-mv0262";
-    } else {        // USB
-        char* p = strchr(name, '-');
-        if (p == NULL)
-            return "";
-        return p;
-    }
-}
-
-static ncOptionClass_t getOptionClass(int option, int base)
+static ncOptionAccess_t getOptionAccess(int option, int base)
 {
     return (int) ((option - base) / OPTION_CLASS_SIZE);
 }
@@ -245,42 +252,6 @@ static ncOptionClass_t getOptionClass(int option, int base)
         (_a > _b && _a > _c) ? _a : ((_b > _c && _b > _a) ? _b : _c); })
 #endif
 
-static ncFifoLayout_t getLayout(struct ncTensorDescriptor_t* td) {
-    unsigned int max = MAX_3(td->hStride, td->wStride, td->cStride);
-    if (max == td->hStride) {
-        if (MAX(td->wStride, td->cStride) == td->wStride)
-            return NC_FIFO_HWC;
-        else
-            return NC_FIFO_HCW;
-    } else if (max == td->cStride) {
-        if (MAX(td->wStride, td->hStride) == td->hStride)
-            return NC_FIFO_CHW;
-        else
-            return NC_FIFO_CWH;
-    } else { //W is major
-        if (MAX(td->hStride, td->cStride) == td->hStride)
-            return NC_FIFO_WHC;
-        else
-            return NC_FIFO_WCH;
-    }
-}
-
-void printImg(unsigned char* inputTensor, struct ncTensorDescriptor_t* inputDesc) {
-    int c = 0;
-    for (; c < inputDesc->c; c++) {
-        int row = 0;
-        for (; row < inputDesc->h; row++) { //row
-            int col = 0;
-            for (; col < inputDesc->w; col++) {
-                printf("%x ", inputTensor[col + row * inputDesc->hStride +
-                        c * inputDesc->cStride]);
-            }
-            printf(" ===== ROW %d (channel %d) Done === \n", row, c);
-        }
-        printf("\n");
-    }
-}
-
 static void resetAll()
 {
 #if defined(NO_BOOT)
@@ -288,12 +259,12 @@ static void resetAll()
 #else
     // Reset only USB devices
     deviceDesc_t in_deviceDesc = {
-        .protocol = X_LINK_USB_VSC,
+        .protocol = X_LINK_ANY_PROTOCOL,
         .platform = X_LINK_ANY_PLATFORM
     };
 
     unsigned int stalled_count = 0;
-    deviceDesc_t stalledDevices[NC_MAX_DEVICES] = {};
+    deviceDesc_t stalledDevices[NC_MAX_DEVICES] = { { 0 } };
 
     unsigned int stalled_count_after_reboot = 0;
 
@@ -342,7 +313,7 @@ static void resetAll()
 
         // Check that all devices are rebooted
         stalled_count_after_reboot = 0;
-        deviceDesc_t stalledDevicesAfterReboot[NC_MAX_DEVICES] = {};
+        deviceDesc_t stalledDevicesAfterReboot[NC_MAX_DEVICES] = { { 0 } };
         XLinkFindAllSuitableDevices(
                 X_LINK_BOOTED, in_deviceDesc,
                 stalledDevicesAfterReboot, NC_MAX_DEVICES, &stalled_count_after_reboot);
@@ -415,47 +386,89 @@ static char getPathSeparator() {
  * @brief Add / or \\ at the end of the path, if doesn't have it
  */
 
-static void addEndPathSeparator(char* filePath) {
-    const int filePathLen = strnlen(filePath, MAX_PATH_LENGTH);
-    if (filePathLen > 1 && filePathLen < MAX_PATH_LENGTH - 1 && filePath[filePathLen - 1] != getPathSeparator()) {
-        filePath[filePathLen] = getPathSeparator();
-        filePath[filePathLen + 1] = 0;
+static void addEndPathSeparator(char* buffer, const int buffer_length) {
+    const int filePathLen = strnlen(buffer, buffer_length);
+    if ((filePathLen > 1) && (filePathLen < buffer_length - 1) &&
+            buffer[filePathLen - 1] != getPathSeparator()) {
+        buffer[filePathLen] = getPathSeparator();
+        buffer[filePathLen + 1] = 0;
     }
 }
 
-ncStatus_t getFirmwarePath(char* mv_cmd_file_path, const char* dev_addr) {
+static char* getProtocolName(XLinkProtocol_t protocol) {
+    if (protocol == X_LINK_PCIE) {
+        return "pcie";
+    } else if (protocol == X_LINK_USB_VSC) {
+        return "usb";
+    }
+    return "";
+}
 
-    if (!mv_cmd_file_path || !dev_addr) {
+static ncStatus_t getDeviceFwProtocolPrefix(const deviceDesc_t deviceDesc,
+                                            char *fw_protocol_prefix,
+                                            const int fw_protocol_prefix_length) {
+    if (deviceDesc.protocol != X_LINK_USB_VSC && deviceDesc.protocol != X_LINK_PCIE) {
         return NC_INVALID_PARAMETERS;
     }
 
-    char *p;
-    char mv_cmd_file_name[NAME_LENGTH] = "MvNCAPI-maXXXX.mvcmd";
-
-    // Search the mvnc executable in the same directory of this library
-    // in the future there will ideally be one FW file for all, for now they are separate
-    const char* productName = getProductName(dev_addr);
-    if (productName == NULL || strlen(productName) <= 1) {
-        mvLog(MVLOG_WARN, "Can't get product name");
-        GLOBAL_UNLOCK();
+    int rc = mv_strcpy(fw_protocol_prefix, fw_protocol_prefix_length,
+                                getProtocolName(deviceDesc.protocol));
+    if (rc != 0) {
         return NC_ERROR;
     }
+    return NC_OK;
+}
 
-    // Get firmware name
-    int useUniversalFirmware = 0;
-    if (strstr(productName, "ma2480")) {
-        snprintf(mv_cmd_file_name, NAME_LENGTH, "MvNCAPI%s.mvcmd", "-ma2x8x");
-        useUniversalFirmware = 1;
-    } else {
-        snprintf(mv_cmd_file_name, NAME_LENGTH, "MvNCAPI%s.mvcmd", productName);
+static char* getDevicePlatform(deviceDesc_t deviceDesc, int useUniversalFirmware) {
+    if (deviceDesc.platform == X_LINK_MYRIAD_X) {
+        if (useUniversalFirmware && deviceDesc.protocol != X_LINK_PCIE) {
+            return "ma2x8x";
+        } else {
+            return "ma248x";
+        }
+    } else if (deviceDesc.platform == X_LINK_MYRIAD_2) {
+        return "ma2450";
     }
-    mvLog(MVLOG_DEBUG, "Firmware name %s\n", mv_cmd_file_name);
+    return "";
+}
 
-    // If mv_cmd_file_path contain path, use it.
-    // It's case when mv_cmd_file_path was set by ncDeviceOpen custom path argument
-    if (strlen(mv_cmd_file_path) > 1) {
-        addEndPathSeparator(mv_cmd_file_path);
+static ncStatus_t getDeviceFwNameBody(const deviceDesc_t deviceDesc,
+                                      char *fw_device_name,
+                                      const int fw_device_name_length,
+                                      const int useUniversalFirmware) {
+    if (deviceDesc.platform != X_LINK_MYRIAD_2 && deviceDesc.platform != X_LINK_MYRIAD_X) {
+        return NC_INVALID_PARAMETERS;
+    }
+
+    int rc = mv_strcpy(fw_device_name, fw_device_name_length,
+                                getDevicePlatform(deviceDesc, useUniversalFirmware));
+    if (rc != 0) {
+        return NC_ERROR;
+    }
+    return NC_OK;
+}
+
+static ncStatus_t getDeviceFwFormat(const deviceDesc_t deviceDesc,
+                                    char *fw_format, const int fw_formate_length) {
+    // On Windows unified bootloader .elf file required instead of mvcmd
+    if (deviceDesc.protocol == X_LINK_PCIE) {
+#if defined(_WIN32)
+        mv_strcpy(fw_format, fw_formate_length, ".elf");
+#else
+        mv_strcpy(fw_format, fw_formate_length, ".mvcmd");
+#endif //defined(_WIN32)
     } else {
+        mv_strcpy(fw_format, fw_formate_length, ".mvcmd");
+    }
+    return NC_OK;
+}
+
+static ncStatus_t getLibDirectory(char *firmware_directory, const int firwmare_directory_length) {
+    // If firmware_directory contain path, use it.
+    // It's case when firmware_directory was set by ncDeviceOpen custom path argument
+    if (!strnlen(firmware_directory, firwmare_directory_length)) {
+        int rc = 0;
+        char path_to_lib_file[MAX_PATH_LENGTH] = {0};
         // Get dll full path
 #if (defined(_WIN32) || defined(_WIN64))
         HMODULE hm = NULL;
@@ -465,84 +478,186 @@ ncStatus_t getFirmwarePath(char* mv_cmd_file_path, const char* dev_addr) {
             int ret = GetLastError();
             fprintf(stderr, "GetModuleHandle returned %d", ret);
         }
-        GetModuleFileNameA(hm, mv_cmd_file_path, MAX_PATH_LENGTH - 1);
+        GetModuleFileNameA(hm, path_to_lib_file, MAX_PATH_LENGTH - 1);
 #else
         Dl_info info;
         dladdr(ncDeviceOpen, &info);
-        mv_strncpy(mv_cmd_file_path, MAX_PATH_LENGTH, info.dli_fname, MAX_PATH_LENGTH - NAME_LENGTH);
+        rc = mv_strncpy(path_to_lib_file, MAX_PATH_LENGTH, info.dli_fname, MAX_PATH_LENGTH - 1);
+        if (rc != 0) {
+            return NC_ERROR;
+        }
 #endif
-    }
+        // Path can contains library name. Use path before last '/'
+        char* pointerToSeparator = NULL;
+        size_t lib_dir_path_len = 0;
 
-    p = strrchr(mv_cmd_file_path, getPathSeparator());
-    size_t size_of_p = MAX_PATH_LENGTH - (p - mv_cmd_file_path);
-
-    if (p)
-        mv_strcpy(p + 1, size_of_p - 1, mv_cmd_file_name);
-    else
-        mv_strncpy(mv_cmd_file_path, MAX_PATH_LENGTH, mv_cmd_file_name, NAME_LENGTH - 1);
-    mv_cmd_file_path[MAX_PATH_LENGTH - 1] = 0;
-
-    // there is no universal firmware available, use a special one
-    if (useUniversalFirmware && !isPathExists(mv_cmd_file_path)) {
-        mvLog(MVLOG_INFO, "Cannot find universal firmware for ma2x8x. Try to find special one.");
-        char *pos = strstr(mv_cmd_file_path, "-ma2x8x");
-        if (pos == NULL) {
-            mvLog(MVLOG_ERROR, "Incorrect firmware path.");
-            return NC_MVCMD_NOT_FOUND;
+        pointerToSeparator = strrchr(path_to_lib_file, getPathSeparator());
+        if(pointerToSeparator) {
+            *pointerToSeparator = 0;
+            lib_dir_path_len = pointerToSeparator - path_to_lib_file + 1;
         }
-        pos[4] = productName[4]; pos[6] = productName[6];
-    }
 
-    if (!isPathExists(mv_cmd_file_path)) {
-        mvLog(MVLOG_ERROR, "Firmware not found in: %s", mv_cmd_file_path);
-
-        // Firmware also could be in "mvnc" subdirectory
-        char mv_cmd_file_with_subdirectory[MAX_RELATED_PATH_LENGTH] = "mvnc/";
-        char *p_sub = strrchr(mv_cmd_file_with_subdirectory, '/');
-
-        if (!p_sub)
-            return NC_MVCMD_NOT_FOUND;
-
-        size_t size_of_p_sub = MAX_RELATED_PATH_LENGTH - (p_sub - mv_cmd_file_with_subdirectory);
-        mv_strcpy(p_sub + 1, size_of_p_sub - 1, mv_cmd_file_name);
-        if (p)
-            mv_strncpy(p + 1, size_of_p - 1, mv_cmd_file_with_subdirectory, MAX_RELATED_PATH_LENGTH - 1);
-        else
-            mv_strncpy(mv_cmd_file_path, MAX_PATH_LENGTH, mv_cmd_file_with_subdirectory, MAX_RELATED_PATH_LENGTH - 1);
-
-        // Is firmware was found in /mvnc subdir
-        if (!isPathExists(mv_cmd_file_path)) {
-            return NC_MVCMD_NOT_FOUND;
-        } else {
-            mvLog(MVLOG_WARN, "Firmware was found in: %s", mv_cmd_file_path);
+        rc = mv_strncpy(firmware_directory, firwmare_directory_length, path_to_lib_file, lib_dir_path_len);
+        if (rc != 0) {
+            return NC_ERROR;
         }
     }
-
-    mvLog(MVLOG_DEBUG, "File path %s\n", mv_cmd_file_path);
-    return 0;
+    addEndPathSeparator(firmware_directory, firwmare_directory_length);
+    return NC_OK;
 }
 
-static ncStatus_t getPCIeFirmwarePath(char* mv_cmd_file_path, const char* dev_addr) {
-#ifndef NDEBUG  // Debug mode
-    char* customPCIeFirmware;
-    customPCIeFirmware = getenv("MVNC_PCIE_CUSTOM_FIRMWARE");
-    if (customPCIeFirmware != NULL) {
-        mvLog(MVLOG_INFO, "For PCIe will be used custom firmware %s",
-              customPCIeFirmware);
-        strncpy(mv_cmd_file_path, customPCIeFirmware, MAX_PATH_LENGTH);
-        return NC_OK;
-    } else {
-        return getFirmwarePath(mv_cmd_file_path, dev_addr);
+static int isDeviceDescriptionCorrect(deviceDesc_t deviceDesc) {
+    if (strnlen(deviceDesc.name, XLINK_MAX_NAME_SIZE) == 0) {
+        mvLog(MVLOG_INFO, "Device name is empty");
+        return 0;
     }
-#else
-        return getFirmwarePath(mv_cmd_file_path, dev_addr);
-#endif
+
+    //
+    if (strstr(deviceDesc.name, "ma") && deviceDesc.protocol != X_LINK_USB_VSC) {
+        mvLog(MVLOG_INFO, "Mismatch device name and protocol. Device name: %s. Protocol: %s",
+              deviceDesc.name, ncProtocolToStr(convertProtocolToNC(deviceDesc.protocol)));
+        return 0;
+    }
+
+    // PCIe devices should be named mxlk/mxlink
+    if (strstr(deviceDesc.name, "mxl") && deviceDesc.protocol != X_LINK_PCIE) {
+        mvLog(MVLOG_INFO, "Mismatch device name and protocol. Device name: %s. Protocol: %s",
+                deviceDesc.name, ncProtocolToStr(convertProtocolToNC(deviceDesc.protocol)));
+        return 0;
+    }
+
+    // Myriad 2 PCIe is not exists
+    if ((strstr(deviceDesc.name, "2150") || deviceDesc.platform == X_LINK_MYRIAD_2)
+                            && deviceDesc.protocol == X_LINK_PCIE) {
+        mvLog(MVLOG_INFO, "Incorrect platform for PCIe device");
+        return 0;
+    }
+
+    if (deviceDesc.protocol != X_LINK_ANY_PROTOCOL &&
+        deviceDesc.protocol != X_LINK_USB_VSC &&
+        deviceDesc.protocol != X_LINK_PCIE) {
+        mvLog(MVLOG_INFO, "Protocol %s not supported",
+                ncProtocolToStr(convertProtocolToNC(deviceDesc.protocol)));
+        return 0;
+    }
+    return 1;
+}
+
+/**
+ * Search the mvnc executable in the same directory of this library
+ * in the future there will ideally be one FW file for all, for now they are separate
+ */
+ncStatus_t getFirmwarePath(char *firmware_file_path, const int firmware_file_length,
+                           const deviceDesc_t deviceDesc) {
+
+    if (!firmware_file_path || !isDeviceDescriptionCorrect(deviceDesc) ||
+        deviceDesc.protocol == X_LINK_ANY_PROTOCOL) {
+        return NC_INVALID_PARAMETERS;
+    }
+
+    ncStatus_t ncStatus;
+    int rc;
+
+    int useUniversalFirmware = 1;       // Try to use universal first
+
+    char full_path_to_firmware[MAX_PATH_LENGTH]           = {0};
+
+    char firmware_dir[FIRMWARE_DIR_LENGTH]                = {0};
+
+    char firmware_full_name[FIRMWARE_NAME_LENGTH]         = {0};
+    char fw_protocol_prefix[FIRMWARE_PROTOCOL_LENGTH]     = {0};
+    char fw_device_name[FIRWMARE_DEVICE_LENGTH]           = {0};
+    char fw_format[FIRMWARE_FORMAT_LENGTH]                = {0};
+
+    // User can provide custom directory with firmware
+    rc = mv_strncpy(firmware_dir, FIRMWARE_DIR_LENGTH, firmware_file_path,
+                    strnlen(firmware_file_path, firmware_file_length));
+    firmware_file_path[0] = 0;  // Clean input path
+
+    if (rc != 0) {
+        return NC_ERROR;
+    }
+
+    /// Construct file name
+    ncStatus = getDeviceFwProtocolPrefix(deviceDesc, fw_protocol_prefix, FIRMWARE_PROTOCOL_LENGTH);
+    if (ncStatus != NC_OK) {
+        return ncStatus;
+    }
+
+    ncStatus = getDeviceFwNameBody(deviceDesc, fw_device_name, FIRWMARE_DEVICE_LENGTH,
+                                   useUniversalFirmware);
+    if (ncStatus != NC_OK) {
+        return ncStatus;
+    }
+
+    ncStatus = getDeviceFwFormat(deviceDesc, fw_format, FIRMWARE_FORMAT_LENGTH);
+    if (ncStatus != NC_OK) {
+        return ncStatus;
+    }
+
+    rc = snprintf(firmware_full_name, FIRMWARE_NAME_LENGTH,
+             "%s-%s%s", fw_protocol_prefix, fw_device_name, fw_format);
+    if (rc < 0) {
+        return NC_ERROR;
+    }
+    mvLog(MVLOG_DEBUG, "Firmware name %s", firmware_full_name);
+
+    ///     Get file location
+    ncStatus = getLibDirectory(firmware_dir, FIRMWARE_DIR_LENGTH);
+    if (ncStatus != NC_OK) {
+        return ncStatus;
+    }
+    mvLog(MVLOG_DEBUG, "Firmware dir %s", firmware_full_name);
+
+    rc = snprintf(full_path_to_firmware, MAX_PATH_LENGTH, "%s%s", firmware_dir, firmware_full_name);
+    if (rc < 0) {
+        return NC_ERROR;
+    }
+
+    // If there is no universal firmware available, use a special one
+    if (deviceDesc.protocol == X_LINK_USB_VSC && deviceDesc.platform == X_LINK_MYRIAD_X
+                                                && !isPathExists(full_path_to_firmware)) {
+        mvLog(MVLOG_INFO, "Cannot find universal firmware for ma2x8x. Try to find special one.");
+
+        useUniversalFirmware = 0;
+        ncStatus = getDeviceFwNameBody(deviceDesc, fw_device_name, FIRWMARE_DEVICE_LENGTH,
+                                       useUniversalFirmware);
+        if (ncStatus != NC_OK) {
+            return ncStatus;
+        }
+        rc = snprintf(full_path_to_firmware, MAX_PATH_LENGTH,
+                 "%s%s-%s%s", firmware_dir, fw_protocol_prefix, fw_device_name, fw_format);
+        if (rc < 0) {
+            return NC_ERROR;
+        }
+    }
+
+    if (!isPathExists(full_path_to_firmware)) {
+        mvLog(MVLOG_ERROR, "Firmware not found in: %s", full_path_to_firmware);
+        return NC_ERROR;
+    }
+    rc = mv_strcpy(firmware_file_path, MAX_PATH_LENGTH, full_path_to_firmware);
+    if (rc != 0) {
+        return NC_ERROR;
+    }
+
+    mvLog(MVLOG_DEBUG, "File path %s", firmware_file_path);
+    return 0;
 }
 
 static ncStatus_t getDevAttributes(struct _devicePrivate_t *d);
 static void printfOverXLinkOpen(struct _devicePrivate_t *d);
 static void printfOverXLinkClose(struct _devicePrivate_t *d);
 static ncStatus_t destroyDeviceHandle(struct ncDeviceHandle_t **deviceHandlePtr);
+
+ncStatus_t ncSetDeviceConnectTimeout(int deviceConnectTimeoutSec) {
+    if(deviceConnectTimeoutSec < 0) {
+        return NC_INVALID_PARAMETERS;
+    }
+
+    g_deviceConnectTimeoutSec = deviceConnectTimeoutSec;
+    return NC_OK;
+}
 
 ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     struct ncDeviceDescr_t in_ncDeviceDesc, int watchdogInterval, const char* customFirmwareDirectory) {
@@ -560,12 +675,8 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         return NC_INVALID_PARAMETERS;
     }
 
-    if(!XLinkPlatformIsDescriptionValid(&in_deviceDesc)) {
-        mvLog(MVLOG_ERROR, "Invalid in_ncDeviceDesc");
-        return NC_INVALID_PARAMETERS;
-    }
-
 #ifdef NO_BOOT
+    XLinkDeviceState_t state = X_LINK_BOOTED;
     if (watchdogInterval > 0) {
         mvLog(MVLOG_INFO, "Watchdog for already booted device would be disabled");
         watchdogInterval = 0;
@@ -574,7 +685,14 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     // If trying open already booted device, we should not reset_all device on
     mvLog(MVLOG_INFO, "Connect to already booted device");
     reset_all = 0;
+#else
+    XLinkDeviceState_t state = X_LINK_UNBOOTED;
 #endif
+
+    if(!XLinkPlatformIsDescriptionValid(&in_deviceDesc, state)) {
+        mvLog(MVLOG_ERROR, "Invalid in_ncDeviceDesc");
+        return NC_INVALID_PARAMETERS;
+    }
 
     if (*deviceHandlePtr && (*deviceHandlePtr)->private_data->state == NC_DEVICE_OPENED) {
         mvLog(MVLOG_WARN, "Device was already opened");
@@ -604,7 +722,14 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
             exit(1);
         }
 #else
-        global_lock_fd = open("/tmp/mvnc.mutex", O_CREAT, 0660);
+        global_lock_fd = open(
+#if defined(ANDROID)
+            "/data/local/tmp/mvnc.mutex",
+#else
+            "/tmp/mvnc.mutex",
+#endif
+            O_CREAT, 0660);
+
         if (global_lock_fd == -1) {
             mvLog(MVLOG_ERROR, "global mutex initialization failed");
             exit(1);
@@ -631,12 +756,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
 
     //--------------------------------------------------------
     //      Search for device
-
-#if defined(NO_BOOT)
-    XLinkDeviceState_t state = X_LINK_BOOTED;
-#else
-    XLinkDeviceState_t state = X_LINK_UNBOOTED;
-#endif
 
     XLinkError_t rc = X_LINK_ERROR;
     double waittm = timeInSeconds() + DEVICE_APPEAR_TIMEOUT_ON_OPEN;
@@ -668,7 +787,7 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     if (dH && d) {
         dH->private_data = d;
         d->protocol = deviceDescToBoot.protocol;
-        d->dev_addr = strdup(deviceDescToBoot.name);
+        d->dev_addr = mvnc_strdup(deviceDescToBoot.name);
         d->device_mon_stream_id = INVALID_LINK_ID;
         d->graph_monitor_stream_id = INVALID_LINK_ID;
         d->wd_interval = watchdogInterval;
@@ -707,22 +826,22 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
 
 #if (defined(NO_BOOT))
     d->protocol_booted = d->protocol;
-    d->dev_addr_booted = strdup(d->dev_addr);
+    d->dev_addr_booted = mvnc_strdup(d->dev_addr);
     handler->protocol = d->protocol_booted;
     handler->devicePath = d->dev_addr_booted;
     rc = XLinkConnect(handler);
 #else
-    if (handler->protocol == X_LINK_PCIE) {          // PCIe
+    if (handler->protocol == X_LINK_PCIE) {                             // PCIe
         ncStatus_t sc;
-        char mv_cmd_file_path[MAX_PATH_LENGTH] = {};
-#if (!defined(_WIN32) && !defined(_WIN64))
+        char mv_cmd_file_path[MAX_PATH_LENGTH] = { 0 };
+
         if (customFirmwareDirectory && strnlen(customFirmwareDirectory, MAX_PATH_LENGTH) > 1) {
             mv_strncpy(mv_cmd_file_path, MAX_PATH_LENGTH, customFirmwareDirectory, MAX_PATH_LENGTH - 1);
-            addEndPathSeparator(mv_cmd_file_path);
+            addEndPathSeparator(mv_cmd_file_path, MAX_PATH_LENGTH);
             mv_cmd_file_path[MAX_PATH_LENGTH - 1] = '\0';
         }
 
-        if ((sc = getPCIeFirmwarePath(mv_cmd_file_path, d->dev_addr)) != 0) {
+        if ((sc = getFirmwarePath(mv_cmd_file_path, MAX_PATH_LENGTH, deviceDescToBoot)) != 0) {
             mvLog(MVLOG_ERROR, "Can't get firmware, error: %s", ncStatusToStr(sc));
             free(handler);
             destroyDeviceHandle(deviceHandlePtr);
@@ -730,58 +849,69 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
             GLOBAL_UNLOCK();
             return NC_MVCMD_NOT_FOUND;
         }
-#endif
+
         rc = XLinkBoot(&deviceDescToBoot, mv_cmd_file_path);
         if (rc) {
             mvLog(MVLOG_WARN, "%s() XLinkBootRemote returned error %s for %s",
                   __func__, XLinkErrorToStr(rc), d->dev_addr);
-        } else {
-            mvLog(MVLOG_INFO, "%s() XLinkBootRemote returned success %s for %s",
-                  __func__, XLinkErrorToStr(rc), d->dev_addr);
-        }
-        // Search for booted device
-        deviceDesc_t tempDeviceDesc = {};
-        waittm = timeInSeconds() + DEVICE_APPEAR_TIMEOUT_ON_CLOSE;
-        do {
-            rc = XLinkFindFirstSuitableDevice(X_LINK_BOOTED, deviceDescToBoot, &tempDeviceDesc);
-        } while (rc != X_LINK_SUCCESS && timeInSeconds() < waittm);
-
-        if (rc != X_LINK_SUCCESS) {
-            mvLog(MVLOG_ERROR, "Device doesn't appear after boot");
             free(handler);
             destroyDeviceHandle(deviceHandlePtr);
             CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
             GLOBAL_UNLOCK();
             return NC_ERROR;
+        } else {
+            mvLog(MVLOG_INFO, "%s() XLinkBootRemote returned success %s for %s",
+                  __func__, XLinkErrorToStr(rc), d->dev_addr);
         }
+        // Search and connect for booted device
+        deviceDesc_t tempDeviceDesc = { 0 };
 
         d->protocol_booted = d->protocol;
-        d->dev_addr_booted = strdup(d->dev_addr);
+        d->dev_addr_booted = mvnc_strdup(d->dev_addr);
         handler->protocol = d->protocol_booted;
         handler->devicePath = d->dev_addr_booted;
 
-        // FIXME BSOD
-#if (defined(_WIN32) || defined(_WIN64))
-        sleepForSeconds(5);
-#endif
-        // Connect to booted
-        waittm = timeInSeconds() + PCIE_DEVICE_CONNECT_TIMEOUT;
+        int isDeviceAppeared = 0;
+        int isDeviceConnected = 0;
+        waittm = timeInSeconds() + g_deviceConnectTimeoutSec;
         do {
+            if(!isDeviceAppeared) {
+                rc = XLinkFindFirstSuitableDevice(X_LINK_BOOTED,
+                    deviceDescToBoot, &tempDeviceDesc);
+
+                if(rc != X_LINK_SUCCESS) {
+                    continue;
+                } else {
+                    isDeviceAppeared = 1;
+                }
+            }
+
             rc = XLinkConnect(handler);
-        } while(rc != X_LINK_SUCCESS && timeInSeconds() < waittm);
+            if(rc == X_LINK_SUCCESS) {
+                isDeviceConnected = 1;
+            }
+
+            if(isDeviceAppeared && isDeviceConnected) {
+                break;
+            }
+        } while(timeInSeconds() < waittm);
+
+        if (!isDeviceAppeared) {
+            mvLog(MVLOG_ERROR, "Failed to find booted device after boot");
+        }
     } else {                                        // USB
         // Find firmware and boot device with it
-        char mv_cmd_file_path[MAX_PATH_LENGTH] = {};
+        char mv_cmd_file_path[MAX_PATH_LENGTH] = { 0 };
 
         // If have firmware directory path as function input, use it
         if (customFirmwareDirectory && strnlen(customFirmwareDirectory, MAX_PATH_LENGTH) > 1) {
             mv_strncpy(mv_cmd_file_path, MAX_PATH_LENGTH, customFirmwareDirectory, MAX_PATH_LENGTH - 1);
-            addEndPathSeparator(mv_cmd_file_path);
+            addEndPathSeparator(mv_cmd_file_path, MAX_PATH_LENGTH);
         }
 
         ncStatus_t sc;
 
-        if ((sc = getFirmwarePath(mv_cmd_file_path, d->dev_addr)) != 0) {
+        if ((sc = getFirmwarePath(mv_cmd_file_path, MAX_PATH_LENGTH, deviceDescToBoot)) != 0) {
             mvLog(MVLOG_ERROR, "Can't get firmware, error: %s", ncStatusToStr(sc));
             free(handler);
             destroyDeviceHandle(deviceHandlePtr);
@@ -801,7 +931,7 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         };
 
         XLinkFindAllSuitableDevices(X_LINK_ANY_STATE, deviceDesc, beforeBootDevices,
-                NC_MAX_DEVICES, &numberOfDevicesBeforeBoot);
+                                    NC_MAX_DEVICES, &numberOfDevicesBeforeBoot);
 
         // Boot device
         rc = XLinkBoot(&deviceDescToBoot, mv_cmd_file_path);
@@ -816,68 +946,74 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         // After boot name should change. Find
         deviceDesc_t foundBootedDevice = {0};
         int found_new_booted_device = 0;
+        int device_disappear        = 0;
+        int isDeviceConnected       = 0;
 
-        deviceDesc_t afterBootDevices[NC_MAX_DEVICES] = {{0}};
+        deviceDesc_t afterBootDevices[NC_MAX_DEVICES] = { { 0 } };
         unsigned int numberOfDevicesAfterBoot = 0;
 
-        waittm = timeInSeconds() + DEVICE_APPEAR_TIMEOUT_ON_OPEN;
+        waittm = timeInSeconds() + g_deviceConnectTimeoutSec;
         do {
-            XLinkFindAllSuitableDevices(X_LINK_ANY_STATE, deviceDesc, afterBootDevices,
-                                        NC_MAX_DEVICES, &numberOfDevicesAfterBoot);
-            if (numberOfDevicesAfterBoot != numberOfDevicesBeforeBoot) {
-                continue;
-            }
-            deviceDesc_t tempDevicDescr = {};
+            if(!found_new_booted_device) {
+                XLinkFindAllSuitableDevices(X_LINK_ANY_STATE, deviceDesc, afterBootDevices,
+                                            NC_MAX_DEVICES, &numberOfDevicesAfterBoot);
+                if (numberOfDevicesAfterBoot != numberOfDevicesBeforeBoot) {
+                    continue;
+                }
+                deviceDesc_t tempDevicDescr = { 0 };
 
-            // Device should disappear from unbooted list
-            if (X_LINK_DEVICE_NOT_FOUND != XLinkFindFirstSuitableDevice(
-                                                    X_LINK_ANY_STATE,
-                                                    deviceDescToBoot,
-                                                    &tempDevicDescr)) {
-                continue;
-            }
-            int i, j;
-            for (i = 0; i < numberOfDevicesAfterBoot; ++i) {
-                int found_in_before_boot_list = 0;
-                for (j = 0; j < numberOfDevicesBeforeBoot; ++j) {
-                    if(strcmp(afterBootDevices[i].name, beforeBootDevices[j].name) == 0) {
-                        found_in_before_boot_list = 1;
+                // Device should disappear from unbooted list
+                if (X_LINK_DEVICE_NOT_FOUND != XLinkFindFirstSuitableDevice(
+                                                  X_LINK_ANY_STATE, deviceDescToBoot, &tempDevicDescr)) {
+                    continue;
+                } else {
+                    device_disappear = 1;
+                }
+                int i, j;
+                for (i = 0; i < numberOfDevicesAfterBoot; ++i) {
+                    int found_in_before_boot_list = 0;
+                    for (j = 0; j < numberOfDevicesBeforeBoot; ++j) {
+                        if(strcmp(afterBootDevices[i].name, beforeBootDevices[j].name) == 0) {
+                            found_in_before_boot_list = 1;
+                        }
+                    }
+                    if (!found_in_before_boot_list) {
+                        mv_strcpy(foundBootedDevice.name, XLINK_MAX_NAME_SIZE,
+                                  afterBootDevices[i].name);
+                        foundBootedDevice.platform = afterBootDevices[i].platform;
+                        foundBootedDevice.protocol = afterBootDevices[i].protocol;
+                        found_new_booted_device = 1;
                     }
                 }
-                if (!found_in_before_boot_list) {
-                    mv_strcpy(foundBootedDevice.name, XLINK_MAX_NAME_SIZE,
-                                        afterBootDevices[i].name);
-                    foundBootedDevice.platform = afterBootDevices[i].platform;
-                    foundBootedDevice.protocol = afterBootDevices[i].protocol;
-                    found_new_booted_device = 1;
-                    break;
-                }
             }
-        } while (!found_new_booted_device && timeInSeconds() < waittm);
+
+            if(!found_new_booted_device) {
+                continue;
+            }
+
+            d->protocol_booted = d->protocol;
+            d->dev_addr_booted = mvnc_strdup(foundBootedDevice.name);
+
+            handler->protocol = foundBootedDevice.protocol;
+            handler->devicePath = (char *) foundBootedDevice.name;
+
+            rc = XLinkConnect(handler);
+            if(rc == X_LINK_SUCCESS) {
+                isDeviceConnected = 1;
+            }
+
+            if(found_new_booted_device && isDeviceConnected) {
+                break;
+            }
+
+        } while (timeInSeconds() < waittm);
 
         if (!found_new_booted_device) {
-            mvLog(MVLOG_ERROR, "Device doesn't appear after boot");
-            free(handler);
-            destroyDeviceHandle(deviceHandlePtr);
-            CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
-            GLOBAL_UNLOCK();
-            return NC_ERROR;
-        }
-
-        // Connect to booted
-        waittm = timeInSeconds() + DEVICE_CONNECT_TIMEOUT;
-
-        d->protocol_booted = d->protocol;
-        d->dev_addr_booted = strdup(foundBootedDevice.name);
-
-        handler->protocol = foundBootedDevice.protocol;
-        handler->devicePath = (char *) foundBootedDevice.name;
-        do {
-            rc = XLinkConnect(handler);
-        } while(rc != X_LINK_SUCCESS && timeInSeconds() < waittm);
-
-        if (rc != X_LINK_SUCCESS) {
-            mvLog(MVLOG_ERROR, "Device doesn't appear after boot");
+            mvLog(MVLOG_ERROR, "Failed to find booted device after boot");
+            if (!device_disappear) {
+                mvLog(MVLOG_WARN, "Device (%s) doesn't disappear after firmware loading",
+                      deviceDescToBoot.name);
+            }
             free(handler);
             destroyDeviceHandle(deviceHandlePtr);
             CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
@@ -973,13 +1109,13 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
 
     getDevAttributes(d);
 
-#if (!defined(_WIN32) && !defined(_WIN64))
+#if (!defined(_WIN32) && !defined(_WIN64) && !defined(ANDROID))
     printfOverXLinkOpen(d);
 #endif
 
     streamId_t graphMonitorStreamId = XLinkOpenStream(d->xlink->linkId, "graphMonitor", BLOB_STREAM_SIZE);
 
-#if (!defined(_WIN32) && !defined(_WIN64))
+#if (!defined(_WIN32) && !defined(_WIN64) && !defined(ANDROID))
     CHECK_STREAM_ID(graphMonitorStreamId, {
         printfOverXLinkClose(d);
         // TODO NO_BOOT case
@@ -1029,7 +1165,7 @@ ncStatus_t ncAvailableDevices(struct ncDeviceDescr_t *deviceDescrPtr,
         .protocol = X_LINK_ANY_PROTOCOL
     };
 
-    deviceDesc_t deviceDescArray[NC_MAX_DEVICES] = {};
+    deviceDesc_t deviceDescArray[NC_MAX_DEVICES] = { { 0 } };
     unsigned int amountOfFoundDevices = 0;
     XLinkFindAllSuitableDevices(
             X_LINK_UNBOOTED, in_deviceDsc, deviceDescArray, NC_MAX_DEVICES, &amountOfFoundDevices);
@@ -1070,13 +1206,13 @@ ncStatus_t ncDeviceLoadFirmware(const ncDevicePlatform_t devicePlatform, const c
     char mv_cmd_file_path[MAX_PATH_LENGTH] = "\0";
     if (customFirmwareDir && strnlen(customFirmwareDir, MAX_PATH_LENGTH) > 1) {
         mv_strncpy(mv_cmd_file_path, MAX_PATH_LENGTH, customFirmwareDir, MAX_PATH_LENGTH - 1);
-        addEndPathSeparator(mv_cmd_file_path);
+        addEndPathSeparator(mv_cmd_file_path, MAX_PATH_LENGTH);
         if (!isPathExists(customFirmwareDir)) {
             return NC_MVCMD_NOT_FOUND;
         }
     }
 
-    if ((sc = getFirmwarePath(mv_cmd_file_path, deviceDesc.name)) != 0) {
+    if ((sc = getFirmwarePath(mv_cmd_file_path, MAX_PATH_LENGTH, deviceDesc)) != 0) {
         mvLog(MVLOG_ERROR, "Can't get firmware, error: %s", ncStatusToStr(sc));
         return NC_MVCMD_NOT_FOUND;
     }
@@ -1096,9 +1232,8 @@ ncStatus_t ncDeviceLoadFirmware(const ncDevicePlatform_t devicePlatform, const c
 static ncStatus_t getDevAttributes(struct _devicePrivate_t *d) {
     XLinkError_t rc = X_LINK_SUCCESS;
     CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&d->dev_stream_m), NC_ERROR);
-    deviceCommand_t config;
-    config.type.c0 = CLASS0_DEVICE_CAPABILITIES;
-    config.optionClass = NC_OPTION_CLASS0;
+    deviceCommand_t config = {0};
+    config.type = DEVICE_GET_CAPABILITIES;
     rc = XLinkWriteData(d->device_mon_stream_id, (const uint8_t*)&config, sizeof(config));
     if (rc != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Failed to write data, rc: %s", XLinkErrorToStr(rc));
@@ -1131,8 +1266,6 @@ static ncStatus_t getDevAttributes(struct _devicePrivate_t *d) {
           d->dev_attr.fw_version[1], d->dev_attr.fw_version[2], d->dev_attr.fw_version[3]);
     mvLog(MVLOG_INFO, "Maximum graphs: %d\n", d->dev_attr.max_graphs);
     mvLog(MVLOG_INFO, "Maximum fifos: %d\n", d->dev_attr.max_fifos);
-    mvLog(MVLOG_INFO, "Maximum graph option class: %d\n", d->dev_attr.max_graph_opt_class);
-    mvLog(MVLOG_INFO, "Maximum device option class: %d\n", d->dev_attr.max_device_opt_class);
     mvLog(MVLOG_INFO, "Device memory capacity: %d\n", d->dev_attr.max_memory);
     return NC_OK;
 }
@@ -1144,8 +1277,7 @@ static ncStatus_t getThermalStats(struct _devicePrivate_t *d){
             return NC_OUT_OF_MEMORY;
     }
     deviceCommand_t config;
-    config.type.c0 = CLASS0_THERMAL_STATS;
-    config.optionClass = NC_OPTION_CLASS0;
+    config.type = DEVICE_GET_THERMAL_STATS;
     CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&d->dev_stream_m), NC_ERROR);
     XLinkError_t rc = X_LINK_SUCCESS;
     rc = XLinkWriteData(d->device_mon_stream_id, (const uint8_t*)&config, sizeof(config));
@@ -1178,8 +1310,7 @@ static ncStatus_t deviceGetDeviceMemory(struct _devicePrivate_t *d,
                                         uint32_t * mem)
 {
     deviceCommand_t config;
-    config.type.c0 = CLASS0_DEVICE_USED_MEMORY;
-    config.optionClass = NC_OPTION_CLASS0;
+    config.type = DEVICE_GET_USED_MEMORY;
     CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&d->dev_stream_m), NC_ERROR);
     if (XLinkWriteData(d->device_mon_stream_id, (const uint8_t *) &config,
                        sizeof(config)) != 0) {
@@ -1206,9 +1337,8 @@ static ncStatus_t deviceGetDeviceMemory(struct _devicePrivate_t *d,
 static ncStatus_t deviceSetStdIO2XLink(struct _devicePrivate_t *d, uint32_t data)
 {
     deviceCommand_t config;
-    config.type.c2 = CLASS2_SET_STDIO_REDIRECT_XLINK;
-    config.optionClass = NC_OPTION_CLASS2;
-    config.data = data;
+    config.type = DEVICE_SET_STDIO_REDIRECT_XLINK;
+    config.arg = data;
     CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&d->dev_stream_m), NC_ERROR);
     if (XLinkWriteData(d->device_mon_stream_id, (const uint8_t *) &config,
                        sizeof(config)) != 0) {
@@ -1219,7 +1349,7 @@ static ncStatus_t deviceSetStdIO2XLink(struct _devicePrivate_t *d, uint32_t data
     return NC_OK;
 }
 
-#if (!defined(_WIN32) && !defined(_WIN64))
+#if (!defined(_WIN32) && !defined(_WIN64) && !defined(ANDROID))
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -1388,32 +1518,6 @@ static int findDevice(struct _devicePrivate_t *deviceHandle)
     return -1;
 }
 
-static int deviceGetNumberOfGraphs(struct _devicePrivate_t *deviceHandle)
-{
-    if (deviceHandle == NULL)
-        return 0;
-    int num = 0;
-    struct _graphPrivate_t *g = deviceHandle->graphs;
-    while (g) {
-        num++;
-        g = g->next;
-    }
-    return num;
-}
-
-static int deviceGetNumberOfFifos(struct _devicePrivate_t *deviceHandle)
-{
-    if (deviceHandle == NULL)
-        return 0;
-    int num = 0;
-    struct _fifoPrivate_t *f = deviceHandle->fifos;
-    while (f) {
-        num++;
-        f = f->next;
-    }
-    return num;
-}
-
 static int findGraph(struct _graphPrivate_t *graphHandle)
 {
     struct _devicePrivate_t *d = devices;
@@ -1550,8 +1654,6 @@ static ncStatus_t destroyDeviceHandle(struct ncDeviceHandle_t **deviceHandlePtr)
 
     free(d->xlink);
 
-    free(d->profilingBuffer);
-
     free(d);
     (*deviceHandlePtr)->private_data = NULL;
     free((*deviceHandlePtr));
@@ -1634,7 +1736,7 @@ ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr) {
         }
     }
 
-#if (!defined(_WIN32) && !defined(_WIN64))
+#if (!defined(_WIN32) && !defined(_WIN64) && !defined(ANDROID))
     printfOverXLinkClose(d);
 #endif
 
@@ -1652,31 +1754,29 @@ ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr) {
     XLinkFindAllSuitableDevices(X_LINK_ANY_STATE, in_deviceDesc, beforeResetDevices,
                                 NC_MAX_DEVICES, &foundDevicesBeforeReset);
 
-    if (d->state != NC_DEVICE_FAILED) {
         // #17801
 #if !defined(NO_BOOT)
-        if (d->graph_monitor_stream_id != INVALID_LINK_ID) {
-            if (d->device_mon_stream_id != INVALID_LINK_ID) {
-                rc = XLinkCloseStream(d->device_mon_stream_id);
-                if (rc)
-                    mvLog(MVLOG_WARN,"Failed to close stream, rc: %s", XLinkErrorToStr(rc));
-            }
-            rc = XLinkCloseStream(d->graph_monitor_stream_id);
+    if (d->graph_monitor_stream_id != INVALID_LINK_ID) {
+        if (d->device_mon_stream_id != INVALID_LINK_ID) {
+            rc = XLinkCloseStream(d->device_mon_stream_id);
             if (rc)
                 mvLog(MVLOG_WARN,"Failed to close stream, rc: %s", XLinkErrorToStr(rc));
         }
+        rc = XLinkCloseStream(d->graph_monitor_stream_id);
+        if (rc)
+            mvLog(MVLOG_WARN,"Failed to close stream, rc: %s", XLinkErrorToStr(rc));
+    }
 #endif
-        // Reset device
-        // In case when we open already booted device (or PCIE), just close connection to device
-        rc = XLinkResetRemote(d->xlink->linkId);
-        if (wasConnectedToBooted) {
-            mvLog(MVLOG_INFO, "Only device handle will be released and link to device closed");
-            if (rc)
-                mvLog(MVLOG_WARN, "Failed to close link to device, rc: %s", XLinkErrorToStr(rc));
-        } else {
-            if (rc)
-                mvLog(MVLOG_WARN, "Failed to reset, rc: %s", XLinkErrorToStr(rc));
-        }
+    // Reset device
+    // In case when we open already booted device (or PCIE), just close connection to device
+    rc = XLinkResetRemote(d->xlink->linkId);
+    if (wasConnectedToBooted) {
+        mvLog(MVLOG_INFO, "Only device handle will be released and link to device closed");
+        if (rc)
+            mvLog(MVLOG_WARN, "Failed to close link to device, rc: %s", XLinkErrorToStr(rc));
+    } else {
+        if (rc)
+            mvLog(MVLOG_WARN, "Failed to reset, rc: %s", XLinkErrorToStr(rc));
     }
 
     d->state = NC_DEVICE_CLOSED;
@@ -1710,7 +1810,8 @@ ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr) {
                 continue;
             }
 
-            deviceDesc_t deviceDesc = {};
+            deviceDesc_t deviceDesc = { 0 };
+
             rc = XLinkFindFirstSuitableDevice(X_LINK_BOOTED, bootedDeviceDesc, &deviceDesc);
             if (rc == X_LINK_SUCCESS) {
                 continue;
@@ -1736,9 +1837,6 @@ ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr) {
         if (!booted_disappeared || !unbooted_appeared) {
             mvLog(MVLOG_ERROR, "Device didn't appear after reboot");
         }
-    } else {
-        // #16971
-        sleepForSeconds(2);
     }
 
     ncStatus_t status = destroyDeviceHandle(deviceHandlePtr);
@@ -1777,14 +1875,12 @@ ncStatus_t ncGraphCreate(const char *name,
     return NC_OK;
 }
 
-ncStatus_t sendGraphMonitorRequest(streamId_t graphMonStream, graphMonCommand_t *cmd) {
-    XLinkError_t rc = XLinkWriteData(graphMonStream, (uint8_t*)cmd, sizeof(*cmd));
-    if (rc)
-        return parseXLinkError(rc);
-    return NC_OK;
+ncStatus_t trySendCommand(streamId_t graphMonStream, void* buffer, int size) {
+    XLinkError_t rc = XLinkWriteData(graphMonStream, (uint8_t*)buffer, size);
+    return parseXLinkError(rc);
 }
 
-ncStatus_t checkGraphMonitorResponse(streamId_t graphMonStream) {
+ncStatus_t getGraphMonitorResponseValue(streamId_t graphMonStream, ncMvNCIErrorCode_t *value) {
     streamPacketDesc_t *ack = NULL;
     XLinkError_t rc = X_LINK_SUCCESS;
     rc = XLinkReadData(graphMonStream, &ack);
@@ -1793,9 +1889,12 @@ ncStatus_t checkGraphMonitorResponse(streamId_t graphMonStream) {
         return parseXLinkError(rc);
     }
 
-    int value = 0;
+    if (value == NULL)
+        return NC_ERROR;
+
+    *value = MVNCI_SUCCESS;
     if (ack) {
-        value = *((int*)ack->data);
+        *value = *((int*)ack->data);
     } else {
         mvLog(MVLOG_ERROR, "Error with stream packet");
         return NC_ERROR;
@@ -1805,7 +1904,19 @@ ncStatus_t checkGraphMonitorResponse(streamId_t graphMonStream) {
     if (rc) {
         mvLog(MVLOG_ERROR, "XLink error, rc: %s", XLinkErrorToStr(rc));
     }
-    if (value != 0){
+
+    return NC_OK;
+}
+
+ncStatus_t checkGraphMonitorResponse(streamId_t graphMonStream) {
+    ncMvNCIErrorCode_t value = MVNCI_SUCCESS;
+    int rc = getGraphMonitorResponseValue(graphMonStream, &value);
+
+    if (rc) {
+        return rc;
+    }
+
+    if (value != MVNCI_SUCCESS){
         mvLog(MVLOG_ERROR, "Graph monitor request returned error %d", value);
         return NC_MYRIAD_ERROR;
     }
@@ -1888,17 +1999,17 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
         return NC_INVALID_PARAMETERS;
     }
 
-    graphMonCommand_t cmd;
-    cmd.cmdClass = GRAPH_MON_CLASS_GRAPH_CMD;
-    cmd.cmd.graphCmd.type = GRAPH_VERIFY_CMD;
-    snprintf(cmd.cmd.graphCmd.streamName, MAX_STREAM_NAME_LENGTH, "graphBuffer%d", g->id);
-    streamId = XLinkOpenStream(d->xlink->linkId, cmd.cmd.graphCmd.streamName, graphBufferLength);
+    graphCMDCommand_t cmd;
+    cmd.type = GRAPH_VERIFY_CMD;
+    snprintf(cmd.streamName, MAX_STREAM_NAME_LENGTH, "graphBuffer%d", g->id);
+    streamId = XLinkOpenStream(d->xlink->linkId, cmd.streamName, graphBufferLength);
     CHECK_STREAM_ID(streamId, unlockAllInferences(), "can't open stream for graphBuffer transmission");
 
-    cmd.cmd.graphCmd.id = g->id;
-    cmd.cmd.graphCmd.executors_number = g->executors_number;
+    cmd.id = g->id;
+    cmd.executors_number = g->executors_number;
 
-    if((rc = sendGraphMonitorRequest(d->graph_monitor_stream_id, &cmd)) != 0){
+    rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
+    if(rc != 0){
         mvLog(MVLOG_ERROR, "can't send graph allocation command");
         unlockAllInferences();
         return rc;
@@ -1917,12 +2028,13 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
     }
 
     // now sending whole graph with same header
-    cmd.cmd.graphCmd.type = GRAPH_ALLOCATE_CMD;
+    cmd.type = GRAPH_ALLOCATE_CMD;
 
-    if(sendGraphMonitorRequest(d->graph_monitor_stream_id, &cmd)){
+    rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
+    if(rc != 0){
         mvLog(MVLOG_ERROR, "can't send graph allocation command");
         unlockAllInferences();
-        return NC_ERROR;
+        return rc;
     }
     xl_error = XLinkWriteData(streamId, graphBuffer, graphBufferLength);
     if (xl_error) {
@@ -2005,6 +2117,33 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
         return rc;
     }
 
+    ncMvNCIErrorCode_t allocation_error = MVNCI_SUCCESS;
+    cmd.type = GRAPH_ALLOCATION_VERIFY_CMD;
+
+    rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
+    if(rc != 0){
+        mvLog(MVLOG_ERROR, "can't send graph verification command");
+        unlockAllInferences();
+        return rc;
+    }
+    if (getGraphMonitorResponseValue(d->graph_monitor_stream_id, &allocation_error) != 0) {
+        mvLog(MVLOG_ERROR, "Can't receive graph allocation verification response");
+        unlockAllInferences();
+        return NC_ERROR;
+    }
+    if (allocation_error != MVNCI_SUCCESS) {
+        if (allocation_error == MVNCI_OUT_OF_MEMORY) {
+            mvLog(MVLOG_ERROR, "Not enough memory to allocate intermediate tensors on remote device");
+            unlockAllInferences();
+            return NC_OUT_OF_MEMORY;
+        } else {
+            mvLog(MVLOG_ERROR, "Graph allocation caused an error %s on the device",
+                  ncMvNCIErrorCodeToStr(allocation_error));
+            unlockAllInferences();
+            return NC_MYRIAD_ERROR;
+        }
+    }
+
     // aux_buffer
     g->aux_buffer = calloc(1, 224 + g->timingsCount * sizeof(*g->time_taken));
     if (!g->aux_buffer) {
@@ -2034,13 +2173,14 @@ ncStatus_t ncGraphDestroy(struct ncGraphHandle_t ** graphHandle)
 {
     CHECK_HANDLE_CORRECT(graphHandle);
 
+    ncStatus_t rc = NC_OK;
     struct ncGraphHandle_t *gh = *graphHandle;
     if (!gh) {
         mvLog(MVLOG_INFO, "handle is already destroyed");
         return NC_OK;
     }
     struct _graphPrivate_t *g = gh->private_data;
-    CHECK_HANDLE_CORRECT_WINFO(g, MVLOG_ERROR, "Graph handle is corrupt or has been destroyed")
+    CHECK_HANDLE_CORRECT_WINFO(g, MVLOG_ERROR, "Graph handle is corrupt or has been destroyed");
 
     if (g->state == NC_GRAPH_CREATED || g->state == NC_GRAPH_DEALLOCATED) {
         free(g);
@@ -2059,14 +2199,14 @@ ncStatus_t ncGraphDestroy(struct ncGraphHandle_t ** graphHandle)
     GLOBAL_UNLOCK();
     struct _devicePrivate_t *d = (gh->private_data)->dev;
 
-    graphMonCommand_t cmd;
-    cmd.cmdClass = GRAPH_MON_CLASS_GRAPH_CMD;
-    cmd.cmd.graphCmd.type = GRAPH_DEALLOCATE_CMD;
-    cmd.cmd.graphCmd.id = g->id;
+    graphCMDCommand_t cmd;
+    cmd.type = GRAPH_DEALLOCATE_CMD;
+    cmd.id = g->id;
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
-    if (sendGraphMonitorRequest(d->graph_monitor_stream_id, &cmd)) {
+    rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
+    if(rc != 0){
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-        return NC_ERROR;
+        return rc;
     }
     if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
@@ -2088,45 +2228,8 @@ ncStatus_t ncGraphDestroy(struct ncGraphHandle_t ** graphHandle)
     return NC_OK;
 }
 
-static ncStatus_t setGraphOptionClass1(struct _graphPrivate_t *g,
-                                       ncGraphOption_t option,
-                                       const void *data,
-                                       unsigned int dataLength)
-{
-    if (dataLength < sizeof(int)) {
-        mvLog(MVLOG_ERROR, "The dataLength is smaller that required %zu",
-              sizeof(int));
-        return NC_INVALID_DATA_LENGTH;
-    }
-    switch (option) {
-    case NC_RW_GRAPH_EXECUTORS_NUM:
-        if (g->state != NC_GRAPH_CREATED) {
-            mvLog(MVLOG_ERROR, "Can't set NCE number after graph allocation");
-            return NC_UNAUTHORIZED;
-        }
-        g->executors_number = *(int *) data;;
-        break;
-    default:
-        mvLog(MVLOG_ERROR, "There is no such option in class 1");
-        return NC_INVALID_PARAMETERS;
-    }
-    return NC_OK;
-}
-
-static int isGraphPreAllocateOption(int option)
-{
-    switch (option) {
-    case NC_RO_GRAPH_NAME:
-    case NC_RO_GRAPH_STATE:
-    case NC_RW_GRAPH_EXECUTORS_NUM:
-        return 1;
-    default:
-        return 0;
-    }
-}
-
 ncStatus_t ncGraphSetOption(struct ncGraphHandle_t * graphHandle,
-                            int option, const void *data,
+                            ncGraphOption_t option, const void *data,
                             unsigned int dataLength)
 {
     CHECK_HANDLE_CORRECT(graphHandle);
@@ -2135,69 +2238,78 @@ ncStatus_t ncGraphSetOption(struct ncGraphHandle_t * graphHandle,
         mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
         return NC_INVALID_PARAMETERS;
     }
-    if (option < GRAPH_CLASS0_BASE ||
-        option > (GRAPH_CLASS0_BASE + OPTION_CLASS_SIZE * NC_OPTION_GRAPH_LAST)) {
+    if (option < GRAPH_OPTION_BASE ||
+        option > (GRAPH_OPTION_BASE + OPTION_CLASS_SIZE * NC_OP_ACCESS_LAST)) {
         mvLog(MVLOG_ERROR, "Option %d is invalid", option);
         return NC_INVALID_PARAMETERS;
     }
-    if (option >= GRAPH_CLASS0_BASE &&
-        option <= (GRAPH_CLASS0_BASE + OPTION_CLASS_SIZE)) {
+    if (option >= GRAPH_OPTION_BASE &&
+        option <= (GRAPH_OPTION_BASE + OPTION_CLASS_SIZE)) {
         mvLog(MVLOG_ERROR, "Option %d is read only", option);
         return NC_UNAUTHORIZED;
     }
     struct _graphPrivate_t *g = graphHandle->private_data;
+
     GLOBAL_LOCK();
-    if (isGraphPreAllocateOption(option) && g->state != NC_GRAPH_CREATED) {
+    if (option == NC_RW_GRAPH_EXECUTORS_NUM && g->state != NC_GRAPH_CREATED) {
         mvLog(MVLOG_ERROR,
               "This graph has already been alocated - cannot set option");
         GLOBAL_UNLOCK();
         return NC_UNAUTHORIZED;
     }
-    if (!isGraphPreAllocateOption(option) && g->state == NC_GRAPH_CREATED) {
+    if (option != NC_RW_GRAPH_EXECUTORS_NUM && g->state == NC_GRAPH_CREATED) {
         mvLog(MVLOG_ERROR,
               "This graph hasn't been allocated - cannot set option");
         GLOBAL_UNLOCK();
         return NC_UNAUTHORIZED;
     }
-    if (!isGraphPreAllocateOption(option) && findGraph(g)) {
+    if (option != NC_RW_GRAPH_EXECUTORS_NUM && findGraph(g)) {
         mvLog(MVLOG_ERROR, "This graph is corrupt or has been destroyed");
         GLOBAL_UNLOCK();
         return NC_INVALID_HANDLE;
     }
     GLOBAL_UNLOCK();
-    //we check what we can at this point, later we might fail if
-    //user set a class that was not permitted
-    ncOptionClass_t opClass = getOptionClass(option, GRAPH_CLASS0_BASE);
-    if (g->dev != NULL && opClass > g->dev->dev_attr.max_graph_opt_class) {
-        mvLog(MVLOG_ERROR, "This device FW does not support NC_OPTION_CLASS%d",
-              opClass);
+
+    ncOptionAccess_t opAccess = getOptionAccess(option, GRAPH_OPTION_BASE);
+    if(opAccess == NC_OP_ACCESS_READ_ONLY) {
+        mvLog(MVLOG_ERROR, "Option is read-only");
         return NC_UNAUTHORIZED;
     }
-    ncStatus_t rc;
-    switch (opClass) {
-    case NC_OPTION_CLASS0:
-        mvLog(MVLOG_ERROR, "Class 0 options are read-only");
-        rc = NC_UNAUTHORIZED; // option class 0 consists of read-only value
-        break;
-    case NC_OPTION_CLASS1:
-        rc = setGraphOptionClass1(g, option, data, dataLength);
-        break;
-    default:
-        mvLog(MVLOG_ERROR, "There is no such option class");
-        rc = NC_INVALID_PARAMETERS;
-        break;
+
+    if (opAccess != NC_OP_ACCESS_READ_WRITE) {
+        mvLog(MVLOG_ERROR, "There is no such option");
+        return NC_INVALID_PARAMETERS;
     }
-    return rc;
+
+    switch (option) {
+    case NC_RW_GRAPH_EXECUTORS_NUM:
+        {
+            if (dataLength < sizeof(int)) {
+                mvLog(MVLOG_ERROR, "The dataLength is smaller that required %zu",
+                      sizeof(int));
+                return NC_INVALID_DATA_LENGTH;
+            }
+
+            if (g->state != NC_GRAPH_CREATED) {
+                mvLog(MVLOG_ERROR, "Can't set NCE number after graph allocation");
+                return NC_UNAUTHORIZED;
+            }
+            g->executors_number = *(int *) data;
+            break;
+        }
+    default:
+        mvLog(MVLOG_ERROR, "There is no such option");
+        return NC_INVALID_PARAMETERS;
+    }
+    return NC_OK;
 }
 
-static ncStatus_t getGraphOptionClass0(struct _graphPrivate_t *g,
+static ncStatus_t getGraphOption(struct _graphPrivate_t *g,
                                        ncGraphOption_t option,
                                        void *data, unsigned int *dataLength)
 {
-    if ((option == NC_RO_GRAPH_STATE ||
-         option == NC_RO_GRAPH_INPUT_COUNT ||
+    if ((option == NC_RO_GRAPH_INPUT_COUNT ||
          option == NC_RO_GRAPH_OUTPUT_COUNT ||
-         option == NC_RO_GRAPH_OPTION_CLASS_LIMIT ||
          option == NC_RW_GRAPH_EXECUTORS_NUM) && *dataLength < sizeof(int)) {
         mvLog(MVLOG_ERROR,
               "data length of data (%d) is smaller that required (%zu)!\n",
@@ -2206,52 +2318,11 @@ static ncStatus_t getGraphOptionClass0(struct _graphPrivate_t *g,
         return NC_INVALID_DATA_LENGTH;
     }
 
-    graphMonCommand_t cmd;
+    ncStatus_t rc = NC_OK;
+    graphCommonCommand_t cmd;
     streamPacketDesc_t* pack = 0;
-    cmd.cmdClass = GRAPH_MON_CLASS_GET_CLASS0;
 
     switch (option) {
-    case NC_RO_GRAPH_STATE:
-        if (g->state == NC_GRAPH_CREATED ||
-            (g->state == NC_GRAPH_ALLOCATED && !g->started)) {
-            *(int *) data = g->state;
-        } else {
-            CHECK_HANDLE_CORRECT(g->dev);
-            //it has been started we must read from graph
-            cmd.cmd.optionCmd.type.c0 = CLASS0_STATE;
-            cmd.cmd.optionCmd.id = g->id;
-            CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&g->dev->graph_stream_m), NC_ERROR);
-            if (XLinkWriteData(g->dev->graph_monitor_stream_id,
-                               (const uint8_t *) &cmd, sizeof(cmd)) != 0) {
-                CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-                return NC_ERROR;
-            }
-
-            if (XLinkReadData(g->dev->graph_monitor_stream_id, &pack) || !pack) {
-                CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-                return NC_ERROR;
-            }
-
-            if (pack->length != sizeof(graphState_t)) {
-                CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-                XLinkReleaseData(g->dev->graph_monitor_stream_id);
-                return NC_ERROR;
-            }
-            int state = *(int *) pack->data;
-            XLinkReleaseData(g->dev->graph_monitor_stream_id);
-            if (checkGraphMonitorResponse(g->dev->graph_monitor_stream_id)) {
-                CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-                return NC_ERROR;
-            }
-            CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-            if (state == GRAPH_RUNNING)
-                g->state = NC_GRAPH_RUNNING;
-            else
-                g->state = NC_GRAPH_WAITING_FOR_BUFFERS;
-            *(int *) data = g->state;
-        }
-        *dataLength = sizeof(ncGraphState_t);
-        break;
     case NC_RO_GRAPH_INPUT_COUNT:
         *(int *) data = g->input_count;
         *dataLength = sizeof(int);
@@ -2273,12 +2344,13 @@ static ncStatus_t getGraphOptionClass0(struct _graphPrivate_t *g,
             *dataLength = sizeof(float) * g->timingsCount;
             return NC_INVALID_DATA_LENGTH;
         }
-        cmd.cmd.optionCmd.id = g->id;
-        cmd.cmd.optionCmd.type.c0 = CLASS0_TIMING_DATA;
+        cmd.id = g->id;
+        cmd.type = GRAPH_GET_TIMING_DATA;
         CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&g->dev->graph_stream_m), NC_ERROR);
-        if (sendGraphMonitorRequest(g->dev->graph_monitor_stream_id, &cmd)) {
+        rc = trySendCommand(g->dev->graph_monitor_stream_id, &cmd, sizeof(cmd));
+        if(rc != 0){
             CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-            return NC_ERROR;
+            return rc;
         }
         if (XLinkReadData(g->dev->graph_monitor_stream_id, &pack) || !pack) {
             CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
@@ -2312,13 +2384,13 @@ static ncStatus_t getGraphOptionClass0(struct _graphPrivate_t *g,
             return NC_INVALID_DATA_LENGTH;
         }
 
-        cmd.cmd.optionCmd.type.c0 = CLASS0_DEBUG_DATA;
-        cmd.cmd.optionCmd.id = g->id;
+        cmd.type = GRAPH_GET_DEBUG_DATA;
+        cmd.id = g->id;
         CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&g->dev->graph_stream_m), NC_ERROR);
-        if (XLinkWriteData(g->dev->graph_monitor_stream_id, (const uint8_t *) &cmd,
-             sizeof(cmd)) != 0) {
+        rc = trySendCommand(g->dev->graph_monitor_stream_id, &cmd, sizeof(cmd));
+        if(rc != 0){
             CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-            return NC_ERROR;
+            return rc;
         }
 
         if (XLinkReadData(g->dev->graph_monitor_stream_id, &pack) || !pack) {
@@ -2372,22 +2444,6 @@ static ncStatus_t getGraphOptionClass0(struct _graphPrivate_t *g,
             *dataLength = size;
             break;
         }
-    case NC_RO_GRAPH_NAME:
-        if (*dataLength < strlen(g->name) + 1) {
-            mvLog(MVLOG_ERROR,
-                  "data length of output buffer (%d) is smaller that required (%zu)!\n",
-                  *dataLength, strlen(g->name) + 1);
-            *dataLength = strlen(g->name) + 1;
-            return NC_INVALID_DATA_LENGTH;
-        }
-        *dataLength = strlen(g->name) + 1;
-        mv_strncpy((char *) data, *dataLength, g->name, *dataLength - 1);
-        break;
-    case NC_RO_GRAPH_OPTION_CLASS_LIMIT:
-        CHECK_HANDLE_CORRECT(g->dev);
-        *(int *) data = g->dev->dev_attr.max_graph_opt_class;
-        *dataLength = sizeof(int);
-        break;
     case NC_RO_GRAPH_VERSION:{
             unsigned int size = sizeof(g->blob_version);
             if (*dataLength < size) {
@@ -2401,40 +2457,28 @@ static ncStatus_t getGraphOptionClass0(struct _graphPrivate_t *g,
             *dataLength = size;
             break;
         }
-    default:
-        mvLog(MVLOG_ERROR, "There is no such option in class 0");
-        return NC_INVALID_PARAMETERS;
-    }
-    return NC_OK;
-}
-
-static ncStatus_t getGraphOptionClass1(struct _graphPrivate_t *g,
-                                       ncGraphOption_t option,
-                                       void *data, unsigned int *dataLength)
-{
-    switch (option) {
     case NC_RW_GRAPH_EXECUTORS_NUM:{
-            int size = sizeof(int);
-            if (*dataLength < size) {
-                mvLog(MVLOG_ERROR,
-                      "data length of data (%d) is smaller that required (%d)!\n",
-                      *dataLength, size);
-                *dataLength = size;
-                return NC_INVALID_DATA_LENGTH;
-            }
-            *(int *) data = g->executors_number;
+        int size = sizeof(int);
+        if (*dataLength < size) {
+            mvLog(MVLOG_ERROR,
+                  "data length of data (%d) is smaller that required (%d)!\n",
+                  *dataLength, size);
             *dataLength = size;
-            break;
+            return NC_INVALID_DATA_LENGTH;
+        }
+        *(int *) data = g->executors_number;
+        *dataLength = size;
+        break;
         }
     default:
-        mvLog(MVLOG_ERROR, "There is no such option in class 1");
+        mvLog(MVLOG_ERROR, "There is no such option");
         return NC_INVALID_PARAMETERS;
     }
     return NC_OK;
 }
 
 ncStatus_t ncGraphGetOption(struct ncGraphHandle_t * graphHandle,
-                            int option, void *data, unsigned int *dataLength)
+                            ncGraphOption_t option, void *data, unsigned int *dataLength)
 {
     CHECK_HANDLE_CORRECT(graphHandle);
     CHECK_HANDLE_CORRECT_WINFO(graphHandle->private_data, MVLOG_ERROR, "graphHandle has been destroyed");
@@ -2444,8 +2488,8 @@ ncStatus_t ncGraphGetOption(struct ncGraphHandle_t * graphHandle,
         return NC_INVALID_PARAMETERS;
     }
 
-    if (option < GRAPH_CLASS0_BASE ||
-        option > (GRAPH_CLASS0_BASE + OPTION_CLASS_SIZE * NC_OPTION_GRAPH_LAST)) {
+    if (option < GRAPH_OPTION_BASE ||
+        option > (GRAPH_OPTION_BASE + OPTION_CLASS_SIZE * NC_OP_ACCESS_LAST)) {
         mvLog(MVLOG_ERROR, "Option %d is invalid", option);
         return NC_INVALID_PARAMETERS;
     }
@@ -2454,139 +2498,21 @@ ncStatus_t ncGraphGetOption(struct ncGraphHandle_t * graphHandle,
     CHECK_HANDLE_CORRECT(g);
 
     GLOBAL_LOCK();
-    if (!isGraphPreAllocateOption(option) && g->state == NC_GRAPH_CREATED) {
+    if (option != NC_RW_GRAPH_EXECUTORS_NUM && g->state == NC_GRAPH_CREATED) {
         mvLog(MVLOG_ERROR, "This graph hasn't been allocated");
         GLOBAL_UNLOCK();
         return NC_NOT_ALLOCATED;
     }
-    ncOptionClass_t class = getOptionClass(option, GRAPH_CLASS0_BASE);
-    if (g->dev != NULL && class > g->dev->dev_attr.max_graph_opt_class) {
-        mvLog(MVLOG_ERROR, "This device FW does not support NC_OPTION_CLASS%d",
-              class);
-        return NC_UNAUTHORIZED;
+    ncOptionAccess_t opAccess = getOptionAccess(option, GRAPH_OPTION_BASE);
+    if (opAccess != NC_OP_ACCESS_READ_ONLY &&
+        opAccess != NC_OP_ACCESS_READ_WRITE) {
+        mvLog(MVLOG_ERROR, "There is no such option");
+        return NC_INVALID_PARAMETERS;
     }
+
     GLOBAL_UNLOCK();
-    ncStatus_t rc;
-    switch (class) {
-    case NC_OPTION_CLASS0:
-        rc = getGraphOptionClass0(g, option, data, dataLength);
-        break;
-    case NC_OPTION_CLASS1:
-        rc = getGraphOptionClass1(g, option, data, dataLength);
-        break;
-    default:
-        mvLog(MVLOG_ERROR, "There is no such option class");
-        rc = NC_INVALID_PARAMETERS;
-        break;
-    }
-    return rc;
-}
 
-ncStatus_t ncGraphAllocateWithFifos(struct ncDeviceHandle_t * deviceHandle,
-                                    struct ncGraphHandle_t * graphHandle,
-                                    const void *graphBuffer,
-                                    unsigned int graphBufferLength,
-                                    const void *graphHeader,
-                                    unsigned int graphHeaderLength,
-                                    struct ncFifoHandle_t ** inFifoHandle,
-                                    struct ncFifoHandle_t ** outFifoHandle)
-{
-    return ncGraphAllocateWithFifosEx(deviceHandle,
-                                      graphHandle, graphBuffer,
-                                      graphBufferLength,
-                                      graphHeader,
-                                      graphHeaderLength,
-                                      inFifoHandle,
-                                      NC_FIFO_HOST_WO, 2, NC_FIFO_FP32,
-                                      outFifoHandle, NC_FIFO_HOST_RO, 2,
-                                      NC_FIFO_FP32);
-}
-
-ncStatus_t ncGraphAllocateWithFifosEx(struct ncDeviceHandle_t * deviceHandle,
-                                      struct ncGraphHandle_t * graphHandle,
-                                      const void *graphBuffer,
-                                      unsigned int graphBufferLength,
-                                      const void *graphHeader,
-                                      unsigned int graphHeaderLength,
-                                      struct ncFifoHandle_t ** inFifoHandle,
-                                      ncFifoType_t inFifoType, unsigned int inNumElem,
-                                      ncFifoDataType_t inDataType,
-                                      struct ncFifoHandle_t ** outFifoHandle,
-                                      ncFifoType_t outFifoType, unsigned int outNumElem,
-                                      ncFifoDataType_t outDataType)
-{
-    CHECK_HANDLE_CORRECT(deviceHandle);
-    CHECK_HANDLE_CORRECT(graphHandle);
-    CHECK_HANDLE_CORRECT(graphBuffer);
-    CHECK_HANDLE_CORRECT(graphHeader);
-    CHECK_HANDLE_CORRECT(inFifoHandle);
-    CHECK_HANDLE_CORRECT(outFifoHandle);
-    if ( !inNumElem || !outNumElem ) {
-        mvLog(MVLOG_ERROR, "Some of the parameters are NULL or Zero!");
-        return NC_INVALID_PARAMETERS;
-    }
-    ncStatus_t rc = ncGraphAllocate(deviceHandle, graphHandle, graphBuffer, graphBufferLength, graphHeader, graphHeaderLength);
-    if (rc != NC_OK)
-        return rc;
-
-    if (inFifoType == NC_FIFO_HOST_RO) {
-        mvLog(MVLOG_ERROR, "input fifo cannot be read-only");
-        return NC_INVALID_PARAMETERS;
-    }
-    if (outFifoType == NC_FIFO_HOST_WO) {
-        mvLog(MVLOG_ERROR, "output fifo cannot be write-only");
-        return NC_INVALID_PARAMETERS;
-    }
-    // Read tensor descriptors
-    struct ncTensorDescriptor_t inputTensorDesc;
-    struct ncTensorDescriptor_t outputTensorDesc;
-    unsigned int length = sizeof(struct ncTensorDescriptor_t);
-    rc = ncGraphGetOption(graphHandle,
-                          NC_RO_GRAPH_INPUT_TENSOR_DESCRIPTORS,
-                          &inputTensorDesc, &length);
-    if (rc != NC_OK) {
-        return rc;
-    }
-    rc = ncGraphGetOption(graphHandle,
-                          NC_RO_GRAPH_OUTPUT_TENSOR_DESCRIPTORS,
-                          &outputTensorDesc, &length);
-    if (rc != NC_OK) {
-        return rc;
-    }
-    rc = ncFifoCreate("fifoIn0", inFifoType, inFifoHandle);
-    if (rc != NC_OK) {
-        return rc;
-    }
-    rc = ncFifoSetOption(*inFifoHandle, NC_RW_FIFO_DATA_TYPE, &inDataType,
-                         sizeof(inDataType));
-    if (rc != NC_OK) {
-        return rc;
-    }
-    rc = ncFifoAllocate(*inFifoHandle, deviceHandle, &inputTensorDesc,
-                        inNumElem);
-    if (rc != NC_OK) {
-        return rc;
-    }
-    rc = ncFifoCreate("fifoOut0", outFifoType, outFifoHandle);
-    if (rc != NC_OK) {
-        ncFifoDestroy(inFifoHandle);
-        return rc;
-    }
-    rc = ncFifoSetOption(*outFifoHandle, NC_RW_FIFO_DATA_TYPE, &outDataType,
-                         sizeof(outDataType));
-    if (rc != NC_OK) {
-        ncFifoDestroy(inFifoHandle);
-        ncFifoDestroy(outFifoHandle);
-        return rc;
-    }
-    rc = ncFifoAllocate(*outFifoHandle, deviceHandle, &outputTensorDesc,
-                        outNumElem);
-    if (rc != NC_OK) {
-        ncFifoDestroy(inFifoHandle);
-        ncFifoDestroy(outFifoHandle);
-        return rc;
-    }
-    return rc;
+    return getGraphOption(g, option, data, dataLength);
 }
 
 ncStatus_t ncGlobalSetOption(ncGlobalOption_t option, const void *data,
@@ -2595,22 +2521,6 @@ ncStatus_t ncGlobalSetOption(ncGlobalOption_t option, const void *data,
     if (!data) {
         mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
         return NC_INVALID_PARAMETERS;
-    }
-    switch (option) {
-        case NC_RW_LOG_LEVEL:
-        case NC_RW_RESET_ALL:
-        case NC_RW_COMMON_TIMEOUT_MSEC:
-        case NC_RW_DEVICE_OPEN_TIMEOUT_MSEC:
-        case NC_RW_ALLOC_GRAPH_TIMEOUT_MSEC: {
-            if (dataLength < sizeof(int)) {
-                mvLog(MVLOG_ERROR, "The dataLength is smaller that required %zu",
-                      sizeof(int));
-                return NC_INVALID_PARAMETERS;
-            }
-            break;
-        }
-        default:
-            break;
     }
 
     switch (option) {
@@ -2651,15 +2561,6 @@ ncStatus_t ncGlobalSetOption(ncGlobalOption_t option, const void *data,
         }
         break;
     }
-    case NC_RW_ALLOC_GRAPH_TIMEOUT_MSEC: {
-        int gTimeout = *(int *) data;
-        XLinkError_t rc = XLinkSetAllocateGraphTimeOutMsec(gTimeout);
-        if (rc) {
-            mvLog(MVLOG_ERROR, "Set global allocate graph timeout failed, rc = %s\n", XLinkErrorToStr(rc));
-            return NC_INVALID_PARAMETERS;
-        }
-        break;
-    }
     default:
         mvLog(MVLOG_ERROR, "No such option");
         return NC_INVALID_PARAMETERS;
@@ -2694,7 +2595,7 @@ ncStatus_t ncGlobalGetOption(ncGlobalOption_t option, void *data, unsigned int *
     return NC_OK;
 }
 
-static ncStatus_t getDeviceOptionClass0(struct _devicePrivate_t *d,
+static ncStatus_t getDeviceOption(struct _devicePrivate_t *d,
                                         ncDeviceOption_t option,
                                         void *data, unsigned int *dataLength)
 {
@@ -2725,32 +2626,12 @@ static ncStatus_t getDeviceOptionClass0(struct _devicePrivate_t *d,
         *(int *) data = d->throttle_happened;
         *dataLength = sizeof(int);
         break;
-    case NC_RO_DEVICE_STATE:
-        *(int *) data = d->state;
-        *dataLength = sizeof(int);
-        break;
-    case NC_RO_DEVICE_ALLOCATED_GRAPH_NUM:
-        *(int *) data = deviceGetNumberOfGraphs(d);
-        *dataLength = sizeof(int);
-        break;
-    case NC_RO_DEVICE_ALLOCATED_FIFO_NUM:
-        *(int *) data = deviceGetNumberOfFifos(d);
-        *dataLength = sizeof(int);
-        break;
     case NC_RO_DEVICE_MEMORY_SIZE:
         *(int *) data = d->dev_attr.max_memory;
         *dataLength = sizeof(int);
         break;
-    case NC_RO_DEVICE_MAX_FIFO_NUM:
-        *(int *) data = d->dev_attr.max_fifos;
-        *dataLength = sizeof(int);
-        break;
     case NC_RO_DEVICE_MAX_GRAPH_NUM:
         *(int *) data = d->dev_attr.max_graphs;
-        *dataLength = sizeof(int);
-        break;
-    case NC_RO_DEVICE_OPTION_CLASS_LIMIT:
-        *(int *) data = d->dev_attr.max_device_opt_class;
         *dataLength = sizeof(int);
         break;
     case NC_RO_DEVICE_NAME:
@@ -2778,10 +2659,6 @@ static ncStatus_t getDeviceOptionClass0(struct _devicePrivate_t *d,
         *(ncDeviceProtocol_t *) data = convertProtocolToNC(d->protocol);
         *dataLength = sizeof(ncDeviceProtocol_t);
         break;
-    case NC_RO_DEVICE_FW_VERSION:
-        *(unsigned int **) data = d->dev_attr.fw_version;
-        *dataLength = sizeof(unsigned int*);
-        break;
     case NC_RO_DEVICE_CURRENT_MEMORY_USED:{
             uint32_t mem;
             if (deviceGetDeviceMemory(d, &mem)) {
@@ -2792,12 +2669,6 @@ static ncStatus_t getDeviceOptionClass0(struct _devicePrivate_t *d,
             *dataLength = sizeof(int);
             break;
         }
-    case NC_RO_DEVICE_MAX_EXECUTORS_NUM:
-        *(int *) data = d->dev_attr.max_executors;
-        *dataLength = sizeof(int);
-        break;
-    case NC_RO_DEVICE_DEBUG_INFO:
-        return NC_UNSUPPORTED_FEATURE;
     default:
         mvLog(MVLOG_ERROR, "No such option");
         return NC_INVALID_PARAMETERS;
@@ -2805,7 +2676,7 @@ static ncStatus_t getDeviceOptionClass0(struct _devicePrivate_t *d,
     return rc;
 }
 
-static ncStatus_t setDeviceOptionClass4(struct _devicePrivate_t *d,
+static ncStatus_t setDevicePowerConfig(struct _devicePrivate_t *d,
                                         ncDeviceOption_t option,
                                         const void *data, unsigned int dataLength){
     XLinkError_t rc = X_LINK_SUCCESS;
@@ -2816,9 +2687,8 @@ static ncStatus_t setDeviceOptionClass4(struct _devicePrivate_t *d,
         return NC_INVALID_PARAMETERS;
     }
 
-    config.type.c4 = (option == NC_RW_DEVICE_POWER_CONFIG ? CLASS4_SET_POWER_CONFIG : CLASS4_RESET_POWER_CONFIG);
-    config.optionClass = NC_OPTION_CLASS4;
-    config.data = *(uint32_t*)data;
+    config.type = (option == NC_RW_DEVICE_POWER_CONFIG ? DEVICE_SET_POWER_CONFIG : DEVICE_RESET_POWER_CONFIG);
+    config.arg = *(uint32_t*)data;
 
     rc = XLinkWriteData(d->device_mon_stream_id, (const uint8_t *)&config, sizeof(config));
 
@@ -2844,18 +2714,18 @@ ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
         return NC_INVALID_PARAMETERS;
     }
 
-    if (option < DEVICE_CLASS0_BASE ||
-        option > (DEVICE_CLASS0_BASE + OPTION_CLASS_SIZE * NC_OPTION_LAST)) {
+    if (option < DEVICE_OPTION_BASE ||
+        option > (DEVICE_OPTION_BASE + OPTION_CLASS_SIZE * NC_OP_ACCESS_LAST)) {
         mvLog(MVLOG_ERROR, "Option %d is invalid", option);
         return NC_INVALID_PARAMETERS;
     }
 
-
-    ncOptionClass_t opClass = getOptionClass(option, DEVICE_CLASS0_BASE);
-    if (opClass < NC_OPTION_CLASS1) {
-        mvLog(MVLOG_ERROR, "Class 0 options are read-only");
+    ncOptionAccess_t opAccess = getOptionAccess(option, DEVICE_OPTION_BASE);
+    if(opAccess == NC_OP_ACCESS_READ_ONLY) {
+        mvLog(MVLOG_ERROR, "Option is read-only");
         return NC_UNAUTHORIZED;
     }
+
     struct _devicePrivate_t *d = deviceHandle->private_data;
     GLOBAL_LOCK();
 
@@ -2867,19 +2737,23 @@ ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
         return NC_INVALID_HANDLE;
     }
 
-    if (opClass > d->dev_attr.max_device_opt_class) {
-        mvLog(MVLOG_ERROR, "This device FW does not support NC_OPTION_CLASS%d",
-              opClass);
-        return NC_UNAUTHORIZED;
+    if (opAccess != NC_OP_ACCESS_READ_WRITE) {
+        mvLog(MVLOG_ERROR, "There is no such option");
+        return NC_INVALID_PARAMETERS;
     }
 
-    switch (opClass) {
-    case NC_OPTION_CLASS4:
-        rc = setDeviceOptionClass4(d, option, data, dataLength);
-        break;
-    default:
-        rc = NC_INVALID_PARAMETERS;
+    switch (option) {
+        case NC_RW_DEVICE_POWER_CONFIG:
+        case NC_RW_DEVICE_POWER_CONFIG_RESET:
+        {
+            rc = setDevicePowerConfig(d, option, data, dataLength);
+            break;
+        }
+        default:
+            rc = NC_INVALID_PARAMETERS;
+            mvLog(MVLOG_ERROR, "There is no such option");
     }
+
     GLOBAL_UNLOCK();
     return rc;
 }
@@ -2889,8 +2763,6 @@ static int isDeviceStaticOption(int option)
 {
     switch (option) {
     case NC_RO_DEVICE_NAME:
-    case NC_RO_DEVICE_STATE:
-    case NC_RO_DEVICE_HW_VERSION:
         return 1;
     default:
         return 0;
@@ -2908,8 +2780,8 @@ ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t * deviceHandle,
         return NC_INVALID_PARAMETERS;
     }
 
-    if (option < DEVICE_CLASS0_BASE ||
-        option > (DEVICE_CLASS0_BASE + OPTION_CLASS_SIZE * NC_OPTION_LAST)) {
+    if (option < DEVICE_OPTION_BASE ||
+        option > (DEVICE_OPTION_BASE + OPTION_CLASS_SIZE * NC_OP_ACCESS_LAST)) {
         mvLog(MVLOG_ERROR, "Option %d is invalid", option);
         return NC_INVALID_PARAMETERS;
     }
@@ -2923,7 +2795,6 @@ ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t * deviceHandle,
         return NC_UNAUTHORIZED;
     }
 
-    ncOptionClass_t opClass = getOptionClass(option, DEVICE_CLASS0_BASE);
     if (!isDeviceStaticOption(option)) {
         if (findDevice(d)) {
             mvLog(MVLOG_ERROR,
@@ -2931,25 +2802,18 @@ ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t * deviceHandle,
             GLOBAL_UNLOCK();
             return NC_INVALID_HANDLE;
         }
-
-        if (d->dev_attr.max_device_opt_class < opClass) {
-            mvLog(MVLOG_ERROR,
-                  "This device FW does not support NC_OPTION_CLASS%d", opClass);
-            GLOBAL_UNLOCK();
-            return NC_UNAUTHORIZED;
-        }
     }
 
-    switch (opClass) {
-    case NC_OPTION_CLASS0:
-        rc = getDeviceOptionClass0(d, option, data, dataLength);
-        break;
-    default:
-        rc = NC_INVALID_PARAMETERS;
-        break;
+    ncOptionAccess_t opAccess = getOptionAccess(option, DEVICE_OPTION_BASE);
+    if (opAccess != NC_OP_ACCESS_READ_ONLY &&
+       opAccess != NC_OP_ACCESS_READ_WRITE) {
+        mvLog(MVLOG_ERROR, "There is no such option");
+        return NC_INVALID_PARAMETERS;
     }
 
+    rc = getDeviceOption(d, option, data, dataLength);
     GLOBAL_UNLOCK();
+
     return rc;
 }
 
@@ -3007,9 +2871,7 @@ ncStatus_t ncFifoCreate(const char *name, ncFifoType_t type,
     handle->api_read_element = 0;
     handle->id = fifoIdCounter++;
     handle->num_elements = 0;
-    handle->host_tensor_desc_set = 0;
     memset(&handle->host_tensor_desc, 0, sizeof(struct ncTensorDescriptor_t));
-    handle->host_tensor_desc.dataType = NC_FIFO_FP16; //default app data type is FP16
     mv_strncpy(handle->name, NC_MAX_NAME_SIZE, name, NC_MAX_NAME_SIZE - 1);
 
     return NC_OK;
@@ -3070,84 +2932,6 @@ int popUserParam(struct _fifoPrivate_t* fH, void** user_param, int isIn)
     return NC_OK;
 }
 
-void getStrides(ncFifoLayout_t layout, struct ncTensorDescriptor_t* desc,
-    ncFifoDataType_t dataType) {
-    int baseStride = dataType == NC_FIFO_FP16 ? FP16_DATA_SIZE : sizeof(float);
-    switch (layout) {
-        case NC_FIFO_HWC:
-            desc->cStride = baseStride;
-            desc->wStride = desc->cStride * desc->c;
-            desc->hStride = desc->wStride * desc->w;
-            break;
-        case NC_FIFO_CHW:
-            desc->wStride = baseStride;
-            desc->hStride = desc->wStride * desc->w;
-            desc->cStride = desc->hStride * desc->h;
-            break;
-        case NC_FIFO_HCW:
-            desc->wStride = baseStride;
-            desc->cStride = desc->wStride * desc->w;
-            desc->hStride = desc->cStride * desc->c;
-            break;
-        case NC_FIFO_CWH:
-            desc->hStride = baseStride;
-            desc->wStride = desc->hStride * desc->h;
-            desc->cStride = desc->wStride * desc->w;
-            break;
-        case NC_FIFO_WCH:
-            desc->hStride = baseStride;
-            desc->cStride = desc->hStride * desc->h;
-            desc->wStride = desc->cStride * desc->c;
-            break;
-        case NC_FIFO_WHC:
-            desc->cStride = baseStride;
-            desc->hStride = desc->cStride * desc->c;
-            desc->wStride = desc->hStride * desc->h;
-            break;
-        default:
-            break;
-    }
-}
-
-static unsigned int getTotalSize(struct ncTensorDescriptor_t* desc) {
-    unsigned int maxStride;
-    unsigned int maxDim;
-
-    if (desc->wStride == desc->hStride &&
-        desc->wStride == desc->cStride) {
-        maxDim = MAX(desc->w, desc->h);
-        maxDim = MAX(maxDim, desc->c);
-        maxStride = desc->wStride;
-    } else if (desc->wStride >= desc->hStride &&
-               desc->wStride >= desc->cStride) {
-        maxStride = desc->wStride;
-        maxDim = desc->w;
-        if (desc->wStride == desc->hStride)
-            maxDim = MAX(desc->w, desc->h);
-        else if (desc->wStride == desc->cStride)
-            maxDim = MAX(desc->w, desc->c);
-    } else if (desc->hStride >= desc->wStride &&
-               desc->hStride >= desc->cStride) {
-        maxStride = desc->hStride;
-        maxDim = desc->h;
-        if (desc->hStride == desc->wStride)
-            maxDim = MAX(desc->h, desc->w);
-        else if (desc->hStride == desc->cStride)
-            maxDim = MAX(desc->h, desc->c);
-    } else {
-        maxStride = desc->cStride;
-        maxDim = desc->c;
-        if (desc->cStride == desc->wStride)
-            maxDim = MAX(desc->c, desc->w);
-        else if (desc->cStride == desc->hStride)
-            maxDim = MAX(desc->c, desc->h);
-    }
-    return desc->n * maxStride * maxDim;
-}
-static unsigned int getElementSize(struct _fifoPrivate_t * handle) {
-    return handle->host_tensor_desc.totalSize;
-}
-
 ncStatus_t ncFifoAllocate(struct ncFifoHandle_t * fifoHandle,
                           struct ncDeviceHandle_t * device,
                           struct ncTensorDescriptor_t * tensor_desc,
@@ -3190,9 +2974,9 @@ ncStatus_t ncFifoAllocate(struct ncFifoHandle_t * fifoHandle,
     }
     GLOBAL_UNLOCK();
 
+    ncStatus_t rc = NC_OK;
     handle->graph_tensor_desc = *tensor_desc;
     handle->host_tensor_desc = *tensor_desc;
-    handle->graphLayout = getLayout(tensor_desc);
     handle->user_param_in = NULL;
     handle->user_param_out = NULL;
     handle->num_elements = numElem;
@@ -3200,15 +2984,14 @@ ncStatus_t ncFifoAllocate(struct ncFifoHandle_t * fifoHandle,
     handle->dev = d;
     handle->next = NULL;
 
-    handle->datasize = getElementSize(handle);
+    handle->datasize = handle->host_tensor_desc.totalSize;
 
     if (d->fifos)
         handle->next = d->fifos;
     d->fifos = handle;
 
-    graphMonCommand_t cmd;
-    cmd.cmdClass = GRAPH_MON_CLASS_BUFFER_CMD;
-    cmd.cmd.buffCmd.type = BUFFER_ALLOCATE_CMD;
+    bufferAllocateCommand_t cmd;
+    cmd.type = GRAPH_BUFFER_ALLOCATE_CMD;
     struct tensorDescriptor_t privateDesc;
     privateDesc.c = tensor_desc->c;
     privateDesc.n = tensor_desc->n;
@@ -3216,33 +2999,29 @@ ncStatus_t ncFifoAllocate(struct ncFifoHandle_t * fifoHandle,
     privateDesc.w = tensor_desc->w;
     // should be removiedd: #-17902
     privateDesc.totalSize = tensor_desc->totalSize;
-    privateDesc.widthStride = tensor_desc->wStride;
-    privateDesc.heightStride = tensor_desc->hStride;
-    privateDesc.channelsStride = tensor_desc->cStride;
 
-    cmd.cmd.buffCmd.desc  = privateDesc;
-    cmd.cmd.buffCmd.elemCnt = numElem;
-    snprintf(cmd.cmd.buffCmd.name, MAX_STREAM_NAME_LENGTH, "FIFO%d", handle->id);
-    cmd.cmd.buffCmd.name[NC_MAX_NAME_SIZE - 1] = 0;
-    cmd.cmd.buffCmd.id = handle->id;
+    cmd.desc  = privateDesc;
+    cmd.elemCnt = numElem;
+    snprintf(cmd.name, MAX_STREAM_NAME_LENGTH, "FIFO%d", handle->id);
+    cmd.id = handle->id;
 
     uint32_t writeSize;
     if (fifoWriteAccess(handle)) {
         writeSize = tensor_desc->totalSize * numElem;
-        cmd.cmd.buffCmd.writeChannel = 1;
+        cmd.writeChannel = 1;
     } else {
-        cmd.cmd.buffCmd.writeChannel = 0;
+        cmd.writeChannel = 0;
         writeSize = 8; // no write permission on this buffer, so we shouldn't bother allocating buffer on the device
     }
     if (fifoReadAccess(handle)) {
-        cmd.cmd.buffCmd.readChannel = 1;
+        cmd.readChannel = 1;
     } else {
-        cmd.cmd.buffCmd.readChannel = 0;
+        cmd.readChannel = 0;
     }
-    streamId_t streamId = XLinkOpenStream(d->xlink->linkId, cmd.cmd.buffCmd.name, writeSize);
+    streamId_t streamId = XLinkOpenStream(d->xlink->linkId, cmd.name, writeSize);
 
     char out_msg[NC_MAX_NAME_SIZE * 2];
-    snprintf(out_msg, NC_MAX_NAME_SIZE * 2, "%s %s", "can't open stream: ", cmd.cmd.buffCmd.name);
+    snprintf(out_msg, NC_MAX_NAME_SIZE * 2, "%s %s", "can't open stream: ", cmd.name);
 
     CHECK_STREAM_ID(streamId, {
             handle->state = NC_FIFO_FAILED;
@@ -3252,10 +3031,11 @@ ncStatus_t ncFifoAllocate(struct ncFifoHandle_t * fifoHandle,
     handle->streamId = streamId;
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
 
-    if (sendGraphMonitorRequest(d->graph_monitor_stream_id, &cmd)) {
+    rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
+    if(rc != 0){
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
         mvLog(MVLOG_ERROR, "can't send command\n");
-        return NC_ERROR;
+        return rc;
     }
     if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
@@ -3335,17 +3115,18 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
         }
     }
 
-    graphMonCommand_t cmd;
-    cmd.cmdClass = GRAPH_MON_CLASS_BUFFER_CMD;
-    cmd.cmd.buffCmd.type = BUFFER_DEALLOCATE_CMD;
-    cmd.cmd.buffCmd.id = handle->id;
+    ncStatus_t rc = NC_OK;
+    graphCommonCommand_t cmd;
+    cmd.type = GRAPH_BUFFER_DEALLOCATE_CMD;
+    cmd.id = handle->id;
 
     struct _devicePrivate_t *d = handle->dev;
     CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
-    if (sendGraphMonitorRequest(d->graph_monitor_stream_id, &cmd)) {
+    rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
+    if(rc != 0){
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
         mvLog(MVLOG_WARN, "can't send command\n");
-        return NC_ERROR;
+        return rc;
     }
     if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
@@ -3411,20 +3192,7 @@ ncStatus_t ncFifoWriteElem(struct ncFifoHandle_t * fifoHandle,
             *inputTensorLength = handle->datasize;
             return NC_INVALID_DATA_LENGTH;
     }
-    struct ncTensorDescriptor_t * inputDesc = &handle->graph_tensor_desc;
-
-    int rc;
-    // Convert fp32 to fp16 and/or input layout
-    ncFifoLayout_t layout = getLayout(inputDesc);
-    ncFifoLayout_t host_layout = getLayout(&handle->host_tensor_desc);
-    if (handle->host_tensor_desc.dataType == NC_FIFO_FP32 || layout != host_layout) {
-        mvLog(MVLOG_ERROR,
-              "This version of mvnc does not support converting layout and precision on the host\n");
-
-        return NC_UNSUPPORTED_FEATURE;
-    } else {
-        rc = XLinkWriteData(handle->streamId, inputTensor, *inputTensorLength);
-    }
+    int rc = XLinkWriteData(handle->streamId, inputTensor, *inputTensorLength);
     if (rc != 0)
         return NC_ERROR;
 
@@ -3491,20 +3259,7 @@ ncStatus_t ncFifoReadElem(struct ncFifoHandle_t * fifoHandle, void *outputData,
     }
     streamPacketDesc_t *packet = 0;
     if (!XLinkReadData(handle->streamId, &packet) && packet) {
-        // Convert fp16 to fp32 and/or layout
-        struct ncTensorDescriptor_t * fifoDesc = &handle->graph_tensor_desc;
-        ncFifoLayout_t layout = getLayout(fifoDesc);
-        ncFifoLayout_t host_layout = getLayout(&handle->host_tensor_desc);
-
-        if (handle->host_tensor_desc.dataType == NC_FIFO_FP32 ||
-            layout != host_layout) {
-            mvLog(MVLOG_ERROR,
-                  "This version of mvnc does not support converting layout and precision on the host\n");
-
-            return NC_UNSUPPORTED_FEATURE;
-        } else {
-            mvnc_memcpy(outputData, *outputDataLen, packet->data, packet->length);
-        }
+        mvnc_memcpy(outputData, *outputDataLen, packet->data, packet->length);
         XLinkReleaseData(handle->streamId);
     } else {
         mvLog(MVLOG_ERROR, "Packet reading is failed.");
@@ -3528,312 +3283,6 @@ ncStatus_t ncFifoReadElem(struct ncFifoHandle_t * fifoHandle, void *outputData,
     *outputDataLen = handle->datasize;
     mvLog(MVLOG_DEBUG, "num_elements %d userparam %p output length %d\n",
           handle->num_elements, userParam, handle->datasize);
-    return NC_OK;
-}
-
-ncStatus_t ncFifoRemoveElem(struct ncFifoHandle_t* fifoHandle) {
-    CHECK_HANDLE_CORRECT(fifoHandle)
-
-
-    return NC_UNSUPPORTED_FEATURE;
-}
-
-ncStatus_t ncFifoSetOption(struct ncFifoHandle_t * fifoHandle, int option,
-                           const void *data, unsigned int dataLength)
-{
-    CHECK_HANDLE_CORRECT(fifoHandle);
-    CHECK_HANDLE_CORRECT_RC(data, NC_INVALID_PARAMETERS);
-    CHECK_HANDLE_CORRECT_WINFO(fifoHandle->private_data, MVLOG_ERROR,
-            "fifo handle is corrupt or has been destroyed");
-
-    struct _fifoPrivate_t *f = (struct _fifoPrivate_t *) fifoHandle->private_data;
-    if (f->state != NC_FIFO_CREATED && option != NC_RW_FIFO_HOST_TENSOR_DESCRIPTOR) {
-        mvLog(MVLOG_ERROR, "cannot set Fifo options after allocation");
-        return NC_UNAUTHORIZED;
-    }
-
-    switch (option) {
-    case NC_RW_FIFO_TYPE:{
-            unsigned int size = sizeof(ncFifoType_t);
-            if (dataLength < size) {
-                mvLog(MVLOG_ERROR,
-                      "data length of output buffer (%d) is smaller that required (%d)!\n",
-                      dataLength, size);
-                return NC_INVALID_DATA_LENGTH;
-            }
-            int tempType = *(ncFifoType_t *) data;
-            if (tempType != NC_FIFO_HOST_WO && tempType != NC_FIFO_HOST_RO) {
-                 mvLog(MVLOG_ERROR,
-                      "Type value set (%d) is invalid!\n",
-                      tempType);
-                return NC_INVALID_PARAMETERS;
-            }
-            f->type = tempType;
-            break;
-        }
-    case NC_RW_FIFO_CONSUMER_COUNT:{
-            unsigned int size = sizeof(int);
-            if (dataLength < size) {
-                mvLog(MVLOG_ERROR,
-                      "data length of output buffer (%d) is smaller that required (%d)!\n",
-                      dataLength, size);
-                return NC_INVALID_DATA_LENGTH;
-            }
-            f->consumer_cnt = *(int *) data;
-            break;
-        }
-    case NC_RW_FIFO_DATA_TYPE:{
-            unsigned int size = sizeof(ncFifoDataType_t);
-            if (dataLength < size) {
-                mvLog(MVLOG_ERROR,
-                      "data length of output buffer (%d) is smaller that required (%d)!\n",
-                      dataLength, size);
-                return NC_INVALID_DATA_LENGTH;
-            }
-            int tempDType = *(int *) data;
-            if (tempDType != NC_FIFO_FP16 && tempDType != NC_FIFO_FP32) {
-                mvLog(MVLOG_ERROR,
-                      "dataType value set (%d) is invalid!\n",
-                      tempDType);
-                return NC_INVALID_PARAMETERS;
-            }
-            f->host_tensor_desc.dataType = tempDType;
-            break;
-        }
-    case NC_RW_FIFO_HOST_TENSOR_DESCRIPTOR:{
-            unsigned int size = sizeof(struct ncTensorDescriptor_t);
-            if (dataLength < size) {
-                mvLog(MVLOG_ERROR,
-                      "data length of output buffer (%d) is smaller that required (%d)!\n",
-                      dataLength, size);
-                return NC_INVALID_DATA_LENGTH;
-            }
-
-            int expected_total_size = getTotalSize((struct ncTensorDescriptor_t *) data);
-            if (expected_total_size != ((struct ncTensorDescriptor_t *) data)->totalSize) {
-                mvLog(MVLOG_ERROR,
-                      "totalSize in host tensor descriptor (%d) doesn't match expeected totalSize (%d)!\n",
-                      ((struct ncTensorDescriptor_t *) data)->totalSize, expected_total_size);
-                return NC_INVALID_PARAMETERS;
-            }
-            if (f->state == NC_FIFO_ALLOCATED) {
-                struct ncTensorDescriptor_t* temp = (struct ncTensorDescriptor_t*) data;
-                if (temp->w != f->graph_tensor_desc.w ||
-                    temp->h != f->graph_tensor_desc.h ||
-                    temp->c != f->graph_tensor_desc.c ||
-                    temp->n != f->graph_tensor_desc.n)
-                {
-                    mvLog(MVLOG_ERROR, "trying to set host tensor decriptor to a shape that doesn't match graph tensor descriptor shape!\n");
-                    return NC_INVALID_PARAMETERS;
-                }
-            }
-
-            f->host_tensor_desc = *(struct ncTensorDescriptor_t *) data;
-            f->host_tensor_desc_set = 1;
-            f->datasize = getElementSize(f);
-
-            break;
-        }
-    case NC_RW_FIFO_DONT_BLOCK:
-        return NC_UNSUPPORTED_FEATURE;
-        break;
-    case NC_RO_FIFO_CAPACITY:
-    case NC_RO_FIFO_READ_FILL_LEVEL:
-    case NC_RO_FIFO_WRITE_FILL_LEVEL:
-    case NC_RO_FIFO_GRAPH_TENSOR_DESCRIPTOR:
-    case NC_RO_FIFO_STATE:
-    case NC_RO_FIFO_ELEMENT_DATA_SIZE:
-        return NC_UNAUTHORIZED;
-        break;
-    default:
-        return NC_INVALID_PARAMETERS;
-        break;
-    }
-    return NC_OK;
-}
-
-ncStatus_t ncFifoGetOption(struct ncFifoHandle_t * fifoHandle, int option,
-                           void *data, unsigned int *dataLength)
-{
-    CHECK_HANDLE_CORRECT(fifoHandle);
-    CHECK_HANDLE_CORRECT_WINFO(fifoHandle->private_data, MVLOG_ERROR,
-            "Fifo is corrupt or has been destroyed")
-
-    if (!dataLength || (*dataLength != 0 && !data)) {
-        mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
-        return NC_INVALID_PARAMETERS;
-    }
-
-    if (fifoHandle->private_data->state == NC_FIFO_CREATED &&
-        option != NC_RO_FIFO_STATE && option != NC_RW_FIFO_DATA_TYPE &&
-        option != NC_RW_FIFO_DONT_BLOCK && option != NC_RW_FIFO_CONSUMER_COUNT
-        && option != NC_RO_FIFO_NAME && option != NC_RW_FIFO_HOST_TENSOR_DESCRIPTOR) {
-        mvLog(MVLOG_ERROR,
-              "Fifo hasn't been allocated, cannot read those options");
-        return NC_NOT_ALLOCATED;
-    }
-    switch (option) {
-    case NC_RW_FIFO_CONSUMER_COUNT:
-    case NC_RO_FIFO_CAPACITY:
-    case NC_RO_FIFO_READ_FILL_LEVEL:
-    case NC_RO_FIFO_WRITE_FILL_LEVEL:
-    case NC_RO_FIFO_STATE:
-    case NC_RO_FIFO_ELEMENT_DATA_SIZE:
-        {
-            unsigned int size = sizeof(int);
-            if (*dataLength < size) {
-                mvLog(MVLOG_ERROR,
-                      "data length of output buffer (%d) is smaller that required (%d)!\n",
-                      *dataLength, size);
-                *dataLength = size;
-                return NC_INVALID_DATA_LENGTH;
-            }
-            break;
-        }
-    default:
-        break;
-    }
-
-    switch (option) {
-    case NC_RW_FIFO_TYPE:{
-            unsigned int size = sizeof(ncFifoType_t);
-            if (*dataLength < size) {
-                mvLog(MVLOG_ERROR,
-                      "data length of output buffer (%d) is smaller that required (%d)!\n",
-                      *dataLength, size);
-                *dataLength = size;
-                return NC_INVALID_DATA_LENGTH;
-            }
-            *(ncFifoType_t *) data = fifoHandle->private_data->type;
-            *dataLength = sizeof(fifoHandle->private_data->type);
-            break;
-        }
-    case NC_RW_FIFO_CONSUMER_COUNT:
-        *(int *) data = fifoHandle->private_data->consumer_cnt;
-        *dataLength = sizeof(fifoHandle->private_data->consumer_cnt);
-        break;
-    case NC_RO_FIFO_ELEMENT_DATA_SIZE:
-        *(int *) data = getElementSize(fifoHandle->private_data);
-        *dataLength = sizeof(fifoHandle->private_data->datasize);
-        break;
-    case NC_RW_FIFO_DATA_TYPE:
-        {
-            unsigned int size = sizeof(ncFifoDataType_t);
-            if (*dataLength < size) {
-                mvLog(MVLOG_ERROR,
-                      "data length of output buffer (%d) is smaller that required (%d)!\n",
-                      *dataLength, size);
-                *dataLength = size;
-                return NC_INVALID_DATA_LENGTH;
-            }
-            *(int *) data = fifoHandle->private_data->host_tensor_desc.dataType;
-            *dataLength = sizeof(fifoHandle->private_data->host_tensor_desc.dataType);
-            break;
-        }
-    case NC_RO_FIFO_CAPACITY:
-        *(int *) data = fifoHandle->private_data->num_elements;
-        *dataLength = sizeof(fifoHandle->private_data->num_elements);
-        break;
-    case NC_RO_FIFO_GRAPH_TENSOR_DESCRIPTOR:
-        {
-            unsigned int size = sizeof(struct ncTensorDescriptor_t);
-            if (*dataLength < size) {
-                mvLog(MVLOG_ERROR,
-                      "data length of output buffer (%d) is smaller that required (%d)!\n",
-                      *dataLength, size);
-                *dataLength = size;
-                return NC_INVALID_DATA_LENGTH;
-            }
-            if (fifoHandle->private_data->state != NC_FIFO_ALLOCATED)
-                return NC_UNAUTHORIZED; // before allocation, tensor_desc is NULL
-            *(struct ncTensorDescriptor_t *) data =
-                fifoHandle->private_data->graph_tensor_desc;
-            *dataLength = sizeof(fifoHandle->private_data->graph_tensor_desc);
-            break;
-        }
-    case NC_RW_FIFO_HOST_TENSOR_DESCRIPTOR:
-        {
-            unsigned int size = sizeof(struct ncTensorDescriptor_t);
-            if (*dataLength < size) {
-                mvLog(MVLOG_ERROR,
-                      "data length of output buffer (%d) is smaller that required (%d)!\n",
-                      *dataLength, size);
-                *dataLength = size;
-                return NC_INVALID_DATA_LENGTH;
-            }
-            if (fifoHandle->private_data->state != NC_FIFO_ALLOCATED &&
-                fifoHandle->private_data->host_tensor_desc_set == 0) {
-                mvLog(MVLOG_ERROR,
-                      "option NC_RW_FIFO_HOST_TENSOR_DESCRIPTOR cannot be read before it has been set or before Fifo has been allocated");
-                return NC_UNAUTHORIZED;
-            }
-            *(struct ncTensorDescriptor_t *) data =
-                fifoHandle->private_data->host_tensor_desc;
-            *dataLength = sizeof(fifoHandle->private_data->host_tensor_desc);
-            break;
-        }
-    case NC_RO_FIFO_READ_FILL_LEVEL:
-        {
-            struct _fifoPrivate_t *fi = fifoHandle->private_data;
-            if (!fifoReadAccess(fi))
-                return NC_UNAUTHORIZED;
-
-            *dataLength = sizeof(int);
-            if (fi->state != NC_FIFO_ALLOCATED) {
-                *(int *) data = 0;
-                break;
-            }
-            int fillLevel;
-            if (XLinkGetFillLevel(fi->streamId, 0, &fillLevel) == X_LINK_SUCCESS) {
-                *(int *) data = (fillLevel / fi->graph_tensor_desc.totalSize);
-            } else {
-                return NC_UNAUTHORIZED;
-            }
-
-            break;
-        }
-    case NC_RO_FIFO_WRITE_FILL_LEVEL:
-        {
-            struct _fifoPrivate_t *fi = fifoHandle->private_data;
-            if (!fifoWriteAccess(fi))
-                return NC_UNAUTHORIZED;
-
-            *dataLength = sizeof(int);
-            if (fi->state != NC_FIFO_ALLOCATED) {
-                *(int *) data = 0;
-                break;
-            }
-            int fillLevel;
-            if (XLinkGetFillLevel(fi->streamId, 1, &fillLevel) == X_LINK_SUCCESS) {
-                *(int *) data = (fillLevel / fi->graph_tensor_desc.totalSize);
-            } else {
-                return NC_ERROR;
-            }
-
-            break;
-        }
-    case NC_RW_FIFO_DONT_BLOCK:
-        return NC_UNSUPPORTED_FEATURE; //TODO: XLink support for this (fill level may be enough for it)
-        break;
-    case NC_RO_FIFO_STATE:
-        *(int *) data = fifoHandle->private_data->state;
-        *dataLength = sizeof(int);
-        break;
-    case NC_RO_FIFO_NAME:
-        if (*dataLength < strlen(fifoHandle->private_data->name) + 1) {
-            mvLog(MVLOG_ERROR,
-                  "data length of output buffer (%d) is smaller that required (%zu)!\n",
-                  *dataLength, strlen(fifoHandle->private_data->name) + 1);
-            *dataLength = strlen(fifoHandle->private_data->name) + 1;
-            return NC_INVALID_DATA_LENGTH;
-        }
-        *dataLength = strlen(fifoHandle->private_data->name) + 1;
-        mv_strncpy((char *) data, *dataLength, fifoHandle->private_data->name, *dataLength - 1);
-        break;
-    default:
-        return NC_INVALID_PARAMETERS;
-        break;
-    }
     return NC_OK;
 }
 
@@ -3915,12 +3364,11 @@ ncStatus_t ncGraphQueueInference(struct ncGraphHandle_t * graphHandle,
         return NC_INVALID_PARAMETERS;
     }
 
-    graphMonCommand_t cmd;
-    cmd.cmdClass = GRAPH_MON_CLASS_GRAPH_CMD;
-    cmd.cmd.graphCmd.type = GRAPH_TRIGGER_CMD;
-    cmd.cmd.graphCmd.id = g->id;
-    cmd.cmd.graphCmd.buffId1 = fi->id;
-    cmd.cmd.graphCmd.buffId2 = fo->id;
+    graphCMDCommand_t cmd;
+    cmd.type = GRAPH_TRIGGER_CMD;
+    cmd.id = g->id;
+    cmd.buffId1 = fi->id;
+    cmd.buffId2 = fo->id;
 
     void* user_param;
     CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&fi->fifo_mutex), NC_ERROR);
@@ -3969,11 +3417,12 @@ ncStatus_t ncGraphQueueInference(struct ncGraphHandle_t * graphHandle,
     fo->write_count++;
     CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&fo->fifo_mutex));
 
-    if(sendGraphMonitorRequest(g->dev->graph_monitor_stream_id, &cmd)) {
+    rc = trySendCommand(g->dev->graph_monitor_stream_id, &cmd, sizeof(cmd));
+    if(rc != 0){
         mvLog(MVLOG_ERROR, "Can't send trigger request");
         g->dev->state = NC_DEVICE_FAILED;
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-        return NC_ERROR;
+        return rc;
     }
     if(checkGraphMonitorResponse(g->dev->graph_monitor_stream_id)) {
         mvLog(MVLOG_ERROR, "Can't get trigger response");

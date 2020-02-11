@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,12 +27,12 @@ namespace vpu {
 
 namespace {
 
-const StorageOrder64 ORDER_MASK = static_cast<StorageOrder64>(-1ull) >> (std::numeric_limits<StorageOrder64>::digits / 4 - MAX_DIMS_64);
+const StorageOrder64 ORDER_MASK = std::numeric_limits<StorageOrder64>::max() >> (std::numeric_limits<StorageOrder64>::digits / 4 - MAX_DIMS_64);
 
 }  // namespace
 
 StorageOrder64 maskOrder(StorageOrder64 fullOrder, int size) {
-    StorageOrder64 mask = ~ORDER_MASK | ~(static_cast<StorageOrder64>(-1ull) << (size * 4));
+    StorageOrder64 mask = ~ORDER_MASK | ~(std::numeric_limits<StorageOrder64>::max() << (size * 4));
     return fullOrder & mask;
 }
 
@@ -204,8 +204,8 @@ int DimsOrder::dimInd(Dim d) const {
     VPU_THROW_EXCEPTION << "Dim " << d << " is not avaialble in layout " << toString(*this);
 }
 
-SmallVector<Dim, MAX_DIMS_64> DimsOrder::toPermutation() const {
-    SmallVector<Dim, MAX_DIMS_64> out;
+DimVector DimsOrder::toPermutation() const {
+    DimVector out;
 
     auto code = _code;
 
@@ -327,24 +327,19 @@ int dimToIeInd(vpu::Dim const& dim, int numDims) {
 //
 
 DataDesc::DataDesc(const ie::TensorDesc& ieDesc) {
-    //
-    // Parse precision
-    //
-
     _type = fromIEPrecision(ieDesc.getPrecision());
-
-    //
-    // Parse dimensions and layout
-    //
 
     const auto& ieDims = ieDesc.getDims();
     IE_ASSERT(!ieDims.empty());
 
-    _dimsOrder = DimsOrder::fromNumDims(ieDims.size());
+    const auto layout = ieDesc.getLayout();
+    _dimsOrder = ieDims.size() > 5 ?
+        DimsOrder::fromNumDims(ieDesc.getDims().size()) :
+        DimsOrder::fromLayout(layout);
 
-    auto perm = _dimsOrder.toPermutation();
-
-    for (int i = 0; i < perm.size(); ++i) {
+    // IE dims are always in ChannelMajor Layout, so we need to use fromNumDims() layout to perform permutation.
+    const auto perm = DimsOrder::fromNumDims(ieDims.size()).toPermutation();
+    for (size_t i = 0; i < perm.size(); ++i) {
         _dims.set(perm[i], ieDims[ieDims.size() - 1 - i]);
     }
 }
@@ -650,6 +645,48 @@ DataType fromIEPrecision(const InferenceEngine::Precision& precision) {
         case InferenceEngine::Precision::FP32: return DataType::FP32;
         default: VPU_THROW_EXCEPTION << precision << " isn't supported";
     }
+}
+
+PermutationIndexVector permuteMapToVector(const PermutationDimsMap& permutation, DimsOrder inputOrder, DimsOrder outputOrder) {
+    PermutationIndexVector result;
+    for (const auto dstDim : outputOrder.toPermutation()) {
+        const auto srcDim = permutation[dstDim];
+        const auto srcDimInd = inputOrder.dimInd(srcDim);
+        result.push_back(srcDimInd);
+    }
+    return result;
+}
+
+PermutationDimsMap permuteVectorToMap(const PermutationIndexVector& permutation, DimsOrder inputOrder, DimsOrder outputOrder) {
+    PermutationDimsMap result;
+    const auto inputPermuteDims  = inputOrder.toPermutation();
+    const auto outputPermuteDims = outputOrder.toPermutation();
+    for (size_t dstIndex = 0; dstIndex < permutation.size(); ++dstIndex) {
+        const int srcIndex = permutation[dstIndex];
+        const auto dstDim = outputPermuteDims[dstIndex];
+        const auto srcDim = inputPermuteDims[srcIndex];
+        result.set(dstDim, srcDim);
+    }
+    return result;
+}
+
+PermutationIndexVector combinePermutationVectors(const PermutationIndexVector& first, const PermutationIndexVector& second) {
+    PermutationIndexVector result;
+    for (const int secondIndexSrc : second) {
+        const int firstIndexSrc = first[secondIndexSrc];
+        result.push_back(firstIndexSrc);
+    }
+    return result;
+}
+
+PermutationIndexVector calculatePermuteForReorder(DimsOrder oldLayout, DimsOrder newLayout) {
+    auto newPermutation = newLayout.toPermutation();
+    auto oldIndices     = oldLayout.toIndices();
+    PermutationIndexVector result;
+    for (const Dim newDim : newPermutation) {
+        result.push_back(oldIndices[newDim]);
+    }
+    return result;
 }
 
 }  // namespace vpu

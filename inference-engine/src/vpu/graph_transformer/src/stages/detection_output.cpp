@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,6 +90,9 @@ void printTo(DotLabel& lbl, const DetectionOutputParams& params) {
 }
 
 class DetectionOutputStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<DetectionOutputStage>(*this);
@@ -146,11 +149,7 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseDetectionOutput(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseDetectionOutput(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 3 || inputs.size() == 5);
@@ -213,12 +212,7 @@ void FrontEnd::parseDetectionOutput(
     if (outputs[0]->desc().dim(Dim::W) != 7)
         VPU_THROW_EXCEPTION << "Detection Output: Support only 7 vals per detection.";
 
-    auto stage = model->addNewStage<DetectionOutputStage>(
-        layer->name,
-        StageType::DetectionOutput,
-        layer,
-        inputs,
-        outputs);
+    auto stage = model->addNewStage<DetectionOutputStage>(layer->name, StageType::DetectionOutput, layer, inputs, outputs);
 
     stage->attrs().set("params", detParams);
 
@@ -246,9 +240,7 @@ void FrontEnd::parseDetectionOutput(
         size_num_priors_actual_buf +
         size_temp_data_buf;
 
-    model->addTempBuffer(
-        stage,
-        DataDesc({buffer_size}));
+    model->addTempBuffer(stage, DataDesc({buffer_size}));
 }
 
 }  // namespace vpu

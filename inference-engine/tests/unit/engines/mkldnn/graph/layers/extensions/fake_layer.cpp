@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <extension/ext_list.hpp>
-#include <extension/ext_base.cpp>
-
+#include <ie_iextension.h>
 #include <string>
 #include <map>
 #include <memory>
 #include <algorithm>
+#include "nodes/list.hpp"
+#include "nodes/base.hpp"
 
 using namespace InferenceEngine;
 using namespace Extensions;

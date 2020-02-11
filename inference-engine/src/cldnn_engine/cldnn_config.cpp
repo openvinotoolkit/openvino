@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <cldnn/cldnn_config.hpp>
 #include "cldnn_config.h"
 #include "cpp_interfaces/exception2status.hpp"
+#include "cpp_interfaces/impl/ie_plugin_internal.hpp"
 
 #if defined(_WIN32)
 #define mkdir(dir, mode) _mkdir(dir)
@@ -157,13 +158,31 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 if (val_i > 0)
                     throughput_streams = static_cast<uint16_t>(val_i);
             }
-        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_INT8_ENABLED) == 0) {
-            if (val.compare(PluginConfigParams::YES) == 0) {
+        } else if (key.compare(PluginConfigParams::KEY_DEVICE_ID) == 0) {
+            // Validate if passed value is postivie number.
+            try {
+                int val_i = std::stoi(val);
+            } catch (const std::exception&) {
+                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_DEVICE_ID
+                    << ". DeviceIDs are only represented by positive numbers";
+            }
+            // Set this value.
+            device_id = val;
+        } else if (key.compare(PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE) == 0) {
+            if (val.compare(PluginConfigInternalParams::LP_TRANSFORMS_MODE_ON) == 0) {
                 enableInt8 = true;
-            } else if (val.compare(PluginConfigParams::NO) == 0) {
+            } else if (val.compare(PluginConfigInternalParams::LP_TRANSFORMS_MODE_OFF) == 0) {
                 enableInt8 = false;
             } else {
                 THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property value by plugin: " << val;
+            }
+        } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS) == 0) {
+            if (val.compare(PluginConfigParams::YES) == 0) {
+                nv12_two_inputs = true;
+            } else if (val.compare(PluginConfigParams::NO) == 0) {
+                nv12_two_inputs = false;
+            } else {
+                THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported NV12 flag value: " << val;
             }
         } else {
             THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property key by plugin: " << key;
@@ -199,10 +218,10 @@ void Config::adjustKeyMapValues() {
     else
         key_config_map[PluginConfigParams::KEY_DYN_BATCH_ENABLED] = PluginConfigParams::NO;
 
-    if (enableInt8)
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_INT8_ENABLED] = PluginConfigParams::YES;
+    if (nv12_two_inputs)
+        key_config_map[CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] = PluginConfigParams::YES;
     else
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_INT8_ENABLED] = PluginConfigParams::NO;
+        key_config_map[CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] = PluginConfigParams::NO;
 
     {
         std::string qp = "0";
@@ -242,5 +261,6 @@ void Config::adjustKeyMapValues() {
         key_config_map[CLDNNConfigParams::KEY_CLDNN_SOURCES_DUMPS_DIR] = sources_dumps_dir;
 
     key_config_map[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(throughput_streams);
+    key_config_map[PluginConfigParams::KEY_DEVICE_ID] = device_id;
 }
 }  // namespace CLDNNPlugin

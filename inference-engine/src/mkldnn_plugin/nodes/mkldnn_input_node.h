@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,8 @@ public:
     }
 
 private:
-    static Register<MKLDNNInputNode> reg;
+    InferenceEngine::Precision precision;
+
     InferenceEngine::Blob::Ptr constBlob;
     bool isMeanImage = false;
 };

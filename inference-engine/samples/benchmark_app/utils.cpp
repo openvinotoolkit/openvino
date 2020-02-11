@@ -1,10 +1,9 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <string>
 #include <algorithm>
-#include <thread>
 #include <utility>
 #include <vector>
 #include <map>

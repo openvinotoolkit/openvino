@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,13 +13,17 @@
 namespace vpu {
 
 VPU_DECLARE_ENUM(ResampleType,
-    Nearest  = 0,
-    Bilinear = 1
+    Nearest  = 0,  // Currently this is only one supported
+    Linear = 1,
+    Cubic = 2
 )
 
 namespace {
 
 class ResampleStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<ResampleStage>(*this);
@@ -60,29 +64,20 @@ private:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeOldBuffer(handle_from_this(), serializer);
-        output->serializeOldBuffer(handle_from_this(), serializer);
+        input->serializeNewBuffer(serializer);
+        output->serializeNewBuffer(serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseResample(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
     ie::details::CaselessEq<std::string> cmp;
 
-    auto stage = model->addNewStage<ResampleStage>(
-        layer->name,
-        StageType::Resample,
-        layer,
-        inputs,
-        outputs);
+    auto stage = model->addNewStage<ResampleStage>(layer->name, StageType::Resample, layer, inputs, outputs);
 
     stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
     stage->attrs().set<float>("factor", layer->GetParamAsInt("factor", -1.0f));
@@ -91,7 +86,7 @@ void FrontEnd::parseResample(
     if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
         stage->attrs().set<ResampleType>("type", ResampleType::Nearest);
     } else {
-        stage->attrs().set<ResampleType>("type", ResampleType::Bilinear);
+        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " supports only caffe.ResampleParameter.NEAREST resample type";
     }
 }
 

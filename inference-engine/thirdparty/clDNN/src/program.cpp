@@ -34,7 +34,7 @@
 #include "permute_inst.h"
 #include "custom_gpu_primitive_inst.h"
 #include "binary_convolution_inst.h"
-#include "upsampling_inst.h"
+#include "resample_inst.h"
 #include "reshape_inst.h"
 #include "activation_inst.h"
 #include "scale_inst.h"
@@ -59,19 +59,18 @@
 
 #include "gpu/ocl_toolkit.h"
 
-#include <fstream>
 #include <algorithm>
-#include <stdio.h>
+#include <fstream>
 #include <iostream>
-#include <sstream>
-#include <iomanip>
-#include <memory>
-#include <string>
-#include <vector>
 #include <list>
 #include <map>
-#include <utility>
+#include <memory>
 #include <set>
+#include <sstream>
+#include <stdio.h>
+#include <string>
+#include <utility>
+#include <vector>
 #include <stdexcept>
 
 program::program(engine const& engine, topology const& topology, build_options const& options)
@@ -92,9 +91,9 @@ program_impl::program_impl(engine_impl& engine_ref,
                            bool no_optimizations)
     : engine(&engine_ref),
       options(options),
-      processing_order(*new nodes_ordering),
-      pm(std::unique_ptr<pass_manager>(new pass_manager())) {
+      processing_order(*new nodes_ordering) {
     set_options();
+    pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);
     if (no_optimizations) {
         init_graph();
@@ -109,9 +108,9 @@ program_impl::program_impl(engine_impl& engine_ref,
                            bool is_internal)
     : engine(&engine_ref),
       options(options),
-      processing_order(*new nodes_ordering),
-      pm(std::unique_ptr<pass_manager>(new pass_manager())) {
+      processing_order(*new nodes_ordering) {
     set_options();
+    pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(nodes);
     build_program(is_internal);
 }
@@ -340,6 +339,10 @@ void program_impl::set_options() {
         !engine->configuration().enable_profiling) {
         throw std::invalid_argument("Engine must be created with profiling enabled in tune_and_cache mode!");
     }
+
+    if (!options.get<build_option_type::force_implementations>()->forcing.empty()) {
+        options.set_option(build_option::optimize_data(true));
+    }
 }
 
 void program_impl::build_program(bool is_internal) {
@@ -376,8 +379,7 @@ void program_impl::pre_optimize_graph(bool is_internal) {
     // add reshape to input/parameters for some primitives
     apply_opt_pass<add_reshape_to_primitives>();
 
-    processing_order
-        .calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
+    processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
     apply_opt_pass<reverse_optional_nodes_outputs>();
 
@@ -387,13 +389,15 @@ void program_impl::pre_optimize_graph(bool is_internal) {
             node->get_output_layout();
     }
 
+    if (options.get<build_option_type::optimize_data>()->enabled()) {
+        apply_opt_pass<prepare_quantization>();
+    }
+
     layout_optimizer lo(output_size_handling_enabled);
     set_layout_optimizer_attributes(lo);
 
     reorder_factory rf;
     if (options.get<build_option_type::optimize_data>()->enabled()) {
-        apply_opt_pass<prepare_quantization>();
-
         apply_opt_pass<prepare_primitive_fusing>(lo);
 
         apply_opt_pass<reorder_inputs>(lo, rf);
@@ -670,7 +674,8 @@ std::string program_impl::get_memory_dependencies_string() const {
         auto& node = *itr;
         itr++;
         mem_dep = mem_dep.append("primitive: ").append(node->id()).append(" restricted list: ");
-        for (auto it : node->get_memory_dependencies()) mem_dep == mem_dep.append(it).append(", ");
+        for (auto it : node->get_memory_dependencies())
+            mem_dep = mem_dep.append(it).append(", ");
         mem_dep = mem_dep.append("\n");
     }
     return mem_dep;
@@ -812,7 +817,10 @@ void program_impl::rename(program_node& node, primitive_id const& new_id) {
         throw std::invalid_argument(
             "Trying to rename an output node. If you intend to do that, please clear 'output' flag manually.");
 
-    auto node_ptr = nodes_map.find(node.id())->second;
+    auto node_itr = nodes_map.find(node.id());
+    if (node_itr == nodes_map.end()) return;
+
+    auto node_ptr = node_itr->second;
     nodes_map.emplace(new_id, node_ptr);
     nodes_map.erase(node.id());
 
@@ -956,7 +964,7 @@ bool program_impl::extract_and_remove(program_node& node) {
 void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node) {
     auto peer_layout = peer_node.get_output_layout();
     fused_primitive_desc local_desc;
-    local_desc.prim = peer_node.get_primitive();
+    local_desc.node = get_node_ptr(peer_node.id());
     local_desc.dep_start_idx = fused_node.get_dependencies().size();
     local_desc.output_layout = peer_layout;
     local_desc.activation = activation_func::none;
@@ -1113,11 +1121,15 @@ const program_impl::primitives_info& program_impl::get_primitives_info() const {
 void program_impl::apply_opt_pass(base_pass& pass) { pm->run(*this, pass); }
 
 void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
+    lo.set_implementation_forcing(options.get<build_option_type::force_implementations>()->forcing);
+
     // first pass to set layout optimization_attributes for topology
-    bool can_use_fsv32 = true;
     bool can_use_f16 = true;
     size_t total_conv_layers = 0;
+    size_t total_asym_quantized_conv_layers = 0;
     size_t total_dw_conv_layers = 0;
+    size_t total_dw_splitted_conv_layers = 0;
+    size_t total_1x1_fm_conv_layers = 0;
     size_t total_grouped_conv_layers = 0;
     size_t opt_conv_layers_bfyx_f16 = 0;
     size_t opt_conv_layers_bfzyx_f16 = 0;
@@ -1126,26 +1138,36 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
     for (auto& node : get_processing_order()) {
         auto& prim = *node;
         if (prim.type() == cldnn::convolution::type_id()) {
-            if (prim.as<convolution>().get_primitive()->split() > 1)
+            auto& conv = prim.as<convolution>();
+            if (conv.get_primitive()->split() > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::splitted_convolution, 1);
 
-            if (prim.as<convolution>().get_primitive()->groups > 1)
+            if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
 
-            if (prim.as<convolution>().get_primitive()->deformable_mode)
+            if (conv.get_primitive()->deformable_mode)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::deformable_convolution, 1);
 
-            uint32_t ifm = static_cast<uint32_t>(node->get_dependency(0).get_output_layout().size.feature[0]);
-            if (prim.as<convolution>().get_primitive()->groups == ifm)
+            auto input_size = node->get_dependency(0).get_output_layout().size;
+            auto ifm = static_cast<uint32_t>(input_size.feature[0]);
+            if (conv.get_primitive()->groups == ifm)
                 total_dw_conv_layers++;
-            else if (prim.as<convolution>().get_primitive()->groups > 1 || prim.as<convolution>().get_primitive()->split() > 1)
+            else if (static_cast<uint32_t>(node->as<convolution>().get_split()) == ifm)
+                total_dw_splitted_conv_layers++;  // this counter is needed due to compatibility with bfyx_f16 heuristics
+            else if (conv.get_primitive()->groups > 1 || conv.get_primitive()->split() > 1)
                 total_grouped_conv_layers++;
 
-            if (lo.is_format_optimized(prim.as<convolution>(), format::bfyx_f16))
+            if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
+                total_1x1_fm_conv_layers++;
+
+            if (lo.is_format_optimized(conv, format::bfyx_f16))
                 opt_conv_layers_bfyx_f16++;
 
-            if (lo.is_format_optimized(prim.as<convolution>(), format::bfzyx_f16))
+            if (lo.is_format_optimized(conv, format::bfzyx_f16))
                 opt_conv_layers_bfzyx_f16++;
+
+            if (conv.weights_zero_points_term() || conv.activations_zero_points_term())
+                total_asym_quantized_conv_layers++;
 
             total_conv_layers++;
         }
@@ -1157,23 +1179,8 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
         // list of layers that do not support yxfb or perform worse than bfyx
         if (prim.type() == cldnn::detection_output::type_id() || prim.type() == cldnn::proposal::type_id() ||
             prim.type() == cldnn::roi_pooling::type_id() || prim.type() == cldnn::deconvolution::type_id() ||
-            prim.type() == cldnn::upsampling::type_id() || prim.type() == cldnn::reorg_yolo::type_id())
+            prim.type() == cldnn::resample::type_id() || prim.type() == cldnn::reorg_yolo::type_id())
             lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bfyx_only_layer, 1);
-
-        // Check if all layers in topology support fs_byx_fsv32 format
-        if (prim.is_in_data_flow() &&
-            prim.type() != cldnn::convolution::type_id() &&
-            prim.type() != cldnn::pooling::type_id() &&
-            prim.type() != cldnn::eltwise::type_id() &&
-            prim.type() != cldnn::fully_connected::type_id() &&
-            prim.type() != cldnn::reorder::type_id() &&
-            prim.type() != cldnn::permute::type_id() &&
-            prim.type() != cldnn::reshape::type_id() &&
-            prim.type() != cldnn::input_layout::type_id() &&
-            prim.type() != cldnn::activation::type_id() &&
-            prim.type() != cldnn::softmax::type_id()) {
-            can_use_fsv32 = false;
-        }
 
         if (prim.is_in_data_flow() &&
             prim.type() != cldnn::convolution::type_id() &&
@@ -1192,20 +1199,41 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::input_layout::type_id() &&
             prim.type() != cldnn::softmax::type_id() &&
             prim.type() != cldnn::prior_box::type_id() &&
+            prim.type() != cldnn::resample::type_id() &&
+            prim.type() != cldnn::crop::type_id() &&
             prim.type() != cldnn::scale::type_id())
             can_use_f16 = false;
+
+        // WA to keep bfyx_f16 layout disabled for some topologies where it leads to regressions.
+        // Detects if given crop layer is located in the very beginning of the graph.
+        if (prim.type() == cldnn::crop::type_id()) {
+            if (!prim.get_dependencies()[0]->is_type<reorder>() || !prim.get_dependencies()[0]->get_dependencies()[0]->is_input())
+                can_use_f16 = false;
+        }
     }
 
     // Due to fact that single winograd convolution is faster than bfyx_f16 and
     // using them together leads do redundant reorders, whole topology switch
     // will be performed if at least half of layers can use bfyx_f16.
-    bool should_use_bfyx_f16_conv = can_use_f16 &&
-                                    ((opt_conv_layers_bfyx_f16 / static_cast<float>(total_conv_layers)) > 0.5f) &&
-                                    total_conv_layers > 11 &&
-                                    total_grouped_conv_layers == 0;  // conv with groups are not supported correctly yet
+    const float cond_denom = total_conv_layers > 0 ? 1.0f / static_cast<float>(total_conv_layers) : 1.0f;
 
-    if (can_use_fsv32)
-        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::only_fsv32_layers, 1);
+    bool should_use_bfyx_f16_conv = can_use_f16 &&
+                                    total_conv_layers > 11 &&
+                                    opt_conv_layers_bfyx_f16 * cond_denom > 0.5f &&
+                                    total_grouped_conv_layers == 0 &&
+                                    total_dw_splitted_conv_layers == 0;  // conv with groups are not supported correctly yet
+
+    bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
+                                         total_grouped_conv_layers == 0 &&
+                                         total_1x1_fm_conv_layers * cond_denom < 0.8f;
+
+    bool should_use_b_fs_zyx_fsv32_conv = total_asym_quantized_conv_layers > 1;
+
+    if (should_use_fs_b_yx_fsv32_conv)
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::fs_b_yx_fsv32_network, 1);
+
+    if (should_use_b_fs_zyx_fsv32_conv)
+        lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::b_fs_zyx_fsv32_network, 1);
 
     if (should_use_bfyx_f16_conv)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bfyx_f16_network, 1);

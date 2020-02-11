@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import numpy as np
 
 from extensions.back.FuseTransposesSequence import FuseTransposesSequence
 from mo.middle.passes.eliminate_test import build_graph
-from mo.middle.passes.fusing.fuse_linear_ops_test import compare_graphs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 # The dictionary with nodes attributes used to build various graphs. A key is the name of the node and the value is the
 # dictionary with node attributes.

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,6 +60,7 @@ void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
     memcpy(dst_ptr, src_ptr, srcMemory.GetSize());
 }
 
+#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
         : MKLDNNInputNode(layer, eng, socket), MKLDNNMemoryNode(layer) {
     if (created()) {
@@ -82,15 +83,24 @@ void MKLDNNMemoryNodeVirtualEdge::registerInput(MKLDNNMemoryInputNode * node) {
         getExisted()[node->getId()] = node;
     }
 }
+#endif
 
 void MKLDNNMemoryNodeVirtualEdge::registerOutput(MKLDNNMemoryOutputNode * node) {
     // in case of output layer
     auto sibling = MKLDNNMemoryNodeVirtualEdge::getByName(node->getId());
     if (sibling != nullptr) {
+#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
         auto inputNode = dynamic_cast<MKLDNNMemoryInputNode*>(sibling);
         IE_ASSERT(inputNode != nullptr);
         node->setInputNode(inputNode);
+#else
+        THROW_IE_EXCEPTION << "CPU Plugin doesn't contain Input layer!";
+#endif
     } else {
         getExisted()[node->getId()] = node;
     }
 }
+#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
+REG_MKLDNN_PRIM_FOR(MKLDNNMemoryInputNode, MemoryInput);
+#endif
+REG_MKLDNN_PRIM_FOR(MKLDNNMemoryOutputNode, MemoryOutput);

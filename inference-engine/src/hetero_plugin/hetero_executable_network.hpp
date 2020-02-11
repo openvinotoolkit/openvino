@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief a header file for ExecutableNetwork
- * @file dlia_executable_network.hpp
+ * @file hetero_executable_network.hpp
  */
 #pragma once
 
@@ -26,6 +26,8 @@
 
 namespace HeteroPlugin {
 
+class Engine;
+
 /**
  * @class ExecutableNetwork
  * @brief Interface of executable network
@@ -37,27 +39,18 @@ public:
     /**
     * @brief constructor
     */
-    HeteroExecutableNetwork(InferenceEngine::ICNNNetwork &network,
-                            const InferenceEngine::ICore * core,
-                            const std::map<std::string, std::string> &config,
-                            const std::vector<InferenceEngine::IExtensionPtr> &extensions,
-                            InferenceEngine::MapDeviceLoaders &deviceLoaders,
-                            InferenceEngine::IErrorListener *listener);
-
-    virtual ~HeteroExecutableNetwork() = default;
+    HeteroExecutableNetwork(InferenceEngine::ICNNNetwork&               network,
+                            const std::map<std::string, std::string>&   config,
+                            Engine*                                     plugin);
 
     /**
-     * this functino implements the loading of hetero network,
-     * performs split to subgraphs and prepare intermediate blobs
-     *
-     * @param network
-     * @param extensions
-     */
-    void load(InferenceEngine::ICNNNetwork &network,
-              const InferenceEngine::ICore * core,
-              const std::map<std::string, std::string> &config,
-              const std::vector<InferenceEngine::IExtensionPtr> &extensions,
-              InferenceEngine::IErrorListener *listener);
+    * @brief Import from opened file constructor
+    */
+    HeteroExecutableNetwork(std::istream&                               heteroModel,
+                            const std::map<std::string, std::string>&   config,
+                            Engine*                                     plugin);
+
+    virtual ~HeteroExecutableNetwork() = default;
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
@@ -68,23 +61,20 @@ public:
 
     void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
 
+    void ExportImpl(std::ostream& modelFile) override;
+
 private:
     struct NetworkDesc {
-        std::string _device;
-        InferenceEngine::details::CNNNetworkImplPtr _clonedNetwork;
-        IE_SUPPRESS_DEPRECATED_START
-        InferenceEngine::IHeteroDeviceLoader::Ptr _deviceLoader;
-        IE_SUPPRESS_DEPRECATED_END
-        InferenceEngine::ExecutableNetwork::Ptr network;
-        std::unordered_set<std::string> _oNames;
-        std::unordered_set<std::string> _iNames;
+        std::string                                 _device;
+        InferenceEngine::CNNNetwork                 _clonedNetwork;
+        InferenceEngine::ExecutableNetwork          _network;
     };
     std::vector<NetworkDesc> networks;
 
-    InferenceEngine::MapDeviceLoaders &_deviceLoaders;
-    std::string _name;
-    std::vector<std::string> _affinities;
-    std::map<std::string, std::string> _config;
+    Engine*                             _plugin;
+    std::string                         _name;
+    std::vector<std::string>            _affinities;
+    std::map<std::string, std::string>  _config;
 };
 
 }  // namespace HeteroPlugin

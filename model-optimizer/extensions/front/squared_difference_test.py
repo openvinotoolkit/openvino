@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ import unittest
 import numpy as np
 
 from extensions.front.squared_difference import SquaredDifference
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes_attributes = {
     'placeholder_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter', 'shape': np.array([1, 227, 227, 3])},
@@ -32,7 +33,7 @@ nodes_attributes = {
     'n_const': {'kind': 'op', 'op': 'Const', 'value': np.array(-1)},
     'negate_1': {'type': 'Multiply', 'kind': 'op', 'op': 'Mul'},
     's_const': {'kind': 'op', 'op': 'Const', 'value': np.array(2)},
-    'square_1': {'type': 'Pow', 'kind': 'op', 'op': 'Pow'},
+    'square_1': {'type': 'Power', 'kind': 'op', 'op': 'Pow'},
     'add_1': {'value': None, 'operation': None, 'type': 'Add', 'kind': 'op'},
 }
 

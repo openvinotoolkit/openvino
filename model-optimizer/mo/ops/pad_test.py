@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ from mo.utils.unittest.graph import build_graph
 
 
 class TestPadONNXOp(unittest.TestCase):
-    # There are tests for InnerProduct.infer in mo/front/common/partial_infer/inner_product_test.py
     node_attrs = {
         'data_in': {
             'kind': 'data',

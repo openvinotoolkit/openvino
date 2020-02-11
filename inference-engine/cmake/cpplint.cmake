@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -37,12 +37,17 @@ function(add_cpplint_target TARGET_NAME)
         set(exclude FALSE)
         foreach(pattern IN LISTS CPPLINT_EXCLUDE_PATTERNS)
             if(source_file MATCHES "${pattern}")
-                set(exclude TRUE)
+                set(exclude ON)
                 break()
             endif()
         endforeach()
 
         if(exclude)
+            continue()
+        endif()
+
+        # ignore object libraries
+        if(NOT EXISTS "${source_file}")
             continue()
         endif()
 

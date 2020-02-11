@@ -70,11 +70,11 @@ struct proposal_t {
 
 inline float float_read_helper(const float* mem) { return *mem; }
 
-inline float float_read_helper(const half_t* mem) { return float16_to_float32(*const_cast<uint16_t*>(reinterpret_cast<const uint16_t*>(mem))); }
+inline float float_read_helper(const half_t* mem) { return static_cast<float>(*mem); }
 
 inline void float_write_helper(float* mem, float f) { *mem = f; }
 
-inline void float_write_helper(half_t* mem, float f) { *mem = (half_t)float32_to_float16(f); }
+inline void float_write_helper(half_t* mem, float f) { *mem = static_cast<half_t>(f); }
 
 /****************************************************************************
  *                                                                          *
@@ -231,7 +231,10 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
         float box_size_scale = instance.argument.box_size_scale;
         bool for_deformable = instance.argument.for_deformable;
 
-        if (image_info.get_layout().size.feature[0] == 4) {
+        auto image_info_size = image_info.get_layout().size;
+        auto image_info_count = image_info_size.feature[0] == 1 ? image_info_size.batch[0] : image_info_size.feature[0];
+
+        if (image_info_count == 4) {
             img_w =
                 static_cast<int>(float_read_helper(image_info_mem + proposal_inst::image_info_width_index) + EPSILON);
             img_h =
@@ -249,13 +252,13 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
             scaled_min_bbox_size *= img_z;
 
             min_bbox_x = scaled_min_bbox_size;
-            if (image_info.get_layout().size.feature[0] > proposal_inst::image_info_scale_min_bbox_x) {
+            if (image_info_count > proposal_inst::image_info_scale_min_bbox_x) {
                 min_bbox_x = static_cast<int>(
                     min_bbox_x * float_read_helper(image_info_mem + proposal_inst::image_info_scale_min_bbox_x));
             }
 
             min_bbox_y = scaled_min_bbox_size;
-            if (image_info.get_layout().size.feature[0] > proposal_inst::image_info_scale_min_bbox_y) {
+            if (image_info_count > proposal_inst::image_info_scale_min_bbox_y) {
                 min_bbox_y = static_cast<int>(
                     min_bbox_y * float_read_helper(image_info_mem + proposal_inst::image_info_scale_min_bbox_y));
             }
@@ -380,7 +383,7 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
             a->wait();
         }
 
-        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_stream_id(), false);
+        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_id(), false);
 
         if (instance.dependencies().size() == 4) {
             auto &proposal_probabilities = instance.dep_memory(proposal_inst::proposal_probabilities_out);
@@ -405,7 +408,7 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
 
     static primitive_impl* create(const proposal_node& arg) {
         const layout& l = arg.image_info().get_output_layout();
-        const size_t count = static_cast<size_t>(l.size.feature[0]);
+        const size_t count = l.size.feature[0] == 1 ? static_cast<size_t>(l.size.batch[0]) : static_cast<size_t>(l.size.feature[0]);
 
         // Supported image_info sizes and components meaning:
         // - image_info[3] = { img_height, img_width, img_depth }

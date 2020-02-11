@@ -26,7 +26,7 @@
 #include "api/fully_connected.hpp"
 #include "api/pooling.hpp"
 #include "api/crop.hpp"
-#include "api/upsampling.hpp"
+#include "api/resample.hpp"
 #include "api/reshape.hpp"
 #include <api/topology.hpp>
 #include <api/network.hpp>
@@ -133,7 +133,7 @@ void concat_basic_with_reorder() {
     const auto& engine = get_test_engine();
     auto input1 = memory::allocate(engine, {data_types::f32, format::yxfb, {2, 2, 1, 1}});
     auto input2 = memory::allocate(engine, {data_types::f32, format::yxfb, {2, 3, 1, 1}});
-    auto outs = {2.0f, 3.0f, 0.0f, 1.0f, 1.0f, 4.0f, -4.0f, -7.0f, 0.0f, 0.0f};
+    auto outs = {3.0f, 4.0f, 0.0f, 1.0f, 1.0f, 4.0f, -4.0f, -8.0f, 0.0f, 0.0f};
     set_values(input1, {2.5f, 3.7f, 0.2f, 1.4f});
     set_values(input2, {1.0f, 4.1f, -4.3f, -7.5f, 0.0f, -0.2f});
 
@@ -266,7 +266,7 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
                          {1, 1, 2, 1}, /*kernel*/
                          {1, 1, 1, 1}  /*stride*/
                          ));
-    topology.add(upsampling("unpool1", "input1", tensor(1, 1, 2, 2), 0, upsampling_sample_type::nearest));
+    topology.add(resample("unpool1", "input1", tensor(1, 1, 2, 2), 0, resample_type::nearest));
     topology.add(concatenation("concat1", {"pool1", "unpool1"}, cldnn::concatenation::along_x));
     topology.add(data("weights", weights));
     topology.add(convolution("conv", "concat1", {"weights"}));

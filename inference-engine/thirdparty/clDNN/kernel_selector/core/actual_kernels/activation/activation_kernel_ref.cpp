@@ -23,9 +23,11 @@ ParamsKey ActivationKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
@@ -37,6 +39,18 @@ ParamsKey ActivationKernelRef::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableGradient();
     return k;
+}
+
+JitConstants ActivationKernelRef::GetJitConstants(const activation_params& params, DispatchData kd) const {
+    auto jit = ActivationKernelBase::GetJitConstants(params, kd);
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetUnitType(params);
+        FusedOpsConfiguration conf = {"", {"batch", "feature", "y", "x"}, "dst", input_dt, 1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
+    return jit;
 }
 
 KernelsData ActivationKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {

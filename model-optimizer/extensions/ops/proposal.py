@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,8 +13,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import attr_getter
@@ -34,6 +32,7 @@ class ProposalOp(Op):
             'in_ports_count': 3,
             'out_ports_count': 2,
             'for_deformable': 0,
+            'normalize': 0,
         }
         super().__init__(graph, mandatory_props, attrs)
 

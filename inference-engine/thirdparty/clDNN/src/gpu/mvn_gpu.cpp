@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,6 +64,10 @@ attach_mvn_gpu::attach_mvn_gpu() {
                                  mvn_gpu::create);
     implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
                                  mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx),
+                                 mvn_gpu::create);
     implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
                                  mvn_gpu::create);
     implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
@@ -76,10 +80,18 @@ attach_mvn_gpu::attach_mvn_gpu() {
                                  mvn_gpu::create);
     implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx),
                                  mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx),
+                                 mvn_gpu::create);
     implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16),
-        mvn_gpu::create);
+                                 mvn_gpu::create);
     implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16),
-        mvn_gpu::create);
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_b16f16),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_b16f16),
+                                 mvn_gpu::create);
 }
 
 }  // namespace detail

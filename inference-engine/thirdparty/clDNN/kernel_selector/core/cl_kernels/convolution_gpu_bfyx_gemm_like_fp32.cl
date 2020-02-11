@@ -35,9 +35,9 @@ KERNEL(convolution_f32)(
 
     const unsigned group_x = get_group_id(0);
     const unsigned group_y = get_group_id(1);
-    const unsigned global_x = get_global_id(0);
-    const unsigned global_y = get_global_id(1);
-    const unsigned global_z = get_global_id(2);
+    const unsigned global_x = (uint)get_global_id(0);
+    const unsigned global_y = (uint)get_global_id(1);
+    const unsigned global_z = (uint)get_global_id(2);
 
     unsigned interleaved_y;
     unsigned kernel_y;

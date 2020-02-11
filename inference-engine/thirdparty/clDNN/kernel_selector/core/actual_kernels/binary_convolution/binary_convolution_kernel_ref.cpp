@@ -100,7 +100,8 @@ JitConstants BinaryConvolutionKernelRef::GetFusedPrimitivesJitConstants(const bi
                                                                         const DispatchData& /*kd*/) const {
     JitConstants jit = {};
 
-    FusedOpsConfiguration conf = {"", {"b", "f", "y", "x"}, "res", 1, false, false, true, false };
+    auto input_dt = GetUnitType(params);
+    FusedOpsConfiguration conf = {"", {"b", "f", "y", "x"}, "res", input_dt, 1 };
     jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
 
     return jit;

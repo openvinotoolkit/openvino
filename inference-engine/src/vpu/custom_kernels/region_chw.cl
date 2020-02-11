@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@
 
 #define NUM_CLASSES 80
 
+#define nlog_2_e ((half)(-1.442695040888963))
+
 static void logistic_activate(__global const half* restrict src_data,
                               __global       half* restrict dst_data,
                               int offset)
 {
     half val = src_data[offset];
-    val = 1.0f/(1.0f + half_exp(-val));
+    val = 1.f/(1.f + __builtin_shave_sau_exp2_f16_l_r(val*nlog_2_e));
     dst_data[offset] = val;
 }
 

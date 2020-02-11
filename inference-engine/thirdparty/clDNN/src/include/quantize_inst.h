@@ -18,7 +18,9 @@
 #pragma once
 #include "api/quantize.hpp"
 #include "primitive_inst.h"
+#include "kernel_selector/core/actual_kernels/quantize/quantize_kernel_params.h"
 #include <string>
+#include <memory>
 
 namespace cldnn {
 
@@ -31,13 +33,23 @@ public:
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
     size_t inputs_count() const { return get_dependencies().size(); }
-    void set_output_data_type(data_types dt) { out_dt = dt; dt_changed = true; }
-    data_types get_output_data_type() const { return out_dt; }
-    bool has_custom_out_dt() const { return dt_changed; }
+    bool get_scale_shift_opt() const { return scale_shift_opt; }
+    void set_scale_shift_opt() { scale_shift_opt = true; }
+    bool get_need_post_scale() const { return need_post_scale; }
+    bool get_need_post_shift() const { return need_post_shift; }
+    void set_need_post_scale() { need_post_scale = true; }
+    void set_need_post_shift() { need_post_shift = true; }
+
+    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
+        return std::make_shared<kernel_selector::quantize_fuse_params>(get_scale_shift_opt(),
+                                                                       get_need_post_scale(),
+                                                                       get_need_post_shift());
+    }
 
 private:
-    data_types out_dt;
-    bool dt_changed = false;
+    bool scale_shift_opt = false;
+    bool need_post_scale = false;
+    bool need_post_shift = false;
 };
 
 using quantize_node = typed_program_node<quantize>;

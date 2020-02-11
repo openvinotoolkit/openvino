@@ -292,6 +292,13 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         return true;
     };
 
+    std::string index_func_name;
+    std::string safe_index_func_name;
+    std::string raw_index_func_name;
+    std::string index_func_val;
+    std::string safe_index_func_val;
+    std::string raw_index_func_val;
+
     // TODO: add support for other layouts
     auto layout = _tensor.GetLayout();
     if (DataTensor::ChannelsCount(layout) <= 4) {
@@ -303,38 +310,37 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         };
         bool is_common_4d_layout = is_common_nd_layout(base_4d_channels, layout);
         if (is_common_4d_layout) {
-            auto index_func_name = _name + "_GET_INDEX(b, f, y, x)";
-            auto safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, y, x)";
-            auto raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, y, x)";
+            index_func_name = _name + "_GET_INDEX(b, f, y, x)";
+            safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, y, x)";
+            raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, y, x)";
+
             if (_tensor.SimpleLayout()) {
-                definitions.push_back({ index_func_name, "GET_DATA_INDEX("+_name+", b, f, y, x)" });
-                definitions.push_back({ safe_index_func_name, "GET_DATA_INDEX_SAFE("+_name+", b, f, y, x)" });
-                definitions.push_back({ raw_index_func_name, "GET_DATA_INDEX_RAW("+_name+", b, f, y, x)" });
+                index_func_val = "GET_DATA_INDEX(" + _name + ", b, f, y, x)";
+                safe_index_func_val = "GET_DATA_INDEX_SAFE(" + _name + ", b, f, y, x)";
+                raw_index_func_val = "GET_DATA_INDEX_RAW(" + _name + ", b, f, y, x)";
             } else if (layout == DataLayout::bfyx_f16 ||
+                       layout == DataLayout::b_fs_yx_fsv32 ||
                        layout == DataLayout::byxf_af32 ||
                        layout == DataLayout::fs_bs_yx_bsv4_fsv32 ||
                        layout == DataLayout::b_fs_yx_fsv4 ||
                        layout == DataLayout::fs_b_yx_fsv32) {
                 auto layout_str = toString(layout);
-                definitions.push_back({ index_func_name, "GET_DATA_"+layout_str+"_INDEX("+_name+", b, f, y, x)" });
-                definitions.push_back({ raw_index_func_name, "GET_DATA_"+layout_str+"_INDEX("+_name+", b, f, y, x)" });
-                if (layout == DataLayout::bfyx_f16)
-                    definitions.push_back({ safe_index_func_name, "GET_DATA_"+layout_str+"_INDEX_SAFE("+_name+", b, f, y, x)" });
+                index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
+                raw_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
+                if (layout == DataLayout::bfyx_f16 || layout == DataLayout::b_fs_yx_fsv32)
+                    safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX_SAFE(" + _name + ", b, f, y, x)";
                 else
-                    definitions.push_back({ safe_index_func_name, "GET_DATA_"+layout_str+"_INDEX("+_name+", b, f, y, x)" });
+                    safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
             } else if (layout == DataLayout::bs_f_bsv8__af8 ||
                        layout == DataLayout::bs_f_bsv16__af8) {
                 size_t sub_group_size = layout == DataLayout::bs_f_bsv16__af8 ? 16 : 8;
-                definitions.push_back({ index_func_name, "GET_DATA_BS_FYX_BSV8_INDEX("+_name+
-                                                          ", b, f, y, x"+std::to_string(sub_group_size)+")" });
-                definitions.push_back({ safe_index_func_name, "GET_DATA_BS_FYX_BSV8_INDEX("+_name+
-                                                              ", b, f, y, x"+std::to_string(sub_group_size)+")" });
-                definitions.push_back({ raw_index_func_name, "GET_DATA_BS_FYX_BSV8_INDEX("+_name+
-                                                             ", b, f, y, x"+std::to_string(sub_group_size)+")" });
+                index_func_val = "GET_DATA_BS_FYX_BSV8_INDEX(" + _name + ", b, f, y, x," + std::to_string(sub_group_size) + ")";
+                safe_index_func_val = "GET_DATA_BS_FYX_BSV8_INDEX(" + _name + ", b, f, y, x," + std::to_string(sub_group_size) + ")";
+                raw_index_func_val = "GET_DATA_BS_FYX_BSV8_INDEX(" + _name + ", b, f, y, x," + std::to_string(sub_group_size) + ")";
             } else {
-                definitions.push_back({ index_func_name,  "GET_DATA_INDEX_RAW("+_name+", b, f, y, x)" });
-                definitions.push_back({ safe_index_func_name,  "GET_DATA_INDEX_RAW("+_name+", b, f, y, x)" });
-                definitions.push_back({ raw_index_func_name,  "GET_DATA_INDEX_RAW("+_name+", b, f, y, x)" });
+                index_func_val =  "GET_DATA_INDEX_RAW(" + _name + ", b, f, y, x)";
+                safe_index_func_val = "GET_DATA_INDEX_RAW(" + _name + ", b, f, y, x)";
+                raw_index_func_val = "GET_DATA_INDEX_RAW(" + _name + ", b, f, y, x)";
             }
         } else {
             // TODO: implement support of non-default layouts with 4 channels
@@ -350,21 +356,30 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         };
         bool is_common_5d_layout = is_common_nd_layout(base_5d_channels, layout);
         if (is_common_5d_layout) {
-            auto index_func_name = _name + "_GET_INDEX(b, f, z, y, x)";
-            auto safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, z, y, x)";
-            auto raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, z, y, x)";
+            index_func_name = _name + "_GET_INDEX(b, f, z, y, x)";
+            safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, z, y, x)";
+            raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, z, y, x)";
+
             if (_tensor.SimpleLayout()) {
-                definitions.push_back({ index_func_name,  "GET_DATA_INDEX_5D("+_name+", b, f, z, y, x)" });
-                definitions.push_back({ safe_index_func_name,  "GET_DATA_INDEX_5D_SAFE("+_name+", b, f, z, y, x)" });
-                definitions.push_back({ raw_index_func_name,  "GET_DATA_INDEX_5D_RAW("+_name+", b, f, z, y, x)" });
+                index_func_val = "GET_DATA_INDEX_5D(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_INDEX_5D_SAFE("+ _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_INDEX_5D_RAW("+ _name + ", b, f, z, y, x)";
             } else if (layout == DataLayout::bfzyx_f16) {
-                definitions.push_back({ index_func_name, "GET_DATA_BFZYX_F16_INDEX(" + _name + ", b, f, z, y, x)" });
-                definitions.push_back({ raw_index_func_name, "GET_DATA_BFZYX_F16_INDEX(" + _name + ", b, f, z, y, x)" });
-                definitions.push_back({ safe_index_func_name, "GET_DATA_BFZYX_F16_INDEX(" + _name + ", b, f, z, y, x)" });
+                index_func_val = "GET_DATA_BFZYX_F16_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_BFZYX_F16_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_BFZYX_F16_INDEX(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::bfzyx_b16f16) {
+                index_func_val = "GET_DATA_BFZYX_B16F16_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_BFZYX_B16F16_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_BFZYX_B16F16_INDEX(" + _name + ", b, f, z, y, x)";
+            } else if (layout == DataLayout::b_fs_zyx_fsv32) {
+                index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_B_FS_ZYX_FSV32_INDEX_SAFE(" + _name + ", b, f, z, y, x)";
             } else {
-                definitions.push_back({ index_func_name,  "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)" });
-                definitions.push_back({ safe_index_func_name,  "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)" });
-                definitions.push_back({ raw_index_func_name,  "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)" });
+                index_func_val = "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)";
+                safe_index_func_val = "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)";
+                raw_index_func_val = "GET_DATA_INDEX_5D_RAW(" + _name + ", b, f, z, y, x)";
             }
         } else {
             // TODO: implement support of non-default layouts with 5 channels
@@ -381,17 +396,44 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         };
         bool is_common_6d_layout = is_common_nd_layout(base_6d_channels, layout);
         if (is_common_6d_layout) {
-            definitions.push_back({ _name + "_GET_INDEX(b, f, w, z, y, x)",  "GET_DATA_INDEX_6D("+_name+", b, f, w, z, y, x)" });
-            definitions.push_back({ _name + "_GET_INDEX_SAFE(b, f, w, z, y, x)",  "GET_DATA_INDEX_6D_SAFE("+_name+", b, f, w, z, y, x)" });
-            definitions.push_back({ _name + "_GET_INDEX_RAW(b, f, w, z, y, x)",  "GET_DATA_INDEX_6D_RAW("+_name+", b, f, w, z, y, x)" });
+            index_func_name = _name + "_GET_INDEX(b, f, w, z, y, x)";
+            safe_index_func_name = _name + "_GET_INDEX_SAFE(b, f, w, z, y, x)";
+            raw_index_func_name = _name + "_GET_INDEX_RAW(b, f, w, z, y, x)";
+
+            index_func_val = "GET_DATA_INDEX_6D(" + _name + ", b, f, w, z, y, x)";
+            safe_index_func_val = "GET_DATA_INDEX_6D_SAFE(" + _name + ", b, f, w, z, y, x)";
+            raw_index_func_val = "GET_DATA_INDEX_6D_RAW(" + _name + ", b, f, w, z, y, x)";
         } else {
-            // TODO: implement support of non-default layouts with 4 channels
+            // TODO: implement support of non-default layouts with 6 channels
             assert(0);
         }
     } else {
         throw std::runtime_error("Unsupported channels count(" + std::to_string(DataTensor::ChannelsCount(layout)) +
                                  ") in layout: " + toString(layout));
     }
+
+    definitions.push_back({ index_func_name, index_func_val });
+    std::string offset = std::to_string(_tensor.GetFirstElementOffset());
+    if (_tensor.LogicalSize() == 1) {
+        // if tensor contains single element we can always return 0 for safe function
+        if (_tensor.PitchesDifferFromLogicalDims()) {
+            definitions.push_back({ safe_index_func_name, offset });
+        } else {
+            definitions.push_back({ safe_index_func_name, "0" });
+        }
+    } else if (_tensor.LogicalSize() == _tensor.Feature().v) {
+        // We support broadcast only if corresponding dimension is equal to 1.
+        // Otherwise, dimensions should be equal and using "f" should be safe.
+        if (_tensor.PitchesDifferFromLogicalDims()) {
+            std::string f_pitch = std::to_string(_tensor.Feature().pitch);
+            definitions.push_back({ safe_index_func_name, "(" + offset + " + f * " + f_pitch + ")" });
+        } else {
+            definitions.push_back({ safe_index_func_name, "f" });
+        }
+    } else {
+        definitions.push_back({ safe_index_func_name, safe_index_func_val });
+    }
+    definitions.push_back({ raw_index_func_name, raw_index_func_val });
 
     definitions.insert(definitions.end(), baseDefinitions.begin(), baseDefinitions.end());
 
@@ -440,20 +482,22 @@ std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const Weig
 }
 
 JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
+                                        Datatype out_dt,
                                         const std::string& suffix,
                                         bool use_type_parameter,
                                         bool disable_type_conversion) {
     std::string name = "ACTIVATION_FUNC" + suffix;
     JitConstants jitConstants = {};
 
+    jitConstants.Merge(MakeTypeJitConstants(out_dt, name));
     // See the comment in the jitter.h regarding `use_type_parameter`.
     // The "CAT" macro is expected to be defined through the inlcusion of
     // 'common.cl' in the kernel.
     auto type_handler =
-        [use_type_parameter](const std::string& prefix,
-                             const std::string& suffix) -> std::string {
+        [use_type_parameter, name](const std::string& prefix,
+                                   const std::string& suffix) -> std::string {
         if (!use_type_parameter)
-            return prefix + "UNIT" + suffix;
+            return prefix + name + suffix;
 
         std::string result = "jit_type";
 
@@ -692,6 +736,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
     std::string val_zero;
     std::string to_type;
     std::string to_type_sat;
+    std::string as_type;
     std::string max_func;
     std::string min_func;
     std::string abs_func;
@@ -706,6 +751,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(char) 0";
             to_type = "convert_char(v)";
             to_type_sat = "convert_char_sat(v)";
+            as_type = "as_char(v)";
             max_func = "max";
             min_func = "min";
             abs_func = "abs";
@@ -720,6 +766,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(uchar) 0";
             to_type = "convert_uchar(v)";
             to_type_sat = "convert_uchar_sat(v)";
+            as_type = "as_uchar(v)";
             max_func = "max";
             min_func = "min";
             abs_func = "abs";
@@ -734,6 +781,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(short) 0";
             to_type = "convert_short(v)";
             to_type_sat = "convert_short_sat(v)";
+            as_type = "as_short(v)";
             max_func = "max";
             min_func = "min";
             abs_func = "abs";
@@ -748,6 +796,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(ushort) 0";
             to_type = "convert_ushort(v)";
             to_type_sat = "convert_ushort_sat(v)";
+            as_type = "as_ushort(v)";
             max_func = "max";
             min_func = "min";
             abs_func = "abs";
@@ -762,6 +811,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(int) 0";
             to_type = "convert_int(v)";
             to_type_sat = "convert_int_sat(v)";
+            as_type = "as_int(v)";
             max_func = "max";
             min_func = "min";
             abs_func = "abs";
@@ -777,6 +827,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(uint) 0";
             to_type = "convert_uint(v)";
             to_type_sat = "convert_uint_sat(v)";
+            as_type = "as_uint(v)";
             max_func = "max";
             min_func = "min";
             abs_func = "abs";
@@ -791,6 +842,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(long) 0";
             to_type = "convert_long(v)";
             to_type_sat = "convert_long_sat(v)";
+            as_type = "as_long(v)";
             max_func = "max";
             min_func = "min";
             abs_func = "abs";
@@ -805,6 +857,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "0.0h";
             to_type = "convert_half(v)";
             to_type_sat = "convert_half(v)";
+            as_type = "as_half(v)";
             max_func = "fmax";
             min_func = "fmin";
             abs_func = "fabs";
@@ -819,6 +872,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "0.0f";
             to_type = "convert_float(v)";
             to_type_sat = "convert_float(v)";
+            as_type = "as_float(v)";
             max_func = "fmax";
             min_func = "fmin";
             abs_func = "fabs";
@@ -835,6 +889,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
         MakeJitConstant(macroName + "_VAL_ZERO", val_zero),
         MakeJitConstant("TO_" + macroName + "_TYPE(v)", to_type),
         MakeJitConstant("TO_" + macroName + "_TYPE_SAT(v)", to_type_sat),
+        MakeJitConstant("AS_" + macroName + "_TYPE(v)", as_type),
         MakeJitConstant(macroName + "_MAX_FUNC", max_func),
         MakeJitConstant(macroName + "_MIN_FUNC", min_func),
         MakeJitConstant(macroName + "_ABS_FUNC", abs_func),
@@ -863,23 +918,26 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
 }
 
 JitConstants MakeActivationJitConstants(const base_activation_params& params,
+                                        Datatype out_dt,
                                         const std::string& suffix,
                                         bool use_type_parameter,
                                         bool disable_type_conversion) {
     auto jitConstants = JitConstants{MakeJitConstant("NL_M" + suffix, params.m),
                                      MakeJitConstant("NL_N" + suffix, params.n)};
     jitConstants.Merge(MakeActivationJitConstants(
-        params.function, suffix, use_type_parameter, disable_type_conversion));
+        params.function, out_dt, suffix, use_type_parameter, disable_type_conversion));
     return jitConstants;
 }
 
 JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activation_params> params,
+                                        Datatype out_dt,
                                         const std::string& suffix,
                                         bool use_type_parameter,
                                         bool disable_type_conversion) {
     JitConstants res = {};
     if (params.empty()) {
-        return MakeActivationJitConstants({ActivationFunction::NONE, 0.f, 0.f}, suffix, use_type_parameter, disable_type_conversion);
+        return MakeActivationJitConstants({ActivationFunction::NONE, 0.f, 0.f}, out_dt,
+                                          suffix, use_type_parameter, disable_type_conversion);
     }
     std::string res_activation = "";
     std::string activation_params = "";
@@ -888,7 +946,7 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
         auto jitConstants = JitConstants{MakeJitConstant("NL_M" + activation_suffix, params[i].m),
                                          MakeJitConstant("NL_N" + activation_suffix, params[i].n)};
         jitConstants.Merge(MakeActivationJitConstants(
-                params[i].function, activation_suffix, use_type_parameter, disable_type_conversion));
+                params[i].function, out_dt, activation_suffix, use_type_parameter, disable_type_conversion));
         res.Merge(jitConstants);
 
         if (i == 0) {

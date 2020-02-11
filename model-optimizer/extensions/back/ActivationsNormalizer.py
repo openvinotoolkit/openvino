@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -35,4 +35,8 @@ class ActivationsNormalizer(BackReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: [str, Node]):
         node = match['activation']
-        Activation.update_node_stat(node, dict(operation=node.type.lower()))
+        if node.type == 'LogicalNot':
+            operation = 'not'
+        else:
+            operation = node.type.lower()
+        Activation.update_node_stat(node, dict(operation=operation))

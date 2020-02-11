@@ -1,50 +1,47 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <map>
-#include <memory>
+#include <cpp/ie_cnn_network.h>
 #include <float.h>
-
-#include <string>
-#include <vector>
 
 #include <ie_icnn_network.hpp>
 #include <ie_icnn_network_stats.hpp>
-#include <cpp/ie_cnn_network.h>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace InferenceEngine {
 namespace details {
 
 /**
-* We have raw statistic from stat collection tool and this statistic should be processed to get best
-* accuracy. This transformation depends on the topology, depends on the parameters of layers.
-* i.e. data going to regular and depth-wise convolution would be scaled differently. In case of
-* regular convolution it should be scaled for tensor wide approach, for depth-wise convolution it
-* should be scaled by channel approach.
-* This class contains logic of getting scales
-*/
+ * We have raw statistic from stat collection tool and this statistic should be processed to get best
+ * accuracy. This transformation depends on the topology, depends on the parameters of layers.
+ * i.e. data going to regular and depth-wise convolution would be scaled differently. In case of
+ * regular convolution it should be scaled for tensor wide approach, for depth-wise convolution it
+ * should be scaled by channel approach.
+ * This class contains logic of getting scales
+ */
 class CNNStatisticHelper {
 public:
     /**
-    * We need to have topology to make a decision about scales
-    * @param network initial network to be quantized, the topology can be changed during quantization
-    * @param internalNodesStats initial statistic
-    * @param maxSign - maximal signed value to be used for calculation of scales
-    * @param maxUnsign - maximal unsigned value to be used for calculation of scales
-    *
-    */
-    CNNStatisticHelper(CNNNetwork& network,
-                       const std::map<std::string, NetworkNodeStatsPtr>& internalNodesStats,
-                       int maxSign,
-                       int maxUnsign);
+     * We need to have topology to make a decision about scales
+     * @param network initial network to be quantized, the topology can be changed during quantization
+     * @param internalNodesStats initial statistic
+     * @param maxSign - maximal signed value to be used for calculation of scales
+     * @param maxUnsign - maximal unsigned value to be used for calculation of scales
+     *
+     */
+    CNNStatisticHelper(CNNNetwork& network, const std::map<std::string, NetworkNodeStatsPtr>& internalNodesStats,
+                       int maxSign, int maxUnsign);
 
     /**
-    * Returns if we can quantize layer basing on information of existing statistic before and after
-    * layers
-    */
+     * Returns if we can quantize layer basing on information of existing statistic before and after
+     * layers
+     */
     bool canLayerBeQuantized(CNNLayer::Ptr layer) const;
 
     /**
@@ -58,14 +55,14 @@ public:
     void copyStatistics(const std::string& srcName, const std::string& dstName);
 
     /**
-    * Returns boolean values if layer produce negative data according collected statistic
-    * true means that layer produices negative values
-    * false means that layer produces only positive numbers
-    * @param layer - layer of interest
-    * @param outputPort - number of port to verify. -1 stands forverification of all outputs from
-    * layer
-    */
-    bool hasNegativeOutput(const std::string &layerName, int outputPort = -1) const;
+     * Returns boolean values if layer produce negative data according collected statistic
+     * true means that layer produices negative values
+     * false means that layer produces only positive numbers
+     * @param layer - layer of interest
+     * @param outputPort - number of port to verify. -1 stands forverification of all outputs from
+     * layer
+     */
+    bool hasNegativeOutput(const std::string& layerName, int outputPort = -1) const;
 
     /**
      * Returns input scale for layer based on statistic
@@ -107,14 +104,12 @@ private:
      *
      * @return InferenceEngine::Blob::Ptr
      */
-    InferenceEngine::Blob::Ptr calculateScaleFactor(size_t channels,
-                                                    NetworkNodeStatsPtr stats,
-                                                    int maxInt) const;
+    InferenceEngine::Blob::Ptr calculateScaleFactor(size_t channels, NetworkNodeStatsPtr stats, int maxInt) const;
 
     /**
      * Select the latet layer in the fusion and returns its statistic
-    */
-    NetworkNodeStatsPtr  getStatistic(CNNLayer::Ptr layer) const;
+     */
+    NetworkNodeStatsPtr getStatistic(CNNLayer::Ptr layer) const;
 
     /**
      * Pass over alls statistic and normalize it to the only scale per tenso, individual per channel or
@@ -155,8 +150,8 @@ private:
  *  */
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkInt8Normalizer) {
 public:
-    CNNNetworkInt8Normalizer() {
-    }
+    CNNNetworkInt8Normalizer() {}
+
 private:
     /** Helper function for filling of scaleshift weights for normalization of activation */
     static void fillInScaleShift(ScaleShiftLayer* scshLayer, size_t c, float* weightsN, float* weightsD);
@@ -171,11 +166,12 @@ protected:
     /** Helper function to add scaleshifts and other layers for transformatin of topology */
     static void AddLayerToCNNNetworkAfterData(DataPtr pData, CNNLayer::Ptr layer, const std::string& nextLayerName);
     /**  Adds ScaleShift between two specified layers  */
-    static void AddScaleShiftBetween(CNNNetwork& net, const CNNLayerPtr layer1, const CNNLayerPtr layer2, CNNStatisticHelper& statHelper);
+    static void AddScaleShiftBetween(CNNNetwork& net, const CNNLayerPtr layer1, const CNNLayerPtr layer2,
+                                     CNNStatisticHelper& statHelper);
 
     /** creates dw convolution with unary weights and zero biases with i8 output and the same
      *  statistic. it will provide requantization from U8 to I8*/
-    static CNNLayer::Ptr addU8ToI8Conversion(DataPtr data, CNNLayer::Ptr successor, CNNStatisticHelper &statHelper);
+    static CNNLayer::Ptr addU8ToI8Conversion(DataPtr data, CNNLayer::Ptr successor, CNNStatisticHelper& statHelper);
 
     /**
      * Function which recalculate weights according to input scales, and quantize weights, biases and
@@ -208,7 +204,8 @@ protected:
      * Normalizes and quantizes srcData using scales for normalization and int8blob precision for
      * quantization
      */
-    static void ScaleDataToInt(const float* srcData, size_t srcSize, Blob::Ptr int8blob, const std::vector<float>& scales);
+    static void ScaleDataToInt(const float* srcData, size_t srcSize, Blob::Ptr int8blob,
+                               const std::vector<float>& scales);
 
     /**
      * Replaces all ScaleShifts layers met in the model to the depth-wise convolution with the same
@@ -225,7 +222,8 @@ protected:
     static void replaceScaleShiftByDWConvolution(CNNNetwork& net);
 
     /** Helper function which creates DW/Grouped/regular convolution by passed weights and biases */
-    static CNNLayer::Ptr createDWConvolutionForScale(const std::string& layerName, size_t channels, float *weights, float *biases);
+    static CNNLayer::Ptr createDWConvolutionForScale(const std::string& layerName, size_t channels, float* weights,
+                                                     float* biases);
 
     /**
      * Verifies if layer produces data to layers which marked as float
@@ -233,9 +231,9 @@ protected:
     static bool layerProducesFloat(const CNNLayer::Ptr layer);
 
     /**
-    * Returns tails from I8 to FP32 until convolution - it is the most performed approach because
-    * convolution can convert to FP32 for free, while adding one more scale will decrease performance
-    */
+     * Returns tails from I8 to FP32 until convolution - it is the most performed approach because
+     * convolution can convert to FP32 for free, while adding one more scale will decrease performance
+     */
     static void returnTailToFP32(const CNNLayer::Ptr layer);
 
     /**

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,20 +19,37 @@ public:
 
 private:
     void SLTMTransform(MKLDNNGraph& graph);
+    void MergeConversions(MKLDNNGraph& graph);
     void MergeGroupConvolution(MKLDNNGraph& graph);
+#if defined(COMPILED_CPU_MKLDNN_ACTIVATION_NODE)
     void FuseConvolutionAndActivation(MKLDNNGraph &graph);
-    void FuseConvolutionAndDepthwise(MKLDNNGraph &graph);
-    void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
-    void FuseBinaryConvolutionAndQuantize(MKLDNNGraph &graph);
-    void FuseBatchNormWithScale(MKLDNNGraph& graph);
-    void FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph);
     void FuseFullyConnectedAndActivation(MKLDNNGraph &graph);
+#endif
+#if defined (COMPILED_CPU_MKLDNN_DEPTHWISE_NODE)
+    void FuseConvolutionAndDepthwise(MKLDNNGraph &graph);
+#endif
+    void FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph);
+    void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
+#if defined(COMPILED_CPU_MKLDNN_QUANTIZE_NODE)
+    void FuseConvolutionAndQuantize(MKLDNNGraph &graph);
+    void FuseBinaryConvolutionAndQuantize(MKLDNNGraph &graph);
+    void FusePoolingAndQuantize(MKLDNNGraph &graph);
+#endif
+    void FuseBatchNormWithScale(MKLDNNGraph& graph);
+#if defined(COMPILED_CPU_MKLDNN_ELTWISE_NODE)
+    void FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph);
+#endif
+    void FuseMVNAndSimpleOperation(MKLDNNGraph &graph);
     void RemoveIdentityOperator(MKLDNNGraph& graph);
 
     void RemoveIOScaleShifts(MKLDNNGraph& graph);
+#if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
     void DropDoubleReorders(MKLDNNGraph& graph);
-
-    void AddScaleShiftAfterInt8(MKLDNNGraph &graph);
+    void DropConvertReorder(MKLDNNGraph& graph);
+#endif
+    void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
+    void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
+    void FuseEltwiseAndSimple(MKLDNNGraph &graph);
 
 
     bool IsOneOf(Type type, std::vector<Type> types);

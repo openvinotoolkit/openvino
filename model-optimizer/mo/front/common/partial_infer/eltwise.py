@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -79,6 +79,9 @@ def eltwise_infer(node, op=None, **kwargs):
             elif mind != maxd:
                 output_shape[ei] = -1
     node.out_node().shape = output_shape
+
+    if node.has_and_set('stop_value_propagation'):
+        return
 
     if op is None or any([v is None for v in values]):
         return

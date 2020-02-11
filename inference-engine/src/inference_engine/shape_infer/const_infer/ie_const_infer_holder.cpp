@@ -1,37 +1,38 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #ifdef __INTEL_COMPILER
-#pragma warning disable: 2586
+#pragma warning disable : 2586
 #endif
 
-
 #include "ie_const_infer_holder.hpp"
-#include "ie_mul_const_infer.hpp"
-#include "ie_add_const_infer.hpp"
-#include "ie_div_const_infer.hpp"
-#include "ie_eltw_const_infer.hpp"
-#include "ie_const_const_infer.hpp"
-#include "ie_shape_const_infer.hpp"
-#include "ie_power_const_infer.hpp"
-#include "ie_tile_const_infer.hpp"
-#include "ie_reshape_const_infer.hpp"
-#include "ie_gather_const_infer.hpp"
-#include "ie_split_const_infer.hpp"
-#include "ie_concat_const_infer.hpp"
-#include "ie_convert_const_infer.hpp"
-#include "ie_in_place_const_infer.hpp"
-#include "ie_strided_slice_const_infer.hpp"
-#include "ie_fill_const_infer.hpp"
-#include "ie_range_const_infer.hpp"
-#include "ie_broadcast_const_infer.hpp"
-#include "ie_permute_const_infer.hpp"
-#include "ie_onehot_const_infer.hpp"
-#include "ie_reduce_const_infer.hpp"
+
 #include <list>
 #include <memory>
 #include <string>
+
+#include "ie_add_const_infer.hpp"
+#include "ie_broadcast_const_infer.hpp"
+#include "ie_concat_const_infer.hpp"
+#include "ie_const_const_infer.hpp"
+#include "ie_convert_const_infer.hpp"
+#include "ie_div_const_infer.hpp"
+#include "ie_eltw_const_infer.hpp"
+#include "ie_fill_const_infer.hpp"
+#include "ie_gather_const_infer.hpp"
+#include "ie_in_place_const_infer.hpp"
+#include "ie_mul_const_infer.hpp"
+#include "ie_onehot_const_infer.hpp"
+#include "ie_permute_const_infer.hpp"
+#include "ie_power_const_infer.hpp"
+#include "ie_range_const_infer.hpp"
+#include "ie_reduce_const_infer.hpp"
+#include "ie_reshape_const_infer.hpp"
+#include "ie_shape_const_infer.hpp"
+#include "ie_split_const_infer.hpp"
+#include "ie_strided_slice_const_infer.hpp"
+#include "ie_tile_const_infer.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {

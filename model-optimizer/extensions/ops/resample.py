@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -76,7 +76,6 @@ class ResampleOp(Op):
                 return
             out_height = dst_shape[0]
             out_width = dst_shape[1]
-            node.graph.remove_edge(node.in_node(1).id, node.id)
         else:
             if len(node.in_nodes()) == 1:
                 if node.has('width') and node.has('height'):

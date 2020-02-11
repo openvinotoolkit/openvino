@@ -78,13 +78,14 @@
 #include "api/softmax_loss_grad.hpp"
 #include "api/strided_slice.hpp"
 #include "api/tile.hpp"
-#include "api/upsampling.hpp"
+#include "api/resample.hpp"
 #include "api/gather_tree.hpp"
 #include "api_extension/fused_conv_bn_scale.hpp"
 #include "api_extension/fused_conv_eltwise.hpp"
 #include "api_extension/lstm_dynamic_input.hpp"
 #include "api_extension/lstm_dynamic_timeloop.hpp"
 #include "generic_layer.hpp"
+#include "api/non_max_suppression.hpp"
 
 
 namespace cldnn { namespace gpu {
@@ -160,13 +161,14 @@ REGISTER_GPU(softmax);
 REGISTER_GPU(softmax_loss_grad);
 REGISTER_GPU(strided_slice);
 REGISTER_GPU(tile);
-REGISTER_GPU(upsampling);
 REGISTER_GPU(fused_conv_bn_scale);
 REGISTER_GPU(fused_conv_eltwise);
 REGISTER_GPU(lstm_dynamic_input);
 REGISTER_GPU(lstm_dynamic_timeloop);
 REGISTER_GPU(generic_layer);
 REGISTER_GPU(gather_tree);
+REGISTER_GPU(resample);
+REGISTER_GPU(non_max_suppression);
 
 #undef REGISTER_GPU
 

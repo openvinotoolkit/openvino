@@ -30,13 +30,13 @@ primitive_type_id concatenation::type_id() {
 }
 
 layout concatenation_inst::calc_output_layout(concatenation_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
-           "Output data type forcing is not supported for concatenation_node!");
     auto desc = node.get_primitive();
 
     auto input_layout = node.input(0).get_output_layout();
     auto output_format = input_layout.format;
     auto result_sizes = input_layout.size.sizes();
+
+    auto output_dt = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
 
     auto axis_index = node.get_primitive()->axis;
 
@@ -50,7 +50,7 @@ layout concatenation_inst::calc_output_layout(concatenation_node const& node) {
         result_sizes[axis_index] += input_sizes[axis_index];
     }
 
-    return layout {input_layout.data_type, output_format, (tensor) result_sizes};
+    return layout {output_dt, output_format, (tensor) result_sizes};
 }
 
 std::string concatenation_inst::to_string(concatenation_node const& node) {

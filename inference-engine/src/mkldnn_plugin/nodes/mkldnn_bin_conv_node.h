@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,9 +30,9 @@ public:
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
 
 private:
-    static Register<MKLDNNBinaryConvolutionNode> reg;
     bool withSum = false;
     bool withBinarization = false;
+    bool withDWConv = false;
     bool isDW = false;
     bool isMerged = false;
     bool isGrouped = false;

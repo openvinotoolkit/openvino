@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ie_parameter.hpp>
 #include "gna_plugin.hpp"
 #include "gna/gna_config.hpp"
 
@@ -15,9 +16,6 @@ using namespace GNAPluginNS;
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
 
-using ConfigOptions = std::map<std::string, Parameter>;
-using CConfigOptions = const ConfigOptions;
-
 Parameter GNAPlugin::GetConfig(const std::string& name, const std::map<std::string, Parameter> & options) const {
     auto configKeys = supportedConfigKeysWithDefaults();
     auto result = configKeys.find(name);
@@ -27,7 +25,7 @@ Parameter GNAPlugin::GetConfig(const std::string& name, const std::map<std::stri
     return result->second;
 }
 
-Parameter GNAPlugin::GetMetric(const std::string& name, CConfigOptions & options) const {
+Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const {
     const std::unordered_map<std::string, std::function<Parameter()>> queryApiSupported = {
         {METRIC_KEY(AVAILABLE_DEVICES), [this]() {return GetAvailableDevices();}},
         {METRIC_KEY(SUPPORTED_CONFIG_KEYS), [this]() {return supportedConfigKeys();}},
@@ -70,21 +68,34 @@ Parameter GNAPlugin::GetAvailableDevices() const {
     std::vector<std::string> devices;
     // probing for gna-sw-exact, or gna-sw implementation part of libgna
     try {
+#if GNA_LIB_VER == 2
+        GNADeviceHelper swHelper(Gna2AccelerationModeSoftware);
+#else
         GNADeviceHelper swHelper(GNA_SOFTWARE);
+#endif
         devices.push_back("GNA_SW");
     }catch(...) {}
 
     try {
+#if GNA_LIB_VER == 2
+        GNADeviceHelper hwHelper(Gna2AccelerationModeHardware);
+#else
         GNADeviceHelper hwHelper(GNA_HARDWARE);
-
+#endif
+#if GNA_LIB_VER == 1
         try {
-            intel_nnet_type_t neuralNetwork = {0};
+            intel_nnet_type_t neuralNetwork = { 0 };
             hwHelper.propagate(&neuralNetwork, nullptr, 0);
         }catch (...) {
             if (hwHelper.getGNAStatus() != GNA_DEVNOTFOUND) {
                 devices.push_back("GNA_HW");
             }
         }
+#else
+        if (hwHelper.hasGnaHw()) {
+            devices.push_back("GNA_HW");
+        }
+#endif
     }catch(...) {}
 
     return devices;

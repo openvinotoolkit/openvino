@@ -19,7 +19,7 @@
 KERNEL (detection_output)(__global UNIT_TYPE* input_location, __global UNIT_TYPE* output, __global UNIT_TYPE* input_confidence, __global UNIT_TYPE* input_prior_box)
 {
     const uint idx = get_global_id(0);              // bbox idx
-    const uint local_id = get_local_id(0) * NUM_OF_ITEMS; // All bboxes from one image in work group
+    const uint local_id = (uint)get_local_id(0) * NUM_OF_ITEMS; // All bboxes from one image in work group
     const uint idx_image = idx / NUM_OF_ITERATIONS;  // idx of current image
 
     __local uint indexes[NUM_OF_PRIORS];

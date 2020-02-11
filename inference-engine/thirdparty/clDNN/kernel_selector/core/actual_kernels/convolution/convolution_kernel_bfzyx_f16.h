@@ -35,14 +35,35 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {
-            WeightsLayout::o_i_zyx_i16_o16,
-        };
+    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params& params) const override {
+        if (params.inputs[0].Feature().v == 3) {
+            return{
+                WeightsLayout::ozyxi_o16,
+            };
+        } else if (use_data_type == Datatype::F32 && params.inputs[0].Batch().v % 16 == 0) {
+            return{
+                WeightsLayout::i_o_zyx_o16_i16,
+            };
+        } else if (use_data_type == Datatype::F16 && params.inputs[0].Batch().v % 32 == 0) {
+            return{
+                WeightsLayout::o_i_zyx_i8_o16_i2,
+            };
+        } else {
+            return{
+                WeightsLayout::o_i_zyx_i16_o16,
+            };
+        }
     }
     bool Validate(const Params& p, const optional_params& o) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ELTWISE,
+                 FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
 
     // This class is base one for FP16 and FP32 classes
     Datatype use_data_type;

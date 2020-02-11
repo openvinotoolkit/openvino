@@ -41,6 +41,7 @@ ParamsKey OneHotKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
+    k.EnableDifferentTypes();
 
     return k;
 }

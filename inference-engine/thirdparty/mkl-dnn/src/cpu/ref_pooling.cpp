@@ -16,6 +16,7 @@
 
 #include <assert.h>
 #include <math.h>
+#include <common/primitive_attr.hpp>
 
 #include "c_types_map.hpp"
 #include "math_utils.hpp"
@@ -32,15 +33,15 @@ namespace cpu {
 using namespace nstl;
 using namespace bf16_cvt_utils;
 
-template <data_type_t data_type, data_type_t acc_type>
-void ref_pooling_fwd_t<data_type, acc_type>::execute_forward() const {
+template <data_type_t src_type, data_type_t dst_type, data_type_t acc_type>
+void ref_pooling_fwd_t<src_type, dst_type, acc_type>::execute_forward() const {
     using namespace alg_kind;
     using namespace prop_kind;
 
     auto alg = pd()->desc()->alg_kind;
 
-    auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
-    auto dst = reinterpret_cast<data_t *>(this->memory(0));
+    auto src = reinterpret_cast<const src_data_t *>(this->input_memory(0));
+    auto dst = reinterpret_cast<dst_data_t *>(this->memory(0));
     auto ws = alg == pooling_max && pd()->desc()->prop_kind == forward_training
         ? reinterpret_cast<unsigned char *>(this->memory(1)) : nullptr;
 
@@ -92,7 +93,7 @@ void ref_pooling_fwd_t<data_type, acc_type>::execute_forward() const {
         }
     };
 
-    auto ker_max = [=](data_t *d, int mb, int oc, int od, int oh, int ow) {
+    auto ker_max = [=](dst_data_t *d, int mb, int oc, int od, int oh, int ow) {
         bool is_initialized = false;
         int current_pool_size = 0;
         for (int kd = 0; kd < KD; ++kd) {
@@ -130,7 +131,7 @@ void ref_pooling_fwd_t<data_type, acc_type>::execute_forward() const {
         if (current_pool_size == 0)
             set_ws(mb, oc, 1, oh, ow, -1);
     };
-    auto ker_avg = [=](data_t *d, int mb, int oc, int od, int oh, int ow) {
+    auto ker_avg = [=](dst_data_t *d, int mb, int oc, int od, int oh, int ow) {
         auto id_start = od*SD - padF;
         auto ih_start = oh*SH - padT;
         auto iw_start = ow*SW - padL;
@@ -164,40 +165,60 @@ void ref_pooling_fwd_t<data_type, acc_type>::execute_forward() const {
             }
         }
 
-        d[0] = math::out_round<data_t>((float)dst / num_summands);
+        float dst_f = (float)dst / num_summands;
+
+        const auto &p = pd()->attr()->post_ops_;
+        for (int i = 0; i < p.len_; i++) {
+            auto &post_op = p.entry_[i];
+            if (post_op.is_quantization()) {
+                float cl = post_op.quantization.crop_low_data[oc];
+                float ch = post_op.quantization.crop_high_data[oc];
+                float isc = post_op.quantization.input_scale_data[oc];
+                float ish = post_op.quantization.input_shift_data[oc];
+                float osc = post_op.quantization.output_scale_data[oc];
+                float osh = post_op.quantization.output_shift_data[oc];
+
+                dst_f = nstl::min(ch, nstl::max(cl, dst_f));
+                dst_f = dst_f * isc + ish;
+                dst_f = roundf(dst_f);
+                dst_f = dst_f * osc + osh;
+            }
+        }
+
+        d[0] = math::out_round<dst_data_t>(dst_f);
     };
 
     if (alg == pooling_max) {
         parallel_nd(MB, OC, OD, OH, OW,
             [&](int mb, int oc, int od, int oh, int ow) {
-            data_t *d = is_3d
+            dst_data_t *d = is_3d
                 ? &dst[dst_d.off(mb, oc, od, oh, ow)]
                 : &dst[dst_d.off(mb, oc, oh, ow)];
-                d[0] = (data_t)0;
+                d[0] = (dst_data_t)0;
                 set_ws(mb, oc, od, oh, ow, 0);
                 ker_max(d, mb, oc, od, oh, ow);
         });
     } else {
         parallel_nd(MB, OC, OD, OH, OW,
             [&](int mb, int oc, int od, int oh, int ow) {
-            data_t *d = is_3d
+                dst_data_t *d = is_3d
                 ? &dst[dst_d.off(mb, oc, od, oh, ow)]
                 : &dst[dst_d.off(mb, oc, oh, ow)];
-            d[0] = (data_t)0;
+            d[0] = (dst_data_t)0;
             ker_avg(d, mb, oc, od, oh, ow);
         });
     }
 }
 
 template <>
-void ref_pooling_fwd_t<data_type::bf16, data_type::f32>::execute_forward() const {
+void ref_pooling_fwd_t<data_type::bf16, data_type::bf16, data_type::f32>::execute_forward() const {
     using namespace alg_kind;
     using namespace prop_kind;
 
     auto alg = pd()->desc()->alg_kind;
 
-    auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
-    auto dst = reinterpret_cast<data_t *>(this->memory(0));
+    auto src = reinterpret_cast<const src_data_t *>(this->input_memory(0));
+    auto dst = reinterpret_cast<dst_data_t *>(this->memory(0));
     auto ws = alg == pooling_max && pd()->desc()->prop_kind == forward_training
         ? reinterpret_cast<unsigned char *>(this->memory(1)) : nullptr;
 
@@ -334,7 +355,7 @@ void ref_pooling_fwd_t<data_type::bf16, data_type::f32>::execute_forward() const
     if (alg == pooling_max) {
         parallel_nd(MB, OC, OD, OH, OW,
             [&](int mb, int oc, int od, int oh, int ow) {
-            data_t *d = is_3d
+            dst_data_t *d = is_3d
                 ? &dst[dst_d.off(mb, oc, od, oh, ow)]
                 : &dst[dst_d.off(mb, oc, oh, ow)];
                 d[0] = approx_bfloat16_lowest();
@@ -344,7 +365,7 @@ void ref_pooling_fwd_t<data_type::bf16, data_type::f32>::execute_forward() const
     } else {
         parallel_nd(MB, OC, OD, OH, OW,
             [&](int mb, int oc, int od, int oh, int ow) {
-            data_t *d = is_3d
+            dst_data_t *d = is_3d
                 ? &dst[dst_d.off(mb, oc, od, oh, ow)]
                 : &dst[dst_d.off(mb, oc, oh, ow)];
             d[0] = 0;
@@ -654,12 +675,14 @@ void ref_pooling_bwd_t<data_type::bf16>::execute_backward() const {
     }
 }
 
-template struct ref_pooling_fwd_t<data_type::f32>;
-template struct ref_pooling_fwd_t<data_type::s32>;
-template struct ref_pooling_fwd_t<data_type::bf16, data_type::f32>;
-template struct ref_pooling_fwd_t<data_type::s16, data_type::s32>;
-template struct ref_pooling_fwd_t<data_type::s8, data_type::s32>;
-template struct ref_pooling_fwd_t<data_type::u8, data_type::s32>;
+template struct ref_pooling_fwd_t<data_type::f32, data_type::f32>;
+template struct ref_pooling_fwd_t<data_type::s32, data_type::s32>;
+template struct ref_pooling_fwd_t<data_type::bf16, data_type::bf16, data_type::f32>;
+template struct ref_pooling_fwd_t<data_type::s16, data_type::s16, data_type::s32>;
+template struct ref_pooling_fwd_t<data_type::s8, data_type::s8, data_type::s32>;
+template struct ref_pooling_fwd_t<data_type::u8, data_type::u8, data_type::s32>;
+template struct ref_pooling_fwd_t<data_type::s8, data_type::f32, data_type::f32>;
+template struct ref_pooling_fwd_t<data_type::u8, data_type::f32, data_type::f32>;
 
 template struct ref_pooling_bwd_t<data_type::f32>;
 template struct ref_pooling_bwd_t<data_type::s32>;

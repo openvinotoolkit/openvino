@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ class TestPreluExt(unittest.TestCase):
             'type': 'PReLU',
             'op': 'PReLU',
             'channel_shared': 0,
-            'infer': PreluOp.prelu_shape_infer,
+            'infer': PreluOp.infer,
         }
 
         for key in exp_res.keys():

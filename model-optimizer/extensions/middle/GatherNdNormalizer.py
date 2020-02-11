@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -90,11 +90,13 @@ class GatherNdNormalize(MiddleReplacementPattern):
         # 2. Change indices from Nd to 1d:
         new_indices = np.reshape(np.take(indices, indices=[gather_idx], axis=-1), [-1])
         new_indices_const = Const(graph, dict(value=new_indices)).create_node()
+        axis_const = Const(graph, {'value': int64_array(0)}).create_node()
 
         # 3. Create new Gather operation and reconnect all inputs/outputs
-        new_gather = Gather(graph, {'name': gather.name + '/NewGather/', 'axis': 0}).create_node()
+        new_gather = Gather(graph, {'name': gather.name + '/NewGather/'}).create_node()
         reshape.out_port(0).connect(new_gather.in_port(0))
         new_indices_const.out_port(0).connect(new_gather.in_port(1))
+        axis_const.out_port(0).connect(new_gather.in_port(2))
 
         gather.out_port(0).get_connection().set_source(new_gather.out_port(0))
 

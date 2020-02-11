@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <string>
 #include "cpp_interfaces/ie_executor_manager.hpp"
 #include "cpp_interfaces/ie_task_executor.hpp"
+
+#include <memory>
+#include <string>
 
 namespace InferenceEngine {
 
@@ -28,7 +29,7 @@ void ExecutorManagerImpl::clear() {
     executors.clear();
 }
 
-ExecutorManager *ExecutorManager::_instance = nullptr;
+ExecutorManager* ExecutorManager::_instance = nullptr;
 
 ITaskExecutor::Ptr ExecutorManager::getExecutor(std::string id) {
     return _impl.getExecutor(id);

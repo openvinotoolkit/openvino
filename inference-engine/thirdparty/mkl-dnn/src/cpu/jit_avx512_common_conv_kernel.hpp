@@ -134,6 +134,9 @@ private:
     reg64_t reg_d_weights = imm_addr64;
     reg64_t reg_d_bias = reg_kj;
 
+    Vmm vmm_d_weights = Vmm(31);
+    Vmm vmm_d_bias = Vmm(30);
+
     nstl::vector<jit_uni_eltwise_injector_f32<avx512_common>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<avx512_common>*> depthwise_injectors;
 

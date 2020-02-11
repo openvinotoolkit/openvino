@@ -75,6 +75,12 @@ protected:
                                      const optional_params& options,
                                      const std::string exeMode = DEFAULT,
                                      int autoTuneIndex = -1) const;
+
+    Datatype GetPackedType(Datatype dt, size_t pack_size = 4) const;
+    Datatype GetPackedInputType(const convolution_params& params) const;
+    Datatype GetPackedOutputType(const convolution_params& params) const;
+    Datatype GetActivationType(const convolution_params& params) const;
+    Datatype GetAccumulatorType(const convolution_params& params) const;
 };
 
 bool CovolutionCheckInput(const Params& p, const optional_params& o);

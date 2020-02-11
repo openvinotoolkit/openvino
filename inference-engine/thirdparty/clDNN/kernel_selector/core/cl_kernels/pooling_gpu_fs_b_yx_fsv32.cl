@@ -24,6 +24,16 @@
 #error No correct pooling mode defined
 #endif
 
+#if defined(USE_FLOAT_ACC)
+    #define ACC_TYPE2 float2
+    #define READ_BLOCK2_INPUT(input, input_total_offset) convert_float2(UNIT_BLOCK_READ2(input,total_input_offset))
+    #define TO_UNIT_BLOCK2(values) convert_half2(values)
+#else
+    #define ACC_TYPE2 UNIT_TYPE2
+    #define READ_BLOCK2_INPUT(input, input_total_offset) UNIT_BLOCK_READ2(input,total_input_offset)
+    #define TO_UNIT_BLOCK2(values) values
+#endif
+
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
 #define INPUT0_SIZE_Y_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y)
 #define OUTPUT_SIZE_X_WITH_PADDING (OUTPUT_PAD_BEFORE_SIZE_X + OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X)
@@ -36,7 +46,7 @@
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
-inline UNIT_TYPE2 FUNC(apply_pooling)(UNIT_TYPE2 tmp, UNIT_TYPE2 in)
+inline ACC_TYPE2 FUNC(apply_pooling)(ACC_TYPE2 tmp, ACC_TYPE2 in)
 {
 #if MAX_POOLING
     return max(tmp, in);
@@ -59,7 +69,7 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
     const uint b  = bfs % INPUT0_BATCH_NUM;
     const uint fs = bfs / INPUT0_BATCH_NUM;
 
-    UNIT_TYPE2 results = (UNIT_TYPE2)(INIT_VAL,INIT_VAL);
+    ACC_TYPE2 results = (ACC_TYPE2)(INIT_VAL,INIT_VAL);
 
     const uint x_pitch = REQD_FEATURE_SLICE_SIZE;                        // difference in location between (x+1) and (x)
     const uint y_pitch = x_pitch * INPUT0_SIZE_X_WITH_PADDING;           // difference in location between (y+1) and (y)
@@ -94,9 +104,10 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
                     const size_t input_offset_x = (offset_x + in_dx) * x_pitch;
                     const size_t total_input_offset = padding_offset + fs_offset + b_offset + input_offset_y + input_offset_x;
 
-                    UNIT_TYPE2 tmp_input = UNIT_BLOCK_READ2(input,total_input_offset);
+                    ACC_TYPE2 tmp_input = READ_BLOCK2_INPUT(input, input_total_offset);
                     
                     results = FUNC_CALL(apply_pooling)(results, tmp_input);
+
                     #ifdef DYNAMIC_KERNEL_DIVIDER
                         num_elements++;
                     #endif
@@ -118,7 +129,7 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
             const size_t input_offset_x = (offset_x + in_dx) * x_pitch;
             const size_t total_input_offset = padding_offset + fs_offset + b_offset + input_offset_y + input_offset_x;
 
-            UNIT_TYPE2 tmp_input = UNIT_BLOCK_READ2(input,total_input_offset);
+            ACC_TYPE2 tmp_input = READ_BLOCK2_INPUT(input, input_total_offset);
 
             results = FUNC_CALL(apply_pooling)(results, tmp_input);
         }
@@ -157,7 +168,7 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
 
     if (full_f)
     {
-        UNIT_BLOCK_WRITE2(output,output_offset,results);
+        UNIT_BLOCK_WRITE2(output, output_offset, TO_UNIT_BLOCK2(results));
     }
     else
     {
@@ -165,11 +176,14 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
         {
             if (fs * REQD_FEATURE_SLICE_SIZE + ofi * REQD_SUB_GROUP_SIZE + sglid < OUTPUT_FEATURE_NUM)
             {
-                output[output_offset + ofi * REQD_SUB_GROUP_SIZE + sglid] = results[ofi];
+                output[output_offset + ofi * REQD_SUB_GROUP_SIZE + sglid] = (UNIT_TYPE)results[ofi];
             }
         }
     }
 }
 
+#undef TO_UNIT_BLOCK2
+#undef READ_BLOCK2_INPUT
+#undef ACC_TYPE2
 #undef FEATURE_SLICE_SIZE
 #undef INIT_VAL

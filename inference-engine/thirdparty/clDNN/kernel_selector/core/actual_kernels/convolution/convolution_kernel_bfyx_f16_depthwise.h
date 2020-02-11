@@ -35,6 +35,13 @@ protected:
             WeightsLayout::oiyx_o16,
         };
     }
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ELTWISE,
+                 FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
+
     bool NeedPaddedInput() const override { return true; }
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;

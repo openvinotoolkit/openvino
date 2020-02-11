@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,13 +20,9 @@ from mo.middle.replacement import MiddleReplacementPattern
 
 class WeightsPermuteNormalizer(MiddleReplacementPattern):
     """
-    We propagate PermuteAttr from weights port of Convolution and FullyConnected to real Const that contains it
+    We propagate PermuteAttr from weights port of Convolution and MatMul to real Const that contains it
     """
     enabled = True
-
-    def run_after(self):
-        from extensions.middle.GemmToFullyConnected import GemmToFullyConnected
-        return [GemmToFullyConnected]
 
     @staticmethod
     def pattern():
@@ -36,7 +32,7 @@ class WeightsPermuteNormalizer(MiddleReplacementPattern):
                 ('const', dict(type='Const')),
                 ('quantize', dict(type='FakeQuantize')),
                 ('quantize_data', dict(kind='data')),
-                ('conv', dict(type=lambda type: type in ['Convolution', 'FullyConnected', 'MatMul'])),
+                ('conv', dict(type=lambda type: type in ['Convolution', 'MatMul'])),
             ],
             edges=[
                 ('const', 'const_data'),

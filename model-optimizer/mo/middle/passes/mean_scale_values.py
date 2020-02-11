@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,6 +26,9 @@ def move_scaleshift_to_preprocess_action(graph, match):
     scale_shift = match['scale_shift']
     weights = np.squeeze(match['weights'].value)
     biases = np.squeeze(match['biases'].value)
+
+    if graph.graph['cmd_params'].reverse_input_channels:
+        biases = np.flip(biases)
 
     if any([x != 1 for x in weights]):
         return

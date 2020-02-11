@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,28 +13,11 @@ using namespace InferenceEngine;
 #define ACTION_IF_NOT_NULL(action) (nullptr == _target) ? NOT_IMPLEMENTED : _target->action
 #define IF_NOT_NULL(action) if (nullptr != _target) {_target->action;}
 
+IE_SUPPRESS_DEPRECATED_START
+
 MockPlugin::MockPlugin(InferenceEngine::IInferencePlugin *target) {
     _target = target;
 }
-
-IE_SUPPRESS_DEPRECATED_START
-StatusCode MockPlugin::Infer(const Blob &input, Blob &result, ResponseDesc *p) noexcept {
-    return ACTION_IF_NOT_NULL(Infer(input, result, p));
-}
-
-StatusCode MockPlugin::Infer(const BlobMap &input, BlobMap &result, ResponseDesc *p)noexcept {
-    return ACTION_IF_NOT_NULL(Infer(input, result, p));
-}
-
-StatusCode MockPlugin::LoadNetwork(ICNNNetwork &network, ResponseDesc *resp) noexcept {
-    return ACTION_IF_NOT_NULL(LoadNetwork(network, resp));
-}
-
-StatusCode MockPlugin::GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap,
-                                            ResponseDesc *p) const noexcept {
-    return ACTION_IF_NOT_NULL(GetPerformanceCounts(perfMap, p));
-}
-IE_SUPPRESS_DEPRECATED_END
 
 StatusCode MockPlugin::LoadNetwork(IExecutableNetwork::Ptr &ret, ICNNNetwork &network,
                                    const std::map<std::string, std::string> &config, ResponseDesc *resp) noexcept {
@@ -71,7 +54,7 @@ MockPlugin::ImportNetwork(IExecutableNetwork::Ptr &ret, const std::string &model
 
 InferenceEngine::IInferencePlugin *__target = nullptr;
 
-INFERENCE_ENGINE_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     try {
         IInferencePlugin *p = nullptr;
         std::swap(__target, p);
@@ -83,11 +66,13 @@ INFERENCE_ENGINE_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, R
     }
 }
 
-INFERENCE_ENGINE_API(InferenceEngine::IInferencePlugin*)CreatePluginEngineProxy(
+INFERENCE_PLUGIN_API(InferenceEngine::IInferencePlugin*)CreatePluginEngineProxy(
         InferenceEngine::IInferencePlugin *target) {
     return new MockPlugin(target);
 }
 
-INFERENCE_ENGINE_API(void) InjectProxyEngine(InferenceEngine::IInferencePlugin *target) {
+INFERENCE_PLUGIN_API(void) InjectProxyEngine(InferenceEngine::IInferencePlugin *target) {
     __target = target;
 }
+
+IE_SUPPRESS_DEPRECATED_END

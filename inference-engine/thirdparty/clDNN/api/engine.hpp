@@ -17,7 +17,11 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "cldnn.hpp"
+#include "device.hpp"
 #include <string>
+#include <stdexcept>
+#include <vector>
+#include <map>
 
 namespace cldnn {
 
@@ -68,7 +72,6 @@ struct engine_configuration {
     bool enable_memory_pool;              ///< Enables memory usage optimization. memory objects will be reused when possible
                                           ///< (switched off for older drivers then NEO).
     uint16_t n_streams;                   ///< Number of queues executed in parallel
-    void* context;                        ///< Pointer to user context
     const std::string tuning_cache_path;  ///< Path to tuning kernel cache
 
     /// @brief Constructs engine configuration with specified options.
@@ -90,7 +93,6 @@ struct engine_configuration {
         throttle_mode_types throttle_mode = throttle_mode_types::disabled,
         bool memory_pool = true,
         uint16_t n_streams = 1,
-        void* context = nullptr,
         const std::string& tuning_cache_path = "cache.json")
         : enable_profiling(profiling)
         , meaningful_kernels_names(decorate_kernel_names)
@@ -104,38 +106,11 @@ struct engine_configuration {
         , throttle_mode(throttle_mode)
         , enable_memory_pool(memory_pool)
         , n_streams(n_streams)
-        , context(context)
         , tuning_cache_path(tuning_cache_path) {
         if (n_streams == 0) {
             throw std::invalid_argument("Invalid streams count set in engine config");
         }
     }
-};
-
-/// @brief Information about the engine properties and capabilities.
-struct engine_info {
-    uint32_t cores_count;     ///< Number of available HW cores.
-    uint32_t core_frequency;  ///< Clock frequency in MHz.
-
-    uint64_t max_work_group_size;  ///< Maximum number of work-items in a work-group executing a kernel using the data parallel execution model.
-    uint64_t max_local_mem_size;   ///< Maximum size of local memory arena in bytes.
-    uint64_t max_global_mem_size;  ///< Maximum size of global device memory in bytes.
-    uint64_t max_alloc_mem_size;   ///< Maximum size of memory object allocation in bytes.
-
-    uint64_t max_image2d_width;   ///< Maximum image 2d width supported by the device.
-    uint64_t max_image2d_height;  ///< Maximum image 2d height supported by the device.
-
-    // Flags (for layout compatibility fixed size types are used).
-    uint8_t supports_fp16;             ///< Does engine support FP16.
-    uint8_t supports_fp16_denorms;     ///< Does engine support denormalized FP16.
-    uint8_t supports_subgroups_short;  ///< Does engine support cl_intel_subgroups_short.
-    uint8_t supports_image;            ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
-
-    uint8_t supports_imad;   ///< Does engine support int8 mad.
-    uint8_t supports_immad;  ///< Does engine support int8 multi mad.
-
-    std::string dev_name;     ///< Device ID string
-    std::string driver_version;  ///< Version of OpenCL driver
 };
 
 struct engine_impl;
@@ -144,13 +119,17 @@ struct engine_impl;
 struct engine {
     /// @brief Constructs @p OpenCL engine
     explicit engine(const engine_configuration& configuration = engine_configuration())
-        : engine(engine_types::ocl, 0, configuration) {}
+        : engine(engine_types::ocl, device::create_default(), configuration) {}
+
+    /// @brief Constructs @p OpenCL engine
+    explicit engine(const device& device, const engine_configuration& configuration = engine_configuration())
+        : engine(engine_types::ocl, device, configuration) {}
 
     /// @brief Construct engine of the specified @p type, @p engine_num, and @p configuration options.
     /// @param[in] type Engine type @ref cldnn_engine_type. Only OCL engine is supported.
     /// @param[in] engine_num Engine index. Should be 0.
     /// @param[in] configuration Engine configuration options.
-    engine(engine_types type, uint32_t engine_num, const engine_configuration& configuration = engine_configuration());
+    engine(engine_types type, const device& device, const engine_configuration& configuration = engine_configuration());
 
     // TODO add move construction/assignment
     engine(const engine& other) : _impl(other._impl) {
@@ -176,10 +155,13 @@ struct engine {
     static uint32_t engine_count(engine_types type);
 
     /// @brief Release pending memory allocated in OpenCL context.
-    void release_pending_memory(uint16_t stream_id) const;
+    void release_pending_memory(uint32_t net_id) const;
 
-    /// @brief Returns information about properties and capabilities for the engine.
-    engine_info get_info() const;
+    /// @brief Returns information about properties and capabilities of the device used for allocation of the engine.
+    device_info get_info() const;
+
+    /// @brief Returns OpenCL context handle of the engine.
+    void* get_context() const;
 
     /// @brief Returns total size of all resources allocated using given engine
     uint64_t get_max_used_device_memory_size() const;

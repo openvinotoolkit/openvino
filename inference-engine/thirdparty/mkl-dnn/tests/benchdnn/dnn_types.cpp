@@ -114,12 +114,15 @@ data_kind_t fmt2data_kind(mkldnn_memory_format_t fmt) {
     case mkldnn_hwigo:
     case mkldnn_giohw:
     case mkldnn_hwigo_s8s8:
+    case mkldnn_dhwigo_s8s8:
     case mkldnn_gOIhw8i8o:
     case mkldnn_gOIhw16i16o:
     case mkldnn_gOIhw2i8o4i:
     case mkldnn_gOIhw2i8o4i_s8s8:
     case mkldnn_gOIhw4i16o4i:
     case mkldnn_gOIhw4i16o4i_s8s8:
+    case mkldnn_gOIdhw4i16o4i:
+    case mkldnn_gOIdhw4i16o4i_s8s8:
     case mkldnn_gOIhw8i16o2i:
     case mkldnn_gIOhw8i16o2i:
     case mkldnn_gOIdhw8i16o2i:
@@ -135,6 +138,7 @@ data_kind_t fmt2data_kind(mkldnn_memory_format_t fmt) {
     case mkldnn_gOhwi8o:
     case mkldnn_gOhwi16o:
     case mkldnn_Goihw8g:
+    case mkldnn_Goihw8g_s8s8:
     case mkldnn_Goihw16g:
     case mkldnn_Goihw16g_s8s8:
     case mkldnn_gOhIw16o4i:
@@ -143,6 +147,12 @@ data_kind_t fmt2data_kind(mkldnn_memory_format_t fmt) {
     case mkldnn_gOIdhw16o16i:
     case mkldnn_gOidhw16o:
     case mkldnn_gOdhwi16o:
+    case mkldnn_gOdhIw8o4i:
+    case mkldnn_gOdhIw8o4i_s8s8:
+    case mkldnn_Goidhw8g:
+    case mkldnn_Goidhw8g_s8s8:
+    case mkldnn_Goidhw16g:
+    case mkldnn_Goidhw16g_s8s8:
         return GWEI;
 
     default: return WEI;
@@ -453,7 +463,7 @@ mkldnn_primitive_attr_t create_mkldnn_attr(const attr_t &attr, int scale_cnt,
             const auto &e = attr.post_ops.entry[idx];
             switch (attr.post_ops.entry[idx].kind) {
             case attr_t::post_ops_t::SUM:
-                DNN_SAFE_V(mkldnn_post_ops_append_sum(ops, e.sum.scale));
+                DNN_SAFE_V(mkldnn_post_ops_append_sum(ops, e.sum.scale, mkldnn_f32));
                 break;
             case attr_t::post_ops_t::RELU:
             case attr_t::post_ops_t::TANH:

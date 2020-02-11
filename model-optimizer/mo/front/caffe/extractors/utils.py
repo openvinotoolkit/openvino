@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,6 +15,9 @@
 """
 
 import numpy as np
+
+from mo.graph.graph import Node
+from mo.ops.const import Const
 
 
 def dim_to_shape(dim):
@@ -46,7 +49,13 @@ def embed_input(attrs: dict, port: int, name: str, value: np.array, bin_name: st
 
     """
     assert name not in attrs
-    attrs[name] = np.array(value)
+
+    # memory safe value conversion to numpy;
+    # previously we used `np.array(value)` and it was greedy for memory on caffe models especially
+    val = np.ndarray(shape=(len(value),))
+    for i, item in enumerate(value):
+        val[i] = item
+    attrs[name] = val
 
     if 'embedded_inputs' not in attrs:
         attrs['embedded_inputs'] = []
@@ -55,6 +64,18 @@ def embed_input(attrs: dict, port: int, name: str, value: np.array, bin_name: st
     input_val = (port, name, {'bin': bin_name})
     # (input index, input name, future edge attributes)
     attrs['embedded_inputs'].append(input_val)  # pylint: disable=not-callable
+
+
+def input_as_const(node: Node, attrs: dict, port: int, bin: str, value: np.ndarray):
+    """
+    Inserts constant node on input `port` of `node` with `values` and `attrs`. Marks input edge with bin `attribute`
+    """
+    graph = node.graph
+    const = Const(graph, {'value': value, **attrs}).create_node()
+    node.add_input_port(port, skip_if_exist=True)
+    const.out_port(0).connect(node.in_port(port))
+    node.in_port(port).bin = bin
+    node.in_port(port).in_attrs.append('bin')
 
 
 def weights_biases(bias_term: bool, model_layer, start_index: int = 1, proto={}):

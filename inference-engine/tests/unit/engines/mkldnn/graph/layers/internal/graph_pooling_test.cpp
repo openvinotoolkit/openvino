@@ -1,17 +1,17 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_graph.h"
 
 #include "test_graph.hpp"
 
 #include "single_layer_common.hpp"
 #include <ie_layers.h>
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
-#include <inference_engine/cnn_network_impl.hpp>
+#include <mkldnn_extension_utils.h>
+#include <cnn_network_impl.hpp>
 #include "tests_common.hpp"
 #include "ir_gen_helper.hpp"
 #include <math.h>
@@ -356,14 +356,14 @@ TEST_P(MKLDNNGraphPoolingTests, TestsPooling) {}
 INSTANTIATE_TEST_CASE_P(
         TestsPooling, MKLDNNGraphPoolingTests,
         ::testing::Values(
-        /*0*/   pooling_test_params{{1, 3, 228, 228}, {2, 2}, {2, 2}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 6, MKLDNNPlugin::impl_desc_type::jit},
-                pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 2}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 4, MKLDNNPlugin::impl_desc_type::jit},
-                pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 1}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 4, MKLDNNPlugin::impl_desc_type::jit},
-                pooling_test_params{{1, 3, 228, 228}, {2, 2}, {2, 2}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 6, MKLDNNPlugin::impl_desc_type::ref,
+        /*0*/   pooling_test_params{{1, 3, 228, 228}, {2, 2}, {2, 2}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 2}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 1}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 3, MKLDNNPlugin::impl_desc_type::jit},
+                pooling_test_params{{1, 3, 228, 228}, {2, 2}, {2, 2}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 3, MKLDNNPlugin::impl_desc_type::ref,
                             {MKLDNNPlugin::impl_desc_type::ref_any}},
-                pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 2}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 4, MKLDNNPlugin::impl_desc_type::ref,
+                pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 2}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 3, MKLDNNPlugin::impl_desc_type::ref,
                             {MKLDNNPlugin::impl_desc_type::ref_any}},
-                pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 1}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 4, MKLDNNPlugin::impl_desc_type::ref,
+                pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 1}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 3, MKLDNNPlugin::impl_desc_type::ref,
                             {MKLDNNPlugin::impl_desc_type::ref_any}},
                 pooling_test_params{{1u, 4u, 128u, 128u}, {2u, 2u}, {2u, 2u}, {1u, 0u}, {0u, 0u}, PoolingLayer::AVG, false, 3u,
                             MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
@@ -379,7 +379,7 @@ INSTANTIATE_TEST_CASE_P(
                             MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 pooling_test_params{{1u, 4u, 128u, 128u}, {2u, 2u}, {2u, 2u}, {2u, 2u}, {2u, 2u}, PoolingLayer::MAX, false, 3u,
                             MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                pooling_test_params{{1u, 1u, 128u, 128u}, {2u, 2u}, {2u, 2u}, {2u, 2u}, {2u, 2u}, PoolingLayer::MAX, false, 2u,
+                pooling_test_params{{1u, 1u, 128u, 128u}, {2u, 2u}, {2u, 2u}, {2u, 2u}, {2u, 2u}, PoolingLayer::MAX, false, 1,
                                     MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 // TODO Fix jit implementation. End paddings
 //                pooling_test_params{{1u, 4u, 128u, 128u}, {2u, 2u}, {2u, 2u}, {2u, 2u}, {2u, 0u}, PoolingLayer::AVG, true, 3u,
@@ -398,7 +398,7 @@ INSTANTIATE_TEST_CASE_P(
                             MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 pooling_test_params{{1u, 32u, 60u, 60u, 60u}, {2u, 3u, 4u}, {2u, 2u, 2u}, {1u, 1u, 1u}, {1u, 2u, 3u}, PoolingLayer::MAX, false, 3u,
                             MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-        /*20*/  pooling_test_params{{1u, 3u, 16u, 32u, 32u}, {2u, 2u, 2u}, {1u, 1u, 1u}, {1u, 2u, 3u}, {1u, 2u, 3u}, PoolingLayer::MAX, false, 3u,
+        /*20*/  pooling_test_params{{1u, 3u, 16u, 32u, 32u}, {2u, 2u, 2u}, {1u, 1u, 1u}, {1u, 2u, 3u}, {1u, 2u, 3u}, PoolingLayer::MAX, false, 1u,
                             MKLDNNPlugin::impl_desc_type::jit },
                 pooling_test_params{{1u, 4u, 128u, 128u, 128u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {1u, 0u, 0u}, {0u, 0u, 0u}, PoolingLayer::AVG, false, 3u,
                             MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
@@ -416,7 +416,7 @@ INSTANTIATE_TEST_CASE_P(
                             MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 pooling_test_params{{1u, 4u, 128u, 128u, 128u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {2u, 2u, 2u}, PoolingLayer::AVG, false, 3u,
                             MKLDNNPlugin::impl_desc_type::jit },
-                pooling_test_params{{1u, 1u, 128u, 128u, 128u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {2u, 2u, 2u}, PoolingLayer::AVG, false, 2u,
+                pooling_test_params{{1u, 1u, 128u, 128u, 128u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {2u, 2u, 2u}, {2u, 2u, 2u}, PoolingLayer::AVG, false, 1u,
                                     MKLDNNPlugin::impl_desc_type::ref }));
 
 

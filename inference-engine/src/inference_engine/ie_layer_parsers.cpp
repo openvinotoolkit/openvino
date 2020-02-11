@@ -1,20 +1,21 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ie_layer_parsers.h"
-#include "ie_cnn_net_reader_impl.h"
 
-#include <string>
-#include <utility>
 #include <memory>
 #include <set>
+#include <string>
+#include <utility>
+
+#include "ie_cnn_net_reader_impl.h"
 
 namespace InferenceEngine {
 namespace details {
 
-CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms)  {
-    pugi::xml_node dn = GetChild(node, { "data", "activation_data" }, false);
+CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) {
+    pugi::xml_node dn = GetChild(node, {"data", "activation_data"}, false);
     if (dn.empty()) {
         THROW_IE_EXCEPTION << "Activation layer has no data node";
     }
@@ -45,8 +46,7 @@ CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerPar
     auto activationBuilder = activationCreators.find(type);
     if (activationBuilder == activationCreators.end()) {
         auto activationCreator = std::make_shared<LayerCreator<CNNLayer>>(type);
-        if (!activationCreator)
-            THROW_IE_EXCEPTION << "Cannot create activation layer with type " << type;
+        if (!activationCreator) THROW_IE_EXCEPTION << "Cannot create activation layer with type " << type;
 
         activation = activationCreator->CreateLayer(node, layerParsePrms);
         activation->type = type;
@@ -68,7 +68,7 @@ using PortInf = std::pair<int, int>;
 using PortSet = std::set<PortInf>;
 using PortMap = std::map<PortInf, DataPtr>;
 
-static PortSet allRequiredInputs(pugi::xml_node &ti) {
+static PortSet allRequiredInputs(pugi::xml_node& ti) {
     PortSet res;  // duplicates are possible
 
     FOREACH_CHILD(p, ti.child("port_map"), "input") {
@@ -84,7 +84,7 @@ static PortSet allRequiredInputs(pugi::xml_node &ti) {
     return res;
 }
 
-static PortSet allRequiredOutputs(pugi::xml_node &ti) {
+static PortSet allRequiredOutputs(pugi::xml_node& ti) {
     PortSet res;  // duplicates are possible
 
     FOREACH_CHILD(p, ti.child("port_map"), "output") {
@@ -107,27 +107,25 @@ using WBlob = TBlob<uint8_t>::Ptr;
 
 class BodyParser {
 public:
-    BodyParser(pugi::xml_node &net_node, size_t ir_version, Precision prec) :
-            body(net_node), parser(FormatParser(ir_version)), default_precision(prec) {}
+    BodyParser(pugi::xml_node& net_node, size_t ir_version, Precision prec)
+        : body(net_node), parser(FormatParser(ir_version)), default_precision(prec) {}
 
     void parse(PortSet in_request, PortSet out_request) {
         body.append_attribute("precision").set_value(default_precision.name());
         auto net = parser.Parse(body);
 
-        for (const auto &pi : in_request)
-            inputs[pi] = parser.GetDataBy(pi.first, pi.second);
-        for (const auto &pi : out_request)
-            outputs[pi] = parser.GetDataBy(pi.first, pi.second);
+        for (const auto& pi : in_request) inputs[pi] = parser.GetDataBy(pi.first, pi.second);
+        for (const auto& pi : out_request) outputs[pi] = parser.GetDataBy(pi.first, pi.second);
 
         // Mark data as network output. Just for check
-        for (const auto &kvp : outputs) {
-            auto &data = kvp.second;
+        for (const auto& kvp : outputs) {
+            auto& data = kvp.second;
             auto layer = data->getCreatorLayer().lock();
-            auto &outs = layer->outData;
+            auto& outs = layer->outData;
             auto o_idx = std::find(outs.begin(), outs.end(), data) - outs.begin();
             auto sts = net->addOutput(layer->name, o_idx, nullptr);
-            IE_ASSERT(sts == OK) << "TI body. Cannot add output port for layer "
-                                 << layer->name << " port index " << o_idx;
+            IE_ASSERT(sts == OK) << "TI body. Cannot add output port for layer " << layer->name << " port index "
+                                 << o_idx;
         }
 
         // Verify that all input/output are in use
@@ -136,18 +134,22 @@ public:
         net->getInputsInfo(in_info_map);
         net->getOutputsInfo(out_info_map);
 
-        IE_ASSERT(in_info_map.size() == inputs.size())   << "TI body. There are unlinked inputs";
+        IE_ASSERT(in_info_map.size() == inputs.size()) << "TI body. There are unlinked inputs";
     }
 
-    void setWeights(const WBlob &weights) {
+    void setWeights(const WBlob& weights) {
         parser.SetWeights(weights);
     }
 
-    const PortMap& getInsMap()  const { return inputs;  }
-    const PortMap& getOutsMap() const { return outputs; }
+    const PortMap& getInsMap() const {
+        return inputs;
+    }
+    const PortMap& getOutsMap() const {
+        return outputs;
+    }
 
 private:
-    pugi::xml_node &body;
+    pugi::xml_node& body;
     FormatParser parser;
     Precision default_precision;
 
@@ -159,8 +161,7 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
     std::string ti_name = node.attribute("name").as_string();
 
     auto body = node.child("body");
-    if (body.empty())
-        THROW_IE_EXCEPTION << "TensorIterator " << ti_name << " has no body";
+    if (body.empty()) THROW_IE_EXCEPTION << "TensorIterator " << ti_name << " has no body";
 
     auto all_inputs = allRequiredInputs(node);
     auto all_outputs = allRequiredOutputs(node);
@@ -174,12 +175,12 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
     // fill in/outputs and map internal port to index
     std::map<PortInf, int> p2i;
     std::vector<DataPtr> inputs, outputs;
-    for (const auto &p : all_inputs) {
+    for (const auto& p : all_inputs) {
         IE_ASSERT(ins.find(p) != ins.end());
         p2i[p] = inputs.size();
         inputs.push_back(ins[p]);
     }
-    for (const auto &p : all_outputs) {
+    for (const auto& p : all_outputs) {
         IE_ASSERT(outs.find(p) != outs.end());
         p2i[p] = outputs.size();
         outputs.push_back(outs[p]);
@@ -202,10 +203,10 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
 
     std::vector<TensorIterator::PortMap> in_ports_maping, out_ports_maping, back_edges;
 
-    auto parse_rule = [&] (pugi::xml_node &pm) {
-        int external_port_id  = GetIntAttr(pm, "external_port_id");
+    auto parse_rule = [&](pugi::xml_node& pm) {
+        int external_port_id = GetIntAttr(pm, "external_port_id");
         int internal_layer_id = GetIntAttr(pm, "internal_layer_id");
-        int internal_port_id  = GetIntAttr(pm, "internal_port_id");
+        int internal_port_id = GetIntAttr(pm, "internal_port_id");
 
         int axis = GetIntAttr(pm, "axis", -1);
         int stride = GetIntAttr(pm, "stride", 1);
@@ -215,12 +216,12 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
 
         TensorIterator::PortMap res;
         res.from = e2i[external_port_id];
-        res.to   = p2i[{internal_layer_id, internal_port_id}];
+        res.to = p2i[{internal_layer_id, internal_port_id}];
         res.axis = axis;
-        res.stride    = stride;
+        res.stride = stride;
         res.part_size = part_size;
-        res.start     = start;
-        res.end       = end;
+        res.start = start;
+        res.end = end;
         return res;
     };
 
@@ -237,14 +238,13 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
         int to_l = GetIntAttr(ec, "to-layer");
         int to_p = GetIntAttr(ec, "to-port");
 
-        back_edges.push_back({ p2i[{from_l, from_p}], p2i[{to_l, to_p}],
-                               -1, 1, 0, -1, 1 });
+        back_edges.push_back({p2i[{from_l, from_p}], p2i[{to_l, to_p}], -1, 1, 0, -1, 1});
     }
 
     // Hold parser as a shared_ptr into callback
     // Will be called outside to set weight blobs
     // for internal TI body layers
-    layerParsePrms.internalWeightSet = [=] (const WBlob &w) {
+    layerParsePrms.internalWeightSet = [=](const WBlob& w) {
         parser->setWeights(w);
     };
 

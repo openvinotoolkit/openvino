@@ -20,6 +20,7 @@
 #include "primitive_inst.h"
 #include <string>
 #include <memory>
+#include "kernel_selector/core/actual_kernels/eltwise/eltwise_kernel_base.h"
 
 namespace cldnn {
 
@@ -39,6 +40,10 @@ public:
     program_node& bias() const { return get_dependency(2); }
 
     bool bias_term() const { return get_dependencies().size() > 2; }
+
+    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
+        return std::make_shared<kernel_selector::scale_fuse_params>();
+    }
 };
 
 using scale_node = typed_program_node<scale>;

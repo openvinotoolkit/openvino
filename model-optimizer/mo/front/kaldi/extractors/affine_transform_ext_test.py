@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,21 +14,19 @@
  limitations under the License.
 """
 
-import types
-
 import numpy as np
 
+from extensions.ops.MatMul import FullyConnected
 from mo.front.kaldi.extractors.affine_transform_ext import AffineTransformFrontExtractor
 from mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
-from mo.ops.inner_product import InnerProduct
 from mo.ops.op import Op
 
 
 class AffineTransformFrontExtractorTest(KaldiFrontExtractorTest):
     @classmethod
     def register_op(cls):
-        Op.registered_ops['FullyConnected'] = InnerProduct
+        Op.registered_ops['FullyConnected'] = FullyConnected
 
     @classmethod
     def create_pb_for_test_node(cls):
@@ -43,10 +41,7 @@ class AffineTransformFrontExtractorTest(KaldiFrontExtractorTest):
 
     def test_attrs(self):
         self.assertEqual(self.test_node['out-size'], 10)
-        self.assertEqual(self.test_node['layout'], 'NCHW')
 
     def test_out_blobs(self):
         self.assertTrue(np.array_equal(self.test_node.weights, range(10 * 10)))
         self.assertTrue(np.array_equal(self.test_node.biases, range(10)))
-
-

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,9 @@ namespace vpu {
 namespace {
 
 class MVNStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<MVNStage>(*this);
@@ -56,31 +59,21 @@ private:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeOldBuffer(handle_from_this(), serializer);
-        output->serializeOldBuffer(handle_from_this(), serializer);
+        input->serializeNewBuffer(serializer);
+        output->serializeNewBuffer(serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseMVN(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseMVN(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
     auto layer = std::dynamic_pointer_cast<ie::MVNLayer>(_layer);
     IE_ASSERT(layer != nullptr);
 
-    auto stage = model->addNewStage<MVNStage>(
-        layer->name,
-        StageType::MVN,
-        layer,
-        inputs,
-        outputs);
-
+    auto stage = model->addNewStage<MVNStage>(layer->name, StageType::MVN, layer, inputs, outputs);
     stage->attrs().set<int>("normalize", layer->normalize);
     stage->attrs().set<int>("across_channels", layer->across_channels);
     stage->attrs().set<float>("eps", layer->GetParamAsFloat("eps", 0.0f));

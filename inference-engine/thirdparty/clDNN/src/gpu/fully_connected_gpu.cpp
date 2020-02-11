@@ -43,14 +43,8 @@ protected:
                                                         int32_t split) const override {
         kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
 
-        args.inputs = {(memory_impl::cptr) &instance.input_memory()};
-        args.output = (memory_impl::cptr) &instance.output_memory();
         args.weights = (memory_impl::cptr) &instance.weights_memory();
         args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory() : nullptr);
-        args.weights_quantization_factors =
-            (memory_impl::cptr) (instance.weights_quantization_factors_term() ? &instance.weights_quantization_factors_memory() : nullptr);
-        args.output_calibration_factors =
-            (memory_impl::cptr) (instance.output_calibration_factors_term() ? &instance.output_calibration_factors_memory() : nullptr);
 
         return args;
     }
@@ -67,21 +61,11 @@ public:
 
         const auto primitive = arg.get_primitive();
 
-        if (primitive->weights_quantization_factors.size() > 0) {
-            fc_params.int8_quantization = true;
-            fc_params.weights_quantization_factors.push_back(
-                convert_data_tensor(arg.weights_quantization_factors().get_output_layout())
-                    .FlattenFeatureAndSpatials());
-            fc_params.input_quantization_factor = arg.get_input_qf();
-
-            if (primitive->output_calibration_factors.size() > 0) {
-                fc_params.output_calibration = true;
-                fc_params.output_calibration_factors.push_back(
-                    convert_data_tensor(arg.output_calibration_factors().get_output_layout())
-                        .FlattenFeatureAndSpatials());
-            } else {
-                fc_params.output_quantization_factor = arg.get_output_qf();
-            }
+        if (arg.get_output_layout().data_type == data_types::i8 ||
+            arg.get_output_layout().data_type == data_types::u8) {
+            fc_params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
+        } else {
+            fc_params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
         fc_optional_params.tuningParams.runner =
@@ -118,9 +102,12 @@ attach_fully_connected_gpu::attach_fully_connected_gpu() {
         // MMAD
         {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv32), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv32), val_fw},
         // IMAD
         {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv4), val_fw},
         // fs_b_yx_fsv32
         {std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), val_fw},
     });

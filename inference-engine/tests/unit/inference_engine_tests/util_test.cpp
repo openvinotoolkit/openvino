@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +14,9 @@
 #include <ie_util_internal.hpp>
 #include <tests_common.hpp>
 #include <graph_transformer.h>
-#include "ie_utils.hpp"
 #include "util_test.hpp"
 #include "graph_tools.hpp"
+#include "gna_graph_tools.hpp"
 
 namespace IE = InferenceEngine;
 
@@ -48,244 +48,8 @@ TEST(UtilTests, contains) {
     EXPECT_FALSE(IE::contains(temp_set, 5));
 }
 
-TEST(UtilTests, groupSubraphsEmpty) {
-    auto net = NetBuilder().finalize();
-    auto subgraphs = IE::groupSubgraphs(*net,
-                                        [&](const IE::CNNLayerPtr&,
-                                            const IE::CNNLayerPtr&)
-    {
-        return false;
-    });
-    ASSERT_EQ(0, subgraphs.size());
-}
-
-TEST(UtilTests, groupSubraphsNoSplit) {
-    auto net = NetBuilder()
-               .data("data1",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data2",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data3",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data4",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data5",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer1","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer2","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer3","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer4","dummy",IE::Precision::UNSPECIFIED})
-               .linkData("data1","data2","layer1")
-               .linkData("data2","data3","layer2")
-               .linkData("data3","data4","layer3")
-               .linkData("data4","data5","layer4")
-               .finalize();
-
-    auto subgraphs = IE::groupSubgraphs(*net,
-                                        [&](const IE::CNNLayerPtr&,
-                                            const IE::CNNLayerPtr&)
-    {
-        return false;
-    });
-    ASSERT_EQ(1, subgraphs.size());
-    ASSERT_TRUE(checkLayers(subgraphs.front(), {"layer1","layer2","layer3","layer4"}));
-}
-
-TEST(UtilTests, groupSubraphsAlwaysSplit) {
-    auto net = NetBuilder()
-               .data("data1",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data2",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data3",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data4",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data5",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer1","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer2","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer3","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer4","dummy",IE::Precision::UNSPECIFIED})
-               .linkData("data1","data2","layer1")
-               .linkData("data2","data3","layer2")
-               .linkData("data3","data4","layer3")
-               .linkData("data4","data5","layer4")
-               .finalize();
-
-    auto subgraphs = IE::groupSubgraphs(*net,
-                                        [&](const IE::CNNLayerPtr&,
-                                            const IE::CNNLayerPtr&)
-    {
-        return true;
-    });
-    ASSERT_EQ(4, subgraphs.size());
-
-    for (auto&& it: net->allLayers()) {
-        auto& layer = it.second;
-        bool found = false;
-        for (auto&& subgraphLayer: subgraphs) {
-            ASSERT_EQ(1, subgraphLayer.size());
-            if (layer == subgraphLayer.front()) {
-                found = true;
-                break;
-            }
-        }
-        ASSERT_TRUE(found);
-    }
-}
-
-TEST(UtilTests, groupSubraphsUnconnectedSubgraphs) {
-    auto net = NetBuilder()
-               .data("data1",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data2",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data3",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data4",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data5",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer1","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer2","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer3","dummy",IE::Precision::UNSPECIFIED})
-               .linkData("data1","data2","layer1")
-               .linkData("data3","data4","layer2")
-               .linkData("data4","data5","layer3")
-               .finalize();
-
-    auto subgraphs = IE::groupSubgraphs(*net,
-                                        [&](const IE::CNNLayerPtr&,
-                                            const IE::CNNLayerPtr&)
-    {
-        return false;
-    });
-    ASSERT_EQ(2, subgraphs.size());
-
-    for (auto&& subgraph: subgraphs) {
-        if (1 == subgraph.size()) {
-            ASSERT_TRUE(checkLayers(subgraph, {"layer1"}));
-        }
-        else if (2 == subgraph.size()) {
-            ASSERT_TRUE(checkLayers(subgraph, {"layer2","layer3"}));
-        }
-        else {
-            FAIL();
-        }
-    }
-}
-
-TEST(UtilTests, groupSubraphsLinear) {
-    auto net = NetBuilder()
-               .data("data1",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data2",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data3",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data4",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer1","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer2","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer3","dummy",IE::Precision::UNSPECIFIED})
-               .linkData("data1","data2","layer1")
-               .linkData("data2","data3","layer2")
-               .linkData("data3","data4","layer3")
-               .finalize();
-
-    auto subgraphs = IE::groupSubgraphs(*net,
-                                        [&](const IE::CNNLayerPtr& layer1,
-                                            const IE::CNNLayerPtr& layer2)
-    {
-        if ("layer1" == layer1->name) {
-            EXPECT_EQ("layer2", layer2->name);
-            return true;
-        }
-        if ("layer2" == layer1->name) {
-            EXPECT_EQ("layer3", layer2->name);
-            return false;
-        }
-        else {
-            ADD_FAILURE();
-            return false;
-        }
-    });
-    ASSERT_EQ(2, subgraphs.size());
-
-    for (auto&& subgraph: subgraphs) {
-        if (1 == subgraph.size()) {
-            ASSERT_TRUE(checkLayers(subgraph, {"layer1"}));
-        }
-        else if (2 == subgraph.size()) {
-            ASSERT_TRUE(checkLayers(subgraph, {"layer2","layer3"}));
-        }
-        else {
-            FAIL();
-        }
-    }
-}
-
-TEST(UtilTests, groupSubraphsDeadBranch) {
-    //
-    // L1->L2->L3->L4->L5
-    //      \      /
-    //      L6 -> L7
-    //
-    // Split between L2 - L6 and L7 - L4
-    //
-    // Subgraphs:
-    // L1, L2, L3, L4, L5
-    // L6, L7
-    auto net = NetBuilder()
-               .data("data1",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data2",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data3",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data4",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data5",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data6",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data7",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data8",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data9",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer1","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer2","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer3","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer4","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer5","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer6","dummy",IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer7","dummy",IE::Precision::UNSPECIFIED})
-               .linkData("data1","data2","layer1")
-               .linkData("data2","data3","layer2")
-               .linkData("data3","data4","layer3")
-               .linkData("data4","data5","layer4")
-               .linkData("data5","data6","layer5")
-
-               .linkLayers("layer2", "layer6", "data7")
-               .linkLayers("layer6", "layer7", "data8")
-               .linkLayers("layer7", "layer4", "data9")
-
-               .finalize();
-
-    auto subgraphs = IE::groupSubgraphs(*net,
-                                        [&](const IE::CNNLayerPtr& layer1,
-                                            const IE::CNNLayerPtr& layer2)
-    {
-        if ("layer2" == layer1->name) {
-            if ("layer3" == layer2->name) {
-                return false;
-            }
-            else if ("layer6" == layer2->name) {
-                return true;
-            }
-            else {
-                ADD_FAILURE();
-            }
-        }
-
-        if ("layer7" == layer1->name) {
-            EXPECT_EQ("layer4", layer2->name);
-            return true;
-        }
-        return false;
-    });
-    ASSERT_EQ(2, subgraphs.size());
-
-    for (auto&& subgraph: subgraphs) {
-        if (5 == subgraph.size()) {
-            ASSERT_TRUE(checkLayers(subgraph, {"layer1","layer2","layer3","layer4","layer5"}));
-        }
-        else if (2 == subgraph.size()) {
-            ASSERT_TRUE(checkLayers(subgraph, {"layer6","layer7"}));
-        }
-        else {
-            FAIL();
-        }
-    }
-}
-
 TEST(UtilTests, cloneData) {
-    IE::Data srcData("test",IE::SizeVector{1,2,3},IE::Precision::FP32,IE::CHW);
+    IE::Data srcData("test", { IE::Precision::FP32, IE::SizeVector{3,2,1}, IE::CHW });
     IE::CNNLayerPtr layer1 = std::make_shared<IE::CNNLayer>(IE::LayerParams{});
     IE::CNNLayerPtr layer2 = std::make_shared<IE::CNNLayer>(IE::LayerParams{});
     srcData.getCreatorLayer() = layer1;
@@ -320,7 +84,7 @@ TEST(UtilTests, cloneLayers) {
         srclayer.userValue.v_ptr = &dummy;
         srclayer.params["foo"] = "1";
         srclayer.params["bar"] = "2";
-        auto blob = std::make_shared<IE::TBlob<float>>(IE::Precision::FP32, IE::NCHW);
+        auto blob = IE::make_shared_blob<float>(IE::TensorDesc(IE::Precision::FP32, IE::NCHW));
         srclayer.blobs["baz"] = blob;
         auto cloned = IE::clonelayer(srclayer);
         ASSERT_NE(nullptr, cloned);
@@ -375,17 +139,17 @@ TEST(UtilTests, cloneNet) {
     //
     auto net = NetBuilder()
                 // input is 4d to allow setting of batch, otherwise, CHW notation doesnt have batches
-               .data("data1",IE::SizeVector{1,1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::NCHW)
-               .data("data2",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data3",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data4",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data5",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data6",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data7",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data8",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data9",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data10",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data11",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
+               .data("data1", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1,1 }, IE::Layout::NCHW))
+               .data("data2", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data3", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data4", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data5", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data6", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data7", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data8", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data9", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data10", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data11", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
                .layer<IE::CNNLayer>(IE::LayerParams{"layer1","dummy",IE::Precision::Q78})
                .layer<IE::CNNLayer>(IE::LayerParams{"layer2","dummy",IE::Precision::UNSPECIFIED})
                .layer<IE::CNNLayer>(IE::LayerParams{"layer3","dummy",IE::Precision::UNSPECIFIED})
@@ -410,9 +174,7 @@ TEST(UtilTests, cloneNet) {
 
     net->setPrecision(IE::Precision::Q78);
     InferenceEngine::ResponseDesc resp;
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, net->setBatchSize(42, &resp));
     net->setName("net");
-    net->setTargetDevice(IE::TargetDevice::eHETERO);
 
     {
         IE::InputsDataMap inputs;
@@ -604,9 +366,7 @@ TEST(UtilTests, cloneNet) {
     {
         auto cloned = IE::cloneNet(*net);
         EXPECT_TRUE(IE::Precision::Q78        == cloned->getPrecision());
-        EXPECT_EQ(42,                            cloned->getBatchSize());
         EXPECT_EQ("net",                         cloned->getName());
-        EXPECT_TRUE(IE::TargetDevice::eHETERO == cloned->getTargetDevice());
     }
     {
         auto cloned = IE::cloneNet(*net);
@@ -633,9 +393,9 @@ TEST(UtilTests, cloneNet_input) {
     //       L3
     //
     auto net = NetBuilder()
-               .data("data1",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data2",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data3",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
+               .data("data1", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data2", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data3", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
                .layer<IE::CNNLayer>(IE::LayerParams{"input1","input",IE::Precision::UNSPECIFIED})
                .layer<IE::CNNLayer>(IE::LayerParams{"input2","Input",IE::Precision::UNSPECIFIED})
                .layer<IE::CNNLayer>(IE::LayerParams{"input3","input",IE::Precision::UNSPECIFIED})
@@ -687,9 +447,9 @@ TEST(UtilTests, cloneNet_const) {
     //       L3
     //
     auto net = NetBuilder()
-               .data("data1",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data2",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data3",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
+               .data("data1", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data2", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data3", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
                .layer<IE::CNNLayer>(IE::LayerParams{"input1","const",IE::Precision::UNSPECIFIED})
                .layer<IE::CNNLayer>(IE::LayerParams{"input2","Const",IE::Precision::UNSPECIFIED})
                .layer<IE::CNNLayer>(IE::LayerParams{"input3","const",IE::Precision::UNSPECIFIED})
@@ -748,16 +508,16 @@ TEST(UtilTests, getRootDataObjects) {
     //            /
     // C3-d6-L5-d10
     auto net = NetBuilder()
-               .data("data1",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data2",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data3",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data4",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data5",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data6",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data7",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data8",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data9",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data10",IE::SizeVector{1,1,1},IE::Precision::UNSPECIFIED, IE::Layout::CHW)
+               .data("data1",IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data2",IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data3",IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data4",IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data5",IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data6",IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data7",IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data8",IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data9",IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data10",IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
                .layer<IE::CNNLayer>(IE::LayerParams{"input1","input",IE::Precision::UNSPECIFIED})
                .layer<IE::CNNLayer>(IE::LayerParams{"input2","Input",IE::Precision::UNSPECIFIED})
                .layer<IE::CNNLayer>(IE::LayerParams{"input3","input",IE::Precision::UNSPECIFIED})
@@ -824,715 +584,6 @@ TEST(UtilTests, getRootDataObjects) {
     ASSERT_TRUE(IE::contains(data_names, "data6"));
 }
 
-TEST(UtilTests, networkComplexity) {
-    std::string model =
-            "<net name=\"Top\" version=\"2\" batch=\"1\">"
-            "    <layers>"
-            "        <layer name=\"data\" type=\"Input\" precision=\"FP32\" id=\"0\">"
-            "            <output>"
-            "                <port id=\"0\">"
-            "                    <dim>1</dim>"
-            "                    <dim>3</dim>"
-            "                    <dim>227</dim>"
-            "                    <dim>227</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"conv1\" type=\"Convolution\" precision=\"FP32\" id=\"1\">"
-            "            <convolution_data stride-x=\"4\" stride-y=\"4\" pad-x=\"0\" pad-y=\"0\" kernel-x=\"11\" kernel-y=\"11\" output=\"96\" group=\"1\"/>"
-            "            <input>"
-            "                <port id=\"1\">"
-            "                    <dim>1</dim>"
-            "                    <dim>3</dim>"
-            "                    <dim>227</dim>"
-            "                    <dim>227</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"2\">"
-            "                    <dim>1</dim>"
-            "                    <dim>96</dim>"
-            "                    <dim>55</dim>"
-            "                    <dim>55</dim>"
-            "                </port>"
-            "            </output>"
-            "            <weights offset=\"0\" size=\"139392\"/>"
-            "            <biases offset=\"139392\" size=\"384\"/>"
-            "        </layer>"
-            "        <layer name=\"relu1\" type=\"ReLU\" precision=\"FP32\" id=\"2\">"
-            "            <input>"
-            "                <port id=\"3\">"
-            "                    <dim>1</dim>"
-            "                    <dim>96</dim>"
-            "                    <dim>55</dim>"
-            "                    <dim>55</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"4\">"
-            "                    <dim>1</dim>"
-            "                    <dim>96</dim>"
-            "                    <dim>55</dim>"
-            "                    <dim>55</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"norm1\" type=\"Norm\" precision=\"FP32\" id=\"3\">"
-            "            <norm_data alpha=\"9.9999997e-05\" beta=\"0.75\" local-size=\"5\" region=\"across\"/>"
-            "            <input>"
-            "                <port id=\"5\">"
-            "                    <dim>1</dim>"
-            "                    <dim>96</dim>"
-            "                    <dim>55</dim>"
-            "                    <dim>55</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"6\">"
-            "                    <dim>1</dim>"
-            "                    <dim>96</dim>"
-            "                    <dim>55</dim>"
-            "                    <dim>55</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"pool1\" type=\"Pooling\" precision=\"FP32\" id=\"4\">"
-            "            <pooling_data kernel-x=\"3\" kernel-y=\"3\" pad-x=\"0\" pad-y=\"0\" stride-x=\"2\" stride-y=\"2\" rounding-type=\"ceil\" pool-method=\"max\"/>"
-            "            <input>"
-            "                <port id=\"7\">"
-            "                    <dim>1</dim>"
-            "                    <dim>96</dim>"
-            "                    <dim>55</dim>"
-            "                    <dim>55</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"8\">"
-            "                    <dim>1</dim>"
-            "                    <dim>96</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"conv2_split\" type=\"Split\" precision=\"FP32\" id=\"24\">"
-            "            <input>"
-            "                <port id=\"47\">"
-            "                    <dim>1</dim>"
-            "                    <dim>96</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"49\">"
-            "                    <dim>1</dim>"
-            "                    <dim>48</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "                <port id=\"53\">"
-            "                    <dim>1</dim>"
-            "                    <dim>48</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"conv2_1\" type=\"Convolution\" precision=\"FP32\" id=\"27\">"
-            "            <convolution_data stride-x=\"1\" stride-y=\"1\" pad-x=\"2\" pad-y=\"2\" kernel-x=\"5\" kernel-y=\"5\" output=\"128\" group=\"1\"/>"
-            "            <input>"
-            "                <port id=\"54\">"
-            "                    <dim>1</dim>"
-            "                    <dim>48</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"55\">"
-            "                    <dim>1</dim>"
-            "                    <dim>128</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </output>"
-            "            <weights offset=\"139776\" size=\"614400\"/>"
-            "            <biases offset=\"754176\" size=\"512\"/>"
-            "        </layer>"
-            "        <layer name=\"conv2_0\" type=\"Convolution\" precision=\"FP32\" id=\"26\">"
-            "            <convolution_data stride-x=\"1\" stride-y=\"1\" pad-x=\"2\" pad-y=\"2\" kernel-x=\"5\" kernel-y=\"5\" output=\"128\" group=\"1\"/>"
-            "            <input>"
-            "                <port id=\"50\">"
-            "                    <dim>1</dim>"
-            "                    <dim>48</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"51\">"
-            "                    <dim>1</dim>"
-            "                    <dim>128</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </output>"
-            "            <weights offset=\"754688\" size=\"614400\"/>"
-            "            <biases offset=\"1369088\" size=\"512\"/>"
-            "        </layer>"
-            "        <layer name=\"conv2_merge\" type=\"Concat\" precision=\"FP32\" id=\"25\">"
-            "            <concat_data axis=\"1\"/>"
-            "            <input>"
-            "                <port id=\"52\">"
-            "                    <dim>1</dim>"
-            "                    <dim>128</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "                <port id=\"56\">"
-            "                    <dim>1</dim>"
-            "                    <dim>128</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"48\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"relu2\" type=\"ReLU\" precision=\"FP32\" id=\"6\">"
-            "            <input>"
-            "                <port id=\"11\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"12\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"norm2\" type=\"Norm\" precision=\"FP32\" id=\"7\">"
-            "            <norm_data alpha=\"9.9999997e-05\" beta=\"0.75\" local-size=\"5\" region=\"across\"/>"
-            "            <input>"
-            "                <port id=\"13\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"14\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"pool2\" type=\"Pooling\" precision=\"FP32\" id=\"8\">"
-            "            <pooling_data kernel-x=\"3\" kernel-y=\"3\" pad-x=\"0\" pad-y=\"0\" stride-x=\"2\" stride-y=\"2\" rounding-type=\"ceil\" pool-method=\"max\"/>"
-            "            <input>"
-            "                <port id=\"15\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>27</dim>"
-            "                    <dim>27</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"16\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"conv3\" type=\"Convolution\" precision=\"FP32\" id=\"9\">"
-            "            <convolution_data stride-x=\"1\" stride-y=\"1\" pad-x=\"1\" pad-y=\"1\" kernel-x=\"3\" kernel-y=\"3\" output=\"384\" group=\"1\"/>"
-            "            <input>"
-            "                <port id=\"17\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"18\">"
-            "                    <dim>1</dim>"
-            "                    <dim>384</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "            <weights offset=\"1369600\" size=\"3538944\"/>"
-            "            <biases offset=\"4908544\" size=\"1536\"/>"
-            "        </layer>"
-            "        <layer name=\"relu3\" type=\"ReLU\" precision=\"FP32\" id=\"10\">"
-            "            <input>"
-            "                <port id=\"19\">"
-            "                    <dim>1</dim>"
-            "                    <dim>384</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"20\">"
-            "                    <dim>1</dim>"
-            "                    <dim>384</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"conv4_split\" type=\"Split\" precision=\"FP32\" id=\"28\">"
-            "            <input>"
-            "                <port id=\"57\">"
-            "                    <dim>1</dim>"
-            "                    <dim>384</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"59\">"
-            "                    <dim>1</dim>"
-            "                    <dim>192</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "                <port id=\"63\">"
-            "                    <dim>1</dim>"
-            "                    <dim>192</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"conv4_1\" type=\"Convolution\" precision=\"FP32\" id=\"31\">"
-            "            <convolution_data stride-x=\"1\" stride-y=\"1\" pad-x=\"1\" pad-y=\"1\" kernel-x=\"3\" kernel-y=\"3\" output=\"192\" group=\"1\"/>"
-            "            <input>"
-            "                <port id=\"64\">"
-            "                    <dim>1</dim>"
-            "                    <dim>192</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"65\">"
-            "                    <dim>1</dim>"
-            "                    <dim>192</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "            <weights offset=\"4910080\" size=\"1327104\"/>"
-            "            <biases offset=\"6237184\" size=\"768\"/>"
-            "        </layer>"
-            "        <layer name=\"conv4_0\" type=\"Convolution\" precision=\"FP32\" id=\"30\">"
-            "            <convolution_data stride-x=\"1\" stride-y=\"1\" pad-x=\"1\" pad-y=\"1\" kernel-x=\"3\" kernel-y=\"3\" output=\"192\" group=\"1\"/>"
-            "            <input>"
-            "                <port id=\"60\">"
-            "                    <dim>1</dim>"
-            "                    <dim>192</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"61\">"
-            "                    <dim>1</dim>"
-            "                    <dim>192</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "            <weights offset=\"6237952\" size=\"1327104\"/>"
-            "            <biases offset=\"7565056\" size=\"768\"/>"
-            "        </layer>"
-            "        <layer name=\"conv4_merge\" type=\"Concat\" precision=\"FP32\" id=\"29\">"
-            "            <concat_data axis=\"1\"/>"
-            "            <input>"
-            "                <port id=\"62\">"
-            "                    <dim>1</dim>"
-            "                    <dim>192</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "                <port id=\"66\">"
-            "                    <dim>1</dim>"
-            "                    <dim>192</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"58\">"
-            "                    <dim>1</dim>"
-            "                    <dim>384</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"relu4\" type=\"ReLU\" precision=\"FP32\" id=\"12\">"
-            "            <input>"
-            "                <port id=\"23\">"
-            "                    <dim>1</dim>"
-            "                    <dim>384</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"24\">"
-            "                    <dim>1</dim>"
-            "                    <dim>384</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"conv5_split\" type=\"Split\" precision=\"FP32\" id=\"32\">"
-            "            <input>"
-            "                <port id=\"67\">"
-            "                    <dim>1</dim>"
-            "                    <dim>384</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"69\">"
-            "                    <dim>1</dim>"
-            "                    <dim>192</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "                <port id=\"73\">"
-            "                    <dim>1</dim>"
-            "                    <dim>192</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"conv5_1\" type=\"Convolution\" precision=\"FP32\" id=\"35\">"
-            "            <convolution_data stride-x=\"1\" stride-y=\"1\" pad-x=\"1\" pad-y=\"1\" kernel-x=\"3\" kernel-y=\"3\" output=\"128\" group=\"1\"/>"
-            "            <input>"
-            "                <port id=\"74\">"
-            "                    <dim>1</dim>"
-            "                    <dim>192</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"75\">"
-            "                    <dim>1</dim>"
-            "                    <dim>128</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "            <weights offset=\"7565824\" size=\"884736\"/>"
-            "            <biases offset=\"8450560\" size=\"512\"/>"
-            "        </layer>"
-            "        <layer name=\"conv5_0\" type=\"Convolution\" precision=\"FP32\" id=\"34\">"
-            "            <convolution_data stride-x=\"1\" stride-y=\"1\" pad-x=\"1\" pad-y=\"1\" kernel-x=\"3\" kernel-y=\"3\" output=\"128\" group=\"1\"/>"
-            "            <input>"
-            "                <port id=\"70\">"
-            "                    <dim>1</dim>"
-            "                    <dim>192</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"71\">"
-            "                    <dim>1</dim>"
-            "                    <dim>128</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "            <weights offset=\"8451072\" size=\"884736\"/>"
-            "            <biases offset=\"9335808\" size=\"512\"/>"
-            "        </layer>"
-            "        <layer name=\"conv5_merge\" type=\"Concat\" precision=\"FP32\" id=\"33\">"
-            "            <concat_data axis=\"1\"/>"
-            "            <input>"
-            "                <port id=\"72\">"
-            "                    <dim>1</dim>"
-            "                    <dim>128</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "                <port id=\"76\">"
-            "                    <dim>1</dim>"
-            "                    <dim>128</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"68\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"relu5\" type=\"ReLU\" precision=\"FP32\" id=\"14\">"
-            "            <input>"
-            "                <port id=\"27\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"28\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"pool5\" type=\"Pooling\" precision=\"FP32\" id=\"15\">"
-            "            <pooling_data kernel-x=\"3\" kernel-y=\"3\" pad-x=\"0\" pad-y=\"0\" stride-x=\"2\" stride-y=\"2\" rounding-type=\"ceil\" pool-method=\"max\"/>"
-            "            <input>"
-            "                <port id=\"29\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>13</dim>"
-            "                    <dim>13</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"30\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>6</dim>"
-            "                    <dim>6</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"fc6\" type=\"FullyConnected\" precision=\"FP32\" id=\"16\">"
-            "            <fc_data out-size=\"4096\"/>"
-            "            <input>"
-            "                <port id=\"31\">"
-            "                    <dim>1</dim>"
-            "                    <dim>256</dim>"
-            "                    <dim>6</dim>"
-            "                    <dim>6</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"32\">"
-            "                    <dim>1</dim>"
-            "                    <dim>4096</dim>"
-            "                </port>"
-            "            </output>"
-            "            <weights offset=\"9336320\" size=\"150994944\"/>"
-            "            <biases offset=\"160331264\" size=\"16384\"/>"
-            "        </layer>"
-            "        <layer name=\"relu6\" type=\"ReLU\" precision=\"FP32\" id=\"17\">"
-            "            <input>"
-            "                <port id=\"33\">"
-            "                    <dim>1</dim>"
-            "                    <dim>4096</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"34\">"
-            "                    <dim>1</dim>"
-            "                    <dim>4096</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"fc7\" type=\"FullyConnected\" precision=\"FP32\" id=\"19\">"
-            "            <fc_data out-size=\"4096\"/>"
-            "            <input>"
-            "                <port id=\"37\">"
-            "                    <dim>1</dim>"
-            "                    <dim>4096</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"38\">"
-            "                    <dim>1</dim>"
-            "                    <dim>4096</dim>"
-            "                </port>"
-            "            </output>"
-            "            <weights offset=\"160347648\" size=\"67108864\"/>"
-            "            <biases offset=\"227456512\" size=\"16384\"/>"
-            "        </layer>"
-            "        <layer name=\"relu7\" type=\"ReLU\" precision=\"FP32\" id=\"20\">"
-            "            <input>"
-            "                <port id=\"39\">"
-            "                    <dim>1</dim>"
-            "                    <dim>4096</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"40\">"
-            "                    <dim>1</dim>"
-            "                    <dim>4096</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "        <layer name=\"fc8\" type=\"FullyConnected\" precision=\"FP32\" id=\"22\">"
-            "            <fc_data out-size=\"1000\"/>"
-            "            <input>"
-            "                <port id=\"43\">"
-            "                    <dim>1</dim>"
-            "                    <dim>4096</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"44\">"
-            "                    <dim>1</dim>"
-            "                    <dim>1000</dim>"
-            "                </port>"
-            "            </output>"
-            "            <weights offset=\"227472896\" size=\"16384000\"/>"
-            "            <biases offset=\"243856896\" size=\"4000\"/>"
-            "        </layer>"
-            "        <layer name=\"prob\" type=\"SoftMax\" precision=\"FP32\" id=\"23\">"
-            "            <input>"
-            "                <port id=\"45\">"
-            "                    <dim>1</dim>"
-            "                    <dim>1000</dim>"
-            "                </port>"
-            "            </input>"
-            "            <output>"
-            "                <port id=\"46\">"
-            "                    <dim>1</dim>"
-            "                    <dim>1000</dim>"
-            "                </port>"
-            "            </output>"
-            "        </layer>"
-            "    </layers>"
-            "    <edges>"
-            "        <edge from-layer=\"0\" from-port=\"0\" to-layer=\"1\" to-port=\"1\"/>"
-            "        <edge from-layer=\"1\" from-port=\"2\" to-layer=\"2\" to-port=\"3\"/>"
-            "        <edge from-layer=\"2\" from-port=\"4\" to-layer=\"3\" to-port=\"5\"/>"
-            "        <edge from-layer=\"3\" from-port=\"6\" to-layer=\"4\" to-port=\"7\"/>"
-            "        <edge from-layer=\"4\" from-port=\"8\" to-layer=\"24\" to-port=\"47\"/>"
-            "        <edge from-layer=\"25\" from-port=\"48\" to-layer=\"6\" to-port=\"11\"/>"
-            "        <edge from-layer=\"6\" from-port=\"12\" to-layer=\"7\" to-port=\"13\"/>"
-            "        <edge from-layer=\"7\" from-port=\"14\" to-layer=\"8\" to-port=\"15\"/>"
-            "        <edge from-layer=\"8\" from-port=\"16\" to-layer=\"9\" to-port=\"17\"/>"
-            "        <edge from-layer=\"9\" from-port=\"18\" to-layer=\"10\" to-port=\"19\"/>"
-            "        <edge from-layer=\"10\" from-port=\"20\" to-layer=\"28\" to-port=\"57\"/>"
-            "        <edge from-layer=\"29\" from-port=\"58\" to-layer=\"12\" to-port=\"23\"/>"
-            "        <edge from-layer=\"12\" from-port=\"24\" to-layer=\"32\" to-port=\"67\"/>"
-            "        <edge from-layer=\"33\" from-port=\"68\" to-layer=\"14\" to-port=\"27\"/>"
-            "        <edge from-layer=\"14\" from-port=\"28\" to-layer=\"15\" to-port=\"29\"/>"
-            "        <edge from-layer=\"15\" from-port=\"30\" to-layer=\"16\" to-port=\"31\"/>"
-            "        <edge from-layer=\"16\" from-port=\"32\" to-layer=\"17\" to-port=\"33\"/>"
-            "        <edge from-layer=\"19\" from-port=\"38\" to-layer=\"20\" to-port=\"39\"/>"
-            "        <edge from-layer=\"22\" from-port=\"44\" to-layer=\"23\" to-port=\"45\"/>"
-            "        <edge from-layer=\"24\" from-port=\"49\" to-layer=\"26\" to-port=\"50\"/>"
-            "        <edge from-layer=\"26\" from-port=\"51\" to-layer=\"25\" to-port=\"52\"/>"
-            "        <edge from-layer=\"24\" from-port=\"53\" to-layer=\"27\" to-port=\"54\"/>"
-            "        <edge from-layer=\"27\" from-port=\"55\" to-layer=\"25\" to-port=\"56\"/>"
-            "        <edge from-layer=\"28\" from-port=\"59\" to-layer=\"30\" to-port=\"60\"/>"
-            "        <edge from-layer=\"30\" from-port=\"61\" to-layer=\"29\" to-port=\"62\"/>"
-            "        <edge from-layer=\"28\" from-port=\"63\" to-layer=\"31\" to-port=\"64\"/>"
-            "        <edge from-layer=\"31\" from-port=\"65\" to-layer=\"29\" to-port=\"66\"/>"
-            "        <edge from-layer=\"32\" from-port=\"69\" to-layer=\"34\" to-port=\"70\"/>"
-            "        <edge from-layer=\"34\" from-port=\"71\" to-layer=\"33\" to-port=\"72\"/>"
-            "        <edge from-layer=\"32\" from-port=\"73\" to-layer=\"35\" to-port=\"74\"/>"
-            "        <edge from-layer=\"35\" from-port=\"75\" to-layer=\"33\" to-port=\"76\"/>"
-            "        <edge from-layer=\"17\" from-port=\"34\" to-layer=\"19\" to-port=\"37\"/>"
-            "        <edge from-layer=\"20\" from-port=\"40\" to-layer=\"22\" to-port=\"43\"/>"
-            "    </edges>"
-            "    <pre-process reference-layer-name=\"data\">"
-            "        <channel id=\"0\">"
-            "            <mean value=\"104.00698793\"/>"
-            "        </channel>"
-            "        <channel id=\"1\">"
-            "            <mean value=\"116.66876762\"/>"
-            "        </channel>"
-            "        <channel id=\"2\">"
-            "            <mean value=\"122.67891434\"/>"
-            "        </channel>"
-            "    </pre-process>"
-            "</net>";
-    InferenceEngine::CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-
-    auto topology = reader.getNetwork();
-    auto topology_complexity = getNetworkComplexity(topology);
-
-    std::map<std::string, InferenceEngine::LayerComplexity>
-        reference
-        {
-            {"conv1", {210830400, 34944}},
-            {"relu1", {290400, 0}},
-            {"norm1", {14520000, 0}},
-            {"pool1", {629856, 0}},
-
-            {"conv2_0", {223948800, 153728}},
-            {"conv2_1", {223948800, 153728}},
-            {"relu2", {186624, 0}},
-            {"norm2", {9331200, 0}},
-            {"pool2", {389376, 0}},
-
-            {"conv3", {299040768, 885120}},
-            {"relu3", {64896, 0}},
-
-            {"conv4_0", {112140288, 331968}},
-            {"conv4_1", {112140288, 331968}},
-            {"relu4", {64896, 0}},
-            {"conv5_0", {74760192, 221312}},
-            {"conv5_1", {74760192, 221312}},
-
-            {"relu5", {43264, 0}},
-            {"pool5", {82944, 0}},
-
-            {"fc6", {75497472, 37752832}},
-            {"relu6", {4096, 0}},
-
-            {"fc7", {33554432, 16781312}},
-            {"relu7", {4096, 0}},
-
-            {"fc8", {8192000, 4097000}},
-            {"prob", {4000, 0}}
-        };
-
-    for (auto &item: reference) {
-        ASSERT_TRUE(topology_complexity.count(item.first) > 0);
-        auto flops = topology_complexity[item.first].flops;
-        auto params = topology_complexity[item.first].params;
-
-        ASSERT_EQ(flops, item.second.flops);
-        ASSERT_EQ(params, item.second.params);
-    }
-}
-
 TEST(UtilTests, replaceLayerWithNewLayer) {
     //
     // I->L1->L3->O
@@ -1542,10 +593,10 @@ TEST(UtilTests, replaceLayerWithNewLayer) {
 
     NetBuilder netBuilder;
     auto net = netBuilder
-               .data("data1", IE::SizeVector{1, 1, 1}, IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data2", IE::SizeVector{1, 1, 1}, IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data3", IE::SizeVector{1, 1, 1}, IE::Precision::UNSPECIFIED, IE::Layout::CHW)
-               .data("data4", IE::SizeVector{1, 1, 1}, IE::Precision::UNSPECIFIED, IE::Layout::CHW)
+               .data("data1", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data2", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data3", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
+               .data("data4", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
                .layer<IE::CNNLayer>(IE::LayerParams{"layer1", "dummy", IE::Precision::UNSPECIFIED})
                .layer<IE::CNNLayer>(IE::LayerParams{"layer2", "dummy", IE::Precision::UNSPECIFIED})
                .layer<IE::CNNLayer>(IE::LayerParams{"layer3", "dummy", IE::Precision::UNSPECIFIED})

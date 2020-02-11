@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <stdlib.h>
+
 #include "ie_api.h"
 
 /**

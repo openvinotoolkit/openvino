@@ -110,16 +110,16 @@ bool simple_attr_check(const primitive_attr_t *attr, bool many_scales_support) {
 template <SIMPLE_REORDER_TEMPL_DECL>
 struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
 typename utils::enable_if<fmt_i == any && (false
-    || fmt_o == hwio_s8s8
-    || fmt_o == hwigo_s8s8)>::type>
+    || fmt_o == hwio_s8s8 || fmt_o == dhwio_s8s8
+    || fmt_o == hwigo_s8s8 || fmt_o == dhwigo_s8s8)>::type>
 {
     static bool is_applicable(const memory_desc_wrapper &input_d,
             const memory_desc_wrapper &output_d, const primitive_attr_t *attr)
     {
         const size_t D_mask = utils::array_product(input_d.dims(),
                                 math::ilog2q(attr->output_scales_.mask_ + 1));
-        const int oc = (input_d.dims()[fmt_o == hwigo_s8s8 + 0]);
-        const int g = (fmt_o == hwigo_s8s8) ? (input_d.dims()[0]) : 1;
+        const int oc = (input_d.dims()[fmt_o == hwigo_s8s8 || fmt_o == dhwigo_s8s8 + 0]);
+        const int g = (fmt_o == hwigo_s8s8 || fmt_o == dhwigo_s8s8) ? (input_d.dims()[0]) : 1;
 
         return output_d.format() == fmt_o
             && (input_d.data_type() == f32 || input_d.data_type() == s8)
@@ -134,7 +134,8 @@ typename utils::enable_if<fmt_i == any && (false
         const memory_tracking::grantor_t &scratchpad) {
         DECLARE_COMMON_PARAMS();
 
-        static constexpr bool w_groups = fmt_o == hwigo_s8s8;
+        static constexpr bool w_groups = fmt_o == hwigo_s8s8 || fmt_o == dhwigo_s8s8;
+        int is_3d = format_traits<fmt_o>::ndims_sp == 3;
 
         const auto &dims = input_d.dims();
         const auto &pdims = output_d.blocking_desc().padding_dims;
@@ -142,8 +143,9 @@ typename utils::enable_if<fmt_i == any && (false
         const int G = w_groups ? dims[0] : 1;
         const int OC = dims[w_groups + 0];
         const int IC = dims[w_groups + 1];
-        const int H = dims[w_groups + 2];
-        const int W = dims[w_groups + 3];
+        const int D = is_3d ? dims[w_groups + 2] : 1;
+        const int H = dims[w_groups + 2 + is_3d];
+        const int W = dims[w_groups + 3 + is_3d];
 
         const float *scales = pd->attr()->output_scales_.scales_;
         const size_t D_mask = utils::array_product(input_d.dims(),
@@ -151,16 +153,19 @@ typename utils::enable_if<fmt_i == any && (false
 
         float adj_scale = (mayiuse(avx512_core_vnni)) ? 1.0f : (1.0f / 2.0f);
 
-        size_t offset = G * pdims[w_groups + 0] * pdims[w_groups + 1] * H * W;
+        size_t offset = G * pdims[w_groups + 0] * pdims[w_groups + 1] * D * H * W;
         int32_t *cp = reinterpret_cast<int32_t *>(output + offset);
 
         parallel_nd(G, OC, [&](int g, int oc) {
             cp[g * OC + oc] = 0;
             for (int ic = 0; ic < IC; ic++)
+            for (int d = 0; d < D; d++)
             for (int h = 0; h < H; h++)
             for (int w = 0; w < W; w++) {
-                auto i = input[input_d.blk_off<!w_groups>(g, oc, ic, h, w)];
-                auto &o = output[output_d.blk_off<!w_groups>(g, oc, ic, h, w)];
+                auto i = is_3d ? input[input_d.blk_off<!w_groups>(g, oc, ic, d, h, w)]
+                               : input[input_d.blk_off<!w_groups>(g, oc, ic, h, w)];
+                auto &o = is_3d ? output[output_d.blk_off<!w_groups>(g, oc, ic, d, h, w)]
+                                : output[output_d.blk_off<!w_groups>(g, oc, ic, h, w)];
                 const float s = scales[(D_mask == 1) ? 0 : g * OC + oc];
 
                 o = qz_b0<data_t<type_i>, data_t<type_o>>()(
@@ -176,7 +181,7 @@ typename utils::enable_if<fmt_i == any && (false
 template <SIMPLE_REORDER_TEMPL_DECL>
 struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
         typename utils::enable_if<(
-                utils::one_of(fmt_i, goihw, oihw, goiw, oiw, hwio, hwigo)
+                utils::one_of(fmt_i, goihw, oihw, goiw, oiw, hwio, hwigo, oidhw, goidhw, dhwio, dhwigo)
                 && (format_traits<fmt_o>::blk_fmt == bf::_4i16o4i_s8s8
                            || format_traits<fmt_o>::blk_fmt == bf::_2i8o4i_s8s8
                            || format_traits<fmt_o>::blk_fmt
@@ -206,6 +211,8 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
         DECLARE_COMMON_PARAMS();
 
         constexpr int is_1d = format_traits<fmt_o>::ndims_sp == 1;
+        const int is_3d = format_traits<fmt_o>::ndims_sp == 3;
+        const int ndims_sp = format_traits<fmt_o>::ndims_sp;
         static constexpr bool w_groups
                 = format_traits<fmt_o>::data_kind == dk::gwei;
         const int blksize = format_traits<fmt_o>::blk_size;
@@ -222,8 +229,9 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
         const int NB_OC = pdims[w_groups + 0] / blksize;
         const int IC = dims[w_groups + 1];
         const int NB_IC = pdims[w_groups + 1] / blksize;
-        const int H = is_1d ? 1 : dims[w_groups + 2];
-        const int W = dims[w_groups + 3 - is_1d];
+        const int D = is_3d ? dims[w_groups + 2] : 1;
+        const int H = is_1d ? 1 : dims[w_groups + ndims_sp];
+        const int W = dims[w_groups + ndims_sp + 1];
 
         const float *scales = pd->attr()->output_scales_.scales_;
         const size_t D_mask = utils::array_product(input_d.dims(),
@@ -253,7 +261,7 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
         constexpr int i_mult = blksize;
         constexpr int o_mult = 1;
 
-        size_t offset = G * pdims[w_groups+0] * pdims[w_groups+1] * H * W;
+        size_t offset = G * pdims[w_groups+0] * pdims[w_groups+1] * D * H * W;
         int32_t *cp = reinterpret_cast<int32_t *>(output + offset);
         parallel_nd(G * NB_OC * blksize, [&](int i) {
             cp[i] = 0;
@@ -261,12 +269,13 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
 
         parallel_nd(G, NB_OC, [&](int g, int O) {
             for (int I = 0; I < NB_IC; I++)
+                for (int d = 0; d < D; d++)
                 for (int h = 0; h < H; h++)
                 for (int w = 0; w < W; w++) {
                     auto i = &input[wei_blk_off_like_gwei3D<fmt_i>(
-                            input_d, g, i_mult * O, i_mult * I, 0, h, w)];
+                            input_d, g, i_mult * O, i_mult * I, d, h, w)];
                     auto o = &output[wei_blk_off_like_gwei3D<fmt_o>(
-                            output_d, g, o_mult * O, o_mult * I, 0, h, w)];
+                            output_d, g, o_mult * O, o_mult * I, d, h, w)];
                     const int oc_block = nstl::min(blksize, OC - O * blksize);
                     const int ic_block = nstl::min(blksize, IC - I * blksize);
 
@@ -581,7 +590,7 @@ typename utils::enable_if<
 template <SIMPLE_REORDER_TEMPL_DECL>
 struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
     typename utils::enable_if<true
-        && utils::one_of(fmt_i, goiw, goihw, hwigo)
+        && utils::one_of(fmt_i, goiw, goihw, goidhw, hwigo, dhwigo)
         && format_traits<fmt_o>::blk_fmt == bf::_16g_s8s8>::type> {
 
     static bool is_applicable(const memory_desc_wrapper &input_d,
@@ -608,6 +617,8 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
         DECLARE_COMMON_PARAMS();
 
         constexpr int is_1d = format_traits<fmt_o>::ndims_sp == 1;
+        const int is_3d = format_traits<fmt_o>::ndims_sp == 3;
+        const int ndims_sp = format_traits<fmt_o>::ndims_sp;
         const int blksize = format_traits<fmt_o>::blk_size;
 
         const auto &dims = input_d.dims();
@@ -616,8 +627,9 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
         const int Gp = pdims[0];
         const int OC = dims[1];
         const int IC = dims[2];
-        const int H = is_1d ? 1 : dims[3];
-        const int W = dims[4 - is_1d];
+        const int D = is_3d ? dims[3] : 1;
+        const int H = is_1d ? 1 : dims[1 + ndims_sp];
+        const int W = dims[2 + ndims_sp];
 
         const size_t D_mask = utils::array_product(input_d.dims(),
                             math::ilog2q(pd->attr()->output_scales_.mask_ + 1));
@@ -646,19 +658,21 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
 
         parallel_nd(Gp/blksize, OC, [&](int gb, int O) {
                 for (int I = 0; I < IC; I++) {
+                    for (int d = 0; d < D; d++) {
                     for (int h = 0; h < H; h++) {
                     for (int w = 0; w < W; w++) {
                         const int g_block = nstl::min(G - gb * blksize, blksize);
                         const auto inp = &input[wei_blk_off_like_gwei3D<fmt_i>(
-                                input_d, gb * blksize, O, I, 0, h, w)];
+                                input_d, gb * blksize, O, I, d, h, w)];
                         const auto out = &output[wei_blk_off_like_gwei3D<fmt_o>(
-                                output_d, gb, O, I, 0, h, w)];
+                                output_d, gb, O, I, d, h, w)];
                         int offset = gb * blksize + O;
                         ker(inp, out, &cp[offset],
                             &scales[(D_mask == 1) ? 0 : offset], g_block);
-                   }
-                   }
-               }
+                    }
+                    }
+                    }
+                }
         });
         return success;
     }
@@ -1264,6 +1278,8 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
     typename utils::enable_if<
           (fmt_i == goihw && fmt_o == gOhIw8o4i_s8s8)
        || (fmt_i == oihw && fmt_o == OhIw8o4i_s8s8)
+       || (fmt_i == goidhw && fmt_o == gOdhIw8o4i_s8s8)
+       || (fmt_i == oidhw && fmt_o == OdhIw8o4i_s8s8)
     >::type>
 {
     static bool is_applicable(const memory_desc_wrapper &input_d,
@@ -1271,8 +1287,8 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
     {
         const size_t D_mask = utils::array_product(input_d.dims(),
                                 math::ilog2q(attr->output_scales_.mask_ + 1));
-        const int oc = (input_d.dims()[(fmt_i == goihw) + 0]);
-        const int g = (fmt_i == goihw) ? (input_d.dims()[0]) : 1;
+        const int oc = (input_d.dims()[(fmt_i == goihw || fmt_i == goidhw) + 0]);
+        const int g = (fmt_i == goihw || fmt_i == goidhw) ? (input_d.dims()[0]) : 1;
 
         return input_d.format() == fmt_i
             && output_d.format() == fmt_o
@@ -1290,6 +1306,7 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
 
         static constexpr bool w_groups
             = format_traits<fmt_o>::data_kind == dk::gwei;
+        int is_3d = format_traits<fmt_o>::ndims_sp == 3;
         constexpr int blksize_o = 8;
         constexpr int blksize_i = 4;
 
@@ -1304,8 +1321,9 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
         const int NB_OC = pdims[w_groups + 0] / blksize_o;
         const int IC = dims[w_groups + 1];
         const int NB_IC = pdims[w_groups + 1] / blksize_i;
-        const int H = dims[w_groups + 2];
-        const int W = dims[w_groups + 3];
+        const int D = is_3d ? dims[w_groups + 2] : 1;
+        const int H = dims[w_groups + 2 + is_3d];
+        const int W = dims[w_groups + 3 + is_3d];
 
         const float *scales = pd->attr()->output_scales_.scales_;
         const size_t D_mask = utils::array_product(input_d.dims(),
@@ -1338,7 +1356,7 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
         constexpr int i_mult_o = blksize_o;
         constexpr int i_mult_i = blksize_i;
 
-        size_t offset = G * pdims[w_groups+0] * pdims[w_groups+1] * H * W;
+        size_t offset = G * pdims[w_groups+0] * pdims[w_groups+1] * D * H * W;
         int32_t *cp = reinterpret_cast<int32_t *>(output + offset);
         parallel_nd(G * NB_OC * blksize_o, [&](int i) {
             cp[i] = 0;
@@ -1346,16 +1364,21 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
 
         parallel_nd(G, NB_OC, [&](int g, int O) {
             for (int I = 0; I < NB_IC; I++) {
-                for (int h = 0; h < H; h++) {
-                    for (int w = 0; w < W; w++) {
-                        auto i = &input[input_d.blk_off<!w_groups>(g, i_mult_o * O, i_mult_i * I, h, w)];
-                        auto o = &output[output_d.blk_off<!w_groups>(g, O, I, h, w)];
-                        const int oc_block = nstl::min(blksize_o, OC - O * blksize_o);
-                        const int ic_block = nstl::min(blksize_i, IC - I * blksize_i);
+                for (int d = 0; d < D; d++) {
+                    for (int h = 0; h < H; h++) {
+                        for (int w = 0; w < W; w++) {
+                            auto i = is_3d ? &input[input_d.blk_off<!w_groups>(g, i_mult_o * O, i_mult_i * I, d, h, w)]
+                                           : &input[input_d.blk_off<!w_groups>(g, i_mult_o * O, i_mult_i * I, h, w)];
+                            auto o = is_3d ? &output[output_d.blk_off<!w_groups>(g, O, I, d, h, w)]
+                                           : &output[output_d.blk_off<!w_groups>(g, O, I, h, w)];
+                            const int oc_block = nstl::min(blksize_o, OC - O * blksize_o);
+                            const int ic_block = nstl::min(blksize_i, IC - I * blksize_i);
 
-                        int _offset = (g * NB_OC + O) * blksize_o;
-                        ker(i, o, (order_keep) ? &cp[_offset] : nullptr, &scales[(D_mask == 1) ? 0 : _offset], oc_block,
-                            ic_block);
+                            int _offset = (g * NB_OC + O) * blksize_o;
+                            ker(i, o, (order_keep) ? &cp[_offset] : nullptr, &scales[(D_mask == 1) ? 0 : _offset],
+                                oc_block,
+                                ic_block);
+                        }
                     }
                 }
             }
@@ -1367,7 +1390,7 @@ struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
 
 template <SIMPLE_REORDER_TEMPL_DECL>
 struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
-typename utils::enable_if<fmt_i == any && (fmt_o == OhIw8o4i || fmt_o == gOhIw8o4i)>::type>
+typename utils::enable_if<fmt_i == any && (fmt_o == OhIw8o4i || fmt_o == gOhIw8o4i || fmt_o == OdhIw8o4i || fmt_o == gOdhIw8o4i)>::type>
 {
     PLAIN_TO_BLOCKED_IS_APPLICABLE();
 
@@ -1445,8 +1468,16 @@ typename utils::enable_if<fmt_i == any && (fmt_o == OhIw8o4i || fmt_o == gOhIw8o
             [&](int g, int nb_oc, int nb_ic, int d, int h, int w) {
             int i_off = wei_blk_off_like_gwei3D<fmt_o>(input_d,
                                                        g, i_mult_o * nb_oc, i_mult_i * nb_ic, d, h, w);
-            int o_off = wei_blk_off_like_gwei3D<fmt_o>(output_d,
-                                                       g, nb_oc, nb_ic, d, h, w);
+//            int o_off = wei_blk_off_like_gwei3D<fmt_o>(output_d,
+//                                                       g, nb_oc, nb_ic, d, h, w);
+
+            int o_off = g * NB_OC * D * H * NB_IC * W * blksize_o * blksize_i +
+                            nb_oc * D * H * NB_IC * W * blksize_o * blksize_i +
+                                    d * H * NB_IC * W * blksize_o * blksize_i +
+                                        h * NB_IC * W * blksize_o * blksize_i +
+                                            nb_ic * W * blksize_o * blksize_i +
+                                                    w * blksize_o * blksize_i;
+
             auto i = &input[i_off];
             auto o = &output[o_off];
             const int oc_block = nstl::min(blksize_o, OC - nb_oc * blksize_o);
@@ -1454,6 +1485,79 @@ typename utils::enable_if<fmt_i == any && (fmt_o == OhIw8o4i || fmt_o == gOhIw8o
             ker(i, o, oc_block, ic_block);
         });
 
+        return success;
+    }
+};
+
+template <SIMPLE_REORDER_TEMPL_DECL>
+struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
+        typename utils::enable_if<fmt_i == any && (fmt_o == hwio || fmt_o == dhwio || fmt_o == hwigo || fmt_o == dhwigo)>::type>
+{
+    static bool is_applicable(const memory_desc_wrapper &input_d,
+                              const memory_desc_wrapper &output_d, const primitive_attr_t *attr)
+    {
+        const size_t D_mask = utils::array_product(input_d.dims(),
+                                                   math::ilog2q(attr->output_scales_.mask_ + 1));
+        const int oc = (input_d.dims()[fmt_o == hwigo || fmt_o == dhwigo + 0]);
+        const int g = (fmt_o == hwigo || fmt_o == dhwigo) ? (input_d.dims()[0]) : 1;
+
+        return output_d.format() == fmt_o
+               && (input_d.data_type() == f32 || input_d.data_type() == s8)
+               && (output_d.data_type() == f32 || output_d.data_type() == s8)
+               && (D_mask == 1 || D_mask == (size_t)g * oc);
+    }
+
+    GET_SCRATCHPAD_SIZE_ZERO();
+
+    static status_t execute(const cpu_reorder_pd_t *pd,
+                            const data_t<type_i> *input, data_t<type_o> *output,
+                            const memory_tracking::grantor_t &scratchpad) {
+        DECLARE_COMMON_PARAMS();
+
+        static constexpr bool w_groups
+                = format_traits<fmt_o>::data_kind == dk::gwei;
+        int is_3d = format_traits<fmt_o>::ndims_sp == 3;
+
+        const auto &dims = input_d.dims();
+        const auto &pdims = output_d.blocking_desc().padding_dims; MAYBE_UNUSED(pdims);
+
+        const int G = w_groups ? dims[0] : 1;
+        const int OC = dims[w_groups + 0];
+        const int IC = dims[w_groups + 1];
+        const int D = is_3d ? dims[w_groups + 2] : 1;
+        const int H = dims[w_groups + 2 + is_3d];
+        const int W = dims[w_groups + 3 + is_3d];
+
+        const float *scales = pd->attr()->output_scales_.scales_;
+        const size_t D_mask = utils::array_product(input_d.dims(),
+                math::ilog2q(pd->attr()->output_scales_.mask_ + 1));
+
+        parallel_nd(G, OC, [&](int g, int oc) {
+            for (int ic = 0; ic < IC; ic++)
+            for (int d = 0; d < D; d++)
+            for (int h = 0; h < H; h++)
+            for (int w = 0; w < W; w++) {
+                int i_off = g * OC * IC * D * H * W +
+                                oc * IC * D * H * W +
+                                     ic * D * H * W +
+                                          d * H * W +
+                                              h * W +
+                                                  w;
+                int o_off = d * H * W * IC * G * OC +
+                                h * W * IC * G * OC +
+                                    w * IC * G * OC +
+                                        ic * G * OC +
+                                             g * OC +
+                                                 oc;
+                auto i = input[i_off];
+                auto &o = output[o_off];
+
+                const float s = scales[(D_mask == 1) ? 0 : g * OC + oc];
+
+                o = qz_b0<data_t<type_i>, data_t<type_o>>()(
+                        i, s, rmode);
+            }
+        });
         return success;
     }
 };
@@ -1533,7 +1637,8 @@ template <SIMPLE_REORDER_TEMPL_DECL>
 struct simple_reorder_impl<SIMPLE_REORDER_TEMPL_CALL,
 typename utils::enable_if<fmt_i == any
 && block_format_traits<format_traits<fmt_o>::blk_fmt>::blk_ndims == 2
-&& fmt_o != OhIw8o4i && fmt_o != gOhIw8o4i && fmt_o != OhIw8o32i && fmt_o != OhIw16o32i>::type>
+&& fmt_o != OhIw8o4i && fmt_o != gOhIw8o4i && fmt_o != OdhIw8o4i && fmt_o != gOdhIw8o4i && fmt_o != OhIw8o32i && fmt_o != OhIw16o32i
+&& fmt_o != hwigo && fmt_o != dhwigo>::type>
 {
     PLAIN_TO_BLOCKED_IS_APPLICABLE();
 

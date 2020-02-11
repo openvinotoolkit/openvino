@@ -1,18 +1,19 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief A header file for CompoundBlob
+ *
  * @file ie_compound_blob.h
  */
 #pragma once
 
-#include "ie_blob.h"
-
+#include <initializer_list>
 #include <memory>
 #include <vector>
-#include <initializer_list>
+
+#include "ie_blob.h"
 
 namespace InferenceEngine {
 /**
@@ -21,7 +22,7 @@ namespace InferenceEngine {
  * Compound blob is a wrapper blob over references to underlying blobs. These blobs should share
  * some properties and can be grouped into a single entity.
  */
-class INFERENCE_ENGINE_API_CLASS(CompoundBlob) : public Blob {
+class INFERENCE_ENGINE_API_CLASS(CompoundBlob): public Blob {
 public:
     /**
      * @brief A smart pointer to the CompoundBlob object
@@ -60,12 +61,14 @@ public:
 
     /**
      * @brief Constructs a compound blob from a vector of blobs
+     *
      * @param blobs A vector of blobs that is copied to this object
      */
     explicit CompoundBlob(const std::vector<Blob::Ptr>& blobs);
 
     /**
      * @brief Constructs a compound blob from a vector of blobs
+     *
      * @param blobs A vector of blobs that is moved to this object
      */
     explicit CompoundBlob(std::vector<Blob::Ptr>&& blobs);
@@ -108,6 +111,7 @@ public:
 
     /**
      * @brief Returns an underlying blob at index i
+     *
      * @param i the index of the underlying Blob object
      * @return A smart pointer to the underlying Blob object or nullptr in case of an error
      */
@@ -125,20 +129,20 @@ protected:
     std::vector<Blob::Ptr> _blobs;
 
     /**
-    * @brief Returns nullptr as CompoundBlob is not allocator-based
-    */
-    const std::shared_ptr<IAllocator> &getAllocator() const noexcept override;
+     * @brief Returns nullptr as CompoundBlob is not allocator-based
+     */
+    const std::shared_ptr<IAllocator>& getAllocator() const noexcept override;
 
     /**
-    * @brief Returns nullptr as CompoundBlob is not allocator-based
-    */
-    void *getHandle() const noexcept override;
+     * @brief Returns nullptr as CompoundBlob is not allocator-based
+     */
+    void* getHandle() const noexcept override;
 };
 
 /**
  * @brief Represents a blob that contains two planes (Y and UV) in NV12 color format
  */
-class INFERENCE_ENGINE_API_CLASS(NV12Blob) : public CompoundBlob {
+class INFERENCE_ENGINE_API_CLASS(NV12Blob): public CompoundBlob {
 public:
     /**
      * @brief A smart pointer to the NV12Blob object
@@ -157,6 +161,7 @@ public:
 
     /**
      * @brief Constructs NV12 blob from two planes Y and UV
+     *
      * @param y Blob object that represents Y plane in NV12 color format
      * @param uv Blob object that represents UV plane in NV12 color format
      */
@@ -164,6 +169,7 @@ public:
 
     /**
      * @brief Constructs NV12 blob from two planes Y and UV
+     *
      * @param y Blob object that represents Y plane in NV12 color format
      * @param uv Blob object that represents UV plane in NV12 color format
      */
@@ -215,4 +221,126 @@ public:
     virtual const Blob::Ptr& uv() const noexcept;
 };
 
+/**
+ * @brief Represents a blob that contains three planes (Y,U and V) in I420 color format
+ */
+class INFERENCE_ENGINE_API_CLASS(I420Blob) : public CompoundBlob {
+public:
+    /**
+     * @brief A smart pointer to the I420Blob object
+     */
+    using Ptr = std::shared_ptr<I420Blob>;
+
+    /**
+     * @brief A smart pointer to the const I420Blob object
+     */
+    using CPtr = std::shared_ptr<const I420Blob>;
+
+    /**
+     * @brief A deleted default constructor
+     */
+    I420Blob() = delete;
+
+    /**
+     * @brief Constructs I420 blob from three planes Y, U and V
+     * @param y Blob object that represents Y plane in I420 color format
+     * @param u Blob object that represents U plane in I420 color format
+     * @param v Blob object that represents V plane in I420 color format
+     */
+    I420Blob(const Blob::Ptr& y, const Blob::Ptr& u, const Blob::Ptr& v);
+
+    /**
+     * @brief Constructs I420 blob from three planes Y, U and V
+     * @param y Blob object that represents Y plane in I420 color format
+     * @param u Blob object that represents U plane in I420 color format
+     * @param v Blob object that represents V plane in I420 color format
+     */
+    I420Blob(Blob::Ptr&& y, Blob::Ptr&& u, Blob::Ptr&& v);
+
+    /**
+     * @brief A virtual destructor. It is made out of line for RTTI to
+     * work correctly on some platforms.
+     */
+    virtual ~I420Blob();
+
+    /**
+     * @brief A copy constructor
+     */
+    I420Blob(const I420Blob& blob) = default;
+
+    /**
+     * @brief A copy assignment operator
+     */
+    I420Blob& operator=(const I420Blob& blob) = default;
+
+    /**
+     * @brief A move constructor
+     */
+    I420Blob(I420Blob&& blob) = default;
+
+    /**
+     * @brief A move assignment operator
+     */
+    I420Blob& operator=(I420Blob&& blob) = default;
+
+    /**
+     * @brief Returns a reference to shared pointer to Y plane
+     *
+     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
+     * the I420Blob object is destroyed.
+     *
+     * @return reference to shared pointer object of Y plane
+     */
+    Blob::Ptr& y() noexcept;
+
+    /**
+     * @brief Returns a constant reference to shared pointer to Y plane
+     *
+     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
+     * the I420Blob object is destroyed.
+     *
+      * @return constant reference to shared pointer object of Y plane*
+     */
+    const Blob::Ptr& y() const noexcept;
+
+    /**
+     * @brief Returns a reference to shared pointer to U plane
+     *
+     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
+     * the I420Blob object is destroyed.
+     *
+     * @return reference to shared pointer object of U plane
+     */
+    Blob::Ptr& u() noexcept;
+
+    /**
+     * @brief Returns a constant reference to shared pointer to U plane
+     *
+     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
+     * the I420Blob object is destroyed.
+     *
+     * @return constant reference to shared pointer object of U plane
+     */
+    const Blob::Ptr& u() const noexcept;
+
+    /**
+     * @brief Returns a reference to shared pointer to V plane
+     *
+     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
+     * the I420Blob object is destroyed.
+     *
+     * @return reference to shared pointer object of V plane
+     */
+    Blob::Ptr& v() noexcept;
+
+    /**
+     * @brief Returns a constant reference to shared pointer to V plane
+     *
+     * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
+     * the I420Blob object is destroyed.
+     *
+     * @return constant reference to shared pointer object of V plane
+     */
+    const Blob::Ptr& v() const noexcept;
+};
 }  // namespace InferenceEngine

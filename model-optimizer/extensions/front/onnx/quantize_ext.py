@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ class FakeQuantizeFrontExtractor(FrontExtractorOp):
     op = 'FakeQuantize'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         levels = onnx_attr(node, 'levels', 'i')
         FakeQuantize.update_node_stat(node, {'levels': levels})
         return FakeQuantizeFrontExtractor.enabled

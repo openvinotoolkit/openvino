@@ -96,6 +96,9 @@ struct jit_avx512_common_1x1_conv_kernel : public jit_generator {
     reg64_t reg_d_weights = imm_addr64;
     reg64_t reg_d_bias = r13;
 
+    Xbyak::Zmm zmm_d_weights = Xbyak::Zmm(31);
+    Xbyak::Zmm zmm_d_bias = Xbyak::Zmm(30);
+
     nstl::vector<jit_uni_eltwise_injector_f32<avx512_common>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<avx512_common>*> depthwise_injectors;
 

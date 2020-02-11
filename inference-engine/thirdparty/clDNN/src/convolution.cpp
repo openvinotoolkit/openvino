@@ -15,6 +15,7 @@
 */
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include "pass_manager.h"
 #include "convolution_inst.h"
 #include "primitive_type_base.h"
 #include "sliding_window_utils.h"
@@ -44,10 +45,19 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
     auto filter_size = weights_layout.size;
 
     auto input_type = input_layout.data_type;
-    auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_type;
+
+    // FIXME: use optional output data type once it's correct in IE
+    auto output_type = input_type;
+    // auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_type;
 
     if (node.has_fused_primitives()) {
         output_type = node.get_fused_output_layout().data_type;
+    }
+
+    if ((input_type == data_types::u8 || input_type == data_types::i8) &&
+         // !node.get_primitive()->output_data_type &&
+         !node.has_fused_primitives()) {
+        output_type = data_types::f32;
     }
 
     // TODO: Consider moving general parameter verification to arguments constructor.
@@ -269,6 +279,33 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
         return layout{output_type, cldnn::format::fs_bs_yx_bsv4_fsv32, output_size};
     }
 
+    auto users = node.get_users();
+    if (users.size() == 1 && users.front()->is_type<convolution>()) {
+        auto conv_split = users.front()->as<convolution>().get_split();
+        auto conv_groups = (int32_t)users.front()->as<convolution>().get_groups();
+
+        bool next_is_dw = ((conv_split > 1 && conv_split == output_size.feature[0]) ||
+                           (conv_groups > 1 && conv_groups == output_size.feature[0]));
+
+        if (input_layout.data_type == data_types::i8 && input_layout.format == format::b_fs_yx_fsv4 && next_is_dw) {
+            return layout{output_type, cldnn::format::byxf_af32, output_size};
+        }
+
+        auto prev_node = node.get_dependencies().front();
+        if (prev_node->is_type<reorder>())
+            prev_node = prev_node->get_dependencies().front();
+
+        auto prev_is_convo = prev_node->is_type<convolution>();
+        if (prev_is_convo) {
+            auto prev2_node = prev_node->get_dependencies().front();
+            auto prev_input_format = prev2_node->get_output_layout().format;
+
+            if (input_layout.data_type == data_types::i8 && input_layout.format == format::byxf_af32 && !next_is_dw &&
+                prev_input_format == format::b_fs_yx_fsv4) {
+                return layout{output_type, cldnn::format::b_fs_yx_fsv4, output_size};
+            }
+        }
+    }
     return {output_type, input_layout.format, output_size};
 }
 
@@ -282,6 +319,9 @@ std::string convolution_inst::to_string(convolution_node const& node) {
 
     std::stringstream primitive_description;
 
+    std::string w_zp = desc->weights_zero_points.empty() ? "false" : "true";
+    std::string a_zp = desc->activations_zero_points.empty() ? "false" : "true";
+
     json_composite conv_info;
     conv_info.add("stride", strd.to_string());
     conv_info.add("input offset", desc->input_offset.to_string());
@@ -292,6 +332,8 @@ std::string convolution_inst::to_string(convolution_node const& node) {
     conv_info.add("dilation", dilation.to_string());
     conv_info.add("deformable_groups", desc->deformable_groups);
     conv_info.add("groups", desc->groups);
+    conv_info.add("has zero points for weights: ", w_zp);
+    conv_info.add("has zero points for activations: ", a_zp);
 
     if (desc->with_output_size) {
         json_composite ud_out_size_info;

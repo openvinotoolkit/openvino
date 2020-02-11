@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.ops.identity import IdentityOp
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Graph
 
@@ -31,7 +31,10 @@ class SplitToIdentity(FrontReplacementOp):
     enabled = True
 
     def replace_sub_graph(self, graph: Graph, match: dict):
-        split_node = match['op']
-        split_node.op = 'Identity'
-        for u, v, edge_attrs in split_node.graph.out_edges(split_node.id, data=True):
-            edge_attrs['out'] = 0
+        node = match['op']
+
+        identity = IdentityOp(graph, {'name': node.soft_get('name', node.id)}).create_node()
+        node.in_port(0).get_connection().set_destination(identity.in_port(0))
+
+        for idx, port in node.out_ports().items():
+            port.get_connection().set_source(identity.out_port(0))

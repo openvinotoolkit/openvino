@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 
 import collections
 import logging as log
+from typing import Dict
 
 import numpy as np
 
-from extensions.back.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout, \
+from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout, \
     mark_output_as_in_correct_layout
 from extensions.ops.activation_ops import Sigmoid
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.extractor import update_attrs
 from mo.graph.graph import Node, Graph
 from mo.ops.concat import Concat
 from mo.ops.const import Const
@@ -44,6 +44,22 @@ def create_op_node_with_second_input(graph: Graph, op: callable, second_input_va
     second_input_node.out_port(0).connect(node.in_port(1))
     if graph.stage != 'front':
         second_input_node.infer(second_input_node)
+    return node
+
+
+def create_op_with_const_inputs(graph: Graph, op: callable, port_value_dict: Dict[int, np.array],
+                                op_attrs=None, input_node=None):
+    operation = op(graph, op_attrs)
+    node = operation.create_node()
+    if input_node is not None:
+        input_node.out_port(0).connect(node.in_port(0))
+
+    for idx, value in port_value_dict.items():
+        node.add_input_port(idx, skip_if_exist=True)
+        value_input_node = Const(graph, {'name': node.name + '/value', 'value': value}).create_node()
+        value_input_node.out_port(0).connect(node.in_port(idx))
+        if graph.stage != 'front':
+            value_input_node.infer(value_input_node)
     return node
 
 

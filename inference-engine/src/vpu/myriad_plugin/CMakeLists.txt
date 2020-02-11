@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,10 +18,7 @@ endif()
 
 target_include_directories(${TARGET_NAME}
     PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}"
-    SYSTEM PRIVATE
-        "${IE_MAIN_SOURCE_DIR}/include"
-        "${IE_MAIN_SOURCE_DIR}/src/inference_engine")
+        "${CMAKE_CURRENT_SOURCE_DIR}")
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_compile_options(${TARGET_NAME}
@@ -33,6 +30,16 @@ if (ENABLE_MYRIAD_NO_BOOT)
     target_compile_definitions(${TARGET_NAME} PRIVATE NO_BOOT)
 endif()
 
+# NOTE:
+# sem_* POSIX functions must be overriden on OSX,
+# these functions come from "mvnc" target,
+# "mvnc" must be the first library in the link list
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        ${INTEL_ITT_LIBS} inference_engine vpu_graph_transformer mvnc)
+        mvnc ${INTEL_ITT_LIBS} ${NGRAPH_LIBRARIES} inference_engine vpu_graph_transformer)
+
+# install
+
+install(FILES ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/src/97-myriad-usbboot.rules
+        DESTINATION deployment_tools/inference_engine/external
+        COMPONENT myriad)

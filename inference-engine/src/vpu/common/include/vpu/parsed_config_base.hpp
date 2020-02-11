@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
+#include <stdexcept>
+#include <chrono>
 
 #include <vpu/vpu_plugin_config.hpp>
 
@@ -17,77 +19,117 @@
 namespace vpu {
 
 VPU_DECLARE_ENUM(ConfigMode,
-        DEFAULT_MODE = 0,
-        RUNTIME_MODE = 1,
-        COMPILE_MODE = 2,
+    Any,
+    RunTime,
 )
 
-struct ParsedConfigBase {
-    LogLevel deviceLogLevel = LogLevel::None;
-    LogLevel hostLogLevel = LogLevel::None;
-
-    bool exclusiveAsyncRequests = false;
-
-    virtual std::map<std::string, std::string> getDefaultConfig() const { return {}; }
-
-    ~ParsedConfigBase() = default;
-
-protected:
-    explicit ParsedConfigBase(ConfigMode configMode);
-
-    virtual void checkSupportedValues(const std::unordered_map<std::string, std::unordered_set<std::string>> &supported,
-                                                     const std::map<std::string, std::string> &config) const;
-    virtual void checkUnknownOptions(const std::map<std::string, std::string> &config) const;
-    virtual void checkInvalidValues(const std::map<std::string, std::string> &config) const;
-    virtual void checkOptionsAccordingToMode(const std::map<std::string, std::string> &config) const;
-
-    std::map<std::string, std::string> parse(const std::map<std::string, std::string> &config) {
-        checkInvalidValues(config);
-        checkUnknownOptions(config);
-        checkOptionsAccordingToMode(config);
-
-        auto defaultConfig = getDefaultConfig();
-        for (auto &&entry : config) {
-            defaultConfig[entry.first] = entry.second;
-        }
-
-        return defaultConfig;
+class ParsedConfigBase {
+public:
+    LogLevel logLevel() const {
+        return _logLevel;
     }
 
-    virtual void configure(const std::map<std::string, std::string> &config);
+    bool exclusiveAsyncRequests() const {
+        return _exclusiveAsyncRequests;
+    }
 
+public:
+    ParsedConfigBase();
+    virtual ~ParsedConfigBase();
 
-    virtual std::unordered_set<std::string> getKnownOptions() const;
-    virtual std::unordered_set<std::string> getCompileOptions() const { return {}; }
-    virtual std::unordered_set<std::string> getRuntimeOptions() const;
+    void update(
+            const std::map<std::string, std::string>& config,
+            ConfigMode mode = ConfigMode::Any);
 
 protected:
+    virtual const std::unordered_set<std::string>& getCompileOptions() const;
+    virtual const std::unordered_set<std::string>& getRunTimeOptions() const;
+    virtual const std::unordered_set<std::string>& getDeprecatedOptions() const;
+    virtual void parse(const std::map<std::string, std::string>& config);
+
+protected:
+    static std::unordered_set<std::string> merge(
+                const std::unordered_set<std::string>& set1,
+                const std::unordered_set<std::string>& set2);
+
+    static void setOption(
+                std::string& dst,
+                const std::map<std::string, std::string>& config,
+                const std::string& key);
+
+    template <typename T, class SupportedMap>
+    static void setOption(
+                T& dst,
+                const SupportedMap& supported,
+                const std::map<std::string, std::string>& config,
+                const std::string& key) {
+        const auto value = config.find(key);
+        if (value != config.end()) {
+            const auto parsedValue = supported.find(value->second);
+            if (parsedValue == supported.end()) {
+                THROW_IE_EXCEPTION
+                        << "Unsupported value " << "\"" << value->second << "\""
+                        << " for key " << key;
+            }
+
+            dst = parsedValue->second;
+        }
+    }
+
+    template <typename T, class PreprocessFunc>
+    static void setOption(
+                T& dst,
+                const std::map<std::string, std::string>& config,
+                const std::string& key,
+                const PreprocessFunc& preprocess) {
+        const auto value = config.find(key);
+        if (value != config.end()) {
+            try {
+                dst = preprocess(value->second);
+            } catch(const std::exception& e) {
+                THROW_IE_EXCEPTION
+                        << "Invalid value " << "\"" << value->second << "\""
+                        << " for key " << key
+                        << " : " << e.what();
+            }
+        }
+    }
+
+    static std::chrono::seconds parseSeconds(const std::string& src) {
+        try {
+            return std::chrono::seconds(std::stoi(src));
+        } catch (const std::exception& e) {
+            THROW_IE_EXCEPTION
+                        << "Can not convert string:"
+                        << src << " to seconds. "
+                        << "Message : " << e.what();
+        }
+    }
+
+    static int parseInt(const std::string& src) {
+        return std::stoi(src);
+    }
+
+    static float parseFloat(const std::string& src) {
+        return std::stof(src);
+    }
+
+    static float parseFloatReverse(const std::string& src) {
+        const auto val = std::stof(src);
+        if (val == 0.0f) {
+            throw std::invalid_argument("Zero value");
+        }
+        return 1.0f / val;
+    }
+
+protected:
+    static const std::unordered_map<std::string, bool> switches;
+
     Logger::Ptr _log;
 
 private:
-    ConfigMode _mode = ConfigMode::DEFAULT_MODE;
+    LogLevel _logLevel = LogLevel::None;
+    bool _exclusiveAsyncRequests = false;
 };
 
-template<typename T, typename V>
-inline void setOption(T &dst, const V &supported, const std::map<std::string, std::string> &config, const std::string &key) {
-    auto value = config.find(key);
-    if (value != config.end()) {
-        dst = supported.at(value->second);
-    }
-}
-
-inline void setOption(std::string &dst, const std::map<std::string, std::string> &config, const std::string &key) {
-    auto value = config.find(key);
-    if (value != config.end()) {
-        dst = value->second;
-    }
-}
-
-template<typename T, typename C>
-inline void setOption(T &dst, const std::map<std::string, std::string> &config, const std::string &key, const C &preprocess) {
-    auto value = config.find(key);
-    if (value != config.end()) {
-        dst = preprocess(value->second);
-    }
-}
 }  // namespace vpu

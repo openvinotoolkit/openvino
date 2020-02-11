@@ -1,11 +1,20 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #define INTEL_GNA_DLLEXPORT 1
 #include <gna-api.h>
 #include <gna-api-dumper.h>
+#if GNA_LIB_VER == 1
 #include <gna-api-instrumentation.h>
+#else
+#include <gna-api-status.h>
+#include <gna2-instrumentation-api.h>
+#include <gna2-memory-api.h>
+#include <gna2-inference-api.h>
+#include <gna2-model-export-api.h>
+#endif
+
 #include "gna_mock_api.hpp"
 
 static GNACppApi * current = nullptr;
@@ -21,7 +30,152 @@ GNACppApi :: ~GNACppApi() {
 #ifdef __cplusplus
 extern "C" {  // API uses C linkage so that it can be used by C and C++ applications
 #endif
+#if GNA_LIB_VER == 2
 
+GNA2_API enum Gna2Status Gna2MemoryAlloc(
+    uint32_t sizeRequested,
+    uint32_t *sizeGranted,
+    void **memoryAddress) {
+    if (current != nullptr) {
+        return current->Gna2MemoryAlloc(sizeRequested, sizeGranted, memoryAddress);
+    }
+    if (sizeGranted != nullptr) {
+        *sizeGranted = sizeRequested;
+    }
+    *memoryAddress = reinterpret_cast<void*>(1);
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2DeviceOpen(
+    uint32_t deviceIndex) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2DeviceSetNumberOfThreads(
+    uint32_t deviceIndex,
+    uint32_t numberOfThreads) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API Gna2Status Gna2DeviceClose(
+    uint32_t deviceIndex) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2MemoryFree(
+    void * memory) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2StatusGetMessage(enum Gna2Status status,
+    char * messageBuffer, uint32_t messageBufferSize) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2ModelCreate(
+    uint32_t deviceIndex,
+    struct Gna2Model const * model,
+    uint32_t * modelId) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2ModelRelease(
+    uint32_t modelId) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2RequestConfigCreate(
+    uint32_t modelId,
+    uint32_t * requestConfigId) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2RequestConfigEnableActiveList(
+    uint32_t requestConfigId,
+    uint32_t operationIndex,
+    uint32_t numberOfIndices,
+    uint32_t const * indices) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2RequestConfigEnableHardwareConsistency(
+    uint32_t requestConfigId,
+    enum Gna2DeviceVersion deviceVersion) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2RequestConfigSetAccelerationMode(
+    uint32_t requestConfigId,
+    enum Gna2AccelerationMode accelerationMode) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2RequestEnqueue(
+    uint32_t requestConfigId,
+    uint32_t * requestId) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2RequestWait(
+    uint32_t requestId,
+    uint32_t timeoutMilliseconds) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2ModelExportConfigCreate(
+    Gna2UserAllocator userAllocator,
+    uint32_t * exportConfigId) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2ModelExportConfigRelease(
+    uint32_t exportConfigId) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2ModelExportConfigSetSource(
+    uint32_t exportConfigId,
+    uint32_t sourceDeviceIndex,
+    uint32_t sourceModelId) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2ModelExportConfigSetTarget(
+    uint32_t exportConfigId,
+    enum Gna2DeviceVersion targetDeviceVersion) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2ModelExport(
+    uint32_t exportConfigId,
+    enum Gna2ModelExportComponent componentType,
+    void ** exportBuffer,
+    uint32_t * exportBufferSize) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2DeviceGetVersion(
+    uint32_t deviceIndex,
+    enum Gna2DeviceVersion * deviceVersion) {
+    *deviceVersion = Gna2DeviceVersionSoftwareEmulation;
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2InstrumentationConfigCreate(
+    uint32_t numberOfInstrumentationPoints,
+    enum Gna2InstrumentationPoint* selectedInstrumentationPoints,
+    uint64_t * results,
+    uint32_t * instrumentationConfigId) {
+    return Gna2StatusSuccess;
+}
+
+GNA2_API enum Gna2Status Gna2InstrumentationConfigAssignToRequestConfig(
+    uint32_t instrumentationConfigId,
+    uint32_t requestConfigId) {
+    return Gna2StatusSuccess;
+}
+
+#elif GNA_LIB_VER == 1
 
 /**
  * intel_gna_status_t members printable descriptions
@@ -212,7 +366,8 @@ DLLDECL void gmmSetThreads(
 ) {
     current->gmmSetThreads((num != 0) ? num : 1);
 }
+#endif // GNA_LIB_VER == 1
+
 #ifdef __cplusplus
 }
 #endif
-

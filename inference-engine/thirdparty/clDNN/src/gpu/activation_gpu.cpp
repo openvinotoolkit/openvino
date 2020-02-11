@@ -97,6 +97,9 @@ attach_activation_gpu::attach_activation_gpu() {
         {std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::byxf), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i32, format::byxf), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i32, format::yxfb), val_fw},
         // block f16 format
         {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx_f16), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx_f16), val_fw},
@@ -104,9 +107,15 @@ attach_activation_gpu::attach_activation_gpu() {
         {std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), val_fw},
         { std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16), val_fw },
         { std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16), val_fw },
         { std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx_f16), val_fw },
+        { std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_b16f16), val_fw },
+        { std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_b16f16), val_fw },
+        { std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx_b16f16), val_fw },
+        // fs_b_yx_fsv32
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), val_fw},
     });
 }
 

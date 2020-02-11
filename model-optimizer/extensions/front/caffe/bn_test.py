@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,13 +13,15 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 import unittest
+
+import numpy as np
 
 from extensions.front.caffe.bn import BNToScaleShift
 from mo.graph.graph import Node
 from mo.utils.unittest.extractors import FakeParam
-from mo.utils.unittest.graph import build_graph_with_edge_attrs
+from mo.utils.unittest.graph import build_graph_with_edge_attrs, build_graph_with_attrs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 
 class FakeBNProtoLayer:
@@ -43,25 +45,36 @@ class TestBNReplacer(unittest.TestCase):
                                  FakeParam('data', var),
                                  FakeParam('data', scale),
                                  FakeParam('data', shift)])
-        nodes = {
-            'node_1': {'kind': 'op', 'type': 'Identity', 'op': 'Parameter'},
-            'bn': {'type': 'BN', 'kind': 'op', 'op': 'BN',
-                   'pb': bn_pb,
-                   'model_pb': bn_bin},
-            'node_2': {'kind': 'op', 'type': 'Identity', 'op': 'Parameter'}}
+        nodes = [
+            ('input', {'kind': 'op', 'type': 'Identity', 'op': 'Identity'}),
+            ('bn', {'type': 'BN', 'kind': 'op', 'op': 'BN', 'pb': bn_pb, 'model_pb': bn_bin}),
+            ('output', {'kind': 'op', 'type': 'Identity', 'op': 'Identity'}),
+        ]
         edges = [
-            ('node_1', 'bn', {'in': 0}),
-            ('bn', 'node_2', {'in': 0})]
-        graph = build_graph_with_edge_attrs(nodes, edges)
+            ('input', 'bn', {'in': 0, 'out': 0}),
+            ('bn', 'output', {'in': 0, 'out': 0}),
+        ]
+        graph = build_graph_with_attrs(nodes, edges)
         node = Node(graph, 'bn')
-        replacer = BNToScaleShift()
-        replacer.replace_op(graph, node)
+        graph.stage = 'front'
 
-        scale_node = [node for node, attrs in list(graph.nodes(data=True)) if attrs['type'] == 'ScaleShift']
-        self.assertEqual(len(scale_node), 1)
+        BNToScaleShift().find_and_replace_pattern(graph)
 
-        scale_ref = np.array([1.11796412, 3.2272172, 4.74282367])
-        shift_ref = np.array([-2.07131747, -10.87253847, -20.14270653])
-        for i in range(len(mean)):
-            self.assertAlmostEqual(graph.node[scale_node[0]]['scale'][i], scale_ref[i])
-            self.assertAlmostEqual(graph.node[scale_node[0]]['bias'][i], shift_ref[i])
+        ref_nodes = {
+            'input': {'kind': 'op', 'type': 'Identity', 'op': 'Identity'},
+            'scale': {'kind': 'op', 'type': 'Const', 'op': 'Const',
+                      'value': np.array([1.11796412, 3.2272172, 4.74282367])},
+            'shift': {'kind': 'op', 'type': 'Const', 'op': 'Const',
+                      'value': np.array([-2.07131747, -10.87253847, -20.14270653])},
+            'ss': {'type': 'ScaleShift', 'kind': 'op', 'op': 'ScaleShift'},
+            'output': {'kind': 'op', 'type': 'Identity', 'op': 'Identity'},
+        }
+        ref_edges = [
+            ('input', 'ss', {'in': 0, 'out': 0}),
+            ('scale', 'ss', {'in': 1, 'out': 0}),
+            ('shift', 'ss', {'in': 2, 'out': 0}),
+            ('ss', 'output', {'in': 0, 'out': 0}),
+        ]
+        ref_graph = build_graph_with_edge_attrs(ref_nodes, ref_edges)
+        (flag, resp) = compare_graphs(graph, ref_graph, 'input', check_op_attrs=True)
+        self.assertTrue(flag, resp)

@@ -16,14 +16,18 @@
 #include "include/data_types.cl"
 
 
-#if FP16_UNIT_USED
-    #define UNIT_CVT_FUNC(val) convert_half(val)
+#if OUTPUT_IS_FP && INPUT0_IS_FP
+    #if FP16_UNIT_USED
+        #define UNIT_CVT_FUNC(val) convert_half(val)
+    #else
+        #define UNIT_CVT_FUNC(val) (val)
+    #endif
 #else
-    #define UNIT_CVT_FUNC(val) (val)
+    #define UNIT_CVT_FUNC(val) convert_float(val)
 #endif
 
 
-KERNEL (mvn_gpu_ref_within_channels)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
+KERNEL (mvn_gpu_ref_within_channels)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
     const uint b = get_global_id(0);
     const uint f = get_global_id(1);
@@ -39,8 +43,8 @@ KERNEL (mvn_gpu_ref_within_channels)(const __global UNIT_TYPE* input, __global U
         {
             for (uint x = 0; x < INPUT0_SIZE_X; x++)
             {
-#if INPUT0_LAYOUT_BFZYX_F16
-                input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, z, y, x);
+#if INPUT0_LAYOUT_BFZYX_F16 || INPUT0_LAYOUT_BFZYX_B16F16
+                input_idx = INPUT0_GET_INDEX( b, f, z, y, x);
                 mean += (float)input[input_idx];
              }
         }
@@ -55,7 +59,7 @@ KERNEL (mvn_gpu_ref_within_channels)(const __global UNIT_TYPE* input, __global U
     }
     mean /= INPUT0_SIZE_X * INPUT0_SIZE_Y * INPUT0_SIZE_Z;
 
-#if INPUT0_LAYOUT_BFZYX_F16
+#if INPUT0_LAYOUT_BFZYX_F16 || INPUT0_LAYOUT_BFZYX_B16F16
     uint output_idx;
 #else
     uint output_idx = OUTPUT_OFFSET + b * OUTPUT_BATCH_PITCH + f * OUTPUT_FEATURE_PITCH;
@@ -69,14 +73,14 @@ KERNEL (mvn_gpu_ref_within_channels)(const __global UNIT_TYPE* input, __global U
         {
             for (uint x = 0; x < INPUT0_SIZE_X; x++)
             {
-#if INPUT0_LAYOUT_BFZYX_F16
-                input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, z, y, x);
-                output_idx = GET_DATA_BFZYX_F16_INDEX(OUTPUT, b, f, z, y, x);
-                output[output_idx] = ACTIVATION(input[input_idx] - UNIT_CVT_FUNC(mean), ACTIVATION_PARAMS);
+#if INPUT0_LAYOUT_BFZYX_F16 || INPUT0_LAYOUT_BFZYX_B16F16
+                input_idx = INPUT0_GET_INDEX(b, f, z, y, x);
+                output_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
+                output[output_idx] = TO_OUTPUT_TYPE(ACTIVATION(UNIT_CVT_FUNC(input[input_idx]) - UNIT_CVT_FUNC(mean), ACTIVATION_PARAMS));
             }
         }
 #else
-                output[output_idx] = ACTIVATION(input[input_idx] - UNIT_CVT_FUNC(mean), ACTIVATION_PARAMS);
+                output[output_idx] = TO_OUTPUT_TYPE(ACTIVATION(UNIT_CVT_FUNC(input[input_idx]) - UNIT_CVT_FUNC(mean), ACTIVATION_PARAMS));
                 input_idx += INPUT0_X_PITCH;
                 output_idx += OUTPUT_X_PITCH;
             }
@@ -98,8 +102,8 @@ KERNEL (mvn_gpu_ref_within_channels)(const __global UNIT_TYPE* input, __global U
         {
             for (uint x = 0; x < INPUT0_SIZE_X; x++)
             {
-#if INPUT0_LAYOUT_BFZYX_F16
-                input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, z, y, x);
+#if INPUT0_LAYOUT_BFZYX_F16 || INPUT0_LAYOUT_BFZYX_B16F16
+                input_idx = INPUT0_GET_INDEX(b, f, z, y, x);
                 float res = (float)input[input_idx] - mean;
                 variance = fma(res, res, variance);
             }
@@ -126,14 +130,14 @@ KERNEL (mvn_gpu_ref_within_channels)(const __global UNIT_TYPE* input, __global U
         {
             for (uint x = 0; x < INPUT0_SIZE_X; x++)
             {
-#if INPUT0_LAYOUT_BFZYX_F16
-                input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, z, y, x);
-                output_idx = GET_DATA_BFZYX_F16_INDEX(OUTPUT, b, f, z, y, x);
-                output[output_idx] = ACTIVATION((input[input_idx] - UNIT_CVT_FUNC(mean)) * UNIT_CVT_FUNC(variance), ACTIVATION_PARAMS);
+#if INPUT0_LAYOUT_BFZYX_F16 || INPUT0_LAYOUT_BFZYX_B16F16
+                input_idx = INPUT0_GET_INDEX(b, f, z, y, x);
+                output_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
+                output[output_idx] = TO_OUTPUT_TYPE(ACTIVATION((UNIT_CVT_FUNC(input[input_idx]) - UNIT_CVT_FUNC(mean)) * UNIT_CVT_FUNC(variance), ACTIVATION_PARAMS));
             }
         }
 #else
-                output[output_idx] = ACTIVATION((input[input_idx] - UNIT_CVT_FUNC(mean)) * UNIT_CVT_FUNC(variance), ACTIVATION_PARAMS);
+                output[output_idx] = TO_OUTPUT_TYPE(ACTIVATION((UNIT_CVT_FUNC(input[input_idx]) - UNIT_CVT_FUNC(mean)) * UNIT_CVT_FUNC(variance), ACTIVATION_PARAMS));
                 input_idx += INPUT0_X_PITCH;
                 output_idx += OUTPUT_X_PITCH;
             }

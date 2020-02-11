@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,9 @@ namespace vpu {
 namespace {
 
 class GEMMStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<GEMMStage>(*this);
@@ -92,31 +95,18 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseGEMM(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseGEMM(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 2 || inputs.size() == 3);
     IE_ASSERT(outputs.size() == 1);
 
     auto layer = std::dynamic_pointer_cast<ie::GemmLayer>(_layer);
     IE_ASSERT(layer != nullptr);
 
-    _stageBuilder->addGemmStage(
-        model,
-        layer->name,
-        layer,
-        layer->alpha,
-        layer->beta,
-        layer->transpose_a,
-        layer->transpose_b,
-        inputs,
-        outputs[0]);
+    _stageBuilder->addGemmStage(model, layer->name, layer, layer->alpha, layer->beta, layer->transpose_a, layer->transpose_b, inputs, outputs[0]);
 }
 
 Stage StageBuilder::addGemmStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         const float alpha,

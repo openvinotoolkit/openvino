@@ -1,18 +1,27 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "power.hpp"
+
 #include <memory>
 
-#include "power.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-op::PowerIE::PowerIE(const std::shared_ptr<ngraph::Node> &data_batch, const float power, const float scale, const float shift)
-        : Op("PowerIE", check_single_output_args({data_batch})), power(power), scale(scale), shift(shift) {
+constexpr NodeTypeInfo op::PowerIE::type_info;
+
+op::PowerIE::PowerIE(const std::shared_ptr<ngraph::Node>& data_batch, const float power, const float scale,
+                     const float shift)
+    : Op("PowerIE", check_single_output_args({data_batch})), power(power), scale(scale), shift(shift) {
+    constructor_validate_and_infer_types();
+}
+
+op::PowerIE::PowerIE(const Output<ngraph::Node>& data_batch, const float power, const float scale, const float shift)
+    : Op(OutputVector {data_batch}), power(power), scale(scale), shift(shift) {
     constructor_validate_and_infer_types();
 }
 

@@ -75,8 +75,8 @@ KERNEL(convolution_gpu_winograd_2x3_s1_fused)
     
 	const uint upperHalf = get_local_id(1);
     uint gx = get_group_id(0);
-    uint gy = get_group_id(1)*2+(get_group_id(2)%2);
-    uint gz = (get_group_id(2)/2)*2+ upperHalf;
+    uint gy = (uint)get_group_id(1)*2+((uint)get_group_id(2)%2);
+    uint gz = ((uint)get_group_id(2)/2)*2+ upperHalf;
     uint gk = gz % K16;
     uint gn = gz / K16;
 

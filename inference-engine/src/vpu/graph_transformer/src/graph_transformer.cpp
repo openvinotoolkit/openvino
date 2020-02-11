@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/graph_transformer.hpp>
+#include <vpu/graph_transformer_internal.hpp>
 
 #include <climits>
 #include <cstring>
@@ -30,14 +31,15 @@
 #include <graph_tools.hpp>
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
+#include <ie_util_internal.hpp>
 
 #include <vpu/parsed_config.hpp>
 #include <vpu/compile_env.hpp>
-#include <vpu/frontend/stage_builder.hpp>
+#include <vpu/stage_builder.hpp>
 #include <vpu/frontend/frontend.hpp>
-#include <vpu/pass_manager.hpp>
 #include <vpu/backend/backend.hpp>
-#include <vpu/allocator.hpp>
+#include <vpu/middleend/pass_manager.hpp>
+#include <vpu/middleend/allocator/allocator.hpp>
 #include <vpu/utils/auto_scope.hpp>
 #include <vpu/utils/dot_io.hpp>
 #include <vpu/utils/file_system.hpp>
@@ -71,17 +73,17 @@ void CompileEnv::init(
         Platform platform,
         const CompilationConfig& config,
         const Logger::Ptr& log) {
-    IE_ASSERT(g_compileEnv == nullptr);
     g_compileEnv = new CompileEnv();
 
     g_compileEnv->platform = platform;
     g_compileEnv->config = config;
     g_compileEnv->log = log;
 
-#if ENABLE_PROFILING_RAW
+#ifdef ENABLE_PROFILING_RAW
     g_compileEnv->profile.setLogger(log);
 #endif
 
+    // Ignore hardware optimization config for MYRIAD2
     if (g_compileEnv->platform == Platform::MYRIAD_2) {
         g_compileEnv->config.hwOptimization = false;
     }
@@ -130,12 +132,6 @@ void CompileEnv::init(
         }
     }
 
-    g_compileEnv->netConfig.parse(g_compileEnv->config);
-
-    if (g_compileEnv->netConfig.hasManualDataScale()) {
-        g_compileEnv->config.hwAdaptiveMode = false;
-    }
-
     g_compileEnv->initialized = true;
 }
 
@@ -160,7 +156,7 @@ void CompileEnv::free() {
 
 namespace {
 
-CompiledGraph::Ptr compileImpl(const ie::ICNNNetwork& network) {
+CompiledGraph::Ptr compileImpl(ie::ICNNNetwork& network) {
     const auto& env = CompileEnv::get();
 
     env.log->debug("Compile network [%s]", network.getName());
@@ -181,13 +177,35 @@ CompiledGraph::Ptr compileImpl(const ie::ICNNNetwork& network) {
 
     middleEnd->run(model);
 
-    return backEnd->build(model, frontEnd->allLayers());
+    if (!env.config.irWithVpuScalesDir.empty()) {
+        network.serialize(env.config.irWithVpuScalesDir + "/" + network.getName() + "_scales.xml",
+                          env.config.irWithVpuScalesDir + "/" + network.getName() + "_scales.bin",
+                          nullptr);
+    }
+
+    return backEnd->build(model, frontEnd->origLayers());
+}
+
+CompiledGraph::Ptr compileImpl(const Model& model) {
+    auto stageBuilder = std::make_shared<StageBuilder>();
+    auto backEnd      = std::make_shared<BackEnd>();
+    auto passManager  = std::make_shared<PassManager>(stageBuilder, backEnd);
+
+    auto middleEnd = passManager->buildMiddleEnd();
+
+    AutoScope autoDumper([backEnd, model]() {
+        backEnd->dumpModel(model);
+    });
+
+    middleEnd->run(model);
+
+    return backEnd->build(model, {});
 }
 
 }  // namespace
 
 CompiledGraph::Ptr compileNetwork(
-        const ie::ICNNNetwork& network,
+        ie::ICNNNetwork& network,
         Platform platform,
         const CompilationConfig& config,
         const Logger::Ptr& log) {
@@ -201,8 +219,23 @@ CompiledGraph::Ptr compileNetwork(
     return compileImpl(network);
 }
 
+CompiledGraph::Ptr compileModel(
+        const Model& model,
+        Platform platform,
+        const CompilationConfig& config,
+        const Logger::Ptr& log) {
+    CompileEnv::init(platform, config, log);
+    AutoScope autoDeinit([] {
+        CompileEnv::free();
+    });
+
+    VPU_PROFILE(compileModel);
+
+    return compileImpl(model);
+}
+
 CompiledGraph::Ptr compileSubNetwork(
-        const ie::ICNNNetwork& network,
+        ie::ICNNNetwork& network,
         const CompilationConfig& subConfig) {
     VPU_PROFILE(compileSubNetwork);
 
@@ -237,7 +270,9 @@ std::set<std::string> getSupportedLayers(
     auto stageBuilder = std::make_shared<StageBuilder>();
     auto frontEnd = std::make_shared<FrontEnd>(stageBuilder);
 
-    return frontEnd->checkSupportedLayers(network);
+    auto clonedNetworkImpl = ie::cloneNet(network);
+
+    return frontEnd->checkSupportedLayers(*clonedNetworkImpl);
 }
 
 }  // namespace vpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,15 +8,18 @@
 #include <ie_version.hpp>
 #include <mock_iasync_infer_request.hpp>
 #include <cpp/ie_infer_request.hpp>
-#include <inference_engine/cpp_interfaces/exception2status.hpp>
+#include <cpp_interfaces/exception2status.hpp>
 #include <cpp_interfaces/impl/mock_async_infer_request_internal.hpp>
 #include <mock_not_empty_icnn_network.hpp>
-#include <inference_engine/cpp_interfaces/base/ie_infer_async_request_base.hpp>
+#include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
 
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+
+constexpr const char* MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
+constexpr const char* MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME;
 
 class InferRequestTests : public ::testing::Test {
 protected:

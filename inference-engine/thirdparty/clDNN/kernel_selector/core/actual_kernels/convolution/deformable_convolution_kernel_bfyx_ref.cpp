@@ -52,4 +52,17 @@ KernelsData DeformableConvolutionKernel_bfyx_Ref::GetKernelsData(const Params& p
                                                                  const optional_params& options) const {
     return GetTunedKernelsDataByIndex(params, options);
 }
+
+bool DeformableConvolutionKernel_bfyx_Ref::Validate(const Params& params, const optional_params& options) const {
+    if (!ConvolutionKernelBase::Validate(params, options))
+        return false;
+
+    const auto& conv_params = static_cast<const convolution_params&>(params);
+
+    if (!conv_params.deformable_mode)
+        return false;
+
+    return true;
+}
+
 }  // namespace kernel_selector

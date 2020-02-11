@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,7 +27,9 @@ class CutMemory(BackReplacementPattern):
     """
     Cut Memory layers and have inputs/outputs in graph instead of them
     """
-    enabled = False
+    enabled = True
+    graph_condition = [lambda graph: graph.graph['fw'] == "kaldi" and graph.graph['cmd_params'].remove_memory]
+    force_clean_up = True
 
     def run_before(self):
         return [ParameterToInput]

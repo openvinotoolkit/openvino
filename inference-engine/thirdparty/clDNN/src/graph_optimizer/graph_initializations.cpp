@@ -24,7 +24,7 @@
 #include "crop_inst.h"
 #include "lstm_inst.h"
 #include "reshape_inst.h"
-#include "upsampling_inst.h"
+#include "resample_inst.h"
 #include "lstm_dynamic_inst.h"
 #include "lstm_dynamic_input_inst.h"
 #include "lstm_dynamic_timeloop_inst.h"
@@ -77,7 +77,10 @@ void graph_initializations::replace_nodes(program_impl& p) {
                 primitive_id output_id = node->id() + ":" + split_prim->output_ids[i];
                 transformed_ids.push_back(output_id);
 
-                auto node_ptr = p.nodes_map.find(output_id)->second;
+                auto output_node_itr = p.nodes_map.find(output_id);
+                if (output_node_itr == p.nodes_map.end())  continue;
+
+                auto node_ptr = output_node_itr->second;
 
                 // calculate crop reference input size
                 tensor reference_input_size;
@@ -112,100 +115,6 @@ void graph_initializations::replace_nodes(program_impl& p) {
             continue;
         }
 
-        // find upsampling primitives with bilinear filtering and create deconvolution with proper weights instead
-        if (node->is_type<upsampling>()) {
-            auto upsampling_prim = node->as<upsampling>().typed_desc();
-
-            if (upsampling_prim->sample_type != upsampling_sample_type::bilinear)
-                continue;
-
-            // check if num_filter is not 0 (required for bilinear upsampling)
-            if (upsampling_prim->num_filter == 0)
-                throw std::logic_error("num_filter in upsampling cannot be 0 in bilinear filtering mode in \"" +
-                                       node->id() + "\"!");
-
-            primitive_id upsampling_id = node->id();
-            auto& input_node = node->get_dependency(0);
-
-            primitive_id input_id = upsampling_prim->input[0];
-            auto num_filter = upsampling_prim->num_filter;
-
-            // setting deconvolution parameters based on upsampling input
-            auto upsampled_size = node->get_output_layout().size;
-            auto input_size = input_node.get_output_layout().size;
-            auto scale_x = static_cast<tensor::value_type>(upsampled_size.spatial[0] / input_size.spatial[0]);
-            auto scale_y = static_cast<tensor::value_type>(upsampled_size.spatial[1] / input_size.spatial[1]);
-            tensor stride(1, 1, scale_x, scale_y);
-            auto offset_x = static_cast<tensor::value_type>(std::ceil((scale_x - 1) / 2.f));
-            auto offset_y = static_cast<tensor::value_type>(std::ceil((scale_y - 1) / 2.f));
-            tensor input_offset(0, 0, -offset_x, -offset_y);
-
-            // setting weights for deconvolution
-            auto kernel_size_x = static_cast<tensor::value_type>((2 * scale_x) - (static_cast<tensor::value_type>(scale_x) % 2));
-            auto kernel_size_y = static_cast<tensor::value_type>((2 * scale_y) - (static_cast<tensor::value_type>(scale_y) % 2));
-            layout weights_layout(data_types::f32, format::bfyx, tensor(1, 1, kernel_size_x, kernel_size_y));
-
-            std::vector<primitive_id> weights_vec;
-            for (uint32_t weights_idx = 0; weights_idx < num_filter; weights_idx++) {
-                memory_impl::ptr data_to_allocate = p.get_engine().allocate_memory(weights_layout, 0);
-                mem_lock<float> dst{data_to_allocate};
-                float* dst_data = dst.data();
-                // initialize with bilinear weights data
-                auto f_x = static_cast<uint32_t>(std::ceil(kernel_size_x / 2.0f));
-                auto f_y = static_cast<uint32_t>(std::ceil(kernel_size_y / 2.0f));
-                float c_x = (2 * f_x - 1 - f_x % 2) / (2.f * f_x);
-                float c_y = (2 * f_y - 1 - f_y % 2) / (2.f * f_y);
-                float x = 0.f;
-                float y = 0.f;
-                for (size_t i = 0; i < weights_layout.count(); ++i) {
-                    x = static_cast<float>(i % kernel_size_x);
-                    y = static_cast<float>((i / kernel_size_x) % kernel_size_y);
-                    dst_data[i] = (1 - std::abs(x / f_x - c_x)) * (1 - std::abs(y / f_y - c_y));
-                }
-
-                // create weights primitive, with dummy memory which will be replaced in firther step
-                primitive_id weights_id = upsampling_id + "_deconvolution_weights" + std::to_string(weights_idx);
-                layout dummy_layout(data_types::f32, format::bfyx, tensor(1, 1, 1, 1));
-                float zero = 0.f;
-                auto weights_prim = std::make_shared<data>(weights_id, memory::attach(dummy_layout, &zero, 1));
-                p.get_or_create(weights_prim);
-
-                weights_vec.push_back(weights_id);
-
-                auto weights_node_ptr = p.nodes_map.find(weights_id)->second;
-
-                // attach weights buffer
-                auto& data_node = weights_node_ptr->as<data>();
-                data_node.attach_memory(*data_to_allocate, false);
-            }
-
-            // remove upsampling node, rename it and move to the optimized list
-            p.remove_connection(node->get_dependency(0), *node);
-            auto rename_id = upsampling_id + "_tmp";
-            p.rename(*node, rename_id);
-
-            // create deconvolution primitive
-            auto deconv_prim =
-                std::make_shared<deconvolution>(upsampling_id, input_id, weights_vec, stride, input_offset);
-            p.get_or_create(deconv_prim);
-
-            auto deconv_node_ptr = p.nodes_map.find(upsampling_id)->second;
-
-            auto upsampling_node_ptr = p.nodes_map.find(rename_id)->second;
-            p.replace_all_usages(*upsampling_node_ptr, *deconv_node_ptr);
-            p.optimized_out.push_back(rename_id);
-            p.nodes_map.erase(rename_id);
-
-            // add connections input->deconvolution and weights->deconvolution
-            p.add_connection(input_node, *deconv_node_ptr);
-
-            for (uint32_t weights_idx = 0; weights_idx < num_filter; weights_idx++) {
-                auto weights_node_ptr = p.nodes_map.find(weights_vec[weights_idx])->second;
-                p.add_connection(*weights_node_ptr, *deconv_node_ptr);
-            }
-            continue;
-        }
-
         // find deconvolution primitives with stride 1 and change them to convolution with trasposed weights
         if (node->is_type<deconvolution>()) {
             if (!p.get_options().get<build_option_type::optimize_data>()->enabled())
@@ -222,7 +131,8 @@ void graph_initializations::replace_nodes(program_impl& p) {
 
             // disable for 5D
             if (input_node.get_output_layout().format == format::bfzyx ||
-                input_node.get_output_layout().format == format::bfzyx_f16)
+                input_node.get_output_layout().format == format::bfzyx_f16 ||
+                input_node.get_output_layout().format == format::bfzyx_b16f16)
                 continue;
 
             primitive_id input_id = deconv_prim->input[0];
@@ -243,7 +153,10 @@ void graph_initializations::replace_nodes(program_impl& p) {
             tensor filter_size = {1, 1, 1, 1, 1};
             p.remove_connection(node->get_dependency(0), *node);
             for (auto& weights_id : weights_vec) {
-                auto weights_node_ptr = p.nodes_map.find(weights_id)->second;
+                auto weights_iter = p.nodes_map.find(weights_id);
+                if (weights_iter == p.nodes_map.end())  continue;
+
+                auto weights_node_ptr = weights_iter->second;
                 p.remove_connection(*weights_node_ptr, *node);
                 // get filter spatial sizes for input offset adjustment, perform this only once as all filters shouls
                 // have same size
@@ -257,7 +170,10 @@ void graph_initializations::replace_nodes(program_impl& p) {
 
             if (!bias_vec.empty()) {
                 for (auto& bias_id : bias_vec) {
-                    auto bias_id_node_ptr = p.nodes_map.find(bias_id)->second;
+                    auto bias_iter = p.nodes_map.find(bias_id);
+                    if (bias_iter == p.nodes_map.end())  continue;
+
+                    auto bias_id_node_ptr = bias_iter->second;
                     p.remove_connection(*bias_id_node_ptr, *node);
                 }
             }
@@ -286,7 +202,10 @@ void graph_initializations::replace_nodes(program_impl& p) {
                 p.get_or_create(conv_prim);
             }
 
-            auto conv_node_ptr = p.nodes_map.find(deconv_id)->second;
+            auto conv_node_itr = p.nodes_map.find(deconv_id);
+            if (conv_node_itr == p.nodes_map.end()) continue;
+
+            auto conv_node_ptr = conv_node_itr->second;
             auto conv_node = &conv_node_ptr->as<convolution>();
             conv_node->set_transposed(true);
 
@@ -294,21 +213,30 @@ void graph_initializations::replace_nodes(program_impl& p) {
             p.add_connection(input_node, *conv_node_ptr);
 
             for (auto& weights_id : weights_vec) {
-                auto weights_node_ptr = p.nodes_map.find(weights_id)->second;
+                auto weights_node_itr = p.nodes_map.find(weights_id);
+                if (weights_node_itr == p.nodes_map.end()) continue;
+
+                auto weights_node_ptr = weights_node_itr->second;
                 p.add_connection(*weights_node_ptr, *conv_node_ptr);
             }
 
             if (!bias_vec.empty()) {
                 for (auto& bias_id : bias_vec) {
-                    auto bias_id_node_ptr = p.nodes_map.find(bias_id)->second;
+                    auto bias_id_node_itr = p.nodes_map.find(bias_id);
+                    if (bias_id_node_itr == p.nodes_map.end()) continue;
+
+                    auto bias_id_node_ptr = bias_id_node_itr->second;
                     p.add_connection(*bias_id_node_ptr, *conv_node_ptr);
                 }
             }
 
-            auto deconv_node_ptr = p.nodes_map.find(rename_id)->second;
-            p.replace_all_usages(*deconv_node_ptr, *conv_node_ptr);
-            p.optimized_out.push_back(rename_id);
-            p.nodes_map.erase(rename_id);
+            auto deconv_node_itr = p.nodes_map.find(rename_id);
+            if (deconv_node_itr != p.nodes_map.end()) {
+                auto deconv_node_ptr = deconv_node_itr->second;
+                p.replace_all_usages(*deconv_node_ptr, *conv_node_ptr);
+                p.optimized_out.push_back(rename_id);
+                p.nodes_map.erase(rename_id);
+            }
 
             continue;
         }
@@ -350,7 +278,10 @@ void graph_initializations::handle_detection_output(program_impl& p) {
 
             p.get_or_create(detect_out_sort_prim);
 
-            auto sort_node = p.nodes_map.find(detect_out_node_name)->second;
+            auto sort_node_itr = p.nodes_map.find(detect_out_node_name);
+            if (sort_node_itr == p.nodes_map.end()) continue;
+
+            auto sort_node = sort_node_itr->second;
 
             // Add connection to second part of detection output
             if (node.get_users().size()) {

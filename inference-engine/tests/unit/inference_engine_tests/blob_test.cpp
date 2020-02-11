@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,6 +74,7 @@ public:
 };
 
 class NV12BlobTests : public CompoundBlobTests {};
+class I420BlobTests : public CompoundBlobTests {};
 
 struct ScopedTimer
 {
@@ -282,8 +283,8 @@ TEST_F(BlobTests, canAccessDataUsingBufferBaseMethod)
 
     TBlob<float> blob({ Precision::FP32, v, CHW }, dynamic_pointer_cast<IAllocator>(allocator));
     blob.allocate();
-    auto buffer = blob.buffer();
-    float *ptr = (float * )(void*)buffer;
+    auto buffer = blob.rwmap();
+    const float *ptr = buffer.as<const float *>();
     ASSERT_EQ(ptr[2] , 7);
 }
 
@@ -304,8 +305,8 @@ TEST_F(BlobTests, canMoveFromTBlobWithSameType)
 
     TBlob<uint8_t > newBlob(std::move(blob));
 
-    auto buffer = newBlob.buffer();
-    uint8_t *ptr = (uint8_t * )(void*)buffer;
+    auto buffer = newBlob.rwmap();
+    uint8_t *ptr = buffer.as <uint8_t *>();
     ASSERT_EQ(ptr[0] , data[0]);
 }
 
@@ -323,32 +324,6 @@ TEST_F(BlobTests, saveDimsAndSizeAfterMove)
     ASSERT_EQ(newBlob.getTensorDesc().getDims()[1], 2);
     ASSERT_EQ(newBlob.getTensorDesc().getDims()[2], 3);
 }
-
-// test will be removed in R3
-IE_SUPPRESS_DEPRECATED_START
-TEST_F(BlobTests, canSetAfterFree)
-{
-    SizeVector v = {1, 3};
-    TBlob<uint8_t> blob({ Precision::U8, v, HW });
-    blob.allocate();
-    blob.data()[0] = 1;
-    blob.data()[1] = 2;
-    blob.data()[2] = 3;
-
-    blob.deallocate();
-
-    ASSERT_NO_THROW(blob.set({1,2,3}));
-}
-
-TEST_F(BlobTests, canSetAfterFreeNonAllocated)
-{
-    SizeVector v = {1, 3};
-    TBlob<uint8_t> blob({ Precision::U8, v, HW });
-    blob.deallocate();
-    ASSERT_NO_THROW(blob.set({1,2,3}));
-}
-IE_SUPPRESS_DEPRECATED_END
-
 
 TEST_F(BlobTests, canCopyBlob)
 {
@@ -378,18 +353,18 @@ TEST_F(BlobTests, canCompareToNullPtrWithoutDereferencing) {
 
     ASSERT_TRUE(blob.readOnly() == nullptr);
     ASSERT_TRUE(blob.data() == nullptr);
-    ASSERT_TRUE(blob.buffer() == nullptr);
+    ASSERT_TRUE(blob.rwmap() == nullptr);
 
     ASSERT_TRUE(nullptr == blob.readOnly());
     ASSERT_TRUE(nullptr == blob.data());
-    ASSERT_TRUE(nullptr == blob.buffer());
+    ASSERT_TRUE(nullptr == blob.rwmap());
 }
 
 TEST_F(BlobTests, canCreateBlob) {
     InferenceEngine::SizeVector size = { 1, 1, 1 };
     InferenceEngine::TBlob<float> blob({ Precision::FP32, size, CHW });
     ASSERT_NE(blob.size(), 0);
-    ASSERT_EQ(blob.buffer(), nullptr);
+    ASSERT_EQ(blob.rwmap(), nullptr);
 }
 
 TEST_F(BlobTests, canAllocateBlob) {
@@ -412,16 +387,6 @@ TEST_F(BlobTests, canCreateBlobWithoutDims) {
     InferenceEngine::TBlob<float> blob(TensorDesc(Precision::FP32, NCHW));
     ASSERT_EQ(blob.getTensorDesc().getDims().size(), 0);
 }
-
-// test will be removed in R3
-IE_SUPPRESS_DEPRECATED_START
-TEST_F(BlobTests, canSetToBlobWithoutDims) {
-    InferenceEngine::TBlob<float> blob(TensorDesc(Precision::FP32, C));
-    std::vector<float> data = { 1.0f, 2.0f, 3.0f };
-    blob.set(data);
-    ASSERT_EQ(blob.byteSize(), data.size() * sizeof(float));
-}
-IE_SUPPRESS_DEPRECATED_END
 
 TEST_F(BlobTests, canReadDataFromConstBlob) {
     InferenceEngine::TBlob<float> blob({ Precision::FP32, { 1, 1, 1 }, CHW });
@@ -505,76 +470,6 @@ TEST_F(BlobTests, canCreateBlobOnExistedMemory) {
 
 TEST_F(BlobTests, preAllocatorWillnotWorkIfPtrNotAlocated) {
    ASSERT_ANY_THROW(TBlob<float>({ Precision::FP32, {1}, C }, nullptr));
-}
-
-// test will be removed in R3
-IE_SUPPRESS_DEPRECATED_START
-TEST_F(BlobTests, cannotIncreaseSizeOfPreallocated) {
-
-    float input[] = {0.1f, 0.2f, 0.3f};
-    auto  b = make_shared_blob({ Precision::FP32, {1, 2}, HW }, input);
-    ASSERT_NE(nullptr, b->buffer().as<float*>());
-
-    b->Resize({1,3});
-    //since allocator isn't releasing, user have to be carefull that this still use old array
-    ASSERT_EQ(nullptr, b->buffer().as<float*>());
-
-    b->Resize({1,1});
-    ASSERT_NE(nullptr, b->buffer().as<float*>());
-
-    b->Resize({1,2});
-    ASSERT_NE(nullptr, b->buffer().as<float*>());
-}
-
-
-TEST_F(BlobTests, canAcceptpreallocatedSize) {
-
-    float input[] = {0.1f, 0.2f, 0.3f};
-    auto  b = make_shared_blob({ Precision::FP32, {1, 2}, HW }, input, 100);
-    ASSERT_NE(nullptr, b->buffer().as<float*>());
-
-    b->Resize({1,101});
-    //since allocator isn't releasing, user have to be carefull that this still use old array
-    ASSERT_EQ(nullptr, b->buffer().as<float*>());
-
-    b->Resize({1,100});
-    ASSERT_NE(nullptr, b->buffer().as<float*>());
-}
-IE_SUPPRESS_DEPRECATED_END
-
-TEST_F(BlobTests, ifBlobCannotReleaseItWillReuseOldMemory) {
-
-    SizeVector v = {1,2,3};
-    auto allocator = createMockAllocator();
-
-    EXPECT_CALL(*allocator.get(), alloc(1 * 2 * 3 * sizeof(float))).WillOnce(Return((void*)1));
-    EXPECT_CALL(*allocator.get(), alloc(1 * 2 * 4 * sizeof(float))).WillOnce(Return((void*)1));
-    EXPECT_CALL(*allocator.get(), free(_)).WillRepeatedly(Return(false));
-
-    {
-        // this part of test will be removed in R3
-        IE_SUPPRESS_DEPRECATED_START
-        TBlob<float> blob({ Precision::FP32, v, CHW }, dynamic_pointer_cast<IAllocator>(allocator));
-        blob.allocate();
-        blob.Resize({1,2,4});
-        IE_SUPPRESS_DEPRECATED_END
-    }
-}
-
-TEST_F(BlobTests, ifBlobCannotReleaseItWillReuseOldMemoryOnlyIfAllocated) {
-
-    SizeVector v = {1,2,3};
-    auto allocator = createMockAllocator();
-
-    EXPECT_CALL(*allocator.get(), free(_)).WillRepeatedly(Return(false));
-
-    {
-        // this part of test will be removed in R3
-        IE_SUPPRESS_DEPRECATED_START
-        TBlob<float> blob({ Precision::FP32, v, CHW }, dynamic_pointer_cast<IAllocator>(allocator));
-        blob.Resize({1,2,4});
-        IE_SUPPRESS_DEPRECATED_END
-    }
 }
 
 TEST_F(BlobTests, canModifyDataInRangedFor) {
@@ -694,7 +589,9 @@ TEST_F(CompoundBlobTests, compoundBlobHoldsCorrectDataInCorrectOrder) {
     for (size_t i = 0; i < blobs.size(); ++i) {
         blobs[i] = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1}, HW));
         blobs[i]->allocate();
-        blobs[i]->buffer().as<uint8_t*>()[0] = static_cast<uint8_t>(i + MAGIC_NUMBER);
+        MemoryBlob::Ptr mb = as<MemoryBlob>(blobs[i]);
+        auto lm = mb->rwmap();
+        lm.as<uint8_t*>()[0] = static_cast<uint8_t>(i + MAGIC_NUMBER);
     }
 
     _test_blob = make_shared_blob<CompoundBlob>(blobs);
@@ -706,24 +603,30 @@ TEST_F(CompoundBlobTests, compoundBlobHoldsCorrectDataInCorrectOrder) {
     for (size_t i = 0; i < compound_blob->size(); ++i) {
         auto blob = compound_blob->getBlob(i);
         ASSERT_NE(nullptr, blob);
-        EXPECT_EQ(static_cast<uint8_t>(i + MAGIC_NUMBER), blob->buffer().as<uint8_t*>()[0]);
+        MemoryBlob::Ptr mb = as<MemoryBlob>(blob);
+        ASSERT_NE(nullptr, mb);
+        auto lm = mb->rwmap();
+        EXPECT_EQ(static_cast<uint8_t>(i + MAGIC_NUMBER), lm.as<uint8_t *>()[0]);
     }
 }
 
 TEST_F(CompoundBlobTests, compoundBlobHoldsReferencesToBlobs) {
     // Create a blob with HW layout and pass it to a compound blob to check that the compound blob
     // holds references to the blob and not a copy of it
-    Blob::Ptr blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1}, HW));
+    MemoryBlob::Ptr blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1}, HW));
     blob->allocate();
-    blob->buffer().as<uint8_t*>()[0] = 12;
+    // here is quite self to dereference address since LockedMemory would be destroyed only after assignemnt
+    blob->rwmap().as<uint8_t*>()[0] = 12;
     _test_blob = make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>({blob}));
 
     verifyCompoundBlob(_test_blob);
 
     CompoundBlob::Ptr compound_blob = as<CompoundBlob>(_test_blob);
-    EXPECT_EQ(12, compound_blob->getBlob(0)->buffer().as<uint8_t*>()[0]);
-    blob->buffer().as<uint8_t*>()[0] = 34;
-    EXPECT_EQ(34, compound_blob->getBlob(0)->buffer().as<uint8_t*>()[0]);
+    Blob::Ptr b0 = compound_blob->getBlob(0);
+    MemoryBlob::CPtr mb0 = as<MemoryBlob>(b0);
+    EXPECT_EQ(12, mb0->rmap().as<const uint8_t *>()[0]);
+    blob->rwmap().as<uint8_t*>()[0] = 34;
+    EXPECT_EQ(34, mb0->rmap().as<const uint8_t *>()[0]);
 }
 
 TEST_F(CompoundBlobTests, compoundBlobHoldsValidDataWhenUnderlyingBlobIsDestroyed) {
@@ -732,16 +635,18 @@ TEST_F(CompoundBlobTests, compoundBlobHoldsValidDataWhenUnderlyingBlobIsDestroye
     // a valid object
     static constexpr const uint8_t stored_value = 123;
     {
-        Blob::Ptr blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1}, HW));
+        MemoryBlob::Ptr blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1}, HW));
         blob->allocate();
-        blob->buffer().as<uint8_t*>()[0] = stored_value;
+        blob->rwmap().as<uint8_t*>()[0] = stored_value;
         _test_blob = make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>({blob}));
     }
 
     verifyCompoundBlob(_test_blob);
     CompoundBlob::Ptr compound_blob = as<CompoundBlob>(_test_blob);
     ASSERT_NE(nullptr, compound_blob->getBlob(0));
-    EXPECT_EQ(stored_value, compound_blob->getBlob(0)->buffer().as<uint8_t*>()[0]);
+    MemoryBlob::CPtr mb0 = as<MemoryBlob>(compound_blob->getBlob(0));
+    ASSERT_NE(nullptr, mb0);
+    EXPECT_EQ(stored_value, mb0->rmap().as<const uint8_t *>()[0]);
 }
 
 TEST_F(NV12BlobTests, cannotCreateNV12BlobFromNullptrBlobs) {
@@ -823,10 +728,105 @@ TEST_F(NV12BlobTests, canCreateNV12BlobFromTwoPlanes) {
 }
 
 TEST_F(NV12BlobTests, canCreateNV12BlobFromTwoMovedPlanes) {
-    // Blob::Ptr y_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC));
-    // Blob::Ptr uv_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 2, 3, 4}, NHWC));
     NV12Blob::Ptr nv12_blob = make_shared_blob<NV12Blob>(
         make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC)),
         make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 2, 3, 4}, NHWC)));
     verifyCompoundBlob(nv12_blob);
 }
+
+TEST_F(I420BlobTests, canCreateI420BlobFromThreePlanes) {
+    Blob::Ptr y_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC));
+    Blob::Ptr u_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
+    Blob::Ptr v_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
+    I420Blob::Ptr i420_blob = make_shared_blob<I420Blob>(y_blob, u_blob, v_blob);
+    verifyCompoundBlob(i420_blob, {y_blob, u_blob, v_blob});
+    EXPECT_EQ(y_blob, i420_blob->y());
+    EXPECT_EQ(u_blob, i420_blob->u());
+    EXPECT_EQ(v_blob, i420_blob->v());
+}
+
+TEST_F(I420BlobTests, canCreateI420BlobFromThreeMovedPlanes) {
+    I420Blob::Ptr i420_blob = make_shared_blob<I420Blob>(
+        make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC)),
+        make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC)),
+        make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC)));
+    verifyCompoundBlob(i420_blob);
+}
+
+TEST_F(I420BlobTests, cannotCreateI420BlobFromNullptrBlobs) {
+    Blob::Ptr valid = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 4, 4}, NHWC));
+    EXPECT_THROW(make_shared_blob<I420Blob>(valid, nullptr, nullptr), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<I420Blob>(nullptr, valid, nullptr), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(I420BlobTests, cannotCreateI420BlobFromCompoundBlobs) {
+    Blob::Ptr y_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC));
+    Blob::Ptr u_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
+    Blob::Ptr v_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
+
+    auto make_cblob = [](Blob::Ptr const& b){
+        return make_shared_blob<CompoundBlob>(std::vector<Blob::Ptr>({b}));
+    };
+
+    auto c_y_blob = make_cblob(y_blob);
+    auto c_u_blob = make_cblob(u_blob);
+    auto c_v_blob = make_cblob(v_blob);
+    using ie_exception_t = InferenceEngine::details::InferenceEngineException;
+
+    EXPECT_THROW(make_shared_blob<I420Blob>(c_y_blob, u_blob,   v_blob  ), ie_exception_t);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob,   c_u_blob, v_blob  ), ie_exception_t);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob,   u_blob,   c_v_blob), ie_exception_t);
+}
+
+TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithDifferentElementSize) {
+    Blob::Ptr y_blob_u8    = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 4, 4}, NHWC));
+    Blob::Ptr u_blob_float = make_shared_blob<float>(TensorDesc(Precision::FP32, {1, 1, 2, 2}, NHWC));
+    Blob::Ptr v_blob_float = make_shared_blob<float>(TensorDesc(Precision::FP32, {1, 1, 2, 2}, NHWC));
+
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob_u8, u_blob_float, v_blob_float), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithNonU8Precision) {
+    Blob::Ptr y_blob_float = make_shared_blob<float>(TensorDesc(Precision::FP32, {1, 1, 4, 4}, NHWC));
+    Blob::Ptr u_blob_float = make_shared_blob<float>(TensorDesc(Precision::FP32, {1, 1, 2, 2}, NHWC));
+    Blob::Ptr v_blob_float = make_shared_blob<float>(TensorDesc(Precision::FP32, {1, 1, 2, 2}, NHWC));
+
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob_float, u_blob_float, v_blob_float), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithInconsistentBatchSize) {
+    Blob::Ptr y_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC));
+    Blob::Ptr u_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {2, 1, 3, 4}, NHWC));
+    Blob::Ptr v_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, u_blob, v_blob), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, v_blob, u_blob), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithWrongChannelNumber) {
+    Blob::Ptr y_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC));
+    Blob::Ptr u_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 2, 3, 4}, NHWC));
+    Blob::Ptr v_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, u_blob, v_blob), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, v_blob, u_blob), InferenceEngine::details::InferenceEngineException);
+
+}
+
+TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithWrongWidthRatio) {
+    Blob::Ptr y_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC));
+    Blob::Ptr u_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 2}, NHWC));
+    Blob::Ptr v_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
+
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, u_blob, v_blob), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, v_blob, u_blob), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(I420BlobTests, cannotCreateI420BlobFromPlanesWithWrongHeightRatio) {
+    Blob::Ptr y_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC));
+    Blob::Ptr u_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 2, 4}, NHWC));
+    Blob::Ptr v_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
+
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, u_blob, v_blob), InferenceEngine::details::InferenceEngineException);
+    EXPECT_THROW(make_shared_blob<I420Blob>(y_blob, v_blob, u_blob), InferenceEngine::details::InferenceEngineException);
+}
+
+

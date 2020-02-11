@@ -41,10 +41,10 @@ KERNEL(convolution_1x1_gemm_MMAD)(
 {
     const uint sg_channel = get_sub_group_local_id();
 
-    const uint x = (get_group_id(0) * 8) % INPUT0_SIZE_X;
-    const uint y = (get_group_id(0) * 8) / INPUT0_SIZE_X;
-    const uint f = get_global_id(1) % FILTER_OFM_ALIGNED;
-    const uint b = get_global_id(1) / FILTER_OFM_ALIGNED;
+    const uint x = ((uint)get_group_id(0) * 8) % INPUT0_SIZE_X;
+    const uint y = ((uint)get_group_id(0) * 8) / INPUT0_SIZE_X;
+    const uint f = (uint)get_global_id(1) % FILTER_OFM_ALIGNED;
+    const uint b = (uint)get_global_id(1) / FILTER_OFM_ALIGNED;
 
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
@@ -54,7 +54,7 @@ KERNEL(convolution_1x1_gemm_MMAD)(
     const uint input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + in_split_offset;
     uint in_addr = input_offset + input_x * INPUT0_X_PITCH + input_y * INPUT0_Y_PITCH;
 
-    const uint filter_offset = (get_group_id(1) % FILTER_OFM_MMAD_NUM) * FILTER_OFM_BLOCK_PITCH;
+    const uint filter_offset = ((uint)get_group_id(1) % FILTER_OFM_MMAD_NUM) * FILTER_OFM_BLOCK_PITCH;
     uint filter_idx = filter_offset;
 
     int8 tileA;

@@ -57,11 +57,17 @@ struct _jit_uni_x8s8s32x_dw_convolution_fwd_t: public cpu_primitive_t {
                 && this->desc()->accum_data_type == data_type::s32;
             if (!ok) return status::unimplemented;
 
-            return jit_uni_x8s8s32x_dw_conv_fwd_kernel<isa>::init_conf(jcp_,
+            status_t sts = jit_uni_x8s8s32x_dw_conv_fwd_kernel<isa>::init_conf(jcp_,
                         *this->desc(),
                         *this->src_pd_.desc(), *this->weights_pd_.desc(),
                         *this->dst_pd_.desc(), *this->bias_pd_.desc(),
                         *this->attr());
+            if (sts != status::success) return sts;
+
+            auto scratchpad = scratchpad_registry().registrar();
+            jit_uni_x8s8s32x_dw_conv_fwd_kernel<isa>::init_scratchpad(scratchpad, jcp_, *this->attr());
+
+            return status::success;
         }
 
         jit_conv_conf_t jcp_;
@@ -69,8 +75,9 @@ struct _jit_uni_x8s8s32x_dw_convolution_fwd_t: public cpu_primitive_t {
     protected:
         virtual status_t set_default_params() override {
             using namespace memory_format;
-            auto desired_act_fmt = nhwc;
-            auto desired_wei_fmt = isa == avx512_common ? Goihw16g : Goihw8g;
+            auto desired_act_fmt = (ndims() == 5) ? ndhwc : nhwc;
+            auto desired_wei_fmt = (ndims() == 5) ? isa == avx512_common ? Goidhw16g : Goidhw8g
+                                                  : isa == avx512_common ? Goihw16g : Goihw8g;
 
             if (this->src_pd_.desc()->format == any)
                 CHECK(this->src_pd_.set_format(desired_act_fmt));

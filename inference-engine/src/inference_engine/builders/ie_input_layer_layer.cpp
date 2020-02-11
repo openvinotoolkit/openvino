@@ -1,9 +1,8 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <builders/ie_input_layer.hpp>
-
 #include <string>
 
 using namespace InferenceEngine;
@@ -29,12 +28,12 @@ const Port& Builder::InputLayer::getPort() const {
     return getLayer()->getOutputPorts()[0];
 }
 
-Builder::InputLayer& Builder::InputLayer::setPort(const Port &port) {
+Builder::InputLayer& Builder::InputLayer::setPort(const Port& port) {
     getLayer()->getOutputPorts()[0] = port;
     return *this;
 }
 
-REG_VALIDATOR_FOR(Input, [] (const InferenceEngine::Builder::Layer::CPtr& layer, bool partial) {
+REG_VALIDATOR_FOR(Input, [](const InferenceEngine::Builder::Layer::CPtr& layer, bool partial) {
     if (layer->getOutputPorts()[0].shape().empty())
         THROW_IE_EXCEPTION << layer->getType() << " node " << layer->getName() << " should have shape!";
 });

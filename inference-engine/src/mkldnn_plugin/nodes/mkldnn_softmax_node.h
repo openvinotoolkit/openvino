@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,6 @@ public:
     bool created() const override;
 
 private:
-    static Register<MKLDNNSoftMaxNode> reg;
     int axis = 0;
 };
 

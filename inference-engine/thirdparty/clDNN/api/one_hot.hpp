@@ -66,6 +66,24 @@ struct one_hot : public primitive_base<one_hot> {
         : primitive_base(id, {input}, output_padding), shape(shape), one_hot_axis(one_hot_axis),
           on_value(on_value), off_value(off_value) {}
 
+    /// @brief Constructs one-hot primitive layer.
+    /// @param id              An identifier of new primitive.
+    /// @param input           An identifier of primitive which is an input for newly created one-hot primitive.
+    /// @param shape           Size of the output primitive.
+    /// @param output_dt       Data type of output elements.
+    /// @param one_hot_axis    One-hot axis position (0-based, from left to right) in shape.
+    /// @param output_padding  Optional padding for output from primitive.
+    one_hot(const primitive_id& id,
+            const primitive_id& input,
+            const tensor& shape,
+            const data_types output_dt,
+            const uint16_t& one_hot_axis,
+            const float& on_value = 1.0f,
+            const float& off_value = 0.0f,
+            const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding, optional_data_type{output_dt}), shape(shape), one_hot_axis(one_hot_axis),
+          on_value(on_value), off_value(off_value) {}
+
     /// @brief Output size reference.
     tensor shape;
     /// @brief One-hot axis position in output shape (0-based, from left to right).

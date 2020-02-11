@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 #include "nnet_base_matcher.hpp"
+#include "gna_lib_ver_selector.hpp"
 
 class NNetPrecisionMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
     GnaPluginTestEnvironment::NnetPrecision nnetPrecision;

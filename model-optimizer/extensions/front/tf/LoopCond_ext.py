@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,11 +22,11 @@ class LoopCondFrontExtractor(FrontExtractorOp):
     op = 'LoopCond'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         node['infer'] = lambda node: single_output_infer(
             node,
             lambda node: node.in_node(0).shape,
             lambda node: node.in_node(0).value
         )
-        return __class__.enabled
+        return cls.enabled

@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include <inference_engine/graph_tools.hpp>
+#include <graph_tools.hpp>
+#include <gna_graph_tools.hpp>
 #include "graph_test_base.hpp"
 #include <unordered_set>
-#include "mock_icnn_network.hpp"
 #include <gmock/gmock-generated-function-mockers.h>
 #include <gmock/gmock-generated-matchers.h>
 #include <gmock/gmock-more-actions.h>
-#include "xml_father.hpp"
 #include "ie_common.h"
 #include <memory>
 #include "details/ie_cnn_network_tools.h"
@@ -735,6 +734,29 @@ TEST_F(GraphToolsTest, CNNNetworkInsertAllAfterSplit) {
     ASSERT_CONNECTION(1, 3);
 }
 
+TEST_F(GraphToolsTest, CNNNetworkInsert1AfterSplitBeforeEltwise) {
+
+    CONNECT_FROM_PORT(1, 0, 3);
+    CONNECT_FROM_PORT(1, 1, 4);
+    CONNECT(2, 4);
+
+    EXPECT_CALL(*mockNet, getInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
+        prepareInputs(maps);
+    })));
+
+    EXPECT_CALL(*mockNet, getLayerByName(_,_,_)).WillRepeatedly(WithArgs<0, 1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
+        l = layerByName(name);
+        return l== nullptr ? GENERAL_ERROR : OK;
+    })));
+
+    CNNNetworkInsertLayer(wrap.getLayerByName("1"), wrap.getLayerByName("4"), createGenericLayer("5"));
+
+    ASSERT_CONNECTION(1, 3);
+    ASSERT_CONNECTION(1, 5);
+    ASSERT_CONNECTION(5, 4);
+    ASSERT_CONNECTION(2, 4);
+}
+
 TEST_F(GraphToolsTest, CNNNetworkInsert1AfterSplit) {
 
     CONNECT_FROM_PORT(1, 0, 2);
@@ -929,24 +951,3 @@ TEST_F(GraphToolsTest, CNNNetworkRemoveSimpleLayer) {
     ASSERT_NO_CONNECTION(2, 2);
     ASSERT_NO_CONNECTION(3, 2);
 }
-
-
-//TEST_F(GraphToolsTest, CNNNetworkInsertLayerBeforeAll) {
-//    CONNECT(1, 2);
-//
-//    EXPECT_CALL(mockNet, GetInputsInfo(_)).WillRepeatedly(WithArg<0>(Invoke([&](InputsDataMap & maps){
-//        prepareInputs(maps);
-//    })));
-//
-//    EXPECT_CALL(mockNet, getLayerByName(_,_,_)).WillRepeatedly(WithArgs<0, 1>(Invoke([&](const char* name, InferenceEngine::CNNLayerPtr& l){
-//        l = layerByName(name);
-//        return l== nullptr ? GENERAL_ERROR : OK;
-//    })));
-//
-//    CNNNetworkInsertLayer(wrap.getLayerByName("1"), nullptr, createGenericLayer("3"));
-//
-//    ASSERT_STREQ("2", wrap.getLayerByName("3")->outData[0]->getInputTo().begin()->second->name.c_str());
-//    ASSERT_STREQ("1", CNNNetPrevLayerName(wrap.getLayerByName("3")).c_str());
-//    ASSERT_STREQ("3", wrap.getLayerByName("1")->outData[0]->getInputTo().begin()->second->name.c_str());
-//    ASSERT_STREQ("3", CNNNetPrevLayerName(wrap.getLayerByName("2")).c_str());
-//}

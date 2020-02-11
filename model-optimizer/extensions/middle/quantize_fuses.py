@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -99,3 +99,16 @@ class FakeQuantizeFuse(MiddleReplacementPattern):
                     fuse_node_duplicate.infer(fuse_node_duplicate)
 
                     first_port_fusion = False
+
+            if 'permutation' in quantize_node.in_edge(0):
+                permutation = quantize_node.in_edge(0)['permutation']
+                if permutation is None:
+                    continue
+
+                perm_rank = permutation.perm.size
+
+                if not all([quantize_node.in_port(i).data.get_shape().size == perm_rank for i in range(1, 5)]):
+                    continue
+
+                for i in range(1, 5):
+                    quantize_node.in_edge(i)['permutation'] = permutation

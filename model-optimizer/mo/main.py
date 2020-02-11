@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,14 +24,20 @@ from collections import OrderedDict
 
 import numpy as np
 
+from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, RemoveOutputOps, \
+    NormalizeTI
+from mo.graph.graph import Graph
+from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively, for_each_sub_graph_recursively
+from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
     get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, \
-    append_exp_keys_to_namespace
+    append_exp_keys_to_namespace, get_meta_info
 from mo.utils.error import Error, FrameworkError
-from mo.utils.guess_framework import guess_framework_by_ext
+from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
+from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 from mo.utils.versions_checker import check_requirements
@@ -87,38 +93,12 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('\n'.join(lines))
 
 
-def driver(argv: argparse.Namespace):
-    if argv.version:
-        print('Version of Model Optimizer is: {}'.format(get_version()))
-        return 0
+def prepare_ir(argv: argparse.Namespace):
+    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
 
-    init_logger(argv.log_level.upper(), argv.silent)
-    start_time = datetime.datetime.now()
-
-    if not argv.framework:
-        if 'saved_model_dir' in argv and argv.saved_model_dir or \
-                'input_meta_graph' in argv and argv.input_meta_graph:
-            argv.framework = 'tf'
-        elif 'input_symbol ' in argv and argv.input_symbol or \
-                'pretrained_model_name' in argv and argv.pretrained_model_name:
-            argv.framework = 'mxnet'
-        elif 'input_proto' in argv and argv.input_proto:
-            argv.framework = 'caffe'
-        elif argv.input_model is None:
-            raise Error('Path to input model is required: use --input_model.')
-        else:
-            argv.framework = guess_framework_by_ext(argv.input_model)
-        if not argv.framework:
-            raise Error(
-                'Framework name can not be deduced from the given options: {}={}. ' +
-                'Use --framework to choose one of caffe, tf, mxnet, kaldi, onnx',
-                '--input_model',
-                argv.input_model,
-                refer_to_faq_msg(15),
-            )
-
-    is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = (argv.framework == x for x in
-                                                    ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'])
+    if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
+        raise Error('Framework {} is not a valid target. Please use --framework with one from the list: caffe, tf, '
+                    'mxnet, kaldi, onnx. ' + refer_to_faq_msg(15), argv.framework)
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
@@ -130,6 +110,9 @@ def driver(argv: argparse.Namespace):
         raise Error('Path to input model or input proto is required: use --input_model or --input_proto')
     elif (is_kaldi or is_onnx) and not argv.input_model:
         raise Error('Path to input model is required: use --input_model.')
+
+    if is_kaldi:
+        argv.generate_experimental_IR_V10 = False
 
     log.debug(str(argv))
     log.debug("Model Optimizer started")
@@ -145,8 +128,9 @@ def driver(argv: argparse.Namespace):
         model_name = get_model_name(argv.input_meta_graph)
     elif is_mxnet and argv.input_symbol:
         model_name = get_model_name(argv.input_symbol)
+    argv.model_name = model_name
 
-    log.debug('Output model name would be {}{{.xml, .bin}}'.format(model_name))
+    log.debug('Output model name would be {}{{.xml, .bin}}'.format(argv.model_name))
 
     # if --input_proto is not provided, try to retrieve another one
     # by suffix substitution from model file name
@@ -161,19 +145,14 @@ def driver(argv: argparse.Namespace):
         log.info('Deduced name for prototxt: {}'.format(argv.input_proto))
 
     if not argv.silent:
-        print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, model_name)
-
-    if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
-        raise Error(
-            'Framework {} is not a valid target. ' +
-            'Please use --framework with one from the list: caffe, tf, mxnet, kaldi, onnx. ' +
-            refer_to_faq_msg(15),
-            argv.framework
-        )
+        print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
 
     ret_code = check_requirements(framework=argv.framework)
     if ret_code:
-        return ret_code
+        raise Error('check_requirements exit with return code {}'.format(ret_code))
+
+    if is_tf and argv.tensorflow_use_custom_operations_config is not None:
+        argv.transformations_config = argv.tensorflow_use_custom_operations_config
 
     mean_file_offsets = None
     if is_caffe and argv.mean_file and argv.mean_values:
@@ -187,7 +166,7 @@ def driver(argv: argparse.Namespace):
             raise Error("Negative value specified for --mean_file_offsets option. "
                         "Please specify positive integer values in format '(x,y)'. " +
                         refer_to_faq_msg(18))
-    custom_layers_mapping_path = argv.k if is_caffe and argv.k else None
+        argv.mean_file_offsets = mean_file_offsets
 
     if argv.scale and argv.scale_values:
         raise Error(
@@ -209,7 +188,8 @@ def driver(argv: argparse.Namespace):
 
     argv.output = argv.output.split(',') if argv.output else None
 
-    argv.placeholder_shapes = get_placeholder_shapes(argv.input, argv.input_shape, argv.batch)
+    argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(argv.input, argv.input_shape,
+                                                                                  argv.batch)
 
     mean_values = parse_tuple_pairs(argv.mean_values)
     scale_values = parse_tuple_pairs(argv.scale_values)
@@ -238,50 +218,81 @@ def driver(argv: argparse.Namespace):
 
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
-
+    graph = None
     if is_tf:
         import mo.pipeline.tf as mo_tf
         from mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        ret_res = mo_tf.tf2nx(argv, argv.input_model, model_name, argv.output_dir,
-                              is_binary=not argv.input_model_is_text)
-
+        graph = mo_tf.driver(argv)
     elif is_caffe:
         import mo.pipeline.caffe as mo_caffe
         from mo.front.caffe.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        ret_res = mo_caffe.driver(argv, argv.input_proto, argv.input_model, model_name, argv.output_dir,
-                                  argv.caffe_parser_path,
-                                  mean_file=argv.mean_file,
-                                  mean_file_offsets=mean_file_offsets,
-                                  custom_layers_mapping_path=custom_layers_mapping_path)
-
+        graph = mo_caffe.driver(argv)
     elif is_mxnet:
         import mo.pipeline.mx as mo_mxnet
         from mo.front.mxnet.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        ret_res = mo_mxnet.driver(argv, argv.input_model, model_name, argv.output_dir)
-
+        graph = mo_mxnet.driver(argv)
     elif is_kaldi:
         import mo.pipeline.kaldi as mo_kaldi
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        ret_res = mo_kaldi.driver(argv, argv.input_model, model_name, argv.output_dir)
+        graph = mo_kaldi.driver(argv)
     elif is_onnx:
         import mo.pipeline.onnx as mo_onnx
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        ret_res = mo_onnx.driver(argv, argv.input_model, model_name, argv.output_dir)
+        graph = mo_onnx.driver(argv)
+    return graph
+
+
+def emit_ir(graph: Graph, argv: argparse.Namespace):
+    NormalizeTI().find_and_replace_pattern(graph)
+    for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
+    for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
+    if not graph.graph['cmd_params'].generate_experimental_IR_V10:
+        for_each_sub_graph_recursively(graph, RemoveOutputOps().find_and_replace_pattern)
+    if not graph.graph['cmd_params'].generate_experimental_IR_V10:
+        for_graph_and_each_sub_graph_recursively(graph, RemoveOutputOps().find_and_replace_pattern)
+
+    prepare_emit_ir(graph=graph,
+                    data_type=graph.graph['cmd_params'].data_type,
+                    output_dir=argv.output_dir,
+                    output_model_name=argv.model_name,
+                    mean_data=graph.graph['mf'] if 'mf' in graph.graph else None,
+                    input_names=graph.graph['input_names'] if 'input_names' in graph.graph else [],
+                    meta_info=get_meta_info(argv))
+
+    if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
+        output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
+        print('\n[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
+        print('[ SUCCESS ] XML file: {}.xml'.format(os.path.join(output_dir, argv.model_name)))
+        print('[ SUCCESS ] BIN file: {}.bin'.format(os.path.join(output_dir, argv.model_name)))
+
+    return 0
+
+
+def driver(argv: argparse.Namespace):
+    init_logger(argv.log_level.upper(), argv.silent)
+
+    start_time = datetime.datetime.now()
+
+    ret_res = emit_ir(prepare_ir(argv), argv)
 
     if ret_res != 0:
         return ret_res
-    if not (is_tf and argv.tensorflow_custom_operations_config_update) and not argv.silent:
-        output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-        print('\n[ SUCCESS ] Generated IR model.')
-        print('[ SUCCESS ] XML file: {}.xml'.format(os.path.join(output_dir, model_name)))
-        print('[ SUCCESS ] BIN file: {}.bin'.format(os.path.join(output_dir, model_name)))
-        elapsed_time = datetime.datetime.now() - start_time
-        print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
+
+    elapsed_time = datetime.datetime.now() - start_time
+    print('[ SUCCESS ] Total execution time: {:.2f} seconds. '.format(elapsed_time.total_seconds()))
+
+    try:
+        import resource
+        mem_usage = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)
+        print('[ SUCCESS ] Memory consumed: {} MB. '.format(mem_usage))
+    except ImportError:
+        pass
+
     return ret_res
 
 
@@ -295,11 +306,20 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         if framework:
             argv.framework = framework
         append_exp_keys_to_namespace(argv)
+
+        # set output precision for operations producing bool values to be I32 as it was for the IRv7
+        if argv.generate_deprecated_IR_V7:
+            from mo.middle.passes.convert_data_type import SUPPORTED_DATA_TYPES
+            SUPPORTED_DATA_TYPES['bool'] = (np.bool, 'I32', 'boolean')
         return driver(argv)
     except (FileNotFoundError, NotADirectoryError) as e:
         log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
         log.debug(traceback.format_exc())
     except Error as err:
+        analysis_results = AnalysisResults()
+        if analysis_results.get_messages() is not None:
+            for el in analysis_results.get_messages():
+                log.error(el, extra={'analysis_info': True})
         log.error(err)
         log.debug(traceback.format_exc())
     except FrameworkError as err:

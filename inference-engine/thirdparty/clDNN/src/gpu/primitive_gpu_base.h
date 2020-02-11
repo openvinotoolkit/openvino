@@ -43,7 +43,7 @@ For example, all gpu convolution implementations should derive from typed_primit
 template <class PType>
 struct typed_primitive_gpu_impl : public typed_primitive_impl<PType> {
     const typed_program_node<PType>& _outer;
-    engine_info_internal _engine_info;
+    device_info_internal _device_info;
     kernel_selector::kernel_data _kernel_data;
     std::vector<gpu::kernel> _kernels;
     std::vector<memory_impl::cptr> _intermediates_memory;
@@ -51,7 +51,7 @@ struct typed_primitive_gpu_impl : public typed_primitive_impl<PType> {
     typed_primitive_gpu_impl(const typed_program_node<PType>& arg, const kernel_selector::kernel_data& kd)
         : typed_primitive_impl<PType>(kd.weightsReorderParams, kd.kernelName),
           _outer(arg),
-          _engine_info(arg.get_program().get_engine().get_context()->get_engine_info()),
+          _device_info(arg.get_program().get_engine().get_context()->get_device_info()),
           _kernel_data(kd) {
         _kernels.reserve(kd.kernels.size());
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
@@ -96,26 +96,26 @@ protected:
     }
 
     virtual int32_t get_split() const { return 1; }
-
     virtual uint32_t get_groups() const { return 1; }
+    virtual bool get_depthwise_sep_opt() const { return false; }
 
     event_impl::ptr aggregate_events(const std::vector<event_impl::ptr>& events,
-                                     uint16_t stream_id,
+                                     uint32_t net_id,
                                      bool group = false) const {
         if (events.size() == 1)
             return events[0];
 
         if (group)
-            return _outer.get_program().get_engine().get_context()->group_events(stream_id, events);
+            return _outer.get_program().get_engine().get_context()->group_events(net_id, events);
 
-        return events_waiter(_outer.get_program().get_engine().get_context()).run(stream_id, events);
+        return events_waiter(_outer.get_program().get_engine().get_context()).run(net_id, events);
     }
 
     event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events,
                                          typed_primitive_inst<PType>& instance) override {
-        uint16_t stream_id = instance.get_network().get_stream_id();
+        uint32_t net_id = instance.get_network().get_id();
         if (optimized_out(instance)) {
-            return aggregate_events(events, stream_id);
+            return aggregate_events(events, net_id);
         }
 
         std::vector<event_impl::ptr> tmp_events(events);
@@ -123,7 +123,7 @@ protected:
         // TODO - split should be handle in kernel selector by providing multiple kernels.
         auto split = get_split();
         auto groups = get_groups();
-        if (split == 1)
+        if (split == 1 && !get_depthwise_sep_opt())
             split = groups;
 
         // we iterate over split first in order to be able parallelism with OOOQ mechanism.
@@ -143,12 +143,12 @@ protected:
                 auto users = instance.node.get_users();
                 bool next_prim_is_cpu = is_any_user_cpu(users);
                 if (next_prim_is_cpu) {
-                    _kernels[k].set_output_event(stream_id, true);
+                    _kernels[k].set_output_event(net_id, true);
                 } else {
-                    _kernels[k].set_output_event(stream_id, instance.node.is_output());
+                    _kernels[k].set_output_event(net_id, instance.node.is_output());
                 }
 
-                auto event = _kernels[k].run(stream_id, _kernel_data.kernels[k], tmp_events, args);
+                auto event = _kernels[k].run(net_id, _kernel_data.kernels[k], tmp_events, args);
                 new_events.push_back(event);
             }
 
@@ -156,7 +156,7 @@ protected:
         }
 
         bool group_events = split > 1 ? true : false;
-        return aggregate_events(tmp_events, stream_id, group_events);
+        return aggregate_events(tmp_events, net_id, group_events);
     }
 };
 

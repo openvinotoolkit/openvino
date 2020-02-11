@@ -40,7 +40,7 @@ KERNEL(pooling_gpu_fs_bs_yx_bsv4_fsv32_simd32)(
 {
     const uint x    = (uint)get_group_id(0);
     const uint y    = (uint)get_group_id(1);
-    const uint bf   = (uint)get_group_id(2) * BATCH_SG_COUNT + get_sub_group_id();
+    const uint bf   = (uint)get_group_id(2) * BATCH_SG_COUNT + (uint)get_sub_group_id();
 	// we process 4 features per workitem that's why we need to divide it
     const uint aligned32_features = ((INPUT0_FEATURE_NUM + 31) / 32) * 32;
     const uint f = ((bf * 32) % aligned32_features) + (get_sub_group_local_id() % 8) * 4;

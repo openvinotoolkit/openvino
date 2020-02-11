@@ -1,26 +1,34 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <mkldnn_plugin/mkldnn_graph.h>
-#include <mkldnn_plugin/mkldnn_memory.h>
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
-#include <mkldnn_plugin/mkldnn_graph_optimizer.h>
-#include <mkldnn_plugin/nodes/mkldnn_input_node.h>
+#include <nodes/list.hpp>
+#include <mkldnn_graph.h>
+#include <mkldnn_memory.h>
+#include <mkldnn_extension_utils.h>
+#include <mkldnn_graph_optimizer.h>
+#include <nodes/mkldnn_input_node.h>
 #include <functional>
 
 #define GARB_VAL(x) ((x + 100.0f + sin(x)) / (x + 150.f))
 
 class MKLDNNGraphTestClass: public MKLDNNPlugin::MKLDNNGraph {
+private:
+    MKLDNNPlugin::MKLDNNExtensionManager::Ptr extensionManager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
+
 public:
     enum class CheckDynBatchType {
         Both,
         Parent,
         Child
     };
-    MKLDNNGraphTestClass(): MKLDNNPlugin::MKLDNNGraph() {}
+    MKLDNNGraphTestClass(): MKLDNNPlugin::MKLDNNGraph() {
+        auto defaultExtensions = std::make_shared<InferenceEngine::Extensions::Cpu::MKLDNNExtensions<mkldnn::impl::cpu::cpu_isa_t::isa_any>>();
+        extensionManager->AddExtension(defaultExtensions);
+
+    }
     virtual ~MKLDNNGraphTestClass() = default;
 
     static std::string getStrPrimitiveDescriptorType(MKLDNNPlugin::impl_desc_type type) {
@@ -193,8 +201,7 @@ public:
     }
 
     void CreateGraph(InferenceEngine::ICNNNetwork &network) {
-        MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr;
-        CreateGraph(network, extMgr);
+        CreateGraph(network, extensionManager);
     }
 
     void checkDynBatch(InferenceEngine::BlobMap& srcs, InferenceEngine::BlobMap& outputBlobs, int batch, size_t MB,

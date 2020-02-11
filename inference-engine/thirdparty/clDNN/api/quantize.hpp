@@ -42,8 +42,10 @@ struct quantize : public primitive_base<quantize> {
              const primitive_id& output_low,
              const primitive_id& output_high,
              const int levels,
+             const data_types output_data_type,
              const padding& output_padding = padding())
-        : primitive_base(id, {input, input_low, input_high, output_low, output_high}, output_padding), levels(levels) {}
+        : primitive_base(id, {input, input_low, input_high, output_low, output_high}, output_padding, optional_data_type{output_data_type})
+        , levels(levels) {}
 
     /// @brief levels The number of quantization levels.
     int levels;

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@ class LSTMNonlinearityFrontExtractor(FrontExtractorOp):
     op = 'lstmnonlinearitycomponent'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         pb = node.parameters
         collect_until_token(pb, b'<Params>')
         ifo_x_weights, ifo_x_weights_shape = read_binary_matrix(pb)
@@ -37,4 +37,4 @@ class LSTMNonlinearityFrontExtractor(FrontExtractorOp):
         embed_input(mapping_rule, 3, 'o_weights', ifo_x_weights[2048:])
 
         LstmNonLinearity.update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        return cls.enabled

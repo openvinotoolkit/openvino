@@ -1,14 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include <xml_net_builder.hpp>
-#include <inference_engine/cnn_network_impl.hpp>
-#include <inference_engine/ie_format_parser.h>
-#include <inference_engine/ie_layer_validators.hpp>
-#include <xml_helper.hpp>
-#include <../shape_infer/built_in_shape_infer_general_test.hpp>
+#include <ie_layer_validators.hpp>
+#include <shape_infer/built_in_shape_infer_general_test.hpp>
 #include <memory>
 #include <ie_data.h>
 

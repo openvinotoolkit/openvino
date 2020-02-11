@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ class SliceLikeFrontExtractor(FrontExtractorOp):
     op = 'slice_like'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         axes = attrs.tuple("axes", int, [])
         offset = [0 for i in range(0, axes[-1])]
@@ -37,4 +37,4 @@ class SliceLikeFrontExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         Crop.update_node_stat(node, node_attrs)
-        return __class__.enabled
+        return cls.enabled

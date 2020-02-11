@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include "../src/inference_engine/description_buffer.hpp"
+#include "description_buffer.hpp"
 
 using namespace std;
 using namespace InferenceEngine;

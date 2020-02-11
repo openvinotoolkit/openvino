@@ -73,6 +73,10 @@ private:
         last_sp_block,
     } ic_block_t;
 
+    const Xbyak::Reg64 aux_reg_inp_d = rbx;
+    const Xbyak::Reg64 aux_reg_ker_d = r14;
+    const Xbyak::Reg64 reg_kd = r10;
+
     /* data regs */
     const Xbyak::Reg64 reg_ptr_scales = rax;
     const Xbyak::Reg64 reg_inp = r8;
@@ -95,6 +99,11 @@ private:
 
     const Xbyak::Reg64 reg_d_weights = r15;
     const Xbyak::Reg64 reg_d_bias = r13;
+
+    const Xbyak::Reg64 reg_input_zp = reg_bias_alpha;
+
+    const Vmm vmm_d_weights = Vmm(31);
+    const Vmm vmm_d_bias = Vmm(30);
 
     const Xbyak::Opmask ktail_mask = Xbyak::Opmask(2);
     const Xbyak::Opmask kblend_mask = Xbyak::Opmask(3);

@@ -11,11 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#include <vector>
 
 #include "fully_connected_kernel_bfyx_ref.h"
 #include "kernel_selector_utils.h"
-#include <vector>
 
 namespace kernel_selector {
 ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
@@ -32,6 +31,8 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableAllInputLayout();
+    k.EnableDifferentInputWeightsTypes();
+    k.EnableDifferentTypes();
     k.EnableInputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::fb);
@@ -41,8 +42,7 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
     return k;
 }
 
@@ -51,7 +51,7 @@ FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const 
     auto runInfo = Parent::SetDefault(params);
 
     std::vector<size_t> global = {params.output.Feature().v, params.output.Batch().v};
-    std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global);
+    std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     runInfo.gws0 = global[0];
     runInfo.gws1 = global[1];
@@ -62,6 +62,31 @@ FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const 
     runInfo.lws2 = 1;
 
     return runInfo;
+}
+
+JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_params& params,
+    const FullyConnectedKernelBase::DispatchData& kd) const {
+    JitConstants jit = Parent::GetJitConstants(params, kd);
+    Datatype accumulator_dt;
+    Datatype activation_dt;
+
+    if (params.quantization != QuantizationType::NONE) {
+        accumulator_dt = Datatype::INT32;
+        activation_dt = Datatype::F32;
+    } else {
+        accumulator_dt = Datatype::F32;
+        activation_dt = Datatype::F32;
+    }
+
+    jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
+    jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
+
+    if (!params.fused_ops.empty()) {
+        FusedOpsConfiguration conf = { "", {"b", "ofm", "y", "x"}, "dequantized", activation_dt, 1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+    return jit;
 }
 
 KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params, const optional_params& options) const {
@@ -81,4 +106,35 @@ KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params, const 
 
     return res;
 }
+
+bool FullyConnected_bfyx_Ref::Validate(const Params& params, const optional_params& options) const {
+    if (!Parent::Validate(params, options))
+        return false;
+
+    // int8 validation
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
+    auto input_type = fc_params.inputs[0].GetDType();
+    auto output_type = fc_params.output.GetDType();
+
+    // int8/uint8 inputs (quantization case) require additional checks
+    // require some additional checks.
+    if ((input_type != Datatype::UINT8 && input_type != Datatype::INT8) &&
+        (output_type != Datatype::UINT8 && output_type != Datatype::INT8))
+        return true;
+
+    bool is_quantization = (input_type == Datatype::INT8 || input_type == Datatype::UINT8) &&
+                           (output_type == Datatype::INT8 || output_type == Datatype::UINT8 ||
+                            output_type == Datatype::F32 || output_type == Datatype::F16) &&
+                           (fc_params.weights.GetDType() == WeightsType::INT8);
+
+    bool has_fused_op = (input_type == Datatype::F32 || input_type == Datatype::F16) &&
+                        !fc_params.fused_ops.empty() &&
+                        (output_type == Datatype::INT8 || output_type == Datatype::UINT8);
+
+    if (!is_quantization && !has_fused_op)
+        return false;
+
+    return true;
+}
+
 }  // namespace kernel_selector

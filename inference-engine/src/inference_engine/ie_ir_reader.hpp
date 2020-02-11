@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,14 +8,16 @@
  */
 #pragma once
 
-#include <map>
-#include <string>
-#include <memory>
-
+#include <ie_api.h>
 #include <ie_blob.h>
 #include <ie_common.h>
-#include <ie_api.h>
+#include <ie_iextension.h>
+
 #include <ie_icnn_network.hpp>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace pugi {
 class xml_node;
@@ -34,21 +36,21 @@ namespace InferenceEngine {
  * All methods here do not throw exceptions and return a StatusCode and ResponseDesc object.
  * Alternatively, to use methods that throw exceptions, refer to the CNNNetReader wrapper class.
  */
-class  INFERENCE_ENGINE_API_CLASS(IRReader) {
+#ifdef ENABLE_IR_READER
+class INFERENCE_ENGINE_API_CLASS(IRReader) {
+#else
+class IRReader {
+#endif
 public:
-    /**
-     * @brief Reads IR xml and bin (with the same name) files
-     * @param modelPath path to IR file
-     * @return shared pointer to nGraph function
-     */
-    std::shared_ptr<ngraph::Function> read(const std::string& modelPath);
+    IRReader() = default;
+    explicit IRReader(const std::vector<IExtensionPtr>& exts): extensions(exts) {}
     /**
      * @brief Reads IR xml and bin files
      * @param modelPath path to IR file
      * @param binPath path to bin file
      * @return shared pointer to nGraph function
      */
-    std::shared_ptr<ngraph::Function> read(const std::string& modelPath, const std::string& binPath);
+    std::shared_ptr<ngraph::Function> read(const std::string& modelPath, const std::string& binPath = "");
     /**
      * @brief Reads IR xml and bin (with the same name) files
      * @param model string with IR
@@ -59,14 +61,7 @@ public:
 
 private:
     std::shared_ptr<ngraph::Function> readXml(const pugi::xml_document& xmlDoc, const Blob::CPtr& weights);
+    std::vector<IExtensionPtr> extensions;
 };
 
-/**
- * @brief Converts nGraph function to ICNNNetwork
- * @param nGraph shared pointer to nGraph function
- * @return pointer to ICNNNetwork
- */
-INFERENCE_ENGINE_API_CPP(ICNNNetwork::Ptr) convertFunctionToICNNNetwork(const std::shared_ptr<ngraph::Function>& nGraph);
-
 }  // namespace InferenceEngine
-

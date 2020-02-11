@@ -1,7 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <utility>
+#include <memory>
 #include "hetero_async_infer_request.hpp"
 #include <ie_util_internal.hpp>
 #include <ie_profiling.hpp>
@@ -9,48 +11,59 @@
 using namespace HeteroPlugin;
 using namespace InferenceEngine;
 
-HeteroAsyncInferRequest::HeteroAsyncInferRequest(HeteroInferRequest::Ptr request,
-                                                 const ITaskExecutor::Ptr &taskExecutor,
-                                                 const TaskSynchronizer::Ptr &taskSynchronizer,
-                                                 const ITaskExecutor::Ptr &callbackExecutor)
-        : AsyncInferRequestThreadSafeDefault(request, taskExecutor, taskSynchronizer, callbackExecutor),
-          _heteroInferRequest(request) {
-    _heteroInferRequest->setCallbackSequence();
-
-    std::function<void(InferRequest, StatusCode)> f =
-        [&](InferRequest /*request*/, StatusCode /*sts*/) {
-            setIsRequestBusy(false);
+HeteroAsyncInferRequest::HeteroAsyncInferRequest(const HeteroInferRequest::Ptr& request,
+                                                 const ITaskExecutor::Ptr&      taskExecutor,
+                                                 const ITaskExecutor::Ptr&      callbackExecutor) :
+    AsyncInferRequestThreadSafeDefault(request, taskExecutor, callbackExecutor),
+    _heteroInferRequest(request),
+    _statusCodes{_heteroInferRequest->_inferRequests.size(), StatusCode::OK} {
+    _pipeline.clear();
+    for (std::size_t requestId = 0; requestId < _heteroInferRequest->_inferRequests.size(); ++requestId) {
+        struct RequestExecutor : ITaskExecutor {
+            explicit RequestExecutor(InferRequest* inferRequest) : _inferRequest{inferRequest} {
+                _inferRequest->SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
+                [this] (InferRequest, StatusCode sts) mutable {
+                    _status = sts;
+                    auto capturedTask = std::move(_task);
+                    capturedTask();
+                });
+            }
+            void run(Task task) override {
+                _task = std::move(task);
+                _inferRequest->StartAsync();
+            };
+            InferRequest*   _inferRequest = nullptr;
+            StatusCode      _status = StatusCode::OK;
+            Task            _task;
         };
 
-    _heteroInferRequest->setCallbackForLastRequest(f);
-}
-
-void HeteroAsyncInferRequest::StartAsync() {
-    IE_PROFILING_AUTO_SCOPE(Hetero_Async)
-    if (isRequestBusy())
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::REQUEST_BUSY << REQUEST_BUSY_str;
-    setIsRequestBusy(true);
-    _heteroInferRequest->updateInOutIfNeeded();
-    _heteroInferRequest->startFirstAsyncRequest();
-}
-
-InferenceEngine::StatusCode HeteroAsyncInferRequest::Wait(int64_t millis_timeout) {
-    auto sts = _heteroInferRequest->waitAllRequests(millis_timeout);
-    if (sts != StatusCode::RESULT_NOT_READY && sts != StatusCode::REQUEST_BUSY) {
-        setIsRequestBusy(false);
+        auto reuestExecutor = std::make_shared<RequestExecutor>(_heteroInferRequest->_inferRequests[requestId]._request.get());
+        _pipeline.emplace_back(reuestExecutor, [reuestExecutor] {
+            if (StatusCode::OK != reuestExecutor->_status) {
+                THROW_IE_EXCEPTION << InferenceEngine::details::as_status << reuestExecutor->_status;
+            }
+        });
     }
-    return sts;
 }
 
-void HeteroAsyncInferRequest::SetCompletionCallback(IInferRequest::CompletionCallback callback) {
-    AsyncInferRequestThreadSafeDefault::SetCompletionCallback(callback);
+void HeteroAsyncInferRequest::StartAsync_ThreadUnsafe() {
+    _heteroInferRequest->updateInOutIfNeeded();
+    RunFirstStage();
+}
 
-    std::function<void(InferRequest, StatusCode)> f =
-            [&](InferRequest /*request*/, StatusCode sts) {
-                setIsRequestBusy(false);
-                _callbackManager.set_requestStatus(sts);
-                _callbackManager.runCallback();
-            };
+StatusCode HeteroAsyncInferRequest::Wait(int64_t millis_timeout) {
+    auto waitStatus = StatusCode::OK;
+    try {
+        waitStatus = AsyncInferRequestThreadSafeDefault::Wait(millis_timeout);
+    } catch(...) {
+        for (auto&& requestDesc : _heteroInferRequest->_inferRequests) {
+            requestDesc._request->Wait(IInferRequest::RESULT_READY);
+        }
+        throw;
+    }
+    return waitStatus;
+}
 
-    _heteroInferRequest->setCallbackForLastRequest(f);
+HeteroAsyncInferRequest::~HeteroAsyncInferRequest() {
+    StopAndWait();
 }

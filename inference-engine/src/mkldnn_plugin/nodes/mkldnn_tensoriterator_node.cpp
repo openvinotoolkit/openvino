@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include <mkldnn_extension_utils.h>
 #include <ie_memcpy.h>
 #include "details/caseless.hpp"
+#include "graph_transformer.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -252,3 +253,4 @@ void MKLDNNTensorIteratorNode::execute(mkldnn::stream strm) {
 bool MKLDNNTensorIteratorNode::created() const {
     return getType() == TensorIterator;
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNTensorIteratorNode, TensorIterator);

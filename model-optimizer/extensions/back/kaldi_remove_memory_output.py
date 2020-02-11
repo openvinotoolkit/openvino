@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,15 @@ from mo.graph.graph import Graph
 
 
 class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
-    enabled = False
+    enabled = True
+
+    def run_after(self):
+        from extensions.back.pass_separator import BackFinish
+        return [BackFinish]
+
+    def run_before(self):
+        from extensions.back.SpecialNodesFinalization import RemoveOutputOps
+        return [RemoveOutputOps]
 
     @staticmethod
     def pattern():

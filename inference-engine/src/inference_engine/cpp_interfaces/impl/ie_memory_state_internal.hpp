@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <string>
 #include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
-
+#include <string>
 
 namespace InferenceEngine {
 
@@ -18,8 +17,7 @@ class MemoryStateInternal : public IMemoryStateInternal {
     Blob::Ptr state;
 
 public:
-    explicit MemoryStateInternal(std::string name) : name(name) {
-    }
+    explicit MemoryStateInternal(std::string name): name(name) {}
     std::string GetName() const override {
         return name;
     }
@@ -30,6 +28,5 @@ public:
         return state;
     }
 };
-
 
 }  // namespace InferenceEngine

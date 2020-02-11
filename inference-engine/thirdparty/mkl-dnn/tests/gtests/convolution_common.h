@@ -1,6 +1,6 @@
 #if 0
 /*******************************************************************************
-* Copyright 2017-2018 Intel Corporation
+* Copyright 2017-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -58,13 +58,25 @@
 #define FMT_WEIGHTS_BLOCKED_G gOIhw8i8o
 #define FMT_WEIGHTS_BLOCKED16 OIhw8i16o2i
 #define FMT_WEIGHTS_BLOCKED16_G gOIhw8i16o2i
-#elif defined(U8S8)
+#elif defined(U8S8) || defined(S8S8)
 #define FMT_DATA_BLOCKED nhwc
 #define FMT_DATA_BLOCKED16 nhwc
+#define FMT_DATA_BLOCKED_3D ndhwc
+#define FMT_DATA_BLOCKED16_3D ndhwc
 #define FMT_WEIGHTS_BLOCKED OhIw8o4i
 #define FMT_WEIGHTS_BLOCKED_G gOhIw8o4i
 #define FMT_WEIGHTS_BLOCKED16 OIhw4i16o4i
 #define FMT_WEIGHTS_BLOCKED16_G gOIhw4i16o4i
+#define FMT_WEIGHTS_BLOCKED_3D OdhIw8o4i
+#define FMT_WEIGHTS_BLOCKED_G_3D gOdhIw8o4i
+#define FMT_WEIGHTS_BLOCKED16_3D OIdhw4i16o4i
+#define FMT_WEIGHTS_BLOCKED16_G_3D gOIdhw4i16o4i
+#define FMT_WEIGHTS_BLOCKED_SIGNED OhIw8o4i_s8s8
+#define FMT_WEIGHTS_BLOCKED_G_SIGNED gOhIw8o4i_s8s8
+#define FMT_WEIGHTS_BLOCKED_SIGNED_3D OdhIw8o4i_s8s8
+#define FMT_WEIGHTS_BLOCKED_G_SIGNED_3D gOdhIw8o4i_s8s8
+#define FMT_WEIGHTS_BLOCKED16_SIGNED_3D OIdhw4i16o4i_s8s8
+#define FMT_WEIGHTS_BLOCKED16_G_SIGNED_3D gOIdhw4i16o4i_s8s8
 #elif defined(BIN)
 #define FMT_DATA_BLOCKED nhwc
 #define FMT_DATA_BLOCKED16 nhwc
@@ -122,17 +134,29 @@
         str, deformable_convolution_test, ::testing::Values(__VA_ARGS__))
 #define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
         CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
+#elif defined(_3D)
+#define INST_TEST_CASE_3D_(str, ...) INSTANTIATE_TEST_CASE_P( \
+        str, convolution_test_3d, ::testing::Values(__VA_ARGS__))
+#define INST_TEST_CASE_3D(str, ...) INST_TEST_CASE_3D_( \
+        CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
+#if defined(S8S8)
+#define INST_TEST_CASE_3D_SIGNED_(str, ...) INSTANTIATE_TEST_CASE_P( \
+        str, convolution_test_3d_s8, ::testing::Values(__VA_ARGS__))
+#define INST_TEST_CASE_3D_SIGNED(str, ...) INST_TEST_CASE_3D_SIGNED_( \
+        CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
+#endif
 #else
 #define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_CASE_P( \
         str, convolution_test, ::testing::Values(__VA_ARGS__))
 #define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
         CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
-#endif
-
-#define INST_TEST_CASE_3D_(str, ...) INSTANTIATE_TEST_CASE_P( \
-        str, convolution_test_3d, ::testing::Values(__VA_ARGS__))
-#define INST_TEST_CASE_3D(str, ...) INST_TEST_CASE_3D_( \
+#if defined(S8S8)
+#define INST_TEST_CASE_SIGNED_(str, ...) INSTANTIATE_TEST_CASE_P( \
+        str, convolution_test_s8, ::testing::Values(__VA_ARGS__))
+#define INST_TEST_CASE_SIGNED(str, ...) INST_TEST_CASE_SIGNED_( \
         CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
+#endif
+#endif
 
 #if defined(BIN)
 #define PAD_VALUE -1.0f
@@ -202,21 +226,36 @@
     test_deformable_convolution_params_t { ENGINE, ALGORITHM, \
     EXPAND_FORMATS(src, offsets, weights, bias, dst), \
     {__VA_ARGS__} }
+#elif defined(_3D)
+#if defined(ASYMMETRIC_QUANTIZATION)
+#define PARAMS_3D(src, weights, bias, dst, ...) \
+    test_convolution_params_t_3d { ENGINE, ALGORITHM, \
+    EXPAND_FORMATS(src, weights, bias, dst), /* empty attributes */ {}, \
+    {__VA_ARGS__}, true }
+#else
+#define PARAMS_3D(src, weights, bias, dst, ...) \
+    test_convolution_params_t_3d { ENGINE, ALGORITHM, \
+    EXPAND_FORMATS(src, weights, bias, dst), /* empty attributes */ {}, \
+    {__VA_ARGS__}, false }
+#endif
+#else
+#if defined(ASYMMETRIC_QUANTIZATION)
+#define PARAMS(src, weights, bias, dst, ...) \
+    test_convolution_params_t { ENGINE, ALGORITHM, \
+    EXPAND_FORMATS(src, weights, bias, dst), /* empty attributes */ {}, \
+    {__VA_ARGS__}, true }
 #else
 #define PARAMS(src, weights, bias, dst, ...) \
     test_convolution_params_t { ENGINE, ALGORITHM, \
     EXPAND_FORMATS(src, weights, bias, dst), /* empty attributes */ {}, \
-    {__VA_ARGS__} }
+    {__VA_ARGS__}, false }
+#endif
 #endif
 
-#define PARAMS_3D(src, weights, bias, dst, ...) \
-    test_convolution_params_t_3d { ENGINE, ALGORITHM, \
-    EXPAND_FORMATS(src, weights, bias, dst), /* empty attributes */ {}, \
-    {__VA_ARGS__} }
 #define PARAMS_EXPECT_FAIL(src, weights, bias, dst, code, ...) \
     test_convolution_params_t { ENGINE, ALGORITHM, \
     EXPAND_FORMATS(src, weights, bias, dst), /* empty attributes */ {}, \
-    {__VA_ARGS__}, true, code }
+    {__VA_ARGS__}, false, true, code }
 
 #define PARAMS_ATTR(src, weights, bias, dst, round_mode, scale, policy, ...) \
     test_convolution_params_t { ENGINE, ALGORITHM, \
@@ -228,7 +267,7 @@
 #include "convolution_attr.h"
 #else
 
-#if !defined(BIN) && !defined(DEF)
+#if !defined(BIN) && !defined(DEF) && !defined(_3D)
 #include "convolution_simple.h"
 #endif
 

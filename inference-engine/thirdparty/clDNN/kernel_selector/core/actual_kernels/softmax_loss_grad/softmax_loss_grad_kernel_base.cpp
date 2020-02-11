@@ -27,7 +27,7 @@ CommonDispatchData SoftmaxLossGradKernelBase::SetDefault(const softmax_loss_grad
 
     std::vector<size_t> global = {params.output.Batch().v * params.output.X().v, 1, 1};
 
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     runInfo.gws0 = global[0];
     runInfo.gws1 = global[1];

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,40 +19,38 @@ namespace vpu {
 
 namespace ie = InferenceEngine;
 
-class BackEnd final : public std::enable_shared_from_this<BackEnd> {
+class BackEnd final {
 public:
     using Ptr = std::shared_ptr<BackEnd>;
 
     CompiledGraph::Ptr build(
-            const Model::Ptr& model,
+            const Model& model,
             const std::vector<ie::CNNLayerPtr>& allLayers);
 
     void dumpModel(
-            const Model::Ptr& model,
+            const Model& model,
             const std::string& postfix = std::string());
 
 private:
     void serialize(
-            const Model::Ptr& model,
+            const Model& model,
             std::vector<char>& blob,
             std::pair<char*, size_t>& blobHeader,
             int& numActiveStages);
 
     void getMetaData(
-            const Model::Ptr& model,
+            const Model& model,
             const std::vector<ie::CNNLayerPtr>& allLayers,
             GraphMetaInfo& graphMetaData);
 
     void extractDataInfo(
-            const Model::Ptr& model,
+            const Model& model,
             DataInfo& inputInfo,
             DataInfo& outputInfo);
 
-#ifndef NDEBUG
     void dumpModelToDot(
-            const Model::Ptr& model,
+            const Model& model,
             const std::string& fileName);
-#endif
 };
 
 }  // namespace vpu

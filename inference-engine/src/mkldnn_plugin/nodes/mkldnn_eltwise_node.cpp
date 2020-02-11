@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,14 +12,389 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
+#include "mkldnn_quantize_node.h"
+#include "mkldnn_activation_node.h"
 #include <map>
+#include "jit_uni_eltwise.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+using namespace mkldnn::impl;
+using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::utils;
+using namespace Xbyak;
+
+#define GET_OFF(field) offsetof(jit_eltwise_fq_call_args, field)
+
+template <cpu_isa_t isa>
+struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_fq_generic)
+
+    explicit jit_uni_eltwise_fq_generic(jit_eltwise_fq_params jep, const mkldnn_primitive_attr &attr) : jit_uni_eltwise_fq_kernel(jep, attr), jit_generator() {
+        const auto &p = attr_.post_ops_;
+        for (int i = 0; i < p.len_; i++) {
+            auto &post_op = p.entry_[i];
+            if (post_op.is_eltwise()) {
+                eltwise_injectors.push_back(new jit_uni_eltwise_injector_f32<isa>(
+                        this,
+                        post_op.eltwise.alg,
+                        post_op.eltwise.alpha,
+                        post_op.eltwise.beta));
+            }
+        }
+
+        this->preamble();
+
+        mov(reg_src0, ptr[reg_params + GET_OFF(src0)]);
+        mov(reg_src1, ptr[reg_params + GET_OFF(src1)]);
+        mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
+        mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
+
+        auto fq_idx = p.find(mkldnn_quantization);
+        if (fq_idx != -1) {
+            bool do_dequantization = p.entry_[fq_idx].quantization.alg == alg_kind::quantization_quantize_dequantize;
+
+            mov(reg_crop_low, reinterpret_cast<size_t>(p.entry_[fq_idx].quantization.crop_low_data));
+            mov(reg_crop_high, reinterpret_cast<size_t>(p.entry_[fq_idx].quantization.crop_high_data));
+            mov(reg_input_scale, reinterpret_cast<size_t>(p.entry_[fq_idx].quantization.input_scale_data));
+            mov(reg_input_shift, reinterpret_cast<size_t>(p.entry_[fq_idx].quantization.input_shift_data));
+            if (do_dequantization) {
+                mov(reg_output_scale, reinterpret_cast<size_t>(p.entry_[fq_idx].quantization.output_scale_data));
+                mov(reg_output_shift, reinterpret_cast<size_t>(p.entry_[fq_idx].quantization.output_shift_data));
+            }
+        }
+
+        Xbyak::Label main_loop_label;
+        Xbyak::Label main_loop_end_label;
+        Xbyak::Label tail_loop_label;
+        Xbyak::Label tail_loop_end_label;
+
+        if (isa == avx512_common)
+            vpxord(vmm_zero, vmm_zero, vmm_zero);
+
+        if (jep.src0_step == 0)
+            uni_vbroadcastss(vmm_src0, ptr[reg_src0]);
+        if (jep.src1_step == 0)
+            uni_vbroadcastss(vmm_src1, ptr[reg_src1]);
+
+        L(main_loop_label);
+        {
+            cmp(reg_work_amount, simd_w);
+            jl(main_loop_end_label, T_NEAR);
+
+            if (jep.src0_step != 0)
+                load_vector(vmm_src0, ptr[reg_src0], jep.src0_dt);
+            if (jep.src1_step != 0)
+                load_vector(vmm_src1, ptr[reg_src1], jep.src1_dt);
+
+            switch (jep.eltwise_op) {
+                case EltwiseLayer::eOperation::Sum:
+                    if (isa == cpu::sse42) {
+                        uni_vmovups(vmm_dst, vmm_src0);
+                        uni_vaddps(vmm_dst, vmm_dst, vmm_src1);
+                    } else {
+                        uni_vaddps(vmm_dst, vmm_src0, vmm_src1);
+                    }
+                    break;
+                case EltwiseLayer::eOperation::Prod:
+                    if (isa == cpu::sse42) {
+                        uni_vmovups(vmm_dst, vmm_src0);
+                        uni_vmulps(vmm_dst, vmm_dst, vmm_src1);
+                    } else {
+                        uni_vmulps(vmm_dst, vmm_src0, vmm_src1);
+                    }
+                    break;
+                default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise node";
+            }
+
+            int eltwise_inj_idx = 0;
+            for (int i = 0; i < p.len_; i++) {
+                auto &post_op = p.entry_[i];
+                if (post_op.is_eltwise()) {
+                    eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_dst.getIdx(), vmm_dst.getIdx() + 1);
+                    eltwise_inj_idx++;
+                } else if (post_op.is_quantization()) {
+                    bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
+                    bool do_rounding = do_dequantization || jep_.dst_dt == data_type::f32 || i != p.len_ - 1;
+
+                    uni_vmovups(vmm_d_weights, ptr[reg_crop_low]);
+                    uni_vmovups(vmm_d_bias, ptr[reg_crop_high]);
+                    uni_vmaxps(vmm_dst, vmm_dst, vmm_d_weights);
+                    uni_vminps(vmm_dst, vmm_dst, vmm_d_bias);
+
+                    uni_vmovups(vmm_d_weights, ptr[reg_input_scale]);
+                    uni_vmovups(vmm_d_bias, ptr[reg_input_shift]);
+                    uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
+                    if (do_rounding)
+                        uni_vroundps(vmm_dst, vmm_dst, 0);
+
+                    if (do_dequantization) {
+                        uni_vmovups(vmm_d_weights, ptr[reg_output_scale]);
+                        uni_vmovups(vmm_d_bias, ptr[reg_output_shift]);
+                        uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
+                    }
+
+                    add(reg_crop_low, sizeof(float) * simd_w);
+                    add(reg_crop_high, sizeof(float) * simd_w);
+                    add(reg_input_scale, sizeof(float) * simd_w);
+                    add(reg_input_shift, sizeof(float) * simd_w);
+                    if (do_dequantization) {
+                        add(reg_output_scale, sizeof(float) * simd_w);
+                        add(reg_output_shift, sizeof(float) * simd_w);
+                    }
+                }
+            }
+
+            store_vector(ptr[reg_dst], vmm_dst, jep.dst_dt);
+
+            if (jep.src0_step != 0)
+                add(reg_src0, jep.src0_step * jep.src0_data_size * simd_w);
+            if (jep.src1_step != 0)
+                add(reg_src1, jep.src1_step * jep.src1_data_size * simd_w);
+            add(reg_dst, jep.dst_step * jep.dst_data_size * simd_w);
+            sub(reg_work_amount, simd_w);
+
+            jmp(main_loop_label, T_NEAR);
+        }
+
+        L(main_loop_end_label);
+
+        L(tail_loop_label);
+        {
+            cmp(reg_work_amount, 1);
+            jl(tail_loop_end_label, T_NEAR);
+
+            if (jep.src0_step != 0)
+                load_scalar(xmm_src0, ptr[reg_src0], jep.src0_dt);
+            if (jep.src1_step != 0)
+                load_scalar(xmm_src1, ptr[reg_src1], jep.src1_dt);
+
+            switch (jep.eltwise_op) {
+                case EltwiseLayer::eOperation::Sum: uni_vaddps(vmm_dst, vmm_src0, vmm_src1); break;
+                case EltwiseLayer::eOperation::Prod: uni_vmulps(vmm_dst, vmm_src0, vmm_src1); break;
+                default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise node";
+            }
+
+            int eltwise_inj_idx = 0;
+            for (int i = 0; i < p.len_; i++) {
+                auto &post_op = p.entry_[i];
+                if (post_op.is_eltwise()) {
+                    eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_dst.getIdx(), vmm_dst.getIdx() + 1);
+                    eltwise_inj_idx++;
+                } else if (post_op.is_quantization()) {
+                    bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
+                    bool do_rounding = do_dequantization || jep_.dst_dt == data_type::f32;
+
+                    movss(xmm_d_weights, ptr[reg_crop_low]);
+                    movss(xmm_d_bias, ptr[reg_crop_high]);
+                    uni_vmaxps(vmm_dst, vmm_dst, vmm_d_weights);
+                    uni_vminps(vmm_dst, vmm_dst, vmm_d_bias);
+
+                    movss(xmm_d_weights, ptr[reg_input_scale]);
+                    movss(xmm_d_bias, ptr[reg_input_shift]);
+                    uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
+                    if (do_rounding)
+                        uni_vroundps(vmm_dst, vmm_dst, 0);
+
+                    if (do_dequantization) {
+                        movss(xmm_d_weights, ptr[reg_output_scale]);
+                        movss(xmm_d_bias, ptr[reg_output_shift]);
+                        uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
+                    }
+
+                    add(reg_crop_low, sizeof(float) * 1);
+                    add(reg_crop_high, sizeof(float) * 1);
+                    add(reg_input_scale, sizeof(float) * 1);
+                    add(reg_input_shift, sizeof(float) * 1);
+                    if (do_dequantization) {
+                        add(reg_output_scale, sizeof(float) * 1);
+                        add(reg_output_shift, sizeof(float) * 1);
+                    }
+                }
+            }
+
+            store_scalar(ptr[reg_dst], xmm_dst, jep.dst_dt);
+
+            if (jep.src0_step != 0)
+                add(reg_src0, jep.src0_step * jep.src0_data_size);
+            if (jep.src1_step != 0)
+                add(reg_src1, jep.src1_step * jep.src1_data_size);
+            add(reg_dst, jep.dst_step * jep.dst_data_size);
+            sub(reg_work_amount, 1);
+
+            jmp(tail_loop_label, T_NEAR);
+        }
+
+        L(tail_loop_end_label);
+
+        this->postamble();
+
+        for (auto& inj : eltwise_injectors)
+            inj->prepare_table();
+
+        ker_ = (decltype(ker_)) this->getCode();
+    }
+
+private:
+    using Vmm = typename conditional3<isa == cpu::sse42, Xmm, isa == cpu::avx2, Ymm, Zmm>::type;
+
+    const int simd_w = cpu_isa_traits<isa>::vlen / sizeof(float);
+
+    Reg64 reg_src0 = r8;
+    Reg64 reg_src1 = r9;
+    Reg64 reg_dst = r10;
+    Reg64 reg_work_amount = r11;
+    Reg64 reg_params = abi_param1;
+
+    Reg8 reg_tmp_8 = r12b;
+    Reg32 reg_tmp_32 = r12d;
+    Reg64 reg_tmp_64 = r12;
+
+    Reg64 reg_crop_low = r13;
+    Reg64 reg_crop_high = r14;
+    Reg64 reg_input_scale = r15;
+    Reg64 reg_input_shift = rax;
+    Reg64 reg_output_scale = rbx;
+    Reg64 reg_output_shift = rdx;
+
+    Vmm vmm_src0 = Vmm(0);
+    Vmm vmm_src1 = Vmm(1);
+    Vmm vmm_dst = Vmm(2);
+    Xmm xmm_src0 = Xmm(0);
+    Xmm xmm_src1 = Xmm(1);
+    Xmm xmm_dst = Xmm(2);
+
+    Vmm vmm_d_weights = Vmm(3);
+    Vmm vmm_d_bias = Vmm(4);
+    Xmm xmm_d_weights = Xmm(3);
+    Xmm xmm_d_bias = Xmm(4);
+
+    Vmm vmm_zero = Vmm(5);
+
+    std::vector<mkldnn::impl::cpu::jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
+
+    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
+        switch (src_dt) {
+            case memory::f32:
+            case memory::s32:
+                uni_vmovups(vmm_src, op);
+                break;
+            case memory::s8:
+                uni_vpmovsxbd(vmm_src, op);
+                break;
+            case memory::u8:
+                uni_vpmovzxbd(vmm_src, op);
+                break;
+            default:
+                assert(!"unknown dst_dt");
+        }
+
+        if (src_dt != data_type::f32) {
+            uni_vcvtdq2ps(vmm_src, vmm_src);
+        }
+    }
+
+    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
+        switch (src_dt) {
+            case memory::f32:
+            case memory::s32:
+                movss(xmm_src, op);
+                break;
+            case memory::s8:
+                movsx(reg_tmp_32, op);
+                movq(xmm_src, reg_tmp_64);
+                break;
+            case memory::u8:
+                movzx(reg_tmp_32, op);
+                movq(xmm_src, reg_tmp_64);
+                break;
+            default:
+                assert(!"unknown dst_dt");
+        }
+
+        if (src_dt != data_type::f32) {
+            uni_vcvtdq2ps(xmm_src, xmm_src);
+        }
+    }
+
+    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
+        Xmm xmm_dst = Xmm(vmm_dst.getIdx());
+        Ymm ymm_dst = Ymm(vmm_dst.getIdx());
+
+        if (dst_dt != data_type::f32) {
+            uni_vcvtps2dq(vmm_dst, vmm_dst);
+        }
+
+        switch (dst_dt) {
+            case memory::f32:
+            case memory::s32:
+                uni_vmovups(op, vmm_dst);
+                break;
+            case memory::s8:
+                if (isa == avx512_common) {
+                    vmaxps(vmm_dst, vmm_zero, vmm_dst);
+                    vpmovsdb(op, vmm_dst);
+                } else {
+                    uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
+                    if (isa != cpu::sse42)
+                        vpermq(ymm_dst, ymm_dst, 0x08);
+                    uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
+                    if (isa != cpu::sse42)
+                        vmovq(op, xmm_dst);
+                    else
+                        movd(op, xmm_dst);
+                }
+                break;
+            case memory::u8:
+                if (isa == avx512_common) {
+                    vpmovusdb(op, vmm_dst);
+                } else {
+                    uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
+                    if (isa != cpu::sse42)
+                        vpermq(ymm_dst, ymm_dst, 0x08);
+                    uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
+                    if (isa != cpu::sse42)
+                        vmovq(op, xmm_dst);
+                    else
+                        movd(op, xmm_dst);
+                }
+                break;
+            default:
+                assert(!"unknown dst_dt");
+        }
+    }
+
+    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
+        if (dst_dt != data_type::f32) {
+            uni_vcvtps2dq(xmm_dst, xmm_dst);
+        }
+
+        switch (dst_dt) {
+            case memory::f32:
+            case memory::s32:
+                movss(op, xmm_dst);
+                break;
+            case memory::s8:
+                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+                uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
+                movq(reg_tmp_64, xmm_dst);
+                mov(op, reg_tmp_8);
+                break;
+            case memory::u8:
+                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+                uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
+                movq(reg_tmp_64, xmm_dst);
+                mov(op, reg_tmp_8);
+                break;
+            default:
+                assert(!"unknown dst_dt");
+        }
+    }
+};
 
 MKLDNNEltwiseNode::MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
-        MKLDNNNode(layer, eng, socket) {
+        MKLDNNNode(layer, eng, socket), eltiwse_fq_kernel(nullptr) {
     op = EltwiseLayer::Sum;
 }
 
@@ -47,26 +422,22 @@ bool MKLDNNEltwiseNode::isUnitScales() {
 }
 
 bool MKLDNNEltwiseNode::isWithBroadcast() {
-    auto * eltwiseLayer = dynamic_cast<EltwiseLayer*>(getCnnLayer().get());
-    if (eltwiseLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot get eltwise layer " << getName();
-
     bool withBroadcast = false;
-    auto outDims = eltwiseLayer->outData[0]->getDims();
-    for (size_t i = 0; i < eltwiseLayer->insData.size(); i++) {
-        auto inDims = eltwiseLayer->insData[i].lock()->getDims();
-        for (size_t j = 1; j <= inDims.size(); j++) {
-            if (outDims[outDims.size() - j] != inDims[inDims.size() - j]) {
-                if (inDims[inDims.size() - j] == 1) {
+    auto oDims = outDims[0].ToSizeVector();
+    for (size_t i = 0; i < inDims.size(); i++) {
+        auto iDims = inDims[i].ToSizeVector();
+        for (size_t j = 1; j <= iDims.size(); j++) {
+            if (oDims[oDims.size() - j] != iDims[iDims.size() - j]) {
+                if (iDims[iDims.size() - j] == 1) {
                     withBroadcast = true;
                 } else {
-                    THROW_IE_EXCEPTION << "Incorrect dimensions for broadcasting for " << eltwiseLayer->name;
+                    THROW_IE_EXCEPTION << "Incorrect dimensions for broadcasting for " << getName();
                 }
             }
-            if (inDims.size() < outDims.size())
+            if (iDims.size() < oDims.size())
                 withBroadcast = true;
         }
-        if (inDims.size() == 0 && outDims.size())
+        if (iDims.size() == 0 && oDims.size())
             withBroadcast = true;
     }
 
@@ -124,6 +495,8 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    setPostOps(attr, true);
+
     auto initDesc = [&] (mkldnn::memory::data_type inputDT, mkldnn::memory::data_type outputDT, memory::format format) -> PrimitiveDescInfo {
         InferenceEngine::LayerConfig config;
         impl_desc_type impl_type = impl_desc_type::ref;
@@ -158,13 +531,82 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         return {config, impl_type, format};
     };
 
-    for (const auto& format : getAvailableFormatsForDims(getChildEdgeAt(0)->getDims())) {
-        mkldnn::memory::data_type inputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->precision);
-        mkldnn::memory::data_type outputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->precision);
-        auto impl_desc = initDesc(inputDT, outputDT, format);
+    if (fusedWith.empty()) {
+        for (const auto& format : getAvailableFormatsForDims(getChildEdgeAt(0)->getDims())) {
+            // Precision of implementation is defined by precision of output tensor
+            auto prec = getCnnLayer()->outData[0]->getPrecision();
+            mkldnn::memory::data_type inputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(prec);
+            mkldnn::memory::data_type outputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(prec);
 
-        if (impl_desc.getImplementationType() != impl_desc_type::undef) {
-            supportedPrimitiveDescriptors.push_back(impl_desc);
+            // Eltwise compare operation can have the input type different from the output type
+            auto node_op = this->op;
+            bool is_eltwise_compare_node = ((node_op == EltwiseLayer::eOperation::Equal) ||
+                                            (node_op == EltwiseLayer::eOperation::Not_equal) ||
+                                            (node_op == EltwiseLayer::eOperation::Greater) ||
+                                            (node_op == EltwiseLayer::eOperation::Greater_equal) ||
+                                            (node_op == EltwiseLayer::eOperation::Less) ||
+                                            (node_op == EltwiseLayer::eOperation::Less_equal));
+            if (is_eltwise_compare_node) {
+                auto in_prec = getCnnLayer()->insData[0].lock()->getPrecision();
+                inputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(in_prec);
+            }
+
+            auto impl_desc = initDesc(inputDT, outputDT, format);
+
+            if (impl_desc.getImplementationType() != impl_desc_type::undef) {
+                supportedPrimitiveDescriptors.push_back(impl_desc);
+            }
+        }
+    } else {
+        auto ndims = getCnnLayer()->outData[0]->getDims().size();
+        auto format = ndims == 2 ? memory::format::nc :
+                      ndims == 4 ? memory::format::nhwc :
+                      memory::format::ndhwc;
+
+        InferenceEngine::LayerConfig config;
+        impl_desc_type impl_type = impl_desc_type::ref;
+        config.dynBatchSupport = true;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            InferenceEngine::DataConfig dataConfig;
+            dataConfig.inPlace = -1;
+            dataConfig.constant = false;
+            auto inputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(
+                    getCnnLayer()->insData[i].lock()->getPrecision());
+            dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDT, format);
+            config.inConfs.push_back(dataConfig);
+        }
+
+        auto outputDT = memory::f32;
+        auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
+        if (lastFusedLayer) {
+            outputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(lastFusedLayer->outData[0]->getPrecision());
+        }
+
+        InferenceEngine::DataConfig dataConfig;
+        dataConfig.inPlace = -1;
+        dataConfig.constant = false;
+        dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDT, format);
+        config.outConfs.push_back(dataConfig);
+
+        supportedPrimitiveDescriptors.push_back({config, impl_type, format});
+
+        jep.src0_step = config.inConfs[0].desc.getDims()[1] == 1 ? 0 : 1;
+        jep.src1_step = config.inConfs[1].desc.getDims()[1] == 1 ? 0 : 1;
+        jep.dst_step = 1;
+        jep.src0_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(config.inConfs[0].desc.getPrecision());
+        jep.src1_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(config.inConfs[1].desc.getPrecision());
+        jep.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(config.outConfs[0].desc.getPrecision());
+        jep.src0_data_size = MKLDNNExtensionUtils::sizeOfDataType(jep.src0_dt);
+        jep.src1_data_size = MKLDNNExtensionUtils::sizeOfDataType(jep.src1_dt);
+        jep.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jep.dst_dt);
+        jep.eltwise_op = op;
+
+        if (mayiuse(cpu::avx512_common)) {
+            eltiwse_fq_kernel.reset(new jit_uni_eltwise_fq_generic<cpu::avx512_common>(jep, *attr.get()));
+        } else if (mayiuse(cpu::avx2)) {
+            eltiwse_fq_kernel.reset(new jit_uni_eltwise_fq_generic<cpu::avx2>(jep, *attr.get()));
+        } else if (mayiuse(cpu::sse42)) {
+            eltiwse_fq_kernel.reset(new jit_uni_eltwise_fq_generic<cpu::sse42>(jep, *attr.get()));
         }
     }
 }
@@ -193,7 +635,7 @@ void MKLDNNEltwiseNode::createPrimitive() {
             srcs_p.emplace_back(srcMemPtr->GetPrimitive());
         }
     }
-    if (op == EltwiseLayer::Sum && !broadcast) {
+    if (op == EltwiseLayer::Sum && !broadcast && fusedWith.empty()) {
         try {
             auto primitive_desc = mkldnn::sum::primitive_desc(dstMemPtr->GetDescriptor(), sum_scales, srcs_pd);
             prim = std::shared_ptr<mkldnn::sum>(new mkldnn::sum(primitive_desc, srcs_p, dstMemPtr->GetPrimitive()));
@@ -227,7 +669,70 @@ void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
     }
 }
 
-void MKLDNNEltwiseNode::dims_calc(int *dims, const MKLDNNDims &edge_dims) {
+void MKLDNNEltwiseNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
+    int blob_idx = 0;
+    mkldnn::post_ops ops;
+
+    for (auto &node : fusedWith) {
+        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
+        if (activationNode) {
+            ops.append_eltwise(1.0, activationNode->getAlgorithm(), activationNode->getAlpha(), activationNode->getBeta());
+
+            continue;
+        }
+
+        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
+        if (quantizeNode) {
+            if (initWeights) {
+                MKLDNNDims weightsDims({static_cast<ptrdiff_t>(rnd_up(getParentEdgeAt(0)->getDims()[1], 16))});
+                MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)weightsDims[0]}, memory::f32, memory::x};
+
+                auto cropLowDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                cropLowDataMem->Create(weightsDataDesc, quantizeNode->getCropLowPtr());
+
+                auto cropHighDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                cropHighDataMem->Create(weightsDataDesc, quantizeNode->getCropHighPtr());
+
+                auto inputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                inputScaleDataMem->Create(weightsDataDesc, quantizeNode->getInputScalePtr());
+
+                auto inputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                inputShiftDataMem->Create(weightsDataDesc, quantizeNode->getInputShiftPtr());
+
+                auto outputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                outputScaleDataMem->Create(weightsDataDesc, quantizeNode->getOutputScalePtr());
+
+                auto outputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                outputShiftDataMem->Create(weightsDataDesc, quantizeNode->getOutputShiftPtr());
+
+                PostOpsIntBlobMemory.push_back(cropLowDataMem);
+                PostOpsIntBlobMemory.push_back(cropHighDataMem);
+                PostOpsIntBlobMemory.push_back(inputScaleDataMem);
+                PostOpsIntBlobMemory.push_back(inputShiftDataMem);
+                PostOpsIntBlobMemory.push_back(outputScaleDataMem);
+                PostOpsIntBlobMemory.push_back(outputShiftDataMem);
+
+                ops.append_quantization(quantizeNode->getAlgorithm(),
+                                        static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 0]->GetData()),
+                                        static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData()),
+                                        static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 2]->GetData()),
+                                        static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 3]->GetData()),
+                                        static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 4]->GetData()),
+                                        static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 5]->GetData()));
+
+                blob_idx += 6;
+            } else {
+                ops.append_quantization(quantizeNode->getAlgorithm(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+            }
+
+            continue;
+        }
+    }
+
+    attr.set_post_ops(ops);
+}
+
+void MKLDNNEltwiseNode::dims_calc(int *dims, const MKLDNNDims &edge_dims, bool channels_first = false) {
     for (int i = 0; i < 5; i++)
         dims[i] = 1;
     int ndims = edge_dims.ndims();
@@ -239,6 +744,15 @@ void MKLDNNEltwiseNode::dims_calc(int *dims, const MKLDNNDims &edge_dims) {
     }
     if (edge_dims.ndims() && !(broadcast && edge_dims[0] == getChildEdgeAt(0)->getDims()[0]))
         dims[batch_dim] = std::min(dims[batch_dim], batchToProcess());
+
+    if (channels_first) {
+        auto ch_idx = 5 - ndims + 1;
+        auto ch = dims[ch_idx];
+        for (int i = ch_idx; i < 4; i++) {
+            dims[i] = dims[i + 1];
+        }
+        dims[4] = ch;
+    }
 }
 
 void MKLDNNEltwiseNode::offset_out_calc(int *offset, int *dims) {
@@ -1139,8 +1653,8 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_pow(
     }
 }
 
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_equal(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
+template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::eltwise_equal(
+        const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, const size_t dst_data_size) {
     if (!broadcast) {
 #ifdef _WIN32
         for (size_t i = 0; i < dst_data_size; i++) {
@@ -1237,8 +1751,8 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_equal(
     }
 }
 
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_not_equal(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
+template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::eltwise_not_equal(
+        const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, const size_t dst_data_size) {
     if (!broadcast) {
 #ifdef _WIN32
         for (size_t i = 0; i < dst_data_size; i++) {
@@ -1335,8 +1849,8 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_not_equal(
     }
 }
 
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_less(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
+template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::eltwise_less(
+        const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, const size_t dst_data_size) {
     if (!broadcast) {
 #ifdef _WIN32
         for (size_t i = 0; i < dst_data_size; i++) {
@@ -1433,8 +1947,8 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_less(
     }
 }
 
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_less_equal(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
+template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::eltwise_less_equal(
+        const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, const size_t dst_data_size) {
     if (!broadcast) {
 #ifdef _WIN32
         for (size_t i = 0; i < dst_data_size; i++) {
@@ -1531,8 +2045,8 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_less_equal(
     }
 }
 
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_greater(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
+template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::eltwise_greater(
+        const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, const size_t dst_data_size) {
     if (!broadcast) {
 #ifdef _WIN32
         for (size_t i = 0; i < dst_data_size; i++) {
@@ -1629,8 +2143,8 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_greater(
     }
 }
 
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_greater_equal(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
+template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::eltwise_greater_equal(
+        const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, const size_t dst_data_size) {
     if (!broadcast) {
 #ifdef _WIN32
         for (size_t i = 0; i < dst_data_size; i++) {
@@ -2021,6 +2535,31 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_logical_xor(
     }
 }
 
+template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::ref_eltwise2(int in0, int in1) {
+    IE_ASSERT(getParentEdges().size() > 1);
+
+    auto& srcMemory0 = getParentEdgeAt(in0)->getMemory();
+    auto& srcMemory1 = getParentEdgeAt(in1)->getMemory();
+    const T0 *src0_ptr = reinterpret_cast<const T0*>(srcMemory0.GetData()) +
+        srcMemory0.GetDescriptor().data.layout_desc.blocking.offset_padding;
+    const T1 *src1_ptr = reinterpret_cast<const T1*>(srcMemory1.GetData()) +
+        srcMemory1.GetDescriptor().data.layout_desc.blocking.offset_padding;
+    T2 *dst_ptr = reinterpret_cast<T2*>(getChildEdgeAt(0)->getMemory().GetData()) +
+        getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const size_t dst_data_size = srcMemory0.GetSize() / sizeof(T0) / srcMemory0.GetDims()[0] * batchToProcess();
+
+    switch (op) {
+        case EltwiseLayer::eOperation::Equal: eltwise_equal(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
+        case EltwiseLayer::eOperation::Not_equal: eltwise_not_equal(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
+        case EltwiseLayer::eOperation::Less: eltwise_less(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
+        case EltwiseLayer::eOperation::Less_equal: eltwise_less_equal(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
+        case EltwiseLayer::eOperation::Greater: eltwise_greater(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
+        case EltwiseLayer::eOperation::Greater_equal: eltwise_greater_equal(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
+        default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise node";
+    }
+}
+
 template <typename T0, typename T1> void MKLDNNEltwiseNode::ref_eltwise(int in0, int in1) {
     IE_ASSERT(getParentEdges().size() > 1);
 
@@ -2058,6 +2597,70 @@ template <typename T0, typename T1> void MKLDNNEltwiseNode::ref_eltwise(int in0,
     }
 }
 
+void MKLDNNEltwiseNode::jit_eltwise_fq() {
+    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
+    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    auto& dstMemory = getChildEdgeAt(0)->getMemory();
+
+    const uint8_t *src0_ptr = reinterpret_cast<const uint8_t*>(srcMemory0.GetData()) +
+        srcMemory0.GetDescriptor().data.layout_desc.blocking.offset_padding *
+        MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(srcMemory0.GetDescriptor().data.data_type));
+    const uint8_t *src1_ptr = reinterpret_cast<const uint8_t*>(srcMemory1.GetData()) +
+        srcMemory1.GetDescriptor().data.layout_desc.blocking.offset_padding *
+        MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(srcMemory1.GetDescriptor().data.data_type));
+    uint8_t *dst_ptr = reinterpret_cast<uint8_t*>(dstMemory.GetData()) +
+        dstMemory.GetDescriptor().data.layout_desc.blocking.offset_padding *
+        MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(dstMemory.GetDescriptor().data.data_type));
+
+    if (!broadcast) {
+        auto& dims = getParentEdgeAt(0)->getDims();
+
+        int N = batchToProcess();
+        int C = dims[1];
+        int D = dims.ndims() > 4 ? dims[2] : 1;
+        int H = dims.ndims() > 2 ? dims[dims.ndims() - 2] : 1;
+        int W = dims.ndims() > 3 ? dims[dims.ndims() - 1] : 1;
+
+        parallel_for4d(N, D, H, W, [&](int n, int d, int h, int w) {
+            size_t off = n * D * H * W * C + d * H * W * C + h * W * C + w * C;
+
+            auto arg = jit_eltwise_fq_call_args();
+            arg.src0 = src0_ptr + off * jep.src0_data_size;
+            arg.src1 = src1_ptr + off * jep.src1_data_size;
+            arg.dst = dst_ptr + off * jep.dst_data_size;
+            arg.work_amount = static_cast<size_t>(C);
+
+            (*eltiwse_fq_kernel)(&arg);
+        });
+    } else {
+        int dims_out[5], dims_in0[5], dims_in1[5];
+        int offset_out[5], offset_in0[5], offset_in1[5];
+        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
+        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
+        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
+        dims_calc(dims_out, child_edge_dims, true);
+        dims_calc(dims_in0, parent0_edge_dims, true);
+        dims_calc(dims_in1, parent1_edge_dims, true);
+        offset_out_calc(offset_out, dims_out);
+        offset_in_calc(offset_in0, dims_in0, dims_out);
+        offset_in_calc(offset_in1, dims_in1, dims_out);
+
+        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
+            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3];
+            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3];
+            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3];
+
+            auto arg = jit_eltwise_fq_call_args();
+            arg.src0 = src0_ptr + index_in0 * jep.src0_data_size;
+            arg.src1 = src1_ptr + index_in1 * jep.src1_data_size;
+            arg.dst = dst_ptr + index_out * jep.dst_data_size;
+            arg.work_amount = static_cast<size_t>(dims_out[4]);
+
+            (*eltiwse_fq_kernel)(&arg);
+        });
+    }
+}
+
 void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
     if (prim) {
         MKLDNNNode::execute(strm);
@@ -2069,6 +2672,7 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
             if (getChildEdgeAt(0)->getDesc().getPrecision() != Precision::I32)
                 THROW_IE_EXCEPTION << "Floor_mod supports only I32 precision of output";
         }
+
         if (getParentEdges().size() > 2) {
             Precision pi = getParentEdgeAt(0)->getDesc().getPrecision();
             Precision po = getChildEdgeAt(0)->getDesc().getPrecision();
@@ -2098,24 +2702,37 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
 
         IE_ASSERT(getParentEdges().size() > 1);
 
-        if (po == Precision::FP32 && pi0 == po && pi1 == po) {
-            ref_eltwise<float, float>(0, 1);
-        } else if (po == Precision::FP32 && pi0 == po && pi1 == Precision::I8) {
-            ref_eltwise<float, int8_t>(0, 1);
-        } else if (po == Precision::FP32 && pi1 == po && pi0 == Precision::I8) {
-            ref_eltwise<float, int8_t>(1, 0);
-        } else if (po == Precision::FP32 && pi0 == po && pi1 == Precision::U8) {
-            ref_eltwise<float, uint8_t>(0, 1);
-        } else if (po == Precision::FP32 && pi1 == po && pi0 == Precision::U8) {
-            ref_eltwise<float, uint8_t>(1, 0);
-        } else if (po == Precision::I8 && pi0 == po && pi1 == po) {
-            ref_eltwise<int8_t, int8_t>(0, 1);
-        } else if (po == Precision::I8 && pi0 == po && pi1 == Precision::U8) {
-            ref_eltwise<int8_t, uint8_t>(0, 1);
-        } else if (po == Precision::I8 && pi1 == po && pi0 == Precision::U8) {
-            ref_eltwise<int8_t, uint8_t>(1, 0);
-        } else if (po == Precision::I32 && pi0 == po && pi1 == po) {
-            ref_eltwise<int32_t, int32_t>(0, 1);
+        if (!fusedWith.empty()) {
+            jit_eltwise_fq();
+        } else {
+            // Input and output types for eltwise compare operations can be different
+            bool is_eltwise_compare_node = (op == EltwiseLayer::Equal || op == EltwiseLayer::Not_equal ||
+                                            op == EltwiseLayer::Greater || op == EltwiseLayer::Greater_equal ||
+                                            op == EltwiseLayer::Less || op == EltwiseLayer::Less_equal);
+
+            if (po == Precision::FP32 && pi0 == po && pi1 == po) {
+                ref_eltwise<float, float>(0, 1);
+            } else if (po == Precision::FP32 && pi0 == po && pi1 == Precision::I8) {
+                ref_eltwise<float, int8_t>(0, 1);
+            } else if (po == Precision::FP32 && pi1 == po && pi0 == Precision::I8) {
+                ref_eltwise<float, int8_t>(1, 0);
+            } else if (po == Precision::FP32 && pi0 == po && pi1 == Precision::U8) {
+                ref_eltwise<float, uint8_t>(0, 1);
+            } else if (po == Precision::FP32 && pi1 == po && pi0 == Precision::U8) {
+                ref_eltwise<float, uint8_t>(1, 0);
+            } else if (po == Precision::I8 && pi0 == po && pi1 == po) {
+                ref_eltwise<int8_t, int8_t>(0, 1);
+            } else if (po == Precision::I8 && pi0 == po && pi1 == Precision::U8) {
+                ref_eltwise<int8_t, uint8_t>(0, 1);
+            } else if (po == Precision::I8 && pi1 == po && pi0 == Precision::U8) {
+                ref_eltwise<int8_t, uint8_t>(1, 0);
+            } else if (po == Precision::I32 && pi0 == po && pi1 == po) {
+                ref_eltwise<int32_t, int32_t>(0, 1);
+            } else if (po == Precision::U8 && pi0 == Precision::I32 && pi0 == pi1 && is_eltwise_compare_node) {
+                ref_eltwise2<int32_t, int32_t, uint8_t>(0, 1);
+            } else {
+                THROW_IE_EXCEPTION << "Eltwise node with unsupported combination of input and output types";
+            }
         }
     }
 }
@@ -2150,3 +2767,4 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
 
     return true;
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNEltwiseNode, Eltwise);

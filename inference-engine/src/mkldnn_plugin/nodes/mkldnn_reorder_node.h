@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,6 @@ public:
     InferenceEngine::Blob::Ptr _scales;
 
 private:
-    static Register<MKLDNNReorderNode> reg;
     InferenceEngine::TensorDesc input;
     InferenceEngine::TensorDesc output;
 

@@ -1,17 +1,19 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <description_buffer.hpp>
-#include "ie_built_in_impl.hpp"
-#include <shape_infer/ie_reshaper.hpp>
 #include <ie_layers.h>
+
+#include <description_buffer.hpp>
 #include <map>
 #include <memory>
+#include <shape_infer/ie_reshaper.hpp>
 #include <string>
 #include <vector>
+
+#include "ie_built_in_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -21,20 +23,17 @@ namespace ShapeInfer {
  */
 class TensorIteratorShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit TensorIteratorShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
+    explicit TensorIteratorShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
-    void setOriginalLayer(const CNNLayer *layer) {
+    void setOriginalLayer(const CNNLayer* layer) {
         auto ti = dynamic_cast<const TensorIterator*>(layer);
-        if (!ti)
-            THROW_IE_EXCEPTION << "Error during shape infer. Original layer is not TensorIterator.";
+        if (!ti) THROW_IE_EXCEPTION << "Error during shape infer. Original layer is not TensorIterator.";
         _original_ti = ti;
     }
 
-    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-                         const std::map<std::string, std::string>& params,
-                         const std::map<std::string, Blob::Ptr>& blobs,
-                         std::vector<SizeVector>& outShapes) override {
-        LayerParams lp{};
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
+        LayerParams lp {};
         TensorIterator ti(lp);
         ti.params = params;
         ti.type = _type;
@@ -49,7 +48,7 @@ public:
 
         // Prepare input shapes for internal body
         std::map<std::string, std::vector<size_t>> newInShapes;
-        for (auto &port_map : ti.input_port_map) {
+        for (auto& port_map : ti.input_port_map) {
             int ext_port = port_map.from;
             int int_port = port_map.to;
             auto int_name = ti.body.inputs[int_port]->getName();
@@ -57,12 +56,8 @@ public:
             auto shape = inShapes[ext_port];
             if (port_map.axis != -1) {
                 int size = shape[port_map.axis];
-                int start = port_map.start < 0
-                        ? port_map.start + size + 1
-                        : port_map.start;
-                int end = port_map.end < 0
-                        ? port_map.end + size + 1
-                        : port_map.end;
+                int start = port_map.start < 0 ? port_map.start + size + 1 : port_map.start;
+                int end = port_map.end < 0 ? port_map.end + size + 1 : port_map.end;
 
                 num_iteration = std::abs(end - start) / std::abs(port_map.stride);
 
@@ -78,10 +73,10 @@ public:
         _body_reshaper->runNoApply(newInShapes);
 
         outShapes.resize(ti.output_port_map.size());
-        for (auto &port_map : ti.output_port_map) {
+        for (auto& port_map : ti.output_port_map) {
             int ext_port = port_map.from;
             int int_port = port_map.to;
-            auto &int_out_data = ti.body.outputs[int_port];
+            auto& int_out_data = ti.body.outputs[int_port];
             auto shape = _body_reshaper->getResultShapeFor(int_out_data);
 
             if (port_map.axis != -1) {
@@ -98,7 +93,6 @@ public:
             THROW_IE_EXCEPTION << "Request of apply reshape results while shape infer was not finished";
         _body_reshaper->apply();
     }
-
 
 private:
     const TensorIterator* _original_ti = nullptr;

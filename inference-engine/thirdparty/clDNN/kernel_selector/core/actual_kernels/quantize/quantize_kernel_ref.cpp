@@ -29,9 +29,20 @@ ParamsKey QuantizeKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::BINARY);
     k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::yxfb);
+    k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::bfyx_f16);
+    k.EnableInputLayout(DataLayout::bfzyx_f16);
+    k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfyx_f16);
+    k.EnableOutputLayout(DataLayout::bfzyx_f16);
+    k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_32fp);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
+    k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -47,7 +58,7 @@ CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params, 
 
     runInfo.gws0 = output.Batch().v;
     runInfo.gws1 = params.packed_binary_output ? CeilDiv(output.Feature().v, 32) : output.Feature().v;
-    runInfo.gws2 = Align(output.X().v * output.Y().v, 16);
+    runInfo.gws2 = Align(output.X().v * output.Y().v * output.Z().v, 16);
 
     runInfo.lws0 = 1;
     runInfo.lws1 = 1;
@@ -72,7 +83,10 @@ bool QuantizeKernelRef::Validate(const Params& p, const optional_params&) const 
     if (params.output.GetDType() == Datatype::BINARY &&
         (params.output.GetLayout() != DataLayout::b_fs_yx_32fp ||
         (params.inputs[0].GetLayout() != DataLayout::bfyx &&
-         params.inputs[0].GetLayout() != DataLayout::bfyx_f16)))
+         params.inputs[0].GetLayout() != DataLayout::bfzyx &&
+         params.inputs[0].GetLayout() != DataLayout::bfzyx_f16 &&
+         params.inputs[0].GetLayout() != DataLayout::bfyx_f16 &&
+         params.inputs[0].GetLayout() != DataLayout::fs_b_yx_fsv32)))
         return false;
     return true;
 }

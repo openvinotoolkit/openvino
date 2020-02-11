@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,28 +14,28 @@
  limitations under the License.
 """
 
-import numpy as np
-
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from extensions.ops.split import AttributedSplit
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.split import Split
+from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
 
 class SliceChannelFrontExtractor(FrontExtractorOp):
     op = 'SliceChannel'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         axis = attrs.int("axis", 1)
         num_outputs = attrs.int("num_outputs", 0)
+        squeeze_axis = attrs.bool('squeeze_axis', False)
 
         node_attrs = {
             'axis': axis,
-            'num_split': num_outputs
+            'squeeze_axis': squeeze_axis,
+            'num_splits': num_outputs,
         }
 
         # update the attributes of the node
-        Split.update_node_stat(node, node_attrs)
-        return __class__.enabled
+        AttributedSplit.update_node_stat(node, node_attrs)
+        return cls.enabled

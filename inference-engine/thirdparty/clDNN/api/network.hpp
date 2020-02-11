@@ -61,11 +61,14 @@ struct network_impl;
 struct network {
     /// @brief Allocate network
     /// @param program The program object which contains compiled primitives this network should allocate memory for.
-    network(program const& program, uint16_t stream_id);
+    /// @param stream_id Stream ID of this network. 0 is for primary stream, the others are secondary.
+    /// Used to determine whether an extra copy of primitive's memory needed.
+    explicit network(program const& program, uint16_t stream_id);
 
     /// @brief Constructs network object from implicitly created program object. This is a shorthand for network(program(engine, topology, options))
     /// @param engine
     /// @param topology
+    /// @param options
     /// @param options
     network(const engine& engine,
             const topology& topology,
@@ -107,6 +110,9 @@ struct network {
     /// @brief Provides @ref memory for @ref input_layout primitives defined by user in source @ref topology.
     void set_input_data(const primitive_id& id, const memory& mem) const;
 
+    /// @brief Provides user-supplied @ref memory for output primitives defined by user in source @ref topology.
+    void set_output_memory(const primitive_id& id, const memory& mem) const;
+
     /// @brief Sets learning rate for training primitives.
     void set_learning_rate(const float lr);
 
@@ -115,6 +121,9 @@ struct network {
 
     /// @brief Return stream id.
     uint16_t get_stream_id();
+
+    /// @brief Return internal network id.
+    uint32_t get_id();
 
     std::string get_primitive_info(const primitive_id& id) const;
 
@@ -132,6 +141,9 @@ struct network {
 
     /// @brief Returns the list of all primitives ids in network before graph optimization.
     std::vector<primitive_id> get_all_primitive_org_ids() const;
+
+    /// @brief Returns the list of network inputs.
+    std::vector<primitive_id> get_input_ids() const;
 
     /// @brief Returns the list of available network outputs.
     std::vector<primitive_id> get_output_ids() const;

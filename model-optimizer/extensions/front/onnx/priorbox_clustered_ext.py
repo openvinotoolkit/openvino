@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 """
 import numpy as np
 
+from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
 from mo.front.onnx.extractors.utils import onnx_attr
 
 
@@ -24,8 +24,8 @@ class PriorBoxClusteredFrontExtractor(FrontExtractorOp):
     op = 'PriorBoxClustered'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         variance = onnx_attr(node, 'variance', 'floats', default=[], dst_type=lambda x: np.array(x, dtype=np.float32))
         if len(variance) == 0:
             variance = [0.1]
@@ -46,5 +46,5 @@ class PriorBoxClusteredFrontExtractor(FrontExtractorOp):
         }
 
         # update the attributes of the node
-        Op.get_op_class_by_name(__class__.op).update_node_stat(node, update_attrs)
-        return __class__.enabled
+        PriorBoxClusteredOp.update_node_stat(node, update_attrs)
+        return cls.enabled

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,15 +24,22 @@ class RNNFrontExtractor(FrontExtractorOp):
     op = 'RNN'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
+        direction = onnx_attr(node, 'direction', 's', b'forward').decode().lower()
+
         activation_alpha = onnx_attr(node, 'activation_alpha', 'floats',
                                      default=None, dst_type=lambda x: np.array(x, dtype=np.float32))
         activation_beta = onnx_attr(node, 'activation_beta', 'floats',
                                     default=None, dst_type=lambda x: np.array(x, dtype=np.float32))
-        activations = onnx_attr(node, 'activations', 'strings', default=None,
+        activations = onnx_attr(node, 'activations', 'strings',
+                                default=['tanh', 'tanh'] if direction == 'bidirectional' else ['tanh'],
                                 dst_type=lambda x: list(map(lambda s: s.decode(encoding="utf-8").lower(), list(x))))
         clip = onnx_attr(node, 'clip', 'f', default=None)
+
+        # Since pytorch generates ONNX bidirectional RNN models with only one activation, duplicating activation
+        if direction == 'bidirectional' and len(activations) == 1:
+            activations.append(activations[0])
 
         attrs = {
             'batch_dim': 1,
@@ -49,9 +56,9 @@ class RNNFrontExtractor(FrontExtractorOp):
             'activation_beta': activation_beta,
             'activations': activations,
             'clip': clip,
-            'direction': onnx_attr(node, 'direction', 's', b'forward').decode().lower(),
+            'direction': direction,
             'hidden_size': np.array(onnx_attr(node, 'hidden_size', 'i'), dtype=np.int64),
         }
 
         RNN.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled

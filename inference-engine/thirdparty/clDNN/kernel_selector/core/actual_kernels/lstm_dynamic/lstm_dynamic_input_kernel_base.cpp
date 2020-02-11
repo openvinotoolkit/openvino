@@ -43,7 +43,7 @@ LSTM_DynamicInputKernelBase::DispatchData LSTM_DynamicInputKernelBase::SetDefaul
 
     // 4 * hidden, batch * dir, seq_len
     std::vector<size_t> global = {out.X().v, out.Batch().v * out.Y().v, out.Feature().v};
-    const auto& local = GetOptimalLocalWorkGroupSizes(global);
+    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

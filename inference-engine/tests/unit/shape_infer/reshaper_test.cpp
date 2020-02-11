@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <shape_infer/mock_ishape_infer_impl.hpp>
 #include <shape_infer/mock_shape_infer_extension.hpp>
 #include <mock_icnn_network.hpp>
-#include <../graph_tools/graph_test_base.hpp>
+#include <graph_tools/graph_test_base.hpp>
 #include <shape_infer/mock_reshaper_launcher.hpp>
 #include <shape_infer/ie_reshaper.hpp>
 

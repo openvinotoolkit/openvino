@@ -333,17 +333,17 @@ TEST(reorder_gpu_f16, basic_subtract_f32_output_f32) {
     auto subtract = memory::allocate(engine, { data_types::f32, format::byxf, { 1, 2, 2, 2 } });
 
     set_values(input, {
-        half_t(0x3C00), half_t(0x0000), // 1.f, 0.f,
-        half_t(0x4500), half_t(0x3E00), // 5.f, 1.5f,
+        half_t(1.f), half_t(0.f),
+        half_t(5.f), half_t(1.5f),
 
-        half_t(0x4000), half_t(0x0000), // 2.f, 0.f,
-        half_t(0x4600), half_t(0x4533), // 6.f, 5.2f,
+        half_t(2.f), half_t(0.f),
+        half_t(6.f), half_t(5.2f),
 
-        half_t(0x4200), half_t(0x3800), // 3.f, 0.5f,
-        half_t(0x4700), half_t(0x4A00), // 7.f, 12.f,
+        half_t(3.f), half_t(0.5f),
+        half_t(7.f), half_t(12.f),
 
-        half_t(0x4400), half_t(0xB800), // 4.f, -0.5f,
-        half_t(0x4800), half_t(0x4800)  // 8.f, 8.f
+        half_t(4.f), half_t(-0.5f),
+        half_t(8.f), half_t(8.f)
     });
 
     set_values(subtract, {
@@ -427,17 +427,17 @@ TEST(reorder_gpu_f16, basic_subtract_value) {
     std::vector<float> subtract_val = { 0.5, 2.5 };
 
     set_values(input, {
-        half_t(0x3C00), half_t(0x0000), // 1.f, 0.f,
-        half_t(0x4500), half_t(0x3E00), // 5.f, 1.5f,
+        half_t(1.f), half_t(0.f),
+        half_t(5.f), half_t(1.5f),
 
-        half_t(0x4000), half_t(0x0000), // 2.f, 0.f,
-        half_t(0x4600), half_t(0x4533), // 6.f, 5.2f,
+        half_t(2.f), half_t(0.f),
+        half_t(6.f), half_t(5.2f),
 
-        half_t(0x4200), half_t(0x3800), // 3.f, 0.5f,
-        half_t(0x4700), half_t(0x4A00), // 7.f, 12.f,
+        half_t(3.f), half_t(0.5f),
+        half_t(7.f), half_t(12.f),
 
-        half_t(0x4400), half_t(0xB800), // 4.f, -0.5f,
-        half_t(0x4800), half_t(0x4800)  // 8.f, 8.f
+        half_t(4.f), half_t(-0.5f),
+        half_t(8.f), half_t(8.f)
     });
 
     topology topology;
@@ -453,17 +453,17 @@ TEST(reorder_gpu_f16, basic_subtract_value) {
 
     auto output = outputs.begin()->second.get_memory();
 
-    half_t answers[16] = { half_t(0x3800), half_t(0x3E00), //  0.5f, 1.5f,
-                           half_t(0x4100), half_t(0x4300), //  2.5f, 3.5f,
+    half_t answers[16] = { half_t(0.5f), half_t(1.5f),
+                           half_t(2.5f), half_t(3.5f),
 
-                           half_t(0x4100), half_t(0x4300), //  2.5f, 3.5f,
-                           half_t(0x4480), half_t(0x4580), //  4.5f, 5.5f,
+                           half_t(2.5f), half_t(3.5f),
+                           half_t(4.5f), half_t(5.5f),
 
-                           half_t(0xB800), half_t(0xB800), // -0.5f, -0.5f,
-                           half_t(0x0000), half_t(0xBC00), //  0.0f, -1.0f,
+                           half_t(-0.5f), half_t(-0.5f),
+                           half_t(0.f), half_t(-1.f),
 
-                           half_t(0xBC00), half_t(0x4166), // -1.0f,  2.7f,
-                           half_t(0x48C0), half_t(0x4580)  //  9.5f,  5.5f
+                           half_t(-1.f), half_t(2.7f),
+                           half_t(9.5f), half_t(5.5f)
     };
 
     auto output_ptr = output.pointer<half_t>();
@@ -495,16 +495,16 @@ TEST(reorder_gpu, basic_convert_f16_f32_f16) {
     std::vector<half_t> expected_values;
     expected_values.resize(0xF804);
     for (int i = 0; i < 0x7C00; ++i)
-        expected_values[i] = half_t(i);          // norms/denorms/zero (positive).
+        expected_values[i] = half_t(i, 0);          // norms/denorms/zero (positive).
     for (int i = 0x7C00; i < 0xF800; ++i)
-        expected_values[i] = half_t(i + 0x0400); // norms/denorms (negative).
-    expected_values[0x7C00] = half_t(0x0000);    // NOTE: do not do final test for negative 0 (-0).
+        expected_values[i] = half_t(i + 0x0400, 0); // norms/denorms (negative).
+    expected_values[0x7C00] = half_t(0x0000, 0);    // NOTE: do not do final test for negative 0 (-0).
     // Special values.
-    expected_values[0xF800] = half_t(0x7C00);    // +infinity
-    expected_values[0xF801] = half_t(0xFC00);    // -infinity
+    expected_values[0xF800] = half_t(0x7C00, 0);    // +infinity
+    expected_values[0xF801] = half_t(0xFC00, 0);    // -infinity
     // Special values (ambiguous ones).
-    expected_values[0xF802] = half_t(0x8000);    // -0
-    expected_values[0xF803] = half_t(0xFC12);    // A NaN (sample: -NaN.0x12).
+    expected_values[0xF802] = half_t(0x8000, 0);    // -0
+    expected_values[0xF803] = half_t(0xFC12, 0);    // A NaN (sample: -NaN.0x12).
 
     auto input = memory::allocate(engine, { data_types::f16, format::yxfb, { 1, static_cast<int32_t>(expected_values.size()) / 4, 2, 2 } });
     layout interm_layout( data_types::f32, format::byxf, { 1, static_cast<int32_t>(expected_values.size()) / 4, 2, 2 });
@@ -566,7 +566,7 @@ TEST(reorder_gpu, basic_convert_int8) {
     layout in_layout = { type_to_data_type<float>::value,format::byxf,{ 1,1,3,3 } };
     layout byte_layout = { type_to_data_type<int8_t>::value, format::bfyx,{ 1,1,3,3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
-    std::list<float> final_results = { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, -8.0f, 9.0f };
+    std::list<float> final_results = { 1.0f, -3.0f, 3.0f, -4.0f, 5.0f, -7.0f, 7.0f, -8.0f, 9.0f };
 
     // Allocate memory for input image.
     auto input_memory = memory::allocate(engine, in_layout);
@@ -1381,7 +1381,7 @@ TEST(reorder_gpu_opt, mean_mul_val_float_to_int)
         reorder("r1", "in", format::bfyx, data_types::i8, mul_val, reorder_mean_mode::mul)
     };
 
-    char answers[] = { 0, 2, 1, 2, 25, 127 };
+    char answers[] = { 1, 2, 2, 2, 25, 127 };
     build_options opts;
     opts.set_option(build_option::optimize_data(true));
     network net(eng, tpl, opts);
@@ -1424,10 +1424,10 @@ TEST(reorder_gpu_i32, basic)
     auto output = outputs.begin()->second.get_memory();
 
     int32_t answers[16] = {
-        1, 0, 5, 1,
+        1, 0, 5, 2,
         2, 0, 6, 5,
-        3, 0, 7, 12,
-        4, 0, 8, 8
+        3, 1, 7, 12,
+        4, -1, 8, 8
     };
 
     int32_t* a_ptr = answers;
@@ -1465,10 +1465,10 @@ TEST(reorder_gpu_i64, basic)
     auto output = outputs.begin()->second.get_memory();
 
     int64_t answers[16] = {
-        1, 0, 5, 1,
+        1, 0, 5, 2,
         2, 0, 6, 5,
-        3, 0, 7, 12,
-        4, 0, 8, 8
+        3, 1, 7, 12,
+        4, -1, 8, 8
     };
 
     int64_t* a_ptr = answers;

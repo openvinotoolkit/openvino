@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,12 +16,13 @@
 
 import logging as log
 
+from extensions.front.PowerToEltwises import PowerToEltwises
 from extensions.front.div import Div
 from extensions.front.squared_difference import SquaredDifference
 from extensions.front.sub import Sub
+from extensions.ops.mvn import MVN
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
 
 
 class MVNUnrolled(FrontReplacementSubgraph):
@@ -29,6 +30,9 @@ class MVNUnrolled(FrontReplacementSubgraph):
 
     def run_before(self):
         return [SquaredDifference, Div, Sub]
+
+    def run_after(self):
+        return [PowerToEltwises]
 
     def pattern(self):
         log.debug('Enabled MVN replacement')
@@ -56,8 +60,6 @@ class MVNUnrolled(FrontReplacementSubgraph):
 
     @staticmethod
     def replace_sub_graph(graph: Graph, match: dict):
-        MVN = Op.get_op_class_by_name('MVN')
-
         mvn = MVN(graph, dict(
             name=match['truediv'].name + '/MVN_',
             required_reduction_indices=[1, 2] if graph.graph['layout'] == 'NHWC' else [2, 3]

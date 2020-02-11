@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ie_metric_helpers.hpp>
+#include <precision_utils.h>
+#include <net_pass.h>
 #include "mkldnn_exec_network.h"
 
 #include "mkldnn_async_infer_request.h"
@@ -12,6 +14,11 @@
 #include <graph_tools.hpp>
 #include <cnn_network_int8_normalizer.hpp>
 #include <cpp_interfaces/ie_executor_manager.hpp>
+#include "low_precision_transformations/convolution.hpp"
+#include "low_precision_transformations/eltwise_cpu.hpp"
+#include "low_precision_transformations/fully_connected.hpp"
+#include "low_precision_transformations/scaleshift_to_convolution.hpp"
+#include "low_precision_transformations/transformer.hpp"
 
 #include <algorithm>
 #include <unordered_set>
@@ -20,6 +27,7 @@ using namespace MKLDNNPlugin;
 using namespace MKLDNNPlugin::cpu;
 using namespace InferenceEngine;
 using InferenceEngine::details::CNNNetworkInt8Normalizer;
+using namespace InferenceEngine::details;
 
 InferenceEngine::InferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
@@ -41,16 +49,34 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     if (Precision::FP16 == network.getPrecision()) {
         clonedNetwork->setPrecision(Precision::FP32);
     }
-    details::CNNNetworkIterator itLayer(static_cast<ICNNNetwork*>(clonedNetwork.get()));
-    while (itLayer != details::CNNNetworkIterator()) {
-        CNNLayer::Ptr layer = *itLayer;
-        convertLayerFP16toFP32(layer);
-        itLayer++;
-    }
+
+    // CPU Plugin doesn't natively support some precision like int64/fp16/bool
+    // so will convert all layer/tensors fp16->fp32 , bool->u8.
+    // Default int64->int32 conversion is already applied in IE common module.
+    NetPass::ConvertPrecision(*clonedNetwork, Precision::FP16, Precision::FP32);
+    NetPass::ConvertPrecision(*clonedNetwork, Precision::BOOL, Precision::U8);
 
     if (s == StatusCode::OK && pstats && !pstats->isEmpty()) {
         CNNNetworkInt8Normalizer cnnorm;
         cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
+    } else {
+        if (cfg.lpTransformsMode == Config::LPTransformsMode::On) {
+            auto params = LayerTransformation::Params(true,  // updatePrecisions
+                                                      true,  // quantizeOutputs
+                                                      true,  // weightsToConst
+                                                      LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+                                                      LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+                                                      true,  // roundQuantizedValues
+                                                      true,  // updateBiases
+                                                      true);  // supportAsymmetricQuantization
+            LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
+                addBranchSpecific<EltwiseCpuTransformation>(LayerTransformation::Params(params), "Eltwise").
+                add<ConvolutionTransformation>(LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }), "Convolution").
+                addCleanup<ScaleShiftToConvolutionTransformation>(
+                    LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
+                    "ScaleShift"));
+            transformer.transform(*clonedNetwork);
+        }
     }
 
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*clonedNetwork));
@@ -61,37 +87,34 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
             THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
         }
     }
-    // check whether any (affinity-related) envs are set and if user requested thread binding
-    const bool bPinningRequested = !check_env_variables() && cfg.useThreadBinding;
     // general #threads logic
     const int env_threads = parallel_get_env_threads();
-    const int sockets = MKLDNNPlugin::cpu::getNumberOfCPUSockets();
+    const auto& numa_nodes = MKLDNNPlugin::cpu::getAvailableNUMANodes();
+    const auto numa_nodes_num = numa_nodes.size();
     // use logical cores only for single-socket targets in throughput mode
-    const int hw_cores = cfg.throughputStreams > 1 && sockets == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
+    const int hw_cores = cfg.throughputStreams > 1 && numa_nodes_num == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
 
     const int threads = cfg.threadsNum ? cfg.threadsNum : (env_threads ? env_threads : hw_cores);
     const int threads_per_stream = std::max(1, threads/cfg.throughputStreams);
 
     // graph(s) initialization in taskExecutor threads (streams), in parallel (in case of streams)
-    std::vector<Task::Ptr> tasks;
-    const int workers_per_socket = std::max(1, static_cast<int>(std::ceil(static_cast<float>(cfg.throughputStreams)/sockets)));
+    std::vector<Task> tasks;
+    const int workers_per_socket = std::max(1,
+            static_cast<int>(std::ceil(static_cast<float>(cfg.throughputStreams)/numa_nodes_num)));
     for (int n = 0; n < cfg.throughputStreams; n++) {
         MKLDNNGraph::Ptr _graph = std::make_shared<MKLDNNGraph>();
         graphs.push_back(_graph);
-        auto task = std::make_shared<InferenceEngine::Task>([=, &cfg]() {
-            _graph->CreateArena(threads_per_stream);
-
-            if (bPinningRequested) {
-                _graph->CreateObserver(n, threads_per_stream);
-            }
-
-            _graph->setConfig(cfg);
-            int socket = n / workers_per_socket;
-            _graph->CreateGraph(static_cast<ICNNNetwork&>(*clonedNetwork), extensionManager, socket);
-            if (cfg.throughputStreams > 1)  // for streams, each worker thread has it's own graph
-                MKLDNNPlugin::MultiWorkerTaskExecutor::ptrContext.ptrGraph = _graph;
+        tasks.push_back([=, &cfg, &clonedNetwork]() {
+        _graph->setConfig(cfg);
+         const int node = n / workers_per_socket;
+         if (cfg.useThreadBinding)
+            pin_current_thread_to_socket(numa_nodes[node]);
+        _graph->CreateArenaWithObserverAndLoadGraph(threads_per_stream, numa_nodes[node], n,
+                cfg.useThreadBinding,
+                clonedNetwork, extensionManager);
+        if (cfg.throughputStreams > 1)  // for streams, each worker thread has it's own graph
+            MKLDNNPlugin::MultiWorkerTaskExecutor::ptrContext.ptrGraph = _graph;
         });
-        tasks.push_back(task);
     }
 
     if (cfg.throughputStreams > 1) {
@@ -103,11 +126,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
             ExecutorManager *executorManager = ExecutorManager::getInstance();
             _taskExecutor = executorManager->getExecutor("CPU");
         }
-        _taskExecutor->startTask(tasks[0]);
-        Task::Status sts = tasks[0]->wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+        _taskExecutor->runAndWait(tasks);
     }
-    for (auto t : tasks)
-        t->checkException();
 
     // Save all MemoryLayer data tensors. Will use insight about mechanics
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
@@ -137,8 +157,7 @@ void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &pr
 void MKLDNNExecNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) {
     auto syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-    auto asyncRequestImpl = std::make_shared<MKLDNNAsyncInferRequest>(syncRequestImpl, _taskExecutor,
-                                                                      _taskSynchronizer, _callbackExecutor);
+    auto asyncRequestImpl = std::make_shared<MKLDNNAsyncInferRequest>(syncRequestImpl, _taskExecutor, _callbackExecutor);
     asyncRequest.reset(new InferRequestBase<MKLDNNAsyncInferRequest>(asyncRequestImpl),
                        [](IInferRequest *p) { p->Release(); });
 

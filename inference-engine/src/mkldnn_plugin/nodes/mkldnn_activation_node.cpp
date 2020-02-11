@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -228,3 +228,5 @@ MKLDNNMemoryDesc MKLDNNActivationNode::getDstMemDesc(mkldnn::primitive_desc_iter
                                                             childInDims,
                                                             {blocked_dims, order, offset, dimOffsets, strides}));
 }
+
+REG_MKLDNN_PRIM_FOR(MKLDNNActivationNode, Activation);

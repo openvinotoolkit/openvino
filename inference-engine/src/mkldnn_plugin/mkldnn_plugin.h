@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,8 @@ protected:
     static const SimpleDataHash simpleCRC;
 };
 
+using NumaNodesWeights = std::map<int, MKLDNNWeightsSharing::Ptr>;
+
 class Engine : public InferenceEngine::InferencePluginInternal {
 public:
     Engine();
@@ -83,17 +85,13 @@ public:
 
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
-    /**
-     * @deprecated Use the version with config parameter
-     */
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network, InferenceEngine::QueryNetworkResult& res) const override;
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                       const std::map<std::string, std::string>& config, InferenceEngine::QueryNetworkResult& res) const override;
 
     static MKLDNNWeightsSharing::Ptr GetWeightsSharing(int socket) { return weightsSharing[socket]; }
 
 private:
-    static std::vector<MKLDNNWeightsSharing::Ptr> weightsSharing;
+    static NumaNodesWeights weightsSharing;
     Config engConfig;
     MKLDNNExtensionManager::Ptr extensionManager = std::make_shared<MKLDNNExtensionManager>();
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,50 +11,55 @@ extern "C"
 #endif
 
 #ifndef CHECK_HANDLE_CORRECT
-#define CHECK_HANDLE_CORRECT(handle)  {                             \
+#define CHECK_HANDLE_CORRECT(handle)                                \
+do {                                                                \
     if (!handle) {                                                  \
       mvLog(MVLOG_ERROR, "%s is NULL", #handle);                    \
       return NC_INVALID_HANDLE;                                     \
     }                                                               \
-}
+} while (0)
 #endif  // CHECK_HANDLE_CORRECT
 
 
 #ifndef CHECK_MUTEX_SUCCESS
-#define CHECK_MUTEX_SUCCESS(call)  {                                \
+#define CHECK_MUTEX_SUCCESS(call)                                   \
+do {                                                                \
     int error;                                                      \
     if ((error = (call))) {                                         \
       mvLog(MVLOG_ERROR, "%s failed with error: %d", #call, error); \
     }                                                               \
-}
+} while (0)
 #endif  // CHECK_MUTEX_SUCCESS
 
 #ifndef CHECK_MUTEX_SUCCESS_RC
-#define CHECK_MUTEX_SUCCESS_RC(call, rc)  {                         \
+#define CHECK_MUTEX_SUCCESS_RC(call, rc)                            \
+do {                                                                \
     int error;                                                      \
     if ((error = (call))) {                                         \
       mvLog(MVLOG_ERROR, "%s failed with error: %d", #call, error); \
       return rc;                                                    \
     }                                                               \
-}
+} while (0)
 #endif  // CHECK_MUTEX_SUCCESS_RC
 
 #ifndef CHECK_HANDLE_CORRECT_RC
-#define CHECK_HANDLE_CORRECT_RC(handle, rc)  {                      \
+#define CHECK_HANDLE_CORRECT_RC(handle, rc) \
+do {                                                                \
     if (!handle) {                                                  \
       mvLog(MVLOG_ERROR, "%s is NULL", #handle);                    \
       return rc;                                                    \
     }                                                               \
-}
+} while (0)
 #endif  // CHECK_HANDLE_CORRECT
 
 #ifndef CHECK_HANDLE_CORRECT_WINFO
-#define CHECK_HANDLE_CORRECT_WINFO(handle, logLevel, printMessage) {\
+#define CHECK_HANDLE_CORRECT_WINFO(handle, logLevel, printMessage)  \
+do {                                                                \
     if (!handle) {                                                  \
       mvLog(logLevel, "%s", printMessage);                          \
       return NC_INVALID_HANDLE;                                     \
     }                                                               \
-}
+} while (0)
 #endif  // CHECK_HANDLE_CORRECT_WINFO
 
 #ifdef __cplusplus

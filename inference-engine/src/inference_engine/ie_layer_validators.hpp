@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ie_layers.h"
-#include "details/caseless.hpp"
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
 #include <vector>
+
+#include "details/caseless.hpp"
+#include "ie_layers.h"
 
 namespace InferenceEngine {
 namespace details {
@@ -26,7 +27,7 @@ class LayerValidator {
 public:
     using Ptr = std::shared_ptr<LayerValidator>;
 
-    explicit LayerValidator(const std::string& _type) : _type(_type) {}
+    explicit LayerValidator(const std::string& _type): _type(_type) {}
     virtual ~LayerValidator() = default;
 
     /**
@@ -38,8 +39,8 @@ public:
 
     /**
      * @brief Validates layer parameters separately from blobs and shapes
-     * This is semantic check, like height and width more than kernel sizes, stride > 0, beta > 0, axis is correct and etc
-     * Throws exception if the check fails
+     * This is semantic check, like height and width more than kernel sizes, stride > 0, beta > 0, axis is correct and
+     * etc Throws exception if the check fails
      */
     virtual void checkParams(const CNNLayer* layer) {}
 
@@ -55,8 +56,7 @@ public:
      * @note: This function doesn't touch ins and out Data of the layer.
      * Throws exception if the check fails
      */
-    virtual void checkCorrespondence(const CNNLayer* layer,
-                                     const std::map<std::string, Blob::Ptr>& blobs,
+    virtual void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
                                      const std::vector<SizeVector>& inShapes) const {}
 
 protected:
@@ -72,7 +72,7 @@ public:
 
     LayerValidators(LayerValidators const&) = delete;
 
-    void operator=(LayerValidators const&)  = delete;
+    void operator=(LayerValidators const&) = delete;
 
     LayerValidator::Ptr getValidator(const std::string& type);
 
@@ -115,8 +115,7 @@ public:
 
     explicit ConvolutionValidator(const std::string& _type);
 
-    void checkCorrespondence(const CNNLayer* layer,
-                             const std::map<std::string, Blob::Ptr>& blobs,
+    void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -130,8 +129,7 @@ public:
 
     explicit DeconvolutionValidator(const std::string& _type);
 
-    void checkCorrespondence(const CNNLayer* layer,
-                             const std::map<std::string, Blob::Ptr>& blobs,
+    void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -145,8 +143,7 @@ public:
 
     explicit DeformableConvolutionValidator(const std::string& _type);
 
-    void checkCorrespondence(const CNNLayer* layer,
-                             const std::map<std::string, Blob::Ptr>& blobs,
+    void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -171,8 +168,7 @@ public:
 
     void checkParams(const CNNLayer* layer) override;
 
-    void checkCorrespondence(const CNNLayer* layer,
-                             const std::map<std::string, Blob::Ptr>& blobs,
+    void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -438,6 +434,50 @@ public:
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
+class SparseSegmentReduceValidator : public LayerValidator {
+public:
+    explicit SparseSegmentReduceValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class ExperimentalSparseWeightedReduceValidator : public LayerValidator {
+public:
+    explicit ExperimentalSparseWeightedReduceValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class SparseToDenseValidator : public LayerValidator {
+public:
+    explicit SparseToDenseValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
+class BucketizeValidator : public LayerValidator {
+public:
+    explicit BucketizeValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkParams(const CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
 class ReverseSequenceValidator : public LayerValidator {
 public:
     explicit ReverseSequenceValidator(const std::string& _type);
@@ -512,19 +552,18 @@ public:
 
     void checkParams(const CNNLayer* layer) override;
 
-    void checkCorrespondence(const CNNLayer* layer,
-                             const std::map<std::string, Blob::Ptr>& blobs,
+    void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
 
 protected:
     std::vector<std::string> def_acts;  // Default values for cell gate activations
-    std::vector<float> def_alpha;  // Default activation alpha parameter
-    std::vector<float> def_beta;   // Default activation beta parameter
-    size_t G;   // gate number
-    size_t NS;  // state number
+    std::vector<float> def_alpha;       // Default activation alpha parameter
+    std::vector<float> def_beta;        // Default activation beta parameter
+    size_t G;                           // gate number
+    size_t NS;                          // state number
 };
 
-template<RNNSequenceLayer::CellType CELL>
+template <RNNSequenceLayer::CellType CELL>
 class RNNCellValidator : public RNNBaseValidator {
 public:
     explicit RNNCellValidator(const std::string& _type);
@@ -536,7 +575,7 @@ extern template class RNNCellValidator<RNNSequenceLayer::LSTM>;
 extern template class RNNCellValidator<RNNSequenceLayer::GRU>;
 extern template class RNNCellValidator<RNNSequenceLayer::RNN>;
 
-template<RNNSequenceLayer::CellType CELL>
+template <RNNSequenceLayer::CellType CELL>
 class RNNSequenceValidator : public RNNBaseValidator {
 public:
     explicit RNNSequenceValidator(const std::string& _type);
@@ -622,6 +661,8 @@ public:
 class ProposalValidator : public LayerValidator {
 public:
     explicit ProposalValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -836,8 +877,7 @@ public:
 
     explicit BinaryConvolutionValidator(const std::string& _type);
 
-    void checkCorrespondence(const CNNLayer* layer,
-                             const std::map<std::string, Blob::Ptr>& blobs,
+    void checkCorrespondence(const CNNLayer* layer, const std::map<std::string, Blob::Ptr>& blobs,
                              const std::vector<SizeVector>& inShapes) const override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;

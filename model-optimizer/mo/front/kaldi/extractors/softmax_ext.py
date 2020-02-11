@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@ class SoftmaxComponentFrontExtractor(FrontExtractorOp):
     op = 'softmaxcomponent'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         return SoftmaxFrontExtractor.extract(node)
 
 
@@ -31,7 +31,7 @@ class SoftmaxFrontExtractor(FrontExtractorOp):
     op = 'softmax'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         Softmax.update_node_stat(node, {'infer': copy_shape_infer})
-        return __class__.enabled
+        return cls.enabled

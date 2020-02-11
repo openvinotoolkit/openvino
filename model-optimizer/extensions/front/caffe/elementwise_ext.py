@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,13 +15,14 @@
 """
 import numpy as np
 
+from extensions.ops.elementwise import Add, Mul, Maximum
 from mo.front.caffe.collect_attributes import merge_attrs
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.common.extractors.utils import layout_attrs
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
-from extensions.ops.elementwise import Add, Mul, Maximum
-from mo.ops.power import Power
+from mo.ops.eltwise_n import EltwiseNMul, EltwiseNAdd, EltwiseNMax
+from mo.ops.power import AttributedPower
 
 
 class BiasToAdd(FrontExtractorOp):
@@ -31,29 +32,31 @@ class BiasToAdd(FrontExtractorOp):
     op = "Bias"
     enabled = True
 
-    @staticmethod
-    def extract(node: Node):
+    @classmethod
+    def extract(cls, node: Node):
         attrs = {'axis': node.pb.bias_param.axis}
         embed_input(attrs, 1, 'bias', node.model_pb.blobs[0].data, 'biases')
 
         Add.update_node_stat(node, attrs)
 
-        return __class__.enabled
+        return cls.enabled
 
 
 class EltwiseExtractor(FrontExtractorOp):
     op = 'Eltwise'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         proto_layer = node.pb
         param = proto_layer.eltwise_param
 
+        input_len = len(node.in_edges())
+
         eltwise_caffe_map = {
-            0: Mul,
-            1: Add,
-            2: Maximum,
+            0: EltwiseNMul if input_len > 2 else Mul,
+            1: EltwiseNAdd if input_len > 2 else Add,
+            2: EltwiseNMax if input_len > 2 else Maximum,
         }
 
         operation = int(param.operation)
@@ -65,18 +68,18 @@ class EltwiseExtractor(FrontExtractorOp):
         mapping_rule = merge_attrs(param, {'coeff': np.array(param.coeff)})
         mapping_rule.update(layout_attrs())
 
-        assert len(param.coeff) <= len(node.in_edges())
+        assert len(param.coeff) <= input_len
 
         lin_op_class.update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        return cls.enabled
 
 
 class PowerExtractor(FrontExtractorOp):
     op = 'power'
     enabled = True
 
-    @staticmethod
-    def extract(node: Node):
+    @classmethod
+    def extract(cls, node: Node):
         pb = node.pb
         assert pb, 'Protobuf layer can not be empty'
         param = pb.power_param
@@ -86,5 +89,5 @@ class PowerExtractor(FrontExtractorOp):
             'scale': param.scale,
             'shift': param.shift,
         }
-        Power.update_node_stat(node, attrs)
-        return __class__.enabled
+        AttributedPower.update_node_stat(node, attrs)
+        return cls.enabled

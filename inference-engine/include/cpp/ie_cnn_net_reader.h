@@ -1,30 +1,35 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief This is a header file for the Network reader class (wrapper) used to build networks from a given IR
+ * 
  * @file ie_cnn_net_reader.h
  */
 #pragma once
 
+#include <map>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-#include <map>
+
+#include "details/ie_exception_conversion.hpp"
+#include "details/os/os_filesystem.hpp"
 #include "ie_blob.h"
 #include "ie_cnn_network.h"
 #include "ie_common.h"
 #include "ie_icnn_net_reader.h"
-#include "details/ie_exception_conversion.hpp"
-#include "details/os/os_filesystem.hpp"
 
 namespace InferenceEngine {
 /**
  * @brief This is a wrapper class used to build and parse a network from the given IR.
+ *
  * All the methods here can throw exceptions.
  */
-class CNNNetReader {
+IE_SUPPRESS_DEPRECATED_START
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core::ReadNetwork() method this API will be removed in 2020 R2")
+    CNNNetReader {
 public:
     /**
      * @brief A smart pointer to this class
@@ -34,63 +39,83 @@ public:
     /**
      * @brief A default constructor
      */
-    CNNNetReader() : actual(shared_from_irelease(InferenceEngine::CreateCNNNetReader())) {}
+    CNNNetReader(): actual(shared_from_irelease(InferenceEngine::CreateCNNNetReader())) {}
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     /**
-     * @brief Resolve wstring path then call orginal ReadNetwork
-     * ICNNNetReader::ReadNetwork
-    */
-    void ReadNetwork(const std::wstring &filepath) {
+     * @brief Resolve wstring path then call original ReadNetwork
+     *
+     * Wraps ICNNNetReader::ReadNetwork
+     *
+     * @param filepath The full path to the .xml file of the IR
+     */
+    void ReadNetwork(const std::wstring& filepath) {
         CALL_STATUS_FNC(ReadNetwork, details::wStringtoMBCSstringChar(filepath).c_str());
     }
 #endif
 
     /**
-     * @brief Wraps original method
-     * ICNNNetReader::ReadNetwork
+     * @copybrief ICNNNetReader::ReadNetwork
+     *
+     * Wraps ICNNNetReader::ReadNetwork
+     *
+     * @param filepath The full path to the .xml file of the IR
      */
-    void ReadNetwork(const std::string &filepath) {
+    void ReadNetwork(const std::string& filepath) {
         CALL_STATUS_FNC(ReadNetwork, filepath.c_str());
     }
 
     /**
-     * @brief Wraps original method
-     * ICNNNetReader::ReadNetwork(const void*, size_t, ResponseDesc*)
+     * @copybrief ICNNNetReader::ReadNetwork(const void*, size_t, ResponseDesc*)
+     *
+     * Wraps ICNNNetReader::ReadNetwork(const void*, size_t, ResponseDesc*)
+     *
+     * @param model Pointer to a char array with the IR
+     * @param size Size of the char array in bytes
      */
-    void ReadNetwork(const void *model, size_t size) {
+    void ReadNetwork(const void* model, size_t size) {
         CALL_STATUS_FNC(ReadNetwork, model, size);
     }
 
     /**
-     * @brief Wraps original method
-     * ICNNNetReader::SetWeights
+     * @copybrief ICNNNetReader::SetWeights
+     *
+     * Wraps ICNNNetReader::SetWeights
+     *
+     * @param weights Blob of bytes that holds all the IR binary data
      */
-    void SetWeights(const TBlob<uint8_t>::Ptr &weights) {
+    void SetWeights(const TBlob<uint8_t>::Ptr& weights) {
         CALL_STATUS_FNC(SetWeights, weights);
     }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     /**
-    * @brief Resolve wstring path then call orginal ReadWeights
-    * ICNNNetReader::ReadWeights
-    */
-    void ReadWeights(const std::wstring &filepath) {
+     * @brief Resolve wstring path then call original ReadWeights
+     *
+     * ICNNNetReader::ReadWeights
+     *
+     * @param filepath Full path to the .bin file
+     */
+    void ReadWeights(const std::wstring& filepath) {
         CALL_STATUS_FNC(ReadWeights, details::wStringtoMBCSstringChar(filepath).c_str());
     }
 #endif
 
     /**
-     * @brief Wraps original method
-     * ICNNNetReader::ReadWeights
+     * @copybrief ICNNNetReader::ReadWeights
+     *
+     * Wraps ICNNNetReader::ReadWeights
+     *
+     * @param filepath Full path to the .bin file
      */
-    void ReadWeights(const std::string &filepath) {
+    void ReadWeights(const std::string& filepath) {
         CALL_STATUS_FNC(ReadWeights, filepath.c_str());
     }
 
     /**
-    * @brief Gets a copy of built network object
-    * @return A copy of the CNNNetwork object to be loaded
+     * @brief Gets a copy of built network object
+     *
+     * @return A copy of the CNNNetwork object to be loaded
      */
     CNNNetwork getNetwork() {
         // network obj are to be updated upon this call
@@ -105,16 +130,22 @@ public:
     }
 
     /**
-     * @brief Wraps original method
-     * ICNNNetReader::isParseSuccess
+     * @copybrief ICNNNetReader::isParseSuccess
+     *
+     * Wraps ICNNNetReader::isParseSuccess
+     *
+     * @return true if a parse is successful, false otherwise
      */
     bool isParseSuccess() const {
         CALL_FNC_NO_ARGS(isParseSuccess);
     }
 
     /**
-     * @brief Wraps original method
-     * ICNNNetReader::getDescription
+     * @copybrief ICNNNetReader::getDescription
+     *
+     * Wraps ICNNNetReader::getDescription
+     *
+     * @return StatusCode that indicates the network status
      */
     std::string getDescription() const {
         CALL_STATUS_FNC_NO_ARGS(getDescription);
@@ -122,8 +153,11 @@ public:
     }
 
     /**
-     * @brief Wraps original method
-     * ICNNNetReader::getName
+     * @copybrief ICNNNetReader::getName
+     *
+     * Wraps ICNNNetReader::getName
+     *
+     * @return String
      */
     std::string getName() const {
         char name[64];
@@ -132,8 +166,11 @@ public:
     }
 
     /**
-     * @brief Wraps original method
-     * ICNNNetReader::getVersion
+     * @copybrief ICNNNetReader::getVersion
+     *
+     * Wraps ICNNNetReader::getVersion
+     *
+     * @return IR version number: 1 or 2
      */
     int getVersion() const {
         CALL_FNC_NO_ARGS(getVersion);
@@ -143,4 +180,5 @@ private:
     std::shared_ptr<ICNNNetReader> actual;
     std::shared_ptr<CNNNetwork> network;
 };
+IE_SUPPRESS_DEPRECATED_END
 }  // namespace InferenceEngine

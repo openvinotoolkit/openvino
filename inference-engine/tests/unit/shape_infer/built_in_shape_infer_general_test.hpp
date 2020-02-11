@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <gtest/gtest.h>
-#include <inference_engine/blob_factory.hpp>
-#include <inference_engine/shape_infer/built-in/ie_built_in_holder.hpp>
+#include <blob_factory.hpp>
+#include <shape_infer/built-in/ie_built_in_holder.hpp>
 #include <utility>
-#include <inference_engine/ie_format_parser.h>
+#include <ie_format_parser.h>
 #include <xml_helper.hpp>
 #include <xml_net_builder.hpp>
 #include <single_layer_common.hpp>

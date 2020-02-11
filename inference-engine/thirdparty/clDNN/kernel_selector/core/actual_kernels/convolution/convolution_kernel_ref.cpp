@@ -17,6 +17,7 @@
 #include "convolution_kernel_ref.h"
 #include "kernel_selector_utils.h"
 #include <vector>
+#include <string>
 
 namespace kernel_selector {
 
@@ -26,26 +27,22 @@ ParamsKey ConvolutionKernel_Ref::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
-    k.EnableDifferentTypes();
-    k.EnableDifferentInputWeightsTypes();
 
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::INT8);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::byxf);
-    k.EnableOutputLayout(DataLayout::byxf);
-    k.EnableInputLayout(DataLayout::yxfb);
-    k.EnableOutputLayout(DataLayout::yxfb);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfzyx_f16);
-    k.EnableOutputLayout(DataLayout::bfzyx_f16);
+
+    k.EnableDifferentTypes();
+    k.EnableDifferentInputWeightsTypes();
+
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
+
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableDilation();
@@ -55,41 +52,52 @@ ParamsKey ConvolutionKernel_Ref::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
     k.DisableTuning();
     k.EnableLocalConvolution();
     k.EnableGroupedConvolution();
+
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
+    k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA);
+    k.EnableQuantization(QuantizationType::ASYMMETRIC_WEIGHTS);
+    k.EnableQuantization(QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS);
     return k;
 }
 
 KernelsData ConvolutionKernel_Ref::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetTunedKernelsDataByIndex(params, options);
 }
+
 JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& params, const DispatchData& kd) const {
     JitConstants jit = ConvolutionKernelBase::GetJitConstants(params, kd);
 
-    // Create an ACTIVATION macro accepting type parameter - we don't have a
-    // single UNIT_TYPE for the whole kernel.
-    //
-    // TODO: This gives both ACTIVATION and ACTIVATION_TYPED. Should we
-    // factor that out into a virtual function to avoid creation of similar
-    // yet distinct macros?
-    jit.Merge(MakeActivationJitConstants(params.activations, "_CONV_TYPED", true));
-    // Needs to be done on host to get _MAX_VAL/_MIN_VAL/TO_TYPE macros
-    // available (will be used in the activation).
-    //
-    // TODO: Should it be done for all the kernels? Might even be done
-    // directly in the OpenCL include, as opposite to jitting. On the other
-    // hand, going through jit ensures we are in sync with the
-    // MakeTypeJitConstants implementation.
-    jit.Merge(MakeTypeJitConstants(Datatype::F32, "float"));
+    Datatype accumulator_dt;
+    Datatype activation_dt;
+    if (params.quantization != QuantizationType::NONE) {
+        accumulator_dt = Datatype::INT32;
+        activation_dt = Datatype::F32;
+    } else {
+        accumulator_dt = GetAccumulatorType(params);
+        activation_dt = GetActivationType(params);
+    }
 
-    if (params.int8_quantization && !params.bias.empty() && params.bias[0].GetDType() == Datatype::F32)
-        jit.AddConstant(MakeJitConstant("DONT_DEQUANTIZE_BIAS", "1"));
+    jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
+    jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
 
+    if (!params.fused_ops.empty()) {
+        std::vector<std::string> idx_order;
+        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+            idx_order = {"b", "of", "y", "x"};
+        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+            idx_order = {"b", "of", "z", "y", "x"};
+        }
+
+        FusedOpsConfiguration conf = {"", idx_order, "dequantized", activation_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
     return jit;
 }
+
 ConvolutionKernelBase::DispatchData ConvolutionKernel_Ref::SetDefault(const convolution_params& params,
                                                                       int autoTuneIndex) const {
     DispatchData kd = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
@@ -105,7 +113,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_Ref::SetDefault(const conv
     const auto& out = params.output;
     std::vector<size_t> global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
 
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];
@@ -124,33 +132,44 @@ bool ConvolutionKernel_Ref::Validate(const Params& params, const optional_params
     const auto& conv_params = static_cast<const convolution_params&>(params);
     auto input_type = conv_params.inputs[0].GetDType();
     auto output_type = conv_params.output.GetDType();
+    auto weights_type = conv_params.weights.GetDType();
 
-    // The only supported u8 input is the one with quantization, would
+    // int8/uint8 inputs (quantization case) require additional checks
     // require some additional checks.
-
-    if (input_type == output_type && input_type != Datatype::UINT8)
+    if (input_type == output_type && input_type != Datatype::UINT8 && input_type != Datatype::INT8)
         return true;
 
-    // Otherwise, only i8/u8 -> i8/u8/fp32 convolution with i8 weights and i32 biases
-    // with quantization term is supported by now.
-    if ((input_type != Datatype::INT8 && input_type != Datatype::UINT8) ||
-        (output_type != Datatype::INT8 && output_type != Datatype::UINT8 && output_type != Datatype::F32))
+    // (u)int8 input + fp weights
+    if (weights_type == WeightsType::F32 || weights_type == WeightsType::F16)
+        return true;
+
+    bool is_quantization = (input_type == Datatype::INT8 || input_type == Datatype::UINT8) &&
+                           (output_type == Datatype::INT8 || output_type == Datatype::UINT8 ||
+                            output_type == Datatype::F32 || output_type == Datatype::F16) &&
+                           (weights_type == WeightsType::INT8);
+
+    bool has_fused_op = (input_type == Datatype::F32 || input_type == Datatype::F16) &&
+                        !conv_params.fused_ops.empty() &&
+                        (output_type == Datatype::INT8 || output_type == Datatype::UINT8);
+
+    if (!is_quantization && !has_fused_op)
         return false;
 
-    if (!conv_params.int8_quantization)
-        return false;
-
-    if (conv_params.output_calibration)
-        // Probably everything is in place to support the case, just need to add a test.
-        return false;
-
-    if (conv_params.weights.GetDType() != WeightsType::INT8)
-        return false;
-
-    if (!conv_params.bias.empty() && conv_params.bias.front().GetDType() != Datatype::INT32)
-        // Non-quantized (FP32) bias is probably OK too, need to verify.
-        return false;
+    if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
+        if (conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty())
+            return false;
+    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
+        if (conv_params.activations_zero_points.empty())
+            return false;
+    } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
+        if (conv_params.weights_zero_points.empty())
+            return false;
+    } else {
+        if (!conv_params.activations_zero_points.empty() || !conv_params.weights_zero_points.empty())
+            return false;
+    }
 
     return true;
 }
+
 }  // namespace kernel_selector

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -72,16 +72,16 @@ class TransposeTensorIteratorLSTM(MiddleReplacementPattern):
     def replace_pattern(self, graph: Graph, match: dict):
 
         # This transformation works if and only if a body of TI
-        # matches the following topology (Reshape -> LSTMCell -> Reshape)
+        # matches the following topology (Squeeze -> LSTMCell -> Unsqueeze)
         nodes = [
-            ('squeeze_dim',  dict(kind='op', op='Const')),
-            ('squeeze_dim_data',  dict(kind='data')),
+            ('squeeze_dim', dict(kind='op', op='Const')),
+            ('squeeze_dim_data', dict(kind='data')),
 
             ('unsqueeze_dim', dict(kind='op', op='Const')),
             ('unsqueeze_dim_data', dict(kind='data')),
 
             ('input_unsqueezed', dict(kind='data')),
-            ('squeeze', dict(kind='op', op='Reshape')),
+            ('squeeze', dict(kind='op', op='Squeeze')),
             ('input_squeezed', dict(kind='data')),
             ('input_hidden', dict(kind='data')),
             ('input_cell', dict(kind='data')),
@@ -92,7 +92,7 @@ class TransposeTensorIteratorLSTM(MiddleReplacementPattern):
 
             ('output_hidden', dict(kind='data')),
             ('output_cell', dict(kind='data')),
-            ('unsqueeze', dict(kind='op', op='Reshape')),
+            ('unsqueeze', dict(kind='op', op='Unsqueeze')),
             ('output_unsqueezed', dict(kind='data')),
 
             ('const_w', dict(kind='op', op='Const')),
@@ -100,8 +100,11 @@ class TransposeTensorIteratorLSTM(MiddleReplacementPattern):
 
             ('op_output', dict(kind='op', op='Result')),
             ('op_output_1', dict(kind='op', op='Result')),
-            ('op_output_2', dict(kind='op', op='Result'))
+            ('op_output_2', dict(kind='op', op='Result')),
 
+            ('input_unsqueezed_i', dict(kind='op', op='Parameter')),
+            ('input_hidden_i', dict(kind='op', op='Parameter')),
+            ('input_cell_i', dict(kind='op', op='Parameter')),
         ]
         edges = [
             ('input_unsqueezed', 'squeeze', {'in': 0}),
@@ -132,6 +135,9 @@ class TransposeTensorIteratorLSTM(MiddleReplacementPattern):
             ('output_hidden', 'op_output_1'),
             ('output_cell', 'op_output_2'),
 
+            ('input_unsqueezed_i', 'input_unsqueezed'),
+            ('input_hidden_i', 'input_hidden'),
+            ('input_cell_i', 'input_cell'),
         ]
         ti = match['ti']
         isomorphisms = find_isomorphisms(ti.body, nodes, edges)
@@ -174,10 +180,7 @@ class TransposeTensorIteratorLSTM(MiddleReplacementPattern):
         # Verify that the TI body have required Reshapes connected to the found ports
         squeeze = isomorphism['squeeze']
         unsqueeze = isomorphism['unsqueeze']
-        assert squeeze['internal_layer_id'] == ti.input_port_map[data_input_port]['internal_layer_id']
-        assert squeeze.in_edge(0)['internal_port_id'] == ti.input_port_map[data_input_port]['internal_port_id']
-        assert unsqueeze['internal_layer_id'] == ti.output_port_map[data_output_port]['internal_layer_id']
-        assert unsqueeze.out_edge(0)['internal_port_id'] == ti.output_port_map[data_output_port]['internal_port_id']
+
         assert len(squeeze.in_node().shape) == 3
         assert len(squeeze.out_node().shape) == 2
         assert len(unsqueeze.in_node().shape) == 2
@@ -192,12 +195,12 @@ class TransposeTensorIteratorLSTM(MiddleReplacementPattern):
         ti.input_port_map[data_input_port]['axis'] = 1 - ti.input_port_map[data_input_port]['axis']
         ti.output_port_map[data_output_port]['axis'] = 1 - ti.output_port_map[data_output_port]['axis']
 
-        # smap 0-th and 1-th shape entries for reshapes inside body
-        squeeze.in_node().shape = squeeze.in_node().shape[[1, 0, 2]]
-        unsqueeze.out_node().shape = unsqueeze.out_node().shape[[1, 0, 2]]
+        isomorphism['input_unsqueezed_i'].shape = isomorphism['input_unsqueezed_i'].shape[[1, 0, 2]]
+        isomorphism['input_unsqueezed_i'].infer(isomorphism['input_unsqueezed_i'])
+        isomorphism['squeeze_dim'].value = ti.input_port_map[data_input_port]['axis']
+        isomorphism['squeeze_dim'].infer(isomorphism['squeeze_dim'])
+        isomorphism['squeeze']['need_shape_inference'] = True
 
-        unsqueeze_dim = isomorphism['unsqueeze_dim']
-        unsqueeze_dim_data = isomorphism['unsqueeze_dim_data']
-
-        unsqueeze_dim.value = unsqueeze_dim.value[[1, 0, 2]]
-        unsqueeze_dim_data.value = unsqueeze_dim_data.value[[1, 0, 2]]
+        isomorphism['unsqueeze_dim'].value = ti.output_port_map[data_output_port]['axis']
+        isomorphism['unsqueeze_dim'].infer(isomorphism['unsqueeze_dim'])
+        isomorphism['unsqueeze'].infer(isomorphism['unsqueeze'])

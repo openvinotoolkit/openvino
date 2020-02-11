@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,15 +16,15 @@
 
 from mo.front.common.partial_infer.crop import crop_infer
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
+from mo.ops.crop import Crop
 
 
 class CropFrontExtractor(FrontExtractorOp):
     op = 'Crop'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         proto_layer = node.pb
         param = proto_layer.crop_param
         mapping_rule = {
@@ -35,5 +35,5 @@ class CropFrontExtractor(FrontExtractorOp):
             'infer': crop_infer
         }
         # update the attributes of the node
-        Op.get_op_class_by_name(__class__.op).update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        Crop.update_node_stat(node, mapping_rule)
+        return cls.enabled

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,15 +42,19 @@ protected:
                               0.0f,
                               "Unknown padding mode in deconvolution.");
         // Check whether all memory elements use the same unit type (FP16 or FP32).
+        auto input_count = instance.inputs_memory_count();
+        auto input_data_type = 0 == input_count ?
+            instance.node.input().get_output_layout().data_type :
+            instance.input_memory().get_layout().data_type;
         CLDNN_ERROR_DATA_TYPES_MISMATCH(_outer.id(),
                                         "Input memory",
-                                        instance.input_memory().get_layout().data_type,
+                                        input_data_type,
                                         "output memory",
                                         instance.output_memory().get_layout().data_type,
                                         "");
         CLDNN_ERROR_DATA_TYPES_MISMATCH(_outer.id(),
                                         "Input memory",
-                                        instance.input_memory().get_layout().data_type,
+                                        input_data_type,
                                         "filter memory",
                                         instance.weights_memory(0).get_layout().data_type,
                                         "");
@@ -166,6 +170,8 @@ attach_deconvolution_gpu::attach_deconvolution_gpu() {
                                            deconvolution_gpu::create);
     implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16),
                                            deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_b16f16),
+                                           deconvolution_gpu::create);
     implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
                                            deconvolution_gpu::create);
     implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
@@ -173,6 +179,8 @@ attach_deconvolution_gpu::attach_deconvolution_gpu() {
     implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx),
                                            deconvolution_gpu::create);
     implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16),
+                                           deconvolution_gpu::create);
+    implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_b16f16),
                                            deconvolution_gpu::create);
     implementation_map<deconvolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
                                            deconvolution_gpu::create);

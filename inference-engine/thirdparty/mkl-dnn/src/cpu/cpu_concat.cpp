@@ -35,9 +35,13 @@ namespace {
 static const cpd_create_f cpu_concat_impl_list[] = {
     INSTANCE(simple_concat_t<data_type::f32>),
     INSTANCE(simple_concat_t<data_type::u8>),
+#ifdef ENABLE_UNUSED_PRIM
     INSTANCE(simple_concat_t<data_type::s8>),
+#endif
     INSTANCE(simple_concat_t<data_type::s32>),
+#ifdef ENABLE_UNUSED_PRIM
     INSTANCE(simple_concat_t<data_type::bf16>),
+#endif
     INSTANCE(ref_concat_t),
     nullptr,
 };

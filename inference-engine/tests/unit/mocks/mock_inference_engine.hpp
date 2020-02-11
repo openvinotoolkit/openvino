@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,12 @@
 #include "inference_engine.hpp"
 #include <gmock/gmock.h>
 
+IE_SUPPRESS_DEPRECATED_START
 class MockInferenceEngine : public InferenceEngine :: IInferencePlugin
 {
 public:
+    IE_SUPPRESS_DEPRECATED_END
+
     MOCK_QUALIFIED_METHOD2(AddExtension, noexcept, InferenceEngine::StatusCode(InferenceEngine::IExtensionPtr,
                                                                                InferenceEngine::ResponseDesc *resp));
     MOCK_QUALIFIED_METHOD1(GetVersion, noexcept, void (const InferenceEngine::Version *&));

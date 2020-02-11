@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -48,6 +48,8 @@ class Range(Op):
         if node.has_valid('pb') and 'type' in node.pb.attr:
             from mo.front.tf.extractors.utils import tf_dtype_extractor
             result_data_type = tf_dtype_extractor(node.pb.attr["type"].type)
+        elif node.has_valid('dtype'):
+            result_data_type = node.dtype
         else:
             result_data_type = start.value.dtype
         output.value = np.arange(start.value, limit.value, delta.value, dtype=result_data_type)

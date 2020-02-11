@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,8 @@ import unittest
 
 from extensions.middle.ReplaceSpliceNodePattern import ReplaceSpliceNodePattern
 from mo.graph.graph import Node
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 
 class ReplaceSpliceNodePatternTests(unittest.TestCase):
@@ -108,10 +109,16 @@ class ReplaceSpliceNodePatternTests(unittest.TestCase):
                                  'concat_all': {'kind': 'op', 'op': 'Concat'},
                                  'concat_all_data': {'kind': 'data', 'shape': [1, 43]},
                                  'out_placeholder': {'kind': 'op', 'op': 'placeholder'},
+
+                                 'axis_const': {'kind': 'op'},
+                                 'axis_const_data': {'value': None, 'shape': None, 'kind': 'data'},
+                                 'split_dim_const': {'kind': 'op'},
+                                 'split_dim_const_data': {'value': None, 'shape': None, 'kind': 'data'},
+
                                  },
                                 [
                                     ('in_placeholder', 'in_node'),
-                                    ('in_node', 'split'),
+                                    ('in_node', 'split', {'in': 0}),
                                     ('split', 'split_data_0', {'out': 0}),
                                     ('split', 'split_data_1', {'out': 1}),
                                     ('memory_in', 'memory_in_data'),
@@ -138,6 +145,12 @@ class ReplaceSpliceNodePatternTests(unittest.TestCase):
                                     ('concat_data', 'concat_all', {'in': 0}),
                                     ('concat_all', 'concat_all_data'),
                                     ('concat_all_data', 'out_placeholder'),
+
+                                    ('axis_const', 'axis_const_data'),
+                                    ('split_dim_const', 'split_dim_const_data'),
+                                    ('axis_const_data', 'split', {'in': 1}),
+                                    ('split_dim_const_data', 'split', {'in': 2}),
+
                                 ]
                                 )
 

@@ -1,29 +1,25 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vpu/frontend/frontend.hpp>
 
-#include <vector>
 #include <memory>
-#include <set>
+#include <vector>
 
-#include <vpu/sw/post_op_stage.hpp>
+#include <vpu/stages/post_op_stage.hpp>
 
 namespace vpu {
 
 namespace {
 
 class StridedSliceStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<StridedSliceStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-        const SmallVector<float>& inputScales,
-        ScalePropagationStep step,
-        StageDataInfo<float>& scaleInfo) override {
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
@@ -39,11 +35,17 @@ private:
     }
 
     void initialCheckImpl() const override {
-        IE_ASSERT(numInputs() == 4);
+        IE_ASSERT(numInputs() == 3 || numInputs() == 4);
         IE_ASSERT(numOutputs() == 1);
+
+        std::vector<EnumSet<DataType>> expectedInputs3Types =
+            { {DataType::FP16}, {DataType::S32}, {DataType::S32} };
+        std::vector<EnumSet<DataType>> expectedInputs4Types =
+            { {DataType::FP16}, {DataType::S32}, {DataType::S32}, {DataType::S32} };
+
         assertInputsOutputsTypes(
             this,
-            {{DataType::FP16}, {DataType::S32}, {DataType::S32}, {DataType::S32}},
+            numInputs() == 3 ? expectedInputs3Types : expectedInputs4Types,
             {{DataType::FP16}});
     }
 
@@ -58,20 +60,11 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseStridedSlice(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
-    IE_ASSERT(inputs.size() == 4);
+void FrontEnd::parseStridedSlice(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+    IE_ASSERT(inputs.size() == 3 || inputs.size() == 4);
     IE_ASSERT(outputs.size() == 1);
 
-    model->addNewStage<StridedSliceStage>(
-        layer->name,
-        StageType::StridedSlice,
-        layer,
-        inputs,
-        outputs);
+    model->addNewStage<StridedSliceStage>(layer->name, StageType::StridedSlice, layer, inputs, outputs);
 }
 
 }  // namespace vpu

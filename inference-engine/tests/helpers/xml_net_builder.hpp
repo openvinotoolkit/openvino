@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -219,14 +219,15 @@ public:
 // BUILDER
 template<int Version>
 class XmlNetBuilder {
-    size_t layersNum = 0;
+    size_t layersNum = 0lu;
     std::vector<LayerDesc::Ptr> layersDesc;
     std::shared_ptr<XMLFather> root;
     testing::Token<testing::Token<XMLFather>>& xml;
     IDManager id_manager;
+    size_t _offset = 0lu;
 
     XmlNetBuilder(std::shared_ptr<XMLFather> _root,
-                  typename testing::Token<testing::Token<XMLFather>>& _xml) : xml(_xml), root(_root) {};
+                  typename testing::Token<testing::Token<XMLFather>>& _xml) : root(_root), xml(_xml) {};
 
 public:
     static XmlNetBuilder buildNetworkWithOneInput(
@@ -270,7 +271,8 @@ public:
             const std::string& precision,
             const InOutShapes& inout,
             const conv_common_params& conv_params = {},
-            const Statistic& statistic = {}) {
+            const Statistic& statistic = {},
+            const std::string& name = "") {
         std::map<std::string, std::string> params;
         if (Version == 2) {
             params = {
@@ -312,10 +314,14 @@ public:
         }
         int weights_size = getConvWeightsSize(inout.inDims[0], conv_params, precision);
         int biases_size = getConvBiasesSize(conv_params, precision);
-        return addLayer("Convolution", precision, &params, inout, weights_size, biases_size, "convolution_data", "", statistic);
+        return addLayer("Convolution", precision, &params, inout, weights_size, biases_size, "convolution_data", "", statistic, name);
     }
 
-    XmlNetBuilder& poolingLayer(const InOutShapes& inout) {
+    XmlNetBuilder& poolingLayer(
+            const std::string& precision,
+            const InOutShapes& inout,
+            const pool_common_params& pool_params = {},
+            const Statistic& statistics = {}) {
         std::map<std::string, std::string> params;
         if (Version == 2) {
             params = {
@@ -327,14 +333,34 @@ public:
                     {"kernel-y", "11"},
             };
         } else {
-            params = {
-                    {"kernel",     "{1,1}"},
-                    {"strides",    "{1,1}"},
-                    {"pads_begin", "{0,0}"},
-                    {"pads_end",   "{0,0}"},
-            };
+            std::string kernel = pool_params.kernel.size() > 0lu ? std::to_string(pool_params.kernel[0]) : "";
+            for (size_t i = 1lu; i < pool_params.kernel.size(); i++)
+                kernel += "," + std::to_string(pool_params.kernel[i]);
+            params["kernel"] = kernel;
+            std::string strides = pool_params.stride.size() > 0lu ? std::to_string(pool_params.stride[0]) : "";
+            for (size_t i = 1lu; i < pool_params.stride.size(); i++)
+                strides += "," + std::to_string(pool_params.stride[i]);
+            params["strides"] = strides;
+            std::string pads_begin = pool_params.pads_begin.size() > 0lu ? std::to_string(pool_params.pads_begin[0]) : "";
+            for (size_t i = 1lu; i < pool_params.pads_begin.size(); i++)
+                pads_begin += "," + std::to_string(pool_params.pads_begin[i]);
+            params["pads_begin"] = pads_begin;
+            std::string pads_end = pool_params.pads_end.size() > 0lu ? std::to_string(pool_params.pads_end[0]) : "";
+            for (size_t i = 1lu; i < pool_params.pads_end.size(); i++)
+                pads_end += "," + std::to_string(pool_params.pads_end[i]);
+            params["pads_end"] = pads_end;
+            if (!pool_params.auto_pad.empty())
+                params["auto_pad"] = pool_params.auto_pad;
+            if (pool_params.avg)
+                params["pool-method"] = "avg";
+            else
+                params["pool-method"] = "max";
+            if (pool_params.exclude_pad)
+                params["exclude-pad"] = "true";
+            else
+                params["exclude-pad"] = "false";
         }
-        return addLayer("Pooling", "", &params, inout, 0, 0, "pooling_data");
+        return addLayer("Pooling", "", &params, inout, 0, 0, "pooling_data", "", statistics);
     }
 
     struct TIPortMap { int from_l, from_p, to_l, to_p, axis, stride, start, end; };
@@ -376,6 +402,25 @@ public:
         return addLayer("TensorIterator", "FP32", nullptr, inout, 0,0, "data", content);
     }
 
+    XmlNetBuilder& addLayer(
+        const std::string& type,
+        const std::string& precision,
+        std::map<std::string, std::string>* params,
+        InOutShapes inout,
+        const std::string& name) {
+        return addLayer(type, precision, params, inout, 0, 0, "data", "", {}, name);
+    }
+
+    XmlNetBuilder& addLayer(
+        const std::string& type,
+        const std::string& precision,
+        std::map<std::string, std::string>* params,
+        InOutShapes inout,
+        int weightsSize,
+        const std::string& name) {
+        return addLayer(type, precision, params, inout, weightsSize, 0, "data", "", {}, name);
+    }
+
     XmlNetBuilder& addLayer(const std::string& type,
                             const std::string& precision,
                             std::map<std::string, std::string>* params,
@@ -384,12 +429,13 @@ public:
                             int biasesSize = 0,
                             std::string layerDataName = "data",
                             std::string content = "",
-                            const Statistic& statistic = {}) {
+                            const Statistic& statistic = {},
+                            const std::string& name = "") {
         layersNum++;
         auto layerDesc = std::make_shared<LayerDesc>(type, inout, id_manager, statistic);
         layersDesc.push_back(layerDesc);
 
-        auto& layer = xml.node("layer").attr("name", layerDesc->getLayerName()).attr("precision", precision)
+        auto& layer = xml.node("layer").attr("name", name.empty() ? layerDesc->getLayerName() : name).attr("precision", precision)
                 .attr("type", type).attr("id", layerDesc->getLayerID());
         if (params != nullptr) {
             auto& data = layer.node(layerDataName);
@@ -399,11 +445,16 @@ public:
             layer = data.close();
         }
         addPorts(layer, layerDesc);
+        std::string w_blob_name = "weights";
+        if (type == "Const")
+            w_blob_name = "custom";
         if (weightsSize != 0) {
             auto& blobs = layer.node("blobs");
-            blobs.node("weights").attr("offset", 0).attr("size", weightsSize).close();
+            blobs.node(w_blob_name).attr("offset", _offset).attr("size", weightsSize).close();
+            _offset += weightsSize;
             if (biasesSize != 0) {
-                blobs.node("biases").attr("offset", weightsSize).attr("size", biasesSize).close();
+                blobs.node("biases").attr("offset", _offset).attr("size", biasesSize).close();
+                _offset += biasesSize;
             }
             layer = blobs.close();
         }
@@ -540,6 +591,6 @@ private:
 };
 
 typedef XmlNetBuilder<2> V2NetBuilder;
-typedef XmlNetBuilder<5> DefualtNetBuilder;
+typedef XmlNetBuilder<6> DefaultNetBuilder;
 
 }  // namespace testing

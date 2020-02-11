@@ -66,6 +66,13 @@ bool PoolingKerneGPU_fs_b_yx_fsv32::Validate(const Params& p, const optional_par
 
 JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params& params, DispatchData kd) const {
     auto jit = PoolingKernelBase::GetJitConstants(params, kd);
+    auto pp = static_cast<const pooling_params&>(params);
+
+    // Heurestic needed for very big pool size.
+    // ToDo Can it be changed to lower pool sizes?
+    if (pp.poolSize.x >= 7 && pp.poolSize.y >= 7 && pp.poolType == PoolType::AVG) {
+        jit.AddConstant(MakeJitConstant("USE_FLOAT_ACC", true));
+    }
 
     return jit;
 }
