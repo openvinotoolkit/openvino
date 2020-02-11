@@ -15,7 +15,7 @@
 
 #include "include/include_all.cl"
 
-KERNEL(gather_ref)(const __global UNIT_TYPE* dictionary, const __global INPUT1_TYPE* indices, __global UNIT_TYPE* output)
+KERNEL(gather_ref)(const __global INPUT0_TYPE* dictionary, const __global INPUT1_TYPE* indices, __global OUTPUT_TYPE* output)
 {
     const uint workItemId = get_global_id(0);
 

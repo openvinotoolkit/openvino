@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ class BackPropTrancationFrontExtractor(FrontExtractorOp):
     op = 'backproptruncationcomponent'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         pb = node.parameters
 
         collect_until_token(pb, b'<Dim>')
@@ -35,8 +35,8 @@ class BackPropTrancationFrontExtractor(FrontExtractorOp):
         collect_until_token(pb, b'<Scale>')
         scale = read_binary_float_token(pb)
 
-        #TODO add real batch here
+        # TODO add real batch here
         attrs = {}
-        embed_input(attrs, 1, 'weights', np.full([1, dim], scale))
+        embed_input(attrs, 1, 'weights', np.full([dim], scale))
         ScaleShiftOp.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled

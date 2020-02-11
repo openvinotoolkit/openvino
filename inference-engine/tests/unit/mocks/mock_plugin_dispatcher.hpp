@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 #include <gmock/gmock.h>
 #include <string>
 #include <vector>
+
+IE_SUPPRESS_DEPRECATED_START
 
 class MockDispatcher : public InferenceEngine::PluginDispatcher {
 public:

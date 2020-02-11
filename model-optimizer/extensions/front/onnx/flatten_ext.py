@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,19 +16,19 @@
 
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.flatten_onnx import FlattenONNX
+from mo.ops.flatten import FlattenONNX
 
 
 class FlattenFrontExtractor(FrontExtractorOp):
     op = 'Flatten'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         axis = onnx_attr(node, 'axis', 'i', 1)
         attrs = {
             'axis': axis
         }
 
         FlattenONNX.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled

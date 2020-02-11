@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief a header file for describing property style structure used by CNNLayers
- * @file ie_layers_property.h
+ * 
+ * @file
  */
 #pragma once
 
@@ -14,13 +15,9 @@ namespace InferenceEngine {
 
 constexpr const int MAX_DIMS_NUMBER = 12;
 
-enum eDIMS_AXIS : uint8_t {
-    X_AXIS = 0,
-    Y_AXIS,
-    Z_AXIS
-};
+enum eDIMS_AXIS : uint8_t { X_AXIS = 0, Y_AXIS, Z_AXIS };
 
-template<class T, int N = MAX_DIMS_NUMBER>
+template <class T, int N = MAX_DIMS_NUMBER>
 class PropertyVector {
     T _axises[N] = {};
     bool _allocated[N] = {};
@@ -56,31 +53,32 @@ public:
 
     /**
      * @brief allows access up-to capacity size
+     *
      * @param index
      * @return
      */
-    T &at(int index) {
+    T& at(int index) {
         if (index >= N) {
             THROW_IE_EXCEPTION << "Property index is out of bounds (" << index << "/" << N;
         }
         return _axises[index];
     }
 
-    const T &operator[](size_t index) const {
-        if (index >= N ||!_allocated[index]) {
-            THROW_IE_EXCEPTION << "Property index ("<< index <<") is out of bounds";
-        }
-        return _axises[index];
-    }
-
-    T &operator[](size_t index) {
+    const T& operator[](size_t index) const {
         if (index >= N || !_allocated[index]) {
-            THROW_IE_EXCEPTION << "Property index ("<< index <<") is out of bounds";
+            THROW_IE_EXCEPTION << "Property index (" << index << ") is out of bounds";
         }
         return _axises[index];
     }
 
-    PropertyVector &operator=(const PropertyVector &src) {
+    T& operator[](size_t index) {
+        if (index >= N || !_allocated[index]) {
+            THROW_IE_EXCEPTION << "Property index (" << index << ") is out of bounds";
+        }
+        return _axises[index];
+    }
+
+    PropertyVector& operator=(const PropertyVector& src) {
         if (this != &src) {
             _length = src.size();
             for (size_t i = 0; i < N; i++) {
@@ -97,8 +95,7 @@ public:
         if (this == &src) return true;
         if (_length != src.size()) return false;
         for (size_t i = 0; i < N; i++)
-            if ((_allocated[i] != src._allocated[i]) ||
-                (_allocated[i] && _axises[i] != src._axises[i])) return false;
+            if ((_allocated[i] != src._allocated[i]) || (_allocated[i] && _axises[i] != src._axises[i])) return false;
         return true;
     }
 
@@ -106,7 +103,7 @@ public:
         return _length;
     }
 
-    void insert(size_t  axis, const T &val) {
+    void insert(size_t axis, const T& val) {
         if (axis < N) {
             if (!_allocated[axis]) {
                 _allocated[axis] = true;
@@ -114,7 +111,7 @@ public:
             }
             _axises[axis] = val;
         } else {
-            THROW_IE_EXCEPTION << "Layer Property insertion at(axis) should be in [0,"<< N<< ")";
+            THROW_IE_EXCEPTION << "Layer Property insertion at(axis) should be in [0," << N << ")";
         }
     }
 

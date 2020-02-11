@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,18 +50,18 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
     });
 
     // go over all subnet and create requests
-    for (auto &&ireq : _inferRequests) {
-        ireq._request = ireq._network->CreateInferRequestPtr();
+    for (auto&& desc : _inferRequests) {
+        desc._request = desc._network.CreateInferRequestPtr();
         // go over all inputs and get blobs from subnet infer requests
-        for (auto e : ireq._oNames) {
-            requestBlob(e, ireq._request);
+        for (auto&& outputInfo : desc._network.GetOutputsInfo()) {
+            requestBlob(outputInfo.first, desc._request);
         }
     }
 
     // go over all outputs and get blobs from subnet infer requests
-    for (auto r : _inferRequests) {
-        for (auto e : r._iNames) {
-            requestBlob(e, r._request);
+    for (auto&& desc : _inferRequests) {
+        for (auto&& inputInfo : desc._network.GetInputsInfo()) {
+            requestBlob(inputInfo.first, desc._request);
         }
     }
 }
@@ -93,13 +93,14 @@ void HeteroInferRequest::updateInOutIfNeeded() {
     for (auto &&desc : _inferRequests) {
         auto &r = desc._request;
         assert(nullptr != r);
-        for (auto &&ioname : desc._iNames) {
+        for (auto&& inputInfo : desc._network.GetInputsInfo()) {
+            auto& ioname = inputInfo.first;
             auto iti = _inputs.find(ioname);
             if (iti != _inputs.end()) {
                 auto it = _preProcData.find(ioname);
                 if (it != _preProcData.end()) {
-                    if (it->second.getRoiBlob() != _blobs[ioname]) {
-                        r->SetBlob(ioname.c_str(), it->second.getRoiBlob());
+                    if (it->second->getRoiBlob() != _blobs[ioname]) {
+                        r->SetBlob(ioname.c_str(), it->second->getRoiBlob());
                         _blobs[ioname] = iti->second;
                     }
                 } else {
@@ -110,7 +111,8 @@ void HeteroInferRequest::updateInOutIfNeeded() {
                 }
             }
         }
-        for (auto &&ioname : desc._oNames) {
+        for (auto&& outputInfo : desc._network.GetOutputsInfo()) {
+            auto& ioname = outputInfo.first;
             auto ito = _outputs.find(ioname);
             if (ito != _outputs.end()) {
                 if (ito->second != _blobs[ioname]) {
@@ -120,58 +122,4 @@ void HeteroInferRequest::updateInOutIfNeeded() {
             }
         }
     }
-}
-
-void HeteroInferRequest::startFirstAsyncRequest() {
-    auto firstAsyncRequest = _inferRequests.begin()->_request;
-    firstAsyncRequest->StartAsync();
-}
-
-void HeteroInferRequest::setCallbackForLastRequest(std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>& callback) {
-    auto lastRequest = _inferRequests.back()._request;
-    if (lastRequest) lastRequest->SetCompletionCallback(callback);
-}
-
-void HeteroInferRequest::setCallbackSequence() {
-    for (auto desc = _inferRequests.begin(); desc != _inferRequests.end(); desc++) {
-        auto &currentAsyncRequest = desc->_request;
-        auto nextRequestDesc = std::next(desc);
-        if (nextRequestDesc != _inferRequests.end()) {
-            currentAsyncRequest->SetCompletionCallback<std::function<void(InferRequest, StatusCode)>>(
-                    [=](InferRequest request, StatusCode sts) {
-                        IE_PROFILING_AUTO_SCOPE(Callback)
-                        if (sts == OK) {
-                            nextRequestDesc->_request->StartAsync();
-                        }
-                    });
-        }
-    }
-}
-
-StatusCode HeteroInferRequest::waitAllRequests(int64_t millis_timeout) {
-    StatusCode status = INFER_NOT_STARTED;
-    bool shareMsMode = true;
-    std::chrono::high_resolution_clock::time_point startTime;
-    int64_t msLeft;
-    if (millis_timeout == IInferRequest::WaitMode::STATUS_ONLY ||
-        millis_timeout == IInferRequest::WaitMode::RESULT_READY) {
-        shareMsMode = false;
-    }
-    for (auto it = _inferRequests.begin(); it != _inferRequests.end(); ++it) {
-        startTime = std::chrono::high_resolution_clock::now();
-        status = it->_request->Wait(millis_timeout);
-        msLeft = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::high_resolution_clock::now() - startTime).count();
-        if (OK != status) {
-            return status;
-        }
-        if (shareMsMode) {
-            if (millis_timeout - msLeft > 0) {
-                millis_timeout -= msLeft;
-            } else if (it != _inferRequests.end()) {
-                return RESULT_NOT_READY;
-            }
-        }
-    }
-    return status;
 }

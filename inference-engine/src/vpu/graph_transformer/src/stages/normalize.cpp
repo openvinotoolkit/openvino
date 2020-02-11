@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,9 @@ namespace vpu {
 namespace {
 
 class NormalizeStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<NormalizeStage>(*this);
@@ -60,31 +63,15 @@ private:
         auto scales = inputEdge(1)->input();
         auto output = outputEdge(0)->output();
 
-        auto inputDesc  = input->desc();
-        auto iDimsOrder = inputDesc.dimsOrder();
-
-        if (iDimsOrder == DimsOrder::NC || iDimsOrder == DimsOrder::C) {
-            IE_ASSERT(iDimsOrder == output->desc().dimsOrder());
-            IE_ASSERT(inputDesc.dim(Dim::N, 1) == 1);
-
-            input->serializeOldBufferNC(handle_from_this(), serializer);
-            output->serializeOldBufferNC(handle_from_this(), serializer);
-            scales->serializeOldBufferNC(handle_from_this(), serializer);
-        } else {
-            input->serializeOldBuffer(handle_from_this(), serializer);
-            output->serializeOldBuffer(handle_from_this(), serializer);
-            scales->serializeOldBuffer(handle_from_this(), serializer);
-        }
+        input->serializeNewBuffer(serializer);
+        output->serializeNewBuffer(serializer);
+        scales->serializeNewBuffer(serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseNormalize(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseNormalize(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
@@ -102,18 +89,9 @@ void FrontEnd::parseNormalize(
 
     auto output = outputs[0];
 
-    auto scales = model->addConstData(
-        layer->name + "@scales",
-        DataDesc({weightsBlob->size()}),
-        ieBlobContent(weightsBlob));
+    auto scales = model->addConstData(layer->name + "@scales", DataDesc({weightsBlob->size()}), ieBlobContent(weightsBlob));
 
-    auto stage = model->addNewStage<NormalizeStage>(
-        layer->name,
-        StageType::Normalize,
-        layer,
-        {inputs[0], scales},
-        outputs);
-
+    auto stage = model->addNewStage<NormalizeStage>(layer->name, StageType::Normalize, layer, {inputs[0], scales}, outputs);
     stage->attrs().set<bool>("acrossSpatial", acrossSpatial);
     stage->attrs().set<bool>("channelShared", channelShared);
     stage->attrs().set<float>("eps", eps);

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,15 +13,18 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
 import collections
 import logging as log
+from typing import List
+
 from copy import deepcopy
 
 import networkx as nx
 import numpy as np
 
 from mo.graph.port import Port
+from mo.middle.passes.eliminate import mark_output_reachable_nodes, shape_inference, mark_undead_nodes, \
+    mark_const_producer_nodes, eliminate_dead_nodes, add_constant_operations
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg, deprecated_api, shrink_str_value
 
@@ -52,7 +55,6 @@ class Node:
         attrs[k] = v
 
     def __getattr__(self, k):
-        # hope it raises AttributeError if k is not in the dict
         return self.graph.node[self.node][k]
 
     def __getitem__(self, k):
@@ -84,6 +86,27 @@ class Node:
         if skip_if_exist is False and idx in self.in_ports(control_flow=control_flow):
             raise Error("Input port with {} index already exists for {} node.".format(idx, self.name))
         self._in_ports.update({idx: kwargs})
+
+    def delete_input_ports(self, idx_set, skip_if_absent=False):
+        if len(idx_set) == 0:
+            return  # there is nothing to delete
+        for idx in idx_set:
+            self.delete_input_port(idx, skip_if_absent)
+
+    def delete_input_port(self, idx, skip_if_absent=False):
+        if not self.has_valid('_in_ports'):
+            raise Error(
+                'Cannot removed ports with indices {} from node {} because node doesn\'t '
+                'have _in_ports attribute'.format(idx, self.soft_get('name')))
+        # no handling of control flow edges -- TODO
+        control_flow = False
+        if not skip_if_absent and idx not in self.in_ports(control_flow=control_flow):
+            raise Error("Input port with index {} does't exist in node {}.".format(idx, self.soft_get('name')))
+        if not self.in_port(idx).disconnected():
+            self.in_port(idx).disconnect()
+        del self._in_ports[idx]
+        # update in_ports_count for consistency but it is unlikely have any effect somewhere in the code
+        self.in_ports_count = len(self._in_ports)
 
     def add_output_port(self, idx, skip_if_exist=False, **kwargs):
         if not self.has_valid('_out_ports'):
@@ -428,6 +451,33 @@ class Node:
             graph.remove_edge(self.id, dst_name, edge_key)
         graph.create_edge(self, new_node, node_out_port, 0, {})
 
+    def insert_op_on_input_port(self, in_port_idx: int, new_op_class: callable, new_op_attrs: dict,
+                                value: np.ndarray = None):
+        """
+        Inserts new operation of new_op_class on in_port_index input port with new_op_attrs
+        Connects Const operation with value to 1 input port of new node if value was passed
+
+        Returns new operation node
+        """
+        graph = self.graph
+        name = self.soft_get('name', self.id)
+
+        op_node = new_op_class(graph, new_op_attrs).create_node()
+
+        assert self.has_port('in', in_port_idx), \
+            'Node `{}` should have input port with idx `{}` but it does not'.format(name, in_port_idx)
+
+        in_port_source = self.in_port(in_port_idx).get_source()
+        self.in_port(in_port_idx).get_connection().set_source(op_node.out_port(0))
+        op_node.in_port(0).connect(in_port_source)
+
+        if value is not None:
+            from mo.ops.const import Const
+            constant = Const(graph, {'value': value}).create_node()
+            op_node.in_port(1).connect(constant.out_port(0))
+
+        return op_node
+
     def replace_node(self, new_node, new_node_out_port: int = None):
         """
         Replaces node 'old_node' with a node 'new_node' preserving edge attributes.
@@ -491,6 +541,9 @@ class Graph(nx.MultiDiGraph):
         self.stage = None
         self.strict_mode = True
         super().__init__(data, **attr)
+
+        if not hasattr(self, 'node'):
+            self.node = self.nodes
 
     unique_id_count = 0
 
@@ -621,11 +674,13 @@ class Graph(nx.MultiDiGraph):
         return inputs
 
     def get_node_id_by_name(self, name: str):
-        for node in self.nodes():
-            if 'name' in self.node[node] and self.node[node]['name'] == name:
-                return node
-        raise Error('No node with name {}. ' +
-                    refer_to_faq_msg(51), name)
+        nodes = self.get_nodes_with_attributes(name=name)
+        if len(nodes) == 0:
+            raise Error('No node with name {}. ' + refer_to_faq_msg(51), name)
+        elif len(nodes) > 1:
+            raise Error('Multiple nodes with name {}'.format(name))
+        else:
+            return nodes[0]
 
     def get_op_nodes(self, **attrs):
         nodes = self.get_nodes_with_attributes(**dict(kind='op', **attrs))
@@ -721,11 +776,14 @@ class Graph(nx.MultiDiGraph):
             return label
 
         def _node_label(node_id, node_attrs: dict, attrs_to_print: list):
-            label = node_id + '\\n' + '\\n'.join([str(key) + '=' + str(node_attrs.get(key, 'None'))
+            label = str(node_id) + '\\n' + '\\n'.join([str(key) + '=' + str(node_attrs.get(key, 'None'))
                                                   for key in attrs_to_print if key in node_attrs])
             if node_attrs.get('type', '') == 'Const':
                 if 'value' not in attrs_to_print and 'value' in node_attrs:
-                    label += '\\nvalue=\\"' + ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
+                    if node_attrs['value'] is not None:
+                        label += '\\nvalue=\\"' + ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
+                    else:
+                        label += '\\nvalue=None'
             return label
 
         def _dump_nodes_attrs():
@@ -777,7 +835,7 @@ class Graph(nx.MultiDiGraph):
         string += _dump_edges_attrs()
 
         string += '}'
-        log.debug(string)
+#        log.debug(string)
         log.debug("---- GRAPHVIZ OUTPUT ENDS ----")
 
         if save_to_svg:
@@ -901,6 +959,24 @@ class Graph(nx.MultiDiGraph):
         else:
             return list(reversed(order))
 
+    def clean_up(self, undead_node_types: list = None):
+        if undead_node_types is None:
+            undead_node_types = []
+
+        if 'fw' in self.graph and self.graph['fw'] == 'tf':
+            undead_node_types.append('TFCustomSubgraphCall')
+
+        if 'cmd_params' in self.graph and getattr(self.graph['cmd_params'], 'keep_shape_ops'):
+            undead_node_types.extend(['ShapeOf', 'Shape'])
+
+        mark_output_reachable_nodes(self)
+        shape_inference(self)
+        mark_undead_nodes(self, undead_node_types)
+        mark_const_producer_nodes(self)
+        eliminate_dead_nodes(self)
+        # Add Const op for constant data nodes
+        add_constant_operations(self)
+
 
 def create_graph_with_nodes(src_nodes, get_id: callable, get_attrs: callable):
     """
@@ -918,6 +994,10 @@ def dict_includes_compare_attrs(attr, attr_probe):
         return attr_probe(attr)
     else:
         res = (attr == attr_probe)
+        # check if the result of comparison is a numpy scalar value which occur when attr is python scalar and
+        # attr_probe is a numpy scalar
+        if hasattr(res, 'ndim') and res.ndim == 0:
+            return res.item()
         return res if isinstance(res, bool) else all(res)
 
 
@@ -976,6 +1056,17 @@ def merge_edge_props(attrs: dict, additional_attrs: dict):
                 result[key] = value
     return result
 
+
+def rename_node(node: Node, name):
+    if not node.graph.get_nodes_with_attributes(name=name):
+        node.name = name
+    else:
+        assert 'Node with name {} already exists'.format(name)
+
+
+def rename_nodes(nodes: List[tuple]):
+    for node, name in nodes:
+        rename_node(node, name)
 
 # All functions below are deprecated and will be removed in next release
 # Please, use methods from Graph/Node classes instead

@@ -1,15 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_graph.h"
 #include "single_layer_common.hpp"
 
 #include "test_graph.hpp"
 
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
+#include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 
 

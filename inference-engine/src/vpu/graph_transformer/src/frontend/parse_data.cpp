@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,115 +15,110 @@
 
 namespace vpu {
 
-void FrontEnd::parseInputAndOutputData(const Model::Ptr& model) {
+void FrontEnd::parseInputAndOutputData(const Model& model) {
     VPU_PROFILE(parseInputAndOutputData);
 
     const auto& env = CompileEnv::get();
 
-    auto layoutPreference = LayoutPreference::AUTO;
-    if (env.config.hwOptimization ||
-        env.config.forceLayout == ComputeLayout::NCHW ||
-        env.config.forceLayout == ComputeLayout::NCDHW) {
-        layoutPreference = LayoutPreference::ChannelMajor;  // CHW, NCHW, NCDHW
-    } else {
-        layoutPreference = LayoutPreference::ChannelMinor;  // HWC, NHWC, NDHWC
-    }
+    env.log->trace("Parse input and output data");
+    VPU_LOGGER_SECTION(env.log);
 
-    // TODO: InferenceEngine doesn't support 3D HWC.
-
-    auto parseIOStrides = [&](const std::string& name, Data& data) {
+    const auto parseIOStrides = [&env](const std::string& name, const Data& data) {
         const auto& match = env.config.ioStrides.find(name);
         if (match == env.config.ioStrides.end()) {
             return;
         }
 
+        env.log->trace("Data %s has fixed strides %v", data, match->second);
+        VPU_LOGGER_SECTION(env.log);
+
         const auto reqs = StridesRequirement::fixed(match->second, data->desc());
         data->updateRequiredStrides(reqs);
     };
+
+    model->attrs().set<int>("numInputs", checked_cast<int>(_ieParsedNetwork.networkInputs.size()));
+    model->attrs().set<int>("numOutputs", checked_cast<int>(_ieParsedNetwork.networkOutputs.size()));
 
     //
     // Parse network inputs
     //
 
-    for (const auto& inputInfo : _ieNetworkParser.networkInputs) {
-        auto netInput = inputInfo.second;
+    env.log->trace("Parse network inputs");
+
+    for (const auto& inputInfo : _ieParsedNetwork.networkInputs) {
+        const auto& netInput = inputInfo.second;
         IE_ASSERT(netInput != nullptr);
 
-        auto ieData = netInput->getInputData();
+        const auto ieData = netInput->getInputData();
         IE_ASSERT(ieData != nullptr);
 
-        DataDesc vpuDesc(ieData->getTensorDesc());
-        if (vpuDesc.numDims() >= 4) {
-            if (LayoutPreference::ChannelMajor == layoutPreference) {
-                if (vpuDesc.dimsOrder() == DimsOrder::NDHWC)
-                    vpuDesc.moveDim(Dim::C, 3);
-                if (vpuDesc.dimsOrder() == DimsOrder::NHWC)
-                    vpuDesc.moveDim(Dim::C, 2);
-            } else {
-                vpuDesc.moveDim(Dim::C, 0);
-            }
-        }
+        env.log->trace("Network input : %s", ieData->getName());
+        VPU_LOGGER_SECTION(env.log);
 
-        auto vpuData = model->addInputData(ieData->getName(), vpuDesc);
+        const auto vpuDesc = DataDesc{ieData->getTensorDesc()};
+        const auto vpuData = model->addInputData(ieData->getName(), vpuDesc);
+
         parseIOStrides(inputInfo.first, vpuData);
 
         bindData(vpuData, ieData);
     }
 
-    model->attrs().set<int>("numInputs", _ieNetworkParser.networkInputs.size());
-
     //
     // Parse network outputs
     //
 
-    for (const auto& outputInfo : _ieNetworkParser.networkOutputs) {
-        auto ieData = outputInfo.second;
+    env.log->trace("Parse network outputs");
+
+    for (const auto& outputInfo : _ieParsedNetwork.networkOutputs) {
+        const auto& ieData = outputInfo.second;
         IE_ASSERT(ieData != nullptr);
 
-        DataDesc vpuDesc(ieData->getTensorDesc());
-        if (vpuDesc.numDims() >= 4) {
-            if (LayoutPreference::ChannelMajor == layoutPreference) {
-                if (vpuDesc.dimsOrder() == DimsOrder::NDHWC)
-                    vpuDesc.moveDim(Dim::C, 3);
-                if (vpuDesc.dimsOrder() == DimsOrder::NHWC)
-                    vpuDesc.moveDim(Dim::C, 2);
-            } else {
-                vpuDesc.moveDim(Dim::C, 0);
-            }
-        }
+        env.log->trace("Network output : %s", ieData->getName());
+        VPU_LOGGER_SECTION(env.log);
 
-        auto vpuData = model->addOutputData(ieData->getName(), vpuDesc);
+        const auto vpuDesc = DataDesc{ieData->getTensorDesc()};
+        const auto vpuData = model->addOutputData(ieData->getName(), vpuDesc);
+
         parseIOStrides(outputInfo.first, vpuData);
 
         bindData(vpuData, ieData);
 
         if (_unbatchedOutputs.count(ieData) > 0) {
+            env.log->trace("The output %s is unbatched", vpuData);
             vpuData->attrs().set<bool>("unbatched", true);
         }
     }
 
-    model->attrs().set<int>("numOutputs", _ieNetworkParser.networkOutputs.size());
-
     //
-    // Parse constant data
+    // Parse network constant
     //
 
-    for (const auto& constInfo : _ieNetworkParser.constDatas) {
-        auto ieData = constInfo.first;
+    env.log->trace("Parse network constants");
+
+    for (const auto& constInfo : _ieParsedNetwork.constDatas) {
+        const auto& ieData = constInfo.first;
         IE_ASSERT(ieData != nullptr);
 
-        auto ieBlob = constInfo.second;
+        env.log->trace("Network constant : %s", ieData->getName());
+        VPU_LOGGER_SECTION(env.log);
+
+        const auto& ieBlob = constInfo.second;
         IE_ASSERT(ieBlob != nullptr);
 
-        DataDesc vpuDesc(ieData->getTensorDesc());
+        auto descriptor = DataDesc{ieData->getTensorDesc()};
+        if (descriptor.type() == DataType::FP32) {
+            descriptor.setType(DataType::FP16);
+        }
 
-        auto vpuData = model->addConstData(
+        const auto vpuData = model->addConstData(
             ieData->getName(),
-            vpuDesc,
+            descriptor,
             ieBlobContent(ieBlob));
 
         // User might ask to return the output from Const layer.
-        if (auto vpuOutData = getVpuData(ieData)) {
+        if (const auto vpuOutData = getVpuData(ieData)) {
+            env.log->trace("The constant %s is network output", vpuData);
+
             IE_ASSERT(vpuOutData->usage() == DataUsage::Output);
 
             _stageBuilder->addCopyStage(
@@ -131,7 +126,8 @@ void FrontEnd::parseInputAndOutputData(const Model::Ptr& model) {
                 formatString("%s@return-const", vpuData->name()),
                 nullptr,
                 vpuData,
-                vpuOutData);
+                vpuOutData,
+                "parseInputAndOutputData::const");
         }
 
         bindData(vpuData, ieData);

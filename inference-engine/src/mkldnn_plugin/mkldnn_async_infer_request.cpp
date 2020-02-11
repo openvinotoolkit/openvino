@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,17 +7,13 @@
 
 MKLDNNPlugin::MKLDNNAsyncInferRequest::MKLDNNAsyncInferRequest(const InferenceEngine::InferRequestInternal::Ptr &inferRequest,
                                                                const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
-                                                               const InferenceEngine::TaskSynchronizer::Ptr &taskSynchronizer,
                                                                const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor)
-        : InferenceEngine::AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, taskSynchronizer, callbackExecutor) {}
+        : InferenceEngine::AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, callbackExecutor) {}
 
-MKLDNNPlugin::MKLDNNAsyncInferRequest::~MKLDNNAsyncInferRequest() {
-    waitAllAsyncTasks();
+void MKLDNNPlugin::MKLDNNAsyncInferRequest::Infer_ThreadUnsafe() {
+    InferUsingAsync();
 }
 
-void MKLDNNPlugin::MKLDNNAsyncInferRequest::Infer() {
-    _callbackManager.disableCallback();
-    StartAsync();
-    Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-    _callbackManager.enableCallback();
+MKLDNNPlugin::MKLDNNAsyncInferRequest::~MKLDNNAsyncInferRequest() {
+    StopAndWait();
 }

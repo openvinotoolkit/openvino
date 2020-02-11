@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ class TestDepthToSpacePartialInfer(unittest.TestCase):
     def test_tf_depth_to_space_infer(self):
         graph = build_graph(nodes, edges)
         dts_node = Node(graph, 'DtS')
-        DepthToSpaceOp.depth_to_space_infer(dts_node)
+        DepthToSpaceOp.infer(dts_node)
         exp_shape = np.array([1, 2048, 1152, 64])
         res_shape = graph.node['out_data_node']['shape']
         self.assertTrue(np.array_equal(exp_shape, res_shape))
@@ -48,10 +48,10 @@ class TestDepthToSpacePartialInfer(unittest.TestCase):
         graph = build_graph(nodes, edges)
         graph.node['in_data_node']['shape'] = np.array([1024, 576, 256])
         dts_node = Node(graph, 'DtS')
-        self.assertRaises(Error, DepthToSpaceOp.depth_to_space_infer(dts_node))
+        self.assertRaises(Error, DepthToSpaceOp.infer, dts_node)
 
     def test_tf_depth_to_space_infer_error_1(self):
         graph = build_graph(nodes, edges)
         graph.node['in_data_node']['shape'] = np.array([1, 1024, 576, 255])
         dts_node = Node(graph, 'DtS')
-        self.assertRaises(Error, DepthToSpaceOp.depth_to_space_infer(dts_node))
+        self.assertRaises(Error, DepthToSpaceOp.infer, dts_node)

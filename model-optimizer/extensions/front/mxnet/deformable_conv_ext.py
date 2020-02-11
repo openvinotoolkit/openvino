@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ class DeformableConvolutionExtractor(FrontExtractorOp):
     op = '_contrib_DeformableConvolution'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attr = get_mxnet_layer_attrs(node.symbol_dict)
 
         kernel = attr.tuple("kernel", int, None)
@@ -59,6 +59,7 @@ class DeformableConvolutionExtractor(FrontExtractorOp):
             'output_feature_channel': 0,
             'kernel_spatial_idx': None,
             'reshape_kernel': True,
+            'weights_index': 2,
 
             'spatial_dims': None,
             'channel_dims': np.array([1], dtype=np.int64),
@@ -68,4 +69,4 @@ class DeformableConvolutionExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         DeformableConvolution.update_node_stat(node, node_attrs)
-        return __class__.enabled
+        return cls.enabled

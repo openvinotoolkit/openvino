@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -21,13 +21,14 @@ endif()
 # ie_add_plugin(NAME <targetName>
 #               DEVICE_NAME <deviceName>
 #               SOURCES <sources>
+#               OBJECT_LIBRARIES <object_libs>
 #               VERSION_DEFINES_FOR <source>
 #               )
 #
 function(ie_add_plugin)
     set(options)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR)
-    set(multiValueArgs SOURCES)
+    set(multiValueArgs SOURCES OBJECT_LIBRARIES)
     cmake_parse_arguments(IE_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT IE_PLUGIN_NAME)
@@ -44,8 +45,22 @@ function(ie_add_plugin)
         addVersionDefines(${IE_PLUGIN_VERSION_DEFINES_FOR} CI_BUILD_NUMBER)
     endif()
 
-    add_library(${IE_PLUGIN_NAME} SHARED ${IE_PLUGIN_SOURCES})
+    set(input_files ${IE_PLUGIN_SOURCES})
+    foreach(obj_lib IN LISTS IE_PLUGIN_OBJECT_LIBRARIES)
+        list(APPEND input_files $<TARGET_OBJECTS:${obj_lib}>)
+        add_cpplint_target(${obj_lib}_cpplint FOR_TARGETS ${obj_lib})
+    endforeach()
+
+    add_library(${IE_PLUGIN_NAME} SHARED ${input_files})
     target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+
+    if(TARGET inference_engine_preproc)
+        target_include_directories(${IE_PLUGIN_NAME} PRIVATE $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
+        target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine_plugin_api)
+    else()
+        target_include_directories(${IE_PLUGIN_NAME} PRIVATE $<TARGET_PROPERTY:IE::inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
+        target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine_plugin_api)
+    endif()
 
     if(WIN32)
         set_target_properties(${IE_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
@@ -60,6 +75,17 @@ function(ie_add_plugin)
     set(PLUGIN_FILES "${PLUGIN_FILES}" CACHE INTERNAL "" FORCE)
 
     add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
+
+    # install rules
+
+    string(TOLOWER "${IE_PLUGIN_DEVICE_NAME}" install_component)
+    ie_cpack_add_component(${install_component} REQUIRED DEPENDS core)
+
+    install(TARGETS ${IE_PLUGIN_NAME}
+        RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        ARCHIVE DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        COMPONENT ${install_component})
 endfunction()
 
 #

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,94 +11,115 @@
 
 namespace vpu {
 
+//
 // Max-heap. Collects all elements until capacity is reached; then collects only elements lesser than the max one
 // Maintains its size not more than specified in constructor.
+//
+
 template <typename T>
 class FixedMaxHeap {
-private:
-    size_t _capacity;
-    std::vector<T> v;
+    using BaseContainer = std::vector<T>;
 
 public:
     explicit FixedMaxHeap(size_t capacity): _capacity(capacity) {
-        v.reserve(_capacity);
+        _vec.reserve(_capacity);
     }
 
-    FixedMaxHeap(const FixedMaxHeap&) = delete;
-
-    FixedMaxHeap(FixedMaxHeap &&other): _capacity(other._capacity), v(std::move(other.v)) {
+    FixedMaxHeap(size_t capacity, std::initializer_list<T> list) : FixedMaxHeap(capacity) {
+        for (auto&& val : list) {
+            push(val);
+        }
     }
 
-    FixedMaxHeap& operator=(FixedMaxHeap &&other) {
-        _capacity = other._capacity;
-        v = std::move(other.v);
-        return *this;
+    FixedMaxHeap(const FixedMaxHeap&) = default;
+    FixedMaxHeap& operator=(const FixedMaxHeap&) = default;
+
+    FixedMaxHeap(FixedMaxHeap&&) = default;
+    FixedMaxHeap& operator=(FixedMaxHeap&&) = default;
+
+    auto begin() -> decltype(std::declval<BaseContainer&>().begin()) {
+        return _vec.begin();
+    }
+    auto end() -> decltype(std::declval<BaseContainer&>().end()) {
+        return _vec.end();
     }
 
-    auto begin() -> decltype(v.begin()) {
-        return v.begin();
+    auto begin() const -> decltype(std::declval<const BaseContainer&>().begin()) {
+        return _vec.begin();
+    }
+    auto end() const -> decltype(std::declval<const BaseContainer&>().end()) {
+        return _vec.end();
     }
 
-    auto end() -> decltype(v.begin()) {
-        return v.end();
+    auto cbegin() const -> decltype(std::declval<const BaseContainer&>().cbegin()) {
+        return _vec.begin();
+    }
+    auto cend() const -> decltype(std::declval<const BaseContainer&>().cend()) {
+        return _vec.end();
     }
 
-    auto begin() const -> decltype(v.begin()) const {
-        return v.begin();
+    auto front() -> decltype(std::declval<BaseContainer&>().front()) {
+        return _vec.front();
+    }
+    auto front() const -> decltype(std::declval<const BaseContainer&>().front()) {
+        return _vec.front();
     }
 
-    auto end() const -> decltype(v.begin()) const {
-        return v.end();
+    auto size() const -> decltype(std::declval<const BaseContainer&>().size()) {
+        return _vec.size();
     }
-
     bool empty() const {
-        return v.empty();
+        return _vec.empty();
     }
 
-    size_t size() const {
-        return v.size();
-    }
-
-    // keep max-heap of constant size: insert only values smaller than max element, discard others
+    // Keep max-heap of constant size: insert only values smaller than max element, discard others.
     bool push(const T& val) {
-        if (_capacity == 0) {
-            return false;
-        }
-
-        if (v.size() < _capacity) {
-            v.push_back(val);
-        } else {
-            if (!(val < v.front())) {
-                return false;
-            }
-            std::pop_heap(v.begin(), v.end());
-            v[_capacity - 1] = val;
-        }
-
-        std::push_heap(v.begin(), v.end());
-
-        return true;
+        return pushImpl(val);
+    }
+    bool push(T&& val) {
+        return pushImpl(val);
     }
 
+    // Return sorted Range of Heap elements.
     std::vector<T> sorted() const {
-        std::vector<T> s = v;
+        std::vector<T> s = _vec;
         std::sort_heap(s.begin(), s.end());
         return s;
     }
 
-    void print(std::ostream &o) const {
-        o << "Heap [" << v.size() << "]: ";
-        for (int i : v) {
-            o << i << " ";
+    friend std::ostream& operator<<(std::ostream& stream, const FixedMaxHeap& heap) {
+        stream << "Heap [" << heap._vec.size() << " / " << heap._capacity << "]: ";
+        for (const auto& val : heap._vec) {
+            stream << val << " ";
         }
-        o << " is_heap: " << std::is_heap(v.begin(), v.end()) << " ";
-        o << std::endl;
+        return stream;
     }
 
-    friend std::ostream& operator<<(std::ostream& o, const FixedMaxHeap &h) {
-        h.print(o);
-        return o;
+private:
+    template <typename U>
+    bool pushImpl(U&& val) {
+        if (_capacity == 0) {
+            return false;
+        }
+
+        if (_vec.size() < _capacity) {
+            _vec.push_back(std::forward<U>(val));
+        } else {
+            if (!(val < _vec.front())) {
+                return false;
+            }
+            std::pop_heap(_vec.begin(), _vec.end());
+            _vec[_capacity - 1] = std::forward<U>(val);
+        }
+
+        std::push_heap(_vec.begin(), _vec.end());
+
+        return true;
     }
+
+private:
+    size_t _capacity;
+    BaseContainer _vec;
 };
 
 }  // namespace vpu

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,12 @@
  limitations under the License.
 """
 
-import networkx as nx
 import logging as log
 
+import networkx as nx
+
+from extensions.middle.fusings import Fusing
+from extensions.middle.pass_separator import PostMiddleStart
 from mo.graph.graph import Node
 from mo.middle.replacement import MiddleReplacementPattern
 
@@ -25,10 +28,14 @@ class ConcatOptimization(MiddleReplacementPattern):
     # This optimization reduces number of edges between Concat operations
     # that significantly reduce memory consumption
 
-    enabled = False
+    enabled = True
+    graph_condition = [lambda graph: graph.graph['cmd_params'].enable_concat_optimization]
 
     def run_after(self):
-        return []
+        return [Fusing]
+
+    def run_before(self):
+        return [PostMiddleStart]
 
     def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
         mp = {}

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,18 +15,26 @@
 """
 import numpy as np
 
-from extensions.back.InsertLayoutPropagationTransposes import is_output_data_in_correct_layout
+from extensions.middle.InsertLayoutPropagationTransposes import is_output_data_in_correct_layout, \
+    InsertLayoutPropagationTranspose
 from extensions.ops.gather import Gather
-from mo.back.replacement import BackReplacementPattern
+from mo.front.common.partial_infer.utils import int64_array
+from mo.middle.replacement import MiddleReplacementPattern
 from mo.graph.graph import Graph, Node
 from mo.ops.const import Const
 
 
-class LayoutChangeForConstantShapePaths(BackReplacementPattern):
-    enabled = False
-    graph_condition = [lambda graph: graph.graph['fw'] == 'tf',
+class LayoutChangeForConstantShapePaths(MiddleReplacementPattern):
+    enabled = True
+    graph_condition = [lambda graph: graph.graph['layout'] == 'NHWC',
                        lambda graph: graph.graph['cmd_params'].keep_shape_ops]
     force_clean_up = True
+
+    def run_after(self):
+        return [InsertLayoutPropagationTranspose]
+
+    def run_before(self):
+        return []
 
     @staticmethod
     def if_has_value(graph: Graph, node_name: str):
@@ -67,18 +75,20 @@ class LayoutChangeForConstantShapePaths(BackReplacementPattern):
             shape_of_shape_op_output = shape.out_node().shape
 
             if np.array_equal(shape_of_shape_op_output, [4]):
-                index = np.array([0, 2, 3, 1])
+                index = int64_array([0, 2, 3, 1])
             elif np.array_equal(shape_of_shape_op_output, [5]):
-                index = np.array([0, 2, 3, 4, 1])
+                index = int64_array([0, 2, 3, 4, 1])
             else:
                 continue
 
             const = Const(graph, {'value': index}).create_node()
+            axis_const = Const(graph, {'value': int64_array(0)}).create_node()
             gather = Gather(graph, {'name': shape.name + '/GatherNCHWtoNHWC'}).create_node()
 
             shape.out_port(0).get_connection().set_source(gather.out_port(0))
             shape.out_port(0).connect(gather.in_port(0))
             const.out_port(0).connect(gather.in_port(1))
+            axis_const.out_port(0).connect(gather.in_port(2))
 
             constant_shape_paths.add(gather.id)
             gather_inserted.append(gather.id)
@@ -103,15 +113,17 @@ class LayoutChangeForConstantShapePaths(BackReplacementPattern):
                 shape = in_port.data.get_shape()
 
                 if np.array_equal(shape, [4]):
-                    index = np.array([0, 3, 1, 2])
+                    index = int64_array([0, 3, 1, 2])
                 elif np.array_equal(shape, [5]):
-                    index = np.array([0, 2, 3, 4, 1])
+                    index = int64_array([0, 2, 3, 4, 1])
                 else:
                     continue
 
-                const = Const(graph, {'value': np.array(index)}).create_node()
+                const = Const(graph, {'value': index}).create_node()
+                axis_const = Const(graph, {'value': int64_array(0)}).create_node()
                 gather = Gather(graph, {'name': node.name + '/GatherNHWCtoNCHW'}).create_node()
 
                 in_port.get_source().connect(gather.in_port(0))
                 in_port.get_connection().set_source(gather.out_port(0))
                 const.out_port(0).connect(gather.in_port(1))
+                axis_const.out_port(0).connect(gather.in_port(2))

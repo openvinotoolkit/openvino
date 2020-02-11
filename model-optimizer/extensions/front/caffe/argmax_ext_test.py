@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -57,7 +57,8 @@ class TestArgMaxExt(unittest.TestCase):
             'out_max_val': True,
             'top_k': 100,
             'axis': 2,
-            'infer': ArgMaxOp.argmax_infer
+            'infer': ArgMaxOp.argmax_infer,
+            'remove_values_output': True,
         }
 
         for key in exp_res.keys():

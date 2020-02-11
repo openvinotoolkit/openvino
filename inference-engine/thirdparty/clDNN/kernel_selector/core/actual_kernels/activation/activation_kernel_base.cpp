@@ -28,16 +28,16 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
     std::vector<size_t> local;
     if (out.GetLayout() == DataLayout::bfzyx) {
         global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
-        local = GetOptimalLocalWorkGroupSizes(global);
+        local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
     } else if (out.GetLayout() == DataLayout::yxfb) {
         global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
-        local = GetOptimalLocalWorkGroupSizes(global);
+        local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
     } else if (out.GetLayout() == DataLayout::bfyx_f16) {
         global = {Align(out.Feature().v, 16) * out.Batch().v, out.X().v, out.Y().v};
         local = {16, 1, 1};
     } else {
         global = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
-        local = GetOptimalLocalWorkGroupSizes(global);
+        local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
     }
 
     runInfo.gws0 = global[0];
@@ -97,7 +97,8 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point,
+                     DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     if (newParams.gradient)
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});

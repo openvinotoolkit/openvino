@@ -165,8 +165,9 @@ uint16_t float_to_half(float value);
 class half_impl {
 public:
     half_impl() = default;
+
     template <typename T, typename = typename std::enable_if<!std::is_floating_point<T>::value>::type>
-    explicit half_impl(T data) : _data(data) {}
+    explicit half_impl(T data, int /*direct_creation_tag*/) : _data(data) {}
 
     operator uint16_t() const { return _data; }
     operator float() const {
@@ -175,6 +176,11 @@ public:
 
     explicit half_impl(float value)
         : _data(float_to_half(value))
+    {}
+
+    template <typename T, typename = typename std::enable_if<std::is_convertible<T, float>::value>::type>
+    explicit half_impl(T value)
+        : half_impl(static_cast<float>(value))
     {}
 
 private:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,9 @@ namespace vpu {
 namespace {
 
 class ReverseSequenceStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<ReverseSequenceStage>(*this);
@@ -61,20 +64,11 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseReverseSequence(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseReverseSequence(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 1);
 
-    auto stage = model->addNewStage<ReverseSequenceStage>(
-        layer->name,
-        StageType::ReverseSequence,
-        layer,
-        inputs,
-        outputs);
+    auto stage = model->addNewStage<ReverseSequenceStage>(layer->name, StageType::ReverseSequence, layer, inputs, outputs);
 
     auto input = inputs[0];
 

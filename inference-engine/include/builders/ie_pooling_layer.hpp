@@ -1,37 +1,37 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+/**
+ * @file
+ */
 
 #pragma once
 
 #include <builders/ie_layer_decorator.hpp>
 #include <ie_network.hpp>
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace InferenceEngine {
 namespace Builder {
 
 /**
+ * @deprecated Use ngraph API instead.
  * @brief The class represents a builder for Pooling layer
  */
-class INFERENCE_ENGINE_API_CLASS(PoolingLayer): public LayerDecorator {
+IE_SUPPRESS_DEPRECATED_START
+class INFERENCE_ENGINE_NN_BUILDER_API_CLASS(PoolingLayer): public LayerDecorator {
 public:
     /**
      * @brief The enum defines available pooling types
      */
-    enum PoolingType {
-        MAX = 1,
-        AVG = 2
-    };
+    enum PoolingType { MAX = 1, AVG = 2 };
 
     /**
      * @brief The enum defines available rounding types
      */
-    enum RoundingType {
-        CEIL = 1,
-        FLOOR = 2
-    };
+    enum RoundingType { CEIL = 1, FLOOR = 2 };
 
     /**
      * @brief The constructor creates a builder with the name
@@ -164,6 +164,7 @@ private:
     PoolingType type = MAX;
     RoundingType roundingType = CEIL;
 };
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace Builder
 }  // namespace InferenceEngine

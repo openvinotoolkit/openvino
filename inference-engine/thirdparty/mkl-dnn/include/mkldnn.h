@@ -356,6 +356,24 @@ mkldnn_status_t MKLDNN_API mkldnn_primitive_attr_set_output_scales(
         mkldnn_primitive_attr_t attr, int count, int mask,
         const float *scales);
 
+mkldnn_status_t MKLDNN_API mkldnn_primitive_attr_get_output_compensations(
+        const_mkldnn_primitive_attr_t attr, int *count, int *mask, const int32_t **compensations);
+
+mkldnn_status_t MKLDNN_API mkldnn_primitive_attr_set_output_compensations(
+        mkldnn_primitive_attr_t attr, int count, int mask, const int32_t *compensations);
+
+mkldnn_status_t MKLDNN_API mkldnn_primitive_attr_get_input_zero_points(
+        const_mkldnn_primitive_attr_t attr, int *count, int *mask, const uint8_t **zero_points);
+
+mkldnn_status_t MKLDNN_API mkldnn_primitive_attr_set_input_zero_points(
+        mkldnn_primitive_attr_t attr, int count, int mask, const uint8_t *zero_points);
+
+mkldnn_status_t MKLDNN_API mkldnn_primitive_attr_get_weights_zero_points(
+        const_mkldnn_primitive_attr_t attr, int *count, int *mask, const float **zero_points);
+
+mkldnn_status_t MKLDNN_API mkldnn_primitive_attr_set_weights_zero_points(
+        mkldnn_primitive_attr_t attr, int count, int mask, const float *zero_points);
+
 /** Returns @p post_ops for given @p attr.
  *
  * @warning
@@ -419,7 +437,7 @@ mkldnn_primitive_kind_t MKLDNN_API mkldnn_post_ops_get_kind(
  *      destination.
  */
 mkldnn_status_t MKLDNN_API mkldnn_post_ops_append_sum(
-        mkldnn_post_ops_t post_ops, float scale);
+        mkldnn_post_ops_t post_ops, float scale, mkldnn_data_type_t data_type);
 
 /** Gets the parameters of the accumulation (sum) post operation with index
  * @p index in the sequence of @p post_ops.
@@ -429,7 +447,7 @@ mkldnn_status_t MKLDNN_API mkldnn_post_ops_append_sum(
  *      operation, the function returns #mkldnn_invalid_arguments.
  */
 mkldnn_status_t MKLDNN_API mkldnn_post_ops_get_params_sum(
-        const_mkldnn_post_ops_t post_ops, int index, float *scale);
+        const_mkldnn_post_ops_t post_ops, int index, float *scale, mkldnn_data_type_t* data_type);
 
 /** Appends eltwise post operation to the @p post_ops with given parameters
  * @p kind, @p alpha, and @p beta (@sa mkldnn_eltwise_forward_desc_init and
@@ -513,6 +531,29 @@ mkldnn_status_t MKLDNN_API mkldnn_post_ops_append_binarization(
 mkldnn_status_t MKLDNN_API mkldnn_post_ops_get_params_binarization(
         const_mkldnn_post_ops_t post_ops, int index,
         mkldnn_alg_kind_t *alg, const float** weights_data, const float** output_mask);
+
+/** Appends quantization post operation to the @p post_ops with given parameters
+ * @p kind and @p weights (@sa mkldnn_quantization_forward_desc_init and
+ * mkldnn_quantization_desc_t).
+ *
+ * The kind of this post operation is #mkldnn_quantization.
+ *
+ * In the simplest case when the quantization is the only post operation, the
+ * computations would be:
+ * dst[] <- quantization_op ( op(...) ) // instead of dst[] <- op(...)
+ * where quantization_op is configured with given parameters.
+ */
+mkldnn_status_t MKLDNN_API mkldnn_post_ops_append_quantization(
+        mkldnn_post_ops_t post_ops, mkldnn_alg_kind_t alg, const float* crop_low, const float* crop_high,
+        const float* input_scale, const float* input_shift, const float* output_scale, const float* output_shift);
+
+/** Gets the quantization parameters of the post operation with index @p index in
+ * the sequence of @p post_ops.
+ */
+mkldnn_status_t MKLDNN_API mkldnn_post_ops_get_params_quantization(
+        const_mkldnn_post_ops_t post_ops, int index,
+        mkldnn_alg_kind_t *alg, const float** crop_low, const float** crop_high,
+        const float** input_scale, const float** input_shift, const float** output_scale, const float** output_shift);
 
 /** @} */
 
@@ -1813,19 +1854,29 @@ mkldnn_status_t MKLDNN_API mkldnn_dilated_binary_convolution_forward_desc_init(
 
 /** @} */
 
-/** @addtogroup c_api_binarization Binarization
+/** @addtogroup c_api_quantization quantization
  * A primitive to binarize input using different approaches
  * @{ */
 
-/** Initializes a @p binarization_desc for forward propagation using @p prop_kind
+/** Initializes a @p quantization_desc for forward propagation using @p prop_kind
  * (possible values are #mkldnn_forward_training or #mkldnn_forward_inference),
  * @p alg_kind algorithm and memory descriptors.
- * @sa mkldnn_binarization_desc_t for details */
+ * @sa mkldnn_quantization_desc_t for details */
 mkldnn_status_t MKLDNN_API mkldnn_binarization_forward_desc_init(
-        mkldnn_binarization_desc_t *binarization_desc, mkldnn_prop_kind_t prop_kind,
-        mkldnn_alg_kind_t alg_kind, const mkldnn_memory_desc_t *src_desc,
-        const mkldnn_memory_desc_t *dst_desc, const mkldnn_memory_desc_t *weights_desc,
-        const mkldnn_memory_desc_t *output_mask_desc);
+        mkldnn_quantization_desc_t *quantization_desc, mkldnn_prop_kind_t prop_kind,
+        mkldnn_alg_kind_t alg_kind, int axis,
+        const mkldnn_memory_desc_t *src_desc,
+        const mkldnn_memory_desc_t *thresholds_desc, const mkldnn_memory_desc_t *output_mask_desc,
+        const mkldnn_memory_desc_t *dst_desc);
+
+mkldnn_status_t MKLDNN_API mkldnn_quantization_forward_desc_init(
+        mkldnn_quantization_desc_t *quantization_desc, mkldnn_prop_kind_t prop_kind,
+        mkldnn_alg_kind_t alg_kind, int axis,
+        const mkldnn_memory_desc_t *src_desc,
+        const mkldnn_memory_desc_t *crop_low_desc, const mkldnn_memory_desc_t *crop_high_desc,
+        const mkldnn_memory_desc_t *input_scale_desc, const mkldnn_memory_desc_t *input_shift_desc,
+        const mkldnn_memory_desc_t *output_scale_desc, const mkldnn_memory_desc_t *output_shift_desc,
+        const mkldnn_memory_desc_t *dst_desc);
 
 /** @} */
 

@@ -98,6 +98,8 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::byxf:                 return "BYXF";
         case kernel_selector::DataLayout::fyxb:                 return "FYXB";
         case kernel_selector::DataLayout::bfyx_f16:             return "BFYX_F16";
+        case kernel_selector::DataLayout::b_fs_yx_fsv32:        return "B_FS_YX_FSV32";
+        case kernel_selector::DataLayout::b_fs_zyx_fsv32:       return "B_FS_ZYX_FSV32";
         case kernel_selector::DataLayout::bs_f_bsv8__af8:       return "BS_F_BSV8__AF8";
         case kernel_selector::DataLayout::bs_f_bsv16__af8:      return "BS_F_BSV16__AF8";
         case kernel_selector::DataLayout::bf8_xy16:             return "BF8_XY16";
@@ -111,6 +113,8 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::fs_b_yx_fsv32:        return "FS_B_YX_FSV32";
         case kernel_selector::DataLayout::bfwzyx:               return "BFWZYX";
         case kernel_selector::DataLayout::bfzyx_f16:            return "BFZYX_F16";
+        case kernel_selector::DataLayout::bfzyx_b16f16:         return "BFZYX_B16F16";
+        case kernel_selector::DataLayout::nv12:                 return "NV12";
         default:
             return "";
     }
@@ -287,44 +291,51 @@ std::string toString(MVNMode mode) {
 
 std::string toString(WeightsLayout layout) {
     switch (layout) {
-        case WeightsLayout::oi:                                     return "OI";
-        case WeightsLayout::io:                                     return "IO";
-        case WeightsLayout::oiyx:                                   return "OIYX";
-        case WeightsLayout::oyxi:                                   return "OYXI";
-        case WeightsLayout::iyxo:                                   return "IYXO";
-        case WeightsLayout::yxio:                                   return "YXIO";
-        case WeightsLayout::oiyx_o16:                               return "OIYX_O16";
-        case WeightsLayout::o_i_yx_i16_o16:                         return "O_I_YX_I16_O16";
-        case WeightsLayout::os_iyx_osv16:                           return "OS_IYX_OSV16";
-        case WeightsLayout::os_iyx_osv32:                           return "OS_IYX_OSV32";
-        case WeightsLayout::os_iyx_osv64:                           return "OS_IYX_OSV64";
-        case WeightsLayout::os_iyx_osv16_rotate_180:                return "OS_IYX_OSV16_ROTATE_180";
-        case WeightsLayout::os_i_osv16:                             return "OS_I_OSV16";
-        case WeightsLayout::os_i_osv8__ai8:                         return "OS_I_OSV8__AI8";
-        case WeightsLayout::os_i_osv16__ai8:                        return "OS_I_OSV16__AI8";
-        case WeightsLayout::i_yxs_os_yxsv2_osv16:                   return "I_YXS_OS_YXSV2_OSV16";
-        case WeightsLayout::iy_xs_os_xsv2_osv16__ao32:              return "IY_XS_OS_XSV2_OSV16__AO32";
-        case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:               return "IY_XS_OS_XSV2_OSV8__AO32";
-        case WeightsLayout::image_2d_weights_c4_fyx_b:              return "IMAGE_2D_WEIGHTS_C4_FYX_B";
-        case WeightsLayout::image_2d_weights_c1_b_fyx:              return "IMAGE_2D_WEIGHTS_C1_B_FYX";
-        case WeightsLayout::winograd_2x3_s1_weights:                return "WINOGRAD_2x3_S1_WEIGHTS";
-        case WeightsLayout::winograd_2x3_s1_fused_weights:          return "WINOGRAD_2x3_S1_FUSED_WEIGHTS";
-        case WeightsLayout::winograd_6x3_s1_fused_weights:          return "WINOGRAD_6x3_S1_FUSED_WEIGHTS";
-        case WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb: return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB";
-        case WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb: return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB";
-        case WeightsLayout::dlstm_dir_io:                           return "DLSTM_DIR_IO";
-        case WeightsLayout::os_is_yx_isa8_osv8_isv4:                return "OS_IS_YX_ISA8_OSV8_ISV4";
-        case WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4:  return "OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
-        case WeightsLayout::is_o_yx_isv32:                          return "IS_O_YX_ISV32";
-        case WeightsLayout::is_o32_yx_isv32_swizzled_by_4:          return "IS_O32_YX_ISV32_SWIZZLED_BY_4";
-        case WeightsLayout::os_is_y_x8_osv8_isv4:                   return "OS_IS_Y_X8_OSV8_ISV4";
-        case WeightsLayout::os_is_yx_osv16_isv4:                    return "OS_IS_YX_OSV16_ISV4";
-        case WeightsLayout::os_is_y_x8_osv8_isv4_swizzled_by_4:     return "OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4";
-        case WeightsLayout::os_is_yx_osv32_isv32p:                  return "OS_IS_YX_OSV32_ISV32P";
-        case WeightsLayout::oizyx:                                  return "OIZYX";
-        case WeightsLayout::bf_lyx_yx:                              return "BF_LYX_YX";
-        case WeightsLayout::o_i_zyx_i16_o16:                        return "O_I_ZYX_I16_O16";
-        case WeightsLayout::i_o_zyx_o16_i16:                        return "I_O_ZYX_O16_I16";
+        case WeightsLayout::oi:                                          return "OI";
+        case WeightsLayout::io:                                          return "IO";
+        case WeightsLayout::oiyx:                                        return "OIYX";
+        case WeightsLayout::oyxi:                                        return "OYXI";
+        case WeightsLayout::iyxo:                                        return "IYXO";
+        case WeightsLayout::yxio:                                        return "YXIO";
+        case WeightsLayout::oiyx_o16:                                    return "OIYX_O16";
+        case WeightsLayout::o_i_yx_i16_o16:                              return "O_I_YX_I16_O16";
+        case WeightsLayout::os_iyx_osv16:                                return "OS_IYX_OSV16";
+        case WeightsLayout::os_iyx_osv32:                                return "OS_IYX_OSV32";
+        case WeightsLayout::os_iyx_osv64:                                return "OS_IYX_OSV64";
+        case WeightsLayout::os_iyx_osv16_rotate_180:                     return "OS_IYX_OSV16_ROTATE_180";
+        case WeightsLayout::os_i_osv16:                                  return "OS_I_OSV16";
+        case WeightsLayout::os_i_osv8__ai8:                              return "OS_I_OSV8__AI8";
+        case WeightsLayout::os_i_osv16__ai8:                             return "OS_I_OSV16__AI8";
+        case WeightsLayout::i_yxs_os_yxsv2_osv16:                        return "I_YXS_OS_YXSV2_OSV16";
+        case WeightsLayout::iy_xs_os_xsv2_osv16__ao32:                   return "IY_XS_OS_XSV2_OSV16__AO32";
+        case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:                    return "IY_XS_OS_XSV2_OSV8__AO32";
+        case WeightsLayout::image_2d_weights_c4_fyx_b:                   return "IMAGE_2D_WEIGHTS_C4_FYX_B";
+        case WeightsLayout::image_2d_weights_c1_b_fyx:                   return "IMAGE_2D_WEIGHTS_C1_B_FYX";
+        case WeightsLayout::winograd_2x3_s1_weights:                     return "WINOGRAD_2x3_S1_WEIGHTS";
+        case WeightsLayout::winograd_2x3_s1_fused_weights:               return "WINOGRAD_2x3_S1_FUSED_WEIGHTS";
+        case WeightsLayout::winograd_6x3_s1_fused_weights:               return "WINOGRAD_6x3_S1_FUSED_WEIGHTS";
+        case WeightsLayout::image_2d_weights_winograd_6x3_s1_fbxyb:      return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB";
+        case WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb:      return "IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB";
+        case WeightsLayout::dlstm_dir_io:                                return "DLSTM_DIR_IO";
+        case WeightsLayout::os_is_yx_isa8_osv8_isv4:                     return "OS_IS_YX_ISA8_OSV8_ISV4";
+        case WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4:       return "OS_IS_YX_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
+        case WeightsLayout::os_is_zyx_isa8_osv8_isv4:                    return "OS_IS_ZYX_ISA8_OSV8_ISV4";
+        case WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:  return "OS_IS_YX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
+        case WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4: return "OS_IS_ZYX_OSA4_ISA8_OSV8_ISV4_SWIZZLED_BY_4";
+        case WeightsLayout::is_o_yx_isv32:                               return "IS_O_YX_ISV32";
+        case WeightsLayout::is_o32_yx_isv32_swizzled_by_4:               return "IS_O32_YX_ISV32_SWIZZLED_BY_4";
+        case WeightsLayout::os_is_y_x8_osv8_isv4:                        return "OS_IS_Y_X8_OSV8_ISV4";
+        case WeightsLayout::os_is_yx_osv16_isv4:                         return "OS_IS_YX_OSV16_ISV4";
+        case WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2:           return "OS_IS_YX_OSV32_ISV4_SWIZZLED_BY_2";
+        case WeightsLayout::os_is_y_x8_osv8_isv4_swizzled_by_4:          return "OS_IS_Y_X8_OSV8_ISV4_SWIZZLED_BY_4";
+        case WeightsLayout::os_is_yx_osv32_isv32p:                       return "OS_IS_YX_OSV32_ISV32P";
+        case WeightsLayout::oizyx:                                       return "OIZYX";
+        case WeightsLayout::bf_lyx_yx:                                   return "BF_LYX_YX";
+        case WeightsLayout::o_i_zyx_i16_o16:                             return "O_I_ZYX_I16_O16";
+        case WeightsLayout::i_o_zyx_o16_i16:                             return "I_O_ZYX_O16_I16";
+        case WeightsLayout::o_i_zyx_i8_o16_i2:                           return "O_I_ZYX_I8_O16_I2";
+        case WeightsLayout::ozyxi_o16:                                   return "OZYXI_O16";
+        case WeightsLayout::os_is_osv32_isv32_swizzled_by_4:             return "OS_IS_OSV32_ISV32_SWIZZLED_BY_4";
         default: throw std::invalid_argument("Failed to convert WeightsLayout " + std::to_string(layout) + " to string");
     }
 }
@@ -361,10 +372,11 @@ std::string toString(GatherAxis a) {
     }
 }
 
-std::string toString(SampleType type) {
+std::string toString(ResampleType type) {
     switch (type) {
-        case SampleType::NEAREST:  return "SAMPLE_TYPE_NEAREST";
-        case SampleType::BILINEAR: return "SAMPLE_TYPE_BILINEAR";
+        case ResampleType::NEAREST_NEIGHBOR:  return "SAMPLE_TYPE_NEAREST";
+        case ResampleType::BILINEAR_INTERP: return "SAMPLE_TYPE_INTERP";
+        case ResampleType::CAFFE_BILINEAR_INTERP: return "SAMPLE_TYPE_CAFFE_INTERP";
         default: return "";
     }
 }

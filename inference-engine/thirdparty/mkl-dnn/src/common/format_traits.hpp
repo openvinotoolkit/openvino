@@ -173,6 +173,7 @@ DECL_TRAITS(Ohwi16o, wei, _16o, 4, 2);
 /* wei: 5D */
 DECL_TRAITS(dhwio, wei, _, 5, 3);
 DECL_TRAITS(oidhw, wei, _, 5, 3);
+DECL_TRAITS(dhwio_s8s8, wei, _, 5, 3);
 DECL_TRAITS(OIdhw4i4o, wei, _4i4o, 5, 3);
 DECL_TRAITS(Odhwi4o, wei, _4o, 5, 3);
 DECL_TRAITS(OIdhw8i8o, wei, _8i8o, 5, 3);
@@ -188,6 +189,10 @@ DECL_TRAITS(oIdhw16i, wei, _16i, 5, 3);
 DECL_TRAITS(OIdhw8i16o2i, wei, _8i16o2i, 5, 3);
 DECL_TRAITS(OIdhw8o16i2o, wei, _8o16i2o, 5, 3);
 DECL_TRAITS(IOdhw8o16i2o, wei, _8o16i2o, 5, 3);
+DECL_TRAITS(OIdhw4i16o4i, wei, _4i16o4i, 5, 3);
+DECL_TRAITS(OIdhw4i16o4i_s8s8, wei, _4i16o4i_s8s8, 5, 3);
+DECL_TRAITS(OdhIw8o4i, wei, _8o4i, 5, 3);
+DECL_TRAITS(OdhIw8o4i_s8s8, wei, _8o4i, 5, 3);
 
 /* gwei: 4D */
 DECL_TRAITS(goiw, gwei, _, 4, 1);
@@ -239,11 +244,14 @@ DECL_TRAITS(gOhwi8o, gwei, _8o, 5, 2);
 DECL_TRAITS(gOhwi4o, gwei, _4o, 5, 2);
 DECL_TRAITS(gOhwi16o, gwei, _16o, 5, 2);
 DECL_TRAITS(Goihw8g, gwei, _8g, 5, 2);
+DECL_TRAITS(Goihw8g_s8s8, gwei, _8g, 5, 2);
 DECL_TRAITS(Goihw16g, gwei, _16g, 5, 2);
 DECL_TRAITS(Goihw16g_s8s8, gwei, _16g_s8s8, 5, 2);
 
 /* gwei: 6D */
 DECL_TRAITS(goidhw, gwei, _, 6, 3);
+DECL_TRAITS(dhwigo, gwei, _, 6, 3);
+DECL_TRAITS(dhwigo_s8s8, gwei, _, 6, 3);
 DECL_TRAITS(gOIdhw4i4o, gwei, _4i4o, 6, 3);
 DECL_TRAITS(gOIdhw8i8o, gwei, _8i8o, 6, 3);
 DECL_TRAITS(gOIdhw8o8i, gwei, _8o8i, 6, 3);
@@ -253,9 +261,17 @@ DECL_TRAITS(gOIdhw16o16i, gwei, _16o16i, 6, 3);
 DECL_TRAITS(gOIdhw8i16o2i, gwei, _8i16o2i, 6, 3);
 DECL_TRAITS(gOIdhw8o16i2o, gwei, _8o16i2o, 6, 3);
 DECL_TRAITS(gIOdhw8o16i2o, gwei, _8o16i2o, 6, 3);
+DECL_TRAITS(gOIdhw4i16o4i, gwei, _4i16o4i, 6, 3);
+DECL_TRAITS(gOIdhw4i16o4i_s8s8, gwei, _4i16o4i_s8s8, 6, 3);
 DECL_TRAITS(gOidhw4o, gwei, _4o, 6, 3);
 DECL_TRAITS(gOidhw16o, gwei, _16o, 6, 3);
 DECL_TRAITS(gOdhwi16o, gwei, _16o, 6, 3);
+DECL_TRAITS(gOdhIw8o4i, gwei, _8o4i, 6, 3);
+DECL_TRAITS(gOdhIw8o4i_s8s8, gwei, _8o4i, 6, 3);
+DECL_TRAITS(Goidhw8g, gwei, _8g, 6, 3);
+DECL_TRAITS(Goidhw8g_s8s8, gwei, _8g, 6, 3);
+DECL_TRAITS(Goidhw16g, gwei, _16g, 6, 3);
+DECL_TRAITS(Goidhw16g_s8s8, gwei, _16g_s8s8, 6, 3);
 
 /* rnn */
 DECL_TRAITS(ntc, rnn, _, 3, 0);

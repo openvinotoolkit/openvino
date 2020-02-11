@@ -24,8 +24,8 @@
 
 namespace cldnn {
 
-event event::create_user_event(const engine& engine, uint16_t stream_id) {
-    return event(engine.get()->create_user_event(stream_id).detach());
+event event::create_user_event(const engine& engine, uint32_t net_id) {
+    return event(engine.get()->create_user_event(net_id).detach());
 }
 
 void event::wait() const {

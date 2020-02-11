@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_graph.h"
 
 #include "test_graph.hpp"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
-#include <extension/ext_list.hpp>
+#include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 
 
@@ -162,12 +161,8 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-            MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(net_reader.getNetwork());
 
             auto& nodes = graph.getNodes();
             nodes = graph.getNodes();
@@ -416,12 +411,8 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-            MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(net_reader.getNetwork());
 
             // Input Indexes
             InferenceEngine::Blob::Ptr srcIdx;
@@ -457,7 +448,7 @@ protected:
             graph.Infer(srcs, outputBlobs);
 
             //  Check results
-            if (memcmp((*output).data(), &p.ref[0], p.ref.size()) != 0)
+            if (memcmp((*output).data(), &p.ref[0], output->byteSize()) != 0)
                 FAIL() << "Wrong result with compare TF reference!";
         } catch (const InferenceEngine::details::InferenceEngineException &e) {
             FAIL() << e.what();
@@ -518,7 +509,7 @@ class MKLDNNCPUExtGatherHolesTests : public TestsCommon, public WithParamInterfa
             <output>
                 <port id="3">
                     <dim>2</dim>
-                    <dim>5</dim>
+                    <dim>1</dim>
                     <dim>2</dim>
                     <dim>2</dim>
                 </port>
@@ -557,7 +548,7 @@ class MKLDNNCPUExtGatherHolesTests : public TestsCommon, public WithParamInterfa
                 </port>
                 <port id="2">
                     <dim>2</dim>
-                    <dim>5</dim>
+                    <dim>1</dim>
                     <dim>2</dim>
                     <dim>2</dim>
                 </port>
@@ -565,7 +556,7 @@ class MKLDNNCPUExtGatherHolesTests : public TestsCommon, public WithParamInterfa
             <output>
                 <port id="3">
                     <dim>2</dim>
-                    <dim>7</dim>
+                    <dim>3</dim>
                     <dim>2</dim>
                     <dim>2</dim>
                 </port>
@@ -623,12 +614,8 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-            MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(net_reader.getNetwork());
 
             // Input Indexes
             InferenceEngine::Blob::Ptr srcIdx;
@@ -649,6 +636,15 @@ protected:
             if (srcDictPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<float>.";
 
+            //  Input3
+            InferenceEngine::SizeVector src3_dim = { 2, 1, 2, 2 };
+            InferenceEngine::Blob::Ptr src3 = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, src3_dim, InferenceEngine::TensorDesc::getLayoutByDims(src3_dim) });
+            src3->allocate();
+            memcpy(src3->buffer(), &p.dct[0], sizeof(float) * src3_dim.size());
+            auto* src3Ptr = dynamic_cast<InferenceEngine::TBlob<float>*>(src3.get());
+            if (src3Ptr == nullptr)
+                FAIL() << "Cannot cast blob to TBlob<float>.";
+
             //  Output Data
             InferenceEngine::OutputsDataMap out;
             out = net_reader.getNetwork().getOutputsInfo();
@@ -663,11 +659,13 @@ protected:
             InferenceEngine::BlobMap srcs;
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("InputDictionary", srcDict));
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("InputText", srcIdx));
-            srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("Input3", srcIdx));
+            srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("Input3", src3));
             graph.Infer(srcs, outputBlobs);
 
             //  Check results
-            if (memcmp((*output).data(), &p.ref[0], p.ref.size()) != 0)
+            if (memcmp((*output).data(), &p.ref[0], 8 * sizeof(float)) != 0)
+                FAIL() << "Wrong result with compare TF reference!";
+            if (memcmp(&((float*)(*output).data())[12], &p.ref[8], 8 * sizeof(float)) != 0)
                 FAIL() << "Wrong result with compare TF reference!";
         }
         catch (const InferenceEngine::details::InferenceEngineException &e) {

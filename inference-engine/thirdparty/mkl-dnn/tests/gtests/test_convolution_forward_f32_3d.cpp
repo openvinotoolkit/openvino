@@ -19,16 +19,15 @@
 
 #include "mkldnn.hpp"
 #include "test_convolution_forward_common_3d.hpp"
-#include "test_convolution_forward_common.hpp"
 namespace mkldnn {
 
-using convolution_test = convolution_forward_test<float, float, float, float>;
 using convolution_test_3d = convolution_forward_test_3d<float, float, float, float>;
 
 TEST_P(convolution_test_3d, TestConvolution)
 {
 }
 
+#define _3D
 #define FP32
 #define DIRECTION_FORWARD
 #include "convolution_common.h"

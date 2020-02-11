@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,44 +18,50 @@
 namespace vpu {
 namespace MyriadPlugin {
 
-class Engine : public InferenceEngine::InferencePluginInternal {
+class Engine : public ie::InferencePluginInternal {
 public:
     explicit Engine(std::shared_ptr<IMvnc> mvnc);
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore * core, InferenceEngine::ICNNNetwork &network,
-                                                                       const std::map<std::string, std::string> &config) override;
-
-    /**
-     * @brief myriad plugin runs reshape internally so it needs reshapable network
-     * @param network
-     * @return
-     */
-    InferenceEngine::ICNNNetwork&  RemoveConstLayers(InferenceEngine::ICNNNetwork &network) override {
-        return network;
-    }
-
-    void SetConfig(const std::map<std::string, std::string> &config) override;
-
-    InferenceEngine::Parameter GetConfig(const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter>& options) const override;
-
-    /**
-     * @deprecated Use the version with config parameter
-     */
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network, InferenceEngine::QueryNetworkResult& res) const override;
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
-                      const std::map<std::string, std::string>& config, InferenceEngine::QueryNetworkResult& res) const override;
-
-    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(const std::string &modelFileName, const std::map<std::string, std::string> &config) override;
-
-    InferenceEngine::Parameter GetMetric(const std::string& name,
-        const std::map<std::string, InferenceEngine::Parameter> & options) const override;
-
-    ~Engine() {
+    ~Engine() override {
         MyriadExecutor::closeDevices(_devicePool);
     }
 
+    void SetConfig(const std::map<std::string, std::string>& config) override;
+
+    ie::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
+            const ie::ICore* core,
+            ie::ICNNNetwork& network,
+            const std::map<std::string, std::string>& config) override;
+
+    void QueryNetwork(
+            const ie::ICNNNetwork& network,
+            const std::map<std::string, std::string>& config,
+            ie::QueryNetworkResult& res) const override;
+
+    ie::IExecutableNetwork::Ptr ImportNetwork(
+            const std::string& modelFileName,
+            const std::map<std::string, std::string>& config) override;
+
+    ie::ExecutableNetwork ImportNetwork(
+            std::istream& model,
+            const std::map<std::string, std::string>& config) override;
+
+    ie::Parameter GetConfig(
+            const std::string& name,
+            const std::map<std::string, ie::Parameter>& options) const override;
+
+    ie::Parameter GetMetric(
+            const std::string& name,
+            const std::map<std::string, ie::Parameter>& options) const override;
+
+    // Myriad plugin runs reshape internally so it needs reshapable network
+    ie::ICNNNetwork& RemoveConstLayers(ie::ICNNNetwork& network) override {
+        return network;
+    }
+    std::shared_ptr<ICNNNetwork> ConvertAndCloneNetwork(ICNNNetwork& network) override;
+
 private:
+    MyriadConfig _parsedConfig;
     std::vector<DevicePtr> _devicePool;
     std::shared_ptr<IMvnc> _mvnc;
     std::shared_ptr<MyriadMetrics> _metrics;

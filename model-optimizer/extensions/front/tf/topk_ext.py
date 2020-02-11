@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,20 +22,20 @@ class TopKExtractor(FrontExtractorOp):
     op = 'TopK'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         sort = 'value' if node.pb.attr['sorted'] else 'none'
         TopK.update_node_stat(node, {'mode': 'max', 'axis': -1, 'sort': sort, 'k' : node.pb.attr['k'].i})
 
-        return __class__.enabled
+        return cls.enabled
 
 
 class TopKV2Extractor(FrontExtractorOp):
     op = 'TopKV2'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         sort = 'value' if node.pb.attr['sorted'] else 'none'
         TopK.update_node_stat(node, {'mode': 'max', 'axis': -1, 'sort': sort})
-        return __class__.enabled
+        return cls.enabled

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,13 +15,17 @@
 """
 
 import unittest
+from argparse import Namespace
 
 from extensions.front.tf.pad_ext import PadFrontExtractor
+from mo.graph.graph import Graph
 from mo.utils.unittest.extractors import PB
 
 
 class TestPad(unittest.TestCase):
     def test_no_pads(self):
-        node = PB({})
+        graph = Graph()
+        graph.graph['cmd_params'] = Namespace(generate_experimental_IR_V10=True)
+        node = PB({'graph': graph})
         PadFrontExtractor.extract(node)
         self.assertTrue(not 'pads' in node or node['pads'] is None)

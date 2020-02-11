@@ -13,6 +13,9 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
+#include "include/include_all.cl"
+#include "include/unit_type.cl"
+
 #define WITH_ELTWISE 1
 
 #if WITH_ELTWISE == 1
@@ -59,7 +62,10 @@ KERNEL(gen9_common_conv_fwd_f32_kernel)(
 #if CALIBRATION_TERM
     __global float* calibrations,
 #endif
-    uint split_idx) 
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
+#endif
+    uint split_idx)
 {
 
 const float eltwise_alpha = 0;
@@ -778,6 +784,11 @@ const float sum_scale = 1;
 #if OW % OW_BLOCK != 0
     if (ow + OW_BLOCK > OW) {
         for (int i = 0; i < OW - OW_LAST; i++) {
+
+#if HAS_FUSED_OPS
+            { FUSED_OPS_SCALAR0; blockC00[i] = FINAL_NAME_SCALAR0; }
+#endif
+
             intel_sub_group_block_write(
                     (__global unsigned int *)(&dst_write0[i * OC_BLOCK]),
                     as_uint(blockC00[i]));
@@ -787,14 +798,29 @@ const float sum_scale = 1;
 #if OW_BLOCK != 8 && OW_BLOCK != 16
         __attribute__((opencl_unroll_hint(OW_BLOCK))) // attr:no-format
         for (int i = 0; i < OW_BLOCK; i++) {
+
+#if HAS_FUSED_OPS
+            { FUSED_OPS_SCALAR0; blockC00[i] = FINAL_NAME_SCALAR0; }
+#endif
+
             intel_sub_group_block_write(
                     (__global unsigned int *)(&dst_write0[i * OC_BLOCK]),
                     as_uint(blockC00[i]));
         }
 #else
+
+#if HAS_FUSED_OPS
+    { FUSED_OPS_VEC0; blockC00 = FINAL_NAME_VEC0; }
+#endif
+
     intel_sub_group_block_write8(
             (__global unsigned int *)(&dst_write0[0]), as_uint8(blockC00));
 #if OW_BLOCK == 16
+
+#if HAS_FUSED_OPS
+    { FUSED_OPS_VEC1; blockC01 = FINAL_NAME_VEC1; }
+#endif
+
     intel_sub_group_block_write8(
             (__global unsigned int *)(&dst_write0[8 * OC_BLOCK]),
             as_uint8(blockC01));

@@ -57,7 +57,8 @@ struct _jit_uni_planar_convolution_fwd_t: public cpu_primitive_t {
                         this->desc()->weights_desc.data_type,
                         this->desc()->dst_desc.data_type)
                 && IMPLICATION(this->with_bias(),
-                        data_type::f32 == this->desc()->bias_desc.data_type);
+                        data_type::f32 == this->desc()->bias_desc.data_type)
+                && !this->attr()->has_asymmetric_quantization();
             if (!ok) return status::unimplemented;
 
             status_t sts = jit_uni_planar_conv_fwd_kernel_f32<isa>::init_conf(jcp_, *this->desc(),

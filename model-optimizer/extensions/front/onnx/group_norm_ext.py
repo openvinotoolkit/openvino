@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,15 +21,29 @@ from mo.front.onnx.extractors.utils import onnx_attr
 from mo.ops.group_norm import GroupNorm
 
 
-class GroupNormExtractor(FrontExtractorOp):
+class ExperimentalDetectronGroupNorm(FrontExtractorOp):
     op = 'ExperimentalDetectronGroupNorm'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = {
             'eps': np.array(onnx_attr(node, 'eps', 'f', default=1e-6), dtype=np.float),
             'num_groups': np.array(onnx_attr(node, 'num_groups', 'i', default=1), dtype=np.int64),
         }
         GroupNorm.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
+
+
+class GroupNormExtractor(FrontExtractorOp):
+    op = 'GroupNorm'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        attrs = {
+            'eps': np.array(onnx_attr(node, 'eps', 'f', default=1e-6), dtype=np.float),
+            'num_groups': np.array(onnx_attr(node, 'num_groups', 'i', default=1), dtype=np.int64),
+        }
+        GroupNorm.update_node_stat(node, attrs)
+        return cls.enabled

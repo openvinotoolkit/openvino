@@ -72,14 +72,6 @@ std::string binary_convolution_inst::to_string(binary_convolution_node const& no
     conv_info.add("dilation", dilation.to_string());
     conv_info.add("out size", desc->output_size.to_string());
 
-    size_t index = 0;
-    for (auto& fused_desc : node.get_fused_primitives()) {
-        json_composite fused_node_info;
-        fused_node_info.add("id", fused_desc.prim->id);
-        fused_node_info.add("dependencies", fused_desc.deps);
-        fused_node_info.add("dep start_idx", fused_desc.dep_start_idx);
-        conv_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
-    }
     node_info->add("binary convolution info", conv_info);
     node_info->dump(primitive_description);
 

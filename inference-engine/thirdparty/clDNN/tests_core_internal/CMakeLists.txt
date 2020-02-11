@@ -74,6 +74,11 @@ file(GLOB __CLDNN_Sources__gtest
     "${__CLDNN_Directory__gtest}/*.cc"
   )
 
+if(UNIX)
+    set_source_files_properties(${__CLDNN_Sources__gtest} PROPERTIES
+        COMPILE_FLAGS "-Wno-undef")
+endif()
+
 set(__CLDNN_AllSources
     ${__CLDNN_Sources__main}
     ${__CLDNN_Sources__test_cases}
@@ -99,10 +104,12 @@ include_directories(
     "${CLDNN__KERNEL_SELECTOR_DIR}/core"
     "${CLDNN__KERNEL_SELECTOR_DIR}/core/common"
     "${CLDNN__KERNEL_SELECTOR_DIR}/common"
-    "${CLDNN__GTEST_DIR}"
     "${__CLDNN_Directory__test_utils}"
     "${CMAKE_CURRENT_SOURCE_DIR}"
   )
+
+include_directories(SYSTEM
+    "${CLDNN__GTEST_DIR}")
 
 # =================================== Link targets and dependencies ====================================
 

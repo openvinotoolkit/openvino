@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,13 @@
 #include <algorithm>
 #include <tuple>
 
-#include <vpu/custom_layer.hpp>
+#include <vpu/frontend/custom_layer.hpp>
 #include <vpu/utils/simple_math.hpp>
 
+
 namespace vpu {
+
+static void calcSizesFromParams(const DataDesc &desc, const SmallVector<std::string> &bufferSizeRules, SmallVector<int, 3> &sizes);
 
 namespace {
 
@@ -27,7 +30,7 @@ public:
     }
 
     const void* getRaw() const override {
-        IE_ASSERT(_desc.totalDimSize() * _desc.elemSize() == _blob.length());
+        IE_ASSERT(desc().totalDimSize() * desc().elemSize() == _blob.length());
         return _blob.data();
     }
 
@@ -36,6 +39,9 @@ private:
 };
 
 class CustomStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<CustomStage>(*this);
@@ -112,8 +118,8 @@ private:
         // GWG, LWG, Offs
         //
 
-        for (auto x : gws) {
-            serializer.append(static_cast<uint32_t>(x));
+        for (int i = 0; i < gws.size(); ++i) {
+            serializer.append(static_cast<uint32_t>(gws[i]/lws[i]));
         }
 
         for (auto x : lws) {
@@ -127,11 +133,17 @@ private:
         serializer.append(static_cast<uint32_t>(customLayer->maxShaves()));
 
         //
-        // Entry point
+        // Kernel Id
         //
+
+        serializer.append(static_cast<uint32_t>(customLayer->kernelId()));
+
+        //
+        // Number of inputs
+        //
+
         IE_ASSERT(customLayer->stageNumInputs() >= 0);
         serializer.append(static_cast<uint32_t>(customLayer->stageNumInputs()));
-        serializer.append(static_cast<uint32_t>(customLayer->kernelAddress(lws[0])));
 
         //
         // Total number of blobs
@@ -154,7 +166,7 @@ private:
             b2b[kp.argName] = kp;
         }
 
-        IE_ASSERT(_origLayer != nullptr);
+        IE_ASSERT(origLayer() != nullptr);
 
         for (const auto& kp : customLayer->parameters()) {
             const auto& parameter = b2b[kp];
@@ -169,7 +181,7 @@ private:
                     if (ports.find(kp) == ports.end()) {
                         VPU_THROW_EXCEPTION
                             << "Unable to bind parameter " << parameter.argName << " for "
-                            << _origLayer->type <<" layer. Name is: " << _origLayer->name;
+                            << origLayer()->type <<" layer. Name is: " << origLayer()->name;
                     }
                     int id = ports.find(kp)->second;
                     serializer.append(static_cast<uint32_t>(0));
@@ -180,8 +192,8 @@ private:
                 case CustomParamType::Int:
                 case CustomParamType::Float:
                 {
-                    if (_origLayer->params.find(parameter.irSource) != _origLayer->params.end()) {
-                        std::stringstream parameterStream(_origLayer->params[parameter.irSource]);
+                    if (origLayer()->params.find(parameter.irSource) != origLayer()->params.end()) {
+                        std::stringstream parameterStream(origLayer()->params[parameter.irSource]);
                         std::string param;
                         for (int i = 0; i <= parameter.portIndex; i++) {
                             getline(parameterStream, param, ',');
@@ -203,14 +215,14 @@ private:
 
                             IE_ASSERT(dim.length() == 1)
                                     << "Unable to deduce parameter " << parameter.argName << " for "
-                                    << _origLayer->type <<" layer. Name is: " << _origLayer->name;
+                                    << origLayer()->type <<" layer. Name is: " << origLayer()->name;
                             char dimLetter = dim[0];
 
                             ie::DataPtr origData;
                             if (blob == "I") {
-                                origData = _origLayer->insData[parameter.portIndex].lock();
+                                origData = origLayer()->insData[parameter.portIndex].lock();
                             } else {
-                                origData = _origLayer->outData[parameter.portIndex];
+                                origData = origLayer()->outData[parameter.portIndex];
                             }
                             IE_ASSERT(origData != nullptr);
 
@@ -220,7 +232,7 @@ private:
                             if (ndims > 4)
                                 VPU_THROW_EXCEPTION
                                     << "Unable to deduce parameter " << parameter.argName << " for "
-                                    << _origLayer->type <<" layer. Name is: " << _origLayer->name;
+                                    << origLayer()->type <<" layer. Name is: " << origLayer()->name;
 
                             const std::map<char, int> vars = {
                                 { 'b', 0 }, { 'B', 0 },
@@ -238,7 +250,7 @@ private:
                             } else {
                                 VPU_THROW_EXCEPTION
                                     << "Unable to deduce parameter " << parameter.argName << " for "
-                                    << _origLayer->type <<" layer. Name is: " << _origLayer->name;
+                                    << origLayer()->type <<" layer. Name is: " << origLayer()->name;
                             }
 
                             break;
@@ -256,16 +268,34 @@ private:
                             catch (const std::invalid_argument&) {
                                 VPU_THROW_EXCEPTION
                                     << "Unable to deduce parameter " << parameter.argName << " for "
-                                    << _origLayer->type <<" layer. Name is: " << _origLayer->name
+                                    << origLayer()->type <<" layer. Name is: " << origLayer()->name
                                     <<", parameter is: " << parameter.irSource;
                             }
                         }
                     }
                 }
+                case CustomParamType::LocalData:
+                {
+                    ie::DataPtr origData;
+                    if (parameter.dimSource == CustomDimSource::Input) {
+                        origData = origLayer()->insData[parameter.dimIdx].lock();
+                    } else {
+                        origData = origLayer()->outData[parameter.dimIdx];
+                    }
+                    IE_ASSERT(origData != nullptr);
+
+                    SmallVector<int, 3> sizes;
+                    calcSizesFromParams(DataDesc(origData->getTensorDesc()), parameter.bufferSizeRules, sizes);
+
+                    serializer.append(static_cast<int32_t>(sizes[0] * sizes[1] * sizes[2]));
+                    serializer.append(static_cast<int32_t>(-3));
+
+                    break;
+                }
                 default:
                     VPU_THROW_EXCEPTION
                         << "Unable to deduce parameter " << parameter.argName << " for "
-                        << _origLayer->type <<" layer. Name is: " << _origLayer->name;
+                        << origLayer()->type <<" layer. Name is: " << origLayer()->name;
             }
         }
     }
@@ -274,15 +304,15 @@ private:
         IE_ASSERT(numTempBuffers() == 1);
 
         for (const auto& inEdge : inputEdges()) {
-            inEdge->input()->serializeOldBuffer(handle_from_this(), serializer);
+            inEdge->input()->serializeNewBuffer(serializer);
         }
 
         for (const auto& outEdge : outputEdges()) {
-            outEdge->output()->serializeOldBuffer(handle_from_this(), serializer);
+            outEdge->output()->serializeNewBuffer(serializer);
         }
 
         for (const auto& tempEdge : tempBufferEdges()) {
-            tempEdge->tempBuffer()->serializeOldBuffer(handle_from_this(), serializer);
+            tempEdge->tempBuffer()->serializeNewBuffer(serializer);
         }
     }
 };
@@ -336,11 +366,7 @@ static CustomLayer::Ptr chooseSuitable(const std::vector<CustomLayer::Ptr>& cust
     return CustomLayer::Ptr(nullptr);
 }
 
-void FrontEnd::parseCustom(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseCustom(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) {
     IE_ASSERT(layer != nullptr);
     IE_ASSERT(outputs.size() == 1);
 
@@ -416,8 +442,8 @@ void FrontEnd::parseCustom(
         formats.emplace_back(CustomDataFormat::Any);
 
         // Get kernel binary
-        auto kernelNode = kernelNodes.find(customLayer->kernelBinary());
-        if (kernelNode != kernelNodes.end()) {
+        auto kernelNode = _kernelNodes.find(customLayer->kernelBinary());
+        if (kernelNode != _kernelNodes.end()) {
             stageInputs.emplace_back((kernelNode->second));
         } else {
             auto kernelBinaryDesc = DataDesc({customLayer->kernelBinary().length()});
@@ -428,7 +454,7 @@ void FrontEnd::parseCustom(
                 kernelBinaryDesc,
                 std::make_shared<KernelBinaryContent>(customLayer->kernelBinary()));
             stageInputs.emplace_back((kernelBinary));
-            kernelNodes[customLayer->kernelBinary()] = kernelBinary;
+            _kernelNodes[customLayer->kernelBinary()] = kernelBinary;
         }
 
         DataVector stageOutputs;

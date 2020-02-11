@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,40 +25,45 @@ from mo.middle.passes.fusing.helpers import get_value_in_port, get_tensor_in_por
 from mo.middle.pattern_match import check_node_usages_out_of_match
 from mo.ops.const import Const
 from mo.ops.eltwise import Eltwise
-from mo.ops.power import Power
+from mo.ops.power import AttributedPower
 
-simple_eltwise_ops = ['Pow', 'Add', 'Multiply', 'Maximum', 'LogicalAnd', 'LogicalOr', 'Less', 'LessEqual',
-                      'Greater', 'GreaterEqual', 'Equal', 'NotEqual']
+simple_eltwise_types = ['Power', 'Add', 'Multiply', 'Maximum', 'LogicalAnd', 'LogicalOr', 'LogicalXor', 'Less',
+                        'LessEqual',
+                        'Greater', 'GreaterEqual', 'Equal', 'NotEqual', 'FloorMod']
 
-op_to_operation_map = {
-    'Pow': 'pow',
+type_to_operation_map = {
+    'Power': 'pow',
     'Add': 'sum',
     'Multiply': 'mul',
     'Maximum': 'max',
     'LogicalAnd': 'logical_and',
     'LogicalOr': 'logical_or',
+    'LogicalXor': 'logical_xor',
     'Less': 'less',
     'LessEqual': 'less_equal',
     'Greater': 'greater',
     'GreaterEqual': 'greater_equal',
     'Equal': 'equal',
     'NotEqual': 'not_equal',
+    'FloorMod': 'floor_mod',
 }
 
 
 class SimpleEltwiseToEltwiseOp(BackReplacementPattern):
     enabled = True
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('op', {'type': lambda t: t in simple_eltwise_ops})],
+            nodes=[
+                ('op', dict(type=lambda t: t in type_to_operation_map.keys(), op=lambda op: op != 'AttributedPower'))],
             edges=[],
         )
 
     @staticmethod
     def replace_pattern(graph: Graph, match: [str, Node]):
-        Eltwise.update_node_stat(match['op'], {'operation': op_to_operation_map[match['op'].type]})
+        Eltwise.update_node_stat(match['op'], {'operation': type_to_operation_map[match['op'].type]})
 
 
 class DivideToEltwises(BackReplacementPattern):
@@ -117,7 +122,7 @@ class SubtractToEltwises(BackReplacementPattern):
 
         # Connect nodes
         node.in_port(1).get_connection().set_destination(negate.in_port(0))
-        negate_const.out_port(0).connect(add.in_port(1))
+        negate_const.out_port(0).connect(negate.in_port(1))
         node.in_port(0).get_connection().set_destination(add.in_port(1))
         negate.out_port(0).connect(add.in_port(0))
 
@@ -128,7 +133,7 @@ class EltwisesWithScalarInputToPower(BackReplacementPattern):
     enabled = True
     graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
     force_clean_up = True
-    eltw_types = ['Add', 'Multiply', 'Pow']
+    eltw_types = ['Add', 'Multiply', 'Power']
 
     def run_before(self):
         return [SimpleEltwiseToEltwiseOp]
@@ -145,6 +150,9 @@ class EltwisesWithScalarInputToPower(BackReplacementPattern):
         op = match['op']
         op_type = op.type
 
+        if op.has_and_set('stop_value_propagation'):
+            return
+
         const_port, tensor_port = get_value_in_port(op), get_tensor_in_port(op)
         if const_port is None or tensor_port is None:
             return
@@ -157,17 +165,19 @@ class EltwisesWithScalarInputToPower(BackReplacementPattern):
         assert op_type in EltwisesWithScalarInputToPower.eltw_types
         if op_type == 'Add':
             delete_node = value == 0
-            Power.update_node_stat(op, {'shift': value})
+            AttributedPower.update_node_stat(op, {'shift': value})
         elif op_type == 'Multiply':
             delete_node = value == 1
-            Power.update_node_stat(op, {'scale': value})
-        elif op_type == 'Pow':
+            AttributedPower.update_node_stat(op, {'scale': value})
+        elif op_type == 'Power':
             delete_node = value == 1
-            Power.update_node_stat(op, {'power': value})
+            AttributedPower.update_node_stat(op, {'power': value})
+        op.type_infer = AttributedPower.type_infer
 
         const_port.disconnect()
         if tensor_port.idx != 0:
             tensor_port.get_connection().set_destination(op.in_port(0))
+        op.delete_input_port(1)
 
         # TODO: uncomment this lines in future to allow useless operations deleting
         # if delete_node:
@@ -186,9 +196,9 @@ class MulAddPowerMerge(BackReplacementPattern):
     def pattern():
         return dict(
             nodes=[
-                ('mul', dict(type='Power', shift=lambda x: np.all(x == 0), power=lambda x: np.all(x == 1))),
+                ('mul', dict(op='AttributedPower', shift=lambda x: np.all(x == 0), power=lambda x: np.all(x == 1))),
                 ('mul_d', dict()),
-                ('add', dict(type='Power', scale=lambda x: np.all(x == 1), power=lambda x: np.all(x == 1))),
+                ('add', dict(op='AttributedPower', scale=lambda x: np.all(x == 1), power=lambda x: np.all(x == 1))),
                 ('add_d', dict())
             ],
             edges=[
@@ -207,8 +217,8 @@ class MulAddPowerMerge(BackReplacementPattern):
             return
         mul = match['mul']
         add = match['add']
-        new_power = Power(graph, {'name': mul.name + '/fused_power', 'scale': mul.scale,
-                                  'shift': add.shift}).create_node()
+        new_power = AttributedPower(graph, {'name': mul.name + '/fused_power', 'scale': mul.scale,
+                                            'shift': add.shift}).create_node()
 
         source = mul.in_port(0).get_connection().get_source()
         mul.in_port(0).disconnect()
@@ -233,9 +243,9 @@ class MulPowPowerMerge(BackReplacementPattern):
     def pattern():
         return dict(
             nodes=[
-                ('mul', dict(type='Power', shift=lambda x: np.all(x == 0), power=lambda x: np.all(x == 1))),
+                ('mul', dict(op='AttributedPower', shift=lambda x: np.all(x == 0), power=lambda x: np.all(x == 1))),
                 ('mul_d', dict()),
-                ('pow', dict(type='Power', scale=lambda x: np.all(x == 1), shift=lambda x: np.all(x == 0))),
+                ('pow', dict(op='AttributedPower', scale=lambda x: np.all(x == 1), shift=lambda x: np.all(x == 0))),
                 ('pow_d', dict())
             ],
             edges=[
@@ -254,8 +264,8 @@ class MulPowPowerMerge(BackReplacementPattern):
             return
         mul = match['mul']
         pow = match['pow']
-        new_power = Power(graph, {'name': mul.name + '/fused_power', 'scale': mul.scale,
-                                  'power': pow.power}).create_node()
+        new_power = AttributedPower(graph, {'name': mul.name + '/fused_power', 'scale': mul.scale,
+                                            'power': pow.power}).create_node()
 
         source = mul.in_port(0).get_connection().get_source()
         mul.in_port(0).disconnect()
@@ -280,9 +290,9 @@ class AddPowPowerMerge(BackReplacementPattern):
     def pattern():
         return dict(
             nodes=[
-                ('add', dict(type='Power', scale=lambda x: np.all(x == 1), power=lambda x: np.all(x == 1))),
+                ('add', dict(op='AttributedPower', scale=lambda x: np.all(x == 1), power=lambda x: np.all(x == 1))),
                 ('add_d', dict()),
-                ('pow', dict(type='Power', scale=lambda x: np.all(x == 1), shift=lambda x: np.all(x == 0))),
+                ('pow', dict(op='AttributedPower', scale=lambda x: np.all(x == 1), shift=lambda x: np.all(x == 0))),
                 ('pow_d', dict())
             ],
             edges=[
@@ -301,8 +311,8 @@ class AddPowPowerMerge(BackReplacementPattern):
             return
         add = match['add']
         pow = match['pow']
-        new_power = Power(graph, {'name': add.name + '/fused_power', 'shift': add.shift,
-                                  'power': pow.power}).create_node()
+        new_power = AttributedPower(graph, {'name': add.name + '/fused_power', 'shift': add.shift,
+                                            'power': pow.power}).create_node()
 
         source = add.in_port(0).get_connection().get_source()
         add.in_port(0).disconnect()
@@ -327,9 +337,9 @@ class MulAddPowPowerMerge(BackReplacementPattern):
     def pattern():
         return dict(
             nodes=[
-                ('mul_add', dict(type='Power', power=lambda x: np.all(x == 1))),
+                ('mul_add', dict(op='AttributedPower', power=lambda x: np.all(x == 1))),
                 ('mul_add_d', dict()),
-                ('pow', dict(type='Power', scale=lambda x: np.all(x == 1), shift=lambda x: np.all(x == 0))),
+                ('pow', dict(op='AttributedPower', scale=lambda x: np.all(x == 1), shift=lambda x: np.all(x == 0))),
                 ('pow_d', dict())
             ],
             edges=[
@@ -348,8 +358,9 @@ class MulAddPowPowerMerge(BackReplacementPattern):
             return
         mul_add = match['mul_add']
         pow = match['pow']
-        new_power = Power(graph, {'name': mul_add.name + '/fused_power', 'shift': mul_add.shift, 'scale': mul_add.scale,
-                                  'power': pow.power}).create_node()
+        new_power = AttributedPower(graph, {'name': mul_add.name + '/fused_power', 'shift': mul_add.shift,
+                                            'scale': mul_add.scale,
+                                            'power': pow.power}).create_node()
 
         source = mul_add.in_port(0).get_connection().get_source()
         mul_add.in_port(0).disconnect()

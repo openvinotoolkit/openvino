@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-#include <functional>
 #include <algorithm>
+#include <functional>
 #include <numeric>
 
 namespace InferenceEngine {
@@ -16,8 +16,8 @@ namespace details {
  * @param items
  * @param predicate
  */
-template<typename Container, typename PredicateT>
-inline void erase_if(Container &data, const PredicateT &predicate) {
+template <typename Container, typename PredicateT>
+inline void erase_if(Container& data, const PredicateT& predicate) {
     for (auto it = std::begin(data); it != std::end(data);) {
         if (predicate(*it)) {
             it = data.erase(it);
@@ -32,10 +32,9 @@ inline void erase_if(Container &data, const PredicateT &predicate) {
  * @return result of multiplication
  */
 
-template<typename TIterator>
+template <typename TIterator>
 auto product(TIterator beg, TIterator en) -> typename std::remove_reference<decltype(*beg)>::type {
-    return std::accumulate(beg, en,
-                           static_cast<typename std::remove_reference<decltype(*beg)>::type>(1),
+    return std::accumulate(beg, en, static_cast<typename std::remove_reference<decltype(*beg)>::type>(1),
                            std::multiplies<typename std::remove_reference<decltype(*beg)>::type>());
 }
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,45 +17,47 @@ file (GLOB HELPERS_INCLUDES
 message("configuring file: ${CMAKE_CURRENT_BINARY_DIR}/test_model_repo.h")
 configure_file(test_model_repo.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/test_model_repo.hpp @ONLY)
 
+function(add_helpers target_name)
+    add_library(${target_name} STATIC ${HELPERS_SRC})
 
-add_library(${TARGET_NAME} STATIC ${HELPERS_SRC})
+    # detecting regex support
+    if(USE_BOOST_RE)
+        target_compile_definitions(${target_name} PUBLIC USE_BOOST_RE)
 
-# detecting regex support
-if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
-    target_compile_definitions(${TARGET_NAME} PUBLIC USE_BOOST_RE)
+        debug_message(STATUS "Adding boost dependency")
+        if (VERBOSE_BUILD)
+            set(Boost_DEBUG on)
+        endif ()
+        find_package(Boost REQUIRED COMPONENTS regex)
+        target_link_libraries(${target_name} PUBLIC ${Boost_REGEX_LIBRARY})
+        target_include_directories(${target_name} PUBLIC ${Boost_INCLUDE_DIRS})
+    endif()
 
-    debug_message(STATUS "Adding boost dependency")
-    if (VERBOSE_BUILD)
-        set(Boost_DEBUG on)
-    endif ()
-    find_package(Boost REQUIRED COMPONENTS regex)
-    target_link_libraries(${TARGET_NAME} PUBLIC ${Boost_REGEX_LIBRARY})
-    target_include_directories(${TARGET_NAME} PUBLIC ${Boost_INCLUDE_DIRS})
-endif()
+    if(MSVC)
+        set(PUGI pugixml_mt)
+    else()
+        set(PUGI pugixml)
+    endif()
 
-if(MSVC)
-    set(PUGI pugixml_mt)
-else()
-    set(PUGI pugixml)
-endif()
+    target_link_libraries(${target_name} PRIVATE ${PUGI} PUBLIC gtest)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${PUGI})
+    target_include_directories(${target_name} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+                                                     "${IE_MAIN_SOURCE_DIR}/src/vpu/"
+                                                     "${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src"
+                                             PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
-target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
-                                                 $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
-                                                 "${gtest_SOURCE_DIR}/include"
-                                                 "${IE_MAIN_SOURCE_DIR}/src"
-                                                 "${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src"
-                                                 "${gmock_SOURCE_DIR}/include"
-                                         PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+    # TODO: eliminate dependency on samples
+    target_include_directories(${target_name} PUBLIC
+        "${IE_MAIN_SOURCE_DIR}/samples/common/os/windows")
 
-# TODO: eliminate dependency on samples
-target_include_directories(${TARGET_NAME} PUBLIC 
-    "${IE_MAIN_SOURCE_DIR}/tests/functional/common/helpers"
-    "${IE_MAIN_SOURCE_DIR}/samples/common/os/windows")
+    target_compile_definitions(${target_name} PUBLIC ${ARGV}
+        MODELS_PATH=\"${MODELS_PATH}\" DATA_PATH=\"${VALIDATION_SET}\")
 
-target_compile_definitions(${TARGET_NAME} PUBLIC MODELS_PATH=\"${MODELS_PATH}\" DATA_PATH=\"${VALIDATION_SET}\")
+    set_property(TARGET ${target_name} PROPERTY COMPILE_PDB_NAME ${target_name})
 
-set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD 11)
-set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
-set_property(TARGET ${TARGET_NAME} PROPERTY COMPILE_PDB_NAME ${TARGET_NAME})
+    # add_cpplint_target(${target_name}_cpplint FOR_TARGETS ${target_name})
+endfunction()
+
+add_helpers(${TARGET_NAME})
+add_helpers(${TARGET_NAME}_s USE_STATIC_IE)

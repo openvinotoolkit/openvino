@@ -1,10 +1,9 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 function (extract archive_path unpacked_path folder result)
   # Slurped from a generated extract-TARGET.cmake file.
-  if (NOT EXISTS ${unpacked_path})
     get_filename_component(unpacked_dir ${unpacked_path} DIRECTORY)
 
     file(MAKE_DIRECTORY ${unpacked_path})
@@ -40,6 +39,5 @@ function (extract archive_path unpacked_path folder result)
     else()
       set(${result} 1 PARENT_SCOPE)
     endif()
-    
-  endif()
+
 endfunction (extract)

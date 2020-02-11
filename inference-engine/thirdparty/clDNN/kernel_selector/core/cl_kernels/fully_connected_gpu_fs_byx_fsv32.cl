@@ -43,11 +43,11 @@ KERNEL(fully_connected_gpu_fs_byx_fsv32)(
 #endif
 )
 {
-    const uint of = get_group_id(0) * OUTPUT_BLOCK_SIZE_F;
+    const uint of = (uint)get_group_id(0) * OUTPUT_BLOCK_SIZE_F;
 #if WG_HEIGHT == 1
-    const uint ob = get_group_id(1) * OUTPUT_BLOCK_SIZE_B;
+    const uint ob = (uint)get_group_id(1) * OUTPUT_BLOCK_SIZE_B;
 #else
-    const uint ob = (get_group_id(1) * WG_HEIGHT + get_sub_group_id()) * OUTPUT_BLOCK_SIZE_B;
+    const uint ob = ((uint)get_group_id(1) * WG_HEIGHT + (uint)get_sub_group_id()) * OUTPUT_BLOCK_SIZE_B;
 
     // In case batch number is not evenly divisible by work-group processed batch number,
     // early return threads from work-group that target batches outside.

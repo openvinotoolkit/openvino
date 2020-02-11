@@ -1,43 +1,49 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief a header file for the Inference Engine Network interface
- * @file ie_inetwork.hpp
+ * 
+ * @file
  */
 #pragma once
 
-#include <utility>
-#include <string>
-#include <memory>
-#include <vector>
-#include <map>
-#include <ie_parameter.hpp>
-#include <ie_context.hpp>
-#include <ie_layouts.h>
 #include <ie_blob.h>
+#include <ie_layouts.h>
+
+#include <ie_context.hpp>
+#include <ie_parameter.hpp>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace InferenceEngine {
 
 /**
+ * @deprecated Use ngraph API instead.
  * @brief A type of network objects indexes.
  */
 using idx_t = size_t;
 
 /**
+ * @deprecated Use ngraph API instead.
  * @brief This class contains a pair from layerId and port index
  */
-class PortInfo {
+class INFERENCE_ENGINE_NN_BUILDER_API_CLASS(PortInfo) {
 public:
     /**
      * @brief The constructor creates a PortInfo object for port 0
+     *
      * @param layerID Layer id
      */
     PortInfo(idx_t layerID): layer(layerID), port(0) {}  // NOLINT
 
     /**
      * @brief The constructor creates a PortInfo object
+     *
      * @param layerID Layer id
      * @param portID Port id
      */
@@ -45,6 +51,7 @@ public:
 
     /**
      * @brief Get layer id
+     *
      * @return Layer id
      */
     idx_t layerId() const {
@@ -53,14 +60,18 @@ public:
 
     /**
      * @brief Get port id
+     *
      * @return Port id
      */
     idx_t portId() const {
         return port;
     }
 
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
      * @brief Compares the given PortInfo object with the current one
+     *
      * @param portInfo PortInfo object to compare with
      * @return true if the given PortInfo object is equal to the current one, false - otherwise
      */
@@ -70,6 +81,7 @@ public:
 
     /**
      * @brief Checks if the given PortInfo object is not equal to the current one
+     *
      * @param portInfo PortInfo object to compare with
      * @return true if the given PortInfo object is not equal to the current one, false - otherwise
      */
@@ -77,18 +89,24 @@ public:
         return !(*this == portInfo);
     }
 
+    IE_SUPPRESS_DEPRECATED_END
+
 private:
     idx_t layer;
     idx_t port;
 };
 
 /**
+ * @deprecated Use ngraph API instead.
  * @brief This class is the main object to describe the Inference Engine connection.
  */
-class Connection {
+class INFERENCE_ENGINE_NN_BUILDER_DEPRECATED Connection {
 public:
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
      * @brief Constructor of a connection object.
+     *
      * @param input pair of the index of input layer and the index of output port
      * @param output pair of the index of output layer and the index of input port
      */
@@ -96,6 +114,7 @@ public:
 
     /**
      * @brief Compares the given Connection with the current one
+     *
      * @param connection Connection to compare with
      * @return true if the given Connection is equal to the current one, false - otherwise
      */
@@ -105,6 +124,7 @@ public:
 
     /**
      * @brief Checks if the given Connection is not equal to the current one
+     *
      * @param connection Connection to compare with
      * @return true if the given Connection is not equal to the current one, false - otherwise
      */
@@ -131,17 +151,24 @@ public:
 private:
     PortInfo input;
     PortInfo output;
+
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 /**
+ * @deprecated Use ngraph API instead.
  * This class describes port data
  */
-class INFERENCE_ENGINE_API_CLASS(PortData) {
+class INFERENCE_ENGINE_NN_BUILDER_API_CLASS(PortData) {
 public:
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
-     * @brief A shared pointer to the PortData object.
+     * @brief A shared pointer to the PortData object
      */
     using Ptr = std::shared_ptr<PortData>;
+
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Default constructor
@@ -149,37 +176,42 @@ public:
     PortData();
 
     /**
-     * Creates port data with precision and shape
+     * @brief Creates port data with precision and shape
+     *
      * @param shape Dimensions
      * @param precision Precision
      */
     PortData(const SizeVector& shape, const Precision& precision);
 
     /**
-     * @brief virtual destructor
+     * @brief Virtual destructor
      */
     virtual ~PortData() = default;
 
     /**
      * @brief Returns data
+     *
      * @return Blob with data
      */
     const Blob::Ptr& getData() const;
 
     /**
      * @brief Sets data
+     *
      * @param data Blob with data
      */
     void setData(const Blob::Ptr& data);
 
     /**
      * @brief Returns data parameters
+     *
      * @return Map of parameters
      */
     const std::map<std::string, Parameter>& getParameters() const noexcept;
 
     /**
      * @brief Sets new shapes for data
+     *
      * @param shape New shapes
      */
     void setShape(const SizeVector& shape);
@@ -192,21 +224,30 @@ private:
 };
 
 /**
+ * @deprecated Use ngraph API instead.
  * @brief This class is the main object to describe the Inference Engine port.
  */
-class INFERENCE_ENGINE_API_CLASS(Port) {
+class INFERENCE_ENGINE_NN_BUILDER_API_CLASS(Port) {
 public:
     /**
-     * @brief Default constructor of a port object.
+     * @brief Default constructor of a port object
      */
     Port();
+
     /**
-     * @brief Constructor of a port object with shapes.
+     * @brief Constructor of a port object with shapes
+     *
      * @param shapes port shapes
      * @param precision Port precision
      */
-    explicit Port(const SizeVector& shapes,
-                  const Precision& precision = Precision::UNSPECIFIED);
+    Port(const SizeVector& shapes, const Precision& precision = Precision::UNSPECIFIED);
+
+    /**
+     * @brief Virtual destructor
+     */
+    virtual ~Port() = default;
+
+    IE_SUPPRESS_DEPRECATED_START
 
     /**
      * @brief Copy constructor.
@@ -215,26 +256,26 @@ public:
     Port(const Port& port);
 
     /**
-     * @brief Virtual destructor
-     */
-    virtual ~Port() = default;
-
-    /**
      * @brief Compares the given Port with the current one
+     *
      * @param rhs Port to compare with
      * @return true if the given Port is equal to the current one, false - otherwise
      */
-    bool operator== (const Port& rhs) const;
+    bool operator==(const Port& rhs) const;
 
     /**
      * @brief Compares the given Port with the current one
+     *
      * @param rhs Port to compare with
      * @return true if the given Port is NOT equal to the current one, false - otherwise
      */
-    bool operator!= (const Port& rhs) const;
+    bool operator!=(const Port& rhs) const;
+
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
-     * @brief Returns a constant reference to a vector with shapes.
+     * @brief Returns a constant reference to a vector with shapes
+     *
      * Shapes should be initialized if shape is empty.
      * @return constant reference to shapes
      */
@@ -242,37 +283,45 @@ public:
 
     /**
      * @brief Sets new shapes for current port
+     *
      * @param shape New shapes
      */
     void setShape(const SizeVector& shape);
 
     /**
      * @brief Returns a constant reference to parameters
+     *
      * @return Map with parameters
      */
     const std::map<std::string, Parameter>& getParameters() const noexcept;
 
     /**
      * @brief Sets new parameters for current port
+     *
      * @param params New parameters
      */
     void setParameters(const std::map<std::string, Parameter>& params) noexcept;
 
     /**
      * @brief Sets the new parameter for current port
+     *
      * @param name Name of parameter
      * @param param New value
      */
     void setParameter(const std::string& name, const Parameter& param);
 
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
      * @brief Returns port data
+     *
      * @return Port data
      */
     const PortData::Ptr& getData() const noexcept;
 
     /**
      * @brief Sets new port data for current port
+     *
      * @param data Port data
      */
     void setData(const PortData::Ptr& data);
@@ -280,6 +329,8 @@ public:
 private:
     std::map<std::string, Parameter> parameters;
     PortData::Ptr data;
+
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 class INetwork;
@@ -287,15 +338,21 @@ template <class T>
 class INetwotkIterator;
 
 /**
+ * @deprecated Use ngraph API instead.
  * @brief This class is the main interface to describe the Inference Engine layer.
+ *
  * All methods here are constant and do not throw exceptions.
  */
-class ILayer {
+class INFERENCE_ENGINE_NN_BUILDER_DEPRECATED ILayer {
 public:
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
      * @brief A shared pointer to the const ILayer object
      */
     using CPtr = std::shared_ptr<const ILayer>;
+
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Virtual destructor for the layer interface
@@ -303,56 +360,68 @@ public:
     virtual ~ILayer() = default;
 
     /**
-     * @brief Returns a id of the layer.
+     * @brief Returns a id of the layer
+     *
      * @return Layer id
      */
     virtual idx_t getId() const noexcept = 0;
 
     /**
-     * @brief Returns a layer name.
+     * @brief Returns a layer name
+     *
      * @return Layer name
      */
     virtual const std::string& getName() const noexcept = 0;
 
     /**
-     * @brief Returns a layer type.
+     * @brief Returns a layer type
      * @return Layer type
      */
     virtual const std::string& getType() const noexcept = 0;
 
     /**
-     * @brief Returns a constant smart pointer reference to a Parameters interface.
+     * @brief Returns a constant smart pointer reference to a Parameters interface
+     *
      * @return Parameters interface smart pointer
      */
     virtual const std::map<std::string, Parameter>& getParameters() const noexcept = 0;
 
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
-     * @brief Returns a constant reference to a vector with input ports.
+     * @brief Returns a constant reference to a vector with input ports
+     *
      * @return Vector of input ports
      */
     virtual const std::vector<Port>& getInputPorts() const noexcept = 0;
 
     /**
-     * @brief Returns a constant reference to a vector with output ports.
+     * @brief Returns a constant reference to a vector with output ports
+     *
      * @return Vector of output ports
      */
     virtual const std::vector<Port>& getOutputPorts() const noexcept = 0;
+
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 namespace details {
 
-template<class NT, class LT>
-class INetworkIterator;
+template <class NT, class LT>
+class INFERENCE_ENGINE_NN_BUILDER_DEPRECATED INetworkIterator;
 
 }  // namespace details
 
 /**
+ * @deprecated Use ngraph API instead.
  * @brief This class is the main interface to describe the Inference Engine network.
  *
  * All methods here are constant and do not throw exceptions.
  */
-class INetwork {
+class INFERENCE_ENGINE_NN_BUILDER_DEPRECATED INetwork {
 public:
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
      * @brief A shared pointer to the constant INetwork object.
      */
@@ -362,6 +431,8 @@ public:
      */
     using const_iterator = details::INetworkIterator<const INetwork, const ILayer>;
 
+    IE_SUPPRESS_DEPRECATED_END
+
     /**
      * @brief Virtual destructor for the network interface
      */
@@ -369,25 +440,32 @@ public:
 
     /**
      * @brief Begin network iterator
+     *
      * @return const INetwork iterator
      */
     virtual const_iterator begin() const noexcept = 0;
 
     /**
      * @brief End network iterator
+     *
      * @return const INetwork iterator
      */
     virtual const_iterator end() const noexcept = 0;
 
     /**
      * @brief Returns a number of layers in the network.
+     *
      * @return Layers count
      */
     virtual size_t size() const noexcept = 0;
 
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
      * @brief Returns a constant smart pointer to a Layer interface.
+     *
      * If the layer is missing, returns nullptr.
+     *
      * @param id Id of the Layer
      * @return Layer interface smart pointer
      */
@@ -395,35 +473,42 @@ public:
 
     /**
      * @brief Returns a constant vector of input layers.
+     *
      * @return Vector of input layers
      */
     virtual const std::vector<ILayer::CPtr> getInputs() const noexcept = 0;
 
     /**
      * @brief Returns a constant vector of output layers.
+     *
      * @return Vector of output layers
      */
     virtual const std::vector<ILayer::CPtr> getOutputs() const noexcept = 0;
 
     /**
      * @brief Returns a constant vector of connections for specific layer.
+     *
      * If the layer is missing, returns empty vector.
+     *
      * @param layerId layer index
      * @return Vector of connections
      */
     virtual const std::vector<Connection> getLayerConnections(idx_t layerId) const noexcept = 0;
 
     /**
+     * @brief Returns a network context
+     *
+     * @return const reference to Context
+     */
+    virtual const Context& getContext() const noexcept = 0;
+
+    IE_SUPPRESS_DEPRECATED_END
+
+    /**
      * @brief Returns a network name.
      * @return Network name
      */
     virtual const std::string& getName() const noexcept = 0;
-
-    /**
-     * @brief Returns a network context
-     * @return const reference to Context
-     */
-    virtual const Context& getContext() const noexcept = 0;
 };
 
 }  // namespace InferenceEngine

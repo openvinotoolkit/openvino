@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017-2018 Intel Corporation
+// Copyright (C) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,11 +55,6 @@ private:
 class TensorflowFactory : public InferenceEngine::ILayerImplFactory {
 public:
     explicit TensorflowFactory(const InferenceEngine::CNNLayer *layer): cnnLayer(*layer) {}
-
-    InferenceEngine::StatusCode getShapes(const std::vector<InferenceEngine::TensorDesc>& inShapes, std::vector<InferenceEngine::TensorDesc>& outShapes,
-                         InferenceEngine::ResponseDesc *resp) noexcept override {
-        return InferenceEngine::NOT_IMPLEMENTED;
-    }
 
     // First implementation has more priority than next
     InferenceEngine::StatusCode getImplementations(std::vector<InferenceEngine::ILayerImpl::Ptr>& impls, InferenceEngine::ResponseDesc *resp) noexcept override {

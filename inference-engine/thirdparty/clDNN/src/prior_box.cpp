@@ -49,21 +49,94 @@ void calculate_prior_box_output(memory_impl& output_mem, layout const& input_lay
         step_h = static_cast<float>(img_height) / layer_height;
     }
     const float offset = argument.offset;
-    int num_priors =
-        argument.scale_all_sizes
-            ? static_cast<int>(argument.aspect_ratios.size()) * static_cast<int>(argument.min_sizes.size()) + static_cast<int>(argument.max_sizes.size())
-            : static_cast<int>(argument.aspect_ratios.size()) + static_cast<int>(argument.min_sizes.size()) + static_cast<int>(argument.max_sizes.size()) - 1;
+    int num_priors = output_mem.get_layout().size.spatial[1] / 4 / layer_width / layer_height;
 
     mem_lock<dtype> lock{output_mem};
     auto out_ptr = lock.begin();
-
     int dim = layer_height * layer_width * num_priors * 4;
+
     int idx = 0;
     for (int h = 0; h < layer_height; ++h) {
         for (int w = 0; w < layer_width; ++w) {
-            float center_x = (w + offset) * step_w;
-            float center_y = (h + offset) * step_h;
+            float center_x, center_y;
+            if (argument.step_width == 0.f || argument.step_height == 0.f) {
+                center_x = (w + 0.5f) * step_w;
+                center_y = (h + 0.5f) * step_h;
+            } else {
+                center_x = (w + offset) * step_w;
+                center_y = (h + offset) * step_h;
+            }
             float box_width, box_height;
+
+            for (size_t fs = 0; fs < argument.fixed_size.size(); ++fs) {
+                auto fixed_size = static_cast<size_t>(argument.fixed_size[fs]);
+                auto density = static_cast<size_t>(argument.density[fs]);
+                auto shift = fixed_size / density;
+
+                if (argument.fixed_ratio.size() > 0) {
+                    for (auto fr : argument.fixed_ratio) {
+                        box_width = fixed_size * sqrt(fr);
+                        box_height = fixed_size / sqrt(fr);
+
+                        for (size_t r = 0; r < density; ++r) {
+                            for (size_t c = 0; c < density; ++c) {
+                                float tmp_center_x = center_x - fixed_size / 2.f + shift / 2.f + c * shift;
+                                float tmp_center_y = center_y - fixed_size / 2.f + shift / 2.f + r * shift;
+                                // xmin
+                                out_ptr[idx++] = (dtype)((tmp_center_x - box_width / 2.f) / img_width);
+                                // ymin
+                                out_ptr[idx++] = (dtype)((tmp_center_y - box_height / 2.f) / img_height);
+                                // xmax
+                                out_ptr[idx++] = (dtype)((tmp_center_x + box_width / 2.f) / img_width);
+                                // ymax
+                                out_ptr[idx++] = (dtype)((tmp_center_y + box_height / 2.f) / img_height);
+                            }
+                        }
+                    }
+                } else {
+                    box_width = box_height = static_cast<float>(fixed_size);
+
+                    for (size_t r = 0; r < density; ++r) {
+                        for (size_t c = 0; c < density; ++c) {
+                            float tmp_center_x = center_x - fixed_size / 2.f + shift / 2.f + c * shift;
+                            float tmp_center_y = center_y - fixed_size / 2.f + shift / 2.f + r * shift;
+                            // xmin
+                            out_ptr[idx++] = (dtype)((tmp_center_x - box_width / 2.f) / img_width);
+                            // ymin
+                            out_ptr[idx++] = (dtype)((tmp_center_y - box_height / 2.f) / img_height);
+                            // xmax
+                            out_ptr[idx++] = (dtype)((tmp_center_x + box_width / 2.f) / img_width);
+                            // ymax
+                            out_ptr[idx++] = (dtype)((tmp_center_y + box_height / 2.f) / img_height);
+                        }
+                    }
+
+                    for (auto ar : argument.aspect_ratios) {
+                        if (fabs(ar - 1.) < 1e-6) {
+                            continue;
+                        }
+
+                        box_width = fixed_size * sqrt(ar);
+                        box_height = fixed_size / sqrt(ar);
+
+                        for (size_t r = 0; r < density; ++r) {
+                            for (size_t c = 0; c < density; ++c) {
+                                float tmp_center_x = center_x - fixed_size / 2.f + shift / 2.f + c * shift;
+                                float tmp_center_y = center_y - fixed_size / 2.f + shift / 2.f + r * shift;
+                                // xmin
+                                out_ptr[idx++] = (dtype)((tmp_center_x - box_width / 2.f) / img_width);
+                                // ymin
+                                out_ptr[idx++] = (dtype)((tmp_center_y - box_height / 2.f) / img_height);
+                                // xmax
+                                out_ptr[idx++] = (dtype)((tmp_center_x + box_width / 2.f) / img_width);
+                                // ymax
+                                out_ptr[idx++] = (dtype)((tmp_center_y + box_height / 2.f) / img_height);
+                            }
+                        }
+                    }
+                }
+            }
+
             for (size_t s = 0; s < argument.min_sizes.size(); ++s) {
                 float min_size = argument.min_sizes[s];
                 // first prior: aspect_ratio = 1, size = min_size
@@ -149,12 +222,16 @@ void prior_box_node::calc_result() {
     auto& argument = *typed_desc();
 
     // Check arguments
-    CLDNN_ERROR_LESS_OR_EQUAL_THAN(id(),
-                                   "Argument min size",
-                                   argument.min_sizes.size(),
-                                   "not proper size",
-                                   0,
-                                   "Must provide at least one min size.");
+    bool fixed_size_path = !argument.fixed_size.empty() && !argument.density.empty();
+
+    if (!fixed_size_path) {
+        CLDNN_ERROR_LESS_OR_EQUAL_THAN(id(),
+                                       "Argument min size",
+                                       argument.min_sizes.size(),
+                                       "not proper size",
+                                       0,
+                                       "Must provide at least one min size or fixed_size and density.");
+    }
 
     for (size_t i = 0; i < argument.min_sizes.size(); i++) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(id(),
@@ -220,6 +297,29 @@ void prior_box_node::calc_result() {
     CLDNN_ERROR_LESS_THAN(id(), "Step height", argument.step_height, "value", 0, "Step height must be positive.");
     CLDNN_ERROR_LESS_THAN(id(), "Step width", argument.step_width, "value", 0, "Step width must be positive.");
 
+    if (!argument.fixed_size.empty()) {
+        CLDNN_ERROR_NOT_EQUAL(id(),
+                              "Fixed sizes count",
+                              argument.fixed_size.size(),
+                              "densities count", argument.density.size(),
+                              "Number of fixed sizes and densities must be equal.");
+
+        for (size_t fs = 0; fs < argument.fixed_size.size(); ++fs) {
+            CLDNN_ERROR_LESS_OR_EQUAL_THAN(id(),
+                                           "Fixed size at index" + std::to_string(fs),
+                                           argument.fixed_size[fs],
+                                           "value",
+                                           0,
+                                           "Fixed size must be positive.");
+            CLDNN_ERROR_LESS_OR_EQUAL_THAN(id(),
+                                           "Density at index" + std::to_string(fs),
+                                           argument.density[fs],
+                                           "value",
+                                           0,
+                                           "Density must be positive.");
+        }
+    }
+
     CLDNN_ERROR_BOOL(id(), "Prior box padding", is_padded(), "Prior-box layer doesn't support output padding.");
 
     // allocate storage
@@ -250,6 +350,20 @@ layout prior_box_inst::calc_output_layout(prior_box_node const& node) {
             ? static_cast<int>(desc->aspect_ratios.size()) * static_cast<int>(desc->min_sizes.size()) + static_cast<int>(desc->max_sizes.size())
             : static_cast<int>(desc->aspect_ratios.size()) + static_cast<int>(desc->min_sizes.size()) + static_cast<int>(desc->max_sizes.size()) - 1;
 
+    if (desc->fixed_size.size() > 0) {
+        num_priors = static_cast<int>(desc->aspect_ratios.size() * desc->fixed_size.size());
+    }
+
+    if (desc->density.size() > 0) {
+        for (size_t i = 0; i < desc->density.size(); ++i) {
+            if (desc->fixed_ratio.size() > 0) {
+                num_priors += static_cast<int>(desc->fixed_ratio.size()) * (static_cast<int>(pow(desc->density[i], 2)) - 1);
+            } else {
+                num_priors += static_cast<int>(desc->aspect_ratios.size()) * (static_cast<int>(pow(desc->density[i], 2)) - 1);
+            }
+        }
+    }
+
     // Since all images in a batch has same height and width, we only need to
     // generate one set of priors which can be shared across all images.
     // 2 features. First feature stores the mean of each prior coordinate.
@@ -276,6 +390,9 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
     std::string str_max_sizes = vector_to_string(desc->max_sizes);
     std::string str_variance = vector_to_string(desc->variance);
     std::string str_aspect_ratio = vector_to_string(desc->aspect_ratios);
+    std::string str_fixed_size = vector_to_string(desc->fixed_size);
+    std::string str_fixed_ratio = vector_to_string(desc->fixed_ratio);
+    std::string str_density = vector_to_string(desc->density);
 
     std::stringstream primitive_description;
 
@@ -293,6 +410,9 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
     prior_info.add("flip", flip);
     prior_info.add("clip", clip);
     prior_info.add("scale all sizes", scale_all_sizes);
+    prior_info.add("fixed size", str_fixed_size);
+    prior_info.add("fixed ratio", str_fixed_ratio);
+    prior_info.add("density", str_density);
 
     json_composite step_info;
     step_info.add("step width", desc->step_width);

@@ -38,11 +38,10 @@ static bool is_output_bfzyx(const layout& input, int32_t axis) {
 }
 
 layout one_hot_inst::calc_output_layout(one_hot_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
-           "Output data type forcing is not supported for one_hot_node!");
     auto input_layout = node.input().get_output_layout();
     auto desc = node.get_primitive();
 
+    auto dt = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
     auto format = input_layout.format;
 
     if (desc->one_hot_axis > 4) {
@@ -53,7 +52,7 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node) {
     if (is_output_bfzyx(input_layout, desc->one_hot_axis))
         format = format::bfzyx;
 
-    return {input_layout.data_type, format, desc->shape};
+    return {dt, format, desc->shape};
 }
 
 std::string one_hot_inst::to_string(one_hot_node const& node) {

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,8 @@ void prepare_padding::run(program_impl& p) {
                 if (!prim->with_output_size)
                     continue;
 
-                if (node->get_output_layout().format == format::bfzyx_f16)
+                auto format = node->get_output_layout().format;
+                if (format == format::bfzyx_f16 || format == format::bfzyx_b16f16 || format == format::b_fs_zyx_fsv32)
                     continue;
 
                 auto filter_size = prim_node.weights(0).get_output_layout().size;

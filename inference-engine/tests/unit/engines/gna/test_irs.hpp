@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,8 @@ std::string eltwiseToMemoryModel();
 std::string eltwiseToMemoryModelNoOutput();
 std::string activationAfterSplitModel();
 std::string FCWithPaddingAfterSplitModel();
+/// @eltwise layer mode
+std::string EltwiseAfterSplitModel(int tensor_size, bool bMul = false);
 std::string SliceModelWithAlignedOutputs();
 std::string FCWithPaddingAfterSliceModel();
 std::string FCBeforeSplitModel();
@@ -65,13 +67,17 @@ std::string InputSplitConcatModel();
 std::string InputSplitConcatModelUnaligned();
 std::string InputSplitConcatReshapeModelUnaligned();
 std::string LSTMCellOnlyModelUnaligned();
+std::string TIModelWithLSTMCell1WithoutScaleShift();
 std::string SplitToConcatThroughScaleShift();
 std::string PowerWithScaleFactor1();
 std::string ConcatWithDiffScaleFactor();
+std::string TwoOutputs();
+std::string TwoOutputsDiffPrecision();
 
 std::string SplitToConcatWith2InputsNotAlignedNoFC();
 std::string SplitToConcatWith2InputsAlignedNoFC();
 std::string SplitToConcatWith2InputsAlignedNoFCWithInCopyWithOutCopy();
+std::string SplitToConcatWith2Inputs1360NotAlignedNoFC();
 std::string SplitToConcatWith2InputsNotAlignedWithFC();
 std::string SplitToConcatWith2InputsAlignedWithFC();
 std::string SplitToConcatWith2InputsAlignedWithFCWithInCopy();

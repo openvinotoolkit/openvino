@@ -42,7 +42,7 @@ ReorderWeightsImage_fyx_b_Kernel::DispatchData ReorderWeightsImage_fyx_b_Kernel:
     std::vector<size_t> global(3);
 
     global = {out.OFM().v, Align(out.X().v * out.Y().v * out.IFM().v, 4) / 4, 1};
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

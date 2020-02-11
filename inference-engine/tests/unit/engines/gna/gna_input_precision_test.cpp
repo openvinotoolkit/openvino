@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 using namespace ::testing;
 using namespace GNATestIRs;
 
-class GNAInputPrecisionTest : public GNATest {
+class GNAInputPrecisionTest : public GNATest<> {
 };
 
 TEST_F(GNAInputPrecisionTest, CanProcessU8Input) {

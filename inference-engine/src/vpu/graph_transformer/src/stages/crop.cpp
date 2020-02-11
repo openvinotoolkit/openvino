@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,26 +12,12 @@ namespace vpu {
 namespace {
 
 class CropStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<CropStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>& inputScales,
-            ScalePropagationStep step,
-            StageDataInfo<float>& scaleInfo) override {
-        if (step == ScalePropagationStep::Propagate) {
-            auto inputScale = inputScales[0];
-            scaleInfo.setOutput(outputEdge(0), inputScale);
-        } else {
-            // Crop can only propagate scaling, not generate.
-
-            for (const auto& inEdge : inputEdges()) {
-                scaleInfo.setInput(inEdge, 1.0f);
-            }
-            scaleInfo.setOutput(outputEdge(0), 1.0f);
-        }
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
@@ -81,18 +67,14 @@ private:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeOldBuffer(handle_from_this(), serializer);
-        output->serializeOldBuffer(handle_from_this(), serializer);
+        input->serializeOldBuffer(this, serializer);
+        output->serializeOldBuffer(this, serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseCrop(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseCrop(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     // TODO : Crop layer in IR might have 1 or 2 inputs
     IE_ASSERT(inputs.size() >= 1);
     IE_ASSERT(outputs.size() == 1);
@@ -112,12 +94,7 @@ void FrontEnd::parseCrop(
             << "] has invalid axis value. Expected: 0 <= axis < 4, Actual: " << cropAxis;
     }
 
-    auto stage = model->addNewStage<CropStage>(
-        layer->name,
-        StageType::Crop,
-        layer,
-        inputs,
-        outputs);
+    auto stage = model->addNewStage<CropStage>(layer->name, StageType::Crop, layer, inputs, outputs);
 
     DimValues offset;
     for (int i = 0; i < layer->offset.size(); i++) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 
 #include <gmock/gmock.h>
 
-#include <inference_engine/shape_infer/ie_reshape_launcher.hpp>
-#include <inference_engine/shape_infer/ie_reshape_io_controllers.hpp>
+#include <shape_infer/ie_reshape_launcher.hpp>
+#include <shape_infer/ie_reshape_io_controllers.hpp>
 #include <shape_infer/mock_ishape_infer_impl.hpp>
 #include <shape_infer/mock_input_controller.hpp>
 #include <shape_infer/mock_output_controller.hpp>

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,7 +18,10 @@ import argparse
 import os
 import sys
 
-import tensorflow as tf
+try:
+    import tensorflow.compat.v1 as tf_v1
+except ImportError:
+    import tensorflow as tf_v1
 
 sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 from mo.front.tf.loader import load_tf_graph_def
@@ -40,8 +43,8 @@ def convert(filename: str, is_text: bool):
     head, tail = os.path.split(os.path.abspath(filename))
     print("Convert: {} \n     to: {}".format(filename, os.path.join(head, tail + new_ext)))
     graph_def, _ = load_tf_graph_def(graph_file_name=filename, is_binary=is_text)
-    tf.import_graph_def(graph_def, name='')
-    tf.train.write_graph(graph_def, head, tail + new_ext, as_text=is_text)
+    tf_v1.import_graph_def(graph_def, name='')
+    tf_v1.train.write_graph(graph_def, head, tail + new_ext, as_text=is_text)
 
 
 if __name__ == '__main__':

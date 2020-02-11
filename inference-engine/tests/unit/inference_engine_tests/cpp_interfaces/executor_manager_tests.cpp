@@ -1,10 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <cpp_interfaces/ie_executor_manager.hpp>
-#include <ie_device.hpp>
 
 using namespace ::testing;
 using namespace std;

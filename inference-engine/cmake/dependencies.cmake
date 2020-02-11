@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,6 +8,9 @@ cmake_policy(SET CMP0054 NEW)
 include(dependency_solver)
 
 set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
+if (CMAKE_CROSSCOMPILING)
+    set(CMAKE_STAGING_PREFIX "${TEMP}")
+endif()
 
 include(ExternalProject)
 
@@ -15,6 +18,8 @@ include(linux_name)
 if(COMMAND get_linux_name)
     get_linux_name(LINUX_OS_NAME)
 endif()
+
+include(CMakeParseArguments)
 
 if (ENABLE_MYRIAD)
     include(vpu_dependencies)
@@ -69,85 +74,126 @@ endif ()
 
 ## TBB package
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    if (WIN32)
-        #TODO: add target_path to be platform specific as well, to avoid following if
-        RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "tbb2019_20181010_win.zip" #TODO: windows zip archive created incorrectly using old name for folder
-                TARGET_PATH "${TEMP}/tbb"
-                ENVIRONMENT "TBBROOT"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-    elseif(LINUX)
-        RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "tbb2019_20181010_lin.tgz"
-                TARGET_PATH "${TEMP}/tbb"
-                ENVIRONMENT "TBBROOT")
-    else(APPLE)
-        RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "tbb2019_20190414_v1_mac.tgz"
-                TARGET_PATH "${TEMP}/tbb"
-                ENVIRONMENT "TBBROOT"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+    reset_deps_cache(TBBROOT TBB_DIR)
+
+    if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
+        if (WIN32)
+            #TODO: add target_path to be platform specific as well, to avoid following if
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_WIN "tbb2020_20191023_win_tbbbind_patched.zip"
+                    TARGET_PATH "${TEMP}/tbb"
+                    ENVIRONMENT "TBBROOT"
+                    VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+        elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_ANDROID "tbb2020_20191023_android.tgz"
+                    TARGET_PATH "${TEMP}/tbb"
+                    ENVIRONMENT "TBBROOT"
+                    VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+        elseif(LINUX)
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_LIN "tbb2020_20191023_lin_tbbbind_patched.tgz"
+                    TARGET_PATH "${TEMP}/tbb"
+                    ENVIRONMENT "TBBROOT")
+        else(APPLE)
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_MAC "tbb2020_20191023_mac.tgz"
+                    TARGET_PATH "${TEMP}/tbb"
+                    ENVIRONMENT "TBBROOT"
+                    VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+        endif()
+    else()
+        if(DEFINED TBB_DIR)
+            get_filename_component(TBB ${TBB_DIR} DIRECTORY)
+        else()
+            get_filename_component(TBB $ENV{TBB_DIR} DIRECTORY)
+        endif()
     endif()
-    log_rpath_from_dir(TBB "${TBB}/lib")
+
+    update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
+    update_deps_cache(TBB_DIR "${TBBROOT}/cmake" "Path to TBB package folder")
+
+    if (WIN32)
+        log_rpath_from_dir(TBB "${TBB_DIR}/../bin")
+    else ()
+        log_rpath_from_dir(TBB "${TBB_DIR}/../lib")
+    endif ()
     debug_message(STATUS "tbb=" ${TBB})
 endif ()
 
 if (ENABLE_OPENCV)
-    set(OPENCV_VERSION "4.1.2")
-    set(OPENCV_BUILD "624")
-    set(OPENCV_SUFFIX "")
+    reset_deps_cache(OpenCV_DIR)
+
+    set(OPENCV_VERSION "4.2.0")
+    set(OPENCV_BUILD "082")
     if (WIN32)
         RESOLVE_DEPENDENCY(OPENCV
-                ARCHIVE_WIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}.zip"
-                TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}"
+                ARCHIVE_WIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}.txz"
+                TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
                 ENVIRONMENT "OpenCV_DIR"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-        log_rpath_from_dir(OPENCV "\\opencv_${OPENCV_VERSION}\\bin")
     elseif(APPLE)
         RESOLVE_DEPENDENCY(OPENCV
-                ARCHIVE_MAC "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.tar.xz"
-                TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx"
+                ARCHIVE_MAC "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
+                TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx/opencv"
                 ENVIRONMENT "OpenCV_DIR"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-        log_rpath_from_dir(OPENCV "opencv_${OPENCV_VERSION}_osx/lib")
     elseif(LINUX)
         if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "armv7l")
             set(OPENCV_SUFFIX "debian9arm")
+        elseif (${LINUX_OS_NAME} STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
+            set(OPENCV_SUFFIX "centos7")
         elseif (${LINUX_OS_NAME} STREQUAL "Ubuntu 16.04")
             set(OPENCV_SUFFIX "ubuntu16")
         elseif (${LINUX_OS_NAME} STREQUAL "Ubuntu 18.04")
             set(OPENCV_SUFFIX "ubuntu18")
-        elseif (${LINUX_OS_NAME} STREQUAL "CentOS 7")
-            set(OPENCV_SUFFIX "centos7")
         endif()
-    endif()
-
-    if (OPENCV_SUFFIX)
         RESOLVE_DEPENDENCY(OPENCV
-                ARCHIVE_LIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.tar.xz"
-                TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}"
+                ARCHIVE_LIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
+                TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
                 ENVIRONMENT "OpenCV_DIR"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-        log_rpath_from_dir(OPENCV "opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/lib")
+    endif()
+
+    if(ANDROID)
+        set(ocv_cmake_path "${OPENCV}/sdk/native/jni/")
+    else()
+        set(ocv_cmake_path "${OPENCV}/cmake")
+    endif()
+
+    update_deps_cache(OpenCV_DIR "${ocv_cmake_path}" "Path to OpenCV package folder")
+
+    if(WIN32)
+        log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../bin")
+    elseif(ANDROID)
+        log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../../../lib")
+    else()
+        log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../lib")
     endif()
     debug_message(STATUS "opencv=" ${OPENCV})
-    # OpenCV_DIR should point to cmake folder within the specified OpenCV binary package.
-    # It's required to successsfully find OpenCV libs using find_package(OpenCV ...) command.
-    # So, the cached OpenCV_DIR variable should be update if custom value wasn't previously set here.
-    if (NOT DEFINED ENV{OpenCV_DIR})
-        set(OpenCV_DIR "${OPENCV}/cmake" CACHE PATH "Path to OpenCV in temp directory")
-    endif()
 endif()
 
 include(ie_parallel)
 
 if (ENABLE_GNA)
+    reset_deps_cache(
+            GNA_PLATFORM_DIR
+            GNA_KERNEL_LIB_NAME
+            GNA_LIBS_LIST
+            GNA_LIB_DIR
+            libGNA_INCLUDE_DIRS
+            libGNA_LIBRARIES_BASE_PATH)
     if (GNA_LIBRARY_VERSION STREQUAL "GNA1")
         RESOLVE_DEPENDENCY(GNA
                 ARCHIVE_UNIFIED "gna_20181120.zip"
                 TARGET_PATH "${TEMP}/gna")
-    elseif(GNA_LIBRARY_VERSION STREQUAL "GNA1_1401")
-        set(GNA_VERSION "01.00.00.1401")
+    else()
+        if(GNA_LIBRARY_VERSION STREQUAL "GNA1_1401")
+            set(GNA_VERSION "01.00.00.1401")
+        endif()
+        if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
+            set(GNA_VERSION "02.00.00.0587")
+        endif()
         RESOLVE_DEPENDENCY(GNA
                 ARCHIVE_UNIFIED "GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
@@ -157,16 +203,16 @@ if (ENABLE_GNA)
 endif()
 
 configure_file(
-        "${PROJECT_SOURCE_DIR}/cmake/share/InferenceEngineConfig.cmake.in"
+        "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig.cmake.in"
         "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
         @ONLY)
 
 configure_file(
-        "${PROJECT_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
+        "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
         "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
         COPYONLY)
 
 configure_file(
-        "${PROJECT_SOURCE_DIR}/cmake/ie_parallel.cmake"
+        "${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake"
         "${CMAKE_BINARY_DIR}/share/ie_parallel.cmake"
         COPYONLY)

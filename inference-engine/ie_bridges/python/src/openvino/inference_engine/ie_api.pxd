@@ -3,7 +3,7 @@ from .ie_api_impl_defs cimport Blob, TensorDesc
 
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libcpp.memory cimport unique_ptr
+from libcpp.memory cimport unique_ptr, shared_ptr
 
 cdef class BlobBuffer:
     cdef Blob.Ptr ptr
@@ -37,7 +37,7 @@ cdef class ExecutableNetwork:
     cdef C.IEPlugin plugin_impl
     cdef C.IECore ie_core_impl
     cdef public:
-        _requests, _infer_requests, inputs, outputs
+        _requests, _infer_requests
 
 cdef class IEPlugin:
     cdef C.IEPlugin impl
@@ -47,18 +47,20 @@ cdef class IEPlugin:
     cpdef void set_initial_affinity(self, IENetwork network) except *
     cpdef set get_supported_layers(self, IENetwork net)
 
-cdef class IENetLayer:
-    cdef C.IENetLayer impl
-
-cdef class InputInfo:
-    cdef C.InputInfo impl
-
-cdef class OutputInfo:
-    cdef C.OutputInfo impl
-
 cdef class LayersStatsMap(dict):
     cdef C.IENetwork net_impl
 
 cdef class IECore:
     cdef C.IECore impl
     cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config = ?, int num_requests = ?)
+    cpdef ExecutableNetwork import_network(self, str model_file, str device_name, config = ?, int num_requests = ?)
+
+
+cdef class DataPtr:
+    cdef C.DataPtr _ptr
+
+cdef class CDataPtr:
+    cdef C.CDataPtr _ptr
+
+cdef class IENetLayer:
+    cdef C.CNNLayerPtr _ptr

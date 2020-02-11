@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,6 @@
 
 #include <format_reader_ptr.h>
 #include <inference_engine.hpp>
-#include <ext_list.hpp>
 
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
@@ -89,16 +88,6 @@ int main(int argc, char *argv[]) {
             ie.SetLogCallback(error_listener);
         }
 
-        /*If CPU device, load default library with extensions that comes with the product*/
-        if (FLAGS_d.find("CPU") != std::string::npos) {
-            /**
-            * cpu_extensions library is compiled from "extension" folder containing
-            * custom MKLDNNPlugin layer implementations. These layers are not supported
-            * by mkldnn, but they can be useful for inferring custom topologies.
-            **/
-            ie.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>(), "CPU");
-        }
-
         if (!FLAGS_l.empty()) {
             // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
             IExtensionPtr extension_ptr = make_so_pointer<IExtension>(FLAGS_l);
@@ -120,13 +109,8 @@ int main(int argc, char *argv[]) {
             "\n\t" << binFileName <<
             slog::endl;
 
-        CNNNetReader networkReader;
         /** Read network model **/
-        networkReader.ReadNetwork(FLAGS_m);
-
-        /** Extract model name and load weights **/
-        networkReader.ReadWeights(binFileName);
-        CNNNetwork network = networkReader.getNetwork();
+        CNNNetwork network = ie.ReadNetwork(FLAGS_m);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 5. Prepare input blobs --------------------------------------------------
@@ -160,7 +144,7 @@ int main(int argc, char *argv[]) {
 
                 inputInfo = item.second;
 
-                slog::info << "Batch size is " << std::to_string(networkReader.getNetwork().getBatchSize()) << slog::endl;
+                slog::info << "Batch size is " << std::to_string(network.getBatchSize()) << slog::endl;
 
                 /** Creating first input blob **/
                 Precision inputPrecision = Precision::U8;
@@ -262,10 +246,19 @@ int main(int argc, char *argv[]) {
         Blob::Ptr imageInput = infer_request.GetBlob(imageInputName);
 
         /** Filling input tensor with images. First b channel, then g and r channels **/
-        size_t num_channels = imageInput->getTensorDesc().getDims()[1];
-        size_t image_size = imageInput->getTensorDesc().getDims()[3] * imageInput->getTensorDesc().getDims()[2];
+        MemoryBlob::Ptr mimage = as<MemoryBlob>(imageInput);
+        if (!mimage) {
+            slog::err << "We expect image blob to be inherited from MemoryBlob, but by fact we were not able "
+                "to cast imageInput to MemoryBlob" << slog::endl;
+            return 1;
+        }
+        // locked memory holder should be alive all time while access to its buffer happens
+        auto minputHolder = mimage->wmap();
 
-        unsigned char* data = static_cast<unsigned char*>(imageInput->buffer());
+        size_t num_channels = mimage->getTensorDesc().getDims()[1];
+        size_t image_size = mimage->getTensorDesc().getDims()[3] * mimage->getTensorDesc().getDims()[2];
+
+        unsigned char *data = minputHolder.as<unsigned char *>();
 
         /** Iterate over all input images **/
         for (size_t image_id = 0; image_id < std::min(imagesData.size(), batchSize); ++image_id) {
@@ -284,7 +277,15 @@ int main(int argc, char *argv[]) {
             auto imInfoDim = inputsInfo.find(imInfoInputName)->second->getTensorDesc().getDims()[1];
 
             /** Fill input tensor with values **/
-            float *p = input2->buffer().as<PrecisionTrait<Precision::FP32>::value_type*>();
+            MemoryBlob::Ptr minput2 = as<MemoryBlob>(input2);
+            if (!minput2) {
+                slog::err << "We expect input2 blob to be inherited from MemoryBlob, but by fact we were not able "
+                    "to cast input2 to MemoryBlob" << slog::endl;
+                return 1;
+            }
+            // locked memory holder should be alive all time while access to its buffer happens
+            auto minput2Holder = minput2->wmap();
+            float *p = minput2Holder.as<PrecisionTrait<Precision::FP32>::value_type *>();
 
             for (size_t image_id = 0; image_id < std::min(imagesData.size(), batchSize); ++image_id) {
                 p[image_id * imInfoDim + 0] = static_cast<float>(inputsInfo[imageInputName]->getTensorDesc().getDims()[2]);
@@ -305,7 +306,14 @@ int main(int argc, char *argv[]) {
         slog::info << "Processing output blobs" << slog::endl;
 
         const Blob::Ptr output_blob = infer_request.GetBlob(outputName);
-        const float* detection = static_cast<PrecisionTrait<Precision::FP32>::value_type*>(output_blob->buffer());
+        MemoryBlob::CPtr moutput = as<MemoryBlob>(output_blob);
+        if (!moutput) {
+            throw std::logic_error("We expect output to be inherited from MemoryBlob, "
+                                   "but by fact we were not able to cast output to MemoryBlob");
+        }
+        // locked memory holder should be alive all time while access to its buffer happens
+        auto moutputHolder = moutput->rmap();
+        const float *detection = moutputHolder.as<const PrecisionTrait<Precision::FP32>::value_type *>();
 
         std::vector<std::vector<int> > boxes(batchSize);
         std::vector<std::vector<int> > classes(batchSize);

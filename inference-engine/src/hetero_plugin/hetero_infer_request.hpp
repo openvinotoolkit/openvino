@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,11 +27,9 @@ public:
     typedef std::shared_ptr<HeteroInferRequest> Ptr;
 
     struct SubRequestDesc {
-        InferenceEngine::ExecutableNetwork::Ptr _network;
-        InferenceEngine::InferRequest::Ptr _request;
-        std::unordered_set<std::string> _iNames;
-        std::unordered_set<std::string> _oNames;
-        InferenceEngine::ProfilingTask _profilingTask;
+        InferenceEngine::ExecutableNetwork  _network;
+        InferenceEngine::InferRequest::Ptr  _request;
+        InferenceEngine::ProfilingTask      _profilingTask;
     };
     using SubRequestsList = std::vector<SubRequestDesc>;
 
@@ -41,22 +39,10 @@ public:
 
     void InferImpl() override;
 
-    void
-    GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
+    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
 
     void updateInOutIfNeeded();
 
-    void setCallbackSequence();
-
-    void startFirstAsyncRequest();
-
-    InferenceEngine::StatusCode waitAllRequests(int64_t millis_timeout);
-
-    void setCallbackForLastRequest(std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>& callback);
-
-    bool isAnyRequestBusy();
-
-private:
     SubRequestsList _inferRequests;
     std::map<std::string, InferenceEngine::Blob::Ptr> _blobs;
 };

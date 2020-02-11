@@ -87,6 +87,99 @@ private:
     }
 };
 
+struct shifts_t: public c_compatible {
+    shifts_t(): count_(1), mask_(0), shifts_(shifts_buf_)
+    { set(0); }
+
+    shifts_t(const shifts_t &rhs): shifts_t()
+    { set(rhs.count_, rhs.mask_, rhs.shifts_); }
+
+    ~shifts_t() { cleanup(); }
+
+    shifts_t &operator=(const shifts_t &rhs) {
+        if (&rhs == this)
+            return *this;
+        status_t status = set(rhs.count_, rhs.mask_, rhs.shifts_);
+        assert(status == status::success);
+        (void)status;
+        return *this;
+    }
+
+    bool has_default_values() const {
+        for (int c = 0; c < count_; ++c) {
+            if(shifts_[c] != 0) return false;
+        }
+        return true;
+    }
+
+    status_t set(int count, int mask, const int32_t *shifts);
+    status_t set(int32_t single_shift) { return this->set(1, 0, &single_shift); }
+
+    int count_;
+    int mask_;
+    int32_t *shifts_;
+
+private:
+    enum { shifts_buf_size = 16 };
+    int32_t shifts_buf_[shifts_buf_size];
+
+    void cleanup() {
+        if (shifts_ != shifts_buf_ && shifts_ != nullptr)
+            impl::free(shifts_);
+
+        count_ = 1;
+        mask_ = 0;
+        shifts_ = shifts_buf_;
+    }
+};
+
+template <typename T>
+struct zero_points_t: public c_compatible {
+    zero_points_t(): count_(1), mask_(0), zero_points_(zero_points_buf_)
+    { set(0); }
+
+    zero_points_t(const zero_points_t &rhs): zero_points_t()
+    { set(rhs.count_, rhs.mask_, rhs.zero_points_); }
+
+    ~zero_points_t() { cleanup(); }
+
+    zero_points_t &operator=(const zero_points_t &rhs) {
+        if (&rhs == this)
+            return *this;
+        status_t status = set(rhs.count_, rhs.mask_, rhs.zero_points_);
+        assert(status == status::success);
+        (void)status;
+        return *this;
+    }
+
+    bool has_default_values() const {
+        for (int c = 0; c < count_; ++c) {
+            if(zero_points_[c] != 0) return false;
+        }
+        return true;
+    }
+
+    status_t set(int count, int mask, const T *zero_points);
+    status_t set(T single_zero_point) { return this->set(1, 0, &single_zero_point); }
+
+    int count_;
+    int mask_;
+    T *zero_points_;
+
+private:
+    enum { zero_points_buf_size = 16 };
+    T zero_points_buf_[zero_points_buf_size];
+
+    void cleanup() {
+        if (zero_points_ != zero_points_buf_ && zero_points_ != nullptr)
+            impl::free(zero_points_);
+
+        count_ = 1;
+        mask_ = 0;
+        zero_points_ = zero_points_buf_;
+    }
+};
+
 }
 }
 
@@ -99,7 +192,10 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
 
         mkldnn::impl::primitive_kind_t kind;
         union {
-            struct { float scale; } sum;
+            struct {
+                float scale;
+                mkldnn::impl::data_type_t data_type;
+            } sum;
             eltwise_t eltwise;
             struct {
                 mkldnn::impl::alg_kind_t alg;
@@ -119,9 +215,18 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
             } dw_conv;
             struct {
                 mkldnn::impl::alg_kind_t alg;
-                const float* weights_data;
+                const float* thresholds_data;
                 const float* output_mask_data;
             } binarization;
+            struct {
+                mkldnn::impl::alg_kind_t alg;
+                const float* crop_low_data;
+                const float* crop_high_data;
+                const float* input_scale_data;
+                const float* input_shift_data;
+                const float* output_scale_data;
+                const float* output_shift_data;
+            } quantization;
         };
 
         bool is_eltwise(bool require_scale_one = true) const {
@@ -157,11 +262,15 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
             using namespace mkldnn::impl;
             return kind == primitive_kind::binarization;
         }
+        bool is_quantization() const {
+            using namespace mkldnn::impl;
+            return kind == primitive_kind::quantization;
+        }
     };
 
     mkldnn_post_ops(): len_(0) {}
 
-    mkldnn::impl::status_t append_sum(float scale);
+    mkldnn::impl::status_t append_sum(float scale, mkldnn::impl::data_type_t data_type);
     mkldnn::impl::status_t append_eltwise(float scale,
             mkldnn::impl::alg_kind_t alg, float alpha, float beta);
     mkldnn::impl::status_t append_depthwise(mkldnn::impl::alg_kind_t alg,
@@ -172,6 +281,8 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
                                           const float* biases_data);
     mkldnn::impl::status_t append_binarization(mkldnn::impl::alg_kind_t alg, const float* weights_data,
                                                const float* output_mask_data);
+    mkldnn::impl::status_t append_quantization(mkldnn::impl::alg_kind_t alg, const float* crop_low, const float* crop_high,
+            const float* input_scale, const float* input_shift, const float* output_scale, const float* output_shift);
 
     int find(mkldnn::impl::primitive_kind_t kind, int start = 0,
             int stop = -1) const {
@@ -197,7 +308,7 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
     bool contain(mkldnn::impl::primitive_kind_t kind, int index) const
     { return find(kind, index, index + 1) == index; }
 
-    enum { capacity = 4 };
+    enum { capacity = 10 };
 
     int len_;
     entry_t entry_[capacity];
@@ -216,7 +327,19 @@ struct mkldnn_primitive_attr: public mkldnn::impl::c_compatible {
             && output_scales_.has_default_values()
             && post_ops_.has_default_values()
             && rnn_data_qparams_.has_default_values()
-            && rnn_weights_qparams_.has_default_values();
+            && rnn_weights_qparams_.has_default_values()
+            && input_zero_points_.has_default_values()
+            && weights_zero_points_.has_default_values()
+            && output_compensations_.has_default_values();
+    }
+
+    bool has_asymmetric_quantization() const {
+        return true
+               && round_mode_ == mkldnn::impl::round_mode::nearest
+               && output_scales_.has_default_values()
+               && rnn_data_qparams_.has_default_values()
+               && rnn_weights_qparams_.has_default_values()
+               && (!input_zero_points_.has_default_values() || !weights_zero_points_.has_default_values());
     }
 
     mkldnn::impl::status_t set_round_mode(
@@ -229,6 +352,11 @@ struct mkldnn_primitive_attr: public mkldnn::impl::c_compatible {
     mkldnn::impl::post_ops_t post_ops_;
     mkldnn::impl::rnn_data_qparams_t rnn_data_qparams_;
     mkldnn::impl::scales_t rnn_weights_qparams_;
+
+    mkldnn::impl::zero_points_t<uint8_t> input_zero_points_;
+    mkldnn::impl::zero_points_t<float> weights_zero_points_;
+    mkldnn::impl::shifts_t output_compensations_;
 };
+
 
 #endif

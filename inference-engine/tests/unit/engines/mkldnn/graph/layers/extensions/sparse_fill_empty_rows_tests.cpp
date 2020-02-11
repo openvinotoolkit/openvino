@@ -1,16 +1,15 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_graph.h"
 
 #include "test_graph.hpp"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
-#include <extension/ext_list.hpp>
+#include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 
 #include <algorithm>
@@ -313,12 +312,8 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-            MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*) {}));
-
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(net_reader.getNetwork());
 
             auto& nodes = graph.getNodes();
             nodes = graph.getNodes();
@@ -508,21 +503,21 @@ INSTANTIATE_TEST_CASE_P(
                 input_dense_shape_shape_case1, input_dense_shape_value_case1, input_default_value_shape_case1, input_default_value_case1,
                 output_indices_shape_case1, output_values_shape_case1, output_empty_rows_indicator_shape_case1,
                 1, MKLDNNPlugin::impl_desc_type::unknown },
-                
+
                 // case 2 - in one row all values absent without marker
                 sparse_fill_empty_rows_test_params{ "FP32",
                 input_indices_shape_case2, input_indices_value_case2, input_values_shape_case2,
                 input_dense_shape_shape_case2, input_dense_shape_value_case2, input_default_value_shape_case2, input_default_value_case2,
                 output_indices_shape_case2, output_values_shape_case2, output_empty_rows_indicator_shape_case2,
                 1, MKLDNNPlugin::impl_desc_type::unknown },
-                
+
                 // case 3 - in one row all values absent with marker
                 sparse_fill_empty_rows_test_params{ "FP32",
                 input_indices_shape_case3, input_indices_value_case3, input_values_shape_case3,
                 input_dense_shape_shape_case3, input_dense_shape_value_case3, input_default_value_shape_case3, input_default_value_case3,
                 output_indices_shape_case3, output_values_shape_case3, output_empty_rows_indicator_shape_case3,
                 1, MKLDNNPlugin::impl_desc_type::unknown },
-                
+
                 // case 4 - in all rows at least one value presents without marker
                 sparse_fill_empty_rows_test_params{ "FP32",
                 input_indices_shape_case4, input_indices_value_case4, input_values_shape_case4,

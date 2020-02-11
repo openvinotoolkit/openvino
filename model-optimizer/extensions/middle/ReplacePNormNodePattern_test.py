@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 import unittest
 
 from extensions.middle.ReplacePNorm import ReplacePNormNodePattern
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 
 class ReplacePNormNodePatternTests(unittest.TestCase):
@@ -40,8 +41,10 @@ class ReplacePNormNodePatternTests(unittest.TestCase):
 
         ref_graph = build_graph({'in_placeholder': {'kind': 'op', 'op': None},
                                  'in_node': {'kind': 'data', 'shape': [1, 3500]},
-                                 'power': {'kind': 'op', 'op': 'Power', 'power': 2.0},
-                                 'power_data': {'kind': 'data'},
+                                 'pow_const': {'kind': 'op', 'value': 2.0},
+                                 'pow_const_d': {'kind': 'data'},
+                                 'pow': {'kind': 'op', 'op': 'Pow'},
+                                 'pow_data': {'kind': 'data'},
                                  'reshape':  {'kind': 'op', 'op': 'Reshape'},
                                  'reshape_data': {'kind': 'data'},
                                  'const': {'kind': 'op', 'op': 'Const', 'value': [1, 350, 10]},
@@ -50,15 +53,18 @@ class ReplacePNormNodePatternTests(unittest.TestCase):
                                  'reduce_data': {'kind': 'data'},
                                  'const_1': {'kind': 'op', 'op': 'Const', 'value': 2},
                                  'const_data_1': {'kind': 'data'},
-                                 'invpower': {'kind': 'op', 'op': 'Power', 'power': 0.5},
-                                 'invpower_data': {'kind': 'data'},
+
+                                 'invpow_const': {'kind': 'op', 'value': 0.5},
+                                 'invpow_const_d': {'kind': 'data'},
+                                 'invpow': {'kind': 'op', 'op': 'Pow'},
+                                 'invpow_data': {'kind': 'data'},
                                  'out_placeholder': {'kind': 'op', 'op': 'placeholder'},
                                  },
                                 [
                                     ('in_placeholder', 'in_node'),
-                                    ('in_node', 'power'),
-                                    ('power', 'power_data'),
-                                    ('power_data', 'reshape', {'in': 0}),
+                                    ('in_node', 'pow', {'in': 0}),
+                                    ('pow', 'pow_data'),
+                                    ('pow_data', 'reshape', {'in': 0}),
                                     ('reshape', 'reshape_data'),
                                     ('const', 'const_data'),
                                     ('const_data', 'reshape', {'in': 1}),
@@ -66,11 +72,16 @@ class ReplacePNormNodePatternTests(unittest.TestCase):
                                     ('const_1', 'const_data_1'),
                                     ('const_data_1', 'reduce', {'in': 1}),
                                     ('reduce', 'reduce_data'),
-                                    ('reduce_data', 'invpower'),
-                                    ('invpower', 'invpower_data'),
-                                    ('invpower_data', 'out_placeholder'),
+                                    ('reduce_data', 'invpow', {'in': 0}),
+                                    ('invpow', 'invpow_data'),
+                                    ('invpow_data', 'out_placeholder'),
+
+                                    ('pow_const', 'pow_const_d'),
+                                    ('invpow_const', 'invpow_const_d'),
+                                    ('pow_const_d', 'pow', {'in': 1}),
+                                    ('invpow_const_d', 'invpow', {'in': 1}),
                                 ]
                                 )
 
-        (flag, resp) = compare_graphs(graph, ref_graph, 'out_placeholder')
+        (flag, resp) = compare_graphs(graph, ref_graph, 'out_placeholder', check_op_attrs=True)
         self.assertTrue(flag, resp)

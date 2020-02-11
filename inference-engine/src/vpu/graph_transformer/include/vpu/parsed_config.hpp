@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,30 +21,40 @@
 
 namespace vpu {
 
-struct ParsedConfig : public ParsedConfigBase{
-    CompilationConfig compileConfig;
+class ParsedConfig : public ParsedConfigBase {
+public:
+    const std::string& compilerLogFilePath() const {
+        return _compilerLogFilePath;
+    }
 
-    bool printReceiveTensorTime = false;
-    bool perfCount              = false;
+    const CompilationConfig& compileConfig() const {
+        return _compileConfig;
+    }
 
-    PerfReport perfReport = PerfReport::PerLayer;
+    bool printReceiveTensorTime() const {
+        return _printReceiveTensorTime;
+    }
 
-    std::map<std::string, std::string> getDefaultConfig() const override;
+    bool perfCount() const {
+        return _perfCount;
+    }
 
-    ~ParsedConfig() = default;
+    PerfReport perfReport() const {
+        return _perfReport;
+    }
 
 protected:
-    explicit ParsedConfig(ConfigMode configMode);
-
-    void checkInvalidValues(const std::map<std::string, std::string> &config) const override;
-
-    void configure(const std::map<std::string, std::string> &config) override;
-
-    std::unordered_set<std::string> getKnownOptions() const override;
-    std::unordered_set<std::string> getCompileOptions() const override;
-    std::unordered_set<std::string> getRuntimeOptions() const override;
+    const std::unordered_set<std::string>& getCompileOptions() const override;
+    const std::unordered_set<std::string>& getRunTimeOptions() const override;
+    const std::unordered_set<std::string>& getDeprecatedOptions() const override;
+    void parse(const std::map<std::string, std::string>& config) override;
 
 private:
-    ConfigMode _mode = ConfigMode::DEFAULT_MODE;
+    std::string _compilerLogFilePath;
+    CompilationConfig _compileConfig;
+    bool _printReceiveTensorTime = false;
+    bool _perfCount              = false;
+    PerfReport _perfReport = PerfReport::PerLayer;
 };
+
 }  // namespace vpu

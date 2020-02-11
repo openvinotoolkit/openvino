@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#include <vector>
 
 #include "fully_connected_kernel_imad.h"
 
@@ -27,7 +27,10 @@ ParamsKey FullyConnectedKernelIMAD::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::INT8);
+    k.EnableDifferentInputWeightsTypes();
+    k.EnableDifferentTypes();
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableBiasPerOutput();
@@ -36,8 +39,7 @@ ParamsKey FullyConnectedKernelIMAD::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
     return k;
 }
 
@@ -86,6 +88,18 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_par
     return true;
 }  // Validate
 
+JitConstants FullyConnectedKernelIMAD::GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const {
+    auto jit = Parent::GetJitConstants(params, kd);
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf = { "", {"b", "f", "y", "x"}, "dequantized", input_dt, 1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+
+    return jit;
+}
+
 KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const optional_params& options) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
@@ -101,4 +115,5 @@ KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const
     }
     return res;
 }
+
 }  // namespace kernel_selector

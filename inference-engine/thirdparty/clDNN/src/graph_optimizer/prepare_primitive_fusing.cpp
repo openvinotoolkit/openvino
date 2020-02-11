@@ -32,6 +32,7 @@
 #include "eltwise_inst.h"
 #include "fused_conv_bn_scale_inst.h"
 #include "fused_conv_eltwise_inst.h"
+#include "gemm_inst.h"
 #include "lrn_inst.h"
 #include "mutable_data_inst.h"
 #include "mvn_inst.h"
@@ -41,7 +42,7 @@
 #include "softmax_inst.h"
 #include "scale_inst.h"
 #include "scale_grad_weights_inst.h"
-#include "upsampling_inst.h"
+#include "resample_inst.h"
 #include "depth_to_space_inst.h"
 #include "gather_inst.h"
 #include "reverse_sequence_inst.h"
@@ -63,7 +64,7 @@ void prepare_primitive_fusing::run(program_impl& p) {
 
 void prepare_primitive_fusing::fuse_reorders(program_impl &p) {
     // This loop tries fusing several reorders one by one (if present) into one reorder
-    auto itr = p.get_processing_order() .begin();
+    auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto node_itr = itr++;
         auto& node = (*node_itr);
@@ -107,7 +108,7 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
 
         program_helpers::do_for_types<activation>(*node, [&p, &is_debug](activation_node& node) {
             auto& input = node.input();
-
+            auto id = node.id();
             // Restrictions:
             // - inputs cannot be padded
             // - primitives input cannot be output
@@ -127,11 +128,23 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
                  !input.is_type<fully_connected>() && !input.is_type<lrn>() && !input.is_type<normalize>() &&
                  !input.is_type<permute>() && !input.is_type<pooling>() && !input.is_type<reorder>() &&
                  !input.is_type<reshape>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
-                 !input.is_type<softmax>() && !input.is_type<upsampling>() && !input.is_type<mvn>() &&
+                 !input.is_type<softmax>() && !input.is_type<resample>() && !input.is_type<mvn>() &&
                  !input.is_type<depth_to_space>() && !input.is_type<gather>() && !input.is_type<reverse_sequence>() &&
                  !input.is_type<shuffle_channels>() && !input.is_type<strided_slice>() &&
                  !input.is_type<fused_conv_eltwise>() && !input.is_type<activation>()))
                 return;
+
+            if (input.is_type<eltwise>()) {
+                bool is_quantization = true;
+                for (auto& in : input.get_dependencies()) {
+                    if (in->get_output_layout().data_type != data_types::u8 && in->get_output_layout().data_type != data_types::i8)
+                        is_quantization = false;
+                }
+
+                // TODO: Add new fused ops mechanism support to eltwise kernel in order to enable fusings in case of quantization
+                if (is_quantization)
+                    return;
+            }
 
             if (input.get_fused_primitives().empty()) {
                 input.add_fused_activation(node.get_primitive()->activation_function, node.get_primitive()->additional_params);
@@ -140,15 +153,14 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
                                                node.get_fused_activations_params()[i]);
                 }
                 input.set_output_padding(node.get_output_layout().data_padding);
+                p.extract_and_remove(node);
             } else {
                 // If node already has any fused node using new mechanism,
                 // we can just use the same way and handle any amount of activations
                 p.fuse_nodes(input, node);
             }
 
-            p.add_optimized_primitive_info(node.id(), {input.id()});
-
-            p.extract_and_remove(node);
+            p.add_optimized_primitive_info(id, {input.id()});
         });
     }
 }
@@ -200,33 +212,140 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
         auto node_itr = itr++;
         auto& node = (*node_itr);
 
-        auto fuse_activation_f = [&p](activation_node& activation_node) {
+        if (node->is_output())
+            continue;
+
+        auto is_grouped_conv = [](convolution_node& node) -> bool {
+            auto in_size = node.get_dependency(0).get_output_layout().size;
+            return (node.get_split() > 1 && node.get_split() != in_size.feature[0]) ||
+                   (node.get_groups() > 1 && node.get_groups() != static_cast<uint32_t>(in_size.feature[0]));
+        };
+
+        auto conv_supports_fusings = [&](convolution_node& node) -> bool {
+            // Since reorder inputs is called after this pass
+            // we have to check that blocked formats can be used in the network and layer is optimized for it.
+            if ((node.get_output_layout().format == format::bfyx_f16 ||
+                (_lo.is_format_optimized(node, format::bfyx_f16) &&
+                 _lo.get_optimization_attributes().bfyx_f16_network)) &&
+                 !is_grouped_conv(node))
+                return true;
+
+            if ((node.get_output_layout().format == format::bfzyx &&
+                (!_lo.get_optimization_attributes().bfzyx_f16_network || !_lo.is_format_optimized(node, format::bfzyx_f16))))
+                return true;
+
+            if ((node.get_output_layout().format == format::fs_b_yx_fsv32 ||
+                (_lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
+                 _lo.is_format_optimized(node, format::fs_b_yx_fsv32) && node.get_primitive()->groups == 1)))
+                    return true;
+
+            const size_t in_feature = node.get_dependency(0).get_output_layout().size.feature[0];
+            const size_t in_batch = node.get_dependency(0).get_output_layout().size.batch[0];
+            const data_types dt = node.get_dependency(0).get_output_layout().data_type;
+            const bool ver_b16f16 = in_feature != 3 &&
+                                    ((dt == data_types::f16 && in_batch % 32 == 0) ||
+                                    (dt == data_types::f32 && in_batch % 16 == 0));
+            if ((node.get_output_layout().format == format::bfzyx_f16 ||
+                 (_lo.is_format_optimized(node, format::bfzyx_f16) &&
+                  _lo.get_optimization_attributes().bfzyx_f16_network)) && in_feature != 3 && !ver_b16f16)
+                return true;
+
+            auto in_dt = node.get_dependency(0).get_output_layout().data_type;
+
+            // TODO: check if that's enough for correct work
+            if (in_dt == data_types::u8 || in_dt == data_types::i8)
+                return true;
+
+            return false;
+        };
+
+        auto fc_supports_fusings = [](fully_connected_node& node) -> bool {
+            auto in_dt = node.get_dependency(0).get_output_layout().data_type;
+
+            if (in_dt == data_types::u8 || in_dt == data_types::i8)
+                return true;
+
+            return false;
+        };
+
+        auto gemm_supports_fusings = [](gemm_node& node) -> bool {
+            bool does_support_fusings = false;
+            auto in0_dt = node.get_dependency(0).get_output_layout().data_type;
+            auto in1_dt = node.get_dependency(1).get_output_layout().data_type;
+            auto in0_fmt = node.get_dependency(0).get_output_layout().format;
+            auto in1_fmt = node.get_dependency(1).get_output_layout().format;
+            if ((in0_dt == data_types::u8 || in0_dt == data_types::i8) &&
+                (in1_dt == data_types::u8 || in1_dt == data_types::i8) &&
+                in0_fmt == format::bfyx && in1_fmt == format::bfyx)
+                does_support_fusings = true;
+
+            if (node.inputs_count() == 3) {
+                auto in2_dt = node.get_dependency(2).get_output_layout().data_type;
+                auto in2_fmt = node.get_dependency(2).get_output_layout().format;
+                if ((in2_dt == data_types::u8 || in2_dt == data_types::i8) &&
+                    in2_fmt == format::bfyx)
+                    does_support_fusings = true;
+                else
+                    does_support_fusings = false;
+            }
+            return does_support_fusings;
+        };
+
+        auto fuse_activation_f = [&](activation_node& activation_node) {
             auto& input_data = activation_node.get_dependency(0);
-            if (activation_node.get_dependencies().size() >= 3 ||
-                (!(input_data.is_type<convolution>() && input_data.get_output_layout().format == format::bfyx_f16) &&
-                 !input_data.is_type<binary_convolution>()))
+            if (input_data.get_users().size() != 1 || activation_node.get_dependencies().size() >= 3)
+                return;
+
+            bool should_fuse = input_data.is_type<binary_convolution>();
+
+            should_fuse |= input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>());
+
+            should_fuse |= input_data.is_type<fully_connected>() && fc_supports_fusings(input_data.as<fully_connected>());
+
+            should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>());
+
+            should_fuse |= input_data.is_type<pooling>() &&
+                (input_data.get_dependency(0).get_output_layout().data_type == data_types::i8 ||
+                 input_data.get_dependency(0).get_output_layout().data_type == data_types::u8) &&
+                (input_data.as<pooling>().get_primitive()->mode == pooling_mode::average ||
+                 input_data.as<pooling>().get_primitive()->mode == pooling_mode::average_no_padding);
+
+            if (!should_fuse)
                 return;
 
             p.fuse_nodes(input_data, activation_node);
         };
 
-        auto fuse_scale_f = [&p](scale_node& scale_node) {
+        auto fuse_scale_f = [&](scale_node& scale_node) {
             if (scale_node.get_dependencies().empty())
                 CLDNN_ERROR_MESSAGE(scale_node.id(), "scale has invalid count of dependencies");
 
             auto& input_data = scale_node.get_dependency(0);
-            bool fuse_to_binary_conv = input_data.is_type<binary_convolution>() &&
-                                       input_data.as<binary_convolution>().get_primitive()->dilation == tensor{1};
-            bool fuse_to_conv = input_data.is_type<convolution>() && input_data.get_output_layout().format == format::bfyx_f16;
+            if (input_data.get_users().size() != 1)
+                return;
 
-            bool should_fuse = fuse_to_binary_conv || fuse_to_conv;
+            bool should_fuse = input_data.is_type<binary_convolution>() &&
+                               input_data.as<binary_convolution>().get_primitive()->dilation == tensor{1};
+
+            should_fuse |= input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>());
+
+            should_fuse |= input_data.is_type<fully_connected>() && fc_supports_fusings(input_data.as<fully_connected>());
+
+            should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>());
+
+            should_fuse |= input_data.is_type<pooling>() &&
+                (input_data.get_dependency(0).get_output_layout().data_type == data_types::i8 ||
+                 input_data.get_dependency(0).get_output_layout().data_type == data_types::u8) &&
+                (input_data.as<pooling>().get_primitive()->mode == pooling_mode::average ||
+                 input_data.as<pooling>().get_primitive()->mode == pooling_mode::average_no_padding);
+
             if (!should_fuse)
                 return;
 
             p.fuse_nodes(input_data, scale_node);
         };
 
-        auto fuse_quantize_f = [&p](quantize_node& quantize_node) {
+        auto fuse_quantize_f = [&](quantize_node& quantize_node) {
             auto& input_data = quantize_node.get_dependency(0);
             auto& input_lo = quantize_node.get_dependency(1);
             auto& input_hi = quantize_node.get_dependency(2);
@@ -234,17 +353,42 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             auto out_layout = quantize_node.get_output_layout();
             auto in_layout = input_data.get_output_layout();
 
-            bool fuse_to_binary_conv = input_data.is_type<binary_convolution>() &&
-                                       ((out_layout.data_type == data_types::bin &&
-                                       quantize_node.get_dependencies().size() == 5 &&
-                                       ((in_layout.size.feature[0] == input_lo.get_output_layout().size.feature[0] &&
-                                         in_layout.size.feature[0] == input_hi.get_output_layout().size.feature[0]) ||
-                                        (input_lo.get_output_layout().size.feature[0] == 1 &&
-                                         input_hi.get_output_layout().size.feature[0] == 1)))) &&
-                                       input_data.as<binary_convolution>().get_primitive()->dilation.spatial[0] == 1 &&
-                                       input_data.as<binary_convolution>().get_primitive()->dilation.spatial[1] == 1;
+            if (input_data.get_users().size() != 1)
+                return;
 
-            bool should_fuse = fuse_to_binary_conv;
+            bool should_fuse = input_data.is_type<binary_convolution>() &&
+                               ((out_layout.data_type == data_types::bin &&
+                               quantize_node.get_dependencies().size() == 5 &&
+                               ((in_layout.size.feature[0] == input_lo.get_output_layout().size.feature[0] &&
+                                 in_layout.size.feature[0] == input_hi.get_output_layout().size.feature[0]) ||
+                                (input_lo.get_output_layout().size.feature[0] == 1 &&
+                                 input_hi.get_output_layout().size.feature[0] == 1)))) &&
+                                 input_data.as<binary_convolution>().get_primitive()->dilation.spatial[0] == 1 &&
+                                 input_data.as<binary_convolution>().get_primitive()->dilation.spatial[1] == 1;
+
+            should_fuse |= input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>()) &&
+                           quantize_node.get_scale_shift_opt() &&
+                           ((out_layout.data_type == data_types::f32 || out_layout.data_type == data_types::f16)  ||
+                           // Avoid fusing to bfyx_f16 (and similar) kernels
+                           ((input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
+                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8) &&
+                           (out_layout.data_type == data_types::u8 || out_layout.data_type == data_types::i8)));
+
+            should_fuse |= input_data.is_type<pooling>() &&
+                           quantize_node.get_scale_shift_opt() &&
+                          // TODO: unify pooling ref and ref_int8 kernels and remove this restriction on precision
+                          (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
+                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8) &&
+                          (input_data.as<pooling>().get_primitive()->mode == pooling_mode::average ||
+                           input_data.as<pooling>().get_primitive()->mode == pooling_mode::average_no_padding);
+
+            should_fuse |= input_data.is_type<fully_connected>() && fc_supports_fusings(input_data.as<fully_connected>()) &&
+                           quantize_node.get_scale_shift_opt() &&
+                           (out_layout.data_type == data_types::u8 || out_layout.data_type == data_types::i8);
+
+            should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>()) &&
+                           quantize_node.get_scale_shift_opt() &&
+                           (out_layout.data_type == data_types::u8 || out_layout.data_type == data_types::i8);
 
             if (!should_fuse)
                 return;
@@ -252,7 +396,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             p.fuse_nodes(input_data, quantize_node);
         };
 
-        auto fuse_eltwise_f = [&p, &recalc_processing_order, this](eltwise_node& node) {
+        auto fuse_eltwise_f = [&](eltwise_node& node) {
             std::shared_ptr<const cldnn::eltwise> prim = node.get_primitive();
             if (node.is_output() || node.inputs_count() != 2 ||
                 prim->mode != eltwise_mode::sum || !prim->stride.empty())
@@ -279,20 +423,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                 std::swap(fused_idx, peer_idx);
             }
 
-            if (parent1->is_type<convolution>() && !_lo.is_format_optimized(parent1->as<convolution>(), format::bfyx_f16))
-                return;
-            if (parent2->is_type<convolution>() && !_lo.is_format_optimized(parent2->as<convolution>(), format::bfyx_f16))
-                return;
-
             auto fused_node = parents[fused_idx];
             auto peer_node = parents[peer_idx];
+            if (parent1->is_type<convolution>() && !conv_supports_fusings(parent1->as<convolution>()))
+                return;
+
+            if (parent2->is_type<convolution>() && !conv_supports_fusings(parent2->as<convolution>()))
+                return;
 
             // This fusing can be extended to support peer node in any layout and with broadcast
-            // Fusing is allowed only if current layouts are bfyx_f16 (in tests) or bfyx_f16_network attribute is true
             bool merge_allowed = fused_node->get_users().size() == 1 &&
-                                 (_lo.get_optimization_attributes().bfyx_f16_network ||
-                                 (fused_node->get_output_layout().format == format::bfyx_f16 &&
-                                  peer_node->get_output_layout().format == format::bfyx_f16)) &&
                                  fused_node->get_output_layout().size == peer_node->get_output_layout().size;
 
             for (auto& parent : fused_node->get_dependencies())
@@ -344,6 +484,8 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
         if ((fmt != format::fs_bs_yx_bsv4_fsv32 || dep_dt != data_types::i8) &&
             (fmt != format::b_fs_yx_fsv4 || dep_dt != data_types::i8) &&
             (fmt != format::b_fs_yx_fsv4 || dep_dt != data_types::u8) &&
+            (fmt != format::byxf_af32 || dep_dt != data_types::i8) &&
+            (fmt != format::byxf_af32 || dep_dt != data_types::u8) &&
             (fmt != format::bfyx || dep_dt != data_types::f32) && (fmt != format::bfyx || dep_dt != data_types::u8) &&
             (fmt != format::bfyx || dep_dt != data_types::i8) && (fmt != format::yxfb || dep_dt != data_types::f16))
             return;
@@ -425,7 +567,9 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     auto eltw_id = eltw_node->id();
 
     bool conv_with_activation = !conv_node->get_fused_activations_funcs().empty();
-    auto conv_netagive_slope = conv_with_activation ? conv_node->get_fused_activations_params().begin()->a : 0.0f;
+    auto additional_params = conv_node->get_fused_activations_params();
+    auto conv_netagive_slope = conv_with_activation && !additional_params.empty()
+        ? additional_params.begin()->a : 0.0f;
 
     auto fused_conv_eltw =
         std::make_shared<fused_conv_eltwise>(conv_id + "_fused_" + eltw_id,
@@ -434,9 +578,9 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
                                              eltw.mode,
                                              conv.weights,
                                              conv.bias,
-                                             conv.weights_quantization_factors,
-                                             conv.output_calibration_factors,
-                                             conv.input_quantization_factor,
+                                             std::vector<primitive_id>{},
+                                             std::vector<primitive_id>{},
+                                             0.0f,
                                              eltw_scale,  // eltw_scale
                                              eltw.output_calibration_factors,
                                              new_eltw_strides,

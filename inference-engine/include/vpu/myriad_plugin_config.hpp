@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
  * @brief A header that defines advanced related properties for VPU plugins.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
- * @file vpu_plugin_config.hpp
+ * @file
  */
 
 #pragma once
@@ -16,7 +16,15 @@
 #include "ie_plugin_config.hpp"
 #include "ie_api.h"
 
+/**
+ * @def VPU_MYRIAD_CONFIG_KEY(name)
+ * @brief Shortcut for defining VPU MYRIAD configuration key
+ */
 #define VPU_MYRIAD_CONFIG_KEY(name) InferenceEngine::VPUConfigParams::_CONFIG_KEY(VPU_MYRIAD_##name)
+/**
+ * @def VPU_MYRIAD_CONFIG_VALUE(name)
+ * @brief Shortcut for defining VPU MYRIAD configuration value
+ */
 #define VPU_MYRIAD_CONFIG_VALUE(name) InferenceEngine::VPUConfigParams::VPU_MYRIAD_##name
 
 #define DECLARE_VPU_MYRIAD_CONFIG_KEY(name) DECLARE_CONFIG_KEY(VPU_MYRIAD_##name)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,9 @@
 #include <mock_icnn_network.hpp>
 #include <mock_iexecutable_network.hpp>
 #include <cpp_interfaces/interface/mock_imemory_state_internal.hpp>
-#include <inference_engine/cpp_interfaces/base/ie_executable_network_base.hpp>
+#include <cpp_interfaces/base/ie_executable_network_base.hpp>
 #include <cpp_interfaces/interface/mock_iexecutable_network_internal.hpp>
-#include <inference_engine/cpp_interfaces/impl/ie_memory_state_internal.hpp>
+#include <cpp_interfaces/impl/ie_memory_state_internal.hpp>
 
 using namespace ::testing;
 using namespace std;

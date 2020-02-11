@@ -90,7 +90,7 @@ IndexSelectKernelBase::DispatchData IndexSelectKernelBase::SetDefault(const inde
         }
     }
 
-    const auto& local = GetOptimalLocalWorkGroupSizes(global);
+    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

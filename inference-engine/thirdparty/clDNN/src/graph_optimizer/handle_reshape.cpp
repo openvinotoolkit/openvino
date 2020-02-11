@@ -35,10 +35,27 @@ using namespace cldnn;
 //- in case of reshape->reorder sequence, the additional reorder before reshape will be added,
 //  if last reorder does not contain padding or mean subtract, it will be removed later in the graph
 void handle_reshape::run(program_impl& p) {
+    // Remove reshapes that don't change the layout of output
+    auto node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto node = (*node_itr++);
+        program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
+            auto input_lay = node.input().get_output_layout();
+            auto output_lay = node.get_output_layout();
+
+            if (!node.is_in_place())
+                return;
+
+            if (program_helpers::are_layouts_identical(input_lay, output_lay).first) {
+                p.add_optimized_primitive_info(node.id());
+                p.extract_and_remove(node);
+            }
+        });
+    }
     // If graph contains sequence of reshape nodes, we can remove all except the last one
     // E.g. pattern permute+flatten+reshape (common for object detection topologies) is represented as
     // permute+reshape+reshape in cldnn and can be simplified to permute+reshape.
-    auto node_itr = p.get_processing_order().begin();
+    node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
@@ -93,7 +110,7 @@ void handle_reshape::run(program_impl& p) {
                     // other reshapes will be clones of the orginal one connected to reshape->reorder sequences
                     if (std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) !=
                         reorder_node_to_split.end()) {
-                        auto new_reshape = std::make_shared<reshape>("_reshape_split_" + user->id() + "_" + node->id(),
+                        auto new_reshape = std::make_shared<reshape>("reorder:_reshape_split_" + user->id() + "_" + node->id(),
                                                                      input_node.id(),
                                                                      output_shape);
                         auto& new_reshape_node = p.get_or_create(new_reshape);
@@ -109,7 +126,7 @@ void handle_reshape::run(program_impl& p) {
                     auto& reorder_reshape_node = reorder_reshape_nodes[reshape_reorder_id];
                     auto reshape_in_layout = reorder_node->get_output_layout();
                     auto reshape_input = std::make_shared<reorder>(
-                        "_reshape_input_" + reorder_node->id() + "_" + reorder_reshape_node->id(),
+                        "reorder:_reshape_input_" + reorder_node->id() + "_" + reorder_reshape_node->id(),
                         input_node.id(),
                         reshape_in_layout.format,
                         reshape_in_layout.data_type);
@@ -129,7 +146,7 @@ void handle_reshape::run(program_impl& p) {
                 // when some primitive does an implicit reorder to some other format then we lose the info about pitches
                 // in reshape stage we assume user provides the input vector in bfyx
                 if (!program_helpers::are_layouts_identical(reshape_layout, bfyx_layout).second) {
-                    auto reshape_input = std::make_shared<reorder>("_reshape_input_" + node->id(),
+                    auto reshape_input = std::make_shared<reorder>("reorder:_reshape_input_" + node->id(),
                                                                    input_node.id(),
                                                                    cldnn::format::bfyx,
                                                                    reshape_layout.data_type);
@@ -139,7 +156,7 @@ void handle_reshape::run(program_impl& p) {
 
                     auto reshape_users = node->get_users();
                     for (const auto& user : reshape_users) {
-                        auto reshape_output = std::make_shared<reorder>("_reshape_output_" + node->id(),
+                        auto reshape_output = std::make_shared<reorder>("reorder:_reshape_output_" + node->id(),
                                                                         user->id(),
                                                                         reshape_layout.format,
                                                                         reshape_layout.data_type);

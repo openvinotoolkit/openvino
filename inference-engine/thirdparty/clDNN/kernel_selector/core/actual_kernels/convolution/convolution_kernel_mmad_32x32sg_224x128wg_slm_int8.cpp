@@ -36,8 +36,7 @@ ParamsKey ConvolutionKernel_mmad_32x32sg_224x128wg_slm_int8::GetSupportedKey() c
     k.EnableTensorPitches();
     k.EnableBiasPerFeature();
     k.EnableBatching();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.DisableTuning();
     return k;
 }

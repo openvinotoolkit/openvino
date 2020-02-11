@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 #include <gtest/gtest.h>
-#include <inference_engine/layer_transform.hpp>
+#include <layer_transform.hpp>
 #include <gna-api-types-xnn.h>
-#include "gna_plugin/quantization/model_quantizer.hpp"
-#include "gna_plugin/quantization/layer_quantizer.hpp"
+#include "frontend/model_quantizer.hpp"
+#include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
 
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
 using namespace GNATestIRs;
 
-class I16QuantisationTest : public GNATest {
+class I16QuantisationTest : public GNATest<> {
  protected:
     LayersQuantizer<QuantI16> lc = LayersQuantizer<QuantI16>(1.0f);
 
@@ -64,7 +64,7 @@ TEST_F(I16QuantisationTest, canQuantizeFCLayer){
     fc->_biases->allocate();
     fillWeights(fc->_biases);
 
-    std::shared_ptr<Data> outData = std::make_shared<Data>("data", SizeVector({1, 1}), Precision::FP32, Layout::NC);
+    std::shared_ptr<Data> outData = std::make_shared<Data>("data", TensorDesc(Precision::FP32, SizeVector({1, 1}), Layout::NC));
     fc->outData.push_back(outData);
     fc->insData.push_back(outData);
 
@@ -193,7 +193,7 @@ TEST_F(I16QuantisationTest, SplitFollowedByActivation_DummyDiagonalAffineInserti
         .gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
 }
 
-TEST_F(I16QuantisationTest, DISABLED_SliceFollowedBy2FCsAnd2Eltwises_AlignedFilterInsertion) {
+TEST_F(I16QuantisationTest, SliceFollowedBy2FCsAnd2Eltwises_AlignedFilterInsertion) {
     assert_that().onInferModel(twoFCWithPaddingAfterSliceModel())
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
         .gna().propagate_forward().called_with().diagonal_inserted_into_nnet();
@@ -243,6 +243,7 @@ TEST_F(I16QuantisationTest, multiple_inputs_supported) {
         .called_with().pwl_inserted_into_nnet().once();
 }
 TEST_F(I16QuantisationTest, multiple_inputs_can_handle_individual_scale_factors) {
+    DISABLE_TEST_ON_GNA2
     std::vector<float> input_data  = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<float> input2_data = {2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0};
     std::vector<float> result      = {0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5};
@@ -252,7 +253,7 @@ TEST_F(I16QuantisationTest, multiple_inputs_can_handle_individual_scale_factors)
     assert_that().onInferModel(two_inputs_to_affine())
         .inNotCompactMode().gna().propagate_forward()
         .called_with().withGNAConfig(configKey + std::to_string(0), 2.0f).And()
-        .withGNAConfig(configKey + std::to_string(1), 2.0f).returns().result().filledWith(16384).that().equal_to(result);
+        .withGNAConfig(configKey + std::to_string(1), 2.0f).returns().result().filledWith(16384).that().equals_to(result);
 }
 
 TEST_F(I16QuantisationTest, DISABLED_multiple_inputs_into_concat_supported) {
@@ -418,4 +419,34 @@ TEST_F(I16QuantisationTest, ConcatWithDifferentInputScaleFactorsPropagateForward
     assert_that().onInferModel(ConcatWithDiffScaleFactor())
             .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
             .gna().propagate_forward().called_with().pwls_inserted_into_nnet({kActIdentity});
+}
+
+TEST_F(I16QuantisationTest, TI_quantize) {
+    ModelQuantizer<QuantI16> q;
+
+    CNNNetReader net_reader;
+    ASSERT_NO_THROW(net_reader.ReadNetwork(TIModelWithLSTMCell2().data(), TIModelWithLSTMCell2().length()));
+
+    auto weights = make_shared_blob<uint8_t>({ Precision::U8, {249748}, C });
+    weights->allocate();
+    fillWeights(weights);
+    net_reader.SetWeights(weights);
+
+    ASSERT_NO_THROW(q.quantize(net_reader.getNetwork(), 1000));
+}
+
+TEST_F(I16QuantisationTest, TI_PropagateForward) {
+
+    assert_that().onInferModel(TIModelWithLSTMCell1()).withWeigthsPattern({0.1f})
+        .inNotCompactMode().gna().propagate_forward()
+        .called_with().pwls_inserted_into_nnet({kActIdentity});
+}
+
+TEST_F(I16QuantisationTest, SplitToConcatWith2Inputs1360NotAlignedNoFC) {
+    assert_that().onInferModel(SplitToConcatWith2Inputs1360NotAlignedNoFC())
+            .inNotCompactMode()
+            .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f)
+            .gna()
+            .propagate_forward()
+            .called();
 }

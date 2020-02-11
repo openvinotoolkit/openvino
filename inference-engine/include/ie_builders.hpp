@@ -1,11 +1,12 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
+/**
+ * @file
+ */
 
-#include <builders/ie_network_builder.hpp>
-#include <builders/ie_layer_builder.hpp>
+#pragma once
 
 #include <builders/ie_argmax_layer.hpp>
 #include <builders/ie_clamp_layer.hpp>
@@ -22,10 +23,12 @@
 #include <builders/ie_grn_layer.hpp>
 #include <builders/ie_gru_sequence_layer.hpp>
 #include <builders/ie_input_layer.hpp>
+#include <builders/ie_layer_builder.hpp>
 #include <builders/ie_lrn_layer.hpp>
 #include <builders/ie_lstm_sequence_layer.hpp>
 #include <builders/ie_memory_layer.hpp>
 #include <builders/ie_mvn_layer.hpp>
+#include <builders/ie_network_builder.hpp>
 #include <builders/ie_norm_layer.hpp>
 #include <builders/ie_normalize_layer.hpp>
 #include <builders/ie_output_layer.hpp>

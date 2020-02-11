@@ -36,6 +36,8 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::oiyx_o16:
         case WeightsLayout::o_i_zyx_i16_o16:
         case WeightsLayout::i_o_zyx_o16_i16:
+        case WeightsLayout::o_i_zyx_i8_o16_i2:
+        case WeightsLayout::ozyxi_o16:
             return 16;
         case WeightsLayout::os_i_osv8__ai8:
         case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:
@@ -117,7 +119,7 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
     jit.AddConstant(MakeJitConstant("MEAN_OP(val, mean_val)", getMeanOpString(params.mean_op)));
 
     // Type parametrized activation:
-    jit.Merge(MakeActivationJitConstants(params.activations, "_TYPED", true));
+    jit.Merge(MakeActivationJitConstants(params.activations, GetUnitType(params), "_TYPED", true));
 
     // TODO: Move to lower classes
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", SubGroupSize(params.output.GetLayout())));
@@ -133,7 +135,7 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_weig
     std::vector<size_t> global(3);
 
     global = {out.OFM().v, out.IFM().v, out.X().v * out.Y().v * out.Z().v};
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];
@@ -150,7 +152,7 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
     DispatchData kd;
 
     auto global = GetTensorFriendlyWorkGroups(params.inputs[0]);
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];
@@ -159,6 +161,18 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
     kd.lws0 = local[0];
     kd.lws1 = local[1];
     kd.lws2 = local[2];
+
+    if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
+        std::vector<size_t> sizes = { 32, 16, 8, 4 };
+        for (auto& s : sizes) {
+            if (kd.gws2 % s == 0) {
+                kd.lws0 = 1;
+                kd.lws1 = 1;
+                kd.lws2 = s;
+                break;
+            }
+        }
+    }
 
     return kd;
 }

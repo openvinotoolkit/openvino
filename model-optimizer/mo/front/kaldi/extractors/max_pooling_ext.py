@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,8 +27,8 @@ class MaxPoolingComponentFrontExtractor(FrontExtractorOp):
     op = 'maxpoolingcomponent'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         pb = node.parameters
         collect_until_token(pb, b'<PoolSize>')
         kernel = read_binary_integer32_token(pb)
@@ -57,4 +57,4 @@ class MaxPoolingComponentFrontExtractor(FrontExtractorOp):
         }
         mapping_rule.update(layout_attrs())
         Pooling.update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        return cls.enabled

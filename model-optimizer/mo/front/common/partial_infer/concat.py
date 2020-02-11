@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import logging as log
 # Concat infer : N - number of inputs to concat
 #                axis - dimension number for tensors concatenation
 import numpy as np
+from mo.front.common.partial_infer.utils import int64_array
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.ops.op import PermuteAttrs
@@ -49,6 +50,7 @@ def concat_infer(node):
     mask[axis] = True  # pylint: disable=unsupported-assignment-operation
     not_mask = np.logical_not(mask)  # pylint: disable=assignment-from-no-return
     for s in shapes[1:]:
+        s = int64_array(s)
         if np.all(shape[not_mask] == s[not_mask]):  # TODO handle -1 in a special way
             shape[mask] += s[mask]
         else:
@@ -61,7 +63,7 @@ def concat_infer(node):
         if 'axis' in node.dim_attrs:
             node.dim_attrs.remove('axis')
 
-    PermuteAttrs.create_permute_attrs(node, attrs=[('axis','input:0')])
+    PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
 
     values = [node.in_node(i).value for i in range(N)]
     if any(v is None for v in values):
@@ -71,8 +73,6 @@ def concat_infer(node):
     node.out_node(0).shape = np.array(node.out_node(0).value.shape, dtype=np.int64)
 
 
-
-
 def tf_pack_infer(node):
     # Constant path is supported only
     values = [node.in_node(i).value for i in range(node.N)]
@@ -80,4 +80,3 @@ def tf_pack_infer(node):
         return
     node.out_node().value = np.stack(values, node.axis)
     node.out_node().shape = np.array(node.out_node().value.shape, dtype=np.int64)
-

@@ -15,6 +15,7 @@
 #include "include/common.cl"
 #include "include/data_types.cl"
 #include "include/unit_type.cl"
+#include "include/include_all.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
@@ -49,9 +50,12 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
 #if BIAS_TERM
     __global UNIT_TYPE* biases,
 #endif
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
+#endif
     int split_idx)
 {
-    uint oc = get_global_id(0) * OUTPUT_BLOCK_WIDTH;
+    uint oc = (uint)get_global_id(0) * OUTPUT_BLOCK_WIDTH;
     uint or = get_global_id(1);
     uint fs_b_id = get_group_id(2);
     uint sglid = get_sub_group_local_id();
@@ -202,6 +206,12 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
         {
             UNIT_TYPE2 tmp_write = (UNIT_TYPE2)(out[out_x * FSV_PER_THREAD + 0],
                                                 out[out_x * FSV_PER_THREAD + 1]);
+#if HAS_FUSED_OPS
+            unroll_for (uint out_f = 0; out_f < 2; ++out_f)
+            {
+                { FUSED_OPS_VEC_ELEM; tmp_write[out_f] = FINAL_NAME_VEC_ELEM; }
+            }
+#endif
             UNIT_BLOCK_WRITE2(output, output_offset, tmp_write);
             output_offset += FSV;
         }
@@ -214,7 +224,11 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
             {
                 if (oc + out_x < OUTPUT_SIZE_X && fs * FSV + sglid + out_f * SUB_GROUP_SIZE < OUTPUT_FEATURE_NUM)
                 {
-                    output[output_offset + sglid] = out[out_x * FSV_PER_THREAD + out_f];
+                    const uint out_idx = out_x * FSV_PER_THREAD + out_f;
+#if HAS_FUSED_OPS
+                    { FUSED_OPS_SCALAR; out[out_idx] = FINAL_NAME_SCALAR; }
+#endif
+                    output[output_offset + sglid] = out[out_idx];
                 }
                 output_offset += SUB_GROUP_SIZE;
             }

@@ -45,6 +45,8 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfwzyx);
     k.EnableInputLayout(DataLayout::bfzyx_f16);
     k.EnableOutputLayout(DataLayout::bfzyx_f16);
+    k.EnableInputLayout(DataLayout::bfzyx_b16f16);
+    k.EnableOutputLayout(DataLayout::bfzyx_b16f16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -65,12 +67,12 @@ bool ConcatenationKernel_simple_Ref::Validate(const Params& p, const optional_pa
 
     const concatenation_params& params = static_cast<const concatenation_params&>(p);
 
-    // all inputs have to have same layout (exept bfzyx and bfzyx_f16)
+    // all inputs have to have same layout (exept 3D: bfzyx, bfzyx_f16, and bfzyx_b16f16)
     auto same_layout = params.inputs[0].GetLayout();
     for (const auto& lt : params.inputs) {
         auto cur_layout = lt.GetLayout();
-        if ((cur_layout == DataLayout::bfzyx && same_layout == DataLayout::bfzyx_f16) ||
-            (cur_layout == DataLayout::bfzyx_f16 && same_layout == DataLayout::bfzyx)) {
+        if ((cur_layout == DataLayout::bfzyx || cur_layout == DataLayout::bfzyx_f16 || cur_layout == DataLayout::bfzyx_b16f16) &&
+            (same_layout == DataLayout::bfzyx || same_layout == DataLayout::bfzyx_f16 || same_layout == DataLayout::bfzyx_b16f16)) {
             continue;
         } else if (cur_layout != same_layout) {
             return false;
@@ -89,7 +91,7 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_simple_Ref::SetDefault
         input.X().v * input.Y().v,
         input.Z().v * input.W().v,
         input.Feature().v * input.Batch().v};
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];  // X * Y
     kd.gws1 = global[1];  // Z * W

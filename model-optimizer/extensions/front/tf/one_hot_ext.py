@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,15 +14,19 @@
  limitations under the License.
 """
 
-from mo.front.extractor import FrontExtractorOp
+import numpy as np
+
 from extensions.ops.one_hot import OneHot
+from mo.front.extractor import FrontExtractorOp
+from mo.front.tf.extractors.utils import tf_dtype_extractor
 
 
 class OneHotFrontExtractor(FrontExtractorOp):
     op = 'OneHot'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        OneHot.update_node_stat(node, {'axis': node.pb.attr['axis'].i})
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node):
+        OneHot.update_node_stat(node, {'axis': node.pb.attr['axis'].i,
+                                       'data_type': tf_dtype_extractor(node.pb.attr["T"].type, np.float32)})
+        return cls.enabled

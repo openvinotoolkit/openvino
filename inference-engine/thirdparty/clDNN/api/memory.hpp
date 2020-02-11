@@ -38,6 +38,40 @@ struct pointer;
 
 struct memory_impl;
 
+/// @brief Shared memory descriptor type.
+enum class shared_mem_type {
+    /// @brief Structure unitialized or contains no information.
+    shared_mem_empty,
+
+    /// @brief Structure describes shared CL buffer.
+    shared_mem_buffer,
+
+    /// @brief Structure describes shared CL image.
+    shared_mem_image,
+
+    /// @brief Structure describes shared VA/DXVA surface
+    shared_mem_vasurface,
+
+    /// @brief Structure describes shared D3D11 buffer
+    shared_mem_dxbuffer
+};
+
+using shared_handle = void*;
+using shared_surface = uint32_t;
+
+/// @brief Low-level API handles required for using cldnn memory objects in external API calls.
+struct shared_mem_params {
+    shared_mem_type mem_type;     ///< shared buffer type
+    shared_handle context;        ///< OpenCL context for external operations
+    shared_handle user_device;    ///< DX/VA device for external operations
+    shared_handle mem;            ///< memory object handle
+#ifdef WIN32
+    shared_handle surface;        ///< VA/DXVA surface handle
+#else
+    shared_surface surface;
+#endif
+    uint32_t plane;               ///< shared surface plane
+};
 /// @brief Represents buffer with particular @ref layout.
 /// @details Usually allocated by @ref engine except cases when attached to user-allocated buffer.
 struct memory {
@@ -47,14 +81,30 @@ struct memory {
     friend struct network_output;
 
     /// Allocate memory on @p engine using specified @p layout
-    static memory allocate(const engine& engine, const layout& layout, uint16_t stream_id = 0);
+    static memory allocate(const engine& engine, const layout& layout, uint32_t net_id = 0);
+
+    /// Create shared memory object on @p engine using user-supplied memory buffer @p buf using specified @p layout
+    static memory share_buffer(const engine& engine, const layout& layout, shared_handle buf, uint32_t net_id = 0);
+
+    /// Create shared memory object on @p engine using user-supplied 2D image @p img using specified @p layout
+    static memory share_image(const engine& engine, const layout& layout, shared_handle img, uint32_t net_id = 0);
+
+    /// Create shared memory object on @p engine over specified @p plane of video decoder surface @p surf using specified @p layout
+#ifdef WIN32
+    static memory share_surface(const engine& engine, const layout& layout, shared_handle surf, uint32_t plane,
+        uint32_t net_id = 0);
+    static memory share_dx_buffer(const engine& engine, const layout& layout, shared_handle res, uint32_t net_id = 0);
+#else
+    static memory share_surface(const engine& engine, const layout& layout, shared_surface surf, uint32_t plane,
+        uint32_t net_id = 0);
+#endif
 
     /// Create memory object attached to the buffer allocated by user.
     /// @param ptr  The pointer to user allocated buffer.
     /// @param size Size (in bytes) of the buffer. Should be equal to @p layout.data_size()
     /// @note User is responsible for buffer deallocation. Buffer lifetime should be bigger than lifetime of the memory object.
     template <typename T>
-    static memory attach(const cldnn::layout& layout, T* ptr, size_t size, uint16_t stream_id = 0) {
+    static memory attach(const cldnn::layout& layout, T* ptr, size_t size, uint32_t net_id = 0) {
         if (!ptr)
             throw std::invalid_argument("pointer should not be null");
         size_t data_size = size * sizeof(T);
@@ -64,7 +114,7 @@ struct memory {
             throw std::invalid_argument(err_str);
         }
 
-        return attach_impl(layout, static_cast<void*>(ptr), stream_id);
+        return attach_impl(layout, static_cast<void*>(ptr), net_id);
     }
 
     explicit memory(memory_impl* data)
@@ -99,12 +149,14 @@ struct memory {
 
     /// Associated @ref layout
     const layout& get_layout() const;
-    int get_stream_id() const;
+    int get_net_id() const;
 
     /// Test if memory is allocated by @p engine
     bool is_allocated_by(const engine& engine) const;
 
     bool is_the_same_buffer(const memory& other) const;
+
+    shared_mem_params get_internal_params() const;
 
     /// Creates the @ref pointer object to get an access memory data
     template <typename T>
@@ -130,7 +182,7 @@ private:
     void unlock() const;
 
     void* lock_impl() const;
-    static memory attach_impl(const cldnn::layout& layout, void* ptr, uint16_t stream_id);
+    static memory attach_impl(const cldnn::layout& layout, void* ptr, uint32_t net_id);
 
     void retain();
     void release();

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -29,8 +29,9 @@ class ExperimentalDetectronDetectionOutput(Op):
             type=__class__.op,
             op=__class__.op,
             infer=__class__.infer,
+            type_infer=self.type_infer,
             in_ports_count=4,
-            out_ports_count=4,
+            out_ports_count=3,
         )
 
         super().__init__(graph, mandatory_props, attrs)
@@ -52,6 +53,13 @@ class ExperimentalDetectronDetectionOutput(Op):
         # boxes
         node.out_node(0).shape = np.array([rois_num, 4], dtype=np.int64)
         # classes, scores, batch indices
-        for port_ind in range(1, 4):
+        for port_ind in range(1, 3):
             if not node.out_port(port_ind).disconnected():
                 node.out_port(port_ind).data.set_shape(int64_array([rois_num]))
+
+    @staticmethod
+    def type_infer(node):
+        in_data_type = node.in_port(0).get_data_type()
+        node.out_port(0).set_data_type(in_data_type)
+        node.out_port(1).set_data_type(np.int32)  # the second output contains class indices
+        node.out_port(2).set_data_type(in_data_type)

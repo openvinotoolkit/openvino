@@ -1,14 +1,17 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief A header file that provides class for describing precision of data
+ *
  * @file ie_precision.hpp
  */
 #pragma once
-#include <unordered_map>
 #include <string>
+#include <unordered_map>
+#include <vector>
+
 #include "details/ie_exception.hpp"
 
 namespace InferenceEngine {
@@ -21,18 +24,19 @@ public:
     /** Enum to specify of different  */
     enum ePrecision : uint8_t {
         UNSPECIFIED = 255, /**< Unspecified value. Used by default */
-        MIXED = 0,  /**< Mixed value. Can be received from network. No applicable for tensors */
-        FP32 = 10,  /**< 32bit floating point value */
-        FP16 = 11,  /**< 16bit floating point value */
-        Q78 = 20,   /**< 16bit specific signed fixed point precision */
-        I16 = 30,   /**< 16bit signed integer value */
-        U8 = 40,    /**< 8bit unsigned integer value */
-        I8 = 50,    /**< 8bit signed integer value */
-        U16 = 60,   /**< 16bit unsigned integer value */
-        I32 = 70,   /**< 32bit signed integer value */
-        I64 = 72,   /**< 64bit signed integer value */
-        BIN = 71,   /**< 1bit integer value */
-        CUSTOM = 80 /**< custom precision has it's own name and size of elements */
+        MIXED = 0,         /**< Mixed value. Can be received from network. No applicable for tensors */
+        FP32 = 10,         /**< 32bit floating point value */
+        FP16 = 11,         /**< 16bit floating point value */
+        Q78 = 20,          /**< 16bit specific signed fixed point precision */
+        I16 = 30,          /**< 16bit signed integer value */
+        U8 = 40,           /**< 8bit unsigned integer value */
+        I8 = 50,           /**< 8bit signed integer value */
+        U16 = 60,          /**< 16bit unsigned integer value */
+        I32 = 70,          /**< 32bit signed integer value */
+        I64 = 72,          /**< 64bit signed integer value */
+        BIN = 71,          /**< 1bit integer value */
+        BOOL = 41,         /**< 8bit bool type */
+        CUSTOM = 80        /**< custom precision has it's own name and size of elements */
     };
 
 private:
@@ -41,19 +45,19 @@ private:
         size_t bitsSize = 0;
 
         /** @brief Null terminated string with precision name */
-        const char *name = "UNSPECIFIED";
+        const char* name = "UNSPECIFIED";
 
-        bool isFloat     = false;
+        bool isFloat = false;
         ePrecision value = Precision::UNSPECIFIED;
     };
     PrecisionInfo precisionInfo;
 
 public:
     /** @brief Default constructor */
-    Precision()  = default;
+    Precision() = default;
 
     /** @brief Constructor with specified precision */
-    Precision(const Precision::ePrecision  value) {  // NOLINT
+    Precision(const Precision::ePrecision value) {  // NOLINT
         precisionInfo = getPrecisionInfo(value);
     }
 
@@ -63,7 +67,7 @@ public:
      * @param bitsSize size of elements
      * @param name optional name string, used in serialisation
      */
-    explicit Precision(size_t bitsSize, const char * name = nullptr) {
+    explicit Precision(size_t bitsSize, const char* name = nullptr) {
         if (bitsSize == 0) {
             THROW_IE_EXCEPTION << "Precision with 0 elements size not supported";
         }
@@ -78,21 +82,25 @@ public:
 
     /** @brief Creates custom precision with specific underlined type */
     template <class T>
-    static Precision fromType(const char * typeName = nullptr) {
+    static Precision fromType(const char* typeName = nullptr) {
         return Precision(8 * sizeof(T), typeName == nullptr ? typeid(T).name() : typeName);
     }
 
     /** @brief checks whether given storage class T can be used to store objects of current precision */
     template <class T>
-    bool hasStorageType(const char * typeName = nullptr) const noexcept {
+    bool hasStorageType(const char* typeName = nullptr) const noexcept {
         try {
             if (precisionInfo.value != BIN) {
                 if (sizeof(T) != size()) {
                     return false;
                 }
             }
-#define CASE(x, y) case x: return std::is_same<T, y>()
-#define CASE2(x, y1, y2) case x: return std::is_same<T, y1>() || std::is_same<T, y2>()
+#define CASE(x, y) \
+    case x:        \
+        return std::is_same<T, y>()
+#define CASE2(x, y1, y2) \
+    case x:              \
+        return std::is_same<T, y1>() || std::is_same<T, y2>()
 
             switch (precisionInfo.value) {
                 CASE(FP32, float);
@@ -103,10 +111,11 @@ public:
                 CASE(U16, uint16_t);
                 CASE(U8, uint8_t);
                 CASE(I8, int8_t);
+                CASE(BOOL, uint8_t);
                 CASE2(Q78, int16_t, uint16_t);
                 CASE2(BIN, int8_t, uint8_t);
-                default :
-                    return areSameStrings(name(), typeName == nullptr ? typeid(T).name() : typeName);
+            default:
+                return areSameStrings(name(), typeName == nullptr ? typeid(T).name() : typeName);
 #undef CASE
 #undef CASE2
             }
@@ -116,24 +125,23 @@ public:
     }
 
     /** @brief Equality operator with Precision object */
-    bool operator == (const Precision  & p) const noexcept {
-        return precisionInfo.value == p &&
-            precisionInfo.bitsSize == p.precisionInfo.bitsSize &&
-            areSameStrings(precisionInfo.name, p.precisionInfo.name);
+    bool operator==(const Precision& p) const noexcept {
+        return precisionInfo.value == p && precisionInfo.bitsSize == p.precisionInfo.bitsSize &&
+               areSameStrings(precisionInfo.name, p.precisionInfo.name);
     }
 
     /** @brief Equality operator with ePrecision enum value */
-    bool operator == (const ePrecision  p) const noexcept {
+    bool operator==(const ePrecision p) const noexcept {
         return precisionInfo.value == p;
     }
 
     /** @brief Inequality operator with ePrecision enum value */
-    bool operator != (const ePrecision   p) const noexcept {
+    bool operator!=(const ePrecision p) const noexcept {
         return precisionInfo.value != p;
     }
 
     /** @brief Assignment operator with ePrecision enum value */
-    Precision & operator = (const ePrecision p) noexcept {
+    Precision& operator=(const ePrecision p) noexcept {
         precisionInfo = getPrecisionInfo(p);
         return *this;
     }
@@ -144,36 +152,31 @@ public:
     }
 
     /** @brief Logical negation operator */
-    bool operator !() const noexcept {
+    bool operator!() const noexcept {
         return precisionInfo.value == UNSPECIFIED;
     }
 
     /** @brief Cast operator to a ePrecision */
-    operator Precision::ePrecision  () const noexcept {
+    operator Precision::ePrecision() const noexcept {
+        return precisionInfo.value;
+    }
+    constexpr uint8_t getPrecVal() const noexcept {
         return precisionInfo.value;
     }
 
     /** @brief Getter of precision name */
-    const char *name() const noexcept {
+    const char* name() const noexcept {
         return precisionInfo.name;
     }
 
     /** @brief Creates from string with precision name */
-    static Precision FromStr(const std::string &str) {
-        static std::unordered_map<std::string, ePrecision > names = {
-#define     PRECISION_NAME(s) {#s, s}
-            PRECISION_NAME(Q78),
-            PRECISION_NAME(U8),
-            PRECISION_NAME(I8),
-            PRECISION_NAME(I16),
-            PRECISION_NAME(I32),
-            PRECISION_NAME(I64),
-            PRECISION_NAME(U16),
-            PRECISION_NAME(FP32),
-            PRECISION_NAME(FP16),
-            PRECISION_NAME(MIXED),
-            PRECISION_NAME(BIN),
-#undef      PRECISION_NAME
+    static Precision FromStr(const std::string& str) {
+        static std::unordered_map<std::string, ePrecision> names = {
+#define PRECISION_NAME(s) {#s, s}
+            PRECISION_NAME(Q78),  PRECISION_NAME(U8),    PRECISION_NAME(I8),  PRECISION_NAME(I16),
+            PRECISION_NAME(I32),  PRECISION_NAME(I64),   PRECISION_NAME(U16), PRECISION_NAME(FP32),
+            PRECISION_NAME(FP16), PRECISION_NAME(MIXED), PRECISION_NAME(BIN), PRECISION_NAME(BOOL),
+#undef PRECISION_NAME
         };
         auto i = names.find(str);
         return i == names.end() ? Precision() : Precision(i->second);
@@ -182,7 +185,7 @@ public:
     /**
      * @brief Returns size of single element of that precision in bits
      *
-     * @returns Number of bits per element
+     * @returns Number of bytes per element
      */
     size_t size() const {
         if (precisionInfo.bitsSize == 0) {
@@ -196,14 +199,23 @@ public:
         return precisionInfo.isFloat;
     }
 
- protected:
+    bool isSigned() const noexcept {
+        return (precisionInfo.value == Precision::UNSPECIFIED) || (precisionInfo.value == Precision::MIXED) ||
+               (precisionInfo.value == Precision::FP32) || (precisionInfo.value == Precision::FP16) ||
+               (precisionInfo.value == Precision::Q78) || (precisionInfo.value == Precision::I16) ||
+               (precisionInfo.value == Precision::I8) || (precisionInfo.value == Precision::I32) ||
+               (precisionInfo.value == Precision::I64) || (precisionInfo.value == Precision::BIN) ||
+               (precisionInfo.value == Precision::CUSTOM);
+    }
+
+protected:
     /**
      * @brief Returns PrecisionInfo by its name
      *
      * @param name Name of precision
      */
-    template<Precision::ePrecision precision>
-    static PrecisionInfo makePrecisionInfo(const char * name);
+    template <Precision::ePrecision precision>
+    static PrecisionInfo makePrecisionInfo(const char* name);
 
     /**
      * @brief Compare two c-strings
@@ -212,12 +224,10 @@ public:
      * @param r Const pointer to another string
      * @returns True if strings are the same
      */
-    static bool areSameStrings(const char *l, const char *r) noexcept {
-        if (l == r)
-            return true;
+    static bool areSameStrings(const char* l, const char* r) noexcept {
+        if (l == r) return true;
 
-        if (l == nullptr || r == nullptr)
-            return false;
+        if (l == nullptr || r == nullptr) return false;
 
         for (; *l && *r; l++, r++) {
             if (*l != *r) return false;
@@ -229,7 +239,9 @@ public:
      * @brief Return PrecisionInfo
      */
     static PrecisionInfo getPrecisionInfo(ePrecision v) {
-#define CASE(x) case x: return makePrecisionInfo<x>(#x);
+#define CASE(x) \
+    case x:     \
+        return makePrecisionInfo<x>(#x);
         switch (v) {
             CASE(FP32);
             CASE(FP16);
@@ -242,7 +254,9 @@ public:
             CASE(Q78);
             CASE(MIXED);
             CASE(BIN);
-            default : return makePrecisionInfo<UNSPECIFIED>("UNSPECIFIED");
+            CASE(BOOL);
+        default:
+            return makePrecisionInfo<UNSPECIFIED>("UNSPECIFIED");
 #undef CASE
         }
     }
@@ -251,88 +265,92 @@ public:
 /**
  * @brief Particular precision traits
  */
-template<Precision::ePrecision p>
-struct PrecisionTrait {
-};
+template <Precision::ePrecision p>
+struct PrecisionTrait {};
 
 /** @cond INTERNAL */
-template<>
+template <>
 struct PrecisionTrait<Precision::FP32> {
     using value_type = float;
 };
 
-template<>
+template <>
 struct PrecisionTrait<Precision::FP16> {
     using value_type = int16_t;
 };
-template<>
+template <>
 struct PrecisionTrait<Precision::Q78> {
     using value_type = uint16_t;
 };
-template<>
+template <>
 struct PrecisionTrait<Precision::I16> {
     using value_type = int16_t;
 };
-template<>
+template <>
 struct PrecisionTrait<Precision::U16> {
     using value_type = uint16_t;
 };
-template<>
+template <>
 struct PrecisionTrait<Precision::U8> {
     using value_type = uint8_t;
 };
-template<>
+template <>
 struct PrecisionTrait<Precision::I8> {
     using value_type = int8_t;
 };
-template<>
+template <>
+struct PrecisionTrait<Precision::BOOL> {
+    using value_type = uint8_t;
+};
+template <>
 struct PrecisionTrait<Precision::I32> {
     using value_type = int32_t;
 };
-template<>
+template <>
 struct PrecisionTrait<Precision::I64> {
     using value_type = int64_t;
 };
-template<>
+template <>
 struct PrecisionTrait<Precision::BIN> {
     using value_type = int8_t;
 };
 
-template<class T>
+template <class T>
 inline uint8_t type_size_or_zero() {
     return sizeof(T);
 }
 
-template<>
+template <>
 struct PrecisionTrait<Precision::UNSPECIFIED> {
     using value_type = void;
 };
 
-template<>
-struct PrecisionTrait<Precision::MIXED> : PrecisionTrait<Precision::UNSPECIFIED>{
-};
+template <>
+struct PrecisionTrait<Precision::MIXED> : PrecisionTrait<Precision::UNSPECIFIED> {};
 
-template<>
+template <>
 inline uint8_t type_size_or_zero<void>() {
     return 0;
 }
 
-template<Precision::ePrecision T>
-inline typename std::enable_if<std::is_same<
-    std::integral_constant<Precision::ePrecision, Precision::FP16>,
-    std::integral_constant<Precision::ePrecision, T>>::value, bool>::type is_floating() {
+template <Precision::ePrecision T>
+inline typename std::enable_if<std::is_same<std::integral_constant<Precision::ePrecision, Precision::FP16>,
+                                            std::integral_constant<Precision::ePrecision, T>>::value,
+                               bool>::type
+is_floating() {
     return true;
 }
 
-template<Precision::ePrecision T>
-inline typename std::enable_if<!std::is_same<
-    std::integral_constant<Precision::ePrecision, Precision::FP16>,
-    std::integral_constant<Precision::ePrecision, T>>::value, bool>::type is_floating() {
+template <Precision::ePrecision T>
+inline typename std::enable_if<!std::is_same<std::integral_constant<Precision::ePrecision, Precision::FP16>,
+                                             std::integral_constant<Precision::ePrecision, T>>::value,
+                               bool>::type
+is_floating() {
     return std::is_floating_point<typename PrecisionTrait<T>::value_type>::value;
 }
 
-template<Precision::ePrecision precision>
-inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char *name) {
+template <Precision::ePrecision precision>
+inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char* name) {
     Precision::PrecisionInfo info;
     info.name = name;
 
@@ -343,18 +361,30 @@ inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char *name) {
     return info;
 }
 
-inline std::ostream & operator << (std::ostream &out, const InferenceEngine::Precision & p) {
+inline std::ostream& operator<<(std::ostream& out, const InferenceEngine::Precision& p) {
     return out << p.name();
 }
 
-inline std::ostream & operator << (std::ostream &out, const InferenceEngine::Precision::ePrecision & p) {
+inline std::ostream& operator<<(std::ostream& out, const InferenceEngine::Precision::ePrecision& p) {
     return out << Precision(p).name();
 }
 
-inline constexpr uint32_t getPrecisionMask(InferenceEngine::Precision::ePrecision precision1,
-                                           InferenceEngine::Precision::ePrecision precision2,
-                                           InferenceEngine::Precision::ePrecision precision3 = InferenceEngine::Precision::MIXED,
-                                           InferenceEngine::Precision::ePrecision precision4 = InferenceEngine::Precision::MIXED) {
+inline std::ostream& operator<<(std::ostream& os, const std::vector<Precision>& values) {
+    os << "{ ";
+    for (size_t i = 0; i < values.size(); ++i) {
+        os << values[i];
+        if (i != (values.size() - 1ul)) {
+            os << ", ";
+        }
+    }
+    os << " }";
+    return os;
+}
+
+inline constexpr uint32_t getPrecisionMask(
+    InferenceEngine::Precision::ePrecision precision1, InferenceEngine::Precision::ePrecision precision2,
+    InferenceEngine::Precision::ePrecision precision3 = InferenceEngine::Precision::MIXED,
+    InferenceEngine::Precision::ePrecision precision4 = InferenceEngine::Precision::MIXED) {
     return (precision1) | (precision2 << 8) | (precision3 << 16) | (precision4 << 24);
 }
 

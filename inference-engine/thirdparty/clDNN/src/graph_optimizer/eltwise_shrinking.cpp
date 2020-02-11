@@ -25,6 +25,9 @@ void eltwise_shrinking::run(program_impl& p) {
 
     for (auto& node : p.get_processing_order()) {
         if (node->is_type<eltwise>()) {
+            if (!node->is_in_data_flow())
+                continue;
+
             if (node->get_output_layout().data_type != data_types::i8 &&
                 node->get_output_layout().data_type != data_types::f32) {
                 if (node->get_output_layout().data_type != data_types::f16 ||
@@ -54,6 +57,12 @@ void eltwise_shrinking::run(program_impl& p) {
 
                     const auto conv = std::static_pointer_cast<const convolution>(user->get_primitive());
                     if (conv->weights.size() != 1) {
+                        can_shrink = false;
+                        break;
+                    }
+
+                    // Check that eltwise is not an input of operation fused to convolution
+                    if (user->get_dependency(0).id() != eltw->id) {
                         can_shrink = false;
                         break;
                     }
@@ -88,7 +97,18 @@ void eltwise_shrinking::run(program_impl& p) {
                     // add stride for every eltwise's inputs to have shrinked output
                     auto e = const_cast<eltwise*>(&(*eltw));
                     for (size_t dep = 0; dep < node->get_dependencies().size(); dep++) {
-                        e->stride.push_back({0, 0, stride_x, stride_y});
+                        auto dep_stride_x = stride_x;
+                        auto dep_stride_y = stride_y;
+                        // don't shrink if input is broadcasted
+                        if (node->get_dependency(dep).get_output_layout().size.spatial[0] == 1) {
+                            dep_stride_x = 1;
+                        }
+
+                        if (node->get_dependency(dep).get_output_layout().size.spatial[1] == 1) {
+                            dep_stride_y = 1;
+                        }
+
+                        e->stride.push_back({0, 0, dep_stride_x, dep_stride_y});
                     }
                     node->recalc_output_layout();
 

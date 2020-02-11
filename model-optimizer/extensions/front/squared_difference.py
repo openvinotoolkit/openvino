@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,9 +26,10 @@ class SquaredDifference(FrontReplacementOp):
     Example class illustrating how to implement replacement of a single op in the front-end of the MO pipeline.
     This class replaces a single op "SquaredDifference" by a sub-graph consisting of 3 lower-level ops.
     """
-
     op = "SquaredDifference"
     enabled = True
+
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     def replace_op(self, graph: Graph, node: Node):
         # Create nodes
@@ -36,7 +37,12 @@ class SquaredDifference(FrontReplacementOp):
         negate = Mul(graph, {'name': node.name + '/negate_'}).create_node()
         add = Add(graph, {'name': node.name + '/add_'}).create_node()
 
-        const = Const(graph, {'value': np.array(2)}).create_node()
+        # convert the power value to an appropriate data type
+        power_value = np.array(2)
+        if node.has_valid('data_type'):
+            power_value = power_value.astype(node.data_type)
+
+        const = Const(graph, {'value': power_value}).create_node()
         squared = Pow(graph, {'name': node.name + '/squared_'}).create_node()
 
         # Connect nodes

@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2017-2018 Intel Corporation
+* Copyright 2017-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <common/memory_tracking.hpp>
+#include <common/primitive_attr.hpp>
 #include "mkldnn_types.h"
 
 #include "c_types_map.hpp"
@@ -31,6 +33,7 @@ namespace impl {
 namespace cpu {
 
 using namespace mkldnn::impl::utils;
+using namespace mkldnn::impl::utils;
 using namespace mkldnn::impl::math;
 using namespace mkldnn::impl::memory_tracking::names;
 
@@ -42,9 +45,16 @@ execute_forward() const {
     auto bia_base = reinterpret_cast<const char *>(this->input_memory(2));
     auto dst_base = reinterpret_cast<dst_data_t *>(this->memory());
 
-    auto scratchpad = this->scratchpad();
+    const memory_tracking::grantor_t scratchpad = this->scratchpad();
 
     const jit_gemm_conv_conf_t &jcp = this->pd()->jcp_;
+
+    if (jcp.with_input_zp) {
+        auto output_compensation = scratchpad.get<int32_t>(key_conv_padded_compensation);
+        for (int i = 0; i < this->pd()->attr()->output_compensations_.count_; i++) {
+            output_compensation[i] = (int32_t)this->pd()->attr()->output_compensations_.shifts_[i];
+        }
+    }
 
     assert(IMPLICATION(
             jcp.id != 1, jcp.oh_block == jcp.oh && jcp.ow_block == jcp.ow));
@@ -73,11 +83,17 @@ _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::pp_ker_t(
     , do_bias_(false)
     , do_relu_(false)
     , do_sum_(false)
+    , sum_data_type_(mkldnn_f32)
+    , use_fast_post_processing(false)
+    , with_weights_zp(false)
 {
     using namespace types;
 
     const auto dst_md = memory_desc_wrapper(pd->dst_pd());
-    dst_os_stride_ = dst_md.blk_off(0, 0, 0, 1);
+    if (pd->ndims() == 5)
+        dst_os_stride_ = dst_md.blk_off(0, 0, 0, 0, 1);
+    else if (pd->ndims() == 4)
+        dst_os_stride_ = dst_md.blk_off(0, 0, 0, 1);
 
     scale_idx_mult_ = (pd->attr()->output_scales_.mask_ == (1 << 1));
     rmode_ = pd->attr()->round_mode_;
@@ -97,6 +113,14 @@ _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::pp_ker_t(
     do_signed_scaling_ = jcp_.signed_input;
 
     do_sum_ = post_ops.contain(primitive_kind::sum, 0);
+    if (do_sum_) {
+        for (int i = 0; i < post_ops.len_; i++) {
+            auto &post_op = post_ops.entry_[i];
+            if (post_op.is_eltwise()) {
+                sum_data_type_ = post_op.sum.data_type;
+            }
+        }
+    }
     do_bias_ = pd->with_bias();
     bias_data_type_ = pd->desc()->bias_desc.data_type;
     if (do_bias_) {
@@ -113,11 +137,39 @@ _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::pp_ker_t(
         }
     }
 
-    if (!mayiuse(avx512_core))
-        // use fallback code for older CPUs
-        return;
-    else
+    with_weights_zp = !pd->attr()->weights_zero_points_.has_default_values();
+
+    auto is_relu = [&](int idx) {
+        return post_ops.entry_[idx].is_relu(true, false);
+    };
+    switch (post_ops.len_) {
+        case 0: use_fast_post_processing = true; break;
+        case 1: use_fast_post_processing = is_relu(0) || post_ops.contain(mkldnn::impl::primitive_kind::sum, 0); break;
+        case 2: use_fast_post_processing = post_ops.contain(mkldnn::impl::primitive_kind::sum, 0) && is_relu(1); break;
+        default: use_fast_post_processing = false; break;
+    };
+
+    if (mayiuse(avx512_core) && use_fast_post_processing && !with_weights_zp) {
         generate();
+    } else {
+        // use fallback code for unsupported cases
+        if (!use_fast_post_processing) {
+            for (int i = 0; i < post_ops.len_; i++) {
+                auto &post_op = post_ops.entry_[i];
+                if (post_op.is_eltwise()) {
+                    eltwise_injectors.push_back(new ref_eltwise_scalar_fwd_t(
+                            post_op.eltwise.alg,
+                            post_op.eltwise.alpha,
+                            post_op.eltwise.beta
+                    ));
+                } else if (post_op.is_depthwise()) {
+                    depthwise_injectors.push_back(new ref_depthwise_scalar_fwd_t(
+                            post_op.depthwise.alg
+                    ));
+                }
+            }
+        }
+    }
 }
 
 template <data_type_t src_type, data_type_t dst_type>
@@ -259,14 +311,14 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
             else
                 vreg_prev_dst_ = vreg_prev_dst_ | kreg_rem_mask_vlen;
 
-            switch (dst_type) {
+            switch (sum_data_type_) {
             case data_type::f32:
             case data_type::s32: vmovups(vreg_prev_dst_, dst_addr); break;
             case data_type::s8: vpmovsxbd(vreg_prev_dst_, dst_addr); break;
             case data_type::u8: vpmovzxbd(vreg_prev_dst_, dst_addr); break;
             default: assert(!"unsupported data type");
             }
-            if (dst_type != data_type::f32)
+            if (sum_data_type_ != data_type::f32)
                 vcvtdq2ps(vreg_prev_dst(idx), vreg_prev_dst(idx));
 
             vfmadd231ps(vreg_dst(idx), vreg_prev_dst(idx), vreg_sum_scale);
@@ -479,9 +531,9 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
 
 template <data_type_t src_type, data_type_t dst_type>
 void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::operator ()
-    (dst_data_t *dst, const acc_data_t *acc, const char *bias,
+    (dst_data_t *dst, acc_data_t *acc, const char *bias,
         const float *scales, float nslope, float sum_scale, float signed_scale,
-        int g, size_t start, size_t end)
+        int g, size_t start, size_t end, const post_ops_t& p, float* weights_zp, int32_t* weights_zp_compensation)
 {
     using math::get_bias;
 
@@ -505,32 +557,153 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::operator ()
         ker_(&args);
     }
     else {
-        // Fallback
         const size_t first_oc = start % OC_;
         const size_t last_oc = (end - 1) % OC_;
         const size_t first_os = start / OC_;
         const size_t last_os = (end - 1) / OC_;
-        for (size_t os = first_os; os <= last_os; os++) {
-            const size_t start_oc = (os == first_os) ? first_oc : 0;
-            const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
-            for (size_t oc = start_oc; oc <= end_oc; oc++) {
-                const size_t acc_off = os * jcp_.oc + oc;
-                const size_t dst_off = os * dst_os_stride_ + oc;
+        // Fallback
+        if (use_fast_post_processing) {
+            for (size_t os = first_os; os <= last_os; os++) {
+                const size_t start_oc = (os == first_os) ? first_oc : 0;
+                const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
+                for (size_t oc = start_oc; oc <= end_oc; oc++) {
+                    const size_t acc_off = os * jcp_.oc + oc;
+                    const size_t dst_off = os * dst_os_stride_ + oc;
 
-                float d = (float)(acc[acc_off]);
-                if (jcp_.signed_input)
-                    d *= signed_scale;
+                    float d = (float) (acc[acc_off]);
+                    if (jcp_.signed_input)
+                        d *= signed_scale;
 
-                if (do_bias_)
-                    d += get_bias(bias, g * jcp_.oc + oc,
-                        bias_data_type_);
+                    if (with_weights_zp)
+                        d -= weights_zp[g * jcp_.oc + oc] * (float)weights_zp_compensation[os];
 
-                d *= scales[(g * jcp_.oc + oc) * scale_idx_mult_];
-                if (do_sum_)
-                    d += sum_scale * dst[dst_off];
-                if (do_relu_ && d < 0)
-                    d *= nslope;
-                dst[dst_off] = qz_a1b0<float, dst_data_t>()(d, rmode_);
+                    if (do_bias_)
+                        d += get_bias(bias, g * jcp_.oc + oc,
+                                      bias_data_type_);
+
+                    d *= scales[(g * jcp_.oc + oc) * scale_idx_mult_];
+                    if (do_sum_)
+                        d += sum_scale * get_sum((char*)dst, dst_off, sum_data_type_);
+                    if (do_relu_ && d < 0)
+                        d *= nslope;
+                    dst[dst_off] = qz_a1b0<float, dst_data_t>()(d, rmode_);
+                }
+            }
+        } else {
+            float* acc_fp = reinterpret_cast<float*>(acc);
+
+            auto load = [&](int idx, size_t oc, size_t os, size_t acc_off, size_t dst_off) {
+                float d;
+                if (idx == 0) {
+                    d = (float) (acc[acc_off]);
+
+                    if (jcp_.signed_input)
+                        d *= signed_scale;
+
+                    if (with_weights_zp)
+                        d -= weights_zp[g * jcp_.oc + oc] * (float)weights_zp_compensation[os];
+
+                    if (do_bias_)
+                        d += get_bias(bias, g * jcp_.oc + oc,
+                                      bias_data_type_);
+
+                    d *= scales[(g * jcp_.oc + oc) * scale_idx_mult_];
+                } else {
+                    d = acc_fp[acc_off];
+                }
+
+                return d;
+            };
+
+            auto store = [&](int idx, float d, size_t acc_off, size_t dst_off) {
+                if (idx == p.len_ - 1)
+                    dst[dst_off] = qz_a1b0<float, dst_data_t>()(d, rmode_);
+                else
+                    acc_fp[acc_off] = d;
+            };
+
+            int eltwise_inj_idx = 0;
+            int depthwise_inj_idx = 0;
+            for (int i = 0; i < p.len_; i++) {
+                auto &post_op = p.entry_[i];
+                if (post_op.is_eltwise()) {
+                    for (size_t os = first_os; os <= last_os; os++) {
+                        const size_t start_oc = (os == first_os) ? first_oc : 0;
+                        const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
+                        for (size_t oc = start_oc; oc <= end_oc; oc++) {
+                            const size_t acc_off = os * jcp_.oc + oc;
+                            const size_t dst_off = os * dst_os_stride_ + oc;
+
+                            float d = load(i, oc, os, acc_off, dst_off);
+
+                            d = eltwise_injectors[eltwise_inj_idx]->compute_scalar(d);
+
+                            store(i, d, acc_off, dst_off);
+                        }
+                    }
+                    eltwise_inj_idx++;
+                } else if (post_op.is_depthwise()) {
+                    for (size_t os = first_os; os <= last_os; os++) {
+                        const size_t start_oc = (os == first_os) ? first_oc : 0;
+                        const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
+                        for (size_t oc = start_oc; oc <= end_oc; oc++) {
+                            const size_t acc_off = os * jcp_.oc + oc;
+                            const size_t dst_off = os * dst_os_stride_ + oc;
+
+                            auto depthwise_weights = post_op.depthwise.weights_data;
+                            auto depthwise_bias = post_op.depthwise.biases_data;
+
+                            float d = load(i, oc, os, acc_off, dst_off);
+
+                            d = depthwise_injectors[depthwise_inj_idx]->compute_scalar(d, depthwise_weights + g * jcp_.oc + oc,
+                                                                                          depthwise_bias + g * jcp_.oc + oc);
+
+                            store(i, d, acc_off, dst_off);
+                        }
+                    }
+                    depthwise_inj_idx++;
+                } else if (post_op.is_quantization()) {
+                    for (size_t os = first_os; os <= last_os; os++) {
+                        const size_t start_oc = (os == first_os) ? first_oc : 0;
+                        const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
+                        for (size_t oc = start_oc; oc <= end_oc; oc++) {
+                            const size_t acc_off = os * jcp_.oc + oc;
+                            const size_t dst_off = os * dst_os_stride_ + oc;
+
+                            auto pcl = post_op.quantization.crop_low_data;
+                            auto pch = post_op.quantization.crop_high_data;
+                            auto pisc = post_op.quantization.input_scale_data;
+                            auto pish = post_op.quantization.input_shift_data;
+                            auto posc = post_op.quantization.output_scale_data;
+                            auto posh = post_op.quantization.output_shift_data;
+
+                            float d = load(i, oc, os, acc_off, dst_off);
+
+                            int idx = g * jcp_.oc + oc;
+                            d = nstl::min(pch[idx], nstl::max(pcl[idx], d));
+                            d = d * pisc[idx] + pish[idx];
+                            d = roundf(d);
+                            d = d * posc[idx] + posh[idx];
+
+                            store(i, d, acc_off, dst_off);
+                        }
+                    }
+                } else if (post_op.is_sum()) {
+                    for (size_t os = first_os; os <= last_os; os++) {
+                        const size_t start_oc = (os == first_os) ? first_oc : 0;
+                        const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
+                        for (size_t oc = start_oc; oc <= end_oc; oc++) {
+                            const size_t acc_off = os * jcp_.oc + oc;
+                            const size_t dst_off = os * dst_os_stride_ + oc;
+
+                            float d = load(i, oc, os, acc_off, dst_off);
+
+                            d += sum_scale * get_sum((char*)dst, dst_off, post_op.sum.data_type);
+
+                            store(i, d, acc_off, dst_off);
+                        }
+                    }
+                }
             }
         }
     }
@@ -556,6 +729,23 @@ execute_forward_thr(const int ithr, const int nthr, const src_data_t *src_base,
 
     const float *scales = pd()->attr()->output_scales_.scales_;
 
+    const uint8_t *input_zp_base = nullptr;
+    if (jcp.with_input_zp) {
+        input_zp_base = pd()->attr()->input_zero_points_.zero_points_;
+    }
+
+    float *weights_zp = nullptr;
+    int32_t *weights_zp_compensation = nullptr;
+    if (jcp.with_weights_zp) {
+        weights_zp = pd()->attr()->weights_zero_points_.zero_points_;
+        weights_zp_compensation = scratchpad.get<int32_t>(key_weights_zp_compensation) + ithr * jcp.oh * jcp.ow;
+    }
+
+    int32_t *output_compensation = nullptr;
+    if (jcp.with_input_zp) {
+        output_compensation = scratchpad.get<int32_t>(key_conv_padded_compensation);
+    }
+
     const auto &post_ops = pd()->attr()->post_ops_;
     const bool do_sum = post_ops.contain(primitive_kind::sum, 0);
     const float sum_scale = do_sum ? post_ops.entry_[0].sum.scale : 0;
@@ -577,16 +767,17 @@ execute_forward_thr(const int ithr, const int nthr, const src_data_t *src_base,
         + (ptrdiff_t)ithr * jcp.oh_block * jcp.ow_block * jcp.oc;
 
     const ptrdiff_t offset = (ptrdiff_t)jcp.ngroups * jcp.ks * jcp.ic * jcp.oc;
-    const int32_t *_wei_comp = (const int32_t *)(wei_base + offset);
+    const int32_t *_wei_comp = (jcp.with_input_zp) ? output_compensation
+                                                   : (const int32_t *)(wei_base + offset);
 
-    int g{ 0 }, n{ 0 }, ohb{ 0 }, owb{ 0 };
+    int g{ 0 }, n{ 0 }, ohb{ 0 }, owb{ 0 }, od{ 0 };
     size_t start = 0, end = 0;
 
     const int nb_oh = div_up(jcp.oh, jcp.oh_block);
     const int nb_ow = div_up(jcp.ow, jcp.ow_block);
-    const size_t work_amount = jcp.ngroups * jcp.mb * nb_oh * nb_ow;
+    const size_t work_amount = jcp.ngroups * jcp.mb * jcp.od * nb_oh * nb_ow;
     balance211(work_amount, nthr, ithr, start, end);
-    nd_iterator_init(start, n, jcp.mb, g, jcp.ngroups, ohb,
+    nd_iterator_init(start, n, jcp.mb, g, jcp.ngroups, od, jcp.od, ohb,
                 nb_oh, owb, nb_ow);
 
     for (size_t iwork = start; iwork < end; ++iwork) {
@@ -601,35 +792,44 @@ execute_forward_thr(const int ithr, const int nthr, const src_data_t *src_base,
         const int h_step = nstl::min(jcp.oh_block, jcp.oh - oh);
         const int w_step = nstl::min(jcp.ow_block, jcp.ow - ow);
 
-        if (jcp.im2col_sz)
-            jit_gemm_convolution_utils::im2col_u8<src_data_t>(
-                    jcp, src, imtr, col, oh, h_step, ow, w_step);
+
+        const uint8_t *__restrict input_zp = nullptr;
+        if (jcp.with_input_zp)
+            input_zp = input_zp_base + g * jcp.ic;
+
+        if (jcp.im2col_sz || jcp.with_weights_zp) {
+            if (jcp.id == 1)
+                jit_gemm_convolution_utils::im2col_u8<src_data_t>(
+                        jcp, src, imtr, col, oh, h_step, ow, w_step, input_zp, weights_zp_compensation);
+            else
+                jit_gemm_convolution_utils::im2col_u8_3d<src_data_t>(jcp, src, col, od, input_zp, weights_zp_compensation);
+        }
 
         const int M = jcp.oc;
         const int K = jcp.ks * jcp.ic;
         const int N = h_step * w_step;
         const int LDA = M * jcp.ngroups;
-        const int LDB = jcp.im2col_sz ? N : K;
+        const int LDB = jcp.im2col_sz ? N : K * jcp.ngroups;
         const char *BT = jcp.im2col_sz ? "T" : "N";
         const int8_t off_a = 0, off_b = 0;
         const int32_t off_c = 0;
         const float onef = 1.0, zerof = 0.0;
-        mkldnn_gemm_s8u8s32("N", BT, jcp.signed_input ? "C" : "F",
+        mkldnn_gemm_s8u8s32("N", BT, (jcp.signed_input || jcp.with_input_zp) ? "C" : "F",
             &M, &N, &K, &onef, wei, &LDA, &off_a,
-            jcp.im2col_sz ? col : (uint8_t *)src, &LDB, &off_b,
-            &zerof, acc, &M, jcp.signed_input ? wei_comp : &off_c);
+            jcp.im2col_sz ? col : (uint8_t *)src + od * jcp.ngroups * jcp.ic * N, &LDB, &off_b,
+            &zerof, acc, &M, (jcp.signed_input || jcp.with_input_zp) ? wei_comp : &off_c);
 
 
         parallel(0, (size_t)jcp.os * jcp.oc, [&](int ithr, int nthr) {
             size_t start, end;
             balance211((size_t)N * jcp.oc, nthr, ithr, start, end);
-            (*pp_ker_)(dst + (oh * jcp.ow + ow) * pp_ker_->dst_os_stride_,
+            (*pp_ker_)(dst + (od * jcp.oh * jcp.ow + oh * jcp.ow + ow) * pp_ker_->dst_os_stride_,
                     acc, bia_base, scales, nslope, sum_scale,
                     jcp.signed_input ? 1.f / jcp.wei_adj_scale : 1.f,
-                    g, start, end);
+                    g, start, end, post_ops, weights_zp, weights_zp_compensation);
         });
 
-        nd_iterator_step(n, jcp.mb, g, jcp.ngroups, ohb, nb_oh,
+        nd_iterator_step(n, jcp.mb, g, jcp.ngroups, od, jcp.od, ohb, nb_oh,
                     owb, nb_ow);
     }
 }

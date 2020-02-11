@@ -93,6 +93,11 @@ private:
     reg64_t reg_d_weights = imm_addr64;
     reg64_t reg_d_bias = ki_iter;
 
+    Xbyak::Ymm ymm_d_weights = Xbyak::Ymm(14);
+    Xbyak::Ymm ymm_d_bias = Xbyak::Ymm(15);
+
+    Xbyak::Ymm ymm_sum = Xbyak::Ymm(15);
+
     nstl::vector<jit_uni_eltwise_injector_f32<avx2>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<avx2>*> depthwise_injectors;
 

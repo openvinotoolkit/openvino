@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,12 +50,18 @@ public:
             shapes = shapesHelper->getInvalidInputShapes();
         }
         for (const auto& inData : shapes.inDims) {
-            DataPtr data = std::make_shared<Data>(dataName, inData, InferenceEngine::Precision::FP32);
+            DataPtr data = std::make_shared<Data>(dataName,
+                                                  InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
+                                                                              SizeVector(inData.rbegin(), inData.rend()),
+                                                                              TensorDesc::getLayoutByDims(inData)));
             spData.push_back(data);
             layer->insData.push_back(data);
         }
         for (const auto& outData : shapes.outDims) {
-            layer->outData.push_back(std::make_shared<Data>(dataName, outData, InferenceEngine::Precision::FP32));
+            layer->outData.push_back(std::make_shared<Data>(dataName,
+                                                            InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
+                                                            SizeVector(outData.rbegin(), outData.rend()),
+                                                            TensorDesc::getLayoutByDims(outData))));
         }
         delete shapesHelper;
         return *this;

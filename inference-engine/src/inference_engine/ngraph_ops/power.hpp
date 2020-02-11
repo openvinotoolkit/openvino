@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,13 @@ namespace op {
 
 class PowerIE : public Op {
 public:
+    static constexpr NodeTypeInfo type_info{"PowerIE", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
+
     PowerIE(const std::shared_ptr<Node>& data_batch,
+            const float power, const float scale, const float shift);
+
+    PowerIE(const Output<Node>& data_batch,
             const float power, const float scale, const float shift);
 
     void validate_and_infer_types() override;

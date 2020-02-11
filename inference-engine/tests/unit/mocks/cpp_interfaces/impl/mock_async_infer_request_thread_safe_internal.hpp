@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,9 +42,19 @@ public:
             const char *name, Blob::Ptr
             &));
 
+    MOCK_CONST_METHOD2(GetPreProcess_ThreadUnsafe, void(
+            const char* name,
+            const PreProcessInfo** info
+            ));
+
     MOCK_METHOD2(SetBlob_ThreadUnsafe, void(
             const char *name,
             const Blob::Ptr &));
+
+    MOCK_METHOD3(SetBlob_ThreadUnsafe, void(
+            const char* name,
+            const Blob::Ptr&,
+            const PreProcessInfo&));
 
     MOCK_METHOD1(SetCompletionCallback_ThreadUnsafe, void(IInferRequest::CompletionCallback));
 

@@ -407,7 +407,7 @@ TEST(activation_f32_fw_gpu, sign_basic_yxfb) {
     EXPECT_EQ(b_size, 1);
 
     for (int i = 0; i < b_size * f_size * y_size * x_size; ++i) {
-        float res = input_ptr[i] > 0 ? 1 : input_ptr[i] < 0 ? -1 : 0;
+        float res = input_ptr[i] > 0 ? 1.0f : input_ptr[i] < 0 ? -1.0f : 0.0f;
         EXPECT_FLOAT_EQ(res, output_ptr[i]);
     }
 }
@@ -1286,6 +1286,73 @@ TEST(activation_i8_fw_gpu, basic_yxfb_all_funcs)
                 break;
             case activation_func::negation:
                 EXPECT_EQ(!((int8_t)input_ptr[i]), output_ptr[i]);
+                break;
+            default:
+                break;
+            }
+        }
+    }
+}
+
+TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs)
+{
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, { data_types::i32, format::yxfb,{ 2, 2, 2, 2 } });
+
+    std::vector<int32_t> input_vec = {
+        1,   0,  5,   1,
+        2,   0,  6,  -5,
+        3,   0, -7,  12,
+        4,   0, -8,   8
+    };
+    set_values(input, input_vec);
+
+    // functions valid for int8 type input
+    std::vector<activation_func> funcs = {
+        activation_func::none,
+        activation_func::negative,
+        activation_func::negation,
+        activation_func::relu,
+        activation_func::clamp
+    };
+
+    for (auto func : funcs)
+    {
+        topology topology;
+        activation_additional_params params = {0.0, 1.0};
+        topology.add(input_layout("input", input.get_layout()));
+        topology.add(activation("activation", "input", func, params));
+
+        network network(engine, topology);
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        EXPECT_EQ(outputs.begin()->first, "activation");
+
+        auto output_memory = outputs.at("activation").get_memory();
+        auto output_layout = output_memory.get_layout();
+        auto output_ptr = output_memory.pointer<int32_t>();
+        auto input_ptr = input.pointer<int32_t>();
+
+        for (size_t i = 0; i < output_layout.get_linear_size(); ++i)
+        {
+            switch (func)
+            {
+            case activation_func::none:
+                EXPECT_EQ((int32_t)input_ptr[i], output_ptr[i]);
+                break;
+            case activation_func::negative:
+                EXPECT_EQ(-((int32_t)input_ptr[i]), output_ptr[i]);
+                break;
+            case activation_func::negation:
+                EXPECT_EQ(!((int32_t)input_ptr[i]), output_ptr[i]);
+                break;
+            case activation_func::relu:
+                EXPECT_EQ(std::max(static_cast<int32_t>(input_ptr[i]), 0), output_ptr[i]);
+                break;
+            case activation_func::clamp:
+                EXPECT_EQ(std::min(std::max(input_ptr[i], static_cast<int32_t>(params.a)), static_cast<int32_t>(params.b)), output_ptr[i]);
                 break;
             default:
                 break;

@@ -1,0 +1,14 @@
+[
+  {
+    "custom_attributes":
+    {
+      "max_detections_per_image": 100,
+      "max_delta_log_wh": 4.135166645050049,
+      "score_threshold": 0.05,
+      "nms_threshold": 0.5,
+      "post_nms_count": 2000
+    },
+    "id": "ONNXMaskRCNNReplacement",
+    "match_kind": "general"
+  }
+]

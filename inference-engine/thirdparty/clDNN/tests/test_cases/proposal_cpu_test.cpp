@@ -75,7 +75,7 @@ template <typename Dtype>
 class TestRunnerProposal
 {
     public:
-        TestRunnerProposal();
+        explicit TestRunnerProposal(cldnn::tensor image_info_size);
 
         memory Run(std::vector<Dtype>& data, 
                    std::vector<Dtype>& rois);
@@ -91,10 +91,10 @@ class TestRunnerProposal
 };
 
 template <typename Dtype>
-TestRunnerProposal<Dtype>::TestRunnerProposal() :
+TestRunnerProposal<Dtype>::TestRunnerProposal(cldnn::tensor image_info_size) :
                             _cls_scores_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 18, 23, 14 } ),
                             _bbox_pred_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 36, 23, 14 } ),
-                            _image_info_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, { 1, 3, 1, 1 } ),
+                            _image_info_layout(cldnn::type_to_data_type<Dtype>::value, format::bfyx, image_info_size),
                             _test_layer(layer_name, 
                                         cls_scores_name, 
                                         bbox_pred_name,
@@ -119,16 +119,17 @@ TestRunnerProposal<Dtype>::TestRunnerProposal() :
 }
 
 template <typename Dtype>
-memory TestRunnerProposal<Dtype>::Run(std::vector<Dtype>& cls_scores_vals, 
-                              std::vector<Dtype>& bbox_pred_vals)
+memory TestRunnerProposal<Dtype>::Run(std::vector<Dtype>& cls_scores_vals,
+                                      std::vector<Dtype>& bbox_pred_vals)
 {
     memory cls_scores = memory::attach(_cls_scores_layout, cls_scores_vals.data(), cls_scores_vals.size());
     memory bbox_pred  = memory::attach(_bbox_pred_layout, bbox_pred_vals.data(), bbox_pred_vals.size());
 
-    Dtype image_info_vals[] = { (Dtype)((float)image_h - 0.0000001f), // check fp robustness of the layer
-                                (Dtype)((float)image_w + 0.0000001f), // check fp robustness of the layer 
-                                (Dtype)((float)image_z) };
-    memory image_info = memory::attach(_image_info_layout, &image_info_vals[0], 3);
+    std::vector<Dtype> image_info_vals = { (Dtype)((float)image_h - 0.0000001f), // check fp robustness of the layer
+                                           (Dtype)((float)image_w + 0.0000001f), // check fp robustness of the layer 
+                                           (Dtype)((float)image_z) };
+    memory image_info = memory::allocate(_engine, _image_info_layout);
+    tests::set_values(image_info, image_info_vals);
    
     _network->set_input_data(cls_scores_name, cls_scores);
     _network->set_input_data(bbox_pred_name, bbox_pred);
@@ -143,7 +144,7 @@ TEST(proposal, basic) {
     std::vector<float> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
     std::vector<float> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
 
-    TestRunnerProposal<float> t;
+    TestRunnerProposal<float> t({ 1, 3, 1, 1 });
 
     const memory& output = t.Run(cls_scores, bbox_pred);
     ASSERT_EQ(output.get_layout().count(), proposal_ref_size);
@@ -159,7 +160,7 @@ TEST(proposal, fp16) {
     std::vector<FLOAT16> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
     std::vector<FLOAT16> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
     
-    TestRunnerProposal<FLOAT16> t;
+    TestRunnerProposal<FLOAT16> t({ 1, 3, 1, 1 });
 
     const memory& output = t.Run(cls_scores, bbox_pred);
     ASSERT_EQ(output.get_layout().count(), proposal_ref_size);
@@ -172,3 +173,34 @@ TEST(proposal, fp16) {
     }
 }
 
+TEST(proposal, img_info_batched) {
+    std::vector<float> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
+    std::vector<float> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
+
+    TestRunnerProposal<float> t({ 2, 3, 1, 1 });
+
+    const memory& output = t.Run(cls_scores, bbox_pred);
+    ASSERT_EQ(output.get_layout().count(), proposal_ref_size);
+
+    auto f = output.pointer<float>();
+
+    for (size_t i = 0; i < proposal_ref_size; i++) {
+        EXPECT_NEAR(f[i], proposal_ref[i], epsilon);
+    }
+}
+
+TEST(proposal, img_info_batch_only) {
+    std::vector<float> cls_scores(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
+    std::vector<float> bbox_pred(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
+
+    TestRunnerProposal<float> t({ 3, 1, 1, 1 });
+
+    const memory& output = t.Run(cls_scores, bbox_pred);
+    ASSERT_EQ(output.get_layout().count(), proposal_ref_size);
+
+    auto f = output.pointer<float>();
+
+    for (size_t i = 0; i < proposal_ref_size; i++) {
+        EXPECT_NEAR(f[i], proposal_ref[i], epsilon);
+    }
+}

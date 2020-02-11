@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,23 +14,12 @@ namespace vpu {
 namespace {
 
 class TileStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<TileStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>& inputScales,
-            ScalePropagationStep step,
-            StageDataInfo<float>& scaleInfo) override {
-        if (step == ScalePropagationStep::Propagate) {
-            auto inputScale = inputScales[0];
-            scaleInfo.setOutput(outputEdge(0), inputScale);
-        } else {
-            // Tile can only propagate scaling, not generate.
-            scaleInfo.setInput(inputEdge(0), 1.0f);
-            scaleInfo.setOutput(outputEdge(0), 1.0f);
-        }
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
@@ -85,11 +74,7 @@ protected:
 
 }  // namespace
 
-void FrontEnd::parseTile(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseTile(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
@@ -104,13 +89,7 @@ void FrontEnd::parseTile(
     auto perm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
     auto axis = perm[input->desc().numDims() - 1 - layer->axis];
 
-    auto stage = model->addNewStage<TileStage>(
-        layer->name,
-        StageType::Tile,
-        layer,
-        {input},
-        {output});
-
+    auto stage = model->addNewStage<TileStage>(layer->name, StageType::Tile, layer, {input}, {output});
     stage->attrs().set("axis", axis);
     stage->attrs().set("tiles", layer->tiles);
 }

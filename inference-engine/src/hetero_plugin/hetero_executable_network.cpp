@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,11 +6,12 @@
 #include "hetero_executable_network.hpp"
 #include "hetero_async_infer_request.hpp"
 #include "ie_util_internal.hpp"
-#include "hetero_device_loader.hpp"
-#include "hetero_fallback_policy.hpp"
 #include "hetero_graph_splitter.hpp"
+#include "file_utils.h"
+#include "xml_parse_utils.h"
 
 #include <vector>
+#include <deque>
 #include <map>
 #include <utility>
 #include <fstream>
@@ -19,15 +20,17 @@
 #include <memory>
 #include <unordered_set>
 #include <array>
+#include <cstdint>
 
 #include <ie_plugin_dispatcher.hpp>
 #include "details/caseless.hpp"
 #include "ie_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/base/ie_inference_plugin_api.hpp"
-#include "cpp_interfaces/impl/ie_plugin_internal.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "precision_utils.h"
+#include "hetero_plugin.hpp"
+#include "network_serializer.h"
 
 using namespace InferenceEngine;
 using namespace details;
@@ -37,17 +40,67 @@ using namespace InferenceEngine::HeteroConfigParams;
 
 namespace {
 
+void forward(const CNNLayerPtr& layer, std::deque<InferenceEngine::CNNLayerPtr>& layers) {
+    for (const auto& out : layer->outData) {
+        for (const auto& out_link : out->getInputTo()) {
+            const auto& nextLayer = out_link.second;
+            if (nullptr != nextLayer) {
+                layers.emplace_back(nextLayer);
+            }
+        }
+    }
+}
+
+template<class T>
+void traverse(T& inputs,
+              std::function<void(InferenceEngine::CNNLayerPtr& layer)> apply,
+              std::function<void(const InferenceEngine::CNNLayerPtr& layer, std::deque<InferenceEngine::CNNLayerPtr>& layers)> expand = forward) {
+    std::unordered_set<InferenceEngine::CNNLayerPtr> visitedObjects;
+    std::deque<InferenceEngine::CNNLayerPtr>         layersToCheck;
+
+    layersToCheck.insert(layersToCheck.end(), inputs.begin(), inputs.end());
+
+    while (!layersToCheck.empty()) {
+        auto& layer = layersToCheck.front();
+        if (visitedObjects.insert(layer).second) {
+            apply(layer);
+            expand(layer, layersToCheck);
+        }
+        layersToCheck.pop_front();
+    }
+}
+
+void traverse(InferenceEngine::ICNNNetwork& network,
+              std::function<void(InferenceEngine::CNNLayerPtr& layer)> apply,
+              std::function<void(const InferenceEngine::CNNLayerPtr& layer,
+              std::deque<InferenceEngine::CNNLayerPtr>& layers)> expand = forward) {
+    std::vector<InferenceEngine::CNNLayerPtr> layers;
+
+    InferenceEngine::InputsDataMap inputs;
+    network.getInputsInfo(inputs);
+    for (const auto& input : inputs) {
+        const auto data = input.second->getInputData();
+        for (const auto& to : data->getInputTo()) {
+            const auto nextLayer = to.second;
+            assert(nullptr != nextLayer);
+            layers.emplace_back(nextLayer);
+        }
+    }
+
+    traverse(layers, apply, expand);
+}
+
 std::vector<std::string> getAffinities(InferenceEngine::ICNNNetwork &network) {
     std::vector<std::string> ret;
     std::unordered_set<std::string> affinities;
-    traverse::traverse(network,
-                       [&](const InferenceEngine::CNNLayerPtr &layer) {
-                           assert(nullptr != layer);
-                           if (!contains(affinities, layer->affinity)) {
-                               affinities.insert(layer->affinity);
-                               ret.push_back(layer->affinity);
-                           }
-                       });
+    traverse(network,
+                   [&](const InferenceEngine::CNNLayerPtr &layer) {
+                       assert(nullptr != layer);
+                       if (!contains(affinities, layer->affinity)) {
+                           affinities.insert(layer->affinity);
+                           ret.push_back(layer->affinity);
+                       }
+                   });
     return ret;
 }
 
@@ -87,28 +140,15 @@ void dumpGraph(InferenceEngine::ICNNNetwork &network,
 
 }   // namespace
 
-HeteroExecutableNetwork::HeteroExecutableNetwork(InferenceEngine::ICNNNetwork &network,
-                                                 const ICore * core,
-                                                 const std::map<std::string, std::string> &config,
-                                                 const std::vector<InferenceEngine::IExtensionPtr> &extensions,
-                                                 MapDeviceLoaders& deviceLoaders,
-                                                 InferenceEngine::IErrorListener *listener) :
-    _deviceLoaders(deviceLoaders),
-    _name(network.getName()) {
-    load(network, core, _config = config, extensions, listener);
-}
-
-void dla_layer_colorer(const CNNLayerPtr layer,
-                       ordered_properties &printed_properties,
-                       ordered_properties &node_properties);
-
-void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
-                                   const ICore * core,
-                                   const std::map<std::string, std::string> &config,
-                                   const std::vector<InferenceEngine::IExtensionPtr> &extensions,
-                                   InferenceEngine::IErrorListener *listener) {
+HeteroExecutableNetwork::HeteroExecutableNetwork(InferenceEngine::ICNNNetwork&  network_,
+                                                 const Engine::Configs&         config,
+                                                 Engine*                        plugin):
+    _plugin{plugin},
+    _name{network_.getName()},
+    _config{config} {
     auto networkPtr = cloneNet(network_);
     auto& network = *networkPtr;
+
 
     // going over all network, if all layers are not assigned to devices, apply the default fallback policy
     details::CNNNetworkIterator i(&network);
@@ -122,33 +162,35 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
         i++;
     }
 
-    auto itDumpDotFile = config.find(KEY_HETERO_DUMP_GRAPH_DOT);
+    auto itDumpDotFile = config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
     bool dumpDotFile = itDumpDotFile != config.end() ? itDumpDotFile->second == YES : false;
 #ifndef NDEBUG
     dumpDotFile  = true;
 #endif
 
     if (allEmpty) {
-        FallbackPolicy fbPolicy(_deviceLoaders, dumpDotFile, core);
         auto it = config.find("TARGET_FALLBACK");
         if (it != config.end()) {
-            fbPolicy.init(it->second, config, extensions);
-            IE_SUPPRESS_DEPRECATED_START
-            if (listener)
-                for (auto& device_loader : _deviceLoaders)
-                    device_loader.second->SetLogCallback(*listener);
-            IE_SUPPRESS_DEPRECATED_END
-            fbPolicy.setAffinity(fbPolicy.getAffinities(config, network), network);
+            plugin->SetAffinity(network, config);
         } else {
             THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
         }
     } else {
         if (dumpDotFile) {
+            std::unordered_set<std::string> devicesSet;
+            details::CNNNetworkIterator i(&network);
+            while (i != details::CNNNetworkIterator()) {
+                CNNLayer::Ptr layer = *i;
+                if (!layer->affinity.empty()) {
+                    devicesSet.insert(layer->affinity);
+                }
+                i++;
+            }
+            std::vector<std::string> devices{std::begin(devicesSet), std::end(devicesSet)};
             std::stringstream stream(std::stringstream::out);
             stream << "hetero_affinity_" << network.getName() << ".dot";
-
             std::ofstream file(stream.str().c_str());
-            saveGraphToDot(network, file, dla_layer_colorer);
+            saveGraphToDot(network, file, HeteroLayerColorer{devices});
         }
     }
 
@@ -181,7 +223,6 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
             "supported by any plugin";
     }
 
-
     InputsDataMap externalInputsData;
     network.getInputsInfo(externalInputsData);
 
@@ -192,6 +233,22 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
 
     sortSubgraphs(subgraphs);
 
+
+    std::vector<NetworkDesc> descs;
+    std::vector<CNNLayerPtr> tempLayers;
+
+    for (auto &&subgraph : subgraphs) {
+        assert(!subgraph.empty());
+        auto affinity = (*subgraph.begin())->affinity;
+        assert(!affinity.empty());
+        _affinities.push_back(affinity);
+        if (_plugin->_plugins.end() == _plugin->_plugins.find(affinity)) {
+            IE_SUPPRESS_DEPRECATED_START
+            _plugin->_plugins[affinity] = _plugin->GetDevicePlugin(affinity);
+            IE_SUPPRESS_DEPRECATED_END
+        }
+    }
+
     if (dumpDotFile) {
         std::stringstream stream(std::stringstream::out);
         stream << "hetero_subgraphs_" << network.getName() << ".dot";
@@ -200,43 +257,17 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
         dumpGraph(network, subgraphs, file);
     }
 
-    std::vector<NetworkDesc> descs;
-    PluginDispatcher dispatcher({ "" });
-    std::vector<CNNLayerPtr> tempLayers;
-
-    // we need to create plugins first to use them later during selection of best precision for intermediate blobs
-    for (auto &&subgraph : subgraphs) {
-        assert(!subgraph.empty());
-        auto affinity = (*subgraph.begin())->affinity;
-        assert(!affinity.empty());
-        _affinities.push_back(affinity);
-        if (_deviceLoaders.find(affinity) == _deviceLoaders.end()) {
-            // TODO: here is a duplication of the code with FallbackPolicy::init
-            IE_SUPPRESS_DEPRECATED_START
-            IHeteroDeviceLoader::Ptr loader;
-            loader = std::make_shared<HeteroDeviceLoader>(affinity, core);
-            HeteroDeviceLoader *pdl = static_cast<HeteroDeviceLoader *>(loader.get());
-            IE_SUPPRESS_DEPRECATED_END
-            pdl->initConfigs(config, extensions);
-            _deviceLoaders[affinity] = loader;
-        }
-        IE_SUPPRESS_DEPRECATED_START
-        if (listener)
-            _deviceLoaders[affinity]->SetLogCallback(*listener);
-        IE_SUPPRESS_DEPRECATED_END
-    }
-
     InferenceEngine::ICNNNetworkStats* networkStats = nullptr;
     if (StatusCode::OK != network.getStats(&networkStats, nullptr)) {
         networkStats = nullptr;
     }
 
-
     for (auto &&subgraph : subgraphs) {
         auto affinity = (*subgraph.begin())->affinity;
         tempLayers.assign(subgraph.begin(), subgraph.end());
         auto tempNetwork = cloneNet(tempLayers, networkStats);
-        tempNetwork->setName(network.getName() + "_" + std::to_string(std::distance(subgraphs.data(), &subgraph)));
+        auto name = network.getName() + "_" + std::to_string(std::distance(subgraphs.data(), &subgraph));
+        tempNetwork->setName(name);
         // restoring some outputs from original net if they are not marked as output automatically
         // this might happen if output was set manually for origin network and
         // it doesn't go to next subgraph
@@ -279,19 +310,7 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
 
         NetworkDesc desc;
         desc._device = affinity;
-        desc._deviceLoader = _deviceLoaders[affinity];
-
-        desc._clonedNetwork = tempNetwork;
-        InputsDataMap inputs;
-        desc._clonedNetwork->getInputsInfo(inputs);
-        for (auto i : inputs) {
-            desc._iNames.insert(i.first);
-        }
-        OutputsDataMap outputs;
-        desc._clonedNetwork->getOutputsInfo(outputs);
-        for (auto o : outputs) {
-            desc._oNames.insert(o.first);
-        }
+        desc._clonedNetwork = CNNNetwork{tempNetwork};
 
         descs.emplace_back(std::move(desc));
     }
@@ -300,8 +319,7 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
         IExecutableNetwork::Ptr ret;
         ResponseDesc resp;
 
-        InputsDataMap subnetworkInputs;
-        d._clonedNetwork->getInputsInfo(subnetworkInputs);
+        auto subnetworkInputs = d._clonedNetwork.getInputsInfo();
         bool isInputSubnetwork = (subnetworkInputs.end() != std::find_first_of(
             subnetworkInputs.begin(), subnetworkInputs.end(),
             externalInputsData.begin(), externalInputsData.end(),
@@ -314,17 +332,231 @@ void HeteroExecutableNetwork::load(InferenceEngine::ICNNNetwork &network_,
                                                                     ? CONFIG_VALUE(YES)
                                                                     : CONFIG_VALUE(NO);
         IE_SUPPRESS_DEPRECATED_START
-        StatusCode status = d._deviceLoader->LoadNetwork(d._device, ret, *d._clonedNetwork, cfg, &resp);
+        auto plugin = _plugin->_plugins[d._device];
+        d._network = plugin.LoadNetwork(d._clonedNetwork, Engine::GetSupportedConfig(config, plugin));
         IE_SUPPRESS_DEPRECATED_END
-        if (status != OK) {
-            THROW_IE_EXCEPTION << resp.msg;
-        }
-        d.network = std::make_shared<ExecutableNetwork>(ret);
-        d._clonedNetwork = nullptr;
     }
 
+    networks = std::move(descs);
+}
+
+namespace  {
+
+IE_SUPPRESS_DEPRECATED_START
+IInferencePluginAPI * getInferencePluginAPIInterface(IInferencePlugin * iplugin) {
+    return dynamic_cast<IInferencePluginAPI *>(iplugin);
+}
+
+IInferencePluginAPI * getInferencePluginAPIInterface(InferenceEnginePluginPtr iplugin) {
+    return getInferencePluginAPIInterface(static_cast<IInferencePlugin *>(iplugin.operator->()));
+}
+IE_SUPPRESS_DEPRECATED_END
+
+}  // namespace
+
+HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                               heteroModel,
+                                                 const std::map<std::string, std::string>&   configs,
+                                                 Engine*                                     plugin) :
+    _plugin(plugin) {
+    std::string heteroXmlStr;
+    std::getline(heteroModel, heteroXmlStr);
+
+    pugi::xml_document heteroXmlDoc;
+    pugi::xml_parse_result res = heteroXmlDoc.load(heteroXmlStr.c_str());
+
+    if (res.status != pugi::status_ok) {
+        THROW_IE_EXCEPTION << "Error reading HETERO plugin xml header";
+    }
+
+    using namespace XMLParseUtils;
+
+    pugi::xml_node heteroNode = heteroXmlDoc.document_element();
+
+    std::unordered_set<std::string> networkInputs;
+    pugi::xml_node inputsNode = heteroNode.child("inputs");
+    for (auto inputNode = inputsNode.child("input"); !inputNode.empty();
+            inputNode = inputNode.next_sibling("input")) {
+        networkInputs.insert(GetStrAttr(inputNode, "name"));
+    }
+
+    std::unordered_set<std::string> networkOutputs;
+    pugi::xml_node outputsNode = heteroNode.child("outputs");
+    for (auto outputNode = outputsNode.child("output"); !outputNode.empty();
+            outputNode = outputNode.next_sibling("output")) {
+        networkOutputs.insert(GetStrAttr(outputNode, "name"));
+    }
+
+    Engine::Configs importedConfigs;
+    auto configsNode = heteroNode.child("configs");
+    for (auto configNode = configsNode.child("config"); !configNode.empty();
+            configNode = configNode.next_sibling("config")) {
+            importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
+    }
+
+    for (auto&& config : configs) {
+        importedConfigs[config.first] = config.second;
+    }
+
+    std::vector<NetworkDesc> descs;
+    pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
+    for (auto subnetworkNode = subnetworksNode.child("subnetwork"); !subnetworkNode.empty();
+            subnetworkNode = subnetworkNode.next_sibling("subnetwork")) {
+        auto device = GetStrAttr(subnetworkNode, "device");
+        _affinities.push_back(device);
+
+        if (_plugin->_plugins.end() == _plugin->_plugins.find(device)) {
+            IE_SUPPRESS_DEPRECATED_START
+            _plugin->_plugins[device] = _plugin->GetDevicePlugin(device);
+            IE_SUPPRESS_DEPRECATED_END
+        }
+
+        auto& plugin = _plugin->_plugins[device];
+        auto supportedConfig = Engine::GetSupportedConfig(importedConfigs, plugin);
+        IE_SUPPRESS_DEPRECATED_START
+        auto pluginAPI = getInferencePluginAPIInterface(plugin);
+        IE_SUPPRESS_DEPRECATED_END
+
+        InferenceEngine::ExecutableNetwork executableNetwork;
+        CNNNetwork cnnnetwork;
+        bool loaded = false;
+        try {
+            executableNetwork = pluginAPI->ImportNetwork(heteroModel, supportedConfig);
+        } catch(InferenceEngine::details::InferenceEngineException& ie_ex) {
+            if (std::string::npos != std::string{ie_ex.what()}.find(NOT_IMPLEMENTED_str)) {
+                IE_SUPPRESS_DEPRECATED_START
+                CNNNetReader reader;
+                std::string xmlString;
+                std::getline(heteroModel, xmlString);
+                reader.ReadNetwork(xmlString.data(), xmlString.size());
+                std::uint64_t dataSize = 0;
+                heteroModel.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+                if (0 != dataSize) {
+                    auto dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
+                        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                                    {static_cast<std::size_t>(dataSize)},
+                                                    InferenceEngine::Layout::C));
+                    dataBlob->allocate();
+                    heteroModel.read(dataBlob->buffer(), dataSize);
+                    reader.SetWeights(std::move(dataBlob));
+                }
+                cnnnetwork = reader.getNetwork();
+                IE_SUPPRESS_DEPRECATED_END
+                auto inputs = cnnnetwork.getInputsInfo();
+                auto inputsNode = subnetworkNode.child("inputs");
+                for (auto inputNode = inputsNode.child("input"); !inputNode.empty(); inputNode = inputNode.next_sibling("input")) {
+                    auto inputName = GetStrAttr(inputNode, "name");
+                    inputs[inputName]->setPrecision(Precision::FromStr(GetStrAttr(inputNode, "precision")));
+                }
+
+                auto outputsNode = subnetworkNode.child("outputs");
+                for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
+                    cnnnetwork.addOutput(GetStrAttr(outputNode, "creatorName"), GetUInt64Attr(outputNode, "index"));
+                }
+                auto outputs = cnnnetwork.getOutputsInfo();
+                for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
+                    outputs[GetStrAttr(outputNode, "name")]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
+                }
+                IE_SUPPRESS_DEPRECATED_START
+                executableNetwork = plugin.LoadNetwork(cnnnetwork, supportedConfig);
+                IE_SUPPRESS_DEPRECATED_END
+                loaded = true;
+            } else {
+                throw;
+            }
+        }
+
+        for (auto&& input : executableNetwork.GetInputsInfo()) {
+            if (networkInputs.end() != networkInputs.find(input.first)) {
+                _networkInputs.emplace(input.first, std::const_pointer_cast<InputInfo>(input.second));
+            }
+        }
+
+        for (auto&& output : executableNetwork.GetOutputsInfo()) {
+            if (networkOutputs.end() != networkOutputs.find(output.first)) {
+                _networkOutputs.emplace(output.first, std::const_pointer_cast<Data>(output.second));
+            }
+        }
+
+        descs.emplace_back(NetworkDesc{
+            device,
+            loaded ? CNNNetwork{cloneNet(static_cast<InferenceEngine::ICNNNetwork&>(cnnnetwork))} : CNNNetwork{},
+            executableNetwork,
+        });
+    }
 
     networks = std::move(descs);
+}
+
+void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
+    pugi::xml_document doc;
+    auto heteroNode = doc.append_child("hetero");
+    heteroNode.append_attribute("name").set_value(_name.c_str());
+
+    auto inputsNode = heteroNode.append_child("inputs");
+    for (auto&& networkInput : _networkInputs) {
+        inputsNode.append_child("input").append_attribute("name").set_value(networkInput.first.c_str());
+    }
+
+    auto outputsNode = heteroNode.append_child("outputs");
+    for (auto&& networkInput : _networkOutputs) {
+        outputsNode.append_child("output").append_attribute("name").set_value(networkInput.first.c_str());
+    }
+
+    auto subnetworksNode = heteroNode.append_child("subnetworks");
+    for (auto&& subnetwork : networks) {
+        auto subnetworkNode = subnetworksNode.append_child("subnetwork");
+        subnetworkNode.append_attribute("device").set_value(subnetwork._device.c_str());
+        auto subnetworkInputsNode = subnetworkNode.append_child("inputs");
+        auto inputInfo = subnetwork._clonedNetwork.getInputsInfo();
+        for (auto&& input : inputInfo) {
+            auto inputNode = subnetworkInputsNode.append_child("input");
+            inputNode.append_attribute("name").set_value(input.first.c_str());
+            inputNode.append_attribute("precision").set_value(input.second->getPrecision().name());
+        }
+        auto subnetworkOutputsNode = subnetworkNode.append_child("outputs");
+        auto outputInfo = subnetwork._clonedNetwork.getOutputsInfo();
+        for (auto&& output : outputInfo) {
+            auto outputNode = subnetworkOutputsNode.append_child("output");
+            auto creator = output.second->getCreatorLayer().lock();
+            outputNode.append_attribute("creatorName").set_value(creator->name.c_str());
+            outputNode.append_attribute("name").set_value(output.first.c_str());
+            outputNode.append_attribute("precision").set_value(output.second->getPrecision().name());
+            auto& outDatas = creator->outData;
+            auto itData = std::find_if(std::begin(outDatas), std::end(outDatas), [&] (const DataPtr& data) {
+                return  output.first == data->getName();
+            });
+            IE_ASSERT(outDatas.end() != itData);
+            std::uint64_t index = std::distance(std::begin(outDatas), itData);
+            outputNode.append_attribute("index").set_value(std::to_string(index).c_str());
+        }
+    }
+
+    auto configsNode = heteroNode.append_child("configs");
+    for (auto&& config : _config) {
+        auto configMode = configsNode.append_child("config");
+        configMode.append_attribute("key").set_value(config.first.c_str());
+        configMode.append_attribute("value").set_value(config.second.c_str());
+    }
+
+    doc.save(heteroModel, nullptr, pugi::format_raw);
+    heteroModel << std::endl;
+
+    for (auto&& subnetwork : networks) {
+        try {
+            subnetwork._network.Export(heteroModel);
+        } catch(InferenceEngine::details::InferenceEngineException& ie_ex) {
+            if (std::string::npos != std::string{ie_ex.what()}.find(NOT_IMPLEMENTED_str)) {
+                pugi::xml_document doc;
+                auto dataSize = static_cast<std::uint64_t>(InferenceEngine::details::NetworkSerializer::fillXmlDoc(subnetwork._clonedNetwork, doc));
+                doc.save(heteroModel, nullptr, pugi::format_raw);
+                heteroModel << std::endl;
+                heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+                InferenceEngine::details::NetworkSerializer::serializeBlobs(heteroModel, subnetwork._clonedNetwork);
+            } else {
+                throw;
+            }
+        }
+    }
 }
 
 InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
@@ -332,13 +564,10 @@ InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
         OutputsDataMap networkOutputs) {
     HeteroInferRequest::SubRequestsList inferRequests;
     int index = 0;
-    for (auto i : networks) {
+    for (auto&& subnetwork : networks) {
         HeteroInferRequest::SubRequestDesc desc;
-        desc._network = i.network;
-        desc._iNames = i._iNames;
-        desc._oNames = i._oNames;
+        desc._network = subnetwork._network;
         desc._profilingTask = ProfilingTask{"Infer" + std::to_string(index++)};
-
         inferRequests.push_back(desc);
     }
     return std::make_shared<HeteroInferRequest>(networkInputs,
@@ -350,8 +579,7 @@ void HeteroExecutableNetwork::CreateInferRequest(IInferRequest::Ptr &asyncReques
     auto heteroInferRequest = std::dynamic_pointer_cast<HeteroInferRequest>(
             CreateInferRequestImpl(_networkInputs, _networkOutputs));
     heteroInferRequest->setPointerToExecutableNetworkInternal(shared_from_this());
-    auto asyncTreadSafeImpl = std::make_shared<HeteroAsyncInferRequest>(
-            heteroInferRequest, _taskExecutor, _taskSynchronizer, _callbackExecutor);
+    auto asyncTreadSafeImpl = std::make_shared<HeteroAsyncInferRequest>(heteroInferRequest, _taskExecutor, _callbackExecutor);
     asyncRequest.reset(new InferRequestBase<HeteroAsyncInferRequest>(asyncTreadSafeImpl),
                        [](IInferRequest *p) { p->Release(); });
     asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
@@ -360,8 +588,11 @@ void HeteroExecutableNetwork::CreateInferRequest(IInferRequest::Ptr &asyncReques
 void HeteroExecutableNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *) const {
     if (name == "TARGET_FALLBACK") {
         auto it = _config.find(name);
-        IE_ASSERT(it != _config.end());
-        result = it->second;
+        if (it != _config.end()) {
+            result = it->second;
+        } else {
+            result = std::string{};
+        }
     } else if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) ||
                name == CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)) {
         auto it = _config.find(name);
@@ -389,7 +620,7 @@ void HeteroExecutableNetwork::GetMetric(const std::string &name, InferenceEngine
     } else if (METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
         unsigned int value = 0u;
         for (auto&& desc : networks) {
-            value = std::max(value, desc.network->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
+            value = std::max(value, desc._network.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
         }
         result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     } else {

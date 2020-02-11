@@ -33,7 +33,7 @@ struct condition_gpu : typed_primitive_impl<condition> {
         for (auto& a : events) {
             a->wait();
         }
-        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_stream_id(), false);
+        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_id(), false);
 
         bool exec_branch = choose_branch_to_exec(instance);
         memory_impl::ptr memory_to_copy;

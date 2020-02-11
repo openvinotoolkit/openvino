@@ -28,8 +28,6 @@ primitive_type_id pooling::type_id() {
 }
 
 layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
-           "Output data type forcing is not supported for pooling_node!");
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();
@@ -37,6 +35,21 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
     auto input_offset = desc->input_offset;
     auto stride = desc->stride;
     auto window_size = desc->size;
+
+    // auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_layout.data_type;
+    // FIXME: dirty hack. Replace it with optional output data type (above) once IE returns correct precision on edges
+    auto output_type = input_layout.data_type;
+
+    if (output_type == data_types::u8 || output_type == data_types::i8) {
+        if (desc->mode == pooling_mode::average_no_padding || desc->mode == pooling_mode::average) {
+            output_type = data_types::f32;
+        }
+    }
+
+
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
+    }
 
     if (!desc->argmax.empty())
         CLDNN_ERROR_NOT_EQUAL(node.id(),
@@ -183,7 +196,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
                            desc->output_size.spatial[0],
                            desc->output_size.spatial[1],
                            desc->output_size.spatial[2]);
-        return {input_layout.data_type, input_layout.format, output_size};
+        return {output_type, input_layout.format, output_size};
     }
 
     // TODO: Check compatibility of output size calculation (with caffe).
@@ -200,7 +213,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node) {
                        output_range.spatial[0],
                        output_range.spatial[1],
                        output_range.spatial[2]);
-    return {input_layout.data_type, input_layout.format, output_size};
+    return {output_type, input_layout.format, output_size};
 }
 
 std::string pooling_inst::to_string(pooling_node const& node) {

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ class BatchNormComponentFrontExtractor(FrontExtractorOp):
     op = 'batchnormcomponent'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         pb = node.parameters
 
         collect_until_token(pb, b'<Dim>')
@@ -62,8 +62,8 @@ class BatchNormComponentFrontExtractor(FrontExtractorOp):
         scale = target_rms / np.sqrt(var + eps)
 
         shift = - target_rms * mean / np.sqrt(var + eps)
-        attrs = {}
+        attrs = {'out-size': len(shift)}
         embed_input(attrs, 1, 'weights', scale)
         embed_input(attrs, 2, 'biases', shift)
         ScaleShiftOp.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled

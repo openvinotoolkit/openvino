@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -214,3 +214,4 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
 bool MKLDNNCropNode::created() const {
     return getType() == Crop;
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNCropNode, Crop);

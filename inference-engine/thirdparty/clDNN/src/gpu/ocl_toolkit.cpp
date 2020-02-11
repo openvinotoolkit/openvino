@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <utility>
 
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
 //       of some types (even though we already disabled them in scope of definition of these types).
@@ -66,19 +67,28 @@ std::string events_list_to_string(std::vector<cldnn::event_impl::ptr> events) {
 }
 }  // namespace
 
+// static class memebers - pointers to dynamically obtained OpenCL extension functions
+cl::PFN_clEnqueueAcquireMediaSurfacesINTEL cl::SharedSurfLock::pfn_acquire = NULL;
+cl::PFN_clEnqueueReleaseMediaSurfacesINTEL cl::SharedSurfLock::pfn_release = NULL;
+cl::PFN_clCreateFromMediaSurfaceINTEL cl::ImageVA::pfn_clCreateFromMediaSurfaceINTEL = NULL;
+#ifdef WIN32
+cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL;
+#endif
+
 namespace cldnn {
 namespace gpu {
 
 ocl_error::ocl_error(cl::Error const& err)
     : std::runtime_error(err.what() + std::string(", error code: ") + std::to_string(err.err())) {}
 
-std::shared_ptr<gpu_toolkit> gpu_toolkit::create(const configuration& cfg) {
+std::shared_ptr<gpu_toolkit> gpu_toolkit::create(const device_impl& device, const configuration& cfg) {
     struct make_shared_wa : public gpu_toolkit {
-        explicit make_shared_wa(const configuration& cfg) : gpu_toolkit(cfg) {}
+        explicit make_shared_wa(const device_impl& device, const configuration& cfg)
+            : gpu_toolkit(device, cfg) {}
     };
     try {
-        auto ctx = std::make_shared<make_shared_wa>(cfg);
-        ctx->build_command_queues();
+        auto ctx = std::make_shared<make_shared_wa>(device, cfg);
+        ctx->add_network(0);
         return ctx;
     } catch (cl::Error const& err) {
         throw ocl_error(err);
@@ -89,16 +99,18 @@ struct gpu_toolkit::ocl_logger {
     std::ofstream _log_file;
 };
 
-gpu_toolkit::gpu_toolkit(const configuration& config)
+gpu_toolkit::gpu_toolkit(const device_impl& device, const configuration& config)
     : _configuration(config),
-      _ocl_builder(config),
-      _user_context(_ocl_builder.is_user_context()),
+      _device(device.get_device()),
+      _context(device.get_context()),
+      _platform_id(device.get_platform()),
+      _device_info(device.get_info()),
       _neo_driver(strstr(get_device_version().c_str(), "NEO") ? true : false),
-      _context(_ocl_builder.get_context()),
-      _platform_id(_ocl_builder.get_platform_id()),
-      _engine_info(*this),
       _kernels_cache(*this) {
-    _ocl_builder.get_device().getInfo(CL_DEVICE_EXTENSIONS, &_extensions);
+    _device.getInfo(CL_DEVICE_EXTENSIONS, &_extensions);
+
+    device_cache_reader dc_reader(_configuration.tuning_cache_path, _device_info.compute_units_count);
+    _device_cache = dc_reader.get();
 
     _logger = std::unique_ptr<ocl_logger>(new ocl_logger());
     if (logging_enabled()) {
@@ -106,31 +118,32 @@ gpu_toolkit::gpu_toolkit(const configuration& config)
                    << "    profiling: " << std::boolalpha << _configuration.enable_profiling << "\n"
                    << "    meaningful names: " << std::boolalpha << _configuration.meaningful_kernels_names << "\n"
                    << "    dump custom program: " << std::boolalpha << _configuration.dump_custom_program << "\n"
-                   << "    device type: " << std::to_string(_configuration.device_type) << "\n"
+                   << "    device type: " << std::to_string(_device_info.dev_type) << "\n"
                    << "    vendor type: " << std::hex << std::setfill('0') << std::setw(4) << std::right
-                   << std::to_string(_configuration.device_vendor) << "\n"
+                   << std::to_string(_device_info.vendor_id) << "\n"
                    << std::dec << std::setfill(' ') << std::right
                    << "    compiler options: " << _configuration.compiler_options << "\n"
                    << "    single kernel name: " << _configuration.single_kernel_name << "\n"
-                   << "    out-of-order: " << std::boolalpha << _configuration.host_out_of_order << "\n"
+                   << "    out-of-order: " << std::boolalpha << config.host_out_of_order << "\n"
                    << "    engine log: " << _configuration.log << "\n"
                    << "    sources dumps: " << _configuration.ocl_sources_dumps_dir << "\n"
                    << "\nEngine info:\n"
-                   << "    device id: " << _engine_info.dev_id << "\n"
-                   << "    cores count: " << _engine_info.cores_count << "\n"
-                   << "    core frequencey: " << _engine_info.core_frequency << "\n"
-                   << "    max work group size: " << _engine_info.max_work_group_size << "\n"
-                   << "    local memory size: " << _engine_info.max_local_mem_size << "\n"
-                   << "    fp16: " << std::boolalpha << (_engine_info.supports_fp16 != 0) << "\n"
-                   << "    fp16 denorms: " << std::boolalpha << (_engine_info.supports_fp16_denorms != 0) << "\n"
-                   << "    subgroups short: " << std::boolalpha << (_engine_info.supports_subgroups_short != 0) << "\n"
-                   << "    used defined context: " << std::boolalpha << _user_context << "\n"
-                   << std::endl;
+                   << "    cores count: " << _device_info.cores_count << "\n"
+                   << "    core frequencey: " << _device_info.core_frequency << "\n"
+                   << "    max work group size: " << _device_info.max_work_group_size << "\n"
+                   << "    local memory size: " << _device_info.max_local_mem_size << "\n"
+                   << "    fp16: " << std::boolalpha << (_device_info.supports_fp16 != 0) << "\n"
+                   << "    fp16 denorms: " << std::boolalpha << (_device_info.supports_fp16_denorms != 0) << "\n"
+                   << "    subgroups short: " << std::boolalpha << (_device_info.supports_subgroups_short != 0) << std::endl;
     }
 }
 
-void gpu_toolkit::build_command_queues() {
-    command_queues_builder queue_builder(_context, _ocl_builder.get_device(), _platform_id);
+gpu_queue& gpu_toolkit::get_command_queue(uint32_t id) {
+    return _command_queues_w.at(id);
+}
+
+void gpu_toolkit::add_network(uint32_t net_id) {
+    command_queues_builder queue_builder(_context, _device, _platform_id);
     queue_builder.set_profiling(_configuration.enable_profiling);
     queue_builder.set_out_of_order((_configuration.host_out_of_order && _neo_driver));
 
@@ -143,39 +156,51 @@ void gpu_toolkit::build_command_queues() {
     queue_builder.set_throttle_mode(_configuration.throttle_mode, throttle_extensions);
 
     queue_builder.build();
+    _command_queues_w.emplace(std::make_pair(net_id,
+        gpu_queue(net_id, queue_builder.queue(), shared_from_this())));
+}
 
-    for (uint16_t s = 0; s < _configuration.queues_num; s++) {
-        _command_queues_w.emplace_back(s, queue_builder.queue(), shared_from_this());
+void gpu_toolkit::remove_network(uint32_t net_id) {
+    auto net_iter = _command_queues_w.find(net_id);
+    if (net_iter != _command_queues_w.end()) {
+        // net_iter->second.release_pending_memory();
+        _command_queues_w.erase(net_iter);
     }
 }
 
-event_impl::ptr gpu_toolkit::enqueue_kernel(uint16_t queue_id,
+event_impl::ptr gpu_toolkit::enqueue_kernel(uint32_t queue_id,
                                             cl::Kernel const& kern,
                                             cl::NDRange const& global,
                                             cl::NDRange const& local,
                                             std::vector<event_impl::ptr> const& deps) {
-    return _command_queues_w[queue_id].enqueue_kernel(kern, global, local, deps);
+    return get_command_queue(queue_id).enqueue_kernel(kern, global, local, deps);
 }
 
-event_impl::ptr gpu_toolkit::enqueue_marker(uint16_t queue_id, std::vector<event_impl::ptr> const& deps) {
-    return _command_queues_w[queue_id].enqueue_marker(deps);
+event_impl::ptr gpu_toolkit::enqueue_marker(uint32_t queue_id, std::vector<event_impl::ptr> const& deps) {
+    return get_command_queue(queue_id).enqueue_marker(deps);
 }
 
-event_impl::ptr gpu_toolkit::group_events(uint16_t queue_id, std::vector<event_impl::ptr> const& deps) {
-    return _command_queues_w[queue_id].group_events(deps);
+event_impl::ptr gpu_toolkit::group_events(uint32_t queue_id, std::vector<event_impl::ptr> const& deps) {
+    return get_command_queue(queue_id).group_events(deps);
 }
 
-event_impl::ptr gpu_toolkit::create_user_event(uint16_t queue_id, bool set) {
-    return _command_queues_w[queue_id].create_user_event(set);
+event_impl::ptr gpu_toolkit::create_user_event(uint32_t queue_id, bool set) {
+    return get_command_queue(queue_id).create_user_event(set);
 }
 
-void gpu_toolkit::reset_events(uint16_t queue_id) { _command_queues_w[queue_id].reset_events(); }
+void gpu_toolkit::reset_events(uint32_t queue_id) { get_command_queue(queue_id).reset_events(); }
 
-void gpu_toolkit::release_events_pool(uint16_t queue_id) { _command_queues_w[queue_id].release_events_pool(); }
+void gpu_toolkit::release_events_pool(uint32_t queue_id) { get_command_queue(queue_id).release_events_pool(); }
 
-void gpu_toolkit::flush(uint16_t queue_id) { _command_queues_w[queue_id].flush(); }
+void gpu_toolkit::release_all_events_pools() {
+    for (auto& queue : _command_queues_w) {
+        queue.second.release_events_pool();
+    }
+}
 
-void gpu_toolkit::release_pending_memory(uint16_t queue_id) { _command_queues_w[queue_id].release_pending_memory(); }
+void gpu_toolkit::flush(uint32_t queue_id) { get_command_queue(queue_id).flush(); }
+
+void gpu_toolkit::release_pending_memory(uint32_t queue_id) { get_command_queue(queue_id).release_pending_memory(); }
 
 void gpu_toolkit::wait_for_events(std::vector<event_impl::ptr> const& events) {
     std::vector<cl::Event> clevents;
@@ -197,8 +222,8 @@ void gpu_toolkit::log(uint64_t id, std::string const& msg) {
     open_log() << "[" << id << "] " << msg << std::endl;
 }
 
-void gpu_toolkit::set_output_event(uint16_t queue_id, bool out_event) {
-    _command_queues_w[queue_id].set_output_event(out_event);
+void gpu_toolkit::set_output_event(uint32_t queue_id, bool out_event) {
+    get_command_queue(queue_id).set_output_event(out_event);
 }
 
 std::ofstream& gpu_toolkit::open_log() {

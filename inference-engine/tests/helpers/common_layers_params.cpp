@@ -1,6 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <string>
+#include <vector>
 
 #include <common_layers_params.hpp>
 #include "tests_common.hpp"
@@ -34,26 +37,34 @@ void getPoolOutShape(const std::vector<size_t>& inShape,
 size_t getConvWeightsSize(const std::vector<size_t>& inShape,
                     const conv_common_params& params,
                     const std::string& precision) {
-    size_t res = 0lu;
+    if (!params.with_weights)
+        return 0lu;
+    size_t weights_size = 0lu;
     if (params.group != 0lu && params.out_c != 0lu && params.kernel.size() != 0lu) {
         size_t type_size = 1lu;
         if (precision == "FP32")
             type_size = sizeof(float);
+        else if (precision == "FP16")
+            type_size = sizeof(short);
 
-        int weights_size = type_size * inShape[1] * params.out_c / params.group;
+        weights_size = type_size * inShape[1] * params.out_c / params.group;
         for (size_t i = 0lu; i < params.kernel.size(); i++) {
             weights_size *= params.kernel[i];
         }
     }
-    return res;
+    return weights_size;
 }
 
 size_t getConvBiasesSize(const conv_common_params& params,
                         const std::string& precision) {
+    if (!params.with_bias)
+        return 0lu;
     size_t type_size = 1lu;
     if (precision == "FP32")
         type_size = sizeof(float);
-    return params.with_bias ? type_size * params.out_c : 0lu;
+    else if (precision == "FP16")
+        type_size = sizeof(short);
+    return type_size * params.out_c;
 }
 
 InferenceEngine::TBlob<uint8_t>::Ptr getConvWeightsBlob(const std::vector<size_t>& inShape,
@@ -74,6 +85,8 @@ InferenceEngine::TBlob<uint8_t>::Ptr getWeightsBlob(size_t size,
     size_t type_size = 1lu;
     if (precision == "FP32")
         type_size = sizeof(float);
+    else if (precision == "FP16" || precision == "Q78")
+        type_size = sizeof(short);
     InferenceEngine::TBlob<uint8_t> *weights =
             new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, {size * type_size}, InferenceEngine::C });
     weights->allocate();

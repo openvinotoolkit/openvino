@@ -1,24 +1,24 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief This is a header file for Inference Engine Extension Interface
+ *
  * @file ie_iextension.h
  */
 #pragma once
 
-#include "ie_api.h"
-#include "ie_device.hpp"
-#include "ie_layers.h"
-#include "ie_error.hpp"
-#include "ie_version.hpp"
-#include <vector>
-#include <string>
-#include <memory>
 #include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "details/ie_no_copy.hpp"
+#include "ie_api.h"
+#include "ie_error.hpp"
+#include "ie_layers.h"
+#include "ie_version.hpp"
 
 /**
  * @def INFERENCE_EXTENSION_API(TYPE)
@@ -26,11 +26,16 @@
  */
 
 #if defined(_WIN32) && defined(IMPLEMENT_INFERENCE_EXTENSION_API)
-# define INFERENCE_EXTENSION_API(TYPE) extern "C"  __declspec(dllexport) TYPE
+#define INFERENCE_EXTENSION_API(TYPE) extern "C" __declspec(dllexport) TYPE
 #else
-# define INFERENCE_EXTENSION_API(TYPE) INFERENCE_ENGINE_API(TYPE)
+#define INFERENCE_EXTENSION_API(TYPE) INFERENCE_ENGINE_API(TYPE)
 #endif
 
+namespace ngraph {
+
+class OpSet;
+
+}  // namespace ngraph
 
 namespace InferenceEngine {
 
@@ -48,7 +53,8 @@ struct DataConfig {
      */
     int inPlace = -1;
     /**
-     * @brief Flag for determination of the constant memory. If layer contains all constant memory we can calculate it on the load stage.
+     * @brief Flag for determination of the constant memory. If layer contains all constant memory we can calculate it
+     * on the load stage.
      */
     bool constant = false;
 };
@@ -86,6 +92,7 @@ public:
 
     /**
      * @brief Gets all supported configurations for the current layer
+     *
      * @param conf Vector with supported configurations
      * @param resp Response descriptor
      * @return Status code
@@ -94,6 +101,7 @@ public:
 
     /**
      * @brief Initializes the implementation
+     *
      * @param config Selected supported configuration
      * @param resp Response descriptor
      * @return Status code
@@ -108,13 +116,14 @@ class ILayerExecImpl : public ILayerImpl {
 public:
     /**
      * @brief Execute method
+     *
      * @param inputs Vector of blobs with input memory
      * @param outputs Vector of blobs with output memory
      * @param resp Response descriptor
      * @return Status code
      */
-    virtual StatusCode execute(std::vector<Blob::Ptr>& inputs,
-                               std::vector<Blob::Ptr>& outputs, ResponseDesc* resp) noexcept = 0;
+    virtual StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
+                               ResponseDesc* resp) noexcept = 0;
 };
 
 /**
@@ -131,21 +140,8 @@ public:
     virtual ~ILayerImplFactory() = default;
 
     /**
-     * @deprecated Implement IShapeInferImpl extension for shape inference.
-     * @brief Sets output shapes by input shapes.
-     * @param inShapes Shapes of all inputs coming in this layer
-     * @param outShapes Generated shapes coming from this layer given the input
-     * @param resp Response descriptor
-     * @return Status code
-     */
-    INFERENCE_ENGINE_DEPRECATED
-    virtual StatusCode getShapes(const std::vector<TensorDesc>& /*inShapes*/, std::vector<TensorDesc>& /*outShapes*/,
-                                 ResponseDesc* /*resp*/) noexcept {
-        return NOT_IMPLEMENTED;
-    }
-
-    /**
      * @brief Gets all possible implementations for the given cnn Layer
+     *
      * @param impls the vector with implementations which is ordered by priority
      * @param resp response descriptor
      * @return status code
@@ -169,22 +165,9 @@ public:
     virtual StatusCode inferShapes(const std::vector<Blob::CPtr>& /*inBlobs*/,
                                    const std::map<std::string, std::string>& /*params*/,
                                    const std::map<std::string, Blob::Ptr>& /*blobs*/,
-                                   std::vector<SizeVector>& /*outShapes*/,
-                                   ResponseDesc* /*resp*/) noexcept { return NOT_IMPLEMENTED; }  // For backward-compatibility
-
-    /**
-     * @deprecated Use IShapeInferImpl::inferShapes(const std::vector<Blob::CPtr>&, const std::map<std::string, std::string>&,
-                                   const std::map<std::string, Blob::Ptr>&, std::vector<SizeVector>&, ResponseDesc* ) noexcept.
-     * @brief check that reshape can be applied, that parameters and shapes are valid
-     */
-    INFERENCE_ENGINE_DEPRECATED
-    virtual StatusCode inferShapes(const std::vector<SizeVector>& /*inShapes*/,
-                                   const std::map<std::string, std::string>& /*params*/,
-                                   const std::map<std::string, Blob::Ptr>& /*blobs*/,
-                                   std::vector<SizeVector>& /*outShapes*/,
-                                   ResponseDesc* /*resp*/) noexcept {
+                                   std::vector<SizeVector>& /*outShapes*/, ResponseDesc* /*resp*/) noexcept {
         return NOT_IMPLEMENTED;
-    }
+    }  // For backward-compatibility
 };
 
 /**
@@ -195,13 +178,16 @@ class IShapeInferExtension : public InferenceEngine::details::IRelease {
 public:
     /**
      * @brief Sets logging callback.
+     *
      * Logging is used to track what is going on inside.
+     *
      * @param listener Logging sink
      */
     virtual void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept = 0;
 
     /**
      * @brief Gets extension version information and stores in versionInfo
+     *
      * @param versionInfo Pointer to version info, will be set by plugin
      */
     virtual void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept = 0;
@@ -213,6 +199,7 @@ public:
 
     /**
      * @brief Fills passed array with types of layers which shape infer implementations are included in the extension
+     *
      * @param types Array to store the layer types
      * @param size Size of the layer types array
      * @param resp Response descriptor
@@ -222,13 +209,12 @@ public:
 
     /**
      * @brief Gets shape propagation implementation for the given string-type of cnn Layer
+     *
      * @param impl the vector with implementations which is ordered by priority
      * @param resp response descriptor
      * @return status code
      */
-    virtual StatusCode getShapeInferImpl(IShapeInferImpl::Ptr& impl,
-                                         const char* type,
-                                         ResponseDesc* resp) noexcept = 0;
+    virtual StatusCode getShapeInferImpl(IShapeInferImpl::Ptr& impl, const char* type, ResponseDesc* resp) noexcept = 0;
 };
 
 /**
@@ -241,6 +227,7 @@ public:
 
     /**
      * @brief Fills passed array with types of layers which kernel implementations are included in the extension
+     *
      * @param types Array to store the layer types
      * @param size Size of the layer types array
      * @param resp Response descriptor
@@ -255,6 +242,15 @@ public:
     StatusCode getShapeInferImpl(IShapeInferImpl::Ptr&, const char*, ResponseDesc*) noexcept override {
         return NOT_IMPLEMENTED;
     };
+
+    /**
+     * @brief Returns operation sets
+     * This method throws an exception if it was not implemented
+     * @return map of opset name to opset
+     */
+    virtual std::map<std::string, ngraph::OpSet> getOpSets() {
+        THROW_IE_EXCEPTION << "Method is not implemented!";
+    }
 };
 
 using IExtensionPtr = std::shared_ptr<IExtension>;
@@ -262,6 +258,7 @@ using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
 
 /**
  * @brief Creates the default instance of the extension
+ *
  * @param ext Extension interface
  * @param resp Response description
  * @return Status code
@@ -270,11 +267,11 @@ INFERENCE_EXTENSION_API(StatusCode) CreateExtension(IExtension*& ext, ResponseDe
 
 /**
  * @brief Creates the default instance of the shape infer extension
+ *
  * @param ext Shape Infer Extension interface
  * @param resp Response description
  * @return Status code
  */
 INFERENCE_EXTENSION_API(StatusCode) CreateShapeInferExtension(IShapeInferExtension*& ext, ResponseDesc* resp) noexcept;
-
 
 }  // namespace InferenceEngine

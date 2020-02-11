@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,18 +13,16 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.ops.argmax import ArgMaxOp
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
 
 
 class ArgMaxFrontExtractor(FrontExtractorOp):
     op = 'ArgMax'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        # update the attributes of the node
-        Op.get_op_class_by_name(__class__.op).update_node_stat(node, {'out_max_val': 0, 'top_k': 1, 'axis': None,
-                                                                      'dim_attrs': ['axis'], 'keepdims': 0})
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node):
+        ArgMaxOp.update_node_stat(node, {'out_max_val': 0, 'top_k': 1, 'axis': None,
+                                         'dim_attrs': ['axis'], 'keepdims': 0, 'remove_values_output': True})
+        return cls.enabled

@@ -444,7 +444,7 @@ template <typename pd_t> static void init_info_bin_conv(pd_t *s, char *buffer) {
             aux_str, prb_str);
 }
 
-template <typename pd_t> static void init_info_binarization(pd_t *s, char *buffer) {
+template <typename pd_t> static void init_info_quantization(pd_t *s, char *buffer) {
     DECL_DAT_AUX_PRB_STRS();
 
     auto fmt_data = s->src_pd()->desc()->format;

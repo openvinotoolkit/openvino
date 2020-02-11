@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,31 +21,12 @@
 ///////////////////////// Input Index /////////////////////////
 inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x)
 {
-#if   INPUT0_SIMPLE && INPUT0_DIMS < 5
-    return GET_DATA_INDEX(INPUT0, b, f, y, x);
-#elif INPUT0_SIMPLE && INPUT0_DIMS == 5
-    return GET_DATA_INDEX_5D(INPUT0, b, f, z, y, x);
+#if INPUT0_DIMS < 5
+    return INPUT0_GET_INDEX(b, f, y, x);
+#elif INPUT0_DIMS == 5
+    return INPUT0_GET_INDEX(b, f, z, y, x);
 #elif INPUT0_SIMPLE && INPUT0_DIMS == 6
     return GET_DATA_INDEX_6D(INPUT0, b, f, w, z, y, x);
-#elif defined INPUT0_LAYOUT_BS_F_BSV8__AF8  || \
-      defined INPUT0_LAYOUT_BS_F_BSV16__AF8
-    return GET_DATA_BS_FYX_BSV8_INDEX(INPUT0, b, f, y, x, SUB_GROUP_SIZE);
-#elif defined INPUT0_LAYOUT_BF8_XY16
-    return GET_DATA_BF8_XY16_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_BFYX_F16
-    return GET_DATA_BFYX_F16_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_BYXF_AF32
-	return GET_DATA_BYXF_AF32_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_BYX8_F4
-	return GET_DATA_BYX8_F4_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_FS_BS_YX_BSV4_FSV32
-    return GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_B_FS_YX_FSV4
-    return GET_DATA_B_FS_YX_FSV4_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_FS_B_YX_FSV32
-    return GET_DATA_FS_B_YX_FSV32_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_BFZYX_F16
-    return GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, z, y, x);
 #else
 #error reorder_data.cl: input format - not supported
 #endif
@@ -59,42 +40,23 @@ inline uint FUNC(get_input3d_index)(uint b, uint f, uint z, uint y, uint x)
 
 inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint x)
 {
-#if   OUTPUT_SIMPLE && OUTPUT_DIMS < 5
-    return GET_DATA_INDEX(OUTPUT, b, f, y, x);
-#elif OUTPUT_SIMPLE && OUTPUT_DIMS == 5
-    return GET_DATA_INDEX_5D(OUTPUT, b, f, z, y, x);
+#if OUTPUT_DIMS < 5
+    return OUTPUT_GET_INDEX(b, f, y, x);
+#elif OUTPUT_DIMS == 5
+    return OUTPUT_GET_INDEX(b, f, z, y, x);
 #elif OUTPUT_SIMPLE && OUTPUT_DIMS == 6
     return GET_DATA_INDEX_6D(OUTPUT, b, f, w, z, y, x);
-#elif defined OUTPUT_LAYOUT_BS_F_BSV8__AF8  || \
-      defined OUTPUT_LAYOUT_BS_F_BSV16__AF8
-    return GET_DATA_BS_FYX_BSV8_INDEX(OUTPUT, b, f, y, x, SUB_GROUP_SIZE);
-#elif defined OUTPUT_LAYOUT_BF8_XY16
-    return GET_DATA_BF8_XY16_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_BFYX_F16
-    return GET_DATA_BFYX_F16_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_BYXF_AF32
-	return GET_DATA_BYXF_AF32_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_BYX8_F4
-	return GET_DATA_BYX8_F4_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_FS_BS_YX_BSV4_FSV32
-    return GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_B_FS_YX_FSV4
-    return GET_DATA_B_FS_YX_FSV4_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_FS_B_YX_FSV32
-    return GET_DATA_FS_B_YX_FSV32_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_BFZYX_F16
-    return GET_DATA_BFZYX_F16_INDEX(OUTPUT, b, f, z, y, x);
 #else
 #error reorder_data.cl: output format - not supported
 #endif
 }
 
-inline uint FUNC(get_output3d_index)(uint b, uint f, uint z, uint y, uint x)
-{
-    return GET_DATA_INDEX_5D(OUTPUT, b, f, z, y, x);
-}
 KERNEL (reorder_data)(
-    const __global INPUT_REORDER_TYPE* input, 
+#if defined INPUT0_LAYOUT_NV12
+    read_only image2d_t input,
+#else
+    const __global INPUT_REORDER_TYPE* input,
+#endif
     __global OUTPUT_REORDER_TYPE* output
 #ifdef MEAN_SUBTRACT_IN_BUFFER
     , __global MEAN_SUBTRACT_TYPE* mean_subtract
@@ -134,15 +96,21 @@ KERNEL (reorder_data)(
     const uint w = gid_yx / INPUT0_SIZE_X / INPUT0_SIZE_Y / INPUT0_SIZE_Z % INPUT0_SIZE_W;
 #endif
 
-#if   INPUT0_DIMS == 5
-    uint8 ov = FUNC_CALL(reshape_dims3d)(b,f,z,y,x, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X, OUTPUT_SIZE_Z, OUTPUT_SIZE_Y, OUTPUT_SIZE_X, INPUT0_DIMS, OUTPUT_DIMS);
-    const uint input_idx  = FUNC_CALL(get_input3d_index)(b, f, z, y, x);
-    const uint output_idx = FUNC_CALL(get_output3d_index)(ov[0],ov[1],ov[2],ov[3],ov[4]);
+#if defined INPUT0_LAYOUT_NV12
+    const sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_FILTER_NEAREST | CLK_ADDRESS_CLAMP;
+    float4 colorVYU = read_imagef(input, sampler, (int2)(x, y));
+    float Ycomponent = colorVYU.s1 * 255;
+    float Ucomponent = colorVYU.s2 * 255;
+    float Vcomponent = colorVYU.s0 * 255;
+    uchar R = convert_uchar_sat(1.164f * (Ycomponent - 16) + 1.596f * (Vcomponent - 128));
+    uchar G = convert_uchar_sat(1.164f * (Ycomponent - 16) - 0.813f * (Vcomponent - 128) - 0.391f * (Ucomponent - 128));
+    uchar B = convert_uchar_sat(1.164f * (Ycomponent - 16) + 2.018f * (Ucomponent - 128));
+
 #else
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, f, w, z, y, x);
     const uint input_idx  = FUNC_CALL(get_input_index)(b, f, w, z, y, x);
     const uint output_idx = FUNC_CALL(get_output_index)(ov[0],ov[1],ov[2],ov[3], ov[4], ov[5]);
-#endif
+
 #if defined MEAN_SUBTRACT_INSIDE_PARAMS
     float res = TO_MEAN_TYPE(input[input_idx]);
     res = MEAN_OP(res, VALUE_TO_SUBTRACT[f % VALUE_TO_SUBTRACT_SIZE]);
@@ -159,6 +127,25 @@ KERNEL (reorder_data)(
 #else
     CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
 #endif
+#endif
 
-    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
+#if defined INPUT0_LAYOUT_NV12
+    uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 0, w, z, y, x);
+    uint output_idx = FUNC_CALL(get_output_index)(ov[0], ov[1], ov[2], ov[3], ov[4], ov[5]);
+    output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(R), NL_M, NL_N);
+    ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 1, w, z, y, x);
+    output_idx = FUNC_CALL(get_output_index)(ov[0], ov[1], ov[2], ov[3], ov[4], ov[5]);
+    output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(G), NL_M, NL_N);
+    ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 2, w, z, y, x);
+    output_idx = FUNC_CALL(get_output_index)(ov[0], ov[1], ov[2], ov[3], ov[4], ov[5]);
+    output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(B), NL_M, NL_N);
+#else
+#if INPUT0_IS_FP && !OUTPUT_IS_FP
+    // TODO: check if this round really needed. Right now it's added to have the same behavior as CPU plugin
+    // becuase CPU's convert instruction performs round
+    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(round(res)), ACTIVATION_PARAMS_TYPED);
+#else
+    output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
+#endif
+#endif
 }

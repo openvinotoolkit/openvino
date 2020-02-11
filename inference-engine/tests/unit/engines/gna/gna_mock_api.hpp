@@ -1,15 +1,26 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 #include <gmock/gmock-generated-function-mockers.h>
 
+#if defined(_WIN32)
+    #ifdef libGNAStubs_EXPORTS
+        #define GNA_STUBS_EXPORT __declspec(dllexport)
+    #else
+        #define GNA_STUBS_EXPORT __declspec(dllimport)
+    #endif
+#else
+    #define GNA_STUBS_EXPORT
+#endif
+
 class GNACppApi {
 
  public:
-    GNACppApi();
-    ~GNACppApi();
+    GNA_STUBS_EXPORT GNACppApi();
+    GNA_STUBS_EXPORT ~GNACppApi();
+#if GNA_LIB_VER == 1
     MOCK_METHOD10(GNAScoreGaussians, intel_gna_status_t(
         //intel_gna_handle_t          nGNADevice,            // handle to GNA accelerator
         //const intel_feature_type_t* pFeatureType,
@@ -67,4 +78,10 @@ class GNACppApi {
         intel_gna_alloc_cb          customAlloc));
 
     MOCK_METHOD1(gmmSetThreads, intel_gna_handle_t (uint8_t num));
+#else
+    MOCK_METHOD3(Gna2MemoryAlloc, Gna2Status (
+        uint32_t sizeRequested,
+        uint32_t * sizeGranted,
+        void ** memoryAddress));
+#endif
 };

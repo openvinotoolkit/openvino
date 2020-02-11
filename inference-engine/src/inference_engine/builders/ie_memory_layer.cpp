@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 using namespace InferenceEngine;
 
 Builder::MemoryLayer::MemoryLayer(const std::string& name): LayerDecorator("Memory", name) {
-    getLayer()->getOutputPorts().resize(1);
-    getLayer()->getInputPorts().resize(1);
     setSize(2);
 }
 
@@ -30,20 +28,30 @@ Builder::MemoryLayer& Builder::MemoryLayer::setName(const std::string& name) {
 }
 
 const Port& Builder::MemoryLayer::getInputPort() const {
+    if (getLayer()->getInputPorts().empty()) {
+        THROW_IE_EXCEPTION << "No inputs ports for layer: " << getLayer()->getName();
+    }
     return getLayer()->getInputPorts()[0];
 }
 
 Builder::MemoryLayer& Builder::MemoryLayer::setInputPort(const Port &port) {
+    getLayer()->getInputPorts().resize(1);
     getLayer()->getInputPorts()[0] = port;
+    setIndex(0);
     return *this;
 }
 
 const Port& Builder::MemoryLayer::getOutputPort() const {
+    if (getLayer()->getOutputPorts().empty()) {
+        THROW_IE_EXCEPTION << "No output ports for layer: " << getLayer()->getName();
+    }
     return getLayer()->getOutputPorts()[0];
 }
 
 Builder::MemoryLayer& Builder::MemoryLayer::setOutputPort(const Port &port) {
+    getLayer()->getOutputPorts().resize(1);
     getLayer()->getOutputPorts()[0] = port;
+    setIndex(1);
     return *this;
 }
 

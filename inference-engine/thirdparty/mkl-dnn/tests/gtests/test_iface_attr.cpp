@@ -70,16 +70,17 @@ TEST_F(attr_test, TestPostOps) {
 
     algorithm alg;
     float scale, alpha, beta;
+    mkldnn::impl::data_type_t sum_dt;
 
     EXPECT_EQ(ops.len(), 0);
     EXPECT_EQ(attr.get_post_ops().len(), 0);
 
-    ops.append_sum(1.1f);
+    ops.append_sum(1.1f, mkldnn_f32);
     attr.set_post_ops(ops);
 
     EXPECT_EQ(attr.get_post_ops().len(), 1);
     EXPECT_EQ(attr.get_post_ops().kind(0), primitive::kind::sum);
-    attr.get_post_ops().get_params_sum(0, scale);
+    attr.get_post_ops().get_params_sum(0, scale, sum_dt);
     EXPECT_FLOAT_EQ(scale, 1.1f);
 
     ops.append_eltwise(2.2f, algorithm::eltwise_bounded_relu, 3.3f, 4.4f);

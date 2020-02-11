@@ -1,16 +1,15 @@
-﻿// Copyright (C) 2018-2019 Intel Corporation
+﻿// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_graph.h"
 
 #include "test_graph.hpp"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
-#include <extension/ext_list.hpp>
+#include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 
 
@@ -22,6 +21,7 @@ struct reduce_test_params {
     std::string                 reduce_type;
     bool                        keep_dims;
     InferenceEngine::SizeVector in_shape;
+    std::string                 inType;
     std::vector<float>          input_tensor;
     std::vector<int32_t>        axes_for_reduction;
     InferenceEngine::SizeVector out_shape;
@@ -30,15 +30,15 @@ struct reduce_test_params {
     std::vector<std::function<void(MKLDNNPlugin::PrimitiveDescInfo)>> comp;
 };
 
-template <typename F>
+template <typename src_t, typename dst_t, typename F>
 void reduce(
-    const float *src_data,
+    const src_t *src_data,
     InferenceEngine::SizeVector src_dims,
     InferenceEngine::SizeVector srcStrides,
-    float* dst_data,
+    dst_t* dst_data,
     InferenceEngine::SizeVector dst_dims,
     InferenceEngine::SizeVector dstStrides,
-    float init_value,
+    dst_t init_value,
     bool keep_dims,
     InferenceEngine::SizeVector skip_dims,
     F func
@@ -64,19 +64,20 @@ void reduce(
     }
 }
 
+template <typename src_t, typename dst_t>
 void ref_reduce(
     std::string reduce_type,
-    InferenceEngine::TBlob<float> &src,
+    InferenceEngine::TBlob<src_t> &src,
     bool keep_dims,
     std::vector<int32_t> axes_for_reduction,
-    InferenceEngine::TBlob<float> &dst,
+    InferenceEngine::TBlob<dst_t> &dst,
     InferenceEngine::SizeVector &out_dims
 ) {
     size_t i, src_idx, dst_idx;
-    const float *src_data = src.data();
+    const src_t *src_data = src.data();
     InferenceEngine::SizeVector src_dims = src.getTensorDesc().getDims();
     InferenceEngine::SizeVector srcStrides = src.getTensorDesc().getBlockingDesc().getStrides();
-    float* dst_data = dst.data();
+    dst_t* dst_data = dst.data();
     InferenceEngine::SizeVector dst_dims = dst.getTensorDesc().getDims();
     InferenceEngine::SizeVector dstStrides = dst.getTensorDesc().getBlockingDesc().getStrides();
     InferenceEngine::SizeVector skip_dims;
@@ -116,26 +117,26 @@ void ref_reduce(
 
     if (reduce_type == "ReduceAnd") {
         if (out_dims.size()) {
-            reduce(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 1.0f, keep_dims, skip_dims,
-                [](float x, float y)->float { return x && y; } );
+            reduce<src_t, dst_t>(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 1, keep_dims, skip_dims,
+                [](dst_t x, src_t y)->dst_t { return x && y; } );
         } else {
-            dst_data[0] = 1.0f;
+            dst_data[0] = 1;
             for (src_idx = 0; src_idx < srcStrides[0] * src_dims[0]; ++src_idx)
                 dst_data[0] = dst_data[0] && src_data[src_idx];
         }
     } else if (reduce_type == "ReduceL1") {
         if (out_dims.size()) {
-            reduce(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0.0f, keep_dims, skip_dims,
-                   [](float x, float y)->float { return x + (std::abs)(y); } );
+            reduce<src_t, dst_t>(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0, keep_dims, skip_dims,
+                   [](dst_t x, src_t y)->dst_t { return x + (std::abs)(y); } );
         } else {
-            dst_data[0] = 0.0f;
+            dst_data[0] = 0;
             for (src_idx = 0; src_idx < srcStrides[0] * src_dims[0]; ++src_idx)
                 dst_data[0] += (std::abs)(src_data[src_idx]);
         }
     } else if (reduce_type == "ReduceL2") {
         if (out_dims.size()) {
-            reduce(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0.0f, keep_dims, skip_dims,
-                [](float x, float y)->float { return x + y * y; } );
+            reduce<src_t, dst_t>(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0, keep_dims, skip_dims,
+                [](dst_t x, src_t y)->dst_t { return x + y * y; } );
 
             for (i = 0; i < dstStrides[0] * dst_dims[0]; ++i)
                 dst_data[i] = (std::sqrt)(dst_data[i]);
@@ -147,43 +148,43 @@ void ref_reduce(
         }
     } else if (reduce_type == "ReduceLogSum") {
         if (out_dims.size()) {
-            reduce(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0.0f, keep_dims, skip_dims,
-                [](float x, float y)->float { return x + y; });
+            reduce<src_t, dst_t>(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0, keep_dims, skip_dims,
+                [](dst_t x, src_t y)->dst_t { return x + y; });
 
             for (i = 0; i < dstStrides[0] * dst_dims[0]; ++i)
                 dst_data[i] = logf(dst_data[i]);
         } else {
-            dst_data[0] = 0.0f;
+            dst_data[0] = 0;
             for (src_idx = 0; src_idx < srcStrides[0] * src_dims[0]; ++src_idx)
                 dst_data[0] += src_data[src_idx];
             dst_data[0] = logf(dst_data[0]);
         }
     } else if (reduce_type == "ReduceLogSumExp") {
         if (out_dims.size()) {
-            reduce(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0.0f, keep_dims, skip_dims,
-                [](float x, float y)->float { return x + expf(y); });
+            reduce<src_t, dst_t>(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0, keep_dims, skip_dims,
+                [](dst_t x, src_t y)->dst_t { return x + expf(y); });
 
             for (i = 0; i < dstStrides[0] * dst_dims[0]; ++i)
                 dst_data[i] = logf(dst_data[i]);
         } else {
-            dst_data[0] = 0.0f;
+            dst_data[0] = 0;
             for (src_idx = 0; src_idx < srcStrides[0] * src_dims[0]; ++src_idx)
                 dst_data[0] += expf(src_data[src_idx]);
             dst_data[0] = logf(dst_data[0]);
         }
     } else if (reduce_type == "ReduceMax") {
         if (out_dims.size()) {
-            reduce(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, FLT_MIN, keep_dims, skip_dims,
-                [](float x, float y)->float { return x > y ? x : y; });
+            reduce<src_t, dst_t>(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, (std::numeric_limits<dst_t>::min)(), keep_dims, skip_dims,
+                [](dst_t x, src_t y)->dst_t { return x > y ? x : y; });
         } else {
-            dst_data[0] = FLT_MIN;
+            dst_data[0] = (std::numeric_limits<dst_t>::min)();
             for (src_idx = 0; src_idx < srcStrides[0] * src_dims[0]; ++src_idx)
                 dst_data[0] = dst_data[0] > src_data[src_idx] ? dst_data[0] : src_data[src_idx];
         }
     } else if (reduce_type == "ReduceMean") {
         if (out_dims.size()) {
-            reduce(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0.0f, keep_dims, skip_dims,
-                [](float x, float y)->float { return x + y; });
+            reduce<src_t, dst_t>(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0, keep_dims, skip_dims,
+                [](dst_t x, src_t y)->dst_t { return x + y; });
             float reduced_dims_work_amount = 1.f;
             for (size_t axis : axes_for_reduction) {
                 reduced_dims_work_amount *= static_cast<float>(src_dims[axis]);
@@ -191,24 +192,24 @@ void ref_reduce(
             for (i = 0; i < dstStrides[0] * dst_dims[0]; ++i)
                 dst_data[i] /= reduced_dims_work_amount;
         } else {
-            dst_data[0] = 0.0f;
+            dst_data[0] = 0;
             for (src_idx = 0; src_idx < srcStrides[0] * src_dims[0]; ++src_idx)
                 dst_data[0] += src_data[src_idx];
             dst_data[0] /= static_cast<float>(srcStrides[0] * src_dims[0]);
         }
     } else if (reduce_type == "ReduceMin") {
         if (out_dims.size()) {
-            reduce(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, FLT_MAX, keep_dims, skip_dims,
-                [](float x, float y)->float { return x < y ? x : y; });
+            reduce<src_t, dst_t>(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, (std::numeric_limits<dst_t>::max)(), keep_dims, skip_dims,
+                [](dst_t x, src_t y)->dst_t { return x < y ? x : y; });
         } else {
-            dst_data[0] = FLT_MAX;
+            dst_data[0] = (std::numeric_limits<dst_t>::max)();
             for (src_idx = 0; src_idx < srcStrides[0] * src_dims[0]; ++src_idx)
                 dst_data[0] = dst_data[0] < src_data[src_idx] ? dst_data[0] : src_data[src_idx];
         }
     } else if (reduce_type == "ReduceOr") {
         if (out_dims.size()) {
-            reduce(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0.0f, keep_dims, skip_dims,
-                   [](float x, float y)->float { return x || y; });
+            reduce<src_t, dst_t>(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0, keep_dims, skip_dims,
+                   [](dst_t x, src_t y)->dst_t { return x || y; });
         } else {
             dst_data[0] = 0;
             for (src_idx = 0; src_idx < srcStrides[0] * src_dims[0]; ++src_idx)
@@ -216,39 +217,39 @@ void ref_reduce(
         }
     } else if (reduce_type == "ReduceProd") {
         if (out_dims.size()) {
-            reduce(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 1.0f, keep_dims, skip_dims,
-                [](float x, float y)->float { return x * y; });
+            reduce<src_t, dst_t>(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 1, keep_dims, skip_dims,
+                [](dst_t x, src_t y)->dst_t { return x * y; });
         } else {
-            dst_data[0] = 1.0f;
+            dst_data[0] = 1;
             for (src_idx = 0; src_idx < srcStrides[0] * src_dims[0]; ++src_idx)
                 dst_data[0] *= src_data[src_idx];
         }
     } else if (reduce_type == "ReduceSum") {
         if (out_dims.size()) {
-            reduce(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0.0f, keep_dims, skip_dims,
-                [](float x, float y)->float { return x + y; });
+            reduce<src_t, dst_t>(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0, keep_dims, skip_dims,
+                [](dst_t x, src_t y)->dst_t { return x + y; });
         } else {
-            dst_data[0] = 0.0f;
+            dst_data[0] = 0;
             for (src_idx = 0; src_idx < srcStrides[0] * src_dims[0]; ++src_idx)
                 dst_data[0] += src_data[src_idx];
         }
     } else if (reduce_type == "ReduceSumSquare") {
         if (out_dims.size()) {
-            reduce(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0.0f, keep_dims, skip_dims,
-                [](float x, float y)->float { return x + y * y; });
+            reduce<src_t, dst_t>(src_data, src_dims, srcStrides, dst_data, dst_dims, dstStrides, 0, keep_dims, skip_dims,
+                [](dst_t x, src_t y)->dst_t { return x + y * y; });
         } else {
-            dst_data[0] = 0.0f;
+            dst_data[0] = 0;
             for (src_idx = 0; src_idx < srcStrides[0] * src_dims[0]; ++src_idx)
                 dst_data[0] += src_data[src_idx] * src_data[src_idx];
         }
     }
 }
 
-class MKLDNNCPUExtReduceTests : public TestsCommon, public WithParamInterface<reduce_test_params> {
+class MKLDNNCPUExtReducesTests : public TestsCommon, public WithParamInterface<reduce_test_params> {
     std::string model_t = R"V0G0N(
 <net Name="Reduce_net" version="2" precision="FP32" batch="1">
     <layers>
-        <layer name="input" type="Input" precision="FP32" id="1">
+        <layer name="input" type="Input" precision="_IP_" id="1">
             <output>
                 <port id="1">
                     _IN_
@@ -262,18 +263,18 @@ class MKLDNNCPUExtReduceTests : public TestsCommon, public WithParamInterface<re
                 </port>
             </output>
         </layer>
-        <layer name="output" id="2" type="_REDUCE_TYPE_" precision="FP32">
+        <layer name="output" id="2" type="_REDUCE_TYPE_">
             <data keep_dims="_KEEP_DIMS_" />
             <input>
-                <port id="1">
+                <port id="1" precision="_IP_">
                     _IN_
                 </port>
-                <port id="2">
+                <port id="2" precision="I32">
                     <dim>_DIM_SIZE_</dim>
                 </port>
             </input>
             <output>
-                <port id="3">
+                <port id="3" precision="_OP_">
                     _OUT_
                 </port>
             </output>
@@ -296,6 +297,8 @@ class MKLDNNCPUExtReduceTests : public TestsCommon, public WithParamInterface<re
             in_shape += std::to_string(p.in_shape[i]) + "</dim>\n";
         }
         REPLACE_WITH_STR(model, "_IN_", in_shape);
+        REPLACE_WITH_STR(model, "_IP_", p.inType);
+        REPLACE_WITH_STR(model, "_OP_", p.inType);
         REPLACE_WITH_NUM(model, "_DIM_SIZE_", p.axes_for_reduction.size());
         REPLACE_WITH_STR(model, "_REDUCE_TYPE_", p.reduce_type);
         REPLACE_WITH_NUM(model, "_KEEP_DIMS_", p.keep_dims);
@@ -312,7 +315,8 @@ protected:
     virtual void TearDown() {
     }
 
-    static void fill_data_dbgval(float *data, size_t size) {
+    template <typename T>
+    static void fill_data_dbgval(T *data, size_t size) {
         for (size_t i = 0; i < size; i++) {
             data[i] = i + 1;
         }
@@ -327,12 +331,8 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-            MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(net_reader.getNetwork());
 
             // Output Data
             InferenceEngine::OutputsDataMap out;
@@ -341,29 +341,11 @@ protected:
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
 
-            InferenceEngine::TBlob<float>::Ptr output;
-            output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
-            output->allocate();
-            outputBlobs[item.first] = output;
-
-            // Output Reference
-            InferenceEngine::TBlob<float> dst_ref(item.second->getTensorDesc());
-            dst_ref.allocate();
-
             // Input Data
             InferenceEngine::Blob::Ptr src;
-            src = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, p.in_shape, InferenceEngine::TensorDesc::getLayoutByDims(p.in_shape) });
-            src->allocate();
-            if(p.input_tensor.size())
-                memcpy(src->buffer(), &p.input_tensor[0], sizeof(float)*p.input_tensor.size());
-            else
-                fill_data_dbgval(src->buffer(), src->size());
-            auto * srcPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(src.get());
-            if (srcPtr == nullptr)
-                FAIL() << "Cannot cast blob to TBlob<float>.";
+            InferenceEngine::SizeVector out_dims;
 
             InferenceEngine::BlobMap srcs;
-            srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("input", src));
 
             InferenceEngine::Blob::Ptr seq_lengthsIdx;
             InferenceEngine::SizeVector seq_lengths_dim(1, p.axes_for_reduction.size());
@@ -376,109 +358,181 @@ protected:
                 FAIL() << "Cannot cast blob to TBlob<int32_t>.";
 
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("axes_for_reduction", seq_lengthsIdx));
+            if (p.inType == "FP32") {
+                InferenceEngine::TBlob<float>::Ptr output;
+                output = InferenceEngine::make_shared_blob<float>(item.second->getTensorDesc());
+                output->allocate();
+                outputBlobs[item.first] = output;
 
+                InferenceEngine::TBlob<float> dst_ref(item.second->getTensorDesc());
+                dst_ref.allocate();
+
+                src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, p.in_shape,
+                                                                InferenceEngine::TensorDesc::getLayoutByDims(p.in_shape)});
+                src->allocate();
+                if (p.input_tensor.size())
+                    for (int i = 0; i < p.input_tensor.size(); i++) {
+                        static_cast<float*>(src->buffer())[i] = static_cast<float>(p.input_tensor[i]);
+                    }
+                else
+                    fill_data_dbgval<float>(src->buffer(), src->size());
+                auto *srcPtr = dynamic_cast<InferenceEngine::TBlob<float> *>(src.get());
+                if (srcPtr == nullptr)
+                    FAIL() << "Cannot cast blob to TBlob<float>.";
+
+                ref_reduce<float, float>(p.reduce_type, *srcPtr, p.keep_dims, p.axes_for_reduction, dst_ref, out_dims);
+                if (p.reference.size())
+                    if (memcmp(dst_ref.data(), &p.reference[0], p.reference.size() * sizeof(float)) != 0)
+                        FAIL() << "Wrong result with compare reference vector!";
+                // Infer
+                srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("input", src));
+                graph.Infer(srcs, outputBlobs);
+                compare(*output, dst_ref);
+            } else if (p.inType == "I32") {
+                InferenceEngine::TBlob<int32_t>::Ptr output;
+                output = InferenceEngine::make_shared_blob<int32_t>(item.second->getTensorDesc());
+                output->allocate();
+                outputBlobs[item.first] = output;
+
+                InferenceEngine::TBlob<int32_t> dst_ref({ InferenceEngine::Precision::I32, p.out_shape, InferenceEngine::TensorDesc::getLayoutByDims(p.out_shape) });
+                dst_ref.allocate();
+
+                src = InferenceEngine::make_shared_blob<int32_t>({InferenceEngine::Precision::I32, p.in_shape,
+                                                                  InferenceEngine::TensorDesc::getLayoutByDims(p.in_shape)});
+                src->allocate();
+                if (p.input_tensor.size())
+                    for (int i = 0; i < p.input_tensor.size(); i++) {
+                        static_cast<int32_t*>(src->buffer())[i] = static_cast<int32_t>(p.input_tensor[i]);
+                    }
+                else
+                    fill_data_dbgval<int32_t>(src->buffer(), src->size());
+                auto *srcPtr = dynamic_cast<InferenceEngine::TBlob<int32_t> *>(src.get());
+                if (srcPtr == nullptr)
+                    FAIL() << "Cannot cast blob to TBlob<int32_t>.";
+
+                ref_reduce<int32_t, int32_t>(p.reduce_type, *srcPtr, p.keep_dims, p.axes_for_reduction, dst_ref, out_dims);
+                if (p.reference.size()) {
+                    for (int i = 0; i < p.reference.size(); i++) {
+                        if (dst_ref.data()[i] != p.reference[i])
+                            FAIL() << "Wrong result with compare reference vector!";
+                        //std::cout << p.reference[i] << " " << dst_ref.data()[i] << std::endl;
+                    }
+                }
+
+                // Infer
+                srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("input", src));
+                graph.Infer(srcs, outputBlobs);
+                compare(*output, dst_ref);
+            }
             // Check results
-            InferenceEngine::SizeVector out_dims;
-            ref_reduce(p.reduce_type, *srcPtr, p.keep_dims, p.axes_for_reduction, dst_ref, out_dims);
             if (out_dims.size() != p.out_shape.size())
                 FAIL() << "Wrong out_shape size!";
             for (size_t i = 0; i < p.out_shape.size(); i++) {
                 if (out_dims[i] != p.out_shape[i])
                     FAIL() << "Wrong out_shape dimensions!";
             }
-            if (p.reference.size())
-                if (memcmp(dst_ref.data(), &p.reference[0], p.reference.size() * sizeof(float)) != 0)
-                    FAIL() << "Wrong result with compare reference vector!";
 
-            // Infer
-            graph.Infer(srcs, outputBlobs);
-            compare(*output, dst_ref);
         } catch (const InferenceEngine::details::InferenceEngineException &e) {
             FAIL() << e.what();
         }
     }
 };
 
-TEST_P(MKLDNNCPUExtReduceTests, TestsReduceSum) {}
+TEST_P(MKLDNNCPUExtReducesTests, TestsReduceSum) {}
 
 INSTANTIATE_TEST_CASE_P(
-    TestsReduceSum, MKLDNNCPUExtReduceTests,
+    TestsReduceSum, MKLDNNCPUExtReducesTests,
     ::testing::Values(
-        // Params: reduce_type, keep_dims, in_shape, input_tensor, axes_for_reduction, out_shape, reference
-        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },{},{ 0 },{ 1, 3, 4 },{ 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36 } },
-        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },{},{ -3 },{ 1, 3, 4 },{ 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36 } },
-        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },{},{ 2 },{ 2, 3, 1 },{ 10, 26, 42, 58, 74, 90 } },
-        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },{},{ -1 },{ 2, 3, 1 },{ 10, 26, 42, 58, 74, 90 } },
-        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },{},{ 0, 2 },{ 1, 3, 1 },{ 68, 100, 132 } },
-        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },{},{ 1, 2 },{ 2, 1, 1 },{ 78, 222 } },
-        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },{},{ 2, 1 },{ 2, 1, 1 },{ 78, 222 } },
-        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },{},{ 0, 1, 2 },{ 1, 1, 1 },{ 300 } },
-        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },{},{ 0, -2, 2 },{ 1, 1, 1 },{ 300 } },
-        reduce_test_params{ "ReduceSum", true,{ 2, 2, 2, 2, 2, 2, 2 },{},{ 0, 1, 2, 3, 4, 5, 6 },{ 1, 1, 1, 1, 1, 1, 1 },{ 8256 } },
-        reduce_test_params{ "ReduceSum", true,{ 2, 2, 2, 2, 2, 2, 2 },{},{ 6, 3, 1, 4, 0 },{ 1, 1, 2, 1, 1, 2, 1 },{ 1776, 1840, 2288, 2352 } },
-        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },{},{ 2, 2, 0, 2, 0 },{ 1, 3, 1 },{ 68, 100, 132 } },
-        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },{},{ 0 },{ 3, 4 },{ 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36 } },
-        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },{},{ -3 },{ 3, 4 },{ 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36 } },
-        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },{},{ 2 },{ 2, 3 },{ 10, 26, 42, 58, 74, 90 } },
-        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },{},{ -1 },{ 2, 3 },{ 10, 26, 42, 58, 74, 90 } },
-        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },{},{ 0, 2 },{ 3 },{ 68, 100, 132 } },
-        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },{},{ 1, 2 },{ 2 },{ 78, 222 } },
-        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },{},{ 2, 1 },{ 2 },{ 78, 222 } },
-        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },{},{ 0, 1, 2 },{},{ 300 } },
-        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },{},{ 0, -2, 2 },{},{ 300 } },
-        reduce_test_params{ "ReduceSum", false,{ 2, 2, 2, 2, 2, 2, 2 },{},{ 0, 1, 2, 3, 4, 5, 6 },{},{ 8256 } },
-        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },{},{ 2, 2, 0, 2, 0 },{ 3 },{ 68, 100, 132 } },
-        reduce_test_params{ "ReduceSum", false,{ 2, 2, 2, 2, 2, 2, 2 },{},{ 6, 3, 1, 4, 0 },{ 2, 2 },{ 1776, 1840, 2288, 2352 } },
-        reduce_test_params{ "ReduceSum", true,{ 1, 2, 3, 4, 1 },{},{ 1 },{ 1, 1, 3, 4, 1 },{ 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36 } },
-        reduce_test_params{ "ReduceSum", false,{ 1, 2, 3, 4, 1 },{},{ 1 },{ 1, 3, 4, 1 },{ 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36 } }
+        // Params: reduce_type, keep_dims, in_shape, inType, input_tensor, axes_for_reduction, out_shape, reference
+        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },"FP32",{},{ 0 },{ 1, 3, 4 },{ 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36 } },
+        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },"FP32",{},{ -3 },{ 1, 3, 4 },{ 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36 } },
+        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },"FP32",{},{ 2 },{ 2, 3, 1 },{ 10, 26, 42, 58, 74, 90 } },
+        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },"FP32",{},{ -1 },{ 2, 3, 1 },{ 10, 26, 42, 58, 74, 90 } },
+        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },"FP32",{},{ 0, 2 },{ 1, 3, 1 },{ 68, 100, 132 } },
+        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },"FP32",{},{ 1, 2 },{ 2, 1, 1 },{ 78, 222 } },
+        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },"FP32",{},{ 2, 1 },{ 2, 1, 1 },{ 78, 222 } },
+        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },"FP32",{},{ 0, 1, 2 },{ 1, 1, 1 },{ 300 } },
+        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },"FP32",{},{ 0, -2, 2 },{ 1, 1, 1 },{ 300 } },
+        reduce_test_params{ "ReduceSum", true,{ 2, 2, 2, 2, 2, 2, 2 },"FP32",{},{ 0, 1, 2, 3, 4, 5, 6 },{ 1, 1, 1, 1, 1, 1, 1 },{ 8256 } },
+        reduce_test_params{ "ReduceSum", true,{ 2, 2, 2, 2, 2, 2, 2 },"FP32",{},{ 6, 3, 1, 4, 0 },{ 1, 1, 2, 1, 1, 2, 1 },{ 1776, 1840, 2288, 2352 } },
+        reduce_test_params{ "ReduceSum", true,{ 2, 3, 4 },"FP32",{},{ 2, 2, 0, 2, 0 },{ 1, 3, 1 },{ 68, 100, 132 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },"FP32",{},{ 0 },{ 3, 4 },{ 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },"FP32",{},{ -3 },{ 3, 4 },{ 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },"FP32",{},{ 2 },{ 2, 3 },{ 10, 26, 42, 58, 74, 90 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },"FP32",{},{ -1 },{ 2, 3 },{ 10, 26, 42, 58, 74, 90 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },"FP32",{},{ 0, 2 },{ 3 },{ 68, 100, 132 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },"FP32",{},{ 1, 2 },{ 2 },{ 78, 222 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },"FP32",{},{ 2, 1 },{ 2 },{ 78, 222 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },"FP32",{},{ 0, 1, 2 },{},{ 300 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },"FP32",{},{ 0, -2, 2 },{},{ 300 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 2, 2, 2, 2, 2, 2 },"FP32",{},{ 0, 1, 2, 3, 4, 5, 6 },{},{ 8256 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },"FP32",{},{ 2, 2, 0, 2, 0 },{ 3 },{ 68, 100, 132 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 2, 2, 2, 2, 2, 2 },"FP32",{},{ 6, 3, 1, 4, 0 },{ 2, 2 },{ 1776, 1840, 2288, 2352 } },
+        reduce_test_params{ "ReduceSum", true,{ 1, 2, 3, 4, 1 },"FP32",{},{ 1 },{ 1, 1, 3, 4, 1 },{ 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36 } },
+        reduce_test_params{ "ReduceSum", false,{ 1, 2, 3, 4, 1 },"FP32",{},{ 1 },{ 1, 3, 4, 1 },{ 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36 } },
+// I32 tests
+        reduce_test_params{ "ReduceAnd", true,{ 2, 2, 2 },"I32",{1, 0, 1, 1, 0, 1, 1, 0},{ 2 },{ 2, 2, 1 },{ 0, 1, 0, 0} },
+        reduce_test_params{ "ReduceL1", true, { 3, 2, 2 },"I32",{},{ 2 },{ 3, 2, 1 },{ 3, 7, 11, 15, 19, 23 } },
+        reduce_test_params{ "ReduceL1", false, { 3, 2, 2 },"I32",{},{ 0, 1, 2 },{ },{ 78 } },
+        reduce_test_params{ "ReduceL2", false,{ 3, 2, 2 },"I32",{},{ 2 },{ 3, 2 },{ 2, 5, 7, 10, 13, 16 } },
+        reduce_test_params{ "ReduceL2", false,{ 3, 2, 2 },"I32",{},{ 0, 1, 2 },{ },{ 25 } },
+        reduce_test_params{ "ReduceLogSum", true,{ 10, 10, 2 },"I32",{},{ 2 },{ 10, 10, 1 },{} },
+        reduce_test_params{ "ReduceLogSumExp", true,{ 5, 5, 2 },"I32",{},{ 2 },{ 5, 5, 1 },{} },
+        reduce_test_params{ "ReduceMax", true,{ 3, 2, 2 },"I32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 1, 2 },{ 20, 2, 40, 2, 60, 2 } },
+        reduce_test_params{ "ReduceMean", true, { 3, 2, 2 },"I32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 1, 2 },{ 12, 1, 35, 1, 57, 1 } },
+        reduce_test_params{ "ReduceMin", false,{ 3, 2, 2 },"I32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 2 },{ 5, 1, 30, 1, 55, 1 } },
+        reduce_test_params{ "ReduceOr", true,{ 2, 2, 2 },"I32",{1, 0, 1, 1, 0, 0, 1, 0},{ 2 },{ 2, 2, 1 },{1, 1, 0, 1 } },
+        reduce_test_params{ "ReduceProd", true,{ 3, 2, 2 },"I32",{},{ 1 },{ 3, 1, 2 },{ 3, 8, 35, 48, 99, 120 } },
+        reduce_test_params{ "ReduceSum", false,{ 2, 3, 4 },"I32",{},{ 2, 2, 0, 2, 0 },{ 3 },{ 68, 100, 132 } },
+        reduce_test_params{ "ReduceSumSquare", true, { 3, 2, 2 },"I32",{},{ 1 },{ 3, 1, 2 },{ 10, 20, 74, 100, 202, 244 } },
+        reduce_test_params{ "ReduceSumSquare", false, { 3, 2, 2 },"I32",{},{ 0, 1, 2 },{ },{ 650 } }
 ));
 
 
-TEST_P(MKLDNNCPUExtReduceTests, TestsReduce) {}
+TEST_P(MKLDNNCPUExtReducesTests, TestsReduceAll) {}
 
 INSTANTIATE_TEST_CASE_P(
-    TestsReduce, MKLDNNCPUExtReduceTests,
+    TestsReduceAll, MKLDNNCPUExtReducesTests,
             ::testing::Values(
-// Params: reduce_type, keep_dims, in_shape, input_tensor, axes_for_reduction, out_shape, reference
-                reduce_test_params{ "ReduceAnd", true,{ 2, 2, 2 },{1, 0, 1, 1, 0, 1, 1, 0},{ 2 },{ 2, 2, 1 },{ 0, 1, 0, 0} },
-                reduce_test_params{ "ReduceAnd", false, { 2, 2, 2 },{1, 0, 1, 1, 0, 1, 1, 0},{ 0, 1, 2 },{ },{ 0 } },
-                reduce_test_params{ "ReduceL1", true,{ 10, 10, 2 },{},{ 2 },{ 10, 10, 1 },{ } },
-                reduce_test_params{ "ReduceL1", true, { 3, 2, 2 },{},{ 2 },{ 3, 2, 1 },{ 3, 7, 11, 15, 19, 23 } },
-                reduce_test_params{ "ReduceL1", false, { 3, 2, 2 },{},{ 2 },{ 3, 2 },{ 3, 7, 11, 15, 19, 23 } },
-                reduce_test_params{ "ReduceL1", false, { 3, 2, 2 },{},{ 0, 1, 2 },{ },{ 78 } },
-                reduce_test_params{ "ReduceL2", true,{ 10, 10, 2 },{},{ 2 },{ 10, 10, 1 },{} },
-                reduce_test_params{ "ReduceL2", true,{ 3, 2, 2 },{},{ 2 },{ 3, 2, 1 },{ 2.23606798f, 5.f, 7.81024968f, 10.63014581f, 13.45362405f, 16.2788206f } },
-                reduce_test_params{ "ReduceL2", false,{ 3, 2, 2 },{},{ 2 },{ 3, 2 },{ 2.23606798f, 5.f, 7.81024968f, 10.63014581f, 13.45362405f, 16.2788206f } },
-                reduce_test_params{ "ReduceL2", false,{ 3, 2, 2 },{},{ 0, 1, 2 },{ },{ 25.49509757f } },
-                reduce_test_params{ "ReduceLogSum", true,{ 10, 10, 2 },{},{ 2 },{ 10, 10, 1 },{} },
-                reduce_test_params{ "ReduceLogSum", true,{ 3, 2, 2 },{ },{ 1 },{ 3, 1, 2 },{ } },
-                reduce_test_params{ "ReduceLogSum", false,{ 3, 2, 2 },{ },{ 1 },{ 3, 2 },{ } },
-                reduce_test_params{ "ReduceLogSum", false,{ 3, 2, 2 },{ },{ 0, 1, 2 },{},{ } },
-                reduce_test_params{ "ReduceLogSumExp", true,{ 5, 5, 2 },{},{ 2 },{ 5, 5, 1 },{} },
-                reduce_test_params{ "ReduceLogSumExp", true,{ 3, 2, 2 },{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 1, 2 },{ 20.f, 2.31326175f, 40.00004578f, 2.31326175f, 60.00671387f, 2.31326175f } },
-                reduce_test_params{ "ReduceLogSumExp", false,{ 3, 2, 2 },{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 2 },{ 20.f, 2.31326175f, 40.00004578f, 2.31326175f, 60.00671387f, 2.31326175f } },
-                reduce_test_params{ "ReduceLogSumExp", false,{ 3, 2, 2 },{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 0, 1, 2 },{},{ 60.00671387f } },
-                reduce_test_params{ "ReduceMax", true,{ 10, 10, 2 },{},{ 2 },{ 10, 10, 1 },{} },
-                reduce_test_params{ "ReduceMax", true,{ 3, 2, 2 },{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 1, 2 },{ 20, 2, 40, 2, 60, 2 } },
-                reduce_test_params{ "ReduceMax", false,{ 3, 2, 2 },{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 2 },{ 20, 2, 40, 2, 60, 2 } },
-                reduce_test_params{ "ReduceMax", false,{ 3, 2, 2 },{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 0, 1, 2 },{},{ 60 } },
-                reduce_test_params{ "ReduceMean", true,{ 10, 10, 2 },{},{ 2 },{ 10, 10, 1 },{} },
-                reduce_test_params{ "ReduceMean", true, { 3, 2, 2 },{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 1, 2 },{ 12.5f, 1.5f, 35.f, 1.5f, 57.5f, 1.5f } },
-                reduce_test_params{ "ReduceMean", false, { 3, 2, 2 },{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 2 },{ 12.5f, 1.5f, 35.f, 1.5f, 57.5f, 1.5f } },
-                reduce_test_params{ "ReduceMean", false, { 3, 2, 2 },{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 0, 1, 2 },{ },{ 18.25f } },
-                reduce_test_params{ "ReduceMin", true,{ 10, 10, 2 },{},{ 2 },{ 10, 10, 1 },{} },
-                reduce_test_params{ "ReduceMin", true,{ 3, 2, 2 },{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 1, 2 },{ 5, 1, 30, 1, 55, 1 } },
-                reduce_test_params{ "ReduceMin", false,{ 3, 2, 2 },{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 2 },{ 5, 1, 30, 1, 55, 1 } },
-                reduce_test_params{ "ReduceMin", false,{ 3, 2, 2 },{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 0, 1, 2 },{},{ 1 } },
-                reduce_test_params{ "ReduceOr", true,{ 2, 2, 2 },{1, 0, 1, 1, 0, 0, 1, 0},{ 2 },{ 2, 2, 1 },{1, 1, 0, 1 } },
-                reduce_test_params{ "ReduceOr", false, { 2, 2, 2 },{},{ 0, 1, 2 },{ },{ 1 } },
-                reduce_test_params{ "ReduceProd", true,{ 10, 10, 2 },{},{ 2 },{ 10, 10, 1 },{} },
-                reduce_test_params{ "ReduceProd", true,{ 3, 2, 2 },{},{ 1 },{ 3, 1, 2 },{ 3, 8, 35, 48, 99, 120 } },
-                reduce_test_params{ "ReduceProd", false,{ 3, 2, 2 },{},{ 1 },{ 3, 2 },{ 3, 8, 35, 48, 99, 120 } },
-                reduce_test_params{ "ReduceProd", false,{ 3, 2, 2 },{},{ 0, 1, 2 },{ },{ 4.790016e+08 } },
-                reduce_test_params{ "ReduceSumSquare", true,{ 10, 10, 2 },{},{ 2 },{ 10, 10, 1 },{} },
-                reduce_test_params{ "ReduceSumSquare", true, { 3, 2, 2 },{},{ 1 },{ 3, 1, 2 },{ 10, 20, 74, 100, 202, 244 } },
-                reduce_test_params{ "ReduceSumSquare", false, { 3, 2, 2 },{},{ 1 },{ 3, 2 },{ 10, 20, 74, 100, 202, 244 } },
-                reduce_test_params{ "ReduceSumSquare", false, { 3, 2, 2 },{},{ 0, 1, 2 },{ },{ 650 } }
+// Params: reduce_type, keep_dims, in_shape, inType, input_tensor, axes_for_reduction, out_shape, reference
+                reduce_test_params{ "ReduceAnd", true,{ 2, 2, 2 },"FP32",{1, 0, 1, 1, 0, 1, 1, 0},{ 2 },{ 2, 2, 1 },{ 0, 1, 0, 0} },
+                reduce_test_params{ "ReduceAnd", false, { 2, 2, 2 },"FP32",{1, 0, 1, 1, 0, 1, 1, 0},{ 0, 1, 2 },{ },{ 0 } },
+                reduce_test_params{ "ReduceL1", true,{ 10, 10, 2 },"FP32",{},{ 2 },{ 10, 10, 1 },{ } },
+                reduce_test_params{ "ReduceL1", true, { 3, 2, 2 },"FP32",{},{ 2 },{ 3, 2, 1 },{ 3, 7, 11, 15, 19, 23 } },
+                reduce_test_params{ "ReduceL1", false, { 3, 2, 2 },"FP32",{},{ 2 },{ 3, 2 },{ 3, 7, 11, 15, 19, 23 } },
+                reduce_test_params{ "ReduceL1", false, { 3, 2, 2 },"FP32",{},{ 0, 1, 2 },{ },{ 78 } },
+                reduce_test_params{ "ReduceL2", true,{ 10, 10, 2 },"FP32",{},{ 2 },{ 10, 10, 1 },{} },
+                reduce_test_params{ "ReduceL2", true,{ 3, 2, 2 },"FP32",{},{ 2 },{ 3, 2, 1 },{ 2.23606798f, 5.f, 7.81024968f, 10.63014581f, 13.45362405f, 16.2788206f } },
+                reduce_test_params{ "ReduceL2", false,{ 3, 2, 2 },"FP32",{},{ 2 },{ 3, 2 },{ 2.23606798f, 5.f, 7.81024968f, 10.63014581f, 13.45362405f, 16.2788206f } },
+                reduce_test_params{ "ReduceL2", false,{ 3, 2, 2 },"FP32",{},{ 0, 1, 2 },{ },{ 25.49509757f } },
+                reduce_test_params{ "ReduceLogSum", true,{ 10, 10, 2 },"FP32",{},{ 2 },{ 10, 10, 1 },{} },
+                reduce_test_params{ "ReduceLogSum", true,{ 3, 2, 2 },"FP32",{ },{ 1 },{ 3, 1, 2 },{ } },
+                reduce_test_params{ "ReduceLogSum", false,{ 3, 2, 2 },"FP32",{ },{ 1 },{ 3, 2 },{ } },
+                reduce_test_params{ "ReduceLogSum", false,{ 3, 2, 2 },"FP32",{ },{ 0, 1, 2 },{},{ } },
+                reduce_test_params{ "ReduceLogSumExp", true,{ 5, 5, 2 },"FP32",{},{ 2 },{ 5, 5, 1 },{} },
+                reduce_test_params{ "ReduceLogSumExp", true,{ 3, 2, 2 },"FP32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 1, 2 },{ 20.f, 2.31326175f, 40.00004578f, 2.31326175f, 60.00671387f, 2.31326175f } },
+                reduce_test_params{ "ReduceLogSumExp", false,{ 3, 2, 2 },"FP32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 2 },{ 20.f, 2.31326175f, 40.00004578f, 2.31326175f, 60.00671387f, 2.31326175f } },
+                reduce_test_params{ "ReduceLogSumExp", false,{ 3, 2, 2 },"FP32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 0, 1, 2 },{},{ 60.00671387f } },
+                reduce_test_params{ "ReduceMax", true,{ 10, 10, 2 },"FP32",{},{ 2 },{ 10, 10, 1 },{} },
+                reduce_test_params{ "ReduceMax", true,{ 3, 2, 2 },"FP32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 1, 2 },{ 20, 2, 40, 2, 60, 2 } },
+                reduce_test_params{ "ReduceMax", false,{ 3, 2, 2 },"FP32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 2 },{ 20, 2, 40, 2, 60, 2 } },
+                reduce_test_params{ "ReduceMax", false,{ 3, 2, 2 },"FP32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 0, 1, 2 },{},{ 60 } },
+                reduce_test_params{ "ReduceMean", true,{ 10, 10, 2 },"FP32",{},{ 2 },{ 10, 10, 1 },{} },
+                reduce_test_params{ "ReduceMean", true, { 3, 2, 2 },"FP32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 1, 2 },{ 12.5f, 1.5f, 35.f, 1.5f, 57.5f, 1.5f } },
+                reduce_test_params{ "ReduceMean", false, { 3, 2, 2 },"FP32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 2 },{ 12.5f, 1.5f, 35.f, 1.5f, 57.5f, 1.5f } },
+                reduce_test_params{ "ReduceMean", false, { 3, 2, 2 },"FP32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 0, 1, 2 },{ },{ 18.25f } },
+                reduce_test_params{ "ReduceMin", true,{ 10, 10, 2 },"FP32",{},{ 2 },{ 10, 10, 1 },{} },
+                reduce_test_params{ "ReduceMin", true,{ 3, 2, 2 },"FP32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 1, 2 },{ 5, 1, 30, 1, 55, 1 } },
+                reduce_test_params{ "ReduceMin", false,{ 3, 2, 2 },"FP32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 1 },{ 3, 2 },{ 5, 1, 30, 1, 55, 1 } },
+                reduce_test_params{ "ReduceMin", false,{ 3, 2, 2 },"FP32",{ 5, 1, 20, 2, 30, 1, 40, 2, 55, 1, 60, 2 },{ 0, 1, 2 },{},{ 1 } },
+                reduce_test_params{ "ReduceOr", true,{ 2, 2, 2 },"FP32",{1, 0, 1, 1, 0, 0, 1, 0},{ 2 },{ 2, 2, 1 },{1, 1, 0, 1 } },
+                reduce_test_params{ "ReduceOr", false, { 2, 2, 2 },"FP32",{},{ 0, 1, 2 },{ },{ 1 } },
+                reduce_test_params{ "ReduceProd", true,{ 10, 10, 2 },"FP32",{},{ 2 },{ 10, 10, 1 },{} },
+                reduce_test_params{ "ReduceProd", true,{ 3, 2, 2 },"FP32",{},{ 1 },{ 3, 1, 2 },{ 3, 8, 35, 48, 99, 120 } },
+                reduce_test_params{ "ReduceProd", false,{ 3, 2, 2 },"FP32",{},{ 1 },{ 3, 2 },{ 3, 8, 35, 48, 99, 120 } },
+                reduce_test_params{ "ReduceProd", false,{ 3, 2, 2 },"FP32",{},{ 0, 1, 2 },{ },{ 4.790016e+08 } },
+                reduce_test_params{ "ReduceSumSquare", true,{ 10, 10, 2 },"FP32",{},{ 2 },{ 10, 10, 1 },{} },
+                reduce_test_params{ "ReduceSumSquare", true, { 3, 2, 2 },"FP32",{},{ 1 },{ 3, 1, 2 },{ 10, 20, 74, 100, 202, 244 } },
+                reduce_test_params{ "ReduceSumSquare", false, { 3, 2, 2 },"FP32",{},{ 1 },{ 3, 2 },{ 10, 20, 74, 100, 202, 244 } },
+                reduce_test_params{ "ReduceSumSquare", false, { 3, 2, 2 },"FP32",{},{ 0, 1, 2 },{ },{ 650 } }
 ));
-

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,24 +13,23 @@
 #include <ie_profiling.hpp>
 
 #include <vpu/utils/extra.hpp>
+#include <vpu/utils/error.hpp>
 #include <vpu/utils/numeric.hpp>
 
 namespace vpu {
 
 InferenceEngine::Layout deviceLayout(InferenceEngine::Layout const& layout,
-                                       vpu::LayoutPreference const& layoutPreference) {
+                                     LayoutPreference const& layoutPreference) {
     using namespace InferenceEngine;
-    auto ChannelMajor = vpu::LayoutPreference::ChannelMajor;
-    auto ChannelMinor = vpu::LayoutPreference::ChannelMinor;
 
-    if (layoutPreference == ChannelMajor) {
+    if (layoutPreference == LayoutPreference::ChannelMajor) {
         if (layout == NHWC)
             return NCHW;
         if (layout == NDHWC)
             return NCDHW;
     }
 
-    if (layoutPreference == ChannelMinor) {
+    if (layoutPreference == LayoutPreference::ChannelMinor) {
         if (layout == NCHW)
             return NHWC;
         if (layout == NCDHW)
@@ -64,12 +63,12 @@ ie::Blob::Ptr getBlobFP16(const ie::Blob::Ptr& in) {
     return out;
 }
 
-ie::Blob::Ptr copyBlob(const ie::Blob::Ptr& in, ie::Layout outLayout) {
+ie::Blob::Ptr copyBlob(const ie::Blob::Ptr& in, ie::Layout outLayout, void* ptr) {
     auto inDesc = in->getTensorDesc();
 
     // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
     ie::TensorDesc outDesc(inDesc.getPrecision(), inDesc.getDims(), outLayout);
-    auto out = make_blob_with_precision(outDesc);
+    auto out = make_blob_with_precision(outDesc, ptr);
     out->allocate();
 
     copyBlob(in, out);

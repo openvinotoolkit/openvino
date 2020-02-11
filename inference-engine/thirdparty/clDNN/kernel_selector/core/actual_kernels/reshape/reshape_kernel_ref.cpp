@@ -63,7 +63,7 @@ KernelsData ReshapeKernelRef::GetKernelsData(const Params& params, const optiona
     }
 
     kernel.workGroups.global = {gws0, gws1, gws2};
-    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global);
+    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global, params.engineInfo);
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc(1, false, false);
 

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,15 +15,11 @@
 """
 
 import logging as log
-from collections import deque
 
-import networkx as nx
 import numpy as np
 
-from mo.front.extractor import add_attrs_props
 from mo.graph.graph import Node, Graph
-from mo.middle.passes.eliminate import graph_clean_up
-from mo.middle.passes.fusing.helpers import get_next_operation, get_tensor_id
+from mo.middle.passes.fusing.helpers import get_next_operation
 
 
 # TODO: unit tests
@@ -48,7 +44,8 @@ def concat_convolutions(graph: Graph, start_node: Node, last_node: Node):
 
     # Check that split and concat dims are valid
     channel_dim = gconv.channel_dims[0]
-    if channel_dim != start_node.axis or channel_dim != last_node.axis:
+    split_axis = start_node.in_port(1).data.get_value()
+    if channel_dim != split_axis or channel_dim != last_node.axis:
         log.debug('Grouped convolutions fusion : split or concat has wierd axis!')
         return False
 
@@ -83,7 +80,7 @@ def concat_convolutions(graph: Graph, start_node: Node, last_node: Node):
     graph.remove_edge(gconv.in_node(0).id, gconv.id)
     graph.remove_edge(gconv.id, gconv.out_node().id)
 
-    input = start_node.in_node(start_node.input_port)
+    input = start_node.in_node(0)
     output = last_node.out_node()
 
     # Removing edges from data nodes to Split and Concat
@@ -132,7 +129,7 @@ def concat_convolutions(graph: Graph, start_node: Node, last_node: Node):
 def grouped_convolutions_fusing(graph: Graph):
     while True:
         is_fused = False
-        graph_clean_up(graph, ['TFCustomSubgraphCall', 'ShapeOf', 'Shape'])
+        graph.clean_up()
         for node in graph.pseudo_topological_sort():
             if node.kind == 'op' and len(node.out_nodes()) > 1:
                 if node.soft_get('can_be_fused') == False:
@@ -153,6 +150,7 @@ def grouped_convolutions_fusing(graph: Graph):
                             is_valid_convolutions = False
                         if last_layer is None:
                             last_layer = conv_outputs[0].id
+                        # TODO: this check is not working for V10 where Biases appears as separate operations
                         elif conv_outputs[0].id != last_layer:
                             is_valid_convolutions = False
 

@@ -1,18 +1,19 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <debug.h>
+
+#include <cmath>
 #include <description_buffer.hpp>
-#include "ie_built_in_impl.hpp"
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <debug.h>
-#include <cmath>
-#include <ie_format_parser.h>
+
+#include "ie_built_in_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -22,13 +23,11 @@ namespace ShapeInfer {
  */
 class BinConvShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit BinConvShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
+    explicit BinConvShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-                         const std::map<std::string, std::string>& params,
-                         const std::map<std::string, Blob::Ptr>& blobs,
-                         std::vector<SizeVector>& outShapes) override {
-        LayerParams lp{};
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
+        LayerParams lp {};
         BinaryConvolutionLayer binConvLayer(lp);
         binConvLayer.params = params;
         binConvLayer.type = _type;
@@ -68,8 +67,7 @@ public:
         SizeVector shapes;
         shapes.push_back(inputN);
         shapes.push_back(OC);
-        if (dims.size() == 5)
-            shapes.push_back(computeSpatialShape(dims[dims.size() - 3], Z_AXIS));
+        if (dims.size() == 5) shapes.push_back(computeSpatialShape(dims[dims.size() - 3], Z_AXIS));
         shapes.push_back(computeSpatialShape(dims[dims.size() - 2], Y_AXIS));
         shapes.push_back(computeSpatialShape(dims[dims.size() - 1], X_AXIS));
         outShapes.push_back(shapes);

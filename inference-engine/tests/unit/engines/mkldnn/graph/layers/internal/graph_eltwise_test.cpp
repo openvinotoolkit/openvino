@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_graph.h"
 
 #include "test_graph.hpp"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
-#include <inference_engine/cnn_network_impl.hpp>
+#include <mkldnn_extension_utils.h>
+#include <cnn_network_impl.hpp>
 #include "tests_common.hpp"
 
 using namespace ::testing;
@@ -45,6 +45,7 @@ void ref_eltwise(const std::vector<InferenceEngine::TBlob<data_t>> &src, Inferen
     std::vector<float> scales;
     if (prm.scales != "") {
         std::istringstream stream(prm.scales);
+        stream.imbue(std::locale("C"));
         std::string str;
         while (getline(stream, str, ',')) {
             float val = InferenceEngine::CNNLayer::ie_parse_float(str);
@@ -914,7 +915,7 @@ class MKLDNNGraphEltwise2PrecisionsTests : public TestsCommon,
     <layers>
         <layer name="second_input" type="Input" precision="_IP1_" id="1">
             <output>
-                <port id="1">
+                <port id="1" precision="_IP1_">
                     <dim>1</dim>
                     <dim>2</dim>
                     <dim>3</dim>
@@ -923,7 +924,7 @@ class MKLDNNGraphEltwise2PrecisionsTests : public TestsCommon,
         </layer>
         <layer name="data" type="Input" precision="_IP0_" id="0">
             <output>
-                <port id="0">
+                <port id="0" precision="_IP0_">
                     <dim>1</dim>
                     <dim>2</dim>
                     <dim>3</dim>
@@ -945,7 +946,7 @@ class MKLDNNGraphEltwise2PrecisionsTests : public TestsCommon,
                 </port>
             </input>
             <output>
-                <port id="4">
+                <port id="4" precision="FP32">
                     <dim>1</dim>
                     <dim>2</dim>
                     <dim>3</dim>

@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <builders/ie_split_layer.hpp>
 #include <ie_cnn_layer_builder.h>
 
-#include <vector>
+#include <builders/ie_split_layer.hpp>
 #include <string>
+#include <vector>
 
 using namespace InferenceEngine;
 
@@ -32,7 +32,7 @@ const Port& Builder::SplitLayer::getInputPort() const {
     return getLayer()->getInputPorts()[0];
 }
 
-Builder::SplitLayer& Builder::SplitLayer::setInputPort(const Port &port) {
+Builder::SplitLayer& Builder::SplitLayer::setInputPort(const Port& port) {
     getLayer()->getInputPorts()[0] = port;
     return *this;
 }

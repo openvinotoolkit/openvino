@@ -68,6 +68,7 @@ private:
 
     cl_platform_id get_plaftorm()
     {
+        static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
         cl_uint n = 0;
         cl_int err = clGetPlatformIDs(0, NULL, &n);
         if (err != CL_SUCCESS) {
@@ -80,7 +81,27 @@ private:
         if (err != CL_SUCCESS) {
             throw std::runtime_error("clGetPlatformIDs error " + std::to_string(err));
         }
-        return platform_ids[0];
+
+        // find Intel platform
+        for (auto& id : platform_ids) {
+            size_t infoSize;
+            err = clGetPlatformInfo(id, CL_PLATFORM_VENDOR, 0, NULL, &infoSize);
+            if (err != CL_SUCCESS) {
+                throw std::runtime_error("clGetPlatformInfo error " + std::to_string(err));
+            }
+            
+            std::vector<char> tmp(infoSize);
+
+            err = clGetPlatformInfo(id, CL_PLATFORM_VENDOR, infoSize, tmp.data(), NULL);
+            if (err != CL_SUCCESS) {
+                throw std::runtime_error("clGetPlatformInfo error " + std::to_string(err));
+            }
+
+            std::string vendor_id(tmp.data());
+            if (vendor_id == std::string(INTEL_PLATFORM_VENDOR))
+                return id;
+        }
+        return static_cast<cl_platform_id>(nullptr);
     }
 
     void get_platform_and_device(cl_platform_id platform_id)
@@ -93,31 +114,26 @@ private:
     }
 };
 
-TEST(gpu_engine, engine_info)
-{
-    const auto& engine = tests::get_test_engine();
-    auto info = engine.get_info();
-    EXPECT_GT(info.cores_count, 0u);
-    EXPECT_GT(info.core_frequency, 0u);
-}
-
 TEST(gpu_engine, user_context)
 {
     user_gpu_toolkit gpu_toolkit;
     cl_context user_context = gpu_toolkit.get_gpu_context();
 
+    device_query query(static_cast<void*>(user_context));
+    auto devices = query.get_available_devices();
+
     //[0] Check if the user engine config works.
-    auto engine_config = cldnn::engine_configuration(false, false, false, "", "", true, "", "", cldnn::priority_mode_types::disabled, cldnn::throttle_mode_types::disabled, true, 1, &user_context);
+    auto engine_config = cldnn::engine_configuration(false, false, false, "", "", true, "", "", cldnn::priority_mode_types::disabled, cldnn::throttle_mode_types::disabled, true, 1);
 
     //[1]Check if the engine creation works.
-    engine engine(engine_config);
+    engine engine(devices.begin()->second, engine_config);
     auto info = engine.get_info();
     EXPECT_GT(info.cores_count, 0u);
     EXPECT_GT(info.core_frequency, 0u);
 
     //[2]Now check if the queues works (run simple network).
     topology topo;
-    auto inp_lay = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1,1,2,2});
+    auto inp_lay = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, { 1,1,2,2 });
     auto input_mem = cldnn::memory::allocate(engine, inp_lay);
     tests::set_values<float>(input_mem, { 1.0f, 2.0f, 3.0f, 4.0f });
     auto inp = input_layout("input", inp_lay);
@@ -129,6 +145,100 @@ TEST(gpu_engine, user_context)
     auto out = net.execute();
     auto out_ptr = out.at("this_needs_queue").get_memory().pointer<float>();
     EXPECT_EQ(out.size(), size_t(1));
-    for(uint32_t i = 0;i < 4; i++)
-        EXPECT_EQ(out_ptr[i], float(i+1));
+    for (uint32_t i = 0; i < 4; i++)
+        EXPECT_EQ(out_ptr[i], float(i + 1));
 }
+
+void execute_simple_topology(cldnn::engine& engine) {
+    auto batch_num = 1;
+    auto feature_num = 4;
+    auto x_size = 1;
+    auto y_size = 1;
+    auto input_tensor = cldnn::tensor(cldnn::spatial(x_size, y_size), cldnn::feature(feature_num), cldnn::batch(batch_num));
+    auto topo = cldnn::topology(
+        cldnn::input_layout("input", { cldnn::data_types::f32, cldnn::format::bfyx, input_tensor  }),
+        cldnn::activation("relu", "input", cldnn::activation_func::relu));
+
+    cldnn::network net(engine, topo);
+    auto input_mem = memory::allocate(engine, { data_types::f32, format::bfyx, input_tensor });
+    tests::set_values(input_mem, { -1.f, 2.f, -3.f, 4.f });
+    net.set_input_data("input", input_mem);
+    auto outs = net.execute();
+    auto output = outs.at("relu");
+    auto out_ptr = output.get_memory().pointer<float>();
+    ASSERT_EQ(out_ptr[0], 0.0f);
+    ASSERT_EQ(out_ptr[1], 2.0f);
+    ASSERT_EQ(out_ptr[2], 0.0f);
+    ASSERT_EQ(out_ptr[3], 4.0f);
+}
+
+
+TEST(gpu_device_query, get_device_info)
+{
+    cldnn::device_query query;
+    auto devices = query.get_available_devices();
+    auto device_id = devices.begin()->first;
+    auto device = devices.begin()->second;
+    auto device_info = device.get_info();
+
+    //check key and few members, so we know that device info was returned properly
+    ASSERT_EQ(device_id, "0");
+    ASSERT_GT(device_info.cores_count, 0u);
+    ASSERT_GT(device_info.core_frequency, 0u);
+    ASSERT_NE(device_info.dev_name, "");
+    ASSERT_NE(device_info.driver_version, "");
+}
+
+
+TEST(gpu_device_query, get_engine_info)
+{
+    const auto& engine = tests::get_test_engine();
+    auto info = engine.get_info();
+    EXPECT_GT(info.cores_count, 0u);
+    EXPECT_GT(info.core_frequency, 0u);
+}
+
+
+TEST(gpu_device_query, simple)
+{
+    cldnn::device_query query;
+    auto devices = query.get_available_devices();
+    auto device = devices.begin()->second;
+
+    cldnn::engine eng(device);
+    //check if simple execution was finished correctly
+    execute_simple_topology(eng);
+}
+
+TEST(gpu_device_query, DISABLED_release_query)
+{
+    cldnn::device_query query;
+    auto devices = query.get_available_devices();
+    auto device = devices.begin()->second;
+
+    //destroy query
+    query.~device_query();
+    //create engine
+    cldnn::engine eng(device);
+    //check if simple execution was finished correctly
+    execute_simple_topology(eng);
+}
+
+TEST(gpu_device_query, DISABLED_release_device)
+{
+    cldnn::device_query query;
+    auto devices = query.get_available_devices();
+    auto device = devices.begin()->second;
+
+    //destroy query
+    query.~device_query();
+    //create engine
+    cldnn::engine eng(device);
+    //destroy device
+    device.~device();
+    //check if simple execution was finished correctly
+    execute_simple_topology(eng);
+}
+
+
+

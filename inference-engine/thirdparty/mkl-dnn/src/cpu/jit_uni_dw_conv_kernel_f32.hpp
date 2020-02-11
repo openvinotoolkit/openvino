@@ -81,6 +81,9 @@ private:
     reg64_t reg_d_weights = imm_addr64;
     reg64_t reg_d_bias = iter_kh;
 
+    Vmm vmm_d_weights = Vmm(0);
+    Vmm vmm_d_bias = Vmm(1);
+
     inline Vmm get_ker_reg(int idx) { return Vmm(idx + 0); }
     inline Vmm get_src_reg(int idx) { return Vmm(idx + 1); }
     inline Vmm get_acc_reg(int idx) { return Vmm(idx + 4); }

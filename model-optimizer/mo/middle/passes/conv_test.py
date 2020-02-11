@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import numpy as np
 
 from mo.graph.graph import Node
 from mo.middle.passes.conv import convert_muladd_to_scaleshift, convert_add_or_mul_to_scaleshift
-from mo.middle.passes.eliminate import graph_clean_up
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes_attributes = {
     'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
@@ -98,7 +98,7 @@ class MulAddToScaleShift(unittest.TestCase):
                                  })
 
         convert_muladd_to_scaleshift(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'add_1_data', 'scaleshift_1_data')
         self.assertTrue(flag, resp)
 
@@ -108,7 +108,7 @@ class MulAddToScaleShift(unittest.TestCase):
         graph_ref = self._create_graph_with_mul_add(None, np.array([2]))
 
         convert_muladd_to_scaleshift(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'add_1_data', 'add_1_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
@@ -117,7 +117,7 @@ class MulAddToScaleShift(unittest.TestCase):
         graph_ref = self._create_graph_with_mul_add(np.array([2]), None)
 
         convert_muladd_to_scaleshift(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'add_1_data', 'add_1_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
@@ -126,7 +126,7 @@ class MulAddToScaleShift(unittest.TestCase):
         graph_ref = self._create_graph_with_mul_add(None, None)
 
         convert_muladd_to_scaleshift(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'add_1_data', 'add_1_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
@@ -136,7 +136,7 @@ class MulAddToScaleShift(unittest.TestCase):
         graph_ref = self._create_graph_with_mul_add(np.array([1, 2, 3]), np.array([3]))
 
         convert_muladd_to_scaleshift(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'add_1_data', 'add_1_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
@@ -160,7 +160,7 @@ class MulAddToScaleShift(unittest.TestCase):
                                  })
 
         convert_muladd_to_scaleshift(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'add_1_data', 'add_1_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
@@ -232,7 +232,7 @@ class AddToScaleShift(unittest.TestCase):
                              }, nodes_with_edges_only=True)
 
         convert_add_or_mul_to_scaleshift(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'op_output')
         self.assertTrue(flag, resp)
@@ -268,7 +268,7 @@ class AddToScaleShift(unittest.TestCase):
                              }, nodes_with_edges_only=True)
 
         convert_add_or_mul_to_scaleshift(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'op_output')
         self.assertTrue(flag, resp)

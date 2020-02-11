@@ -1,26 +1,29 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief A header file that defines a wrapper class for handling extension instantiation and releasing resources
+ *
  * @file ie_extension.h
  */
 #pragma once
 
+#include <map>
+#include <memory>
+#include <string>
+
 #include "details/ie_so_pointer.hpp"
 #include "ie_iextension.h"
-#include <string>
-#include <memory>
-#include <map>
 
 namespace InferenceEngine {
 namespace details {
 
 /**
- * @brief The SOCreatorTrait class specialization for IExtension case, defines the name of the fabric method for creating IExtension object in DLL
+ * @brief The SOCreatorTrait class specialization for IExtension case, defines the name of the fabric method for
+ * creating IExtension object in DLL
  */
-template<>
+template <>
 class SOCreatorTrait<IExtension> {
 public:
     /**
@@ -30,9 +33,10 @@ public:
 };
 
 /**
- * @brief The SOCreatorTrait class specialization for IExtension case, defines the name of the fabric method for creating IExtension object in DLL
+ * @brief The SOCreatorTrait class specialization for IExtension case, defines the name of the fabric method for
+ * creating IExtension object in DLL
  */
-template<>
+template <>
 class SOCreatorTrait<IShapeInferExtension> {
 public:
     /**
@@ -49,25 +53,27 @@ public:
 class Extension : public IExtension {
 public:
     /**
-   * @brief Loads extension from a shared library
-   * @param name Full or relative path to extension library
-   */
-    explicit Extension(const file_name_t &name)
-            : actual(name) {}
+     * @brief Loads extension from a shared library
+     *
+     * @param name Full or relative path to extension library
+     */
+    explicit Extension(const file_name_t& name): actual(name) {}
 
     /**
      * @brief Gets the extension version information
+     *
      * @param versionInfo A pointer to version info, set by the plugin
      */
-    void GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept override {
+    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
         actual->GetVersion(versionInfo);
     }
 
     /**
      * @brief Sets a log callback that is used to track what is going on inside
+     *
      * @param listener Logging listener
      */
-    void SetLogCallback(InferenceEngine::IErrorListener &listener) noexcept override {
+    void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept override {
         actual->SetLogCallback(listener);
     }
 
@@ -85,6 +91,7 @@ public:
 
     /**
      * @brief Gets the array with types of layers which are included in the extension
+     *
      * @param types Types array
      * @param size Size of the types array
      * @param resp Response descriptor
@@ -96,13 +103,14 @@ public:
 
     /**
      * @brief Gets the factory with implementations for a given layer
+     *
      * @param factory Factory with implementations
      * @param cnnLayer A layer to get the factory for
      * @param resp Response descriptor
      * @return Status code
      */
-    StatusCode getFactoryFor(ILayerImplFactory *&factory, const CNNLayer *cnnLayer,
-                                     ResponseDesc *resp) noexcept override {
+    StatusCode getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer,
+                             ResponseDesc* resp) noexcept override {
         return actual->getFactoryFor(factory, cnnLayer, resp);
     }
 
@@ -112,8 +120,8 @@ public:
 
 protected:
     /**
-    * @brief A SOPointer instance to the loaded templated object
-    */
+     * @brief A SOPointer instance to the loaded templated object
+     */
     InferenceEngine::details::SOPointer<IExtension> actual;
 };
 
@@ -123,25 +131,27 @@ protected:
 class ShapeInferExtension : public IShapeInferExtension {
 public:
     /**
-   * @brief Loads extension from a shared library
-   * @param name Full or relative path to extension library
-   */
-    explicit ShapeInferExtension(const file_name_t &name)
-            : actual(name) {}
+     * @brief Loads extension from a shared library
+     *
+     * @param name Full or relative path to extension library
+     */
+    explicit ShapeInferExtension(const file_name_t& name): actual(name) {}
 
     /**
      * @brief Gets the extension version information
+     *
      * @param versionInfo A pointer to version info, set by the plugin
      */
-    void GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept override {
+    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
         actual->GetVersion(versionInfo);
     }
 
     /**
      * @brief Sets a log callback that is used to track what is going on inside
+     *
      * @param listener Logging listener
      */
-    void SetLogCallback(InferenceEngine::IErrorListener &listener) noexcept override {
+    void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept override {
         actual->SetLogCallback(listener);
     }
 
@@ -159,6 +169,7 @@ public:
 
     /**
      * @brief Gets the array with types of layers which are included in the extension
+     *
      * @param types Types array
      * @param size Size of the types array
      * @param resp Response descriptor
@@ -170,6 +181,7 @@ public:
 
     /**
      * @brief Gets shape propagation implementation for the given string-type of cnn Layer
+     *
      * @param impl the vector with implementations which is ordered by priority
      * @param resp response descriptor
      * @return status code
@@ -180,28 +192,30 @@ public:
 
 protected:
     /**
-    * @brief A SOPointer instance to the loaded templated object
-    */
+     * @brief A SOPointer instance to the loaded templated object
+     */
     InferenceEngine::details::SOPointer<IShapeInferExtension> actual;
 };
 
 /**
  * @brief Creates a special shared_pointer wrapper for the given type from a specific shared module
+ *
  * @param name Name of the shared library file
  * @return shared_pointer A wrapper for the given type from a specific shared module
  */
-template<>
-inline std::shared_ptr<IShapeInferExtension> make_so_pointer(const file_name_t &name) {
+template <>
+inline std::shared_ptr<IShapeInferExtension> make_so_pointer(const file_name_t& name) {
     return std::make_shared<ShapeInferExtension>(name);
 }
 
 /**
  * @brief Creates a special shared_pointer wrapper for the given type from a specific shared module
+ *
  * @param name Name of the shared library file
  * @return shared_pointer A wrapper for the given type from a specific shared module
  */
-template<>
-inline std::shared_ptr<IExtension> make_so_pointer(const file_name_t &name) {
+template <>
+inline std::shared_ptr<IExtension> make_so_pointer(const file_name_t& name) {
     return std::make_shared<Extension>(name);
 }
 

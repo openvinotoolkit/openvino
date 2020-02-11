@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,5 +33,5 @@ static bool isImageInfo(const T &blob) {
 
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,
-               const InferenceEngine::InputsDataMap& info,
+               const InferenceEngine::ConstInputsDataMap& info,
                std::vector<InferReqWrap::Ptr> requests);

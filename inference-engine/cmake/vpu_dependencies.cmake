@@ -1,45 +1,59 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(VPU_SUPPORTED_SOC ma2450 ma2x8x mv0262)
+if(CMAKE_VERSION VERSION_GREATER 3.9.6)
+    include_guard(GLOBAL)
+else()
+    if(__CURRENT_FILE_VAR__)
+      return()
+    endif()
+    set(__CURRENT_FILE_VAR__ TRUE)
+endif()
+
+include(dependency_solver)
+
+set(VPU_SUPPORTED_FIRMWARES usb-ma2450 usb-ma2x8x pcie-ma248x)
 
 #
-# Default firmware packages
+# Default packages
 #
 
-RESOLVE_DEPENDENCY(VPU_FIRMWARE_MA2450
-    ARCHIVE_UNIFIED firmware_ma2450_759W.zip
-    TARGET_PATH "${TEMP}/vpu/firmware/ma2450"
-    ENVIRONMENT "VPU_FIRMWARE_MA2450"
-    FOLDER)
-debug_message(STATUS "ma2450=" ${VPU_FIRMWARE_MA2450})
-
-RESOLVE_DEPENDENCY(VPU_FIRMWARE_MV0262
-    ARCHIVE_UNIFIED firmware_mv0262_mdk_R9.8.zip
-    TARGET_PATH "${TEMP}/vpu/firmware/mv0262"
-    ENVIRONMENT "VPU_FIRMWARE_MV0262"
-    FOLDER)
-debug_message(STATUS "mv0262=" ${VPU_FIRMWARE_MV0262})
-
-RESOLVE_DEPENDENCY(VPU_FIRMWARE_MA2X8X
-    ARCHIVE_UNIFIED firmware_ma2x8x_mdk_R9.8.zip
-    TARGET_PATH "${TEMP}/vpu/firmware/ma2x8x"
-    ENVIRONMENT "VPU_FIRMWARE_MA2X8X"
-    FOLDER)
-debug_message(STATUS "ma2x8x=" ${VPU_FIRMWARE_MA2X8X})
+set(FIRMWARE_PACKAGE_VERSION 942_R10.15)
 
 #
 # CMake variables to override default firmware files
 #
 
-foreach(soc IN LISTS VPU_SUPPORTED_SOC)
-    string(TOUPPER "${soc}" soc_upper)
-    set(var_name VPU_FIRMWARE_${soc_upper}_FILE)
+foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
+    string(TOUPPER "${firmware_name}" firmware_name_upper)
 
-    find_file(${var_name} MvNCAPI-${soc}.mvcmd "${VPU_FIRMWARE_${soc_upper}}/mvnc")
-    if(NOT ${var_name})
-        message(FATAL_ERROR "[VPU] Missing ${soc} firmware")
+    set(firmware_name_full ${firmware_name}.mvcmd)
+    # Handle PCIe elf firmware for Windows
+    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma248x")
+        set(firmware_name_full ${firmware_name}.elf)
+    endif ()
+
+    reset_deps_cache(VPU_FIRMWARE_${firmware_name_upper}_FILE)
+
+    RESOLVE_DEPENDENCY(VPU_FIRMWARE_${firmware_name_upper}
+        ARCHIVE_UNIFIED firmware_${firmware_name}_${FIRMWARE_PACKAGE_VERSION}.zip
+        TARGET_PATH "${TEMP}/vpu/firmware/${firmware_name}"
+        ENVIRONMENT "VPU_FIRMWARE_${firmware_name_upper}_FILE"
+        FOLDER)
+    debug_message(STATUS "${firmware_name}=" ${VPU_FIRMWARE_${firmware_name_upper}})
+
+    update_deps_cache(
+        VPU_FIRMWARE_${firmware_name_upper}_FILE
+        "${VPU_FIRMWARE_${firmware_name_upper}}/mvnc/${firmware_name_full}"
+        "[VPU] ${firmware_name_full} firmware")
+
+    find_file(
+        VPU_FIRMWARE_${firmware_name_upper}_FILE
+        NAMES ${firmware_name_full}
+        NO_CMAKE_FIND_ROOT_PATH)
+    if(NOT VPU_FIRMWARE_${firmware_name_upper}_FILE)
+        message(FATAL_ERROR "[VPU] Missing ${firmware_name_full} firmware")
     endif()
 endforeach()
 
@@ -47,13 +61,18 @@ endforeach()
 # `vpu_copy_firmware` CMake target
 #
 
-foreach(soc IN LISTS VPU_SUPPORTED_SOC)
-    string(TOUPPER "${soc}" soc_upper)
-    set(var_name VPU_FIRMWARE_${soc_upper}_FILE)
+foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
+    string(TOUPPER "${firmware_name}" firmware_name_upper)
+    set(var_name VPU_FIRMWARE_${firmware_name_upper}_FILE)
 
-    set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/MvNCAPI-${soc}.mvcmd")
+    set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${firmware_name}.mvcmd")
+
+    # Handle PCIe elf firmware for Windows
+    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma248x")
+        set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${firmware_name}.elf")
+    endif ()
+
     list(APPEND all_firmware_files ${firmware_out_file})
-
     add_custom_command(
         OUTPUT ${firmware_out_file}
         COMMAND
@@ -61,8 +80,28 @@ foreach(soc IN LISTS VPU_SUPPORTED_SOC)
         MAIN_DEPENDENCY ${${var_name}}
         COMMENT "[VPU] Copy ${${var_name}} to ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
         VERBATIM)
+
+    install(FILES ${${var_name}}
+        DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        COMPONENT myriad)
 endforeach()
 
 add_custom_target(vpu_copy_firmware
     DEPENDS ${all_firmware_files}
     COMMENT "[VPU] Copy firmware files")
+
+#
+# libusb
+#
+
+if(ANDROID)
+    RESOLVE_DEPENDENCY(LIBUSB
+        ARCHIVE_ANDROID "libusb_33167_android.tgz"
+        TARGET_PATH "${TEMP}/vpu/libusb")
+    debug_message(STATUS "LIBUSB=" ${LIBUSB})
+
+    set(LIBUSB_INCLUDE_DIR "${LIBUSB}/include")
+    set(LIBUSB_LIBRARY "${LIBUSB}/lib/libusb1.0.so")
+
+    log_rpath_from_dir(LIBUSB "${LIBUSB}/lib")
+endif()

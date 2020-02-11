@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-#include <pwl.h>
+#include <runtime/pwl.h>
 #include "nnet_base_matcher.hpp"
+
+#include "gna_lib_ver_selector.hpp"
 
 extern void PwlApply16(intel_dnn_component_t *component, uint32_t num_subset_size);
 

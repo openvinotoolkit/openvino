@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -63,23 +63,27 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         :param node: node to operate on.
         :return: None
         """
-        import tensorflow as tf
+        try:
+            import tensorflow.compat.v1 as tf_v1
+        except ImportError:
+            import tensorflow as tf_v1
         from mo.front.common.layout import convert_shape, nhwc_to_nchw_permute, nchw_to_nhwc_permute
         from mo.front.tf.extractors.utils import tf_tensor_shape
         from mo.front.tf.partial_infer.tf import add_node_def_to_subgraph, update_input_in_pbs
 
-        tf.reset_default_graph()
+        tf_v1.reset_default_graph()
 
         inputs_replacements = list()
 
         # transpose permutation constant
-        nchw_to_nhwc_constant = tf.constant(nchw_to_nhwc_permute, dtype=tf.int32, name=nchw_to_nhwc_constant_name)
-        nhwc_to_nchw_constant = tf.constant(nhwc_to_nchw_permute, dtype=tf.int32, name=nhwc_to_nchw_constant_name)
+        nchw_to_nhwc_constant = tf_v1.constant(nchw_to_nhwc_permute, dtype=tf_v1.int32, name=nchw_to_nhwc_constant_name)
+        nhwc_to_nchw_constant = tf_v1.constant(nhwc_to_nchw_permute, dtype=tf_v1.int32, name=nhwc_to_nchw_constant_name)
 
         for placeholder_name in node['input_nodes_names']:
             # dummy node which we can refer to as input in the transpose for the output node
             # dummy node should be unique for each placeholder
-            dummy_node = tf.constant(value=[[[[1]]]], dtype=tf.float32, name='random_dummy_name_' + placeholder_name)
+            dummy_node = tf_v1.constant(value=[[[[1]]]], dtype=tf_v1.float32,
+                                        name='random_dummy_name_' + placeholder_name)
 
             placeholder = node['pbs'][placeholder_name]
             cur_shape = tf_tensor_shape(placeholder.attr['shape'].shape)
@@ -88,7 +92,7 @@ class CustomSubgraphCall(MiddleReplacementPattern):
                 for ind in range(len(cur_shape)):
                     placeholder.attr['shape'].shape.dim[ind].size = nchw_shape[ind]
                 transpose_name = placeholder.name + '_transpose'
-                transpose = tf.transpose(dummy_node, nchw_to_nhwc_constant, transpose_name)  # NCHW -> NHWC
+                transpose = tf_v1.transpose(dummy_node, nchw_to_nhwc_constant, transpose_name)  # NCHW -> NHWC
 
                 # add transpose operations to GraphDef after placeholders
                 add_node_def_to_subgraph(node, transpose.op.node_def, transpose_name, len(node['input_nodes_names']))
@@ -157,13 +161,12 @@ class CustomSubgraphCall(MiddleReplacementPattern):
 
         # reshape shape data node
         reshape_shape_data_node_name = graph.unique_id("Reshape_shape_")
-        graph.add_node(reshape_shape_data_node_name, kind='data', precision="FP32", name=reshape_shape_data_node_name,
-                       value=new_shape, shape=[1])
+        graph.add_node(reshape_shape_data_node_name, kind='data', name=reshape_shape_data_node_name, value=new_shape,
+                       shape=[1])
 
         # reshape operation node
         reshape_node_name = graph.unique_id("Reshape_")
-        graph.add_node(reshape_node_name, kind='op', precision="FP32", type='Reshape', name=reshape_node_name,
-                       op='Reshape',
+        graph.add_node(reshape_node_name, kind='op', type='Reshape', name=reshape_node_name, op='Reshape',
                        data_type=data_node['data_type'])
         update_ie_fields(graph.node[reshape_node_name])
 
@@ -172,8 +175,8 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         if data_node['value'] is not None:
             reshaped_value = np.reshape(data_node['value'], new_shape)
         reshaped_data_node_name = graph.unique_id("reshaped_data_")
-        graph.add_node(reshaped_data_node_name, kind='data', precision="FP32", name=reshaped_data_node_name,
-                       shape=new_shape, value=reshaped_value, nchw_layout=True)
+        graph.add_node(reshaped_data_node_name, kind='data', name=reshaped_data_node_name, shape=new_shape,
+                       value=reshaped_value, nchw_layout=True)
 
         graph.add_edges_from([
             (data_node_name, reshape_node_name, {'in': 0}),
@@ -212,14 +215,13 @@ class CustomSubgraphCall(MiddleReplacementPattern):
 
         # reshape operation node
         reshape_node_name = graph.unique_id("Reshape_")
-        graph.add_node(reshape_node_name, kind='op', precision="FP32", type='Reshape', name=reshape_node_name,
-                       op='Reshape',
+        graph.add_node(reshape_node_name, kind='op', type='Reshape', name=reshape_node_name, op='Reshape',
                        data_type=data_node['data_type'])
         update_ie_fields(graph.node[reshape_node_name])
 
         # reshape shape data node
         reshape_shape_data_node_name = graph.unique_id("Reshape_shape_")
-        graph.add_node(reshape_shape_data_node_name, kind='data', precision="FP32", name=reshape_shape_data_node_name,
+        graph.add_node(reshape_shape_data_node_name, kind='data', name=reshape_shape_data_node_name,
                        value=np.array(data_node['shape']), shape=[1])
 
         # reshaped data node
@@ -227,7 +229,7 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         if data_node['value'] is not None:
             reshaped_value = np.array(data_node['value'])
         reshaped_data_node_name = graph.unique_id("reshaped_data_")
-        graph.add_node(reshaped_data_node_name, kind='data', precision="FP32", name=reshaped_data_node_name,
+        graph.add_node(reshaped_data_node_name, kind='data', name=reshaped_data_node_name,
                        shape=np.array(data_node['shape']), value=reshaped_value, nchw_layout=True)
 
         if is_out_node:
@@ -284,15 +286,18 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         :param node: the node to add transposes to the output nodes to.
         :return: None
         """
-        import tensorflow as tf
+        try:
+            import tensorflow.compat.v1 as tf_v1
+        except ImportError:
+            import tensorflow as tf_v1
         from mo.front.tf.partial_infer.tf import get_subgraph_output_tensors, add_node_def_to_subgraph
         _, output_tensors = get_subgraph_output_tensors(node)
 
         # transpose permutation constant
-        nhwc_to_nchw_constant = tf.constant(nhwc_to_nchw_permute, dtype=tf.int32, name=nhwc_to_nchw_constant_name)
+        nhwc_to_nchw_constant = tf_v1.constant(nhwc_to_nchw_permute, dtype=tf_v1.int32, name=nhwc_to_nchw_constant_name)
 
         # dummy node which we can refer to as input in the transpose for the output node
-        dummy_node = tf.constant(value=[[[[1]]]], dtype=tf.float32, name='random_dummy_name')
+        dummy_node = tf_v1.constant(value=[[[[1]]]], dtype=tf_v1.float32, name='random_dummy_name')
 
         new_out_tensor_names = list()
         for out_tensor_name in node['output_tensors_names']:
@@ -300,7 +305,7 @@ class CustomSubgraphCall(MiddleReplacementPattern):
             if len(output_tensors[
                        int(out_port)].shape) == 4:  # TODO think about better check whether transpose is required
                 out_transpose_name = out_name + '_port_' + out_port + '_transpose'
-                transpose = tf.transpose(dummy_node, nhwc_to_nchw_constant, name=out_transpose_name)
+                transpose = tf_v1.transpose(dummy_node, nhwc_to_nchw_constant, name=out_transpose_name)
 
                 # starting from TF 1.8 it is not possible to modify the "node_def" of the "tf.op", so we create a copy,
                 # update it and use further

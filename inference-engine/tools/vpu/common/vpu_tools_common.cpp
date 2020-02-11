@@ -1,17 +1,5 @@
-//
-// Copyright (C) 2018-2019 Intel Corporation
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 /* on windows min and max already defined that makes using numeric_limits impossible */
@@ -39,20 +27,42 @@
 InferenceEngine::CNNNetwork readNetwork(const std::string &xmlFileName) {
     std::string binFileName = fileNameNoExt(xmlFileName) + ".bin";
 
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetReader reader;
     reader.ReadNetwork(xmlFileName);
     reader.ReadWeights(binFileName);
 
     return reader.getNetwork();
+    IE_SUPPRESS_DEPRECATED_END
+}
+
+bool isFP16(InferenceEngine::Precision precision) {
+    return precision == InferenceEngine::Precision::FP16;
+}
+
+bool isFP32(InferenceEngine::Precision precision) {
+    return precision == InferenceEngine::Precision::FP32;
+}
+
+bool isU8(InferenceEngine::Precision precision) {
+    return precision == InferenceEngine::Precision::U8;
+}
+
+bool isFloat(InferenceEngine::Precision precision) {
+    return isFP16(precision) || isFP32(precision);
 }
 
 void setPrecisions(const InferenceEngine::CNNNetwork &network) {
     for (auto &&layer : network.getInputsInfo()) {
-        layer.second->setPrecision(InferenceEngine::Precision::FP16);
+        if (isFP32(layer.second->getPrecision())) {
+            layer.second->setPrecision(InferenceEngine::Precision::FP16);
+        }
     }
 
     for (auto &&layer : network.getOutputsInfo()) {
-        layer.second->setPrecision(InferenceEngine::Precision::FP16);
+        if (isFP32(layer.second->getPrecision())) {
+            layer.second->setPrecision(InferenceEngine::Precision::FP16);
+        }
     }
 }
 

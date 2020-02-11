@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
+#include <ie_precision.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -26,10 +27,12 @@ public:
     bool isOptimized() const;
 
 private:
-    static Register<MKLDNNConcatNode> reg;
     size_t axis = 0;
 
     size_t inverseOrder(const InferenceEngine::SizeVector& order, size_t axis);
+
+    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
+    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
 };
 
 }  // namespace MKLDNNPlugin

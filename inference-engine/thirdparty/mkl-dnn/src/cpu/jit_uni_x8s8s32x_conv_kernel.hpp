@@ -75,6 +75,10 @@ private:
     using reg32_t = const Xbyak::Reg32;
     using reg8_t = const Xbyak::Reg8;
 
+    reg64_t aux_reg_inp_d = r11;
+    reg64_t aux_reg_ker_d = abi_not_param1;
+    reg64_t reg_kd = rsi;
+
     reg64_t reg_scales_base = r13;
     reg64_t reg_bias_base = rbp;
     reg64_t reg_input_base = r8;
@@ -105,6 +109,12 @@ private:
     reg64_t reg_d_weights = aux_reg_kernel;
     reg64_t reg_d_bias = aux_reg_input;
 
+    reg64_t reg_input_zp = r14;
+    reg64_t reg_weights_zp_compensation = aux_reg_input;
+    reg64_t reg_weights_zp_compensation_base = r14;
+    reg64_t reg_table = aux_reg_kernel;
+    reg64_t reg_ci_flag = r14;
+
     Vmm vmm_one = Vmm(15);
     Vmm vmm_bias_alpha = Vmm(13);
     Vmm vmm_shift = Vmm(14);
@@ -113,6 +123,9 @@ private:
     Vmm vmm_scale = Vmm(12);
     Vmm vmm_comp = Vmm(12);
     Vmm vmm_prev_dst = Vmm(12);
+
+    Vmm vmm_d_weights = Vmm(14);
+    Vmm vmm_d_bias = Vmm(15);
 
     inline Vmm get_src_reg(int idx) { return Vmm(idx + 9); }
     inline Vmm get_ker_reg(int idx) { return Vmm(idx + 0); }
@@ -123,11 +136,12 @@ private:
     inline void store_dst(const Xbyak::Address &op, Vmm vmm_dst, bool scalar_store, bool need_pack = true);
 
     inline void apply_filter(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step,
-                             int tail_size, bool h_padded);
-    inline void oh_step_unroll_kw(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step, bool h_padded);
-    inline void kh_loop(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step);
-    inline void width_blk_step(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step);
-    inline void solve_common(int oc_blocks, int oc_step);
+                             int ic_tail_size, bool h_padded, bool first_oc_block);
+    inline void oh_step_unroll_kw(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step, bool h_padded, bool first_oc_block);
+    inline void kh_loop(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step, bool first_oc_block);
+    inline void kd_loop(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step, bool first_oc_block);
+    inline void width_blk_step(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step, bool first_oc_block);
+    inline void solve_common(int oc_blocks, int oc_step, bool first_oc_block);
 
     void generate();
 

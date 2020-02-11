@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,13 +14,10 @@ class MyriadAsyncInferRequest : virtual public InferenceEngine::AsyncInferReques
 public:
     MyriadAsyncInferRequest(MyriadInferRequest::Ptr request,
                                 const InferenceEngine::ITaskExecutor::Ptr &taskExecutorStart,
-                                const InferenceEngine::ITaskExecutor::Ptr &taskExecutorGetResult,
-                                const InferenceEngine::TaskSynchronizer::Ptr &taskSynchronizer,
-                                const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
+                                const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor,
+                                const InferenceEngine::ITaskExecutor::Ptr &taskExecutorGetResult);
 
-    InferenceEngine::StagedTask::Ptr createAsyncRequestTask() override;
-
-    ~MyriadAsyncInferRequest();
+    ~MyriadAsyncInferRequest() override;
 private:
     MyriadInferRequest::Ptr _request;
     InferenceEngine::ITaskExecutor::Ptr _taskExecutorGetResult;

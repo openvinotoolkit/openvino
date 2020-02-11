@@ -1,13 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <ostream>
 #include <details/ie_exception.hpp>
 
 // #define GNA_DEBUG
 #ifdef  GNA_DEBUG
+#include <iostream>
 /**
  * @brief used for creating graphviz charts, and layers dump
  */
@@ -15,6 +17,18 @@
 # define gnalog() std::cout
 # define gnawarn() std::cerr
 #else
+
+#ifdef VERBOSE
+#define VERBOSE_LEVEL (1)
+#else
+#define VERBOSE_LEVEL (0)
+#endif
+
+#ifdef PLOT
+#define PLOT_LEVEL (1)
+#else
+#define PLOT_LEVEL (0)
+#endif
 
 class GnaLog {
  public :
@@ -36,6 +50,8 @@ inline GnaLog & gnawarn() {
     return gnalog();
 }
 
+#endif
+
 /**
  * @brief gna_plugin exception unification
  */
@@ -49,6 +65,6 @@ inline GnaLog & gnawarn() {
 #endif
 
 
-#endif
+
 
 #define THROW_GNA_EXCEPTION THROW_IE_EXCEPTION << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "

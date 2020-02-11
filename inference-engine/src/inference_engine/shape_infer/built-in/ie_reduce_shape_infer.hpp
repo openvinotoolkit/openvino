@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ie_built_in_impl.hpp"
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
-#include <algorithm>
 #include <vector>
+
+#include "ie_built_in_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -19,13 +20,11 @@ namespace ShapeInfer {
  */
 class ReduceShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit ReduceShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
+    explicit ReduceShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-                         const std::map<std::string, std::string>& params,
-                         const std::map<std::string, Blob::Ptr>& blobs,
-                         std::vector<SizeVector>& outShapes) override {
-        LayerParams lp{};
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
+        LayerParams lp {};
         ReduceLayer reduceLayer(lp);
         reduceLayer.params = params;
         reduceLayer.type = _type;
@@ -33,22 +32,21 @@ public:
 
         const size_t REDUCE_DATA = 0;
         const size_t REDUCE_INDEXES = 1;
+        if (inBlobs.size() < 2) THROW_IE_EXCEPTION << " Incorrect number of inputs";
 
         SizeVector idx_dims = inBlobs[REDUCE_INDEXES]->getTensorDesc().getDims();
-        if (idx_dims.size() > 1)
-            THROW_IE_EXCEPTION << " Index vector should be 1 dimension";
+        if (idx_dims.size() > 1) THROW_IE_EXCEPTION << " Index vector should be 1 dimension";
 
         if (inBlobs[REDUCE_INDEXES]->getTensorDesc().getPrecision() != Precision::I32)
             THROW_IE_EXCEPTION << " Incorrect 'axes_to_reduction' input precision. Only I32 is supported!";
 
         SizeVector data_dims = inBlobs[REDUCE_DATA]->getTensorDesc().getDims();
-        int32_t *idx_data = inBlobs[REDUCE_INDEXES]->cbuffer().as<int32_t *>() +
+        int32_t* idx_data = inBlobs[REDUCE_INDEXES]->cbuffer().as<int32_t*>() +
                             inBlobs[REDUCE_INDEXES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         SizeVector axes;
         for (size_t i = 0; i < idx_dims[0]; i++) {
             int32_t axis = idx_data[i];
-            if (axis < 0)
-                axis += data_dims.size();
+            if (axis < 0) axis += data_dims.size();
 
             if (static_cast<size_t>(axis) > data_dims.size())
                 THROW_IE_EXCEPTION << " Index to reduce exceeds data tensor dimension";
@@ -75,4 +73,3 @@ public:
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine
-

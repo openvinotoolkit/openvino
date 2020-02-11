@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +14,12 @@ namespace op {
 
 class ScaleShiftIE : public Op {
 public:
-    ScaleShiftIE(const std::shared_ptr<Node>& data_batch,
-            const std::shared_ptr<Node>& weights,
-            const std::shared_ptr<Node>& bias);
+    static constexpr NodeTypeInfo type_info{"ScaleShiftIE", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
+
+    ScaleShiftIE(const Output<Node>& data_batch,
+                 const Output<Node>& weights,
+                 const Output<Node>& bias);
 
     void validate_and_infer_types() override;
 

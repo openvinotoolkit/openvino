@@ -14,6 +14,7 @@
 
 #include "include/common.cl"
 #include "include/data_types.cl"
+#include "include/fetch.cl"
 
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -71,7 +72,10 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     const __global UNIT_TYPE* weights,
 #if BIAS_TERM
     const __global UNIT_TYPE* bias,
-#endif   
+#endif
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
+#endif
     uint split_idx) // TODO: removing this parameter cause a performance degradation... :)
 {
     const uint oc  = (uint)get_global_id(0) * OUTPUT_BLOCK_WIDTH;  // oc = Output Column
@@ -207,7 +211,13 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
 
     for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
         for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
+#if HAS_FUSED_OPS
+            UNIT_TYPE dst = out[r * OUTPUT_BLOCK_WIDTH + c];
+            FUSED_OPS;
+            out[r * OUTPUT_BLOCK_WIDTH + c] = FINAL_NAME;
+#else
             out[r * OUTPUT_BLOCK_WIDTH + c] = ACTIVATION(out[r * OUTPUT_BLOCK_WIDTH + c], ACTIVATION_PARAMS);
+#endif
         }
     }
 

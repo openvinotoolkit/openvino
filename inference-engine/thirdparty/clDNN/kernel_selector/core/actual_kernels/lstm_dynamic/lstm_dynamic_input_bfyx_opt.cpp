@@ -84,7 +84,7 @@ KernelsData LSTM_DynamicInputKernelBfyxOpt::GetKernelsData(const Params& params,
     auto hidden_size = out.X().v;
 
     std::vector<size_t> global = { hidden_size / simd_size, out.Batch().v * out.Y().v, out.Feature().v };
-    const auto& local = GetOptimalLocalWorkGroupSizes(global);
+    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     run_info.gws0 = global[0];
     run_info.gws1 = global[1];

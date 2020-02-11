@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ngraph/op/experimental/quantized_conv.hpp"
+#include "ngraph/op/quantized_convolution.hpp"
 #include "ngraph/op/experimental/quantized_conv_bias.hpp"
 #include "ngraph/op/op.hpp"
 #include <memory>
@@ -14,6 +14,9 @@ namespace op {
 
 class QuantizedConvolutionBiasFused : public Op {
 public:
+    static constexpr NodeTypeInfo type_info{"QuantizedConvolutionBiasFused", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
+
     QuantizedConvolutionBiasFused(const std::shared_ptr<op::QuantizedConvolutionBias>& qconv,
             const std::shared_ptr<Node>& w_scale);
 

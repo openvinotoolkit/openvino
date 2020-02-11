@@ -1,15 +1,17 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <ie_blob.h>
+#include <ie_layers.h>
+
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <ie_layers.h>
+
 #include "precision_utils.h"
 
 namespace InferenceEngine {
@@ -20,12 +22,10 @@ namespace ShapeInfer {
  */
 class ShapeConstInfer : public ConstInferImpl {
 public:
-    explicit ShapeConstInfer(const std::string& type) : ConstInferImpl(type) {}
+    explicit ShapeConstInfer(const std::string& type): ConstInferImpl(type) {}
 
-    void inferImpl(const std::vector<Blob::CPtr>& inData,
-                   const std::map<std::string, std::string>& params,
-                   const std::map<std::string, Blob::Ptr>& blobs,
-                   std::vector<Blob::Ptr>& outData) override {
+    void inferImpl(const std::vector<Blob::CPtr>& inData, const std::map<std::string, std::string>& params,
+                   const std::map<std::string, Blob::Ptr>& blobs, std::vector<Blob::Ptr>& outData) override {
         SizeVector inShape = (*inData.begin())->getTensorDesc().getDims();
         auto outBlob = *outData.begin();
         if (inShape.size() != outBlob->size()) THROW_IE_EXCEPTION << "Number of shapes don't match size of output";

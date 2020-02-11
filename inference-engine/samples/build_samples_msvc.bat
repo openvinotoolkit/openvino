@@ -1,6 +1,6 @@
 @echo off
 
-:: Copyright (C) 2018-2019 Intel Corporation
+:: Copyright (C) 2018-2020 Intel Corporation
 ::
 :: Licensed under the Apache License, Version 2.0 (the "License");
 :: you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@
 @setlocal
 SETLOCAL EnableDelayedExpansion
 set "ROOT_DIR=%~dp0"
+FOR /F "delims=\" %%i IN ("%ROOT_DIR%") DO set SAMPLES_TYPE=%%~nxi
 
-set "SOLUTION_DIR64=%USERPROFILE%\Documents\Intel\OpenVINO\inference_engine_samples_build"
+set "SOLUTION_DIR64=%USERPROFILE%\Documents\Intel\OpenVINO\inference_engine_%SAMPLES_TYPE%_samples_build"
 if "%InferenceEngine_DIR%"=="" set "InferenceEngine_DIR=%ROOT_DIR%\..\share"
 
 set MSBUILD_BIN=
@@ -41,11 +42,11 @@ if not "%1" == "" (
 )
 
 if "%INTEL_OPENVINO_DIR%"=="" (
-    if exist "%ROOT_DIR%\..\..\bin\setupvars.bat" (
-        call "%ROOT_DIR%\..\..\bin\setupvars.bat"
+    if exist "%ROOT_DIR%\..\..\..\bin\setupvars.bat" (
+        call "%ROOT_DIR%\..\..\..\bin\setupvars.bat"
     ) else (
-        if exist "%ROOT_DIR%\..\..\..\bin\setupvars.bat" (
-            call "%ROOT_DIR%\..\..\..\bin\setupvars.bat" 
+        if exist "%ROOT_DIR%\..\..\..\..\bin\setupvars.bat" (
+            call "%ROOT_DIR%\..\..\..\..\bin\setupvars.bat" 
       ) else (
          echo Failed to set the environment variables automatically    
          echo To fix, run the following command: ^<INSTALL_DIR^>\bin\setupvars.bat
