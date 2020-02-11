@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,8 +36,6 @@ public:
 
     void setExtManager(const MKLDNNExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
 private:
-    static Register<MKLDNNTensorIteratorNode> reg;
-
     int n_iter = 0;
 
     MKLDNNExtensionManager::Ptr ext_mng;

@@ -24,6 +24,8 @@
 #include "cpu_engine.hpp"
 #include "type_helpers.hpp"
 #include "utils.hpp"
+#include "ref_eltwise.hpp"
+#include "ref_depthwise.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -65,14 +67,59 @@ struct ref_convolution_fwd_t: public cpu_primitive_t {
                                 f32, s32, s8, u8))
                         && IMPLICATION(src_type == f32,
                             this->desc()->bias_desc.data_type == f32))
-                && this->attr()->has_default_values();
+                && is_supported_post_ops();
             return ok ? status::success : status::unimplemented;
+        }
+
+        virtual bool is_supported_post_ops() const {
+            const auto &p = this->attr()->post_ops_;
+
+            auto all_post_ops_supported = [&]() {
+                bool ok = true;
+
+                for (int i = 0; i < p.len_; i++) {
+                    ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise,
+                                             primitive_kind::quantization);
+                }
+                return ok;
+            };
+            auto count = [&](mkldnn::impl::primitive_kind_t kind) { return p.count(kind); };
+
+            return all_post_ops_supported() &&
+                   count(primitive_kind::sum) <= 1;
         }
     };
 
     ref_convolution_fwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(apd, inputs, outputs) {}
+        : cpu_primitive_t(apd, inputs, outputs) {
+        const auto &post_ops = pd()->attr()->post_ops_;
+
+        for (int i = 0; i < post_ops.len_; i++) {
+            auto &post_op = post_ops.entry_[i];
+            if (post_op.is_eltwise()) {
+                eltwise_injectors.push_back(new ref_eltwise_scalar_fwd_t(
+                        post_op.eltwise.alg,
+                        post_op.eltwise.alpha,
+                        post_op.eltwise.beta
+                ));
+            } else if (post_op.is_depthwise()) {
+                depthwise_injectors.push_back(new ref_depthwise_scalar_fwd_t(
+                        post_op.depthwise.alg
+                ));
+            }
+        }
+    }
+
+    ~ref_convolution_fwd_t() {
+        for (auto inj : eltwise_injectors)
+            delete inj;
+        eltwise_injectors.clear();
+
+        for (auto inj : depthwise_injectors)
+            delete inj;
+        depthwise_injectors.clear();
+    }
 
     typedef typename prec_traits<src_type>::type src_data_t;
     typedef typename prec_traits<wei_type>::type wei_data_t;
@@ -94,6 +141,9 @@ struct ref_convolution_fwd_t: public cpu_primitive_t {
 private:
     void execute_forward() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
+
+    nstl::vector<ref_eltwise_scalar_fwd_t*> eltwise_injectors;
+    nstl::vector<ref_depthwise_scalar_fwd_t*> depthwise_injectors;
 };
 
 template <impl::data_type_t diff_src_type, impl::data_type_t wei_type,

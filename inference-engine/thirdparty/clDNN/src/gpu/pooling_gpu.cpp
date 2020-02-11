@@ -166,61 +166,49 @@ public:
 namespace detail {
 
 attach_pooling_gpu::attach_pooling_gpu() {
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf),
-                                     pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf), pooling_gpu::create);
     // block fp16 format
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx_f16),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx_f16),
-                                     pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx_f16), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx_f16), pooling_gpu::create);
     // 3D
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx_f16),
-                                     pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), pooling_gpu::create);
+
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx_f16), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_b16f16), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_b16f16), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx_b16f16), pooling_gpu::create);
     // MMAD
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(
-        std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32),
-        pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4),
-                                     pooling_gpu::create);
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4),
-                                     pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf_af32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv32), pooling_gpu::create);
     //
-    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32),
-                                     pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), pooling_gpu::create);
 }
 
 }  // namespace detail

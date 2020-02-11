@@ -31,8 +31,7 @@ ParamsKey ConvolutionKernel_byx8_f4__fs_bs_yx_bsv4_fsv32::GetSupportedKey() cons
     k.EnableDilation();
     k.EnableBiasPerFeature();
     k.EnableBatching();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.DisableTuning();
     return k;
 }
@@ -41,12 +40,6 @@ bool ConvolutionKernel_byx8_f4__fs_bs_yx_bsv4_fsv32::Validate(const Params& p, c
     if (!Parent::Validate(p, o)) {
         return false;
     }
-
-    const convolution_params& params = static_cast<const convolution_params&>(p);
-
-    // this kernel is designed for quantization use case
-    if (!params.int8_quantization)
-        return false;
 
     return true;
 }

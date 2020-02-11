@@ -1,22 +1,22 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <ie_icnn_network.hpp>
 #include <map>
 #include <memory>
-#include <ie_icnn_network.hpp>
-#include "ie_common.h"
-#include "ie_data.h"
-#include "ie_blob.h"
-#include "ie_api.h"
-#include "ie_input_info.hpp"
-#include "description_buffer.hpp"
 #include <string>
 #include <vector>
 
 #include "cnn_network_stats_impl.hpp"
+#include "description_buffer.hpp"
+#include "ie_api.h"
+#include "ie_blob.h"
+#include "ie_common.h"
+#include "ie_data.h"
+#include "ie_input_info.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -25,7 +25,8 @@ class Reshaper;
 using ReshaperPtr = std::shared_ptr<Reshaper>;
 }  // namespace ShapeInfer
 namespace details {
-class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl) : public ICNNNetwork {
+
+class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
 public:
     CNNNetworkImpl();
     ~CNNNetworkImpl() override;
@@ -33,11 +34,15 @@ public:
         return precision;
     }
 
-    void setPrecision(Precision::ePrecision  prec) {
+    void setPrecision(Precision::ePrecision prec) {
         precision = prec;
     }
 
-    void getOutputsInfo(std::map<std::string, DataPtr> &out) const noexcept override;
+    const std::shared_ptr<const ::ngraph::Function> getFunction() const noexcept override {
+        return nullptr;
+    }
+
+    void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
 
     void getInputsInfo(InputsDataMap& inputs) const noexcept override;
 
@@ -76,12 +81,16 @@ public:
         return _layers;
     }
 
-    size_t layerCount()  const noexcept override {
+    size_t layerCount() const noexcept override {
         return _layers.size();
     }
 
-    DataPtr& getData(const char* name) noexcept override  {
+    DataPtr& getData(const char* name) noexcept override {
         return _data[name];
+    }
+
+    void addData(const char* name, DataPtr data) noexcept {
+        _data.emplace(name, data);
     }
 
     DataPtr& getData(const std::string& name) {
@@ -91,6 +100,9 @@ public:
     void addLayer(const CNNLayerPtr& layer) noexcept override;
 
     void removeLayer(const std::string& layerName);
+
+    // renames layer, statistics is not supported
+    void renameLayer(const std::string& currentName, const std::string& newName);
 
     void removeData(const std::string& dataName);
 
@@ -104,23 +116,15 @@ public:
 
     size_t getBatchSize() const noexcept override;
 
-    IE_SUPPRESS_DEPRECATED_START
-    void setTargetDevice(TargetDevice device) noexcept override {
-        _targetDevice = device;
-    }
-
-    TargetDevice getTargetDevice() const noexcept override {
-        return _targetDevice;
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
     StatusCode addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept override;
 
     void resolveOutput();
 
     void addOutput(const std::string& dataName);
 
-    StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* resp) const noexcept override {
+    void removeOutput(const std::string& dataName);
+
+    StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* /* resp */) const noexcept override {
         if (stats == nullptr) return StatusCode::PARAMETER_MISMATCH;
         *stats = _stats.get();
         return StatusCode::OK;
@@ -132,12 +136,14 @@ public:
 
     virtual void validate(int = 2);
 
-    StatusCode reshape(const std::map<std::string, std::vector<size_t>> &inputShapes, ResponseDesc* resp) noexcept override;
+    StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
+                       ResponseDesc* resp) noexcept override;
 
-    StatusCode
-    AddExtension(const InferenceEngine::IShapeInferExtensionPtr &extension, InferenceEngine::ResponseDesc *resp) noexcept override;
+    StatusCode AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
+                            InferenceEngine::ResponseDesc* resp) noexcept override;
 
-    StatusCode serialize(const std::string &xmlPath, const std::string &binPath, ResponseDesc* resp) const noexcept override;
+    StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
+        noexcept override;
 
 protected:
     Precision precision {Precision::MIXED};
@@ -146,13 +152,10 @@ protected:
     InferenceEngine::InputsDataMap _inputData;
     std::map<std::string, DataPtr> _outputData;
     std::string _name;
-    /// @brief
-    TargetDevice _targetDevice;
     DataPtr _emptyData;
     ShapeInfer::ReshaperPtr _reshaper;
     CNNNetworkStatsImplPtr _stats;
 };
-
 
 typedef std::shared_ptr<CNNNetworkImpl> CNNNetworkImplPtr;
 }  // namespace details

@@ -29,7 +29,7 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 
-template <impl::data_type_t data_type, impl::data_type_t acc_type = data_type>
+template <impl::data_type_t src_type, impl::data_type_t dst_type, impl::data_type_t acc_type = src_type>
 struct ref_pooling_fwd_t: public cpu_primitive_t {
     struct pd_t: public cpu_pooling_fwd_pd_t {
         pd_t(engine_t *engine, const pooling_desc_t *adesc,
@@ -50,10 +50,10 @@ struct ref_pooling_fwd_t: public cpu_primitive_t {
                 && utils::one_of(desc()->alg_kind, pooling_max,
                         pooling_avg_include_padding,
                         pooling_avg_exclude_padding)
-                && utils::everyone_is(data_type, src_pd()->desc()->data_type,
-                        dst_pd()->desc()->data_type)
+                && utils::everyone_is(src_type, src_pd()->desc()->data_type)
+                && utils::everyone_is(dst_type, dst_pd()->desc()->data_type)
                 && desc()->accum_data_type == acc_type
-                && attr()->has_default_values();
+                && is_supported_post_ops();
             if (!ok) return status::unimplemented;
 
             bool is_training = desc_.prop_kind == forward_training;
@@ -65,13 +65,32 @@ struct ref_pooling_fwd_t: public cpu_primitive_t {
 
             return status::success;
         }
+
+        virtual bool is_supported_post_ops() const {
+            const auto &p = this->attr()->post_ops_;
+
+            auto all_post_ops_supported = [&]() {
+                bool ok = true;
+
+                for (int i = 0; i < p.len_; i++) {
+                    ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::quantization);
+                }
+                return ok;
+            };
+
+            return all_post_ops_supported() &&
+                   IMPLICATION(p.len_ > 0, (desc()->alg_kind == mkldnn_pooling_avg_include_padding || desc()->alg_kind == mkldnn_pooling_avg_exclude_padding) &&
+                                            src_type != data_type::bf16);
+
+        }
     };
 
     ref_pooling_fwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
         : cpu_primitive_t(apd, inputs, outputs) {}
 
-    typedef typename prec_traits<data_type>::type data_t;
+    typedef typename prec_traits<src_type>::type src_data_t;
+    typedef typename prec_traits<dst_type>::type dst_data_t;
     typedef typename prec_traits<acc_type>::type acc_data_t;
 
     virtual void execute(event_t *e) const {

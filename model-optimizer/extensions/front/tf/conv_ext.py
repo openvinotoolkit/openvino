@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,8 +27,8 @@ class Conv2DFrontExtractor(FrontExtractorOp):
     op = 'Conv2D'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = tf_create_attrs(node, 2, 3)
         attrs.update({'op': __class__.op,
                       'get_group': lambda node: 1,
@@ -39,15 +39,15 @@ class Conv2DFrontExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         Convolution.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class DepthwiseConv2dNativeFrontExtractor(FrontExtractorOp):
     op = 'DepthwiseConv2dNative'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = tf_create_attrs(node, 2, 2)
         attrs.update({'op': __class__.op,
                       'kernel_spatial_idx': np.array([0, 1], dtype=np.int64),
@@ -59,15 +59,15 @@ class DepthwiseConv2dNativeFrontExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         Convolution.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class Conv3DFrontExtractor(FrontExtractorOp):
     op = 'Conv3D'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = tf_create_attrs(node, 3, 4)
         attrs.update({'op': __class__.op,
                       'get_group': lambda node: 1,
@@ -78,7 +78,7 @@ class Conv3DFrontExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         Convolution.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 def tf_create_attrs(node, input_feature_channel, output_feature_channel):

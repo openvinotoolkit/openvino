@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,47 +26,6 @@ typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
 
 namespace InferenceEnginePython {
-struct IENetLayer {
-    InferenceEngine::CNNLayerPtr layer_ptr;
-    InferenceEngine::CNNNetwork network_ptr;
-    std::string name;
-    std::string type;
-    std::string precision;
-    std::string shape;
-    std::string layout;
-    std::vector<std::string> children;
-    std::vector<std::string> parents;
-    std::string affinity;
-    std::map<std::string, std::string> params;
-
-    void setAffinity(const std::string &target_affinity);
-
-    void setParams(const std::map<std::string, std::string> &params_map);
-
-    std::map<std::string, InferenceEngine::Blob::Ptr> getWeights();
-
-    void setPrecision(std::string precision);
-};
-
-struct InputInfo {
-    InferenceEngine::InputInfo::Ptr actual;
-    std::vector<size_t> dims;
-    std::string precision;
-    std::string layout;
-
-    void setPrecision(std::string precision);
-
-    void setLayout(std::string layout);
-};
-
-struct OutputInfo {
-    InferenceEngine::DataPtr actual;
-    std::vector<size_t> dims;
-    std::string precision;
-    std::string layout;
-
-    void setPrecision(std::string precision);
-};
 
 struct ProfileInfo {
     std::string status;
@@ -78,20 +37,21 @@ struct ProfileInfo {
 };
 
 struct IENetwork {
-    InferenceEngine::CNNNetwork actual;
+    std::shared_ptr<InferenceEngine::CNNNetwork> actual;
     std::string name;
     std::size_t batch_size;
     std::string precision;
+    PyObject* getFunction();
 
     void setBatch(const size_t size);
 
     void addOutput(const std::string &out_layer, size_t port_id);
 
-    const std::vector<std::pair<std::string, InferenceEnginePython::IENetLayer>> getLayers();
+    const std::vector <InferenceEngine::CNNLayerPtr> getLayers();
 
-    const std::map<std::string, InferenceEnginePython::InputInfo> getInputs();
+    const std::map<std::string, InferenceEngine::DataPtr> getInputs();
 
-    const std::map<std::string, InferenceEnginePython::OutputInfo> getOutputs();
+    const std::map<std::string, InferenceEngine::DataPtr> getOutputs();
 
     void reshape(const std::map<std::string, std::vector<size_t>> &input_shapes);
 
@@ -103,9 +63,11 @@ struct IENetwork {
 
     void load_from_buffer(const char* xml, size_t xml_size, uint8_t* bin, size_t bin_size);
 
-    IENetwork(const std::string &model, const std::string &weights, bool ngraph_compatibility);
+    IENetwork(const std::string &model, const std::string &weights);
 
-    IENetwork(const InferenceEngine::CNNNetwork& cnn_network);
+    IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork>  &cnn_network);
+
+    IENetwork(PyObject* network);
 
     IENetwork() = default;
 };
@@ -146,6 +108,10 @@ struct IEExecNetwork {
     IENetwork GetExecGraphInfo();
 
     void infer();
+    void exportNetwork(const std::string & model_file);
+
+    std::map<std::string, InferenceEngine::DataPtr> getInputs();
+    std::map<std::string, InferenceEngine::CDataPtr> getOutputs();
 
     PyObject* getMetric(const std::string & metric_name);
     PyObject* getConfig(const std::string & metric_name);
@@ -172,7 +138,9 @@ struct IEPlugin {
 
     std::set<std::string> queryNetwork(const InferenceEnginePython::IENetwork &net);
 
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::InferencePlugin actual;
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 struct IECore {
@@ -181,6 +149,8 @@ struct IECore {
     std::map<std::string, InferenceEngine::Version> getVersions(const std::string & deviceName);
     std::unique_ptr<InferenceEnginePython::IEExecNetwork> loadNetwork(IENetwork network, const std::string & deviceName,
             const std::map<std::string, std::string> & config, int num_requests);
+    std::unique_ptr<InferenceEnginePython::IEExecNetwork> importNetwork(const std::string & modelFIle, const std::string & deviceName,
+                                                                      const std::map<std::string, std::string> & config, int num_requests);
     std::map<std::string, std::string> queryNetwork(IENetwork network, const std::string & deviceName,
                                        const std::map<std::string, std::string> & config);
     void setConfig(const std::map<std::string, std::string> &config, const std::string & deviceName = std::string());

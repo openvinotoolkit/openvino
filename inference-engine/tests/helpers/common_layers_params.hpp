@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,7 @@ struct conv_common_params {
     size_t group;
     size_t out_c;
     bool with_bias;
+    bool with_weights;
     std::string quantization_level;
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace vpu {
 //
 
 class StageInputEdge final :
-        public EnableHandleFromThis<StageInputEdge>,
+        public EnableHandle,
         public EnableCustomAttributes {
     VPU_MODEL_ATTRIBUTE(Data, input, nullptr)
     VPU_MODEL_ATTRIBUTE(Stage, consumer, nullptr)
@@ -29,12 +29,12 @@ private:
     StageInputEdge() : _posInData(this) {}
 
 private:
-    Handle<Model> _model;
+    Model _model;
     StageInputPtrList::iterator _ptrPosInModel;
-    IntrusivePtrListNode<StageInputEdge> _posInData;
+    StageInputListNode _posInData;
 
-    friend class Model;
-    friend class DataNode;
+    friend ModelObj;
+    friend DataNode;
 };
 
 //
@@ -46,7 +46,7 @@ private:
 //
 
 class StageOutputEdge final :
-        public EnableHandleFromThis<StageOutputEdge>,
+        public EnableHandle,
         public EnableCustomAttributes {
     VPU_MODEL_ATTRIBUTE(Stage, producer, nullptr)
     VPU_MODEL_ATTRIBUTE(Data, output, nullptr)
@@ -55,10 +55,10 @@ class StageOutputEdge final :
     VPU_MODEL_ATTRIBUTE(StageOutput, childEdge, nullptr)
 
 private:
-    Handle<Model> _model;
+    Model _model;
     StageOutputPtrList::iterator _ptrPosInModel;
 
-    friend class Model;
+    friend ModelObj;
 };
 
 //
@@ -66,7 +66,7 @@ private:
 //
 
 class StageTempBufferEdge final :
-        public EnableHandleFromThis<StageTempBufferEdge>,
+        public EnableHandle,
         public EnableCustomAttributes {
     VPU_MODEL_ATTRIBUTE(Stage, stage, nullptr)
     VPU_MODEL_ATTRIBUTE(Data, tempBuffer, nullptr)
@@ -75,10 +75,10 @@ class StageTempBufferEdge final :
     VPU_MODEL_ATTRIBUTE(StageTempBuffer, childEdge, nullptr)
 
 private:
-    Handle<Model> _model;
+    Model _model;
     StageTempBufferPtrList::iterator _ptrPosInModel;
 
-    friend class Model;
+    friend ModelObj;
 };
 
 //
@@ -89,11 +89,19 @@ private:
 // Data <-> Data edges - used to share memory buffer between Data objects.
 // Parent Data object owns the memory, while child reuses it.
 //
+
+//
 // SharedDataMode defines the relationship between the Data objects:
 //    * ROI : child is a sub-tensor of parent.
 //      They have the same layout and strides, but child has smaller dimensions.
 //    * Reshape : used for Reshape operation.
 //      Child shares the same memory buffer, but has completely different layout.
+//
+
+VPU_DECLARE_ENUM(SharedDataMode,
+    ROI,
+    Reshape)
+
 //
 // SharedDataOrder defined the Data flow order between parent and child.
 //    * ParentWritesToChild :
@@ -102,60 +110,69 @@ private:
 //      (Producer) -> [Child] -> [Parent] -> (Consumer)
 //
 
-VPU_DECLARE_ENUM(SharedDataMode,
-    ROI,
-    Reshape)
-
 VPU_DECLARE_ENUM(SharedDataOrder,
     ParentWritesToChild,
     ChildWritesToParent)
 
+//
+// SharedConnectionMode defines if there should be connection stage between Data objects:
+//    * SINGLE_STAGE : there must exactly one connection stage.
+//    * SUBGRAPH : there may be more than one stage between data objects
+//      so we cannot define any of them as a connection stage. It is intended to disable
+//      checks for connection stage type.
+//
+
+VPU_DECLARE_ENUM(SharedConnectionMode,
+    SINGLE_STAGE,
+    SUBGRAPH)
+
 class SharedAllocationEdge final :
-        public EnableHandleFromThis<SharedAllocationEdge>,
+        public EnableHandle,
         public EnableCustomAttributes {
     VPU_MODEL_ATTRIBUTE(Data, parent, nullptr)
     VPU_MODEL_ATTRIBUTE(Data, child, nullptr)
     VPU_MODEL_ATTRIBUTE(Stage, connection, nullptr)
     VPU_MODEL_ATTRIBUTE(SharedDataMode, mode, SharedDataMode::ROI)
     VPU_MODEL_ATTRIBUTE(SharedDataOrder, order, SharedDataOrder::ParentWritesToChild)
+    VPU_MODEL_ATTRIBUTE(SharedConnectionMode, connectionMode, SharedConnectionMode::SINGLE_STAGE);
 
 private:
     SharedAllocationEdge() : _posInData(this) {}
 
 private:
-    Handle<Model> _model;
+    Model _model;
     SharedAllocationPtrList::iterator _ptrPosInModel;
-    IntrusivePtrListNode<SharedAllocationEdge> _posInData;
+    SharedAllocationListNode _posInData;
 
-    friend class Model;
-    friend class DataNode;
+    friend ModelObj;
+    friend DataNode;
 };
 
 //
-// InjectedStageEdge
+// InjectionEdge
 //
 
 //
 // Stage <-> Stage edges - used to inject SW operations into HW
 //
 
-class InjectedStageEdge final :
-        public EnableHandleFromThis<InjectedStageEdge>,
+class InjectionEdge final :
+        public EnableHandle,
         public EnableCustomAttributes {
     VPU_MODEL_ATTRIBUTE(Stage, parent, nullptr)
     VPU_MODEL_ATTRIBUTE(StagePtr, child, nullptr)
     VPU_MODEL_ATTRIBUTE(int, portInd, -1)
 
 private:
-    InjectedStageEdge() : _posInStage(this) {}
+    InjectionEdge() : _posInStage(this) {}
 
 private:
-    Handle<Model> _model;
-    InjectedStagePtrList::iterator _ptrPosInModel;
-    IntrusivePtrListNode<InjectedStageEdge> _posInStage;
+    Model _model;
+    InjectionPtrList::iterator _ptrPosInModel;
+    InjectionListNode _posInStage;
 
-    friend class Model;
-    friend class StageNode;
+    friend ModelObj;
+    friend StageNode;
 };
 
 }  // namespace vpu

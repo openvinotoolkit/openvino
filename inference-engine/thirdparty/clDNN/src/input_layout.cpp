@@ -40,12 +40,9 @@ input_layout_inst::typed_primitive_inst(network_impl& network, input_layout_node
 }
 
 void input_layout_inst::set_data(memory_impl& mem) {
-    CLDNN_ERROR_LAYOUT_MISMATCH("input layout",
-                                "memory layout",
-                                mem.get_layout(),
-                                "output memory layout",
-                                node.get_output_layout(),
-                                "");
+    auto ol = node.get_output_layout();
+
+    check_memory_to_set(mem, ol);
 
     if (mem.is_allocated_by(get_network().get_engine())) {
         _output = (memory_impl::ptr) &mem;

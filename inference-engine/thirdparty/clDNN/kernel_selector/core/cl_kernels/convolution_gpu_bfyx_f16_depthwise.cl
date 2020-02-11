@@ -32,12 +32,12 @@ KERNEL(convolution_depthwise)(
 #endif
     uint split_idx)
 {
-    const uint yx = get_global_id(0);
+    const uint yx = (uint)get_global_id(0);
     const uint x = (yx % X_BLOCKS) * X_BLOCK_SIZE;
     const uint y = (yx / X_BLOCKS);
     const uint f_block = get_group_id(1);
     const int lid = get_local_id(1);
-    const uint b = get_global_id(2);
+    const uint b = (uint)get_global_id(2);
 
     const uint filter_offset = f_block * FEATURE_SLICE_SIZE*FILTER_SIZE_X*FILTER_SIZE_Y;
 

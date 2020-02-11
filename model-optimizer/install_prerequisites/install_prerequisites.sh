@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -55,12 +55,14 @@ elif [[ -f /etc/lsb-release ]]; then
 fi
 
 if [[ $DISTRO == "centos" ]]; then
-    if command -v python3.5 >/dev/null 2>&1; then
+    if command -v python3.7 >/dev/null 2>&1; then
+        python_binary=python3.7
+    elif command -v python3.6 >/dev/null 2>&1; then
+        python_binary=python3.6
+    elif command -v python3.5 >/dev/null 2>&1; then
         python_binary=python3.5
     fi
-    if command -v python3.6 >/dev/null 2>&1; then
-        python_binary=python3.6
-    fi
+
     if [ -z "$python_binary" ]; then
         sudo -E yum install -y https://centos7.iuscommunity.org/ius-release.rpm
         #sudo -E yum install -y python36u easy_install python36u-pip
@@ -71,6 +73,8 @@ if [[ $DISTRO == "centos" ]]; then
 elif [[ $DISTRO == "ubuntu" ]]; then
     sudo -E apt update
     sudo -E apt -y install python3-pip python3-venv libgfortran3
+    python_binary=python3
+elif [[ "$OSTYPE" == "darwin"* ]]; then
     python_binary=python3
 fi
 

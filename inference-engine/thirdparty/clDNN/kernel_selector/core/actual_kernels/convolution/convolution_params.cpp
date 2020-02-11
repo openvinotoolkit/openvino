@@ -57,14 +57,6 @@ ParamsKey convolution_params::GetParamsKey() const {
         k.EnableTranspose();
     }
 
-    if (int8_quantization) {
-        k.EnableInt8Quantization();
-    }
-
-    if (output_calibration) {
-        k.EnableOutputCalibration();
-    }
-
     if (local_convolution) {
         k.EnableLocalConvolution();
     }
@@ -76,6 +68,8 @@ ParamsKey convolution_params::GetParamsKey() const {
     if (deformable_mode) {
         k.EnableDeformableMode();
     }
+
+    k.EnableQuantization(quantization);
 
     return k;
 }

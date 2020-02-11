@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ using namespace InferenceEngine;
 using namespace GNAPluginNS;
 using namespace ::testing;
 
-class GNAProcTypeTest : public GNATest {
+class GNAProcTypeTest : public GNATest<> {
 
  protected:
 };

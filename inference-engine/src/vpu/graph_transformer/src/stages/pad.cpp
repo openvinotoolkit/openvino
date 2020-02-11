@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,22 +16,12 @@ namespace vpu {
 namespace {
 
 class PadStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<PadStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>& inputScales,
-            ScalePropagationStep step,
-            StageDataInfo<float>& scaleInfo) override {
-        if (step == ScalePropagationStep::Propagate) {
-            scaleInfo.setOutput(outputEdge(0), inputScales[0]);
-        } else {
-            // Copy can only propagate scaling.
-            scaleInfo.setInput(inputEdge(0), 1.0f);
-            scaleInfo.setOutput(outputEdge(0), 1.0f);
-        }
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
@@ -89,18 +79,14 @@ private:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeOldBuffer(handle_from_this(), serializer);
-        output->serializeOldBuffer(handle_from_this(), serializer);
+        input->serializeOldBuffer(this, serializer);
+        output->serializeOldBuffer(this, serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parsePad(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parsePad(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
@@ -135,7 +121,7 @@ void FrontEnd::parsePad(
 }
 
 Stage StageBuilder::addPadStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         PadMode padMode,

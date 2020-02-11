@@ -1,17 +1,19 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <debug.h>
+
+#include <map>
 #include <memory>
+#include <string>
+#include <vector>
+
+#include "details/caseless.hpp"
 #include "ie_format_parser.h"
 #include "xml_parse_utils.h"
-#include "details/caseless.hpp"
-#include <vector>
-#include <string>
-#include <map>
 
 inline pugi::xml_node GetChild(const pugi::xml_node& node, std::vector<std::string> tags, bool failIfMissing = true) {
     for (auto tag : tags) {
@@ -28,16 +30,15 @@ using namespace XMLParseUtils;
 
 namespace InferenceEngine {
 namespace details {
-template<class LT>
+template <class LT>
 class LayerCreator : public BaseCreator {
 public:
-    explicit LayerCreator(const std::string& type) : BaseCreator(type) {}
+    explicit LayerCreator(const std::string& type): BaseCreator(type) {}
 
     CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) override {
         auto res = std::make_shared<LT>(layerParsePrms.prms);
 
-        if (res->type == "FakeQuantize")
-            res->type = "Quantize";
+        if (res->type == "Quantize") res->type = "FakeQuantize";
 
         if (std::is_same<LT, FullyConnectedLayer>::value) {
             layerChild[res->name] = {"fc", "fc_data", "data"};
@@ -71,10 +72,10 @@ public:
                     FOREACH_CHILD(_cn, dn, "crop") {
                         int axis = GetIntAttr(_cn, "axis", 0);
                         crop_res->axis.push_back(axis);
-                        axisStr +=  std::to_string(axis) + ",";
+                        axisStr += std::to_string(axis) + ",";
                         int offset = GetIntAttr(_cn, "offset", 0);
                         crop_res->offset.push_back(offset);
-                        offsetStr +=  std::to_string(offset) + ",";
+                        offsetStr += std::to_string(offset) + ",";
                     }
                     if (!axisStr.empty() && !offsetStr.empty() && !dimStr.empty()) {
                         res->params["axis"] = axisStr.substr(0, axisStr.size() - 1);
@@ -86,18 +87,18 @@ public:
         return res;
     }
 
-    std::map <std::string, std::vector<std::string>> layerChild;
+    std::map<std::string, std::vector<std::string>> layerChild;
 };
 
 class ActivationLayerCreator : public BaseCreator {
- public:
-    explicit ActivationLayerCreator(const std::string& type) : BaseCreator(type) {}
+public:
+    explicit ActivationLayerCreator(const std::string& type): BaseCreator(type) {}
     CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) override;
 };
 
 class TILayerCreator : public BaseCreator {
 public:
-    explicit TILayerCreator(const std::string& type) : BaseCreator(type) {}
+    explicit TILayerCreator(const std::string& type): BaseCreator(type) {}
     CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) override;
 };
 }  // namespace details

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,13 +14,12 @@ namespace CLDNNPlugin {
 class CLDNNAsyncInferRequest : virtual public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
     CLDNNAsyncInferRequest(const InferenceEngine::InferRequestInternal::Ptr &inferRequest,
-                            const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
-                            const InferenceEngine::TaskSynchronizer::Ptr &taskSynchronizer,
-                            const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
+                           const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
+                           const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
+
+    void Infer_ThreadUnsafe() override;
 
     ~CLDNNAsyncInferRequest() override;
-
-    void Infer() override;
 };
 
 }  // namespace CLDNNPlugin

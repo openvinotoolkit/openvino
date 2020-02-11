@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,9 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
 from mo.front.common.partial_infer.multi_box_detection import multi_box_detection_infer
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 
 
@@ -25,8 +26,8 @@ class DetectionOutput(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'in_ports_count': 3,
             'out_ports_count': 1,
             'infer': multi_box_detection_infer,
@@ -35,6 +36,7 @@ class DetectionOutput(Op):
             'normalized': 1,
             'share_location': 1,
             'variance_encoded_in_target': 0,
+            'type_infer': self.type_infer,
         }, attrs)
 
     def supported_attrs(self):
@@ -75,3 +77,7 @@ class DetectionOutput(Op):
             'width_scale',
             'objectness_score',
         ]
+
+    @staticmethod
+    def type_infer(node: Node):
+        node.out_port(0).set_data_type(np.float32)

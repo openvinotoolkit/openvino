@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include <myriad_executable_network.h>
 #include <vpu/blob_reader.hpp>
 #include <vpu/utils/profiling.hpp>
+#include <details/ie_cnn_network_tools.h>
 #include <net_pass.h>
 
 using namespace InferenceEngine;
@@ -44,14 +45,20 @@ static void selectNumberOfExecutors(const ncDevicePlatform_t& platform,
     }
 }
 
-ExecutableNetwork::ExecutableNetwork(std::vector<DevicePtr> &devicePool,
-    const std::map<std::string, std::string> &config, ConfigMode mode) {
+ExecutableNetwork::ExecutableNetwork(
+        std::vector<DevicePtr>& devicePool,
+        const MyriadConfig& config) :
+            _config(config) {
     VPU_PROFILE(ExecutableNetwork);
-    _config = std::make_shared<MyriadConfig>(config, mode);
 
-    _log = std::make_shared<Logger>("MyriadPlugin", _config->hostLogLevel, consoleOutput());
-    _executor = std::make_shared<MyriadExecutor>(_config->forceReset, _config->deviceLogLevel, _log);
+    _log = std::make_shared<Logger>(
+        "MyriadPlugin",
+        _config.logLevel(),
+        defaultOutput(_config.pluginLogFilePath()));
+
+    _executor = std::make_shared<MyriadExecutor>(_config.forceReset(), _config.logLevel(), _log);
     _device = _executor->openDevice(devicePool, _config);
+
     _supportedMetrics = {
         METRIC_KEY(NETWORK_NAME),
         METRIC_KEY(SUPPORTED_METRICS),
@@ -59,30 +66,29 @@ ExecutableNetwork::ExecutableNetwork(std::vector<DevicePtr> &devicePool,
         METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
         METRIC_KEY(DEVICE_THERMAL)
     };
-
-    // ignore hardware optimization config for MYRIAD2, it is always disabled
-    if (_device->_platform == NC_MYRIAD_2) {
-        _config->compileConfig.hwOptimization = false;
-    }
 }
 
-ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, std::vector<DevicePtr> &devicePool,
-                                     const std::map<std::string, std::string> &config) :
-                                     ExecutableNetwork(devicePool, config) {
+ExecutableNetwork::ExecutableNetwork(
+        ICNNNetwork& network, std::vector<DevicePtr>& devicePool,
+        const MyriadConfig& config) :
+            ExecutableNetwork(devicePool, config) {
     VPU_PROFILE(ExecutableNetwork);
-    bool ti_proc_ok = !NetPass::CombineRNNSeq(network) ? NetPass::UnrollTI(network) : true;
-    if (!ti_proc_ok)
-        THROW_IE_EXCEPTION << "Plugin doesn't support Tensor Iterator in pure form. "
-                              "None TI optimization pattern has been applied successfully";
 
+    const auto compilerLog = std::make_shared<Logger>(
+        "GraphCompiler",
+        _config.logLevel(),
+        defaultOutput(_config.compilerLogFilePath()));
+
+    if (_device == nullptr)
+        THROW_IE_EXCEPTION << "No device was detected";
     auto compiledGraph = compileNetwork(
         network,
         static_cast<Platform>(_device->_platform),
-        _config->compileConfig,
-        std::make_shared<Logger>("GraphCompiler", _config->hostLogLevel, consoleOutput()));
+        _config.compileConfig(),
+        compilerLog);
 
-    selectNumberOfExecutors(_device->_platform,
-                            compiledGraph->numShaves, compiledGraph->numSlices, _config->numExecutors);
+    _actualNumExecutors = _config.numExecutors();
+    selectNumberOfExecutors(_device->_platform, compiledGraph->numShaves, compiledGraph->numSlices, _actualNumExecutors);
 
     _graphBlob = std::move(compiledGraph->blob);
     _graphMetaData = std::move(compiledGraph->graphMeta);
@@ -96,9 +102,8 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, std::vector<DevicePtr
 
     char networkName[1024] = {};
     network.getName(networkName, sizeof(networkName));
-    _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader,
-                             compiledGraph->numActiveStages, networkName, _config->numExecutors);
-    if (_config->exclusiveAsyncRequests) {
+    _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages, networkName, _actualNumExecutors);
+    if (_config.exclusiveAsyncRequests()) {
         ExecutorManager *executorManager = ExecutorManager::getInstance();
         _taskExecutor = executorManager->getExecutor("MYRIAD");
     }
@@ -110,14 +115,11 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork &network, std::vector<DevicePtr
     }
 }
 
-ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename,
-                           std::vector<DevicePtr> &devicePool,
-                           const std::map<std::string, std::string> &config) :
-                           ExecutableNetwork(devicePool, config, ConfigMode::RUNTIME_MODE) {
-    VPU_PROFILE(ExecutableNetwork);
-    std::ifstream blobFile(blobFilename, std::ios::binary);
+void ExecutableNetwork::Import(std::istream& strm,
+                               std::vector<DevicePtr> &devicePool,
+                               const MyriadConfig& config) {
     std::ostringstream blobContentStream;
-    blobContentStream << blobFile.rdbuf();
+    blobContentStream << strm.rdbuf();
     const std::string& blobContentString = blobContentStream.str();
     std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(_graphBlob));
 
@@ -131,20 +133,18 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename,
     BlobReader blobReader;
     blobReader.parse(_graphBlob);
 
-    selectNumberOfExecutors(_device->_platform,
-                            blobReader.getNumberOfShaves(), blobReader.getNumberOfSlices(), _config->numExecutors);
+    _actualNumExecutors = _config.numExecutors();
+    selectNumberOfExecutors(_device->_platform, blobReader.getNumberOfShaves(), blobReader.getNumberOfSlices(), _actualNumExecutors);
 
     this->_networkInputs  = blobReader.getNetworkInputs();
     this->_networkOutputs = blobReader.getNetworkOutputs();
     std::size_t numStages = blobReader.getStageCount();
     auto blobHeader = blobReader.getHeader();
 
-
     _inputInfo  = blobReader.getInputInfo();
     _outputInfo = blobReader.getOutputInfo();
 
-    _executor->allocateGraph(_device, _graphDesc, _graphBlob, blobHeader, numStages, networkName,
-                             _config->numExecutors);
+    _executor->allocateGraph(_device, _graphDesc, _graphBlob, blobHeader, numStages, networkName, _actualNumExecutors);
 
     _graphMetaData.stagesMeta.resize(numStages);
     for (auto &meta : _graphMetaData.stagesMeta) {
@@ -152,7 +152,7 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename,
         meta.status = InferenceEngineProfileInfo::LayerStatus::EXECUTED;
     }
 
-    if (_config->exclusiveAsyncRequests) {
+    if (_config.exclusiveAsyncRequests()) {
         ExecutorManager *executorManager = ExecutorManager::getInstance();
         _taskExecutor = executorManager->getExecutor("MYRIAD");
     }
@@ -164,6 +164,24 @@ ExecutableNetwork::ExecutableNetwork(const std::string &blobFilename,
     }
 }
 
+ExecutableNetwork::ExecutableNetwork(std::istream& strm,
+                               std::vector<DevicePtr> &devicePool,
+                               const MyriadConfig& config) :
+    ExecutableNetwork(devicePool, config) {
+    VPU_PROFILE(ExecutableNetwork);
+    Import(strm, devicePool, config);
+}
+
+ExecutableNetwork::ExecutableNetwork(
+        const std::string& blobFilename,
+        std::vector<DevicePtr>& devicePool,
+        const MyriadConfig& config) :
+    ExecutableNetwork(devicePool, config) {
+    VPU_PROFILE(ExecutableNetwork);
+    std::ifstream blobFile{blobFilename, std::ios::binary};
+    Import(blobFile, devicePool, config);
+}
+
 void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
         result = IE_SET_METRIC(NETWORK_NAME, _graphDesc._name);
@@ -172,7 +190,7 @@ void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, Re
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, std::vector<std::string>());
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(2u*_config->numExecutors));
+        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(2u * _actualNumExecutors));
     } else if (name == METRIC_KEY(DEVICE_THERMAL)) {
         result = IE_SET_METRIC(DEVICE_THERMAL, _executor->GetThermal(_device));
     } else {
@@ -277,10 +295,10 @@ InferenceEngine::ICNNNetwork::Ptr ExecutableNetwork::buildRuntimeGraph(GraphMeta
     //
 
     for (const auto &dataMetaData : graphMetaInfo.datasMeta) {
-        DataPtr data;
+        ::InferenceEngine::DataPtr data;
 
         auto parent = stageMetaIndexToLayer[dataMetaData.parentIndex];
-        data = std::make_shared<Data>(dataMetaData.name, dataMetaData.desc);
+        data = std::make_shared<::InferenceEngine::Data>(dataMetaData.name, dataMetaData.desc);
         parent->outData.push_back(data);
         data->getCreatorLayer() = parent;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -123,3 +123,4 @@ void MKLDNNSoftMaxNode::createDescriptor(const std::vector<InferenceEngine::Tens
             new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
     descs.push_back(desc);
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNSoftMaxNode, Softmax);

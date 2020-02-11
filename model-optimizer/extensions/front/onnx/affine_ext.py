@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ class AffineFrontExtractor(FrontExtractorOp):
     op = 'Affine'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         dst_type = lambda x: np.array(x)
 
         scale = onnx_attr(node, 'alpha', 'f', default=None, dst_type=dst_type)
@@ -36,4 +36,4 @@ class AffineFrontExtractor(FrontExtractorOp):
         node['bias'] = bias
         node['op'] = 'ImageScaler'
 
-        return __class__.enabled
+        return cls.enabled

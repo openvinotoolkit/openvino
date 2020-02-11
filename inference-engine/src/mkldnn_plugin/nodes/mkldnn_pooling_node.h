@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,8 @@ public:
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
     void getSupportedDescriptors() override;
+    void initSupportedPrimitiveDescriptors() override;
+    void initDescriptor(const InferenceEngine::LayerConfig &config) override;
     void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {
@@ -27,13 +29,19 @@ public:
     }
 
 private:
-    static Register<MKLDNNPoolingNode> reg;
+    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
+
     InferenceEngine::PoolingLayer::PoolType type = InferenceEngine::PoolingLayer::MAX;
     bool exclude_pad = false;
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
     std::vector<ptrdiff_t> kernel;
+
+    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
+    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
+
+    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
 };
 
 }  // namespace MKLDNNPlugin

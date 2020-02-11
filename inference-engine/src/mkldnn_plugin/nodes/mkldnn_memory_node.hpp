@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,9 @@ class MKLDNNMemoryNode {
     virtual void setInputNode(MKLDNNNode *) = 0;
 };
 class MKLDNNMemoryOutputNode;
+#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 class MKLDNNMemoryInputNode;
+#endif
 
 /**
  * @brief
@@ -53,7 +55,9 @@ class MKLDNNMemoryNodeVirtualEdge {
 
  public:
     static void registerOutput(MKLDNNMemoryOutputNode * node);
+#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
     static void registerInput(MKLDNNMemoryInputNode * node);
+#endif
     static void remove(MKLDNNMemoryNode * node) {
         InferenceEngine::details::erase_if(getExisted(), [&](const Holder::value_type & it){
             return it.second == node;
@@ -85,6 +89,7 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
     static Register<MKLDNNMemoryOutputNode> reg;
 };
 
+#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 class MKLDNNMemoryInputNode : public MKLDNNInputNode, public MKLDNNMemoryNode {
 public:
     MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
@@ -98,6 +103,7 @@ public:
  private:
     static Register<MKLDNNMemoryInputNode> reg;
 };
+#endif
 
 }  // namespace MKLDNNPlugin
 

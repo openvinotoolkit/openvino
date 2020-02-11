@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,13 +14,12 @@
  limitations under the License.
 """
 
-import logging as log
-
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
+from mo.utils.error import Error
 
 
 class DepthToSpaceOp(Op):
@@ -28,27 +27,36 @@ class DepthToSpaceOp(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'op': __class__.op,
+            'op': self.op,
+            'type': self.op,
+
+            'mode': 'blocks_first',
+
+            'infer': self.infer,
+
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': DepthToSpaceOp.depth_to_space_infer
         }
         super().__init__(graph, mandatory_props, attrs)
 
+    def supported_attrs(self):
+        if self.ir_version == 10:
+            return ['mode', 'block_size']
+        else:
+            return []
+
     @staticmethod
-    def depth_to_space_infer(node: Node):
+    def infer(node: Node):
         in_shape = node.in_node().shape
         if in_shape.size != 4:
-            log.error('TensorFlow DepthToSpace operation is supported for 4D \'NHWC\' input layout only. '
-                      'Current input shape is \'{}\''.format(in_shape))
-            return
+            raise Error('TensorFlow DepthToSpace operation is supported for 4D \'NHWC\' input layout only. '
+                        'Current input shape is \'{}\''.format(in_shape))
         N, H, W, C = in_shape
         block_size = node['block_size']
         if C % (block_size ** 2):
-            log.error('Feature dimensions of input tensor of DepthToSpace operation have to be divisible by square of '
-                      'DepthToSpace \'block_size\' parameter. Input tensor shape = {}. Feature dimension = {}. '
-                      'block_size = {}'.format(in_shape, C, block_size))
-            return
+            raise Error('Feature dimensions of input tensor of DepthToSpace operation have to be divisible by square '
+                        'of DepthToSpace \'block_size\' parameter. Input tensor shape = {}. Feature dimension = {}. '
+                        'block_size = {}'.format(in_shape, C, block_size))
         out_shape = [N, int(H * block_size), int(W * block_size), int(C / (block_size ** 2))]
         if np.prod(in_shape) != np.prod(out_shape):
             return

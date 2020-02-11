@@ -82,14 +82,28 @@ JitConstants ConvolutionKernel_bfyx_f16_depthwise::GetJitConstants(const convolu
                                                                    const DispatchData& kd) const {
     auto jit = ConvolutionKernelBase::GetJitConstants(params, kd);
 
-    const auto block_width = 8;
+    const size_t block_width = 8;
 
-    if (params.fused_ops.size() > 0) {
-        FusedOpsConfiguration conf_vec = {"_VEC", {"b", "(f_block*16)", "y", "x"}, "dst", block_width, true, false, true, false };
-        FusedOpsConfiguration conf_scalar = {"_SCALAR", {"b", "(f_block*16)", "y", "(x+i)"}, "dst[i]", 1, true, false, true, false };
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetUnitType(params);
+        FusedOpsConfiguration conf_vec = { "_VEC", {"b", "(f_block*16)", "y", "x"},
+                                           "dst",
+                                           input_dt,
+                                           block_width,
+                                           LoadType::LT_ALIGNED_READ,
+                                           BoundaryCheck::ENABLED,
+                                           IndexType::TENSOR_COORD,
+                                           Tensor::DataChannelName::X };
+        FusedOpsConfiguration conf_scalar = { "_SCALAR",
+                                              {"b", "(f_block*16)", "y", "(x+i)"},
+                                              "dst[i]",
+                                              input_dt,
+                                              1,
+                                              LoadType::LT_ALIGNED_READ,
+                                              BoundaryCheck::ENABLED,
+                                              IndexType::TENSOR_COORD,
+                                              Tensor::DataChannelName::X };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar}));
-        jit.Merge(MakeTypeJitConstants(Datatype::F32, "float"));
-        jit.Merge(MakeTypeJitConstants(Datatype::F16, "half"));
     }
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));

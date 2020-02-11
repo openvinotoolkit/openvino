@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include <inference_engine/parsers.h>
-#include <inference_engine/ie_cnn_net_reader_impl.h>
-#include <test_model_path.hpp>
+#include <parsers.h>
+#include <cpp/ie_cnn_net_reader.h>
+#include <ie_cnn_net_reader_impl.h>
 #include <mock_icnn_network.hpp>
 #include <gmock/gmock-more-actions.h>
 #include "cnn_network_impl.hpp"
 #include "mock_iformat_parser.hpp"
-#include <test_assertions.hpp>
 #include <single_layer_common.hpp>
 #include <thread>
 

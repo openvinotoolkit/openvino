@@ -42,7 +42,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b1_block)(
 #endif
 
     const uint batch_num = INPUT0_BATCH_NUM;
-    const uint linear_id_xy = get_group_id(1) + get_global_size(1) * get_group_id(2);
+    const uint linear_id_xy = (uint)get_group_id(1) + (uint)get_global_size(1) * (uint)get_group_id(2);
     uint global_id = (((uint)get_group_id(0) * LOCAL_WORK_GROUP_SIZE) / batch_num) * batch_num + (linear_id_xy * FILTER_ARRAY_NUM + split_idx) * (FILTER_OFM_NUM / OFM_PER_WORK_ITEM) * batch_num;
 
     const uint out_batch_id = (uint)get_local_id(0) % INPUT0_BATCH_NUM;

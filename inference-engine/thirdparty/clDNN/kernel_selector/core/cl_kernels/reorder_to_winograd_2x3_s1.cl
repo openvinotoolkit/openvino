@@ -24,8 +24,8 @@ KERNEL(reorder_to_winograd_2x3_s1)(global const UNIT_TYPE* input, global UNIT_TY
     const uint winograd_tile_width = 4; //dimensions of resulting tile
     const uint winograd_tile_height = 1;
     
-    const int batch_idx = get_global_id(0) / INPUT0_FEATURE_NUM;
-    const int feature_idx = get_global_id(0) % INPUT0_FEATURE_NUM; //which feature do we process
+    const int batch_idx = (uint)get_global_id(0) / INPUT0_FEATURE_NUM;
+    const int feature_idx = (uint)get_global_id(0) % INPUT0_FEATURE_NUM; //which feature do we process
     const int tile_idx_x = get_global_id(1); //which tile do we process (in x-dim)
     const int tile_idx_y = get_global_id(2); //which tile do we process (in y-dim)
     

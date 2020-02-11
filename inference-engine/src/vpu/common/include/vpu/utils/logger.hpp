@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,16 +37,20 @@ public:
 OutputStream::Ptr consoleOutput();
 OutputStream::Ptr fileOutput(const std::string& fileName);
 
+OutputStream::Ptr defaultOutput(const std::string& fileName = std::string());
+
 //
 // Logger
 //
 
 VPU_DECLARE_ENUM(LogLevel,
     None,
-    Error,
-    Warning,
-    Info,
-    Debug
+    Fatal,    /* used for very severe error events that will most probably cause the application to terminate */
+    Error,    /* reporting events which are not expected during normal execution, containing probable reason */
+    Warning,  /* indicating events which are not usual and might lead to errors later */
+    Info,     /* short enough messages about ongoing activity in the process */
+    Debug,    /* more fine-grained messages with references to particular data and explanations */
+    Trace     /* involved and detailed information about execution, helps to trace the execution flow, produces huge output */
 )
 
 class Logger final {
@@ -71,8 +75,8 @@ public:
     };
 
 public:
-    inline Logger(const std::string& name, LogLevel lvl, const OutputStream::Ptr& out) :
-            _name(name), _logLevel(lvl), _out(out) {
+    inline Logger(std::string name, LogLevel lvl, OutputStream::Ptr out) :
+            _name(std::move(name)), _logLevel(lvl), _out(std::move(out)) {
         IE_ASSERT(_out != nullptr);
     }
 
@@ -81,6 +85,14 @@ public:
     }
     inline bool isActive(LogLevel msgLevel) const {
         return static_cast<int>(msgLevel) <= static_cast<int>(_logLevel);
+    }
+    void setLevel(LogLevel lvl) {
+        _logLevel = lvl;
+    }
+
+    template <typename... Args>
+    inline void fatal(const char* format, const Args&... args) const noexcept {
+        addEntry(LogLevel::Fatal, format, args...);
     }
 
     template <typename... Args>
@@ -103,6 +115,11 @@ public:
         addEntry(LogLevel::Debug, format, args...);
     }
 
+    template <typename... Args>
+    inline void trace(const char* format, const Args&... args) const noexcept {
+        addEntry(LogLevel::Trace, format, args...);
+    }
+
 private:
     template <typename... Args>
     void addEntry(LogLevel msgLevel, const char* format, const Args&... args) const noexcept {
@@ -116,6 +133,8 @@ private:
         printHeader(msgLevel);
         formatPrint(_out->get(), format, args...);
         printFooter();
+
+        _out->get().flush();
     }
 
     void printHeader(LogLevel msgLevel) const noexcept;
@@ -132,12 +151,5 @@ private:
 };
 
 #define VPU_LOGGER_SECTION(log) vpu::Logger::Section VPU_COMBINE(logSec, __LINE__) (log)
-
-#define VPU_LOG_AND_THROW(log, ...) \
-    do { \
-        auto msg = vpu::formatString(__VA_ARGS__); \
-        log->error("%s", msg); \
-        VPU_THROW_EXCEPTION << msg; \
-    } while (false)
 
 }  // namespace vpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,3 +136,4 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
 bool MKLDNNTileNode::created() const {
     return getType() == Tile;
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNTileNode, Tile);

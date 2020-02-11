@@ -32,6 +32,12 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint y, uint x)
 	return GET_DATA_BYXF_AF32_INDEX(INPUT0, b, f, y, x);
 #elif defined INPUT0_LAYOUT_BFYX_F16
     return GET_DATA_BFYX_F16_INDEX(INPUT0, b, f, y, x);
+#elif defined INPUT0_LAYOUT_FS_B_YX_FSV32
+    return GET_DATA_FS_B_YX_FSV32_INDEX(INPUT0, b, f, y, x);
+#elif defined INPUT0_LAYOUT_BFZYX_F16
+    return GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, 0, y, x);
+#elif defined INPUT0_LAYOUT_BFZYX_B16F16
+    return GET_DATA_BFZYX_B16F16_INDEX(INPUT0, b, f, 0, y, x);
 #else
 #error reorder_data_to_yxfb_batched.cl: input format - not supported
 #endif
@@ -64,11 +70,11 @@ KERNEL (reorder_data_to_yxfb_batched)(
 #endif
     )
 {
-    uint group_idx = get_group_id(0) * OUTPUT_BATCH_NUM * 8;
+    uint group_idx = (uint)get_group_id(0) * OUTPUT_BATCH_NUM * 8;
 
     for(uint i = 0; i < OUTPUT_BATCH_NUM; i++)
     {
-        uint output_idx = group_idx + get_sub_group_local_id();
+        uint output_idx = group_idx + (uint)get_sub_group_local_id();
         if(output_idx >= ELEMENTS_COUNT)
             continue;
 

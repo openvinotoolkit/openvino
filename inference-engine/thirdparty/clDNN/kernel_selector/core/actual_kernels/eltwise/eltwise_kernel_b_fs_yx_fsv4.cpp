@@ -33,7 +33,6 @@ ParamsKey EltwiseKernel_b_fs_yx_fsv4::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
     k.EnableEltwiseStride();
     return k;
 }

@@ -108,14 +108,14 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     size_t index = 0;
     for (auto& fused_desc : get_fused_primitives()) {
         json_composite fused_node_info;
-        fused_node_info.add("id", fused_desc.prim->id);
+        fused_node_info.add("id", fused_desc.node->id());
         fused_node_info.add("dependencies", fused_desc.deps);
         fused_node_info.add("dep start_idx", fused_desc.dep_start_idx);
-        json_composite output_layout_info;
-        output_layout_info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
-        output_layout_info.add("format", fmt_to_str(output_layout.format));
-        output_layout_info.add("size", output_layout.size.to_string());
-        fused_node_info.add("output layout", output_layout_info);
+        json_composite info;
+        info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
+        info.add("format", fmt_to_str(output_layout.format));
+        info.add("size", output_layout.size.to_string());
+        fused_node_info.add("output layout", info);
         fused_nodes_info.add("fused primitive idx " + std::to_string(index++), fused_node_info);
     }
     node_info->add("fused primitives", fused_nodes_info);
@@ -221,8 +221,8 @@ bool program_node::set_output_layout(layout& new_layout, bool invalidate_users_i
 }
 
 bool program_node::recalc_output_layout(bool invalidate_users_if_changed) {
-    auto output_layout = calc_output_layout();
-    return set_output_layout(output_layout, invalidate_users_if_changed);
+    auto new_layout = calc_output_layout();
+    return set_output_layout(new_layout, invalidate_users_if_changed);
 }
 
 bool program_node::has_padded_dependency() {

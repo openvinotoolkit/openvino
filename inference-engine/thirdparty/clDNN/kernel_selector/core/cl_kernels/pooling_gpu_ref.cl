@@ -39,19 +39,20 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 #endif
 )
 {
-#if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF || OUTPUT_LAYOUT_BFZYX || OUTPUT_LAYOUT_BFZYX_F16
+#if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF || OUTPUT_LAYOUT_BFZYX || OUTPUT_LAYOUT_BFZYX_F16 || OUTPUT_LAYOUT_BFZYX_B16F16 || \
+    OUTPUT_LAYOUT_B_FS_YX_FSV32 || OUTPUT_LAYOUT_B_FS_ZYX_FSV32
     const uint x    = (uint)get_global_id(0);
 #if  OUTPUT_DIMS < 5
     const uint y    = (uint)get_global_id(1);
     const uint z = 0;
 #else
-    const uint y = get_global_id(1) % OUTPUT_SIZE_Y;
-    const uint z = get_global_id(1) / OUTPUT_SIZE_Y;
+    const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
+    const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
 #endif
     const uint bf   = (uint)get_global_id(2);
     const uint f    = bf % INPUT0_FEATURE_NUM;
     const uint b    = bf / INPUT0_FEATURE_NUM;
-    
+
     if (x >= OUTPUT_SIZE_X)
     {
         return;
@@ -68,9 +69,9 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
     const int offset_z = (int)z*STRIDE_SIZE_Z - PADDING_SIZE_Z;
-    
+
     ACCUMULATOR_TYPE result = UNIT_INIT_VAL;
-    
+
 #if MAX_WITH_ARGMAX_POOLING
     uint arg_max_idx = 0;
 #endif
@@ -116,6 +117,8 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 #else
   #if OUTPUT_LAYOUT_BFZYX_F16
                     const uint input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, input_offset_z, input_offset_y, input_offset_x);
+  #elif OUTPUT_LAYOUT_BFZYX_B16F16
+                    const uint input_idx = GET_DATA_BFZYX_B16F16_INDEX(INPUT0, b, f, input_offset_z, input_offset_y, input_offset_x);
   #else
                     const uint input_idx = batch_and_feature_offset + input_offset_z*INPUT0_Z_PITCH + input_offset_y*INPUT0_Y_PITCH + input_offset_x*INPUT0_X_PITCH;
   #endif
@@ -134,7 +137,7 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
                     }
 #endif
                     result = FUNC_CALL(apply_pooling)(result, input[input_idx]);
-                    
+
 #ifdef DYNAMIC_KERNEL_DIVIDER
                     num_elementes++;
 #endif
@@ -187,7 +190,13 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
                 arg_max_idx = input_idx_bfyx_no_padding;
 #endif
 
+#if INPUT0_LAYOUT_BFZYX_F16
+            uint input1_idx = INPUT0_GET_INDEX(b, f, offset_z+k, offset_y+j, offset_x+i);
+            result = FUNC_CALL(apply_pooling)(result, input[input1_idx]);
+#else
             result = FUNC_CALL(apply_pooling)(result, input[input_idx]);
+#endif
+
             input_idx += INPUT0_X_PITCH;
 #if MAX_WITH_ARGMAX_POOLING
             input_idx_bfyx_no_padding++;
@@ -205,7 +214,7 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 #endif
     }
 #endif
-    
+
 #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
     const uint num_elementes = POOL_SIZE_X*POOL_SIZE_Y*POOL_SIZE_Z;
 #endif
@@ -221,6 +230,8 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 
 #if OUTPUT_LAYOUT_BFZYX_F16
     const uint output_pos = GET_DATA_BFZYX_F16_INDEX(OUTPUT, b, f, z, y, x);
+#elif OUTPUT_LAYOUT_BFZYX_B16F16
+    const uint output_pos = GET_DATA_BFZYX_B16F16_INDEX(OUTPUT, b, f, z, y, x);
 #else
     const uint output_pos = GET_DATA_INDEX_5D(OUTPUT, b, f, z, y, x);
 #endif

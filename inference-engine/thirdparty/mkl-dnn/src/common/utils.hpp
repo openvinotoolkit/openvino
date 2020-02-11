@@ -22,6 +22,10 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdint.h>
+#ifdef WIN32
+#include <ctype.h>
+#include <memory>
+#endif
 
 #if defined(__x86_64__) || defined(_M_X64)
 #define MKLDNN_X86_64

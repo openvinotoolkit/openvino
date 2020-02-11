@@ -115,7 +115,7 @@ SelectKernelBase::DispatchData SelectKernelBase::SetDefault(const select_params&
     kd.gws1 = gws[1];
     kd.gws2 = gws[2] * gws[3];
 
-    auto local = GetOptimalLocalWorkGroupSizes({kd.gws0, kd.gws1, kd.gws2});
+    auto local = GetOptimalLocalWorkGroupSizes({kd.gws0, kd.gws1, kd.gws2}, params.engineInfo);
     kd.lws0 = local[0];
     kd.lws1 = local[1];
     kd.lws2 = local[2];

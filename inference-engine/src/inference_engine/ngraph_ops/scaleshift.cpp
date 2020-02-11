@@ -1,22 +1,21 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "scaleshift.hpp"
+
 #include <memory>
 
-#include "scaleshift.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
-
-
 
 using namespace std;
 using namespace ngraph;
 
-op::ScaleShiftIE::ScaleShiftIE(const std::shared_ptr<ngraph::Node> &data_batch,
-                           const std::shared_ptr<ngraph::Node> &weights,
-                           const std::shared_ptr<ngraph::Node> &bias)
-        : Op("ScaleShiftIE", check_single_output_args({data_batch, weights, bias})) {
+constexpr NodeTypeInfo op::ScaleShiftIE::type_info;
+
+op::ScaleShiftIE::ScaleShiftIE(const Output<Node>& data_batch, const Output<Node>& weights, const Output<Node>& bias)
+    : Op(OutputVector {data_batch, weights, bias}) {
     constructor_validate_and_infer_types();
 }
 
@@ -35,13 +34,9 @@ void op::ScaleShiftIE::validate_and_infer_types() {
     element::Type biases_et = get_input_element_type(2);
 
     element::Type et_result;
-    NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(et_result, weights_et, biases_et),
-                          "Element types for bias and weights do not match (biases element type: ",
-                          biases_et,
-                          ", weights element type: ",
-                          weights_et,
-                          ").");
+    NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, weights_et, biases_et),
+                          "Element types for bias and weights do not match (biases element type: ", biases_et,
+                          ", weights element type: ", weights_et, ").");
 
     set_output_type(0, data_et, get_input_partial_shape(0));
 }

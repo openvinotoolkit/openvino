@@ -59,7 +59,9 @@ class reorder_factory {
 public:
     // pair.first is reorder (may be nullptr if reorder is not needed), pair.second tells if returned reorder was cached
     // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
-    std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id, layout in_layout, layout out_layout);
+    std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
+                                                          const layout& in_layout,
+                                                          const layout& out_layout);
 
     std::vector<std::pair<std::shared_ptr<primitive>, bool>> get_weights_reorder(
         primitive_id input_id,
@@ -95,7 +97,8 @@ public:
         group_convolution,
         deformable_convolution,
         bfyx_only_layer,
-        only_fsv32_layers,
+        fs_b_yx_fsv32_network,
+        b_fs_zyx_fsv32_network,
         bfyx_f16_network,
         bfzyx_f16_network
     };
@@ -105,7 +108,8 @@ public:
         int32_t group_convolution = 0;
         int32_t deformable_convolution = 0;
         int32_t bfyx_only_layer = 0;
-        int32_t only_fsv32_layers = 0;
+        int32_t fs_b_yx_fsv32_network = 0;
+        int32_t b_fs_zyx_fsv32_network = 0;
         int32_t bfyx_f16_network = 0;
         int32_t bfzyx_f16_network = 0;
     };
@@ -114,6 +118,8 @@ private:
     optimization_attributes _optimization_attributes;
     // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
     bool _output_size_handling_enabled;
+
+    std::map<primitive_id, format::type> _format_forcing;
 
     layout get_expected_layout(layout const& current_layout,
                                convolution_node const& node,
@@ -128,19 +134,27 @@ private:
                                binary_convolution_node const& node,
                                layout const& output_or_weights_layout);
 
+    bool is_depthwise(const convolution_node& node) const;
+    format imad_case(convolution_node const& node) const;
+
     bool convolution_bfyx_opt(const layout& output_layout,
                               const layout& weights_layout,
                               std::shared_ptr<const convolution> conv);
     bool convolution_byxf_opt(const layout& input_layout,
                               const layout& output_layout,
                               const layout& weights_layout,
-                              std::shared_ptr<const convolution> conv);
+                              const convolution_node& node);
     bool convolution_bfyx_f16_opt(const layout& output_layout,
                                   const layout& weights_layout,
                                   std::shared_ptr<const convolution> conv);
     bool convolution_bfzyx_f16_opt(const layout& output_layout,
                                    const layout& weights_layout,
                                    std::shared_ptr<const convolution> conv);
+    bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
+                                       const layout& weights_layout,
+                                       const layout& output_layout,
+                                       std::shared_ptr<const convolution> conv,
+                                       bool weak_restrictions = false);
     bool deconvolution_bfzyx_f16_opt(const layout& output_layout,
                                      const layout& weights_layout,
                                      std::shared_ptr<const deconvolution> conv);
@@ -150,42 +164,19 @@ private:
 public:
     explicit layout_optimizer(bool output_size_handling_enabled = true);
 
-    format get_preferred_format(program_node& node) {
-        format expected = format::any;
-        auto output_layout = node.get_output_layout();
-
-        if (node.is_type<convolution>()) {
-            auto& conv_node = node.as<convolution>();
-            auto weights_layout = conv_node.weights(0).get_output_layout();
-            expected = get_expected_layout(output_layout, conv_node, weights_layout).format;
-        } else if (node.is_type<binary_convolution>()) {
-            auto& bconv_node = node.as<binary_convolution>();
-            auto weights_layout = bconv_node.weights(0).get_output_layout();
-            expected = get_expected_layout(output_layout, bconv_node, weights_layout).format;
-        } else if (node.is_type<detection_output>()) {
-            expected = get_expected_layout(
-                output_layout,
-                node.as<detection_output>(),
-                layout{ data_types::f32, format::bfyx, tensor{} }).format;
-        } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
-            expected = node.get_output_layout().format;
-        } else if (node.is_type<deconvolution>()) {
-            auto& deconv_node = node.as<deconvolution>();
-            auto weights_layout = deconv_node.weights(0).get_output_layout();
-            expected = get_expected_layout(output_layout, deconv_node, weights_layout).format;
-        }
-
-        return expected;
-    }
+    format get_preferred_format(program_node& node);
 
     bool is_format_supported(program_node& node, format::type fmt);
 
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
     // can be fused into next.
     bool can_fuse_reorder(program_node& prev, program_node& next, format fmt_prev, format fmt_next);
+    bool can_fuse_reorder_to_prev(program_node& prev, program_node& next, format fmt_prev, format fmt_next);
 
     void set_optimization_attribute(optimization_attributes_type attribute, int32_t val);
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
+
+    void set_implementation_forcing(const implementation_forcing_map& map);
 
     bool is_format_optimized(const convolution_node& node, const format& format);
     bool is_format_optimized(const deconvolution_node& node, const format& format);

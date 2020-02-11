@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 #include <gtest/gtest.h>
-#include "gna_plugin/gna_memory.hpp"
+#include "memory/gna_memory.hpp"
 
-using namespace GNAPluginNS;
+using namespace GNAPluginNS::memory;
 
 class GNAMemoryTest : public ::testing::Test {
 

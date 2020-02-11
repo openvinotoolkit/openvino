@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,9 @@ namespace vpu {
 namespace {
 
 class RegionYoloStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<RegionYoloStage>(*this);
@@ -59,30 +62,20 @@ private:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeOldBuffer(handle_from_this(), serializer);
-        output->serializeOldBuffer(handle_from_this(), serializer);
+        input->serializeNewBuffer(serializer);
+        output->serializeNewBuffer(serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseRegionYolo(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseRegionYolo(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
     auto mask = layer->GetParamAsInts("mask", {});
 
-    auto stage = model->addNewStage<RegionYoloStage>(
-        layer->name,
-        StageType::RegionYolo,
-        layer,
-        inputs,
-        outputs);
-
+    auto stage = model->addNewStage<RegionYoloStage>(layer->name, StageType::RegionYolo, layer, inputs, outputs);
     stage->attrs().set<int>("classes", layer->GetParamAsInt("classes", 20));
     stage->attrs().set<int>("coords", layer->GetParamAsInt("coords", 4));
     stage->attrs().set<int>("num", layer->GetParamAsInt("num", 5));

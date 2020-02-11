@@ -99,6 +99,9 @@ struct jit_avx512_core_x8s8s32x_1x1_conv_kernel: public jit_generator {
     const Xbyak::Reg64 reg_d_bias = reduce_loop_iter;
     const Xbyak::Reg64 reg_oc_off = aux_reg_load_data;
 
+    Xbyak::Zmm zmm_d_weights = Xbyak::Zmm(31);
+    Xbyak::Zmm zmm_d_bias = Xbyak::Zmm(30);
+
     reg64_t reg_last_load = r8;
     mask_t ktail_mask = k6;
 

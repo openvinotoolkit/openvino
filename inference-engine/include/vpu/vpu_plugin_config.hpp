@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,10 +53,9 @@ namespace VPUConfigParams {
 DECLARE_VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION);
 
 /**
- * @brief The key to specify desirable log level for devices.
- * This option should be used with values: CONFIG_VALUE(LOG_NONE) (default),
- * CONFIG_VALUE(LOG_WARNING), CONFIG_VALUE(LOG_INFO), CONFIG_VALUE(LOG_DEBUG)
+ * @deprecated Use CONFIG_KEY(LOG_LEVEL) instead.
  */
+INFERENCE_ENGINE_DEPRECATED("Use CONFIG_KEY(LOG_LEVEL) instead")
 DECLARE_VPU_CONFIG_KEY(LOG_LEVEL);
 
 /**
@@ -64,7 +63,7 @@ DECLARE_VPU_CONFIG_KEY(LOG_LEVEL);
  * @brief The key to define normalization coefficient for the network input.
  * This option should used with be a real number. Example "255.f"
  */
-INFERENCE_ENGINE_DEPRECATED
+INFERENCE_ENGINE_DEPRECATED("")
 DECLARE_VPU_CONFIG_KEY(INPUT_NORM);
 
 /**
@@ -72,7 +71,7 @@ DECLARE_VPU_CONFIG_KEY(INPUT_NORM);
  * @brief The flag to specify Bias value that is added to each element of the network input.
  * This option should used with be a real number. Example "0.1f"
  */
-INFERENCE_ENGINE_DEPRECATED
+INFERENCE_ENGINE_DEPRECATED("")
 DECLARE_VPU_CONFIG_KEY(INPUT_BIAS);
 
 /**
@@ -82,18 +81,14 @@ DECLARE_VPU_CONFIG_KEY(INPUT_BIAS);
 DECLARE_VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME);
 
 /**
- * @brief This option allows to pass extra configuration for executable network.
- * By default, it is empty string, which means - no configuration.
- * String format:
- * <key>=<value>,<key>=<value>,...
- * Supported parameters and options:
- *   * file : path to XML file with configuration
- *   * data : options related to data objects (input, output, intermediate), next parameter describes the option
- *     * scale : SCALE factor for data range (applicable for input and intermediate data)
+ * @deprecated The data scaling now works automatically.
  */
+INFERENCE_ENGINE_DEPRECATED("The data scaling now works automatically")
 DECLARE_VPU_CONFIG_KEY(NETWORK_CONFIG);
 
 /**
+ * @deprecated Use InputInfo::setLayout on input data from ICNNNetwork::getInputsInfo() or
+ * Data::setLayout on output data from ICNNNetwork::getOutputsInfo()
  * @brief This option allows to to specify input output layouts for network layers.
  * By default, this value set to VPU_CONFIG_VALUE(AUTO) value.
  * Supported values:
@@ -101,15 +96,23 @@ DECLARE_VPU_CONFIG_KEY(NETWORK_CONFIG);
  *   VPU_CONFIG_VALUE(NCHW) executable network forced to use NCHW input/output layouts
  *   VPU_CONFIG_VALUE(NHWC) executable network forced to use NHWC input/output layouts
  */
+INFERENCE_ENGINE_DEPRECATED("Use InputInfo::setLayout on input data from ICNNNetwork::getInputsInfo() or" \
+    "Data::setLayout on output data from ICNNNetwork::getOutputsInfo()")
 DECLARE_VPU_CONFIG_KEY(COMPUTE_LAYOUT);
 
 /**
+ * @deprecated See VPU_CONFIG_KEY(COMPUTE_LAYOUT) deprecation info.
  * @brief Supported keys definition for VPU_CONFIG_KEY(COMPUTE_LAYOUT) option.
  */
+INFERENCE_ENGINE_DEPRECATED("See VPU_CONFIG_KEY(COMPUTE_LAYOUT) deprecation info")
 DECLARE_VPU_CONFIG_VALUE(AUTO);
+INFERENCE_ENGINE_DEPRECATED("See VPU_CONFIG_KEY(COMPUTE_LAYOUT) deprecation info")
 DECLARE_VPU_CONFIG_VALUE(NCHW);
+INFERENCE_ENGINE_DEPRECATED("See VPU_CONFIG_KEY(COMPUTE_LAYOUT) deprecation info")
 DECLARE_VPU_CONFIG_VALUE(NHWC);
+INFERENCE_ENGINE_DEPRECATED("See VPU_CONFIG_KEY(COMPUTE_LAYOUT) deprecation info")
 DECLARE_VPU_CONFIG_VALUE(NCDHW);
+INFERENCE_ENGINE_DEPRECATED("See VPU_CONFIG_KEY(COMPUTE_LAYOUT) deprecation info")
 DECLARE_VPU_CONFIG_VALUE(NDHWC);
 
 /**
@@ -140,21 +143,21 @@ DECLARE_VPU_MYRIAD_CONFIG_VALUE(USB);
 /**
  * @deprecated Use VPU_MYRIAD_CONFIG_KEY(FORCE_RESET) instead.
  */
-INFERENCE_ENGINE_DEPRECATED
+INFERENCE_ENGINE_DEPRECATED("Use VPU_MYRIAD_CONFIG_KEY(FORCE_RESET) instead")
 DECLARE_VPU_CONFIG_KEY(FORCE_RESET);
 
 /**
  * @deprecated Use VPU_MYRIAD_CONFIG_KEY(PLATFORM) instead.
  */
-INFERENCE_ENGINE_DEPRECATED
+INFERENCE_ENGINE_DEPRECATED("Use VPU_MYRIAD_CONFIG_KEY(PLATFORM) instead")
 DECLARE_VPU_CONFIG_KEY(PLATFORM);
 
 /**
  * @brief Supported keys definition for DECLARE_VPU_CONFIG_KEY(PLATFORM) option.
  */
-INFERENCE_ENGINE_DEPRECATED
+INFERENCE_ENGINE_DEPRECATED("")
 DECLARE_VPU_CONFIG_VALUE(2450);
-INFERENCE_ENGINE_DEPRECATED
+INFERENCE_ENGINE_DEPRECATED("")
 DECLARE_VPU_CONFIG_VALUE(2480);
 
 }  // namespace VPUConfigParams

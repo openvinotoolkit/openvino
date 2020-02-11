@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_graph.h"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
-#include <mkldnn_plugin/mkldnn_extension_mngr.h>
+#include <mkldnn_extension_utils.h>
+#include <mkldnn_extension_mngr.h>
 #include "tests_common.hpp"
 #include "../test_graph.hpp"
 
@@ -115,7 +115,7 @@ TEST_F(MKLDNNGraphOptimizationTests, TestNoFuseConvSumWithOneInput) {
     ASSERT_FALSE(fused);
 }
 
-TEST_F(MKLDNNGraphOptimizationTests, TestNoCrashForFuseConvSumAndInput) {
+TEST_F(MKLDNNGraphOptimizationTests, DISABLED_TestNoCrashForFuseConvSumAndInput) {
     std::string model = R"V0G0N(
 <net name="AlexNet" version="2" batch="1">
     <layers>
@@ -288,11 +288,6 @@ class FakeReLUFactory : public InferenceEngine::ILayerImplFactory {
 public:
     FakeReLUFactory(const InferenceEngine::CNNLayer *layer) {
         cnnLayer = const_cast<InferenceEngine::CNNLayer *>(layer);
-    }
-    // set output shapes by input shapes.
-    InferenceEngine::StatusCode getShapes(const std::vector<InferenceEngine::TensorDesc>& inShapes, std::vector<InferenceEngine::TensorDesc>& outShapes, InferenceEngine::ResponseDesc *resp) noexcept override {
-        outShapes.push_back(inShapes[0]);
-        return InferenceEngine::OK;
     }
     // First implementation has more priority than next
     InferenceEngine::StatusCode getImplementations(std::vector<InferenceEngine::ILayerImpl::Ptr>& impls, InferenceEngine::ResponseDesc *resp) noexcept override {

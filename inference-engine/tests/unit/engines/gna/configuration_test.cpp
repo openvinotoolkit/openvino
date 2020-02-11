@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 #include <mock_icnn_network.hpp>
-#include "gna_plugin/gna_plugin_config.hpp"
 #include "gna_matcher.hpp"
 #include "test_irs.hpp"
 
@@ -14,7 +13,7 @@ using namespace InferenceEngine;
 using namespace GNAPluginNS;
 using namespace ::testing;
 
-class GNAConfigTest : public GNATest {
+class GNAConfigTest : public GNATest<> {
 
  protected:
     MockICNNNetwork net;
@@ -22,38 +21,6 @@ class GNAConfigTest : public GNATest {
     void SetUp() override  {
     }
 };
-
-TEST_F(GNAConfigTest, reportAnErrorIfConfigNotFound) {
-
-    Config c ({{TargetDevice :: eGNA, {Precision::I16}},
-               {TargetDevice :: eCPU, {Precision::FP32}}});
-
-    EXPECT_CALL(net, getPrecision()).WillRepeatedly(Return(Precision::FP32));
-
-    ASSERT_ANY_THROW(c.find_configuration(net));
-}
-
-TEST_F(GNAConfigTest, canNotMatchWithDefaultDevice) {
-
-    Config c ({{TargetDevice :: eGNA, {Precision::I16}},
-               {TargetDevice :: eCPU, {Precision::FP32}}});
-
-    c.setDefaultDevice(TargetDevice::eGNA);
-
-    EXPECT_CALL(net, getPrecision()).WillRepeatedly(Return(Precision::FP32));
-
-    EXPECT_ANY_THROW(c.find_configuration(net).convert(net));
-}
-
-TEST_F(GNAConfigTest, canMatchWithDefaultDevice) {
-
-    Config c ({{TargetDevice :: eGNA, {Precision::I16}},
-               {TargetDevice :: eCPU, {Precision::FP32}}});
-
-    c.setDefaultDevice(TargetDevice::eGNA);
-
-    EXPECT_CALL(net, getPrecision()).WillRepeatedly(Return(Precision::I16));
-}
 
 TEST_F(GNAConfigTest, canMatchWith1AsyncThread) {
     assert_that()

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,11 @@ class GNAPluginInternal  : public InferenceEngine::InferencePluginInternal {
                                                 const std::map<std::string, std::string> &config) override {
         return make_executable_network(std::make_shared<GNAExecutableNetwork>(modelFileName, config));
     }
+    InferenceEngine::ExecutableNetwork ImportNetwork(
+                                        std::istream &,
+                                        const std::map<std::string, std::string> &) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
 
     std::string GetName() const noexcept override {
         auto plg = std::make_shared<GNAPlugin>();
@@ -39,22 +44,13 @@ class GNAPluginInternal  : public InferenceEngine::InferencePluginInternal {
         return network;
     }
 
-    /**
-     * @deprecated Use the version with config parameter
-     */
-    void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
-                      InferenceEngine::QueryNetworkResult& res) const override {
-        auto plg = std::make_shared<GNAPlugin>();
-        plg->QueryNetwork(network, {}, res);
-    }
-
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                       const std::map<std::string, std::string>& config,
                       InferenceEngine::QueryNetworkResult& res) const override {
         auto plg = std::make_shared<GNAPlugin>();
         try {
             plg->SetConfig(config);
-        } catch (InferenceEngine::details::InferenceEngineException& e) {}
+        } catch (InferenceEngine::details::InferenceEngineException) {}
         plg->QueryNetwork(network, config, res);
     }
 

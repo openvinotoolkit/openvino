@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 """
 
 from extensions.ops.topk import TopK
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat
@@ -49,7 +48,8 @@ class ArgMaxToTopK(MiddleReplacementPattern):
             axis = node.axis
 
         assert axis is not None, 'The "axis" should be defined for node "{}"'.format(node.soft_get('name'))
-        topk_node = TopK(graph, {'axis': axis, 'mode': 'max', 'sort': 'index'}).create_node()
+        topk_node = TopK(graph, {'axis': axis, 'mode': 'max', 'sort': 'index',
+                                 'remove_values_output': node.has_and_set('remove_values_output')}).create_node()
         node.in_port(0).get_connection().set_destination(topk_node.in_port(0))
         if node.has_and_set('out_max_val'):  # in this mode the ArgMax produces tuples (max_ind, max_value)
             concat_node = Concat(graph, {'axis': 1, 'name': node.name + '/Concat'}).create_node()

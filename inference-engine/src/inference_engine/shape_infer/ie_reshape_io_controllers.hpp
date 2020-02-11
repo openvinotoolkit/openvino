@@ -1,20 +1,21 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <string>
-#include <vector>
+#include <ie_layers.h>
+
 #include <list>
 #include <map>
-#include <set>
 #include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
-#include <ie_layers.h>
-#include "shape_infer/built-in/ie_built_in_holder.hpp"
-#include "../debug.h"
+#include "debug.h"
 #include "ie_reshape_launcher.hpp"
+#include "shape_infer/built-in/ie_built_in_holder.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -40,8 +41,7 @@ public:
 
 class InputController {
 public:
-    InputController(const std::vector<DataPtr>& dataVec,
-                    const std::string& layerName,
+    InputController(const std::vector<DataPtr>& dataVec, const std::string& layerName,
                     const DefaultChecker::Ptr& checker = std::make_shared<DefaultChecker>());
 
     virtual ~InputController() = default;
@@ -74,8 +74,8 @@ public:
     virtual std::vector<SizeVector> getShapes(bool check);
 
     /**
-     * @brief Returns shapes from IR. If Controller was initialized irShapesOnInit=false, it accesses Data object of Layer
-     * If not, all shapes from IR are collected on Controller's construction.
+     * @brief Returns shapes from IR. If Controller was initialized irShapesOnInit=false, it accesses Data object of
+     * Layer If not, all shapes from IR are collected on Controller's construction.
      * @note Shapes are in topological order.
      * @return shapes from IR
      */
@@ -119,12 +119,12 @@ protected:
 };
 
 /**
- * @brief Keeps calculated output shapes, distribute (propagate) them to the connected layers, applies output shapes to the Data object
+ * @brief Keeps calculated output shapes, distribute (propagate) them to the connected layers, applies output shapes to
+ * the Data object
  */
 class OutputController : public InputController {
 public:
-    OutputController(const std::vector<DataPtr>& inData,
-                     const std::string& layerName,
+    OutputController(const std::vector<DataPtr>& inData, const std::string& layerName,
                      const DefaultChecker::Ptr& checker = std::make_shared<DefaultChecker>());
 
     /**

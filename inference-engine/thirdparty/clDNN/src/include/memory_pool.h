@@ -30,6 +30,7 @@
 namespace cldnn {
 
 struct memory_impl;
+struct shared_mem_params;
 struct engine_impl;
 struct program_impl;
 struct memory_user;
@@ -39,21 +40,18 @@ using memory_set = std::set<memory_user, memory_user_comparer>;
 struct memory_user {
     primitive_id _id;
     uint32_t _network_id;
-    uint16_t _stream_id;
 
-    memory_user(primitive_id id, uint32_t network_id, uint16_t stream_id)
-        : _id(id), _network_id(network_id), _stream_id(stream_id) {}
+    memory_user(primitive_id id, uint32_t network_id)
+        : _id(id), _network_id(network_id) {}
 
     friend std::ostream& operator<<(std::ostream& os, const memory_user& memory_user) {
-        os << memory_user._id << "(" << memory_user._network_id << memory_user._stream_id << ")";
+        os << memory_user._id << "(" << memory_user._network_id << ")";
         return os;
     }
 };
 
 struct memory_user_comparer {
     bool operator()(const memory_user& l_mu, const memory_user& r_mu) const {
-        if (l_mu._stream_id != r_mu._stream_id)
-            return l_mu._stream_id < r_mu._stream_id;
         if (l_mu._network_id != r_mu._network_id)
             return l_mu._network_id < r_mu._network_id;
         return l_mu._id < r_mu._id;
@@ -64,9 +62,8 @@ struct memory_record {
     memory_set _users;  // list of primitives that already use this memory object
     refcounted_obj_ptr<memory_impl> _memory;
     uint32_t _network_id;
-    uint16_t _stream_id;
 
-    memory_record(memory_set users, refcounted_obj_ptr<memory_impl>& memory, uint32_t net_id, uint16_t stream_id);
+    memory_record(memory_set users, refcounted_obj_ptr<memory_impl>& memory, uint32_t net_id);
 };
 
 struct padded_pool_comparer {
@@ -106,13 +103,13 @@ struct padded_pool_comparer {
 class memory_pool {
     memory_pool();
 
-    refcounted_obj_ptr<memory_impl> alloc_memory(const layout& layout, uint16_t stream_id);
-    static bool has_conflict(const memory_set&, const std::set<primitive_id>&, uint32_t, uint16_t stream_id);
+    refcounted_obj_ptr<memory_impl> alloc_memory(const layout& layout, uint32_t net_id);
+    static bool has_conflict(const memory_set&, const std::set<primitive_id>&, uint32_t network_id);
 
     std::multimap<uint64_t, memory_record> _non_padded_pool;
     std::map<layout, std::list<memory_record>, padded_pool_comparer> _padded_pool;
     std::multimap<uint64_t, memory_record> _no_reusable_pool;
-    refcounted_obj_ptr<engine_impl> _engine;
+    engine_impl* _engine;
     std::atomic<uint64_t> _temp_memory_used;
     uint64_t _max_peak_memory_used;
 
@@ -123,23 +120,20 @@ public:
                                                const primitive_id& id,
                                                uint32_t network_id,
                                                const std::set<primitive_id>& restrictions,
-                                               uint16_t stream_id,
                                                bool reusable = true);  // get from pool or create memory allocation
-    refcounted_obj_ptr<memory_impl> get_memory(const layout& layout, uint16_t stream_id);
+    refcounted_obj_ptr<memory_impl> get_memory(const layout& layout, uint32_t net_id);
+    refcounted_obj_ptr<memory_impl> get_memory(const layout& layout, const shared_mem_params* params, uint32_t net_id);
     refcounted_obj_ptr<memory_impl> get_from_non_padded_pool(const layout& layout,
                                                              const primitive_id& id,
                                                              uint32_t network_id,
-                                                             const std::set<primitive_id>&,
-                                                             uint16_t stream_id);
+                                                             const std::set<primitive_id>&);
     refcounted_obj_ptr<memory_impl> get_from_padded_pool(const layout& layout,
                                                          const primitive_id& id,
                                                          uint32_t network_id,
-                                                         const std::set<primitive_id>& restrictions,
-                                                         uint16_t stream_id);
+                                                         const std::set<primitive_id>& restrictions);
     refcounted_obj_ptr<memory_impl> get_from_across_networks_pool(const layout& layout,
                                                                   const primitive_id& id,
-                                                                  uint32_t network_id,
-                                                                  uint16_t stream_id);
+                                                                  uint32_t network_id);
     void clear_pool();
     void color_graph(const program_impl&);
     void dump_memory_pool(const program_impl&, std::string&, std::string&);

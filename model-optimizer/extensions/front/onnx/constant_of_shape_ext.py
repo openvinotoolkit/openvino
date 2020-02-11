@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,9 +25,9 @@ class ConstantOfShapeExtractor(FrontExtractorOp):
     op = 'ConstantOfShape'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         fill_value = onnx_attr(node, 'value', 't', default=np.array([0.0]), dst_type=lambda x: numpy_helper.to_array(x))
 
         ConstantOfShape.update_node_stat(node, {'fill_value': fill_value})
-        return __class__.enabled
+        return cls.enabled

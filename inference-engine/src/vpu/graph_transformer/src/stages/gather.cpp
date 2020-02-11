@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,7 @@
 
 namespace vpu {
 
-void FrontEnd::parseGather(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseGather(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 1);
     auto layer = std::dynamic_pointer_cast<ie::GatherLayer>(_layer);
@@ -36,27 +32,21 @@ void FrontEnd::parseGather(
 namespace {
 
 class GatherStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<GatherStage>(*this);
     }
 
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>& inputScales,
-            ScalePropagationStep step,
-            StageDataInfo<float>& scaleInfo) override {
-         if (step == ScalePropagationStep::Propagate) {
-             scaleInfo.setOutput(outputEdge(0), inputScales[0]);
-         } else {
-             // Gather can only propagate scaling.
-             for (const auto& inEdge : inputEdges()) {
-                 scaleInfo.setInput(inEdge, 1.0f);
-             }
-             scaleInfo.setOutput(outputEdge(0), 1.0f);
-         }
-    }
-
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+        auto input1 = inputEdge(0)->input();
+        auto input2 = inputEdge(1)->input();
+        auto output = outputEdge(0)->output();
+        orderInfo.setInput(inputEdge(0), DimsOrder::fromNumDims(input1->desc().numDims()));
+        orderInfo.setInput(inputEdge(1), DimsOrder::fromNumDims(input2->desc().numDims()));
+        orderInfo.setOutput(outputEdge(0), DimsOrder::fromNumDims(output->desc().numDims()));
     }
 
     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
@@ -73,11 +63,12 @@ protected:
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
-        return StageSHAVEsRequirements::NotNeeded;
+        return StageSHAVEsRequirements::OnlyOne;
     }
 
     void initialCheckImpl() const override {
-        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
+        const auto& srcType = input(0)->desc().type();
+        assertInputsOutputsTypes(this, {{srcType}, {DataType::FP16, DataType::S32}}, {{srcType}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -103,7 +94,7 @@ protected:
 }  // namespace
 
 Stage StageBuilder::addGatherStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         const Data& input0,

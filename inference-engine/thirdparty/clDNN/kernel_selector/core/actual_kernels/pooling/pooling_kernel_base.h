@@ -28,6 +28,7 @@ struct pooling_params : public base_params {
     PoolType poolType = PoolType::MAX;
     PoolRemainder remainderAction = PoolRemainder::FLOOR;
     KernelDividerMode divMode = KernelDividerMode::DONT_CARE;
+    QuantizationType quantization = QuantizationType::SYMMETRIC;
     uSize poolSize;
     uSize poolStride;
     uSize poolPad;
@@ -67,7 +68,9 @@ protected:
     virtual JitConstants GetJitConstants(const pooling_params& params, DispatchData kd) const;
     virtual DispatchData SetDefault(const pooling_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
-
+    Datatype GetAccumulatorType(const pooling_params& p) const;
+    Datatype GetActivationType(const pooling_params& params) const;
     bool NeedsBoundaryCheck(const pooling_params& params) const;
+    bool EnableRound(const pooling_params& params) const;
 };
 }  // namespace kernel_selector

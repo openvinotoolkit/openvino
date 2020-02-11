@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,16 +49,34 @@ class ConsoleErrorListener : public InferenceEngine::IErrorListener {
 };
 
 /**
- * @brief Trims from both ends (in place)
+ * @brief trim from start (in place)
  * @param s - string to trim
- * @return trimmed string
  */
-inline std::string &trim(std::string &s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-    s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
-    return s;
+inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int c){
+        return !std::isspace(c);
+    }));
 }
 
+/**
+ * @brief trim from end (in place)
+ * @param s - string to trim
+ */
+inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](int c) {
+        return !std::isspace(c);
+    }).base(), s.end());
+}
+
+/**
+ * @brief trim from both ends (in place)
+ * @param s - string to trim
+ */
+inline std::string &trim(std::string &s) {
+    ltrim(s);
+    rtrim(s);
+    return s;
+}
 /**
  * @brief Gets filename without extension
  * @param filepath - full file name
@@ -1020,12 +1038,15 @@ inline std::size_t getTensorWidth(const InferenceEngine::TensorDesc& desc) {
     const auto& dims = desc.getDims();
     const auto& size = dims.size();
     if ((size >= 2) &&
-        (layout == InferenceEngine::Layout::NCHW  ||
-         layout == InferenceEngine::Layout::NHWC  ||
-         layout == InferenceEngine::Layout::NCDHW ||
-         layout == InferenceEngine::Layout::NDHWC ||
-         layout == InferenceEngine::Layout::OIHW  ||
-         layout == InferenceEngine::Layout::CHW   ||
+        (layout == InferenceEngine::Layout::NCHW   ||
+         layout == InferenceEngine::Layout::NHWC   ||
+         layout == InferenceEngine::Layout::NCDHW  ||
+         layout == InferenceEngine::Layout::NDHWC  ||
+         layout == InferenceEngine::Layout::OIHW   ||
+         layout == InferenceEngine::Layout::GOIHW  ||
+         layout == InferenceEngine::Layout::OIDHW  ||
+         layout == InferenceEngine::Layout::GOIDHW ||
+         layout == InferenceEngine::Layout::CHW    ||
          layout == InferenceEngine::Layout::HW)) {
         // Regardless of layout, dimensions are stored in fixed order
         return dims.back();
@@ -1040,12 +1061,15 @@ inline std::size_t getTensorHeight(const InferenceEngine::TensorDesc& desc) {
     const auto& dims = desc.getDims();
     const auto& size = dims.size();
     if ((size >= 2) &&
-        (layout == InferenceEngine::Layout::NCHW  ||
-         layout == InferenceEngine::Layout::NHWC  ||
-         layout == InferenceEngine::Layout::NCDHW ||
-         layout == InferenceEngine::Layout::NDHWC ||
-         layout == InferenceEngine::Layout::OIHW  ||
-         layout == InferenceEngine::Layout::CHW   ||
+        (layout == InferenceEngine::Layout::NCHW   ||
+         layout == InferenceEngine::Layout::NHWC   ||
+         layout == InferenceEngine::Layout::NCDHW  ||
+         layout == InferenceEngine::Layout::NDHWC  ||
+         layout == InferenceEngine::Layout::OIHW   ||
+         layout == InferenceEngine::Layout::GOIHW  ||
+         layout == InferenceEngine::Layout::OIDHW  ||
+         layout == InferenceEngine::Layout::GOIDHW ||
+         layout == InferenceEngine::Layout::CHW    ||
          layout == InferenceEngine::Layout::HW)) {
         // Regardless of layout, dimensions are stored in fixed order
         return dims.at(size - 2);

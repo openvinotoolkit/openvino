@@ -21,9 +21,11 @@ namespace kernel_selector {
 ParamsKey ActivationKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableAllInputLayout();
@@ -40,7 +42,7 @@ ActivationKernelOpt::Parent::DispatchData ActivationKernelOpt::SetDefault(const 
     const auto totalSize = params.inputs[0].LogicalSize();
 
     std::vector<size_t> global = {totalSize / NUM_COLS_WI};
-    std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global);
+    std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     runInfo.gws0 = global[0];
     runInfo.gws1 = 1;
@@ -78,6 +80,17 @@ bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) co
             return false;
     }
 
+    // Opt kernel supports fused activations without extra inputs, since
+    // it can't calculate correct offset for tensors with different layout.
+    for (auto& op : params.fused_ops) {
+        if (!op.tensors.empty()) {
+            for (auto& t : op.tensors) {
+                if (!(t == params.inputs[0]))
+                    return false;
+            }
+        }
+    }
+
     return true;
 }
 
@@ -85,6 +98,11 @@ JitConstants ActivationKernelOpt::GetJitConstants(const activation_params& param
     auto jit = ActivationKernelBase::GetJitConstants(params, kd);
 
     jit.AddConstant(MakeJitConstant("NUM_COLS_WI", NUM_COLS_WI));
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetUnitType(params);
+        FusedOpsConfiguration conf = {"", {"x"}, "v", input_dt, 4, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED, IndexType::LINEAR_OFFSET };
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
 
     return jit;
 }

@@ -16,6 +16,7 @@
 #pragma once
 
 #include "pooling_kernel_base.h"
+#include <vector>
 
 namespace kernel_selector {
 class PoolingKerneGPU_b_fs_yx_fsv4 : public PoolingKernelBase {
@@ -26,6 +27,12 @@ public:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     DispatchData SetDefault(const pooling_params& params) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ELTWISE,
+                 FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
 
 protected:
     JitConstants GetJitConstants(const pooling_params& params, DispatchData kd) const override;

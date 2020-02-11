@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.back.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
+from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout, \
     mark_input_as_in_correct_layout, mark_output_as_in_correct_layout
 from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
@@ -29,6 +29,7 @@ class DepthToSpace(MiddleReplacementPattern):
     """
 
     enabled = True
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     def run_after(self):
         from extensions.middle.pass_separator import MiddleStart
@@ -59,9 +60,9 @@ class DepthToSpace(MiddleReplacementPattern):
         graph.remove_edge(match['in_data'].id, node.id)
         graph.remove_edge(node.id, match['out_data'].id)
 
-        dim_6D = int64_array([N, block_size, block_size, int(C / (block_size ** 2)), H, W])
+        dim_6D = int64_array([0, block_size, block_size, int(C / (block_size ** 2)), H, W])
         order_6D = int64_array([0, 3, 4, 1, 5, 2])
-        dim_4D = int64_array([N, int(H * block_size), int(W * block_size), int(C / (block_size ** 2))])
+        dim_4D = int64_array([0, int(H * block_size), int(W * block_size), int(C / (block_size ** 2))])
 
         reshape_6_op = Reshape(graph, dict(name=node.id + '/Reshape_to_6D'))
         reshape_6_const_data = Const(graph, dict(value=dim_6D)).create_node_with_data()

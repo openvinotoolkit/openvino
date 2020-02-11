@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,11 @@
 
 namespace ExecGraphInfoSerialization {
 /**
-* @brief Executable Graph Info is represented in ICNNNetwork format with general CNNLayer nodes inside
-*        including connections between the nodes. Each node describes an executable hardware-specific
-*        primitive and stores its parameters within CNNLayer::params map.
-*        There is a list of general keys for the parameters map.
-*/
+ * @brief Executable Graph Info is represented in ICNNNetwork format with general CNNLayer nodes inside
+ *        including connections between the nodes. Each node describes an executable hardware-specific
+ *        primitive and stores its parameters within CNNLayer::params map.
+ *        There is a list of general keys for the parameters map.
+ */
 
 /**
  * @brief A general key for CNNLayer::params map. Used to get a string of layer names separated by a comma

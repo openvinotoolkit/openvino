@@ -23,8 +23,8 @@ KERNEL(normalization)(__global const INPUT0_TYPE* input, __global OUTPUT_TYPE* o
 {
     const uint b = get_global_id(GWS_BATCH);
     const uint f = get_global_id(GWS_FEATURE);
-    const uint y = get_global_id(GWS_YX) / INPUT0_SIZE_X;
-    const uint x = get_global_id(GWS_YX) % INPUT0_SIZE_X;
+    const uint y = (uint)get_global_id(GWS_YX) / INPUT0_SIZE_X;
+    const uint x = (uint)get_global_id(GWS_YX) % INPUT0_SIZE_X;
 
     const uint input_index  = GET_DATA_INDEX(INPUT0, b, f, y, x);
     const uint output_index = GET_DATA_INDEX(OUTPUT, b, f, y, x);

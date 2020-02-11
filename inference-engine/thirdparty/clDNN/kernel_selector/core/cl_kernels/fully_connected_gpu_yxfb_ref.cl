@@ -34,6 +34,9 @@ KERNEL (fully_connected_gpu_yxfn)(
 #if BIAS_TERM
     , const __global BIAS_TYPE* biases
 #endif
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
     )
 {
     const uint x = get_global_id(0);
@@ -66,5 +69,14 @@ KERNEL (fully_connected_gpu_yxfn)(
 #if BIAS_TERM
     result += biases[neuronIdx];
 #endif
-    output[output_idx] = ACTIVATION(result, ACTIVATION_PARAMS);
+
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    OUTPUT_TYPE res = FINAL_NAME;
+
+    output[output_idx] = res;
+#else
+    output[output_idx] = ACTIVATION(result, ACTIVATION_PARAMS);;
+#endif
+
 }

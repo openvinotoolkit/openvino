@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,11 +22,11 @@ class SoftmaxFrontExtractor(FrontExtractorOp):
     op = 'Softmax'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         # the default value for the TF Softmax is -1
         axis = -1
         if 'axis' in node.pb.attr:
             axis = node.pb.attr['axis'].i
         Softmax.update_node_stat(node, {'axis': axis})
-        return __class__.enabled
+        return cls.enabled

@@ -57,7 +57,7 @@ JitConstants EmbedKernelRef::GetJitConstants(const embed_params& params) const {
 EmbedKernelRef::DispatchData EmbedKernelRef::SetDefault(const embed_params& params) const {
     DispatchData kd;
     std::vector<size_t> global = {params.inputs[0].X().v, params.weights.OFM().v, params.inputs[0].Batch().v};
-    std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global);
+    std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

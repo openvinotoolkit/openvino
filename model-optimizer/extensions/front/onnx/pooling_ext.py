@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,54 +28,54 @@ class AveragePoolFrontExtractor(FrontExtractorOp):
     op = 'AveragePool'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = common_onnx_pool_extractor(node)
 
         Pooling.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class MaxPoolFrontExtractor(FrontExtractorOp):
     op = 'MaxPool'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = common_onnx_pool_extractor(node)
 
         Pooling.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class GlobalAveragePoolFrontExtractor(FrontExtractorOp):
     op = 'GlobalAveragePool'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = common_onnx_pool_extractor(node)
         attrs.update({'pooling_convention': 'full',
                       'global_pool': True,
                      })
 
         Pooling.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class GlobalMaxPoolFrontExtractor(FrontExtractorOp):
     op = 'GlobalMaxPool'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = common_onnx_pool_extractor(node)
         attrs.update({'pooling_convention': 'full',
                       'global_pool': True,
                      })
 
         Pooling.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 def common_onnx_pool_extractor(node):

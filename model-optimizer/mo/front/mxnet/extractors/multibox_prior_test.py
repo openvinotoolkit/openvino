@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -34,12 +34,7 @@ class TestMultiBoxPrior_Parsing(unittest.TestCase):
         res = multi_box_prior_ext(AttrDictionary(attrs))
         exp_attrs = {
             'type': 'PriorBox',
-            'img_size': 0,
-            'img_h': 0,
-            'img_w': 0,
             'step': 0.02666666666666667,
-            'step_h': 0,
-            'step_w': 0,
             'offset': 0.5,
             'variance': '0.100000,0.100000,0.200000,0.200000',
             'flip': 0,

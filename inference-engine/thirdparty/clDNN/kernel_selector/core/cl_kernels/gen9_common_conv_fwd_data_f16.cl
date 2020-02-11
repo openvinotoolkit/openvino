@@ -13,6 +13,9 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
+#include "include/include_all.cl"
+#include "include/unit_type.cl"
+
 #define WITH_ELTWISE 1
 
 #if WITH_ELTWISE == 1
@@ -56,6 +59,9 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #endif
 #if CALIBRATION_TERM
     __global float* calibrations,
+#endif
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
 #endif
     uint split_idx) 
 {
@@ -1125,6 +1131,11 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #if OW % OW_BLOCK != 0
     if (ow + OW_BLOCK > OW) {
         for (int i = 0; i < OW - OW_LAST; i++) {
+
+#if HAS_FUSED_OPS
+            { FUSED_OPS_SCALAR0; blockC00[i] = FINAL_NAME_SCALAR0; }
+#endif
+
             intel_sub_group_block_write_us(
                     (__global ushort *)(&dst_write0[i * OC_BLOCK]),
                     as_ushort(blockC00[i]));
@@ -1135,14 +1146,29 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #if OW_BLOCK != 8 && OW_BLOCK != 16
         __attribute__((opencl_unroll_hint(OW_BLOCK))) // attr:no-format
         for (int i = 0; i < OW_BLOCK; i++) {
+
+#if HAS_FUSED_OPS
+            { FUSED_OPS_SCALAR0; blockC00[i] = FINAL_NAME_SCALAR0; }
+#endif
+
             intel_sub_group_block_write_us(
                     (__global ushort *)(&dst_write0[i * OC_BLOCK]),
                     as_ushort(blockC00[i]));
         }
 #else
+
+#if HAS_FUSED_OPS
+    { FUSED_OPS_VEC0; blockC00 = FINAL_NAME_VEC0; }
+#endif
+
     intel_sub_group_block_write_us8(
             (__global ushort *)(&dst_write0[0]), as_ushort8(blockC00));
 #if OW_BLOCK == 16
+
+#if HAS_FUSED_OPS
+    { FUSED_OPS_VEC1; blockC01 = FINAL_NAME_VEC1; }
+#endif
+
     intel_sub_group_block_write_us8(
             (__global ushort *)(&dst_write0[8 * OC_BLOCK]),
             as_ushort8(blockC01));

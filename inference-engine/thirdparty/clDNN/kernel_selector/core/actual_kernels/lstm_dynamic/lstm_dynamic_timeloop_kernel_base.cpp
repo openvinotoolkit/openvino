@@ -93,7 +93,7 @@ LSTM_DynamicTimeloopKernelBase::DispatchData LSTM_DynamicTimeloopKernelBase::Set
     auto out_x_size = out.X().v;
     auto gws0 = out_x_size > 256 ? 256 : out_x_size;
     std::vector<size_t> global = {gws0, out.Batch().v, static_cast<size_t>(params.direction)};
-    const auto& local = GetOptimalLocalWorkGroupSizes(global);
+    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

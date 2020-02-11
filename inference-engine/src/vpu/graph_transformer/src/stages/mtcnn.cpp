@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,9 @@ VPU_DECLARE_ENUM(MTCNN_Mode,
 namespace {
 
 class MTCNNStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<MTCNNStage>(*this);
@@ -83,11 +86,11 @@ private:
         auto input1 = inputEdge(1)->input();
         auto output = outputEdge(0)->output();
 
-        input0->serializeOldBuffer(handle_from_this(), serializer);
-        output->serializeOldBuffer(handle_from_this(), serializer);
+        input0->serializeOldBuffer(this, serializer);
+        output->serializeOldBuffer(this, serializer);
 
         input1->serializeOldBuffer(
-            handle_from_this(),
+            this,
             serializer,
             DimsOrder::HWC,
             {{Dim::W, {Dim::C}}});
@@ -101,7 +104,7 @@ public:
     }
 
     const void* getRaw() const override {
-        IE_ASSERT(_desc.totalDimSize() * _desc.elemSize() == _blob.size());
+        IE_ASSERT(desc().totalDimSize() * desc().elemSize() == _blob.size());
         return _blob.data();
     }
 
@@ -128,11 +131,13 @@ ie::CNNNetwork loadSubNetwork(
 
     auto binFileName = fileNameNoExt(fileName) + ".bin";
 
+    IE_SUPPRESS_DEPRECATED_START
     ie::CNNNetReader networkReader;
     networkReader.ReadNetwork(fileName);
     networkReader.ReadWeights(binFileName);
 
     auto network = networkReader.getNetwork();
+    IE_SUPPRESS_DEPRECATED_END
 
     //
     // Set precision of input/output
@@ -174,11 +179,7 @@ ie::CNNNetwork loadSubNetwork(
 
 }  // namespace
 
-void FrontEnd::parseMTCNN(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseMTCNN(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     const auto& env = CompileEnv::get();
 
     ie::details::CaselessEq<std::string> cmp;
@@ -266,18 +267,9 @@ void FrontEnd::parseMTCNN(
     auto innerGraphsDesc = DataDesc({mergedBlob.size()});
     innerGraphsDesc.setType(DataType::U8);
 
-    auto innerGraphs = model->addConstData(
-        layer->name + "@innerGraphs",
-        innerGraphsDesc,
-        std::make_shared<MTCNNBlobContent>(std::move(mergedBlob)));
+    auto innerGraphs = model->addConstData(layer->name + "@innerGraphs", innerGraphsDesc, std::make_shared<MTCNNBlobContent>(std::move(mergedBlob)));
 
-    auto stage = model->addNewStage<MTCNNStage>(
-        layer->name,
-        StageType::MTCNN,
-        layer,
-        {input, innerGraphs},
-        {output});
-
+    auto stage = model->addNewStage<MTCNNStage>(layer->name, StageType::MTCNN, layer, {input, innerGraphs}, {output});
     stage->attrs().set("pyramid", pyramid);
     stage->attrs().set<int>("debug_pnet_post_nms", layer->GetParamAsInt("debug_pnet_post_nms", 0));
     stage->attrs().set<int>("debug_rnet_post_nms", layer->GetParamAsInt("debug_rnet_post_nms", 0));

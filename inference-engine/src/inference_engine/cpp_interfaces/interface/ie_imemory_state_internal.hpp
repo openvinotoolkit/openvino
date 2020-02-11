@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 
 #include <ie_blob.h>
 
-#include <string>
 #include <memory>
+#include <string>
 
 namespace InferenceEngine {
 /**
@@ -18,7 +18,7 @@ public:
     using Ptr = std::shared_ptr<IMemoryStateInternal>;
 
     virtual ~IMemoryStateInternal() = default;
-    virtual std::string GetName() const  = 0;
+    virtual std::string GetName() const = 0;
     virtual void Reset() = 0;
     virtual void SetState(Blob::Ptr newState) = 0;
     virtual Blob::CPtr GetLastState() const = 0;

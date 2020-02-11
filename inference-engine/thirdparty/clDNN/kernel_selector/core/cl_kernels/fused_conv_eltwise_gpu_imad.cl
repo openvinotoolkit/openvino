@@ -15,12 +15,22 @@
 
 #include "include/common.cl"
 #include "include/fetch.cl"
-#include "include/data_types.cl"
 #include "include/imad.cl"
+#if QUANTIZATION_TERM
+#    define ACCUMULATOR_TYPE int
+#    define TO_ACCUMULATOR_TYPE(x) convert_int(x)
+#    define ACTIVATION_TYPE float
+#    define TO_ACTIVATION_TYPE(x) convert_float(x)
+#else
+#    define ACCUMULATOR_TYPE INPUT0_TYPE
+#    define TO_ACCUMULATOR_TYPE(x) TO_INPUT0_TYPE(x)
+#    define ACTIVATION_TYPE INPUT0_TYPE
+#    define TO_ACTIVATION_TYPE(x) TO_INPUT0_TYPE(x)
+#endif
 
 #if NON_BLOCK_LOAD != 1
 // block loads for inputs and weights should be fastest, but compiler seems
-// to do better with a mix, regular loads for inputs and block loads for weights. 
+// to do better with a mix, regular loads for inputs and block loads for weights.
 #define BLOCK_LOAD_WEIGHTS
 #endif
 // Input reading operation is always blocked.
@@ -46,36 +56,27 @@
 // int/uint pointers here instead of INPUT0_TYPE/FILTER_TYPE for convenience
 __attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
 KERNEL (fused_convolution_eltwise_gpu_imad)(
-    const __global uint          *conv_input,
+    const __global PACKED_TYPE   *conv_input,
     __global OUTPUT_TYPE         *output,
-    const __global int           *weights
+    const __global int           *weights,
 #if BIAS_TERM
-    , const __global BIAS_TYPE   *biases
+    const __global BIAS_TYPE     *biases,
 #endif
-#if QUANTIZATION_TERM
-    , const __global float       *quantizations
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
 #endif
-#if CALIBRATION_TERM
-    , const __global float       *calibrations
-#endif
-    , uint split_idx
-// one kernel for both convolution and fused_conv_eltwise
-#ifdef ACTIVATION_ELTW //defined for fused conv+eltwise
-    , const __global OUTPUT_TYPE *eltw_input
-    , const __global float       *eltw_calibrations
-#endif
-)
+    uint split_idx)
 {
-    const uint oc = get_global_id(0) * OUT_BLOCK_WIDTH;  // oc = Output Column
-    const uint or = get_global_id(1) * OUT_BLOCK_HEIGHT; // or = Output Row
+    const uint oc = (uint)get_global_id(0) * OUT_BLOCK_WIDTH;  // oc = Output Column
+    const uint or = (uint)get_global_id(1) * OUT_BLOCK_HEIGHT; // or = Output Row
     const uint fm = get_global_id(2);                    // fm = Feature Map = od = Output Depth, SIMD is across this dimension, WG is 1x1x16
     const uint fmg = get_group_id(2);
     const uint lid = get_local_id(2);
     const uint batch = fm / _OD;
     const uint f = fm % _OD;
 
-    uint in[IN_BLOCK_HEIGHT];
-    int  out[OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT] = { 0 };  // this is the 32 bit signed accumulator that must be converted to 8 bits before final write.
+    PACKED_TYPE in[IN_BLOCK_HEIGHT];
+    ACCUMULATOR_TYPE out[OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT] = { 0 };  // this is the 32 bit signed accumulator that must be converted to 8 bits before final write.
 
     #define NUM_FILTERS (K_HEIGHT * K_WIDTH)
     int w[NUM_FILTERS];
@@ -83,9 +84,9 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
     int in_addr;
 
 #ifdef BLOCK_LOAD_WEIGHTS
-    int weight_addr = (fmg % (_OD / SIMD_SIZE)) * ((_ID * K_HEIGHT * K_WIDTH * SIMD_SIZE) / PACK);
+    int weight_addr = (fmg % ((_OD + SIMD_SIZE - 1) / SIMD_SIZE)) * ((_ID * K_HEIGHT * K_WIDTH * SIMD_SIZE) / PACK);
 #else
-    int weight_addr = (fmg % (_OD / SIMD_SIZE)) * ((_ID * K_HEIGHT * K_WIDTH * SIMD_SIZE) / PACK) + lid;
+    int weight_addr = (fmg % ((_OD + SIMD_SIZE - 1) / SIMD_SIZE)) * ((_ID * K_HEIGHT * K_WIDTH * SIMD_SIZE) / PACK) + lid;
 #endif
 
     uint input_size = (_ID * (_IH + IHPAD) * (_IW + IWPAD)) / PACK; // dividing by PACK to get right number of 32bit entities.
@@ -97,17 +98,17 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
     {
 
 #ifdef BLOCK_LOAD_INPUTS
-        in_addr = kd * (_IH + IHPAD) * (_IW + IWPAD) + (or * K_STRIDE) * (_IW + IWPAD) + (oc * K_STRIDE);
+        in_addr = INPUT0_OFFSET + kd*INPUT0_FEATURE_PITCH + (or * K_STRIDE - PADDING_SIZE_Y)*INPUT0_Y_PITCH + (oc * K_STRIDE - PADDING_SIZE_X);
 #else
-        in_addr = kd * (_IH + IHPAD) * (_IW + IWPAD) + (or * K_STRIDE) * (_IW + IWPAD) + (oc * K_STRIDE) + lid;
+        in_addr = INPUT0_OFFSET + kd*INPUT0_FEATURE_PITCH + (or * K_STRIDE - PADDING_SIZE_Y)*INPUT0_Y_PITCH + (oc * K_STRIDE - PADDING_SIZE_X) + lid;
 #endif
         in_addr += batch * input_size;  // adjust for batching
 
         for(uint reg = 0; reg < IN_BLOCK_HEIGHT; reg++) {
 #ifdef BLOCK_LOAD_INPUTS
-            in[reg] = intel_sub_group_block_read(&conv_input[in_addr]);
+            in[reg] = AS_PACKED_TYPE(intel_sub_group_block_read(&conv_input[in_addr]));
 #else
-            in[reg] = conv_input[in_addr];// read SIMD_SIZE elements wide
+            in[reg] = AS_PACKED_TYPE(conv_input[in_addr]);// read SIMD_SIZE elements wide
 #endif
             in_addr += (_IW + IWPAD);  // move to next row down
         }
@@ -124,7 +125,8 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
 #endif
 
         int wi = 0;
-        __attribute__((opencl_unroll_hint(K_HEIGHT)))
+        // This loop is temporarily not unrolled because the unroll causes TeamCity hangs.
+        //__attribute__((opencl_unroll_hint(K_HEIGHT)))
         for (int kr = 0; kr < K_HEIGHT; ++kr) // kr = Kernel Row
         {
             __attribute__((opencl_unroll_hint(K_WIDTH)))
@@ -132,10 +134,9 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
             {
                 for (int br = 0; br < OUT_BLOCK_HEIGHT; br++) {
                     for (int bc = 0; bc < OUT_BLOCK_WIDTH; bc++) {
-                        uint input = sub_group_broadcast(in[br * K_HSTRIDE + kr], bc * K_WSTRIDE + kc);
+                        PACKED_TYPE input = sub_group_broadcast(in[br * K_HSTRIDE + kr], bc * K_WSTRIDE + kc);
 
-                        out[br * OUT_BLOCK_WIDTH + bc] =
-                            IMAD(out[br * OUT_BLOCK_WIDTH + bc], AS_INPUT0_TYPE_4(input), as_char4(w[wi]));
+                        out[br * OUT_BLOCK_WIDTH + bc] = TO_ACCUMULATOR_TYPE(IMAD(out[br * OUT_BLOCK_WIDTH + bc], AS_INPUT0_TYPE_4(input), as_char4(w[wi])));
                     }
                 }
                 wi++;
@@ -148,63 +149,50 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
     // entering the loop, and have a simple expressions for indexes inside the loop.
     const uint output_idx_offset = GET_DATA_B_FS_YX_FSV4_INDEX(OUTPUT, batch, f, or, oc);
     const uint output_row_size_bytes = (_OW + OWPAD) * PACK;
-#ifdef ACTIVATION_ELTW //defined for fused conv+eltwise
-    #if IN_OUT_OPT == 0
-    const uint eltw_idx_offset = GET_DATA_B_FS_YX_FSV4_INDEX(INPUT1, batch, f, or * ELTW_STRIDE_Y, oc * ELTW_STRIDE_X);
-    const uint eltw_row_size_bytes = (INPUT1_SIZE_X + INPUT1_PAD_BEFORE_SIZE_X + INPUT1_PAD_AFTER_SIZE_X) * PACK;
-    #endif
-#endif
 
     for (int r = 0; r < OUT_BLOCK_HEIGHT; r++)
     {
+        #if NEED_TO_VERIFY_OUTPUT_RANGES == 1
+        const bool zero_r = or + r >= OUTPUT_SIZE_Y;
+        if(!zero_r)
+        #endif
+        {
         for (int c = 0; c < OUT_BLOCK_WIDTH; c++)
         {
-            uint out_idx = output_idx_offset + r * output_row_size_bytes + (c*PACK);
-#ifdef ACTIVATION_ELTW //defined for fused conv+eltwise
-    #if IN_OUT_OPT == 0
-            uint eltw_idx = eltw_idx_offset + r * ELTW_STRIDE_Y * eltw_row_size_bytes + (c * ELTW_STRIDE_X * PACK);
-    #else
-            uint eltw_idx = out_idx;
-    #endif
-#endif
-
-            int dotProd = out[r * OUT_BLOCK_WIDTH + c];
+            #if NEED_TO_VERIFY_OUTPUT_RANGES == 1
+            const bool zero_c = oc + c >= OUTPUT_SIZE_X;
+            if(!zero_c)
+            #endif
+            {
+            #if OUTPUT_LAYOUT_BYXF_AF32 == 1
+                uint out_idx = OUTPUT_GET_INDEX(batch, f, or + r, oc + c);
+            #elif OUTPUT_LAYOUT_B_FS_YX_FSV4 == 1
+                uint out_idx = output_idx_offset + r * output_row_size_bytes + (c*PACK);
+            #else
+                #error "Incorrect output layout"
+            #endif
+            ACCUMULATOR_TYPE dotProd = out[r * OUT_BLOCK_WIDTH + c];
 
 #if BIAS_TERM
     #if BIAS_PER_OUTPUT
-        #error "BIAS_PER_OUTPUT is not supported!"
+                const uint bias_index = GET_DATA_INDEX(BIAS, batch, f, or + r, oc + c);
     #elif BIAS_PER_OFM
-            const uint bias_index = f;
+                const uint bias_index = f;
     #endif
-    #if QUANTIZATION_TERM
-            float before_output_calibration = dotProd * quantizations[f] * I_QF + biases[bias_index];
-    #else
-            int before_output_calibration = TO_UNIT_TYPE(dotProd + biases[bias_index]);
-    #endif
-#else // BIAS_TERM
-    #if QUANTIZATION_TERM
-        #error "Quantization without bias is meaningless, use output calibration instead!"
-    #endif
-            int before_output_calibration = dotProd;
+                ACTIVATION_TYPE res = TO_ACTIVATION_TYPE(dotProd) + TO_ACTIVATION_TYPE(biases[bias_index]);
+#else
+                ACTIVATION_TYPE res = TO_ACTIVATION_TYPE(dotProd);
 #endif
 
-#if CALIBRATION_TERM
-            float before_activation = round(before_output_calibration * calibrations[f]);
-#elif defined(O_QF)
-            float before_activation = round(before_output_calibration * O_QF);
+#if HAS_FUSED_OPS
+                FUSED_OPS;
+                output[out_idx] = FINAL_NAME;
 #else
-            int before_activation = before_output_calibration;
+                output[out_idx] = TO_OUTPUT_TYPE(res);
 #endif
-
-            UNIT_TYPE after_activation = ACTIVATION_CONV(TO_UNIT_TYPE(before_activation), ACTIVATION_PARAMS_CONV);
-#ifdef ACTIVATION_ELTW //defined for fused conv+eltwise
-            output[out_idx] = ACTIVATION_ELTW(TO_UNIT_TYPE_SAT(
-                round(((int)after_activation + (int)eltw_input[eltw_idx])*eltw_calibrations[f])),
-                NL_M_ELTW, NL_N_ELTW);
-#else
-            output[out_idx] = after_activation;
-#endif
+            }// if(!zero_c)
         } // for (int c = 0; c < OUT_BLOCK_WIDTH; c++)
+        }// if(!zero_r)
     } // for (int r = 0; r < OUT_BLOCK_HEIGHT; r++)
 }
 

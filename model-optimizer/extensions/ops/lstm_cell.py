@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -94,3 +94,7 @@ class LSTMCell(Op):
             node['hidden_size'] = hidden_size
 
         assert cell_shape[1] == hidden_size
+
+        input_shape = node.in_node(0).shape
+        assert input_shape is not None
+        assert hidden_shape[0] == cell_shape[0] == input_shape[0], 'States are not broadcastable by batch'

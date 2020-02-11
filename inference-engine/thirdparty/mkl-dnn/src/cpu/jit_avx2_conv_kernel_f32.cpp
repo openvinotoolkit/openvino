@@ -15,6 +15,7 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <common/primitive_attr.hpp>
 #include "c_types_map.hpp"
 #include "nstl.hpp"
 #include "type_helpers.hpp"
@@ -310,7 +311,72 @@ void jit_avx2_conv_fwd_kernel_f32::width_blk_step(int ur_w,
             }
 
             depthwise_inj_idx++;
+        } else if (post_op.is_quantization()) {
+            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.crop_low_data));
+            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.crop_high_data));
+
+            add(reg_d_weights, ptr[this->param1 + GET_OFF(oc_off)]);
+            add(reg_d_bias, ptr[this->param1 + GET_OFF(oc_off)]);
+
+            for (int ii = 0; ii < oc_blocks; ii++) {
+                uni_vmovups(ymm_d_weights, ptr[reg_d_weights + ii * jcp.oc_block * sizeof(float)]);
+                uni_vmovups(ymm_d_bias, ptr[reg_d_bias + ii * jcp.oc_block * sizeof(float)]);
+
+                for (int jj = 0; jj < ur_w; jj++) {
+                    Ymm ymm_dst = Ymm(ur_w * ii + jj);
+
+                    uni_vmaxps(ymm_dst, ymm_dst, ymm_d_weights);
+                    uni_vminps(ymm_dst, ymm_dst, ymm_d_bias);
+                }
+            }
+
+            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.input_scale_data));
+            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.input_shift_data));
+
+            add(reg_d_weights, ptr[this->param1 + GET_OFF(oc_off)]);
+            add(reg_d_bias, ptr[this->param1 + GET_OFF(oc_off)]);
+
+            for (int ii = 0; ii < oc_blocks; ii++) {
+                uni_vmovups(ymm_d_weights, ptr[reg_d_weights + ii * jcp.oc_block * sizeof(float)]);
+                uni_vmovups(ymm_d_bias, ptr[reg_d_bias + ii * jcp.oc_block * sizeof(float)]);
+
+                for (int jj = 0; jj < ur_w; jj++) {
+                    Ymm ymm_dst = Ymm(ur_w * ii + jj);
+
+                    uni_vfmadd213ps(ymm_dst, ymm_d_weights, ymm_d_bias);
+                    uni_vroundps(ymm_dst, ymm_dst, 0);
+                }
+            }
+
+            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.output_scale_data));
+            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.output_shift_data));
+
+            add(reg_d_weights, ptr[this->param1 + GET_OFF(oc_off)]);
+            add(reg_d_bias, ptr[this->param1 + GET_OFF(oc_off)]);
+
+            for (int ii = 0; ii < oc_blocks; ii++) {
+                uni_vmovups(ymm_d_weights, ptr[reg_d_weights + ii * jcp.oc_block * sizeof(float)]);
+                uni_vmovups(ymm_d_bias, ptr[reg_d_bias + ii * jcp.oc_block * sizeof(float)]);
+
+                for (int jj = 0; jj < ur_w; jj++) {
+                    Ymm ymm_dst = Ymm(ur_w * ii + jj);
+
+                    uni_vfmadd213ps(ymm_dst, ymm_d_weights, ymm_d_bias);
+                }
+            }
         }
+//        } else if (post_op.is_sum()) {
+//            for (int ii = 0; ii < oc_blocks; ii++) {
+//                for (int jj = 0; jj < ur_w; jj++) {
+//                    Ymm ymm_dst = Ymm(ur_w * ii + jj);
+//
+//                    size_t o_off = sizeof(float) * ((size_t)ii * od * oh * ow + jj) * oc_blk;
+//
+//                    vmovups(ymm_sum, make_safe_addr(reg_output, o_off, reg_long_offt));
+//                    vaddps(ymm_dst, ymm_dst, ymm_sum);
+//                }
+//            }
+//        }
     }
 
     L(regular_store);
@@ -463,7 +529,8 @@ bool jit_avx2_conv_fwd_kernel_f32::post_ops_ok(
 
         int end_idx = with_dw_conv ? dw_conv_idx : p.len_;
         for (int i = 0; i < end_idx; i++) {
-            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise);
+            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise,
+                    primitive_kind::quantization);
         }
         return ok;
     };

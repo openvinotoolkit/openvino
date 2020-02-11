@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2017-2018 Intel Corporation
+* Copyright 2017-2019 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@
 #include "gemm_convolution_utils.hpp"
 
 #include "gemm/gemm.hpp"
+#include "ref_eltwise.hpp"
+#include "ref_depthwise.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -66,36 +68,52 @@ struct _gemm_x8s8s32x_convolution_fwd_t: public cpu_primitive_t {
                             this->desc()->bias_desc.data_type, f32, s32, s8,
                             u8))
                 && this->desc()->accum_data_type == data_type::s32
-                && utils::everyone_is(nhwc, this->src_pd_.desc()->format,
-                        this->dst_pd_.desc()->format)
-                && this->weights_pd_.desc()->format == (this->with_groups()
-                        ? ((src_type == data_type::s8) ? hwigo_s8s8 : hwigo)
-                        : ((src_type == data_type::s8) ? hwio_s8s8 : hwio))
+                && utils::one_of(this->src_pd_.desc()->format, nhwc, ndhwc)
+                && this->src_pd_.desc()->format == this->dst_pd_.desc()->format
+                && IMPLICATION(this->src_pd_.desc()->format == nhwc,
+                        this->weights_pd_.desc()->format == (this->with_groups()
+                                ? ((src_type == data_type::s8) ? hwigo_s8s8 : hwigo)
+                                : ((src_type == data_type::s8) ? hwio_s8s8 : hwio)))
+                && IMPLICATION(this->src_pd_.desc()->format == ndhwc,
+                        this->weights_pd_.desc()->format == (this->with_groups()
+                                ? ((src_type == data_type::s8) ? dhwigo_s8s8 : dhwigo)
+                                : ((src_type == data_type::s8) ? dhwio_s8s8 : dhwio)))
                 && this->is_gemm_conv_format();
             if (!ok) return status::unimplemented;
 
             auto scratchpad = scratchpad_registry().registrar();
             return jit_gemm_convolution_utils::init_conf(jcp_, scratchpad,
                     *this->desc(), this->src_pd(), this->weights_pd(0),
-                    this->dst_pd(), mkldnn_get_max_threads());
+                    this->dst_pd(), *this->attr(), mkldnn_get_max_threads());
         }
 
         jit_gemm_conv_conf_t jcp_;
 
     protected:
+        memory_format_t src_format() const {
+            using namespace memory_format;
+            const size_t ndims_sp = this->desc()->src_desc.ndims - 4;
+            return (utils::pick(ndims_sp, nhwc, ndhwc));
+        }
+
+        memory_format_t wei_format() const {
+            using namespace memory_format;
+            const size_t ndims_sp = this->desc()->src_desc.ndims - 4;
+            return this->with_groups()
+                ? (src_type == data_type::s8) ? utils::pick(ndims_sp, hwigo_s8s8, dhwigo_s8s8)
+                                              : utils::pick(ndims_sp, hwigo, dhwigo)
+                : (src_type == data_type::s8) ? utils::pick(ndims_sp, hwio_s8s8, dhwio_s8s8)
+                                              : utils::pick(ndims_sp, hwio, dhwio);
+        }
+
         virtual status_t set_default_params() override {
             using namespace memory_format;
-            const bool is_sign_input =
-                this->desc()->src_desc.data_type == data_type::s8;
-
             if (this->src_pd_.desc()->format == any)
-                CHECK(this->src_pd_.set_format(nhwc));
+                CHECK(this->src_pd_.set_format(src_format()));
             if (this->dst_pd_.desc()->format == any)
-                CHECK(this->dst_pd_.set_format(nhwc));
+                CHECK(this->dst_pd_.set_format(src_format()));
             if (this->weights_pd_.desc()->format == any)
-                CHECK(this->weights_pd_.set_format(this->with_groups()
-                            ? (is_sign_input ? hwigo_s8s8 : hwigo)
-                            : (is_sign_input ? hwio_s8s8 : hwio)));
+                CHECK(this->weights_pd_.set_format(wei_format()));
             if (this->bias_pd_.desc()->format == any)
                 CHECK(this->bias_pd_.set_format(x));
             if (this->desc()->alg_kind == alg_kind::convolution_auto)
@@ -104,18 +122,19 @@ struct _gemm_x8s8s32x_convolution_fwd_t: public cpu_primitive_t {
         }
 
         virtual bool is_gemm_conv_format() const {
-            using namespace mkldnn::impl::primitive_kind;
-            auto const &po = this->attr()->post_ops_;
-            auto is_relu = [&](int idx) {
-                return po.entry_[idx].is_relu(true, false); };
+            const auto &p = this->attr()->post_ops_;
 
-            switch (po.len_) {
-            case 0: return true;
-            case 1: return is_relu(0) || po.contain(sum, 0);
-            case 2: return po.contain(sum, 0) && is_relu(1);
-            default: return false;
-            }
-            return false;
+            auto all_post_ops_supported = [&]() {
+                bool ok = true;
+
+                for (int i = 0; i < p.len_; i++) {
+                    ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise,
+                                             primitive_kind::quantization);
+                }
+                return ok;
+            };
+
+            return all_post_ops_supported();
         }
     };
 
@@ -150,10 +169,11 @@ private:
         _gemm_x8s8s32x_convolution_fwd_t::pp_kernel);
         pp_ker_t(const pd_t *pd);
 
-        void operator()(dst_data_t *dst, const acc_data_t *acc,
+        void operator()(dst_data_t *dst, acc_data_t *acc,
             const char *bias, const float *scales,
             float nslope, float sum_scale, float signed_scale,
-            int g, size_t start, size_t end);
+            int g, size_t start, size_t end, const post_ops_t& p,
+            float* weights_zp, int32_t* weights_zp_compensation);
 
         size_t dst_os_stride_;
 
@@ -183,8 +203,14 @@ private:
         bool do_bias_;
         bool do_relu_;
         bool do_sum_;
+        mkldnn::impl::data_type_t sum_data_type_;
         bool do_signed_scaling_;
+        bool use_fast_post_processing;
+        bool with_weights_zp;
         size_t vlen_;
+
+        nstl::vector<ref_eltwise_scalar_fwd_t*> eltwise_injectors;
+        nstl::vector<ref_depthwise_scalar_fwd_t*> depthwise_injectors;
     };
 
 
@@ -195,7 +221,6 @@ private:
 
     int nthr_;
     pp_ker_t *pp_ker_;
-
 };
 
 template <data_type_t dst_type>
@@ -239,7 +264,7 @@ struct _gemm_u8s8s32x_convolution_bwd_data_t: public cpu_primitive_t {
             auto scratchpad = scratchpad_registry().registrar();
             return jit_gemm_convolution_utils::init_conf(jcp_, scratchpad,
                     *this->desc(), this->diff_src_pd(), this->weights_pd(0),
-                    this->diff_dst_pd(), mkldnn_get_max_threads());
+                    this->diff_dst_pd(), *this->attr(), mkldnn_get_max_threads());
         }
 
         virtual bool support_bias() const override { return true; }

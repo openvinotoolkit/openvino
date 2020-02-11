@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 #include <gtest/gtest.h>
-#include <inference_engine/layer_transform.hpp>
-#include <gna_plugin/quantization/model_quantizer.hpp>
+#include <layer_transform.hpp>
+#include <frontend/model_quantizer.hpp>
 #include <cpp/ie_cnn_net_reader.h>
-#include "gna_plugin/quantization/layer_quantizer.hpp"
+#include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
 
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
 using namespace GNATestIRs;
 
-class I8QuantisationTest : public GNATest {
+class I8QuantisationTest : public GNATest<> {
  protected:
     LayersQuantizer<QuantI8> lc = LayersQuantizer<QuantI8> (1.0f);
 
@@ -39,7 +39,7 @@ TEST_F(I8QuantisationTest, canQuantizeFCLayer){
     fc->_biases = make_shared_blob<float>({ Precision::FP32, {1, 1}, Layout::NC });
     fc->_weights->allocate();
     fc->_biases->allocate();
-    std::shared_ptr<Data> outData = std::make_shared<Data>("data", SizeVector({1, 1}), Precision::FP32, Layout::NC);
+    std::shared_ptr<Data> outData = std::make_shared<Data>("data", TensorDesc(Precision::FP32, SizeVector({ 1, 1 }), Layout::NC));
     fc->outData.push_back(outData);
     fc->insData.push_back(outData);
 
@@ -158,3 +158,16 @@ TEST_F(I8QuantisationTest, LSTMCell_unaligned_quantize) {
     ASSERT_NO_THROW(q.quantize(net_reader.getNetwork(), 1000));
 }
 
+TEST_F(I8QuantisationTest, TI_quantize) {
+    ModelQuantizer<QuantI8> q;
+
+    CNNNetReader net_reader;
+    ASSERT_NO_THROW(net_reader.ReadNetwork(TIModelWithLSTMCell2().data(), TIModelWithLSTMCell2().length()));
+
+    auto weights = make_shared_blob<uint8_t>({ Precision::U8, {249748}, C });
+    weights->allocate();
+    fillWeights(weights);
+    net_reader.SetWeights(weights);
+
+    ASSERT_NO_THROW(q.quantize(net_reader.getNetwork(), 1000));
+}

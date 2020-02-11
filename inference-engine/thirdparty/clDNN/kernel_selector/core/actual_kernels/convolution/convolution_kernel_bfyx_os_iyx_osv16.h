@@ -33,6 +33,13 @@ public:
 
 protected:
     std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ELTWISE,
+                 FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
+
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
     bool Validate(const Params& p, const optional_params& o) const override;
     bool NeedPaddedInput() const override { return true; }

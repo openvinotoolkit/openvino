@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ class ExperimentalDetectronROIFeatureExtractorFrontExtractor(FrontExtractorOp):
     op = 'ExperimentalDetectronROIFeatureExtractor'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = dict(output_size=onnx_attr(node, 'output_size', 'i', 7),
                      sampling_ratio=onnx_attr(node, 'sampling_ratio', 'i', 2),
                      distribute_rois_between_levels=onnx_attr(node, 'distribute_rois_between_levels', 'i', 1),
@@ -39,4 +39,4 @@ class ExperimentalDetectronROIFeatureExtractorFrontExtractor(FrontExtractorOp):
                      )
 
         ExperimentalDetectronROIFeatureExtractor.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled

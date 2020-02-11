@@ -1,15 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_graph.h"
 
 #include "test_graph.hpp"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
+#include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 
 
@@ -56,14 +56,14 @@ void interpolate(const int N, const int C, const float *src, const int x1, const
     const int block_size = 1;
 
     // Align channel number to block size to deal with channels padding in IE with multiple blobs
-    int CB = (C + block_size - 1) & (-block_size);
+    int CB = (C + block_size - 1) & (-block_size);  // CB=n*block_size, i.e.:c=15,(block_size=8), then CB=16, CH=2
 
-    int CH = (C + block_size - 1) / block_size;
+    int CH = (C + block_size - 1) / block_size;  // number of block:(n)
 
     for (int n = 0; n < N; n++) {
         for (int cb = 0; cb < CH; ++cb) {
             for (int h = 0; h < OH_pad; ++h) {
-                const float *psrc = src + n * CB * IH * IW;
+                const float *psrc = src + n * CB * IH * IW;  // should be nChw8c(16c) data format
 
                 float fh = rh * h;
                 int ih0 = static_cast<int>(fh);
@@ -190,12 +190,8 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-            MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(net_reader.getNetwork());
 
             auto& nodes = graph.getNodes();
             nodes = graph.getNodes();
@@ -256,4 +252,5 @@ INSTANTIATE_TEST_CASE_P(
         TestsInterp, MKLDNNCPUExtInterpTests,
         ::testing::Values(
                 interp_test_params{{1, 256, 1, 1}, {33, 65}, 0, 0, 1, MKLDNNPlugin::impl_desc_type::unknown },
+                interp_test_params{{6, 128, 320, 320}, {23, 38}, 0, 0, 1, MKLDNNPlugin::impl_desc_type::unknown },
                 interp_test_params{{1, 2, 33, 65}, {33, 65}, 0, 0, 1, MKLDNNPlugin::impl_desc_type::unknown }));

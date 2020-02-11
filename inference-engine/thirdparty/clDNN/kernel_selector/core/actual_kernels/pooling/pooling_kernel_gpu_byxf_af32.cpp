@@ -19,7 +19,11 @@ namespace kernel_selector {
 ParamsKey PoolingKerneGPU_byxf_af32::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableTensorOffset();
@@ -53,6 +57,29 @@ PoolingKernelBase::DispatchData PoolingKerneGPU_byxf_af32::SetDefault(const pool
 
     return runInfo;
 }
+
+JitConstants PoolingKerneGPU_byxf_af32::GetJitConstants(const pooling_params& params, DispatchData kd) const {
+    JitConstants jit = PoolingKernelBase::GetJitConstants(params, kd);
+
+    jit.AddConstant(MakeJitConstant("AS_INPUT_TYPE(val)", "as_" + toCLType(params.inputs[0].GetDType()) + "4(val)"));
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);
+        FusedOpsConfiguration conf = { "",
+                                       {"b", "f", "y", "x"},
+                                       "pool_result",
+                                       input_dt,
+                                       4,
+                                       LoadType::LT_UNALIGNED,
+                                       BoundaryCheck::ENABLED,
+                                       IndexType::TENSOR_COORD,
+                                       Tensor::DataChannelName::FEATURE };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+
+    return jit;
+}
+
 
 KernelsData PoolingKerneGPU_byxf_af32::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options, FORCE_PRIORITY_1);

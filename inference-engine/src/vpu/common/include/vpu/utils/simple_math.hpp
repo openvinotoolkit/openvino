@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 #include <string>
 #include <utility>
 
-#include <vpu/utils/containers.hpp>
+#include <vpu/utils/small_vector.hpp>
 
 //
 // Simple integer arithmetics to be used for the work sizes calculation.

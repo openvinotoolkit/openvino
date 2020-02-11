@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-find_package(Threads REQUIRED)
-
 set(TARGET_NAME myriad_compile)
 
 file(GLOB SRCS
-    ${CMAKE_SOURCE_DIR}/tools/vpu/common/*.cpp
+    ${IE_MAIN_SOURCE_DIR}/tools/vpu/common/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
 )
 
@@ -30,15 +28,12 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    ${CMAKE_SOURCE_DIR}/samples/common
-    ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/tools/vpu/common
-    ${CMAKE_SOURCE_DIR}/src/inference_engine
+    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+    ${IE_MAIN_SOURCE_DIR}/samples/common
+    ${IE_MAIN_SOURCE_DIR}/tools/vpu/common
 )
 
 target_link_libraries(${TARGET_NAME} PRIVATE
-    ${CMAKE_DL_LIBS}
-    Threads::Threads
     inference_engine vpu_graph_transformer
     gflags
 )
@@ -51,3 +46,9 @@ set_target_properties(${TARGET_NAME} PROPERTIES
 )
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+
+# install
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        COMPONENT myriad)

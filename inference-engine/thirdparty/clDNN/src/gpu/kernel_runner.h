@@ -34,7 +34,7 @@ public:
 
 private:
     const int compilation_batch_size = 50;
-    const int runs_per_kernel = 3;
+    const int runs_per_kernel = 15;
 
     void prepare_kernel_args(const kernel_selector::KernelsData& kernels_data,
                              gpu::kernel::kernel_arguments_data& args);

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
 """
 
 from typing import Dict
+
+import logging as log
 
 import numpy as np
 
@@ -52,6 +54,7 @@ class GroupNormToMVN(MiddleReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         group_norm_node = match['op']
+        group_norm_num_input_dims = len(group_norm_node.in_port(0).data.get_shape())
 
         # node computing initial GroupNorm input shape
         initial_shape_op_node = Shape(graph, {'name': group_norm_node.name + '/Shape'}).create_node()
@@ -84,14 +87,17 @@ class GroupNormToMVN(MiddleReplacementPattern):
         group_norm_node.in_port(0).get_connection().set_destination(reshape_for_mvn_node.in_port(0))
         reshape_for_mvn_node.in_port(1).connect(new_shape_node.out_port(0))
 
-        # Reshape the gamma and beta constants to correct layout from [C] to [1,C,1,1]
+        # Reshape the gamma and beta constants to correct layout from [C] to [1,C], [1,C,1], [1,C,1,1] etc
+        gamma_beta_shape = np.ones([group_norm_num_input_dims], dtype=np.int64)
+        gamma_beta_shape[1] = -1
+
         gamma_value = group_norm_node.in_port(1).get_source().data.get_value()
         beta_value = group_norm_node.in_port(2).get_source().data.get_value()
         assert gamma_value is not None, 'The gamma should be constant'
         assert beta_value is not None, 'The beta should be constant'
-        gamma_value = np.reshape(gamma_value, [1, -1, 1, 1])
+        gamma_value = np.reshape(gamma_value, gamma_beta_shape)
         group_norm_node.in_port(1).get_source().data.set_value(gamma_value)
-        beta_value = np.reshape(beta_value, [1, -1, 1, 1])
+        beta_value = np.reshape(beta_value, gamma_beta_shape)
         group_norm_node.in_port(2).get_source().data.set_value(beta_value)
 
         # MVN

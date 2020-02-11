@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -31,16 +31,16 @@ class UselessSplitEraser(MiddleReplacementPattern):
 
     def pattern(self):
         return dict(
-            nodes=[('split', {'kind': 'op', 'op': 'Split', 'num_split': 1})],
+            nodes=[('split', {'op': 'Split', 'num_splits': 1})],
             edges=[]
         )
 
     def replace_pattern(self, graph: Graph, match: dict):
-        split_node = match['split']
-        input = split_node.in_node(1)
-        output = split_node.out_node()
-        graph.remove_edge(input.id, split_node.id)
+        node = match['split']
+        name = node.soft_get('name', node.id)
 
-        for u, v, d in list(graph.out_edges(output.id, data=True)):
-            graph.add_edges_from([(input.id, v, d)])
-            graph.remove_edge(u, v)
+        assert node.soft_get('input_port', 0) == 0, \
+            'Internal attribute `input_port` was not resolved on front phase, broken Split {}'.format(name)
+        assert len(node.out_ports()) == 1
+
+        node.out_port(0).get_connection().set_source(node.in_port(0).get_connection().get_source())

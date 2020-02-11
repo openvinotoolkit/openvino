@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,9 @@ VPU_DECLARE_ENUM(ROIPoolingMethod,
 namespace {
 
 class ROIPoolingStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<ROIPoolingStage>(*this);
@@ -76,22 +79,13 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseROIPooling(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseROIPooling(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     ie::details::CaselessEq<std::string> cmp;
 
     IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 1);
 
-    auto stage = model->addNewStage<ROIPoolingStage>(
-        layer->name,
-        StageType::ROIPooling,
-        layer,
-        inputs,
-        outputs);
+    auto stage = model->addNewStage<ROIPoolingStage>(layer->name, StageType::ROIPooling, layer, inputs, outputs);
 
     stage->attrs().set<int>("pooled_w", layer->GetParamAsInt("pooled_w", 7));
     stage->attrs().set<int>("pooled_h", layer->GetParamAsInt("pooled_h", 7));

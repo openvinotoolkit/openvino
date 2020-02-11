@@ -38,7 +38,9 @@ void compute_ref_conv_fwd_3d(const test_convolution_sizes_t_3d &c,
         const memory &src,
         const memory &weights,
         const memory &bias,
-        const memory &dst)
+        const memory &dst,
+        const std::vector<uint8_t>& input_zero_points,
+        const std::vector<float>& weights_zero_points)
 {
     const bool w_bias = bias_d.data.format != memory::format::format_undef;
     data_t_src *src_data = (data_t_src *)src.get_data_handle();
@@ -50,12 +52,17 @@ void compute_ref_conv_fwd_3d(const test_convolution_sizes_t_3d &c,
     size_t padded_ic = src_d.data.layout_desc.blocking.padding_dims[1];
     size_t padded_oc = dst_d.data.layout_desc.blocking.padding_dims[1];
 
+    size_t padded_ic_w = (weights_d.data.format == mkldnn_OdhIw8o4i) ? weights_d.data.layout_desc.blocking.padding_dims[1] :
+                         padded_ic;
+    size_t padded_oc_w = (weights_d.data.format == mkldnn_OdhIw8o4i) ? weights_d.data.layout_desc.blocking.padding_dims[0] :
+                         padded_oc;
+
     mkldnn::impl::parallel_nd(c.mb, c.ng, c.oc / c.ng, c.od, c.oh, c.ow,
         [&](int n, int g, int oc, int od, int oh, int ow) {
             data_t_acc a = 0;
 
             for (int ic = 0; ic < c.ic / c.ng; ic++) {
-                for (int kd = 0; kd < c.kh; kd++) {
+                for (int kd = 0; kd < c.kd; kd++) {
                     for (int kh = 0; kh < c.kh; kh++) {
                         for (int kw = 0; kw < c.kw; kw++) {
 
@@ -75,18 +82,22 @@ void compute_ref_conv_fwd_3d(const test_convolution_sizes_t_3d &c,
                                           + id * c.ih * c.iw
                                           + ih * c.iw
                                           + iw;
-                            size_t widx = g * padded_oc / c.ng * padded_ic
+                            size_t widx = g * padded_oc_w / c.ng * padded_ic_w
                                           / c.ng * c.kd * c.kh * c.kw
-                                          + oc * padded_ic / c.ng * c.kd * c.kh * c.kw
+                                          + oc * padded_ic_w / c.ng * c.kd * c.kh * c.kw
                                           + ic * c.kd * c.kh * c.kw
                                           + kd * c.kh * c.kw
                                           + kh * c.kw
                                           + kw;
 
-                            a += ((data_t_acc)
-                                    src_data[map_index(src_d, iidx)])
-                                 * weights_data[map_index(
-                                    weights_d, widx)];
+                            size_t iidx_ = map_index(src_d, iidx);
+                            size_t widx_ = map_index(weights_d, widx);
+
+                            data_t_src s = src_data[iidx_];
+                            data_t_wei w = weights_data[widx_];
+
+                            a += ((data_t_acc)s - (data_t_acc)input_zero_points[g * c.ic / c.ng + ic]) *
+                                 ((data_t_acc)w - (data_t_acc)weights_zero_points[g * c.oc / c.ng + oc]);
                         }
                     }
                 }
@@ -132,6 +143,13 @@ void compute_ref_conv_fwd_3d(const test_convolution_sizes_t_3d &c,
     );
 }
 
+template <typename data_t>
+static void fill_data_even(const size_t size, data_t *data) {
+    for (size_t i = 0; i < size; i++) {
+        data[i] = (i * 13 % 21 - 10) * 2;
+    }
+}
+
 template <typename data_t_src, typename data_t_wei,
           typename data_t_acc, typename data_t_dst>
 class convolution_forward_test_3d
@@ -173,11 +191,17 @@ protected:
         auto c_bias_desc = with_bias ?
                 create_md({ cd.oc }, data_type_dst, p.formats.bias_format) :
                 create_md({}, data_type_dst, p.formats.bias_format);
-
+        auto c_wei_aux_desc = cd.ng > 1 ?
+                              create_md({ cd.ng, cd.oc / cd.ng, cd.ic / cd.ng, cd.kd, cd.kh, cd.kw },
+                                        data_type_wei, mkldnn::memory::format::goidhw) :
+                              create_md({ cd.oc, cd.ic, cd.kd, cd.kh, cd.kw },
+                                        data_type_wei, mkldnn::memory::format::oidhw);
+        
         auto c_src = test_memory(c_src_desc, eng);
         auto c_weights = test_memory(c_weights_desc, eng);
         auto c_bias = test_memory(c_bias_desc, eng);
         auto c_dst = test_memory(c_dst_desc, eng);
+        auto c_wei_aux = test_memory(c_wei_aux_desc, eng);
 
         std::shared_ptr<data_t_dst>
             ref_dst_data(new data_t_dst[c_dst.get_size()]);
@@ -187,8 +211,10 @@ protected:
                 (data_t_dst *)c_dst.get().get_data_handle());
         fill_data<data_t_src>(c_src.get_size() / sizeof(data_t_src),
                 (data_t_src *)c_src.get().get_data_handle());
-        fill_data<data_t_wei>(c_weights.get_size() / sizeof(data_t_wei),
-                (data_t_wei *)c_weights.get().get_data_handle());
+        if (data_type_src != memory::data_type::s8) {
+            fill_data<data_t_wei>(c_weights.get_size() / sizeof(data_t_wei),
+                                  (data_t_wei *) c_weights.get().get_data_handle());
+        }
         if (with_bias) {
             fill_data<data_t_dst>(c_bias.get_size() / sizeof(data_t_dst),
                     (data_t_dst *)c_bias.get().get_data_handle());
@@ -196,6 +222,80 @@ protected:
         check_zero_tail<data_t_src>(1, c_src.get());
         check_zero_tail<data_t_wei>(1, c_weights.get());
         check_zero_tail<data_t_dst>(1, c_dst.get());
+
+        std::vector<uint8_t> input_zero_points(p.sizes.ic);
+        std::fill(input_zero_points.begin(), input_zero_points.end(), 0);
+
+        std::vector<int8_t> weights_zero_points(p.sizes.oc);
+        std::vector<float> weights_zero_points_float(p.sizes.oc);
+        std::fill(weights_zero_points.begin(), weights_zero_points.end(), 0);
+
+        std::vector<int32_t> output_compensations(p.sizes.oc);
+        std::fill(output_compensations.begin(), output_compensations.end(), 0);
+
+        if (p.with_zero_points) {
+            fill_data<uint8_t>(input_zero_points.size(), &input_zero_points[0]);
+//            fill_data<int8_t>(weights_zero_points.size(), &weights_zero_points[0]);
+
+            for (int i = 0; i < p.sizes.oc; i++) {
+                weights_zero_points_float[i] = (float)weights_zero_points[i];
+            }
+
+            attr.mkl_attr.set_input_zero_points(1 << 1, input_zero_points);
+//            attr.mkl_attr.set_weights_zero_points(1 << 1, weights_zero_points_float);
+
+            size_t padded_ic_w = c_weights_desc.data.format == mkldnn_OdhIw8o4i ? c_weights_desc.data.layout_desc.blocking.padding_dims[1] :
+                                 c_src_desc.data.layout_desc.blocking.padding_dims[1];
+            size_t padded_oc_w = c_weights_desc.data.format == mkldnn_OdhIw8o4i ? c_weights_desc.data.layout_desc.blocking.padding_dims[0] :
+                                 c_dst_desc.data.layout_desc.blocking.padding_dims[1];
+
+            data_t_wei *weights_data = (data_t_wei *)c_weights.get().get_data_handle();
+            for (int g = 0; g < cd.ng; g++) {
+                for (int oc = 0; oc < cd.oc / cd.ng; oc++) {
+                    int32_t a = 0;
+                    for (int ic = 0; ic < cd.ic / cd.ng; ic++) {
+                        for (int kd = 0; kd < cd.kd; kd++) {
+                            for (int kh = 0; kh < cd.kh; kh++) {
+                                for (int kw = 0; kw < cd.kw; kw++) {
+                                    size_t widx = g * padded_oc_w / cd.ng * padded_ic_w / cd.ng * cd.kd * cd.kh * cd.kw
+                                                  + oc * padded_ic_w / cd.ng * cd.kd * cd.kh * cd.kw
+                                                  + ic * cd.kd * cd.kh * cd.kw + kd * cd.kh * cd.kw + kh * cd.kw + kw;
+
+                                    int widx_ = map_index(c_weights_desc, widx);
+
+                                    data_t_src izp = input_zero_points[g * cd.ic / cd.ng + ic];
+
+                                    data_t_wei w = weights_data[widx_];
+                                    a += w * izp;
+
+                                    data_t_wei wzp = weights_zero_points[g * cd.oc / cd.ng + oc];
+                                    a -= wzp * izp;
+                                }
+                            }
+                        }
+                    }
+                    output_compensations[g * cd.oc / cd.ng + oc] = -a;
+                }
+            }
+
+            attr.mkl_attr.set_output_compensations(1 << 1, output_compensations);
+        }
+
+        if (data_type_src == memory::data_type::s8) {
+            ASSERT_EQ(data_type_wei, memory::data_type::s8);
+
+            fill_data_even(c_wei_aux.get_size() / sizeof(data_t_wei), (data_t_wei *) c_wei_aux.get().get_data_handle());
+
+            auto wei_i = memory(c_wei_aux.get().get_primitive_desc(), (data_t_wei *)c_wei_aux.get().get_data_handle());
+            auto wei_o = memory(c_weights.get().get_primitive_desc(), (data_t_wei *)c_weights.get().get_data_handle());
+
+            auto reor = reorder(wei_i, wei_o);
+
+            std::vector<primitive> pipeline_aux;
+            pipeline_aux.push_back(reor);
+            auto s_aux = stream(stream::kind::lazy);
+            s_aux.submit(pipeline_aux).wait();
+        }
 
         std::vector<ptrdiff_t> padR = {
             right_padding(cd.id, cd.od, cd.kd, cd.padd, cd.strd, cd.dild),
@@ -229,9 +329,17 @@ protected:
 
         auto ref_memory = memory(memory::primitive_desc(c_dst_desc, eng),
                 ref_dst_data.get());
-        compute_ref_conv_fwd_3d<data_t_src, data_t_wei, data_t_acc, data_t_dst>(
-                cd, attr, c_src_desc, c_weights_desc, c_bias_desc, c_dst_desc,
-                c_src.get(), c_weights.get(), c_bias.get(), ref_memory);
+        if (data_type_src == memory::data_type::s8) {
+            compute_ref_conv_fwd_3d<data_t_src, data_t_wei, data_t_acc, data_t_dst>(
+                    cd, attr, c_src_desc, c_wei_aux_desc, c_bias_desc, c_dst_desc,
+                    c_src.get(), c_wei_aux.get(), c_bias.get(), ref_memory,
+                    input_zero_points, weights_zero_points_float);
+        } else {
+            compute_ref_conv_fwd_3d<data_t_src, data_t_wei, data_t_acc, data_t_dst>(
+                    cd, attr, c_src_desc, c_weights_desc, c_bias_desc, c_dst_desc,
+                    c_src.get(), c_weights.get(), c_bias.get(), ref_memory,
+                    input_zero_points, weights_zero_points_float);
+        }
         check_zero_tail<data_t_dst>(1, ref_memory);
 
         compare_data<data_t_dst>(ref_memory, c_dst.get());

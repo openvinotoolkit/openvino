@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -44,8 +44,12 @@ def check_python_version():
         return 1
 
 
-def parse_versions_list(required_fw_versions: str, version_list: list()):
+def parse_versions_list(required_fw_versions, version_list):
     """
+    Please do not add parameter type annotations (param:type).
+    Because we import this file while checking Python version.
+    Python 2.x will fail with no clear message on type annotations.
+
     Parsing requirements versions
     :param required_fw_versions: String with fw versions from requirements file
     :param version_list: List for append
@@ -77,7 +81,7 @@ def parse_versions_list(required_fw_versions: str, version_list: list()):
     return version_list
 
 
-def get_module_version_list_from_file(file_name: str):
+def get_module_version_list_from_file(file_name):
     """
     Please do not add parameter type annotations (param:type).
     Because we import this file while checking Python version.
@@ -136,7 +140,7 @@ def version_check(name, installed_v, required_v, sign, not_satisfied_v, exit_cod
     else:
         satisfied = True
     if not satisfied:
-        not_satisfied_v.append((name, 'installed: {}'.format(installed_v), 'required: {}'.format(required_v)))
+        not_satisfied_v.append((name, 'installed: {}'.format(installed_v), 'required: {} {}'.format(sign, required_v)))
         if name in critical_modules:
             exit_code = 1
     return exit_code
@@ -171,14 +175,17 @@ def check_requirements(framework=None):
             exit_code = version_check(name, installed_version, required_version, key, not_satisfied_versions, exit_code)
             exec("del {}".format(importable_name))
         except (AttributeError, ImportError):
-            not_satisfied_versions.append((name, 'not installed', 'required: {}'.format(required_version)))
+            if key is not None and required_version is not None:
+                not_satisfied_versions.append((name, 'not installed', 'required: {} {}'.format(key, required_version)))
+            else:
+                not_satisfied_versions.append((name, 'not installed', ''))
             exit_code = 1
             continue
         except Exception as e:
             log.error('Error happened while importing {} module. It may happen due to unsatisfied requirements of '
                       'that module. Please run requirements installation script once more.\n'
                       'Details on module importing failure: {}'.format(name, e))
-            not_satisfied_versions.append((name, 'package error', 'required: {}'.format(required_version)))
+            not_satisfied_versions.append((name, 'package error', 'required: {} {}'.format(key, required_version)))
             exit_code = 1
             continue
 

@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-
+#include "gna_lib_ver_selector.hpp"
 
 class NNetComponentMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
     std::vector<std::shared_ptr<::testing::MatcherInterface<const intel_nnet_type_t*>>> matchers;

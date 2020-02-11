@@ -131,12 +131,27 @@ JitConstants ConvolutionKernel_bfyx_to_bfyx_f16::GetJitConstants(const convoluti
 
     auto blockWidth = runInfo.cldnnStyle.blockWidth;
 
-    if (params.fused_ops.size() > 0) {
-        FusedOpsConfiguration conf_vec = {"_VEC", {"b", "(f_block*16)", "y", "x"}, "dst", blockWidth, true, false, true, false };
-        FusedOpsConfiguration conf_scalar = {"_SCALAR", {"b", "(f_block*16)", "y", "(x+i)"}, "dst[i]", 1, true, false, true, false };
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetUnitType(params);
+        FusedOpsConfiguration conf_vec = { "_VEC",
+                                           {"b", "(f_block*16)", "y", "x"},
+                                           "dst",
+                                           input_dt,
+                                           blockWidth,
+                                           LoadType::LT_ALIGNED_READ,
+                                           BoundaryCheck::ENABLED,
+                                           IndexType::TENSOR_COORD,
+                                           Tensor::DataChannelName::X };
+        FusedOpsConfiguration conf_scalar = { "_SCALAR",
+                                              {"b", "(f_block*16)", "y", "(x+i)"},
+                                              "dst[i]",
+                                              input_dt,
+                                              1,
+                                              LoadType::LT_ALIGNED_READ,
+                                              BoundaryCheck::ENABLED,
+                                              IndexType::TENSOR_COORD,
+                                              Tensor::DataChannelName::X };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar}));
-        jit.Merge(MakeTypeJitConstants(Datatype::F32, "float"));
-        jit.Merge(MakeTypeJitConstants(Datatype::F16, "half"));
     }
 
     size_t input_line_size = std::min(params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1)*params.dilation.x + 1,
@@ -187,4 +202,5 @@ KernelsData ConvolutionKernel_bfyx_to_bfyx_f16::GetKernelsDataForAutoTune(const 
 
     return res;
 }
+
 }  // namespace kernel_selector

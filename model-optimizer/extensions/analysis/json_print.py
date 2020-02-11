@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import logging as log
+
 import json
 import sys
 
@@ -21,7 +23,7 @@ import numpy as np
 from extensions.front.user_data_repack import UserDataRepack
 from mo.graph.graph import Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_precision
-from mo.utils.model_analysis import AnalyzeAction, AnalysisCollectorAnchor
+from mo.utils.model_analysis import AnalyzeAction, AnalysisCollectorAnchor, AnalysisResults
 
 
 def prepare_obj_for_dump(obj: object):
@@ -34,7 +36,7 @@ def prepare_obj_for_dump(obj: object):
     elif isinstance(obj, np.generic):
         return obj.item()
     else:
-        return obj
+        return str(obj)
 
 
 class AnalysisJSONPrint(AnalyzeAction):
@@ -51,6 +53,12 @@ class AnalysisJSONPrint(AnalyzeAction):
         return [AnalysisCollectorAnchor]
 
     def analyze(self, graph: Graph):
-        if 'analysis_results' in graph.graph and graph.graph['analysis_results'] is not None:
-            print(json.dumps(prepare_obj_for_dump(graph.graph['analysis_results'])))
+        analysis_results = AnalysisResults()
+        if analysis_results.get_result() is not None:
+            try:
+                print(json.dumps(prepare_obj_for_dump(analysis_results.get_result())))
+            except Exception as e:
+                log.error('Cannot serialize to JSON: %s', str(e))
+                sys.exit(1)
         sys.exit(0)
+

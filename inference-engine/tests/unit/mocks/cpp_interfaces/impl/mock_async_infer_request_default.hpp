@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,11 +19,8 @@ class MockAsyncInferRequestDefault : public AsyncInferRequestThreadSafeDefault {
 public:
     MockAsyncInferRequestDefault(InferRequestInternal::Ptr request,
                                  const ITaskExecutor::Ptr &taskExecutor,
-                                 const TaskSynchronizer::Ptr &taskSynchronizer,
                                  const ITaskExecutor::Ptr &callbackExecutor)
-            : AsyncInferRequestThreadSafeDefault(request, taskExecutor, taskSynchronizer, callbackExecutor) {}
+            : AsyncInferRequestThreadSafeDefault(request, taskExecutor, callbackExecutor) {}
 
-    MOCK_METHOD0(startAsyncTask, void());
-
-    MOCK_METHOD0(initNextAsyncTask, void());
+    MOCK_METHOD0(StartAsync_ThreadUnsafe, void());
 };

@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <builders/ie_pooling_layer.hpp>
 #include <ie_cnn_layer_builder.h>
 
-#include <vector>
+#include <builders/ie_pooling_layer.hpp>
 #include <string>
+#include <vector>
 
 using namespace InferenceEngine;
 
@@ -64,14 +64,12 @@ Builder::PoolingLayer::operator Builder::Layer() const {
     std::vector<size_t> l_paddingEnd = getPaddingsEnd();
     std::vector<size_t> l_strides = getStrides();
 
-    if (l_paddingBegin.empty() && !l_kernel.empty())
-        l_paddingBegin.resize(l_kernel.size(), 0);
-    if (l_paddingEnd.empty() && !l_kernel.empty())
-        l_paddingEnd.resize(l_kernel.size(), 0);
-    if (l_strides.empty() && !l_kernel.empty())
-        l_strides.resize(l_kernel.size(), 1);
+    if (l_paddingBegin.empty() && !l_kernel.empty()) l_paddingBegin.resize(l_kernel.size(), 0);
+    if (l_paddingEnd.empty() && !l_kernel.empty()) l_paddingEnd.resize(l_kernel.size(), 0);
+    if (l_strides.empty() && !l_kernel.empty()) l_strides.resize(l_kernel.size(), 1);
 
-    if (l_kernel.empty() || l_kernel.size() != l_paddingBegin.size() || l_kernel.size() != l_paddingEnd.size() || l_kernel.size() != l_strides.size())
+    if (l_kernel.empty() || l_kernel.size() != l_paddingBegin.size() || l_kernel.size() != l_paddingEnd.size() ||
+        l_kernel.size() != l_strides.size())
         THROW_IE_EXCEPTION << genLayer.getType() << " node " << genLayer.getName() << " contains incorrect parameters!";
 
     genLayer.getParameters()["kernel"] = l_kernel;
@@ -81,7 +79,7 @@ Builder::PoolingLayer::operator Builder::Layer() const {
     return genLayer;
 }
 
-Builder::PoolingLayer &Builder::PoolingLayer::setName(const std::string &name) {
+Builder::PoolingLayer& Builder::PoolingLayer::setName(const std::string& name) {
     getLayer()->setName(name);
     return *this;
 }
@@ -142,12 +140,12 @@ Builder::PoolingLayer::PoolingType Builder::PoolingLayer::getPoolingType() const
 Builder::PoolingLayer& Builder::PoolingLayer::setPoolingType(Builder::PoolingLayer::PoolingType type) {
     std::string typeStr;
     switch (type) {
-        case MAX:
-            typeStr = "max";
-            break;
-        case AVG:
-            typeStr = "avg";
-            break;
+    case MAX:
+        typeStr = "max";
+        break;
+    case AVG:
+        typeStr = "avg";
+        break;
     }
     getLayer()->getParameters()["pool-method"] = typeStr;
     this->type = type;
@@ -161,12 +159,12 @@ Builder::PoolingLayer& Builder::PoolingLayer::setRoundingType(Builder::PoolingLa
     roundingType = type;
     std::string typeStr;
     switch (type) {
-        case CEIL:
-            typeStr = "ceil";
-            break;
-        case FLOOR:
-            typeStr = "floor";
-            break;
+    case CEIL:
+        typeStr = "ceil";
+        break;
+    case FLOOR:
+        typeStr = "floor";
+        break;
     }
     getLayer()->getParameters()["rounding_type"] = typeStr;
     return *this;
@@ -183,7 +181,8 @@ Builder::PoolingLayer& Builder::PoolingLayer::setExcludePad(bool exclude) {
 
 REG_VALIDATOR_FOR(Pooling, [](const Builder::Layer::CPtr& layer, bool partial) {
     // WA for old IRs
-    if (layer->getParameters().find("kernel") == layer->getParameters().end() && layer->getParameters().find("kernel-x") != layer->getParameters().end() &&
+    if (layer->getParameters().find("kernel") == layer->getParameters().end() &&
+        layer->getParameters().find("kernel-x") != layer->getParameters().end() &&
         layer->getParameters().find("kernel-y") != layer->getParameters().end())
         return;
 
@@ -193,14 +192,12 @@ REG_VALIDATOR_FOR(Pooling, [](const Builder::Layer::CPtr& layer, bool partial) {
     std::vector<size_t> l_paddingEnd = poolBuilder.getPaddingsEnd();
     std::vector<size_t> l_strides = poolBuilder.getStrides();
 
-    if (l_paddingBegin.empty() && !l_kernel.empty())
-        l_paddingBegin.resize(l_kernel.size(), 0);
-    if (l_paddingEnd.empty() && !l_kernel.empty())
-        l_paddingEnd.resize(l_kernel.size(), 0);
-    if (l_strides.empty() && !l_kernel.empty())
-        l_strides.resize(l_kernel.size(), 1);
+    if (l_paddingBegin.empty() && !l_kernel.empty()) l_paddingBegin.resize(l_kernel.size(), 0);
+    if (l_paddingEnd.empty() && !l_kernel.empty()) l_paddingEnd.resize(l_kernel.size(), 0);
+    if (l_strides.empty() && !l_kernel.empty()) l_strides.resize(l_kernel.size(), 1);
 
-    if (l_kernel.empty() || l_kernel.size() != l_paddingBegin.size() || l_kernel.size() != l_paddingEnd.size() || l_kernel.size() != l_strides.size())
+    if (l_kernel.empty() || l_kernel.size() != l_paddingBegin.size() || l_kernel.size() != l_paddingEnd.size() ||
+        l_kernel.size() != l_strides.size())
         THROW_IE_EXCEPTION << layer->getType() << " node " << layer->getName() << " contains incorrect parameters!";
 });
 

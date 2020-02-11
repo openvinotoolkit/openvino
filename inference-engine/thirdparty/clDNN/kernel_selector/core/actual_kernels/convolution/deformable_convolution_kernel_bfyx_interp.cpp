@@ -99,7 +99,7 @@ KernelsData DeformableConvolutionKernel_bfyx_interp::GetKernelsData(const Params
     auto& kernel = kd.kernels[0];
 
     FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, DEFAULT,
-                     false, false, newParams.inputs.size());
+                     false, false, static_cast<int>(newParams.inputs.size()));
 
     return {kd};
 }

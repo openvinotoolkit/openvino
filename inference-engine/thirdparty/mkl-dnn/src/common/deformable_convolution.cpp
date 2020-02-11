@@ -51,6 +51,10 @@ status_t def_conv_desc_init(deformable_convolution_desc_t *def_conv_desc,
     cd.prop_kind = prop_kind;
     cd.alg_kind = alg_kind;
 
+    cd.dst_desc = zero_md();
+    cd.weights_desc = zero_md();
+    cd.bias_desc = zero_md();
+
     const bool with_bias = bias_desc && bias_desc->format != memory_format::undef;
     const bool with_groups = weights_desc->ndims == src_descs[0].ndims + 1;
 

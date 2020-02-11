@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,7 +23,8 @@ from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.middle.passes.fusing.resnet_optimization import stride_optimization
 from mo.ops.convolution import Convolution
 from mo.ops.pooling import Pooling
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 max_elt_lambda = lambda node: eltwise_infer(node, lambda a, b: np.maximum(a, b))
 

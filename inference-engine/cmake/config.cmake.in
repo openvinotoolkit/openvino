@@ -1,15 +1,32 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 if(DEFINED IE_MAIN_SOURCE_DIR AND TARGET inference_engine)
-    set(InferenceEngine_INCLUDE_DIRS ${IE_MAIN_SOURCE_DIR}/include)
-    set(InferenceEngine_LIBRARIES inference_engine)
+    set(InferenceEngine_LIBRARIES inference_engine_c_api inference_engine_nn_builder inference_engine)
 else()
     include("${CMAKE_CURRENT_LIST_DIR}/targets.cmake")
     if(NOT WIN32)
         set_target_properties(IE::inference_engine PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
     endif()
+
+    file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
+    set (ie_options THREADING)
+    load_cache("${cache_path}" READ_WITH_PREFIX "" ${ie_options})
+    message(STATUS "The following CMake options are exported from the Inference Engine build")
+    message("")
+    foreach(option IN LISTS ie_options)
+        message("    ${option}: ${${option}}")
+    endforeach()
+    message("")
+
+    # inherit TBB from main IE project if enabled
+    if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+        load_cache("${cache_path}" READ_WITH_PREFIX "" TBB_DIR;ENABLE_TBB_RELEASE_ONLY)
+        set(TBB_FIND_RELEASE_ONLY ${ENABLE_TBB_RELEASE_ONLY})
+        find_package(TBB)
+    endif()
+
     get_target_property(InferenceEngine_INCLUDE_DIRS IE::inference_engine INTERFACE_INCLUDE_DIRECTORIES)
-    set(InferenceEngine_LIBRARIES IE::inference_engine)
+    set(InferenceEngine_LIBRARIES IE::inference_engine_c_api IE::inference_engine_nn_builder IE::inference_engine)
 endif()

@@ -69,6 +69,9 @@ public:
         memory_impl::cptr bias;
         memory_impl::cptr weights_quantization_factors;
         memory_impl::cptr output_calibration_factors;
+        memory_impl::cptr weights_zero_points;
+        memory_impl::cptr activations_zero_points;
+        memory_impl::cptr compensation;
         memory_impl::cptr lookup_table;
         memory_impl::cptr scale_table;
         memory_impl::cptr slope;
@@ -82,11 +85,11 @@ public:
         const kernel_selector::kernel_scalar_arguments* scalars = nullptr;
     };
 
-    void set_output_event(uint16_t stream_id, bool is_out_event) {
-        context()->set_output_event(stream_id, is_out_event);
+    void set_output_event(uint32_t net_id, bool is_out_event) {
+        context()->set_output_event(net_id, is_out_event);
     }
 
-    event_impl::ptr run(int queue_id,
+    event_impl::ptr run(uint32_t queue_id,
                         const kernel_selector::cl_kernel_data& kernel_data,
                         const std::vector<event_impl::ptr>& dependencies,
                         const kernel_arguments_data& args) const;

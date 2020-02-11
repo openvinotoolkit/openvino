@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,6 @@
 #include <string>
 #include "ie_plugin_dispatcher.hpp"
 #include "ie_plugin_ptr.hpp"
-#include "ie_device.hpp"
 #include <fstream>
 
 using namespace InferenceEngine;
@@ -125,12 +124,12 @@ TEST_F(PluginDispatcherTests, libMKLDNNPluginSymbolsExposure) {
             std::string command = "readelf --dyn-syms ";
             command += fullPath;
             command += " | grep UNIQUE | c++filt";
-            std::array<char, 128> buffer;
+            char buffer[128];
             std::string result;
             std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(command.c_str(), "r"), pclose);
             if (pipe) {
-                while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-                    result += buffer.data();
+                while (fgets(buffer, sizeof(buffer), pipe.get()) != nullptr) {
+                    result += buffer;
                 }
             }
             if (result.size())

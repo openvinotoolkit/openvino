@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,43 +20,12 @@ namespace vpu {
 namespace {
 
 class ConcatStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<ConcatStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>& inputScales,
-            ScalePropagationStep step,
-            StageDataInfo<float>& scaleInfo) override {
-        auto output = outputEdge(0)->output();
-
-        if (step == ScalePropagationStep::Propagate) {
-            // Keep the largest input scale factor.
-            auto maxScale = std::numeric_limits<float>::lowest();
-            for (const auto& inEdge : inputEdges()) {
-                maxScale = std::max(maxScale, inputScales[inEdge->portInd()]);
-            }
-
-            IE_ASSERT(maxScale > 0.0f);
-
-            for (const auto& inEdge : inputEdges()) {
-                auto curScale = inputScales[inEdge->portInd()];
-
-                if (!isFloatEqual(curScale, maxScale)) {
-                    scaleInfo.setInput(inEdge, maxScale / curScale);
-                }
-            }
-
-            scaleInfo.setOutput(outputEdge(0), maxScale);
-        } else {
-            // Concat can only propagate scaling.
-            for (const auto& inEdge : inputEdges()) {
-                scaleInfo.setInput(inEdge, 1.0f);
-            }
-
-            scaleInfo.setOutput(outputEdge(0), 1.0f);
-        }
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
@@ -206,29 +175,25 @@ protected:
 
 }  // namespace
 
-void FrontEnd::parseConcat(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseConcat(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(!inputs.empty());
     IE_ASSERT(outputs.size() == 1);
 
     auto output = outputs[0];
 
-    auto layer = std::dynamic_pointer_cast<ie::ConcatLayer>(_layer);
+    auto concat = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
     IE_ASSERT(layer != nullptr);
 
-    IE_ASSERT(layer->_axis < output->desc().numDims());
+    IE_ASSERT(concat->_axis < output->desc().numDims());
 
     auto perm = DimsOrder::fromNumDims(output->desc().numDims()).toPermutation();
-    auto axis = perm[output->desc().numDims() - 1 - layer->_axis];
+    auto axis = perm[output->desc().numDims() - 1 - concat->_axis];
 
-    _stageBuilder->addConcatStage(model, layer->name, layer, axis, inputs, output);
+    _stageBuilder->addConcatStage(model, concat->name, concat, axis, inputs, output);
 }
 
 Stage StageBuilder::addConcatStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         Dim axis,
@@ -251,7 +216,7 @@ Stage StageBuilder::addConcatStage(
 }
 
 Stage StageBuilder::addConcatStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         std::vector<DimValues>&& offsets,

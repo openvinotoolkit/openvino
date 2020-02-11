@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ class TopKExtractor(FrontExtractorOp):
     op = 'TopK'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         axis = onnx_attr(node, 'axis', 'i', default=-1)
         TopK.update_node_stat(node, {'axis': axis, 'sort': 'value'})
-        return __class__.enabled
+        return cls.enabled

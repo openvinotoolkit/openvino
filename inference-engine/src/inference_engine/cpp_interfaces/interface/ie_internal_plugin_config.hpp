@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,8 @@ namespace InferenceEngine {
 namespace InternalPluginConfigParams {
 
 /**
-* @brief shortcut for defining internal configuration keys
-*/
+ * @brief shortcut for defining internal configuration keys
+ */
 #define IE_INTERNAL_CONFIG_KEY(name) InferenceEngine::InternalPluginConfigParams::_IE_INTERNAL_CONFIG_KEY(name)
 #define _IE_INTERNAL_CONFIG_KEY(name) KEY_##name
 #define DECLARE_IE_INTERNAL_CONFIG_KEY(name) static constexpr auto _IE_INTERNAL_CONFIG_KEY(name) = #name

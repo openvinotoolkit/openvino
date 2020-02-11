@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
- * @brief a header for advanced hardware related properties for clDNN plugin
+ * @brief A header for advanced hardware related properties for clDNN plugin
  *        To use in SetConfig() method of plugins
  *
- * @file ie_plugin_config.hpp
+ * @file
  */
 #pragma once
 
@@ -63,6 +63,13 @@ DECLARE_CLDNN_CONFIG_KEY(SOURCES_DUMPS_DIR);
 * @brief This key turns usage of int8 optimizations and qunatized models on.
 */
 DECLARE_CLDNN_CONFIG_KEY(INT8_ENABLED);
+
+/**
+* @brief This key should be set to correctly handle NV12 input without pre-processing.
+* Turned off by default.
+*/
+DECLARE_CLDNN_CONFIG_KEY(NV12_TWO_INPUTS);
+
 
 }  // namespace CLDNNConfigParams
 }  // namespace InferenceEngine

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -26,6 +26,11 @@ if(NOT OpenCV_FOUND)
     message(WARNING "OPENCV is disabled or not found, " ${TARGET_NAME} " will be built without OPENCV support")
 else()
     target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES})
+    if(UNIX AND NOT APPLE)
+        # Workaround issue that rpath-link is missing for PRIVATE dependencies
+        # Fixed in cmake 3.16.0 https://gitlab.kitware.com/cmake/cmake/issues/19556
+        target_link_libraries(${TARGET_NAME} INTERFACE "-Wl,-rpath-link,${OpenCV_INSTALL_PATH}/lib")
+    endif()
     target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
 endif()
 
@@ -35,8 +40,3 @@ target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
                                                  "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
-
-# developer package
-
-export(TARGETS ${TARGET_NAME} NAMESPACE IE::
-       APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")

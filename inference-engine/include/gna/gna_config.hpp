@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,14 @@
 
 #include <string>
 #include "ie_plugin_config.hpp"
+
+#ifdef GNA_LIB_VER
+#if GNA_LIB_VER == 2
+#define DISABLE_TEST_ON_GNA2 GTEST_SKIP();
+#else
+#define DISABLE_TEST_ON_GNA2
+#endif
+#endif
 
 namespace InferenceEngine {
 
@@ -56,6 +64,11 @@ DECLARE_GNA_CONFIG_KEY(PRECISION);
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE);
 
 /**
+* @brief inforamtion on GNA generation chosen for firmware model dump, can be overriden by GNA3
+*/
+DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION);
+
+/**
 * @brief GNA proc_type setting that should be one of GNA_AUTO, GNA_HW, GNA_SW, GNA_SW_EXACT
 */
 DECLARE_GNA_CONFIG_KEY(DEVICE_MODE);
@@ -65,6 +78,14 @@ DECLARE_GNA_CONFIG_VALUE(HW);
 DECLARE_GNA_CONFIG_VALUE(SW);
 DECLARE_GNA_CONFIG_VALUE(SW_EXACT);
 DECLARE_GNA_CONFIG_VALUE(SW_FP32);
+DECLARE_GNA_CONFIG_VALUE(GEN);
+DECLARE_GNA_CONFIG_VALUE(GEN_EXACT);
+DECLARE_GNA_CONFIG_VALUE(SSE);
+DECLARE_GNA_CONFIG_VALUE(SSE_EXACT);
+DECLARE_GNA_CONFIG_VALUE(AVX1);
+DECLARE_GNA_CONFIG_VALUE(AVX1_EXACT);
+DECLARE_GNA_CONFIG_VALUE(AVX2);
+DECLARE_GNA_CONFIG_VALUE(AVX2_EXACT);
 
 /**
 * @brief if enabled produced minimum memory footprint for loaded network in GNA memory, default value is YES

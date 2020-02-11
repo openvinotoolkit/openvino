@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,14 +37,6 @@ public:
 
 TEST_F(TensorDescTests, CreateBlobWithIncorrectLayout) {
     ASSERT_THROW(make_shared_blob<float>({ Precision::FP32, {1, 3, 32}, Layout::NC }), details::InferenceEngineException);
-}
-
-TEST_F(TensorDescTests, CreateEmptyBlob) {
-    IE_SUPPRESS_DEPRECATED_START
-    Blob::Ptr blob = make_shared_blob<float>(Precision::FP32);
-    IE_SUPPRESS_DEPRECATED_END
-
-    ASSERT_EQ(blob->getTensorDesc().getLayout(), Layout::NCHW);
 }
 
 TEST_F(TensorDescTests, CreateBlockedBlobNCHW) {

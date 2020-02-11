@@ -1,6 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+/**
+ * @file
+ */
 
 #pragma once
 
@@ -12,17 +16,16 @@ namespace InferenceEngine {
 namespace Builder {
 
 /**
+ * @deprecated Use ngraph API instead.
  * @brief The class represents a builder for Norm layer
  */
-class INFERENCE_ENGINE_API_CLASS(NormLayer): public LayerDecorator {
+IE_SUPPRESS_DEPRECATED_START
+class INFERENCE_ENGINE_NN_BUILDER_API_CLASS(NormLayer): public LayerDecorator {
 public:
     /**
      * @brief The enum defines all Norm types
      */
-    enum NormType {
-        WITHIN_CHANNEL = 0,
-        ACROSS_CHANNELS = 1
-    };
+    enum NormType { WITHIN_CHANNEL = 0, ACROSS_CHANNELS = 1 };
     /**
      * @brief The constructor creates a builder with the name
      * @param name Layer name
@@ -112,6 +115,7 @@ public:
      */
     NormLayer& setRegion(NormType type);
 };
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace Builder
 }  // namespace InferenceEngine

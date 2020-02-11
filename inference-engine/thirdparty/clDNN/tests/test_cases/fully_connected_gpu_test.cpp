@@ -19,6 +19,7 @@
 #include "api/memory.hpp"
 #include <api/input_layout.hpp>
 #include "api/fully_connected.hpp"
+#include <api/quantize.hpp>
 #include <api/topology.hpp>
 #include <api/tensor.hpp>
 #include <api/network.hpp>
@@ -270,7 +271,7 @@ TEST(fully_connected_gpu, no_biases_int8) {
     auto input_prim = memory::allocate(engine, { data_types::f32,format::bfyx,{ input_b, 1, input_x, 1 } });
     auto weights_prim = memory::allocate(engine, { data_types::i8,format::bfyx,{ weight_b, 1, weight_x, 1 } });
 
-    set_values(input_prim, { 8.4f, 2.3f, -4.99f });
+    set_values(input_prim, { 8.4f, 2.3f, -4.49f });
     set_values<char>(weights_prim, { 2, 1, 0, -3, -2, 1, 0, -2, -4, -5, 10, 8 });
 
     auto input = input_layout("input", input_prim.get_layout());
@@ -825,60 +826,42 @@ TEST(fully_connected_gpu, b_fs_yx_fsv4)
     set_values(weights_imad, std::move(Weights));
     topology.add(data("weights_gold", weights_gold), data("weights_imad", weights_imad));
 
-    // Bias, Callibraiton, Quantization
-    std::vector<float> vB(in_F), vC(in_F), vQ(in_F);
-    float x = 0.1f;
-    std::generate(vB.begin(), vB.end(), [x]() mutable {
-        x += 0.01f;
-        if (x >= 0.9f)
-            x = 0.1f;
-        return x;
-    });
-    x = 0.2f;
-    std::generate(vC.begin(), vC.end(), [x]() mutable {
-        x += 0.01f;
-        if (x >= 0.9f)
-            x = 0.2f;
-        return x;
-    });
-    x = 0.3f;
-    std::generate(vQ.begin(), vQ.end(), [x]() mutable {
-        x += 0.01f;
-        if (x >= 0.9f)
-            x = 0.3f;
-        return x;
-    });
     auto bias_gold = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, in_F, 1}});
     auto bias_imad = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, in_F, 1}});
-    auto callib_gold = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, in_F, 1}});
-    auto callib_imad = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, in_F, 1}});
-    auto quant_gold = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, in_F, 1}});
-    auto quant_imad = memory::allocate(engine, {data_types::f32, format::bfyx, {1, 1, in_F, 1}});
-    set_values(bias_gold, vB);
-    set_values(bias_imad, std::move(vB));
-    set_values(callib_gold, vC);
-    set_values(callib_imad, std::move(vC));
-    set_values(quant_gold, vQ);
-    set_values(quant_imad, std::move(vQ));
-    topology.add(data("bias_gold", bias_gold),
-                 data("callib_gold", callib_gold),
-                 data("quant_gold", quant_gold));
-    topology.add(data("bias_imad", bias_imad),
-                 data("callib_imad", callib_imad),
-                 data("quant_imad", quant_imad));
+
+    topology.add(data("bias_gold", bias_gold));
+    topology.add(data("bias_imad", bias_imad));
 
     // Fully connected
     fully_connected fullc_gold(
-        "fullc_gold", "input", "weights_gold", {"bias_gold"}, {"quant_gold"}, {"callib_gold"}, 1.0f);
+        "fullc_gold", "input", "weights_gold", "bias_gold");
     fully_connected fullc_imad(
-        "fullc_imad", "reorder_in", "weights_imad", {"bias_imad"}, {"quant_imad"}, {"callib_imad"}, 1.0f);
+        "fullc_imad", "reorder_in", "weights_imad", "bias_imad");
     topology.add(fullc_gold, fullc_imad);
+
+
+    auto input_low_mem = memory::allocate(engine, { data_types::f32, format::bfyx, {1, W_B, 1, 1} });
+    auto input_high_mem = memory::allocate(engine, { data_types::f32, format::bfyx, {1, W_B, 1, 1} });
+    auto output_low_mem = memory::allocate(engine, { data_types::f32, format::bfyx, {1, 1, 1, 1} });
+    auto output_high_mem = memory::allocate(engine, { data_types::f32, format::bfyx, {1, 1, 1, 1} });
+    set_values(input_low_mem,  generate_random_1d<float>(W_B, -200, 0));
+    set_values(input_high_mem, generate_random_1d<float>(W_B, 1, 200));
+    set_values(output_low_mem,  {-127.0f});
+    set_values(output_high_mem, {127.0f});
+
+    topology.add(data("in_lo", input_low_mem),
+        data("in_hi", input_high_mem),
+        data("out_lo", output_low_mem),
+        data("out_hi", output_high_mem),
+        quantize("quant_gold", "fullc_gold", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        quantize("quant_imad", "fullc_imad", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8)
+    );
 
     // Output reorder
     auto reorder_gold =
-        reorder("reorder_gold", fullc_gold, layout(data_types::i8, format::bfyx, {in_B, W_B, 1, 1}));
+        reorder("reorder_gold", "quant_gold", layout(data_types::i8, format::bfyx, {in_B, W_B, 1, 1}));
     auto reorder_imad =
-        reorder("reorder_imad", fullc_imad, layout(data_types::i8, format::bfyx, {in_B, W_B, 1, 1}));
+        reorder("reorder_imad", "quant_imad", layout(data_types::i8, format::bfyx, {in_B, W_B, 1, 1}));
     topology.add(reorder_gold, reorder_imad);
 
     // Network build
@@ -1056,3 +1039,357 @@ TEST(fully_connected_gpu, DISABLED_fs_byx_fsv32_b34)
         }
     }
 }
+
+struct quantization_t {
+    VF<float> input_low;
+    VF<float> input_high;
+    float output_low;
+    float output_high;
+    int levels;
+};
+
+template <typename InputT, typename OutputT>
+class fully_connected_quantized_test : public ::testing::Test {
+private:
+    size_t batch_num() { return _input.size(); }
+    size_t input_f() { return _input[0].size(); }
+    size_t input_y() { return _input[0][0].size(); }
+    size_t input_x() { return _input[0][0][0].size(); }
+    size_t output_f() { return _weights.size(); }
+
+    data_types input_data_type() {
+        return type_to_data_type<InputT>::value;
+    }
+
+    data_types output_data_type() {
+        return type_to_data_type<OutputT>::value;
+    }
+
+    bool has_bias() { return _bias.size() > 0; }
+
+public:
+    void set_input(VVVVF<InputT> _data) {
+        _input = std::move(_data);
+    }
+
+    void set_weights(VVVVF<int8_t> _data) {
+        _weights = std::move(_data);
+    }
+
+    void set_bias(VF<int> _data) {
+        _bias = std::move(_data);
+    }
+
+    void set_quantization(quantization_t quant_data) {
+        _quantization = std::move(quant_data);
+    }
+
+    void set_input_format(format::type fmt) {
+        _fmt = fmt;
+    }
+
+    void run_test(VVF<OutputT> expected) {
+        auto& engine = get_test_engine();
+
+        auto input_size = tensor(TensorValue(batch_num()), TensorValue(input_f()), TensorValue(input_x()), TensorValue(input_y()));
+        auto weights_size = tensor(TensorValue(output_f()), TensorValue(input_f()), TensorValue(input_x()), TensorValue(input_y()));
+
+        auto input_prim = memory::allocate(engine, { input_data_type(), _fmt, input_size });
+        auto weights_prim = memory::allocate(engine, { data_types::i8, format::bfyx, weights_size });
+        auto quantization_input_low = memory::allocate(engine, { data_types::f32, format::bfyx, tensor(feature(output_f())) });
+        auto quantization_input_high = memory::allocate(engine, { data_types::f32, format::bfyx, tensor(feature(output_f())) });
+        auto quantization_output_low = memory::allocate(engine, { data_types::f32, format::bfyx, tensor(feature(1)) });
+        auto quantization_output_high = memory::allocate(engine, { data_types::f32, format::bfyx, tensor(feature(1)) });
+
+        VF<InputT> input_flattened(input_prim.get_layout().get_linear_size());
+        for (size_t bi = 0; bi < batch_num(); ++bi)
+            for (size_t fi = 0; fi < input_f(); ++fi)
+                for (size_t yi = 0; yi < input_y(); ++yi)
+                    for (size_t xi = 0; xi < input_x(); ++xi) {
+                        auto idx = tensor((int32_t)bi, (int32_t)fi, (int32_t)xi, (int32_t)yi);
+                        auto offset = input_size.get_linear_offset(idx, _fmt);
+                        input_flattened[offset] = _input[bi][fi][yi][xi];
+                    }
+
+        set_values(input_prim, input_flattened);
+        set_values(weights_prim, flatten_4d(format::bfyx, _weights));
+        set_values(quantization_input_low, _quantization.input_low);
+        set_values(quantization_input_high, _quantization.input_high);
+        set_values(quantization_output_low, { _quantization.output_low });
+        set_values(quantization_output_high, { _quantization.output_high });
+
+        auto bias_prim = memory::allocate(engine, { data_types::i32, format::bfyx, tensor(feature(output_f())) });
+        set_values(bias_prim, _bias);
+
+        topology topo;
+        topo.add(data("weights", weights_prim));
+        topo.add(data("bias", bias_prim));
+
+        topo.add(input_layout("input", input_prim.get_layout()));
+        auto fc_prim = fully_connected("fc", "input", "weights", "bias");
+        fc_prim.output_data_type = type_to_data_type<OutputT>::value;
+        topo.add(fc_prim);
+
+        topo.add(data("quant_input_low", quantization_input_low));
+        topo.add(data("quant_input_high", quantization_input_high));
+        topo.add(data("quant_output_low", quantization_output_low));
+        topo.add(data("quant_output_high", quantization_output_high));
+        topo.add(quantize("quantization_prim",
+            "fc",
+            "quant_input_low",
+            "quant_input_high",
+            "quant_output_low",
+            "quant_output_high",
+            _quantization.levels,
+            output_data_type()
+            ));
+
+        topo.add(reorder("output", "quantization_prim", format::bfyx, output_data_type()));
+
+        build_options build_opts;
+        build_opts.set_option(build_option::optimize_data(true));
+
+        network net(engine, topo, build_opts);
+        net.set_input_data("input", input_prim);
+
+        auto output = net.execute();
+        auto out_mem = output.at("output").get_memory();
+        auto out_ptr = out_mem.pointer<OutputT>();
+
+        for (size_t bi = 0; bi < batch_num(); ++bi) {
+            for (size_t fi = 0; fi < output_f(); ++fi) {            
+                EXPECT_NEAR(out_ptr[bi * output_f() + fi], expected[bi][fi], 1) << "at b = " << bi << ", fi = " << fi;
+            }
+        }
+    }
+
+private:
+    VVVVF<InputT> _input;
+    VVVVF<int8_t> _weights;
+    VF<int> _bias;
+    quantization_t _quantization;
+    format::type _fmt;
+};
+
+
+template <typename OutputT, typename AccT, typename InputT, typename WeightsT, typename BiasT>
+VVF<OutputT> ref_fully_connected(
+    const VVVVF<InputT>& input,
+    const VVVVF<WeightsT>& weights,
+    const VF<BiasT>& bias,
+    const quantization_t& quantization) {
+
+    auto batch_num = input.size();
+    auto input_f = input[0].size();
+    auto input_y = input[0][0].size();
+    auto input_x = input[0][0][0].size();
+
+    auto output_f = weights.size();
+
+    auto output = VVF<OutputT>(batch_num, VF<OutputT>(output_f));
+
+    for (size_t bi = 0; bi < batch_num; ++bi)
+    for (size_t fi = 0; fi < output_f; ++fi) {
+        AccT acc = static_cast<AccT>(0);
+        for (size_t ifi = 0; ifi < input_f; ++ifi)
+        for (size_t iyi = 0; iyi < input_y; ++iyi)
+        for (size_t ixi = 0; ixi < input_x; ++ixi) {
+            auto input_val = static_cast<AccT>(input[bi][ifi][iyi][ixi]);
+            auto weights_val = static_cast<AccT>(weights[fi][ifi][iyi][ixi]);
+            acc += input_val * weights_val;
+        }
+        acc += static_cast<AccT>(bias[fi]);
+
+        //quantization
+        auto input_low = quantization.input_low[fi];
+        auto input_high = quantization.input_high[fi];
+        auto output_low = quantization.output_low;
+        auto output_high = quantization.output_high;
+        float levels = static_cast<float>(quantization.levels); // just to get correct output values
+        if (acc <= input_low)
+            output[bi][fi] = static_cast<OutputT>(output_low);
+        else if (acc > input_high)
+            output[bi][fi] = static_cast<OutputT>(output_high);
+        else {
+            if (std::is_same<OutputT, float>::value) {
+                output[bi][fi] = static_cast<OutputT>(
+                    std::round((acc - input_low) / (input_high - input_low) * (levels - 1))
+                        *  (1 / (levels - 1) * (output_high - output_low))
+                        + output_low);
+            }
+            else {
+                output[bi][fi] = static_cast<OutputT>(std::round(
+                    std::round((acc - input_low) / (input_high - input_low) * (levels - 1))
+                        *  (1 / (levels - 1) * (output_high - output_low))
+                        + output_low));
+            }
+        }
+    }
+    return output;
+}
+
+using fully_connected_quantized_test_params = std::tuple<
+    size_t,  // batch_num
+    size_t,  // input_f
+    size_t,  // input_x
+    size_t,  // input_y
+    size_t,  // output_f
+    format::type  // format
+>;
+
+namespace {
+    template<typename T>
+    std::vector<T> generate_random_values(size_t a, int min, int max) {
+    static std::default_random_engine generator(random_seed);
+    // 1/k is the resolution of the floating point numbers
+    std::uniform_int_distribution<int> distribution(min, max);
+    std::vector<T> v(a);
+
+    for (size_t i = 0; i < a; ++i) {
+        v[i] = (T)distribution(generator);
+    }
+    return v;
+    }
+} // namespace
+
+template <typename InputT, typename OutputT>
+class fc_quantized_random_test
+    : public fully_connected_quantized_test<InputT, OutputT>
+    , public ::testing::WithParamInterface< fully_connected_quantized_test_params> {
+public:
+    void run_random_test() {
+        size_t b, in_f, in_x, in_y, out_f;
+        format::type in_fmt;
+
+        std::tie(b, in_f, in_x, in_y, out_f, in_fmt) = GetParam();
+
+        VVVVF<InputT> input_data = generate_random_4d<InputT>(b, in_f, in_y, in_x, -127, 127);
+        VVVVF<int8_t> weights_data = generate_random_4d<int8_t>(out_f, in_f, in_y, in_x, -127, 127);
+        VF<int> bias_data = generate_random_1d<int>(out_f, -127, 127);
+        bool is_unsigned = std::is_same<OutputT, uint8_t>::value;
+        quantization_t quant_data;
+        quant_data.input_low   = generate_random_values<float>(out_f, -200, 0);
+        quant_data.input_high  = generate_random_values<float>(out_f, 1, 200);
+        quant_data.output_low  = is_unsigned ? 0.0f   : -127.0f;
+        quant_data.output_high = is_unsigned ? 255.0f : 127.0f;
+        quant_data.levels      = is_unsigned ? 256    : 255;
+
+        this->set_input(input_data);
+        this->set_weights(weights_data);
+        this->set_bias(bias_data);
+        this->set_quantization(quant_data);
+        this->set_input_format(in_fmt);
+
+        this->run_test(ref_fully_connected<OutputT, float>(input_data, weights_data, bias_data, quant_data));
+    }
+};
+
+using fully_connected_i8_i8_test = fc_quantized_random_test<int8_t, int8_t>;
+using fully_connected_i8_u8_test = fc_quantized_random_test<int8_t, uint8_t>;
+using fully_connected_i8_f32_test = fc_quantized_random_test<int8_t, float>;
+
+using fully_connected_u8_i8_test = fc_quantized_random_test<uint8_t, int8_t>;
+using fully_connected_u8_u8_test = fc_quantized_random_test<uint8_t, uint8_t>;
+using fully_connected_u8_f32_test = fc_quantized_random_test<uint8_t, float>;
+
+TEST_P(fully_connected_i8_i8_test, random) {
+    run_random_test();
+}
+
+TEST_P(fully_connected_i8_u8_test, random) {
+    run_random_test();
+}
+
+TEST_P(fully_connected_i8_f32_test, random) {
+    run_random_test();
+}
+
+TEST_P(fully_connected_u8_i8_test, random) {
+    run_random_test();
+}
+
+TEST_P(fully_connected_u8_u8_test, random) {
+    run_random_test();
+}
+
+TEST_P(fully_connected_u8_f32_test, random) {
+    run_random_test();
+}
+
+INSTANTIATE_TEST_CASE_P(
+    basic,
+    fully_connected_i8_i8_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 32),
+        testing::Values(1, 3),
+        testing::Values(1, 3),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+    ),
+);
+
+INSTANTIATE_TEST_CASE_P(
+    basic,
+    fully_connected_i8_u8_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 32),
+        testing::Values(1, 3),
+        testing::Values(1, 3),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+    ),
+);
+
+INSTANTIATE_TEST_CASE_P(
+    basic,
+    fully_connected_i8_f32_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 32),
+        testing::Values(1, 3),
+        testing::Values(1, 3),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+    ),
+);
+
+INSTANTIATE_TEST_CASE_P(
+    basic,
+    fully_connected_u8_i8_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 32),
+        testing::Values(1, 3),
+        testing::Values(1, 3),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+    ),
+);
+
+INSTANTIATE_TEST_CASE_P(
+    basic,
+    fully_connected_u8_u8_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 32),
+        testing::Values(1, 3),
+        testing::Values(1, 3),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+    ),
+);
+
+INSTANTIATE_TEST_CASE_P(
+    basic,
+    fully_connected_u8_f32_test,
+    testing::Combine(
+        testing::Values(1, 2),
+        testing::Values(3, 32),
+        testing::Values(1, 3),
+        testing::Values(1, 3),
+        testing::Values(3, 32),
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+    ),
+);

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,13 +20,16 @@ import argparse
 import os
 import sys
 
-import tensorflow as tf
+try:
+    import tensorflow.compat.v1 as tf_v1
+except ImportError:
+    import tensorflow as tf_v1
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 unlikely_output_types = ['Const', 'Assign', 'NoOp', 'Parameter', 'Assert']
 
 
-def children(op_name: str, graph: tf.Graph):
+def children(op_name: str, graph: tf_v1.Graph):
     op = graph.get_operation_by_name(op_name)
     return set(op for out in op.outputs for op in out.consumers())
 
@@ -34,14 +37,14 @@ def children(op_name: str, graph: tf.Graph):
 def summarize_graph(graph_def):
     placeholders = dict()
     outputs = list()
-    graph = tf.Graph()
+    graph = tf_v1.Graph()
     with graph.as_default():  # pylint: disable=not-context-manager
-        tf.import_graph_def(graph_def, name='')
+        tf_v1.import_graph_def(graph_def, name='')
     for node in graph.as_graph_def().node:  # pylint: disable=no-member
         if node.op == 'Placeholder':
             node_dict = dict()
-            node_dict['type'] = tf.DType(node.attr['dtype'].type).name
-            node_dict['shape'] = str(tf.TensorShape(node.attr['shape'].shape)).replace(' ', '').replace('?', '-1')
+            node_dict['type'] = tf_v1.DType(node.attr['dtype'].type).name
+            node_dict['shape'] = str(tf_v1.TensorShape(node.attr['shape'].shape)).replace(' ', '').replace('?', '-1')
             placeholders[node.name] = node_dict
         if len(children(node.name, graph)) == 0:
             if node.op not in unlikely_output_types and node.name.split('/')[-1] not in unlikely_output_types:

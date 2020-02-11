@@ -38,7 +38,7 @@ static std::vector<T> generate_rnd_real_input(
     static std::default_random_engine rnd_gen(random_seed);
     cldnn::tests::distributions::uniform_quantized_real_distribution<T> rnd_dist(min, max, rnd_bits);
 
-    auto acum = std::accumulate(sizes.begin(), sizes.end(), 1, std::multiplies<int>());
+    auto acum = std::accumulate(sizes.begin(), sizes.end(), static_cast<std::size_t>(1), std::multiplies<std::size_t>());
 
     std::vector<T> data;
     data.reserve(acum);
@@ -531,7 +531,10 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror) {
             border_type::mirror)
     );
 
-    std::vector<float> input_data = generate_rnd_real_input<float>({in_size_b, in_size_f, in_size_y, in_size_x, in_size_z}, -8.0f, 8.0f);
+    const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
+                                     static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x),
+                                     static_cast<std::size_t>(in_size_z) };
+    std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
     network network(engine, topology);
@@ -608,7 +611,10 @@ TEST(border_gpu, basic_bfzyxw_0x0x0x0x1_0x0x0x0x1_border_mirror) {
             border_type::mirror)
     );
 
-    std::vector<float> input_data = generate_rnd_real_input<float>({ in_size_b, in_size_f, in_size_y, in_size_x, in_size_z, in_size_w }, -8.0f, 8.0f);
+    const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
+                                     static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x),
+                                     static_cast<std::size_t>(in_size_z), static_cast<std::size_t>(in_size_w) };
+    std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
     network network(engine, topology);
@@ -1015,7 +1021,9 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant) {
                0.0f)
     );
 
-    std::vector<float> input_data = generate_rnd_real_input<float>({ in_size_b, in_size_f, in_size_y, in_size_x }, -8.0f, 8.0f);
+    const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
+                                     static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x)};
+    std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
     network network(engine, topology);
@@ -1084,7 +1092,9 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror) {
                border_type::mirror)
     );
 
-    std::vector<float> input_data = generate_rnd_real_input<float>({ in_size_b, in_size_f, in_size_y, in_size_x }, -8.0f, 8.0f);
+    const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
+                                     static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x) };
+    std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
     network network(engine, topology);
@@ -1148,8 +1158,9 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror_101) {
                tensor{brb_size_b, brb_size_f, brb_size_x, brb_size_y},
                border_type::mirror_101)
     );
-
-    std::vector<float> input_data = generate_rnd_real_input<float>({ in_size_b, in_size_f, in_size_y, in_size_x }, -8.0f, 8.0f);
+    const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
+                                    static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x) };
+    std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
     network network(engine, topology);
@@ -1213,8 +1224,9 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_edge) {
                tensor{brb_size_b, brb_size_f, brb_size_x, brb_size_y},
                border_type::edge)
     );
-
-    std::vector<float> input_data = generate_rnd_real_input<float>({ in_size_b, in_size_f, in_size_y, in_size_x }, -8.0f, 8.0f);
+    const std::vector<size_t> sizes{ static_cast<std::size_t>(in_size_b), static_cast<std::size_t>(in_size_f),
+                                    static_cast<std::size_t>(in_size_y), static_cast<std::size_t>(in_size_x) };
+    std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
     network network(engine, topology);

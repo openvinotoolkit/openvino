@@ -49,7 +49,7 @@ fully_connected_kernel_selector::fully_connected_kernel_selector() {
     Attach<FullyConnected_fb_io_b8_f8>();
     Attach<FullyConnected_bf_io_input_spatial>();
     Attach<FullyConnectedKernelMMAD>();
-    Attach<FullyConnected_mmad_batched>();
+    // Attach<FullyConnected_mmad_batched>();
     Attach<FullyConnectedKernelIMAD>();
     Attach<FullyConnected_fs_byx_fsv32>();
 }

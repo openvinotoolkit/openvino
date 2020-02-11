@@ -1,14 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ie_built_in_impl.hpp"
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "ie_built_in_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -18,13 +19,11 @@ namespace ShapeInfer {
  */
 class CropShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit CropShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
+    explicit CropShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-                         const std::map<std::string, std::string>& params,
-                         const std::map<std::string, Blob::Ptr>& blobs,
-                         std::vector<SizeVector>& outShapes) override {
-        LayerParams lp{};
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
+        LayerParams lp {};
         CropLayer cropLayer(lp);
         cropLayer.params = params;
         cropLayer.type = _type;
@@ -41,9 +40,8 @@ public:
             bool isDim = cropLayer.params.find("dim") != cropLayer.params.end();
             if (!isDim) crop_end = cropLayer.GetParamAsInts("crop_end");
             for (size_t i = 0; i < cropLayer.axis.size(); i++) {
-                outShapes[0][cropLayer.axis[i]] = isDim
-                                                  ? cropLayer.dim[i]
-                                                  : inShapes[0][cropLayer.axis[i]] - cropLayer.offset[i] - crop_end[i];
+                outShapes[0][cropLayer.axis[i]] =
+                    isDim ? cropLayer.dim[i] : inShapes[0][cropLayer.axis[i]] - cropLayer.offset[i] - crop_end[i];
             }
         }
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,10 @@
 #include <vector>
 #include <utility>
 #include "gna-api.h"
+#include "gna_plugin_log.hpp"
+#if GNA_LIB_VER == 2
+#include "gna2-model-api.h"
+#endif
 
 #pragma pack(push, 1)
 
@@ -15,10 +19,16 @@
  * version history
  * 1.0 - basic support
  * 1.1 - added memory information
+ * 2.0 - for use with GNA2 library
  */
-
+#if GNA_LIB_VER == 2
+#define HEADER_MAJOR 2
+#define HEADER_MINOR 0
+#else
 #define HEADER_MAJOR 1
 #define HEADER_MINOR 1
+#endif
+
 
 /**
  * @brief Header version 1.0
@@ -54,12 +64,10 @@ struct ModelHeader {
      * @brief Number of GNA Layers
      */
     uint64_t layersCount = 0ull;
-
     /**
      * @brief Grouping level
      */
     uint32_t nGroup = 0u;
-
     /**
      * Convolution related setting - they are affecting input transformation
      */
@@ -133,7 +141,11 @@ class GNAModelSerial {
     using MemoryType = std::vector<std::pair<void*, uint32_t>>;
 
 private:
+#if GNA_LIB_VER == 2
+    Gna2Model * gna2Model;
+#else
     intel_nnet_type_t *ptr_nnet;
+#endif
     RuntimeEndPoint input, output;
     uint32_t nRotateRows = 0;
     uint32_t nRotateColumns = 0;
@@ -141,27 +153,40 @@ private:
     MemoryType states, *pstates = nullptr;
 
  public:
-    /**
-     *
-     * @brief Used for import/export
-     * @param ptr_nnet
-     * @param inputScale  - in/out parameter representing input scale factor
-     * @param outputScale - in/out parameter representing output scale factor
-     */
-    GNAModelSerial(intel_nnet_type_t *ptr_nnet, MemoryType &states_holder)
-        : ptr_nnet(ptr_nnet) , pstates(&states_holder) {
+#if GNA_LIB_VER == 2
+    GNAModelSerial(Gna2Model * model, MemoryType & states_holder)
+        : gna2Model(model), pstates(&states_holder) {
     }
 
-    /**
-     * @brief used for export only since runtime params are not passed by pointer
-     * @param ptr_nnet
-     * @param runtime
-     */
     GNAModelSerial(
-        intel_nnet_type_t *ptr_nnet,
+        Gna2Model * model,
         RuntimeEndPoint input,
-        RuntimeEndPoint output) : ptr_nnet(ptr_nnet), input(input), output(output) {
+        RuntimeEndPoint output) : gna2Model(model), input(input), output(output) {
     }
+
+#else
+     /**
+  *
+  * @brief Used for import/export
+  * @param ptr_nnet
+  * @param inputScale  - in/out parameter representing input scale factor
+  * @param outputScale - in/out parameter representing output scale factor
+  */
+     GNAModelSerial(intel_nnet_type_t *ptr_nnet, MemoryType &states_holder)
+         : ptr_nnet(ptr_nnet), pstates(&states_holder) {
+     }
+
+     /**
+      * @brief used for export only since runtime params are not passed by pointer
+      * @param ptr_nnet
+      * @param runtime
+      */
+     GNAModelSerial(
+         intel_nnet_type_t *ptr_nnet,
+         RuntimeEndPoint input,
+         RuntimeEndPoint output) : ptr_nnet(ptr_nnet), input(input), output(output) {
+     }
+#endif
 
     GNAModelSerial & SetInputRotation(uint32_t nRotateRows, uint32_t nRotateColumns) {
       this->nRotateColumns = nRotateColumns;

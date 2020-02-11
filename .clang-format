@@ -1,0 +1,19 @@
+BasedOnStyle: Google
+IndentWidth: 4
+UseTab: Never
+---
+Language: Cpp
+Standard: Cpp11
+
+AccessModifierOffset: -4
+AllowAllArgumentsOnNextLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortLambdasOnASingleLine: Empty
+AlwaysBreakBeforeMultilineStrings: false
+ColumnLimit: 120
+DerivePointerAlignment: false
+FixNamespaceComments: true
+IndentCaseLabels: false
+SpaceBeforeCpp11BracedList: true
+SpaceBeforeCtorInitializerColon: false
+---

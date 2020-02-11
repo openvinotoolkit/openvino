@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #define NOMINMAX
+#include <utility>
 #include <ie_blob.h>
 #include <ie_plugin.hpp>
 #include <description_buffer.hpp>
@@ -10,6 +11,7 @@
 #include <ie_layouts.h>
 #include <precision_utils.h>
 
+#include <vpu/utils/error.hpp>
 #include <vpu/utils/perf_report.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/profiling.hpp>
@@ -24,30 +26,21 @@ using namespace InferenceEngine;
 #define MEMCPY(dst, src, bytes) std::copy_n((src), (bytes), (dst))
 
 MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
-                                        InferenceEngine::InputsDataMap networkInputs,
-                                        InferenceEngine::OutputsDataMap networkOutputs,
-                                        DataInfo& inputInfo,
-                                        DataInfo& outputInfo,
-                                        const std::vector<StageMetaInfo> &blobMetaData,
-                                        const std::shared_ptr<MyriadConfig> &myriadConfig,
-                                        const Logger::Ptr &log,
-                                        const MyriadExecutorPtr &executor) :
+                                       InferenceEngine::InputsDataMap networkInputs,
+                                       InferenceEngine::OutputsDataMap networkOutputs,
+                                       DataInfo& compilerInputsInfo,
+                                       DataInfo& compilerOutputsInfo,
+                                       const std::vector<StageMetaInfo> &blobMetaData,
+                                       const MyriadConfig& myriadConfig,
+                                       const Logger::Ptr &log,
+                                       const MyriadExecutorPtr &executor) :
         InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
         _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
-        _inputInfo(inputInfo), _outputInfo(outputInfo),
+        _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo),
         _graphDesc(graphDesc) {
     VPU_PROFILE(MyriadInferRequest);
-    _layoutPreference = _config->compileConfig.hwOptimization ?
-                            LayoutPreference::ChannelMajor :
-                            LayoutPreference::ChannelMinor;
-    if (_config->compileConfig.forceLayout == ComputeLayout::NCHW ||
-        _config->compileConfig.forceLayout == ComputeLayout::NCDHW)
-        _layoutPreference = LayoutPreference::ChannelMajor;
-    if (_config->compileConfig.forceLayout == ComputeLayout::NHWC ||
-        _config->compileConfig.forceLayout == ComputeLayout::NDHWC)
-        _layoutPreference = LayoutPreference::ChannelMinor;
 
-    const auto& ioStrides = _config->compileConfig.ioStrides;
+    const auto& ioStrides = _config.compileConfig().ioStrides;
     // allocate inputs
     for (auto &networkInput : _networkInputs) {
         IE_ASSERT(ioStrides.find(networkInput.first) == ioStrides.end())
@@ -86,12 +79,12 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
         _outputs[networkOutput.first] = outputBlob;
     }
 
-    inputBuffer .resize(inputInfo.totalSize);
-    resultBuffer.resize(outputInfo.totalSize);
+    inputBuffer .resize(compilerInputsInfo.totalSize);
+    resultBuffer.resize(compilerOutputsInfo.totalSize);
 
-    if (_networkOutputs.empty() || _networkInputs.empty()) {
-        THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
-    }
+    VPU_THROW_UNLESS(
+        !_networkOutputs.empty() && !_networkInputs.empty(),
+        "No information about network's output/input");
 }
 
 void MyriadInferRequest::InferImpl() {
@@ -105,72 +98,96 @@ void MyriadInferRequest::InferAsync() {
     // execute input pre-processing
     execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
 
-    Blob::Ptr tmpBlob;
+    auto inputInfo = _inputInfo;
+    auto networkInputs = _networkInputs;
 
-    void* inputPtr = nullptr;
-    size_t inputSize = _inputInfo.totalSize;
+    auto getOffset = [&inputInfo] (const std::string& name) {
+        const auto offsetIt = inputInfo.offset.find(name);
+        IE_ASSERT(offsetIt != inputInfo.offset.end()) << "MyriadInferRequest::InferAsync()\n"
+                                                      << "Input offset [" << name << "] is not provided.";
+        return offsetIt->second;
+    };
 
-    if (_inputs.size() > 1) {
-        for (auto&& input : _inputs) {
-            auto inputBlob = input.second;
-            size_t byteSize = inputBlob->byteSize();
-            Layout layout = inputBlob->getTensorDesc().getLayout();
-            Layout vpuLayout = deviceLayout(layout, _layoutPreference);
-            if (layout != vpuLayout) {
-                inputBlob = copyBlob(inputBlob, vpuLayout);
-            }
+    auto getNetInputInfo = [&networkInputs] (const std::string& name) {
+        const auto foundBlob = networkInputs.find(name);
+        IE_ASSERT(foundBlob != networkInputs.end()) << "MyriadInferRequest::InferAsync()\n"
+                                                    << "Input [" << name << "] is not provided.";
+        return foundBlob;
+    };
 
-            const auto input_offset_it = _inputInfo.offset.find(input.first);
-            if (input_offset_it != _inputInfo.offset.end()) {
-                size_t required_buff_size = vpu::checked_cast<size_t>(input_offset_it->second) + byteSize;
-                IE_ASSERT(required_buff_size <= inputBuffer.size());
-                MEMCPY(&inputBuffer[input_offset_it->second], inputBlob->buffer().as<uint8_t*>(), byteSize);
-            }
-        }
+    for (const auto& input : _inputs) {
+        const auto& name = input.first;
+        const auto& blob = input.second;
 
-        inputPtr = inputBuffer.data();
-    } else {
-        auto dataName = _networkInputs.begin()->first;
-        auto foundInputBlob = _inputs.find(dataName);
-        if (foundInputBlob == _inputs.end())
-            THROW_IE_EXCEPTION << "Error: input [" << dataName << "] is not provided.";
+        const auto offset = getOffset(name);
+        const auto byteSize = blob->byteSize();
+        const auto requiredSize = vpu::checked_cast<size_t>(offset) + byteSize;
+        IE_ASSERT(requiredSize <= inputBuffer.size())  << "MyriadInferRequest::InferAsync()\n"
+                                                       << "Input offset is too big."
+                                                       << "Required size: " << requiredSize
+                                                       << "Input buffer size: " << inputBuffer.size();
 
-        tmpBlob = foundInputBlob->second;
-        Layout layout = tmpBlob->getTensorDesc().getLayout();
-        Layout vpuLayout = deviceLayout(layout, _layoutPreference);
+        const auto foundBlob = getNetInputInfo(name);
+        const auto vpuLayout = foundBlob->second->getTensorDesc().getLayout();
+        const auto layout = blob->getTensorDesc().getLayout();
+
         if (layout != vpuLayout) {
-            tmpBlob = copyBlob(tmpBlob, vpuLayout);
+            copyBlob(blob, vpuLayout, &inputBuffer[offset]);
+        } else {
+            MEMCPY(&inputBuffer[offset], blob->buffer().as<uint8_t*>(), byteSize);
         }
-
-        inputPtr = tmpBlob->buffer();
     }
 
-    _executor->queueInference(_graphDesc, inputPtr, inputSize, nullptr, 0);
+    _executor->queueInference(_graphDesc, inputBuffer.data(),
+                              _inputInfo.totalSize, nullptr, 0);
 }
 
 void MyriadInferRequest::GetResult() {
     VPU_PROFILE(GetResult);
+
+    auto networkOutputs = _networkOutputs;
+    const auto getVpuLayout = [&networkOutputs] (const std::string& name){
+        const auto foundBlob = networkOutputs.find(name);
+        IE_ASSERT(foundBlob != networkOutputs.end()) << "MyriadInferRequest::InferAsync()\n"
+                                                     << "Output [" << name << "] is not provided.";
+        return foundBlob->second->getTensorDesc().getLayout();
+    };
+
+    if (_outputs.size() == 1) {
+        const auto& it = _outputs.begin();
+        const auto& name = (*it).first;
+        const auto& blob = (*it).second;
+
+        if (blob->getTensorDesc().getLayout() == getVpuLayout(name)) {
+            _executor->getResult(_graphDesc, blob->buffer(), blob->byteSize());
+            return;
+        }
+    }
+
     _executor->getResult(_graphDesc, resultBuffer.data(), resultBuffer.size());
 
-    for (auto pp : _outputs) {
-        const auto offset_it = _outputInfo.offset.find(pp.first);
+    for (const auto& output : _outputs) {
+        const auto& name = output.first;
+        const auto& blob = output.second;
 
-        if (offset_it !=  _outputInfo.offset.end()) {
-            size_t resultOffset = vpu::checked_cast<size_t>(offset_it->second);
-            if (resultOffset > resultBuffer.size()) {
-                THROW_IE_EXCEPTION << "unexpected result data size";
-            }
+        const auto resultOffset = [&] {
+            const auto offset_it = _outputInfo.offset.find(name);
+            IE_ASSERT(offset_it != _outputInfo.offset.end())  << "MyriadInferRequest::InferAsync()\n"
+                                                                       << "Output offset [" << name << "] error.";
+            const auto offset = vpu::checked_cast<size_t>(offset_it->second);
+            IE_ASSERT(offset <= resultBuffer.size())  << "MyriadInferRequest::InferAsync()\n"
+                                                      << "Input offset is too big."
+                                                      << "Required offset: " << offset
+                                                      << "Result buffer size: " << resultBuffer.size();
+            return offset;
+        }();
 
-            auto outputBlob = pp.second;
-            auto outDesc = outputBlob->getTensorDesc();
+        const auto outDesc = blob->getTensorDesc();
+        // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
+        const auto tempTensorDesc = ie::TensorDesc{outDesc.getPrecision(), outDesc.getDims(), getVpuLayout(name)};
+        const auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset);
 
-            // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
-            auto vpuLayout = deviceLayout(outDesc.getLayout(), _layoutPreference);
-            ie::TensorDesc tempTensorDesc(outDesc.getPrecision(), outDesc.getDims(), vpuLayout);
-            auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset);
-
-            copyBlob(tmpBlob, outputBlob);
-        }
+        copyBlob(tmpBlob, blob);
     }
 }
 
@@ -186,5 +203,5 @@ void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEng
     perfMap = vpu::parsePerformanceReport(
         _stagesMetaData,
         perfInfo.data(), perfInfo.size(),
-        _config->perfReport, _config->printReceiveTensorTime);
+        _config.perfReport(), _config.printReceiveTensorTime());
 }

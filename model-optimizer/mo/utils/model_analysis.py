@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,6 +21,46 @@ from mo.utils import class_registration
 from mo.utils.error import Error
 
 
+class AnalysisResults:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(AnalysisResults, cls).__new__(cls, *args, **kwargs)
+            cls.results = {}
+            cls.messages = []
+        return cls._instance
+
+    def __getattr__(self, item):
+        return self.results[item]
+
+    def __setattr__(self, key, value):
+        self.results[key] = value
+
+    @classmethod
+    def get_result(cls, key=None):
+        if key is not None:
+            if key in cls.results and cls.results[key] is not None:
+                return cls.results[key]
+        else:
+            return cls.results
+
+    @classmethod
+    def add_result(cls, result, key=None):
+        if key is not None:
+            cls.results[key] = result
+        else:
+            cls.results.update(result)
+
+    @classmethod
+    def get_messages(cls):
+        return cls.messages
+
+    @classmethod
+    def add_message(cls, message):
+        cls.messages.append(message)
+
+
 class AnalyzeAction(object):
     registered_cls = []
     registered_ops = {}
@@ -28,21 +68,25 @@ class AnalyzeAction(object):
     run_not_recursively = True
 
     def find_and_replace_pattern(self, graph: Graph):
-        if 'analysis_results' not in graph.graph:
-            graph.graph['analysis_results'] = {'failed_analysers': []}
+        analysis_results = AnalysisResults()
+        failed_analysers = []
 
         try:
-            result = self.analyze(graph)  # pylint: disable=assignment-from-no-return
+            result, msg = self.analyze(graph)  # pylint: disable=assignment-from-no-return
         except SystemExit:
             # the analysis transformation printing analysis results to the screen calls sys.exit(0) which in fact raises
             # SystemExit exception, so we handle it here
             sys.exit(0)
         except:
-            graph.graph['analysis_results']['failed_analysers'].append(str(self.__class__))
+            failed_analysers.append(str(self.__class__))
+            analysis_results.add_result(failed_analysers, 'failed_analysers')
             result = None
+            msg = None
 
         if result is not None:
-            graph.graph['analysis_results'].update(result)
+            analysis_results.add_result(result)
+        if msg is not None:
+            analysis_results.add_message(msg)
 
     def analyze(self, graph: Graph):
         raise Error('The method must be implemented in the sub-class')

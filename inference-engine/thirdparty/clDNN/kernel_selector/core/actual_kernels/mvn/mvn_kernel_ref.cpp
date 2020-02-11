@@ -21,6 +21,8 @@ ParamsKey MVNKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::bfyx);
@@ -33,8 +35,11 @@ ParamsKey MVNKernelRef::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::bfzyx_f16);
     k.EnableOutputLayout(DataLayout::bfzyx_f16);
+    k.EnableInputLayout(DataLayout::bfzyx_b16f16);
+    k.EnableOutputLayout(DataLayout::bfzyx_b16f16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
+    k.EnableDifferentTypes();
     k.EnableBatching();
     k.EnableMVNMode(MVNMode::ACROSS_CHANNELS);
     k.EnableMVNMode(MVNMode::WITHIN_CHANNELS);

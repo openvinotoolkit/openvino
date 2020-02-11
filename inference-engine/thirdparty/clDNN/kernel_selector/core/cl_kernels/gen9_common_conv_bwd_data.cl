@@ -37,7 +37,7 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
     const int ic = get_group_id(0);
     const int sp = get_group_id(1);
     const int local_id = get_local_id(0);
-    int mb = get_group_id(2) * mb_unroll;
+    int mb = (uint)get_group_id(2) * mb_unroll;
 
 #        if IS_DW
     const int g = ic * IC_BLOCK;

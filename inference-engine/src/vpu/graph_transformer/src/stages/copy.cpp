@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,41 +7,28 @@
 #include <string>
 #include <vector>
 #include <list>
+#include <set>
 #include <unordered_set>
 #include <memory>
 
 namespace vpu {
 
-void FrontEnd::parseCopy(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseCopy(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    _stageBuilder->addCopyStage(model, layer->name, layer, inputs[0], outputs[0]);
+    _stageBuilder->addCopyStage(model, layer->name, layer, inputs[0], outputs[0], "parseCopy");
 }
 
 namespace {
 
 class CopyStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<CopyStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>& inputScales,
-            ScalePropagationStep step,
-            StageDataInfo<float>& scaleInfo) override {
-        if (step == ScalePropagationStep::Propagate) {
-            scaleInfo.setOutput(outputEdge(0), inputScales[0]);
-        } else {
-            // Copy can only propagate scaling.
-            scaleInfo.setInput(inputEdge(0), 1.0f);
-            scaleInfo.setOutput(outputEdge(0), 1.0f);
-        }
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
@@ -66,7 +53,8 @@ protected:
     }
 
     void initialCheckImpl() const override {
-        assertInputsOutputsTypes(this, {{DataType::FP16}}, {{DataType::FP16}});
+        const auto& type = input(0)->desc().type();
+        assertInputsOutputsTypes(this, {{type}}, {{type}});
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {
@@ -80,7 +68,7 @@ protected:
             if (!input->checkStrides(StridesRequirement().add(0, DimStride::Compact)) ||
                 !output->checkStrides(StridesRequirement().add(0, DimStride::Compact))) {
                 input->serializeOldBuffer(
-                    handle_from_this(),
+                    this,
                     serializer,
                     DimsOrder::CHW,
                     {
@@ -89,7 +77,7 @@ protected:
                     });
 
                 output->serializeOldBuffer(
-                    handle_from_this(),
+                    this,
                     serializer,
                     DimsOrder::CHW,
                     {
@@ -109,17 +97,20 @@ protected:
 }  // namespace
 
 Stage StageBuilder::addCopyStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         const Data& input,
-        const Data& output) {
-    return model->addNewStage<CopyStage>(
+        const Data& output,
+        const std::string& origin) {
+    Stage copyStage = model->addNewStage<CopyStage>(
         name,
         StageType::Copy,
         layer,
         {input},
         {output});
+    copyStage->attrs().set<std::string>("origin", origin);
+    return copyStage;
 }
 
 }  // namespace vpu

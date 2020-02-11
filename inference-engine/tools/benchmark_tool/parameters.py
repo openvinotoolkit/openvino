@@ -75,7 +75,7 @@ def parse_args():
                       help='Number of threads to use for inference on the CPU '
                            '(including HETERO and MULTI cases).')
     args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False, default='YES', choices=['YES', 'NO'],
-                      help='Optional. Enable (\'YES\' is default value) or disable (\'NO\')'
+                      help='Optional. Enable  threads->cores (\'YES\' is default value), threads->(NUMA)nodes (\'NUMA\') or completely  disable (\'NO\')' 
                            'CPU threads pinning for CPU-involved inference.')
     args.add_argument('--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')

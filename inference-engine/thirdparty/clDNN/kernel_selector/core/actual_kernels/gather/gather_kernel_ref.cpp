@@ -42,8 +42,10 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT32);
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
@@ -110,6 +112,19 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
     jit.AddConstant(MakeJitConstant("COMPUTATIONAL_OPERATIONS_NUMBER", numberOfParts * numberOfIndexes));
 
     return jit;
+}
+
+bool GatherKernelRef::Validate(const Params& p, const optional_params& o) const {
+    if (p.GetType() != KernelType::GATHER || o.GetType() != KernelType::GATHER) {
+        return false;
+    }
+
+    const gather_params& params = static_cast<const gather_params&>(p);
+
+    if (params.inputs[0].GetDType() != params.output.GetDType())
+        return false;
+
+    return true;
 }
 
 KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {

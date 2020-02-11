@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <single_layer_common.hpp>
 #include "test_irs.hpp"
 
 namespace GNATestIRs {
@@ -3792,6 +3793,23 @@ std::string TIModelWithLSTMCell1() {
 				</port>
 			</output>
 		</layer>
+        <layer name="ScaleShift_1" type="ScaleShift" id="31" precision="FP32">
+			<input>
+				<port id="0">
+					<!--connected to input-->
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<!--connected to , FullyConnected-->
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+			<weights offset="0" size="40" precision="FP32" />
+		</layer>
 		<layer id="1" name="Reshape_1/shape/Output_0/Data__const" precision="FP32" type="Const">
 			<output>
 				<port id="1">
@@ -3799,7 +3817,7 @@ std::string TIModelWithLSTMCell1() {
 				</port>
 			</output>
 			<blobs>
-				<custom offset="0" size="12"/>
+				<custom offset="40" size="12"/>
 			</blobs>
 		</layer>
 		<layer id="2" name="Reshape_1" precision="FP32" type="Reshape">
@@ -3828,7 +3846,7 @@ std::string TIModelWithLSTMCell1() {
 				</port>
 			</output>
 			<blobs>
-				<custom offset="12" size="40"/>
+				<custom offset="52" size="40"/>
 			</blobs>
 		</layer>
 		<layer id="5" name="LSTM-Layer/lstm/rnn/while/Enter_2/Output_0/Data__const" precision="FP32" type="Const">
@@ -3839,7 +3857,7 @@ std::string TIModelWithLSTMCell1() {
 				</port>
 			</output>
 			<blobs>
-				<custom offset="12" size="40"/>
+				<custom offset="52" size="40"/>
 			</blobs>
 		</layer>
 		<layer id="6" name="LSTM-Layer/lstm/rnn/while/LoopCond/TensorIteratorCondition_/TensorIterator" precision="FP32" type="TensorIterator">
@@ -3924,8 +3942,8 @@ std::string TIModelWithLSTMCell1() {
 							</port>
 						</output>
 						<blobs>
-							<weights offset="580" size="800"/>
-							<biases offset="1380" size="160"/>
+							<weights offset="620" size="3200"/>
+							<biases offset="3820" size="160"/>
 						</blobs>
 					</layer>
 				</layers>
@@ -3949,8 +3967,196 @@ std::string TIModelWithLSTMCell1() {
 				</port>
 			</output>
 			<blobs>
-				<weights offset="52" size="480"/>
-				<biases offset="532" size="48"/>
+				<weights offset="92" size="480"/>
+				<biases offset="572" size="48"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="31" to-port="0"/>
+        <edge from-layer="31" from-port="1" to-layer="2" to-port="0"/>
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="2" from-port="2" to-layer="6" to-port="0"/>
+		<edge from-layer="4" from-port="1" to-layer="6" to-port="1"/>
+		<edge from-layer="5" from-port="1" to-layer="6" to-port="2"/>
+		<edge from-layer="6" from-port="3" to-layer="7" to-port="0"/>
+	</edges>
+</net>
+     )V0G0N";
+}
+
+std::string TIModelWithLSTMCell1WithoutScaleShift() {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="Basic_LSTM_S" version="5">
+	<layers>
+		<layer id="0" name="Reshape/placeholder_port_0" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Reshape_1/shape/Output_0/Data__const" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>3</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="40" size="12"/>
+			</blobs>
+		</layer>
+		<layer id="2" name="Reshape_1" precision="FP32" type="Reshape">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="1">
+					<dim>3</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="LSTM-Layer/lstm/rnn/while/Enter_3/Output_0/Data__const" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="52" size="40"/>
+			</blobs>
+		</layer>
+		<layer id="5" name="LSTM-Layer/lstm/rnn/while/Enter_2/Output_0/Data__const" precision="FP32" type="Const">
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="52" size="40"/>
+			</blobs>
+		</layer>
+		<layer id="6" name="LSTM-Layer/lstm/rnn/while/LoopCond/TensorIteratorCondition_/TensorIterator" precision="FP32" type="TensorIterator">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+				<port id="4">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+			<port_map>
+				<input axis="0" external_port_id="0" internal_layer_id="0" internal_port_id="0" start="0"/>
+				<input external_port_id="1" internal_layer_id="1" internal_port_id="1"/>
+				<input external_port_id="2" internal_layer_id="1" internal_port_id="2"/>
+				<output external_port_id="3" internal_layer_id="1" internal_port_id="5"/>
+				<output external_port_id="4" internal_layer_id="1" internal_port_id="6"/>
+			</port_map>
+			<back_edges>
+				<edge from-layer="1" from-port="5" to-layer="1" to-port="1"/>
+				<edge from-layer="1" from-port="6" to-layer="1" to-port="2"/>
+			</back_edges>
+			<body>
+				<layers>
+					<layer id="0" name="LSTM-Layer/lstm/rnn/while/TensorArrayReadV3/Output_0/Data_/InputSqueeze" precision="FP32" type="Reshape">
+						<data dim="-1,10"/>
+						<input>
+							<port id="0">
+								<dim>1</dim>
+								<dim>1</dim>
+								<dim>10</dim>
+							</port>
+						</input>
+						<output>
+							<port id="1">
+								<dim>1</dim>
+								<dim>10</dim>
+							</port>
+						</output>
+					</layer>
+					<layer id="1" name="LSTM-Layer/lstm/rnn/while/rnn/basic_lstm_cell/concat/LSTMCell" precision="FP32" type="LSTMCell">
+						<data hidden_size="10"/>
+						<input>
+							<port id="0">
+								<dim>1</dim>
+								<dim>10</dim>
+							</port>
+							<port id="1">
+								<dim>1</dim>
+								<dim>10</dim>
+							</port>
+							<port id="2">
+								<dim>1</dim>
+								<dim>10</dim>
+							</port>
+						</input>
+						<output>
+							<port id="5">
+								<dim>1</dim>
+								<dim>10</dim>
+							</port>
+							<port id="6">
+								<dim>1</dim>
+								<dim>10</dim>
+							</port>
+						</output>
+						<blobs>
+							<weights offset="620" size="3200"/>
+							<biases offset="3820" size="160"/>
+						</blobs>
+					</layer>
+				</layers>
+				<edges>
+					<edge from-layer="0" from-port="1" to-layer="1" to-port="0"/>
+				</edges>
+			</body>
+		</layer>
+		<layer id="7" name="Output-Layer/MatMul" precision="FP32" type="FullyConnected">
+			<data out-size="12"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3">
+					<dim>1</dim>
+					<dim>12</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="92" size="480"/>
+				<biases offset="572" size="48"/>
 			</blobs>
 		</layer>
 	</layers>
@@ -3964,7 +4170,7 @@ std::string TIModelWithLSTMCell1() {
 	</edges>
 </net>
      )V0G0N";
-}
+    }
 
     std::string TIModelWithLSTMCell1Aligned() {
         return R"V0G0N(
@@ -3978,6 +4184,23 @@ std::string TIModelWithLSTMCell1() {
 					<dim>32</dim>
 				</port>
 			</output>
+		</layer>
+        <layer name="ScaleShift_1" type="ScaleShift" id="31" precision="FP32">
+			<input>
+				<port id="0">
+					<!--connected to input-->
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<!--connected to , FullyConnected-->
+					<dim>1</dim>
+					<dim>32</dim>
+				</port>
+			</output>
+			<weights offset="38588" size="128" precision="FP32" />
 		</layer>
 		<layer id="1" name="Reshape_1/shape/Output_0/Data__const" precision="FP32" type="Const">
 			<output>
@@ -4069,7 +4292,7 @@ std::string TIModelWithLSTMCell1() {
 			<body>
 				<layers>
 					<layer id="0" name="LSTM-Layer/lstm/rnn/while/TensorArrayReadV3/Output_0/Data_/InputSqueeze" precision="FP32" type="Reshape">
-						<data dim="-1,10"/>
+						<data dim="-1,32"/>
 						<input>
 							<port id="0">
 								<dim>1</dim>
@@ -4085,7 +4308,7 @@ std::string TIModelWithLSTMCell1() {
 						</output>
 					</layer>
 					<layer id="1" name="LSTM-Layer/lstm/rnn/while/rnn/basic_lstm_cell/concat/LSTMCell" precision="FP32" type="LSTMCell">
-						<data hidden_size="10"/>
+						<data hidden_size="32"/>
 						<input>
 							<port id="0">
 								<dim>1</dim>
@@ -4111,8 +4334,8 @@ std::string TIModelWithLSTMCell1() {
 							</port>
 						</output>
 						<blobs>
-							<weights offset="1724" size="8192"/>
-							<biases offset="9916" size="4096"/>
+							<weights offset="1724" size="32768"/>
+							<biases offset="34492" size="4096"/>
 						</blobs>
 					</layer>
 				</layers>
@@ -4142,7 +4365,8 @@ std::string TIModelWithLSTMCell1() {
 		</layer>
 	</layers>
 	<edges>
-		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+		<edge from-layer="0" from-port="0" to-layer="31" to-port="0"/>
+        <edge from-layer="31" from-port="1" to-layer="2" to-port="0"/>
 		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
 		<edge from-layer="2" from-port="2" to-layer="6" to-port="0"/>
 		<edge from-layer="4" from-port="1" to-layer="6" to-port="1"/>
@@ -4256,7 +4480,7 @@ std::string TIModelWithLSTMCell1() {
 			<body>
 				<layers>
 					<layer id="0" name="LSTM-Layer/lstm/rnn/while/TensorArrayReadV3/Output_0/Data_/InputSqueeze" precision="FP32" type="Reshape">
-						<data dim="-1,10"/>
+						<data dim="-1,32"/>
 						<input>
 							<port id="0">
 								<dim>1</dim>
@@ -4272,7 +4496,7 @@ std::string TIModelWithLSTMCell1() {
 						</output>
 					</layer>
 					<layer id="1" name="LSTM-Layer/lstm/rnn/while/rnn/basic_lstm_cell/concat/LSTMCell" precision="FP32" type="LSTMCell">
-						<data hidden_size="118"/>
+						<data hidden_size="32"/>
 						<input>
 							<port id="0">
 								<dim>1</dim>
@@ -4298,8 +4522,8 @@ std::string TIModelWithLSTMCell1() {
 							</port>
 						</output>
 						<blobs>
-							<weights offset="1724" size="8192"/>
-							<biases offset="9916" size="512"/>
+							<weights offset="1724" size="32768"/>
+							<biases offset="34492" size="512"/>
 						</blobs>
 					</layer>
 				</layers>
@@ -4329,8 +4553,7 @@ std::string TIModelWithLSTMCell1() {
 		</layer>
 	</layers>
 	<edges>
-		<edge from-layer="0" from-port="0" to-layer="31" to-port="0"/>
-		<edge from-layer="31" from-port="1" to-layer="2" to-port="0"/>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
 		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
 		<edge from-layer="2" from-port="2" to-layer="6" to-port="0"/>
 		<edge from-layer="4" from-port="1" to-layer="6" to-port="1"/>
@@ -4386,22 +4609,22 @@ std::string TIModelWithLSTMCell2() {
 			<output>
 				<port id="1">
 					<dim>1</dim>
-					<dim>118</dim>
+					<dim>10</dim>
 				</port>
 			</output>
 			<blobs>
-				<custom offset="12" size="472"/>
+				<custom offset="12" size="40"/>
 			</blobs>
 		</layer>
 		<layer id="5" name="LSTM-Layer/lstm/rnn/while/Enter_2/Output_0/Data__const" precision="FP32" type="Const">
 			<output>
 				<port id="1">
 					<dim>1</dim>
-					<dim>118</dim>
+					<dim>10</dim>
 				</port>
 			</output>
 			<blobs>
-				<custom offset="12" size="472"/>
+				<custom offset="12" size="40"/>
 			</blobs>
 		</layer>
 		<layer id="6" name="LSTM-Layer/lstm/rnn/while/LoopCond/TensorIteratorCondition_/TensorIterator" precision="FP32" type="TensorIterator">
@@ -4413,21 +4636,21 @@ std::string TIModelWithLSTMCell2() {
 				</port>
 				<port id="1">
 					<dim>1</dim>
-					<dim>118</dim>
+					<dim>10</dim>
 				</port>
 				<port id="2">
 					<dim>1</dim>
-					<dim>118</dim>
+					<dim>10</dim>
 				</port>
 			</input>
 			<output>
 				<port id="3">
 					<dim>1</dim>
-					<dim>118</dim>
+					<dim>10</dim>
 				</port>
 				<port id="4">
 					<dim>1</dim>
-					<dim>118</dim>
+					<dim>10</dim>
 				</port>
 			</output>
 			<port_map>
@@ -4460,7 +4683,7 @@ std::string TIModelWithLSTMCell2() {
 						</output>
 					</layer>
 					<layer id="1" name="LSTM-Layer/lstm/rnn/while/rnn/basic_lstm_cell/concat/LSTMCell" precision="FP32" type="LSTMCell">
-						<data hidden_size="118"/>
+						<data hidden_size="10"/>
 						<input>
 							<port id="0">
 								<dim>1</dim>
@@ -4468,26 +4691,26 @@ std::string TIModelWithLSTMCell2() {
 							</port>
 							<port id="1">
 								<dim>1</dim>
-								<dim>118</dim>
+								<dim>10</dim>
 							</port>
 							<port id="2">
 								<dim>1</dim>
-								<dim>118</dim>
+								<dim>10</dim>
 							</port>
 						</input>
 						<output>
 							<port id="5">
 								<dim>1</dim>
-								<dim>118</dim>
+								<dim>10</dim>
 							</port>
 							<port id="6">
 								<dim>1</dim>
-								<dim>118</dim>
+								<dim>10</dim>
 							</port>
 						</output>
 						<blobs>
-							<weights offset="6196" size="241664"/>
-							<biases offset="247860" size="1888"/>
+							<weights offset="580" size="3200"/>
+							<biases offset="3780" size="160"/>
 						</blobs>
 					</layer>
 				</layers>
@@ -4501,7 +4724,7 @@ std::string TIModelWithLSTMCell2() {
 			<input>
 				<port id="0">
 					<dim>1</dim>
-					<dim>118</dim>
+					<dim>10</dim>
 				</port>
 			</input>
 			<output>
@@ -4511,14 +4734,13 @@ std::string TIModelWithLSTMCell2() {
 				</port>
 			</output>
 			<blobs>
-				<weights offset="484" size="5664"/>
-				<biases offset="6148" size="48"/>
+				<weights offset="52" size="480"/>
+				<biases offset="532" size="48"/>
 			</blobs>
 		</layer>
 	</layers>
 	<edges>
-		<edge from-layer="0" from-port="0" to-layer="31" to-port="0"/>
-		<edge from-layer="31" from-port="1" to-layer="2" to-port="0"/>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
 		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
 		<edge from-layer="2" from-port="2" to-layer="6" to-port="0"/>
 		<edge from-layer="4" from-port="1" to-layer="6" to-port="1"/>
@@ -5857,8 +6079,145 @@ std::string ConcatWithDiffScaleFactor() {
 )V0G0N";
     }
 
-    std::string SplitToConcatWith2InputsNotAlignedNoFC () {
-        return R"V0G0N(
+std::string TwoOutputs() {
+return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_merge" version="2">
+	<layers>
+		<layer id="0" name="Placeholder" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="affinetransform_0" precision="FP32" type="FullyConnected">
+			<data out-size="20"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>20</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="800"/>
+                <biases offset="800" size="80"/>
+			</blobs>
+		</layer>
+		<layer id="2" name="affinetransform_1" precision="FP32" type="FullyConnected">
+			<data out-size="10"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="880" size="400"/>
+                <biases offset="1280" size="40"/>
+			</blobs>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+	</edges>
+</net>
+    )V0G0N";
+}
+
+std::string TwoOutputsDiffPrecision() {
+    return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_merge" version="2">
+	<layers>
+		<layer id="0" name="Placeholder" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="affinetransform_0" precision="FP32" type="FullyConnected">
+			<data out-size="10"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>20</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="0" size="800"/>
+                <biases offset="800" size="80"/>
+			</blobs>
+		</layer>
+		<layer id="2" name="affinetransform_1" precision="FP32" type="FullyConnected">
+			<data out-size="10"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>10</dim>
+				</port>
+			</output>
+			<blobs>
+				<weights offset="880" size="400"/>
+                <biases offset="1280" size="40"/>
+			</blobs>
+		</layer>
+        <layer name="ReLU_Activation" type="Activation" id="3" precision="FP32">
+            <data type="ReLU" negative_slope="0.000000" />
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </output>
+        </layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+		<edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+        <edge from-layer="2" from-port="1" to-layer="3" to-port="0"/>
+	</edges>
+</net>
+    )V0G0N";
+}
+
+
+std::string SplitToConcatWith2InputsNotAlignedNoFC() {
+    return R"V0G0N(
 <?xml version="1.0" ?>
 <net batch="1" name="model_split_to_concat_with_2_inputs" version="2">
 	<layers>
@@ -5905,6 +6264,69 @@ std::string ConcatWithDiffScaleFactor() {
 				<port id="4">
 					<dim>1</dim>
 					<dim>20</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+		<edge from-layer="1" from-port="2" to-layer="2" to-port="2"/>
+
+	</edges>
+</net>
+        )V0G0N";
+    }
+
+    std::string SplitToConcatWith2Inputs1360NotAlignedNoFC () {
+        return R"V0G0N(
+<?xml version="1.0" ?>
+<net batch="1" name="model_split_to_concat_with_2_inputs" version="2">
+	<layers>
+		<layer id="0" name="input" precision="FP32" type="Input">
+			<output>
+				<port id="0">
+					<dim>1</dim>
+					<dim>1360</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="split" precision="FP32" type="Split">
+			<data axis="1"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>1360</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1">
+					<dim>1</dim>
+					<dim>880</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>480</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="concat" precision="FP32" type="Concat">
+			<data axis="1"/>
+			<input>
+				<port id="1">
+					<dim>1</dim>
+					<dim>880</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>480</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4">
+					<dim>1</dim>
+					<dim>1360</dim>
 				</port>
 			</output>
 		</layer>
@@ -8750,4 +9172,74 @@ std::string SplitToConcatWith3InputsNotAlignedWithFC () {
     )V0G0N";
     }
 
+std::string EltwiseAfterSplitModel(int tensor_size, bool bMul) {
+    std::string ir = R"V0G0N(
+    <Net Name="FCWithPaddingAfterSplitModel" version="2" precision="FP32" batch="1">
+        <layers>
+            <layer name="input_1" type="input" id="0" precision="FP32">
+                <output>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>__TZ2__</dim>
+                    </port>
+                </output>
+            </layer>
+            <layer name="Split_1" type="Split" id="1" precision="FP32">
+                <data axis="1" />
+                <input>
+                    <port id="0">
+                        <!--connected to input-->
+                        <dim>1</dim>
+                        <dim>__TZ2__</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="1">
+                        <!--connected to eltwise-->
+                        <dim>1</dim>
+                        <dim>__TZ__</dim>
+                    </port>
+                    <port id="2">
+                        <!--connected to fc-->
+                        <dim>1</dim>
+                        <dim>__TZ__</dim>
+                    </port>
+                </output>
+            </layer>
+            <layer name="Eltwise_8" type="Eltwise" id="21" precision="FP32">
+                <data operation="sum" />
+                <input>
+                    <port id="0">
+                        <dim>1</dim>
+                        <dim>__TZ__</dim>
+                    </port>
+                    <port id="1">
+                        <dim>1</dim>
+                        <dim>__TZ__</dim>
+                    </port>
+                </input>
+                <output>
+                    <port id="2">
+                        <dim>1</dim>
+                        <dim>__TZ__</dim>
+                    </port>
+                </output>
+            </layer>
+        </layers>
+        <edges>
+            <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+            <edge from-layer="1" from-port="1" to-layer="21" to-port="0" />
+            <edge from-layer="1" from-port="2" to-layer="21" to-port="1" />
+        </edges>
+    </Net>
+    )V0G0N";
+    if (bMul) {
+        REPLACE_WITH_STR(ir, "sum", "mul");
+    }
+    REPLACE_WITH_NUM(ir, "__TZ__", tensor_size);
+    REPLACE_WITH_NUM(ir, "__TZ2__", 2 * tensor_size);
+
+
+    return ir;
+}
 }  // namespace GNATestIRs

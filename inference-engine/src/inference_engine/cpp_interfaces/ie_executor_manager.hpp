@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,9 @@
 
 #include <string>
 #include <unordered_map>
-#include "ie_api.h"
+
 #include "cpp_interfaces/ie_itask_executor.hpp"
+#include "ie_api.h"
 
 namespace InferenceEngine {
 
@@ -34,12 +35,12 @@ private:
  * @class ExecutorManager
  * @brief This is global point for getting task executor objects by string id.
  * It's necessary in multiple asynchronous requests for having unique executors to avoid oversubscription.
- * E.g. There 2 task executors for CPU device: one - in FPGA, another - in MKLDNN. Parallel execution both of them leads to
- * not optimal CPU usage. More efficient to run the corresponding tasks one by one via single executor.
+ * E.g. There 2 task executors for CPU device: one - in FPGA, another - in MKLDNN. Parallel execution both of them leads
+ * to not optimal CPU usage. More efficient to run the corresponding tasks one by one via single executor.
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutorManager) {
 public:
-    static ExecutorManager *getInstance() {
+    static ExecutorManager* getInstance() {
         if (!_instance) {
             _instance = new ExecutorManager();
         }
@@ -47,9 +48,9 @@ public:
         return _instance;
     }
 
-    ExecutorManager(ExecutorManager const &) = delete;
+    ExecutorManager(ExecutorManager const&) = delete;
 
-    void operator=(ExecutorManager const &)  = delete;
+    void operator=(ExecutorManager const&) = delete;
 
     /**
      * @brief Returns executor by unique identificator
@@ -68,7 +69,7 @@ private:
 
 private:
     ExecutorManagerImpl _impl;
-    static ExecutorManager *_instance;
+    static ExecutorManager* _instance;
 };
 
 }  // namespace InferenceEngine

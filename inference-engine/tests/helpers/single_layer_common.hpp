@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,45 +6,50 @@
 
 #include <ie_blob.h>
 #include <ie_layers_property.hpp>
-#include <inference_engine/precision_utils.h>
-#include <inference_engine/parsers.h>
+#include <precision_utils.h>
+// #include <parsers.h>
 #include <xml_net_builder.hpp>
 #include <xml_helper.hpp>
-#include <common_layers_params.hpp>
 #include <tests_common.hpp>
 
-#ifndef USE_BOOST_RE
+#if defined(__GNUC__) && (__GNUC__ <= 4) && (__GNUC_MINOR__ < 9) && !defined(__clang__)
+# define IE_GCC_4_8
+#endif
 
-#include <regex>
-
-#define REPLACE_WITH_STR(SRC, PATTERN, STR) SRC = std::regex_replace(SRC, std::regex(PATTERN), STR)
-#define FIND_STR(SRC, PATTERN) std::regex_search(SRC, std::regex(PATTERN))
+#ifndef IE_GCC_4_8
+# include <regex>
+# define REPLACE_WITH_STR(SRC, PATTERN, STR) SRC = std::regex_replace(SRC, std::regex(PATTERN), STR)
+# define FIND_STR(SRC, PATTERN) std::regex_search(SRC, std::regex(PATTERN))
+#elif defined USE_BOOST_RE
+# include <boost/regex.hpp>
+# define REPLACE_WITH_STR(SRC, PATTERN, STR) SRC = boost::regex_replace(SRC, boost::regex(PATTERN), STR)
+# define FIND_STR(SRC, PATTERN) boost::regex_search(SRC, boost::regex(PATTERN))
 #else
-#include <boost/regex.hpp>
-#define REPLACE_WITH_STR(SRC, PATTERN, STR) SRC = boost::regex_replace(SRC, boost::regex(PATTERN), STR)
-#define FIND_STR(SRC, PATTERN) boost::regex_search(SRC, boost::regex(PATTERN))
+# error "Cannot implement regex"
+# define REPLACE_WITH_STR(SRC, PATTERN, STR)
+# define FIND_STR(SRC, PATTERN)
 #endif
 
 #define REPLACE_WITH_NUM(SRC, PATTERN, NUM) REPLACE_WITH_STR(SRC, PATTERN, to_string_c_locale(NUM))
 #define REPLACE_WITH_NUM_VECTOR(SRC, PATTERN, NUMS) \
-	{ std::string result; \
-        if (NUMS.size() > 0) { \
+    { std::string result; \
+        if (NUMS.size() > 0u) { \
             result += to_string_c_locale(NUMS[0]); \
-            for (int i = 1; i < NUMS.size(); i++) { \
+            for (size_t i = 1u; i < NUMS.size(); i++) { \
                     result += "," + to_string_c_locale(NUMS[i]); \
             } \
         } \
-	REPLACE_WITH_STR(SRC, PATTERN, result); }
+    REPLACE_WITH_STR(SRC, PATTERN, result); }
 #define REPLACE_WITH_NUM_VECTOR_REVERSE(SRC, PATTERN, NUMS) \
-	{ std::string result; \
+    { std::string result; \
         auto nums_size = NUMS.size(); \
-        if (nums_size > 0) { \
+        if (nums_size > 0u) { \
             result += to_string_c_locale(NUMS[nums_size - 1]); \
-            for (int i = 2; i <= nums_size; i++) { \
+            for (size_t i = 2u; i <= nums_size; i++) { \
                     result += "," + to_string_c_locale(NUMS[nums_size - i]); \
             } \
         } \
-	REPLACE_WITH_STR(SRC, PATTERN, result); }
+    REPLACE_WITH_STR(SRC, PATTERN, result); }
 #define REMOVE_LINE(SRC, PATTERN) REPLACE_WITH_STR(SRC, PATTERN, "")
 
 #define PRETTY_PARAM(name, type)                                                            \
@@ -118,6 +123,16 @@ buildSingleLayerNetworkCommon(InferenceEngine::details::IFormatParser *parser,
     return result;
 }
 
+inline std::string getTestDeviceName(std::string libraryName) {
+    if (libraryName == "MKLDNNPlugin") {
+        return "CPU";
+    } else if (libraryName == "clDNNPlugin") {
+        return "GPU";
+    } else {
+        return libraryName;
+    }
+}
+
 void GenRandomDataCommon(InferenceEngine::Blob::Ptr blob);
 
 class BufferWrapper {
@@ -136,8 +151,10 @@ public:
 
 void CompareCommon(const InferenceEngine::Blob::Ptr &actual,
                    const InferenceEngine::Blob::Ptr &expected,
-                   float tolerance,
                    const std::function<void(size_t, size_t)> &errorUpdater);
+
+void CompareCommonExact(const InferenceEngine::Blob::Ptr &actual,
+                        const InferenceEngine::Blob::Ptr &expected);
 
 void CompareCommonAbsolute(const InferenceEngine::Blob::Ptr &actual,
                            const InferenceEngine::Blob::Ptr &expected,
@@ -146,5 +163,13 @@ void CompareCommonAbsolute(const InferenceEngine::Blob::Ptr &actual,
 void CompareCommonRelative(const InferenceEngine::Blob::Ptr &actual,
                            const InferenceEngine::Blob::Ptr &expected,
                            float tolerance);
+
+void CompareCommonCombined(const InferenceEngine::Blob::Ptr &actual,
+                           const InferenceEngine::Blob::Ptr &expected,
+                           float tolerance);
+
+void CompareCommonWithNorm(const InferenceEngine::Blob::Ptr &actual,
+                           const InferenceEngine::Blob::Ptr &expected,
+                           float maxDiff);
 
 void fill_data_common(BufferWrapper &data, size_t size, size_t duty_ratio = 10);

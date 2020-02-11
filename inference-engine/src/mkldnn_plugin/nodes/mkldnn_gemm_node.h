@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,13 +18,13 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    void initOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
     int getMaxBatch() override;
 
 private:
-    static Register<MKLDNNGemmNode> reg;
     float alpha = 1.0f;
     float beta = 1.0f;
     bool transposeA = false;

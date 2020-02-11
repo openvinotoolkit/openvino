@@ -33,9 +33,9 @@ public:
     explicit wait_for_events_gpu(const program_node& /*node*/) {}
 
     event_impl::ptr execute(const std::vector<event_impl::ptr>& events, primitive_inst& instance) override {
-        uint16_t stream_id = instance.get_network().get_stream_id();
+        uint32_t net_id = instance.get_network().get_id();
         events_waiter events_waiter(instance.get_network().get_engine().get_context());
-        return events_waiter.run(stream_id, events);
+        return events_waiter.run(net_id, events);
     }
 
     bool validate(const primitive_inst&) const override { return true; }

@@ -31,8 +31,7 @@ ParamsKey ConvolutionKernel_mmad_batched_block_1x1::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBiasPerFeature();
     k.EnableBatching();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.DisableTuning();
     return k;
 }

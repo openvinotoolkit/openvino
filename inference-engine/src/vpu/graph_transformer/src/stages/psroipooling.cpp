@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,9 @@ namespace vpu {
 namespace {
 
 class PSROIPoolingStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<PSROIPoolingStage>(*this);
@@ -66,21 +69,11 @@ private:
 
 }  // namespace
 
-void FrontEnd::parsePSROIPooling(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parsePSROIPooling(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 1);
 
-    auto stage = model->addNewStage<PSROIPoolingStage>(
-        layer->name,
-        StageType::PSROIPooling,
-        layer,
-        inputs,
-        outputs);
-
+    auto stage = model->addNewStage<PSROIPoolingStage>(layer->name, StageType::PSROIPooling, layer, inputs, outputs);
     stage->attrs().set<int>("group_size", layer->GetParamAsInt("group_size", 7));
     stage->attrs().set<int>("output_dim", layer->GetParamAsInt("output_dim", 21));
     stage->attrs().set<float>("spatial_scale", layer->GetParamAsFloat("spatial_scale", 0.0625f));

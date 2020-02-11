@@ -26,9 +26,9 @@
 KERNEL(lrn_within_channel_byxf_opt)(__global const INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
     const uint b = get_global_id(GWS_BATCH);
-    const uint f = get_global_id(GWS_FEATURE)*FEATURE_PER_ITEM;
-    const uint y = get_global_id(GWS_YX) / INPUT0_SIZE_X;
-    const uint x = get_global_id(GWS_YX) % INPUT0_SIZE_X;
+    const uint f = (uint)get_global_id(GWS_FEATURE)*FEATURE_PER_ITEM;
+    const uint y = (uint)get_global_id(GWS_YX) / INPUT0_SIZE_X;
+    const uint x = (uint)get_global_id(GWS_YX) % INPUT0_SIZE_X;
 
     const uint input_index = GET_DATA_INDEX(INPUT0, b, f, y, x);
     const uint output_index = GET_DATA_INDEX(OUTPUT, b, f, y, x);

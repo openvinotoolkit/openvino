@@ -39,8 +39,8 @@ KERNEL (detection_output_sort)(__global UNIT_TYPE* input_bboxes, __global UNIT_T
     output_count = 0;
     num_out_per_class[get_local_id(0)] = 0;
 
-    const uint image_id = get_global_id(0) / NUM_CLASSES_IN;
-    const uint local_id = get_local_id(0) * NUM_OF_ITEMS_SORT; // All bboxes from one image in work group
+    const uint image_id = (uint)get_global_id(0) / NUM_CLASSES_IN;
+    const uint local_id = (uint)get_local_id(0) * NUM_OF_ITEMS_SORT; // All bboxes from one image in work group
 
     uint image_offset_input = image_id * NUM_OF_IMAGE_BBOXES;
 

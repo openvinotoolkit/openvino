@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,11 +15,12 @@
 """
 
 from extensions.ops.ReduceOps import reduce_map
+from extensions.ops.range import Range
+from extensions.ops.rank import Rank
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Graph
 from mo.ops.const import Const
-from mo.utils.error import Error
 
 
 class ReduceAxisNormalizer(FrontReplacementSubgraph):
@@ -53,5 +54,18 @@ class ReduceAxisNormalizer(FrontReplacementSubgraph):
                 const.out_port(0).connect(node.in_port(1))
                 del graph.node[node.id]['axis']
             else:
-                raise Error('Can not deduce `reduce_axis` for {}: only one in_port and no `axis` parameter.'
-                            ''.format(node.op))
+                # The default (if there is no 'axis') is to reduce over all the dimensions of the input tensor.
+                node_name = node.name
+
+                begin_of_range = Const(graph, dict(name=node_name + '/range_begin_', value=0)).create_node()
+                step = Const(graph, dict(name=node_name + '/range_step_', value=1)).create_node()
+                end_of_range = Rank(graph, dict(name=node_name + '/range_end_')).create_node()
+                axes = Range(graph, dict(name=node_name + '/axes_')).create_node()
+
+                begin_of_range.out_port(0).connect(axes.in_port(0))
+                end_of_range.out_port(0).connect(axes.in_port(1))
+                step.out_port(0).connect(axes.in_port(2))
+
+                node.add_input_port(1, skip_if_exist=True)
+                axes.out_port(0).connect(node.in_port(1))
+                node.in_port(0).get_connection().get_source().connect(end_of_range.in_port(0))

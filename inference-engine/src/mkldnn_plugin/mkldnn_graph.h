@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,20 +81,58 @@ public:
     void RemoveDroppedNodes();
     void RemoveDroppedEdges();
     void DropNode(const MKLDNNNodePtr& node);
+    void DropDWConvNode(const MKLDNNNodePtr& node);
 
-    void CreateArena(int threads_per_stream) {
+    void CreateArenaWithObserverAndLoadGraph(int threads_per_stream, int numa_node, int stream_id,
+                                             Config::InferenceThreadsBinding  pinning,
+            std::shared_ptr<ICNNNetwork> clonedNetwork, const MKLDNNExtensionManager::Ptr& extensionManager) {
+        auto load = [clonedNetwork, extensionManager, numa_node, this](){
+            CreateGraph(static_cast<const ICNNNetwork&>(*clonedNetwork), extensionManager, numa_node);
+        };
+        #if(IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+        if (Config::InferenceThreadsBinding::NUMA == pinning) {
+            ptrArena = std::unique_ptr<tbb::task_arena>(
+            new tbb::task_arena(tbb::task_arena::constraints(numa_node, threads_per_stream)));
+            // the (pre-pinned) arena will load the graph (so that blobs memory is first touched by the right threads)
+        } else {
+            //  regular arena
+            ptrArena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena(threads_per_stream));
+            if (Config::InferenceThreadsBinding::CORES == pinning) {
+                 // custom observer (that pins threads to cores)
+                 CreateObserver(stream_id, threads_per_stream);
+            }
+        }
+        ptrArena->execute([&load](){
+            load();
+        });
+        #else
         #if IE_THREAD == IE_THREAD_OMP
-        omp_set_num_threads(threads_per_stream);
-        #elif(IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-        ptrArena = std::unique_ptr<tbb::task_arena>(new tbb::task_arena(threads_per_stream));
+            omp_set_num_threads(threads_per_stream);
+        #endif
+        // check that no (affinity-related) OMP envs are set, so user doesn't do a custom pinning
+        if (!check_env_variables() && (Config::InferenceThreadsBinding::NONE != pinning))
+            CreateObserver(stream_id, threads_per_stream);
+        load();
         #endif
     }
 
+    InferenceEngine::ICNNNetwork::Ptr dump() const;
+
+    template<typename NET>
+    static void ApplyUnrollPasses(NET &net);
+
+    void ResetInferCount() { infer_count = 0; }
+
+    void SortTopologically();
+
+protected:
     void CreateObserver(int _stream_id, int _threads_per_stream, int _pinning_step = 1) {
+        // Notice that custom pinning/observer work (via sched_setaffinity) ONLY on Linux,
+        // in all other cases the below code is actually just a stub
         #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         ptrObserver
                 = std::unique_ptr<tbb::task_scheduler_observer>(
-                new pinning_observer(*ptrArena.get(), _stream_id, _threads_per_stream, _pinning_step));
+                new pinning_observer(*ptrArena, _stream_id, _threads_per_stream, _pinning_step));
         #else
         cpu_set_t *process_mask = nullptr;
         int ncpus = 0;
@@ -110,17 +148,7 @@ public:
         CPU_FREE(process_mask);
         #endif
     }
-
-    InferenceEngine::ICNNNetwork::Ptr dump() const;
-
-    template<typename NET>
-    static void ApplyUnrollPasses(NET &net);
-
-    void ResetInferCount() { infer_count = 0; }
-
-protected:
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
-    void SortTopologically();
 
     void ForgetGraphData() {
         status = NotReady;

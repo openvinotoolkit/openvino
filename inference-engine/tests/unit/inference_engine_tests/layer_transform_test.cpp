@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <mock_icnn_network.hpp>
-#include "inference_engine/layer_transform.hpp"
+#include "layer_transform.hpp"
 
 using namespace std;
 using namespace InferenceEngine;

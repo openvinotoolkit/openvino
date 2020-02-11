@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,10 +16,12 @@
 
 import logging as log
 
+from extensions.ops.Cast import Cast
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import add_convolution_to_swap_xy_coordinates, create_op_node_with_second_input
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.concat import Concat
 from mo.ops.reshape import Reshape
 from mo.ops.unsqueeze import Unsqueeze
@@ -44,11 +46,16 @@ class CropAndResizeReplacement(FrontReplacementOp):
             return []
         # reshape tensor with batch indices to 2d
         unsqueeze_node = create_op_node_with_second_input(graph, Unsqueeze, int64_array([1]),
-                                                         {'name': node.name + '/Unsqueeze'}, node.in_node(2))
+                                                          {'name': node.name + '/Unsqueeze'}, node.in_node(2))
+
+        convert_node = Cast(graph, {'name': unsqueeze_node.name + '/ToFloat',
+                                    'dst_type': data_type_str_to_np(graph.graph['cmd_params'].data_type)}).create_node()
+
+        convert_node.in_port(0).connect(unsqueeze_node.out_port(0))
 
         concat_op = Concat(graph, {'axis': 1, 'name': node.name + '/concat_batch_indices_and_boxes',
                                    'in_ports_count': 2})
-        concat_node = concat_op.create_node([unsqueeze_node, node.in_node(1)])
+        concat_node = concat_op.create_node([convert_node, node.in_node(1)])
 
         # do not remove edge with crop_size because it is needed in the partial infer
         graph.remove_edge(node.in_node(1).id, node.id)

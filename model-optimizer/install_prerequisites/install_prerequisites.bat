@@ -1,5 +1,5 @@
 @echo off
-:: Copyright (c) 2018 Intel Corporation
+:: Copyright (C) 2018-2020 Intel Corporation
 ::
 ::  Licensed under the Apache License, Version 2.0 (the "License");
 ::  you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ IF /I "%1%" EQU "" (
 )
 
 
-pip install --user -r ..\requirements%postfix%.txt
+pip3 install --user -r ..\requirements%postfix%.txt
 
 echo *****************************************************************************************
 echo Warning: please expect that Model Optimizer conversion might be slow.

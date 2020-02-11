@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,8 @@ public:
     MOCK_QUALIFIED_METHOD2(GetPerformanceCounts, const noexcept,
                            StatusCode(std::map<std::string, InferenceEngineProfileInfo> &perfMap, ResponseDesc*));
     MOCK_QUALIFIED_METHOD3(GetBlob, noexcept, StatusCode(const char*, Blob::Ptr&, ResponseDesc*));
+    MOCK_QUALIFIED_METHOD3(GetPreProcess, const noexcept, StatusCode(const char*, const PreProcessInfo**, ResponseDesc*));
     MOCK_QUALIFIED_METHOD3(SetBlob, noexcept, StatusCode(const char*, const Blob::Ptr&, ResponseDesc*));
+    MOCK_QUALIFIED_METHOD4(SetBlob, noexcept, StatusCode(const char*, const Blob::Ptr&, const PreProcessInfo&, ResponseDesc*));
 	MOCK_QUALIFIED_METHOD2(SetBatch, noexcept, StatusCode(int batch, ResponseDesc*));
 };

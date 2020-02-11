@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -22,31 +22,28 @@ if (NOT(BIN_FOLDER))
     set (BIN_FOLDER ${ARCH})
 endif()
 
-if (NOT(IE_MAIN_SOURCE_DIR))
-    # in case if samples are built out of IE repo
-    set (IE_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})
-else()
+if(IE_MAIN_SOURCE_DIR)
     # in case if samples are built from IE repo
-    set (IE_MAIN_SAMPLES_DIR ${IE_MAIN_SOURCE_DIR})
+    set(IE_MAIN_SAMPLES_DIR ${OpenVINO_MAIN_SOURCE_DIR})
+    # hint for find_package(InferenceEngine in the samples folder)
+    set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
+else()
+    # in case if samples are built out of IE repo
+    set(IE_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
 if(NOT(UNIX))
     set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
-    set (CMAKE_LIBRARY_PATH ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
     set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
     set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
     set (CMAKE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
     set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
-    set (LIBRARY_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
-    set (LIBRARY_OUTPUT_PATH ${LIBRARY_OUTPUT_DIRECTORY}) # compatibility issue: linux uses LIBRARY_OUTPUT_PATH, windows uses LIBRARY_OUTPUT_DIRECTORY
 else ()
     set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
     set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
     set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE})
     set (CMAKE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE})
     set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE})
-    set (LIBRARY_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
-    set (LIBRARY_OUTPUT_PATH ${LIBRARY_OUTPUT_DIRECTORY}/lib)
 endif()
 
 if (WIN32)
@@ -63,7 +60,7 @@ if (WIN32)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX") #treating warnings as errors
     endif ()
 
-    if (${CMAKE_CXX_COMPILER_ID} STREQUAL MSVC)
+    if (CMAKE_CXX_COMPILER_ID MATCHES MSVC)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267") #disable some warnings
     endif()
 else()
@@ -72,7 +69,7 @@ else()
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-command-line-argument")
     elseif(UNIX)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self")
-        if(NOT ${CMAKE_CXX_COMPILER_ID} STREQUAL Clang)
+        if(NOT CMAKE_CXX_COMPILER_ID STREQUAL Clang)
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wmaybe-uninitialized")
         endif()
     endif()
@@ -81,8 +78,9 @@ endif()
 ####################################
 ## to use C++11
 set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_EXTENSIONS OFF)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
-if (${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
+if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
     set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 endif()
 ####################################
@@ -90,14 +88,32 @@ endif()
 set (GFLAGS_IS_SUBPROJECT TRUE)
 set (HAVE_SYS_STAT_H 1)
 set (HAVE_INTTYPES_H 1)
+set (INTTYPES_FORMAT C99)
+set (BUILD_TESTING OFF)
 
-add_subdirectory(thirdparty/gflags)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
+    add_subdirectory(thirdparty/gflags)
+endif()
 
-if (${CMAKE_CXX_COMPILER_ID} STREQUAL GNU)
+if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 endif()
 
-add_subdirectory(common/format_reader)
+if(IE_NOT_FOUND_MESSAGE)
+    # the flag is used to throw a custom message in case if the IE package is not found.
+    find_package(InferenceEngine 2.1 QUIET)
+    if (NOT(InferenceEngine_FOUND))
+        message(FATAL_ERROR ${IE_NOT_FOUND_MESSAGE})
+    endif()
+else()
+    find_package(InferenceEngine 2.1 REQUIRED)
+endif()
+
+# format reader must be added after find_package(InferenceEngine) to get
+# exactly the same OpenCV_DIR path which was used for the InferenceEngine build
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader")
+    add_subdirectory(common/format_reader)
+endif()
 
 # samples build can be switched off during whole IE build
 if (IE_MAIN_SOURCE_DIR AND NOT ENABLE_SAMPLES)
@@ -134,7 +150,7 @@ include(CMakeParseArguments)
 #               [HEADERS <header files>]
 #               [INCLUDE_DIRECTORIES <include dir>]
 #               [DEPENDENCIES <dependencies>]
-#               [OPENCV_DENENDENCIES <opencv modules>]
+#               [OPENCV_DEPENDENCIES <opencv modules>]
 #               [EXCLUDE_CPPLINT]
 #
 macro(ie_add_sample)
@@ -176,10 +192,7 @@ macro(ie_add_sample)
     target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES} ${InferenceEngine_LIBRARIES}
-                                                    ${IE_SAMPLE_DEPENDENCIES} IE::ie_cpu_extension gflags)
-    if(UNIX)
-        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE pthread)
-    endif()
+                                                    ${IE_SAMPLE_DEPENDENCIES} gflags)
 
     # create global target with all samples / demo apps
     if(NOT TARGET ie_samples)
@@ -192,19 +205,10 @@ macro(ie_add_sample)
     endif()
 endmacro()
 
-
-# use this flag if you need to throw custom message in case if the IE package is not found.
-if (IE_NOT_FOUND_MESSAGE)
-    find_package(InferenceEngine 2.1 QUIET)
-    if (NOT(InferenceEngine_FOUND))
-        message(FATAL_ERROR ${IE_NOT_FOUND_MESSAGE})
-    endif()
-else()
-    find_package(InferenceEngine 2.1 REQUIRED)
-endif()
-
 # collect all samples subdirectories
 file(GLOB samples_dirs RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *)
 # skip building of unnecessary subdirectories
-list(REMOVE_ITEM samples_dirs common thirdparty)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty")
+    list(REMOVE_ITEM samples_dirs common thirdparty)
+endif()
 add_samples_to_build(${samples_dirs})

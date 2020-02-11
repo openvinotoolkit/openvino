@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
  limitations under the License.
 """
 
+from extensions.ops.MatMul import FullyConnected
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.extractor import FrontExtractorOp
 from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, collect_until_token
 from mo.front.kaldi.utils import read_binary_matrix, read_binary_vector
-from mo.ops.inner_product import InnerProduct
 from mo.utils.error import Error
 
 
@@ -26,8 +26,8 @@ class FixedAffineComponentFrontExtractor(FrontExtractorOp):
     op = 'fixedaffinecomponent'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         pb = node.parameters
         collect_until_token(pb, b'<LinearParams>')
         weights, weights_shape = read_binary_matrix(pb)
@@ -39,10 +39,10 @@ class FixedAffineComponentFrontExtractor(FrontExtractorOp):
 
         mapping_rule = {
             'out-size': weights_shape[0],
-            'layout': 'NCHW'
+            'transpose_weights': True,
         }
         embed_input(mapping_rule, 1, 'weights', weights)
         embed_input(mapping_rule, 2, 'biases', biases)
 
-        InnerProduct.update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        FullyConnected.update_node_stat(node, mapping_rule)
+        return cls.enabled

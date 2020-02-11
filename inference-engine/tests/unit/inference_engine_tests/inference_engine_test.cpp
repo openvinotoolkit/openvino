@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,9 @@ protected:
         blob->allocate();
         const size_t arr_size = 4;
         uint8_t data[arr_size] = { 1, 2, 3, 4 };
+        IE_SUPPRESS_DEPRECATED_START
         InferenceEngine::copyFromRGB8(&data[0], arr_size, blob.get());
+        IE_SUPPRESS_DEPRECATED_END
         return blob;
     }
 };
@@ -43,12 +45,17 @@ protected:
 TEST_F(InferenceEngineTests, checkZeroInput) {
     InferenceEngine::TBlob<float> output(TensorDesc(Precision::FP32, C));
     output.allocate();
+
+    IE_SUPPRESS_DEPRECATED_START
     EXPECT_THROW(InferenceEngine::TopResults(5, output, results), InferenceEngine::details::InferenceEngineException);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(InferenceEngineTests, testInsertSort) {
-
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::TopResults(5, output, results);
+    IE_SUPPRESS_DEPRECATED_END
+
     ASSERT_EQ(5, results.size());
     ASSERT_EQ(8, results[0]);
     ASSERT_EQ(4, results[1]);
@@ -58,8 +65,10 @@ TEST_F(InferenceEngineTests, testInsertSort) {
 }
 
 TEST_F(InferenceEngineTests, testInsertSortOverDraft) {
-
+    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::TopResults(15, output, results);
+    IE_SUPPRESS_DEPRECATED_END
+    
     ASSERT_EQ(10, results.size());
     ASSERT_EQ(8, results[0]);
     ASSERT_EQ(4, results[1]);

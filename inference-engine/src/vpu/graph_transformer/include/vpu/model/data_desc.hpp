@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <iterator>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -420,7 +421,7 @@ public:
     //
 
     // Convert from packed format to array of dimensions from minor to major.
-    SmallVector<Dim, MAX_DIMS_64> toPermutation() const;
+    DimVector toPermutation() const;
 
     // Get memory indeces for each dimension.
     DimValues toIndices() const;
@@ -461,6 +462,21 @@ template <typename Val>
 using DimsOrderMap = std::unordered_map<DimsOrder, Val, DimsOrderHash>;
 
 //
+// Permutations
+//
+
+using PermutationIndexVector = SmallVector<int, MAX_DIMS_32>;   // we could use MAX_DIMS_64, but it's now unsupported by serializer.
+using PermutationDimsMap = DimValues_<Dim>;
+
+PermutationIndexVector permuteMapToVector(const PermutationDimsMap& permutation, DimsOrder inputOrder, DimsOrder outputOrder);
+
+PermutationDimsMap permuteVectorToMap(const PermutationIndexVector& permutation, DimsOrder inputOrder, DimsOrder outputOrder);
+
+PermutationIndexVector combinePermutationVectors(const PermutationIndexVector& first, const PermutationIndexVector& second);
+
+PermutationIndexVector calculatePermuteForReorder(DimsOrder oldLayout, DimsOrder newLayout);
+
+//
 // DataDesc
 //
 
@@ -472,24 +488,37 @@ public:
 
     DataDesc() = default;
 
-    template <typename IntValue, typename = typename std::enable_if<std::is_integral<IntValue>::value>::type>
-    DataDesc(DataType type, DimsOrder dimsOrder, std::initializer_list<IntValue> dims) :
+    template<typename iterator,
+             typename value_type = typename std::iterator_traits<iterator>::value_type,
+             typename = typename std::enable_if<std::is_integral<value_type>::value>::type>
+    DataDesc(DataType type, DimsOrder dimsOrder, iterator dimsBegin, iterator dimsEnd) :
             _type(type), _dimsOrder(dimsOrder) {
         auto perm = _dimsOrder.toPermutation();
-        IE_ASSERT(dims.size() == perm.size());
+        auto dims_size = std::distance(dimsBegin, dimsEnd);
+        IE_ASSERT(dims_size == perm.size());
 
         int ind = 0;
-        for (auto val : dims) {
+        for (auto i = dimsBegin; i < dimsEnd; i++) {
+            auto val = *i;
             _dims.set(perm[ind], val);
             ++ind;
         }
     }
 
     template <typename IntValue, typename = typename std::enable_if<std::is_integral<IntValue>::value>::type>
+    DataDesc(DataType type, DimsOrder dimsOrder, const std::vector<IntValue>& dims) : DataDesc(type, dimsOrder, dims.cbegin(), dims.cend()) {}
+
+    template <typename IntValue, typename = typename std::enable_if<std::is_integral<IntValue>::value>::type>
+    DataDesc(DataType type, DimsOrder dimsOrder, std::initializer_list<IntValue> dims) : DataDesc(type, dimsOrder, dims.begin(), dims.end()) {}
+
+    template <typename IntValue, typename = typename std::enable_if<std::is_integral<IntValue>::value>::type>
     DataDesc(DimsOrder dimsOrder, std::initializer_list<IntValue> dims) : DataDesc(DataType::FP16, dimsOrder, dims) {}
 
     template <typename IntValue, typename = typename std::enable_if<std::is_integral<IntValue>::value>::type>
     explicit DataDesc(std::initializer_list<IntValue> dims) : DataDesc(DataType::FP16, DimsOrder::fromNumDims(dims.size()), dims) {}
+
+    template <typename IntValue, typename = typename std::enable_if<std::is_integral<IntValue>::value>::type>
+    explicit DataDesc(const std::vector<IntValue>& dims) : DataDesc(DataType::FP16, DimsOrder::fromNumDims(dims.size()), dims) {}
 
     explicit DataDesc(const ie::TensorDesc& ieDesc);
 
@@ -537,6 +566,14 @@ public:
     //
 
     ie::TensorDesc toTensorDesc() const;
+
+    bool operator==(const DataDesc& rhs) const {
+        return _type == rhs.type() && _dimsOrder == rhs.dimsOrder() && _dims == rhs.dims();
+    }
+
+    bool operator!=(const DataDesc& rhs) const {
+        return !(*this == rhs);
+    }
 
 private:
     DataType _type = DataType::FP16;

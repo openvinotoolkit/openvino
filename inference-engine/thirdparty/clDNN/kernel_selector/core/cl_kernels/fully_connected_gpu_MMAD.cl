@@ -19,6 +19,12 @@
 #include "include/fetch.cl"
 #include "include/mmad.cl"
 
+#define INPUT_PACKED_TYPE_8  CAT(INPUT_PACKED_TYPE, 8)
+#define FILTER_PACKED_TYPE_8 CAT(FILTER_PACKED_TYPE, 8)
+
+#define AS_TYPE(type, val) CAT(as_, type)(val)
+
+__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 KERNEL(fully_connected_gpu_MMAD)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
@@ -26,92 +32,103 @@ KERNEL(fully_connected_gpu_MMAD)(
 #if BIAS_TERM
     , const __global BIAS_TYPE* biases
 #endif
-#if QUANTIZATION_TERM
-    ,const __global float* quantizations
-#endif
-#if CALIBRATION_TERM
-    ,const __global float* calibrations
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
     )
 {
-    const uint x = 0;
-    const uint y = 0;
 #if OUTPUT_BATCH_NUM == 1
-    const uint f = get_global_id(2);
+    const uint f = (uint)get_global_id(0);
     const uint b = 0;
 #else
-    const uint f = get_global_id(2) % FILTER_OFM_ALIGNED;
-    const uint b = get_global_id(2) / FILTER_OFM_ALIGNED;
+    const uint f = (uint)get_global_id(0);
+    const uint b = (uint)get_global_id(1);
 #endif
 
     int dotProd = 0;
 
-    const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
-    const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
+    const uint filter_offset = FILTER_GET_OFFSET(f);
+#if INPUT0_DIMS == 5
+    const uint input_offset = INPUT0_GET_INDEX(b, 0, 0, 0, 0);
+#else
+    const uint input_offset = INPUT0_GET_INDEX(b, 0, 0, 0);
+#endif
 
-    const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
+#if SPATIAL_MAJOR
+    for (uint k = 0; k < (FILTER_IFM_NUM + 31) / 32; ++k) {
+#   if !SPLIT_SPATIAL
+        for (uint spatial = 0; spatial < FILTER_SPATIAL_SIZE; ++spatial) {
+#   else
+        for (uint zi = 0; zi < FILTER_SIZE_Z; ++zi)
+        for (uint yi = 0; yi < FILTER_SIZE_Y; ++yi)
+        for (uint xi = 0; xi < FILTER_SIZE_X; ++xi) {
+            const uint spatial = xi + yi * FILTER_SIZE_X + zi * FILTER_SIZE_X * FILTER_SIZE_Y;
+#endif
+#else  // SPATIAL_MAJOR
+#   if !SPLIT_SPATIAL
+    for (uint spatial = 0; spatial < FILTER_SPATIAL_SIZE; ++spatial) {
+#   else
+    for (uint zi = 0; zi < FILTER_SIZE_Z; ++zi)
+    for (uint yi = 0; yi < FILTER_SIZE_Y; ++yi)
+    for (uint xi = 0; xi < FILTER_SIZE_X; ++xi) {
+        const uint spatial = xi + yi * FILTER_SIZE_X + zi * FILTER_SIZE_X * FILTER_SIZE_Y;
+#   endif
+        for (uint k = 0; k < (FILTER_IFM_NUM + 31) / 32; ++k) {
+#endif
+#if !SPLIT_SPATIAL
+            uint input_idx = input_offset + spatial * MMAD_INPUT_SPATIAL_PITCH + k * MMAD_INPUT_FBLOCK_PITCH;
+#else
+            uint input_idx = input_offset + k * MMAD_INPUT_FBLOCK_PITCH + zi * MMAD_INPUT_Z_PITCH + yi * MMAD_INPUT_Y_PITCH + xi * MMAD_INPUT_X_PITCH;
+#endif
+            uint filter_idx = filter_offset + spatial * MMAD_FILTER_SPATIAL_PITCH + k * MMAD_FILTER_FBLOCK_PITCH;
 
-    const uint filter_offset = (get_group_id(2) % FILTER_OFM_MMAD_NUM) * FILTER_OFM_BLOCK_PITCH;
-    const uint input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + in_split_offset;
+            uint input_data_u = intel_sub_group_block_read((const __global uint*)(input + input_idx));
+            INPUT_PACKED_TYPE input_data = AS_TYPE(INPUT_PACKED_TYPE, input_data_u);
 
-    for (uint k = 0; k < FILTER_IFM_MMAD_NUM; ++k)
-    {
-        for (uint j = 0; j < FILTER_SIZE_Y ; ++j)
-        {
-            const int input_offset_y = input_y + j * DILATION_SIZE_Y;
-            const bool zero_y = input_offset_y >= INPUT0_SIZE_Y || input_offset_y < 0;
+            INPUT_PACKED_TYPE_8 activations;  //activations of all lanes
+            activations.s0 = sub_group_broadcast(input_data, 0);
+            activations.s1 = sub_group_broadcast(input_data, 1);
+            activations.s2 = sub_group_broadcast(input_data, 2);
+            activations.s3 = sub_group_broadcast(input_data, 3);
+            activations.s4 = sub_group_broadcast(input_data, 4);
+            activations.s5 = sub_group_broadcast(input_data, 5);
+            activations.s6 = sub_group_broadcast(input_data, 6);
+            activations.s7 = sub_group_broadcast(input_data, 7);
 
-            if(!zero_y)
-            {
-                for (uint i = 0; i < FILTER_SIZE_X ; ++i)
-                {
-                    const int input_offset_x = input_x + i * DILATION_SIZE_X;
-                    const bool zero_x = input_offset_x >= INPUT0_SIZE_X || input_offset_x < 0;
+            uint8 weights_data_u = intel_sub_group_block_read8((const __global uint*)(weights + filter_idx));
+            FILTER_PACKED_TYPE_8 weights_data = AS_TYPE(FILTER_PACKED_TYPE_8, weights_data_u);
 
-                    if(!zero_x)
-                    {
-                        uint input_idx = input_offset + (uint)input_offset_x*INPUT0_X_PITCH + (uint)input_offset_y*INPUT0_Y_PITCH + k*32;
-                        uint filter_idx = filter_offset + k*FILTER_Y_PITCH * FILTER_SIZE_Y + j*FILTER_Y_PITCH + i*FILTER_X_PITCH;
-
-						int input_data = as_int(intel_sub_group_block_read((const __global uint*)(input + input_idx)));
-						int8 activations;  //activations of all lanes
-						activations.s0 = sub_group_broadcast(input_data, 0); 
-                        activations.s1 = sub_group_broadcast(input_data, 1); 
-                        activations.s2 = sub_group_broadcast(input_data, 2); 
-                        activations.s3 = sub_group_broadcast(input_data, 3); 
-                        activations.s4 = sub_group_broadcast(input_data, 4); 
-                        activations.s5 = sub_group_broadcast(input_data, 5); 
-                        activations.s6 = sub_group_broadcast(input_data, 6); 
-                        activations.s7 = sub_group_broadcast(input_data, 7); 
-
-						int8 weights_data = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + filter_idx)));
-
-						dotProd = MMAD_8(activations, weights_data, dotProd);
-                    }
-                }
-            }
+            dotProd = MMAD_8(activations, weights_data, dotProd);
         }
     }
 
+    if (OUTPUT_FEATURE_NUM % SUB_GROUP_SIZE != 0 && f >= OUTPUT_FEATURE_NUM)
+        return;
+
 #if BIAS_TERM
 #if   BIAS_PER_OUTPUT
-    const uint bias_index = GET_DATA_INDEX(BIAS, b, f, y, x);
+    const uint bias_index = GET_DATA_INDEX(BIAS, b, f, 0, 0);
 #elif BIAS_PER_OFM
     const uint bias_index = f;
 #endif
-#if CALIBRATION_TERM
-    dotProd = (UNIT_TYPE)round(((float)dotProd * quantizations[f] * I_QF + biases[bias_index]) * calibrations[f]);
-#else  // CALIBRATION_TERM
-    dotProd = (UNIT_TYPE)round(((float)dotProd * quantizations[f] * I_QF + biases[bias_index]) * O_QF);
-#endif // CALIBRATION_TERM
-#endif // BIAS_TERM
 
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
-    const uint dst_index = GET_DATA_INDEX(OUTPUT, b, f, y, x) + out_split_offset;
-    output[dst_index] = ACTIVATION(convert_char(dotProd), ACTIVATION_PARAMS);
+    float dequantized = (float)dotProd + biases[bias_index];
+#else  // BIAS_TERM
+    float dequantized = (float)dotProd;
+#endif
+
+    const uint out_idx = OUTPUT_GET_INDEX(b, f, 0, 0);
+
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    OUTPUT_TYPE res = FINAL_NAME;
+
+    output[out_idx] = res;
+#else
+    output[out_idx] = TO_OUTPUT_TYPE(dequantized);
+#endif
 }
 
-#undef FILTER_IFM_MMAD_NUM
-#undef FILTER_OFM_MMAD_NUM
-#undef FILTER_IFM_ALIGNED
-#undef FILTER_OFM_ALIGNED
+#undef INPUT_PACKED_TYPE_8
+#undef FILTER_PACKED_TYPE_8
+#undef AS_TYPE

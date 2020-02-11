@@ -74,7 +74,7 @@ status_t jit_uni_pool_kernel<isa>::init_conf(jit_pool_conf_t &jpp,
     jpp.l_pad = pd.padding[0][ndims-3];
     jpp.b_pad = pd.padding[1][ndims-4];
     jpp.r_pad = pd.padding[1][ndims-3];
-    jpp.back_pad = pd.padding[1][ndims-2];
+    jpp.back_pad = (ndims == 5) ? pd.padding[1][0] : 0;
 
 // This condition was relaxed in order to support old behavior
 //    if (jpp.f_pad >= jpp.kd || jpp.t_pad >= jpp.kh || jpp.l_pad >= jpp.kw

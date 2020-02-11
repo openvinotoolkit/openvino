@@ -1,17 +1,18 @@
-﻿// Copyright (C) 2018-2019 Intel Corporation
+﻿// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <string>
 #include <map>
 #include <memory>
+#include <string>
+#include <vector>
+
 #include "cnn_network_impl.hpp"
+#include "details/caseless.hpp"
 #include "ie_layers.h"
 #include "parsers.h"
-#include "details/caseless.hpp"
-#include <vector>
 
 namespace InferenceEngine {
 namespace details {
@@ -22,7 +23,9 @@ struct WeightSegment {
     // size in bytes
     size_t size = 0;
 
-    inline size_t getEnd() const { return start + size; }
+    inline size_t getEnd() const {
+        return start + size;
+    }
 
     // checks if this segment is in the range of 0 to rangeSize, safer than using getEnd() to avoid int overflow
     inline bool inRange(size_t rangeSize) const {
@@ -32,9 +35,9 @@ struct WeightSegment {
 
 struct LayerParseParameters {
     struct LayerPortData {
-        int           portId;
-        Precision     precision;
-        SizeVector    dims;
+        int portId;
+        Precision precision;
+        SizeVector dims;
     };
     InferenceEngine::LayerParams prms;
     int layerId = -1;
@@ -42,12 +45,12 @@ struct LayerParseParameters {
     std::vector<LayerPortData> outputPorts;
     std::map<std::string, WeightSegment> blobs;
 
-    std::function<void(const TBlob<uint8_t>::Ptr &weights)> internalWeightSet;
+    std::function<void(const TBlob<uint8_t>::Ptr& weights)> internalWeightSet;
 
     size_t underIRVersion = 0;
 
-    void addOutputPort(const LayerPortData &port);
-    void addInputPort(const LayerPortData &port);
+    void addOutputPort(const LayerPortData& port);
+    void addInputPort(const LayerPortData& port);
 };
 
 class BaseCreator {
@@ -55,7 +58,7 @@ private:
     std::string type_;
 
 protected:
-    explicit BaseCreator(const std::string& type) : type_(type) {}
+    explicit BaseCreator(const std::string& type): type_(type) {}
 
 public:
     virtual ~BaseCreator() {}
@@ -68,15 +71,19 @@ public:
     }
 };
 
-class INFERENCE_ENGINE_API_CLASS(FormatParser) : public IFormatParser {
+#ifdef ENABLE_IR_READER
+class INFERENCE_ENGINE_API_CLASS(FormatParser): public IFormatParser {
+#else
+class FormatParser : public IFormatParser {
+#endif
 public:
     explicit FormatParser(size_t version);
 
     CNNNetworkImplPtr Parse(pugi::xml_node& root) override;
 
-    Blob::Ptr GetBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, const WeightSegment & weight_segment) const;
+    Blob::Ptr GetBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, const WeightSegment& weight_segment) const;
     void SetWeights(const TBlob<uint8_t>::Ptr& weights) override;
-    void ParseDims(SizeVector& dims, const pugi::xml_node &node) const;
+    void ParseDims(SizeVector& dims, const pugi::xml_node& node) const;
     const DataPtr& GetDataBy(int layer_id, int port_id) const;
 
 protected:
@@ -90,7 +97,7 @@ private:
 
     CNNNetworkImplPtr _network;
     std::map<std::string, std::vector<WeightSegment>> _preProcessSegments;
-    void ParsePort(LayerParseParameters::LayerPortData& port, pugi::xml_node &node) const;
+    void ParsePort(LayerParseParameters::LayerPortData& port, pugi::xml_node& node) const;
     void ParseGenericParams(pugi::xml_node& node, LayerParseParameters& layerParsePrms) const;
     CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& prms) const;
 
@@ -102,7 +109,7 @@ private:
     void ParseStatisticSection(const pugi::xml_node& statNode);
 
     // Generate different set of creators depending on required IR version
-    static std::vector<std::shared_ptr<BaseCreator> > generateCreators(int version);
+    static std::vector<std::shared_ptr<BaseCreator>> generateCreators(int version);
 };
 }  // namespace details
 }  // namespace InferenceEngine

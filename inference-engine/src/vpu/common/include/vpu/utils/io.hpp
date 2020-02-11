@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@
 #include <ie_layers.h>
 
 #include <vpu/utils/extra.hpp>
-#include <vpu/utils/containers.hpp>
+#include <vpu/utils/small_vector.hpp>
 
 namespace vpu {
 
@@ -224,6 +224,7 @@ void printTo(std::ostream& os, const SmallVector<T, Capacity>& cont) noexcept {
     printContainer(os, cont);
 }
 
+// Supports C-like placeholders (like `%s`, `%d`, `%v`), but the actual letter doesn't matter.
 template <typename T, typename... Args>
 void formatPrint(std::ostream& os, const char* str, const T& value, const Args&... args) noexcept {
     try {

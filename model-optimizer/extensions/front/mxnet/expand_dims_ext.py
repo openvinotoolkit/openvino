@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@ class ExpandDimsExtractor(FrontExtractorOp):
     op = 'expand_dims'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         expand_axis = attrs.int('axis', None)
         ExpandDims.update_node_stat(node, {'expand_axis': expand_axis})
-        return __class__.enabled
+        return cls.enabled

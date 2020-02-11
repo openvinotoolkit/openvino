@@ -130,7 +130,7 @@ void _ref_binary_convolution_fwd_t::execute_forward() const {
         auto dst = reinterpret_cast<uint8_t*>(this->memory());
 
         int binarization_idx = p.find(primitive_kind::binarization);
-        const float* binarization_weights = p.entry_[binarization_idx].binarization.weights_data;
+        const float* binarization_weights = p.entry_[binarization_idx].binarization.thresholds_data;
         const uint32_t* binarization_output_mask = (uint32_t*)p.entry_[binarization_idx].binarization.output_mask_data;
 
         parallel_nd(G, MB, utils::div_up(OC, nbits), OD, OH, OW,

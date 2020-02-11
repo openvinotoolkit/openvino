@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -34,9 +34,9 @@ class PReLU(FrontReplacementSubgraph):
         return dict(
             nodes=[('op', dict(kind='op')),
                    ('pos_relu', dict(kind='op', op='ReLU')),
-                   ('neg', dict(kind='op', op='Power', scale=-1, power=1, shift=0)),
+                   ('neg', dict(kind='op', op='AttributedPower', scale=-1, power=1, shift=0)),
                    ('neg_relu', dict(kind='op', op='ReLU')),
-                   ('neg_1', dict(kind='op', op='Power', scale=-1, power=1, shift=0)),
+                   ('neg_1', dict(kind='op', op='AttributedPower', scale=-1, power=1, shift=0)),
                    ('mul', dict(kind='op', op='Mul')),
                    ('add', dict(kind='op', op='Add')),
                    ],

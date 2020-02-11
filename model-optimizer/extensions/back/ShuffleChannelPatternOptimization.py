@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 """
 import numpy as np
 
-from extensions.back.FuseReshapesSequence import FuseReshapesSequence
 from extensions.back.FuseTransposesSequence import FuseTransposesSequence
 from extensions.back.TransposeToPermute import TransposeToPermute
 from mo.back.replacement import BackReplacementPattern
@@ -28,7 +27,7 @@ class ShuffleChannelPatternOptimization(BackReplacementPattern):
     force_clean_up = True
 
     def run_after(self):
-        return [FuseTransposesSequence, FuseReshapesSequence]
+        return [FuseTransposesSequence]
 
     def run_before(self):
         return [TransposeToPermute]
@@ -38,27 +37,27 @@ class ShuffleChannelPatternOptimization(BackReplacementPattern):
         return dict(
             nodes=[
                 ('t_start_order', {'type': 'Const'}),
-                ('t_start_order_d', {'value': lambda value: value is not None and np.array_equal(value, [0, 2, 3, 1])}),
+                ('t_start_order_d', {'value': lambda value: value is not None and np.all(np.array_equal(value, [0, 2, 3, 1]))}),
                 ('t_start', {'type': 'Transpose'}),
                 ('t_start_d', {}),
 
                 ('reshape_dim', {'type': 'Const'}),
-                ('reshape_dim_d', {'value': lambda value: value is not None and value.size == 5 and value[0] == -1}),
+                ('reshape_dim_d', {'value': lambda value: value is not None and value.size == 5 and np.all(value[0] == -1)}),
                 ('reshape_start', {'type': 'Reshape'}),
                 ('reshape_start_d', {}),
 
                 ('t_5d_order', {'type': 'Const'}),
-                ('t_5d_order_d', {'value': lambda value: value is not None and np.array_equal(value, [0, 1, 2, 4, 3])}),
+                ('t_5d_order_d', {'value': lambda value: value is not None and np.all(np.array_equal(value, [0, 1, 2, 4, 3]))}),
                 ('t_5d', {'type': 'Transpose'}),
                 ('t_5d_d', {}),
 
                 ('reshape_1_dim', {'type': 'Const'}),
-                ('reshape_1_dim_d', {'value': lambda value: value is not None and value.size == 4 and value[0] == -1}),
+                ('reshape_1_dim_d', {'value': lambda value: value is not None and value.size == 4 and np.all(value[0] == -1)}),
                 ('reshape_end', {'type': 'Reshape'}),
                 ('reshape_end_d', {}),
 
                 ('t_end_order', {'type': 'Const'}),
-                ('t_end_order_d', {'value': lambda value: value is not None and np.array_equal(value, [0, 3, 1, 2])}),
+                ('t_end_order_d', {'value': lambda value: value is not None and np.all(np.array_equal(value, [0, 3, 1, 2]))}),
                 ('t_end', {'type': 'Transpose'}),
             ],
             edges=[
@@ -129,5 +128,5 @@ class ShuffleChannelPatternOptimization(BackReplacementPattern):
         match['t_5d_order'].infer(match['t_5d_order'])
         match['t_5d'].infer(match['t_5d'])
 
-        match['reshape_1_dim']['value'] = int64_array(np.take(new_start.in_port(1).data.get_value(), [0, 3, 1, 2]))
+        match['reshape_1_dim']['value'] = int64_array(np.take(new_end.in_port(1).data.get_value(), [0, 3, 1, 2]))
         match['reshape_1_dim'].infer(match['reshape_1_dim'])

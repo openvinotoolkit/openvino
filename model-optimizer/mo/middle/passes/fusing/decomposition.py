@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,13 +18,11 @@ import logging as log
 
 import numpy as np
 
+from extensions.ops.elementwise import Mul, Add
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.graph.port import Port
-from mo.middle.pattern_match import apply_pattern
 from mo.ops.const import Const
-from extensions.ops.elementwise import Mul, Add
-from mo.ops.op import Op
 from mo.ops.reshape import Reshape
 
 
@@ -41,7 +39,8 @@ def convert_batch_norm(graph: Graph):
     """
     nodes = graph.get_op_nodes()
     for node in nodes:
-        if node.has_valid('op') and (node.op in ['FusedBatchNorm', 'BatchNorm', 'BatchNormalization']):
+        if node.has_valid('op') and (node.op in ['FusedBatchNorm', 'FusedBatchNormV2', 'FusedBatchNormV3',
+                                                 'BatchNorm', 'BatchNormalization']):
 
             if any([node.in_port(i).data.get_value() is None for i in range(1, len(node.in_ports()))]):
                 log.warning('Cannot translate FusedBatchNorm {} node with non-constant weights'.format(
@@ -226,62 +225,3 @@ def convert_scale_shift_to_mul_add(graph: Graph):
             producer_port = input_port.get_source()
             input_port.disconnect()
             output_port.get_connection().set_source(producer_port)
-
-
-def _bn_to_mul_add_action(graph: Graph, match: dict):
-    # Data nodes
-    tinput = match['input']
-    toutput = match['output']
-    mean = match['mean']
-    variance = match['variance']
-
-    # Op node
-    bn_node = match['batch_norm']
-
-    # Disconnect data nodes from
-    graph.remove_edge(tinput.node, bn_node.node)
-    graph.remove_edge(mean.node, bn_node.node)
-    graph.remove_edge(variance.node, bn_node.node)
-
-    graph.remove_edge(bn_node.node, toutput.node)
-
-    scale = 1. / np.sqrt(variance.value + bn_node.epsilon)
-    shift = (mean.value * (-1)) * scale
-
-    mean.value = np.array(scale)
-    variance.value = np.array(shift)
-
-    # Expand dims for current layout
-    broadcast_dims_cnt = len(tinput.shape) - 2 if graph.graph['layout'] == 'NCHW' else 0
-    # Update values and shapes with new shape
-    Op.expand_node_shape(mean, broadcast_dims_cnt)
-    Op.expand_node_shape(variance, broadcast_dims_cnt)
-
-    can_be_fused = False if not bn_node.soft_get('can_be_fused') else True
-
-    mul_node = Mul(graph, dict(name="Mul_", can_be_fused=can_be_fused))
-    add_node = Add(graph, dict(name="Add_", can_be_fused=can_be_fused))
-
-    # Connect input->mul->add
-    add_node.create_node_with_data(inputs=[mul_node.create_node_with_data(inputs=[tinput, mean]), variance],
-                                   data_nodes=toutput)
-
-
-def convert_bn_to_mul_add(graph: Graph):
-    apply_pattern(
-        graph,
-        nodes=[
-            ('input', dict(kind='data')),
-            ('mean', dict(kind='data')),
-            ('variance', dict(kind='data')),
-            ('output', dict(kind='data')),
-            ('batch_norm', dict(kind='op', op='BatchNormalization')),
-        ],
-        edges=[
-            ('input', 'batch_norm', {'in': 0}),
-            ('mean', 'batch_norm', {'in': 1}),
-            ('variance', 'batch_norm', {'in': 2}),
-            ('batch_norm', 'output'),
-        ],
-        action=_bn_to_mul_add_action
-    )

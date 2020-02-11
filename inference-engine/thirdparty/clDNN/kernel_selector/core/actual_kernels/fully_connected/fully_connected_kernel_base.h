@@ -27,6 +27,7 @@ namespace kernel_selector {
 class FullyConnectedKernelBase : public WeightBiasKernelBase {
 public:
     using WeightBiasKernelBase::WeightBiasKernelBase;
+    using FusedOpDesc = base_params::fused_operation_desc;
     virtual ~FullyConnectedKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {
@@ -64,12 +65,11 @@ protected:
                                      const std::string exeMode = DEFAULT,
                                      int autoTuneIndex = -1) const;
 
-    bool Validate(const Params& p, const optional_params&) const override {
-        if (p.GetType() != KernelType::FULLY_CONNECTED) {
-            return false;
-        }
+    // Fused ops
+    virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params, const DispatchData& kd) const;
+    Datatype GetActivationType(const fully_connected_params& params) const;
+    // --Fused ops
 
-        return true;
-    }
+    bool Validate(const Params& p, const optional_params&) const override;
 };
 }  // namespace kernel_selector

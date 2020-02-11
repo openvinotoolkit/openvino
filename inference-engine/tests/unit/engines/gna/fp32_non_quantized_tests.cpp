@@ -1,24 +1,73 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
+#include <numeric>
 #include <gtest/gtest.h>
-#include <inference_engine/layer_transform.hpp>
-#include "gna_plugin/quantization/model_quantizer.hpp"
-#include "gna_plugin/quantization/layer_quantizer.hpp"
+#include <layer_transform.hpp>
 #include "gna_matcher.hpp"
 
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
 using namespace GNATestIRs;
 
-class FP32NonQuantizedTest : public GNATest {
+class FP32NonQuantizedTest : public GNATest<>{
  protected:
 
     void SetUp() override  {
     }
 };
+
+class FP32TestParams {
+ public:
+    int nChannels = 1;
+    enum tagEltwise : uint8_t {
+        eSumm,
+        eMul
+    } eltwise_type;
+    FP32TestParams(int nChannels, uint8_t eltwise) : nChannels(nChannels), eltwise_type((tagEltwise)eltwise) {}
+};
+
+/**
+ * parameter defines one of key dims size - number of channels in input tensor
+ * due to gna-plugin implementation esential it is required to check 64 bits aligned tensors and non aligned
+ */
+class GNAFP32ParametricTest : public GNATest<::testing::TestWithParam<FP32TestParams>> {
+
+};
+
+static std::string getTestName(testing::TestParamInfo<FP32TestParams> obj) {
+    return  "channels_" + std::to_string(obj.param.nChannels) + "_" + (obj.param.eltwise_type == FP32TestParams::eSumm ? "summ" : "mull");
+}
+
+
+TEST_P(GNAFP32ParametricTest, SplitFollowedByEltwiseMulOnAllignedCPU) {
+    auto c = GetParam().nChannels;
+    auto isMull = GetParam().eltwise_type == FP32TestParams::eMul;
+    std::vector<float> input_data1(c, 3.0);
+    std::vector<float> input_data2(c, 2.0);
+    std::vector<float> input_data;
+    input_data.insert(input_data.end(), input_data1.begin(), input_data1.end());
+    input_data.insert(input_data.end(), input_data2.begin(), input_data2.end());
+
+    std::vector<float> expected_result(c, isMull ? 6.0 : 5.0);
+    assert_that().onInferModel(EltwiseAfterSplitModel(c, isMull))
+        .inNotCompactMode().gna().propagate_forward().onCPU()
+        .called_with().input("input_1", input_data).equals_to(expected_result);
+}
+
+FP32TestParams gna_fp32_test_params[] = {
+    {7, FP32TestParams::eMul},
+    {7, FP32TestParams::eSumm},
+    {10, FP32TestParams::eMul},
+    {10, FP32TestParams::eSumm},
+    {32, FP32TestParams::eMul},
+    {32, FP32TestParams::eSumm}
+};
+
+INSTANTIATE_TEST_CASE_P(GNAFP32Tests, GNAFP32ParametricTest,
+    ::testing::ValuesIn(gna_fp32_test_params), getTestName);
 
 TEST_F(FP32NonQuantizedTest, SplitFollowedByFCAndEltwiseOnCPU) {
     std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
@@ -48,7 +97,7 @@ TEST_F(FP32NonQuantizedTest, SliceFollowedByAlignedFCAndEltwiseOnCPU) {
         .called_with_input_and_expected_output(input_data, expected_result);
 }
 
-TEST_F(FP32NonQuantizedTest, DISABLED_SliceFollowedBy2FCsAnd2EltwisesOnCPU) {
+TEST_F(FP32NonQuantizedTest, SliceFollowedBy2FCsAnd2EltwisesOnCPU) {
     std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
                                      1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<float> expected_result = {27.0, 27.0, 27.0, 27.0, 27.0, 27.0, 27.0, 27.0};
@@ -107,7 +156,7 @@ TEST_F(FP32NonQuantizedTest, multiple_inputs_correct_results) {
 
     assert_that().onInferModel(two_inputs_to_affine())
         .inNotCompactMode().gna().propagate_forward().onCPU()
-        .called_with().input("input_1", input_data).And().input("input_2", input2_data).result().equal_to(result);
+        .called_with().input("input_1", input_data).And().input("input_2", input2_data).result().equals_to(result);
 }
 
 
@@ -299,56 +348,54 @@ TEST_F(FP32NonQuantizedTest, LSTMCellUnalignedPropagateForward) {
             .called_with_input(input_data).equals_to(expected_result);
 }
 
-TEST_F(FP32NonQuantizedTest, DISABLED_TI1PropagateForward) {
-    std::vector<float> input_data(10, 1.0f);
+TEST_F(FP32NonQuantizedTest, TI1PropagateForward) {
+    std::vector<float> input_data(10, 0.10f);
+    std::vector<float> expected_result1(10, 0.22478661f);
+    std::vector<float> expected_result2(12, 0.22699516);
 
-    std::vector<float> expected_result = {121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0};
-
-    assert_that().onInferModel(TIModelWithLSTMCell1())
+    assert_that().onInferModel(TIModelWithLSTMCell1()).withWeigthsPattern("ScaleShift_1", {1.0f}).withWeigthsPattern({0.1f})
             .inNotCompactMode().gna().propagate_forward().onCPU()
-            .called_with_input(input_data).equals_to(expected_result);
+            .called_with_input(input_data).equals_to(expected_result1).equals_to(expected_result2);
 }
 
-TEST_F(FP32NonQuantizedTest, DISABLED_TI1AlignedPropagateForward) {
-    std::vector<float> input_data(32, 0.1f);
+TEST_F(FP32NonQuantizedTest, TI1PropagateForwardWithoutScaleShift) {
+    std::vector<float> input_data(10, 0.10f);
+    std::vector<float> expected_result1(10, 0.22478661f);
+    std::vector<float> expected_result2(12, 0.22699516f);
 
-    std::vector<float> expected_result = {121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0};
+    assert_that().onInferModel(TIModelWithLSTMCell1WithoutScaleShift()).withWeigthsPattern({0.1f})
+            .inNotCompactMode().gna().propagate_forward().onCPU()
+            .called_with_input(input_data).equals_to(expected_result1).equals_to(expected_result2);
+}
+
+TEST_F(FP32NonQuantizedTest, TI1AlignedPropagateForward) {
+    std::vector<float> input_data(32, 0.1f);
+    std::vector<float> expected_result1(32, 0.25883245);
+    std::vector<float> expected_result2(12, 0.59515548f);
 
     assert_that().onInferModel(TIModelWithLSTMCell1Aligned()).withWeigthsPattern({0.1f})
             .inNotCompactMode().gna().propagate_forward().onCPU()
-            .called_with_input(input_data).equals_to(expected_result);
+            .called_with_input(input_data).equals_to(expected_result1).And().equals_to(expected_result2);
 }
 
-TEST_F(FP32NonQuantizedTest, DISABLED_TI3AlignedPropagateForward) {
-    std::vector<float> input_data(32, 1.0f);
-
-    std::vector<float> expected_result = {121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0};
+TEST_F(FP32NonQuantizedTest, TI3AlignedPropagateForward) {
+    std::vector<float> input_data(96, 0.1f);
+    std::vector<float> expected_result1(32, 0.42592844f);
+    std::vector<float> expected_result2(12, 0.97069889f);
 
     assert_that().onInferModel(TIModelWithLSTMCell3Aligned()).withWeigthsPattern({0.1f})
             .inNotCompactMode().gna().propagate_forward().onCPU()
-            .called_with_input(input_data).equals_to(expected_result);
+            .called_with_input(input_data).equals_to(expected_result1).And().equals_to(expected_result2);
 }
 
-TEST_F(FP32NonQuantizedTest, DISABLED_TI2PropagateForward) {
-    std::vector<float> input_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+TEST_F(FP32NonQuantizedTest, TI2PropagateForward) {
+    std::vector<float> input_data(20, 0.1f);
+    std::vector<float> expected_result1(10, 0.22478661f);
+    std::vector<float> expected_result2(12, 0.22699516f);
 
-    std::vector<float> expected_result = {121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0,
-                                          121.0, 121.0, 121.0, 121.0, 121.0};
-
-    assert_that().onInferModel(concatModelWithConstLayer())
+    assert_that().onInferModel(TIModelWithLSTMCell2()).withWeigthsPattern({0.1f})
             .inNotCompactMode().gna().propagate_forward().onCPU()
-            .called_with_input(input_data).equals_to(expected_result);
+            .called_with_input(input_data).equals_to(expected_result1).equals_to(expected_result2);
 }
 
 TEST_F(FP32NonQuantizedTest, EltwiseWithConstInputPropagatedForward) {
@@ -387,7 +434,7 @@ TEST_F(FP32NonQuantizedTest, PowerWithScaleFactorPropagateForward) {
             .called_with_input(input_data).equals_to(expected_result);
 }
 
-TEST_F(FP32NonQuantizedTest, DISABLED_SplitToConcatThroughScaleShiftPropagateForward) {
+TEST_F(FP32NonQuantizedTest, SplitToConcatThroughScaleShiftPropagateForward) {
     std::vector<float> input_data(30, 1.f);
     std::vector<float> expected_result(20, 41.f);
     expected_result.insert(expected_result.end(), 20, 2.f);
@@ -397,71 +444,102 @@ TEST_F(FP32NonQuantizedTest, DISABLED_SplitToConcatThroughScaleShiftPropagateFor
             .called_with_input(input_data).equals_to(expected_result);
 }
 
+TEST_F(FP32NonQuantizedTest, TwoOutputsPropagateForward) {
+    std::vector<float> input_data(10, 1);
+    std::vector<float> result1(20, 11.f);
+    std::vector<float> result2(10, 11.f);
+
+    assert_that().onInferModel(TwoOutputs())
+            .inNotCompactMode().gna().propagate_forward().onCPU()
+            .called_with().input("input_1", input_data).result().equals_to(result1).And().equals_to(result2);
+}
+
+TEST_F(FP32NonQuantizedTest, TwoOutputsDiffPrecisionPropagateForward) {
+    std::vector<float> input_data(10, 1);
+    std::vector<float> result1(10, 11.f);
+    std::vector<float> result2(20, 11.f);
+
+    assert_that().onInferModel(TwoOutputsDiffPrecision())
+        .inNotCompactMode().gna().propagate_forward().onCPU()
+        .called_with().input("input_1", input_data).result().equals_to(result1).And().equals_to(result2);
+
+}
+
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith2InputsNotAlignedNoFC) {
-    std::vector<float> input_data = getRangeInput(20);
+    std::vector<float> input_data(20);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith2InputsNotAlignedNoFC())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
-TEST_F(FP32NonQuantizedTest, DISABLED_SplitToConcatWith2By50InputsNotAlignedNoFC) {
-    std::vector<float> input_data = getRangeInput(100);
+TEST_F(FP32NonQuantizedTest, SplitToConcatWith2By50InputsNotAlignedNoFC) {
+    std::vector<float> input_data(100);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith2By50InputsNotAlignedNoFC())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
-TEST_F(FP32NonQuantizedTest, DISABLED_SplitToConcatWith2By50InputsNotAlignedNoFCWithInCopyWithOutCopy) {
-    std::vector<float> input_data = getRangeInput(100);
+TEST_F(FP32NonQuantizedTest, SplitToConcatWith2By50InputsNotAlignedNoFCWithInCopyWithOutCopy) {
+    std::vector<float> input_data(100);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith2By50InputsNotAlignedNoFCWithInCopyWithOutCopy())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith3InputsNotAlignedNoFC) {
-    std::vector<float> input_data = getRangeInput(30);
+    std::vector<float> input_data(30);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith3InputsNotAlignedNoFC())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith4InputsNotAlignedNoFC) {
-    std::vector<float> input_data = getRangeInput(40);
+    std::vector<float> input_data(40);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith4InputsNotAlignedNoFC())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith4InputsNotAlignedNoFCWithOutCopy) {
-    std::vector<float> input_data = getRangeInput(40);
+    std::vector<float> input_data(40);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith4InputsNotAlignedNoFCWithOutCopy())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
-TEST_F(FP32NonQuantizedTest, DISABLED_SplitToConcatWith10InputsNotAlignedNoFC) {
-    std::vector<float> input_data = getRangeInput(100);
+TEST_F(FP32NonQuantizedTest, SplitToConcatWith10InputsNotAlignedNoFC) {
+    std::vector<float> input_data(100);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith10InputsNotAlignedNoFC())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
-TEST_F(FP32NonQuantizedTest, DISABLED_SplitToConcatWith10InputsNotAlignedNoFCWithOutCopy) {
-    std::vector<float> input_data = getRangeInput(100);
+TEST_F(FP32NonQuantizedTest, SplitToConcatWith10InputsNotAlignedNoFCWithOutCopy) {
+    std::vector<float> input_data(100);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith10InputsNotAlignedNoFCWithOutCopy())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith10By1InputsNotAlignedNoFCWithOutCopy) {
-    std::vector<float> input_data = getRangeInput(10);
+    std::vector<float> input_data(10);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith10By1InputsNotAlignedNoFCWithOutCopy())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith2InputsNotAlignedWithFC) {
-    std::vector<float> input_data = getRangeInput(20);
+    std::vector<float> input_data(20);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     std::vector<float> expected_result(10, 211.0f);
     assert_that().onInferModel(SplitToConcatWith2InputsNotAlignedWithFC())
             .inNotCompactMode().withWeigthsPattern({1}).gna().propagate_forward().onCPU()
@@ -469,7 +547,8 @@ TEST_F(FP32NonQuantizedTest, SplitToConcatWith2InputsNotAlignedWithFC) {
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith3InputsNotAlignedWithFC) {
-    std::vector<float> input_data = getRangeInput(30);
+    std::vector<float> input_data(30);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     std::vector<float> expected_result(10, 466.0f);
     assert_that().onInferModel(SplitToConcatWith3InputsNotAlignedWithFC())
             .inNotCompactMode().withWeigthsPattern({1}).gna().propagate_forward().onCPU()
@@ -477,14 +556,16 @@ TEST_F(FP32NonQuantizedTest, SplitToConcatWith3InputsNotAlignedWithFC) {
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith3By512InputsWithOutCopy) {
-    std::vector<float> input_data = getRangeInput(1536);
+    std::vector<float> input_data(1536);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith3By512InputsWithOutCopy())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
-TEST_F(FP32NonQuantizedTest, DISABLED_SplitToConcatWith10InputsNotAlignedWithFC) {
-    std::vector<float> input_data = getRangeInput(100);
+TEST_F(FP32NonQuantizedTest, SplitToConcatWith10InputsNotAlignedWithFC) {
+    std::vector<float> input_data(100);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     std::vector<float> expected_result(10, 5051.0f);
     assert_that().onInferModel(SplitToConcatWith10InputsNotAlignedWithFC())
             .inNotCompactMode().withWeigthsPattern({1}).gna().propagate_forward().onCPU()
@@ -492,63 +573,80 @@ TEST_F(FP32NonQuantizedTest, DISABLED_SplitToConcatWith10InputsNotAlignedWithFC)
 }
 
 TEST_F(FP32NonQuantizedTest, DISABLED_SplitToConcatWith2InputsAlignedNoFC) {
-    std::vector<float> input_data = getRangeInput(64);
+    std::vector<float> input_data(64);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith2InputsAlignedNoFC())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
 TEST_F(FP32NonQuantizedTest, DISABLED_SplitToConcatWith2By64InputsAlignedNoFC) {
-    std::vector<float> input_data = getRangeInput(128);
+    std::vector<float> input_data(128);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith2By64InputsAlignedNoFC())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
+TEST_F(FP32NonQuantizedTest, SplitToConcatWith2Inputs1360NotAlignedNoFC) {
+    std::vector<float> input_data(1360);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
+    assert_that().onInferModel(SplitToConcatWith2Inputs1360NotAlignedNoFC())
+            .inNotCompactMode().gna().propagate_forward().onCPU()
+            .called_with_input(input_data).equals_to(input_data);
+}
+
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith2By64InputsAlignedNoFCWithOutCopy) {
-    std::vector<float> input_data = getRangeInput(128);
+    std::vector<float> input_data(128);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith2By64InputsAlignedNoFCWithOutCopy())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith2InputsAlignedNoFCWithInCopyWithOutCopy) {
-    std::vector<float> input_data = getRangeInput(64);
+    std::vector<float> input_data(64);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith2InputsAlignedNoFCWithInCopyWithOutCopy())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
 TEST_F(FP32NonQuantizedTest, DISABLED_SplitToConcatWith3InputsAlignedNoFC) {
-    std::vector<float> input_data = getRangeInput(96);
+    std::vector<float> input_data(96);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith3InputsAlignedNoFC())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith3InputsAlignedNoFCWithInCopyWithOutCopy) {
-    std::vector<float> input_data = getRangeInput(96);
+    std::vector<float> input_data(96);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith3InputsAlignedNoFCWithInCopyWithOutCopy())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
 TEST_F(FP32NonQuantizedTest, DISABLED_SplitToConcatWith10InputsAlignedNoFC) {
-    std::vector<float> input_data = getRangeInput(320);
+    std::vector<float> input_data(320);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith10InputsAlignedNoFC())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith10InputsAlignedNoFCWithInCopyWithOutCopy) {
-    std::vector<float> input_data = getRangeInput(320);
+    std::vector<float> input_data(320);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     assert_that().onInferModel(SplitToConcatWith10InputsAlignedNoFCWithInCopyWithOutCopy())
             .inNotCompactMode().gna().propagate_forward().onCPU()
             .called_with_input(input_data).equals_to(input_data);
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith2InputsAlignedWithFC) {
-    std::vector<float> input_data = getRangeInput(64);
+    std::vector<float> input_data(64);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     std::vector<float> expected_result(32, 2081.0f);
     assert_that().onInferModel(SplitToConcatWith2InputsAlignedWithFC())
             .inNotCompactMode().withWeigthsPattern({1}).gna().propagate_forward().onCPU()
@@ -556,7 +654,8 @@ TEST_F(FP32NonQuantizedTest, SplitToConcatWith2InputsAlignedWithFC) {
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith2InputsAlignedWithFCWithInCopy) {
-    std::vector<float> input_data = getRangeInput(64);
+    std::vector<float> input_data(64);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     std::vector<float> expected_result(32, 2081.0f);
     assert_that().onInferModel(SplitToConcatWith2InputsAlignedWithFCWithInCopy())
             .inNotCompactMode().withWeigthsPattern({1}).gna().propagate_forward().onCPU()
@@ -564,7 +663,8 @@ TEST_F(FP32NonQuantizedTest, SplitToConcatWith2InputsAlignedWithFCWithInCopy) {
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith3InputsAlignedWithFC) {
-    std::vector<float> input_data = getRangeInput(96);
+    std::vector<float> input_data(96);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     std::vector<float> expected_result(32, 4657.0f);
     assert_that().onInferModel(SplitToConcatWith3InputsAlignedWithFC())
             .inNotCompactMode().withWeigthsPattern({1}).gna().propagate_forward().onCPU()
@@ -572,7 +672,8 @@ TEST_F(FP32NonQuantizedTest, SplitToConcatWith3InputsAlignedWithFC) {
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith3InputsAlignedWithFCWithInCopy) {
-    std::vector<float> input_data = getRangeInput(96);
+    std::vector<float> input_data(96);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     std::vector<float> expected_result(32, 4657.0f);
     assert_that().onInferModel(SplitToConcatWith3InputsAlignedWithFCWithInCopy())
             .inNotCompactMode().withWeigthsPattern({1}).gna().propagate_forward().onCPU()
@@ -580,7 +681,8 @@ TEST_F(FP32NonQuantizedTest, SplitToConcatWith3InputsAlignedWithFCWithInCopy) {
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith10InputsAlignedWithFC) {
-    std::vector<float> input_data = getRangeInput(320);
+    std::vector<float> input_data(320);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     std::vector<float> expected_result(32, 51361.0f);
     assert_that().onInferModel(SplitToConcatWith10InputsAlignedWithFC())
             .inNotCompactMode().withWeigthsPattern({1}).gna().propagate_forward().onCPU()
@@ -588,7 +690,8 @@ TEST_F(FP32NonQuantizedTest, SplitToConcatWith10InputsAlignedWithFC) {
 }
 
 TEST_F(FP32NonQuantizedTest, SplitToConcatWith10InputsAlignedWithFCWithInCopy) {
-    std::vector<float> input_data = getRangeInput(320);
+    std::vector<float> input_data(320);
+    std::iota(input_data.begin(), input_data.end(), 1.0f);
     std::vector<float> expected_result(32, 51361.0f);
     assert_that().onInferModel(SplitToConcatWith10InputsAlignedWithFCWithInCopy())
             .inNotCompactMode().withWeigthsPattern({1}).gna().propagate_forward().onCPU()
@@ -608,3 +711,4 @@ TEST_F(FP32NonQuantizedTest, ReshapeConvolutionLessThan48Filters) {
             .called_with_input(input_data)
             .equals_to(expected_result);
 }
+

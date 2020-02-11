@@ -509,3 +509,244 @@ TEST(gather_gpu_fp32, d22_axisF) {
         EXPECT_EQ(expected_results[i], output_ptr[i]);
     }
 }
+
+TEST(gather_gpu_int32, d22_axisF) {
+    //  Dictionary : 2x3x2x1
+    //  Indexes : 2x2x1x1
+    //  Axis : 1
+    //  Output : 2x2x2x2
+    //  Input values in i32
+
+    //  Indexes:
+    //  0, 1, 2, 1
+    //
+    //  Dictionary:
+    //  1, 2, 3, 4, 5, 6,
+    //  7, 8, 9, 10, 11, 12
+    //
+    //  Output:
+    //  1, 2, 3, 4, 5, 6, 3, 4, 7, 8, 9, 10, 11, 12, 9, 10
+
+    engine engine;
+
+    auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx, { 2, 3, 1, 2 } }); // Dictionary
+    auto input2 = memory::allocate(engine, { data_types::i32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto axis = cldnn::gather::gather_axis::along_f;
+
+    set_values(input1, {
+            1, 2, 3,
+            4, 5, 6,
+
+            7, 8, 9,
+            10, 11, 12
+    });
+
+    set_values(input2, {
+            0, 1, 2, 1
+    });
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1.get_layout()));
+    topology.add(input_layout("InputText", input2.get_layout()));
+    topology.add(
+            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 2))
+    );
+
+    network network(engine, topology);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("gather").get_memory();
+    auto output_ptr = output.pointer<int>();
+
+    std::vector<int> expected_results = {
+            1, 2, 3, 4, 5, 6, 3, 4, 7, 8, 9, 10, 11, 12, 9, 10
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        EXPECT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
+TEST(gather_gpu_int32, d14_axisB) {
+    //  Dictionary : 2x2x1x1
+    //  Indexes : 1x4x1x1
+    //  Axis : 0
+    //  Output : 1x4x2x1
+    //  Input values in i32
+
+    //  Indexes:
+    //  0, 1, 1, 0
+    //
+    //  Dictionary:
+    //  1, 2, 3, 4
+    //
+    //  Output:
+    //  1, 2, 3, 4, 3, 4, 1, 2
+
+    engine engine;
+
+    auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx, { 2, 2, 1, 1 } }); // Dictionary
+    auto input2 = memory::allocate(engine, { data_types::i32, format::bfyx, { 1, 4, 1, 1 } }); // Indexes
+    auto axis = cldnn::gather::gather_axis::along_b;
+
+    set_values(input1, {
+            1, 2,
+            3, 4
+    });
+
+    set_values(input2, {
+            0, 1,
+            1, 0
+    });
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1.get_layout()));
+    topology.add(input_layout("InputText", input2.get_layout()));
+    topology.add(
+            gather("gather", "InputDictionary", "InputText", axis, tensor(1, 4, 1, 2))
+    );
+
+    network network(engine, topology);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("gather").get_memory();
+    auto output_ptr = output.pointer<int>();
+
+    std::vector<int> expected_results = {
+            1, 2, 3, 4, 3, 4, 1, 2
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        EXPECT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
+TEST(gather_gpu_int32, d222_axisB) {
+    //  Dictionary : 3x2x2x1
+    //  Indexes : 2x2x1x1
+    //  Axis : 0
+    //  Output : 2x2x2x2
+    //  Input values in i32
+
+    //  Indexes:
+    //  0, 1, 2, 1
+    //
+    //  Dictionary:
+    //  1, 2, 3, 4, 5, 6,
+    //  7, 8, 9, 10, 11, 12
+    //
+    //  Output:
+    //  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 5, 6, 7, 8
+
+    engine engine;
+
+    auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 2, 1, 2 } }); // Dictionary
+    auto input2 = memory::allocate(engine, { data_types::i32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto axis = cldnn::gather::gather_axis::along_b;
+
+    set_values(input1, {
+            1, 2, 3,
+            4, 5, 6,
+
+            7, 8, 9,
+            10, 11, 12
+    });
+
+    set_values(input2, {
+            0, 1, 2, 1
+    });
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1.get_layout()));
+    topology.add(input_layout("InputText", input2.get_layout()));
+    topology.add(
+            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 2))
+    );
+
+    network network(engine, topology);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("gather").get_memory();
+    auto output_ptr = output.pointer<int>();
+
+    std::vector<int> expected_results = {
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 5, 6, 7, 8
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        EXPECT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
+TEST(gather_gpu_int32, d22_axisY) {
+    //  Dictionary : 2x2x3x1
+    //  Indexes : 2x2x1x1
+    //  Axis : 2
+    //  Output : 2x2x2x2
+    //  Input values in i32
+
+    //  Indexes:
+    //  0, 1, 2, 1
+    //
+    //  Dictionary:
+    //  1, 2, 3, 4, 5, 6,
+    //  7, 8, 9, 10, 11, 12
+    //
+    //  Output:
+    //  1, 2, 3, 2, 4, 5, 6, 5, 7, 8, 9, 8, 10, 11, 12, 11
+
+    engine engine;
+
+    auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx, { 2, 2, 1, 3 } }); // Dictionary
+    auto input2 = memory::allocate(engine, { data_types::i32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
+    auto axis = cldnn::gather::gather_axis::along_y;
+
+    set_values(input1, {
+            1, 2, 3,
+            4, 5, 6,
+
+            7, 8, 9,
+            10, 11, 12
+    });
+
+    set_values(input2, {
+            0, 1, 2, 1
+    });
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1.get_layout()));
+    topology.add(input_layout("InputText", input2.get_layout()));
+    topology.add(
+            gather("gather", "InputDictionary", "InputText", axis, tensor(2, 2, 2, 2))
+    );
+
+    network network(engine, topology);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("gather").get_memory();
+    auto output_ptr = output.pointer<int>();
+
+    std::vector<int> expected_results = {
+            1, 2, 3, 2, 4, 5, 6, 5, 7, 8, 9, 8, 10, 11, 12, 11
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        EXPECT_EQ(expected_results[i], output_ptr[i]);
+    }
+}

@@ -1,16 +1,19 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include "mkldnn_plugin/mkldnn_exec_network.h"
+#include "mkldnn_exec_network.h"
 
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
+#include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 #include "../test_graph.hpp"
-#include <ext_list.hpp>
-#include <ie_builders.hpp>
 #include <ie_ir_reader.hpp>
+
+// to fix compilation in Debug mode
+IE_SUPPRESS_DEPRECATED_START
+#include <ie_builders.hpp>
+IE_SUPPRESS_DEPRECATED_END
 
 using namespace ::testing;
 using namespace std;
@@ -4801,12 +4804,8 @@ TEST_F(MKLDNNGraphStructureTests, TestConstantLayerAsOutput) {
 
     net_reader.SetWeights(weights_ptr);
 
-    InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-    MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-    extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
     MKLDNNGraphTestClass graph;
-    graph.CreateGraph(net_reader.getNetwork(), extMgr);
+    graph.CreateGraph(net_reader.getNetwork());
 
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, {1, 3, 10, 10}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(desc);
@@ -6519,7 +6518,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphWithMultipleData_2) {
     const float channel1Value = 1.0;
     const float channel2Value = 2.0;
 
-    const auto weights = std::make_shared<TBlob<uint8_t>>(TensorDesc(Precision::U8, SizeVector{0}, Layout::C));
+    const auto weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, SizeVector{0}, Layout::C));
 
     InferenceEngine::CNNNetReader reader;
     reader.ReadNetwork(model.data(), model.size());
@@ -6569,6 +6568,8 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphWithMultipleData_2) {
 }
 
 TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataToConcat) {
+    IE_SUPPRESS_DEPRECATED_START
+
     using namespace InferenceEngine;
     // Build the network.
     Builder::Network netBuilder("");
@@ -6684,6 +6685,8 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataFromInputToConcat) {
     InferenceEngine::TBlob<float>::Ptr dstOut = InferenceEngine::make_shared_blob<float>(outputBlobs["concat"]->getTensorDesc(), refDst.data());
 
     compare(*outputBlobs["concat"], *dstOut);
+
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 
@@ -6727,7 +6730,7 @@ TEST_F(MKLDNNGraphStructureTests, TestCheckIncorrectScaleShift) {
 </net>
 )V0G0N";
     using namespace InferenceEngine;
-    const auto weights = std::make_shared<TBlob<uint8_t>>(Precision::U8, Layout::C, SizeVector{64});
+    const auto weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, SizeVector{64}, Layout::C));
 
     InferenceEngine::CNNNetReader reader;
     reader.ReadNetwork(model.data(), model.size());
@@ -6738,6 +6741,8 @@ TEST_F(MKLDNNGraphStructureTests, TestCheckIncorrectScaleShift) {
 }
 
 TEST_F(MKLDNNGraphStructureTests, TestConcatWithFourInputs) {
+    IE_SUPPRESS_DEPRECATED_START
+
     using namespace InferenceEngine;
     // Build the network.
     Builder::Network netBuilder("");
@@ -6811,4 +6816,6 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatWithFourInputs) {
     InferenceEngine::TBlob<float>::Ptr dstOut = InferenceEngine::make_shared_blob<float>(outputBlobs["concat"]->getTensorDesc(), refDst.data());
 
     compare(*outputBlobs["concat"], *dstOut);
+
+    IE_SUPPRESS_DEPRECATED_END
 }

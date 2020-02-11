@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2019 Intel Corporation
+﻿// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,8 @@ using InferenceEngine::DescriptionBuffer;
 using InferenceEngine::TBlob;
 using InferenceEngine::Blob;
 using namespace InferenceEngine;
-using namespace details;
+using namespace InferenceEngine::gpu;
+using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
 
@@ -48,27 +49,14 @@ struct clDNNEngine::impl {
     CLDNNPlugin::Config m_config;
 };
 
-clDNNEngine::clDNNEngine() {
+clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
     _pluginName = "GPU";
     _impl = std::make_shared<impl>();
 
     // try loading clDNN engine and get info from it
     {
-        cldnn::engine info_engine(cldnn::engine_configuration(
-            false,
-            false,
-            false,
-            std::string(),
-            std::string(),
-            true,
-            std::string(),
-            std::string(),
-            cldnn::priority_mode_types::disabled,
-            cldnn::throttle_mode_types::disabled,
-            true,
-            1));
-
-        engine_info = info_engine.get_info();
+        cldnn::device_query device_query;
+        device_map = device_query.get_available_devices();
     }
     // locate global custom kernel config
     // and auto-load kernels from it
@@ -96,59 +84,111 @@ clDNNEngine::clDNNEngine() {
     CLDNNCustomLayer::LoadFromFile(config_path, _impl->m_config.customLayers, true);
 }
 
-ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICore * /*core*/, InferenceEngine::ICNNNetwork &network,
-                                                               const std::map<std::string, std::string> &config) {
-    IE_SUPPRESS_DEPRECATED_START
-    auto specifiedDevice = network.getTargetDevice();
-    auto supportedDevice = InferenceEngine::TargetDevice::eGPU;
-    if (specifiedDevice != InferenceEngine::TargetDevice::eDefault && specifiedDevice != supportedDevice) {
-        THROW_IE_EXCEPTION << "The plugin doesn't support target device: " << getDeviceName(specifiedDevice) << ".\n" <<
-                           "Supported target device: " << getDeviceName(supportedDevice);
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    CLDNNPlugin::Config conf = this->_impl->m_config;
-    conf.UpdateFromMap(config);
-
-    // verification of supported input
-    InferenceEngine::InputsDataMap _networkInputs;
-    network.getInputsInfo(_networkInputs);
+auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
     for (auto ii : _networkInputs) {
         auto input_precision = ii.second->getTensorDesc().getPrecision();
         if (input_precision != InferenceEngine::Precision::FP16 && input_precision != InferenceEngine::Precision::I16
             && input_precision != InferenceEngine::Precision::FP32 && input_precision != InferenceEngine::Precision::U8
             && input_precision != InferenceEngine::Precision::I32) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
-                               << "Input image format " << input_precision << " is not supported yet...";
+                << "Input image format " << input_precision << " is not supported yet...";
         }
     }
+};
+
+ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICore * /*core*/, InferenceEngine::ICNNNetwork &network,
+                                                               const std::map<std::string, std::string> &config) {
+    // verification of supported input
+    InferenceEngine::InputsDataMap _networkInputs;
+    network.getInputsInfo(_networkInputs);
+    check_inputs(_networkInputs);
+
+    CLDNNPlugin::Config conf = _impl->m_config;
+    conf.UpdateFromMap(config);
 
     if (conf.enableDynamicBatch) {
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<CLDNNExecNetwork>(network, conf);
+    CLDNNRemoteCLContext::Ptr context;
+
+    auto canReuseDefaultContext = [&]() -> bool {
+        if (m_defaultContext == nullptr)
+            return false;
+
+        const Config& context_config = m_defaultContext->GetConfig();
+        const Config& current_config = conf;
+
+        return context_config.throughput_streams == current_config.throughput_streams &&
+               context_config.useProfiling == current_config.useProfiling &&
+               context_config.dumpCustomKernels == current_config.dumpCustomKernels &&
+               context_config.memory_pool_on == current_config.memory_pool_on &&
+               context_config.queueThrottle == current_config.queueThrottle &&
+               context_config.queuePriority == current_config.queuePriority &&
+               context_config.sources_dumps_dir == current_config.sources_dumps_dir &&
+               context_config.tuningConfig.mode == current_config.tuningConfig.mode &&
+               context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path;
+    };
+
+    if (!canReuseDefaultContext()) {
+        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), ParamMap(), conf));
+    }
+
+    context = m_defaultContext;
+
+    return std::make_shared<CLDNNExecNetwork>(network, context, conf);
 }
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
-    try {
-        plugin = make_ie_compatible_plugin(
-                {2, 1,
-                 CI_BUILD_NUMBER,
-                 "clDNNPlugin"}, std::make_shared<clDNNEngine>());
-        return OK;
+ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICore * /*core*/, InferenceEngine::ICNNNetwork &network,
+                                                                RemoteContext::Ptr context,
+                                                                const std::map<std::string, std::string> &config) {
+    InferenceEngine::InputsDataMap _networkInputs;
+    network.getInputsInfo(_networkInputs);
+    check_inputs(_networkInputs);
+
+    auto casted = std::dynamic_pointer_cast<ClContext>(context);
+    if (nullptr == casted) {
+        THROW_IE_EXCEPTION << "Invalid context";
     }
-    catch (std::exception &ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
+
+    CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
+    // TODO - change this when context config and network config will be separated
+    conf.UpdateFromMap(config);
+    if (conf.enableDynamicBatch) {
+        conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
+
+    return std::make_shared<CLDNNExecNetwork>(network, casted, conf);
+}
+
+RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
+    // parameter map is non-empty
+    std::string contextTypeStr = _StrFromParams(params, GPU_PARAM_KEY(CONTEXT_TYPE));
+
+    if (GPU_PARAM_VALUE(OCL) == contextTypeStr) {
+        auto context = std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
+        return std::dynamic_pointer_cast<RemoteContext>(context);
+    } else if (GPU_PARAM_VALUE(VA_SHARED) == contextTypeStr) {
+        #ifdef WIN32
+        auto context = std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
+        #else
+        auto context = std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
+        #endif
+        return std::dynamic_pointer_cast<RemoteContext>(context);
+    } else {
+        THROW_IE_EXCEPTION << "Invalid remote context type" << contextTypeStr;
+    }
+}
+
+RemoteContext::Ptr clDNNEngine::GetDefaultContext() {
+    if (nullptr == m_defaultContext) {
+        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), ParamMap(), _impl->m_config));
+    }
+    return std::dynamic_pointer_cast<RemoteContext>(m_defaultContext);
 }
 
 void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
     _impl->m_config.UpdateFromMap(config);
-}
-
-void clDNNEngine::QueryNetwork(const ICNNNetwork& network, QueryNetworkResult& res) const {
-    QueryNetwork(network, {}, res);
 }
 
 void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
@@ -171,9 +211,6 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
             nextLayerDependent.push_back(layer);
         } else if (CLDNNGraph::IsLayerSupported(layer->type)) {
             res.supportedLayersMap.insert({ layer->name, GetName() });
-            IE_SUPPRESS_DEPRECATED_START
-            res.supportedLayers.insert(layer->name);
-            IE_SUPPRESS_DEPRECATED_END
         }
     }
 
@@ -193,9 +230,6 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
         }
         if (supported) {
             res.supportedLayersMap.insert({ concat->name, GetName() });
-            IE_SUPPRESS_DEPRECATED_START
-            res.supportedLayers.insert(concat->name);
-            IE_SUPPRESS_DEPRECATED_END
         }
     }
 
@@ -215,9 +249,6 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
         std::cout << (*cnl)->name << " is " << (supported ? "GPU" : "CPU") << std::endl;
 
         if (supported) {
-            IE_SUPPRESS_DEPRECATED_START
-            res.supportedLayers.insert((*cnl)->name);
-            IE_SUPPRESS_DEPRECATED_END
             res.supportedLayersMap.insert({ (*cnl)->name, GetName() });
         }
     }
@@ -251,7 +282,16 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
     return ret_str;
 };
 
-Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
+Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
+    auto device_id = GetConfig(CONFIG_KEY(DEVICE_ID), {});
+    if (options.find(CONFIG_KEY(DEVICE_ID)) != options.end())
+        device_id = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();
+
+    auto iter = device_map.find(device_id);
+    auto device_info = iter != device_map.end() ?
+        iter->second.get_info() :
+        device_map.begin()->second.get_info();
+
     if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(AVAILABLE_DEVICES));
@@ -265,10 +305,12 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
-        std::vector<std::string> availableDevices = { "" };
+        std::vector<std::string> availableDevices = { };
+        for (auto const& dev : device_map)
+            availableDevices.push_back(dev.first);
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, StringRightTrim(engine_info.dev_name, "NEO", false));
+        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, StringRightTrim(device_info.dev_name, "NEO", false));
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto opt : _impl->m_config.key_config_map)
@@ -279,9 +321,9 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
         capabilities.push_back(METRIC_VALUE(FP32));
         capabilities.push_back(METRIC_VALUE(BIN));
-        if (engine_info.supports_fp16)
+        if (device_info.supports_fp16)
             capabilities.push_back(METRIC_VALUE(FP16));
-        if (engine_info.supports_imad || engine_info.supports_immad)
+        if (device_info.supports_imad || device_info.supports_immad)
             capabilities.push_back(METRIC_VALUE(INT8));
 
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
@@ -301,3 +343,19 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 }
 
 };  // namespace CLDNNPlugin
+
+IE_SUPPRESS_DEPRECATED_START
+
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
+    try {
+        plugin = make_ie_compatible_plugin(
+            { 2, 1,
+             CI_BUILD_NUMBER,
+             "clDNNPlugin" }, std::make_shared<CLDNNPlugin::clDNNEngine>());
+        return OK;
+    }
+    catch (std::exception & ex) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
+    }
+}
+

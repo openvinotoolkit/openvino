@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,10 +24,10 @@ from mo.front.extractor import input_user_data_repack, output_user_data_repack, 
 from mo.front.extractor import spatial_attr_getter, add_input_ops, attr_getter, CaffePythonFrontExtractorOp, \
     add_output_ops
 from mo.graph.graph import Node
-from mo.middle.passes import eliminate
 from mo.utils.error import Error
 from mo.utils.unittest.extractors import FakeMultiParam
-from mo.utils.unittest.graph import build_graph, build_graph_with_edge_attrs, build_graph_with_attrs, compare_graphs
+from mo.utils.unittest.graph import build_graph, build_graph_with_edge_attrs, build_graph_with_attrs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 
 class FakePythonParam:
@@ -165,7 +165,7 @@ class TestAddInputOp(unittest.TestCase):
 
     def test_out_port_with_data(self):
         graph = build_graph_with_attrs(nodes_with_attrs=self.nodes_out, edges_with_attrs=self.edges_out[1:],
-                                       new_nodes_with_attrs=[('input_data', {'kind': 'data', 'shape': None})],
+                                       new_nodes_with_attrs=[('input_data', {'kind': 'data', 'shape': None, 'value': None})],
                                        new_edges_with_attrs=[('op_node', 'input_data', {'out': 1, 'in': 0}),
                                                              ('input_data', 'future_input', {'in': 0, 'out': 0})])
         new_input_shape = np.array([1, 2, 3, 4])
@@ -408,7 +408,7 @@ class TestInputAddition(unittest.TestCase):
             'old_input': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
             'inp_data' : {'kind': 'data', 'shape': shape + 1},
             'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder'},
-            'conv_data': {'kind': 'data', 'shape': shape},
+            'conv_data': {'kind': 'data', 'shape': shape, 'value': None},
             'relu_1': {'type': 'ReLU', 'kind': 'op', 'op': 'NotPlaceholder'},
         }
         edges = [
@@ -462,7 +462,7 @@ class TestOutputCut(unittest.TestCase):
         ]
         graph = build_graph_with_edge_attrs(nodes, edges)
         sinks = add_output_ops(graph, output)
-        eliminate.graph_clean_up(graph)
+        graph.clean_up()
         self.assertEqual(len(Node(graph, 'C').out_nodes()), 1)
         self.assertEqual(len(Node(graph, 'C').in_nodes()), 2)
 
@@ -482,7 +482,7 @@ class TestOutputCut(unittest.TestCase):
         ]
         graph = build_graph_with_edge_attrs(nodes, edges)
         sinks = add_output_ops(graph, output)
-        eliminate.graph_clean_up(graph)
+        graph.clean_up()
         self.assertEqual(len(graph.nodes()), 2)
 
 

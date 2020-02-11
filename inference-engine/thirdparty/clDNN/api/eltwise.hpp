@@ -127,37 +127,14 @@ struct eltwise : public primitive_base<eltwise> {
     /// @param id This primitive id.
     /// @param inputs Input primitives ids.
     /// @param mode Eltwise mode.
-    /// @param with_activation Enables Relu activation.
-    /// @param activation_slp Relu activation slope.
+    /// @param data_type Expected output data type.
     eltwise(const primitive_id& id,
             const std::vector<primitive_id>& inputs,
             eltwise_mode mode,
+            data_types data_type,
             const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding),
+        : primitive_base(id, inputs, output_padding, optional_data_type{data_type}),
           output_calibration_factors(""),
-          output_quantization_factor(1.0f),
-          input_quantization_factors(0),
-          mode(mode),
-          coefficients(std::vector<float>(0)),
-          stride(std::vector<tensor>(0)),
-          inputs_calibration_factors(std::vector<primitive_id>(0)) {}
-
-    /// @brief Constructs eltwise primitive.
-    /// @param id This primitive id.
-    /// @param input Input primitive id.
-    /// @param input2 Second input primitive id with values needed for eltwise computation.
-    /// @param output_calibration_factors Primitive id containing output calibration factors per output feature map.
-    /// @param mode Eltwise mode.
-    /// @param with_activation Enables Relu activation.
-    /// @param activation_slp Relu activation slope.
-    eltwise(const primitive_id& id,
-            const primitive_id& input,
-            const primitive_id& input2,
-            const primitive_id& output_calibration_factors,
-            eltwise_mode mode,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input, input2}, output_padding),
-          output_calibration_factors(output_calibration_factors),
           output_quantization_factor(1.0f),
           input_quantization_factors(0),
           mode(mode),
@@ -168,62 +145,14 @@ struct eltwise : public primitive_base<eltwise> {
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
     /// @param inputs Input primitives ids.
-    /// @param output_calibration_factors Primitive id containing output calibration factors per output feature map.
     /// @param mode Eltwise mode.
-    /// @param with_activation Enables Relu activation.
-    /// @param activation_slp Relu activation slope.
     eltwise(const primitive_id& id,
             const std::vector<primitive_id>& inputs,
-            const primitive_id& output_calibration_factors,
             eltwise_mode mode,
             const padding& output_padding = padding())
         : primitive_base(id, inputs, output_padding),
-          output_calibration_factors(output_calibration_factors),
+          output_calibration_factors(""),
           output_quantization_factor(1.0f),
-          input_quantization_factors(0),
-          mode(mode),
-          coefficients(std::vector<float>(0)),
-          stride(std::vector<tensor>(0)),
-          inputs_calibration_factors(std::vector<primitive_id>(0)) {}
-
-    /// @brief Constructs eltwise primitive.
-    /// @param id This primitive id.
-    /// @param input Input primitive id.
-    /// @param input2 Second input primitive id with values needed for eltwise computation.
-    /// @param o_quantization_factor Output quantization factor
-    /// @param mode Eltwise mode.
-    /// @param with_activation Enables Relu activation.
-    /// @param activation_slp Relu activation slope.
-    eltwise(const primitive_id& id,
-            const primitive_id& input,
-            const primitive_id& input2,
-            const float o_quantization_factor,
-            eltwise_mode mode,
-            const padding& output_padding = padding())
-        : primitive_base(id, {input, input2}, output_padding),
-          output_calibration_factors(""),
-          output_quantization_factor(o_quantization_factor),
-          input_quantization_factors(0),
-          mode(mode),
-          coefficients(std::vector<float>(0)),
-          stride(std::vector<tensor>(0)),
-          inputs_calibration_factors(std::vector<primitive_id>(0)) {}
-
-    /// @brief Constructs eltwise primitive.
-    /// @param id This primitive id.
-    /// @param inputs Input primitives ids.
-    /// @param o_quantization_factor Output quantization factor
-    /// @param mode Eltwise mode.
-    /// @param with_activation Enables Relu activation.
-    /// @param activation_slp Relu activation slope.
-    eltwise(const primitive_id& id,
-            const std::vector<primitive_id>& inputs,
-            const float o_quantization_factor,
-            eltwise_mode mode,
-            const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding),
-          output_calibration_factors(""),
-          output_quantization_factor(o_quantization_factor),
           input_quantization_factors(0),
           mode(mode),
           coefficients(std::vector<float>(0)),
@@ -235,14 +164,13 @@ struct eltwise : public primitive_base<eltwise> {
     /// @param inputs Input primitives ids.
     /// @param coefficients Blob-wise coefficient for SUM operation
     /// @param mode Eltwise mode.
-    /// @param with_activation Enables Relu activation.
-    /// @param activation_slp Relu activation slope.
     eltwise(const primitive_id& id,
             const std::vector<primitive_id>& inputs,
             eltwise_mode mode,
             const std::vector<float>& coefficients,
+            data_types data_type,
             const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding),
+        : primitive_base(id, inputs, output_padding, optional_data_type{data_type}),
           output_calibration_factors(""),
           output_quantization_factor(1.0f),
           input_quantization_factors(0),

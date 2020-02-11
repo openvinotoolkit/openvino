@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,6 @@ TEST_F(PreProcessTests, throwsOnSettingNullMeanImage) {
     info.init(1);
     ASSERT_THROW(info.setMeanImage(InferenceEngine::Blob::Ptr(nullptr)),
             InferenceEngine::details::InferenceEngineException);
-
 }
 
 TEST_F(PreProcessTests, throwsOnSetting2DMeanImage) {
@@ -33,7 +32,6 @@ TEST_F(PreProcessTests, throwsOnSetting2DMeanImage) {
     InferenceEngine::Blob::Ptr blob(new InferenceEngine::TBlob<float>({ InferenceEngine::Precision::FP32,
         {1, 1}, InferenceEngine::Layout::HW}));
     ASSERT_THROW(info.setMeanImage(blob), InferenceEngine::details::InferenceEngineException);
-
 }
 
 TEST_F(PreProcessTests, throwsOnSettingWrongSizeMeanImage) {
@@ -41,9 +39,7 @@ TEST_F(PreProcessTests, throwsOnSettingWrongSizeMeanImage) {
     info.init(1);
     InferenceEngine::TBlob<float>::Ptr blob(new InferenceEngine::TBlob<float>({ InferenceEngine::Precision::FP32,
         { 2, 1, 1 }, InferenceEngine::Layout::CHW }));
-    IE_SUPPRESS_DEPRECATED_START
-    blob->set({ 1.f, 2.f });
-    IE_SUPPRESS_DEPRECATED_END
+    blob->allocate();
     ASSERT_THROW(info.setMeanImage(blob), InferenceEngine::details::InferenceEngineException);
 }
 
@@ -52,8 +48,6 @@ TEST_F(PreProcessTests, noThrowWithCorrectSizeMeanImage) {
     info.init(2);
     InferenceEngine::TBlob<float>::Ptr blob(new InferenceEngine::TBlob<float>({ InferenceEngine::Precision::FP32,
         { 2, 1, 1 }, InferenceEngine::Layout::CHW }));
-    IE_SUPPRESS_DEPRECATED_START
-    blob->set({ 1.f, 2.f });
-    IE_SUPPRESS_DEPRECATED_END
+    blob->allocate();
     ASSERT_NO_THROW(info.setMeanImage(blob));
 }

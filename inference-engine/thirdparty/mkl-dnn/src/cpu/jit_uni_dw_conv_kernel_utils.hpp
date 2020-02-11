@@ -90,7 +90,7 @@ bool jit_uni_dw_conv_fwd_kernel<isa, kernel_dt>::post_ops_ok(
             bool ok = true;
 
             for (int i = 0; i < p.len_; i++) {
-                ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise);
+                ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise, primitive_kind::quantization);
             }
             return ok;
         };

@@ -1,18 +1,20 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <debug.h>
+
+#include <algorithm>
+#include <cmath>
 #include <description_buffer.hpp>
-#include "ie_built_in_impl.hpp"
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <debug.h>
-#include <cmath>
-#include <algorithm>
+
+#include "ie_built_in_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -22,14 +24,12 @@ namespace ShapeInfer {
  */
 class GemmShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit GemmShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
+    explicit GemmShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-                         const std::map<std::string, std::string>& params,
-                         const std::map<std::string, Blob::Ptr>& blobs,
-                         std::vector<SizeVector>& outShapes) override {
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
         // TODO: primitive does not support 5D tensor yet
-        LayerParams lp{};
+        LayerParams lp {};
         GemmLayer gemmLayer(lp);
         gemmLayer.params = params;
         gemmLayer.type = _type;

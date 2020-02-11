@@ -54,8 +54,8 @@ using convolution_test_s8s8s32f32 =
     EXPAND_ARGS(PARAMS_CONV(eltwise_bounded_relu, __VA_ARGS__)), \
     EXPAND_ARGS(PARAMS_CONV(eltwise_soft_relu, __VA_ARGS__)), \
     EXPAND_ARGS(PARAMS_CONV(eltwise_logistic, __VA_ARGS__)), \
-    EXPAND_ARGS(PARAMS_CONV(eltwise_clamp, __VA_ARGS__)), \
-    EXPAND_ARGS(PARAMS_CONV(eltwise_exp, __VA_ARGS__))
+    EXPAND_ARGS(PARAMS_CONV(eltwise_clamp, __VA_ARGS__))
+//    EXPAND_ARGS(PARAMS_CONV(eltwise_exp, __VA_ARGS__))
 
 #define ELTWISE_ALPHA 0.5f
 #define ELTWISE_BETA 0.f
@@ -84,6 +84,12 @@ INST_TEST_CASE(SimpleSmall_Blocked8_Tail, test, \
 PARAMS(nhwc, OhIw8o4i, x, nhwc, 2, 1, 47, 20, 20, 47, 20, 20, 1, 1, 0, 0, 1, 1), \
 PARAMS(nhwc, Goihw8g, x, nhwc, 2, 47, 47, 20, 20, 47, 20, 20, 3, 3, 1, 1, 1, 1), \
 PARAMS(nhwc, OhIw8o4i, x, nhwc, 2, 1, 47, 20, 20, 47, 20, 20, 3, 3, 1, 1, 1, 1) \
+); \
+INST_TEST_CASE(SimpleSmall_Gemm, test, \
+PARAMS(nhwc, hwio, x, nhwc, 2, 1, 32, 13, 13, 48, 11, 11, 3, 3, 0, 0, 1, 1), \
+PARAMS(nhwc, hwio, x, nhwc, 2, 1, 16, 13, 13, 48, 13, 13, 1, 1, 0, 0, 1, 1), \
+PARAMS(nhwc, hwigo, x, nhwc, 2, 64, 64, 16, 16, 64, 16, 16, 3, 3, 0, 0, 1, 1), \
+PARAMS(nhwc, hwigo, x, nhwc, 2, 32, 32, 9, 9, 32, 9, 9, 1, 1, 0, 0, 1, 1) \
 );
 
 #define INST_TEST_CASE_P_SIGNED(test) \

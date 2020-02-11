@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,8 +51,6 @@ public:
     void EnableWA(std::string name);
     void DisableWA(std::string name);
     bool IsWAActive(std::string name);
-
-    static std::string IELayoutToString(InferenceEngine::Layout layout);
 
 protected:
     std::map<std::string, std::chrono::steady_clock::time_point> m_TimedEventTimestamp;

@@ -1,6 +1,6 @@
 
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,18 +15,17 @@
  limitations under the License.
 """
 
-from mo.front.common.extractors.utils import layout_attrs
+from extensions.ops.psroipooling import DeformablePSROIPoolingOp, PSROIPoolingOp
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from extensions.ops.psroipooling import PSROIPoolingOp
 
 
 class DeformablePSROIPoolingFrontExtractor(FrontExtractorOp):
     op = '_contrib_DeformablePSROIPooling'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         spatial_scale = attrs.float('spatial_scale', None)
         group_size = attrs.int('group_size', 0)
@@ -42,7 +41,6 @@ class DeformablePSROIPoolingFrontExtractor(FrontExtractorOp):
             'mode': 'bilinear_deformable',
             'group_size': group_size,
             'output_dim': output_dim,
-            'no_trans': no_trans,
             'trans_std': trans_std,
             'part_size': part_size,
             'spatial_bins_x': sample_per_part,
@@ -52,5 +50,9 @@ class DeformablePSROIPoolingFrontExtractor(FrontExtractorOp):
         }
 
         # update the attributes of the node
-        PSROIPoolingOp.update_node_stat(node, data)
-        return __class__.enabled
+        if not node.graph.graph['cmd_params'].generate_experimental_IR_V10:
+            data.update({'no_trans': no_trans})
+            PSROIPoolingOp.update_node_stat(node, data)
+        else:
+            DeformablePSROIPoolingOp.update_node_stat(node, data)
+        return cls.enabled

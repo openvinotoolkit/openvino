@@ -1,14 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gna_plugin/gna_allocator.hpp"
-
+#include <cstdint>
 #include <vector>
 #include <thread>
 
 #include <gtest/gtest.h>
-#include "gna_plugin/gna_device.hpp"
+#include <memory/gna_allocator.hpp>
+#include "gna_device.hpp"
+
 //dummy definitions to work around issue with Linux userspace library
 typedef unsigned long long time_tsc;
 typedef struct
@@ -40,14 +41,14 @@ void profilerTscStopAccumulate(intel_gna_profiler_tsc* p)
 class GNAAllocatorTest : public ::testing::Test {
 
  protected:
-    std::unique_ptr<GNADeviceHelper> gnadevice;
+    std::shared_ptr<GNADeviceHelper> gnadevice;
     void SetUp() override  {
        // gnadevice.reset(new GNADeviceHelper());
     }
 };
 
 TEST_F(GNAAllocatorTest, canAllocateStdMemory) {
-    auto sp = make_polymorph<std::allocator<uint8_t>>();
+    auto sp = GNAPluginNS::memory::make_polymorph<std::allocator<uint8_t>>();
     uint8_t *x = nullptr;
     ASSERT_NO_THROW(x = sp.allocate(100));
     ASSERT_NE(x, nullptr);
@@ -57,14 +58,14 @@ TEST_F(GNAAllocatorTest, canAllocateStdMemory) {
 TEST_F(GNAAllocatorTest, canAllocateGNAMemory) {
     //GNA device can be opened one per process for now
     gnadevice.reset(new GNADeviceHelper());
-    auto sp = make_polymorph<GNAAllocator>(*gnadevice.get());
+    auto sp = GNAPluginNS::memory::make_polymorph<GNAPluginNS::memory::GNAAllocator>(gnadevice);
     uint8_t *x = nullptr;
     ASSERT_NO_THROW(x = sp.allocate(100));
     ASSERT_NE(x, nullptr);
     ASSERT_NO_THROW(sp.deallocate(x, 100));
 }
 
-TEST_F(GNAAllocatorTest, DISABLED_canOpenDevice) {
+TEST_F(GNAAllocatorTest, canOpenDevice) {
     std::thread th([]()
     {
         GNADeviceHelper h1;

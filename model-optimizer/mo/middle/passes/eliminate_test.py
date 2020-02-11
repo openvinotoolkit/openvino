@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 
 from mo.graph.graph import Node, Graph
-from mo.middle.passes.eliminate import mark_output_reachable_nodes, graph_clean_up, mark_const_producer_nodes
+from mo.middle.passes.eliminate import mark_output_reachable_nodes, mark_const_producer_nodes
 from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'placeholder_1': {'type': 'Parameter', 'kind': 'op'},
@@ -148,7 +148,7 @@ class TestEliminatePass(unittest.TestCase):
         self.assertListEqual(sorted(['node_1', 'node_2', 'node_3', 'node_5', 'placeholder_1']),
                              sorted(graph.get_nodes_with_attributes(is_const_producer=False, kind='op')))
 
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue('node_3' in graph.nodes())
         self.assertTrue('node_4' not in graph.nodes())
         self.assertTrue('node_6' not in graph.nodes())

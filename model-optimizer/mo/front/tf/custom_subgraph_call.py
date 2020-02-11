@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ from re import compile, match, findall
 import networkx as nx
 
 from mo.front.extractor import update_ie_fields
-from mo.front.tf.partial_infer.tf import tf_subgraph_infer
 from mo.graph.graph import Node, merge_edge_props, Graph
 from mo.utils.graph import nodes_matching_name_pattern, is_connected_component
 
@@ -201,6 +200,7 @@ def merge_nodes(graph: Graph, nodes_to_merge_names: list, inputs_desc: list = No
 
 
 def set_tf_custom_call_node_attrs(node_attrs: dict):
+    from mo.front.tf.partial_infer.tf import tf_subgraph_infer
     update_ie_fields(node_attrs)
     node_attrs['input_nodes_names'] = list()
     node_attrs['output_tensors_names'] = list()
@@ -208,7 +208,6 @@ def set_tf_custom_call_node_attrs(node_attrs: dict):
     node_attrs['pbs'] = dict()
     node_attrs['type'] = 'TFCustomSubgraphCall'
     node_attrs['op'] = 'TFCustomSubgraphCall'
-    node_attrs['precision'] = 'FP32'  # TODO use real precision derived from the model
     node_attrs['infer'] = tf_subgraph_infer
     node_attrs['kind'] = 'op'
 

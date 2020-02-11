@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ MKLDNNReshapeNode::MKLDNNReshapeNode(const InferenceEngine::CNNLayerPtr& layer, 
         MKLDNNNode(layer, eng, socket) {}
 
 void MKLDNNReshapeNode::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1)
+    if (getParentEdges().size() != 1 && getParentEdges().size() != 2)
         THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
         THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
@@ -40,11 +40,14 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     memory::format outFormat = MKLDNNMemory::GetPlainFormat(outDims);
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
-    config.inConfs.resize(1);
+    config.inConfs.resize(getParentEdges().size());
+    for (size_t i = 0; i <getParentEdges().size(); i++) {
+        config.inConfs[i].inPlace = -1;
+        config.inConfs[i].constant = false;
+        config.inConfs[i].desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType,
+                                                  MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
+    }
     config.outConfs.resize(1);
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[0].constant = false;
-    config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims()));
     config.outConfs[0].inPlace = 0;
     config.outConfs[0].constant = false;
     config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, outFormat);
@@ -65,3 +68,4 @@ void MKLDNNReshapeNode::createPrimitive() {
 bool MKLDNNReshapeNode::created() const {
     return getType() == Reshape || getType() == Flatten;
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNReshapeNode, Reshape);

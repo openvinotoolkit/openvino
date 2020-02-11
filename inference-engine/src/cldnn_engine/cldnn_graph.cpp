@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,33 +34,20 @@ using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
 
-CLDNNGraph::CLDNNGraph(InferenceEngine::ICNNNetwork& network, const Config& config, uint16_t stream_id)
-    : m_config(config)
+CLDNNGraph::CLDNNGraph(InferenceEngine::ICNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id)
+    : m_context(context)
     , m_networkName(network.getName())
+    , m_config(config)
     , m_stream_id(stream_id) {
-    m_engine = std::make_shared<cldnn::engine>(cldnn::engine_configuration(
-            (m_config.useProfiling || (m_config.tuningConfig.mode != cldnn::tuning_mode::tuning_disabled)),
-            false,
-            m_config.dumpCustomKernels,
-            std::string(),
-            std::string(),
-            true,
-            std::string(),
-            m_config.sources_dumps_dir,
-            m_config.queuePriority,
-            m_config.queueThrottle,
-            m_config.memory_pool_on,
-            m_config.throughput_streams));
-
-    m_program = std::make_shared<Program>(network, m_engine, m_config);
+    m_program = std::make_shared<Program>(network, GetEngine(), m_config);
     Build();
 }
 
 CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
-        : m_config(graph->m_config)
-        , m_engine(graph->m_engine)
+        : m_context(graph->m_context)
         , m_program(graph->m_program)
         , m_networkName(graph->m_networkName)
+        , m_config(graph->m_config)
         , m_stream_id(stream_id) {
     Build();
 }
@@ -80,12 +67,14 @@ void CLDNNGraph::Build() {
     if (GetMaxDynamicBatchSize() > 1) {
         int m_bv_sz = m_program->GetMaxBatchSizeForSingleProgram();
         for (int b = m_bv_sz - 1; b >= 0; b--) {
-            m_networks.insert(m_networks.begin(), BuildNetwork(m_program->getCompiledProgram(b)));
-            m_engine->release_pending_memory(m_stream_id);
+            auto network = BuildNetwork(m_program->getCompiledProgram(b));
+            m_networks.insert(m_networks.begin(), network);
+            GetEngine()->release_pending_memory(network->get_id());
         }
     } else {
-        m_networks.emplace_back(BuildNetwork(m_program->getCompiledProgram()));
-        m_engine->release_pending_memory(m_stream_id);
+        auto network = BuildNetwork(m_program->getCompiledProgram());
+        m_networks.emplace_back(network);
+        GetEngine()->release_pending_memory(network->get_id());
     }
 
     UpdateImplementationsMap();
@@ -99,7 +88,7 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
         auto steps_info = network->get_optimization_steps_info();
         size_t step_idx = 0;
         for (auto& step : steps_info) {
-            CNNNetwork net(GetExecGraphInfoByPrimitivesInfo(step.second, false));
+            CNNNetwork net(GetExecGraphInfoByPrimitivesInfo(step.second, true));
             net.serialize(m_config.graph_dumps_dir + std::to_string(net_id) + "_" +
                           std::to_string(step_idx) + "_" + step.first + "_graph.xml");
             step_idx++;
@@ -183,7 +172,8 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                 { "split", "Split" },
                 { "strided_slice", "StridedSlice" },
                 { "tile", "Tile" },
-                { "upsampling", "Upsampling" },
+                { "resample", "Resample" },
+                { "interp", "Interp" },
                 { "reduce_max", "ReduceMax" },
                 { "reduce_min", "ReduceMin" },
                 { "reduce_mean", "ReduceMean" },
@@ -238,12 +228,12 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
         layer->type = to_IE_type_name(prim_info.type_id);
         layer->precision = data_type_to_precision(prim_info.output_layout.data_type);
         std::vector<std::string> originalNames{find_origin_layers(prim_info.original_id)};
-        for (auto& fused_id : prim_info.c_fused_ids)
-            for (auto& origin_id : find_origin_layers(fused_id))
-                originalNames.push_back(origin_id);
-
-        std::sort(originalNames.begin(), originalNames.end());
-        originalNames.erase(std::unique(originalNames.begin(), originalNames.end()), originalNames.end());
+        for (auto& fused_id : prim_info.c_fused_ids) {
+            for (auto& origin_id : find_origin_layers(fused_id)) {
+                if (std::find(originalNames.begin(), originalNames.end(), origin_id) == originalNames.end())
+                    originalNames.push_back(origin_id);
+            }
+        }
 
         layer->params[ExecGraphInfoSerialization::ORIGINAL_NAMES] = concat_strings(originalNames, ',');
         layer->params[ExecGraphInfoSerialization::IMPL_TYPE] = prim_info.kernel_id;
@@ -459,15 +449,22 @@ void CLDNNGraph::UpdatePerfStatistics() {
 
     // Get profiling info for all layers
     for (auto &profiledID : profilingIDs) {
-        auto& perfCount = perfMap[profiledID].second;
+        auto pcIter = perfMap.find(profiledID);
+
+        if (pcIter == perfMap.end())  continue;
+
+        auto execIter = executedPrimitives.find(profiledID);
+        auto& perfCount = pcIter->second.second;
         // Change status if layer wasn't executed by cldnn engine
-        if (perfCount.num == 0 && executedPrimitives.find(profiledID) == executedPrimitives.end()) {
-            perfCount.status = InferenceEngineProfileInfo::OPTIMIZED_OUT;
+        if (execIter == executedPrimitives.end()) {
+            if (perfCount.num == 0) {
+                perfCount.status = InferenceEngineProfileInfo::OPTIMIZED_OUT;
+            }
             continue;
         }
 
-        auto event = executedPrimitives.at(profiledID);
-        executedPrimitives.erase(profiledID);
+        auto event = execIter->second;
+        executedPrimitives.erase(execIter);
 
         cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event.get_profiling_info()};
 
@@ -544,12 +541,22 @@ void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::Inf
     auto executedPrimitives = GetNetwork()->get_executed_primitives();
     auto primitivesInfo = GetNetwork()->get_primitives_info();
 
+    auto getUpperCaseName = [&](std::string name) {
+        if (name.length() > 0)
+            name[0] = toupper(name[0]);
+        return name;
+    };
+
     auto getFromProfiling = [&](std::string primId) -> bool {
-        const auto& layerName = perfMap.at(primId).first;
+        auto perfIter = perfMap.find(primId);
+
+        if (perfIter == perfMap.end())  return false;
+
+        const auto& layerName = perfIter->second.first;
         if (layerName.length() == 0)  // no layer directly associated
             return false;
 
-        const auto& perfCounter = perfMap.at(primId).second;
+        const auto& perfCounter = perfIter->second.second;
 
         if (!perfCounter.parentPrimitive.empty() && combinePrimByIRLayers)
             return false;
@@ -574,7 +581,10 @@ void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::Inf
             std::string kernelId = "";
             long long kernelTime = 0;  // used for finding the most complex computation kernel in sub_graph for perf stat
             for (auto &id : profilingIDs) {
-                const auto &pc = perfMap.at(id).second;
+                auto iter = perfMap.find(id);
+                if (iter == perfMap.end())  continue;
+
+                const auto &pc = iter->second.second;
                 if (id != primId && pc.parentPrimitive == primId) {
                     extPerfEntry.cpu_uSec += pc.cpu_avg();
                     extPerfEntry.realTime_uSec += pc.realTime_avg();
@@ -589,14 +599,23 @@ void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::Inf
                 implementationsMap.at(kernelId).copy(extPerfEntry.exec_type, implementationsMap.at(kernelId).length());
         }
 
-        perfCounter.layerType.copy(extPerfEntry.layer_type, perfCounter.layerType.length());
+        getUpperCaseName(perfCounter.layerType).copy(extPerfEntry.layer_type, perfCounter.layerType.length());
         return true;
     };
 
+    // Step 1. Get all primitives in execution order which was added by clDNNPlugin
+    for (auto& primId : profilingIDs) {
+        getFromProfiling(primId);
+    }
+
+    // Step 2. Find all other primitives which was added while optimization process and executed after
     for (auto& primId : allIds) {
-        if (std::find(profilingIDs.begin(), profilingIDs.end(), primId) != profilingIDs.end()) {
-            getFromProfiling(primId);
-        } else if (executedPrimitives.find(primId) != executedPrimitives.end()) {
+        auto perfIter = perfMap.find(primId);
+        if (perfIter == perfMap.end())  continue;
+
+        bool existInProfiling = std::find(profilingIDs.begin(), profilingIDs.end(), primId) != profilingIDs.end();
+        if ((!existInProfiling || (existInProfiling && perfIter->second.first.length() == 0)) &&
+            executedPrimitives.find(primId) != executedPrimitives.end()) {
             auto event = executedPrimitives.at(primId);
 
             cldnn::instrumentation::profiling_info cldnnInfo{primId, event.get_profiling_info()};
@@ -639,7 +658,7 @@ void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::Inf
                         impl.copy(extPerfEntry.exec_type, impl.length());
                     }
 
-                    pi.type_id.copy(extPerfEntry.layer_type, 256);
+                    getUpperCaseName(pi.type_id).copy(extPerfEntry.layer_type, pi.type_id.length());
                     extPerfEntry.execution_index = i++;
                     extPerfEntry.status = InferenceEngineProfileInfo::LayerStatus::EXECUTED;
                     extPerfEntry.cpu_uSec = cpuTime;
@@ -656,7 +675,7 @@ void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::Inf
         }
     }
 
-    // Checking primitives which has been deleted from execution order but added by clDNNPlugin
+    // Step 3. Checking primitives which has been deleted from execution order but added by clDNNPlugin
     for (auto& primId : profilingIDs)
         if (std::find(allIds.begin(), allIds.end(), primId) == allIds.end()) {
             getFromProfiling(primId);

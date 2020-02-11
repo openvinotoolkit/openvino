@@ -69,7 +69,7 @@ std::string events_list_to_string(std::vector<cldnn::event_impl::ptr> events) {
 namespace cldnn {
 namespace gpu {
 
-gpu_queue::gpu_queue(int id, cl::CommandQueue queue, std::shared_ptr<gpu_toolkit> context)
+gpu_queue::gpu_queue(uint32_t id, cl::CommandQueue queue, std::shared_ptr<gpu_toolkit> context)
     : id(id), _context(context), _command_queue(queue), _events_pool(new events_pool()) {}
 
 event_impl::ptr gpu_queue::enqueue_kernel(cl::Kernel const& kern,
@@ -78,7 +78,7 @@ event_impl::ptr gpu_queue::enqueue_kernel(cl::Kernel const& kern,
                                           std::vector<event_impl::ptr> const& deps) {
     std::vector<cl::Event> dep_events;
     auto dep_events_ptr = &dep_events;
-    if (!_context->get_configuration().host_out_of_order) {
+    if (!context()->get_configuration().host_out_of_order) {
         for (auto& dep : deps)
             if (auto ocl_ev = dynamic_cast<base_event*>(dep.get()))
                 dep_events.push_back(ocl_ev->get());
@@ -91,8 +91,8 @@ event_impl::ptr gpu_queue::enqueue_kernel(cl::Kernel const& kern,
     cl::Event ret_ev;
 
     try {
-        if (!_context->get_configuration().host_out_of_order || _output_event ||
-            _context->get_configuration().enable_profiling) {
+        if (!context()->get_configuration().host_out_of_order || _output_event ||
+            context()->get_configuration().enable_profiling) {
             _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, &ret_ev);
         } else {
             _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, nullptr);
@@ -101,15 +101,15 @@ event_impl::ptr gpu_queue::enqueue_kernel(cl::Kernel const& kern,
         throw ocl_error(err);
     }
 
-    return _events_pool->get_from_base_pool(_context, ret_ev, ++_queue_counter);
+    return _events_pool->get_from_base_pool(context(), ret_ev, ++_queue_counter);
 }
 
 event_impl::ptr gpu_queue::enqueue_marker(std::vector<event_impl::ptr> const& deps) {
     if (deps.empty())
-        return _events_pool->get_from_user_pool(_context, true);
+        return _events_pool->get_from_user_pool(context(), true);
 
-    bool enabled_single_kernel = _context->get_configuration().single_kernel_name == "" ? false : true;
-    if (!_context->get_configuration().host_out_of_order) {
+    bool enabled_single_kernel = context()->get_configuration().single_kernel_name == "" ? false : true;
+    if (!context()->get_configuration().host_out_of_order) {
         cl::Event ret_ev;
         if (!enabled_single_kernel) {
             std::vector<cl::Event> dep_events;
@@ -130,18 +130,18 @@ event_impl::ptr gpu_queue::enqueue_marker(std::vector<event_impl::ptr> const& de
             }
         }
 
-        return _events_pool->get_from_base_pool(_context, ret_ev, ++_queue_counter);
+        return _events_pool->get_from_base_pool(context(), ret_ev, ++_queue_counter);
     } else {
         sync_events(deps);
-        return _events_pool->get_from_base_pool(_context, _last_barrier_ev, _last_barrier);
+        return _events_pool->get_from_base_pool(context(), _last_barrier_ev, _last_barrier);
     }
 }
 
 event_impl::ptr gpu_queue::group_events(std::vector<event_impl::ptr> const& deps) {
-    return _events_pool->get_from_group_pool(_context, deps);
+    return _events_pool->get_from_group_pool(context(), deps);
 }
 
-event_impl::ptr gpu_queue::create_user_event(bool set) { return _events_pool->get_from_user_pool(_context, set); }
+event_impl::ptr gpu_queue::create_user_event(bool set) { return _events_pool->get_from_user_pool(context(), set); }
 
 void gpu_queue::reset_events() { _events_pool->reset_events(); }
 
@@ -157,7 +157,7 @@ void gpu_queue::release_pending_memory() {
     ptr = _mm_malloc(4096, 4096);
     queue().finish();
     try {
-        cl::Buffer flusher(_context->context(), CL_MEM_USE_HOST_PTR, (size_t)4096, ptr);
+        cl::Buffer flusher(context()->context(), CL_MEM_USE_HOST_PTR, (size_t)4096, ptr);
         flusher = (cl_mem) nullptr;  // clear buffer
     } catch (...) {
         _mm_free(ptr);

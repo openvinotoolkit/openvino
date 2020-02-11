@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,10 +22,10 @@ class SpaceToDepthFrontExtractor(FrontExtractorOp):
     op = 'SpaceToDepth'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         # update the attributes of the node
         block_size = node.pb.attr['block_size'].i
         data_format = node.pb.attr['data_format'].s.decode('utf-8')
         SpaceToDepth.update_node_stat(node, {'block_size': block_size, 'data_format': data_format})
-        return __class__.enabled
+        return cls.enabled

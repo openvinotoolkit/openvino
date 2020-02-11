@@ -77,7 +77,11 @@ KERNEL(gemm_ref)(
 #ifdef INPUT2_TYPE
     const __global INPUT2_TYPE* input2,
 #endif
-    __global OUTPUT_TYPE* output)
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+    )
 {
     const uint x = (uint)get_global_id(0);
     const uint y = (uint)get_global_id(1);
@@ -106,7 +110,7 @@ KERNEL(gemm_ref)(
         ACCUMULATOR_TYPE val0 = TO_ACCUMULATOR_TYPE(input0[in0_idx]);
         ACCUMULATOR_TYPE val1 = TO_ACCUMULATOR_TYPE(input1[in1_idx]);
 
-        acc = fma(val0, val1, acc);
+        acc += val0 * val1;
     }
 
     acc = TO_ACCUMULATOR_TYPE(ALPHA) * acc;
@@ -116,11 +120,19 @@ KERNEL(gemm_ref)(
         uint in2_idx = FUNC_CALL(get_input2_index)(b, f, w, z, y, x);
         ACCUMULATOR_TYPE val2 = TO_ACCUMULATOR_TYPE(input2[in2_idx]);
 
-        acc = fma(TO_ACCUMULATOR_TYPE(BETA), val2, acc);
+        acc += TO_ACCUMULATOR_TYPE(BETA) * val2;
     }
 #endif
 
-    const uint out_idx = FUNC_CALL(get_output_index)(b, f, w, z, y, x);
+    const uint dst_index = FUNC_CALL(get_output_index)(b, f, w, z, y, x);
 
-    output[out_idx] = TO_OUTPUT_TYPE_SAT(acc);
+    ACTIVATION_TYPE dequantized = TO_ACTIVATION_TYPE(acc);
+
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    OUTPUT_TYPE res = FINAL_NAME;
+    output[dst_index] = res;
+#else
+    output[dst_index] = dequantized;
+#endif
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,22 +15,12 @@ namespace vpu {
 namespace {
 
 class ReshapeStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<ReshapeStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>& inputScales,
-            ScalePropagationStep step,
-            StageDataInfo<float>& scaleInfo) override {
-        if (step == ScalePropagationStep::Propagate) {
-            scaleInfo.setOutput(outputEdge(0), inputScales[0]);
-        } else {
-            // Reshape can only propagate scaling.
-            scaleInfo.setInput(inputEdge(0), 1.0f);
-            scaleInfo.setOutput(outputEdge(0), 1.0f);
-        }
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
@@ -70,18 +60,16 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseReshape(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
-    IE_ASSERT(inputs.size() == 1);
+void FrontEnd::parseReshape(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+    VPU_THROW_UNLESS(inputs.size() == 1 || (inputs.size() == 2 && inputs[1]->usage() == DataUsage::Const),
+        "%v of type %v is not supported with dynamic shape", layer->name, layer->type);
+    IE_ASSERT((inputs.size() == 1) || (inputs.size() == 2 && inputs[1]->usage() == DataUsage::Const));
     IE_ASSERT(outputs.size() == 1);
     _stageBuilder->addReshapeStage(model, layer->name, layer, inputs[0], outputs[0]);
 }
 
 Stage StageBuilder::addReshapeStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         const Data& input,

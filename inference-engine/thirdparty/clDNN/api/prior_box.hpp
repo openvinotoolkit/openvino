@@ -64,6 +64,9 @@ struct prior_box : public primitive_base<prior_box> {
               const float step_height = 0.f,
               const float offset = 0.5f,
               const bool scale_all_sizes = true,
+              const std::vector<float>& fixed_ratio = {},
+              const std::vector<float>& fixed_size = {},
+              const std::vector<float>& density = {},
               const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           img_size(img_size),
@@ -74,7 +77,10 @@ struct prior_box : public primitive_base<prior_box> {
           step_width(step_width),
           step_height(step_height),
           offset(offset),
-          scale_all_sizes(scale_all_sizes) {
+          scale_all_sizes(scale_all_sizes),
+          fixed_ratio(fixed_ratio),
+          fixed_size(fixed_size),
+          density(density) {
         this->aspect_ratios.push_back(1.f);
         for (auto new_aspect_ratio : aspect_ratios) {
             bool already_exist = false;
@@ -128,6 +134,10 @@ struct prior_box : public primitive_base<prior_box> {
     float offset;
     /// @broef If false, only first min_size is scaled by aspect_ratios
     bool scale_all_sizes;
+
+    std::vector<float> fixed_ratio;
+    std::vector<float> fixed_size;
+    std::vector<float> density;
 };
 /// @}
 /// @}

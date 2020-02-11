@@ -356,6 +356,7 @@ void jit_avx512_core_u8s8s32x_wino_conv_dst_trans_t::generate() {
     auto loop_body = [=]() {
         const auto &p = attr_.post_ops_;
         const int sum_idx = p.find(primitive_kind::sum);
+        auto sum_dt = (sum_idx != -1) ? p.entry_[sum_idx].sum.data_type : jcp.dst_dt;
         const float *p_sum_scale = (sum_idx != -1)
                 ? &p.entry_[sum_idx].sum.scale
                 : nullptr;
@@ -419,7 +420,7 @@ void jit_avx512_core_u8s8s32x_wino_conv_dst_trans_t::generate() {
                     vmaxps(zmm, vreg_zero, zmm);
                 if (p_sum_scale) { // post_op: sum
                     vpxord(vreg_prev_dst, vreg_prev_dst, vreg_prev_dst);
-                    switch (jcp.dst_dt) {
+                    switch (sum_dt) {
                     case data_type::f32:
                     case data_type::s32:
                         vmovups(vreg_prev_dst | r_mask, addr); break;

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.front.split_normalizer import SplitInputsReconnect
 from extensions.ops.lstm_cell import LSTMCell
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
@@ -49,6 +49,10 @@ class BasicLSTMCell(FrontReplacementSubgraph):
 
         __class__.outputs = ['mul_2', 'add_1']
 
+    def run_after(self):
+        from extensions.front.split_normalizer import AttributedSplitToSplit
+        return [AttributedSplitToSplit, SplitInputsReconnect]
+
     def pattern(self):
         return dict(
             nodes=[
@@ -81,8 +85,8 @@ class BasicLSTMCell(FrontReplacementSubgraph):
                 ('matmul', 'biasadd', {'in': 0}),
                 ('biases', 'biasadd', {'in': 1}),
 
-                ('split_axis', 'split', {'in': 0}),
-                ('biasadd', 'split', {'in': 1}),
+                ('split_axis', 'split', {'in': 1}),
+                ('biasadd', 'split', {'in': 0}),
 
                 # This important block specifies how gates are ordered in TF graph
                 ('split', 'sigmoid_1', {'out': 0}),  # i

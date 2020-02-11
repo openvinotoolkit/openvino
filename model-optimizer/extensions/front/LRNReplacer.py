@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ from mo.ops.const import Const
 
 
 class LRNReplacer(FrontReplacementOp):
-    op = 'LRN'
+    op = 'AttributedLRN'
     enabled = True
     graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
 

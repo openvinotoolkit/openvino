@@ -34,13 +34,19 @@ primitive_type_id mutable_data::type_id() {
 namespace {
 memory_impl::ptr attach_or_copy_data(network_impl& network, memory_impl& mem) {
     auto& engine = network.get_engine();
-    if (mem.is_allocated_by(engine) && network.get_stream_id() == mem.get_stream_id())
-        return (memory_impl::ptr) &mem;
+    auto own_id = network.get_id();
 
-    memory_impl::ptr result = engine.allocate_memory(mem.get_layout(), network.get_stream_id());
+    if (mem.is_allocated_by(engine) &&
+        (own_id == mem.get_net_id() || network.is_primary_stream())) {
+        mem.set_net(own_id);
+        return (memory_impl::ptr) & mem;
+    }
+
+    memory_impl::ptr result = engine.allocate_memory(mem.get_layout(), network.get_id());
     mem_lock<char> src(mem);
     mem_lock<char> dst(result);
     std::copy(src.begin(), src.end(), dst.begin());
+
     return result;
 }
 }  // namespace

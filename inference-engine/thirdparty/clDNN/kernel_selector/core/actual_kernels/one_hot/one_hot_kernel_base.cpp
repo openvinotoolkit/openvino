@@ -43,7 +43,7 @@ OneHotKernelBase::DispatchData OneHotKernelBase::SetDefault(const one_hot_params
         global[1] = input.Feature().v * input.Z().v;
         global[2] = input.Y().v * input.X().v;
     }
-    const auto& local = GetOptimalLocalWorkGroupSizes(global);
+    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

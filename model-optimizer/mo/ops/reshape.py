@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,15 +13,11 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import math
-
 import numpy as np
 
-from mo.front.common.partial_infer.elemental import single_output_infer
-from mo.front.common.partial_infer.reshape import tf_reshape_shape_infer
 from mo.graph.graph import Node, Graph
+from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
-from mo.utils.error import Error
 
 
 class Reshape(Op):
@@ -30,53 +26,65 @@ class Reshape(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
-            'type': __class__.op,
-            'op': __class__.op,
+            'op': self.op,
+            'type': self.op,
+
+            'infer': self.infer,
+
+            'special_zero': True,
             'reinterp_shape': True,
+
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': __class__.infer,
         }, attrs)
+
+    def supported_attrs(self):
+        return ['special_zero']
 
     @staticmethod
     def infer(node: Node):
-        single_output_infer(
-            node,
-            tf_reshape_shape_infer,
-            lambda node: np.reshape(node.in_node(0).value, node.out_node().shape)
-        )
+        name = node.soft_get('name', node.id)
 
-    @staticmethod
-    def kaldi_infer(node: Node):
-        in_node = node.in_node().in_node()  # prev_layer_node -> data -> this_node
-        input_shape = node.in_node().shape
-        # Kaldi Reshape hugely depends on the layers that precedes or succeeds
-        # Convolution/Pooling layers. Therefore there are 4 cases with different
-        # partial inference.
-        batch = input_shape[0]
-        if in_node.op in ['Convolution', 'Pooling', 'Transpose']:
-            output_spatial = np.array([batch, np.prod(input_shape[1:])], dtype=np.int64)
-            return Reshape.set_shape_and_dim(node, output_spatial)
-        # Supports ONLY NCHW and NH layouts
-        if len(input_shape) not in [4, 2]:
-            raise Error('Reshape in Kaldi support only 1d or 3d shapes')
-        spatial_shape = input_shape[1]
-        if len(input_shape) in [4]:
-            spatial_shape = input_shape[2:3]
-        out_node = node.out_node().out_node()
-        if out_node.op == 'Convolution':
-            output_spatial = np.array(
-                [batch, math.ceil(spatial_shape / out_node.patch_stride), 1, out_node.patch_stride], dtype=np.int64)
-            return Reshape.set_shape_and_dim(node, output_spatial)
-        elif out_node.op == 'Pooling':
-            if out_node.pool_step is None:
-                out_node.stride = np.array([1, 1, out_node.window[-1], out_node.window[-1]], dtype=np.int64)
-            output_spatial = np.array(
-                [batch, out_node.pool_stride, 1, math.ceil(spatial_shape / out_node.pool_stride)], dtype=np.int64)
-            return Reshape.set_shape_and_dim(node, output_spatial)
+        connected_inputs = {idx: port for idx, port in node.in_ports().items() if not port.disconnected()}
+        assert len(connected_inputs) == 2 and all([i in connected_inputs for i in range(2)]), \
+            "Reshape should have 2 connected input ports, but it doesn't for node: `{}`. Ports: {}" \
+            "".format(name, connected_inputs)
 
-    @staticmethod
-    def set_shape_and_dim(node: Node, reshape_dim):
-        Reshape.update_node_stat(node, {'dim': reshape_dim})
-        node.out_node().shape = reshape_dim
+        input_shape = node.in_port(0).data.get_shape()
+        assert input_shape is not None
+
+        new_shape = node.in_port(1).data.get_value()
+        assert new_shape is not None, 'Dynamic Reshape second input is not supported. Node {}'.format(name)
+
+        assert np.argwhere(new_shape == -1).size <= 1, \
+            'Reshape second input should not have several `-1` values set. ' \
+            'Node: {}, reshape second input value {}'.format(name, new_shape)
+
+        num_of_input_elements = np.prod(input_shape)
+        num_of_output_elements = 1
+        for index, x in enumerate(new_shape):
+            if x == 0 and node.has_and_set('special_zero'):
+                num_of_output_elements *= input_shape[index]
+            elif x != -1:
+                num_of_output_elements *= x
+
+        undefined_dim = num_of_input_elements // num_of_output_elements
+        output_shape = []
+        for index, x in enumerate(new_shape):
+            if x == 0 and node.has_and_set('special_zero'):
+                output_shape.append(input_shape[index])
+            elif x == -1:
+                output_shape.append(undefined_dim)
+            else:
+                output_shape.append(x)
+
+        assert np.prod(input_shape) == np.prod(output_shape), \
+            "Number of elements in input {} and output {} of reshape node {} mismatch" \
+            "".format(input_shape, output_shape, name)
+
+        PermuteInputs().set_input_permutation(node.in_node(1), node, 'output:0', 'shape')
+
+        if node.in_port(0).data.get_value() is not None:
+            node.out_port(0).data.set_value(node.in_port(0).data.get_value().reshape(output_shape))
+        else:
+            node.out_port(0).data.set_shape(output_shape)

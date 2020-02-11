@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -86,10 +86,11 @@ def protobuf2nx(pb):
 
     # go over all initializer and make sure that all of them are added to the graph
     for initializer in initializers.nodes():
-        if not graph.has_node(initializer):
-            graph.add_node(initializer, kind='op', op='Const', pb=initializers.node[initializer]['pb'],
+        initializer_id = 'onnx_initializer_node_' + initializer
+        if not graph.has_node(initializer_id):
+            graph.add_node(initializer_id, kind='op', op='Const', pb=initializers.node[initializer]['pb'],
                            pb_init=initializers.node[initializer]['pb'])
-            data_nodes_map[initializer] = (initializer, 0)
+            data_nodes_map[initializer] = (initializer_id, 0)
 
     # Go through all nodes in the original model order (because data nodes are defined on-the-fly and order is
     # important)

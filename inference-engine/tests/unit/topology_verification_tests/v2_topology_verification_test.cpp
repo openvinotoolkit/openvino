@@ -1,15 +1,13 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include "cpp/ie_cnn_network.h"
-#include "xml_father.hpp"
 #include "xml_net_builder.hpp"
 #include "xml_helper.hpp"
 #include "pugixml.hpp"
-#include "inference_engine/ie_format_parser.h"
-#include <fstream>
+#include "ie_format_parser.h"
 #include <stdio.h>
 #include "details/ie_exception.hpp"
 
@@ -54,7 +52,7 @@ public:
 
         return V2NetBuilder::buildNetworkWithOneInput("",layerInput)
             .havingLayers()
-                .poolingLayer({ { inputDims },{ outputDims } })
+                .poolingLayer("FP32", { { inputDims },{ outputDims } })
             .finish();
     }
 

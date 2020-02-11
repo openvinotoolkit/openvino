@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -30,7 +30,11 @@ class ReplaceMemoryOffsetNodePattern(MiddleReplacementPattern):
     """
     Replace MemoryOffset with Splice
     """
-    enabled = False
+    enabled = True
+
+    def run_before(self):
+        from extensions.middle.RemoveDuplicationMemory import RemoveMemoryDuplicationPattern
+        return [RemoveMemoryDuplicationPattern]
 
     @staticmethod
     def pattern():
@@ -101,7 +105,11 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
     """
     Replace MemoryOffset with Memory if IfDefined used with it to avoid cycles
     """
-    enabled = False
+    enabled = True
+
+    def run_before(self):
+        from extensions.middle.RemoveDuplicationMemory import RemoveMemoryDuplicationPattern
+        return [RemoveMemoryDuplicationPattern]
 
     @staticmethod
     def pattern():

@@ -34,9 +34,9 @@ __kernel void convolution_f16_8x8x16(
     const __global half *src1,
     const __global half *biases)
 {
-    const unsigned global_x = get_global_id(0);
-    const unsigned global_y = get_global_id(1);
-    const unsigned global_z = get_global_id(2);
+    const unsigned global_x = (uint)get_global_id(0);
+    const unsigned global_y = (uint)get_global_id(1);
+    const unsigned global_z = (uint)get_global_id(2);
     const unsigned out_fm   = global_z % ALIGNED_OFM;
     const unsigned batch_id = global_z / ALIGNED_OFM;
     const unsigned group_x = get_group_id(0);

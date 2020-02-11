@@ -1,19 +1,21 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <description_buffer.hpp>
-#include "ie_built_in_impl.hpp"
-#include "precision_utils.h"
+#include <debug.h>
 #include <ie_layers.h>
+
+#include <description_buffer.hpp>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <debug.h>
-#include <functional>
+
+#include "ie_built_in_impl.hpp"
+#include "precision_utils.h"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -23,13 +25,11 @@ namespace ShapeInfer {
  */
 class ReshapeShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit ReshapeShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
+    explicit ReshapeShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-                         const std::map<std::string, std::string>& params,
-                         const std::map<std::string, Blob::Ptr>& blobs,
-                         std::vector<SizeVector>& outShapes) override {
-        LayerParams lp{};
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
+        LayerParams lp {};
         ReshapeLayer reshapeLayer(lp);
         reshapeLayer.params = params;
         reshapeLayer.type = _type;
@@ -54,6 +54,13 @@ public:
                 } else {
                     THROW_IE_EXCEPTION << "Second input must have allocated data";
                 }
+            } else if (inBlobs[1]->getTensorDesc().getPrecision() == Precision::I64) {
+                auto* buffer = inBlobs[1]->cbuffer().as<int64_t*>();
+                if (buffer != nullptr) {
+                    reshapeMask.assign(buffer, buffer + inBlobs[1]->size());
+                } else {
+                    THROW_IE_EXCEPTION << "Second input must have allocated data";
+                }
             } else if (inBlobs[1]->getTensorDesc().getPrecision() == Precision::FP16) {
                 auto* buffer = inBlobs[1]->cbuffer().as<uint16_t*>();
                 if (buffer != nullptr) {
@@ -70,8 +77,7 @@ public:
             reshapeMask = reshapeLayer.shape;
         }
         auto inputShape = inShapes[0];
-        size_t inputShapeTotal = std::accumulate(inputShape.begin(), inputShape.end(), 1lu,
-                                                 std::multiplies<size_t>());
+        size_t inputShapeTotal = std::accumulate(inputShape.begin(), inputShape.end(), 1lu, std::multiplies<size_t>());
 
         if (reshapeMask.empty()) {
             outShape = {inputShapeTotal};
@@ -94,12 +100,12 @@ public:
                     outShape.push_back(reshapeMask[i]);
                 }
             }
-            size_t outputShapeTotal = std::accumulate(outShape.begin(), outShape.end(), 1lu,
-                                                      std::multiplies<size_t>());
-            if (inputShapeTotal != outputShapeTotal)
+            size_t outputShapeTotal = std::accumulate(outShape.begin(), outShape.end(), 1lu, std::multiplies<size_t>());
+            if (inputShapeTotal != outputShapeTotal) {
                 THROW_IE_EXCEPTION << "Invalid reshape mask (dim attribute): number of elements in input: "
                                    << details::dumpVec(inputShape) << " and output: " << details::dumpVec(outShape)
                                    << " mismatch";
+            }
         }
         outShapes.emplace_back(outShape);
     }

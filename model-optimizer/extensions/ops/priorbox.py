@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,8 +27,8 @@ class PriorBoxOp(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'flip': 1,
             'max_size': np.array([]),
             'min_size': np.array([]),
@@ -38,8 +38,8 @@ class PriorBoxOp(Op):
             'fixed_ratio': np.array([]),
             'in_ports_count': 2,
             'out_ports_count': 1,
-
-            'infer': PriorBoxOp.priorbox_infer
+            'type_infer': self.type_infer,
+            'infer': self.priorbox_infer
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -69,6 +69,7 @@ class PriorBoxOp(Op):
             'clip',
             'step',
             'offset',
+            'scale_all_sizes',
             ('min_size', lambda node: attr_getter(node, 'min_size')),
             ('max_size', lambda node: attr_getter(node, 'max_size')),
             ('aspect_ratio', lambda node: attr_getter(node, 'aspect_ratio')),
@@ -77,6 +78,10 @@ class PriorBoxOp(Op):
             ('fixed_size', lambda node: attr_getter(node, 'fixed_size')),
             ('fixed_ratio', lambda node: attr_getter(node, 'fixed_ratio')),
         ]
+
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(np.float32)
 
     @staticmethod
     def priorbox_infer(node: Node):
@@ -89,10 +94,10 @@ class PriorBoxOp(Op):
         ar_seen.extend(node.aspect_ratio.copy())
         if node.flip:
             for s in node.aspect_ratio:
-                ar_seen.append(1.0/s)
+                ar_seen.append(1.0 / s)
 
         ar_seen = np.unique(np.array(ar_seen).round(decimals=6))
-        
+
         num_ratios = 0
         if len(node.min_size) > 0:
             num_ratios = len(ar_seen) * len(node.min_size)
@@ -109,5 +114,9 @@ class PriorBoxOp(Op):
 
         num_ratios = num_ratios + len(node.max_size)
 
-        res_prod = data_shape[get_height_dim(layout, 4)] * data_shape[get_width_dim(layout, 4)] * num_ratios * 4
-        node.out_node(0).shape = np.array([1, 2, res_prod], dtype=np.int64)
+        if node.has_and_set('V10_infer'):
+            assert node.in_node(0).value is not None
+            node.out_node(0).shape = np.array([2, np.prod(node.in_node(0).value) * num_ratios * 4], dtype=np.int64)
+        else:
+            res_prod = data_shape[get_height_dim(layout, 4)] * data_shape[get_width_dim(layout, 4)] * num_ratios * 4
+            node.out_node(0).shape = np.array([1, 2, res_prod], dtype=np.int64)

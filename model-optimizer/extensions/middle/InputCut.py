@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ class MiddleInputCut(MiddleReplacementPattern):
         return [PreMiddleStart]
 
     def run_before(self):
-        from extensions.middle.ChangePlaceholderTypes import ChangePlaceholderTypes
-        return [ChangePlaceholderTypes]
+        from extensions.middle.ScaleInput import ScaleInput
+        return [ScaleInput]
 
     def find_and_replace_pattern(self, graph: Graph):
         add_input_ops(graph, graph.graph['user_shapes'], False)

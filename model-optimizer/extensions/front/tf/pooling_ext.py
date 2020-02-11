@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,52 +26,52 @@ class AvgPoolFrontExtractor(FrontExtractorOp):
     op = 'AvgPool'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = create_pooling_attrs(node, 'avg')
         attrs.update({'op': __class__.op})
         # update the attributes of the node
         Pooling.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class MaxPoolFrontExtractor(FrontExtractorOp):
     op = 'MaxPool'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = create_pooling_attrs(node, 'max')
         attrs.update({'op': __class__.op})
         # update the attributes of the node
         Pooling.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class MaxPool3DFrontExtractor(FrontExtractorOp):
     op = 'MaxPool3D'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = create_pooling_attrs(node, 'max')
         attrs.update({'op': __class__.op})
         # update the attributes of the node
         Pooling.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class AvgPool3DFrontExtractor(FrontExtractorOp):
     op = 'AvgPool3D'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = create_pooling_attrs(node, 'avg')
         attrs.update({'op': __class__.op})
         # update the attributes of the node
         Pooling.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 def create_pooling_attrs(node, pool_method):

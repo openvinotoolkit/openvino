@@ -57,8 +57,6 @@ struct fully_connected : public primitive_base<fully_connected> {
     /// @param input Input primitive id.
     /// @param weights Primitive id containing weights data.
     /// @param bias Primitive id containing bias data. Provide empty string if using Relu without bias.
-    /// @param with_activation Enable Relu activation.
-    /// @param activation_slp Relu activation slope.
     fully_connected(const primitive_id& id,
                     const primitive_id& input,
                     const primitive_id& weights,
@@ -66,76 +64,29 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           weights(weights),
-          bias(bias),
-          weights_quantization_factors(""),
-          output_calibration_factors(""),
-          input_quantization_factor(1.0f),
-          output_quantization_factor(1.0f) {}
+          bias(bias)
+    {}
 
     /// @brief Constructs fully connected layer.
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights Primitive id containing weights data.
     /// @param bias Primitive id containing bias data. Provide empty string if using Relu without bias.
-    /// @param w_quantization_factor Primitive id containing weights quanitization factors per output feature map.
-    /// @param i_quantization_factor Input quantization factor
-    /// @param o_quantization_factor Output quantization factor
-    /// @param with_activation Enable Relu activation.
-    /// @param activation_slp Relu activation slope.
     fully_connected(const primitive_id& id,
-                    const primitive_id& input,
-                    const primitive_id& weights,
-                    const primitive_id& bias,
-                    const primitive_id& w_quantization_factor,
-                    const float i_quantization_factor,
-                    const float o_quantization_factor,
-                    const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
-          weights(weights),
-          bias(bias),
-          weights_quantization_factors(w_quantization_factor),
-          output_calibration_factors(""),
-          input_quantization_factor(i_quantization_factor),
-          output_quantization_factor(o_quantization_factor) {}
-
-    /// @brief Constructs fully connected layer.
-    /// @param id This primitive id.
-    /// @param input Input primitive id.
-    /// @param weights Primitive id containing weights data.
-    /// @param bias Primitive id containing bias data. Provide empty string if using Relu without bias.
-    /// @param w_quantization_factor Primitive id containing weights quanitization factors per output feature map.
-    /// @param output_calibration_factors Primitive id containing output calibration factors per output feature map.
-    /// @param i_quantization_factor Input quantization factor
-    /// @param with_activation Enable Relu activation.
-    /// @param activation_slp Relu activation slope.
-    fully_connected(const primitive_id& id,
-                    const primitive_id& input,
-                    const primitive_id& weights,
-                    const primitive_id& bias,
-                    const primitive_id& w_quantization_factor,
-                    const primitive_id& output_calibration_factors,
-                    const float i_quantization_factor,
-                    const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
-          weights(weights),
-          bias(bias),
-          weights_quantization_factors(w_quantization_factor),
-          output_calibration_factors(output_calibration_factors),
-          input_quantization_factor(i_quantization_factor),
-          output_quantization_factor(1.0f) {}
+        const primitive_id& input,
+        const primitive_id& weights,
+        const primitive_id& bias,
+        const data_types data_type,
+        const padding& output_padding = padding())
+        : primitive_base(id, { input }, output_padding, optional_data_type{data_type}),
+        weights(weights),
+        bias(bias)
+    {}
 
     /// @brief Primitive id containing weights data.
     primitive_id weights;
     /// @brief Primitive id containing bias data.
     primitive_id bias;
-    /// @brief Primitive id containing weights quanitization factors per output feature map.
-    primitive_id weights_quantization_factors;
-    /// @brief Primitive id containing output quanitization factors per output feature map.
-    primitive_id output_calibration_factors;
-    /// @brief Input quantization factor
-    float input_quantization_factor;
-    /// @brief Output quantization factor
-    float output_quantization_factor;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
@@ -144,12 +95,6 @@ protected:
 
         if (!bias.empty())
             ret.push_back(bias);
-
-        if (!weights_quantization_factors.empty())
-            ret.push_back(weights_quantization_factors);
-
-        if (!output_calibration_factors.empty())
-            ret.push_back(output_calibration_factors);
 
         return ret;
     }

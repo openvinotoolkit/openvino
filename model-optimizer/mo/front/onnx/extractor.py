@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,11 +16,8 @@
 
 
 from mo.front.onnx.extractors.concat import concat_ext
-from mo.front.onnx.extractors.const import onnx_const_ext
-from mo.front.onnx.extractors.constant import onnx_constant_ext
 from mo.front.onnx.extractors.eltwise import make_tf_eltwise
 from mo.front.onnx.extractors.fused_bn import tf_fused_bn_extractor
-from mo.front.onnx.extractors.matmul import onnx_gemm_ext
 from mo.front.onnx.extractors.reshape import onnx_reshape_ext
 from mo.graph.graph import Node
 
@@ -31,10 +28,7 @@ def node_pb_arg(pb_extractor: callable):
 
 onnx_op_extractors = {
     'BatchNormalization': tf_fused_bn_extractor,
-    'Gemm': onnx_gemm_ext,
     'Concat': concat_ext,
-    'Const': onnx_const_ext,
-    'Constant': onnx_constant_ext,
     'Identity': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
     'Reshape': onnx_reshape_ext,
 }
@@ -44,9 +38,8 @@ def common_onnx_fields(node: Node):
     return {
         'kind': 'op',
         'name': node.id,
-    # no reliable name for an onnx node, name can be empty, so we use that surrogate built as ID in the loaader
+         # no reliable name for an onnx node, name can be empty, so we use that surrogate built as ID in the loader
         'op': node.op if node.has_valid('op') else node.pb.op_type,
-        'precision': 'FP32'  # TODO use real precision derived from the model
     }
 
 

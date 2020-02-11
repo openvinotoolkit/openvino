@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,17 +22,16 @@ from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
 
 try:
-    import tensorflow as tf
+    import tensorflow.compat.v1 as tf_v1
 except ImportError:
-    raise Error('Module tensorflow was not found. Please install tensorflow 1.2 or higher. ' +
-                refer_to_faq_msg(42))
+    import tensorflow as tf_v1
 
 from google.protobuf import text_format
 from mo.graph.graph import create_graph_with_nodes, Graph
 from mo.utils.summarize_graph import summarize_graph
 
 
-def freeze_checkpoints(graph_def: tf.GraphDef, checkpoint_dir: str, output_node_names: list):
+def freeze_checkpoints(graph_def: tf_v1.GraphDef, checkpoint_dir: str, output_node_names: list):
     """
     Loads all the variables in a graph and stores them in a separate dictionary. Freezes output nodes in the graph
     :param graph_def: GraphDef object holding the network.
@@ -53,29 +52,29 @@ def freeze_checkpoints(graph_def: tf.GraphDef, checkpoint_dir: str, output_node_
     if len(checkpoint_files) == 0:
         raise Error("There are no checkpoint files in directory: {}".format(checkpoint_dir))
 
-    tf.import_graph_def(graph_def, name='')
+    tf_v1.import_graph_def(graph_def, name='')
 
-    with tf.Session() as sess:
-        uninitialized_variables = [str(v, 'utf-8') for v in set(sess.run(tf.report_uninitialized_variables()))]
+    with tf_v1.Session() as sess:
+        uninitialized_variables = [str(v, 'utf-8') for v in set(sess.run(tf_v1.report_uninitialized_variables()))]
         all_variables = [n.name for n in sess.graph.as_graph_def().node if n.op in ['Variable', 'VariableV2']]
         white_list = [v for v in all_variables if v not in uninitialized_variables]
         black_list = [v for v in all_variables if v in uninitialized_variables]
-        output_graph_def = tf.graph_util.convert_variables_to_constants(sess, graph_def, output_node_names,
-                                                                        variable_names_whitelist=white_list,
-                                                                        variable_names_blacklist=black_list)
+        output_graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, graph_def, output_node_names,
+                                                                           variable_names_whitelist=white_list,
+                                                                           variable_names_blacklist=black_list)
     variable_values = {}
     for checkpoint_file in checkpoint_files:
         log.debug("Loading {}".format(checkpoint_file))
-        with tf.Session() as sess:
+        with tf_v1.Session() as sess:
             var_list = {}
-            var_to_shape_map = tf.pywrap_tensorflow.NewCheckpointReader(checkpoint_file).get_variable_to_shape_map()
+            var_to_shape_map = tf_v1.train.load_checkpoint(checkpoint_file).get_variable_to_shape_map()
             for key in var_to_shape_map:
                 try:
                     tensor = sess.graph.get_operation_by_name(key).outputs[0]
                 except KeyError:
                     continue
                 var_list[key] = tensor
-            tf.train.Saver(var_list=var_list).restore(sess, checkpoint_file)
+            tf_v1.train.Saver(var_list=var_list).restore(sess, checkpoint_file)
             for name, tensor in var_list.items():
                 variable_values[name] = sess.run(tensor)
     return output_graph_def, variable_values
@@ -89,23 +88,23 @@ def freeze_checkpoint(graph_def, checkpoint, output_node_names):
     :param output_node_names: list of output node names
     :return: GraphDef containing a simplified version of the original.
     """
-    tf.import_graph_def(graph_def, name="")
+    tf_v1.import_graph_def(graph_def, name="")
 
-    with tf.Session() as sess:
+    with tf_v1.Session() as sess:
         var_list = {}
-        var_to_shape_map = tf.pywrap_tensorflow.NewCheckpointReader(checkpoint).get_variable_to_shape_map()
+        var_to_shape_map = tf_v1.pywrap_tensorflow.NewCheckpointReader(checkpoint).get_variable_to_shape_map()
         for key in var_to_shape_map:
             try:
                 tensor = sess.graph.get_operation_by_name(key).outputs[0]
             except KeyError:
                 continue
             var_list[key] = tensor
-        tf.train.Saver(var_list=var_list).restore(sess, checkpoint)
-        output_graph_def = tf.graph_util.convert_variables_to_constants(sess, graph_def, output_node_names)
+        tf_v1.train.Saver(var_list=var_list).restore(sess, checkpoint)
+        output_graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, graph_def, output_node_names)
     return output_graph_def
 
 
-def read_file_to_graph_def(graph_def: [tf.GraphDef, tf.MetaGraphDef], graph_file_name: str = "",
+def read_file_to_graph_def(graph_def: [tf_v1.GraphDef, tf_v1.MetaGraphDef], graph_file_name: str = "",
                            is_binary: bool = True):
     """
     Reads file to protobuf
@@ -121,7 +120,7 @@ def read_file_to_graph_def(graph_def: [tf.GraphDef, tf.MetaGraphDef], graph_file
         else:
             with open(graph_file_name, "r") as f:
                 text_format.Merge(f.read(), graph_def)
-        nodes_to_clear_device = graph_def.node if isinstance(graph_def, tf.GraphDef) else graph_def.graph_def.node
+        nodes_to_clear_device = graph_def.node if isinstance(graph_def, tf_v1.GraphDef) else graph_def.graph_def.node
         for node in nodes_to_clear_device:
             node.device = ""
     except Exception as e:
@@ -179,7 +178,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                       model_dir: str = "", saved_model_tags: list = [], meta_graph_file: str = "",
                       user_output_node_names_list: list = []):
     # As a provisional solution, use a native TF methods to load a model protobuf
-    graph_def = tf.GraphDef()
+    graph_def = tf_v1.GraphDef()
     if isinstance(graph_file_name, str) and (re.match('.*\.(ckpt|meta)$', graph_file_name)):
         print('[ WARNING ] The value for the --input_model command line parameter ends with ".ckpt" or ".meta" '
               'extension.\n'
@@ -211,32 +210,33 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
             return graph_def, variables_values
         if not graph_file_name and meta_graph_file:
             meta_graph_file = deducing_metagraph_path(meta_graph_file)
-            input_meta_graph_def = read_file_to_graph_def(tf.MetaGraphDef(), meta_graph_file, is_binary)
+            input_meta_graph_def = read_file_to_graph_def(tf_v1.MetaGraphDef(), meta_graph_file, is_binary)
             # pylint: disable=no-member
-            with tf.Session() as sess:
-                restorer = tf.train.import_meta_graph(input_meta_graph_def)
+            with tf_v1.Session() as sess:
+                restorer = tf_v1.train.import_meta_graph(input_meta_graph_def)
                 restorer.restore(sess, re.sub('\.meta$', '', meta_graph_file))
                 outputs = get_output_node_names_list(input_meta_graph_def.graph_def, user_output_node_names_list)
-                graph_def = tf.graph_util.convert_variables_to_constants(sess, input_meta_graph_def.graph_def, outputs)
+                graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, input_meta_graph_def.graph_def,
+                                                                            outputs)
                 return graph_def, variables_values
         if model_dir:
             # saved model directory
-            tags = saved_model_tags if saved_model_tags is not None else [tf.saved_model.tag_constants.SERVING]
-            with tf.Session() as sess:
-                meta_graph_def = tf.saved_model.loader.load(sess, tags, model_dir)
+            tags = saved_model_tags if saved_model_tags is not None else [tf_v1.saved_model.tag_constants.SERVING]
+            with tf_v1.Session() as sess:
+                meta_graph_def = tf_v1.saved_model.loader.load(sess, tags, model_dir)
                 outputs = get_output_node_names_list(meta_graph_def.graph_def, user_output_node_names_list)
-                graph_def = tf.graph_util.convert_variables_to_constants(sess, meta_graph_def.graph_def, outputs)
+                graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, meta_graph_def.graph_def, outputs)
                 return graph_def, variables_values
     except Exception as e:
         raise FrameworkError('Cannot load input model: {}', e) from e
     raise Error("Unknown configuration of input model parameters")
 
 
-def protobuf_attrs(pb: tf.NodeDef):
+def protobuf_attrs(pb:tf_v1.NodeDef):
     return {'pb': pb}
 
 
-def protobuf2nx(pb: tf.GraphDef):
+def protobuf2nx(pb: tf_v1.GraphDef):
     graph = create_graph_with_nodes(pb.node, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
     # initial order of nodes in the GraphDef. It is used to specify order in
     # which merged nodes are added to the generated sub-graph GraphDef for the TensorFlow offload feature.

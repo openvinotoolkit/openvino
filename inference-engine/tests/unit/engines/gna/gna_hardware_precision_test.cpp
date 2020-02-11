@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace ::testing;
 
-class GNAHWPrecisionTest : public GNATest {
+class GNAHWPrecisionTest : public GNATest<> {
 
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,13 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <map>
-#include <string>
-#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
 #include <cpp_interfaces/base/ie_memory_state_base.hpp>
+#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "cpp_interfaces/exception2status.hpp"
 
 namespace InferenceEngine {
@@ -23,7 +24,7 @@ namespace InferenceEngine {
  * @brief cpp interface for executable network, to avoid dll boundaries and simplify internal development
  * @tparam T Minimal CPP implementation of IExecutableNetwork (e.g. ExecutableNetworkInternal)
  */
-template<class T>
+template <class T>
 class ExecutableNetworkBase : public IExecutableNetwork {
     std::shared_ptr<T> _impl;
 
@@ -37,33 +38,36 @@ public:
         _impl = impl;
     }
 
-    StatusCode GetOutputsInfo(ConstOutputsDataMap &outs, ResponseDesc *resp) const noexcept override {
+    StatusCode GetOutputsInfo(ConstOutputsDataMap& outs, ResponseDesc* resp) const noexcept override {
         TO_STATUS(outs = _impl->GetOutputsInfo());
     }
 
-    StatusCode GetInputsInfo(ConstInputsDataMap &inputs, ResponseDesc *resp) const noexcept override {
+    StatusCode GetInputsInfo(ConstInputsDataMap& inputs, ResponseDesc* resp) const noexcept override {
         TO_STATUS(inputs = _impl->GetInputsInfo());
     }
 
-    StatusCode CreateInferRequest(IInferRequest::Ptr &req, ResponseDesc *resp) noexcept override {
+    StatusCode CreateInferRequest(IInferRequest::Ptr& req, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->CreateInferRequest(req));
     }
 
-    StatusCode Export(const std::string &modelFileName, ResponseDesc *resp) noexcept override {
+    StatusCode Export(const std::string& modelFileName, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->Export(modelFileName));
     }
 
-    StatusCode GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &deployedTopology,
-                                 ResponseDesc *resp) noexcept override {
+    StatusCode Export(std::ostream& networkModel, ResponseDesc* resp) noexcept override {
+        TO_STATUS(_impl->Export(networkModel));
+    }
+
+    StatusCode GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>>& deployedTopology,
+                                 ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->GetMappedTopology(deployedTopology));
     }
 
-    StatusCode GetExecGraphInfo(ICNNNetwork::Ptr &graphPtr, ResponseDesc *resp) noexcept override {
+    StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->GetExecGraphInfo(graphPtr));
     }
 
-    StatusCode  QueryState(IMemoryState::Ptr & pState, size_t idx
-        , ResponseDesc *resp) noexcept override {
+    StatusCode QueryState(IMemoryState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
         try {
             auto v = _impl->QueryState();
             if (idx >= v.size()) {
@@ -71,10 +75,10 @@ public:
             }
             pState = std::make_shared<MemoryStateBase<IMemoryStateInternal>>(v[idx]);
             return OK;
-        } catch (const std::exception & ex) {\
-            return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();\
-        } catch (...) {\
-            return InferenceEngine::DescriptionBuffer(UNEXPECTED);\
+        } catch (const std::exception& ex) {
+            return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
+        } catch (...) {
+            return InferenceEngine::DescriptionBuffer(UNEXPECTED);
         }
     }
 
@@ -87,16 +91,20 @@ public:
         return _impl;
     }
 
-    StatusCode SetConfig(const std::map<std::string, Parameter> &config, ResponseDesc *resp) noexcept override {
+    StatusCode SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->SetConfig(config, resp));
     }
 
-    StatusCode GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const noexcept override {
+    StatusCode GetConfig(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
         TO_STATUS(_impl->GetConfig(name, result, resp));
     }
 
-    StatusCode GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const noexcept override {
+    StatusCode GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
         TO_STATUS(_impl->GetMetric(name, result, resp));
+    }
+
+    StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept override {
+        TO_STATUS(_impl->GetContext(pContext, resp));
     }
 
 private:
@@ -105,7 +113,7 @@ private:
 
 template <class T>
 inline typename ExecutableNetworkBase<T>::Ptr make_executable_network(std::shared_ptr<T> impl) {
-    typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl), [](IExecutableNetwork * p) {
+    typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl), [](IExecutableNetwork* p) {
         p->Release();
     });
     return net;

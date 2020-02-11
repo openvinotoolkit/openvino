@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,11 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
-
+from extensions.ops.Cast import Cast
 from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph, Node
-from extensions.back.EltwiseBroadcast import EltwiseBroadcast
+from mo.graph.graph import Graph
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 
 
 class ForceStrictPrecision(BackReplacementPattern):
@@ -30,9 +29,6 @@ class ForceStrictPrecision(BackReplacementPattern):
     """
     enabled = True
 
-    def run_after(self):
-        return [EltwiseBroadcast]
-
     @staticmethod
     def pattern():
         return dict(
@@ -44,5 +40,7 @@ class ForceStrictPrecision(BackReplacementPattern):
     def replace_pattern(graph: Graph, match: dict):
         node = match['node']
         for in_port, precision in node.force_precision_in_ports.items():
-            if in_port in node.in_nodes().keys():
-                node.in_node(in_port)['force_precision'] = precision
+            if in_port in node.in_ports().keys() and not node.in_port(in_port).disconnected():
+                cast = Cast(graph, {'name': node.name + '/Cast_' + str(in_port),
+                                    'dst_type': data_type_str_to_np(precision)}).create_node()
+                node.in_port(in_port).get_connection().insert_node(cast)

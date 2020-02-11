@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ nodes_attributes = {
     'conv_2_b': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_2_data': {'value': None, 'shape': None, 'kind': 'data'},
     # FullyConnected
-    'fc_1': {'type': 'MatMul', 'kind': 'op', 'op': 'InnerProduct', 'layout': 'NHWC'},
+    'fc_1': {'type': 'MatMul', 'kind': 'op', 'op': 'FullyConnected', 'layout': 'NHWC'},
     'fc_1_w': {'value': None, 'shape': None, 'kind': 'data'},
     'fc_1_b': {'value': None, 'shape': None, 'kind': 'data'},
     'fc_1_data': {'value': None, 'shape': None, 'kind': 'data'},

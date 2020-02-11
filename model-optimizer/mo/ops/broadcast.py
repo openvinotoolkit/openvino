@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -40,9 +40,10 @@ class Broadcast(Op):
             'op': __class__.op,
             'in_ports_count': 3,
             'out_ports_count': 1,
-            'force_precision_in_ports': {1: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32',
-                                         2: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32',
-                                         },
+            'force_precision_in_ports':
+                {1: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32',
+                 2: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32',
+                 },
             'infer': __class__.infer,
         }, attrs)
 
@@ -55,7 +56,8 @@ class Broadcast(Op):
         node.out_port(0).data.set_shape(b_shape)
 
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'output:0', 'shape')
-        if b_value is not None:
+
+        if b_value is not None and not node.has_and_set('stop_value_propagation'):
             new_value = np.broadcast_to(b_value, b_shape)
             node.out_port(0).data.set_value(new_value)
 

@@ -23,11 +23,13 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT64);
     k.EnableAllInputLayout();
@@ -58,7 +60,7 @@ KernelsData PermuteKernelRef::GetKernelsData(const Params& params, const optiona
     auto& kernel = kd.kernels[0];
 
     kernel.workGroups.global = {in.Y().v * in.Z().v * in.W().v, in.X().v, in.Feature().v * in.Batch().v};
-    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global);
+    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global, params.engineInfo);
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc(1, false, false);
 

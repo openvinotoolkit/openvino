@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -59,6 +59,10 @@ class Pad(Op):
             'out_ports_count': 1,
             'mode': 'constant',
             'fill_value': float(0),
+            'force_precision_in_ports': {
+                1: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32',
+                2: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32',
+            },
             'pads': None
         }, attrs)
 
@@ -76,15 +80,19 @@ class Pad(Op):
     def infer(node):
         PermuteAttrs.create_permute_attrs(node, attrs=[('pads', 'input:0')])
 
+        num_of_inputs = len(node.in_nodes())
         if node.has_valid('pads'):
-            assert len(node.in_nodes()) == 1, "Pad operation has pads attribute and unexpected additional input " \
-                                              "argument for node {}.".format(node.name)
+            assert num_of_inputs == 1, "Pad operation has pads attribute and unexpected additional input " \
+                                       "argument for node {}.".format(node.name)
         else:
-            assert len(node.in_nodes()) >= 2, "Missing required second input argument for node {} and pads attribute " \
-                                              "is missing.".format(node.name)
-            node.pads = node.in_node(1).value
-            if len(node.in_nodes()) == 3:  # the third input contains the fill value
-                node.fill_value = node.in_node(2).value
+            assert num_of_inputs >= 2, "Missing required second input argument for node {} and pads attribute " \
+                                       "is missing.".format(node.name)
+            node['pads'] = node.in_node(1).value
+            if num_of_inputs in [3, 4]:
+                pads_begin = node.in_node(1).value
+                pads_end = node.in_node(2).value
+                node['pads'] = np.concatenate((pads_begin.reshape(-1, 1), pads_end.reshape(-1, 1)), 1)
+                node['fill_value'] = node.in_node(3).value if num_of_inputs == 4 else 0.0
         padding = node.pads
 
         input_shape = node.in_node(0).shape

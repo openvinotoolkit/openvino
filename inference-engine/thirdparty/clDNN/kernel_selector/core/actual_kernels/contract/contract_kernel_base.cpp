@@ -74,7 +74,7 @@ ContractKernelBase::DispatchData ContractKernelBase::SetDefault(const contract_p
     kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     std::vector<size_t> global{output.Feature().v, output.Y().v, output.X().v};
-    const auto& local = GetOptimalLocalWorkGroupSizes(global);
+    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

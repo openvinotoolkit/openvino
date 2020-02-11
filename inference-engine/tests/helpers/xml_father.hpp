@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace testing {
 		return convertStream.str();
 	}
 
-#if _MSC_VER> 1800
+#if defined(_MSC_VER) && _MSC_VER> 1800
     inline std::string operator ""_s(const char * str, std::size_t len) {
         return std::string(str, str + len);
     }
@@ -163,7 +163,7 @@ namespace testing {
             return x;
         }
         XMLFather () {
-            tokens.push_back("<?xml version=\"1.0\"?>");
+            tokens.push_back("<?xml version=\"1.0\"?>\n");
         }
         Token<XMLFather>& node(const  std::string & tag) {
             lastTag = std::make_shared<Token<XMLFather>>(this, tag);

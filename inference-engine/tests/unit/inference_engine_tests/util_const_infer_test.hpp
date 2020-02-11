@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@
 #include <ie_util_internal.hpp>
 #include <tests_common.hpp>
 #include <graph_transformer.h>
-#include "ie_utils.hpp"
 #include "blob_factory.hpp"
 #include "debug.h"
 #include "util_test.hpp"
@@ -37,14 +36,17 @@ public:
         return ConstTransformer::getConstData(constLayers, sortedLayers);
     }
 
-    std::vector<std::string>
+    std::vector<InferenceEngine::CNNLayerPtr>
     foldConstSubgraphsInternal(const std::map<std::string, bool>& constLayers, const IE::BlobMap& constData,
                                const std::vector<IE::CNNLayerPtr>& sortedLayers) override {
-        return ConstTransformer::foldConstSubgraphsInternal(constLayers, constData, sortedLayers);
+        auto layers = ConstTransformer::foldConstSubgraphsInternal(constLayers, constData, sortedLayers);
+        ConstTransformer::cleanup();
+        return layers;
     }
 
-    void trimShapeInputs(const std::vector<std::string>& constLayers) override {
-        ConstTransformer::trimShapeInputs(constLayers);
+    void trimShapeInputs(const std::vector<InferenceEngine::CNNLayerPtr>& constLayers,
+                         std::vector<InferenceEngine::CNNLayerPtr>& allLayers) override {
+        ConstTransformer::trimShapeInputs(constLayers, allLayers);
     }
 
 };

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 import numpy as np
 
-from mo.front.caffe.extractors.utils import embed_input
+from mo.front.caffe.extractors.utils import input_as_const
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
 from mo.ops.scale_shift import ScaleShiftOp
@@ -50,10 +50,9 @@ class BNToScaleShift(FrontReplacementOp):
         scale = 1.0 / np.sqrt(gamma) * mean
         shift = var - betta * scale
 
-        embed_input(attrs, 1, 'scale', scale, 'weights')
-        embed_input(attrs, 2, 'bias', shift, 'biases')
-
         ss = ScaleShiftOp(graph, attrs)
         scale_shift = ss.create_node([node.in_node(0)])
+        input_as_const(scale_shift, attrs, 1, 'weights', scale)
+        input_as_const(scale_shift, attrs, 2, 'biases', shift)
 
         return [scale_shift.id]

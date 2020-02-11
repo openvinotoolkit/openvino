@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,10 @@
  limitations under the License.
 """
 
+import logging as log
+
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import get_tensor_in_port, get_value_in_port
 from mo.middle.replacement import MiddleReplacementPattern
@@ -31,8 +32,7 @@ class EltwiseChecker(MiddleReplacementPattern):
 
     def run_after(self):
         from extensions.middle.EltwiseInputReshape import Eltwise1DInputReshape
-        from extensions.middle.GemmToFullyConnected import GemmToFullyConnected
-        return [Eltwise1DInputReshape, GemmToFullyConnected]
+        return [Eltwise1DInputReshape]
 
     def run_before(self):
         from extensions.middle.pass_separator import MiddleFinish
@@ -45,10 +45,14 @@ class EltwiseChecker(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(is_eltwise=True):
-
+            log.debug('Checking eltwise op {}'.format(node.soft_get('name', node.id)))
             tensor_port, value_port = get_tensor_in_port(node), get_value_in_port(node)
             if tensor_port is None or value_port is None:
                 self.set_flags_to_false(node, ['can_be_fused', 'can_be_scaleshift'])
+                continue
+
+            connected_in_ports = {idx: port for idx, port in node.in_ports().items() if not port.disconnected()}
+            if len(connected_in_ports) != 2:
                 continue
 
             tensor_shape = tensor_port.data.get_shape()
@@ -64,6 +68,11 @@ class EltwiseChecker(MiddleReplacementPattern):
             assert len(value_shape) <= len(tensor_shape), \
                 "No broadcasting was done for elementwise node {} due to previous checks in EltwiseChecker class. " \
                 "But constant input rank is larger than tensor input rank, that is inconsistent".format(node.name)
+
+            # if both tensors are 0D they cannot be converted to scaleshift
+            if len(tensor_shape) == 0 and len(value_shape) == 0:
+                self.set_flags_to_false(node, ['can_be_scaleshift'])
+                continue
 
             broadcasted_value_shape = np.insert(value_shape, 0, [1] * (len(tensor_shape) - len(value_shape)))
 

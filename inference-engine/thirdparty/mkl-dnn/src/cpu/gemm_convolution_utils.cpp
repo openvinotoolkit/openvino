@@ -241,12 +241,12 @@ inline int limit(int low, int upper, int value) {
     return nstl::max(low, nstl::min(upper, value));
 }
 
-/* col[kh][kw][ic][oh][ow] <-- im2col_u8(im[ih][iw][ic]) */
-template <typename T>
-void im2col_u8(const jit_gemm_conv_conf_t &jcp, const T *__restrict im,
+template <typename T, bool with_input_zp, bool with_weights_zp>
+void im2col_u8_compute(const jit_gemm_conv_conf_t &jcp, const T *__restrict im,
         T *__restrict imtr, uint8_t *__restrict col, int hs, int hb, int ws,
-        int wb) {
-    uint8_t shift = jcp.signed_input ? 128 : 0;
+        int wb, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation) {
+   uint8_t shift = jcp.signed_input ? 128 : 0;
+
     const int dh = 1 + jcp.dilate_h;
     const int dw = 1 + jcp.dilate_w;
     const int sh = jcp.stride_h;
@@ -256,113 +256,390 @@ void im2col_u8(const jit_gemm_conv_conf_t &jcp, const T *__restrict im,
     const int tp = jcp.t_pad;
     const int lp = jcp.l_pad;
 
-    if (jcp.outer_threading && sh == 1 && sw == 1 && dh == 1 && dw == 1) {
-        /* im[ih][iw][ic] --> imtr[ic][ih][iw] --> col[kh][kw][ic][oh][ow] */
-        const int hp = hs - tp;
-        const int wp = ws - lp;
-        const int ih_start = limit(0, jcp.ih, hp);
-        const int ih_end = limit(0, jcp.ih, hp + hb + jcp.kh);
-        const int iw_start = limit(0, jcp.iw, wp);
-        const int iw_end = limit(0, jcp.iw, wp + wb + jcp.kw);
-
-        const int ihb = ih_end - ih_start;
-        const int iwb = iw_end - iw_start;
-
-        const int imtr_ic_stride = ihb * iwb;
-        const ptrdiff_t imtr_idx_shift = ih_start * iwb + iw_start;
-        for (int ic = 0; ic < jcp.ic; ic++) {
-            const ptrdiff_t imtr_idx_ic = ic * imtr_ic_stride - imtr_idx_shift;
-            for (int ih = ih_start; ih < ih_end; ih++) {
-                const ptrdiff_t im_idx_ih = ic + ih * im_ih_stride;
-                const ptrdiff_t imtr_idx_ih = imtr_idx_ic + ih * iwb;
-                for (int iw = iw_start; iw < iw_end; iw++)
-                    imtr[imtr_idx_ih + iw] = im[im_idx_ih + iw * im_iw_stride];
-            }
+    if (with_weights_zp) {
+        for (int oh = 0; oh < hb; oh++) {
+            utils::array_set(weights_zp_compensation + oh * wb, 0, wb);
         }
+    }
 
-        const int col_ic_str = hb * wb;
-        const int col_kw_stride = jcp.ic * col_ic_str;
-        const int col_kh_stride = jcp.kw * col_kw_stride;
+    if (jcp.im2col_sz) {
+        if (jcp.outer_threading && sh == 1 && sw == 1 && dh == 1 && dw == 1) {
+            /* im[ih][iw][ic] --> imtr[ic][ih][iw] --> col[kh][kw][ic][oh][ow] */
+            const int hp = hs - tp;
+            const int wp = ws - lp;
+            const int ih_start = limit(0, jcp.ih, hp);
+            const int ih_end = limit(0, jcp.ih, hp + hb + jcp.kh);
+            const int iw_start = limit(0, jcp.iw, wp);
+            const int iw_end = limit(0, jcp.iw, wp + wb + jcp.kw);
 
-        const int oh_init = ih_start - hp;
-        const int ow_init = iw_start - wp;
-        for (int kh = 0; kh < jcp.kh; kh++) {
-            const ptrdiff_t col_idx_kh = kh * col_kh_stride;
-            const int oh_kh = oh_init - kh;
-            const int oh_start = limit(0, hb, oh_kh);
-            const int oh_end = limit(0, hb, oh_kh + ihb);
-            for (int kw = 0; kw < jcp.kw; kw++) {
-                const ptrdiff_t col_idx_kw
-                        = col_idx_kh + kw * jcp.ic * col_ic_str;
-                const int ow_kw = ow_init - kw;
-                const int imtr_shift = oh_kh * iwb + ow_kw;
-                const int ow_start = limit(0, wb, ow_kw);
-                const int ow_end = limit(0, wb, ow_kw + iwb);
-                for (int ic = 0; ic < jcp.ic; ic++) {
-                    const ptrdiff_t col_idx_ic = col_idx_kw + ic * col_ic_str;
-                    const int imtr_idx_ic = ic * imtr_ic_stride - imtr_shift;
-                    for (int oh = 0; oh < oh_start; oh++) {
-                        const ptrdiff_t col_idx_oh = col_idx_ic + oh * wb;
-                        for (int ow = 0; ow < wb; ++ow)
-                            col[col_idx_oh + ow] = shift;
-                    }
-                    for (int oh = oh_start; oh < oh_end; oh++) {
-                        const ptrdiff_t col_idx_oh = col_idx_ic + oh * wb;
-                        const ptrdiff_t imtr_idx_oh = imtr_idx_ic + oh * iwb;
-                        for (int ow = 0; ow < ow_start; ++ow)
-                            col[col_idx_oh + ow] = shift;
-                        for (int ow = ow_start; ow < ow_end; ++ow)
-                            col[col_idx_oh + ow]
-                                    = imtr[imtr_idx_oh + ow] + shift;
-                        for (int ow = ow_end; ow < wb; ++ow)
-                            col[col_idx_oh + ow] = shift;
-                    }
-                    for (int oh = oh_end; oh < hb; oh++) {
-                        const ptrdiff_t col_idx_oh = col_idx_ic + oh * wb;
-                        for (int ow = 0; ow < wb; ++ow)
-                            col[col_idx_oh + ow] = shift;
+            const int ihb = ih_end - ih_start;
+            const int iwb = iw_end - iw_start;
+
+            const int imtr_ic_stride = ihb * iwb;
+            const ptrdiff_t imtr_idx_shift = ih_start * iwb + iw_start;
+            for (int ic = 0; ic < jcp.ic; ic++) {
+                const ptrdiff_t imtr_idx_ic = ic * imtr_ic_stride - imtr_idx_shift;
+                for (int ih = ih_start; ih < ih_end; ih++) {
+                    const ptrdiff_t im_idx_ih = ic + ih * im_ih_stride;
+                    const ptrdiff_t imtr_idx_ih = imtr_idx_ic + ih * iwb;
+                    for (int iw = iw_start; iw < iw_end; iw++)
+                        imtr[imtr_idx_ih + iw] = im[im_idx_ih + iw * im_iw_stride];
+                }
+            }
+
+            const int col_ic_str = hb * wb;
+            const int col_kw_stride = jcp.ic * col_ic_str;
+            const int col_kh_stride = jcp.kw * col_kw_stride;
+
+            const int oh_init = ih_start - hp;
+            const int ow_init = iw_start - wp;
+
+            for (int kh = 0; kh < jcp.kh; kh++) {
+                const ptrdiff_t col_idx_kh = kh * col_kh_stride;
+                const int oh_kh = oh_init - kh;
+                const int oh_start = limit(0, hb, oh_kh);
+                const int oh_end = limit(0, hb, oh_kh + ihb);
+                for (int kw = 0; kw < jcp.kw; kw++) {
+                    const ptrdiff_t col_idx_kw
+                            = col_idx_kh + kw * jcp.ic * col_ic_str;
+                    const int ow_kw = ow_init - kw;
+                    const int imtr_shift = oh_kh * iwb + ow_kw;
+                    const int ow_start = limit(0, wb, ow_kw);
+                    const int ow_end = limit(0, wb, ow_kw + iwb);
+                    for (int ic = 0; ic < jcp.ic; ic++) {
+                        uint8_t izp = with_input_zp ? input_zp[ic] : (uint8_t) 0;
+                        const ptrdiff_t col_idx_ic = col_idx_kw + ic * col_ic_str;
+                        const int imtr_idx_ic = ic * imtr_ic_stride - imtr_shift;
+                        for (int oh = 0; oh < oh_start; oh++) {
+                            const ptrdiff_t col_idx_oh = col_idx_ic + oh * wb;
+                            for (int ow = 0; ow < wb; ++ow) {
+                                if (with_input_zp)
+                                    col[col_idx_oh + ow] = izp;
+                                else
+                                    col[col_idx_oh + ow] = shift;
+
+                                if (with_weights_zp)
+                                    weights_zp_compensation[oh * wb + ow] += izp;
+                            }
+                        }
+                        for (int oh = oh_start; oh < oh_end; oh++) {
+                            const ptrdiff_t col_idx_oh = col_idx_ic + oh * wb;
+                            const ptrdiff_t imtr_idx_oh = imtr_idx_ic + oh * iwb;
+                            for (int ow = 0; ow < ow_start; ++ow) {
+                                if (with_input_zp)
+                                    col[col_idx_oh + ow] = izp;
+                                else
+                                    col[col_idx_oh + ow] = shift;
+
+                                if (with_weights_zp)
+                                    weights_zp_compensation[oh * wb + ow] += izp;
+                            }
+                            for (int ow = ow_start; ow < ow_end; ++ow) {
+                                if (with_input_zp)
+                                    col[col_idx_oh + ow] = imtr[imtr_idx_oh + ow];
+                                else
+                                    col[col_idx_oh + ow] = imtr[imtr_idx_oh + ow] + shift;
+
+                                if (with_weights_zp)
+                                    weights_zp_compensation[oh * wb + ow] += imtr[imtr_idx_oh + ow];
+                            }
+                            for (int ow = ow_end; ow < wb; ++ow) {
+                                if (with_input_zp)
+                                    col[col_idx_oh + ow] = izp;
+                                else
+                                    col[col_idx_oh + ow] = shift;
+
+                                if (with_weights_zp)
+                                    weights_zp_compensation[oh * wb + ow] += izp;
+                            }
+                        }
+                        for (int oh = oh_end; oh < hb; oh++) {
+                            const ptrdiff_t col_idx_oh = col_idx_ic + oh * wb;
+                            for (int ow = 0; ow < wb; ++ow) {
+                                if (with_input_zp)
+                                    col[col_idx_oh + ow] = izp;
+                                else
+                                    col[col_idx_oh + ow] = shift;
+
+                                if (with_weights_zp)
+                                    weights_zp_compensation[oh * wb + ow] += izp;
+                            }
+                        }
                     }
                 }
             }
+        } else {
+            if (with_weights_zp) {
+                parallel_nd(hb, [&](int oh) {
+                    for (int kh = 0; kh < jcp.kh; kh++) {
+                        for (int kw = 0; kw < jcp.kw; kw++) {
+                            for (int ic = 0; ic < jcp.ic; ic++) {
+                                uint8_t izp = with_input_zp ? input_zp[ic] : (uint8_t) 0;
+                                const int hp = tp - kh * dh;
+                                const int ih = (oh + hs) * sh - hp;
+                                const ptrdiff_t col_idx_base = (((kh * jcp.kw + kw) * jcp.ic + ic) * hb + oh) * wb;
+                                if (ih < 0 || ih >= jcp.ih) {
+                                    for (int ow = 0; ow < wb; ow++) {
+                                        if (jcp.with_input_zp)
+                                            col[col_idx_base + ow] = izp;
+                                        else
+                                            col[col_idx_base + ow] = shift;
+
+                                        weights_zp_compensation[oh * wb + ow] += izp;
+                                    }
+                                } else {
+                                    const int wp = lp - kw * dw;
+                                    const int ow_start = limit(0, wb, div_up(wp, sw) - ws);
+                                    const int ow_end = limit(0, wb, div_up(jcp.iw + wp, sw) - ws);
+                                    for (int ow = 0; ow < ow_start; ow++) {
+                                        if (jcp.with_input_zp)
+                                            col[col_idx_base + ow] = izp;
+                                        else
+                                            col[col_idx_base + ow] = shift;
+
+                                        weights_zp_compensation[oh * wb + ow] += izp;
+                                    }
+
+                                    const int iw_base = ws * sw - wp;
+                                    const ptrdiff_t im_idx_base = ih * im_ih_stride + ic;
+                                    for (int ow = ow_start; ow < ow_end; ow++) {
+                                        const int iw = iw_base + ow * sw;
+                                        const ptrdiff_t im_idx = im_idx_base + iw * im_iw_stride;
+                                        if (jcp.with_input_zp)
+                                            col[col_idx_base + ow] = im[im_idx];
+                                        else
+                                            col[col_idx_base + ow] = im[im_idx] + shift;
+
+                                        weights_zp_compensation[oh * wb + ow] += im[im_idx];
+                                    }
+                                    for (int ow = ow_end; ow < wb; ow++) {
+                                        if (jcp.with_input_zp)
+                                            col[col_idx_base + ow] = izp;
+                                        else
+                                            col[col_idx_base + ow] = shift;
+
+                                        weights_zp_compensation[oh * wb + ow] += izp;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                parallel_nd(jcp.kh, jcp.kw, jcp.ic, hb,
+                [&](int kh, int kw, int ic, int oh) {
+                    uint8_t izp = with_input_zp ? input_zp[ic] : (uint8_t) 0;
+                    const int hp = tp - kh * dh;
+                    const int ih = (oh + hs) * sh - hp;
+                    const ptrdiff_t col_idx_base = (((kh * jcp.kw + kw) * jcp.ic + ic) * hb + oh) * wb;
+                    if (ih < 0 || ih >= jcp.ih) {
+                        for (int ow = 0; ow < wb; ow++) {
+                            if (jcp.with_input_zp)
+                                col[col_idx_base + ow] = izp;
+                            else
+                                col[col_idx_base + ow] = shift;
+                        }
+                    } else {
+                        const int wp = lp - kw * dw;
+                        const int ow_start = limit(0, wb, div_up(wp, sw) - ws);
+                        const int ow_end = limit(0, wb, div_up(jcp.iw + wp, sw) - ws);
+                        for (int ow = 0; ow < ow_start; ow++) {
+                            if (jcp.with_input_zp)
+                                col[col_idx_base + ow] = izp;
+                            else
+                                col[col_idx_base + ow] = shift;
+                        }
+
+                        const int iw_base = ws * sw - wp;
+                        const ptrdiff_t im_idx_base = ih * im_ih_stride + ic;
+                        for (int ow = ow_start; ow < ow_end; ow++) {
+                            const int iw = iw_base + ow * sw;
+                            const ptrdiff_t im_idx = im_idx_base + iw * im_iw_stride;
+                            if (jcp.with_input_zp)
+                                col[col_idx_base + ow] = im[im_idx];
+                            else
+                                col[col_idx_base + ow] = im[im_idx] + shift;
+                        }
+                        for (int ow = ow_end; ow < wb; ow++) {
+                            if (jcp.with_input_zp)
+                                col[col_idx_base + ow] = izp;
+                            else
+                                col[col_idx_base + ow] = shift;
+                        }
+                    }
+                });
+            }
         }
-    } else {
-        parallel_nd(jcp.kh, jcp.kw, jcp.ic, hb,
-            [&](int kh, int kw, int ic, int oh) {
-                const int hp = tp - kh * dh;
+    } else if (with_weights_zp) {
+        parallel_nd(hb, [&](int oh) {
+            for (int ic = 0; ic < jcp.ic; ic++) {
+                uint8_t izp = with_input_zp ? input_zp[ic] : (uint8_t) 0;
+                const int hp = tp;
                 const int ih = (oh + hs) * sh - hp;
-                const ptrdiff_t col_idx_base
-                        = (((kh * jcp.kw + kw) * jcp.ic + ic) * hb + oh) * wb;
-                if (ih < 0 || ih >= jcp.ih)
-                    for (int ow = 0; ow < wb; ow++)
-                        col[col_idx_base + ow] = shift;
-                else {
-                    const int wp = lp - kw * dw;
+                if (ih < 0 || ih >= jcp.ih) {
+                    for (int ow = 0; ow < wb; ow++) {
+                        weights_zp_compensation[oh * wb + ow] += izp;
+                    }
+                } else {
+                    const int wp = lp;
                     const int ow_start = limit(0, wb, div_up(wp, sw) - ws);
-                    const int ow_end
-                            = limit(0, wb, div_up(jcp.iw + wp, sw) - ws);
-                    for (int ow = 0; ow < ow_start; ow++)
-                        col[col_idx_base + ow] = shift;
+                    const int ow_end = limit(0, wb, div_up(jcp.iw + wp, sw) - ws);
+                    for (int ow = 0; ow < ow_start; ow++) {
+                        weights_zp_compensation[oh * wb + ow] += izp;
+                    }
+
                     const int iw_base = ws * sw - wp;
                     const ptrdiff_t im_idx_base = ih * im_ih_stride + ic;
                     for (int ow = ow_start; ow < ow_end; ow++) {
                         const int iw = iw_base + ow * sw;
-                        const ptrdiff_t im_idx
-                                = im_idx_base + iw * im_iw_stride;
-                        col[col_idx_base + ow] = im[im_idx] + shift;
+                        const ptrdiff_t im_idx = im_idx_base + iw * im_iw_stride;
+                        weights_zp_compensation[oh * wb + ow] += im[im_idx];
                     }
-                    for (int ow = ow_end; ow < wb; ow++)
-                        col[col_idx_base + ow] = shift;
+                    for (int ow = ow_end; ow < wb; ow++) {
+                        weights_zp_compensation[oh * wb + ow] += izp;
+                    }
                 }
-            });
+            }
+        });
     }
+}
+
+template void im2col_u8_compute<int8_t, false, false>(const jit_gemm_conv_conf_t &jcp,
+        const int8_t *__restrict im, int8_t *__restrict imtr,
+        uint8_t *__restrict col, int hs, int hb, int ws, int wb, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation);
+template void im2col_u8_compute<int8_t, true, false>(const jit_gemm_conv_conf_t &jcp,
+        const int8_t *__restrict im, int8_t *__restrict imtr,
+        uint8_t *__restrict col, int hs, int hb, int ws, int wb, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation);
+template void im2col_u8_compute<int8_t, false, true>(const jit_gemm_conv_conf_t &jcp,
+        const int8_t *__restrict im, int8_t *__restrict imtr,
+        uint8_t *__restrict col, int hs, int hb, int ws, int wb, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation);
+template void im2col_u8_compute<int8_t, true, true>(const jit_gemm_conv_conf_t &jcp,
+        const int8_t *__restrict im, int8_t *__restrict imtr,
+        uint8_t *__restrict col, int hs, int hb, int ws, int wb, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation);
+
+template void im2col_u8_compute<uint8_t, false, false>(const jit_gemm_conv_conf_t &jcp,
+        const uint8_t *__restrict im, uint8_t *__restrict imtr,
+        uint8_t *__restrict col, int hs, int hb, int ws, int wb, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation);
+template void im2col_u8_compute<uint8_t, true, false>(const jit_gemm_conv_conf_t &jcp,
+        const uint8_t *__restrict im, uint8_t *__restrict imtr,
+        uint8_t *__restrict col, int hs, int hb, int ws, int wb, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation);
+template void im2col_u8_compute<uint8_t, false, true>(const jit_gemm_conv_conf_t &jcp,
+        const uint8_t *__restrict im, uint8_t *__restrict imtr,
+        uint8_t *__restrict col, int hs, int hb, int ws, int wb, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation);
+template void im2col_u8_compute<uint8_t, true, true>(const jit_gemm_conv_conf_t &jcp,
+        const uint8_t *__restrict im, uint8_t *__restrict imtr,
+        uint8_t *__restrict col, int hs, int hb, int ws, int wb, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation);
+
+/* col[kh][kw][ic][oh][ow] <-- im2col_u8(im[ih][iw][ic]) */
+template <typename T>
+void im2col_u8(const jit_gemm_conv_conf_t &jcp, const T *__restrict im,
+        T *__restrict imtr, uint8_t *__restrict col, int hs, int hb, int ws,
+        int wb, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation) {
+
+    if (!jcp.with_input_zp && !jcp.with_weights_zp)
+        im2col_u8_compute<T, false, false>(jcp, im, imtr, col, hs, hb, ws, wb, input_zp, weights_zp_compensation);
+    else if (jcp.with_input_zp && !jcp.with_weights_zp)
+        im2col_u8_compute<T, true, false>(jcp, im, imtr, col, hs, hb, ws, wb, input_zp, weights_zp_compensation);
+    else if (!jcp.with_input_zp && jcp.with_weights_zp)
+        im2col_u8_compute<T, false, true>(jcp, im, imtr, col, hs, hb, ws, wb, input_zp, weights_zp_compensation);
+    else
+        im2col_u8_compute<T, true, true>(jcp, im, imtr, col, hs, hb, ws, wb, input_zp, weights_zp_compensation);
 }
 
 template void im2col_u8<int8_t>(const jit_gemm_conv_conf_t &jcp,
         const int8_t *__restrict im, int8_t *__restrict imtr,
-        uint8_t *__restrict col, int hs, int hb, int ws, int wb);
+        uint8_t *__restrict col, int hs, int hb, int ws, int wb, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation);
 template void im2col_u8<uint8_t>(const jit_gemm_conv_conf_t &jcp,
         const uint8_t *__restrict im, uint8_t *__restrict imtr,
-        uint8_t *__restrict col, int hs, int hb, int ws, int wb);
+        uint8_t *__restrict col, int hs, int hb, int ws, int wb, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation);
+
+template <typename T>
+void im2col_u8_3d(const jit_gemm_conv_conf_t &jcp, const T *__restrict im,
+                  uint8_t *__restrict col, int od, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation) {
+    uint8_t shift = jcp.signed_input ? 128 : 0;
+    const int dh = 1 + jcp.dilate_h;
+    const int dw = 1 + jcp.dilate_w;
+    const int dd = 1 + jcp.dilate_d;
+    const int sh = jcp.stride_h;
+    const int sw = jcp.stride_w;
+    const int sd = jcp.stride_d;
+    const int im_iw_stride = jcp.ic * jcp.ngroups;
+    const int im_ih_stride = jcp.iw * im_iw_stride;
+    const int im_id_stride = jcp.ih * im_ih_stride;
+    const int tp = jcp.t_pad;
+    const int lp = jcp.l_pad;
+    const int fp = jcp.f_pad;
+
+    if (jcp.with_weights_zp) {
+        for (int oh = 0; oh < jcp.oh; oh++) {
+            utils::array_set(weights_zp_compensation + oh * jcp.ow, 0, jcp.ow);
+        }
+    }
+
+    const T* im_loc = im + od * sd * im_id_stride;
+
+    parallel_nd(jcp.oh, jcp.ow, [&](int oh, int ow) {
+        for (int kd = 0; kd < jcp.kd; kd++) {
+            for (int kh = 0; kh < jcp.kh; kh++) {
+                for (int kw = 0; kw < jcp.kw; kw++) {
+                    for (int ic = 0; ic < jcp.ic; ic++) {
+                        int im_idx = (kd * dd - fp) * im_id_stride
+                                     + (kh * dh - tp + oh * sh) * im_ih_stride
+                                     + (kw * dw - lp + ow * sw) * im_iw_stride
+                                     + ic;
+
+                        int col_idx = kd * jcp.kh * jcp.kw * jcp.ic * jcp.oh * jcp.ow
+                                      + kh * jcp.kw * jcp.ic * jcp.oh * jcp.ow
+                                      + kw * jcp.ic * jcp.oh * jcp.ow
+                                      + ic * jcp.oh * jcp.ow
+                                      + oh * jcp.ow
+                                      + ow;
+
+                        int id = od * sd + kd * dd - fp;
+                        int ih = oh * sh + kh * dh - tp;
+                        int iw = ow * sw + kw * dw - lp;
+
+                        if (!jcp.im2col_sz) {
+                            uint8_t izp = jcp.with_input_zp ? input_zp[ic] : (uint8_t)0;
+                            if (id < 0 || id >= jcp.id || ih < 0 || ih >= jcp.ih || iw < 0 || iw >= jcp.iw) {
+                                weights_zp_compensation[oh * jcp.ow + ow] += izp;
+                            } else {
+                                weights_zp_compensation[oh * jcp.ow + ow] += im_loc[im_idx];
+                            }
+                        } else {
+                            if (jcp.with_weights_zp) {
+                                uint8_t izp = jcp.with_input_zp ? input_zp[ic] : (uint8_t)0;
+                                if (id < 0 || id >= jcp.id || ih < 0 || ih >= jcp.ih || iw < 0 || iw >= jcp.iw) {
+                                    col[col_idx] = izp;
+                                    weights_zp_compensation[oh * jcp.ow + ow] += izp;
+                                } else {
+                                    col[col_idx] = im_loc[im_idx];
+                                    weights_zp_compensation[oh * jcp.ow + ow] += im_loc[im_idx];
+                                }
+                            } else if (jcp.with_input_zp) {
+                                if (id < 0 || id >= jcp.id || ih < 0 || ih >= jcp.ih || iw < 0 || iw >= jcp.iw)
+                                    col[col_idx] = input_zp[ic];
+                                else
+                                    col[col_idx] = im_loc[im_idx];
+                            } else {
+                                if (id < 0 || id >= jcp.id || ih < 0 || ih >= jcp.ih || iw < 0 || iw >= jcp.iw)
+                                    col[col_idx] = shift;
+                                else
+                                    col[col_idx] = im_loc[im_idx] + shift;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+template void im2col_u8_3d<int8_t>(const jit_gemm_conv_conf_t &jcp, const int8_t *__restrict im,
+                                   uint8_t *__restrict col, int od, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation);
+
+template void im2col_u8_3d<uint8_t>(const jit_gemm_conv_conf_t &jcp, const uint8_t *__restrict im,
+                                    uint8_t *__restrict col, int od, const uint8_t *__restrict input_zp, int32_t *__restrict weights_zp_compensation);
 
 /* im[ih][iw][ic] <-- col2im_s32(col[oh][ow][kh][kw][ic]) */
 void col2im_s32(const jit_gemm_conv_conf_t &jcp, const int32_t *__restrict col,
@@ -497,7 +774,7 @@ void col2im(const jit_gemm_conv_conf_t &jcp, const float *col, float *im) {
 status_t init_conf(jit_gemm_conv_conf_t &jcp,
         memory_tracking::registrar_t &scratchpad, const convolution_desc_t &cd,
         const memory_desc_wrapper &src_d, const memory_desc_wrapper &weights_d,
-        const memory_desc_wrapper &dst_d, int max_threads) {
+        const memory_desc_wrapper &dst_d, const primitive_attr_t &attr, int max_threads) {
     const bool with_groups = weights_d.ndims() == src_d.ndims() + 1;
     const int ndims = src_d.ndims();
     const int is_1d = ndims == 3;
@@ -552,6 +829,21 @@ status_t init_conf(jit_gemm_conv_conf_t &jcp,
         ? (ptrdiff_t)jcp.ic * jcp.ks * jcp.os : 0;
 
     jcp.outer_threading = false;
+
+    jcp.with_input_zp = !attr.input_zero_points_.has_default_values();
+    if (jcp.with_input_zp) {
+        if (attr.input_zero_points_.count_ != 1 && attr.input_zero_points_.count_ != jcp.ic * jcp.ngroups)
+            return status::unimplemented;
+
+        if (attr.output_compensations_.count_ != jcp.oc * jcp.ngroups)
+            return status::unimplemented;
+    }
+
+    jcp.with_weights_zp = !attr.weights_zero_points_.has_default_values();
+    if (jcp.with_weights_zp) {
+        if (attr.weights_zero_points_.count_ != 1 && attr.weights_zero_points_.count_ != jcp.oc * jcp.ngroups)
+            return status::unimplemented;
+    }
 
     bool is_int8_conv = utils::one_of(src_d.data_type(), s32, s8, u8)
         && weights_d.data_type() == s8;
@@ -714,6 +1006,11 @@ status_t init_conf(jit_gemm_conv_conf_t &jcp,
                     * jcp.ow_block * jcp.oc);
             scratchpad.book(key_conv_gemm_imtr,
                 sizeof(int8_t) * jcp.nthr * jcp.is * jcp.ic);
+
+            if (jcp.with_input_zp || jcp.with_weights_zp)
+                scratchpad.book(key_conv_padded_compensation, sizeof(int32_t) * jcp.ngroups * jcp.oc);
+            if (jcp.with_weights_zp)
+                scratchpad.book(key_weights_zp_compensation, sizeof(int32_t) * jcp.nthr * jcp.oh * jcp.ow);
         } else if (is_bwd_d) {
             bool is_depthwise = jcp.ic == 1 && jcp.oc == 1 && jcp.ngroups != 1;
             const size_t outer_work = jcp.ngroups * jcp.mb;

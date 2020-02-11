@@ -795,9 +795,13 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_yxfb_stride2_pad1) {
     cldnn::build_options options;
     options.set_option(cldnn::build_option::optimize_data(true));
 
-    set_values(input, { FLOAT16(8.f), FLOAT16(0.5f), FLOAT16(6.f), FLOAT16(9.f),
-        FLOAT16(1.f), FLOAT16(3.f), FLOAT16(2.f), FLOAT16(4.f) });
-    set_values(weights, { -2.f, 2.f, 7.f, -0.5f});
+    set_values(input, { FLOAT16(8.f), FLOAT16(0.5f),
+                        FLOAT16(6.f), FLOAT16(9.f),
+
+                        FLOAT16(1.f), FLOAT16(3.f),
+                        FLOAT16(2.f), FLOAT16(4.f) });
+    set_values(weights, { -2.f, 2.f,
+                          7.f, -0.5f});
     set_values(biases, { 1.0f });
 
     topology topology(

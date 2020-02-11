@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ import numpy as np
 from extensions.middle.SliceConverter import ConvertSlice
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.ops.slice import Slice
 
 nodes_attributes = {
@@ -81,8 +82,8 @@ class ConvertSliceTests(unittest.TestCase):
                                  ('output_data', 'op_output')
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([4, 5, 6])},
-                                 'crop': {'axis': np.array([0, 1, 2]), 'offset': np.array([1, 2, 3])},
-                                 'dim': {'dim': np.array([2, 2, 1])},
+                                 'crop': {'axis': np.array([0, 1, 2]), 'offset': np.array([1, 2, 3]),
+                                          'dim': np.array([2, 2, 1])},
                                  }
                                 )
         (flag, resp) = compare_graphs(graph, graph_ref, 'output_op', check_op_attrs=True)

@@ -1,17 +1,5 @@
-//
-// Copyright (C) 2018-2019 Intel Corporation
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include <cstdlib>
@@ -131,18 +119,6 @@ static std::map<std::string, std::string> configure(const std::string &configFil
         config[VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES)] = FLAGS_VPU_NUMBER_OF_CMX_SLICES;
     }
 
-    auto modelConfigFile = fileNameNoExt(xmlFileName) + ".conf.xml";
-    {
-        std::ifstream file(modelConfigFile);
-        if (!file.is_open()) {
-            modelConfigFile.clear();
-        }
-    }
-
-    if (!modelConfigFile.empty()) {
-        config[VPU_CONFIG_KEY(NETWORK_CONFIG)] = "file=" + modelConfigFile;
-    }
-
     return config;
 }
 
@@ -201,22 +177,30 @@ static InferenceEngine::Precision getOutputPrecision(const std::string &value) {
 }
 
 void setPrecisions(const InferenceEngine::CNNNetwork &network, const std::string &iop) {
-    auto precisions = parsePrecisions(iop);
+    auto user_precisions_map = parsePrecisions(iop);
     auto inputs = network.getInputsInfo();
     auto outputs = network.getOutputsInfo();
 
-    for (auto &&layer : precisions) {
-        auto name = layer.first;
+    for (auto &&item : user_precisions_map) {
+        std::string layer_name = item.first;
+        std::string user_precision = item.second;
 
-        auto input_precision = inputs.find(name);
-        auto output_precision = outputs.find(name);
+        auto input = inputs.find(layer_name);
+        auto output = outputs.find(layer_name);
 
-        if (input_precision != inputs.end()) {
-            input_precision->second->setPrecision(getInputPrecision(layer.second));
-        } else if (output_precision != outputs.end()) {
-            output_precision->second->setPrecision(getOutputPrecision(layer.second));
+        if (input != inputs.end()) {
+            const auto input_precision = input->second->getPrecision();
+            if ((isFloat(input_precision) && isFloat(getInputPrecision(user_precision))) ||
+                (isFP16(input_precision) && isU8(getInputPrecision(user_precision)))) {
+                input->second->setPrecision(getInputPrecision(user_precision));
+            }
+        } else if (output != outputs.end()) {
+            auto output_precision = output->second->getPrecision();
+            if (isFloat(output_precision) && isFloat(getOutputPrecision(user_precision))) {
+                output->second->setPrecision(getOutputPrecision(user_precision));
+            }
         } else {
-            throw std::logic_error(name + " is not an input neither output");
+            throw std::logic_error(layer_name + " is not an input neither output");
         }
     }
 }
@@ -229,14 +213,21 @@ static void processPrecisions(InferenceEngine::CNNNetwork &network,
     if (!inputs_precision.empty()) {
         auto precision = getInputPrecision(inputs_precision);
         for (auto &&layer : network.getInputsInfo()) {
-            layer.second->setPrecision(precision);
+            const auto layerPrecision = layer.second->getPrecision();
+            if ((isFloat(layerPrecision) && isFloat(precision)) ||
+                (isFP16(layerPrecision) && isU8(precision))) {
+                layer.second->setPrecision(precision);
+            }
         }
     }
 
     if (!outputs_precision.empty()) {
         auto precision = getOutputPrecision(outputs_precision);
         for (auto &&layer : network.getOutputsInfo()) {
-            layer.second->setPrecision(precision);
+            const auto layerPrecision = layer.second->getPrecision();
+            if (isFloat(layerPrecision) && isFloat(precision)) {
+                layer.second->setPrecision(precision);
+            }
         }
     }
 

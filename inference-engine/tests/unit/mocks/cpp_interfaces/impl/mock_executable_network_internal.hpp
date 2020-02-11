@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,5 +29,12 @@ public:
     MOCK_METHOD1(Export, void(const std::string &));
     MOCK_METHOD1(GetMappedTopology, void(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &));
     MOCK_METHOD1(GetExecGraphInfo, void(ICNNNetwork::Ptr &));
+    void WrapOstreamExport(std::ostream& networkModel) {
+        ExecutableNetworkInternal::Export(networkModel);
+    }
+    const std::string exportString = "MockExecutableNetworkInternal";
+    void ExportImpl(std::ostream& networkModel) override {
+        networkModel << exportString << std::endl;
+    }
 };
 

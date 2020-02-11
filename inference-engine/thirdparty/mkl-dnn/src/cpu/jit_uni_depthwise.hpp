@@ -199,6 +199,9 @@ private:
     Vmm vmm_thr = Vmm(0);
     Vmm vmm_out_mask = Vmm(1);
 
+    Vmm vmm_d_weights = Vmm(0);
+    Vmm vmm_d_bias = Vmm(1);
+
     const unsigned char _cmp_gt_os = 6;
 
     Xbyak::Opmask ktail_mask = Xbyak::Opmask(2);

@@ -125,7 +125,7 @@ extern "C" {
             #define CL_EXT_SUFFIX__VERSION_2_0_DEPRECATED __attribute__((deprecated))
             #define CL_EXT_PREFIX__VERSION_2_0_DEPRECATED
         #endif
-    #elif _WIN32
+    #elif defined(_WIN32)
         #ifdef CL_USE_DEPRECATED_OPENCL_1_0_APIS
             #define CL_EXT_SUFFIX__VERSION_1_0_DEPRECATED
             #define CL_EXT_PREFIX__VERSION_1_0_DEPRECATED    

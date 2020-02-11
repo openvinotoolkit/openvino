@@ -52,14 +52,14 @@ struct custom_gpu_primitive_gpu : typed_primitive_impl<custom_gpu_primitive> {
 
     event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events,
                                  custom_gpu_primitive_inst& instance) override {
-        uint16_t stream_id = instance.get_network().get_stream_id();
+        auto net_id = instance.get_network().get_id();
         gpu::kernel::kernel_arguments_data args;
         for (auto& dep : instance.dependencies()) {
             args.inputs.push_back((memory_impl::cptr) &(dep->output_memory()));
         }
         args.output = (memory_impl::cptr) &instance.output_memory();
-        _kernel.set_output_event(stream_id, instance.node.is_output());
-        return _kernel.run(stream_id, *cl_kernel.get(), events, args);
+        _kernel.set_output_event(net_id, instance.node.is_output());
+        return _kernel.run(net_id, *cl_kernel.get(), events, args);
     }
 };
 

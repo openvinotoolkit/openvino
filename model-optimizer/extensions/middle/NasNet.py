@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@ import logging as log
 
 import numpy as np
 
+from extensions.middle.pass_separator import PostMiddleStart
 from mo.front.extractor import add_attrs_props, update_ie_fields
 from mo.graph.graph import Node, Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import Op
+from mo.ops.crop import Crop
 
 
 class NasNet(MiddleReplacementPattern):
@@ -32,7 +33,7 @@ class NasNet(MiddleReplacementPattern):
         return [MiddleFinish]
 
     def run_before(self):
-        return []
+        return [PostMiddleStart]
 
     def pattern(self):
         return dict(
@@ -93,7 +94,8 @@ class NasNet(MiddleReplacementPattern):
             log.error("StridedSlice has wrong begin")
             return
 
-        if not np.array_equal(sslice.end_mask, np.array([0, 0, 0, 0])) or not np.array_equal(sslice.begin_mask, np.array([0, 1, 1, 0])):
+        if not np.array_equal(sslice.end_mask, np.array([0, 0, 0, 0])) or not np.array_equal(sslice.begin_mask,
+                                                                                             np.array([0, 1, 1, 0])):
             log.error("StridedSlice has wrong masks")
             return
 
@@ -110,17 +112,18 @@ class NasNet(MiddleReplacementPattern):
 
         graph.add_node(conv_node,
                        **add_attrs_props(
-                           dict(kind='op', precision="FP32", type='Convolution', name=conv_node, op='Conv2D',
+                           dict(kind='op', type='Convolution', name=conv_node, op='Conv2D',
                                 stride=np.array([1, 1, 1, 1]), dilation=np.array([1, 1, 1, 1]),
                                 group=input.shape[3], bias_addable=True, bias_term=False,
                                 spatial_dims=np.array([1, 2]),
                                 kernel_spatial=np.array([1, 1]),
                                 pad=np.array([[0, 0], [0, 1], [0, 1], [0, 0]]), output_shape=output_shape,
                                 channel_dims=np.array([3]),
+                                output=input.shape[3],
                                 in_ports_count=3, out_ports_count=1)))
 
         graph.add_node(conv_weights_node, **add_attrs_props(
-            dict(kind='data', precision="FP32", name=conv_weights_node, value=np.array(conv_weights),
+            dict(kind='data', name=conv_weights_node, value=np.array(conv_weights),
                  shape=np.array(conv_weights.shape),
                  data_type=input.data_type, infer=None,
                  spatial_dims=np.array([0, 1]),
@@ -128,13 +131,11 @@ class NasNet(MiddleReplacementPattern):
                  output_channel_dim=3,
                  dims_number=4, can_be_bias=True)))
         graph.add_node(conv_output, **add_attrs_props(
-            dict(kind='data', precision="FP32", name=conv_output, value=None, shape=output_shape,
-                 data_type=input.data_type)))
+            dict(kind='data', name=conv_output, value=None, shape=output_shape, data_type=input.data_type)))
 
         # StridedSlice -> Crop
-        crop_cls = Op.get_op_class_by_name('Crop')
-        crop = crop_cls(graph, dict(name=sslice.name + '/Crop_', axis=np.array([1, 2]),
-                                    dim=np.array([output_shape[1] - 1, output_shape[2] - 1]), offset=np.array([1, 1])))
+        crop = Crop(graph, dict(name=sslice.name + '/Crop_', axis=np.array([1, 2]),
+                                dim=np.array([output_shape[1] - 1, output_shape[2] - 1]), offset=np.array([1, 1])))
         crop.create_node_with_data([Node(graph, conv_output)], data_nodes=sslice_out)
 
         # Connect : Conv->Crop->AvgPool

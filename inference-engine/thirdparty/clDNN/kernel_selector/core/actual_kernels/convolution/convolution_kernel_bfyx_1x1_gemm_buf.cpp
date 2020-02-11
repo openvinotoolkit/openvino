@@ -42,7 +42,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1_gemm_buf::SetDefa
     auto b = out.Batch().v;
 
     kd.gws0 = Align(f, 16);
-    kd.gws1 = static_cast<size_t>(std::ceil(x * y / 16.0f));
+    kd.gws1 = CeilDiv(x * y, 16);
     kd.gws2 = b;
 
     kd.lws0 = 16;
@@ -66,8 +66,9 @@ bool ConvolutionKernel_bfyx_1x1_gemm_buf::Validate(const Params& p, const option
     const bool bPad = input.X().pad.Total() != 0 || input.Y().pad.Total() != 0 || input.Feature().pad.Total() != 0 || input.Batch().pad.Total() != 0;
     const bool bFilterSize = params.filterSize.x != 1 || params.filterSize.y != 1;
     const bool bStride = params.stride.x != 1 || params.stride.y != 1;
+    const bool bIFMSize = input.Feature().v % 32 != 0;
 
-    if (bPad || bFilterSize || bStride) {
+    if (bPad || bFilterSize || bStride || bIFMSize) {
         return false;
     }
 

@@ -33,7 +33,7 @@ Add a reorder in between node and usr with reorder_layout as layout
 program_node& post_input_reorder::add_reorder(program_impl& p,
                                               program_node* node,
                                               program_node* usr,
-                                              layout reorder_layout) {
+                                              const layout& reorder_layout) {
     auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
     auto& new_reorder_node = p.get_or_create(new_reorder);
 

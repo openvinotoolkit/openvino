@@ -65,7 +65,8 @@ struct jit_avx512_common_convolution_fwd_t : public cpu_primitive_t {
                     && this->desc()->weights_desc.data_type == wei_type
                     && this->desc()->dst_desc.data_type == dst_type
                     && IMPLICATION(this->with_bias(), dst_type
-                                       == this->desc()->bias_desc.data_type);
+                                       == this->desc()->bias_desc.data_type)
+                    && !this->attr()->has_asymmetric_quantization();
             if (!ok)
                 return status::unimplemented;
 

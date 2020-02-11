@@ -32,8 +32,7 @@ ParamsKey ConvolutionKernel_mmad_slm_7x7_rep4::GetSupportedKey() const {
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.DisableTuning();
     return k;
 }

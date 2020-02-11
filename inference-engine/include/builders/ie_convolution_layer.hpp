@@ -1,21 +1,27 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+/**
+ * @file
+ */
 
 #pragma once
 
 #include <builders/ie_layer_decorator.hpp>
 #include <ie_network.hpp>
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace InferenceEngine {
 namespace Builder {
 
 /**
- * @brief The class represents a builder for ArgMax layer
+ * @deprecated Use ngraph API instead.
+ * @brief The class represents a builder for Convolution layer
  */
-class INFERENCE_ENGINE_API_CLASS(ConvolutionLayer): public LayerDecorator {
+IE_SUPPRESS_DEPRECATED_START
+class INFERENCE_ENGINE_NN_BUILDER_API_CLASS(ConvolutionLayer): public LayerDecorator {
 public:
     /**
      * @brief The constructor creates a builder with the name
@@ -139,6 +145,7 @@ public:
      */
     ConvolutionLayer& setOutDepth(size_t outDepth);
 };
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace Builder
 }  // namespace InferenceEngine

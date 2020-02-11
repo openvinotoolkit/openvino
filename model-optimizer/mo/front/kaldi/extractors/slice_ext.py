@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ class SliceFrontExtractor(FrontExtractorOp):
     op = 'slice'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         pb = node.parameters
         num_slice_points = read_binary_integer32_token(pb)
         mapping_rule = {
@@ -39,4 +39,4 @@ class SliceFrontExtractor(FrontExtractorOp):
         }
         node.parameters.close()
         Slice.update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        return cls.enabled

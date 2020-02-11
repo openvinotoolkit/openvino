@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 #include <memory>
+
 #include "ngraph/op/fused/group_conv.hpp"
 #include "ngraph/op/op.hpp"
 
@@ -13,12 +14,12 @@ namespace op {
 ///  batched GroupConvolution operation.
 class GroupConvolutionBias : public Op {
 public:
+    static constexpr NodeTypeInfo type_info{"GroupConvolutionBias", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
+
     GroupConvolutionBias(const std::shared_ptr<op::GroupConvolution>& conv,
                          const std::shared_ptr<Node>& bias,
-                         const size_t groups,
-                         const Shape& output_shape,
-                         bool with_relu,
-                         float alpha = 1.0);
+                         const bool with_relu = false);
 
     GroupConvolutionBias(const std::shared_ptr<Node>& data_batch,
                          const std::shared_ptr<Node>& filters,

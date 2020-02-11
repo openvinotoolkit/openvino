@@ -76,7 +76,7 @@ KERNEL (reorder_data_byxf_f32_to_byx8_f4_i8)(
 {
     const uint x = get_global_id(0);
     const uint y = get_group_id(1);
-    const uint b = get_group_id(2) * WG_BATCH_SIZE + get_sub_group_id();
+    const uint b = (uint)get_group_id(2) * WG_BATCH_SIZE + (uint)get_sub_group_id();
 
     const uint input_idx  = FUNC_CALL(get_input_index)(b, 0, y, x);
     const uint output_idx = FUNC_CALL(get_output_index)(b, 0, y, x);

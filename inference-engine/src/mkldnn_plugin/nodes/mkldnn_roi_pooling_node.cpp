@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -110,3 +110,4 @@ void MKLDNNROIPoolingNode::createDescriptor(const std::vector<InferenceEngine::T
                                           spatial_scale)));
     descs.push_back(desc);
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNROIPoolingNode, RoiPooling);

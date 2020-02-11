@@ -1,32 +1,32 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief A header file for the CNNNetworkIterator class
- * @file ie_cnn_network_iterator.hpp
+ * 
+ * @file 
  */
 #pragma once
-#include <utility>
+#include <ie_network.hpp>
+#include <iterator>
+#include <list>
+#include <memory>
 #include <unordered_map>
 #include <unordered_set>
-#include <list>
-#include <iterator>
-#include <memory>
+#include <utility>
 #include <vector>
-
-#include <ie_network.hpp>
 
 namespace InferenceEngine {
 namespace details {
 
-template<class NT, class LT>
-class INetworkIterator: public std::iterator<std::input_iterator_tag, std::shared_ptr<LT>> {
+template <class NT, class LT>
+class INFERENCE_ENGINE_NN_BUILDER_DEPRECATED INetworkIterator
+    : public std::iterator<std::input_iterator_tag, std::shared_ptr<LT>> {
 public:
-    explicit INetworkIterator(NT * network, bool toEnd): network(network), currentIdx(0) {}
-    explicit INetworkIterator(NT * network): network(network), currentIdx(0) {
-        if (!network)
-            return;
+    explicit INetworkIterator(NT* network, bool toEnd): network(network), currentIdx(0) {}
+    explicit INetworkIterator(NT* network): network(network), currentIdx(0) {
+        if (!network) return;
         const auto& inputs = network->getInputs();
 
         std::vector<std::shared_ptr<LT>> allInputs;
@@ -34,13 +34,18 @@ public:
             allInputs.push_back(std::dynamic_pointer_cast<LT>(input));
         }
 
-        forestDFS(allInputs, [&](std::shared_ptr<LT> current) {
-            sortedLayers.push_back(current);
-        }, false);
+        forestDFS(
+            allInputs,
+            [&](std::shared_ptr<LT> current) {
+                sortedLayers.push_back(current);
+            },
+            false);
 
         std::reverse(std::begin(sortedLayers), std::end(sortedLayers));
         currentLayer = getNextLayer();
     }
+
+    IE_SUPPRESS_DEPRECATED_START
 
     bool operator!=(const INetworkIterator& that) const {
         return !operator==(that);
@@ -68,48 +73,46 @@ public:
         return retval;
     }
 
+    IE_SUPPRESS_DEPRECATED_END
+
 private:
     std::vector<std::shared_ptr<LT>> sortedLayers;
     std::shared_ptr<LT> currentLayer;
-    NT *network = nullptr;
+    NT* network = nullptr;
     size_t currentIdx;
 
     std::shared_ptr<LT> getNextLayer() {
         return (sortedLayers.size() > currentIdx) ? sortedLayers[currentIdx++] : nullptr;
     }
 
-    template<class T>
-    inline void forestDFS(const std::vector<std::shared_ptr<LT>>& heads, const T &visit, bool bVisitBefore) {
+    template <class T>
+    inline void forestDFS(const std::vector<std::shared_ptr<LT>>& heads, const T& visit, bool bVisitBefore) {
         if (heads.empty()) {
             return;
         }
 
         std::unordered_map<idx_t, bool> visited;
-        for (auto & layer : heads) {
+        for (auto& layer : heads) {
             DFS(visited, layer, visit, bVisitBefore);
         }
     }
 
-    template<class T>
-    inline void DFS(std::unordered_map<idx_t, bool> &visited,
-                    const std::shared_ptr<LT> &layer,
-                    const T &visit,
+    template <class T>
+    inline void DFS(std::unordered_map<idx_t, bool>& visited, const std::shared_ptr<LT>& layer, const T& visit,
                     bool visitBefore) {
         if (layer == nullptr) {
             return;
         }
 
-        if (visitBefore)
-            visit(layer);
+        if (visitBefore) visit(layer);
 
         visited[layer->getId()] = false;
-        for (const auto &connection : network->getLayerConnections(layer->getId())) {
+        for (const auto& connection : network->getLayerConnections(layer->getId())) {
             if (connection.to().layerId() == layer->getId()) {
                 continue;
             }
             const auto outLayer = network->getLayer(connection.to().layerId());
-            if (!outLayer)
-                THROW_IE_EXCEPTION << "Couldn't get layer with id: " << connection.to().layerId();
+            if (!outLayer) THROW_IE_EXCEPTION << "Couldn't get layer with id: " << connection.to().layerId();
             auto i = visited.find(outLayer->getId());
             if (i != visited.end()) {
                 /**
@@ -123,8 +126,7 @@ private:
 
             DFS(visited, outLayer, visit, visitBefore);
         }
-        if (!visitBefore)
-            visit(layer);
+        if (!visitBefore) visit(layer);
         visited[layer->getId()] = true;
     }
 };

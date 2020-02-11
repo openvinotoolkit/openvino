@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@
 #include <api/reverse_sequence.hpp>
 #include <api/lstm.hpp>
 #include <api/lstm_dynamic.hpp>
+#include "cldnn_common_utils.h"
 #include "cldnn_program.h"
 
 using namespace InferenceEngine;
@@ -73,14 +74,14 @@ void Program::CreateLSTMCellPrimitive(cldnn::topology& topology, InferenceEngine
         auto wLayer = as<InferenceEngine::WeightableLayer *>(layer);
         auto pWeightsBlob = wLayer->_weights;
         cldnn::tensor wTensor = cldnn::tensor(cldnn::batch(4 * lstm_hidden_size), cldnn::feature(1), cldnn::spatial(lstm_input_size + lstm_hidden_size, 1));
-        cldnn::layout WLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), m_defaultFormat, wTensor);
+        cldnn::layout WLayout = cldnn::layout(DataTypeFromPrecision(pWeightsBlob->getTensorDesc().getPrecision()), m_defaultFormat, wTensor);
         weightID = CreatePrimitiveFromBlob(topology, weightID, pWeightsBlob, WLayout);
 
         /* create bias memory primitive */
         auto pBiasBlob = wLayer->_biases;
         if (pBiasBlob != nullptr) {
             cldnn::tensor bTensor = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(4 * lstm_hidden_size, 1));
-            cldnn::layout BLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), m_defaultFormat, bTensor);
+            cldnn::layout BLayout = cldnn::layout(DataTypeFromPrecision(pBiasBlob->getTensorDesc().getPrecision()), m_defaultFormat, bTensor);
 
             biasID = CreatePrimitiveFromBlob(topology, biasID, pBiasBlob, BLayout);
             hasBias = true;
@@ -95,10 +96,13 @@ void Program::CreateLSTMCellPrimitive(cldnn::topology& topology, InferenceEngine
     cldnn::primitive_id gemmReorderID = layerName + "_gemmReorder";
     cldnn::primitive_id concatID = layerName + "_inputConcat";
 
+    //  LSTM primitive works with single precision for all in/out/weights tensors
+    auto lstmPrecision = layer->outData[0]->getPrecision();
+
     cldnn::tensor inputShape = { lstm_batch_size, 1, lstm_input_size, 1 };
     cldnn::tensor hiddenStateShape = { lstm_batch_size, 1, lstm_hidden_size, 1 };
-    cldnn::layout inputLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), cldnn::format::bfyx, inputShape);
-    cldnn::layout hiddenLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), cldnn::format::bfyx, hiddenStateShape);
+    cldnn::layout inputLayout = cldnn::layout(DataTypeFromPrecision(lstmPrecision), cldnn::format::bfyx, inputShape);
+    cldnn::layout hiddenLayout = cldnn::layout(DataTypeFromPrecision(lstmPrecision), cldnn::format::bfyx, hiddenStateShape);
     topology.add(cldnn::reshape(inReshapeID, inputPrimitives[0], inputShape));
     topology.add(cldnn::reorder(permuteID, inReshapeID, inputLayout));
 
@@ -122,7 +126,7 @@ void Program::CreateLSTMCellPrimitive(cldnn::topology& topology, InferenceEngine
     addInnerPrimitiveToProfiler(concatID, layer->name, layer);
 
     cldnn::tensor gemmSz = cldnn::tensor{ lstm_batch_size, 1, 4 * lstm_hidden_size, 1 };
-    cldnn::layout gemmLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), cldnn::format::bfyx, gemmSz);
+    cldnn::layout gemmLayout = cldnn::layout(DataTypeFromPrecision(lstmPrecision), cldnn::format::bfyx, gemmSz);
     cldnn::tensor hiddenSz = cldnn::tensor{ lstm_batch_size, 1, lstm_hidden_size, 1 };
     cldnn::tensor cellCropSz = cldnn::tensor{0, 1, 0, 0};
 
@@ -218,14 +222,14 @@ void Program::CreateRegularLSTM(cldnn::topology& topology, InferenceEngine::CNNL
         auto wLayer = as<InferenceEngine::WeightableLayer *>(layer);
         auto pWeightsBlob = wLayer->_weights;
         cldnn::tensor wTensor = cldnn::tensor(cldnn::batch(4 * lstm_hidden_size), cldnn::feature(1), cldnn::spatial(lstm_input_size + lstm_hidden_size, 1));
-        cldnn::layout WLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), m_defaultFormat, wTensor);
+        cldnn::layout WLayout = cldnn::layout(DataTypeFromPrecision(pWeightsBlob->getTensorDesc().getPrecision()), m_defaultFormat, wTensor);
         weightID = CreatePrimitiveFromBlob(topology, weightID, pWeightsBlob, WLayout);
 
         /* create bias memory primitive */
         auto pBiasBlob = wLayer->_biases;
         if (pBiasBlob != nullptr) {
             cldnn::tensor bTensor = cldnn::tensor(cldnn::batch(1), cldnn::feature(1), cldnn::spatial(4 * lstm_hidden_size, 1));
-            cldnn::layout BLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), m_defaultFormat, bTensor);
+            cldnn::layout BLayout = cldnn::layout(DataTypeFromPrecision(pBiasBlob->getTensorDesc().getPrecision()), m_defaultFormat, bTensor);
 
             biasID = CreatePrimitiveFromBlob(topology, biasID, pBiasBlob, BLayout);
             hasBias = true;
@@ -239,6 +243,9 @@ void Program::CreateRegularLSTM(cldnn::topology& topology, InferenceEngine::CNNL
     cldnn::primitive_id permuteID = layerName + "_inputReorder";
     cldnn::primitive_id inHiddenReshapeID = layerName + "_inHiddenReshape";
 
+    //  LSTM primitive works with single precision for all in/out/weights tensors
+    auto lstmPrecision = layer->outData[0]->getPrecision();
+
     cldnn::tensor inputShape;
 
     if (permute_input) {
@@ -247,7 +254,7 @@ void Program::CreateRegularLSTM(cldnn::topology& topology, InferenceEngine::CNNL
         inputShape = { lstm_batch_size, lstm_sequence_len, lstm_input_size, 1 };
     }
     cldnn::tensor hiddenStateShape = { lstm_batch_size, 1, lstm_hidden_size, 1 };
-    cldnn::layout inputLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), cldnn::format::bfyx, inputShape);
+    cldnn::layout inputLayout = cldnn::layout(DataTypeFromPrecision(lstmPrecision), cldnn::format::bfyx, inputShape);
     topology.add(cldnn::reshape(inReshapeID, inputPrimitives[0], inputShape));
     topology.add(cldnn::reorder(permuteID, inReshapeID, inputLayout));
 
@@ -274,7 +281,7 @@ void Program::CreateRegularLSTM(cldnn::topology& topology, InferenceEngine::CNNL
     addInnerPrimitiveToProfiler(inputSplitID, layerName, layer);
 
     cldnn::tensor gemmSz = cldnn::tensor{ lstm_batch_size, 1, 4 * lstm_hidden_size, 1 };
-    cldnn::layout gemmLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), cldnn::format::bfyx, gemmSz);
+    cldnn::layout gemmLayout = cldnn::layout(DataTypeFromPrecision(lstmPrecision), cldnn::format::bfyx, gemmSz);
     cldnn::tensor hiddenSz = cldnn::tensor{ lstm_batch_size, 1, lstm_hidden_size, 1 };
     cldnn::tensor cellCropSz = cldnn::tensor{0, 1, 0, 0};
     std::string hiddenStr = hasInitialHidden ? inHiddenReshapeID+"_1" : "";
@@ -355,7 +362,8 @@ void Program::CreateDynamicLSTM(cldnn::topology& topology, InferenceEngine::CNNL
     bool hasBias = false, reverseSeq = false;
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
 
-    auto elementSize = cldnn::data_type_traits::size_of(DataTypeFromPrecision(layer->precision));
+    auto lstmPrecision = layer->outData[0]->getPrecision();
+    auto elementSize = cldnn::data_type_traits::size_of(DataTypeFromPrecision(lstmPrecision));
     std::string layerName = layer_type_name_ID(layer);
     cldnn::primitive_id weightID = layerName + m_weightsTag;
     cldnn::primitive_id recurrentID = weightID + "_recurrent";
@@ -411,8 +419,8 @@ void Program::CreateDynamicLSTM(cldnn::topology& topology, InferenceEngine::CNNL
 
         cldnn::tensor wTensor = cldnn::tensor(cldnn::batch(1), cldnn::feature(directions), cldnn::spatial(lstm_input_size, 4 * lstm_hidden_size));
         cldnn::tensor rTensor = cldnn::tensor(cldnn::batch(1), cldnn::feature(directions), cldnn::spatial(lstm_hidden_size, 4 * lstm_hidden_size));
-        cldnn::layout WLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), m_defaultFormat, wTensor);
-        cldnn::layout RLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), m_defaultFormat, rTensor);
+        cldnn::layout WLayout = cldnn::layout(DataTypeFromPrecision(lstmPrecision), m_defaultFormat, wTensor);
+        cldnn::layout RLayout = cldnn::layout(DataTypeFromPrecision(lstmPrecision), m_defaultFormat, rTensor);
 
         auto wLayer = as<InferenceEngine::WeightableLayer *>(layer);
 
@@ -447,7 +455,7 @@ void Program::CreateDynamicLSTM(cldnn::topology& topology, InferenceEngine::CNNL
         auto pBiasBlob = wLayer->_biases;
         if (pBiasBlob != nullptr) {
             cldnn::tensor bTensor = cldnn::tensor(cldnn::batch(1), cldnn::feature(directions), cldnn::spatial(4 * lstm_hidden_size, 1));
-            cldnn::layout BLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), m_defaultFormat, bTensor);
+            cldnn::layout BLayout = cldnn::layout(DataTypeFromPrecision(pBiasBlob->getTensorDesc().getPrecision()), m_defaultFormat, bTensor);
 
             auto bmem = cldnn::memory::allocate(*m_engine, BLayout);
             auto btmpPointer = bmem.pointer<char>();
@@ -476,7 +484,7 @@ void Program::CreateDynamicLSTM(cldnn::topology& topology, InferenceEngine::CNNL
         inputShape = { lstm_batch_size, lstm_sequence_len, lstm_input_size, directions };
     }
     cldnn::tensor hiddenStateShape = { lstm_batch_size, 1, lstm_hidden_size, directions };
-    cldnn::layout inputLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), cldnn::format::bfyx, inputShape);
+    cldnn::layout inputLayout = cldnn::layout(DataTypeFromPrecision(lstmPrecision), cldnn::format::bfyx, inputShape);
     topology.add(cldnn::reshape(inReshapeID, inputPrimitives[0], inputShape));
     topology.add(cldnn::reorder(permuteID, inReshapeID, inputLayout));
 
@@ -492,7 +500,7 @@ void Program::CreateDynamicLSTM(cldnn::topology& topology, InferenceEngine::CNNL
     cldnn::primitive_id dynID = layerName + "_dynLength";
     cldnn::primitive_id dynReshapeID = layerName + "_dynReshape";
     cldnn::tensor dynShape = { 1, 1, lstm_batch_size, 1 };
-    cldnn::layout dynLayout = cldnn::layout(DataTypeFromPrecision(layer->precision), cldnn::format::bfyx, dynShape);
+    cldnn::layout dynLayout = cldnn::layout(DataTypeFromPrecision(lstmPrecision), cldnn::format::bfyx, dynShape);
     topology.add(cldnn::reshape(dynReshapeID, inputPrimitives[3], dynShape));
     topology.add(cldnn::reorder(dynID, dynReshapeID, dynLayout));
 
@@ -523,7 +531,7 @@ void Program::CreateDynamicLSTM(cldnn::topology& topology, InferenceEngine::CNNL
      if (layer->outData.size() > 1) {
         outputHiddenID = layer_type_lower(layer) + ":" + layer->outData[1]->getName();
         auto last_hidden_mem = cldnn::memory::allocate(*m_engine,
-        { DataTypeFromPrecision(layer->precision),
+        { DataTypeFromPrecision(lstmPrecision),
             cldnn::format::bfyx, { lstm_batch_size, 1, lstm_hidden_size, directions } });
         topology.add(cldnn::mutable_data(outputHiddenID, last_hidden_mem));
         primitiveIDs[outputHiddenID] = outputHiddenID;
@@ -533,7 +541,7 @@ void Program::CreateDynamicLSTM(cldnn::topology& topology, InferenceEngine::CNNL
     if (layer->outData.size() > 2) {
         outputCellID = layer_type_lower(layer) + ":" + layer->outData[2]->getName();
         auto last_cell_mem = cldnn::memory::allocate(*m_engine,
-        { DataTypeFromPrecision(layer->precision),
+        { DataTypeFromPrecision(lstmPrecision),
             cldnn::format::bfyx, { lstm_batch_size, 1, lstm_hidden_size, directions } });
         topology.add(cldnn::mutable_data(outputCellID, last_cell_mem));
         primitiveIDs[outputCellID] = outputCellID;

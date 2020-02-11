@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,13 +18,10 @@ import logging as log
 
 import numpy as np
 
-from extensions.middle.PartialInfer import PartialInfer
 from extensions.middle.TensorIterator_utils import delete_selects_from
 from extensions.ops.TensorIterator_ops import TensorIteratorCondition, TensorIteratorBackEdge
-from extensions.ops.elementwise import Mul
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
 
 
 def make_nodes_1D(nodes: list):
@@ -418,7 +415,7 @@ class DynamicDecoderConditionMatcher(MiddleReplacementPattern):
                 ('loop_cond', dict(kind='op', op='LoopCond')),
                 ('loop_cond_data', dict(kind='data')),
 
-                ('logical_not', dict(kind='op', op='Not')),
+                ('logical_not', dict(kind='op', op='LogicalNot')),
                 ('logical_not_data', dict(kind='data')),
 
                 ('all', dict(kind='op', op='ReduceAnd')),

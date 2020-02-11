@@ -60,7 +60,11 @@ void _jit_uni_planar_convolution_fwd_t<isa>::execute_forward() const {
     const auto &jcp = kernel_->jcp;
     const int MB = pd()->MB();
 
+#ifdef _MSC_BUILD
+     std::vector<int> od_indexes(jcp.od);
+#else
     int od_indexes[jcp.od];
+#endif  // _MSC_BUILD
 
     int idx = 0;
     for (int i = 0; i < (jcp.dilate_d + 1); i++) {

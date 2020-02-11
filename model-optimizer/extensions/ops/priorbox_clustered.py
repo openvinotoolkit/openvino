@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-import networkx as nx
 import numpy as np
 
 from mo.front.common.layout import get_width_dim, get_height_dim
@@ -28,11 +27,12 @@ class PriorBoxClusteredOp(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': PriorBoxClusteredOp.priorbox_clustered_infer
+            'infer': self.priorbox_clustered_infer,
+            'type_infer': self.type_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -69,10 +69,18 @@ class PriorBoxClusteredOp(Op):
         ]
 
     @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(np.float32)
+
+    @staticmethod
     def priorbox_clustered_infer(node: Node):
         layout = node.graph.graph['layout']
         data_shape = node.in_node(0).shape
         num_ratios = len(node.width)
 
-        res_prod = data_shape[get_height_dim(layout, 4)] * data_shape[get_width_dim(layout, 4)] * num_ratios * 4
-        node.out_node(0).shape = np.array([1, 2, res_prod], dtype=np.int64)
+        if node.has_and_set('V10_infer'):
+            assert node.in_node(0).value is not None
+            node.out_node(0).shape = np.array([2, np.prod(node.in_node(0).value) * num_ratios * 4], dtype=np.int64)
+        else:
+            res_prod = data_shape[get_height_dim(layout, 4)] * data_shape[get_width_dim(layout, 4)] * num_ratios * 4
+            node.out_node(0).shape = np.array([1, 2, res_prod], dtype=np.int64)

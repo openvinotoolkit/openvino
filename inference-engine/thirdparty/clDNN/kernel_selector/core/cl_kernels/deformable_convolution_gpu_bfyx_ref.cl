@@ -32,8 +32,8 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
     const uint f = get_global_id(2);
     const uint b = 0;
 #else
-    const uint f = get_global_id(2) % OUTPUT_FEATURE_NUM;
-    const uint b = get_global_id(2) / OUTPUT_FEATURE_NUM;
+    const uint f = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+    const uint b = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
 #endif
 
     UNIT_TYPE dotProd = UNIT_VAL_ZERO;

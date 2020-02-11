@@ -37,7 +37,7 @@
     #pragma warning disable: 3346
 #elif defined _MSC_VER
     #pragma warning(push)
-    #pragma warning(disable: 4018 4100 4505)
+    #pragma warning(disable: 4018 4100 4505 4201)
 #elif defined __clang__
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Wsign-compare"
@@ -52,6 +52,9 @@
     #pragma GCC diagnostic ignored "-Wunused-variable"
     #pragma GCC diagnostic ignored "-Wunused-function"
     #pragma GCC diagnostic ignored "-Wignored-qualifiers"
+    #if __GNUC__ >= 8
+    #pragma GCC diagnostic ignored "-Wcatch-value"
+    #endif
     #if __GNUC__ >= 6
     #pragma GCC diagnostic ignored "-Wignored-attributes"
     #endif
@@ -60,7 +63,7 @@
 #endif
 
 
-#include "cl2.hpp"
+#include "cl2_ext.hpp"
 
 
 // Restore specific diagnostics.

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -88,8 +88,14 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         (l2.format == format::fs_b_yx_fsv32 && l1.format != format::fs_b_yx_fsv32) ||
         (l1.format == format::bfyx_f16 && l2.format != format::bfyx_f16) ||
         (l2.format == format::bfyx_f16 && l1.format != format::bfyx_f16) ||
+        (l1.format == format::b_fs_yx_fsv32 && l2.format != format::b_fs_yx_fsv32) ||
+        (l2.format == format::b_fs_yx_fsv32 && l1.format != format::b_fs_yx_fsv32) ||
+        (l1.format == format::b_fs_zyx_fsv32 && l2.format != format::b_fs_zyx_fsv32) ||
+        (l2.format == format::b_fs_zyx_fsv32 && l1.format != format::b_fs_zyx_fsv32) ||
         (l1.format == format::bfzyx_f16 && l2.format != format::bfzyx_f16) ||
-        (l2.format == format::bfzyx_f16 && l1.format != format::bfzyx_f16))
+        (l2.format == format::bfzyx_f16 && l1.format != format::bfzyx_f16) ||
+        (l1.format == format::bfzyx_b16f16 && l2.format != format::bfzyx_b16f16) ||
+        (l2.format == format::bfzyx_b16f16 && l1.format != format::bfzyx_b16f16))
         return {false, false};
 
     auto l1_pitch = l1.get_pitches();

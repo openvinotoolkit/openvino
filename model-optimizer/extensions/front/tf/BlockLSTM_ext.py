@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,12 +22,12 @@ class BlockLSTMExtractor(FrontExtractorOp):
     op = 'BlockLSTM'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = {
             'use_peephole': node.pb.attr['use_peephole'].b,
             'cell_clip': node.pb.attr['cell_clip'].f,
             'forget_bias': node.pb.attr['forget_bias'].f,
         }
         BlockLSTM.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled

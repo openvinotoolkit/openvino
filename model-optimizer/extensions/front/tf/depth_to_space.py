@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,20 +13,18 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.ops.depth_to_space import DepthToSpaceOp
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
 
 
 class DepthToSpaceFrontExtractor(FrontExtractorOp):
     op = 'DepthToSpace'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         # update the attributes of the node
         block_size = node.pb.attr['block_size'].i
         data_format = node.pb.attr['data_format'].s.decode('utf-8')
-        Op.get_op_class_by_name(__class__.op).update_node_stat(node,
-                                                               {'block_size': block_size, 'data_format': data_format})
-        return __class__.enabled
+        DepthToSpaceOp.update_node_stat(node, {'block_size': block_size, 'data_format': data_format})
+        return cls.enabled

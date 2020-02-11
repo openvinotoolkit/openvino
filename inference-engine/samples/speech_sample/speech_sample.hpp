@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,10 @@ static const char write_gna_model_message[] = "Write GNA model to file using pat
 
 /// @brief message for write GNA embedded model argument
 static const char write_embedded_model_message[] = "Write GNA embedded model to file using path/filename provided.";
+
+/// @brief message for write GNA embedded model generation argument
+static const char write_embedded_model_generation_message[] = "Optional. GNA generation configuration string for embedded export."
+                                                              "Can be GNA1 (default) or GNA3.";
 
 /// @brief message for quantization argument
 static const char quantization_message[] = "Input quantization mode:  static (default), dynamic, or user (use with -sf).";
@@ -116,6 +120,9 @@ DEFINE_string(wg, "", write_gna_model_message);
 /// @brief Write GNA embedded model to file (model.bin)
 DEFINE_string(we, "", write_embedded_model_message);
 
+/// @brief Optional GNA embedded device generation (default GNA1 aka Sue Creek)
+DEFINE_string(we_gen, "GNA1", write_embedded_model_generation_message);
+
 /// @brief Input quantization mode (default static)
 DEFINE_string(q, "static", quantization_message);
 
@@ -161,6 +168,7 @@ static void showUsage() {
     std::cout << "    -rg \"<path>\"            " << read_gna_model_message << std::endl;
     std::cout << "    -wg \"<path>\"            " << write_gna_model_message << std::endl;
     std::cout << "    -we \"<path>\"            " << write_embedded_model_message << std::endl;
+    std::cout << "    -we_gen \"<generation>\"  " << write_embedded_model_generation_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"   " << infer_num_threads_message << std::endl;
     std::cout << "    -cw_l \"<integer>\"       " << context_window_message_l << std::endl;
     std::cout << "    -cw_r \"<integer>\"       " << context_window_message_r << std::endl;

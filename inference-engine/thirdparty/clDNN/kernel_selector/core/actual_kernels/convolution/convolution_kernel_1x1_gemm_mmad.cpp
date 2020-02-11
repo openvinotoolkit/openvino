@@ -34,8 +34,7 @@ ParamsKey ConvolutionKernel_1x1_gemm_MMAD::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.DisableTuning();
     return k;
 }

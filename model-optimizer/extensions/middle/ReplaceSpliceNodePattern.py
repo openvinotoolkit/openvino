@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,8 +14,9 @@
  limitations under the License.
 """
 from extensions.front.kaldi.replace_lstm_node_pattern import unique_id
-from extensions.ops.splitv import SplitV
+from extensions.ops.split import VariadicSplit
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat
@@ -44,7 +45,12 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
            Memory [N, k*H] -> Slice [N, (k-1)*H]                 Memory [N, k*H]
 
    """
-    enabled = False
+    enabled = True
+
+    def run_after(self):
+        from extensions.middle.RemoveDuplicationMemory import MergeNeighborSplicePattern, RemoveMemoryDuplicationPattern
+        return [MergeNeighborSplicePattern,
+                RemoveMemoryDuplicationPattern]
 
     @staticmethod
     def pattern():
@@ -95,8 +101,11 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
         if node.const_dim != 0:
             memory_element_constdim = node.const_dim
             memory_size_constdim = memory_element_constdim * len(node.context)
-            split = SplitV(graph, {'name': node.id + '_split_const', 'axis': 1, 'out_ports_count': 2,
-                                   'size_splits': int64_array([memory_element, memory_element_constdim])}).create_node()
+
+            split = create_op_with_const_inputs(
+                graph, VariadicSplit, {1: int64_array(1), 2: int64_array([memory_element, memory_element_constdim])},
+                {'name': node.id + '_split_const', 'out_ports_count': 2})
+
             split.out_port(0).connect(concat_node.in_port(1))
 
             # create separate splice construction for const_dim
@@ -109,7 +118,8 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
             crop_const_dim = Crop(graph, {'name': 'const_dim_crop',
                                           'axis': int64_array([1]),
                                           'offset': int64_array([memory_element_constdim]),
-                                          'dim': int64_array([memory_size_constdim - memory_element_constdim])}).create_node()
+                                          'dim': int64_array(
+                                              [memory_size_constdim - memory_element_constdim])}).create_node()
             crop_const_dim.in_port(0).connect(input_memory_const_dim.out_port(0))
 
             concat_node_const_dim = Concat(graph, {'name': 'const_dim_concat',
@@ -133,7 +143,7 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
                                       'dim': int64_array([memory_element_constdim])}).create_node()
             crop_first.in_port(0).connect(concat_node_const_dim.out_port(0))
 
-            concat_const = Concat(graph, {'name': node.id+'_concat_const', 'axis': 1,
+            concat_const = Concat(graph, {'name': node.id + '_concat_const', 'axis': 1,
                                           'in_ports_count': 2}).create_node()
             concat_const.in_port(1).connect(crop_first.out_port(0))
             concat_const.in_port(0).connect(concat_node.out_port(0))
@@ -143,3 +153,6 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
         else:
             node.in_port(0).get_connection().set_destination(concat_node.in_port(1))
             node.out_port(0).get_connection().set_source(concat_node.out_port(0))
+
+        # to avoid re-inference of shape and touching in next replacements
+        graph.remove_node(node.id)

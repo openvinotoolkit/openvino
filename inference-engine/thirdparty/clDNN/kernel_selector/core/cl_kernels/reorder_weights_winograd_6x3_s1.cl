@@ -26,8 +26,8 @@ KERNEL(reorder_weights_winograd_6x3_s1)(const __global INPUT0_TYPE* input, __glo
     
     const uint tile_x_idx = get_global_id(0);
     const uint tile_y_idx = get_global_id(1);
-    const uint feature_idx = get_global_id(2) % INPUT0_IFM_NUM;
-    const uint batch_idx = get_global_id(2) / INPUT0_IFM_NUM;
+    const uint feature_idx = (uint)get_global_id(2) % INPUT0_IFM_NUM;
+    const uint batch_idx = (uint)get_global_id(2) / INPUT0_IFM_NUM;
     
     uint in_idx = batch_idx * INPUT0_OFM_PITCH
                  + feature_idx * INPUT0_IFM_PITCH

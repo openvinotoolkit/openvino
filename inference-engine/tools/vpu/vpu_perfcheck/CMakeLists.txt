@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,16 +14,12 @@
 # limitations under the License.
 #
 
+disable_deprecated_warnings()
+
 function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
     find_package(Threads REQUIRED)
 
     file(GLOB SOURCES *.cpp)
-
-    if(WIN32)
-        file(GLOB WIN_PTHREAD_SOURCES "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/WinPthread/win_pthread.c")
-        file(GLOB_RECURSE SHARED "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/shared/*")
-        list(APPEND SOURCES ${WIN_PTHREAD_SOURCES} ${SHARED})
-    endif()
 
     add_executable(${TARGET_NAME} ${SOURCES})
 
@@ -36,23 +32,14 @@ function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
 
     target_include_directories(${TARGET_NAME}
         SYSTEM PRIVATE
-            "${IE_MAIN_SOURCE_DIR}/include"
-            "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
+            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             "${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include"
             "${IE_MAIN_SOURCE_DIR}/samples/common/samples"
             "${IE_MAIN_SOURCE_DIR}/samples/common/format_reader")
 
-    if(WIN32)
-        target_include_directories(${TARGET_NAME}
-                PRIVATE
-                "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/WinPthread"
-                "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/shared/include")
-    endif()
-
     target_link_libraries(${TARGET_NAME}
         PRIVATE
             inference_engine format_reader
-            ${CMAKE_DL_LIBS}
             Threads::Threads)
 
     add_dependencies(${TARGET_NAME}
@@ -66,4 +53,8 @@ endfunction()
 
 if(ENABLE_MYRIAD)
     add_perfcheck_target(myriad_perfcheck myriadPlugin)
+
+    install(TARGETS myriad_perfcheck
+            RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
+            COMPONENT myriad)
 endif()

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 """
 import numpy as np
 
-from extensions.ops.splitv import SplitV
+from extensions.ops.split import AttributedVariadicSplit, AttributedSplit
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
@@ -25,14 +25,18 @@ class SplitFrontExtractor(FrontExtractorOp):
     op = 'Split'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
+        axis = onnx_attr(node, 'axis', 'i', default=0, dst_type=np.int64)
         size_splits = onnx_attr(node, 'split', 'ints', default=None, dst_type=int64_array)
-        attrs = {
-            'size_splits': size_splits,
-            'axis': onnx_attr(node, 'axis', 'i', default=0, dst_type=np.int64),
-            'out_ports_count': len(size_splits),
-        }
-        # update the attributes of the node
-        SplitV.update_node_stat(node, attrs)
-        return __class__.enabled
+        if size_splits is None:
+            AttributedSplit.update_node_stat(node, {
+                'axis': axis,
+                'num_splits': len(node.out_nodes()),
+            })
+        else:
+            AttributedVariadicSplit.update_node_stat(node, {
+                'axis': axis,
+                'size_splits': size_splits,
+            })
+        return cls.enabled

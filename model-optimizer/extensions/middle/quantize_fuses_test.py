@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ import numpy as np
 
 from extensions.middle.quantize_fuses import FakeQuantizeFuse
 from mo.front.common.partial_infer.eltwise import eltwise_infer
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes = {
     'placeholder': {'kind': 'op', 'op': 'Placeholder'},
@@ -36,7 +37,7 @@ nodes = {
     'ma_o_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224]), 'value': None},
 
     'quantize': {'kind': 'op', 'op': 'FakeQuantize', 'keep_in_IR': True},
-    'quantize_d': {'kind': 'data'},
+    'quantize_d': {'kind': 'data', 'shape': None},
 
     'mul_val': {'kind': 'op', 'op': 'Const'},
     'mul_val_d': {'kind': 'data', 'shape': np.array([1]), 'value': np.array([5])},

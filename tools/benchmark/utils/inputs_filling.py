@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -98,14 +98,15 @@ def get_inputs(path_to_input, batch_size, input_info, requests):
         for key in keys:
             if is_image(input_info[key]):
                 # input is image
-                if (len(image_files) > 0):
+                if len(image_files) > 0:
                     input_data[key] = fill_blob_with_image(image_files, request_id, batch_size, keys.index(key),
                                                            len(keys), input_info[key].shape)
                     continue
 
             # input is binary
-            if (len(binary_files) > 0):
-                input_data[key] = fill_blob_with_binary(binary_files, input_info[key].shape)
+            if len(binary_files):
+                input_data[key] = fill_blob_with_binary(binary_files, request_id, batch_size, keys.index(key),
+                                                        len(keys), input_info[key].shape)
                 continue
 
             # most likely input is image info
@@ -127,16 +128,19 @@ def get_inputs(path_to_input, batch_size, input_info, requests):
 
 
 def get_files_by_extensions(path_to_input, extensions):
+    get_extension = lambda file_path: file_path.split(".")[-1].upper()
+
     input_files = list()
     if os.path.isfile(path_to_input):
-        input_files.append(path_to_input)
+        files = [os.path.normpath(path_to_input)]
     else:
         path = os.path.join(path_to_input, '*')
         files = glob(path, recursive=True)
-        for file in files:
-            file_extension = file.rsplit('.').pop().upper()
-            if file_extension in extensions:
+    for file in files:
+        file_extension = get_extension(file)
+        if file_extension in extensions:
                 input_files.append(file)
+
     return input_files
 
 
@@ -154,11 +158,36 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
             logger.warn("Image is resized from ({}) to ({})".format(image.shape[:-1], new_im_size))
             image = cv2.resize(image, new_im_size)
 
-        image = image.transpose((2, 1, 0))
+        if image.shape[0] != shape[2]:
+            image = image.transpose((2, 1, 0))
+        else:
+            image = image.transpose((2, 0, 1))
         images[b] = image
 
         image_index += input_size
     return images
+
+
+def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_size, shape):
+    binaries = np.ndarray(shape)
+    binary_index = request_id * batch_size * input_size + input_id
+    for b in range(batch_size):
+        binary_index %= len(binary_paths)
+        binary_filename = binary_paths[binary_index]
+
+        binary_file_size = os.path.getsize(binary_filename)
+        input_size = np.prod(shape) / batch_size
+        if input_size != binary_file_size:
+            raise Exception(
+                "File {} contains {} bytes but network expects {}".format(binary_filename, binary_file_size, input_size))
+
+        with open(binary_filename, 'r') as f:
+            binary_data = f.read()
+
+        binaries[b] = binary_data
+        binary_index += input_size
+
+    return binaries
 
 
 def fill_blob_with_image_info(image_size, shape):

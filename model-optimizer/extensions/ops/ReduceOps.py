@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,6 +28,8 @@ reduce_map = {
     'ReduceMin': np.min,
     'ReduceMean': np.mean,
     'ReduceAnd': np.all,
+    'ReduceLogicalAnd': np.all,
+    'ReduceLogicalOr': np.any,
 }
 
 
@@ -71,54 +73,82 @@ def reduce_infer(node: Node):
 
         node.out_port(0).data.set_shape(output_shape)
 
+    # if the operation changes the rank of the output tensor then it is necessary to insert Permute if the input is 4D
+    # or 5D
+    if not node.keep_dims:
+        node['reinterp_shape'] = True
+
     PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
 
 
 class ReduceOp(Op):
     enabled = False
     op = None
+    op_type = None
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'op': self.op,
-            'type': self.op,
+            'type': self.op_type,
             'infer': reduce_infer,
+            'keep_dims': 0,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'force_precision_in_ports': {1: 'int32'},
+            'force_precision_in_ports': {
+                1: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32'},
         }, attrs)
+        assert isinstance(self.attrs['keep_dims'], int) or isinstance(self.attrs['keep_dims'], bool)
+        self.attrs['keep_dims'] = bool(self.attrs['keep_dims'])
 
     def supported_attrs(self):
         return [
-            'keep_dims',
+            ('keep_dims', lambda node: str(node.keep_dims)),
         ]
 
 
 class ReduceSum(ReduceOp):
     enabled = True
     op = 'ReduceSum'
+    op_type = 'ReduceSum'
 
 
 class ReduceProd(ReduceOp):
     op = 'ReduceProd'
+    op_type = 'ReduceProd'
     enabled = True
 
 
 class ReduceMin(ReduceOp):
     op = 'ReduceMin'
+    op_type = 'ReduceMin'
     enabled = True
 
 
 class ReduceMax(ReduceOp):
     op = 'ReduceMax'
+    op_type = 'ReduceMax'
     enabled = True
 
 
 class ReduceMean(ReduceOp):
     op = 'ReduceMean'
+    op_type = 'ReduceMean'
     enabled = True
 
 
 class ReduceAnd(ReduceOp):
     op = 'ReduceAnd'
+    op_type = 'ReduceLogicalAnd'
+    enabled = True
+
+
+class ReduceLogicalAnd(ReduceOp):
+    op = 'ReduceLogicalAnd'
+    op_type = 'ReduceLogicalAnd'
+    enabled = True
+
+
+class ReduceLogicalOr(ReduceOp):
+    op = 'ReduceLogicalOr'
+    op_type = 'ReduceLogicalOr'
     enabled = True

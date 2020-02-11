@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,12 +19,13 @@ import unittest
 import numpy as np
 
 from extensions.front.LRNReplacer import LRNReplacer
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes_attributes = {
     'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     # LRN operation
-    'LRN': {'type': None, 'kind': 'op', 'op': 'LRN'},
+    'LRN': {'type': None, 'kind': 'op', 'op': 'AttributedLRN'},
     # Test operation
     'last': {'type': None, 'value': None, 'kind': 'op', 'op': None},
     # Mul operation

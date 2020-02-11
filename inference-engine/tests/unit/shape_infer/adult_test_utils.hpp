@@ -1,19 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <utility>
 
 #include <utility>
-
-// Copyright (C) 2018-2019 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
 
 #pragma once
 
 #include <gtest/gtest.h>
-#include <inference_engine/shape_infer/const_infer/ie_const_infer_holder.hpp>
+#include <shape_infer/const_infer/ie_const_infer_holder.hpp>
 #include "built_in_shape_infer_general_test.hpp"
 
 namespace IE = InferenceEngine;

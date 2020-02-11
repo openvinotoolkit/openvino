@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,6 +21,14 @@ from mo.utils.replacement_pattern import ReplacementPattern
 class BackReplacementPattern(ReplacementPattern):
     registered_ops = {}
     registered_cls = []
+
+    def run_after(self):
+        from extensions.back.pass_separator import BackStart
+        return [BackStart]
+
+    def run_before(self):
+        from extensions.back.pass_separator import BackFinish
+        return [BackFinish]
 
     @classmethod
     def class_type(cls):

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,6 @@
 #include <vpu/parsed_config.hpp>
 
 #include "myriad_executor.h"
-#include "myriad_executable_network.h"
 #include "myriad_infer_request.h"
 #include "myriad_async_infer_request.h"
 #include "myriad_config.h"
@@ -35,12 +34,16 @@ public:
 
     explicit ExecutableNetwork(InferenceEngine::ICNNNetwork &network,
                                std::vector<DevicePtr> &devicePool,
-                               const std::map<std::string, std::string> &config);
+                               const MyriadConfig& config);
 
+    explicit ExecutableNetwork(std::istream& strm,
+                               std::vector<DevicePtr> &devicePool,
+                               const MyriadConfig& config);
 
     explicit ExecutableNetwork(const std::string &blobFilename,
                                std::vector<DevicePtr> &devicePool,
-                               const std::map<std::string, std::string> &config);
+                               const MyriadConfig& config);
+
 
     virtual ~ExecutableNetwork() {
         try {
@@ -54,13 +57,18 @@ public:
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override {
+        if (_device == nullptr || !_device->isBooted()) {
+            THROW_IE_EXCEPTION << "Can not create infer request: there is no available devices with platform "
+                               << _device->_platform;
+        }
+
         return std::make_shared<MyriadInferRequest>(_graphDesc, networkInputs, networkOutputs,
                                                     _inputInfo, _outputInfo,
                                                     _graphMetaData.stagesMeta, _config, _log, _executor);
     }
 
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override {
-        if (!_device->isBooted()) {
+        if (_device == nullptr || !_device->isBooted()) {
             THROW_IE_EXCEPTION << "Can not create infer request: there is no available devices with platform "
                                << _device->_platform;
         }
@@ -72,18 +80,22 @@ public:
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
         auto asyncTreadSafeImpl = std::make_shared<MyriadAsyncInferRequest>(
-                syncRequestImpl, _taskExecutor, taskExecutorGetResult, _taskSynchronizer, _callbackExecutor);
+                syncRequestImpl, _taskExecutor, _callbackExecutor, taskExecutorGetResult);
         asyncRequest.reset(new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(
                            asyncTreadSafeImpl),
                            [](InferenceEngine::IInferRequest *p) { p->Release(); });
         asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
     }
 
+    void Export(std::ostream& model) override {
+        model.write(_graphBlob.data(), _graphBlob.size());
+    }
+
     void Export(const std::string &modelFileName) override {
         std::ofstream modelFile(modelFileName, std::ios::out | std::ios::binary);
 
         if (modelFile.is_open()) {
-            modelFile.write(_graphBlob.data(), _graphBlob.size());
+            Export(modelFile);
         } else {
             THROW_IE_EXCEPTION << "The " << modelFileName << " file can not be opened for export";
         }
@@ -98,6 +110,10 @@ public:
         THROW_IE_EXCEPTION << "GetMappedTopology is not implemented\n";
     }
 
+    void Import(std::istream& strm,
+                std::vector<DevicePtr> &devicePool,
+                const MyriadConfig& config);
+
 private:
     Logger::Ptr _log;
     MyriadExecutorPtr _executor;
@@ -105,7 +121,8 @@ private:
     GraphDesc _graphDesc;
     DevicePtr _device;
     GraphMetaInfo _graphMetaData;
-    std::shared_ptr<MyriadConfig> _config;
+    MyriadConfig _config;
+    int _actualNumExecutors = 0;
     std::vector<std::string> _supportedMetrics;
 
     DataInfo _inputInfo;
@@ -115,8 +132,7 @@ private:
     std::queue<std::string> _taskExecutorGetResultIds;
 
     ExecutableNetwork(std::vector<DevicePtr> &devicePool,
-                      const std::map<std::string, std::string> &config,
-                      ConfigMode mode = ConfigMode::DEFAULT_MODE);
+                      const MyriadConfig& config);
 
     InferenceEngine::ITaskExecutor::Ptr getNextTaskExecutor() {
         std::string id = _taskExecutorGetResultIds.front();

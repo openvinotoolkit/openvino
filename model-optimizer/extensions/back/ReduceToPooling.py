@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,13 +20,14 @@ import numpy as np
 
 from extensions.back.AvgPool import AvgPool
 from extensions.back.MaxPool import MaxPool
+from extensions.back.ScalarConstNormalize import ScalarNormalize
 from mo.back.replacement import BackReplacementPattern
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 from mo.ops.const import Const
 from mo.ops.pooling import Pooling
-from mo.ops.power import Power
+from mo.ops.power import AttributedPower
 from mo.ops.reshape import Reshape
 
 
@@ -44,7 +45,7 @@ class ReduceReplacer(BackReplacementPattern):
 
     def run_before(self):
         from extensions.back.ReshapeMutation import ReshapeMutation
-        return [ReshapeMutation, MaxPool, AvgPool]
+        return [ReshapeMutation, MaxPool, AvgPool, ScalarNormalize]
 
     def pattern(self):
         return dict(
@@ -74,29 +75,30 @@ class ReduceReplacer(BackReplacementPattern):
         input_shape = node.in_port(0).data.get_shape()
         output_shape = node.out_port(0).data.get_shape()
 
-        # normalize node axis to exclude negative indices
-        axis_data_value = node.in_port(1).data.get_value()
-        axis = int64_array([axis_data_value.item()]) if axis_data_value.size == 1 else axis_data_value
-        axis = [get_canonical_axis_index(input_shape, a) for a in axis]
-        assert 0 not in axis, 'The node "{}" is a Reduce operation for batch dimension which is not supported'.format(
-            node.name)
+        # normalize node axes to exclude negative indices
+        axes_data_value = node.in_port(1).data.get_value()
+        axes = int64_array([axes_data_value.item()]) if axes_data_value.size == 1 else axes_data_value
+        axes = [get_canonical_axis_index(input_shape, a) for a in axes]
+        axes = sorted(axes)
 
-        # Check that values in axis list are consecutive
-        for idx in range(1, len(axis)):
-            if axis[idx] != (axis[idx - 1] + 1):
-                log.error("Reduce with not consecutive axes {} is not supported ".format(axis))
+        # Check that values in axes list are consecutive
+        for idx in range(1, len(axes)):
+            if axes[idx] != (axes[idx - 1] + 1):
+                log.error("Reduce with not consecutive axes {} is not supported ".format(axes))
                 return
-        axis = sorted(axis)
         # So now we are sure that we can convert Reduce to appropriate operation
 
         # 1. Calculate shape that will be used in reduction
-        reduction_dim = np.prod([input_shape[idx] for idx in axis])
-        begin_dims = np.array([input_shape[idx] for idx in range(axis[0])])
-        end_dim = np.prod([input_shape[idx] for idx in range(axis[-1] + 1, len(input_shape))])
+        reduction_dim = np.prod([input_shape[idx] for idx in axes])
+        begin_dims = np.array([input_shape[idx] for idx in range(axes[0])])
+        end_dim = np.prod([input_shape[idx] for idx in range(axes[-1] + 1, len(input_shape))])
 
         # 2. Create reshape with appropriate shape
         if len(begin_dims) > 2:
-            begin_dims = int64_array([begin_dims[0], np.prod(begin_dims[1:])])
+            if 0 not in axes:
+                begin_dims = int64_array([begin_dims[0], np.prod(begin_dims[1:])])
+            else:
+                begin_dims = int64_array([np.prod(begin_dims[0:-1]), begin_dims[-1]])
         else:
             # Expand begin_dims to 2
             begin_dims = int64_array(np.append(begin_dims, [1] * (2 - len(begin_dims))))
@@ -132,13 +134,32 @@ class ReduceReplacer(BackReplacementPattern):
             data_nodes=output_data)
 
         # convert batch dimension to 0 to produce reshape-able IR over the batch dimension
-        reshape_dim_const_data.in_node(0).value[0] = 0
-        final_reshape_dim_const_data.in_node(0).value[0] = 0
+        if 0 not in axes:
+            reshape_dim_const_data.in_node(0).value[0] = 0
+            final_reshape_dim_const_data.in_node(0).value[0] = 0
 
         # 4. If it is reduction with summation, we need to multiply by size of the reduction slice with Mul op
         if reduce_type == 'ReduceSum':
             output_data.in_node().insert_node_with_data_after(
                 output_data,
-                Power,
+                AttributedPower,
                 {'name': node.name + '/Mul', 'scale': float(reduction_dim)}
             )
+
+
+class ReduceLogicalReplacer(BackReplacementPattern):
+    enabled = True
+    graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
+
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('reduce', dict(kind='op', type=lambda node_type: node_type is not None and
+                                                                  node_type.startswith('ReduceLogical')))
+            ],
+            edges=[]
+        )
+
+    def replace_pattern(self, graph: Graph, match: dict):
+        node = match['reduce']
+        node.type = node.type.replace('Logical', '')

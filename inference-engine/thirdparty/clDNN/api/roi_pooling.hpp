@@ -49,7 +49,11 @@ struct roi_pooling : public primitive_base<roi_pooling> {
           pooled_width(pooled_width),
           pooled_height(pooled_height),
           spatial_scale(spatial_scale),
+          trans_std(0.0f),
+          no_trans(false),
           output_dim(output_dim),
+          part_size(0),
+          group_size(0),
           spatial_bins_x(spatial_bins_x),
           spatial_bins_y(spatial_bins_y) {}
 

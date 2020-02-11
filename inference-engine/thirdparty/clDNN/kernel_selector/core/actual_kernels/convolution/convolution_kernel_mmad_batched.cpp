@@ -32,8 +32,7 @@ ParamsKey ConvolutionKernel_mmad_batched::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableSplitSupport();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.DisableTuning();
     return k;
 }

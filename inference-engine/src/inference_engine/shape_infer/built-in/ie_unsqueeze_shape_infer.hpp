@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,13 +8,14 @@
 #define NOMINMAX
 #endif
 
-#include "ie_built_in_impl.hpp"
+#include <algorithm>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <iostream>
-#include <algorithm>
+
+#include "ie_built_in_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -24,13 +25,11 @@ namespace ShapeInfer {
  */
 class UnsqueezeShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit UnsqueezeShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
+    explicit UnsqueezeShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-                         const std::map<std::string, std::string>& params,
-                         const std::map<std::string, Blob::Ptr>& blobs,
-                         std::vector<SizeVector>& outShapes) override {
-        LayerParams lp{};
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
+        LayerParams lp {};
         CNNLayer unsqueezeLayer(lp);
         unsqueezeLayer.params = params;
         unsqueezeLayer.type = _type;
@@ -42,38 +41,31 @@ public:
         SizeVector idx_dims = inBlobs[UNSQUEEZE_INDEXES]->getTensorDesc().getDims();
         SizeVector data_dims = inBlobs[UNSQUEEZE_DATA]->getTensorDesc().getDims();
         SizeVector outShape;
-        if (idx_dims.size() > 1)
-            THROW_IE_EXCEPTION << " Index vector should be 1 dimension";
+        if (idx_dims.size() > 1) THROW_IE_EXCEPTION << " Index vector should be 1 dimension";
 
         size_t max = data_dims.size();
         switch (inBlobs[UNSQUEEZE_INDEXES]->getTensorDesc().getPrecision()) {
-            case Precision::FP32: {
-                procIndices<float>(inBlobs, UNSQUEEZE_INDEXES, data_dims, outShape, idx_dims);
-            }
-                break;
-            case Precision::FP16: {
-                procIndices<ie_fp16>(inBlobs, UNSQUEEZE_INDEXES, data_dims, outShape, idx_dims);
-            }
-                break;
-            case Precision::I32: {
-                procIndices<int32_t>(inBlobs, UNSQUEEZE_INDEXES, data_dims, outShape, idx_dims);
-            }
-                break;
-            default:
-                THROW_IE_EXCEPTION << "Incorrect 'indices_to_set' input precision. Only FP32, FP16 and I32 are supported!";
+        case Precision::FP32: {
+            procIndices<float>(inBlobs, UNSQUEEZE_INDEXES, data_dims, outShape, idx_dims);
+        } break;
+        case Precision::FP16: {
+            procIndices<ie_fp16>(inBlobs, UNSQUEEZE_INDEXES, data_dims, outShape, idx_dims);
+        } break;
+        case Precision::I32: {
+            procIndices<int32_t>(inBlobs, UNSQUEEZE_INDEXES, data_dims, outShape, idx_dims);
+        } break;
+        default:
+            THROW_IE_EXCEPTION << "Incorrect 'indices_to_set' input precision. Only FP32, FP16 and I32 are supported!";
         }
         outShapes.push_back(outShape);
     }
 
 private:
-    template<typename T>
-    void procIndices(const std::vector<Blob::CPtr>& inBlobs,
-                     const size_t UNSQUEEZE_INDEXES,
-                     SizeVector& data_dims,
-                     SizeVector& outShape,
-                     const SizeVector &idx_dims) {
+    template <typename T>
+    void procIndices(const std::vector<Blob::CPtr>& inBlobs, const size_t UNSQUEEZE_INDEXES, SizeVector& data_dims,
+                     SizeVector& outShape, const SizeVector& idx_dims) {
         T* idx_data = inBlobs[UNSQUEEZE_INDEXES]->cbuffer().as<T*>() +
-                            inBlobs[UNSQUEEZE_INDEXES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+                      inBlobs[UNSQUEEZE_INDEXES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         if (!idx_data) {
             outShape = data_dims;
             return;
@@ -116,4 +108,3 @@ private:
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine
-

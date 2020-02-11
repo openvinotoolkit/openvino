@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -115,8 +115,7 @@ class Benchmark:
                     self.ie.set_config({'CLDNN_PLUGIN_THROTTLE': '1'}, device)
 
             elif device == MYRIAD_DEVICE_NAME:
-                self.ie.set_config({'LOG_LEVEL': 'LOG_INFO',
-                                    'VPU_LOG_LEVEL': 'LOG_WARNING'}, MYRIAD_DEVICE_NAME)
+                self.ie.set_config({'LOG_LEVEL': 'LOG_INFO'}, MYRIAD_DEVICE_NAME)
 
     def load_network(self, ie_network: IENetwork, perf_counts: bool, number_infer_requests: int = None):
         config = {'PERF_COUNT': ('YES' if perf_counts else 'NO')}

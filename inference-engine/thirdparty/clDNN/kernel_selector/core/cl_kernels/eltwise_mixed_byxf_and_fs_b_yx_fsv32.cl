@@ -38,9 +38,9 @@ KERNEL(eltwise_mixed_byxf_and_fs_b_yx_fsv32)(
     const uint fs = bfs / INPUT0_BATCH_NUM;
     const uint f0 = fs * REQD_FEATURE_SLICE_SIZE; //number of first feature in slice
 
-    const uint input_0_offset = GET_INPUT_0_DATA_INDEX(b,f0,y,x);
-    const uint input_1_offset = GET_INPUT_1_DATA_INDEX(b,f0,y,x);
-    const uint output_offset  = GET_OUTPUT_DATA_INDEX(b,f0,y,x);
+    const uint input_0_offset = INPUT0_GET_INDEX(INPUT0_DIM_b, INPUT0_DIM_f0, INPUT0_DIM_y, INPUT0_DIM_x);
+    const uint input_1_offset = INPUT1_GET_INDEX(INPUT1_DIM_b, INPUT1_DIM_f0, INPUT1_DIM_y, INPUT1_DIM_x);
+    const uint output_offset  = OUTPUT_GET_INDEX(b,f0,y,x);
 
     UNIT_TYPE2 in1;
     UNIT_TYPE2 in2;

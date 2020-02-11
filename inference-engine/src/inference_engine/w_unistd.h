@@ -1,10 +1,15 @@
-﻿// Copyright (C) 2018-2019 Intel Corporation
+﻿// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+// clang-format off
 #if defined(_WIN32)
+
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
 
 #include <winsock2.h>
 #include <windows.h>
@@ -41,5 +46,4 @@ static inline int SecuredGetEnv(const char *envName, char *buf, int bufLen) {
 }
 
 #endif
-
-
+// clang-format on

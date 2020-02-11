@@ -1,38 +1,50 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <vector>
-
-#include <ngraph_ops/scaleshift.hpp>
-#include <ngraph_ops/power.hpp>
-
 #include "convert_mul_add_to_scaleshift_or_power.hpp"
 
-#include "ngraph/op/add.hpp"
-#include "ngraph/op/reshape.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/experimental/dyn_broadcast.hpp"
-#include "ngraph/pattern/matcher.hpp"
+#include <memory>
+#include <ngraph_ops/power.hpp>
+#include <ngraph_ops/scaleshift.hpp>
+#include <vector>
+#include <algorithm>
 
 #include "ngraph/graph_util.hpp"
+#include "ngraph/op/add.hpp"
+#include "ngraph/op/broadcast.hpp"
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/experimental/dyn_broadcast.hpp"
+#include "ngraph/op/multiply.hpp"
+#include "ngraph/op/reshape.hpp"
+#include "ngraph/pattern/matcher.hpp"
+#include "utils/utils.hpp"
 
-CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::op::Constant> & constant,
-                                 const std::vector<int64_t> & output_shape) {
+CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::op::Constant>& constant,
+                                 const ngraph::Shape& shape) {
     if (!constant) return CONVERSION_RESULT::NONE;
 
-    auto input_shape = constant->get_shape();
+    auto const_shape = constant->get_shape();
+    auto input_shape = shape;
+
+    // In case of scalar we will convert it to Power
+    if (const_shape.empty() || (const_shape.size() == 1 && const_shape[0] == 1)) {
+        return CONVERSION_RESULT::POWER;
+    }
+
+    // Align shapes
+    size_t max_shape_len = std::max(input_shape.size(), const_shape.size());
+    while (const_shape.size() < max_shape_len) const_shape.insert(const_shape.begin(), 1);
+    while (input_shape.size() < max_shape_len) input_shape.insert(input_shape.begin(), 1);
 
     // This is feature dimension index from right side (ex. for NCDHW it's equal to 3).
-    const size_t feature_index = output_shape.size() - 2;
-    if (input_shape.size() < feature_index) return CONVERSION_RESULT::NONE;
+    const size_t feature_index = input_shape.size() - 2;
+    if (const_shape.size() < feature_index) return CONVERSION_RESULT::NONE;
 
     bool is_power = false;
-    auto in_it = input_shape.rbegin();
-    auto out_it = output_shape.rbegin();
-    for (int idx = 0; in_it != input_shape.rend() && out_it != output_shape.rend(); ++in_it, ++out_it, ++idx) {
+    auto in_it = const_shape.rbegin();
+    auto out_it = input_shape.rbegin();
+    for (int idx = 0; in_it != const_shape.rend() && out_it != input_shape.rend(); ++in_it, ++out_it, ++idx) {
         if (idx != feature_index && *in_it != 1) {
             return CONVERSION_RESULT::NONE;
         }
@@ -47,100 +59,107 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::op::Constant> & c
     return is_power ? CONVERSION_RESULT::POWER : CONVERSION_RESULT::SCALE_SHIFT;
 }
 
-std::shared_ptr<ngraph::Node> normalize_constant(const std::shared_ptr<ngraph::op::Constant> & constant,
-                                                 const ngraph::Shape & shape) {
-    auto const_shape = constant->get_shape();
-    if (const_shape.size() == shape.size()) {
-        return std::dynamic_pointer_cast<ngraph::Node> (constant);
-    }
-    int cnt = shape.size() - const_shape.size();
-    for (int i = 0; i < cnt; ++i) {
-        const_shape.insert(const_shape.begin(), 1);
-    }
-
-    auto order = ngraph::get_default_order(constant->get_shape());
-    auto reshape = std::make_shared<ngraph::op::Reshape>(constant, order, const_shape);
-    return std::dynamic_pointer_cast<ngraph::Node> (reshape);
-}
-
-CONVERSION_RESULT check_dyn_broadcast(const std::shared_ptr<ngraph::op::DynBroadcast> & broadcast) {
-    if (!broadcast) return CONVERSION_RESULT::NONE;
-
-    auto shape_node = std::dynamic_pointer_cast<ngraph::op::Constant>(broadcast->get_inputs()[1].get_output().get_node());
-    auto output_shape = shape_node->get_vector<int64_t>();
-
-    auto data_node =  std::dynamic_pointer_cast<ngraph::op::Constant>(broadcast->get_inputs()[0].get_output().get_node());
-    if (!data_node) return CONVERSION_RESULT::NONE;
-
-    return check_constant(data_node, output_shape);
-}
-
 void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshift_or_power() {
-    Shape shape{2, 2, 1, 1};
-    auto data_batch = std::make_shared<pattern::op::Label>(element::f32, shape);
+    auto data_batch = std::make_shared<pattern::op::Label>(element::f32, Shape {1});
 
-    auto weights = std::make_shared<pattern::op::Label>(element::f32, Shape{});
-    auto shp1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
-    auto axs1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
-    auto broadcast1 = std::make_shared<ngraph::op::DynBroadcast>(weights, shp1, axs1);
+    auto weights = std::make_shared<ngraph::op::Constant>(element::f32, Shape {1}, std::vector<float> {0});
+    auto bias = std::make_shared<ngraph::op::Constant>(element::f32, Shape {1}, std::vector<float> {0});
 
-    auto bias = std::make_shared<pattern::op::Label>(element::f32, Shape{});
-    auto shp2 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
-    auto axs2 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
-    auto broadcast2 = std::make_shared<ngraph::op::DynBroadcast>(bias, shp2, axs2);
-
-    auto mul = std::make_shared<ngraph::op::Multiply>(data_batch, broadcast1);
-    auto add = std::make_shared<ngraph::op::Add>(mul, broadcast2);
+    auto mul = std::make_shared<ngraph::op::v1::Multiply>(data_batch, weights);
+    auto add = std::make_shared<ngraph::op::v1::Add>(mul, bias);
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-        auto add_node = std::dynamic_pointer_cast<ngraph::op::Add> (m.get_match_root());
+        auto add_node = ngraph::as_type_ptr<ngraph::op::v1::Add>(m.get_match_root());
+
         if (!add_node) {
             return false;
         }
 
-        auto mul_node = std::dynamic_pointer_cast<ngraph::op::Multiply> (add_node->get_argument(0));
-        auto broadcast_bias_node = std::dynamic_pointer_cast<ngraph::op::DynBroadcast> (add_node->get_argument(1));
-        if (!mul_node) {
-            mul_node = std::dynamic_pointer_cast<ngraph::op::Multiply> (add_node->get_argument(1));
-            broadcast_bias_node = std::dynamic_pointer_cast<ngraph::op::DynBroadcast> (add_node->get_argument(0));
-        }
-
-        auto data_node = std::dynamic_pointer_cast<Node> (mul_node->get_argument(0));
-        auto broadcast_weights_node = std::dynamic_pointer_cast<ngraph::op::DynBroadcast> (mul_node->get_argument(1));
-        if (!broadcast_weights_node) {
-            data_node = std::dynamic_pointer_cast<Node> (mul_node->get_argument(1));
-            broadcast_weights_node = std::dynamic_pointer_cast<ngraph::op::DynBroadcast> (mul_node->get_argument(0));
-        }
-
-        // Check that DynBroadcast inputs are applicable for ScaleShift
-        auto res1 = check_dyn_broadcast(broadcast_weights_node);
-        auto res2 = check_dyn_broadcast(broadcast_bias_node);
-
-        // TODO: in case Power|Scaleshift results, do we need to expand weights|biases to ScaleShift?
-        if ((res1 == CONVERSION_RESULT::NONE || res2 == CONVERSION_RESULT::NONE) || (res1 != res2)) {
+        if (!add_node->get_element_type().is_real()) {
             return false;
         }
 
-        auto weights_node = std::dynamic_pointer_cast<ngraph::op::Constant>(broadcast_weights_node->get_inputs()[0].get_output().get_node());
-        auto bias_node = std::dynamic_pointer_cast<ngraph::op::Constant>(broadcast_bias_node->get_inputs()[0].get_output().get_node());
+        auto add_input_0 = add_node->input(0).get_source_output().get_node_shared_ptr();
+        auto add_input_1 = add_node->input(1).get_source_output().get_node_shared_ptr();
 
-        if (res1 == CONVERSION_RESULT::SCALE_SHIFT) {
-            auto scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node,
-                                                                         normalize_constant(weights_node, add_node->get_shape()),
-                                                                         normalize_constant(bias_node, add_node->get_shape()));
+        auto mul_node = ngraph::as_type_ptr<ngraph::op::v1::Multiply>(add_input_0);
+        auto const_bias_node = ngraph::as_type_ptr<ngraph::op::Constant>(add_input_1);
+        if (!mul_node) {
+            mul_node = ngraph::as_type_ptr<ngraph::op::v1::Multiply>(add_input_1);
+            const_bias_node = ngraph::as_type_ptr<ngraph::op::Constant>(add_input_0);
+        }
+
+        auto mul_input_0 = mul_node->input(0).get_source_output().get_node_shared_ptr();
+        auto mul_input_1 = mul_node->input(1).get_source_output().get_node_shared_ptr();
+
+        auto data_node = mul_node->input(0).get_source_output();
+        auto const_weights_node = ngraph::as_type_ptr<ngraph::op::Constant>(mul_input_1);
+        if (!const_weights_node) {
+            data_node = mul_node->input(1).get_source_output();
+            const_weights_node = ngraph::as_type_ptr<ngraph::op::Constant>(mul_input_0);
+        }
+
+        // Check that eltwise is not useless otherwise we remove it
+        if (ngraph::op::util::constantIsEqualTo(const_weights_node, 1) &&
+            ngraph::op::util::constantIsEqualTo(const_bias_node, 0)) {
+            bool has_result_output = false;
+            for (const auto & output : add_node->output(0).get_target_inputs()) {
+                if (dynamic_cast<ngraph::op::Result*>(output.get_node())) {
+                    has_result_output = true;
+                }
+            }
+
+            auto parent = data_node.get_node_shared_ptr();
+            size_t consumers_count = 0;
+            for (const auto &output : parent->outputs()) {
+                consumers_count += output.get_target_inputs().size();
+            }
+
+            if (!has_result_output || consumers_count == 1) {
+                if (!std::dynamic_pointer_cast<ngraph::op::Parameter>(parent)) {
+                    parent->set_friendly_name(add_node->get_friendly_name());
+                }
+                // TODO: due to ngraph::replace_node function limitations we have to reconnect output port consumers to the new input
+                // using replace_source_output method
+                for (auto &input : add_node->output(0).get_target_inputs()) {
+                    input.replace_source_output(data_node);
+                }
+                return true;
+            }
+        }
+
+        auto res1 = check_constant(const_weights_node, data_node.get_shape());
+        auto res2 = check_constant(const_bias_node, mul_node->get_output_shape(0));
+
+        if (res1 == CONVERSION_RESULT::NONE || res2 == CONVERSION_RESULT::NONE ||
+            ((res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) && add_node->get_shape().size() < 4)) {
+            return false;
+        }
+
+        // TODO: in case if scale and shift constants has equal values the best way is to convert them to Power
+        if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) {
+            auto weights_in = ngraph::op::util::normalize_constant(const_weights_node, add_node->get_shape());
+            auto biases_in = ngraph::op::util::normalize_constant(const_bias_node, add_node->get_shape());
+            if (res1 == CONVERSION_RESULT::POWER)
+                weights_in = ngraph::op::util::broadcastTo(weights_in, biases_in->get_shape());
+            if (res2 == CONVERSION_RESULT::POWER)
+                biases_in = ngraph::op::util::broadcastTo(biases_in, weights_in->get_shape());
+
+            auto scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, weights_in, biases_in);
             scaleshift->set_friendly_name(add_node->get_friendly_name());
             ngraph::replace_node(m.get_match_root(), std::dynamic_pointer_cast<Node>(scaleshift));
         } else {
-            // TODO: currently only FP32 support
-            if (weights_node->get_element_type() != element::f32) return false;
-            if (bias_node->get_element_type() != element::f32) return false;
+            float scale = 0.f, shift = 0.f;
+            if (!op::util::get_single_value(const_weights_node, scale)) {
+                return false;
+            }
+            if (!op::util::get_single_value(const_bias_node, shift)) {
+                return false;
+            }
 
-            auto power = std::make_shared<ngraph::op::PowerIE>(data_node,
-                                                             1.,
-                                                             *weights_node->get_vector<float>().begin(),
-                                                             *bias_node->get_vector<float>().begin());
+            auto power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., scale, shift);
             power->set_friendly_name(add_node->get_friendly_name());
-            ngraph::replace_node(m.get_match_root(), std::dynamic_pointer_cast<Node>(power));
+            ngraph::replace_node(m.get_match_root(), power);
         }
 
         return true;

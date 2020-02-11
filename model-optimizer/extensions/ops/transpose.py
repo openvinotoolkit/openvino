@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -55,7 +55,9 @@ class Transpose(Op):
             PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'order')
 
         # setting shape and value if applicable
-        node.out_port(0).data.set_shape(input_shape[order])
         if node.in_port(0).data.get_value() is not None:
             node.out_port(0).data.set_value(np.transpose(node.in_port(0).data.get_value(), axes=order))
+        else:
+            node.out_port(0).data.set_shape(input_shape[order])
+
 

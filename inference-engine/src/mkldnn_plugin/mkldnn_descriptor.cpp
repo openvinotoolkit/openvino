@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -189,12 +189,12 @@ MKLDNNDescriptor::operator std::shared_ptr<mkldnn::eltwise_forward::desc>() {
     return typeDesc->getPtr();
 }
 
-MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::binarization_forward::desc> desc) {
-    this->desc.reset(new DescFwdImpl<mkldnn::binarization_forward::desc>(desc));
+MKLDNNDescriptor::MKLDNNDescriptor(std::shared_ptr<mkldnn::quantization_forward::desc> desc) {
+    this->desc.reset(new DescFwdImpl<mkldnn::quantization_forward::desc>(desc));
 }
 
-MKLDNNDescriptor::operator std::shared_ptr<mkldnn::binarization_forward::desc>() {
-    auto *typeDesc = dynamic_cast<DescFwdImpl<mkldnn::binarization_forward::desc> *>(desc.get());
+MKLDNNDescriptor::operator std::shared_ptr<mkldnn::quantization_forward::desc>() {
+    auto *typeDesc = dynamic_cast<DescFwdImpl<mkldnn::quantization_forward::desc> *>(desc.get());
     if (typeDesc == nullptr) {
         THROW_IE_EXCEPTION << "Cannot cast descriptor!";
     }

@@ -1,15 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <memory>
 #include <map>
+#include <memory>
 #include <string>
-#include <cpp_interfaces/ie_task.hpp>
-#include "cpp_interfaces/interface/ie_iinfer_async_request_internal.hpp"
+
 #include "cpp_interfaces/impl/ie_infer_request_internal.hpp"
+#include "cpp_interfaces/interface/ie_iinfer_async_request_internal.hpp"
 
 namespace InferenceEngine {
 
@@ -20,19 +20,19 @@ class AsyncInferRequestInternal : public IAsyncInferRequestInternal, public Infe
 public:
     typedef std::shared_ptr<AsyncInferRequestInternal> Ptr;
 
-    explicit AsyncInferRequestInternal(const InputsDataMap &networkInputs, const OutputsDataMap &networkOutputs)
-            : InferRequestInternal(networkInputs, networkOutputs), _callback(nullptr), _userData(nullptr) {}
+    explicit AsyncInferRequestInternal(const InputsDataMap& networkInputs, const OutputsDataMap& networkOutputs)
+        : InferRequestInternal(networkInputs, networkOutputs), _callback(nullptr), _userData(nullptr) {}
 
     void SetCompletionCallback(InferenceEngine::IInferRequest::CompletionCallback callback) override {
         _callback = callback;
     }
 
-    void GetUserData(void **data) override {
+    void GetUserData(void** data) override {
         if (data == nullptr) THROW_IE_EXCEPTION << NOT_ALLOCATED_str;
         *data = _userData;
     }
 
-    void SetUserData(void *data) override {
+    void SetUserData(void* data) override {
         _userData = data;
     }
 
@@ -46,7 +46,8 @@ public:
     }
 
     /**
-     * @brief The minimal infer function to be implemented by plugins. It starts inference of specified input(s) in asynchronous mode
+     * @brief The minimal infer function to be implemented by plugins. It starts inference of specified input(s) in
+     * asynchronous mode
      * @note: It returns immediately. Inference starts also immediately.
      */
     virtual void StartAsyncImpl() = 0;
@@ -59,7 +60,7 @@ public:
 protected:
     IInferRequest::WeakPtr _publicInterface;
     InferenceEngine::IInferRequest::CompletionCallback _callback;
-    void *_userData;
+    void* _userData;
 };
 
 }  // namespace InferenceEngine

@@ -24,11 +24,11 @@
 namespace cldnn {
 
 struct memory_impl : refcounted_obj<memory_impl> {
-    memory_impl(const engine_impl::ptr& engine, const layout& layout, uint16_t stream_id, bool reused = false)
-        : _engine(engine), _layout(layout), _stream_id(stream_id), _reused(reused), _bytes_count(_layout.bytes_count()) {}
+    memory_impl(const engine_impl::ptr& engine, const layout& layout, uint32_t net_id, bool reused = false)
+        : _engine(engine.get()), _layout(layout), _net_id(net_id), _reused(reused), _bytes_count(_layout.bytes_count()) {}
 
     virtual ~memory_impl() {
-        if (_engine != (engine_impl::ptr) nullptr && !_reused) {
+        if (_engine != nullptr && !_reused) {
             _engine->get_memory_pool().subtract_memory_used(_bytes_count);
         }
     }
@@ -36,15 +36,17 @@ struct memory_impl : refcounted_obj<memory_impl> {
     virtual void unlock() = 0;
     virtual void fill(unsigned char pattern, event_impl::ptr ev) = 0;
     size_t size() const { return _bytes_count; }
-    virtual bool is_allocated_by(const engine_impl& engine) const { return &engine == _engine.get(); }
-    const refcounted_obj_ptr<engine_impl>& get_engine() const { return _engine; }
+    virtual shared_mem_params get_internal_params() const = 0;
+    virtual bool is_allocated_by(const engine_impl& engine) const { return &engine == _engine; }
+    refcounted_obj_ptr<engine_impl> get_engine() const { return engine_impl::ptr(_engine); }
     const layout& get_layout() const { return _layout; }
-    uint16_t get_stream_id() const { return _stream_id; }
+    uint32_t get_net_id() const { return _net_id; }
+    void set_net(uint32_t id) { _net_id = id; }
 
 protected:
-    const engine_impl::ptr _engine;
+    engine_impl *const _engine;
     const layout _layout;
-    uint16_t _stream_id;
+    uint32_t _net_id;
 
 private:
     bool _reused;
@@ -54,12 +56,19 @@ private:
 };
 
 struct simple_attached_memory : memory_impl {
-    simple_attached_memory(const layout& layout, void* pointer, uint16_t stream_id)
-        : memory_impl((engine_impl::ptr) nullptr, layout, stream_id), _pointer(pointer) {}
+    simple_attached_memory(const layout& layout, void* pointer, uint32_t net_id)
+        : memory_impl((engine_impl::ptr) nullptr, layout, net_id), _pointer(pointer) {}
 
     void* lock() override { return _pointer; }
     void unlock() override {}
     void fill(unsigned char, event_impl::ptr) override {}
+    shared_mem_params get_internal_params() const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
+#ifdef WIN32
+        nullptr,
+#else
+        0,
+#endif
+        0}; };
 
 private:
     void* _pointer;

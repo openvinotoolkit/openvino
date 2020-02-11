@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,9 +21,6 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-
-private:
-    static Register<MKLDNNReshapeNode> reg;
 };
 
 }  // namespace MKLDNNPlugin

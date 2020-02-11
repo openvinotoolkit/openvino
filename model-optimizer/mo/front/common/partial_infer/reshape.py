@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ def tf_reshape_shape_infer(node):
     new_dim = total // res
     output_shape = []
     for index, x in enumerate(reshape_output):
-        if x == 0:
+        if x == 0 and node.has_and_set('special_zero'):
             output_shape.append(input_shape[index])
         elif x == -1:
             output_shape.append(new_dim)

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,23 +13,22 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.ops.mvn import MVN
 from mo.front.caffe.collect_attributes import collect_attributes
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
 
 
 class MVNFrontExtractor(FrontExtractorOp):
     op = 'MVN'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         proto_layer = node.pb
         param = proto_layer.mvn_param
 
         attrs = collect_attributes(param)
 
         # update the attributes of the node
-        Op.get_op_class_by_name(__class__.op).update_node_stat(node, attrs)
-        return __class__.enabled
+        MVN.update_node_stat(node, attrs)
+        return cls.enabled

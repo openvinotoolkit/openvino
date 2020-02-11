@@ -1,18 +1,18 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "blob_factory.hpp"
 #include "ie_blob.h"
 #include "ie_compound_blob.h"
-#include "blob_factory.hpp"
-
-#include <memory>
-#include <vector>
-#include <utility>
 
 namespace InferenceEngine {
 
-Blob::Ptr make_shared_blob(const Blob::Ptr &inputBlob, const ROI &roi) {
+Blob::Ptr make_shared_blob(const Blob::Ptr& inputBlob, const ROI& roi) {
     // reject compound blobs
     if (inputBlob->is<CompoundBlob>()) {
         THROW_IE_EXCEPTION << "Compound blobs do not support ROI";
@@ -32,21 +32,19 @@ Blob::Ptr make_shared_blob(const Blob::Ptr &inputBlob, const ROI &roi) {
 
     Layout blobLayout = inputBlob->getTensorDesc().getLayout();
     switch (blobLayout) {
-        case NCHW: {
-            blkOffset = inputBlob->getTensorDesc().getDims()[3] * roi.posY + roi.posX;
-            blkOrder = {0, 1, 2, 3};
-            blkDims = {1, blkDimsC, blkDimsH, blkDimsW};  // we use BlockingDesc for 1 cropped image only
-        }
-        break;
-        case NHWC: {
-            blkOffset = blkDimsC * (inputBlob->getTensorDesc().getDims()[3] * roi.posY + roi.posX);
-            blkOrder = {0, 2, 3, 1};
-            blkDims = {1, blkDimsH, blkDimsW, blkDimsC};  // we use BlockingDesc for 1 cropped image only
-        }
-        break;
-        default: {
-            THROW_IE_EXCEPTION << "ROI could not be cropped due to inconsistent input layout: " << blobLayout;
-        }
+    case NCHW: {
+        blkOffset = inputBlob->getTensorDesc().getDims()[3] * roi.posY + roi.posX;
+        blkOrder = {0, 1, 2, 3};
+        blkDims = {1, blkDimsC, blkDimsH, blkDimsW};  // we use BlockingDesc for 1 cropped image only
+    } break;
+    case NHWC: {
+        blkOffset = blkDimsC * (inputBlob->getTensorDesc().getDims()[3] * roi.posY + roi.posX);
+        blkOrder = {0, 2, 3, 1};
+        blkDims = {1, blkDimsH, blkDimsW, blkDimsC};  // we use BlockingDesc for 1 cropped image only
+    } break;
+    default: {
+        THROW_IE_EXCEPTION << "ROI could not be cropped due to inconsistent input layout: " << blobLayout;
+    }
     }
 
     // the strides are the same because ROI blob uses the same memory buffer as original input blob.

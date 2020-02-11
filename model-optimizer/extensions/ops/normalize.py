@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ from mo.front.common.partial_infer.utils import mark_input_bins
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
+from mo.utils.utils import convert_param_type
 
 
 class NormalizeOp(Op):
@@ -35,8 +36,20 @@ class NormalizeOp(Op):
             'infer': __class__.infer
         }, attrs)
 
+        if 'across_spatial' in self.attrs and isinstance(self.attrs['across_spatial'], str):
+            self.attrs['across_spatial'] = int(self.attrs['across_spatial'])
+
+        if 'channel_shared' in self.attrs and isinstance(self.attrs['channel_shared'], str):
+            self.attrs['channel_shared'] = int(self.attrs['channel_shared'])
+
+        self.attrs['across_spatial'] = bool(self.attrs['across_spatial'])
+        self.attrs['channel_shared'] = bool(self.attrs['channel_shared'])
+
     def supported_attrs(self):
-        return ['eps', 'eps_mode', 'across_spatial', 'channel_shared']
+        return ['eps', 'eps_mode',
+                ('across_spatial', lambda node: convert_param_type(node, 'across_spatial', bool, int)),
+                ('channel_shared', lambda node: convert_param_type(node, 'channel_shared', bool, int)),
+                ]
 
     @staticmethod
     def infer(node: Node):

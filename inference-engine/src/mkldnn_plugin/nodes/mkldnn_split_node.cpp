@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <limits>
+#include <ie_parallel.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -57,9 +58,6 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].desc = MKLDNNMemoryDesc(srcDims, inputDataType, memory::format::any);
     config.outConfs.resize(outDims.size());
 
-    if (srcDims.ndims() < 2)
-        THROW_IE_EXCEPTION << "Split " << getName() << " isn't supported 1d blobs";
-
     std::vector<memory::format> outFormats;
 
     auto axis_size = 0;
@@ -92,7 +90,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 
     SizeVector order;
     SizeVector offsets(numOfDim, 0lu);
-    size_t offset = std::numeric_limits<size_t>::max();
+    size_t offset = (std::numeric_limits<size_t>::max)();
     for (size_t i = 0; i < numOfDim; i++) {
         order.push_back(i);
     }
@@ -101,7 +99,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     strides[numOfDim - 1] = 1;
     for (size_t i = 2; i <= numOfDim; i++) {
         if (numOfDim - i < axis) {
-            strides[numOfDim - i] = std::numeric_limits<size_t>::max();
+            strides[numOfDim - i] = (std::numeric_limits<size_t>::max)();
         } else {
             strides[numOfDim - i] = strides[numOfDim - i + 1] * srcDims[numOfDim - i + 1];
         }
@@ -137,7 +135,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         strides[numOfDim - 1] = 1lu;
         for (size_t i = 2; i <= numOfDim; i++) {
             if (numOfDim - i < axis) {
-                strides[numOfDim - i] = std::numeric_limits<size_t>::max();
+                strides[numOfDim - i] = (std::numeric_limits<size_t>::max)();
             } else {
                 strides[numOfDim - i] = strides[numOfDim - i + 1] * blkDims[numOfDim - i + 1];
             }
@@ -175,6 +173,55 @@ void MKLDNNSplitNode::createPrimitive() {
     }
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+
+    canUseOptimizedImpl = true;
+    if (axis != 1)
+        canUseOptimizedImpl = false;
+
+    if (getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NHWC &&
+        getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NDHWC)
+        canUseOptimizedImpl = false;
+
+    for (size_t i = 0; i < getChildEdges().size(); i++) {
+        if (getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCHW &&
+            getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCDHW)
+            canUseOptimizedImpl = false;
+    }
+}
+
+void MKLDNNSplitNode::optimizedImpl(size_t MB) {
+    const int ndims = getParentEdgeAt(0)->getDims().ndims();
+    const size_t IC = getParentEdgeAt(0)->getDims()[1];
+    const size_t D = ndims == 5 ? getParentEdgeAt(0)->getDims()[ndims - 3] : 1;
+    const size_t H = getParentEdgeAt(0)->getDims()[ndims - 2];
+    const size_t W = getParentEdgeAt(0)->getDims()[ndims - 1];
+
+    auto srcBlob = getParentEdgeAt(0)->getBlob();
+    const auto *srcData = srcBlob->cbuffer().as<const float *>();
+    for (size_t i = 0, sIdx = 0; i < getChildEdges().size(); i++) {
+        auto dstBlob = getChildEdgeAt(i)->getBlob();
+        auto *dstData = dstBlob->buffer().as<float *>();
+
+        const size_t OC = getChildEdgeAt(i)->getDims()[1];
+
+        size_t innerSize = 1;
+        for (size_t j = axis; j < dstBlob->getTensorDesc().getDims().size(); j++) {
+            innerSize *= dstBlob->getTensorDesc().getDims()[j];
+        }
+
+        auto srcPtr = srcData + srcBlob->getTensorDesc().offset(sIdx);
+
+        parallel_for4d(MB, D, H, W, [&](size_t b, size_t d, size_t h, size_t w) {
+            for (size_t c = 0; c < OC; c++) {
+                size_t srcOff = b*D*H*W*IC + d*H*W*IC + h*W*IC + w*IC + c;
+                size_t dstOff = b*OC*D*H*W + c*D*H*W + d*H*W + h*W + w;
+
+                dstData[dstOff] = srcPtr[srcOff];
+            }
+        });
+
+        sIdx += innerSize;
+    }
 }
 
 void MKLDNNSplitNode::execute(mkldnn::stream strm) {
@@ -195,9 +242,14 @@ void MKLDNNSplitNode::execute(mkldnn::stream strm) {
             outerSize *= srcBlob->getTensorDesc().getDims()[i];
     }
 
+    if (canUseOptimizedImpl) {
+        optimizedImpl(MB);
+        return;
+    }
+
     size_t srcSize = getParentEdgeAt(0)->getMemory().GetSize();
     size_t src_batch_off = srcBlob->getTensorDesc().offset(srcBlob->size() / outerSize)
-            - srcBlob->getTensorDesc().offset(0);
+                           - srcBlob->getTensorDesc().offset(0);
 
     for (size_t i = 0, sIdx = 0; i < getChildEdges().size(); i++) {
         auto dstBlob = getChildEdgeAt(i)->getBlob();
@@ -328,6 +380,42 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
         }
     }
 
+    // This logic is needed to cover cases when Split node cannot be optimized out for particular block size
+    // In general it is significantly better to have additional reorders in graph than to use reference Split implementation
+    if (convertTo == memory::nChw16c || convertTo == memory::nCdhw16c ||
+        convertTo == memory::nChw8c || convertTo == memory::nCdhw8c) {
+        int blockSize = convertTo == memory::nChw16c || convertTo == memory::nCdhw16c ? 16 : 8;
+        bool shouldDecreaseBlockSize = false;
+        for (auto& parentEdge : getParentEdges()) {
+            if (parentEdge.lock()->getDims()[1] % blockSize != 0)
+                shouldDecreaseBlockSize = true;
+        }
+
+        for (auto& childEdge : getChildEdges()) {
+            if (childEdge.lock()->getDims()[1] % blockSize != 0)
+                shouldDecreaseBlockSize = true;
+        }
+
+        if (shouldDecreaseBlockSize) {
+            int decreasedBlockSize = 8;
+            bool canDecreaseBlockSize = true;
+            for (auto &parentEdge : getParentEdges()) {
+                if (parentEdge.lock()->getDims()[1] % decreasedBlockSize != 0)
+                    canDecreaseBlockSize = false;
+            }
+
+            for (auto &childEdge : getChildEdges()) {
+                if (childEdge.lock()->getDims()[1] % decreasedBlockSize != 0)
+                    canDecreaseBlockSize = false;
+            }
+
+            if (canDecreaseBlockSize)
+                convertTo = getParentEdgeAt(0)->getDims().ndims() == 5 ? memory::nCdhw8c : memory::nChw8c;
+            else
+                convertTo = MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims());
+        }
+    }
+
     if (canOptimize && MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, convertTo).blocksExtended())
         canOptimize = false;
     for (size_t i = 0; canOptimize && i < getChildEdges().size(); i++) {
@@ -441,3 +529,4 @@ void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
         prim.setBatchLimit(batchToProcess(), getParentEdges().size(), getChildEdges().size());
     }
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNSplitNode, Split);

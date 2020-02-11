@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,9 @@ namespace op {
 
 class TileIE : public Op {
 public:
+    static constexpr NodeTypeInfo type_info{"TileIE", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
+
     TileIE(const std::shared_ptr<Node>& data1,
             const int64_t axis,
             const int64_t tiles);

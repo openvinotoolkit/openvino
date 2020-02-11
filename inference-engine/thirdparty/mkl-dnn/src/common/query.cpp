@@ -37,7 +37,7 @@ status_t mkldnn_primitive_desc_query(const primitive_desc_t *primitive_desc,
 
 const memory_desc_t *mkldnn_primitive_desc_query_memory_d(
         const primitive_desc_t *primitive_desc) {
-    const memory_desc_t *res_md;
+    const memory_desc_t *res_md = nullptr;
     bool args_ok = primitive_desc != nullptr
         && mkldnn_primitive_desc_query(primitive_desc,
                 query::memory_d, 0, &res_md) == success;
@@ -46,7 +46,7 @@ const memory_desc_t *mkldnn_primitive_desc_query_memory_d(
 
 const primitive_desc_t *mkldnn_primitive_desc_query_pd(
         const primitive_desc_t *primitive_desc, query_t what, int index) {
-    const primitive_desc_t *res_pd;
+    const primitive_desc_t *res_pd = nullptr;
     bool args_ok = primitive_desc != nullptr
         && (what & query::some_pd) && (what != query::some_pd)
         && mkldnn_primitive_desc_query(primitive_desc, what, index, &res_pd)

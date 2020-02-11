@@ -24,6 +24,7 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <stdexcept>
 
 namespace cldnn {
 
@@ -41,7 +42,7 @@ using event_handler = std::function<void(void*)>;
 /// @brief Represents an clDNN Event object
 struct event {
     /// @brief Create an event which can be set to 'completed' by user.
-    static event create_user_event(const engine& engine, uint16_t stream_id);
+    static event create_user_event(const engine& engine, uint32_t net_id);
 
     /// @brief Construct from C API handler @ref ::cldnn_event.
     explicit event(event_impl* impl) : _impl(impl) {

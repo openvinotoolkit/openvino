@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,7 +52,14 @@ void fillBlobImage(Blob::Ptr& inputBlob,
                   const size_t& requestId,
                   const size_t& inputId,
                   const size_t& inputSize) {
-    auto inputBlobData = inputBlob->buffer().as<uint8_t*>();
+    MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
+    if (!minput) {
+        THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobImage, " <<
+            "but by fact we were not able to cast inputBlob to MemoryBlob";
+    }
+    // locked memory holder should be alive all time while access to its buffer happens
+    auto minputHolder = minput->wmap();
+    auto inputBlobData = minputHolder.as<uint8_t *>();
     const TensorDesc& inputBlobDesc = inputBlob->getTensorDesc();
 
     /** Collect images data ptrs **/
@@ -100,7 +107,15 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
                     const size_t& requestId,
                     const size_t& inputId,
                     const size_t& inputSize) {
-    auto inputBlobData = inputBlob->buffer().as<T*>();
+    MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
+    if (!minput) {
+        THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobBinary, " <<
+            "but by fact we were not able to cast inputBlob to MemoryBlob";
+    }
+    // locked memory holder should be alive all time while access to its buffer happens
+    auto minputHolder = minput->wmap();
+
+    auto inputBlobData = minputHolder.as<T *>();
     for (size_t i = 0ULL, inputIndex = requestId*batchSize*inputSize + inputId; i < batchSize; i++, inputIndex += inputSize) {
         inputIndex %= filePaths.size();
 
@@ -127,7 +142,15 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
 
 template<typename T>
 void fillBlobRandom(Blob::Ptr& inputBlob) {
-    auto inputBlobData = inputBlob->buffer().as<T*>();
+    MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
+    if (!minput) {
+        THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobRandom, "
+            << "but by fact we were not able to cast inputBlob to MemoryBlob";
+    }
+    // locked memory holder should be alive all time while access to its buffer happens
+    auto minputHolder = minput->wmap();
+
+    auto inputBlobData = minputHolder.as<T *>();
     for (size_t i = 0; i < inputBlob->size(); i++) {
         inputBlobData[i] = (T) rand() / RAND_MAX * 10;
     }
@@ -137,7 +160,15 @@ template<typename T>
 void fillBlobImInfo(Blob::Ptr& inputBlob,
                     const size_t& batchSize,
                     std::pair<size_t, size_t> image_size) {
-    auto inputBlobData = inputBlob->buffer().as<T*>();
+    MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
+    if (!minput) {
+        THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobImInfo, " <<
+            "but by fact we were not able to cast inputBlob to MemoryBlob";
+    }
+    // locked memory holder should be alive all time while access to its buffer happens
+    auto minputHolder = minput->wmap();
+
+    auto inputBlobData = minputHolder.as<T *>();
     for (size_t b = 0; b < batchSize; b++) {
         size_t iminfoSize = inputBlob->size()/batchSize;
         for (size_t i = 0; i < iminfoSize; i++) {
@@ -154,10 +185,10 @@ void fillBlobImInfo(Blob::Ptr& inputBlob,
 
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,
-               const InferenceEngine::InputsDataMap& info,
+               const InferenceEngine::ConstInputsDataMap& info,
                std::vector<InferReqWrap::Ptr> requests) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
-    for (const InputsDataMap::value_type& item : info) {
+    for (const ConstInputsDataMap::value_type& item : info) {
         if (isImage(item.second)) {
             input_image_sizes.push_back(std::make_pair(getTensorWidth(item.second->getTensorDesc()),
                                                        getTensorHeight(item.second->getTensorDesc())));
@@ -227,7 +258,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
 
         size_t imageInputId = 0;
         size_t binaryInputId = 0;
-        for (const InputsDataMap::value_type& item : info) {
+        for (const ConstInputsDataMap::value_type& item : info) {
             Blob::Ptr inputBlob = requests.at(requestId)->getBlob(item.first);
             if (isImage(inputBlob)) {
                 if (!imageFiles.empty()) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,13 +89,13 @@ public:
 
     const DataDesc& desc() const { return _desc; }
 
-protected:
+private:
     // RAW pointer
     virtual const void* getRaw() const = 0;
 
-protected:
+private:
     DataDesc _desc;
-    friend class Model;
+    friend ModelObj;
 };
 
 //
@@ -107,9 +107,9 @@ protected:
 class CalculatedDataContent : public DataContent {
 public:
     CalculatedDataContent() = default;
-    explicit CalculatedDataContent(std::initializer_list<DataContent::Ptr> baseContents) : _baseContents(baseContents) {}
+    explicit CalculatedDataContent(const SmallVector<DataContent::Ptr, 2>& baseContents) : _baseContents(baseContents) {}
 
-protected:
+private:
     const void* getRaw() const override;
 
     virtual size_t getTempBufSize(const SmallVector<DataContent::Ptr, 2>& baseContents) const;
@@ -124,24 +124,22 @@ DataContent::Ptr ieBlobContent(
         const ie::Blob::Ptr& blob,
         int repeat = 1);
 
-DataContent::Ptr replicateContent(
-        float val,
-        int count);
+DataContent::Ptr replicateContent(float val, int count);
+DataContent::Ptr replicateContent(const DataContent::Ptr& origContent, int count);
 
-DataContent::Ptr replicateContent(
-        const DataContent::Ptr& origContent,
-        int count);
+DataContent::Ptr scaleContent(const DataContent::Ptr& origContent, float scale);
 
-DataContent::Ptr scaleContent(
+// The function scales the major dimension of 4D origContent
+DataContent::Ptr scaledChannelContent(
         const DataContent::Ptr& origContent,
-        float scale);
+        const DataContent::Ptr& scaleContent);
 
 //
 // DataNode
 //
 
 class DataNode final :
-        public EnableHandleFromThis<DataNode>,
+        public EnableHandle,
         public EnableCustomAttributes {
     //
     // Main attributes
@@ -194,6 +192,8 @@ class DataNode final :
     //
     // Edges wrappers
     //
+
+    VPU_MODEL_ATTRIBUTE(Model, model, nullptr)
 
 private:
     struct ConsumerAccess final {
@@ -250,6 +250,8 @@ public:
 
     int elemOffset(const DimValues& coord) const;
     int lastElemOffset() const;
+
+    bool canHaveAParent() const;
 
     //
     // Bindings with IE
@@ -337,11 +339,10 @@ private:
     }
 
 private:
-    Handle<Model> _model;
     DataPtrList::iterator _ptrPosInModel;
-    IntrusivePtrListNode<DataNode> _posInModel;
+    DataListNode _posInModel;
 
-    friend class Model;
+    friend ModelObj;
 };
 
 void printTo(std::ostream& os, const Data& data);

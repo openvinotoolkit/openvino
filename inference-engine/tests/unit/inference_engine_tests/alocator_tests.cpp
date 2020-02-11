@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,11 @@ TEST_F(SystemAllocatorTests, canAllocate) {
     void* handle = allocator->alloc(100);
     EXPECT_NE(nullptr, handle);
     allocator->free(handle);
+}
+
+TEST_F(SystemAllocatorTests, sharedFromIReleaseWithNull) {
+    details::IRelease * irelease = nullptr;
+    auto object = details::shared_from_irelease(irelease);
 }
 
 TEST_F(SystemAllocatorTests, canLockAllocatedMemory) {

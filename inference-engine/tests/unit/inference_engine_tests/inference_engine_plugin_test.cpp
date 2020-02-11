@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,8 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace ::testing;
 using namespace InferenceEngine::details;
+
+IE_SUPPRESS_DEPRECATED_START
 
 class PluginTest: public TestsCommon {
 protected:
@@ -88,22 +90,6 @@ InferenceEnginePluginPtr PluginTest::getPtr() {
     InferenceEnginePluginPtr smart_ptr(get_mock_engine_name());
     return smart_ptr;
 };
-
-TEST_F(PluginTest, canForwardPluginEnginePtr) {
-
-    injectPluginEngineProxy(&engine);
-    InferenceEnginePluginPtr ptr3 = getPtr();
-
-    EXPECT_CALL(engine, Infer(_, A<Blob&>(), _)).WillOnce(Return(OK));
-    EXPECT_CALL(engine, Release()).Times(1);
-
-    TBlob <float> b1(TensorDesc(Precision::FP32, NCHW));
-    TBlob <float> b2(TensorDesc(Precision::FP32, NCHW));
-    IE_SUPPRESS_DEPRECATED_START
-    ptr3->Infer(b1, b2, nullptr);
-    IE_SUPPRESS_DEPRECATED_END
-}
-
 
 TEST_F(PluginTest, canSetConfiguration) {
     InferenceEnginePluginPtr ptr = getPtr();

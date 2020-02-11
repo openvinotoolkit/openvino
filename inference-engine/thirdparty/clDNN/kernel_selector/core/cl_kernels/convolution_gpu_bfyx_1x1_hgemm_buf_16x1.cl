@@ -37,7 +37,7 @@ KERNEL(convolution_gpu_bfyx_1x1_hgemm_buf_16x1)(
     const uint local_y = get_local_id(1);
     const uint group_x = get_group_id(0);
     const uint group_y = get_group_id(1);
-    const uint batch = get_global_id(2);
+    const uint batch = (uint)get_global_id(2);
 
 #if BIAS_TERM
     const uint bias_index = group_x * TILE_N + local_x;

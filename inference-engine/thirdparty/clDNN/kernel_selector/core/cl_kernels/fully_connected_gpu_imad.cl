@@ -23,6 +23,10 @@
 #define BYTES_PER_READ    (sizeof(int))
 #define BYTES_PER_READ8   (8 * BYTES_PER_READ)
 
+#define AS_TYPE_N_(type, n, x) as_##type##n(x)
+#define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
+#define AS_INPUT0_TYPE_4(x) AS_TYPE_N(INPUT0_TYPE, 4, x)
+
 __attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
 KERNEL(fully_connected_gpu_IMAD)(
     const __global INPUT0_TYPE* input,
@@ -31,11 +35,8 @@ KERNEL(fully_connected_gpu_IMAD)(
 #if BIAS_TERM
     , const __global BIAS_TYPE* biases
 #endif
-#if QUANTIZATION_TERM
-    ,const __global float* quantizations
-#endif
-#if CALIBRATION_TERM
-    ,const __global float* calibrations
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
     )
 {
@@ -69,25 +70,30 @@ KERNEL(fully_connected_gpu_IMAD)(
         idx_w += SIMD_SIZE * BYTES_PER_READ8;
 
         for (int i = 0; i < 8; i++) {
-            dotProd = IMAD(dotProd, as_char4(activations[i]), as_char4(weights_data[i]));
+            dotProd = IMAD(dotProd, AS_INPUT0_TYPE_4(activations[i]), as_char4(weights_data[i]));
         }
     }
 
 #if BIAS_TERM
-#if   BIAS_PER_OUTPUT
-    const uint bias_index = GET_DATA_INDEX(BIAS, b, f, y, x);
-#elif BIAS_PER_OFM
-    const uint bias_index = f;
+    #if BIAS_PER_OUTPUT
+        const uint bias_index = GET_DATA_INDEX(BIAS, b, f, 0, 0);
+    #elif BIAS_PER_OFM
+        const uint bias_index = f;
+    #endif
+    float dequantized = (float)dotProd + biases[bias_index];
+#elif
+    float dequantized = (float)dotProd;
 #endif
-#if CALIBRATION_TERM
-    dotProd = (UNIT_TYPE)round(((float)dotProd * quantizations[f] * I_QF + biases[bias_index]) * calibrations[f]);
-#else  // CALIBRATION_TERM
-    dotProd = (UNIT_TYPE)round(((float)dotProd * quantizations[f] * I_QF + biases[bias_index]) * O_QF);
-#endif // CALIBRATION_TERM
-#endif // BIAS_TERM
 
     const uint out_index = GET_DATA_INDEX(OUTPUT, b, f, 0, 0);
-    output[out_index] = ACTIVATION(convert_char(dotProd), ACTIVATION_PARAMS);
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    OUTPUT_TYPE res = FINAL_NAME;
+
+    output[out_index] = res;
+#else
+    output[out_index] = dequantized;
+#endif
 }
 
 #undef SIMD_SIZE

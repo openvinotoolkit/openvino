@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,8 +76,8 @@ private:
 
     InferenceEngine::TensorDesc getInputDesc();
     InferenceEngine::TensorDesc getOutputDesc();
-    InferenceEngine::TensorDesc getSpecifiedInputDesc(std::map<mkldnn::memory::format, size_t> formats);
-    InferenceEngine::TensorDesc getSpecifiedOutputDesc(std::map<mkldnn::memory::format, size_t> formats);
+    InferenceEngine::TensorDesc getSpecifiedInputDesc(std::map<mkldnn::memory::format, size_t> formats, size_t enterCountUp = 1, size_t enterCountDown = 0);
+    InferenceEngine::TensorDesc getSpecifiedOutputDesc(std::map<mkldnn::memory::format, size_t> formats, size_t enterCountUp = 0, size_t enterCountDown = 1);
 
     InferenceEngine::TensorDesc inputDesc;
     InferenceEngine::TensorDesc outputDesc;

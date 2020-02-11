@@ -36,11 +36,15 @@ protected:
 
     kernel::kernel_arguments_data get_arguments(reorder_inst& instance, int32_t split) const override {
         kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
-
+        auto input = &instance.input_memory();
+        auto input_layout = input->get_layout();
         if (_outer.has_mean()) {
-            args.bias = (memory_impl::cptr) &instance.mean_memory();
+            if (input_layout.format == cldnn::format::nv12) {
+                args.bias = (memory_impl::cptr) &instance.mean_nv12_memory();
+            } else {
+                args.bias = (memory_impl::cptr) &instance.mean_memory();
+            }
         }
-
         return args;
     }
 
@@ -53,14 +57,23 @@ public:
         auto reorder_optional_params =
             get_default_optional_params<kernel_selector::reorder_optional_params>(arg.get_program());
 
+        for (size_t i = 1; i < arg.inputs_count(); i++) {
+            reorder_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
+        }
         if (arg.get_output_layout().data_padding) {
             reorder_params.has_padded_output = true;
         }
 
         if (arg.has_mean()) {
-            const auto& mean_layout = arg.mean().get_output_layout();
-            reorder_params.mean = convert_data_tensor(mean_layout);
-            reorder_params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
+            if (input_layout.format == cldnn::format::nv12) {
+                const auto& mean_layout = arg.mean_nv12().get_output_layout();
+                reorder_params.mean = convert_data_tensor(mean_layout);
+                reorder_params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
+            } else {
+                const auto& mean_layout = arg.mean().get_output_layout();
+                reorder_params.mean = convert_data_tensor(mean_layout);
+                reorder_params.mode = kernel_selector::mean_subtruct_mode::IN_BUFFER;
+            }
         } else if (arg.get_primitive()->subtract_per_feature.empty() == false) {
             reorder_params.mode = kernel_selector::mean_subtruct_mode::INSIDE_PARAMS;
             reorder_params.meanValues = arg.get_primitive()->subtract_per_feature;

@@ -40,6 +40,12 @@ protected:
             WeightsLayout::os_is_yx_isa8_osv8_isv4,
         };
     }
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ELTWISE,
+                 FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
 
 private:
     struct AutoTuneOption {

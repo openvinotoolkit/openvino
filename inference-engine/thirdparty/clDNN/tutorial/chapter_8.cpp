@@ -23,7 +23,7 @@
 #include <../api/CPP/network.hpp>
 #include <../api/CPP/activation.hpp>
 #include <../api/CPP/crop.hpp>
-#include <../api/CPP/upsampling.hpp>
+#include <../api/CPP/resample.hpp>
 #include <iostream>
 #include <chrono>
 
@@ -98,8 +98,8 @@ void chapter_8(engine& engine)
     // Create a topology and add primitives
     topology topology;
     topology.add(input_layout("input", input_prim.get_layout()));
-    topology.add(upsampling("upsampling", "input", 2, 4, upsampling_sample_type::nearest));
-    topology.add(activation("relu", "upsampling", activation_relu));
+    topology.add(resample("resample", "input", 2, 4, resample_type::nearest));
+    topology.add(activation("relu", "resample", activation_relu));
     topology.add(crop("crop1", "relu", tensor(batch(1), spatial(2, 2), feature(3)), { tensor(feature(0), spatial(0,0),batch(0)) }));
     topology.add(crop("crop2", "relu", tensor(batch(1), spatial(2, 2), feature(1)), { tensor(feature(3), spatial(0,0),batch(0)) }));
     topology.add(activation("relu1", "crop1", activation_relu));
@@ -155,10 +155,10 @@ void chapter_8(engine& engine)
     //    input, input
     //    relu1, relu1
     //    relu2, relu2
-    //    upsampling, upsampling
+    //    resample, resample
     //
-    //As mentioned before, "relu" is not on the list as upsampling will perform built-in relu. Crop primitives are marked as _optimized_.
-    //Profiling data from executed_primitives_2 should contain 4 primitives - input, relu1, relu2 and upsampling
+    //As mentioned before, "relu" is not on the list as resample will perform built-in relu. Crop primitives are marked as _optimized_.
+    //Profiling data from executed_primitives_2 should contain 4 primitives - input, relu1, relu2 and resample
     std::cout << std::endl << "Primitives list and profiling info for network with optimize data build option." << std::endl;
     print_info(all_primitives_2, executed_primitives_2);
 

@@ -134,6 +134,9 @@ struct ArgumentDescriptor {
         CELL,       // LSTM cell input
         LSTM_PACK,  // LSTM packed output
         LEARNING_RATE,
+        WEIGHTS_ZERO_POINTS,
+        ACTIVATIONS_ZERO_POINTS,
+        COMPENSATION,
         INPUT_OF_FUSED_PRIMITIVE
     };
 
@@ -251,7 +254,7 @@ std::string toString(WeightsLayout layout);
 std::string toString(ConcatAxis a);
 std::string toString(TileAxis a);
 std::string toString(GatherAxis a);
-std::string toString(SampleType type);
+std::string toString(ResampleType type);
 std::string toString(const BorderType type);
 std::string toString(const Tensor::Dim& dim);
 std::string toString(const DataTensor& tensor);

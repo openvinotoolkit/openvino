@@ -63,12 +63,12 @@ void prep_opt_depthwise_sep_post::optimize_depthwise_sep_pre(program_impl& p, T&
         auto& prim_node = node.template as<convolution>();
         const auto& prim = prim_node.get_primitive();
 
-        // concatenate weights quantization factors
-        if (prim->weights_quantization_factors.size() != 0) {
-            const auto& weights_quantization_layout = node.get_dependency(dependency_offset).get_output_layout();
-            auto target_layout = layout(weights_quantization_layout.data_type,
+        // concatenate weights zero points
+        if (prim->weights_zero_points.size() != 0) {
+            const auto& weights_zp_layout = node.get_dependency(dependency_offset).get_output_layout();
+            auto target_layout = layout(weights_zp_layout.data_type,
                                         cldnn::format::bfyx,
-                                        {1, 1, weights_quantization_layout.size.batch[0] * split, 1});
+                                        {1, 1, weights_zp_layout.size.batch[0] * split, 1});
             program_helpers::merge_buffers(p.get_engine(),
                                            node,
                                            target_layout,
@@ -76,12 +76,12 @@ void prep_opt_depthwise_sep_post::optimize_depthwise_sep_pre(program_impl& p, T&
                                            dependency_offset + split);
             dependency_offset++;
         }
-        // concatenate output callibration factors
-        if (prim->output_calibration_factors.size() != 0) {
-            const auto& output_callibration_layout = node.get_dependency(dependency_offset).get_output_layout();
-            auto target_layout = layout(output_callibration_layout.data_type,
+        // concatenate activations zero points
+        if (prim->activations_zero_points.size() != 0) {
+            const auto& activations_zp_layout = node.get_dependency(dependency_offset).get_output_layout();
+            auto target_layout = layout(activations_zp_layout.data_type,
                                         cldnn::format::bfyx,
-                                        {1, 1, output_callibration_layout.size.batch[0] * split, 1});
+                                        {1, 1, activations_zp_layout.size.batch[0] * split, 1});
             program_helpers::merge_buffers(p.get_engine(),
                                            node,
                                            target_layout,

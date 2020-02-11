@@ -38,6 +38,47 @@ namespace cldnn {
 
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
+void primitive_inst::check_memory_to_set(const memory_impl& mem, const layout& layout) const {
+    CLDNN_ERROR_LAYOUT_MISMATCH("network layout",
+        "set memory layout",
+        mem.get_layout(),
+        "expected layout",
+        layout,
+        "");
+
+    // check shared image/buffer compatibility, if applicable
+    auto params = mem.get_internal_params();
+    if (params.mem_type != shared_mem_type::shared_mem_empty) {
+        if (!mem.is_allocated_by(get_network().get_engine())) {
+            CLDNN_ERROR_MESSAGE(_node.id(), "Memory object is not suitable");
+        }
+
+        switch (params.mem_type) {
+        case shared_mem_type::shared_mem_vasurface:
+        case shared_mem_type::shared_mem_image:
+            if (!layout.format.is_image_2d())
+                CLDNN_ERROR_MESSAGE(_node.id(), "Attempt to set user-supplied input or output image instead of a buffer");
+            break;
+        case shared_mem_type::shared_mem_buffer:
+        case shared_mem_type::shared_mem_dxbuffer:
+            if (layout.format.is_image_2d())
+                CLDNN_ERROR_MESSAGE(_node.id(), "Attempt to set user-supplied input or output buffer instead of an image");
+            break;
+        default:
+            CLDNN_ERROR_MESSAGE(_node.id(), "Attempt to set user-supplied input or output memory of unknown/invalid type");
+            break;
+        }
+    }
+}
+
+void primitive_inst::set_output_memory(memory_impl& mem) {
+    auto ol = _node.get_output_layout();
+
+    check_memory_to_set(mem, ol);
+
+    _output = (memory_impl::ptr) &mem;
+}
+
 event_impl::ptr primitive_inst::execute(const std::vector<event_impl::ptr>& events) {
     const auto primitive_id = id();
     CLDNN_ERROR_BOOL(primitive_id,
@@ -112,23 +153,21 @@ primitive_inst::primitive_inst(network_impl& network, program_node const& node, 
 
 memory_impl::ptr primitive_inst::allocate_output() {
     auto layout = _node.get_output_layout();
-    auto stream_id = get_network().get_stream_id();
+    auto net_id = get_network_id();
 
     if (!_network.is_internal() && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
         return get_network().get_engine().allocate_memory(layout,
                                                           _node.id(),
-                                                          get_network_id(),
+                                                          net_id,
                                                           _node.get_memory_dependencies(),
-                                                          stream_id,
                                                           false);
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
-        return get_network().get_engine().allocate_memory(layout, stream_id);
+        return get_network().get_engine().allocate_memory(layout, net_id);
     }
     return get_network().get_engine().allocate_memory(layout,
                                                       _node.id(),
-                                                      get_network_id(),
+                                                      net_id,
                                                       _node.get_memory_dependencies(),
-                                                      stream_id,
                                                       true);
 }
 

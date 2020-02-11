@@ -64,58 +64,97 @@ T* arr_end(T* buf, size_t count) {
 }
 #endif
 
-struct gpu_buffer : public memory_impl {
+struct lockable_gpu_mem {
+    explicit lockable_gpu_mem(const refcounted_obj_ptr<engine_impl>& engine) : _context(engine->get_context()),
+        _lock_count(0),
+        _mapped_ptr(nullptr) {}
+
+    std::shared_ptr<gpu_toolkit> _context;
+    std::mutex _mutex;
+    unsigned _lock_count;
+    void* _mapped_ptr;
+};
+
+struct gpu_buffer : public lockable_gpu_mem, public memory_impl {
     friend cldnn::memory_pool;
 
     gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine,
                const layout& new_layout,
                const cl::Buffer& buffer,
-               uint16_t stream_id);
+               uint32_t net_id);
+
     void* lock() override;
     void unlock() override;
     void fill(unsigned char pattern, event_impl::ptr ev) override;
+    shared_mem_params get_internal_params() const override;
     const cl::Buffer& get_buffer() const {
         assert(0 == _lock_count);
         return _buffer;
     }
 
-private:
-    gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout, uint16_t stream_id);
-
-    std::shared_ptr<gpu_toolkit> _context;
-    std::mutex _mutex;
-    unsigned _lock_count;
+protected:
+    gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout, uint32_t net_id);
     cl::Buffer _buffer;
-    void* _mapped_ptr;
 };
 
-struct gpu_image2d : public memory_impl {
+struct gpu_image2d : public lockable_gpu_mem, public memory_impl {
     friend cldnn::memory_pool;
 
     gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine,
                 const layout& new_layout,
                 const cl::Image2D& buffer,
-                uint16_t stream_id);
+                uint32_t net_id);
     void* lock() override;
     void unlock() override;
     void fill(unsigned char pattern, event_impl::ptr ev) override;
+    shared_mem_params get_internal_params() const override;
     const cl::Image2D& get_buffer() const {
         assert(0 == _lock_count);
         return _buffer;
     }
 
-private:
-    gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout, uint16_t stream_id);
+protected:
+    gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const layout& layout, uint32_t net_id);
 
-    std::shared_ptr<gpu_toolkit> _context;
-    std::mutex _mutex;
-    unsigned _lock_count;
     cl::Image2D _buffer;
     size_t _width;
     size_t _height;
     size_t _row_pitch;
     size_t _slice_pitch;
-    void* _mapped_ptr;
 };
+
+struct gpu_media_buffer : public gpu_image2d {
+    friend cldnn::memory_pool;
+
+    gpu_media_buffer(const refcounted_obj_ptr<engine_impl>& engine,
+        const layout& new_layout,
+        const shared_mem_params* params,
+        uint32_t net_id);
+    shared_mem_params get_internal_params() const override;
+private:
+    void* device;
+#ifdef WIN32
+    void* surface;
+#else
+    uint32_t surface;
+#endif
+    uint32_t plane;
+};
+
+#ifdef WIN32
+struct gpu_dx_buffer : public gpu_buffer {
+    friend cldnn::memory_pool;
+
+    gpu_dx_buffer(const refcounted_obj_ptr<engine_impl>& engine,
+        const layout& new_layout,
+        const shared_mem_params* params,
+        uint32_t net_id);
+    shared_mem_params get_internal_params() const override;
+private:
+    void* device;
+    void* resource;
+};
+#endif
+
 }  // namespace gpu
 }  // namespace cldnn

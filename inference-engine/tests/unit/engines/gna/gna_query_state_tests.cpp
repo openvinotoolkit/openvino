@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include "gna_matcher.hpp"
 
-class QueryStateTest : public GNATest {
+class QueryStateTest : public GNATest<> {
  protected:
     void SetUp() override  {
     }

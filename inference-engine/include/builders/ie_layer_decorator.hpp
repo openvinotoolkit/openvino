@@ -1,6 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+/**
+ * @file
+ */
 
 #pragma once
 
@@ -16,9 +20,10 @@ namespace InferenceEngine {
 namespace Builder {
 
 /**
+ * @deprecated Use ngraph API instead.
  * @brief This class defines the basic functional for layer builders
  */
-class INFERENCE_ENGINE_API_CLASS(LayerDecorator) {
+class INFERENCE_ENGINE_NN_BUILDER_API_CLASS(LayerDecorator) {
 public:
     /**
      * @brief The constructor creates layer builders with layer type and layer name
@@ -30,12 +35,16 @@ public:
      * @brief The constructor creates layer builders from reference to generic layer builder
      * @param layer pointer to generic layer builder
      */
+
+    IE_SUPPRESS_DEPRECATED_START
+
     explicit LayerDecorator(const Layer::Ptr& layer);
     /**
      * @brief The constructor creates layer builders from reference to generic layer builder
      * @param layer constant pointer to generic layer builder
      */
     explicit LayerDecorator(const Layer::CPtr& layer);
+
     /**
      * @brief The copy constructor
      * @param rval Source builder
@@ -72,6 +81,8 @@ public:
      */
     virtual operator Layer::CPtr() const;
 
+    IE_SUPPRESS_DEPRECATED_END
+
     /**
      * @brief Returns layer type
      * @return Layer type
@@ -84,6 +95,8 @@ public:
     const std::string& getName() const;
 
 protected:
+    IE_SUPPRESS_DEPRECATED_START
+
     Layer::Ptr& getLayer();
     const Layer::CPtr getLayer() const;
     void checkType(const std::string& type) const;
@@ -92,6 +105,8 @@ protected:
 
 private:
     Layer::Ptr layer;
+
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace Builder

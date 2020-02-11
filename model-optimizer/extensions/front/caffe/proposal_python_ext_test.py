@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ from unittest.mock import patch
 from extensions.front.caffe.proposal_python_ext import ProposalPythonFrontExtractor
 from extensions.ops.proposal import ProposalOp
 from mo.utils.unittest.extractors import FakeMultiParam
-from mo.utils.unittest.graph import FakeNode
+from mo.utils.unittest.graph import FakeNode, FakeAttr
 from mo.ops.op import Op
 
 
@@ -43,6 +43,7 @@ class TestProposalPythonExt(unittest.TestCase):
         }
         fake_pl = FakeProposalPythonProtoLayer(FakeMultiParam(params))
         fake_node = FakeNode(fake_pl, None)
+        fake_node.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=False)
 
         ProposalPythonFrontExtractor.extract(fake_node)
 
@@ -68,6 +69,7 @@ class TestProposalPythonExt(unittest.TestCase):
         }
         fake_pl = FakeProposalPythonProtoLayer(FakeMultiParam(params))
         fake_node = FakeNode(fake_pl, None)
+        fake_node.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=False)
 
         ProposalPythonFrontExtractor.extract(fake_node)
 
@@ -93,6 +95,7 @@ class TestProposalPythonExt(unittest.TestCase):
         }
         fake_pl = FakeProposalPythonProtoLayer(FakeMultiParam(params))
         fake_node = FakeNode(fake_pl, None)
+        fake_node.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=False)
 
         ProposalPythonFrontExtractor.extract(fake_node)
 

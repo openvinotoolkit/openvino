@@ -890,7 +890,7 @@ private:
     }
 
     template<typename InputStream>
-    RAPIDJSON_FORCEINLINE static bool Consume(InputStream& is, typename InputStream::Ch expect) {
+    static RAPIDJSON_FORCEINLINE bool Consume(InputStream& is, typename InputStream::Ch expect) {
         if (RAPIDJSON_LIKELY(is.Peek() == expect)) {
             is.Take();
             return true;

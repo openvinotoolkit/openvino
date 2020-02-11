@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,9 +41,6 @@ protected:
     std::vector<InferenceEngine::ILayerImpl::Ptr> impls;
     std::map<std::string, std::string> params;
     std::map<std::string, InferenceEngine::Blob::Ptr> blobs;
-
-private:
-    static Register<MKLDNNGenericNode> reg;
 };
 
 }  // namespace MKLDNNPlugin

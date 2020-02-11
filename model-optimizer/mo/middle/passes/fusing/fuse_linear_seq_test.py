@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ import unittest
 
 import numpy as np
 
-from mo.middle.passes.eliminate import graph_clean_up
 from mo.middle.passes.fusing.fuse_linear_seq import fuse_mul_add_sequence
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes_attributes = {
     'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
@@ -85,7 +85,7 @@ nodes_attributes = {
     'conv_2_b': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_2_data': {'value': None, 'shape': None, 'kind': 'data'},
     # FullyConnected
-    'fc_1': {'type': 'MatMul', 'kind': 'op', 'op': 'InnerProduct', 'layout': 'NHWC'},
+    'fc_1': {'type': 'MatMul', 'kind': 'op', 'op': 'FullyConnected', 'layout': 'NHWC'},
     'const_fc_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'fc_1_w': {'value': None, 'shape': None, 'kind': 'data'},
     'const_fc_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
@@ -162,7 +162,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                        "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -238,7 +238,7 @@ class LinSeqFusingTests(unittest.TestCase):
                                 nodes_with_edges_only=True)
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -314,7 +314,7 @@ class LinSeqFusingTests(unittest.TestCase):
                                 nodes_with_edges_only=True)
 
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -391,7 +391,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -456,7 +456,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
@@ -527,7 +527,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
@@ -598,7 +598,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -646,7 +646,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -707,7 +707,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -768,7 +768,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -843,7 +843,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -916,7 +916,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node), len(graph_ref.node)))
 
@@ -997,7 +997,7 @@ class LinSeqFusingTests(unittest.TestCase):
 
         graph.graph['layout'] = 'NHWC'
         fuse_mul_add_sequence(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
         self.assertTrue(len(graph.node) == len(graph_ref.node),
                         "Graphs has different number of nodes: {} and {}".format(len(graph.node),
                                                                                  len(graph_ref.node)))

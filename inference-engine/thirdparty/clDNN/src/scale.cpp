@@ -42,6 +42,11 @@ layout scale_inst::calc_output_layout(scale_node const& node) {
     auto input_y_size = input_sizes.spatial[1];
     auto input_z_size = input_sizes.spatial[2];
 
+    if ((result.data_type == data_types::u8 || result.data_type == data_types::i8 || result.data_type == data_types::i32) &&
+        (node.scale_in().get_non_padded_output_layout().data_type == data_types::f32 ||
+         node.scale_in().get_non_padded_output_layout().data_type == data_types::f16))
+        result.data_type = node.scale_in().get_non_padded_output_layout().data_type;
+
     if (scale_x_size != 1) {
         CLDNN_ERROR_NOT_EQUAL(node.id(), "Scale x size", scale_x_size, "input x size", input_x_size, "");
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,19 +16,21 @@
 # include <w_dirent.h>
 #endif
 
+#include <utility>
+#include <string>
 #include <vector>
 #include <iostream>
 #include <gtest/gtest.h>
 #include <fstream>
 
 #ifndef _WIN32
-static std::string getDirname (std::string filePath) {
+static std::string getDirname(std::string filePath) {
     std::vector<char> input(filePath.begin(), filePath.end());
     input.push_back(0);
     return dirname(&*input.begin());
 }
 #else
-static std::string getDirname (std::string filePath) {
+static std::string getDirname(std::string filePath) {
         char dirname[_MAX_DIR];
         _splitpath(filePath.c_str(), nullptr, dirname, nullptr, nullptr);
         return dirname;

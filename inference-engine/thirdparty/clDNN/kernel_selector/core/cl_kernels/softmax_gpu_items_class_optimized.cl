@@ -25,8 +25,8 @@ __attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(softmax_items_class_optimized)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
 #if INPUT0_DIMS == 5
-    const uint other0 = get_group_id(0) % INPUT0_OTHER0_SIZE;
-    const uint other2 = get_group_id(0) / INPUT0_OTHER0_SIZE;
+    const uint other0 = (uint)get_group_id(0) % INPUT0_OTHER0_SIZE;
+    const uint other2 = (uint)get_group_id(0) / INPUT0_OTHER0_SIZE;
 #else
     const uint other0 = get_group_id(0);
     const uint other2 = 0;

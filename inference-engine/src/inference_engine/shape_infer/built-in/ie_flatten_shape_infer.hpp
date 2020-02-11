@@ -1,18 +1,20 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <description_buffer.hpp>
-#include "ie_built_in_impl.hpp"
+#include <debug.h>
 #include <ie_layers.h>
+
+#include <description_buffer.hpp>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <debug.h>
-#include <functional>
+
+#include "ie_built_in_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -22,13 +24,11 @@ namespace ShapeInfer {
  */
 class FlattenShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit FlattenShapeProp(const std::string &type) : BuiltInShapeInferImpl(type) {}
+    explicit FlattenShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-                         const std::map<std::string, std::string>& params,
-                         const std::map<std::string, Blob::Ptr>& blobs,
-                         std::vector<SizeVector>& outShapes) override {
-        LayerParams lp{};
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
+        LayerParams lp {};
         ReshapeLayer reshapeLayer(lp);
         reshapeLayer.params = params;
         reshapeLayer.type = _type;

@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 #include"gna-api.h"
 #include "nnet_base_matcher.hpp"
-#include "quantization/quantization.h"
+#include "frontend/quantization.h"
 
 class DiagLayerMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
     bool matchInserted;
@@ -24,7 +24,7 @@ public:
             auto diag = (intel_affine_func_t*)foo->pLayers[i].pLayerStruct;
             bool bWeightsOK = true;
 
-            int beforePadding = -1;
+            int beforePadding = 0;
             for (int j =0; j < foo->pLayers[i].nOutputRows; j++) {
                 auto weights = (int16_t*)diag->pWeights;
                 auto biases = (int32_t*)diag->pBiases;

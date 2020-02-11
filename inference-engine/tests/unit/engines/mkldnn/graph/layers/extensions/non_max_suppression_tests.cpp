@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_graph.h"
 
 #include "test_graph.hpp"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
-#include <extension/ext_list.hpp>
+#include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 
 
@@ -20,6 +19,7 @@ using namespace mkldnn;
 
 struct nmsTF_test_params {
     int center_point_box;
+    int sort_result_descending;
     InferenceEngine::SizeVector scoresDim;
     std::vector<float> boxes;
     std::vector<float> scores;
@@ -147,7 +147,8 @@ static void ref_nms(
         }
     }
 
-    std::sort(fb.begin(), fb.end(), [](const filteredBoxes& l, const filteredBoxes& r) { return l.score > r.score; });
+    if(p.sort_result_descending)
+        std::sort(fb.begin(), fb.end(), [](const filteredBoxes& l, const filteredBoxes& r) { return l.score > r.score; });
     int selected_indicesStride = selected_idxs.getTensorDesc().getBlockingDesc().getStrides()[0];
     int* selected_indicesPtr = selected_indices;
     size_t idx;
@@ -184,7 +185,7 @@ class MKLDNNCPUExtNonMaxSuppressionTFTests : public TestsCommon, public WithPara
             </output>
         </layer>
         <layer name="non_max_suppression" type="NonMaxSuppression" precision="FP32" id="6">
-            <data center_point_box="_CPB_"/>
+            <data center_point_box="_CPB_" sort_result_descending="_SRD_"/>
             <input>
                 <port id="1">
                     _IBOXES_
@@ -226,13 +227,11 @@ class MKLDNNCPUExtNonMaxSuppressionTFTests : public TestsCommon, public WithPara
         </layer>
         <layer name="InputBoxesPerClass" type="Input" precision="I32" id="3">
             <output>
-                <port id="3">
-                    <dim>1</dim>
-                </port>
+                <port id="3"/>
             </output>
         </layer>
         <layer name="non_max_suppression" type="NonMaxSuppression" precision="FP32" id="6">
-            <data center_point_box="_CPB_"/>
+            <data center_point_box="_CPB_" sort_result_descending="_SRD_"/>
             <input>
                 <port id="1">
                     _IBOXES_
@@ -240,9 +239,7 @@ class MKLDNNCPUExtNonMaxSuppressionTFTests : public TestsCommon, public WithPara
                 <port id="2">
                     _ISCORES_
                 </port>
-                <port id="3" precision="I32">
-                    <dim>1</dim>
-                </port>
+                <port id="3" precision="I32"/>
             </input>
             <output>
                 <port id="6" precision="I32">
@@ -277,20 +274,16 @@ class MKLDNNCPUExtNonMaxSuppressionTFTests : public TestsCommon, public WithPara
         </layer>
         <layer name="InputBoxesPerClass" type="Input" precision="I32" id="3">
             <output>
-                <port id="3">
-                    <dim>1</dim>
-                </port>
+                <port id="3"/>
             </output>
         </layer>
         <layer name="InputIouThr" type="Input" precision="FP32" id="4">
             <output>
-                <port id="4">
-                    <dim>1</dim>
-                </port>
+                <port id="4"/>
             </output>
         </layer>
         <layer name="non_max_suppression" type="NonMaxSuppression" precision="FP32" id="6">
-            <data center_point_box="_CPB_"/>
+            <data center_point_box="_CPB_" sort_result_descending="_SRD_"/>
             <input>
                 <port id="1">
                     _IBOXES_
@@ -298,12 +291,8 @@ class MKLDNNCPUExtNonMaxSuppressionTFTests : public TestsCommon, public WithPara
                 <port id="2">
                     _ISCORES_
                 </port>
-                <port id="3" precision="I32">
-                    <dim>1</dim>
-                </port>
-                <port id="4">
-                    <dim>1</dim>
-                </port>
+                <port id="3" precision="I32"/>
+                <port id="4"/>
             </input>
             <output>
                 <port id="6" precision="I32">
@@ -340,27 +329,21 @@ class MKLDNNCPUExtNonMaxSuppressionTFTests : public TestsCommon, public WithPara
         </layer>
         <layer name="InputBoxesPerClass" type="Input" precision="I32" id="3">
             <output>
-                <port id="3">
-                    <dim>1</dim>
-                </port>
+                <port id="3"/>
             </output>
         </layer>
         <layer name="InputIouThr" type="Input" precision="FP32" id="4">
             <output>
-                <port id="4">
-                    <dim>1</dim>
-                </port>
+                <port id="4"/>
             </output>
         </layer>
         <layer name="InputScoreThr" type="Input" precision="FP32" id="5">
             <output>
-                <port id="5">
-                    <dim>1</dim>
-                </port>
+                <port id="5"/>
             </output>
         </layer>
         <layer name="non_max_suppression" type="NonMaxSuppression" precision="FP32" id="6">
-            <data center_point_box="_CPB_"/>
+            <data center_point_box="_CPB_" sort_result_descending="_SRD_"/>
             <input>
                 <port id="1">
                     _IBOXES_
@@ -368,15 +351,9 @@ class MKLDNNCPUExtNonMaxSuppressionTFTests : public TestsCommon, public WithPara
                 <port id="2">
                     _ISCORES_
                 </port>
-                <port id="3" precision="I32">
-                    <dim>1</dim>
-                </port>
-                <port id="4">
-                    <dim>1</dim>
-                </port>
-                <port id="5">
-                    <dim>1</dim>
-                </port>
+                <port id="3" precision="I32"/>
+                <port id="4"/>
+                <port id="5"/>
             </input>
             <output>
                 <port id="6" precision="I32">
@@ -427,6 +404,7 @@ class MKLDNNCPUExtNonMaxSuppressionTFTests : public TestsCommon, public WithPara
         REPLACE_WITH_STR(model, "_ISCORES_", inScores);
         REPLACE_WITH_STR(model, "_IOUT_", out);
         REPLACE_WITH_NUM(model, "_CPB_", p.center_point_box);
+        REPLACE_WITH_NUM(model, "_SRD_", p.sort_result_descending);
 
         return model;
     }
@@ -444,12 +422,8 @@ protected:
             InferenceEngine::CNNNetReader net_reader;
             ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
-            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-            MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(net_reader.getNetwork());
 
             //  Input
             InferenceEngine::BlobMap srcs;
@@ -483,7 +457,7 @@ protected:
             InferenceEngine::Blob::Ptr srcIouThr;
             InferenceEngine::Blob::Ptr srcScoreThr;
             if (p.max_output_boxes_per_class.size()) {
-                srcBoxesPerClass = InferenceEngine::make_shared_blob<int32_t>({ InferenceEngine::Precision::I32, InferenceEngine::SizeVector(1,1), InferenceEngine::TensorDesc::getLayoutByDims(InferenceEngine::SizeVector(1,1)) });
+                srcBoxesPerClass = InferenceEngine::make_shared_blob<int32_t>({ InferenceEngine::Precision::I32, {}, InferenceEngine::TensorDesc::getLayoutByDims({}) });
                 srcBoxesPerClass->allocate();
                 memcpy(static_cast<int32_t*>(srcBoxesPerClass->buffer()), &p.max_output_boxes_per_class[0], sizeof(int32_t));
                 auto * srcBoxesPerClassPtr = dynamic_cast<InferenceEngine::TBlob<int32_t>*>(srcBoxesPerClass.get());
@@ -494,7 +468,7 @@ protected:
 
             // Input IouThr
             if (p.iou_threshold.size()) {
-                srcIouThr = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, InferenceEngine::SizeVector(1,1), InferenceEngine::TensorDesc::getLayoutByDims(InferenceEngine::SizeVector(1,1)) });
+                srcIouThr = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, {}, InferenceEngine::TensorDesc::getLayoutByDims({}) });
                 srcIouThr->allocate();
                 memcpy(static_cast<float*>(srcIouThr->buffer()), &p.iou_threshold[0], sizeof(float));
                 auto * srcIouThrPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(srcIouThr.get());
@@ -505,7 +479,7 @@ protected:
 
             // Input ScoreThr
             if (p.score_threshold.size()) {
-                srcScoreThr = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, InferenceEngine::SizeVector(1,1), InferenceEngine::TensorDesc::getLayoutByDims(InferenceEngine::SizeVector(1,1)) });
+                srcScoreThr = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, {}, InferenceEngine::TensorDesc::getLayoutByDims({}) });
                 srcScoreThr->allocate();
                 memcpy(static_cast<float*>(srcScoreThr->buffer()), &p.score_threshold[0], sizeof(float));
                 auto * srcScoreThrPtr = dynamic_cast<InferenceEngine::TBlob<float>*>(srcScoreThr.get());
@@ -535,7 +509,9 @@ protected:
                 compare(*output, selected_indices_ref);
             } else {
                 //  Check results
-                if (memcmp((*output).data(), &p.ref[0], p.ref.size()) != 0)
+                if (p.ref.size() != output->size())
+                    FAIL() << "Wrong result vector size!";
+                if (memcmp((*output).data(), &p.ref[0], output->byteSize()) != 0)
                     FAIL() << "Wrong result with compare TF reference!";
             }
         } catch (const InferenceEngine::details::InferenceEngineException &e) {
@@ -553,34 +529,43 @@ static std::vector<int> reference = { 0,0,3,0,0,0,0,0,5 };
 INSTANTIATE_TEST_CASE_P(
         TestsNonMaxSuppression, MKLDNNCPUExtNonMaxSuppressionTFTests,
         ::testing::Values(
-// Params: center_point_box, scoresDim, boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, num_selected_indices, ref
+// Params: center_point_box, sort_result_descending, scoresDim, boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, num_selected_indices, ref
 
-        nmsTF_test_params{ 1, {1,1,6}, { 0.5f, 0.5f, 1.0f, 1.0f,0.5f, 0.6f, 1.0f, 1.0f,0.5f, 0.4f, 1.0f, 1.0f,0.5f, 10.5f, 1.0f, 1.0f, 0.5f, 10.6f, 1.0f, 1.0f, 0.5f, 100.5f, 1.0f, 1.0f },
-        scores,{ 3 },{ 0.5f },{ 0.f }, 3, reference }, /*nonmaxsuppression_center_point_box_format*/
+            nmsTF_test_params{ 1, 1, {1,1,6}, { 0.5f, 0.5f, 1.0f, 1.0f,0.5f, 0.6f, 1.0f, 1.0f,0.5f, 0.4f, 1.0f, 1.0f,0.5f, 10.5f, 1.0f, 1.0f, 0.5f, 10.6f, 1.0f, 1.0f, 0.5f, 100.5f, 1.0f, 1.0f },
+            scores,{ 3 },{ 0.5f },{ 0.f }, 3, reference }, /*nonmaxsuppression_center_point_box_format*/
 
-        nmsTF_test_params{ 0, {1,1,6}, { 1.0, 1.0, 0.0, 0.0, 0.0, 0.1, 1.0, 1.1, 0.0, 0.9, 1.0, -0.1, 0.0, 10.0, 1.0, 11.0, 1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0 },
-        scores,{ 3 },{ 0.5 },{ 0.0 }, 3, reference }, /*nonmaxsuppression_flipped_coordinates*/
+            nmsTF_test_params{ 0, 1, {1,1,6}, { 1.0, 1.0, 0.0, 0.0, 0.0, 0.1, 1.0, 1.1, 0.0, 0.9, 1.0, -0.1, 0.0, 10.0, 1.0, 11.0, 1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0 },
+            scores,{ 3 },{ 0.5 },{ 0.0 }, 3, reference }, /*nonmaxsuppression_flipped_coordinates*/
 
-        nmsTF_test_params{ 0, { 1,1,10 },{ 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
-                                           0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0 },
-        { 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9 },{ 3 },{ 0.5 },{ 0.0 }, 1,{ 0,0,0 } }, /*nonmaxsuppression_identical_boxes*/
+            nmsTF_test_params{ 0, 1, { 1,1,10 },{ 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
+                                               0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0 },
+            { 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9 },{ 3 },{ 0.5 },{ 0.0 }, 1,{ 0,0,0 } }, /*nonmaxsuppression_identical_boxes*/
 
-        nmsTF_test_params{ 0, { 1,1,6 }, boxes, scores,{ 2 },{ 0.5 },{ 0.0 }, 2,{ 0,0,3,0,0,0 } }, /*nonmaxsuppression_limit_output_size*/
+            nmsTF_test_params{ 0, 1, { 1,1,6 }, boxes, scores,{ 2 },{ 0.5 },{ 0.0 }, 2,{ 0,0,3,0,0,0 } }, /*nonmaxsuppression_limit_output_size*/
 
-        nmsTF_test_params{ 0,{ 1,1,1 },{ 0.0, 0.0, 1.0, 1.0 }, { 0.9 },{ 3 },{ 0.5 },{ 0.0 }, 1, { 0,0,0 } }, /*nonmaxsuppression_single_box*/
+            nmsTF_test_params{ 0, 1,{ 1,1,1 },{ 0.0, 0.0, 1.0, 1.0 }, { 0.9 },{ 3 },{ 0.5 },{ 0.0 }, 1, { 0,0,0 } }, /*nonmaxsuppression_single_box*/
 
-        nmsTF_test_params{ 0, { 1,1,6 }, boxes, scores, { 3 }, { 0.5 }, { 0.0 }, 3, reference }, /*nonmaxsuppression_suppress_by_IOU*/
+            nmsTF_test_params{ 0, 1, { 1,1,6 }, boxes, scores, { 3 }, { 0.5 }, { 0.0 }, 3, reference }, /*nonmaxsuppression_suppress_by_IOU*/
 
-        nmsTF_test_params{ 0, { 2,1,6 },{ 0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
-                                         0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 },
-        { 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3 },{ 2 },{ 0.5 },{ 0.0 }, 4,{ 0,0,3,0,0,0,1,0,3,1,0,0 } }, /*nonmaxsuppression_two_batches*/
+            nmsTF_test_params{ 0, 1, { 1,1,6 }, boxes, scores, { 3 }, { 0.5 }, { 0.4 }, 2, { 0,0,3,0,0,0 } }, /*nonmaxsuppression_suppress_by_IOU_and_scores*/
 
-        nmsTF_test_params{ 0, { 1,2,6 }, boxes,
-        { 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3 },{ 2 },{ 0.5 },{ 0.0 }, 4,{ 0,0,3,0,0,0,0,1,3,0,1,0 } }, /*nonmaxsuppression_two_classes*/
+            nmsTF_test_params{ 0, 0, { 2,1,6 },{ 0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
+                                             0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 },
+            { 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3 },{ 2 },{ 0.5 },{ 0.0 }, 4,{ 0,0,3,0,0,0,1,0,3,1,0,0 } }, /*nonmaxsuppression_two_batches*/
 
-        nmsTF_test_params{ 0, { 1,1,6 }, boxes, scores, { 3 }, { 0.5 }, {}, 3, reference }, /*nonmaxsuppression_no_score_threshold*/
+            nmsTF_test_params{ 0, 1, { 2,1,6 },{ 0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
+                                             0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0 },
+            { 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3 },{ 2 },{ 0.5 },{ 0.0 }, 4,{ 0,0,3,1,0,3,0,0,0,1,0,0 } }, /*nonmaxsuppression_two_batches*/
 
-        nmsTF_test_params{ 0, { 1,1,6 }, boxes, scores, { 3 }, {}, {}, 3, reference }, /*nonmaxsuppression_no_iou_threshold_and_score_threshold*/
+            nmsTF_test_params{ 0, 0, { 1,2,6 }, boxes,
+            { 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3 },{ 2 },{ 0.5 },{ 0.0 }, 4,{ 0,0,3,0,0,0,0,1,3,0,1,0 } }, /*nonmaxsuppression_two_classes*/
 
-        nmsTF_test_params{ 0, { 1,1,6 }, boxes, scores, {}, {}, {}, 3, {} } /*nonmaxsuppression_no_max_output_boxes_per_class_and_iou_threshold_and_score_threshold*/
+            nmsTF_test_params{ 0, 1, { 1,2,6 }, boxes,
+            { 0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3 },{ 2 },{ 0.5 },{ 0.0 }, 4,{ 0,0,3,0,1,3,0,0,0,0,1,0 } }, /*nonmaxsuppression_two_classes*/
+
+            nmsTF_test_params{ 0, 1, { 1,1,6 }, boxes, scores, { 3 }, { 0.5 }, {}, 3, reference }, /*nonmaxsuppression_no_score_threshold*/
+
+            nmsTF_test_params{ 0, 1, { 1,1,6 }, boxes, scores, { 3 }, {}, {}, 3, { 0,0,3,0,0,0,0,0,1 } }, /*nonmaxsuppression_no_iou_threshold_and_score_threshold*/
+
+            nmsTF_test_params{ 0, 1, { 1,1,6 }, boxes, scores, {}, {}, {}, 3, {} } /*nonmaxsuppression_no_max_output_boxes_per_class_and_iou_threshold_and_score_threshold*/
 ));

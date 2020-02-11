@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief header file for no_copy class
+ * 
  * @file ie_no_copy.hpp
  */
 #pragma once
@@ -28,22 +29,22 @@ protected:
     /**
      * @brief A removed copy constructor
      */
-    no_copy(no_copy const &) = delete;
+    no_copy(no_copy const&) = delete;
 
     /**
      * @brief A removed assign operator
      */
-    no_copy &operator=(no_copy const &) = delete;
+    no_copy& operator=(no_copy const&) = delete;
 
     /**
      * @brief A removed move constructor
      */
-    no_copy(no_copy &&) = delete;
+    no_copy(no_copy&&) = delete;
 
     /**
      * @brief A removed move operator
      */
-    no_copy &operator=(no_copy &&) = delete;
+    no_copy& operator=(no_copy&&) = delete;
 };
 }  // namespace details
 }  // namespace InferenceEngine

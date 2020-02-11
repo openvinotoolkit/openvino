@@ -21,6 +21,7 @@
 #include "api/primitive.hpp"
 #include "api/activation.hpp"
 #include "internal_primitive.h"
+#include "kernel_selector_helper.h"
 
 #include "meta_utils.h"
 #include <vector>
@@ -46,7 +47,7 @@ class xml_composite;
 
 
 struct fused_primitive_desc {
-    std::shared_ptr<const primitive> prim;
+    std::shared_ptr<program_node> node;
     size_t dep_start_idx;
     std::vector<primitive_id> deps;
     activation_func activation;
@@ -88,6 +89,7 @@ struct program_node {
 public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
+    virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
 
     template <class PType>
     bool is_type() const {
@@ -284,11 +286,11 @@ public:
         return reused_memory_color;
     }
 
-    virtual void add_fused_primitive(fused_primitive_desc& desc) {
-        fused_prims.push_back(desc);
+    void add_fused_primitive(fused_primitive_desc& d) {
+        fused_prims.push_back(d);
     }
 
-    virtual void add_fused_primitives(std::vector<fused_primitive_desc> descs) {
+    void add_fused_primitives(std::vector<fused_primitive_desc> descs) {
         fused_prims.insert(fused_prims.end(), descs.begin(), descs.end());
     }
 
@@ -305,10 +307,10 @@ public:
     bool has_fused_primitives() const { return !get_fused_primitives().empty(); }
 
     layout get_fused_output_layout() const {
-        auto fused_prims = get_fused_primitives();
-        if (fused_prims.empty())
+        auto fp = get_fused_primitives();
+        if (fp.empty())
             return layout(data_types::f32, format::bfyx, tensor());
-        return fused_prims.back().output_layout;
+        return fp.back().output_layout;
     }
 
 protected:

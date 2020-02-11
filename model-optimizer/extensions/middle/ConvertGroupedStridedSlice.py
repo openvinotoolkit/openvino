@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ from copy import deepcopy
 import numpy as np
 
 from extensions.middle.SliceConverter import ConvertSlice
-from extensions.ops.splitv import SplitV
+from extensions.ops.split import VariadicSplit
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
@@ -189,9 +189,11 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                 log.debug("Removed: {}".format(node.id))
 
             # 2. Create Split layer and reorder outputs
-            split = SplitV(graph, dict(name=name_for_future_split + "/Split", axis=split_channel_dim,
-                                       size_splits=size_splits, out_ports_count=len(size_splits)))
-            split.create_node_with_data(inputs=[input_data], data_nodes=final_data_nodes_list)
+            axis_const = Const(graph, {'value': int64_array(split_channel_dim)}).create_node_with_data()
+            size_splits_const = Const(graph, {'value': int64_array(size_splits)}).create_node_with_data()
+            split = VariadicSplit(graph, dict(name=name_for_future_split + "/Split", out_ports_count=len(size_splits)))
+            split.create_node_with_data(inputs=[input_data, axis_const, size_splits_const],
+                                        data_nodes=final_data_nodes_list)
 
     @staticmethod
     def add_squeeze_for_shrink(graph: Graph, ss_node: Node):
@@ -204,6 +206,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
         shape_out = ss_node.out_node().shape
         dim = np.array(range(len(ss_node['shrink_axis_mask'])))[np.array(ss_node['shrink_axis_mask'], dtype=bool)]
         ss_shape = []
+        i = 0
         k = 0
 
         # Don't permute reshape if channels were squeezed
@@ -211,13 +214,19 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
         if graph.graph['layout'] == 'NHWC' and ss_node['shrink_axis_mask'][-1] == 1:
             dont_permute = True
 
-        for i in range(0, len(ss_node['shrink_axis_mask'])):
-            if not ss_node['shrink_axis_mask'][i]:
+        while k < len(shape_out):
+            if i >= len(ss_node['shrink_axis_mask']) or not ss_node['shrink_axis_mask'][i]:
                 ss_shape.append(shape_out[k])
                 k = k + 1
             else:
                 ss_node['shrink_axis_mask'][i] = 0
                 ss_shape.append(1)
+            i = i + 1
+
+        while i < len(ss_node['shrink_axis_mask']):
+            ss_node['shrink_axis_mask'][i] = 0
+            ss_shape.append(1)
+            i = i + 1
 
         ss_node.out_port(0).data.set_shape(ss_shape)
 

@@ -1,31 +1,33 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <float.h>
+#include <stdlib.h>
 
+#include <cstdint>
 #include <vector>
 
 #include "ie_api.h"
 
-class INFERENCE_ENGINE_API_CLASS(DataStats) {
-  public:
-    template<typename T>
+class DataStats {
+public:
+    template <typename T>
     static void GetDataMinMax(const T* data, size_t count, T& min, T& max);
 
-    template<typename T>
+    template <typename T>
     static void GetDataAverage(const T* data, size_t count, T& ave);
 
-    template<typename T>
+    template <typename T>
     static void GetDataAbsMax(const T* data, size_t count, T& max);
 
-    template<typename T>
+    template <typename T>
     static T GetAbsMax(T min, T max);
 };
 
-template<typename T>
+template <typename T>
 void DataStats::GetDataMinMax(const T* data, size_t count, T& min, T& max) {
     for (size_t i = 0; i < count; i++) {
         T val = data[i];
@@ -40,7 +42,7 @@ void DataStats::GetDataMinMax(const T* data, size_t count, T& min, T& max) {
     }
 }
 
-template<typename T>
+template <typename T>
 void DataStats::GetDataAbsMax(const T* data, size_t count, T& max) {
     T min = FLT_MAX;
 
@@ -54,7 +56,7 @@ template void DataStats::GetDataMinMax<uint8_t>(const uint8_t* data, size_t coun
 
 template void DataStats::GetDataAbsMax<float>(const float* data, size_t count, float& max);
 
-template<typename T>
+template <typename T>
 void DataStats::GetDataAverage(const T* data, size_t count, T& ave) {
     ave = 0;
 
@@ -67,7 +69,7 @@ void DataStats::GetDataAverage(const T* data, size_t count, T& ave) {
 
 template void DataStats::GetDataAverage<float>(const float* data, size_t count, float& ave);
 
-template<typename T>
+template <typename T>
 T DataStats::GetAbsMax(T min, T max) {
     if (min < 0) {
         min *= -1;

@@ -1,18 +1,19 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <debug.h>
+
+#include <cmath>
 #include <description_buffer.hpp>
-#include "ie_built_in_impl.hpp"
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <debug.h>
-#include <cmath>
-#include <ie_format_parser.h>
+
+#include "ie_built_in_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -22,12 +23,10 @@ namespace ShapeInfer {
  */
 class ShapeShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit ShapeShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
+    explicit ShapeShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-                         const std::map<std::string, std::string>& params,
-                         const std::map<std::string, Blob::Ptr>& blobs,
-                         std::vector<SizeVector>& outShapes) override {
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
         outShapes.push_back({inShapes[0].size()});
     }
 };

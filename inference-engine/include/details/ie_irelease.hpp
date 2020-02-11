@@ -1,15 +1,18 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief A header file for the Inference Engine plugins destruction mechanism
+ * 
  * @file ie_irelease.hpp
  */
 #pragma once
 
-#include "ie_no_copy.hpp"
 #include <memory>
+
+#include "ie_api.h"
+#include "ie_no_copy.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -24,21 +27,27 @@ public:
      */
     virtual void Release() noexcept = 0;
 
- protected:
+protected:
     /**
      * @brief Default destructor
      */
     ~IRelease() override = default;
 };
 
+IE_SUPPRESS_DEPRECATED_START
 
-
-template <class T> inline std::shared_ptr<T> shared_from_irelease(T * ptr) {
-    std::shared_ptr<T> pointer(ptr, [](IRelease *p) {
-        p->Release();
+template <class T>
+inline std::shared_ptr<T> shared_from_irelease(T* ptr) {
+    IE_SUPPRESS_DEPRECATED_START
+    std::shared_ptr<T> pointer(ptr, [](IRelease* p) {
+        if (p)
+            p->Release();
     });
+    IE_SUPPRESS_DEPRECATED_END
     return pointer;
 }
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace details
 }  // namespace InferenceEngine

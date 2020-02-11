@@ -1609,7 +1609,7 @@ struct xbyak_gemm : public jit_generator {
         vmovss(xmm0, ptr[ARG_ALPHA]);
         vmovss(xmm1, ptr[r15]);
 
-#if _WIN32
+#ifdef _WIN32
         mov(A, ARG_A);
         mov(LDA, ARG_LDA);
 #endif

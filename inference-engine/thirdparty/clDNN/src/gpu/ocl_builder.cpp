@@ -16,7 +16,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "ocl_builder.h"
-#include "confiugration.h"
+#include "configuration.h"
+#include "include/to_string_utils.h"
 #include <string>
 #include <vector>
 #include <list>
@@ -33,124 +34,168 @@
 
 namespace cldnn {
 namespace gpu {
+static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
 
-ocl_builder::ocl_builder(const configuration& config)
-    : _is_user_context(config.user_context != nullptr ? true : false) {
-    if (_is_user_context) {
-        _context = *config.user_context;
-        build_device_from_user_context(config);
+std::map<std::string, device_impl::ptr> ocl_builder::get_available_devices(void* user_context, void* user_device) const {
+    bool host_out_of_order = true;  // Change to false, if debug requires in-order queue.
+    if (user_context != nullptr) {
+        return build_device_list_from_user_context(host_out_of_order, user_context);
+    } else if (user_device != nullptr) {
+        return build_device_list_from_user_device(host_out_of_order, user_device);
     } else {
-        build_device(config);
-        build_context();
-    }
-    build_platform_id();
-}
-
-void ocl_builder::build_device_from_user_context(const configuration& config) {
-    auto all_devices = _context.getInfo<CL_CONTEXT_DEVICES>();
-    auto num_devices = _context.getInfo<CL_CONTEXT_NUM_DEVICES>();
-    if (num_devices != 1) {
-        throw std::runtime_error("[ERROR]. Number of devices from user context is not equal to 1.");
-    }
-    auto device = all_devices.at(0);
-    auto dev_type = device.getInfo<CL_DEVICE_TYPE>();
-    if (dev_type != CL_DEVICE_TYPE_GPU) {
-        throw std::runtime_error("[ERROR]. User defined device is not an gpu device!");
-    }
-
-    std::list<std::string> reasons;
-    if (does_device_match_config(config, device, reasons)) {
-        _device = device;
-        return;
-    } else {
-        std::string error_msg = "No OpenCL device found which would match provided configuration:";
-        for (const auto& reason : reasons) error_msg += "\n    " + reason;
-        throw std::invalid_argument(std::move(error_msg));
+        return build_device_list(host_out_of_order);
     }
 }
 
-void ocl_builder::build_device(const configuration& config) {
-    std::list<std::string> reasons;
+std::map<std::string, device_impl::ptr> ocl_builder::build_device_list(bool out_out_order) const {
     cl_uint n = 0;
-
     // Get number of platforms availible
     cl_int err = clGetPlatformIDs(0, NULL, &n);
     if (err != CL_SUCCESS) {
-        throw std::runtime_error("clGetPlatformIDs error " + std::to_string(err));
+        throw std::runtime_error("[CLDNN ERROR]. clGetPlatformIDs error " + std::to_string(err));
     }
 
     // Get platform list
     std::vector<cl_platform_id> platform_ids(n);
     err = clGetPlatformIDs(n, platform_ids.data(), NULL);
     if (err != CL_SUCCESS) {
-        throw std::runtime_error("clGetPlatformIDs error " + std::to_string(err));
+        throw std::runtime_error("[CLDNN ERROR]. clGetPlatformIDs error " + std::to_string(err));
     }
 
+    uint32_t idx = 0;
+    std::map<std::string, device_impl::ptr> ret;
     for (auto& id : platform_ids) {
         cl::Platform platform = cl::Platform(id);
+
+        if (platform.getInfo<CL_PLATFORM_VENDOR>() != INTEL_PLATFORM_VENDOR)
+            continue;
+
         std::vector<cl::Device> devices;
         platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
-        for (auto& d : devices) {
-            if (does_device_match_config(config, d, reasons)) {
-                _device = d;
-                return;
-            }
+        for (auto& device : devices) {
+            if (!does_device_match_config(out_out_order, device)) continue;
+            ret.insert(get_device(idx++, device, id));
         }
     }
-
-    if (reasons.empty())
-        throw std::runtime_error("Could not find any OpenCL device");
-
-    std::string error_msg = "No OpenCL device found which would match provided configuration:";
-    for (const auto& reason : reasons) error_msg += "\n    " + reason;
-
-    throw std::invalid_argument(std::move(error_msg));
+    if (ret.empty()) {
+        throw std::runtime_error("[CLDNN ERROR]. No GPU device was found.");
+    }
+    return ret;
 }
 
-void ocl_builder::build_context() { _context = cl::Context(_device); }
+std::map<std::string, device_impl::ptr>  ocl_builder::build_device_list_from_user_context(bool out_out_order, void* user_context) const {
+    cl::Context ctx = cl::Context(static_cast<cl_context>(user_context), true);
+    auto all_devices = ctx.getInfo<CL_CONTEXT_DEVICES>();
 
-bool ocl_builder::does_device_match_config(const configuration& config,
-                                           const cl::Device& dev,
-                                           std::list<std::string>& reasons) {
-    auto dev_name = dev.getInfo<CL_DEVICE_NAME>();
-    bool ok = true;
-
-    auto dev_type = dev.getInfo<CL_DEVICE_TYPE>();
-
-    cl_device_type device_types[] = {CL_DEVICE_TYPE_DEFAULT,
-                                     CL_DEVICE_TYPE_CPU,
-                                     CL_DEVICE_TYPE_GPU,
-                                     CL_DEVICE_TYPE_ACCELERATOR};
-
-    if (dev_type != device_types[config.device_type]) {
-        reasons.push_back(dev_name + ": invalid device type");
-        ok = false;
+    std::map<std::string, device_impl::ptr> ret;
+    uint32_t idx = 0;
+    for (auto& device : all_devices) {
+        if (!does_device_match_config(out_out_order, device)) continue;
+        ret.insert(get_device(idx++, device, device.getInfo<CL_DEVICE_PLATFORM>()));
     }
 
-    auto vendor_id = dev.getInfo<CL_DEVICE_VENDOR_ID>();
-    if (vendor_id != config.device_vendor) {
-        reasons.push_back(dev_name + ": invalid vendor type");
-        ok = false;
+    if (ret.empty()) {
+        throw std::runtime_error("[CLDNN ERROR]. User defined context does not have GPU device included!");
     }
-
-    if (config.host_out_of_order) {
-        auto queue_properties = dev.getInfo<CL_DEVICE_QUEUE_PROPERTIES>();
-        using cmp_t = std::common_type<decltype(queue_properties),
-                                       typename std::underlying_type<cl::QueueProperties>::type>::type;
-        if (!(static_cast<cmp_t>(queue_properties) & static_cast<cmp_t>(cl::QueueProperties::OutOfOrder))) {
-            reasons.push_back(dev_name + ": missing out of order support");
-            ok = false;
-        }
-    }
-    return ok;
+    return ret;
 }
 
-void ocl_builder::build_platform_id() {
-    cl_int err;
-    _platform_id = _device.getInfo<CL_DEVICE_PLATFORM>(&err);
+std::map<std::string, device_impl::ptr>  ocl_builder::build_device_list_from_user_device(bool out_out_order, void* user_device) const {
+    cl_uint n = 0;
+    // Get number of platforms availible
+    cl_int err = clGetPlatformIDs(0, NULL, &n);
     if (err != CL_SUCCESS) {
-        throw std::runtime_error("Error getting OpenCL platform_id from device!");
+        throw std::runtime_error("[CLDNN ERROR]. clGetPlatformIDs error " + std::to_string(err));
     }
+
+    // Get platform list
+    std::vector<cl_platform_id> platform_ids(n);
+    err = clGetPlatformIDs(n, platform_ids.data(), NULL);
+    if (err != CL_SUCCESS) {
+        throw std::runtime_error("[CLDNN ERROR]. clGetPlatformIDs error " + std::to_string(err));
+    }
+
+    uint32_t idx = 0;
+    std::map<std::string, device_impl::ptr> ret;
+    for (auto& id : platform_ids) {
+        cl::PlatformVA platform = cl::PlatformVA(id);
+
+        if (platform.getInfo<CL_PLATFORM_VENDOR>() != INTEL_PLATFORM_VENDOR)
+            continue;
+
+        std::vector<cl::Device> devices;
+#ifdef WIN32
+        platform.getDevices(CL_D3D11_DEVICE_KHR,
+            user_device,
+            CL_PREFERRED_DEVICES_FOR_D3D11_KHR,
+#else
+        platform.getDevices(CL_VA_API_DISPLAY_INTEL,
+            user_device,
+            CL_PREFERRED_DEVICES_FOR_VA_API_INTEL,
+#endif
+            &devices);
+
+        for (auto& device : devices) {
+            if (!does_device_match_config(out_out_order, device)) continue;
+            ret.insert(get_device_shared(idx++, device, id, user_device));
+        }
+    }
+    if (ret.empty()) {
+        throw std::runtime_error("[CLDNN ERROR]. No corresponding GPU device was found.");
+    }
+    return ret;
+}
+
+std::pair<std::string, device_impl::ptr> ocl_builder::get_device(const uint32_t index,
+                                                                 const cl::Device& dev_to_add,
+                                                                 const cl_platform_id platform) const {
+    return {
+        std::to_string(index),
+        device_impl::ptr{ new device_impl(dev_to_add, cl::Context(dev_to_add), platform, device_info_internal(dev_to_add)),
+        false}
+    };
+}
+
+std::pair<std::string, device_impl::ptr> ocl_builder::get_device_shared(const uint32_t index,
+                                                                        const cl::Device& dev_to_add,
+                                                                        const cl_platform_id platform,
+                                                                        void* user_device) const {
+    cl_context_properties props[] = {
+#ifdef WIN32
+        CL_CONTEXT_D3D11_DEVICE_KHR,
+#else
+        CL_CONTEXT_VA_API_DISPLAY_INTEL,
+#endif
+        (intptr_t)user_device,
+        CL_CONTEXT_INTEROP_USER_SYNC, CL_FALSE,
+        CL_CONTEXT_PLATFORM, (cl_context_properties)platform,
+        0 };
+
+    return {
+        std::to_string(index),
+        device_impl::ptr{ new device_impl(dev_to_add, cl::Context(dev_to_add, props), platform, device_info_internal(dev_to_add)),
+        false }
+    };
+}
+
+bool ocl_builder::does_device_match_config(bool out_of_order, const cl::Device& device) const {
+    // Is it intel gpu
+    if (device.getInfo<CL_DEVICE_TYPE>() != device_type ||
+        device.getInfo<CL_DEVICE_VENDOR_ID>() != device_vendor) {
+        return false;
+    }
+
+    // Does device support OOOQ?
+    if (out_of_order) {
+        auto queue_properties = device.getInfo<CL_DEVICE_QUEUE_PROPERTIES>();
+        using cmp_t = std::common_type<decltype(queue_properties),
+            typename std::underlying_type<cl::QueueProperties>::type>::type;
+        if (!(static_cast<cmp_t>(queue_properties) & static_cast<cmp_t>(cl::QueueProperties::OutOfOrder))) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 }  // namespace gpu

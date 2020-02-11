@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,53 +15,69 @@
 #include <cpp/ie_cnn_network.h>
 #include <details/caseless.hpp>
 
-#include <vpu/frontend/stage_builder.hpp>
-#include <vpu/frontend/parse_network.hpp>
+#include <vpu/stage_builder.hpp>
+#include <vpu/frontend/ie_parsed_network.hpp>
+#include <vpu/frontend/custom_layer.hpp>
 #include <vpu/model/model.hpp>
-#include <vpu/custom_layer.hpp>
 #include <vpu/utils/enums.hpp>
+#include <vpu/utils/func_ref.hpp>
 
 namespace vpu {
 
 namespace ie = InferenceEngine;
 
-
-class FrontEnd final : public std::enable_shared_from_this<FrontEnd> {
-//
-// Public API
-//
-
+class FrontEnd final {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
 
-    explicit FrontEnd(const StageBuilder::Ptr& stageBuilder) : _stageBuilder(stageBuilder) {}
+    explicit FrontEnd(StageBuilder::Ptr stageBuilder);
 
-    Model::Ptr buildInitialModel(const ie::ICNNNetwork& network);
+    ModelPtr buildInitialModel(ie::ICNNNetwork& network);
 
-    std::set<std::string> checkSupportedLayers(const ie::ICNNNetwork& network);
+    std::set<std::string> checkSupportedLayers(ie::ICNNNetwork& network);
 
-    const std::vector<ie::CNNLayerPtr>& allLayers() const { return _ieNetworkParser.orderedLayers; }
+    const std::vector<ie::CNNLayerPtr>& origLayers() const {
+        return _ieParsedNetwork.orderedLayers;
+    }
 
 //
 // Passes
 //
 
 private:
-    Model::Ptr runCommonPasses(
-            const ie::ICNNNetwork& network,
-            LayersOrder order);
+    using SupportedLayerCallback = std::function<void(const ie::CNNLayerPtr&)>;
+    using UnsupportedLayerCallback = std::function<void(const Model&, const ie::CNNLayerPtr&, const DataVector&, const DataVector&, const std::string&)>;
 
-    ie::CNNNetwork detectNetworkBatch(
-            const ie::ICNNNetwork& network,
-            const Model::Ptr& model);
+    ModelPtr runCommonPasses(ie::ICNNNetwork& network);
+    ModelPtr runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLayerCallback& unsupportedLayer,
+                             const SupportedLayerCallback& supportedLayer = nullptr);
 
-    void RemoveConstLayers(ie::ICNNNetwork& network);
+    //
+    // Update IE Network
+    //
 
-    void parseInputAndOutputData(const Model::Ptr& model);
-    void addDataTypeConvertStages(const Model::Ptr& model);
-    void addPreProcessStages(const Model::Ptr& model);
+    void unrollLoops(
+            ie::ICNNNetwork& network);
 
-    void eliminatePriorBoxData(const Model::Ptr& model);
+    void detectNetworkBatch(
+            ie::ICNNNetwork& network,
+            const Model& model);
+
+    void removeConstLayers(
+            ie::ICNNNetwork& network);
+
+    void moveConstInputsToBlobs(
+            ie::ICNNNetwork& network);
+
+    //
+    // Process internal VPU Model
+    //
+
+    void parseInputAndOutputData(const Model& model);
+
+    void addDataTypeConvertStages(const Model& model);
+
+    void addPreProcessStages(const Model& model);
 
 //
 // IR Parsers
@@ -69,107 +85,124 @@ private:
 
 public:
     //
-    // Layers, that might be both SW and HW
+    // Layers that might be both SW and HW
     //
 
-    void parseConvolution(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parsePooling(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseFullyConnected(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseConvolution(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parsePooling(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseFullyConnected(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
 
     //
     // SW only layers
     //
 
-    void parseReLU(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseSoftMax(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseGRN(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseMVN(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseNorm(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parsePower(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseScale(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parsePermute(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseDetectionOutput(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseEltwise(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseSigmoid(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseTanH(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parsePReLU(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseBatchNorm(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseDeconvolution(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseCopy(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseELU(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseCrop(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseTile(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseNormalize(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseRegionYolo(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseReorgYolo(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseBias(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseCTCDecoder(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseInterp(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseClamp(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseProposal(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseROIPooling(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parsePSROIPooling(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseCustom(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseMTCNN(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseLSTMCell(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parsePad(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseResample(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseArgMax(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseRNN(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseGEMM(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseLog(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseExp(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseReverseSequence(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseGather(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseReduce(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseFloor(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseTopK(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseSelect(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseReLU(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseSoftMax(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseGRN(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseMVN(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseNorm(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parsePower(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseScale(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parsePermute(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseDetectionOutput(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseEltwise(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseSigmoid(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseTanH(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parsePReLU(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseBatchNorm(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseDeconvolution(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseCopy(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseELU(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseCrop(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseTile(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseNormalize(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseRegionYolo(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseReorgYolo(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseBias(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseCTCDecoder(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseInterp(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseClamp(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseProposal(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseROIPooling(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parsePSROIPooling(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseMTCNN(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parsePad(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseResample(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseArgMax(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseRNN(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseGEMM(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseLog(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseExp(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseReverseSequence(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseGather(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseReduce(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseFloor(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseTopK(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseSelect(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseExpDetectionOutput(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseNonMaxSuppression(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseROIFeatureExtractor(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseConvert(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseErf(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseOneHot(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
 
     //
     // Special layers
     //
 
-    void parsePriorBox(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parsePriorBoxClustered(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseReshape(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseConcat(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseSplit(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
-    void parseStridedSlice(const Model::Ptr& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parsePriorBox(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parsePriorBoxClustered(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseReshape(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseConcat(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseSplit(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseStridedSlice(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+
+
+    //
+    // Parser with data sharing
+    //
+
+    void parseCustom(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseLSTMCell(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseTensorIterator(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
 
 //
 // Utility
 //
 
 private:
-    Data getVpuData(const ie::DataPtr& ieData);
+    Data getVpuData(const ie::DataPtr& ieData) const;
     void bindData(const Data& data, const ie::DataPtr& ieData);
 
     void getInputAndOutputData(
-            const Model::Ptr& model,
+            const Model& model,
             const ie::CNNLayerPtr& layer,
             DataVector& inputs,
             DataVector& outputs);
 
-    std::tuple<Data, Data> getWeightsAndBiases(
-            const Model::Ptr& model,
-            const ie::CNNLayerPtr& layer);
+    std::tuple<Data, Data> getWeightsAndBiases(const Model& model, const ie::CNNLayerPtr& layer) const;
 
-//
-// Internal state
-//
+    void defaultOnUnsupportedLayerCallback(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
+                                           const std::string& extraMessage);
+
+    void parseLayer(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
+    void parseLayer(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
+                    const UnsupportedLayerCallback& onUnsupported, const SupportedLayerCallback& onSupported = nullptr);
 
 private:
     StageBuilder::Ptr _stageBuilder;
 
+    IeParsedNetwork _ieParsedNetwork;
     std::unordered_set<ie::DataPtr> _unbatchedOutputs;
-    std::unordered_map<ie::DataPtr, Data> _ieToVpuMap;
-
     ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> _customLayers;
-    ie::details::caseless_map<std::string, vpu::Data> kernelNodes;
-    std::unordered_map<ie::Blob::Ptr, vpu::Data> lstmWeights;
-    std::unordered_map<ie::Blob::Ptr, vpu::Data> lstmBiases;
-    vpu::IeNetworkParser _ieNetworkParser;
+
+    using LayerParser = std::function<void(const Model&, const ie::CNNLayerPtr&, const DataVector&, const DataVector&)>;
+    const ie::details::caseless_map<std::string, LayerParser> parsers;
+
+    std::unordered_map<ie::DataPtr, Data> _ieToVpuMap;
+    ie::details::caseless_map<std::string, Data> _kernelNodes;
+    std::unordered_map<ie::Blob::Ptr, Data> _lstmWeights;
+    std::unordered_map<ie::Blob::Ptr, Data> _lstmBiases;
 };
 
 }  // namespace vpu

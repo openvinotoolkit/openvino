@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 #include <ie_data.h>
 #include "ie_precision.hpp"
-#include <inference_engine/ie_layers_internal.hpp>
+#include <ie_layers_internal.hpp>
 
 using namespace std;
 using InferenceEngine::X_AXIS;
@@ -68,7 +68,7 @@ TEST_F(LayersTests, canCreateLayersWithDefaultParams) {
 TEST_F(LayersTests, throwsOnExpiredDataPtr) {
     InferenceEngine::CNNLayer layer(getDefaultParamsForLayer());
     InferenceEngine::DataPtr dataPtr(
-            new InferenceEngine::Data("data", InferenceEngine::Precision::FP32, InferenceEngine::NCHW));
+        new InferenceEngine::Data("data", TensorDesc(InferenceEngine::Precision::FP32, InferenceEngine::NCHW)));
     layer.insData.resize(1);
     layer.insData[0] = dataPtr;
     dataPtr.reset();
@@ -431,7 +431,7 @@ TEST_F(LayersTests, throwOnSamePadForEmptyConvolution) {
 TEST_F(LayersTests, throwOnInvalidDimsSamePadForConvolution) {
     ConvolutionLayer layer(getDefaultParamsForLayer());
     layer.params["auto_pad"] = "same_upper";
-    auto emptyData = std::make_shared<InferenceEngine::Data>("", Precision::UNSPECIFIED);
+    auto emptyData = std::make_shared<InferenceEngine::Data>("", TensorDesc(Precision::UNSPECIFIED, Layout::ANY));
     layer.insData.push_back(emptyData);
     ASSERT_THROW(getPaddings(layer), details::InferenceEngineException);
 }
@@ -439,8 +439,7 @@ TEST_F(LayersTests, throwOnInvalidDimsSamePadForConvolution) {
 TEST_F(LayersTests, throwOn2DSamePadForConvolution) {
     ConvolutionLayer layer(getDefaultParamsForLayer());
     layer.params["auto_pad"] = "same_upper";
-    auto notEmptyData = std::make_shared<InferenceEngine::Data>("", SizeVector{1, 1}, Precision::UNSPECIFIED,
-                                                                Layout::NC);
+    auto notEmptyData = std::make_shared<InferenceEngine::Data>("", TensorDesc(Precision::UNSPECIFIED, SizeVector{ 1, 1 }, Layout::NC));
     layer.insData.push_back(notEmptyData);
     ASSERT_THROW(getPaddings(layer), details::InferenceEngineException);
 }
@@ -448,11 +447,11 @@ TEST_F(LayersTests, throwOn2DSamePadForConvolution) {
 TEST_F(LayersTests, throwWithNotEnoughParamsSamePadForConvolution) {
     ConvolutionLayer layer(getDefaultParamsForLayer());
     layer.params["auto_pad"] = "same_upper";
-    auto notEmptyData = std::make_shared<InferenceEngine::Data>("", SizeVector{1, 2, 3, 4}, Precision::UNSPECIFIED);
+    auto notEmptyData = std::make_shared<InferenceEngine::Data>("", TensorDesc(Precision::UNSPECIFIED, SizeVector{ 4, 3, 2, 1 }, Layout::ANY));
     layer.insData.push_back(notEmptyData);
     ASSERT_NO_THROW(getPaddings(layer));
 
-    auto notEmptyData3D = std::make_shared<InferenceEngine::Data>("", SizeVector{1, 2, 3, 4, 5}, Precision::UNSPECIFIED, Layout::NCDHW);
+    auto notEmptyData3D = std::make_shared<InferenceEngine::Data>("", TensorDesc(Precision::UNSPECIFIED, SizeVector{ 5, 4, 3, 2, 1 }, Layout::NCDHW));
     layer._kernel.insert(Z_AXIS, 0u);
     layer.insData[0] = notEmptyData3D;
     ASSERT_NO_THROW(getPaddings(layer));

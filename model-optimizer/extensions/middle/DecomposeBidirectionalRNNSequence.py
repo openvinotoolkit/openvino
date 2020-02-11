@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,11 +15,12 @@
 """
 import numpy as np
 
+from extensions.ops.split import Split
 from mo.graph.graph import Node, Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat
+from mo.ops.const import Const
 from mo.ops.op import Op
-from mo.ops.split import Split
 
 
 class DecomposeBidirectionalRNNSequence(MiddleReplacementPattern):
@@ -55,7 +56,7 @@ class DecomposeBidirectionalRNNSequence(MiddleReplacementPattern):
         )
 
     @staticmethod
-    def split_helper(node: Node, index: int, direction: str, axis: int=0):
+    def split_helper(node: Node, index: int, direction: str, axis: int = 0):
         return Op._create_data_node(
             node.graph,
             name=node.name + '/SplittedBiLSTM/{}/'.format(direction),
@@ -69,15 +70,17 @@ class DecomposeBidirectionalRNNSequence(MiddleReplacementPattern):
         assert data.shape[0] == 2
 
         output_data = [Op._create_data_node(data.graph,
-                       name=data.name + '/SplittedBiLSTM/{}'.format(['forward', 'reverse'][i])) for i in [0, 1]]
-        split_op = Split(data.graph, dict(name=data.name + '/DecomposedBiLSTM_0', axis=0, num_split=2,
-                                          out_ports_count=2))
-        return split_op.create_node_with_data([data], data_nodes=output_data)
+                                            name=data.name + '/SplittedBiLSTM/{}'.format(['forward', 'reverse'][i])) for
+                       i in [0, 1]]
+        split_op = Split(data.graph, dict(name=data.name + '/DecomposedBiLSTM_0', num_splits=2))
+        axis_const = Const(data.graph, {'name': data.name + '/DecomposedBiLSTM_0' + '/Split_axis',
+                                        'value': np.int64(0)}).create_node_with_data()
+        return split_op.create_node_with_data([data, axis_const], data_nodes=output_data)
 
     def replace_pattern(self, graph: Graph, match: dict):
         bidirectional_cell = match['lstm']
         new_init_hiddens = self.split_data(bidirectional_cell.in_node(5))
-        new_init_cells = self.split_data(bidirectional_cell.in_node(6)) if 6 in bidirectional_cell.in_nodes()\
+        new_init_cells = self.split_data(bidirectional_cell.in_node(6)) if 6 in bidirectional_cell.in_nodes() \
             else (None, None)
 
         blob_bidirectional_split = lambda node: (
@@ -112,6 +115,12 @@ class DecomposeBidirectionalRNNSequence(MiddleReplacementPattern):
             'name': bidirectional_cell.name + '/Split/' + direction,
         }
         attrs.update(new_attrs)
+        # split bidirectional activations
+        assert 'activations' in attrs
+        if attrs['activations'] is not None and len(attrs['activations']) > 1:
+            assert len(attrs['activations']) == 2, 'Bidirectional RNN should have 2 activations'
+            activations = attrs['activations']
+            attrs['activations'] = [activations[0 if direction == 'forward' else 1]]
         return new_cell(bidirectional_cell.graph, attrs)
 
     def split_bidirectional(self,

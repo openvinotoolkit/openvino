@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,8 @@
 
 #include "ie_icnn_network.hpp"
 #include <gmock/gmock-generated-function-mockers.h>
-#include <inference_engine/ie_cnn_net_reader_impl.h>
-#include <inference_engine/parsers.h>
+#include <ie_cnn_net_reader_impl.h>
+#include <parsers.h>
 #include "pugixml.hpp"
 
 struct MockIFormatParser : public InferenceEngine::details::IFormatParser {

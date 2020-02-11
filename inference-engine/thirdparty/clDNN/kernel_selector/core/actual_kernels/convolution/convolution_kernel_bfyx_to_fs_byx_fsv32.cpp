@@ -126,6 +126,17 @@ JitConstants ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetJitConstants(const convo
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subGroupSize));
     jit.AddConstant(MakeJitConstant("FSV_PER_THREAD", fsvPerThread));
 
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetUnitType(params);
+        FusedOpsConfiguration conf_vec_elem = {"_VEC_ELEM",
+                                               {"b", "fs * FSV + sglid + out_f * SUB_GROUP_SIZE", "or + out_y", "oc + out_x"},
+                                               "tmp_write[out_f]", input_dt, 1 };
+        FusedOpsConfiguration conf_scalar = {"_SCALAR",
+                                             {"b", "fs * FSV + sglid + out_f * SUB_GROUP_SIZE", "or + out_y", "oc + out_x"},
+                                             "out[out_idx]", input_dt, 1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec_elem, conf_scalar}));
+    }
+
     return jit;
 }
 

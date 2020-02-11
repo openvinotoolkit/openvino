@@ -1,17 +1,22 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+/**
+ * @file
+ */
+
 #pragma once
 
-#include <details/caseless.hpp>
-#include <ie_parameter.hpp>
-#include <ie_network.hpp>
 #include <ie_blob.h>
+
+#include <details/caseless.hpp>
+#include <ie_network.hpp>
+#include <ie_parameter.hpp>
+#include <map>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
-#include <map>
 
 namespace InferenceEngine {
 namespace Builder {
@@ -19,6 +24,7 @@ namespace Builder {
 class Layer;
 
 /**
+ * @deprecated Use ngraph API instead.
  * @brief This structure implements a holder for validators
  */
 struct ValidatorsHolder {
@@ -28,11 +34,13 @@ struct ValidatorsHolder {
     details::caseless_map<std::string, std::function<void(const std::shared_ptr<const Layer>&, bool)>> validators;
 };
 
+IE_SUPPRESS_DEPRECATED_START
+
 /**
+ * @deprecated Use ngraph API instead.
  * @brief This class implements a builder for IE Layer
  */
-class INFERENCE_ENGINE_API_CLASS(Layer): public ILayer,
-        public std::enable_shared_from_this<Layer> {
+class INFERENCE_ENGINE_NN_BUILDER_API_CLASS(Layer): public ILayer, public std::enable_shared_from_this<Layer> {
 public:
     /**
      * @brief A shared pointer to the Layer builder
@@ -49,11 +57,13 @@ public:
      * @param name Layer name
      */
     explicit Layer(const std::string& type, const std::string& name = "");
+
     /**
      * @brief The constructor creates a Layer builder from shared pointer to constant ILayer
      * @param layer shared pointer to constant ILayer
      */
     explicit Layer(const ILayer::CPtr& layer);
+
     /**
      * @brief The constructor creates a Layer builder with layer ID and layer builder
      * @param id Layer ID
@@ -81,6 +91,7 @@ public:
      * @return Layer name
      */
     const std::string& getName() const noexcept override;
+
     /**
      * @brief Sets layer name
      * @param name Layer name
@@ -93,6 +104,7 @@ public:
      * @return Layer type
      */
     const std::string& getType() const noexcept override;
+
     /**
      * @brief Sets layer type
      * @param type Layer type
@@ -110,6 +122,7 @@ public:
      * @return map of parameters
      */
     std::map<std::string, Parameter>& getParameters();
+
     /**
      * @brief Sets parameters for layer
      * @param params constant map of parameters
@@ -122,34 +135,38 @@ public:
      * @return Vector of input ports
      */
     const std::vector<Port>& getInputPorts() const noexcept override;
+
     /**
      * @brief Returns vector of input ports
      * @return Vector of input ports
      */
     std::vector<Port>& getInputPorts();
+
     /**
      * @brief Sets input ports
      * @param ports vector of ports
      * @return Reference to Layer builder
      */
-    Layer& setInputPorts(const std::vector<Port> &ports);
+    Layer& setInputPorts(const std::vector<Port>& ports);
 
     /**
      * @brief Returns vector of output ports
      * @return Vector of output ports
      */
+
     const std::vector<Port>& getOutputPorts() const noexcept override;
     /**
      * @brief Returns vector of output ports
      * @return Vector of output ports
      */
     std::vector<Port>& getOutputPorts();
+
     /**
      * @brief Sets output ports
      * @param ports vector of ports
      * @return Reference to Layer builder
      */
-    Layer& setOutputPorts(const std::vector<Port> &ports);
+    Layer& setOutputPorts(const std::vector<Port>& ports);
 
     /**
      * @brief Validates the current builder and generates ILayer object
@@ -180,6 +197,7 @@ private:
 };
 
 /**
+ * @deprecated Use ngraph API instead.
  * @brief This class registers layer validators
  */
 class ValidatorRegisterBase {
@@ -189,13 +207,16 @@ public:
      * @param type Layer type
      * @param validator Layer validator
      */
-    explicit ValidatorRegisterBase(const std::string& type, const std::function<void(const Layer::CPtr&, bool)>& validator) {
+    explicit ValidatorRegisterBase(const std::string& type,
+                                   const std::function<void(const Layer::CPtr&, bool)>& validator) {
         InferenceEngine::Builder::Layer::addValidator(type, validator);
     }
 };
 
+IE_SUPPRESS_DEPRECATED_END
+
 #define REG_VALIDATOR_FOR(__type, __validator) \
-static InferenceEngine::Builder::ValidatorRegisterBase _reg_##__type(#__type, __validator)
+    static InferenceEngine::Builder::ValidatorRegisterBase _reg_##__type(#__type, __validator)
 
 }  // namespace Builder
 }  // namespace InferenceEngine

@@ -22,22 +22,15 @@ KERNEL(fc)(
 #if BIAS_TERM
     , const __global BIAS_TYPE* biases
 #endif
-#if QUANTIZATION_TERM
-    ,const __global float* quantizations
-#endif
-#if CALIBRATION_TERM
-    ,const __global float* calibrations
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
     )
 {
     const uint ofm = get_global_id(0);
     const uint b = get_global_id(1);
 
-#if QUANTIZATION_TERM
-    int dotProd = 0;
-#else
-    ACCUMULATOR_TYPE dotProd = 0;
-#endif
+    ACCUMULATOR_TYPE dotProd = (ACCUMULATOR_TYPE)0;
 
     for (uint ifm = 0; ifm < INPUT0_FEATURE_NUM; ++ifm)
     {
@@ -47,36 +40,26 @@ KERNEL(fc)(
            {
                const uint input0_idx = GET_DATA_INDEX(INPUT0, b, ifm, y, x);
                const uint filter_idx = GET_FILTER_INDEX(FILTER, ofm, ifm, y, x);
-#if QUANTIZATION_TERM
-               dotProd += (int)input[input0_idx] * (int)weights[filter_idx];
-#else
                dotProd += (ACCUMULATOR_TYPE)(input[input0_idx] * weights[filter_idx]);
-#endif
           }
        }
     }
-    
-    const uint output_idx = GET_DATA_INDEX(OUTPUT, b, ofm, 0, 0);
+
+    const uint dst_index = GET_DATA_INDEX(OUTPUT, b, ofm, 0, 0);
 
 #if BIAS_TERM
     const uint bias_index = ofm;
-#endif
-
-#if BIAS_TERM
-#if QUANTIZATION_TERM
-#if CALIBRATION_TERM
-    dotProd = (UNIT_TYPE)round(((float)dotProd * quantizations[ofm] * I_QF + biases[bias_index]) * calibrations[ofm]);
-#else  // CALIBRATION_TERM
-    dotProd = (UNIT_TYPE)round(((float)dotProd * quantizations[ofm] * I_QF + biases[bias_index]) * O_QF);
-#endif // CALIBRATION_TERM
-#else  // QUANTIZATION_TERM
-    dotProd += (ACCUMULATOR_TYPE)biases[bias_index];
-#endif // QUANTIZATION_TERM
-#endif
-
-#if QUANTIZATION_TERM
-    output[output_idx] = ACTIVATION(TO_OUTPUT_TYPE_SAT(dotProd), ACTIVATION_PARAMS);
+    ACTIVATION_TYPE dequantized = dotProd + biases[bias_index];
 #else
-    output[output_idx] = ACTIVATION((UNIT_TYPE)dotProd, ACTIVATION_PARAMS);
+    ACTIVATION_TYPE dequantized = dotProd;
 #endif
+
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    OUTPUT_TYPE res = FINAL_NAME;
+    output[dst_index] = res;
+#else
+    output[dst_index] = TO_OUTPUT_TYPE(ACTIVATION_TYPED(dequantized, ACTIVATION_PARAMS_TYPED));
+#endif
+
 }

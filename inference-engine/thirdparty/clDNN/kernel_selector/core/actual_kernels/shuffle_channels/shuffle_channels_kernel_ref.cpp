@@ -42,7 +42,7 @@ CommonDispatchData ShuffleChannelsKernelRef::SetDefault(const shuffle_channels_p
                                   params.output.Feature().v,
                                   params.output.Y().v * params.output.X().v};
 
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     runInfo.gws0 = global[0];
     runInfo.gws1 = global[1];

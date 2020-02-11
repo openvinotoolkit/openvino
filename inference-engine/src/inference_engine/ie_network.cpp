@@ -1,13 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <ie_network.hpp>
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
 
 using namespace InferenceEngine;
+
+IE_SUPPRESS_DEPRECATED_START
 
 PortData::PortData() {
     createData({});
@@ -31,42 +33,41 @@ const std::map<std::string, Parameter>& PortData::getParameters() const noexcept
 
 void PortData::createData(const TensorDesc& desc) {
     switch (desc.getPrecision()) {
-        case Precision::UNSPECIFIED:
-            data = std::make_shared<InferenceEngine::TBlob<uint8_t>>(desc);
-            break;
-        case Precision::FP32:
-            data = make_shared_blob<PrecisionTrait<Precision::FP32>::value_type>(desc);
-            break;
-        case Precision::FP16:
-            data = make_shared_blob<PrecisionTrait<Precision::FP16>::value_type>(desc);
-            break;
-        case Precision::Q78:
-            data = make_shared_blob<PrecisionTrait<Precision::Q78>::value_type>(desc);
-            break;
-        case Precision::I16:
-            data = make_shared_blob<PrecisionTrait<Precision::I16>::value_type>(desc);
-            break;
-        case Precision::U8:
-            data = make_shared_blob<PrecisionTrait<Precision::U8>::value_type>(desc);
-            break;
-        case Precision::I8:
-            data = make_shared_blob<PrecisionTrait<Precision::I8>::value_type>(desc);
-            break;
-        case Precision::U16:
-            data = make_shared_blob<PrecisionTrait<Precision::U16>::value_type>(desc);
-            break;
-        case Precision::I32:
-            data = make_shared_blob<PrecisionTrait<Precision::I32>::value_type>(desc);
-            break;
-        default:
-            THROW_IE_EXCEPTION << "Unsupported precisions!";
+    case Precision::UNSPECIFIED:
+        data = std::make_shared<InferenceEngine::TBlob<uint8_t>>(desc);
+        break;
+    case Precision::FP32:
+        data = make_shared_blob<PrecisionTrait<Precision::FP32>::value_type>(desc);
+        break;
+    case Precision::FP16:
+        data = make_shared_blob<PrecisionTrait<Precision::FP16>::value_type>(desc);
+        break;
+    case Precision::Q78:
+        data = make_shared_blob<PrecisionTrait<Precision::Q78>::value_type>(desc);
+        break;
+    case Precision::I16:
+        data = make_shared_blob<PrecisionTrait<Precision::I16>::value_type>(desc);
+        break;
+    case Precision::U8:
+        data = make_shared_blob<PrecisionTrait<Precision::U8>::value_type>(desc);
+        break;
+    case Precision::I8:
+        data = make_shared_blob<PrecisionTrait<Precision::I8>::value_type>(desc);
+        break;
+    case Precision::U16:
+        data = make_shared_blob<PrecisionTrait<Precision::U16>::value_type>(desc);
+        break;
+    case Precision::I32:
+        data = make_shared_blob<PrecisionTrait<Precision::I32>::value_type>(desc);
+        break;
+    default:
+        THROW_IE_EXCEPTION << "Unsupported precisions!";
     }
 }
 
 void PortData::setShape(const SizeVector& shape) {
     TensorDesc desc = data->getTensorDesc();
-    if (desc.getDims() == shape)
-        return;
+    if (desc.getDims() == shape) return;
     if (data->cbuffer() != nullptr) {
         THROW_IE_EXCEPTION << "Cannot change shape for allocated data!";
     }
@@ -85,10 +86,8 @@ Port::Port(const Port& port) {
     data = port.data;
 }
 
-
 bool Port::operator==(const Port& rhs) const {
-    return parameters == rhs.parameters &&
-           data == rhs.data;
+    return parameters == rhs.parameters && data == rhs.data;
 }
 
 bool Port::operator!=(const Port& rhs) const {
@@ -120,7 +119,8 @@ const PortData::Ptr& Port::getData() const noexcept {
 }
 
 void Port::setData(const PortData::Ptr& data) {
-    if (!data)
-        return;
+    if (!data) return;
     this->data = data;
 }
+
+IE_SUPPRESS_DEPRECATED_END

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,11 +9,12 @@
  */
 #pragma once
 
-#include <string>
-#include <memory>
 #include <limits>
-#include <vector>
 #include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "details/ie_irelease.hpp"
 
 namespace InferenceEngine {
@@ -69,7 +70,7 @@ public:
     /**
      * @brief The constructor which creates NetworkNodeStats object
      */
-    NetworkNodeStats() { }
+    NetworkNodeStats() {}
     /**
      * @brief The constructor which creates NetworkNodeStats object with filled statistics
      *
@@ -95,6 +96,5 @@ public:
      */
     std::vector<float> _maxOutputs;
 };
-
 
 }  // namespace InferenceEngine

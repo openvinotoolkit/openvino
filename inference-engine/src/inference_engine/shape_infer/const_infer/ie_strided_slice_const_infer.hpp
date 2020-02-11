@@ -1,29 +1,30 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <ie_blob.h>
+#include <ie_layers.h>
+#include <ie_memcpy.h>
+
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <algorithm>
-#include <ie_layers.h>
-#include <ie_memcpy.h>
-#include "ie_precision.hpp"
+
 #include "ie_const_infer_impl.hpp"
 #include "ie_parallel.hpp"
+#include "ie_precision.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
 
 class StridedSliceHelper {
 public:
-    StridedSliceHelper(const std::vector<Blob::CPtr>& inData,
-                       const std::map<std::string, std::string>& params) {
-        LayerParams lp{};
+    StridedSliceHelper(const std::vector<Blob::CPtr>& inData, const std::map<std::string, std::string>& params) {
+        LayerParams lp {};
         CNNLayer layer(lp);
         layer.params = params;
 
@@ -36,47 +37,59 @@ public:
         if (inData.size() > 1) {
             begin_dims = inData[STRIDEDSLICE_BEGIN]->getTensorDesc().getDims();
             if (inData[STRIDEDSLICE_BEGIN]->getTensorDesc().getPrecision() != Precision::I32)
-                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Incorrect 'begin' input precision. Only I32 is supported! Current precision: " <<
-                                   inData[STRIDEDSLICE_BEGIN]->getTensorDesc().getPrecision();
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Incorrect 'begin' input precision. Only "
+                                      "I32 is supported! Current precision: "
+                                   << inData[STRIDEDSLICE_BEGIN]->getTensorDesc().getPrecision();
             if (begin_dims.size() > 1)
-                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Begin vector should be 1 dimension, got: " << begin_dims.size() << " dimensions";
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Begin vector should be 1 dimension, got: "
+                                   << begin_dims.size() << " dimensions";
             bounds_size = begin_dims[0];
         }
 
         if (inData.size() > 2) {
             end_dims = inData[STRIDEDSLICE_END]->getTensorDesc().getDims();
             if (inData[STRIDEDSLICE_END]->getTensorDesc().getPrecision() != Precision::I32)
-                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Incorrect 'end' input precision. Only I32 is supported! Current precision: " <<
-                                   inData[STRIDEDSLICE_END]->getTensorDesc().getPrecision();
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Incorrect 'end' input precision. Only "
+                                      "I32 is supported! Current precision: "
+                                   << inData[STRIDEDSLICE_END]->getTensorDesc().getPrecision();
             if (end_dims.size() > 1)
-                THROW_IE_EXCEPTION << "StridedSlice constant inference error: End vector should be 1 dimension, got: " << end_dims.size() << " dimensions";
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: End vector should be 1 dimension, got: "
+                                   << end_dims.size() << " dimensions";
             if (begin_dims[0] != end_dims[0])
-                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Begin vector size should be equal end vector size";
+                THROW_IE_EXCEPTION
+                    << "StridedSlice constant inference error: Begin vector size should be equal end vector size";
         }
 
         if (inData.size() > 3) {
             stride_dims = inData[STRIDEDSLICE_STRIDE]->getTensorDesc().getDims();
             if (inData[STRIDEDSLICE_STRIDE]->getTensorDesc().getPrecision() != Precision::I32)
-                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Incorrect 'strides' input precision. Only I32 is supported! Current precision: "
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Incorrect 'strides' input precision. "
+                                      "Only I32 is supported! Current precision: "
                                    << inData[STRIDEDSLICE_STRIDE]->getTensorDesc().getPrecision();
             if (stride_dims.size() > 1)
-                THROW_IE_EXCEPTION << "StridedSlice constant inference error: End vector should be 1 dimension, got: " << stride_dims.size() << " dimensions";
+                THROW_IE_EXCEPTION << "StridedSlice constant inference error: End vector should be 1 dimension, got: "
+                                   << stride_dims.size() << " dimensions";
             if (begin_dims[0] != stride_dims[0])
-                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Stride vector size should be equal begin vector size";
+                THROW_IE_EXCEPTION
+                    << "StridedSlice constant inference error: Stride vector size should be equal begin vector size";
         }
 
         std::string::size_type i;
         std::string begin_mask_str = layer.GetParamAsString("begin_mask", "");
         for (i = 0; i < begin_mask_str.size(); ++i) {
-            if (begin_mask_str[i] == '1') begin_mask.push_back(1);
-            else if (begin_mask_str[i] == '0') begin_mask.push_back(0);
+            if (begin_mask_str[i] == '1')
+                begin_mask.push_back(1);
+            else if (begin_mask_str[i] == '0')
+                begin_mask.push_back(0);
         }
         for (; i < src_dims.size(); ++i) begin_mask.push_back(1);
 
         std::string end_mask_str = layer.GetParamAsString("end_mask", "");
         for (i = 0; i < end_mask_str.size(); ++i) {
-            if (end_mask_str[i] == '1') end_mask.push_back(1);
-            else if (end_mask_str[i] == '0') end_mask.push_back(0);
+            if (end_mask_str[i] == '1')
+                end_mask.push_back(1);
+            else if (end_mask_str[i] == '0')
+                end_mask.push_back(0);
         }
         for (; i < src_dims.size(); ++i) end_mask.push_back(1);
 
@@ -96,25 +109,27 @@ public:
 
         std::string new_axis_mask_str = layer.GetParamAsString("new_axis_mask", "");
         for (i = 0; i < new_axis_mask_str.size(); ++i) {
-            if (new_axis_mask_str[i] == '1') new_axis_mask.push_back(1);
-            else if (new_axis_mask_str[i] == '0') new_axis_mask.push_back(0);
+            if (new_axis_mask_str[i] == '1')
+                new_axis_mask.push_back(1);
+            else if (new_axis_mask_str[i] == '0')
+                new_axis_mask.push_back(0);
         }
         for (; i < src_dims.size(); ++i) new_axis_mask.push_back(0);
 
         std::string shrink_axis_mask_str = layer.GetParamAsString("shrink_axis_mask", "");
         for (i = 0; i < shrink_axis_mask_str.size(); ++i) {
-            if (shrink_axis_mask_str[i] == '1') shrink_axis_mask.push_back(1);
-            else if (shrink_axis_mask_str[i] == '0') shrink_axis_mask.push_back(0);
+            if (shrink_axis_mask_str[i] == '1')
+                shrink_axis_mask.push_back(1);
+            else if (shrink_axis_mask_str[i] == '0')
+                shrink_axis_mask.push_back(0);
         }
         for (; i < src_dims.size(); ++i) shrink_axis_mask.push_back(0);
 
         int new_axis = 0;
-        for (auto& na : new_axis_mask)
-            new_axis += na;
+        for (auto& na : new_axis_mask) new_axis += na;
 
         shrink_axis = 0;
-        for (auto& sa : shrink_axis_mask)
-            shrink_axis += sa;
+        for (auto& sa : shrink_axis_mask) shrink_axis += sa;
         max_dims = src_dims.size() + new_axis;
 
         //  ellipsis_mask must be a power of two (only one ellipsis), so to take a first position
@@ -126,8 +141,7 @@ public:
             }
         }
         bounds_size -= ellipsis_pos1;
-        if (bounds_size > 0 && (max_dims - bounds_size) > ellipsis_pos1)
-            ellipsis_pos2 = max_dims - bounds_size;
+        if (bounds_size > 0 && (max_dims - bounds_size) > ellipsis_pos1) ellipsis_pos2 = max_dims - bounds_size;
 
         begin_dms.assign(max_dims, 0);
         end_dms.assign(max_dims, -1);
@@ -135,7 +149,7 @@ public:
 
         srcStrides = inData[STRIDEDSLICE_DATA]->getTensorDesc().getBlockingDesc().getStrides();
 
-        int* begin = nullptr, * end = nullptr, * stride = nullptr;
+        int *begin = nullptr, *end = nullptr, *stride = nullptr;
         if (begin_dims.size())
             begin = inData[STRIDEDSLICE_BEGIN]->cbuffer().as<int*>() +
                     inData[STRIDEDSLICE_BEGIN]->getTensorDesc().getBlockingDesc().getOffsetPadding();
@@ -174,8 +188,9 @@ public:
                 if (end_mask.size() > j && end_mask[j] == 0) {
                     end_dms[i] = stride_dms[i] > 0 ? -1 : 0;
                 } else {
-                    int end_dms_tmp = (end != nullptr && end_dims[0] > ej) ? (stride_dms[i] > 0 ? end[ej] - 1 : end[ej] + 1)
-                                                                     : end_dms[i];
+                    int end_dms_tmp = (end != nullptr && end_dims[0] > ej)
+                                          ? (stride_dms[i] > 0 ? end[ej] - 1 : end[ej] + 1)
+                                          : end_dms[i];
                     end_dms[i] = (end != nullptr && end_dims[0] > ej) ? end_dms_tmp : (stride_dms[i] > 0 ? -1 : 0);
                 }
                 ej++;
@@ -191,12 +206,13 @@ public:
                 if (shrink_axis_mask.size() > k && shrink_axis_mask[k] == 1) {
                     end_dms[i] = begin_dms[i];
                     if (max_dims == 1) {
-                        out_dims.push_back(static_cast<int>(ceil(static_cast<float>(abs(end_dms[i] - begin_dms[i]) + 1) /
-                            static_cast<float>(abs(stride_dms[i])))));
+                        out_dims.push_back(
+                            static_cast<int>(ceil(static_cast<float>(abs(end_dms[i] - begin_dms[i]) + 1) /
+                                                  static_cast<float>(abs(stride_dms[i])))));
                     }
                 } else {
                     out_dims.push_back(static_cast<int>(ceil(static_cast<float>(abs(end_dms[i] - begin_dms[i]) + 1) /
-                        static_cast<float>(abs(stride_dms[i])))));
+                                                             static_cast<float>(abs(stride_dms[i])))));
                 }
 
                 our_dims.push_back(static_cast<int>(ceil(static_cast<float>(abs(end_dms[i] - begin_dms[i]) + 1) /
@@ -213,10 +229,10 @@ public:
     template <class src_t, class dst_t>
     void exec_strided_slice(const std::vector<Blob::CPtr>& inData, std::vector<Blob::Ptr>& outData) {
         const src_t* src_data = inData[STRIDEDSLICE_DATA]->cbuffer().as<const src_t*>() +
-                          inData[STRIDEDSLICE_DATA]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+                                inData[STRIDEDSLICE_DATA]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
-        dst_t* dst_data = outData[0]->cbuffer().as<dst_t*>() +
-                          outData[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        dst_t* dst_data =
+            outData[0]->cbuffer().as<dst_t*>() + outData[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         if (src_dims.size() == max_dims && shrink_axis == 0 && stride_dms[stride_dms.size() - 1] == 1 &&
             stride_dms.size() > 1)
@@ -235,26 +251,29 @@ public:
                 THROW_IE_EXCEPTION << "StridedSlice constant inference error: parameter mismatch";
         }
         dstStrides = outData[0]->getTensorDesc().getBlockingDesc().getStrides();
-        if (dst_dims.size() == 1 && dst_dims[0] == 1)
-            dstStrides.push_back(1);
+        if (dst_dims.size() == 1 && dst_dims[0] == 1) dstStrides.push_back(1);
         if (outData.size() != 1)
             THROW_IE_EXCEPTION << "StridedSlice constant inference error: Incorrect number of output edges!";
 
-        auto compare = getPrecisionMask(inData[0]->getTensorDesc().getPrecision(), outData[0]->getTensorDesc().getPrecision());
+        auto compare =
+            getPrecisionMask(inData[0]->getTensorDesc().getPrecision(), outData[0]->getTensorDesc().getPrecision());
         switch (compare) {
-            case getPrecisionMask(Precision::FP32, Precision::FP32):
-                exec_strided_slice<PrecisionTrait<Precision::FP32>::value_type, PrecisionTrait<Precision::FP32>::value_type>(inData, outData);
-                break;
-            case getPrecisionMask(Precision::I32, Precision::I32):
-                exec_strided_slice<PrecisionTrait<Precision::I32>::value_type, PrecisionTrait<Precision::I32>::value_type>(inData, outData);
-                break;
-            case getPrecisionMask(Precision::I32, Precision::I64):
-                exec_strided_slice<PrecisionTrait<Precision::I32>::value_type, PrecisionTrait<Precision::I64>::value_type>(inData, outData);
-                break;
-            default:
-                THROW_IE_EXCEPTION << "StridedSlice constant inference error: Unsupported precision configuration:" <<
-                                   " input precision: " << inData[0]->getTensorDesc().getPrecision() <<
-                                   " output precision: " << outData[0]->getTensorDesc().getPrecision();
+        case getPrecisionMask(Precision::FP32, Precision::FP32):
+            exec_strided_slice<PrecisionTrait<Precision::FP32>::value_type,
+                               PrecisionTrait<Precision::FP32>::value_type>(inData, outData);
+            break;
+        case getPrecisionMask(Precision::I32, Precision::I32):
+            exec_strided_slice<PrecisionTrait<Precision::I32>::value_type, PrecisionTrait<Precision::I32>::value_type>(
+                inData, outData);
+            break;
+        case getPrecisionMask(Precision::I32, Precision::I64):
+            exec_strided_slice<PrecisionTrait<Precision::I32>::value_type, PrecisionTrait<Precision::I64>::value_type>(
+                inData, outData);
+            break;
+        default:
+            THROW_IE_EXCEPTION << "StridedSlice constant inference error: Unsupported precision configuration:"
+                               << " input precision: " << inData[0]->getTensorDesc().getPrecision()
+                               << " output precision: " << outData[0]->getTensorDesc().getPrecision();
         }
     }
 
@@ -303,8 +322,8 @@ private:
                 i /= dst_dims[j];
             }
 
-            for (size_t iwork = start, dst_idx = start * dataLength, i = 1;
-                 iwork < end; ++iwork, dst_idx += dataLength) {
+            for (size_t iwork = start, dst_idx = start * dataLength, i = 1; iwork < end;
+                 ++iwork, dst_idx += dataLength) {
                 memcpy(&dst_data[dst_idx], &src_data[src_idx], sizeof(float) * dataLength);
                 for (int j = dims_size_1 - 1; j >= 0; j--) {
                     counters[j]++;
@@ -395,13 +414,11 @@ private:
  */
 class StridedSliceConstInfer : public ConstInferImpl {
 public:
-    explicit StridedSliceConstInfer(const std::string& type) : ConstInferImpl(type) {}
+    explicit StridedSliceConstInfer(const std::string& type): ConstInferImpl(type) {}
 
-    void inferImpl(const std::vector<Blob::CPtr>& inData,
-                   const std::map<std::string, std::string>& params,
-                   const std::map<std::string, Blob::Ptr>& blobs,
-                   std::vector<Blob::Ptr>& outData) override {
-        LayerParams lp{};
+    void inferImpl(const std::vector<Blob::CPtr>& inData, const std::map<std::string, std::string>& params,
+                   const std::map<std::string, Blob::Ptr>& blobs, std::vector<Blob::Ptr>& outData) override {
+        LayerParams lp {};
         StridedSliceLayer layer(lp);
         layer.params = params;
         layer.type = _type;

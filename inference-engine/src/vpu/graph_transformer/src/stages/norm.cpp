@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,9 @@ namespace vpu {
 namespace {
 
 class LRNStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<LRNStage>(*this);
@@ -33,7 +36,7 @@ private:
         // LRN supports both HWC and CHW orders, but requires that input and output have the same stride
 
         auto reqs = StridesRequirement::compact();
-        if (_type == StageType::LRN &&
+        if (type() == StageType::LRN &&
             input->desc().dimsOrder().dimInd(Dim::C) != 0) {
             reqs.add(1, DimStride::Aligned);
         }
@@ -71,31 +74,21 @@ private:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeOldBuffer(handle_from_this(), serializer);
-        output->serializeOldBuffer(handle_from_this(), serializer);
+        input->serializeNewBuffer(serializer);
+        output->serializeNewBuffer(serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseNorm(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseNorm(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
     auto layer = std::dynamic_pointer_cast<ie::NormLayer>(_layer);
     IE_ASSERT(layer != nullptr);
 
-    auto stage = model->addNewStage<LRNStage>(
-        layer->name,
-        layer->_isAcrossMaps ? StageType::LRN : StageType::InnerLRN,
-        layer,
-        inputs,
-        outputs);
-
+    auto stage = model->addNewStage<LRNStage>(layer->name, layer->_isAcrossMaps ? StageType::LRN : StageType::InnerLRN, layer, inputs, outputs);
     stage->attrs().set<int>("size", layer->_size);
     stage->attrs().set<int>("k", layer->_k);
     stage->attrs().set<float>("alpha", layer->_alpha);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,16 @@
 #include <algorithm>
 #include <memory>
 #include <set>
+#include <string>
 
 namespace vpu {
 
 namespace {
 
 class ReduceStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<ReduceStage>(*this);
@@ -63,24 +67,33 @@ private:
 
         auto newIndices = newIndicesBlob->buffer().as<int32_t*>();
 
-        auto perm = in0Desc.dimsOrder().toPermutation();
+        const auto defDimsOrder = DimsOrder::fromNumDims(ndims);
+        const auto defPerm = defDimsOrder.toPermutation();
         for (size_t i = 0; i < indicesSize; ++i) {
-            int32_t index = oldIndices[i];
-            if (index < 0)  // handle negative indices
-                index = ndims - index;
-            IE_ASSERT(index < ndims);
-            index = static_cast<int32_t>(perm[ndims - 1 - index]);
-            newIndices[i] = index;
+            auto irIndex = oldIndices[i];
+            if (irIndex < 0) {
+                // handle negative indices
+                irIndex = ndims - irIndex;
+            }
+            IE_ASSERT(irIndex < ndims);
+
+            const auto irRevIndex = ndims - 1 - irIndex;
+
+            const auto irDim = defPerm[irRevIndex];
+
+            const auto vpuDimInd = in0Desc.dimsOrder().dimInd(irDim);
+            newIndices[i] = vpuDimInd;
         }
+
         std::sort(newIndices, newIndices + indicesSize);
 
-        auto newList = _model->duplicateData(
+        auto newList = model()->duplicateData(
             input1,
             "",
             DataDesc(),
             ieBlobContent(newIndicesBlob));
 
-        _model->replaceStageInput(inputEdge(1), newList);
+        model()->replaceStageInput(inputEdge(1), newList);
     }
 
     void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
@@ -113,11 +126,7 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseReduce(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseReduce(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     auto layer = std::dynamic_pointer_cast<ie::ReduceLayer>(_layer);
     IE_ASSERT(layer != nullptr);
 
@@ -129,6 +138,12 @@ void FrontEnd::parseReduce(
         stageType = StageType::ReduceAnd;
     } else if (layer->type == "ReduceMin") {
         stageType = StageType::ReduceMin;
+    } else if (layer->type == "ReduceMax") {
+        stageType = StageType::ReduceMax;
+    } else if (layer->type == "ReduceSum") {
+        stageType = StageType::ReduceSum;
+    } else if (layer->type == "ReduceMean") {
+        stageType = StageType::ReduceMean;
     } else {
         VPU_THROW_EXCEPTION << "Reduce operation: " << layer->type << " is not supported";
     }
@@ -141,15 +156,21 @@ void FrontEnd::parseReduce(
         VPU_THROW_EXCEPTION << "Reduce operation: " << layer->type << " requires exactly 1 output";
     }
 
-    auto stage = model->addNewStage<ReduceStage>(
-        layer->name,
-        stageType,
-        layer,
-        inputs,
-        outputs);
+    _stageBuilder->addReduceStage(model, layer->name, stageType, layer, layer->keep_dims, inputs, outputs[0]);
+}
 
-    const int keep_dims = layer->keep_dims ? 1 : 0;
-    stage->attrs().set<int>("keep_dims",  keep_dims);
+Stage StageBuilder::addReduceStage(
+    const Model& model,
+    const std::string& name,
+    const StageType reduceType,
+    const ie::CNNLayerPtr& layer,
+    const bool keep_dims,
+    const DataVector& inputs,
+    const Data& output) {
+    auto stage = model->addNewStage<ReduceStage>(name, reduceType, layer, inputs, {output});
+
+    stage->attrs().set<int>("keep_dims", static_cast<int>(keep_dims));
+    return stage;
 }
 
 }  // namespace vpu

@@ -613,6 +613,16 @@ public:
         vpaddd(x1, x2, op);
     }
 
+    void uni_vpsubd(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2,
+                    const Xbyak::Operand &op) {
+        assert(x1.getIdx() == x2.getIdx());
+        psubd(x2, op);
+    }
+    void uni_vpsubd(const Xbyak::Ymm &x1, const Xbyak::Xmm &x2,
+                    const Xbyak::Operand &op) {
+        vpsubd(x1, x2, op);
+    }
+
     void uni_vandps(const Xbyak::Xmm &x1, const Xbyak::Xmm &x2,
                     const Xbyak::Operand &op = Xbyak::Operand()) {
         assert(x1.getIdx() == x2.getIdx());
@@ -657,6 +667,16 @@ public:
     void uni_vpsrld(const Xbyak::Ymm &x, const Xbyak::Operand &op,
                     const int imm) {
         vpsrld(x, op, imm);
+    }
+
+    void uni_vpsrldq(const Xbyak::Xmm &x, const Xbyak::Operand &op,
+                    const int imm) {
+        assert(x.getIdx() == op.getIdx());
+        psrldq(x, imm);
+    }
+    void uni_vpsrldq(const Xbyak::Ymm &x, const Xbyak::Operand &op,
+                    const int imm) {
+        vpsrldq(x, op, imm);
     }
 
     void uni_vmaxps(const Xbyak::Xmm &x, const Xbyak::Operand &op1,

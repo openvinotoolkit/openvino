@@ -1,20 +1,20 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # module to locate GNA libraries
 
 if (WIN32)
-    set(GNA_PLATFORM_DIR win64)
+    set(GNA_PLATFORM_DIR win64 CACHE STRING "" FORCE)
 elseif (UNIX)
-    set(GNA_PLATFORM_DIR linux)
+    set(GNA_PLATFORM_DIR linux CACHE STRING "" FORCE)
 else ()
     message(FATAL_ERROR "GNA not supported on this platform, only linux, and windows")
 endif ()
 
 set(libGNA_FOUND TRUE)
 
-set(GNA_KERNEL_LIB_NAME gna)
+set(GNA_KERNEL_LIB_NAME gna CACHE STRING "" FORCE)
 set(GNA_LIBS_LIST
         "libGNA::API"
         "libGNA::KERNEL")
@@ -22,20 +22,20 @@ set(GNA_LIBS_LIST
 if (GNA_LIBRARY_VERSION STREQUAL "GNA1")
     # use old version of GNA Library from gna_20181120
     if (WIN32)
-        set(GNA_LIB_DIR x64)
+        set(GNA_LIB_DIR x64 CACHE STRING "" FORCE)
     else ()
         list(APPEND GNA_LIBS_LIST
                 "libGNA::OLD_API_LIB")
-        set(GNA_LIB_DIR lib)
-        set(GNA_KERNEL_LIB_NAME gna_kernel)
+        set(GNA_LIB_DIR lib CACHE STRING "" FORCE)
+        set(GNA_KERNEL_LIB_NAME gna_kernel CACHE STRING "" FORCE)
     endif()
-    set(libGNA_INCLUDE_DIRS "${GNA}/${GNA_PLATFORM_DIR}/include")
+    set(libGNA_INCLUDE_DIRS "${GNA}/${GNA_PLATFORM_DIR}/include" CACHE STRING "" FORCE)
 else()
     # use current version of GNA library
-    set(GNA_LIB_DIR x64)
-    set(libGNA_INCLUDE_DIRS "${GNA}/include")
+    set(GNA_LIB_DIR x64 CACHE STRING "" FORCE)
+    set(libGNA_INCLUDE_DIRS "${GNA}/include" CACHE STRING "" FORCE)
 endif()
-set(libGNA_LIBRARIES_BASE_PATH ${GNA}/${GNA_PLATFORM_DIR}/${GNA_LIB_DIR})
+set(libGNA_LIBRARIES_BASE_PATH ${GNA}/${GNA_PLATFORM_DIR}/${GNA_LIB_DIR} CACHE STRING "" FORCE)
 
 add_library(libGNA::KERNEL SHARED IMPORTED)
 find_library(GNA_KERNEL_LIBRARY

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,6 +35,7 @@ public:
         const std::vector<DevicePtr> &devicePool) const;
 
     std::string FullName(std::string deviceName) const;
+    float DevicesThermal(const DevicePtr& device) const;
     const std::vector<std::string>& SupportedMetrics() const;
     const std::vector<std::string>& SupportedConfigKeys() const;
     const std::vector<std::string>& OptimizationCapabilities() const;

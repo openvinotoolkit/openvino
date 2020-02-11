@@ -1,20 +1,18 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_graph.h"
 
 #include "test_graph.hpp"
 
 #include <ie_iextension.h>
 #include <ie_plugin_config.hpp>
 #include <mock_error_listener.hpp>
-#include <mkldnn_plugin/mkldnn_extension_mngr.h>
+#include <mkldnn_extension_mngr.h>
 #include "tests_common.hpp"
-
-#include <ext_list.hpp>
 
 using namespace ::testing;
 using namespace std;
@@ -35,12 +33,6 @@ public:
 
 class FakeGenericPrimitiveFactory : public InferenceEngine::ILayerImplFactory {
 public:
-    // set output shapes by input shapes.
-    InferenceEngine::StatusCode getShapes(const std::vector<InferenceEngine::TensorDesc>& inShapes,
-                                          std::vector<InferenceEngine::TensorDesc>& outShapes,
-                                          InferenceEngine::ResponseDesc *resp) noexcept override {
-        return InferenceEngine::NOT_IMPLEMENTED;
-    }
     // First implementation has more priority than next
     InferenceEngine::StatusCode getImplementations(std::vector<InferenceEngine::ILayerImpl::Ptr>& impls, InferenceEngine::ResponseDesc *resp) noexcept override {
         impls.push_back(InferenceEngine::ILayerImpl::Ptr(new FakeGenericPrimitiveImpl()));
@@ -165,11 +157,6 @@ public:
     ConstPrimitiveFactory(const InferenceEngine::CNNLayer *layer) {
         cnnLayer = const_cast<InferenceEngine::CNNLayer *>(layer);
     }
-    // set output shapes by input shapes.
-    InferenceEngine::StatusCode getShapes(const std::vector<InferenceEngine::TensorDesc>& inShapes, std::vector<InferenceEngine::TensorDesc>& outShapes, InferenceEngine::ResponseDesc *resp) noexcept override {
-        outShapes.push_back(inShapes[0]);
-        return InferenceEngine::OK;
-    }
     // First implementation has more priority than next
     InferenceEngine::StatusCode getImplementations(std::vector<InferenceEngine::ILayerImpl::Ptr>& impls, InferenceEngine::ResponseDesc *resp) noexcept override {
         impls.push_back(InferenceEngine::ILayerImpl::Ptr(new ConstPrimitiveImpl(cnnLayer)));
@@ -184,11 +171,6 @@ class DoublePrimitiveFactory : public InferenceEngine::ILayerImplFactory {
 public:
     DoublePrimitiveFactory(const InferenceEngine::CNNLayer *layer) {
         cnnLayer = const_cast<InferenceEngine::CNNLayer *>(layer);
-    }
-    // set output shapes by input shapes.
-    InferenceEngine::StatusCode getShapes(const std::vector<InferenceEngine::TensorDesc>& inShapes, std::vector<InferenceEngine::TensorDesc>& outShapes, InferenceEngine::ResponseDesc *resp) noexcept override {
-        outShapes.push_back(inShapes[0]);
-        return InferenceEngine::OK;
     }
     // First implementation has more priority than next
     InferenceEngine::StatusCode getImplementations(std::vector<InferenceEngine::ILayerImpl::Ptr>& impls, InferenceEngine::ResponseDesc *resp) noexcept override {
@@ -275,10 +257,6 @@ public:
     TwoDifferentOutputsFactory(const InferenceEngine::CNNLayer *layer) {
         cnnLayer = const_cast<InferenceEngine::CNNLayer *>(layer);
     }
-    // set output shapes by input shapes.
-    InferenceEngine::StatusCode getShapes(const std::vector<InferenceEngine::TensorDesc>& inShapes, std::vector<InferenceEngine::TensorDesc>& outShapes, InferenceEngine::ResponseDesc *resp) noexcept override {
-        return InferenceEngine::NOT_IMPLEMENTED;
-    }
     // First implementation has more priority than next
     InferenceEngine::StatusCode getImplementations(std::vector<InferenceEngine::ILayerImpl::Ptr>& impls, InferenceEngine::ResponseDesc *resp) noexcept override {
         impls.push_back(InferenceEngine::ILayerImpl::Ptr(new TwoDifferentOutputsImpl(cnnLayer)));
@@ -350,10 +328,6 @@ public:
     CustomConcatFactory(const InferenceEngine::CNNLayer *layer) {
         cnnLayer = const_cast<InferenceEngine::CNNLayer *>(layer);
     }
-    // set output shapes by input shapes.
-    InferenceEngine::StatusCode getShapes(const std::vector<InferenceEngine::TensorDesc>& inShapes, std::vector<InferenceEngine::TensorDesc>& outShapes, InferenceEngine::ResponseDesc *resp) noexcept override {
-        return InferenceEngine::NOT_IMPLEMENTED;
-    }
     // First implementation has more priority than next
     InferenceEngine::StatusCode getImplementations(std::vector<InferenceEngine::ILayerImpl::Ptr>& impls, InferenceEngine::ResponseDesc *resp) noexcept override {
         impls.push_back(InferenceEngine::ILayerImpl::Ptr(new CustomConcatImpl(cnnLayer)));
@@ -423,10 +397,6 @@ class CustomSplitFactory : public InferenceEngine::ILayerImplFactory {
 public:
     CustomSplitFactory(const InferenceEngine::CNNLayer *layer) {
         cnnLayer = const_cast<InferenceEngine::CNNLayer *>(layer);
-    }
-    // set output shapes by input shapes.
-    InferenceEngine::StatusCode getShapes(const std::vector<InferenceEngine::TensorDesc>& inShapes, std::vector<InferenceEngine::TensorDesc>& outShapes, InferenceEngine::ResponseDesc *resp) noexcept override {
-        return InferenceEngine::NOT_IMPLEMENTED;
     }
     // First implementation has more priority than next
     InferenceEngine::StatusCode getImplementations(std::vector<InferenceEngine::ILayerImpl::Ptr>& impls, InferenceEngine::ResponseDesc *resp) noexcept override {
@@ -505,7 +475,7 @@ TEST_F(MKLDNNGraphGenericTests, canGetPrimitiveDescriptorsList) {
     extMgr->AddExtension(extension);
     std::shared_ptr<MKLDNNPlugin::MKLDNNNode> node;
     InferenceEngine::DataPtr dataPtr;
-    dataPtr.reset(new InferenceEngine::Data("test", {1, 3, 4, 5}, InferenceEngine::Precision::FP32, InferenceEngine::Layout::NCHW));
+    dataPtr.reset(new InferenceEngine::Data("test", { InferenceEngine::Precision::FP32, {5, 4, 3, 1}, InferenceEngine::Layout::NCHW }));
     InferenceEngine::CNNLayerPtr layerPtr;
     layerPtr.reset(new InferenceEngine::CNNLayer({"name", "CustomNewConvolution", InferenceEngine::Precision::FP32}));
     layerPtr->outData.push_back(dataPtr);
@@ -1360,16 +1330,11 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteNotInLineGRN) {
         <edge from-layer="2" from-port="4" to-layer="3" to-port="6"/>
     </edges>
 </net>)V0G0N";
-    InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-    MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-
-    extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
     InferenceEngine::CNNNetReader net_reader;
     ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
     MKLDNNGraphTestClass graph;
-    graph.CreateGraph(net_reader.getNetwork(), extMgr);
+    graph.CreateGraph(net_reader.getNetwork());
 
     InferenceEngine::SizeVector dims_src = {1, 3, 2, 2};
 
@@ -1504,15 +1469,11 @@ TEST_F(MKLDNNGraphGenericTests, ExecuteInLineGRN) {
     </edges>
 </net>)V0G0N";
 
-    InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-    MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-    extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
     InferenceEngine::CNNNetReader net_reader;
     ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
 
     MKLDNNGraphTestClass graph;
-    graph.CreateGraph(net_reader.getNetwork(), extMgr);
+    graph.CreateGraph(net_reader.getNetwork());
 
     InferenceEngine::SizeVector dims_src = {1, 3, 2, 2};
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,30 +8,20 @@
 #include <ie_plugin_ptr.hpp>
 #include <ie_icnn_network.hpp>
 
+IE_SUPPRESS_DEPRECATED_START
 class MockPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::IInferencePlugin * _target = nullptr;
 public:
     MockPlugin(InferenceEngine::IInferencePlugin*target);
+
     void GetVersion(const InferenceEngine::Version *& versionInfo) noexcept override;
-    void Release() noexcept override;
-    void SetLogCallback(InferenceEngine::IErrorListener & listener) noexcept override;
-    InferenceEngine::StatusCode LoadNetwork(InferenceEngine::ICNNNetwork &network, InferenceEngine::ResponseDesc *resp) noexcept override;
-
-    InferenceEngine::StatusCode Infer(const InferenceEngine::Blob& input,
-                                      InferenceEngine::Blob& result,
-                                      InferenceEngine::ResponseDesc *resp) noexcept override;
-    InferenceEngine::StatusCode Infer(const InferenceEngine::BlobMap &inputs,
-                                      InferenceEngine::BlobMap& result,
-                                      InferenceEngine::ResponseDesc *resp) noexcept override;
-
-    InferenceEngine::StatusCode GetPerformanceCounts(std::map<std::string,
-                                                              InferenceEngine::InferenceEngineProfileInfo> &perfMap,
-                                                     InferenceEngine::ResponseDesc *resp)const noexcept override;
+    void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept override;
 
     InferenceEngine::StatusCode AddExtension(InferenceEngine::IExtensionPtr extension, InferenceEngine::ResponseDesc *resp) noexcept override;
 
     InferenceEngine::StatusCode SetConfig(const std::map<std::string, std::string>& config,
                                           InferenceEngine::ResponseDesc* resp) noexcept override;
+
 
     InferenceEngine::StatusCode
     LoadNetwork(InferenceEngine::IExecutableNetwork::Ptr &ret, InferenceEngine::ICNNNetwork &network,
@@ -41,5 +31,9 @@ public:
     ImportNetwork(InferenceEngine::IExecutableNetwork::Ptr &ret, const std::string &modelFileName,
                   const std::map<std::string, std::string> &config, InferenceEngine::ResponseDesc *resp) noexcept override;
 
+    void Release() noexcept override;
+
     std::map<std::string, std::string> config;
 };
+
+IE_SUPPRESS_DEPRECATED_END

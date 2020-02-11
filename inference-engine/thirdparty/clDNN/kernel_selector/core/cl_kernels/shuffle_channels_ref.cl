@@ -19,8 +19,8 @@ KERNEL(shuffle_channels_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE
 {
     const uint batch = get_global_id(0);
     const uint feature = get_global_id(1);
-    const uint y = get_global_id(2) / OUTPUT_SIZE_X;
-    const uint x = get_global_id(2) % OUTPUT_SIZE_X;
+    const uint y = (uint)get_global_id(2) / OUTPUT_SIZE_X;
+    const uint x = (uint)get_global_id(2) % OUTPUT_SIZE_X;
     const uint dimensions[] = { batch, feature, y, x };
 
     const uint current_group = dimensions[AXIS] / GROUP_SIZE;

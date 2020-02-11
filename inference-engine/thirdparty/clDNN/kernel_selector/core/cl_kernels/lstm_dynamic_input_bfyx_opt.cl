@@ -56,8 +56,8 @@ KERNEL(lstm_dynamic_input_bfyx_opt)(
 #endif
     )
 {
-    const uint batch    = get_global_id(1) % INPUT0_BATCH_NUM;
-    const uint dir      = get_global_id(1) / INPUT0_BATCH_NUM;
+    const uint batch    = (uint)get_global_id(1) % INPUT0_BATCH_NUM;
+    const uint dir      = (uint)get_global_id(1) / INPUT0_BATCH_NUM;
     const uint timestep = get_global_id(2);
     if(timestep > (uint)dyn_lengths[batch])
         return;
@@ -70,7 +70,7 @@ KERNEL(lstm_dynamic_input_bfyx_opt)(
     const uint dir_sub_group_id = sub_group_id % SIMD_SIZE;
     //which workgroup we have <0,1>
     const uint wg_id     = get_group_id(0);
-    const uint wg_offset = wg_id * get_local_size(0) * SIMD_SIZE;
+    const uint wg_offset = wg_id * (uint)get_local_size(0) * SIMD_SIZE;
     //Subgroups have region of calcuations (ROC) within each local work item calculate simd_size values across y spatial.
     //i.e sub_group_id = 1 have ROC, which starts at 64th y'th position
     const uint sub_group_offset        = SIMD_SIZE * 8;

@@ -43,6 +43,8 @@ enum DataLayout {
     fyxb,                  // 3D+batch
     bfxy,                  // 3D+batch
     bfyx_f16,              // 3D+batch
+    b_fs_yx_fsv32,         // 3D+batch
+    b_fs_zyx_fsv32,        // 4D+batch
     bs_f_bsv8__af8,        // for optimized FC
     bs_f_bsv16__af8,       // for optimized FC
     bf8_xy16,              // for optimized conv1x1
@@ -56,6 +58,8 @@ enum DataLayout {
     b_fs_yx_32fp,          // bfyx with blocks of 16 packed binary input channels
     bfwzyx,                // batch, feature, 4D spatial
     bfzyx_f16,             // batch, feature, 3D spatial. Blocks of 16 input channels
+    bfzyx_b16f16,          // batch, feature, 3D spatial. Blocks of 16 batch and channels
+    nv12,                  // media nv12 layout
     DataLayoutCount        // NUMBER OF ELEMENTS IN ENUM
 };
 
@@ -92,6 +96,11 @@ enum WeightsLayout {
                                              // 3x3 with stride 1
     dlstm_dir_io,                            // dlstm weights layout direction, input_size, 4* hiden_size
     os_is_yx_isa8_osv8_isv4,                 // for MMAD convolution
+    os_is_zyx_isa8_osv8_isv4,                // for MMAD convolution
+    os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
+                                                 // 1,5...
+    os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
+                                                  // 1,5...
     os_is_yx_isa8_osv8_isv4_swizzled_by_4,   // for MMAD convolution swizzled from ofm 0..7 to 0,4,8,12,16,20,24,28,
                                              // 1,5...
     is_o_yx_isv32,                           // for MMAD 1x1 convolutions
@@ -101,11 +110,15 @@ enum WeightsLayout {
                                          // 1,5...
     bf_lyx_yx,                           // local convolution
     os_is_yx_osv16_isv4,                 // swizzled weights for convolution using IMAD
+    os_is_yx_osv32_isv4_swizzled_by_2,   //  weights for bfyx -> b_fs_yx_fsv32 convolution using IMAD with swizzeled ofm (0, 2, 4..), (1, 3, 5...)
     oizyx,
     os_is_yx_osv32_isv32p,  // 2 blocks: 32 packed binary in channels and 32 output channels
     o_i_zyx_i16_o16,
     i_o_zyx_o16_i16,
-    WeightsLayoutCount      // NUMBER OF ELEMENTS IN ENUM
+    os_is_osv32_isv32_swizzled_by_4,     // for weights for 1x1 IMAD convolution
+    o_i_zyx_i8_o16_i2,
+    ozyxi_o16,
+    WeightsLayoutCount                   // NUMBER OF ELEMENTS IN ENUM
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

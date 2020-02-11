@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,7 +24,10 @@ class RemoveMemoryDuplicationPattern(MiddleReplacementPattern):
     """
     Remove Splice nodes with context that is included in context of another Splice with the same input 
     """
-    enabled = False
+    enabled = True
+
+    def run_before(self):
+        return [MergeNeighborSplicePattern]
 
     @staticmethod
     def pattern():
@@ -76,7 +79,10 @@ class MergeNeighborSplicePattern(MiddleReplacementPattern):
     """
     Merge Splices with neighbor contexts, for example: [-5, 0] and [0, 3] to context [-5, 3]
     """
-    enabled = False
+    enabled = True
+
+    def run_after(self):
+        return [RemoveMemoryDuplicationPattern]
 
     @staticmethod
     def pattern():

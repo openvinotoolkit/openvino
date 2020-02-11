@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <vector>
 #include <list>
 #include <string>
-#include <graph_tools.hpp>
+#include "gna_graph_tools.hpp"
 
 namespace GNAPluginNS {
 /**

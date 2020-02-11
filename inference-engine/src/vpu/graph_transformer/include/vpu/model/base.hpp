@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,82 +13,99 @@
 #include <stack>
 
 #include <vpu/utils/extra.hpp>
+#include <vpu/utils/error.hpp>
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/handle.hpp>
 #include <vpu/utils/attributes_map.hpp>
 #include <vpu/utils/range.hpp>
-#include <vpu/utils/containers.hpp>
+#include <vpu/utils/small_vector.hpp>
+#include <vpu/utils/intrusive_handle_list.hpp>
 
 namespace vpu {
 
 //
-// VPU_DEFINE_MODEL_TYPES
+// VPU_DEFINE_HANDLE_TYPES
 //
 
-#define VPU_DEFINE_MODEL_TYPES(type, postfix)                                                       \
-    using type = Handle<VPU_COMBINE(type, postfix)>;                                                \
+//
+// <BaseName><Postfix> - actual object, stored inside the Model Graph container, accessed only via Handle(s)
+//
+
+#define VPU_DEFINE_HANDLE_TYPES(BaseName, Postfix)                                                      \
+    class VPU_COMBINE(BaseName, Postfix);                                                               \
     \
-    using VPU_COMBINE(type, Vector) = SmallVector<type>;                                            \
+    using BaseName = Handle<VPU_COMBINE(BaseName, Postfix)>;                                            \
     \
-    using VPU_COMBINE(type, List) = IntrusivePtrList<VPU_COMBINE(type, postfix)>;                   \
+    using VPU_COMBINE(BaseName, Vector) = SmallVector<BaseName>;                                        \
     \
-    using VPU_COMBINE(type, Set) = std::unordered_set<type, HandleHash>;                            \
+    using VPU_COMBINE(BaseName, ListNode) = IntrusiveHandleListNode<VPU_COMBINE(BaseName, Postfix)>;    \
+    using VPU_COMBINE(BaseName, List) = IntrusiveHandleList<VPU_COMBINE(BaseName, Postfix)>;            \
     \
-    template <typename Val>                                                                         \
-    using VPU_COMBINE(type, Map) = std::unordered_map<type, Val, HandleHash>;                       \
+    using VPU_COMBINE(BaseName, Set) = HandleSet<VPU_COMBINE(BaseName, Postfix)>;                       \
     \
-    using VPU_COMBINE(type, Ptr) = std::shared_ptr<VPU_COMBINE(type, postfix)>;                     \
+    template <typename Val>                                                                             \
+    using VPU_COMBINE(BaseName, Map) = HandleMap<VPU_COMBINE(BaseName, Postfix), Val>;
+
+//
+// VPU_DEFINE_*_PTR_TYPES
+//
+
+#define VPU_DEFINE_UNIQUE_PTR_TYPES(BaseName, Postfix)                                              \
+    using VPU_COMBINE(BaseName, Ptr) = std::unique_ptr<VPU_COMBINE(BaseName, Postfix)>;             \
     \
-    using VPU_COMBINE(type, PtrList) = std::list<VPU_COMBINE(type, Ptr)>;
+    using VPU_COMBINE(BaseName, PtrList) = std::list<VPU_COMBINE(BaseName, Ptr)>;
+
+#define VPU_DEFINE_SHARED_PTR_TYPES(BaseName, Postfix)                                              \
+    using VPU_COMBINE(BaseName, Ptr) = std::shared_ptr<VPU_COMBINE(BaseName, Postfix)>;             \
+    \
+    using VPU_COMBINE(BaseName, PtrList) = std::list<VPU_COMBINE(BaseName, Ptr)>;
 
 //
 // VPU_MODEL_ATTRIBUTE
 //
 
-#define VPU_MODEL_ATTRIBUTE(type, name, defVal)                                 \
-    protected:                                                                  \
-        type VPU_COMBINE(_, name) = defVal;                                     \
+#define VPU_MODEL_ATTRIBUTE(AttrType, name, defVal)                             \
+    private:                                                                    \
+        AttrType VPU_COMBINE(_, name) = defVal;                                 \
     public:                                                                     \
-        inline const type& name() const {                                       \
+        inline const AttrType& name() const {                                   \
             return VPU_COMBINE(_, name);                                        \
         }
 
-#define VPU_MODEL_ATTRIBUTE_PTR_RANGE(type, name)                               \
-    protected:                                                                  \
-        type VPU_COMBINE(_, name);                                              \
-    public:                                                                     \
-        inline auto name() const -> decltype(contRange(VPU_COMBINE(_, name))) { \
-            return contRange(VPU_COMBINE(_, name));                             \
+#define VPU_MODEL_ATTRIBUTE_PTR_RANGE(type, name)                                   \
+    private:                                                                      \
+        type VPU_COMBINE(_, name);                                                  \
+    public:                                                                         \
+        inline auto name() const -> decltype(VPU_COMBINE(_, name) | asRange()) {    \
+            return VPU_COMBINE(_, name) | asRange();                                \
         }
 
 //
 // Forward declaration
 //
 
-class GraphTransformerImpl;
+VPU_DEFINE_HANDLE_TYPES(Model, Obj)
+VPU_DEFINE_SHARED_PTR_TYPES(Model, Obj)
 
-class Model;
-using ModelPtr = std::shared_ptr<Model>;
+VPU_DEFINE_HANDLE_TYPES(Data, Node)
+VPU_DEFINE_SHARED_PTR_TYPES(Data, Node)
 
-class DataNode;
-VPU_DEFINE_MODEL_TYPES(Data, Node)
+VPU_DEFINE_HANDLE_TYPES(Stage, Node)
+VPU_DEFINE_SHARED_PTR_TYPES(Stage, Node)
 
-class StageNode;
-VPU_DEFINE_MODEL_TYPES(Stage, Node)
+VPU_DEFINE_HANDLE_TYPES(StageInput, Edge)
+VPU_DEFINE_SHARED_PTR_TYPES(StageInput, Edge)
 
-class StageInputEdge;
-VPU_DEFINE_MODEL_TYPES(StageInput, Edge)
+VPU_DEFINE_HANDLE_TYPES(StageOutput, Edge)
+VPU_DEFINE_SHARED_PTR_TYPES(StageOutput, Edge)
 
-class StageOutputEdge;
-VPU_DEFINE_MODEL_TYPES(StageOutput, Edge)
+VPU_DEFINE_HANDLE_TYPES(StageTempBuffer, Edge)
+VPU_DEFINE_SHARED_PTR_TYPES(StageTempBuffer, Edge)
 
-class StageTempBufferEdge;
-VPU_DEFINE_MODEL_TYPES(StageTempBuffer, Edge)
+VPU_DEFINE_HANDLE_TYPES(SharedAllocation, Edge)
+VPU_DEFINE_SHARED_PTR_TYPES(SharedAllocation, Edge)
 
-class SharedAllocationEdge;
-VPU_DEFINE_MODEL_TYPES(SharedAllocation, Edge)
-
-class InjectedStageEdge;
-VPU_DEFINE_MODEL_TYPES(InjectedStage, Edge)
+VPU_DEFINE_HANDLE_TYPES(Injection, Edge)
+VPU_DEFINE_SHARED_PTR_TYPES(Injection, Edge)
 
 }  // namespace vpu

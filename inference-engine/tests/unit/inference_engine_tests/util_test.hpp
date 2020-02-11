@@ -1,8 +1,16 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <ie_util_internal.hpp>
+
+#include <unordered_set>
+#include <unordered_map>
+#include <string>
+#include <memory>
+
 namespace IE = InferenceEngine;
 
 class NetBuilder {

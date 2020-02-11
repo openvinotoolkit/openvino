@@ -1,20 +1,19 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <builders/ie_layer_builder.hpp>
 #include <details/caseless.hpp>
-
 #include <limits>
-#include <memory>
-#include <vector>
-#include <string>
 #include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 using namespace InferenceEngine;
 
-Builder::Layer::Layer(const std::string& type, const std::string& name):
-    id((std::numeric_limits<idx_t>::max)()), type(type), name(name) {}
+Builder::Layer::Layer(const std::string& type, const std::string& name)
+    : id((std::numeric_limits<idx_t>::max)()), type(type), name(name) {}
 
 Builder::Layer::Layer(const ILayer::CPtr& layer) {
     id = layer->getId();
@@ -66,7 +65,7 @@ std::vector<Port>& Builder::Layer::getInputPorts() {
 const std::vector<Port>& Builder::Layer::getInputPorts() const noexcept {
     return inPorts;
 }
-Builder::Layer& Builder::Layer::setInputPorts(const std::vector<Port> &ports) {
+Builder::Layer& Builder::Layer::setInputPorts(const std::vector<Port>& ports) {
     getInputPorts() = ports;
     return *this;
 }
@@ -77,7 +76,7 @@ std::vector<Port>& Builder::Layer::getOutputPorts() {
 const std::vector<Port>& Builder::Layer::getOutputPorts() const noexcept {
     return outPorts;
 }
-Builder::Layer& Builder::Layer::setOutputPorts(const std::vector<Port> &ports) {
+Builder::Layer& Builder::Layer::setOutputPorts(const std::vector<Port>& ports) {
     getOutputPorts() = ports;
     return *this;
 }
@@ -87,10 +86,10 @@ const ILayer::CPtr Builder::Layer::build() const {
     return std::static_pointer_cast<const ILayer>(shared_from_this());
 }
 
-void Builder::Layer::addValidator(const std::string &type, const std::function<void(const Layer::CPtr&, bool)>& validator) {
+void Builder::Layer::addValidator(const std::string& type,
+                                  const std::function<void(const Layer::CPtr&, bool)>& validator) {
     auto holder = getValidatorsHolder();
-    if (holder->validators.find(type) == holder->validators.end())
-        holder->validators[type] = validator;
+    if (holder->validators.find(type) == holder->validators.end()) holder->validators[type] = validator;
 }
 
 void Builder::Layer::validate(bool partial) const {

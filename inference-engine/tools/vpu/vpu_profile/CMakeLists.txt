@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,10 +16,8 @@
 
 set(TARGET_NAME vpu_profile)
 
-find_package(Threads REQUIRED)
-
 file(GLOB SOURCES
-    ${CMAKE_SOURCE_DIR}/tools/vpu/common/*.cpp
+    ${IE_MAIN_SOURCE_DIR}/tools/vpu/common/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
 )
 
@@ -32,17 +30,14 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    "${IE_MAIN_SOURCE_DIR}/include"
-    "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
+    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     "${IE_MAIN_SOURCE_DIR}/samples/common"
     "${IE_MAIN_SOURCE_DIR}/samples/common/format_reader"
-    "${CMAKE_SOURCE_DIR}/tools/vpu/common"
+    "${IE_MAIN_SOURCE_DIR}/tools/vpu/common"
 )
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine format_reader vpu_graph_transformer
-    ${CMAKE_DL_LIBS}
-    Threads::Threads
     gflags
 )
 

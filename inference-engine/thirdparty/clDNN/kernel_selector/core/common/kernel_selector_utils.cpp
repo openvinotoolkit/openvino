@@ -103,12 +103,14 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
     }
     const weight_bias_optional_params& optParams = static_cast<const weight_bias_optional_params&>(options);
 
-    const auto dtype = DataTypeToWeightsType(newParams.inputs[0].GetDType());
-    bool bProperWeights = CheckWeights(newParams.weights, dtype, layouts, paramsKey);
+    const auto inType = DataTypeToWeightsType(newParams.inputs[0].GetDType());
+    bool bProperWeights = CheckWeights(newParams.weights, inType, layouts, paramsKey);
     if (!bProperWeights) {
         if (!optParams.allowStaticInputReordering) {
             return false;
         }
+
+        auto dtype = paramsKey.isEnabledDifferentInputWeightsTypes() ? newParams.weights.GetDType() : inType;
 
         auto& reorderKS = ReorderWeightsKernelSelctor::Instance();
         reorder_weights_params r_params;
@@ -116,6 +118,7 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
         r_params.layerID = newParams.layerID + "_reorder_";
         r_params.input = newParams.weights;
         r_params.output = newParams.weights.TransformIgnorePadding(layouts[0], dtype);
+        r_params.engineInfo = newParams.engineInfo;
 
         reorder_optional_params op;
         KernelsData kernels_data = reorderKS.GetBestKernels(r_params, op);
@@ -192,8 +195,8 @@ std::vector<size_t> GetTensorFriendlyWorkGroups(const DataTensor& t) {
     return sizes;
 }
 
-std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws) {
-    const size_t lws_max = 256;
+std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info) {
+    const size_t lws_max = info.maxWorkGroupSize;
     const size_t optimal_lws_values[] = {256, 227, 224, 192, 160, 128, 96, 64, 32, 16, 8, 7, 6, 5, 4, 2, 1};
     size_t total_lws = 1;
     std::vector<size_t> lws;

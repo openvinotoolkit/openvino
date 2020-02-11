@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,7 +18,11 @@ import logging as log
 from re import match
 
 import numpy as np
-import tensorflow as tf
+
+try:
+    import tensorflow.compat.v1 as tf_v1
+except ImportError:
+    import tensorflow as tf_v1
 from google.protobuf import text_format
 
 from mo.front.extractor import node_defs_to_str
@@ -70,7 +74,7 @@ def tf_native_tf_node_infer(node: Node):
     tmp_graph.clear()
 
 
-def generate_feed_dict(graph: tf.Graph, node: Node):
+def generate_feed_dict(graph: tf_v1.Graph, node: Node):
     """
     The first value in the return tuple is True if all inputs for the node has constant values.
     The second returned value is mapping of placeholder tensor to the numpy arrays with the values for these
@@ -105,14 +109,14 @@ def get_subgraph_output_tensors(node: Node):
     where key is the output port and the value is the tensor value.
     """
     result = dict()
-    graph_def = tf.GraphDef()
+    graph_def = tf_v1.GraphDef()
     text_format.Merge(node_defs_to_str(node), graph_def)
-    tf.reset_default_graph()
-    graph = tf.Graph()
-    sess = tf.Session(graph=graph)
+    tf_v1.reset_default_graph()
+    graph = tf_v1.Graph()
+    sess = tf_v1.Session(graph=graph)
     with graph.as_default():  # pylint: disable=not-context-manager
         with sess.as_default():  # pylint: disable=not-context-manager
-            tf.import_graph_def(graph_def, name='')
+            tf_v1.import_graph_def(graph_def, name='')
             all_constants, feed_dict = generate_feed_dict(graph, node)
             for out_port, out_tensor_name in enumerate(node['output_tensors_names']):
                 if not match('.*:\d+', out_tensor_name):
@@ -144,7 +148,7 @@ def tf_subgraph_infer(node: Node):
             out_node.value = tensor_value
 
 
-def add_node_def_to_subgraph(subgraph_node: Node, node_def: tf.NodeDef, name: str = None, position: int = 0,
+def add_node_def_to_subgraph(subgraph_node: Node, node_def: tf_v1.NodeDef, name: str = None, position: int = 0,
                              is_input: bool = False):
     """
     Adds NodeDef definition of the node to the internal structures of the sub-graph's_node object that represents a
@@ -216,7 +220,7 @@ def add_placeholders_to_subgraph(node: Node):
         assert in_node.shape is not None
 
         if placeholder_name not in node['pbs'].keys():
-            placeholder = tf.placeholder(determine_data_type(in_node), in_node.shape, placeholder_name)
+            placeholder = tf_v1.placeholder(determine_data_type(in_node), in_node.shape, placeholder_name)
             inputs_replacements.append((input_tensor_name, placeholder_name))
             add_node_def_to_subgraph(node, placeholder.op.node_def, is_input=True)
             log.debug("Added placeholder with name '{}'".format(placeholder_name))

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ class Interpolate(Op):
             'pads_end': 0,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'force_precision_in_ports': {1:'int64'},
+            'force_precision_in_ports': {1: 'int64'},
             'infer': __class__.infer,
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -48,26 +48,21 @@ class Interpolate(Op):
 
     @staticmethod
     def infer(node: Node):
-        layout = node.graph.graph['layout']
-
-        assert len(layout) == 4
         assert len([p for p in node.in_ports().values() if not p.disconnected()])
         assert node.has_valid('mode')
         assert node.has_valid('axes')
 
         src_shape = node.in_port(0).data.get_shape()
+
         assert src_shape is not None
         dst_shape = node.in_port(1).data.get_value()
         assert dst_shape is not None
 
-        out_height = dst_shape[0]
-        out_width = dst_shape[1]
+        output_shape = src_shape.copy()
+        for ind, axis in enumerate(node.axes):
+            output_shape[axis] = dst_shape[ind]
 
-        node.out_node().shape = shape_for_layout(layout,
-                                                 batch=src_shape[get_batch_dim(layout, 4)],
-                                                 features=src_shape[get_features_dim(layout, 4)],
-                                                 height=out_height,
-                                                 width=out_width)
+        node.out_node().shape = output_shape
 
         PermuteAttrs.create_permute_attrs(node, attrs=[('axes', 'input:0')])
 

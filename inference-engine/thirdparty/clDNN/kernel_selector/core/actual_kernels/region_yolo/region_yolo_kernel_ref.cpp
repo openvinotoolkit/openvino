@@ -63,7 +63,7 @@ RegionYoloKernelRef::DispatchData SetDefault(const region_yolo_params& params) {
     kd.gws1 = global[1];
     kd.gws2 = global[2];
 
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.lws0 = local[0];
     kd.lws1 = local[1];

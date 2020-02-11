@@ -44,8 +44,8 @@ KERNEL(convolution_mmad_batched)(
     const uint x = get_global_id(0);
     const uint y = get_global_id(1);
 
-    const uint f = get_global_id(2) % FILTER_OFM_ALIGNED;
-    const uint b_block = get_global_id(2) / FILTER_OFM_ALIGNED;
+    const uint f = (uint)get_global_id(2) % FILTER_OFM_ALIGNED;
+    const uint b_block = (uint)get_global_id(2) / FILTER_OFM_ALIGNED;
     const uint f_block = f / 32;
 
     int4 dotProd = 0;
@@ -53,7 +53,7 @@ KERNEL(convolution_mmad_batched)(
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-    const uint filter_offset = (get_group_id(2) % FILTER_OFM_MMAD_NUM) * FILTER_OFM_BLOCK_PITCH;
+    const uint filter_offset = ((uint)get_group_id(2) % FILTER_OFM_MMAD_NUM) * FILTER_OFM_BLOCK_PITCH;
     const uint input_offset = IN_OFFSET + IN_B_BLOCK_PITCH * b_block;
 
     for (uint k = 0; k < FILTER_IFM_MMAD_NUM; ++k)

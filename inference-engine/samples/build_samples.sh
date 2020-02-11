@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -30,15 +30,15 @@ SAMPLES_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 printf "\nSetting environment variables for building samples...\n"
 
 if [ -z "$INTEL_OPENVINO_DIR" ]; then
-    if [ -e "$SAMPLES_PATH/../../bin/setupvars.sh" ]; then
-        setvars_path="$SAMPLES_PATH/../../bin/setupvars.sh"
-    elif [ -e "$SAMPLES_PATH/../../../bin/setupvars.sh" ]; then
+    if [ -e "$SAMPLES_PATH/../../../bin/setupvars.sh" ]; then
         setvars_path="$SAMPLES_PATH/../../../bin/setupvars.sh"
+    elif [ -e "$SAMPLES_PATH/../../../../bin/setupvars.sh" ]; then
+        setvars_path="$SAMPLES_PATH/../../../../bin/setupvars.sh"
     else
         printf "Error: Failed to set the environment variables automatically. To fix, run the following command:\n source <INSTALL_DIR>/bin/setupvars.sh\n where INSTALL_DIR is the OpenVINO installation directory.\n\n"
         exit 1
     fi
-    if ! source $setvars_path ; then
+    if ! source "$setvars_path" ; then
         printf "Unable to run ./setupvars.sh. Please check its presence. \n\n"
         exit 1
     fi
@@ -52,22 +52,23 @@ if ! command -v cmake &>/dev/null; then
     exit 1
 fi
 
-build_dir=$HOME/inference_engine_samples_build
+samples_type=$(basename "$PWD")
+build_dir="$HOME/inference_engine_${samples_type}_samples_build"
 
 OS_PATH=$(uname -m)
 NUM_THREADS="-j2"
 
-if [ $OS_PATH == "x86_64" ]; then
+if [ "$OS_PATH" == "x86_64" ]; then
   OS_PATH="intel64"
   NUM_THREADS="-j8"
 fi
 
-if [ -e $build_dir/CMakeCache.txt ]; then
-    rm -rf $build_dir/CMakeCache.txt
+if [ -e "$build_dir/CMakeCache.txt" ]; then
+    rm -rf "$build_dir/CMakeCache.txt"
 fi
-mkdir -p $build_dir
-cd $build_dir
-cmake -DCMAKE_BUILD_TYPE=Release $SAMPLES_PATH
+mkdir -p "$build_dir"
+cd "$build_dir"
+cmake -DCMAKE_BUILD_TYPE=Release "$SAMPLES_PATH"
 make $NUM_THREADS
 
-printf "\nBuild completed, you can find binaries for all samples in the $build_dir/${OS_PATH}/Release subfolder.\n\n"
+printf "\nBuild completed, you can find binaries for all samples in the $build_dir/%s/Release subfolder.\n\n" "$OS_PATH"

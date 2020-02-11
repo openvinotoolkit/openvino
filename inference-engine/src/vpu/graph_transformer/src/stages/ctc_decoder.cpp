@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,9 @@ namespace vpu {
 namespace {
 
 class CTCDecoderStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<CTCDecoderStage>(*this);
@@ -55,19 +58,15 @@ private:
         auto input1 = inputEdge(1)->input();
         auto output = outputEdge(0)->output();
 
-        input0->serializeOldBuffer(handle_from_this(), serializer);
-        input1->serializeOldBuffer(handle_from_this(), serializer);
-        output->serializeOldBuffer(handle_from_this(), serializer);
+        input0->serializeNewBuffer(serializer);
+        input1->serializeNewBuffer(serializer);
+        output->serializeNewBuffer(serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseCTCDecoder(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseCTCDecoder(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 1);
 
@@ -79,12 +78,7 @@ void FrontEnd::parseCTCDecoder(
             << " Kernel support case when ctc_merge_repeated_ == 1 only";
     }
 
-    model->addNewStage<CTCDecoderStage>(
-        layer->name,
-        StageType::CTCDecoder,
-        layer,
-        inputs,
-        outputs);
+    model->addNewStage<CTCDecoderStage>(layer->name, StageType::CTCDecoder, layer, inputs, outputs);
 }
 
 }  // namespace vpu

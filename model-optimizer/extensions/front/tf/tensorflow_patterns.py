@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -40,8 +40,8 @@ class TensorflowOperationPatterns(FrontReplacementPattern):
     graph_condition = [lambda graph: graph.graph['cmd_params'].tensorflow_operation_patterns is not None]
 
     def run_before(self):
-        from extensions.front.tf.tensorflow_use_custom_operations_config import TensorflowUseCustomOperationsConfig
-        return [TensorflowUseCustomOperationsConfig]
+        from extensions.front.transformations_config import TransformationsConfig
+        return [TransformationsConfig]
 
     def run_after(self):
         return [TensorflowSubgraphPatterns]

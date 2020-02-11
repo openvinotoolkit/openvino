@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,8 @@
 #include <chrono>
 #include <climits>
 #include <memory>
+#include <utility>
+#include <future>
 
 #include "mkldnn_graph.h"
 #include "ie_parallel.hpp"
@@ -90,9 +92,9 @@ bool pin_thread_to_vacant_core(int thr_idx, int hyperthreads, int ncores, const 
     return res;
 }
 bool pin_current_thread_to_socket(int socket) {
-    const int sockets = MKLDNNPlugin::cpu::getNumberOfCPUSockets();
+    const int numa_nodes_num = MKLDNNPlugin::cpu::getAvailableNUMANodes().size();
     const int cores = MKLDNNPlugin::cpu::getNumberOfCPUCores();
-    const int cores_per_socket = cores/sockets;
+    const int cores_per_socket = cores/numa_nodes_num;
 
     int ncpus;
     cpu_set_t *mask;
@@ -131,54 +133,49 @@ bool pin_current_thread_to_socket(int socket) {
 }
 #endif  // !(defined(__APPLE__) || defined(_WIN32))
 
-MultiWorkerTaskExecutor::MultiWorkerTaskExecutor(const std::vector<Task::Ptr>& init_tasks, std::string name) :
-        _isStopped(false), _name(name), _initCount(0) {
-    const int sockets = MKLDNNPlugin::cpu::getNumberOfCPUSockets();
-    const int worker_per_sockets = (std::max)(1, static_cast<int>(std::ceil(static_cast<float>(init_tasks.size()) / sockets)));
-    for (int t= 0; t < init_tasks.size(); t++) {
-        _threads.push_back(std::thread([&, t, init_tasks] {
-            int socket = t / worker_per_sockets;
-            pin_current_thread_to_socket(socket);
+MultiWorkerTaskExecutor::MultiWorkerTaskExecutor(const std::vector<Task>& init_tasks, std::string name) :
+        _isStopped(false), _name(name) {
+    std::vector<std::packaged_task<void()>> initTasks;
+    std::vector<std::future<void>> futures;
+    for (int t = 0; t < init_tasks.size(); t++) {
+        initTasks.emplace_back([&init_tasks, t] {init_tasks[t]();});
+        futures.emplace_back(initTasks.back().get_future());
+    }
+    for (int t = 0; t < init_tasks.size(); t++) {
+        _threads.emplace_back(std::thread([&, t] {
             // initialization (no contention, every worker thread is doing it's own task)
-            init_tasks[t]->runNoThrowNoBusyCheck();
-            _initCount++;
+            initTasks[t]();
 
             while (!_isStopped) {
-                bool isQueueEmpty;
-                Task::Ptr currentTask = nullptr;
+                Task currentTask = nullptr;
                 {  // waiting for the new task or for stop signal
                     std::unique_lock<std::mutex> lock(_queueMutex);
                     _queueCondVar.wait(lock, [&]() { return !_taskQueue.empty() || _isStopped; });
-                    isQueueEmpty = _taskQueue.empty();
-                    if (!isQueueEmpty) {
-                        currentTask = _taskQueue.front();
+                    if (!_taskQueue.empty()) {
+                        currentTask = std::move(_taskQueue.front());
                         _taskQueue.pop();
-                        isQueueEmpty = _taskQueue.empty();
                     }
                 }
                 if (currentTask)
-                    currentTask->runNoThrowNoBusyCheck();
-                if (_isStopped)
-                    break;
-                if (isQueueEmpty)  // notify dtor, that all tasks were completed
-                    _queueCondVar.notify_all();
+                    currentTask();
             }
         }));
     }
-    while (_initCount != init_tasks.size()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    for (auto&& f : futures)
+        f.wait();
+    for (auto&& f : futures) {
+        try {
+            f.get();
+        } catch(...) {
+            stop();
+            throw;
+        }
     }
 }
 
-MultiWorkerTaskExecutor::~MultiWorkerTaskExecutor() {
-    {
-        std::unique_lock<std::mutex> lock(_queueMutex);
-        if (!_taskQueue.empty()) {
-            _queueCondVar.wait(lock, [this]() { return _taskQueue.empty(); });
-        }
-        _isStopped = true;
-        _queueCondVar.notify_all();
-    }
+void MultiWorkerTaskExecutor::stop() {
+    _isStopped = true;
+    _queueCondVar.notify_all();
     for (auto& thread : _threads) {
         if (thread.joinable()) {
             thread.join();
@@ -186,12 +183,16 @@ MultiWorkerTaskExecutor::~MultiWorkerTaskExecutor() {
     }
 }
 
-bool MultiWorkerTaskExecutor::startTask(Task::Ptr task) {
-    if (!task->occupy()) return false;
-    std::unique_lock<std::mutex> lock(_queueMutex);
-    _taskQueue.push(task);
+MultiWorkerTaskExecutor::~MultiWorkerTaskExecutor() {
+    stop();
+}
+
+void MultiWorkerTaskExecutor::run(Task task) {
+    {
+        std::lock_guard<std::mutex> lock(_queueMutex);
+        _taskQueue.push(std::move(task));
+    }
     _queueCondVar.notify_one();
-    return true;
 }
 
 MKLDNNPlugin::MKLDNNGraphlessInferRequest::MKLDNNGraphlessInferRequest(InferenceEngine::InputsDataMap networkInputs,
@@ -254,7 +255,9 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::InferImpl() {
                     in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
                     if (in_f == nullptr)
                         THROW_IE_EXCEPTION << "Cannot get TBlob";
+                    IE_SUPPRESS_DEPRECATED_START
                     InferenceEngine::copyToFloat<uint16_t>(in_f->data(), input.second.get());
+                    IE_SUPPRESS_DEPRECATED_END
                     graph->PushInputData(input.first, iconv);
                     break;
                 case InferenceEngine::Precision::I16:
@@ -268,7 +271,9 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::InferImpl() {
                         in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
                         if (in_f == nullptr)
                             THROW_IE_EXCEPTION << "Cannot get TBlob";
+                        IE_SUPPRESS_DEPRECATED_START
                         InferenceEngine::copyToFloat<int16_t>(in_f->data(), input.second.get());
+                        IE_SUPPRESS_DEPRECATED_END
                         graph->PushInputData(input.first, iconv);
                     } else {
                         // Instead we can send I16 directly
@@ -286,7 +291,9 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::InferImpl() {
                         in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
                         if (in_f == nullptr)
                             THROW_IE_EXCEPTION << "Cannot get TBlob";
+                        IE_SUPPRESS_DEPRECATED_START
                         InferenceEngine::copyToFloat<uint8_t>(in_f->data(), input.second.get());
+                        IE_SUPPRESS_DEPRECATED_END
                         graph->PushInputData(input.first, iconv);
                     } else {
                         // Instead we can send I8 directly
@@ -322,7 +329,7 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::GetBlob(const char *name, Infere
     // ROI blob is returned only if it was set previously.
     auto it = _preProcData.find(name);
     if (it != _preProcData.end()) {
-        data = it->second.getRoiBlob();
+        data = it->second->getRoiBlob();
         return;
     }
 
@@ -390,10 +397,13 @@ void MKLDNNPlugin::MKLDNNGraphlessInferRequest::SetBlob(const char *name, const 
         }
 
         if (preProcRequired) {
-            PreProcessData::isApplicable(data, _inputs[name]);
+            if (_preProcData.find(name) == _preProcData.end()) {
+                _preProcData.emplace(name, CreatePreprocDataHelper());
+            }
+            _preProcData[name]->isApplicable(data, _inputs[name]);
             // Stores the given blob as ROI blob. It will be used to fill in network input during
             // pre-processing.
-            _preProcData[name].setRoiBlob(data);
+            _preProcData[name]->setRoiBlob(data);
         } else {
             size_t inputSize = InferenceEngine::details::product(foundInput->getTensorDesc().getDims());
             if (dataSize != inputSize) {

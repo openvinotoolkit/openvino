@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
+#include <cpp/ie_cnn_net_reader.h>
 
 #include <cnn_network_int8_normalizer.hpp>
 #include "tests_common.hpp"

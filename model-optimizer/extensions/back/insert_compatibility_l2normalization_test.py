@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ class CompatibilityL2NormalizationPatternTest(unittest.TestCase):
                             {'input_node': {'shape': np.array([1, 10])},
                              })
         CompatibilityL2NormalizationPattern().find_and_replace_pattern(graph)
-        self.assertEqual(len(graph.nodes()), 4)
+        self.assertEqual(len(graph.nodes()), 5)
         self.assertEqual(graph.node['l2norm_node_weights']['name'], 'l2norm_node_weights')
         self.assertEqual(len(graph.node['l2norm_node_weights']['value']), 10)
 

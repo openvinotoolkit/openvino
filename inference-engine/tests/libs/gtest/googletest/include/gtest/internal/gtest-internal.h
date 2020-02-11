@@ -745,6 +745,15 @@ struct GTEST_API_ ConstCharPtr {
   const char* value;
 };
 
+// Helper for suppressing false warning from Clang on a std::string
+// variable declared in a conditional expression always being NULL in
+// the else branch.
+struct GTEST_API_ StringBool {
+    StringBool(const char* str) : value(str) {}
+    operator bool() const { return true; }
+    std::string value;
+};
+
 // A simple Linear Congruential Generator for generating random
 // numbers with a uniform distribution.  Unlike rand() and srand(), it
 // doesn't use global state (and therefore can't interfere with user
@@ -1178,17 +1187,23 @@ class NativeArray {
 
 #define GTEST_TEST_NO_THROW_(statement, fail) \
   GTEST_AMBIGUOUS_ELSE_BLOCKER_ \
-  if (::testing::internal::AlwaysTrue()) { \
+  if (::testing::internal::StringBool gtest_msg = "") { \
     try { \
       GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement); \
     } \
+    catch (const ::std::exception& e) { \
+      gtest_msg.value = (std::string("Expected: " #statement " doesn't throw an exception.\n" \
+           "  Actual: it throws:") + e.what()); \
+      goto GTEST_CONCAT_TOKEN_(gtest_label_testnothrow_, __LINE__); \
+    } \
     catch (...) { \
+      gtest_msg.value = "Expected: " #statement " doesn't throw an exception.\n" \
+           "  Actual: it throws."; \
       goto GTEST_CONCAT_TOKEN_(gtest_label_testnothrow_, __LINE__); \
     } \
   } else \
     GTEST_CONCAT_TOKEN_(gtest_label_testnothrow_, __LINE__): \
-      fail("Expected: " #statement " doesn't throw an exception.\n" \
-           "  Actual: it throws.")
+      fail(gtest_msg.value.c_str())
 
 #define GTEST_TEST_ANY_THROW_(statement, fail) \
   GTEST_AMBIGUOUS_ELSE_BLOCKER_ \

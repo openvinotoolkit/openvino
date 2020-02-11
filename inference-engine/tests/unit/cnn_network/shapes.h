@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,7 +83,8 @@ public:
 
     testing::InOutShapes getInvalidInputShapes()  override {
         int numOfOutput = maps.mapOfEqualShapes[type];
-        int numOfInput = maps.mapOfEqualShapes[type]  + numOfOutput;
+        // magic number: numOfInput has to be invalid
+        int numOfInput = maps.mapOfEqualShapes[type]  + 99;
         std::vector<std::vector<size_t>> inputs = generateShapes(numOfInput);
         std::vector<std::vector<size_t>> outputs = generateShapes(numOfOutput);
         return {inputs, outputs};

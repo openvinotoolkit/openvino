@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ class TestingVersionsChecker(unittest.TestCase):
                           ('networkx', '>=', '1.11'),
                           ('numpy', '==', '1.12.0'), ('defusedxml', '<=', '0.5.0')]
         version_list = get_module_version_list_from_file('mock_file')
-        self.assertEquals(len(version_list), 5)
+        self.assertEqual(len(version_list), 5)
         for i, version_dict in enumerate(version_list):
             self.assertTupleEqual(ref_list[i], version_dict)
 
@@ -41,7 +41,7 @@ class TestingVersionsChecker(unittest.TestCase):
             return_value=iter(['mxnet']))
         ref_list = [('mxnet', None, None)]
         version_list = get_module_version_list_from_file('mock_file')
-        self.assertEquals(len(version_list), 1)
+        self.assertEqual(len(version_list), 1)
         for i, version_dict in enumerate(version_list):
             self.assertTupleEqual(ref_list[i], version_dict)
 
@@ -52,4 +52,4 @@ class TestingVersionsChecker(unittest.TestCase):
         ref_list = [('mxnet', '>=', '1.0.0'),
                     ('mxnet', '<=', '1.3.1')]
         for i, v in enumerate(req_list):
-            self.assertEquals(v, ref_list[i])
+            self.assertEqual(v, ref_list[i])

@@ -1,33 +1,28 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "precision_utils.h"
-#include <stdint.h>
-#include <details/ie_exception.hpp>
+
 #include <ie_blob.h>
+#include <stdint.h>
+
+#include <details/ie_exception.hpp>
+
 #include "inference_engine.hpp"
 
 namespace InferenceEngine {
 namespace PrecisionUtils {
 
-void f16tof32Arrays(float *dst,
-                                              const short *src,
-                                              size_t nelem,
-                                              float scale,
-                                              float bias) {
-    const ie_fp16 *_src = reinterpret_cast<const ie_fp16 *>(src);
+void f16tof32Arrays(float* dst, const short* src, size_t nelem, float scale, float bias) {
+    const ie_fp16* _src = reinterpret_cast<const ie_fp16*>(src);
 
     for (size_t i = 0; i < nelem; i++) {
         dst[i] = PrecisionUtils::f16tof32(_src[i]) * scale + bias;
     }
 }
 
-void f32tof16Arrays(short *dst,
-                                              const float *src,
-                                              size_t nelem,
-                                              float scale,
-                                              float bias) {
+void f32tof16Arrays(short* dst, const float* src, size_t nelem, float scale, float bias) {
     for (size_t i = 0; i < nelem; i++) {
         dst[i] = PrecisionUtils::f32tof16(src[i] * scale + bias);
     }
@@ -37,7 +32,7 @@ void f32tof16Arrays(short *dst,
 // F32: exp_bias:127 SEEEEEEE EMMMMMMM MMMMMMMM MMMMMMMM.
 // F16: exp_bias:15  SEEEEEMM MMMMMMMM
 #define EXP_MASK_F32 0x7F800000U
-#define EXP_MASK_F16     0x7C00U
+#define EXP_MASK_F16 0x7C00U
 
 // small helper function to represent uint32_t value as float32
 inline float asfloat(uint32_t v) {
@@ -175,4 +170,3 @@ ie_fp16 f32tof16(float x) {
 
 }  // namespace PrecisionUtils
 }  // namespace InferenceEngine
-

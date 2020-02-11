@@ -194,6 +194,16 @@ static void Check_RunInfoData(const std::string& kernelName, const kernel_select
     }
 }
 
+uint32_t common_kernel_base::GetFusedPrimitiveInputsCount(const Params &params) const {
+    auto p = dynamic_cast<const base_params&>(params);
+    uint32_t fused_deps_total = 0;
+    for (auto fused_op : p.fused_ops) {
+        fused_deps_total += static_cast<uint32_t>(fused_op.dep_size);
+    }
+
+    return fused_deps_total;
+}
+
 void common_kernel_base::FillCLKernelData(clKernelData& kernel,
                                           const CommonDispatchData& runInfo,
                                           const EngineInfo& engine_info,
@@ -204,14 +214,12 @@ void common_kernel_base::FillCLKernelData(clKernelData& kernel,
                                           bool weights,
                                           bool bias,
                                           int number_of_inputs,
-                                          bool quantization,
-                                          bool calibration,
-                                          int number_of_inputs_for_fused_prims) const {
+                                          uint32_t number_of_inputs_for_fused_prims) const {
     Check_RunInfoData(kernelMapName, runInfo);
     kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
     kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
     kernel.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.arguments =
-        GetArgsDesc(number_of_inputs, weights, bias, quantization, calibration, number_of_inputs_for_fused_prims);
+        GetArgsDesc(number_of_inputs, weights, bias, false, false, number_of_inputs_for_fused_prims);
 }
 }  // namespace kernel_selector

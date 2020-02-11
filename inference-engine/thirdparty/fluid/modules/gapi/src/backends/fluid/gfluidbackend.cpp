@@ -565,16 +565,20 @@ void cv::gimpl::GFluidExecutable::initBufferRois(std::vector<int>& readStarts,
             auto id = m_id_map.at(d.rc);
             readStarts[id] = 0;
 
-            if (out_rois[idx] == gapi::own::Rect{})
+            const auto& out_roi = out_rois[idx];
+            if (out_roi == gapi::own::Rect{})
             {
                 rois[id] = gapi::own::Rect{ 0, 0, desc.size.width, desc.size.height };
             }
             else
             {
+                GAPI_Assert(out_roi.height > 0);
+                GAPI_Assert(out_roi.y + out_roi.height <= desc.size.height);
+
                 // Only slices are supported at the moment
-                GAPI_Assert(out_rois[idx].x == 0);
-                GAPI_Assert(out_rois[idx].width == desc.size.width);
-                rois[id] = out_rois[idx];
+                GAPI_Assert(out_roi.x == 0);
+                GAPI_Assert(out_roi.width == desc.size.width);
+                rois[id] = out_roi;
             }
 
             nodesToVisit.push(nh);
@@ -654,7 +658,8 @@ void cv::gimpl::GFluidExecutable::initBufferRois(std::vector<int>& readStarts,
                         cv::gapi::own::Rect roi;
                         switch (port) {
                         case 0: roi = produced; break;
-                        case 1: roi = cv::gapi::own::Rect{ produced.x/2, produced.y/2, produced.width/2, produced.height/2 }; break;
+                        case 1:
+                        case 2: roi = cv::gapi::own::Rect{ produced.x/2, produced.y/2, produced.width/2, produced.height/2 }; break;
                         default: GAPI_Assert(false);
                         }
                         return roi;
@@ -1147,11 +1152,11 @@ void cv::gimpl::GFluidExecutable::makeReshape(const std::vector<gapi::own::Rect>
         // Introduce Storage::INTERNAL_GRAPH and Storage::INTERNAL_ISLAND?
         if (fd.internal == true)
         {
-            // FIXME: remove max_consumption logic prior to Fluid update
+            // FIXME: do max_consumption calculation properly (e.g. in initLineConsumption)
             int max_consumption = 0;
-            // nh is always a DATA node, so it is safe to get inNodes().front() since there's always
-            // a single writer (OP node)
             if (nh->outNodes().empty()) {
+                // nh is always a DATA node, so it is safe to get inNodes().front() since there's
+                // always a single writer (OP node)
                 max_consumption = fg.metadata(nh->inNodes().front()).get<FluidUnit>().k.m_lpi;
             } else {
                 max_consumption = fd.max_consumption;

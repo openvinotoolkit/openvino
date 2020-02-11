@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,44 +14,42 @@
  limitations under the License.
 """
 
-import logging as log
-
 import numpy as np
 
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
 class Flatten(Op):
     op = 'Flatten'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
             'op': __class__.op,
-            'infer': __class__.infer,
+            'type': None,
+
+            'axis': None,
+            'end_axis': np.int64(-1),
+            'infer': None,
+
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
 
-    def supported_attrs(self):
-        return ['axis', 'end_axis']
 
-    @staticmethod
-    def infer(node):
-        input_shape = node.in_node(0).shape
-        if input_shape is None:
-            log.debug('The input shape for the layer "{}" is not defined'.format(node.soft_get('name')))
-            return
+class FlattenONNX(Op):
+    op = 'FlattenONNX'
+    enabled = False
 
-        axis = get_canonical_axis_index(input_shape, node.axis)
-        end_axis = node.end_axis if node.has('end_axis') else -1
-        end_axis = get_canonical_axis_index(input_shape, end_axis)
-        prod_axes = np.prod(input_shape[axis: end_axis + 1])
-        node.out_node(0).shape = int64_array([*input_shape[0: axis], prod_axes, *input_shape[end_axis + 1:]])
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'op': __class__.op,
+            'type': None,
 
-        if node.in_node().has_valid('value'):
-            node.out_node().value = node.in_node().value.copy().reshape(node.out_node(0).shape)
+            'axis': None,
+            'infer': None,
+
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+        }, attrs)

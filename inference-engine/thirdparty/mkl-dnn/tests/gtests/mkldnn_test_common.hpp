@@ -111,10 +111,13 @@ inline size_t map_index(const mkldnn::memory::desc &md, size_t index,
 
     const fmt fwd_weights_g_vnni = fmt::gOIhw4i16o4i;
     const fmt fwd_weights_vnni = fmt::OIhw4i16o4i;
+    const fmt fwd_weights_g_vnni_3d = fmt::gOIdhw4i16o4i;
+    const fmt fwd_weights_vnni_3d = fmt::OIdhw4i16o4i;
 
     const bool with_groups = (md.data.format == fwd_weights_g_qvnni)
                           || (md.data.format == bwd_weights_g_qvnni)
-                          || (md.data.format == fwd_weights_g_vnni);
+                          || (md.data.format == fwd_weights_g_vnni)
+                          || (md.data.format == fwd_weights_g_vnni_3d);
 
     const bool qvnni = (md.data.format == fwd_weights_g_qvnni)
                     || (md.data.format == bwd_weights_g_qvnni)
@@ -122,12 +125,16 @@ inline size_t map_index(const mkldnn::memory::desc &md, size_t index,
                     || (md.data.format == bwd_weights_qvnni);
 
     const bool vnni = (md.data.format == fwd_weights_g_vnni)
-                   || (md.data.format == fwd_weights_vnni);
+                   || (md.data.format == fwd_weights_vnni)
+                   || (md.data.format == fwd_weights_g_vnni_3d)
+                   || (md.data.format == fwd_weights_vnni_3d);
 
     const bool fwd_wei = (md.data.format == fwd_weights_g_qvnni)
                       || (md.data.format == fwd_weights_qvnni)
                       || (md.data.format == fwd_weights_g_vnni)
-                      || (md.data.format == fwd_weights_vnni);
+                      || (md.data.format == fwd_weights_vnni)
+                      || (md.data.format == fwd_weights_g_vnni_3d)
+                      || (md.data.format == fwd_weights_vnni_3d);
 
     const bool bwd_wei = (md.data.format == bwd_weights_g_qvnni)
                       || (md.data.format == bwd_weights_qvnni);
@@ -251,6 +258,8 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::oi:
     case f::io:
         ndims = 2; break;
+    case f::tnc:
+        ndims = 3; break;
     case f::nchw:
     case f::nhwc:
     case f::chwn:
@@ -276,6 +285,7 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::OhIw8o4i_s8s8:
     case f::OhIw8o32i:
     case f::OhIw16o32i:
+    case f::hwio_s8s8:
         ndims = 4; break;
     case f::ncdhw:
     case f::ndhwc:
@@ -305,7 +315,14 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::gOIhw16o16i:
     case f::gIOhw16o16i:
     case f::gOhIw8o4i:
+    case f::Goihw8g_s8s8:
     case f::Goihw16g_s8s8:
+    case f::dhwio_s8s8:
+    case f::OdhIw8o4i:
+    case f::OdhIw8o4i_s8s8:
+    case f::gOhIw8o4i_s8s8:
+    case f::OIdhw4i16o4i:
+    case f::OIdhw4i16o4i_s8s8:
         ndims = 5; break;
     case f::gOIdhw8i8o:
     case f::gOIdhw16i16o:
@@ -313,6 +330,16 @@ inline mkldnn::memory::desc create_md(mkldnn::memory::dims dims,
     case f::gOIdhw16o16i:
     case f::gOdhwi16o:
     case f::goidhw:
+    case f::dhwigo:
+    case f::dhwigo_s8s8:
+    case f::gOdhIw8o4i:
+    case f::gOdhIw8o4i_s8s8:
+    case f::Goidhw8g:
+    case f::Goidhw8g_s8s8:
+    case f::Goidhw16g:
+    case f::Goidhw16g_s8s8:
+    case f::gOIdhw4i16o4i:
+    case f::gOIdhw4i16o4i_s8s8:
         ndims = 6; break;
     case f::format_undef:
         ndims = 0; break;
@@ -622,6 +649,7 @@ struct test_convolution_params_t {
     test_convolution_formats_t formats;
     test_convolution_attr_t attr;
     test_convolution_sizes_t sizes;
+    bool with_zero_points;
     bool expect_to_fail;
     mkldnn_status_t expected_status;
 };
@@ -632,6 +660,7 @@ struct test_convolution_params_t_3d {
     test_convolution_formats_t formats;
     test_convolution_attr_t attr;
     test_convolution_sizes_t_3d sizes;
+    bool with_zero_points;
     bool expect_to_fail;
     mkldnn_status_t expected_status;
 };

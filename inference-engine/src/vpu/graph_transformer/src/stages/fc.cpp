@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,15 +9,11 @@
 #include <set>
 
 #include <vpu/compile_env.hpp>
-#include <vpu/stub_stage.hpp>
+#include <vpu/stages/stub_stage.hpp>
 
 namespace vpu {
 
-void FrontEnd::parseFullyConnected(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     const auto& env = CompileEnv::get();
 
     IE_ASSERT(inputs.size() == 1);
@@ -47,7 +43,7 @@ void FrontEnd::parseFullyConnected(
         tryHW = false;
     }
 
-    if (env.netConfig.hwDisabled(layer->name)) {
+    if (env.config.hwDisabled(layer->name)) {
         tryHW = false;
     }
 
@@ -94,7 +90,7 @@ void FrontEnd::parseFullyConnected(
         layer->name,
         StageType::StubFullyConnected,
         layer,
-        {input, weights, biases},
+        {input, weights, biases, model->addFakeData()},
         {output});
 
     stage->attrs().set<bool>("tryHW", tryHW);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -290,9 +290,8 @@ xml().node("net").attr("name", "AlexNet").attr("version", x)\
         typename InferenceEngine::TBlob<T>::Ptr binBlobFloat(new InferenceEngine::TBlob<T>({ InferenceEngine::Precision::FP32, 
             { MT_HEIGHT, MT_WIDTH, MT_CHANNELS }, InferenceEngine::CHW }));
         binBlobFloat->allocate();
-        IE_SUPPRESS_DEPRECATED_START
-        binBlobFloat->set(MeanImage<T>::getValue());
-        IE_SUPPRESS_DEPRECATED_END
+        std::vector<T> meanValues = MeanImage<T>::getValue();
+        std::copy(meanValues.begin(), meanValues.end(), (T *)binBlobFloat->data());
         InferenceEngine::SizeVector dims_dst = { MT_HEIGHT, MT_WIDTH * sizeof(T), MT_CHANNELS };
         typename InferenceEngine::TBlobProxy<uint8_t>::Ptr binBlob(new 
             InferenceEngine::TBlobProxy<uint8_t>(InferenceEngine::Precision::FP32, InferenceEngine::CHW, binBlobFloat, 0, dims_dst));

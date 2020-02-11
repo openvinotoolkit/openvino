@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <gmock/gmock-spec-builders.h>
 
 #include <cnn_network_int8_normalizer.hpp>
-#include <mkldnn_plugin/mkldnn_plugin.h>
+#include <mkldnn_plugin.h>
 #include <ie_blob.h>
 #include <ie_precision.hpp>
 
@@ -65,7 +65,7 @@ class ConvSum: public TestsCommon, public WithParamInterface<conv_eltwise_params
         };
         std::vector<std::pair<std::string, std::string>> edges = { {"0,0", "2,2"}, {"2,3", "3,4"}, {"1,1", "3,5"} };
 
-        return testing::DefualtNetBuilder::buildNetworkWithOneInput(
+        return testing::DefaultNetBuilder::buildNetworkWithOneInput(
                 "Fusion_conv_sum", p.in1, precision, in_stat)
             .addInputLayer(precision, convOutShape, in_stat)
             .convolutionLayer(precision, {{p.in1}, {convOutShape}}, p.conv, conv_stat)
@@ -90,7 +90,8 @@ protected:
 
             auto network = net_reader.getNetwork();
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
-            ASSERT_NO_THROW(score_engine->LoadNetwork(network));
+            InferenceEngine::IExecutableNetwork::Ptr exeNetwork1; 
+            ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, {}));
 
             auto conv = network.getLayerByName("Convolution2");
             auto eltwise = network.getLayerByName("Eltwise3");
@@ -127,7 +128,7 @@ class ConvSumReLU: public TestsCommon, public WithParamInterface<conv_eltwise_pa
         };
         std::map<std::string, std::string> relu_params = {};
         std::vector<std::pair<std::string, std::string>> edges = { {"0,0", "2,2"}, {"2,3", "3,4"}, {"1,1", "3,5"}, {"3,6", "4,7"} };
-        return testing::DefualtNetBuilder::buildNetworkWithOneInput(
+        return testing::DefaultNetBuilder::buildNetworkWithOneInput(
                 "Fusion_conv_sum", p.in1, precision, in_stat)
             .addInputLayer(precision, convOutShape, in_stat)
             .convolutionLayer(precision, {{p.in1}, {convOutShape}}, p.conv, conv_stat)
@@ -153,7 +154,8 @@ protected:
 
             auto network = net_reader.getNetwork();
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
-            ASSERT_NO_THROW(score_engine->LoadNetwork(network));
+            InferenceEngine::IExecutableNetwork::Ptr exeNetwork1; 
+            ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, { }));
 
             auto conv = network.getLayerByName("Convolution2");
             auto eltwise = network.getLayerByName("Eltwise3");
@@ -191,7 +193,7 @@ class ConvConvSum: public TestsCommon, public WithParamInterface<conv_eltwise_pa
                 {"operation", "sum"}
         };
         std::vector<std::pair<std::string, std::string>> edges = { {"0,0", "2,2"}, {"2,3", "4,6"}, {"1,1", "3,4"}, {"3,5", "4,7"} };
-        return testing::DefualtNetBuilder::buildNetworkWithOneInput(
+        return testing::DefaultNetBuilder::buildNetworkWithOneInput(
                 "Fusion_conv_sum", p.in1, precision, in_stat)
             .addInputLayer(precision, p.in1, in_stat)
             .convolutionLayer(precision, {{p.in1}, {convOutShape}}, p.conv, conv_stat)
@@ -217,7 +219,8 @@ protected:
 
             auto network = net_reader.getNetwork();
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
-            ASSERT_NO_THROW(score_engine->LoadNetwork(network));
+            InferenceEngine::IExecutableNetwork::Ptr exeNetwork1; 
+            ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, { }));
 
             auto conv2 = network.getLayerByName("Convolution2");
             auto conv3 = network.getLayerByName("Convolution3");
@@ -254,7 +257,7 @@ class ConvConvSumReLU: public TestsCommon, public WithParamInterface<in_conv_in_
         };
         std::map<std::string, std::string> relu_params = {};
         std::vector<std::pair<std::string, std::string>> edges = { {"0,0", "2,2"}, {"2,3", "4,6"}, {"1,1", "3,4"}, {"3,5", "4,7"}, {"4,8", "5,9"} };
-        return testing::DefualtNetBuilder::buildNetworkWithOneInput(
+        return testing::DefaultNetBuilder::buildNetworkWithOneInput(
                 "Fusion_conv_sum", p.in1, precision, in1_stat)
             .addInputLayer(precision, p.in2, in2_stat)
             .convolutionLayer(precision, {{p.in1}, {convOutShape1}}, p.conv1, conv1_stat)
@@ -283,7 +286,8 @@ protected:
 
             auto network = net_reader.getNetwork();
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
-            ASSERT_NO_THROW(score_engine->LoadNetwork(network));
+            InferenceEngine::IExecutableNetwork::Ptr exeNetwork1; 
+            ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, { }));
 
             auto conv2 = network.getLayerByName("Convolution2");
             auto conv3 = network.getLayerByName("Convolution3");
@@ -334,7 +338,7 @@ class ConvConvSumReLUPoolConv: public TestsCommon, public WithParamInterface<con
                                                                    {"4,8", "5,9"},
                                                                    {"5,10", "7,13"},
                                                                    {"4,8", "6,11"} };
-        return testing::DefualtNetBuilder::buildNetworkWithOneInput(
+        return testing::DefaultNetBuilder::buildNetworkWithOneInput(
                 "Fusion_conv_sum", p.in1, precision, in1_stat)
             .addInputLayer(precision, p.in2, in2_stat)
             .convolutionLayer(precision, {{p.in1}, {convOutShape1}}, p.conv1, conv1_stat)
@@ -368,7 +372,8 @@ protected:
 
             auto network = net_reader.getNetwork();
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
-            ASSERT_NO_THROW(score_engine->LoadNetwork(network));
+            InferenceEngine::IExecutableNetwork::Ptr exeNetwork1; 
+            ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, {}));
 
             auto conv2 = network.getLayerByName("Convolution2");
             auto conv3 = network.getLayerByName("Convolution3");

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -29,11 +29,11 @@ class DeformableConvolution(Op):
             'op': __class__.op,
             'infer': Convolution.infer,
             'multiplication_transparent': True,
-            'multiplication_transparent_ports': [(0, 0), (1, 0)],
+            'multiplication_transparent_ports': [(0, 0), (2, 0)],
             'in_ports_count': 3,
             'out_ports_count': 1,
         }, attrs)
 
     def backend_attrs(self):
-        # the same attributes as in a regular convolution and one additional attribute 'deformable_group'
-        return Convolution(self.graph, {}).backend_attrs() + ['deformable_group']
+        # the same attributes as in a regular convolution and one additional attribute 'deformable_group' and 'group'
+        return Convolution(self.graph, {}).backend_attrs() + ['deformable_group', 'group']

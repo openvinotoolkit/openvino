@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include <xml_net_builder.hpp>
 #include <details/ie_exception.hpp>
 #include <algorithm>
+#include <string>
 
 using namespace ::testing;
 

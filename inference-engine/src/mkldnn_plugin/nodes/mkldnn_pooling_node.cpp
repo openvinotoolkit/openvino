@@ -1,9 +1,12 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_pooling_node.h"
 #include "desc_iterator.hpp"
+#include "mkldnn_quantize_node.h"
+#include "mkldnn_conv_node.h"
+#include "mkldnn_concat_node.h"
 #include <ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
@@ -23,11 +26,6 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    precision = getCnnLayer()->outData[0]->getPrecision();
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-
     auto * poolingLayer = dynamic_cast<PoolingLayer*>(getCnnLayer().get());
     if (poolingLayer == nullptr)
         THROW_IE_EXCEPTION << "Cannot convert pooling layer.";
@@ -39,6 +37,28 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
 
     type = poolingLayer->_type;
     exclude_pad = poolingLayer->_exclude_pad;
+
+    inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
+    outputPrecision = getCnnLayer()->outData[0]->getPrecision();
+    // Dirty WA to support stat based quantization approach
+    if (this->getCnnLayer()->precision != Precision::I8) {
+        if (type == PoolingLayer::MAX) {
+            // MKLDNN supports only equal precisions for input and output
+            outputPrecision = inputPrecision;
+        } else if (type == PoolingLayer::AVG) {
+            outputPrecision = Precision::FP32;
+        }
+    }
+
+    if (!fusedWith.empty()) {
+        auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
+        if (lastFusedLayer) {
+            outputPrecision = lastFusedLayer->outData[0]->getPrecision();
+        }
+    }
+
+    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
+    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
 
     invertVectorCopyUtoI(poolingLayer->_stride, stride);
     invertVectorCopyUtoI(poolingLayer->_kernel, kernel);
@@ -59,10 +79,10 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         int calc_dst = (src - krn + paddingL[i]) / stride[i] + 1;
         paddingR[i] = (dst - calc_dst) * stride[i];
     }
-    if (this->getCnnLayer()->precision == Precision::I8) {
-        // i8 layers supports only nhwc layout
-        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, memory::format::nhwc};
-        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, memory::format::nhwc};
+    if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
+        // i8 layers supports only ndhwc and nhwc layouts
+        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format::ndhwc : memory::format::nhwc};
+        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format::ndhwc : memory::format::nhwc};
         createDescriptor({ in_candidate }, { out_candidate });
     } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && parentDims[1] == 1) {
         inputDataType = memory::f32;
@@ -87,7 +107,10 @@ void MKLDNNPoolingNode::createPrimitive() {
     if (prim)
         return;
 
-    auto prim_desc = createPrimitiveDescriptor<pooling_forward::primitive_desc, pooling_forward::desc>();
+    mkldnn::primitive_attr attr;
+    setPostOps(attr, true);
+
+    auto prim_desc = createPrimitiveDescriptor<pooling_forward::primitive_desc, pooling_forward::desc>(attr);
 
     prim.reset(new pooling_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
                                    getChildEdgeAt(0)->getMemory().GetPrimitive()));
@@ -147,3 +170,184 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
 
     descs.emplace_back(desc_ptr);
 }
+
+void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
+    if (!supportedPrimitiveDescriptors.empty())
+        return;
+
+    mkldnn::primitive_attr attr;
+    setPostOps(attr);
+
+    for (auto& desc : descs) {
+        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
+        while (itpd.is_not_end()) {
+            InferenceEngine::LayerConfig config;
+            config.dynBatchSupport = true;
+            for (size_t i = 0; i < descInputNumbers(desc); i++) {
+                InferenceEngine::DataConfig dataConfig;
+                dataConfig.inPlace = -1;
+                dataConfig.constant = false;
+                dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getSrcMemDesc(itpd, i));
+                config.inConfs.push_back(dataConfig);
+            }
+
+            std::vector<mkldnn::memory::format> outFormats;
+            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+                InferenceEngine::DataConfig dataConfig;
+                dataConfig.inPlace = canBeInPlace() ? 0 : -1;
+                dataConfig.constant = false;
+                dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getDstMemDesc(itpd, i));
+                config.outConfs.push_back(dataConfig);
+
+                auto primDesc = itpd.fetch();
+                auto dstPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(dst_pd), 0);
+                if (dstPrimDesc) {
+                    outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
+                } else {
+                    // This path is needed to correctly handle Deconvolution node
+                    auto diffSrcPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(diff_src_pd), 0);
+                    if (diffSrcPrimDesc) {
+                        outFormats.emplace_back(static_cast<memory::format>(itpd.diff_src_primitive_desc().desc().data.format));
+                    }
+                }
+            }
+            impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
+            itpd++;
+        }
+    }
+}
+
+void MKLDNNPoolingNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
+    if (!selectedPD) {
+        return;
+    }
+    std::vector<InferenceEngine::TensorDesc> inDescs;
+    for (const auto& inConf : config.inConfs)
+        inDescs.push_back(inConf.desc);
+    std::vector<InferenceEngine::TensorDesc> outDescs;
+    for (const auto& outConf : config.outConfs)
+        outDescs.push_back(outConf.desc);
+    createDescriptor({inDescs}, {outDescs});
+
+    mkldnn::primitive_attr attr;
+    setPostOps(attr);
+
+    InferenceEngine::LayerConfig rightConfig = selectedPD->getConfig();
+    size_t selected_count = 0;
+    for (size_t j = 0; j < descs.size(); j++) {
+        const auto &desc = descs[j];
+        std::shared_ptr<primitive_desc_iterator> itpd;
+
+        itpd = std::make_shared<primitive_desc_iterator>(desc.createPrimitiveDescriptorIterator(getEngine(), attr));
+
+        while (itpd->is_not_end()) {
+            InferenceEngine::LayerConfig cfg;
+            cfg.dynBatchSupport = true;
+            for (size_t i = 0; i < descInputNumbers(desc); i++) {
+                InferenceEngine::DataConfig dataConfig;
+                dataConfig.inPlace = canBeInPlace() ? 0 : -1;
+                dataConfig.constant = false;
+                dataConfig.desc = getSrcMemDesc(*itpd, i);
+                cfg.inConfs.push_back(dataConfig);
+            }
+
+            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+                InferenceEngine::DataConfig dataConfig;
+                dataConfig.inPlace = -1;
+                dataConfig.constant = false;
+                dataConfig.desc = getDstMemDesc(*itpd, i);
+                cfg.outConfs.push_back(dataConfig);
+            }
+            impl_desc_type impl_type = parse_impl_name(itpd->get_impl_info_str().c_str());
+            if (selected_count == selectedPrimitiveDescriptorIndex) {
+                if (impl_type != selectedPD->getImplementationType()) {
+                    THROW_IE_EXCEPTION << "Cannot get the original layer configuration!";
+                }
+                rightConfig = cfg;
+            }
+            if (j == descs.size() - 1) {
+                if (impl_type == selectedPD->getImplementationType()) {
+                    rightConfig = config;
+                }
+            }
+            selected_count++;
+            (*itpd)++;
+        }
+    }
+
+    if (descs.empty()) {
+        const auto& selectedConfig = selectedPD->getConfig();
+        if (selectedConfig.inConfs.size() != config.inConfs.size() || selectedConfig.outConfs.size() != config.outConfs.size())
+            return;
+
+        for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
+            if (selectedConfig.inConfs[i].desc.getLayout() != InferenceEngine::Layout::ANY &&
+                !MKLDNNExtensionUtils::initTensorsAreEqual(selectedConfig.inConfs[i].desc, config.inConfs[i].desc))
+                THROW_IE_EXCEPTION << "Incorrect descriptor for node: " << getName();
+        }
+
+        for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
+            if (selectedConfig.outConfs[i].desc.getLayout() != InferenceEngine::Layout::ANY &&
+                !MKLDNNExtensionUtils::initTensorsAreEqual(selectedConfig.outConfs[i].desc, config.outConfs[i].desc))
+                THROW_IE_EXCEPTION << "Incorrect descriptor for node: " << getName();
+        }
+        rightConfig = config;
+    }
+
+    selectedPD->getConfig() = rightConfig;
+}
+
+void MKLDNNPoolingNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
+    int blob_idx = 0;
+    mkldnn::post_ops ops;
+
+    for (auto &node : fusedWith) {
+        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
+        if (quantizeNode) {
+            if (initWeights) {
+                MKLDNNDims weightsDims({static_cast<ptrdiff_t>(rnd_up(getParentEdgeAt(0)->getDims()[1], 16))});
+                MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)weightsDims[0]}, memory::f32, memory::x};
+
+                auto cropLowDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                cropLowDataMem->Create(weightsDataDesc, quantizeNode->getCropLowPtr());
+
+                auto cropHighDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                cropHighDataMem->Create(weightsDataDesc, quantizeNode->getCropHighPtr());
+
+                auto inputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                inputScaleDataMem->Create(weightsDataDesc, quantizeNode->getInputScalePtr());
+
+                auto inputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                inputShiftDataMem->Create(weightsDataDesc, quantizeNode->getInputShiftPtr());
+
+                auto outputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                outputScaleDataMem->Create(weightsDataDesc, quantizeNode->getOutputScalePtr());
+
+                auto outputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
+                outputShiftDataMem->Create(weightsDataDesc, quantizeNode->getOutputShiftPtr());
+
+                PostOpsIntBlobMemory.push_back(cropLowDataMem);
+                PostOpsIntBlobMemory.push_back(cropHighDataMem);
+                PostOpsIntBlobMemory.push_back(inputScaleDataMem);
+                PostOpsIntBlobMemory.push_back(inputShiftDataMem);
+                PostOpsIntBlobMemory.push_back(outputScaleDataMem);
+                PostOpsIntBlobMemory.push_back(outputShiftDataMem);
+
+                ops.append_quantization(quantizeNode->getAlgorithm(), quantizeNode->getCropLowPtr(), quantizeNode->getCropHighPtr(),
+                                                                      quantizeNode->getInputScalePtr(), quantizeNode->getInputShiftPtr(),
+                                                                      quantizeNode->getOutputScalePtr(), quantizeNode->getOutputShiftPtr());
+
+                blob_idx += 6;
+            } else {
+                ops.append_quantization(quantizeNode->getAlgorithm(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+            }
+        }
+    }
+
+    attr.set_post_ops(ops);
+}
+
+REG_MKLDNN_PRIM_FOR(MKLDNNPoolingNode, Pooling);

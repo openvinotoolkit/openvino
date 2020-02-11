@@ -1,12 +1,12 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 include ("download")
 
-function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC TARGET_PATH FOLDER ENVIRONMENT)
+function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH FOLDER ENVIRONMENT)
 
-  if (ENVIRONMENT AND (DEFINED ENV{${ENVIRONMENT}}))
+  if (ENVIRONMENT AND (DEFINED ${ENVIRONMENT} OR DEFINED ENV{${ENVIRONMENT}}))
     set(HAS_ENV "TRUE")
   endif()
 
@@ -15,12 +15,16 @@ function (resolve_archive_dependency VAR COMPONENT ARCHIVE ARCHIVE_UNIFIED ARCHI
       #TODO: check whether this is platform specific binary with same name per or it is in common folder
       DownloadAndExtract(${COMPONENT} ${ARCHIVE} ${TARGET_PATH} result_path ${FOLDER})
     else()
-      DownloadAndExtractPlatformSpecific(${COMPONENT} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${TARGET_PATH} result_path  ${FOLDER})
+      DownloadAndExtractPlatformSpecific(${COMPONENT} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID} ${TARGET_PATH} result_path  ${FOLDER})
     endif()
 
     set (${VAR} ${result_path} PARENT_SCOPE)
   else()
-    set (${VAR} $ENV{${ENVIRONMENT}} PARENT_SCOPE)
+    if (DEFINED ${ENVIRONMENT})
+      set (${VAR} ${${ENVIRONMENT}} PARENT_SCOPE)
+    else ()
+      set (${VAR} $ENV{${ENVIRONMENT}} PARENT_SCOPE)
+    endif ()
   endif()
 
 endfunction(resolve_archive_dependency)
@@ -50,7 +54,7 @@ endfunction(read_version)
 function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
 
   list(REMOVE_AT ARGV 0)
-  set(SUPPORTED_ARGS FOLDER ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC TARGET_PATH ENVIRONMENT GITHUB_PULL_REQUEST VERSION_REGEX)
+  set(SUPPORTED_ARGS FOLDER ARCHIVE ARCHIVE_UNIFIED ARCHIVE_WIN ARCHIVE_LIN ARCHIVE_MAC ARCHIVE_ANDROID TARGET_PATH ENVIRONMENT GITHUB_PULL_REQUEST VERSION_REGEX)
 
 
   #unnecessary vars
@@ -97,6 +101,10 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
     SET(ARCHIVE_MAC "OFF")
   endif()
 
+  if (NOT DEFINED ARCHIVE_ANDROID)
+    SET(ARCHIVE_ANDROID "OFF")
+  endif()
+
   if (NOT DEFINED ENVIRONMENT)
     set (ENVIRONMENT "OFF")
   endif()
@@ -108,15 +116,15 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
 
 
   #for each dependency type have to do separate things
-  if (ARCHIVE_WIN OR ARCHIVE_LIN OR ARCHIVE_MAC OR ARCHIVE OR ARCHIVE_UNIFIED)
+  if (ARCHIVE_WIN OR ARCHIVE_LIN OR ARCHIVE_MAC OR ARCHIVE_ANDROID OR ARCHIVE OR ARCHIVE_UNIFIED)
     if (NOT DEFINED TARGET_PATH)
       message(FATAL_ERROR "TARGET_PATH should be defined for every dependency")
     endif()
 
-    resolve_archive_dependency(RESULT ${NAME_OF_CMAKE_VAR} ${ARCHIVE} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${TARGET_PATH} ${FOLDER} ${ENVIRONMENT})
+    resolve_archive_dependency(RESULT ${NAME_OF_CMAKE_VAR} ${ARCHIVE} ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID} ${TARGET_PATH} ${FOLDER} ${ENVIRONMENT})
     set(${NAME_OF_CMAKE_VAR} ${RESULT} PARENT_SCOPE)
     if (VERSION_REGEX)
-        GetNameAndUrlToDownload(archive RELATIVE_URL ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC})
+        GetNameAndUrlToDownload(archive RELATIVE_URL ${ARCHIVE_UNIFIED} ${ARCHIVE_WIN} ${ARCHIVE_LIN} ${ARCHIVE_MAC} ${ARCHIVE_ANDROID})
         if (archive)
             read_version(${archive} ${VERSION_REGEX} "${NAME_OF_CMAKE_VAR}_VERSION")
         endif()
@@ -125,7 +133,55 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
   elseif (DEFINED GITHUB_PULL_REQUEST)
     resolve_pull_request(${GITHUB_PULL_REQUEST} ${TARGET_PATH})
   else()
-    message(FATAL_ERROR "Dependency of unknowntype, SHOULD set one of ARCHIVE_WIN, ARCHIVE, ARCHIVE_LIN, ARCHIVE_MAC, GITHUB_PULL_REQUEST")
+    message(FATAL_ERROR "Dependency of unknowntype, SHOULD set one of ARCHIVE_WIN, ARCHIVE, ARCHIVE_LIN, ARCHIVE_MAC, ARCHIVE_ANDROID, GITHUB_PULL_REQUEST")
   endif()
 
 endfunction(RESOLVE_DEPENDENCY)
+
+function(reset_deps_cache)
+    #
+    # Reset the dependencies cache if it was set by dependency solver
+    #
+    set(need_reset FALSE)
+
+    foreach(var_name IN LISTS ARGN)
+        if(DEFINED ${var_name})
+            if(${var_name} MATCHES ${TEMP})
+                set(need_reset TRUE)
+            endif()
+        endif()
+    endforeach()
+    foreach(var_name IN LISTS ARGN)
+        if(DEFINED ENV{${var_name}})
+            if($ENV{${var_name}} MATCHES ${TEMP})
+                set(need_reset TRUE)
+            endif()
+        endif()
+    endforeach()
+
+    if(need_reset)
+        foreach(var_name IN LISTS ARGN)
+            unset(${var_name} CACHE)
+        endforeach()
+        foreach(var_name IN LISTS ARGN)
+            unset(ENV{${var_name}})
+        endforeach()
+    endif()
+endfunction()
+
+function(update_deps_cache VAR_NAME INTERNAL_VALUE DOC_MSG)
+    #
+    # Update the variable value if it wasn't provided by the user
+    #
+
+    if(NOT DEFINED ${VAR_NAME} AND NOT DEFINED ENV{${VAR_NAME}})
+        # User didn't provide its own value, use INTERNAL_VALUE
+        set(${VAR_NAME} ${INTERNAL_VALUE} CACHE PATH ${DOC_MSG})
+    else()
+        # The variable was provided by the user, don't use INTERNAL_VALUE
+        if(NOT DEFINED ${VAR_NAME} AND DEFINED ENV{${VAR_NAME}})
+            # User provided the variable via environment, convert it to the CACHE variable
+            set(${VAR_NAME} $ENV{${VAR_NAME}} CACHE PATH ${DOC_MSG})
+        endif()
+    endif()
+endfunction()

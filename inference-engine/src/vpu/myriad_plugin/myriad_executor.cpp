@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,13 +10,13 @@
 #include <algorithm>
 #include <utility>
 #include <chrono>
+#include <memory>
 
 #include <mvnc.h>
 #include <ie_common.h>
 #include <thread>
 
 #include <vpu/vpu_plugin_config.hpp>
-#include <vpu/utils/extra.hpp>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/profiling.hpp>
 
@@ -74,11 +74,7 @@ MyriadExecutor::MyriadExecutor(bool forceReset, const LogLevel& vpuLogLevel, con
  * @brief Boot available device
  */
 ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
-                                          const std::string& configDevName,
-                                          const ncDevicePlatform_t &configPlatform,
-                                          const ncDeviceProtocol_t &configProtocol,
-                                          int watchdogInterval,
-                                          PowerConfig powerConfig) {
+                                          const MyriadConfig& config) {
     VPU_PROFILE(bootNextDevice);
 // #-17972, #-16790
 #if defined(NO_BOOT)
@@ -87,22 +83,26 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
         return NC_DEVICE_NOT_FOUND;
     }
 #endif
+
+    const ncDevicePlatform_t& configPlatform = config.platform();
+    const ncDeviceProtocol_t& configProtocol = config.protocol();
+    const std::string& configDevName = config.deviceName();
+    PowerConfig powerConfig = config.powerConfig();
     int lastDeviceIdx = devicePool.empty() ? -1 : devicePool.back()->_deviceIdx;
 
     ncStatus_t statusOpen = NC_ERROR;
 
     DeviceDesc device;
 
-    char* dirName = nullptr;
+    std::string dirName;
 
 #if !defined(_WIN32)
     Dl_info info;
     dladdr(&device_mutex, &info);
-    char* dli_fname = nullptr;
 
     if (info.dli_fname != nullptr) {
-        dli_fname = strdup(info.dli_fname);
-        dirName = dirname(dli_fname);
+        std::string dli_fname {info.dli_fname};
+        dirName = dirname(&dli_fname[0]);
     }
 #endif
 
@@ -131,21 +131,21 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
         configDevName.copy(in_deviceDesc.name, NC_MAX_NAME_SIZE - 1);
     }
 
-    // Open new device with specific path to FW folder
-    statusOpen = ncDeviceOpen(&device._deviceHandle, in_deviceDesc, watchdogInterval, dirName);
-
-#if !defined(_WIN32)
-    if (info.dli_fname != nullptr) {
-        free(dli_fname);
+    statusOpen = ncSetDeviceConnectTimeout(config.deviceConnectTimeout().count());
+    if (statusOpen) {
+        return statusOpen;
     }
-#endif
+
+    // Open new device with specific path to FW folder
+    statusOpen = ncDeviceOpen(&device._deviceHandle,
+        in_deviceDesc, config.watchdogInterval().count(), dirName.c_str());
 
     if (statusOpen != NC_OK) {
         ncDeviceClose(&device._deviceHandle);
         return statusOpen;
     }
 
-    unsigned int dataLength;
+    unsigned int dataLength = sizeof(int);
 
     ncStatus_t status;
 
@@ -205,8 +205,8 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
     return NC_OK;
 }
 
-DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr> &devicePool,
-                                     const std::shared_ptr<MyriadConfig> &config) {
+DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr>& devicePool,
+                                     const MyriadConfig& config) {
     VPU_PROFILE(openDevice);
     std::lock_guard<std::mutex> lock(device_mutex);
 
@@ -222,7 +222,7 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr> &devicePool,
         return device;
     }
 
-    if (config->deviceName.length()) {
+    if (!config.deviceName().empty()) {
         auto firstBootedBySpecificName = std::find_if(devicePool.begin(), devicePool.end(),
             [&](const DevicePtr& device) {
                 return device->isBooted() && device->isSuitableForConfig(config);
@@ -234,13 +234,12 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr> &devicePool,
                 device->_graphNum++;
                 return device;
             } else {
-                THROW_IE_EXCEPTION << "Maximum number of networks reached for device: " << config->deviceName;
+                THROW_IE_EXCEPTION << "Maximum number of networks reached for device: " << config.deviceName();
             }
         }
     }
 
-    ncStatus_t booted = bootNextDevice(devicePool, config->deviceName,
-        config->platform, config->protocol, config->watchdogInterval.count(), config->powerConfig);
+    ncStatus_t booted = bootNextDevice(devicePool, config);
 
     // TODO Is any tests for this case? #-19309
     // In case, then there is no another not booted device, use already booted with minimum number of executors
@@ -255,10 +254,10 @@ DevicePtr MyriadExecutor::openDevice(std::vector<DevicePtr> &devicePool,
             });
 
         // Return mock device. If try infer with it, exception will be thrown
-        if (availableDevices.empty() && config->platform != NC_ANY_PLATFORM) {
+        if (availableDevices.empty() && config.platform() != NC_ANY_PLATFORM) {
             DeviceDesc device;
-            device._platform = config->platform;
-            device._protocol = config->protocol;
+            device._platform = config.platform();
+            device._protocol = config.protocol();
             return std::make_shared<DeviceDesc>(device);
         } else if (availableDevices.empty()) {
             THROW_IE_EXCEPTION << "Can not init Myriad device: " << ncStatusToStr(nullptr, booted);
@@ -490,7 +489,7 @@ void MyriadExecutor::printThrottlingStatus() {
 // TODO: enable when needed
 }
 
-float MyriadExecutor::GetThermal(const DevicePtr device) {
+float MyriadExecutor::GetThermal(const DevicePtr& device) {
     unsigned int thermal_stats_len = NC_THERMAL_BUFFER_SIZE;
     static_assert(NC_THERMAL_BUFFER_SIZE % sizeof(float) == 0,
                   "NC_THERMAL_BUFFER_SIZE is not divisible by sizeof(float)");

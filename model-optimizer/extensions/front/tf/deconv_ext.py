@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,34 +27,38 @@ class Conv2DBackpropInputFrontExtractor(FrontExtractorOp):
     op = 'Conv2DBackpropInput'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = tf_create_attrs(node, 3, 2)
-        attrs.update({'op': __class__.op,
+        attrs.update({'op': cls.op,
                       'get_weights_permute': PermuteAttrs.Permutation(perm=int64_array([3, 2, 0, 1]),
-                                                                      inv=int64_array([2, 3, 1, 0]))
+                                                                      inv=int64_array([2, 3, 1, 0])),
+                      'swap_0_and_2_inputs': True,
+                      'shape_input': True,
                       })
 
         # update the attributes of the node
         Deconvolution.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class Conv3DBackpropInputV2InputFrontExtractor(FrontExtractorOp):
     op = 'Conv3DBackpropInputV2'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = tf_create_attrs(node, 4, 3)
-        attrs.update({'op': __class__.op,
+        attrs.update({'op': cls.op,
                       'get_weights_permute': PermuteAttrs.Permutation(perm=int64_array([4, 3, 0, 1, 2]),
-                                                                      inv=int64_array([2, 3, 4, 1, 0]))
+                                                                      inv=int64_array([2, 3, 4, 1, 0])),
+                      'swap_0_and_2_inputs': True,
+                      'shape_input': True,
                       })
 
         # update the attributes of the node
         Deconvolution.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 def tf_create_attrs(node, input_feature_channel, output_feature_channel):

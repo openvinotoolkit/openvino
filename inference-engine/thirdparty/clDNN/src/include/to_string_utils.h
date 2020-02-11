@@ -15,12 +15,19 @@
 */
 #pragma once
 #include <string>
+#include <sstream>
 #include "api/tensor.hpp"
 #include "api/layout.hpp"
 #include "api/primitive.hpp"
 #include <memory>
 
 namespace cldnn {
+
+inline std::string to_string_hex(int val) {
+    std::stringstream stream;
+    stream << "0x" << std::uppercase << std::hex << val;
+    return stream.str();
+}
 
 inline std::string bool_to_str(bool cond) { return cond ? "true" : "false"; }
 
@@ -67,6 +74,10 @@ inline std::string fmt_to_str(format fmt) {
             return "fyxb";
         case format::bfyx_f16:
             return "bfyx_f16";
+        case format::b_fs_yx_fsv32:
+            return "b_fs_yx_fsv32";
+        case format::b_fs_zyx_fsv32:
+            return "b_fs_zyx_fsv32";
         case format::bs_xs_xsv8_bsv8:
             return "bs_xs_xsv8_bsv8";
         case format::bs_xs_xsv8_bsv16:
@@ -84,7 +95,7 @@ inline std::string fmt_to_str(format fmt) {
         case format::fs_bs_yx_bsv4_fsv32:
             return "fs_bs_yx_bsv4_fsv32";
         case format::b_fs_yx_fsv4:
-            return "b_fs_yx_fs4";
+            return "b_fs_yx_fsv4";
         case format::b_fs_yx_32fp:
             return "b_fs_yx_32fp";
         case format::bfzyx:
@@ -95,6 +106,8 @@ inline std::string fmt_to_str(format fmt) {
             return "fs_b_yx_fsv32";
         case format::bfzyx_f16:
             return "bfzyx_f16";
+        case format::bfzyx_b16f16:
+            return "bfzyx_b16f16";
 
         case format::winograd_2x3_s1_weights:
             return "winograd_2x3_s1_weights";
@@ -124,6 +137,12 @@ inline std::string fmt_to_str(format fmt) {
             return "o_i_yx_i16_o16";
         case format::os_is_yx_isa8_osv8_isv4:
             return "os_is_yx_isa8_osv8_isv4";
+        case format::os_is_zyx_isa8_osv8_isv4:
+            return "os_is_zyx_isa8_osv8_isv4";
+        case format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
+            return "os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4";
+        case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
+            return "os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4";
         case format::os_is_yx_isa8_osv8_isv4_swizzled_by_4:
             return "os_is_yx_isa8_osv8_isv4_swizzled_by_4";
         case format::is_o32_yx_isv32_swizzled_by_4:
@@ -132,6 +151,8 @@ inline std::string fmt_to_str(format fmt) {
             return "bf_lyx_yx";
         case format::os_is_yx_osv16_isv4:
             return "os_is_yx_osv16_isv4";
+        case format::os_is_yx_osv32_isv4_swizzled_by_2:
+            return "os_is_yx_osv32_isv4_swizzled_by_2";
         case format::os_is_y_x8_osv8_isv4:
             return "os_is_y_x8_osv8_isv4";
         case format::os_is_yx_osv32_isv32p:
@@ -140,6 +161,12 @@ inline std::string fmt_to_str(format fmt) {
             return "o_i_zyx_i16_o16";
         case format::i_o_zyx_o16_i16:
             return "i_o_zyx_o16_i16";
+        case format::os_is_osv32_isv32_swizzled_by_4:
+            return "os_is_osv32_isv32_swizzled_by_4";
+        case format::o_i_zyx_i8_o16_i2:
+            return "o_i_zyx_i8_o16_i2";
+        case format::ozyxi_o16:
+            return "ozyxi_o16";
         default:
             return "unknown (" + std::to_string(fmt.value) + ")";
     }

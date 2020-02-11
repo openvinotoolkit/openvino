@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <vector>
 #include <iostream>
 #include <utility>
+#include <algorithm>
 
 #include <ie_blob.h>
 
@@ -17,7 +18,8 @@
  * @class ClassificationResult
  * @brief A ClassificationResult creates an output table with results
  */
-class ClassificationResult {
+template<class strType = std::string>
+class ClassificationResultT {
 private:
     const std::string _classidStr = "classid";
     const std::string _probabilityStr = "probability";
@@ -25,7 +27,7 @@ private:
     size_t _nTop;
     InferenceEngine::Blob::Ptr _outBlob;
     const std::vector<std::string> _labels;
-    const std::vector<std::string> _imageNames;
+    const std::vector<strType> _imageNames;
     const size_t _batchSize;
 
     void printHeader() {
@@ -41,9 +43,76 @@ private:
         std::cout << std::endl;
     }
 
+    /**
+     * @brief Gets the top n results from a tblob
+     *
+     * @param n Top n count
+     * @param input 1D tblob that contains probabilities
+     * @param output Vector of indexes for the top n places
+     */
+    template <class T>
+    void topResults(unsigned int n, InferenceEngine::TBlob<T>& input, std::vector<unsigned>& output) {
+        InferenceEngine::SizeVector dims = input.getTensorDesc().getDims();
+        size_t input_rank = dims.size();
+        if (!input_rank || !dims[0]) THROW_IE_EXCEPTION << "Input blob has incorrect dimensions!";
+        size_t batchSize = dims[0];
+        std::vector<unsigned> indexes(input.size() / batchSize);
+
+        n = static_cast<unsigned>(std::min<size_t>((size_t)n, input.size()));
+
+        output.resize(n * batchSize);
+
+        for (size_t i = 0; i < batchSize; i++) {
+            size_t offset = i * (input.size() / batchSize);
+            T* batchData = input.data();
+            batchData += offset;
+
+            std::iota(std::begin(indexes), std::end(indexes), 0);
+            std::partial_sort(std::begin(indexes), std::begin(indexes) + n, std::end(indexes),
+                              [&batchData](unsigned l, unsigned r) {
+                                  return batchData[l] > batchData[r];
+                              });
+            for (unsigned j = 0; j < n; j++) {
+                output.at(i * n + j) = indexes.at(j);
+            }
+        }
+    }
+
+    /**
+     * @brief Gets the top n results from a blob
+     *
+     * @param n Top n count
+     * @param input 1D blob that contains probabilities
+     * @param output Vector of indexes for the top n places
+     */
+    void topResults(unsigned int n, InferenceEngine::Blob& input, std::vector<unsigned>& output) {
+    #define TBLOB_TOP_RESULT(precision)                                                                             \
+        case InferenceEngine::Precision::precision: {                                                               \
+            using myBlobType = InferenceEngine::PrecisionTrait<InferenceEngine::Precision::precision>::value_type;  \
+            InferenceEngine::TBlob<myBlobType>& tblob = dynamic_cast<InferenceEngine::TBlob<myBlobType>&>(input);   \
+            topResults(n, tblob, output);                                                                           \
+            break;                                                                                                  \
+        }
+
+        switch (input.getTensorDesc().getPrecision()) {
+            TBLOB_TOP_RESULT(FP32);
+            TBLOB_TOP_RESULT(FP16);
+            TBLOB_TOP_RESULT(Q78);
+            TBLOB_TOP_RESULT(I16);
+            TBLOB_TOP_RESULT(U8);
+            TBLOB_TOP_RESULT(I8);
+            TBLOB_TOP_RESULT(U16);
+            TBLOB_TOP_RESULT(I32);
+        default:
+            THROW_IE_EXCEPTION << "cannot locate blob for precision: " << input.getTensorDesc().getPrecision();
+        }
+
+        #undef TBLOB_TOP_RESULT
+    }
+
 public:
-    explicit ClassificationResult(InferenceEngine::Blob::Ptr output_blob,
-                                  std::vector<std::string> image_names = {},
+    explicit ClassificationResultT(InferenceEngine::Blob::Ptr output_blob,
+                                  std::vector<strType> image_names = {},
                                   size_t batch_size = 1,
                                   size_t num_of_top = 10,
                                   std::vector<std::string> labels = {}) :
@@ -63,19 +132,31 @@ public:
     void print() {
         /** This vector stores id's of top N results **/
         std::vector<unsigned> results;
-        TopResults(_nTop, *_outBlob, results);
+        topResults(_nTop, *_outBlob, results);
 
         /** Print the result iterating over each batch **/
         std::cout << std::endl << "Top " << _nTop << " results:" << std::endl << std::endl;
         for (unsigned int image_id = 0; image_id < _batchSize; ++image_id) {
-            std::cout << "Image " << _imageNames[image_id] << std::endl << std::endl;
+            std::wstring out(_imageNames[image_id].begin(), _imageNames[image_id].end());
+            std::wcout << L"Image " << out;
+            std::wcout.flush();
+            std::wcout.clear();
+            std::wcout << std::endl << std::endl;
             printHeader();
 
             for (size_t id = image_id * _nTop, cnt = 0; id < (image_id + 1) * _nTop; ++cnt, ++id) {
                 std::cout.precision(7);
                 /** Getting probability for resulting class **/
-                const auto result = _outBlob->buffer().
-                        as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>()
+                InferenceEngine::MemoryBlob::CPtr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(_outBlob);
+                if (!moutput) {
+                    throw std::logic_error("We expect _outBlob to be inherited from MemoryBlob in ClassificationResult::print, "
+                                           "but by fact we were not able to cast _outBlob to MemoryBlob");
+                }
+                // locked memory holder should be alive all time while access to its buffer happens
+                auto moutputHolder = moutput->rmap();
+
+                const auto result = moutputHolder.
+                        as<const InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>()
                 [results[id] + image_id * (_outBlob->size() / _batchSize)];
 
                 std::cout << std::setw(static_cast<int>(_classidStr.length())) << std::left << results[id] << " ";
@@ -90,3 +171,6 @@ public:
         }
     }
 };
+
+using ClassificationResult = ClassificationResultT<>;
+using ClassificationResultW = ClassificationResultT<std::wstring>;

@@ -109,7 +109,7 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
     for (int ic = 0; ic < 3; ic++)
     {
         __attribute__((opencl_unroll_hint(INPUT_BLOCK_SIZE)))
-        for (uint i = 0; i < INPUT_BLOCK_SIZE; i++)
+        for (int i = 0; i < INPUT_BLOCK_SIZE; i++)
         {
             const uint in_elem = i * SUB_GROUP_SIZE + lid;
             const uint xb = in_elem % INPUT_LINE_SIZE;
@@ -127,10 +127,10 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
 
 
     __attribute__((opencl_unroll_hint(FILTER_SIZE_Y)))
-    for (uint kh = 0; kh < FILTER_SIZE_Y; kh++)
+    for (int kh = 0; kh < FILTER_SIZE_Y; kh++)
     {
         __attribute__((opencl_unroll_hint(FILTER_SIZE_X)))
-        for (uint kw = 0; kw < FILTER_SIZE_X; kw++)
+        for (int kw = 0; kw < FILTER_SIZE_X; kw++)
         {
             MAKE_VECTOR_TYPE(UNIT_TYPE, 2) wei = UNIT_BLOCK_READ2(weights, filter_offset +
                                                                            kh * filter_y_pitch +
@@ -203,4 +203,4 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
     }
 }
 
-#undef FEATURE_SLICE_SIZE 16
+#undef FEATURE_SLICE_SIZE

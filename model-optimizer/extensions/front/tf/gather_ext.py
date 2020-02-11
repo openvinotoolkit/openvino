@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,9 +14,7 @@
  limitations under the License.
 """
 
-import numpy as np
-
-from extensions.ops.gather import Gather
+from extensions.ops.gather import Gather, AttributedGather
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -24,36 +22,27 @@ class GatherFrontExtractor(FrontExtractorOp):
     op = 'Gather'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        attrs = {}
-
-        Gather.update_node_stat(node, attrs)
-
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node):
+        AttributedGather.update_node_stat(node, {'axis': 0})
+        return cls.enabled
 
 
 class ResourceGatherFrontExtractor(FrontExtractorOp):
     op = 'ResourceGather'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        attrs = {}
-
-        Gather.update_node_stat(node, attrs)
-
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node):
+        AttributedGather.update_node_stat(node, {'axis': 0})
+        return cls.enabled
 
 
 class GatherV2FrontExtractor(FrontExtractorOp):
     op = 'GatherV2'
     enabled = True
 
-    @staticmethod
-    def extract(node):
-        attrs = {}
-
-        Gather.update_node_stat(node, attrs)
-
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node):
+        Gather.update_node_stat(node, {})
+        return cls.enabled

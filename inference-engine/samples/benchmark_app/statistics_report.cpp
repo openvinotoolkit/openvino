@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,11 +107,9 @@ void StatisticsReport::dumpPerformanceCounters(const std::vector<PerformaceCount
     } else if (_config.report_type == averageCntReport) {
         auto getAveragePerformanceCounters = [ &perfCounts ] () {
             std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> performanceCountersAvg;
-            // sort PM data of first processed request according to layers execution order
-            auto performanceMapSorted = perfCountersSorted(perfCounts[0]);
-
             // iterate over each processed infer request and handle its PM data
             for (size_t i = 0; i < perfCounts.size(); i++) {
+                auto performanceMapSorted = perfCountersSorted(perfCounts[i]);
                 // iterate over each layer from sorted vector and add required PM data to the per-layer maps
                 for (const auto& pm : performanceMapSorted) {
                     if (performanceCountersAvg.count(pm.first) == 0) {

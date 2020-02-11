@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@ import numpy as np
 
 from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.graph.graph import Node
-from mo.middle.passes.eliminate import graph_clean_up
 from mo.middle.passes.fusing.fuse_linear_ops import _fuse_mul, _fuse_add, fuse_linear_ops
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes_attributes = {
     'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
@@ -69,8 +69,8 @@ nodes_attributes = {
     'const_conv_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'const_conv_2_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
     'conv_2_data': {'value': None, 'shape': None, 'kind': 'data'},
-    # FullyConnected
-    'fc_1': {'type': 'MatMul', 'kind': 'op', 'op': 'InnerProduct', 'layout': 'NHWC'},
+    # MatMul
+    'fc_1': {'type': 'MatMul', 'kind': 'op', 'layout': 'NHWC'},
     'fc_1_w': {'value': None, 'shape': None, 'kind': 'data'},
     'fc_1_b': {'value': None, 'shape': None, 'kind': 'data'},
     'const_fc_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
@@ -141,7 +141,7 @@ class FuseMulTests(unittest.TestCase):
                                  })
 
         _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'conv_1')], backward=False)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -198,7 +198,7 @@ class FuseMulTests(unittest.TestCase):
                                  })
 
         _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'conv_1')], backward=False)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -256,7 +256,7 @@ class FuseMulTests(unittest.TestCase):
                                  })
 
         _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'conv_1')], backward=True)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1', 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -314,7 +314,7 @@ class FuseMulTests(unittest.TestCase):
                                  })
 
         _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'conv_1')], backward=True)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -392,7 +392,7 @@ class FuseMulTests(unittest.TestCase):
                                  })
 
         _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'conv_1')], backward=False)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data')
         self.assertTrue(flag, resp)
@@ -466,7 +466,7 @@ class FuseMulTests(unittest.TestCase):
                                  })
 
         _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'conv_1')], backward=False)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data')
         self.assertTrue(flag, resp)
@@ -557,7 +557,7 @@ class FuseMulTests(unittest.TestCase):
                                  })
 
         _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'conv_1'), Node(graph, 'conv_2')], backward=False)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -615,7 +615,7 @@ class FuseMulTests(unittest.TestCase):
                                  })
 
         _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'fc_1')], backward=False)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -680,7 +680,7 @@ class FuseMulTests(unittest.TestCase):
                                  })
 
         _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'conv_1')], backward=False)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -729,7 +729,7 @@ class FuseMulTests(unittest.TestCase):
                                  })
 
         _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'conv_1')], backward=False)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -778,7 +778,7 @@ class FuseMulTests(unittest.TestCase):
                                  })
 
         _fuse_mul(graph, Node(graph, 'mul_1'), [Node(graph, 'conv_1')], backward=True)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1', 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -840,7 +840,7 @@ class FuseAddTests(unittest.TestCase):
                                  })
 
         _fuse_add(graph, Node(graph, 'add_1'), [Node(graph, 'fc_1')], backward=False)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -896,7 +896,7 @@ class FuseAddTests(unittest.TestCase):
                                  })
 
         _fuse_add(graph, Node(graph, 'add_1'), [Node(graph, 'fc_1')], backward=True)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -952,7 +952,7 @@ class FuseAddTests(unittest.TestCase):
                                  })
 
         _fuse_add(graph, Node(graph, 'add_1'), [Node(graph, 'fc_1')], backward=True)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -1018,7 +1018,7 @@ class FuseAddTests(unittest.TestCase):
                                  })
 
         _fuse_add(graph, Node(graph, 'add_1'), [Node(graph, 'fc_1')], backward=False)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -1112,7 +1112,7 @@ class FuseLinOpsTests(unittest.TestCase):
                                  })
 
         fuse_linear_ops(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data')
         self.assertTrue(flag, resp)
@@ -1169,7 +1169,7 @@ class FuseLinOpsTests(unittest.TestCase):
                                  })
 
         fuse_linear_ops(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'fc_1_data')
         self.assertTrue(flag, resp)
@@ -1225,7 +1225,7 @@ class FuseLinOpsTests(unittest.TestCase):
                                  })
 
         fuse_linear_ops(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
@@ -1302,7 +1302,7 @@ class FuseLinOpsTests(unittest.TestCase):
                                  })
 
         fuse_linear_ops(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data')
         # TODO: refactor this test
@@ -1405,7 +1405,7 @@ class FuseLinOpsTests(unittest.TestCase):
                                  })
 
         fuse_linear_ops(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data')
         self.assertTrue(flag, resp)
@@ -1505,7 +1505,7 @@ class FuseLinOpsTests(unittest.TestCase):
                                  })
 
         fuse_linear_ops(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data')
         self.assertTrue(flag, resp)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,10 +24,11 @@
 #include <api/concatenation.hpp>
 #include <api/detection_output.hpp>
 #include <api/softmax.hpp>
-#include <api/upsampling.hpp>
+#include <api/resample.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include "cldnn_custom_layer.h"
 #include "cldnn_config.h"
+#include "cldnn_remote_context.h"
 #include "cldnn_program.h"
 
 namespace CLDNNPlugin {
@@ -36,7 +37,7 @@ class CLDNNGraph {
 public:
     typedef std::shared_ptr<CLDNNGraph> Ptr;
 
-    explicit CLDNNGraph(InferenceEngine::ICNNNetwork& network, const Config& config = {}, uint16_t stream_id = 0);
+    explicit CLDNNGraph(InferenceEngine::ICNNNetwork& network, gpu::ClContext::Ptr context, Config config, uint16_t stream_id = 0);
     explicit CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id = 0);
     void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr& graphPtr);
 
@@ -49,20 +50,22 @@ public:
     void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const;
     void UpdatePerfStatistics();
 
-    int GetMaxDynamicBatchSize() const { return m_config.max_dynamic_batch; }
+    const Config& getConfig() const { return m_config; }
+    gpu::ClContext::Ptr GetContext() { return m_context; }
+    std::shared_ptr<const cldnn::engine> GetEngine() const { return getContextImpl(m_context)->GetEngine(); }
+    int GetMaxDynamicBatchSize() const { return getConfig().max_dynamic_batch; }
     const std::map<std::string, cldnn::layout>& GetInputLayouts() const { return m_program->getInputLayouts(); }
-    std::shared_ptr<const cldnn::engine> GetEngine() const { return m_engine; }
     size_t GetNetworksCount() const { return m_networks.size(); }
     std::shared_ptr<cldnn::network> GetNetwork(size_t idx = 0) const;
     InferenceEngine::SizeVector GetOutputSize(std::string outName) const;
     std::string MapOutputName(std::string outName) const;
     std::string getName() const { return m_networkName; }
-    const Config& getConfig() const { return m_config; }
 
 protected:
     std::string m_networkName;
+    Config m_config;
 
-    std::shared_ptr<const cldnn::engine> m_engine;
+    gpu::ClContext::Ptr m_context;
     std::vector<std::shared_ptr<cldnn::network>> m_networks;
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
     std::map<cldnn::primitive_id, std::vector<std::string>> primitivesToIRLayersMap;
@@ -75,7 +78,6 @@ protected:
     std::map<std::string, InferenceEngine::SizeVector> outputDims;
 
     std::shared_ptr<Program> m_program;
-    Config m_config;
     uint16_t m_stream_id;
 
     std::shared_ptr<cldnn::network> BuildNetwork(std::shared_ptr<cldnn::program> program);

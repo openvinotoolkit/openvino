@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ from extensions.back.ReduceToPooling import ReduceReplacer
 from mo.front.common.partial_infer.utils import int64_array
 from mo.middle.passes.eliminate import shape_inference
 from mo.middle.passes.eliminate_test import build_graph
-from mo.middle.passes.fusing.fuse_linear_ops_test import compare_graphs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 # The dictionary with nodes attributes used to build various graphs. A key is the name of the node and the value is the
 # dictionary with node attributes.
@@ -51,7 +51,7 @@ nodes_attributes = {
     'pooling_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     # Power
-    'power': {'type': 'Power', 'kind': 'op', 'op': 'Power'},
+    'power': {'type': 'Power', 'kind': 'op', 'op': 'AttributedPower'},
     'power_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     # Concat

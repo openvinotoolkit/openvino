@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,8 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
+import logging as log
 from copy import deepcopy
+
+import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.connection import Connection
@@ -57,6 +59,9 @@ class Port:
                 self.type == other.type and
                 self.idx == other.idx
         )
+
+    def __hash__(self):
+        return hash((self.node.id, self.type, self.idx))
 
     def __deepcopy__(self, memo):
         cls = self.__class__
@@ -301,3 +306,76 @@ class Port:
             self.get_connection().set_source(port)
         else:
             self.get_connection().add_destination(port)
+
+    def _get_data_type(self):
+        """
+        Internal method which does not raise with error if the data type is not known.
+        Check value of the data node to determine input port data type as well as the respective value in the
+        '_out_port_data_type' dictionary.
+        :return: The data type or None if it is not defined
+        """
+        node = self.node
+        if self.type == 'out':
+            if node.has_valid('_out_port_data_type') and self.idx in node._out_port_data_type:
+                return node._out_port_data_type[self.idx]
+
+            # check the data type of the output data node
+            value = self.data.get_value()
+            value_data_type = value.dtype if value is not None else None
+            if value_data_type is not None:
+                value_data_type = value.dtype if value is not None else None
+                log.debug('The precision of the output port {} of node {} is determined from the data node as {}'
+                          ''.format(self.idx, self.node.name, value_data_type))
+                return value_data_type
+            return None
+        else:
+            # check the data type of the input data node
+            value = self.data.get_value()
+            value_data_type = value.dtype if value is not None else None
+            if value_data_type is not None:
+                log.debug('The precision of the input port {} of node {} is determined from the data node as {}'
+                          ''.format(self.idx, self.node.name, value_data_type))
+
+            # The 'get_source' method raises an error if there is no producer op node for the input port. But here we
+            # don't want to do this, so we temporary disable graph strict mode
+            old_strict_mode_value = node.graph.strict_mode
+            node.graph.strict_mode = False
+            source_port = self.get_source()
+            source_port_data_type = None
+            if source_port is not None:
+                source_port_data_type = source_port._get_data_type()
+            node.graph.strict_mode = old_strict_mode_value
+
+            # check for the data node and port data type inconsistency. TODO should we raise an error here?
+            if value_data_type is not None and source_port_data_type is not None and \
+                    value_data_type != source_port_data_type:
+                log.warning('Inconsistent data type of the data node and port attribute for port {} of node {}: {} vs '
+                            '{}. Return data type of the data node.'.format(self.idx, self.node.name,
+                                                                            value_data_type, source_port_data_type))
+            # the source port data type has higher priority over the value data type because the MO calculates values in
+            # I64 precision for shapes but not all IE plugins support I64, so we should trust data type infer functions
+            return source_port_data_type if source_port_data_type is not None else value_data_type
+
+    def get_data_type(self):
+        data_type = self._get_data_type()
+        if data_type is None:
+            raise Error('The data type for {} port {} of node {} is not defined'.format(self.type, self.idx,
+                                                                                        self.node.name))
+        return data_type
+
+    def is_data_type_defined(self):
+        """
+        Check if the data-type is already defined for the port.
+        :return: the result of the check
+        """
+        return self._get_data_type() is not None
+
+    def set_data_type(self, data_type, override=False):
+        assert self.type == 'out', 'The method can be called for output ports only'
+        node = self.node
+        if not node.has_valid('_out_port_data_type'):
+            node['_out_port_data_type'] = {}
+        if self.idx in node._out_port_data_type and data_type != node._out_port_data_type[self.idx] and not override:
+            raise Error('Trying to override data type for output port {} of operation {}: from {} to {}'.format(
+                self.idx, node.name, node._out_port_data_type[self.idx], data_type))
+        node._out_port_data_type[self.idx] = data_type

@@ -184,6 +184,59 @@ void _jit_avx512_common_conv_fwd_kernel<Vmm>::store_output(int ur_w)
             }
 
             depthwise_inj_idx++;
+        } else if (post_op.is_quantization()) {
+            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.crop_low_data));
+            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.crop_high_data));
+
+            add(reg_d_weights, ptr[this->param1 + GET_OFF(oc_off)]);
+            add(reg_d_bias, ptr[this->param1 + GET_OFF(oc_off)]);
+
+            for (int k = 0; k < jcp.nb_oc_blocking; k++) {
+                uni_vmovups(vmm_d_weights, ptr[reg_d_weights + k * jcp.oc_block * sizeof(float)]);
+                uni_vmovups(vmm_d_bias, ptr[reg_d_bias + k * jcp.oc_block * sizeof(float)]);
+
+                for (int j = 0; j < ur_w; j++) {
+                    Vmm vmm_dst = vmm_out(j, k);
+
+                    uni_vmaxps(vmm_dst, vmm_dst, vmm_d_weights);
+                    uni_vminps(vmm_dst, vmm_dst, vmm_d_bias);
+                }
+            }
+
+            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.input_scale_data));
+            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.input_shift_data));
+
+            add(reg_d_weights, ptr[this->param1 + GET_OFF(oc_off)]);
+            add(reg_d_bias, ptr[this->param1 + GET_OFF(oc_off)]);
+
+            for (int k = 0; k < jcp.nb_oc_blocking; k++) {
+                uni_vmovups(vmm_d_weights, ptr[reg_d_weights + k * jcp.oc_block * sizeof(float)]);
+                uni_vmovups(vmm_d_bias, ptr[reg_d_bias + k * jcp.oc_block * sizeof(float)]);
+
+                for (int j = 0; j < ur_w; j++) {
+                    Vmm vmm_dst = vmm_out(j, k);
+
+                    uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
+                    uni_vroundps(vmm_dst, vmm_dst, 0);
+                }
+            }
+
+            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.output_scale_data));
+            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.output_shift_data));
+
+            add(reg_d_weights, ptr[this->param1 + GET_OFF(oc_off)]);
+            add(reg_d_bias, ptr[this->param1 + GET_OFF(oc_off)]);
+
+            for (int k = 0; k < jcp.nb_oc_blocking; k++) {
+                uni_vmovups(vmm_d_weights, ptr[reg_d_weights + k * jcp.oc_block * sizeof(float)]);
+                uni_vmovups(vmm_d_bias, ptr[reg_d_bias + k * jcp.oc_block * sizeof(float)]);
+
+                for (int j = 0; j < ur_w; j++) {
+                    Vmm vmm_dst = vmm_out(j, k);
+
+                    uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
+                }
+            }
         }
     }
 
@@ -1298,7 +1351,8 @@ bool jit_avx512_common_conv_fwd_kernel::post_ops_ok(
         bool ok = true;
 
         for (int i = 0; i < p.len_; i++) {
-            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise);
+            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise,
+                                                       primitive_kind::quantization);
         }
         return ok;
     };

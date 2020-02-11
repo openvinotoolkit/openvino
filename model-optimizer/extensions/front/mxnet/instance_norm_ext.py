@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,12 +24,12 @@ class InstanceNormFrontExtractor(FrontExtractorOp):
     op = 'InstanceNorm'
     enabled = True
 
-    @staticmethod
-    def extract(node: Node):
+    @classmethod
+    def extract(cls, node: Node):
         attr = get_mxnet_layer_attrs(node.symbol_dict)
         node_attrs = {
             'epsilon': attr.float('eps', 0.001)
         }
 
         InstanceNormalization.update_node_stat(node, node_attrs)
-        return __class__.enabled
+        return cls.enabled

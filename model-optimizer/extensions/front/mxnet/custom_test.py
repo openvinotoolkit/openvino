@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ attrs = {'test_attr': 1}
 
 
 class FakeExtractor(MXNetCustomFrontExtractorOp):
-    @staticmethod
-    def extract(node: Node):
+    @classmethod
+    def extract(cls, node: Node):
         return True, attrs
 
 
@@ -54,4 +54,4 @@ class TestCustomFrontExtractorOp(unittest.TestCase):
         custom_op = FakeExtractor()
         supported, op_attrs = custom_op.extract(custom_node)
         self.assertTrue(supported)
-        self.assertEquals(op_attrs, attrs)
+        self.assertEqual(op_attrs, attrs)

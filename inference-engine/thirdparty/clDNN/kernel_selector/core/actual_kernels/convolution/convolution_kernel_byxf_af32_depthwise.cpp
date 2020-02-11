@@ -21,10 +21,15 @@ namespace kernel_selector {
 ParamsKey ConvolutionKernel_byxf_af32_depthiwise::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::byxf_af32);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableDilation();
@@ -33,9 +38,10 @@ ParamsKey ConvolutionKernel_byxf_af32_depthiwise::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableSplitSupport();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
     k.EnableDepthwiseSeparableOpt();
+    k.EnableDifferentTypes();
+    k.EnableDifferentInputWeightsTypes();
     k.DisableTuning();
     return k;
 }
@@ -45,14 +51,22 @@ bool ConvolutionKernel_byxf_af32_depthiwise::Validate(const Params& p, const opt
         return false;
     }
 
-    const convolution_params& params = static_cast<const convolution_params&>(p);
-
-    // this kernel is designed for quantization use case
-    if (!params.depthwise_separable_opt)
-        return false;
-
     return true;
 }
+
+JitConstants ConvolutionKernel_byxf_af32_depthiwise::GetJitConstants(const convolution_params& params,
+                                                            const DispatchData& runInfo) const {
+    auto jit = Parent::GetJitConstants(params, runInfo);
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf_scalar = {"", {"b", "of", "y", "x"}, "res", input_dt, 1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
+    }
+
+    return jit;
+}
+
 
 KernelsData ConvolutionKernel_byxf_af32_depthiwise::GetKernelsData(const Params& params,
                                                                    const optional_params& options) const {
@@ -61,4 +75,5 @@ KernelsData ConvolutionKernel_byxf_af32_depthiwise::GetKernelsData(const Params&
         kd[0].estimatedTime = FORCE_PRIORITY_3;
     return kd;
 }
+
 }  // namespace kernel_selector

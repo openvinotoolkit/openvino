@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,13 +8,16 @@
 #include <memory>
 #include <set>
 
-#include <vpu/sw/post_op_stage.hpp>
+#include <vpu/stages/post_op_stage.hpp>
 
 namespace vpu {
 
 namespace {
 
 class ArgMaxStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<ArgMaxStage>(*this);
@@ -78,20 +81,11 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseArgMax(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseArgMax(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    auto stage = model->addNewStage<ArgMaxStage>(
-        layer->name,
-        StageType::ArgMax,
-        layer,
-        inputs,
-        outputs);
+    auto stage = model->addNewStage<ArgMaxStage>(layer->name, StageType::ArgMax, layer, inputs, outputs);
 
     stage->attrs().set<int32_t>("out_max_val", layer->GetParamAsInt("out_max_val"));
     stage->attrs().set<int32_t>("top_k", layer->GetParamAsInt("top_k"));

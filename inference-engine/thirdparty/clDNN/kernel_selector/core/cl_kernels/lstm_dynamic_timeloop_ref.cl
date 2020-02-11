@@ -37,7 +37,7 @@ KERNEL(lstm_dynamic_timeloop_ref)(
 #endif
     )
 {
-    const uint y_offset = get_global_id(0) * ELEMENTS_TO_COUNT;
+    const uint y_offset = (uint)get_global_id(0) * ELEMENTS_TO_COUNT;
     const uint b        = get_global_id(1);
     const uint dir      = get_global_id(2);
     uint unroll_timesteps = dyn_lengths[b];

@@ -11,9 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-
 #pragma once
+
+#include <vector>
 
 #include "fully_connected_kernel_base.h"
 
@@ -21,9 +21,16 @@ namespace kernel_selector {
 
 class FullyConnected_fb_oi_ref : public FullyConnectedKernelBase {
 public:
+    using Parent = FullyConnectedKernelBase;
     FullyConnected_fb_oi_ref() : FullyConnectedKernelBase("fully_connected_gpu_fb_oi_ref") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+
+protected:
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ACTIVATION };
+    }
+    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const override;
 };
 }  // namespace kernel_selector

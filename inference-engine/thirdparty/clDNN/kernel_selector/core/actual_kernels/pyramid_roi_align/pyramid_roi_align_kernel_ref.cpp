@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include "pyramid_roi_align_kernel_ref.h"
+#include "kernel_selector_utils.h"
+
+#include <vector>
 
 namespace kernel_selector {
 ParamsKey PyramidROIAlignKernelRef::GetSupportedKey() const {
@@ -25,11 +28,38 @@ ParamsKey PyramidROIAlignKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
 
     k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::yxfb);
+    k.EnableInputLayout(DataLayout::byxf);
+
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableOutputLayout(DataLayout::byxf);
+
     k.EnableBatching();
     k.EnableDifferentTypes();
 
     return k;
+}
+
+PyramidROIAlignKernelBase::DispatchData PyramidROIAlignKernelRef::SetDefault(const PyramidROIAlign_params& params) const {
+    auto dispatch = PyramidROIAlignKernelBase::SetDefault(params);
+
+    std::vector<size_t> global = {
+        params.output.X().v * params.output.Y().v,
+        params.output.Feature().v,
+        params.output.Batch().v };
+
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+
+    dispatch.gws0 = global[0];
+    dispatch.gws1 = global[1];
+    dispatch.gws2 = global[2];
+
+    dispatch.lws0 = local[0];
+    dispatch.lws1 = local[1];
+    dispatch.lws2 = local[2];
+
+    return dispatch;
 }
 
 KernelsData PyramidROIAlignKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {

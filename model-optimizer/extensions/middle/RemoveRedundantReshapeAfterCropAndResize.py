@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import logging as log
 
 import numpy as np
 
+from extensions.middle.FuseReshapesSequence import FuseReshapesSequence
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 
@@ -31,7 +32,7 @@ class RemoveRedundantReshapeAfterCropAndResize(MiddleReplacementPattern):
         return [MiddleFinish]
 
     def run_before(self):
-        return []
+        return [FuseReshapesSequence]
 
     def pattern(self):
         return dict(

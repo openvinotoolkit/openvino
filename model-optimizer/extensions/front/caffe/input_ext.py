@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,17 +23,17 @@ class InputFrontExtractor(FrontExtractorOp):
     op = 'input'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         Parameter.update_node_stat(node, {'shape': dim_to_shape(node.pb.input_param.shape[0].dim)})
-        return __class__.enabled
+        return cls.enabled
 
 
 class GlobalInputFrontExtractor(FrontExtractorOp):
     op = 'globalinput'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         Parameter.update_node_stat(node)
-        return __class__.enabled
+        return cls.enabled

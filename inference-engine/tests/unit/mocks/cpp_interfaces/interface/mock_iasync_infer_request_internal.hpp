@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,8 @@ public:
     MOCK_CONST_METHOD1(GetPerformanceCounts, void(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &));
     MOCK_METHOD2(SetBlob, void(const char *name, const InferenceEngine::Blob::Ptr &));
     MOCK_METHOD2(GetBlob, void(const char *name, InferenceEngine::Blob::Ptr &));
+    MOCK_METHOD3(SetBlob, void(const char *name, const Blob::Ptr &, const InferenceEngine::PreProcessInfo&));
+    MOCK_CONST_METHOD2(GetPreProcess, void(const char* name, const PreProcessInfo**));
     MOCK_METHOD1(SetCompletionCallback, void(InferenceEngine::IInferRequest::CompletionCallback));
 	MOCK_METHOD1(SetBatch, void(int));
 };

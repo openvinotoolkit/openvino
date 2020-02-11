@@ -1,17 +1,19 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <description_buffer.hpp>
-#include "ie_built_in_impl.hpp"
 #include <ie_layers.h>
+
+#include <description_buffer.hpp>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-#include <limits>
+
+#include "ie_built_in_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -21,13 +23,11 @@ namespace ShapeInfer {
  */
 class InterpShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit InterpShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
+    explicit InterpShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-                         const std::map<std::string, std::string>& params,
-                         const std::map<std::string, Blob::Ptr>& blobs,
-                         std::vector<SizeVector>& outShapes) override {
-        LayerParams lp{};
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
+        LayerParams lp {};
         CNNLayer cnnLayer(lp);
         cnnLayer.params = params;
         cnnLayer.type = _type;
@@ -53,13 +53,13 @@ public:
                 return std::fabs(value) < std::numeric_limits<float>::epsilon();
             };
 
-        bool noFactor = IS_ZERO(zoom_factor) && IS_ZERO(shrink_factor) && IS_ZERO(factor);
+            bool noFactor = IS_ZERO(zoom_factor) && IS_ZERO(shrink_factor) && IS_ZERO(factor);
 
-        size_t N, C, H, W;
-        N = inShapes[0][0];
-        C = inShapes[0][1];
-        H = inShapes[0][2];
-        W = inShapes[0][3];
+            size_t N, C, H, W;
+            N = inShapes[0][0];
+            C = inShapes[0][1];
+            H = inShapes[0][2];
+            W = inShapes[0][3];
 
             auto SETW = [&width, &W](size_t value) {
                 if (width) {

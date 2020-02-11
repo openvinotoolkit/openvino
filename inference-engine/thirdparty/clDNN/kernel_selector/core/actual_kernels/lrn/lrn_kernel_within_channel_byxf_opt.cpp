@@ -66,7 +66,7 @@ LRNKernelWithinChannelByxfOpt::Parent::DispatchData LRNKernelWithinChannelByxfOp
     const auto& out = params.output;
 
     std::vector<size_t> global = {out.X().v * out.Y().v, CeilDiv(out.Feature().v, 8), out.Batch().v};
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

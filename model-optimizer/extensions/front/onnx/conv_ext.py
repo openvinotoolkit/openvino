@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ class ConvFrontExtractor(FrontExtractorOp):
     op = 'Conv'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         # Extract pads attribute
         # In case if pads is not specified it will be set in default (1) in infer function
         pads = onnx_attr(node, 'pads', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
@@ -81,7 +81,7 @@ class ConvFrontExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         Convolution.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
 
 
 class ConvTransposeFrontExtractor(FrontExtractorOp):
@@ -108,8 +108,8 @@ class ConvTransposeFrontExtractor(FrontExtractorOp):
                  range(len(node.spatial_dims))])
         return pad
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         pads = onnx_attr(node, 'pads', 'ints', dst_type=int64_array)
         auto_pad = onnx_attr(node, 'auto_pad', 's', default=None, dst_type=get_onnx_autopad)
 
@@ -172,4 +172,4 @@ class ConvTransposeFrontExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         Convolution.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled

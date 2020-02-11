@@ -52,8 +52,8 @@ struct nchw_pooling_fwd_t: public cpu_primitive_t {
                 && utils::one_of(desc()->prop_kind, forward_training,
                         forward_inference)
                 && utils::one_of(desc()->alg_kind, pooling_max,
-                        pooling_avg_include_padding,
                         pooling_avg_exclude_padding)
+                && memory_desc_wrapper(dst_pd()).is_dense(false)
                 && !has_zero_dim_memory()
                 && utils::everyone_is(d_type, src_pd()->desc()->data_type,
                         dst_pd()->desc()->data_type)

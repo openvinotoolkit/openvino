@@ -27,10 +27,12 @@ struct mutable_data_gpu : public typed_primitive_gpu_impl<mutable_data> {
 
 public:
     bool validate_impl(const typed_primitive_inst<mutable_data>& instance) const override {
-        auto net_stream_id = instance.get_network().get_stream_id();
-        auto mem_stream_id = instance.output_memory().get_stream_id();
+        bool is_primary = instance.get_network().is_primary_stream();
 
-        bool res = net_stream_id == mem_stream_id;
+        auto net_id = instance.get_network().get_id();
+        auto mem_net_id = instance.output_memory().get_net_id();
+
+        bool res = is_primary || net_id == mem_net_id;
         return res;
     }
 

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -51,9 +51,13 @@ class AddFakeQuantizeFuse(MiddleReplacementPattern):
         quantize = match['quantize']
         preop = match['preop']
 
+        for i in [0, 1]:
+            if preop.in_port(i).get_source().node.soft_get('type') in ['Convolution', 'Deconvolution', 'MatMul']:
+                return
+
         tensor_port, value_port = get_tensor_in_port(preop), get_value_in_port(preop)
-        add_val = value_port.data.get_value()
-        if add_val is None:
+
+        if value_port is None or value_port.data.get_value() is None:
             log.debug('AddQuantizeFuse: cannot fuse because Add op has dynamic inputs')
             return
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
  * @brief A header that defines advanced related properties for VPU plugins.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
- * @file vpu_plugin_config.hpp
+ * @file 
  */
 
 #pragma once
@@ -21,7 +21,15 @@
 // Options
 //
 
+/**
+ * @def VPU_HDDL_CONFIG_KEY(name)
+ * @brief Shortcut for defining VPU HDDL configuration key
+ */
 #define VPU_HDDL_CONFIG_KEY(name) InferenceEngine::VPUConfigParams::_CONFIG_KEY(VPU_HDDL_##name)
+/**
+ * @def VPU_HDDL_CONFIG_VALUE(name)
+ * @brief Shortcut for defining VPU HDDL configuration value
+ */
 #define VPU_HDDL_CONFIG_VALUE(name) InferenceEngine::VPUConfigParams::VPU_HDDL_##name
 
 #define DECLARE_VPU_HDDL_CONFIG_KEY(name) DECLARE_CONFIG_KEY(VPU_HDDL_##name)
@@ -31,6 +39,10 @@
 // Metrics
 //
 
+/**
+ * @def VPU_HDDL_METRIC(name)
+ * @brief Shortcut for defining VPU HDDL metric
+ */
 #define VPU_HDDL_METRIC(name) METRIC_KEY(VPU_HDDL_##name)
 #define DECLARE_VPU_HDDL_METRIC(name, ...)  DECLARE_METRIC_KEY(VPU_HDDL_##name, __VA_ARGS__)
 
@@ -47,11 +59,6 @@ DECLARE_VPU_HDDL_METRIC(DEVICE_NUM, int);
 * @brief Metric to get a std::vector<std::string> of device names, String value is METRIC_VPU_HDDL_DEVICE_NAME
 */
 DECLARE_VPU_HDDL_METRIC(DEVICE_NAME, std::vector<std::string>);
-
-/**
-* @brief  Metric to get a std::vector<std::string> of device models, String value is METRIC_VPU_HDDL_DEVICE_MODEL
-*/
-DECLARE_VPU_HDDL_METRIC(DEVICE_MODEL, std::vector<std::string>);
 
 /**
 * @brief  Metric to get a std::vector<float> of device thermal, String value is METRIC_VPU_HDDL_DEVICE_THERMAL
@@ -88,11 +95,25 @@ DECLARE_VPU_HDDL_METRIC(DEVICE_UTILIZATION, std::vector<float>);
 */
 DECLARE_VPU_HDDL_METRIC(STREAM_ID, std::vector<std::string>);
 
-
 /**
 * @brief  Metric to get a std::vector<std::string> of device tags, String value is METRIC_VPU_HDDL_DEVICE_TAG
 */
 DECLARE_VPU_HDDL_METRIC(DEVICE_TAG, std::vector<std::string>);
+
+/**
+* @brief  Metric to get a std::vector<int> of group ids, String value is METRIC_VPU_HDDL_GROUP_ID
+*/
+DECLARE_VPU_HDDL_METRIC(GROUP_ID, std::vector<int>);
+
+/**
+* @brief  Metric to get a int number of device be using for group, String value is METRIC_VPU_HDDL_DEVICE_GROUP_USING_NUM
+*/
+DECLARE_VPU_HDDL_METRIC(DEVICE_GROUP_USING_NUM, int);
+
+/**
+* @brief  Metric to get a int number of total device, String value is METRIC_VPU_HDDL_DEVICE_TOTAL_NUM
+*/
+DECLARE_VPU_HDDL_METRIC(DEVICE_TOTAL_NUM, int);
 
 }  // namespace Metrics
 
@@ -178,6 +199,15 @@ DECLARE_VPU_HDDL_CONFIG_KEY(RUNTIME_PRIORITY);
  * can exceed one. Once application deallocates 1 network from device, all devices will unload the network from them.
  */
 DECLARE_VPU_HDDL_CONFIG_KEY(USE_SGAD);
+
+/**
+ * @brief [Only for HDDLPlugin]
+ * Type: A signed int wrapped in a string, default is "0".
+ * This config gives a "group id" for a certain device when this device has been reserved for certain client, client
+ * can use this device grouped by calling this group id while other client can't use this device
+ * Each device has their own group id. Device in one group shares same group id.
+  */
+DECLARE_VPU_HDDL_CONFIG_KEY(GROUP_DEVICE);
 
 }  // namespace VPUConfigParams
 

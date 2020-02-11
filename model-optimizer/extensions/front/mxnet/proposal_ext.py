@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@
 
 import numpy as np
 
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from extensions.ops.proposal import ProposalOp
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
+from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
 
 class ProposalFrontExtractor(FrontExtractorOp):
     op = '_contrib_Proposal'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
         pre_nms_topn = attrs.int('rpn_pre_nms_top_n', 6000)
         post_nms_topn = attrs.int('rpn_post_nms_top_n', 300)
@@ -48,5 +48,5 @@ class ProposalFrontExtractor(FrontExtractorOp):
         }
 
         # update the attributes of the node
-        Op.get_op_class_by_name('Proposal').update_node_stat(node, update_attrs)
-        return __class__.enabled
+        ProposalOp.update_node_stat(node, update_attrs)
+        return cls.enabled

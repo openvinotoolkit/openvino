@@ -53,12 +53,13 @@ struct gemm : public primitive_base<gemm> {
 
     gemm(const primitive_id& id,
          const std::vector<primitive_id>& inputs,
+         const data_types data_type,
          const bool transpose_input0 = false,
          const bool transpose_input1 = false,
          const float alpha = 1.0f,
          const float beta = 0.0f,
          const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding),
+        : primitive_base(id, inputs, output_padding, optional_data_type{ data_type }),
           transpose_input0(transpose_input0),
           transpose_input1(transpose_input1),
           alpha(alpha),

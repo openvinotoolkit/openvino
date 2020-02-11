@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-import numpy as np
 import logging as log
 
-from extensions.back.EltwiseBroadcast import EltwiseBroadcast
+from extensions.back.ElementwiseOpsToEltwiseOps import SimpleEltwiseToEltwiseOp
 from extensions.back.ReshapeMutation import ReshapeMutation
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
@@ -27,16 +26,15 @@ from mo.ops.reshape import Reshape
 
 
 # Temporary nGraph workaround. TODO: REMOVE
-from mo.ops.unsqueeze import Unsqueeze
 
 
 class ScalarNormalize(BackReplacementPattern):
-    enabled = True
+    enabled = False
     graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
     force_clean_up = True
 
     def run_before(self):
-        return [EltwiseBroadcast, ReshapeMutation]
+        return [ReshapeMutation]
 
     @staticmethod
     def pattern():
@@ -67,7 +65,10 @@ class ScalarNormalizeForSpecificOps(BackReplacementPattern):
     force_clean_up = True
 
     def run_before(self):
-        return [EltwiseBroadcast, ReshapeMutation]
+        return [ReshapeMutation]
+
+    def run_after(self):
+        return [SimpleEltwiseToEltwiseOp]
 
     def find_and_replace_pattern(self, graph: Graph):
         graph.strict_mode = False
@@ -75,8 +76,7 @@ class ScalarNormalizeForSpecificOps(BackReplacementPattern):
         rules = {'Broadcast': [0],
                  'Unsqueeze': [1],
                  'Squeeze': [1],
-                 'Eltwise': [1],
-                 'Range': [0, 1, 2],
+                 'FakeQuantize': [1, 2, 3, 4]
                  }
         for node in graph.get_op_nodes():
             if node.has_and_set('type') and node.type in rules:
@@ -104,21 +104,20 @@ class RangeInputNormalize(BackReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         graph.strict_mode = False
-        # key is the type of the operation. The value is list of ports to convert from 0D to 1D
+
         rules = {
-                 'Range': [0, 1, 2],
-                 }
+            'Range': [0, 1, 2],
+        }
+
         for node in graph.get_op_nodes():
-            if node.has_and_set('type') and node.type in rules:
+            if node.soft_get('type') in rules:
                 for port in rules[node.type]:
                     if port in node.in_ports() and not node.in_port(port).disconnected():
                         src_node = node.in_port(port).get_connection().get_source().node
-                        shape = node.in_port(port).data.get_shape()
-                        assert shape is not None
-                        if shape is not None and shape.size == 0:
-                            reshape = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0]),
-                                                                       {'name': src_node.id + '/Dims'})
-                            src_node.out_port(0).get_connection().set_source(reshape.out_port(0))
-                            src_node.out_port(0).connect(reshape.in_port(0))
-                            reshape.infer(reshape)
+                        reshape = create_op_node_with_second_input(
+                            graph, Reshape, int64_array([1]),
+                            {'name': src_node.id + '/1D', 'override_output_shape': True})
+                        src_node.out_port(0).get_connection().set_source(reshape.out_port(0))
+                        src_node.out_port(0).connect(reshape.in_port(0))
+
         graph.strict_mode = True

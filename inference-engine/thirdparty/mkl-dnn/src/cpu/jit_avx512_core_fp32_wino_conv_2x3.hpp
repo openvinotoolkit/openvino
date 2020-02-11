@@ -63,7 +63,8 @@ struct jit_avx512_core_fp32_wino_conv_2x3_fwd_t : public cpu_primitive_t {
                     && this->desc()->weights_desc.data_type == data_type::f32
                     && IMPLICATION(this->with_bias(),
                                utils::one_of(this->desc()->bias_desc.data_type,
-                                       data_type::f32));
+                                       data_type::f32))
+                    && !this->attr()->has_asymmetric_quantization();
             if (!ok)
                 return status::unimplemented;
 

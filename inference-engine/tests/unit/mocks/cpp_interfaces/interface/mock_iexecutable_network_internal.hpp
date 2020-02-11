@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@ public:
     MOCK_CONST_METHOD0(GetInputsInfo, ConstInputsDataMap ());
     MOCK_METHOD1(CreateInferRequest, void(IInferRequest::Ptr &));
     MOCK_METHOD1(Export, void(const std::string &));
+    void Export(std::ostream &) override {};
     MOCK_METHOD1(GetMappedTopology, void(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &));
     MOCK_METHOD0(QueryState, std::vector<IMemoryStateInternal::Ptr>());
     MOCK_METHOD1(GetExecGraphInfo, void(ICNNNetwork::Ptr &));
@@ -33,4 +34,5 @@ public:
     MOCK_METHOD2(SetConfig, void(const std::map<std::string, Parameter> &config, ResponseDesc *resp));
     MOCK_CONST_METHOD3(GetConfig, void(const std::string &name, Parameter &result, ResponseDesc *resp));
     MOCK_CONST_METHOD3(GetMetric, void(const std::string &name, Parameter &result, ResponseDesc *resp));
+    MOCK_CONST_METHOD2(GetContext, void(RemoteContext::Ptr &pContext, ResponseDesc *resp));
 };

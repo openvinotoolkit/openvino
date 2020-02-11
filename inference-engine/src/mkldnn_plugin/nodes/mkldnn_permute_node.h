@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,8 +10,36 @@
 #include <vector>
 #include <utility>
 #include <map>
+#include <memory>
 
 namespace MKLDNNPlugin {
+
+struct jit_permute_conf_t {
+    uint32_t ndims;
+    InferenceEngine::SizeVector dst_block_dims;
+    InferenceEngine::SizeVector src_strides;
+    InferenceEngine::SizeVector dst_strides;
+    int n;
+    int data_size;
+
+    bool supported_dynamic_batch = false;
+};
+
+struct jit_args_permute {
+    const void* src;
+    const void* dst;
+};
+
+struct jit_uni_permute_kernel {
+    void (*ker_)(const jit_args_permute *);
+
+    void operator()(const jit_args_permute *args) { assert(ker_); ker_(args); }
+
+    jit_permute_conf_t jpp;
+
+    explicit jit_uni_permute_kernel(jit_permute_conf_t jpp) : ker_(nullptr), jpp(jpp) {}
+    virtual ~jit_uni_permute_kernel() {}
+};
 
 class MKLDNNPermuteNode : public MKLDNNNode {
 public:
@@ -28,8 +56,8 @@ public:
     }
 
 private:
-    static Register<MKLDNNPermuteNode> reg;
     InferenceEngine::SizeVector order;
+    InferenceEngine::Precision prec;
 
     typedef std::function<void(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> permuteImpl;
     typedef std::function<bool(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr)> isApplicable;
@@ -41,6 +69,7 @@ private:
     };
 
     static std::multimap<InferenceEngine::SizeVector, PermuteImpl> OptimizedCases;
+    std::shared_ptr<jit_uni_permute_kernel> permute_kernel;
 };
 
 }  // namespace MKLDNNPlugin

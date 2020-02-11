@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ class TestLoader(unittest.TestCase):
         mock_symbol_load_obj = MockSymbolLoadObj()
         mock_symbol_load.return_value = mock_symbol_load_obj
         with patch('mo.front.mxnet.loader.open') as mock_open:
-            self.assertEqual({'node1': 1}, load_symbol_nodes("model_name", True))
+            self.assertEqual({'node1': 1}, load_symbol_nodes("model_name", legacy_mxnet_model=True))
 
     @patch('json.load')
     @patch('json.loads')
@@ -50,7 +50,7 @@ class TestLoader(unittest.TestCase):
         mock_symbol_load_obj = MockSymbolLoadObj()
         mock_symbol_load.return_value = mock_symbol_load_obj
         with patch('mo.front.mxnet.loader.open') as mock_open:
-            list_nodes = load_symbol_nodes("model_name", False)
+            list_nodes = load_symbol_nodes("model_name", legacy_mxnet_model=False)
             self.assertEqual(2, len(list_nodes))
             for node in list_nodes:
                 self.assertEqual({'op': 'custom_op'}, node)
@@ -60,3 +60,32 @@ class TestLoader(unittest.TestCase):
         model_name, iteration_number = parse_input_model(input_model)
         self.assertEqual(model_name, '/model-optimizer-mxnet/data/nd/vgg19')
         self.assertEqual(iteration_number, 15)
+
+
+    @patch('json.load')
+    @patch('json.loads')
+    @patch('os.path.isfile')
+    @patch('mxnet.symbol.load')
+    def test_load_symbol_nodes_with_json_and_lagacy_mode(self, mock_symbol_load, mock_isfile, mock_json_loads, mock_json_load):
+        mock_isfile.return_value = True
+        mock_json_load.return_value = {'nodes': ''}
+        mock_json_loads.return_value = {'nodes': {'node1': 1}}
+        mock_symbol_load_obj = MockSymbolLoadObj()
+        mock_symbol_load.return_value = mock_symbol_load_obj
+        with patch('mo.front.mxnet.loader.open') as mock_open:
+            self.assertEqual({'node1': 1}, load_symbol_nodes("model_name", input_symbol="some-symbol.json", legacy_mxnet_model=True))
+
+
+    @patch('json.load')
+    @patch('json.loads')
+    @patch('os.path.isfile')
+    @patch('mxnet.symbol.load')
+    def test_load_symbol_nodes_with_json(self, mock_symbol_load, mock_isfile, mock_json_loads, mock_json_load):
+        mock_isfile.return_value = True
+        #json.load
+        mock_json_load.return_value = {'nodes': {'node1': 1}}
+        mock_json_loads.return_value = {'nodes': ''}
+        mock_symbol_load_obj = MockSymbolLoadObj()
+        mock_symbol_load.return_value = mock_symbol_load_obj
+        with patch('mo.front.mxnet.loader.open') as mock_open:
+            self.assertEqual({'node1': 1}, load_symbol_nodes("model_name", input_symbol="some-symbol.json", legacy_mxnet_model=False))

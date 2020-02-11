@@ -36,6 +36,13 @@ protected:
         return {WeightsLayout::os_iyx_osv32};
     }
 
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ELTWISE,
+                 FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
+
     bool Validate(const Params& p, const optional_params& o) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;

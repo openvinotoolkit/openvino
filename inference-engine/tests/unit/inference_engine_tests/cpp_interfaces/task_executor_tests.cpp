@@ -1,225 +1,206 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include <cpp_interfaces/ie_task_executor.hpp>
+#include <cpp_interfaces/ie_immediate_executor.hpp>
 #include <ie_common.h>
-#include "task_tests_utils.hpp"
+#include <future>
 
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-class TaskExecutorTests : public ::testing::Test {};
+static constexpr const auto MAX_NUMBER_OF_TASKS_IN_QUEUE = 10;
 
-TEST_F(TaskExecutorTests, canCreateTaskExecutor) {
-    EXPECT_NO_THROW(std::make_shared<TaskExecutor>());
+using Future = std::future<void>;
+
+class TaskExecutorTests : public ::testing::TestWithParam<std::function<ITaskExecutor::Ptr()>> {};
+
+TEST_P(TaskExecutorTests, canCreateTaskExecutor) {
+    auto makeExecutor = GetParam();
+    EXPECT_NO_THROW(makeExecutor());
 }
 
-TEST_F(TaskExecutorTests, canCatchException) {
-    auto taskExecutor = std::make_shared<TaskExecutor>();
-    auto task = std::make_shared<Task>([]() {
-        THROW_IE_EXCEPTION;
-    });
-    taskExecutor->startTask(task);
-    auto status = task->wait(-1);
-    ASSERT_EQ(status, Task::Status::TS_ERROR);
-    EXPECT_THROW(task->checkException(), InferenceEngineException);
+template<typename E, typename F>
+static std::future<void> async(E& executor, F&& f) {
+    auto p = std::make_shared<std::packaged_task<void()>>(f);
+    auto future = p->get_future();
+    executor->run([p] {(*p)();});
+    return future;
 }
 
-TEST_F(TaskExecutorTests, canRunDefaultTask) {
-    auto taskExecutor = std::make_shared<TaskExecutor>();
-    auto defaultTask = std::make_shared<Task>();
-    taskExecutor->startTask(defaultTask);
-    auto status = defaultTask->wait(-1);
-    ASSERT_EQ(status, Task::Status::TS_DONE);
-}
-
-TEST_F(TaskExecutorTests, canRunDefaultTaskWithoutStop) {
-    auto taskExecutor = std::make_shared<TaskExecutor>();
-    auto defaultTask = std::make_shared<Task>();
-    taskExecutor->startTask(defaultTask);
-    auto status = defaultTask->wait(-1);
-    ASSERT_EQ(status, Task::Status::TS_DONE);
-}
-
-TEST_F(TaskExecutorTests, canRunDefaultTaskWithoutWait) {
-    auto taskExecutor = std::make_shared<TaskExecutor>();
-    auto defaultTask = std::make_shared<Task>();
-    taskExecutor->startTask(defaultTask);
-}
-
-TEST_F(TaskExecutorTests, canRunCustomFunction) {
-    auto taskExecutor = std::make_shared<TaskExecutor>();
+TEST_P(TaskExecutorTests, canRunCustomFunction) {
+    auto taskExecutor = GetParam()();
     int i = 0;
-    auto customTask = std::make_shared<Task>([&i]() { i++; });
-    taskExecutor->startTask(customTask);
-    auto status = customTask->wait(-1);
-    ASSERT_EQ(status, Task::Status::TS_DONE);
-    ASSERT_EQ(i, 1);
+    auto f = async(taskExecutor, [&i] { i++; });
+    f.wait();
+    ASSERT_NO_THROW(f.get());
 }
 
-TEST_F(TaskExecutorTests, canRun2FunctionsOneByOne) {
-    auto taskExecutor = std::make_shared<TaskExecutor>();
+TEST_P(TaskExecutorTests, canRun2FunctionsOneByOne) {
+    auto taskExecutor = GetParam()();
+    std::mutex m;
     int i = 0;
-    auto task1 = std::make_shared<Task>([&i]() { i += 1; });
-    auto task2 = std::make_shared<Task>([&i]() { i *= 2; });
-    taskExecutor->startTask(task1);
-    taskExecutor->startTask(task2);
+    auto f1 = async(taskExecutor, [&] {std::lock_guard<std::mutex> l{m}; i += 1; });
+    auto f2 = async(taskExecutor, [&] {std::lock_guard<std::mutex> l{m}; i *= 2; });
 
-    auto status = task1->wait(-1);
-    ASSERT_EQ(status, Task::Status::TS_DONE);
-    status = task2->wait(-1);
-    ASSERT_EQ(status, Task::Status::TS_DONE);
+    f1.wait();
+    ASSERT_NO_THROW(f1.get());
+    f2.wait();
+    ASSERT_NO_THROW(f2.get());
 
     ASSERT_EQ(i, 2);
 }
 
-TEST_F(TaskExecutorTests, returnFalseIfRunTaskWhichIsRunning) {
-    auto taskExecutor = std::make_shared<TaskExecutor>();
-    auto task = std::make_shared<Task>([]() {
+TEST_P(TaskExecutorTests, canRun2FunctionsOneByOneWithoutWait) {
+    auto taskExecutor = GetParam()();
+    async(taskExecutor, [] {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     });
-    ASSERT_TRUE(taskExecutor->startTask(task));
-    ASSERT_FALSE(taskExecutor->startTask(task));
+    async(taskExecutor, [] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    });
 }
 
-TEST_F(TaskExecutorTests, canRun2FunctionsOneByOneWithoutWait) {
-    auto taskExecutor = std::make_shared<TaskExecutor>();
-    auto task1 = std::make_shared<Task>([]() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    });
-    auto task2 = std::make_shared<Task>([]() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    });
-    taskExecutor->startTask(task1);
-    taskExecutor->startTask(task2);
-}
-
-TEST_F(TaskExecutorTests, canRunMultipleTasksWithExceptionInside) {
-    auto taskExecutor = std::make_shared<TaskExecutor>();
-    std::vector<Task::Ptr> tasks;
+TEST_P(TaskExecutorTests, canRunMultipleTasksWithExceptionInside) {
+    auto taskExecutor = GetParam()();
+    std::vector<std::future<void>> futures;
 
     for (int i = 0; i < MAX_NUMBER_OF_TASKS_IN_QUEUE; i++) {
-        tasks.push_back(std::make_shared<Task>([]() { throw std::bad_alloc(); }));
+        futures.emplace_back(async(taskExecutor, [] { throw std::bad_alloc(); }));
     }
 
-    for (auto &task:tasks) {
-        taskExecutor->startTask(task);
-    }
-
-    for (auto &task:tasks) {
-        task->wait(-1);
-        ASSERT_TRUE(Task::Status::TS_ERROR == task->getStatus());
-        EXPECT_THROW(task->checkException(), std::bad_alloc);
+    for (auto &f:futures) {
+        f.wait();
+        EXPECT_THROW(f.get(), std::bad_alloc);
     }
 }
 
 // TODO: CVS-11695
-TEST_F(TaskExecutorTests, DISABLED_canRunMultipleTasksFromMultipleThreads) {
-    auto taskExecutor = std::make_shared<TaskExecutor>();
-    int sharedVar = 0;
+TEST_P(TaskExecutorTests, canRunMultipleTasksFromMultipleThreads) {
+    auto taskExecutor = GetParam()();
+    std::atomic_int sharedVar = {0};
     int THREAD_NUMBER = MAX_NUMBER_OF_TASKS_IN_QUEUE;
     int NUM_INTERNAL_ITERATIONS = 5000;
-    std::vector<MetaThread::Ptr> metaThreads;
-    std::vector<Task::Ptr> tasks;
+    std::vector<std::thread> threads;
+    std::vector<Future> futures;
     for (int i = 0; i < THREAD_NUMBER; i++) {
-        tasks.push_back(
-                std::make_shared<Task>([&]() { for (int k = 0; k < NUM_INTERNAL_ITERATIONS; k++) sharedVar++; }));
-        metaThreads.push_back(make_shared<MetaThread>([=]() {
-            taskExecutor->startTask(tasks.back());
-        }));
+        auto p = std::make_shared<std::packaged_task<void()>>([&] {
+            for (int k = 0; k < NUM_INTERNAL_ITERATIONS; k++) {
+                ++sharedVar;
+            }});
+        futures.emplace_back(p->get_future());
+        auto task = [p] {(*p)();};
+        threads.emplace_back([task, taskExecutor] {taskExecutor->run(std::move(task));});
     }
-    for (auto &metaThread : metaThreads) metaThread->waitUntilThreadFinished();
 
-    for (auto &task : tasks) task->wait(-1);
-
-    for (auto &metaThread : metaThreads) metaThread->join();
-    for (auto &metaThread : metaThreads) ASSERT_FALSE(metaThread->exceptionWasThrown);
-    for (auto &task : tasks) ASSERT_EQ(Task::Status::TS_DONE, task->getStatus());
-    ASSERT_EQ(sharedVar, THREAD_NUMBER * NUM_INTERNAL_ITERATIONS);
+    for (auto&& f : futures) f.wait();
+    for (auto&& f : futures) ASSERT_NO_THROW(f.get());
+    ASSERT_EQ(THREAD_NUMBER * NUM_INTERNAL_ITERATIONS, sharedVar);
+    for (auto&& thread : threads) if (thread.joinable()) thread.join();
 }
 
-TEST_F(TaskExecutorTests, executorNotReleasedUntilTasksAreDone) {
+TEST_P(TaskExecutorTests, executorNotReleasedUntilTasksAreDone) {
     std::mutex mutex_block_emulation;
     std::condition_variable cv_block_emulation;
-    std::vector<Task::Ptr> tasks;
+    std::vector<Future> futures;
     bool isBlocked = true;
-    int sharedVar = 0;
-    for (int i = 0; i < MAX_NUMBER_OF_TASKS_IN_QUEUE; i++) {
-        tasks.push_back(std::make_shared<Task>(
-                [&]() {
-                    // intentionally block task for launching tasks after calling dtor for TaskExecutor
-                    std::unique_lock<std::mutex> lock(mutex_block_emulation);
-                    cv_block_emulation.wait(lock, [&isBlocked]() { return isBlocked; });
-                    sharedVar++;
-                })
-        );
-    }
+    std::atomic_int sharedVar = {0};
     {
-        auto taskExecutor = std::make_shared<TaskExecutor>();
-        for (auto &task : tasks) {
-            taskExecutor->startTask(task);
+        auto taskExecutor = GetParam()();
+        for (int i = 0; i < MAX_NUMBER_OF_TASKS_IN_QUEUE; i++) {
+            auto p = std::make_shared<std::packaged_task<void()>>(
+                    [&] {
+                        // intentionally block task for launching tasks after calling dtor for TaskExecutor
+                        std::unique_lock<std::mutex> lock(mutex_block_emulation);
+                        cv_block_emulation.wait(lock, [&isBlocked] { return isBlocked; });
+                        ++sharedVar;
+                    });
+            futures.emplace_back(p->get_future());
+            auto task = [p] {(*p)();};
+            taskExecutor->run(std::move(task));
         }
     }
     // time to call dtor for taskExecutor and unlock tasks
-    isBlocked = false;
-    for (auto &task : tasks) {
+    {
+        std::lock_guard<std::mutex> lock{mutex_block_emulation};
+        isBlocked = false;
+    }
+    for (auto &f : futures) {
         cv_block_emulation.notify_all();
-        task->wait(-1);
+        f.wait();
     }
     // all tasks should be called despite calling dtor for TaskExecutor
-    ASSERT_EQ(sharedVar, MAX_NUMBER_OF_TASKS_IN_QUEUE);
+    ASSERT_EQ(MAX_NUMBER_OF_TASKS_IN_QUEUE, sharedVar);
 }
 
+class ASyncTaskExecutorTests : public TaskExecutorTests {};
+
 // TODO: CVS-11695
-TEST_F(TaskExecutorTests, DISABLED_startAsyncIsNotBlockedByAnotherTask) {
+TEST_P(ASyncTaskExecutorTests, startAsyncIsNotBlockedByAnotherTask) {
     std::mutex mutex_block_emulation;
     std::condition_variable cv_block_emulation;
     std::mutex mutex_task_started;
     std::condition_variable cv_task_started;
     bool isStarted = false;
     bool isBlocked = true;
-    auto taskExecutor = std::make_shared<TaskExecutor>();
+    auto taskExecutor = GetParam()();
 
-    auto task1 = std::make_shared<Task>([&]() {
-        isStarted = true;
+    async(taskExecutor, [&] {
+        {
+            std::lock_guard<std::mutex> lock(mutex_task_started);
+            isStarted = true;
+        }
         cv_task_started.notify_all();
         // intentionally block task for test purpose
         std::unique_lock<std::mutex> lock(mutex_block_emulation);
-        cv_block_emulation.wait(lock, [&isBlocked]() { return !isBlocked; });
+        cv_block_emulation.wait(lock, [&isBlocked] { return !isBlocked; });
     });
 
-    auto task2 = std::make_shared<Task>([&]() {
+    async(taskExecutor, [&] {
         std::unique_lock<std::mutex> lock(mutex_task_started);
-        cv_task_started.wait(lock, [&isStarted]() { return isStarted; });
+        cv_task_started.wait(lock, [&isStarted] { return isStarted; });
     });
 
-    taskExecutor->startTask(task1);
-    taskExecutor->startTask(task2);
-
-    isBlocked = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_block_emulation);
+        isBlocked = false;
+    }
     cv_block_emulation.notify_all();
 }
 
-TEST_F(TaskExecutorTests, callWaitOnTaskDtorIfProcessed) {
-    std::mutex mutex_block_emulation;
-    std::condition_variable cv_block_emulation;
-    bool isBlocked = true;
-
-    Task::Ptr task = make_shared<Task>([&]() {
-        // intentionally block task for calling dtor during launching task
-        std::unique_lock<std::mutex> lock(mutex_block_emulation);
-        cv_block_emulation.wait(lock, [&isBlocked]() { return !isBlocked; });
-    });
-
-    auto taskExecutor = std::make_shared<TaskExecutor>();
-    taskExecutor->startTask(task);
-    task = nullptr;
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    isBlocked = false;
-    cv_block_emulation.notify_all();
+TEST_P(ASyncTaskExecutorTests, runAndWaitDoesNotOwnTasks) {
+    std::shared_ptr<void> sharedCounter(this, [] (ASyncTaskExecutorTests*) {});
+    auto taskExecutor = GetParam()();
+    std::atomic_int useCount = {0};
+    std::vector<Task> tasks = {[sharedCounter, &useCount] {
+                                  useCount = sharedCounter.use_count();
+                              }};
+    sharedCounter.reset();
+    taskExecutor->runAndWait(tasks);
+    ASSERT_EQ(1, useCount);
 }
+
+static auto Executors = ::testing::Values(
+    [] {
+        return std::make_shared<TaskExecutor>("Test Executor");
+    },
+    [] {
+        return std::make_shared<ImmediateExecutor>();
+    }
+);
+
+INSTANTIATE_TEST_CASE_P(TaskExecutorTests, TaskExecutorTests, Executors);
+
+static auto AsyncExecutors = ::testing::Values(
+    [] {
+        return std::make_shared<TaskExecutor>("Test Executor");
+    }
+);
+
+INSTANTIATE_TEST_CASE_P(ASyncTaskExecutorTests, ASyncTaskExecutorTests, AsyncExecutors);
+

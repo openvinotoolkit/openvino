@@ -1,8 +1,9 @@
-﻿// Copyright (C) 2018-2019 Intel Corporation
+﻿// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+// clang-format off
 
 #if defined(_WIN32)
 
@@ -136,3 +137,4 @@ static void closedir(DIR *dp) {
 #include <dirent.h>
 
 #endif
+// clang-format on

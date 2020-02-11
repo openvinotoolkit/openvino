@@ -26,6 +26,8 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x
     return GET_DATA_INDEX_6D(INPUT0, b, f, w, z, y, x);
 #elif INPUT0_LAYOUT_BFZYX_F16
     return GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, z, y, x);
+#elif INPUT0_LAYOUT_BFZYX_B16F16
+    return GET_DATA_BFZYX_B16F16_INDEX(INPUT0, b, f, z, y, x);
 #else
 #error concatenation_gpu_simple_ref.cl: input format - not supported
 #endif
@@ -42,6 +44,8 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
     return GET_DATA_INDEX_6D(OUTPUT, b, f, w, z, y, x);
 #elif OUTPUT_LAYOUT_BFZYX_F16
     return GET_DATA_BFZYX_F16_INDEX(OUTPUT, b, f, z, y, x);
+#elif OUTPUT_LAYOUT_BFZYX_B16F16
+    return GET_DATA_BFZYX_B16F16_INDEX(OUTPUT, b, f, z, y, x);
 #else
 #error concatenation_gpu_simple_ref.cl: output format - not supported
 #endif
@@ -50,12 +54,12 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
 
 KERNEL (concatenation_gpu_ref)(__global UNIT_TYPE* input, __global UNIT_TYPE* output, uint output_offset_in_concat_axis)
 {
-    const uint x = get_global_id(0) % INPUT0_SIZE_X;
-    const uint y = get_global_id(0) / INPUT0_SIZE_X;
-    const uint z = get_global_id(1) % INPUT0_SIZE_Z;
-    const uint w = get_global_id(1) / INPUT0_SIZE_Z;
-    const uint f = get_global_id(2) % INPUT0_FEATURE_NUM;
-    const uint b = get_global_id(2) / INPUT0_FEATURE_NUM;
+    const uint x = (uint)get_global_id(0) % INPUT0_SIZE_X;
+    const uint y = (uint)get_global_id(0) / INPUT0_SIZE_X;
+    const uint z = (uint)get_global_id(1) % INPUT0_SIZE_Z;
+    const uint w = (uint)get_global_id(1) / INPUT0_SIZE_Z;
+    const uint f = (uint)get_global_id(2) % INPUT0_FEATURE_NUM;
+    const uint b = (uint)get_global_id(2) / INPUT0_FEATURE_NUM;
 
     uint out_x = x;
     uint out_y = y;

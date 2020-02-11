@@ -36,11 +36,18 @@ ConvolutionKernel_bfyx_f16_1x1::ConvolutionKernel_bfyx_f16_1x1() : ConvolutionKe
 ConvolutionKernel_bfyx_f16_1x1::AutoTuneOption ConvolutionKernel_bfyx_f16_1x1::GetAutoTuneOptions(const Params& params,
                                                                                           int /*autoTuneIndex*/) const {
     const convolution_params& cp = static_cast<const convolution_params&>(params);
-
-    if (cp.output.X().v*cp.output.Y().v > 4)
-        return {8, DEFAULT};
-    else
-        return {2, DEFAULT};
+    auto x = cp.output.X().v;
+    auto f = cp.output.Feature().v;
+    if (x * f <= 256) {
+        if ( x < 8 || x * f <= 128)
+            return { 2, DEFAULT };
+        else
+            return { 4, DEFAULT };
+    } else if (x * f <= 1536) {
+        return { 4, DEFAULT };
+    } else {
+        return { 8, DEFAULT };
+    }
 }
 
 
@@ -85,10 +92,14 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_f16_1x1::SetDefault(c
     kd.lws1 = sub_group_size;
     kd.lws2 = 1;
 
-    if (b == 1)
-        kd.effiency = FORCE_PRIORITY_1;
-    else
+    if (b == 1) {
+        if (x <= 8)
+            kd.effiency = FORCE_PRIORITY_1;
+        else
+            kd.effiency = FORCE_PRIORITY_2;
+    } else {
         kd.effiency = FORCE_PRIORITY_7;
+    }
 
     return kd;
 }
@@ -120,12 +131,27 @@ JitConstants ConvolutionKernel_bfyx_f16_1x1::GetJitConstants(const convolution_p
     auto jit = Parent::GetJitConstants(params, runInfo);
 
     auto blockWidth = runInfo.cldnnStyle.blockWidth;
-    if (params.fused_ops.size() > 0) {
-        FusedOpsConfiguration conf_vec = {"_VEC", {"b", "(f_block*16)", "y", "x"}, "dst", blockWidth, true, false, true, false };
-        FusedOpsConfiguration conf_scalar = {"_SCALAR", {"b", "(f_block*16)", "yi", "xi"}, "dst[i]", 1, true, false, true, false };
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetUnitType(params);
+        FusedOpsConfiguration conf_vec = { "_VEC",
+                                           {"b", "(f_block*16)", "y", "x"},
+                                           "dst",
+                                           input_dt,
+                                           blockWidth,
+                                           LoadType::LT_ALIGNED_READ,
+                                           BoundaryCheck::ENABLED,
+                                           IndexType::TENSOR_COORD,
+                                           Tensor::DataChannelName::X };
+        FusedOpsConfiguration conf_scalar = { "_SCALAR",
+                                              {"b", "(f_block*16)", "yi", "xi"},
+                                              "dst[i]",
+                                              input_dt,
+                                              1,
+                                              LoadType::LT_ALIGNED_READ,
+                                              BoundaryCheck::ENABLED,
+                                              IndexType::TENSOR_COORD,
+                                              Tensor::DataChannelName::X };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar}));
-        jit.Merge(MakeTypeJitConstants(Datatype::F32, "float"));
-        jit.Merge(MakeTypeJitConstants(Datatype::F16, "half"));
     }
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
@@ -148,4 +174,5 @@ JitConstants ConvolutionKernel_bfyx_f16_1x1::GetJitConstants(const convolution_p
 KernelsData ConvolutionKernel_bfyx_f16_1x1::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options, DEFAULT, -1);
 }
+
 }  // namespace kernel_selector

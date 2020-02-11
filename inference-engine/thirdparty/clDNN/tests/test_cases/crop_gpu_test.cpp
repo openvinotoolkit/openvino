@@ -114,7 +114,7 @@ TEST(crop_gpu, basic_in2x2x2x3_crop_all) {
 
     std::vector<float> input_vec;
     for (int i = 0; i < batch_num * feature_num * y_size * x_size; i++)
-        input_vec.push_back(i);
+        input_vec.push_back(static_cast<float>(i));
     set_values(input, input_vec);
 
     network network(engine, topology);

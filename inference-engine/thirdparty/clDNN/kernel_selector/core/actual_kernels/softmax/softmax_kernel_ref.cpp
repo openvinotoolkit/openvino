@@ -26,7 +26,7 @@ SoftmaxKernelRef::Parent::DispatchData SoftmaxKernelRef::SetDefault(const softma
 
     assert(global.size() == 3);
 
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     runInfo.gws0 = global[0];
     runInfo.gws1 = global[1];

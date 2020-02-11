@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ import unittest
 import numpy as np
 
 from extensions.front.binary_quantize_normalization import BinaryFakeQuantizeNormalization
-from mo.middle.passes.eliminate import graph_clean_up
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 graph_nodes = {
     '0': {'name': 'input', 'kind': 'op', 'op': 'Parameter'},
@@ -66,10 +66,10 @@ class TestBinaryQuantizeNormalization(unittest.TestCase):
         graph = build_graph(graph_nodes, graph_edges, nodes_with_edges_only=True)
         graph.stage = 'front'
         BinaryFakeQuantizeNormalization().find_and_replace_pattern(graph)
-        graph_clean_up(graph)
+        graph.clean_up()
 
         graph_ref = build_graph(graph_nodes, graph_ref_edges)
-        graph_clean_up(graph_ref)
+        graph_ref.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output')
         self.assertTrue(flag, resp)

@@ -154,6 +154,7 @@ public:
     bool is_debug_build() const { return options.get<build_option_type::debug>()->enabled(); }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
+    uint32_t get_prog_id() { return prog_id; }
     const std::list<primitive_id>& get_optimized_out() const { return optimized_out; }
     bool has_node(const primitive_id& prim) const { return nodes_map.count(prim) > 0; }
     program_node& get_node(primitive_id const& id);

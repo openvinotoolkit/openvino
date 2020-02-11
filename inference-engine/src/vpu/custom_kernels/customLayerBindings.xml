@@ -30,10 +30,10 @@
 <!-- The latest version of the code is not backward compatible with Yolo-v2, it is to be checked by benchmark-->
 <!-- Add work group config understand parameter from IR -->
 <!-- <WorkSizes global="Y*X,num,1" local="X,num,1" dim="input,0"/> -->
-<CustomLayer name="RegionYolo" type="MVCL" version="1">
+<CustomLayer name="RegionYolo" type="MVCL" version="1" max-shaves="3">
   <Where do_softmax="1" num="5"/>
   <Kernel entry="region_ocl">
-        <Source filename="region_chw_m7_branch0.bin"/>
+        <Source filename="region_chw.bin"/>
     </Kernel>
     <Parameters>
         <Tensor arg-name="src_data"    type="input"  port-index="0"                format="BFYX"/>
@@ -42,14 +42,17 @@
         <Scalar arg-name="H"           type="int"    port-index="0" source="I.Y"                />
         <Scalar arg-name="classes"     type="int"                   source="classes"            />
         <Scalar arg-name="coords"      type="int"                   source="coords"             />
+        <Scalar arg-name="num"         type="int"                   source="num"                />
+        <Scalar arg-name="maskSize"    type="int"                   source="3"           />
+        <Scalar arg-name="doSoftmax"   type="int"                   source="1"          />
     </Parameters>
     <WorkSizes global="Y*X,5,1" local="X,5,1" dim="input,0"/>
 </CustomLayer>
 
-<CustomLayer name="RegionYolo" type="MVCL" version="1">
+<CustomLayer name="RegionYolo" type="MVCL" version="1" max-shaves="3">
     <Where mask="0,1,2" do_softmax="0"/>
     <Kernel entry="region_ocl">
-        <Source filename="region_chw_m7_branch1.bin"/>
+        <Source filename="region_chw.bin"/>
     </Kernel>
     <Parameters>
         <Tensor arg-name="src_data"    type="input"  port-index="0"                format="BFYX"/>
@@ -58,6 +61,47 @@
         <Scalar arg-name="H"           type="int"    port-index="0" source="I.Y"                />
         <Scalar arg-name="classes"     type="int"                   source="classes"            />
         <Scalar arg-name="coords"      type="int"                   source="coords"             />
+        <Scalar arg-name="num"         type="int"                   source="num"                />
+        <Scalar arg-name="maskSize"    type="int"                   source="3"           />
+        <Scalar arg-name="doSoftmax"   type="int"                   source="0"          />
+    </Parameters>
+    <WorkSizes global="Y*X,3,1" local="X,3,1" dim="input,0"/>
+</CustomLayer>
+
+<CustomLayer name="RegionYolo" type="MVCL" version="1" max-shaves="3">
+    <Where mask="3,4,5" do_softmax="0"/>
+    <Kernel entry="region_ocl">
+        <Source filename="region_chw.bin"/>
+    </Kernel>
+    <Parameters>
+        <Tensor arg-name="src_data"    type="input"  port-index="0"                format="BFYX"/>
+        <Tensor arg-name="dst_data"    type="output" port-index="0"                format="ANY"/>
+        <Scalar arg-name="W"           type="int"    port-index="0" source="I.X"                />
+        <Scalar arg-name="H"           type="int"    port-index="0" source="I.Y"                />
+        <Scalar arg-name="classes"     type="int"                   source="classes"            />
+        <Scalar arg-name="coords"      type="int"                   source="coords"             />
+        <Scalar arg-name="num"         type="int"                   source="num"                />
+        <Scalar arg-name="maskSize"    type="int"                   source="3"           />
+        <Scalar arg-name="doSoftmax"   type="int"                   source="0"          />
+    </Parameters>
+    <WorkSizes global="Y*X,3,1" local="X,3,1" dim="input,0"/>
+</CustomLayer>
+
+<CustomLayer name="RegionYolo" type="MVCL" version="1" max-shaves="3">
+    <Where mask="6,7,8" do_softmax="0"/>
+    <Kernel entry="region_ocl">
+        <Source filename="region_chw.bin"/>
+    </Kernel>
+    <Parameters>
+        <Tensor arg-name="src_data"    type="input"  port-index="0"                format="BFYX"/>
+        <Tensor arg-name="dst_data"    type="output" port-index="0"                format="ANY"/>
+        <Scalar arg-name="W"           type="int"    port-index="0" source="I.X"                />
+        <Scalar arg-name="H"           type="int"    port-index="0" source="I.Y"                />
+        <Scalar arg-name="classes"     type="int"                   source="classes"            />
+        <Scalar arg-name="coords"      type="int"                   source="coords"             />
+        <Scalar arg-name="num"         type="int"                   source="num"                />
+        <Scalar arg-name="maskSize"    type="int"                   source="3"           />
+        <Scalar arg-name="doSoftmax"   type="int"                   source="0"          />
     </Parameters>
     <WorkSizes global="Y*X,3,1" local="X,3,1" dim="input,0"/>
 </CustomLayer>
@@ -68,10 +112,12 @@
         <Source filename="grn.bin"/>
     </Kernel>
     <Parameters>
-        <Tensor arg-name="src_data" type="input"  port-index="0"               format="BFYX"/>
-        <Tensor arg-name="dst_data" type="output" port-index="0"               format="BFYX"/>
-        <Scalar arg-name="C"        type="int"    port-index="0" source="I.F"               />
-        <Scalar arg-name="bias"     type="float"                 source="bias"              />
+        <Tensor arg-name="src_data" type="input"         port-index="0"                  format="BFYX"/>
+        <Tensor arg-name="dst_data" type="output"        port-index="0"                  format="BFYX"/>
+        <Data   arg-name="src"      type="local_data"                      dim="input,0" size="X*F*2" />
+        <Data   arg-name="dst"      type="local_data"                      dim="input,0" size="X*F*2" />
+        <Scalar arg-name="C"        type="int"           port-index="0"    source="I.F"               />
+        <Scalar arg-name="bias"     type="float"                           source="bias"              />
     </Parameters>
     <WorkSizes dim="input,0" global="X,Y,1" local="X,1,1"/>
 </CustomLayer>
@@ -88,24 +134,28 @@
         <Scalar arg-name="W"                  type="int"           port-index="0" source="I.X"                          />
         <Scalar arg-name="H"                  type="int"           port-index="0" source="I.Y"                          />
         <Scalar arg-name="across_channels"    type="int"                          source="across_channels"              />
+        <Data   arg-name="src_line"           type="local_data"                   dim="input,0"            size="X*2"   />
     </Parameters>
-    <WorkSizes dim="output,0" global="((Y+7)/8)*8,F,1" local="8,1,1"/>
+    <WorkSizes dim="output,0" global="1,Y,F" local="1,1,1"/>
 </CustomLayer>
 <CustomLayer name="MVN" stage="1" type="MVCL" version="1">
     <Kernel entry="mvn_scale">
         <Source filename="mvn.bin"/>
     </Kernel>
     <Parameters>
-        <Tensor arg-name="src_data"           type="input"        port-index="0"                            format="BFYX"/>
-        <Tensor arg-name="dst_data"           type="output"       port-index="0"                            format="BFYX"/>
+        <Tensor arg-name="src"           type="input"        port-index="0"                            format="BFYX"/>
+        <Tensor arg-name="dst"           type="output"       port-index="0"                            format="BFYX"/>
         <Tensor arg-name="mean_part"          type="input_buffer" port-index="0" dim="output,0"             size="Y*F*4" />
         <Tensor arg-name="power_mean"         type="input_buffer" port-index="1" dim="output,0"             size="Y*F*4" />
         <Scalar arg-name="W"                  type="int"          port-index="0" source="I.X"                            />
-        <Scalar arg-name="H"                  type="int"          port-index="0" source="I.Y"                            />
+        <Scalar arg-name="H1"                 type="int"          port-index="0" source="I.Y"                            />
         <Scalar arg-name="across_channels"    type="int"                         source="across_channels"                />
         <Scalar arg-name="normalize_variance" type="int"                         source="normalize_variance"             />
+        <Scalar arg-name="nparts"             type="int"          port-index="0" source="I.Y"                            />
+        <Data   arg-name="src_line"           type="local_data"                  dim="input,0"              size="X*2"   />
+        <Data   arg-name="dst_line"           type="local_data"                  dim="input,0"              size="X*2"   />
     </Parameters>
-    <WorkSizes dim="output,0" global="((Y+7)/8)*8,F,1" local="8,1,1"/>
+    <WorkSizes dim="output,0" global="1,Y,F" local="1,1,1"/>
 </CustomLayer>
 
 <!-- Single work group kernel for not embarrassingly-parallel use-case -->

@@ -25,8 +25,8 @@ KERNEL (reorder_weights_binary)(const __global INPUT0_TYPE* input, __global OUTP
 {
     const unsigned o = get_global_id(0);
     const unsigned i = get_global_id(1);
-    const unsigned y = get_global_id(2) / OUTPUT_SIZE_X;
-    const unsigned x = get_global_id(2) % OUTPUT_SIZE_X;
+    const unsigned y = (uint)get_global_id(2) / OUTPUT_SIZE_X;
+    const unsigned x = (uint)get_global_id(2) % OUTPUT_SIZE_X;
 
     int output_index = OUTPUT_OFFSET
                      + (o % OFM_BLOCK_SIZE)

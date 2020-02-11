@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ import unittest
 import numpy as np
 
 from extensions.front.reciprocal import ReciprocalReplacer
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes_attributes = {
     'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
@@ -29,7 +30,7 @@ nodes_attributes = {
     'last': {'type': None, 'value': None, 'kind': 'op', 'op': None},
     # Pow operations
     'const': {'value': np.array(-1), 'op': 'Const', 'kind': 'op'},
-    'pow': {'type': 'Pow', 'kind': 'op', 'op': 'Pow'},
+    'pow': {'type': 'Power', 'kind': 'op', 'op': 'Pow'},
 }
 
 

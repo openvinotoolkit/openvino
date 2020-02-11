@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ class PSROIPoolingFrontExtractor(FrontExtractorOp):
     op = '_contrib_PSROIPooling'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
 
         spatial_scale = attrs.float("spatial_scale", None)
@@ -43,4 +43,4 @@ class PSROIPoolingFrontExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         PSROIPoolingOp.update_node_stat(node, data)
-        return __class__.enabled
+        return cls.enabled

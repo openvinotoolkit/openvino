@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include <vector>
 
 #include "fully_connected_kernel_fb_oi_ref.h"
 
@@ -31,6 +32,18 @@ ParamsKey FullyConnected_fb_oi_ref::GetSupportedKey() const {
     return k;
 }
 
+
+JitConstants FullyConnected_fb_oi_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const {
+    JitConstants jit = Parent::GetJitConstants(params, kd);
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetUnitType(params);
+        FusedOpsConfiguration conf = { "", {"b", "f", "y", "x"}, "result", input_dt, 1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+    return jit;
+}
+
 KernelsData FullyConnected_fb_oi_ref::GetKernelsData(const Params& params, const optional_params& optParams) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
@@ -46,4 +59,5 @@ KernelsData FullyConnected_fb_oi_ref::GetKernelsData(const Params& params, const
     }
     return res;
 }
+
 }  // namespace kernel_selector

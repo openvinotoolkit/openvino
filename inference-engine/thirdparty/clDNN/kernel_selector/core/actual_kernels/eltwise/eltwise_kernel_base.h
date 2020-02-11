@@ -103,6 +103,17 @@ struct eltwise_optional_params : optional_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// fuse_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct eltwise_fuse_params : fuse_params {
+    eltwise_fuse_params() : fuse_params(KernelType::ELTWISE) {}
+};
+
+struct scale_fuse_params : fuse_params {
+    scale_fuse_params() : fuse_params(KernelType::SCALE) {}
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // EltwiseKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class EltwiseKernelBase : public common_kernel_base {
@@ -118,5 +129,6 @@ protected:
     virtual JitConstants GetJitConstants(const eltwise_params& params) const;
     virtual DispatchData SetDefault(const eltwise_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
+    Datatype GetAccumulatorType(const eltwise_params &params) const;
 };
 }  // namespace kernel_selector

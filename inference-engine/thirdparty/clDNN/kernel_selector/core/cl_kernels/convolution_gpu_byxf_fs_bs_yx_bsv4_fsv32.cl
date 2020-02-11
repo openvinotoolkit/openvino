@@ -31,10 +31,10 @@ KERNEL(convolution)(
 #endif
     uint split_idx)
 {
-    const uint f_pack = (get_group_id(0) * 32) % OUTPUT_FEATURE_NUM;
-    const uint b = (get_group_id(0) * 32) / OUTPUT_FEATURE_NUM;
+    const uint f_pack = ((uint)get_group_id(0) * 32) % OUTPUT_FEATURE_NUM;
+    const uint b = ((uint)get_group_id(0) * 32) / OUTPUT_FEATURE_NUM;
 
-    const uint x = get_group_id(1) * OBS;
+    const uint x = (uint)get_group_id(1) * OBS;
     const uint y = get_group_id(2);
 
     int4 dotProd[OBS] = { 0 };

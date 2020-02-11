@@ -45,7 +45,7 @@ MVNKernelBase::DispatchData MVNKernelBase::SetDefault(const mvn_params& params) 
         global = {output.Batch().v, 1, 1};
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

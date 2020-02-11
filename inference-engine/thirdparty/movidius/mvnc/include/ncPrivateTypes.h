@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,39 +13,21 @@
 #else
 #include <pthread.h>
 #endif
+
 #include <mvnc.h>
 #include "ncCommPrivate.h"
 #include "XLinkPublicDefines.h"
 #include "watchdog.h"
 
-typedef enum {
-    NC_OPTION_CLASS0     = 0,
-    NC_OPTION_CLASS1     = 1,
-    NC_OPTION_CLASS2     = 2,
-    NC_OPTION_CLASS3     = 3,
-    NC_OPTION_CLASS4     = 4,
-    NC_OPTION_LAST       = 4,   // Last configuration option available
-    NC_OPTION_GRAPH_LAST = 2,   // Last configuration option available for graph 
-} ncOptionClass_t;
+#define GRAPH_OPTION_BASE   1000
+#define DEVICE_OPTION_BASE  2000
+#define OPTION_CLASS_SIZE   100
 
 typedef enum {
-    NC_FIFO_HWC = 0, // row major - channel minor, for RGB image: RGB00, RGB01, RGB02,...
-                     // all RGB pixels by row
-    NC_FIFO_CHW = 1, // channel major - column minor (planar), for RGB image:
-                     // R01R02R03...G01G02G03...B01B02B03...
-                     // all Red rows..all Green rows..all Blue rows
-    NC_FIFO_HCW = 2, // row major - column minor (interleaved), for RGB image:
-                     // R00R01..R0k.., G00G01..G0k.., B00B01..B0k.., R10R11..R1k..
-                     // 1st Red row, 1st Green row, 1st Blue Rrw, 2nd Red row..
-    NC_FIFO_CWH = 3, // channel major - row minor, for RGB image:
-                     // R00R10R20... G00G10G20...B00B10B20...
-                     // all Red columns, all Green columns, all blue columns
-    NC_FIFO_WCH = 4, // column major - row minor; for RGB image:
-                     // R00R10..Rk0.., G00G10..Gk0.., B00B10..Bk0.., R01R11..Rk1..
-                     // 1st Red col, 1st Green col, 1st blue col, 2nd Red col...
-    NC_FIFO_WHC = 5, // column major - channle minor, for RGB image: RGB00, RGB10, RGB20...
-                     // all RGB pixels by col...
-} ncFifoLayout_t;
+    NC_OP_ACCESS_READ_ONLY  = 0,
+    NC_OP_ACCESS_READ_WRITE = 1,
+    NC_OP_ACCESS_LAST       = 2,   // Last configuration option available for graph
+} ncOptionAccess_t;
 
 struct _devicePrivate_t {
     int throttle_happened;
@@ -72,9 +54,6 @@ struct _devicePrivate_t {
     deviceCapabilities_t dev_attr;
     ncDeviceState_t state;
     uint32_t device_id;
-    uint32_t deviceFreq;
-    uint8_t* profilingBuffer;
-    size_t   receivedData;
     wd_context watchdog_ctx;
     int wd_interval;
 };
@@ -110,7 +89,6 @@ struct _graphPrivate_t {
 
 struct _fifoPrivate_t {
     ncFifoType_t type;
-    ncFifoLayout_t graphLayout;
     int consumer_cnt;
     uint32_t id;
     streamId_t streamId;
@@ -121,7 +99,6 @@ struct _fifoPrivate_t {
     char name[NC_MAX_NAME_SIZE];
     struct _userParamPrivate_t *user_param_in;  //used for write fifo
     struct _userParamPrivate_t *user_param_out; //used for read fifo
-    int host_tensor_desc_set;
     int write_count;
     int consumed_by_graph;
     int num_elements;
@@ -183,10 +160,5 @@ PACKED(stage_section_header_v2
     uint32_t output_size;
     uint32_t batch_size;    
 };)
-
-
-
-
-
 
 #endif

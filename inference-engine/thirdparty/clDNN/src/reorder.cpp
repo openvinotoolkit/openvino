@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,7 +42,14 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
         ofmt = ifmt;
     }
 
-    if (ofmt.is_winograd() && ifmt.is_winograd()) {
+    if (ifmt.is_nv12()) {
+        auto data_size = tensor{ input_layout.size.batch[0], input_layout.size.feature[0] * 3,
+                                 input_layout.size.spatial[0], input_layout.size.spatial[1] };
+        if (ofmt != ifmt)
+            return layout(odt, ofmt, data_size, op);
+
+        CLDNN_ERROR_MESSAGE(node.id(), "Reordering between winograd weights and data formats is unsupported");
+    } else if (ofmt.is_winograd() && ifmt.is_winograd()) {
         if (ofmt == ifmt)
             return layout(odt, ofmt, input_layout.size, op);
 
@@ -155,7 +162,9 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
     }
 
     if (ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::bs_xs_xsv8_bsv16 || ofmt == format::bs_x_bsv16 ||
-        ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::bfzyx_f16 || ifmt == format::bfzyx_f16) {
+        ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::bfzyx_f16 || ifmt == format::bfzyx_f16 ||
+        ofmt == format::bfzyx_b16f16 || ifmt == format::bfzyx_b16f16 ||
+        ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32) {
         return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
     } else if (ofmt != ifmt && (ofmt == format::bfwzyx || ifmt == format::bfwzyx)) {
         // TODO Shouldn't transform be called every time ifmt != ofmt?

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,9 +15,11 @@
 """
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat
+from mo.ops.const import Const
 from mo.ops.op import Op
 
 
@@ -108,29 +110,27 @@ class MXNetSplitLayersToRNNSequence(MiddleReplacementPattern):
             params_layer_size_count = params_layer_size_count + params_layer_size - layer_bsize
 
             op = self.get_new_cell(rnn_layer, l)
-
-            params_value_node = Op._create_data_node(
+            name = str(rnn_layer.soft_get('name', rnn_layer.id))
+            params_value_node = Const(
                 rnn_layer.graph,
-                name=rnn_layer.name + '/LayerSplittedParamsLSTM/{}/'.format(l),
-                attrs={'value': layer_params, 'shape': np.array(layer_params.shape, dtype=np.int64)}
-            )
+                dict(name=name + '/LayerSplittedParamsLSTM/{}/'.format(l), value=layer_params)
+            ).create_node_with_data()
+
             if have_hidden:
                 layer_hidden_state = hidden_state_value[l * direction: l * direction + direction]
-                hidden_state_value_node = Op._create_data_node(
+                hidden_state_value_node = Const(
                     rnn_layer.graph,
-                    name=str(rnn_layer.name) + '/LayerSplittedHiddenState/{}/'.format(l),
-                    attrs={'value': layer_hidden_state, 'shape': np.array(layer_hidden_state.shape, dtype=np.int64)}
-                )
+                    dict(name=name + '/LayerSplittedHiddenState/{}/'.format(l), value=layer_hidden_state)
+                ).create_node_with_data()
             else:
                 hidden_state_value_node = None
 
             if have_cell:
                 layer_cell_state = cell_state_value[l * direction: l * direction + direction]
-                cell_state_value_node = Op._create_data_node(
+                cell_state_value_node = Const(
                     rnn_layer.graph,
-                    name=str(rnn_layer.name) + '/LayerSplittedCellState/{}/'.format(l),
-                    attrs={'value': layer_cell_state, 'shape': np.array(layer_cell_state.shape, dtype=np.int64)}
-                )
+                    dict(name=name + '/LayerSplittedCellState/{}/'.format(l), value=layer_cell_state)
+                ).create_node_with_data()
             else:
                 cell_state_value_node = None
 

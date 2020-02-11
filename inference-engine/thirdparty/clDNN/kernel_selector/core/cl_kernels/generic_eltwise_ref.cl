@@ -26,7 +26,7 @@
 
 KERNEL(eltwise)(
     INPUTS_DECLS
-    __global UNIT_TYPE* output
+    __global OUTPUT_TYPE* output
 #if CALIBRATION_TERM
     , const __global float* calibrations
 #endif
@@ -52,19 +52,19 @@ KERNEL(eltwise)(
         uint output_offset = OUTPUT_OFFSET + d1;
     #else
         const uint d1 = get_global_id(0);
-        const uint d2 = get_global_id(1) % OUTPUT_SIZES[1];
-        const uint d3 = get_global_id(1) / OUTPUT_SIZES[1];
-        const uint d4 = get_global_id(2) % OUTPUT_SIZES[3];
-        const uint d5 = get_global_id(2) / OUTPUT_SIZES[3];
+        const uint d2 = (uint)get_global_id(1) % OUTPUT_SIZES[1];
+        const uint d3 = (uint)get_global_id(1) / OUTPUT_SIZES[1];
+        const uint d4 = (uint)get_global_id(2) % OUTPUT_SIZES[3];
+        const uint d5 = (uint)get_global_id(2) / OUTPUT_SIZES[3];
 
         uint output_offset = OUTPUT_GET_INDEX(d5, d4, d3, d2, d1);
     #endif
 #else // 2D spatial
     #if ELTWISE_LAYOUT_BASED || QUANTIZATION_TERM || ELTWISE_BROADCAST
-        const uint d1 = get_global_id(GWS_YX) % OUTPUT_SIZE_X;  // X
-        const uint d2 = get_global_id(GWS_YX) / OUTPUT_SIZE_X;  // Y
-        const uint d3 = get_global_id(GWS_FEATURE);             // Feature
-        const uint d4 = get_global_id(GWS_BATCH);               // Batch
+        const uint d1 = (uint)get_global_id(GWS_YX) % OUTPUT_SIZE_X;  // X
+        const uint d2 = (uint)get_global_id(GWS_YX) / OUTPUT_SIZE_X;  // Y
+        const uint d3 = (uint)get_global_id(GWS_FEATURE);             // Feature
+        const uint d4 = (uint)get_global_id(GWS_BATCH);               // Batch
 
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
     #elif ELTWISE_NO_PITCH_SAME_DIMS
@@ -73,33 +73,20 @@ KERNEL(eltwise)(
     #else
         const uint d1 = get_global_id(0);
         const uint d2 = get_global_id(1);
-        const uint d3 = get_global_id(2) % OUTPUT_SIZES[2];
-        const uint d4 = get_global_id(2) / OUTPUT_SIZES[2];
+        const uint d3 = (uint)get_global_id(2) % OUTPUT_SIZES[2];
+        const uint d4 = (uint)get_global_id(2) / OUTPUT_SIZES[2];
 
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
     #endif
 #endif
 
-
-#if QUANTIZATION_TERM
-    int res;
-#else
-    UNIT_TYPE res;
-#endif
+    ACCUMULATOR_TYPE res;
 
     DO_ELTWISE;
 
-#if QUANTIZATION_TERM
-#if CALIBRATION_TERM
-    res = (int)round(((float)res) * calibrations[d3]);
-#else  // CALIBRATION_TERM
-    res = (int)round(((float)res) * O_QF);
-#endif // CALIBRATION_TERM
-#endif // QUANTIZATION_TERM
-
-#if QUANTIZATION_TERM
-    output[output_offset] = ACTIVATION(convert_char_sat(res), ACTIVATION_PARAMS);
+#if QUANTIZATION_TERM && !OUTPUT_IS_FP
+    output[output_offset] = TO_OUTPUT_TYPE_SAT(ACTIVATION(res, ACTIVATION_PARAMS));
 #else
-    output[output_offset] = ACTIVATION(res, ACTIVATION_PARAMS);
+    output[output_offset] = ACTIVATION_TYPED(res, ACTIVATION_PARAMS_TYPED);
 #endif
 }

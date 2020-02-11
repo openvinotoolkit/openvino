@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,15 +14,22 @@
  limitations under the License.
 """
 
+import argparse
 import logging as log
 import os
 from operator import itemgetter
 
 import networkx as nx
 
+from extensions.back.RemoveUselessConvert import RemoveUselessConvert
+from extensions.back.op_versioning import OpVersioning
+from extensions.ops.Cast import Cast
 from mo.back.ie_ir_ver_2.emitter import port_renumber, serialize_constants, generate_ie_ir, serialize_mean_image
 from mo.graph.graph import Node, Graph
 from mo.middle.passes import tensor_names, convert_data_type
+from mo.middle.passes.convert_data_type import data_type_str_to_np
+from mo.middle.passes.infer import type_infer
+from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.utils.error import Error
 
 
@@ -89,7 +96,7 @@ def get_sorted_outputs(graph: Graph):
 
 
 def collect_sub_graphs(graph: Graph):
-    ''' Go over all nodes and sub_graphs in the graph recursively; returns all found sub-graphs. '''
+    """ Go over all nodes and sub_graphs in the graph recursively; returns all found sub-graphs. """
     result = []
     for node in graph.nodes():
         node = Node(graph, node)
@@ -101,11 +108,11 @@ def collect_sub_graphs(graph: Graph):
 
 
 def relabel_nodes_inplace_safe(graph: Graph, new_labels: dict):
-    ''' Safely relabels graph in-place without graph copy.
+    """ Safely relabels graph in-place without graph copy.
         
-        Safity in this place means that it is guarantied that
-        there won't be collisions during relabiling process.
-    '''
+        Safety in this place means that it is guarantied that
+        there won't be collisions during relabeling process.
+    """
     # Relabel nodes in two stages
     intermediate_map = {node: graph.unique_id('__relabel__{}__'.format(str(i))) for i, node in enumerate(graph.nodes())}
     final_map = {dst: new_labels[src] for src, dst in intermediate_map.items()}
@@ -115,16 +122,117 @@ def relabel_nodes_inplace_safe(graph: Graph, new_labels: dict):
     nx.relabel_nodes(graph, final_map, copy=False)
 
 
+def convert_const_node_value_type(const_node: Node, np_data_type):
+    assert const_node.type == 'Const'
+    log.warning('Converting type of Const node "{}" to "{}"'.format(const_node.name, np_data_type))
+    const_node.value = const_node.value.astype(np_data_type)
+    const_node.data_type = np_data_type
+    const_node.infer(const_node)
+    const_node.type_infer(const_node)
+
+    # if the Const node has an input data node then need to update it also
+    if len(const_node.in_nodes()) == 1:
+        input_data = const_node.in_node(0)
+        assert input_data.kind == 'data'
+        input_data.value = input_data.value.astype(const_node.data_type)
+        input_data.data_type = const_node.data_type
+
+
+def convert_inputs_of_specific_ops(graph: Graph):
+    type_port = {'Broadcast': {1: 'int64', 2: 'int64'},
+                 'ConvolutionBackpropData': {2: 'int64'},
+                 'Deconvolution': {2: 'int64'},
+                 'Gather': {2: 'int64'},
+                 'GroupConvolutionBackpropData': {2: 'int64'},
+                 'Interpolate': {1: 'int64'},
+                 'LRN': {1: 'int64'},
+                 'NonMaxSuppression': {2: 'int64'},
+                 'NormalizeL2': {1: 'int64'},
+                 'OneHot': {1: 'int64'},
+                 'Pad': {1: 'int64', 2: 'int64'},
+                 'PriorBox': {0: 'int64', 1: 'int64'},
+                 'PriorBoxClustered': {0: 'int64', 1: 'int64'},
+                 'ReduceLogicalAnd': {1: 'int64'},
+                 'ReduceLogicalOr': {1: 'int64'},
+                 'ReduceMax': {1: 'int64'},
+                 'ReduceMean': {1: 'int64'},
+                 'ReduceMin': {1: 'int64'},
+                 'ReduceProd': {1: 'int64'},
+                 'ReduceSum': {1: 'int64'},
+                 'Reshape': {1: 'int64'},
+                 'Squeeze': {1: 'int64'},
+                 'StridedSlice': {1: 'int64', 2: 'int64', 3: 'int64'},
+                 'Split': {1: 'int64'},
+                 'Tile': {1: 'int64'},
+                 'Transpose': {1: 'int64'},
+                 'Unsqueeze': {1: 'int64'},
+                 'VariadicSplit': {1: 'int64', 2: 'int64'},
+                 }
+
+    for node in graph.get_op_nodes():
+        if node.soft_get('type') in type_port:
+            ports_to_update = type_port[node.soft_get('type')]
+            for port_id, precision in ports_to_update.items():
+                if port_id in node.in_ports() and not node.in_port(port_id).disconnected():
+                    log.debug('Converting value for the input port "{}" of op "{}" to "{}".'
+                              ''.format(port_id, node.soft_get('name', node.id), precision))
+                    in_port = node.in_port(port_id)
+                    np_type = data_type_str_to_np(precision)
+                    if in_port.get_source().node.type == 'Const':
+                        convert_const_node_value_type(node.in_port(port_id).get_source().node, np_type)
+                    else:
+                        in_port.get_connection().insert_node(Cast(graph, {'dst_type': np_type}).create_node())
+
+
+def convert_outputs_of_specific_ops(graph: Graph):
+    type_port = {'ShapeOf': {0: 'int32'},
+                 'NonMaxSuppression': {0: 'int32'},
+                 }
+
+    for node in graph.get_op_nodes():
+        if node.soft_get('type') in type_port:
+            ports_to_update = type_port[node.soft_get('type')]
+            for port_id, precision in ports_to_update.items():
+                if port_id in node.out_ports():
+                    log.debug('Insert Convert after op "{}" to type "{}"'.format(node.soft_get('name', node.id),
+                                                                                 precision))
+                    node.out_port(port_id).get_connection().insert_node(
+                        Cast(graph, {'dst_type': data_type_str_to_np(precision)}).create_node())
+
+
 def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_name: str,
-                    mean_data: [list, None] = None, input_names: list = [], meta_info: dict = dict()):
+                    mean_data: [list, None] = None, input_names: list = None, meta_info: dict = None):
+    if input_names is None:
+        input_names = []
+    if meta_info is None:
+        meta_info = {}
     graph.strict_mode = False
+
+    # convert Parameter data types
+    convert_data_type.convert_parameters_data_type(graph, data_type)
+    # convert blobs (usually weights and biases)
+    for sub_graph in [graph] + collect_sub_graphs(graph):
+        convert_data_type.convert_blobs(sub_graph, data_type)
+
+    # restore data type for specific inputs/outputs of specific ops to the data types required by nGraph
+    if not graph.graph['cmd_params'].generate_deprecated_IR_V7:
+        for_graph_and_each_sub_graph_recursively(graph, convert_inputs_of_specific_ops)
+        for_graph_and_each_sub_graph_recursively(graph, convert_outputs_of_specific_ops)
+
+    if graph.graph['cmd_params'].generate_experimental_IR_V10:
+        for_graph_and_each_sub_graph_recursively(graph, OpVersioning().find_and_replace_pattern)
+
+    # do not run the type inference in sub-graphs. It will be called automatically as part of the type inference of
+    # the TensorIterator nodes
+    type_infer(graph)
+    RemoveUselessConvert().find_and_replace_pattern(graph)
+
     for sub_graph in [graph] + collect_sub_graphs(graph):
         op_order, data_order = determined_sort(get_sorted_outputs(sub_graph))
         mapping = {v: u for u, v in enumerate(op_order)}
         mapping.update({v: u for u, v in enumerate(data_order, start=len(sub_graph))})
         relabel_nodes_inplace_safe(sub_graph, mapping)
         port_renumber(sub_graph)
-        convert_data_type.convert(sub_graph, data_type)
 
     tensor_names.propagate_op_name_to_tensor(graph)
 
@@ -143,3 +251,18 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
                    mean_size=mean_size,
                    meta_info=meta_info)
     tensor_names.output_tensor_names_map(graph, os.path.join(output_dir, '{}.mapping'.format(output_model_name)))
+
+
+def get_ir_version(argv: argparse.Namespace):
+    """
+    Determine IR version based on command line arguments and the default version.
+    :param argv: the parsed command line arguments
+    :return: the IR version
+    """
+    if argv.generate_experimental_IR_V10:
+        version = 10
+    elif argv.generate_deprecated_IR_V2:
+        version = 2
+    else:
+        version = 7
+    return version

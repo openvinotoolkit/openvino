@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <ie_blob.h>
 #include <ie_layers_property.hpp>
 #include <ie_precision.hpp>
-#include <inference_engine/precision_utils.h>
+#include <precision_utils.h>
 #include <gtest/gtest.h>
 #include "single_layer_common.hpp"
 #include <math.h>
@@ -80,12 +80,12 @@ void GenRandomDataCommon(Blob::Ptr blob) {
     } else if (blob->getTensorDesc().getPrecision() == Precision::FP32) {
         float scale = 2.0f / RAND_MAX;
         /* fill by random data in the range (-1, 1)*/
-        auto * blobRawDataFp16 = blob->buffer().as<float*>();
+        auto * blobRawDataFp32 = blob->buffer().as<float*>();
         size_t count = blob->size();
         for (size_t i = 0; i < count; i++) {
             float val = rand();
             val = val * scale - 1.0f;
-            blobRawDataFp16[i] = val;
+            blobRawDataFp32[i] = val;
         }
     }
 }
@@ -115,6 +115,30 @@ void BufferWrapper::insert(size_t index, float value) {
     }
 }
 
+void CompareCommonExact(const InferenceEngine::Blob::Ptr &actual,
+                        const InferenceEngine::Blob::Ptr &expected) {
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(expected, nullptr);
+    const int32_t* res_ptr = actual->cbuffer().as<const int32_t*>();
+    const int32_t* ref_ptr = expected->cbuffer().as<const int32_t*>();
+    bool differ = false;
+    size_t actualFirstErrIdx = 0;
+    size_t expectedFirstErrIdx = 0;
+    std::function<void(size_t, size_t)> exactErrorUpdater = [&](size_t actualIdx, size_t expectedIdx) {
+        auto actual = res_ptr[actualIdx];
+        auto expected = ref_ptr[expectedIdx];
+        if ((actual != expected) && !differ) {
+            actualFirstErrIdx = actualIdx;
+            expectedFirstErrIdx = expectedIdx;
+            differ = true;
+        }
+    };
+    CompareCommon(actual, expected, exactErrorUpdater);
+    ASSERT_EQ(differ, false)
+        << "expectedFirstErrIdx = " << expectedFirstErrIdx
+        << " actualFirstErrIdx = " << actualFirstErrIdx;
+}
+
 void CompareCommonAbsolute(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance) {
     ASSERT_NE(actual, nullptr);
     ASSERT_NE(expected, nullptr);
@@ -134,7 +158,7 @@ void CompareCommonAbsolute(const Blob::Ptr& actual, const Blob::Ptr& expected, f
             expectedMaxErrId = expectedIdx;
         }
     };
-    CompareCommon(actual, expected, tolerance, absoluteErrorUpdater);
+    CompareCommon(actual, expected, absoluteErrorUpdater);
 
     ASSERT_NEAR(ref_ptr[expectedMaxErrId], res_ptr[actualMaxErrId], tolerance)
                         << "expectedMaxErrId = " << expectedMaxErrId
@@ -161,7 +185,7 @@ void CompareCommonRelative(const Blob::Ptr& actual, const Blob::Ptr& expected, f
             expectedMaxErrId = expectedIdx;
         }
     };
-    CompareCommon(actual, expected, tolerance, relatedErrorUpdater);
+    CompareCommon(actual, expected, relatedErrorUpdater);
 
     float abs_threshold = fabsf(ref_ptr[expectedMaxErrId]) * tolerance;
     ASSERT_NEAR(ref_ptr[expectedMaxErrId], res_ptr[actualMaxErrId], abs_threshold)
@@ -169,7 +193,69 @@ void CompareCommonRelative(const Blob::Ptr& actual, const Blob::Ptr& expected, f
                         << " actualMaxErrId = " << actualMaxErrId;
 }
 
-void CompareCommon(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance,
+// Compare:
+// - relative if large result
+// - absolute if small result
+//
+// Justification:
+// - If result's absolute value if small (close to 0),
+//   it probably is the difference of similar values,
+//   so result's leading digits may suffer cancellation.
+//   Thus, relative error may be large if small result,
+//   while result is correctly close to zero.
+void CompareCommonCombined(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance) {
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(expected, nullptr);
+
+    BufferWrapper res_ptr(actual);
+    BufferWrapper ref_ptr(expected);
+    float max_combi_error = 0;
+    size_t actualMaxErrId = 0;
+    size_t expectedMaxErrId = 0;
+    std::function<void(size_t, size_t)> combinedErrorUpdater = [&](size_t actualIdx, size_t expectedIdx) {
+        auto actual = res_ptr[actualIdx];
+        auto expected = ref_ptr[expectedIdx];
+        float abs_error = fabsf(actual - expected);
+        float rel_error = expected != 0.0 ? fabsf(abs_error / expected) : abs_error;
+        float error = std::max(abs_error, rel_error);
+        if (max_combi_error < error) {
+            max_combi_error = error;
+            actualMaxErrId = actualIdx;
+            expectedMaxErrId = expectedIdx;
+        }
+    };
+    CompareCommon(actual, expected, combinedErrorUpdater);
+
+    float abs_threshold = fabsf(ref_ptr[expectedMaxErrId]) * tolerance;
+    ASSERT_NEAR(ref_ptr[expectedMaxErrId], res_ptr[actualMaxErrId], abs_threshold)
+                        << "expectedMaxErrId = " << expectedMaxErrId
+                        << " actualMaxErrId = " << actualMaxErrId;
+}
+
+void CompareCommonWithNorm(const InferenceEngine::Blob::Ptr& actual,
+                           const InferenceEngine::Blob::Ptr& expected,
+                           float maxDiff) {
+    ASSERT_NE(actual, nullptr);
+    ASSERT_NE(expected, nullptr);
+    const uint16_t *res_ptr = actual->buffer().as<const uint16_t*>();
+    size_t res_size = actual->size();
+
+    const uint16_t *ref_ptr = expected->buffer().as<const uint16_t*>();
+    size_t ref_size = expected->size();
+
+    ASSERT_EQ(res_size, ref_size);
+
+    for (size_t i = 0; i < ref_size; i++) {
+        float val_res = PrecisionUtils::f16tof32(res_ptr[i]);
+        float val_ref = PrecisionUtils::f16tof32(ref_ptr[i]);
+        float norm = std::max(fabs(val_res), fabs(val_ref));
+        if (norm < 1.0f)
+            norm = 1.0f;
+        ASSERT_NEAR( val_res , val_ref, (maxDiff * norm));
+    }
+}
+
+void CompareCommon(const Blob::Ptr& actual, const Blob::Ptr& expected,
                    const std::function<void(size_t, size_t)>& errorUpdater) {
     ASSERT_NE(actual, nullptr);
     ASSERT_NE(expected, nullptr);

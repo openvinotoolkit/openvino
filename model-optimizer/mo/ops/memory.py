@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,9 @@
 """
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.op import Op
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
@@ -35,6 +37,7 @@ class Memory(Op):
             'infer': Memory.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
+            'type_infer': __class__.type_infer,
         }, attrs)
 
     def supported_attrs(self):
@@ -56,9 +59,16 @@ class Memory(Op):
             # And we can set the attribute 'shape' in extracting
             batch = 1
             for out_node in node.out_nodes().values():
-                out_node.shape = [batch, *node.shape[:]]
+                out_node.shape = int64_array([batch, *node.shape[:]])
             return
         else:
             raise Error('Model Optimizer is unable to calculate output shape of Memory node {}. ' +
                         refer_to_faq_msg(88),
                         node.id)
+
+    @staticmethod
+    def type_infer(node: Node):
+        if node.has_valid('dst_type'):
+            node.out_port(0).set_data_type(node.dst_type)
+        else:
+            node.out_port(0).set_data_type(data_type_str_to_np(node.graph.graph['cmd_params'].data_type))

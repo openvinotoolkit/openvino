@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <vpu/graph_transformer.hpp>
-#include <vpu/network_config.hpp>
 #include <vpu/model/model.hpp>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/profiling.hpp>
@@ -18,11 +17,10 @@ public:
     Resources resources;
 
     CompilationConfig config;
-    NetworkConfig netConfig;
 
     Logger::Ptr log;
 
-#if ENABLE_PROFILING_RAW
+#ifdef ENABLE_PROFILING_RAW
     mutable Profiler profile;
 #endif
 

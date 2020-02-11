@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,7 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.front.flatten_to_reshape import FlattenToReshape
+from extensions.front.split_normalizer import AttributedSplitToSplit
 from extensions.ops.DetectionOutput import DetectionOutput
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
@@ -85,6 +86,12 @@ class SsdPatternDetectionOutputReplacer(FrontReplacementSubgraph):
             ]
         )
     ]
+
+    def run_before(self):
+        return [FlattenToReshape]
+
+    def run_after(self):
+        return [AttributedSplitToSplit]
 
     def pattern(self):
         return dict(

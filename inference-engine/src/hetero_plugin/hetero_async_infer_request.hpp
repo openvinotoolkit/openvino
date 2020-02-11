@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,12 +9,8 @@
 
 #pragma once
 
-#include <unordered_set>
-#include <utility>
-#include <string>
-#include <map>
+#include <vector>
 #include <memory>
-
 #include "cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp"
 #include "hetero_infer_request.hpp"
 
@@ -22,21 +18,17 @@ namespace HeteroPlugin {
 
 class HeteroAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
-    typedef std::shared_ptr<HeteroAsyncInferRequest> Ptr;
-
-    HeteroAsyncInferRequest(HeteroInferRequest::Ptr request,
-                            const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
-                            const InferenceEngine::TaskSynchronizer::Ptr &taskSynchronizer,
-                            const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor);
-
-    void StartAsync() override;
-
+    using Ptr = std::shared_ptr<HeteroAsyncInferRequest>;
+    HeteroAsyncInferRequest(const HeteroInferRequest::Ptr&              request,
+                            const InferenceEngine::ITaskExecutor::Ptr&  taskExecutor,
+                            const InferenceEngine::ITaskExecutor::Ptr&  callbackExecutor);
+    ~HeteroAsyncInferRequest() override;
+    void StartAsync_ThreadUnsafe() override;
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override;
 
-    void SetCompletionCallback(InferenceEngine::IInferRequest::CompletionCallback callback) override;
-
 private:
-    HeteroInferRequest::Ptr _heteroInferRequest;
+    HeteroInferRequest::Ptr                     _heteroInferRequest;
+    std::vector<InferenceEngine::StatusCode>    _statusCodes;
 };
 
 }  // namespace HeteroPlugin

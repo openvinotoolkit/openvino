@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,9 @@ namespace kernel_selector {
 ParamsKey ConvolutionKernel_MMAD::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::byxf_af32);
@@ -33,9 +35,10 @@ ParamsKey ConvolutionKernel_MMAD::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableSplitSupport();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
+    k.EnableDifferentInputWeightsTypes();
     k.DisableTuning();
+    k.EnableDifferentTypes();
     return k;
 }
 
@@ -72,6 +75,12 @@ JitConstants ConvolutionKernel_MMAD::GetJitConstants(const convolution_params& p
         (ifm_32_aligned / 32) * params.weights.X().v * params.weights.Y().v * 4 * 8 * 8;
     jit.AddConstant(MakeJitConstant("FILTER_OFM_BLOCK_PITCH", filter_ofm_block_pitch));
 
+    jit.Merge(MakeTypeJitConstants(GetPackedInputType(params), "PACKED"));
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf_scalar = {"", {"b", "f", "y", "x"}, "res", input_dt, 1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
+    }
     return jit;
 }
 

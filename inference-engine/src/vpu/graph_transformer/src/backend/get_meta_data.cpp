@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@
 namespace vpu {
 
 void BackEnd::getMetaData(
-        const Model::Ptr& model,
+        const Model& model,
         const std::vector<ie::CNNLayerPtr>& allLayers,
         GraphMetaInfo& graphMeta) {
     VPU_PROFILE(getMetaData);
@@ -69,22 +69,12 @@ void BackEnd::getMetaData(
             stageMeta.execOrder = -1;
         }
 
-        if (stage->numInjectedStages() > 0) {
+        if (const auto injectedStage = stage->injectedStage()) {
             stageMeta.displayStageName += " + injected[";
             stageMeta.stageType += " + injected[";
 
-            int ind = 0;
-            for (const auto& injectedStageEdge : stage->injectedStageEdges()) {
-                if (ind != 0) {
-                    stageMeta.displayStageName += ", ";
-                    stageMeta.stageType += ", ";
-                }
-
-                stageMeta.displayStageName += injectedStageEdge->child()->name();
-                stageMeta.stageType += toString(injectedStageEdge->child()->type());
-
-                ++ind;
-            }
+            stageMeta.displayStageName += injectedStage->name();
+            stageMeta.stageType += toString(injectedStage->type());
 
             stageMeta.displayStageName += "]";
             stageMeta.stageType += "]";

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import numpy as np
 
 from extensions.ops.elementwise import Add
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.reshape import Reshape
 
@@ -33,7 +33,7 @@ class DecomposeBias(MiddleReplacementPattern):
         return dict(
             nodes=[
                 ('op', dict(kind='op', op=lambda op: op in ['Conv', 'ConvTranspose', 'Conv2D',
-                                                            'Conv3D', 'Conv2DBackpropInput', 'MatMul', 'FullyConnected',
+                                                            'Conv3D', 'Conv2DBackpropInput', 'MatMul',
                                                             'Conv3DBackpropInputV2', 'Convolution',
                                                             'Deconvolution', 'ConvND', 'Conv2D', 'Deconv2D']))],
             edges=[]
@@ -42,8 +42,11 @@ class DecomposeBias(MiddleReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         node = match['op']
-        if node.has_port('in', 2) and not node.in_port(2).disconnected():
-            add = Add(graph, dict(name=node.name + "/Bias")).create_node()
+        if node.has_port('in', 2) and not node.in_port(2).disconnected() and not node.has_and_set('shape_input'):
+            bias_name = node.name
+            new_node_name = node.name + '/WithoutBiases'
+            add = Add(graph, dict(name=bias_name)).create_node()
+            rename_nodes([(node, new_node_name), (add, bias_name)])
             node.out_port(0).get_connection().set_source(add.out_port(0))
             node.out_port(0).connect(add.in_port(0))
             node.in_port(2).get_connection().set_destination(add.in_port(1))

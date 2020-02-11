@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,11 +20,11 @@ import numpy as np
 
 from generator import generator, generate
 
-from mo.graph.graph import Node, Graph, add_opoutput
+from mo.graph.graph import Node, Graph, add_opoutput, dict_includes_compare_attrs
 from mo.ops.const import Const
 from mo.utils.error import Error
-from mo.utils.unittest.graph import build_graph, compare_graphs
-
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes = {
     '0': {'name': 'input1', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Parameter'},
@@ -1066,9 +1066,8 @@ class TestNewGraphAPIMiddle(unittest.TestCase):
         }, nodes_with_edges_only=True)
         add_opoutput(graph_ref, '1_data', 0, False)
 
-        from mo.middle.passes.eliminate import graph_clean_up
-        graph_clean_up(graph)
-        graph_clean_up(graph_ref)
+        graph.clean_up()
+        graph_ref.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, '1_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -1600,3 +1599,33 @@ class TestNewGraphAPIFront(unittest.TestCase):
         self.assertEqual(node_0.out_port(0).get_destinations(), [])
         self.assertEqual(node_1.in_port(0).get_source(), None)
         self.assertEqual(node_2.in_port(0).get_source(), None)
+
+
+class TestDictIncludesCompareAttrs(unittest.TestCase):
+    def test_numpy_scalar(self):
+        self.assertTrue(dict_includes_compare_attrs(2.0, np.array(2.0)))
+        self.assertTrue(dict_includes_compare_attrs(2, np.array(2.0)))
+        self.assertTrue(dict_includes_compare_attrs(np.array(2.0), 2.0))
+        self.assertTrue(dict_includes_compare_attrs(np.array(2.0), 2))
+
+        self.assertFalse(dict_includes_compare_attrs(2.01, np.array(2.0)))
+        self.assertFalse(dict_includes_compare_attrs(2, np.array(2.1)))
+        self.assertFalse(dict_includes_compare_attrs(np.array(2.0), 2.01))
+        self.assertFalse(dict_includes_compare_attrs(np.array(2.1), 2))
+
+    def test_regular_scalars(self):
+        self.assertTrue(dict_includes_compare_attrs(2.0, 2))
+        self.assertFalse(dict_includes_compare_attrs(2, 1.99999999999999))
+
+    def test_lists_numpy(self):
+        self.assertTrue(dict_includes_compare_attrs([4, 2, 3], np.array([4, 2, 3])))
+        self.assertFalse(dict_includes_compare_attrs([4, 2, 3], np.array([1, 2, 3])))
+
+    def test_regular_lists(self):
+        self.assertTrue(dict_includes_compare_attrs([4, 2, 3], [4, 2, 3]))
+        self.assertFalse(dict_includes_compare_attrs([4, 2, 3], [1, 2, 3]))
+        self.assertFalse(dict_includes_compare_attrs([4, 2, 3], [4, 2, 3, 5]))
+
+    def test_regular_string(self):
+        self.assertTrue(dict_includes_compare_attrs("abc", "abc"))
+        self.assertFalse(dict_includes_compare_attrs("abc", "abd"))

@@ -1,6 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+/**
+ * @file
+ */
 
 #pragma once
 
@@ -13,9 +17,11 @@ namespace InferenceEngine {
 namespace Builder {
 
 /**
+ * @deprecated Use ngraph API instead.
  * @brief The class represents a builder for PSROIPooling layer
  */
-class INFERENCE_ENGINE_API_CLASS(PSROIPoolingLayer): public LayerDecorator {
+IE_SUPPRESS_DEPRECATED_START
+class INFERENCE_ENGINE_NN_BUILDER_API_CLASS(PSROIPoolingLayer): public LayerDecorator {
 public:
     /**
      * @brief The constructor creates a builder with the name
@@ -95,9 +101,7 @@ public:
      */
     PSROIPoolingLayer& setGroupSize(size_t size);
 };
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace Builder
 }  // namespace InferenceEngine
-
-
-

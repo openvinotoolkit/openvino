@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -50,14 +50,16 @@ def symm_match_shapes(shape1: np.array, shape2: np.array):
     return match_shapes(shape1, shape2) or match_shapes(shape2, shape1)
 
 
-def deprecated_api(class_name=None):
+def deprecated_api(class_name=None, new_method_name=None):
     def deprecated(func):
         @functools.wraps(func)
         def deprecation_message(*args, **kwargs):
             warnings.simplefilter('always', DeprecationWarning)  # turn on filter
             dep_msg = "Call to deprecated function {}. ".format(func.__name__)
             if class_name is not None:
-                dep_msg += "Please use {}.{} method".format(class_name.__name__, func.__name__)
+                dep_msg += "Please use {}.{} method" \
+                           "".format(class_name.__name__ if not isinstance(class_name, str) else class_name,
+                                     func.__name__ if new_method_name is None else new_method_name)
             warnings.warn(dep_msg, DeprecationWarning, stacklevel=2)
             warnings.simplefilter('default', DeprecationWarning)  # reset filter
             return func(*args, **kwargs)
@@ -106,3 +108,14 @@ def get_mo_root_dir():
     """
     return os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(os.path.realpath(__file__))), os.pardir,
                                          os.pardir))
+
+
+def convert_param_type(node, attr_name: str, type_v1x, type_v7):
+    if attr_name in node.attrs() and node[attr_name] is not None:
+        if node.graph.graph['ir_version'] < 10:
+            node[attr_name] = type_v7(node[attr_name])
+        else:
+            node[attr_name] = type_v1x(node[attr_name])
+        return node[attr_name]
+    else:
+        return None

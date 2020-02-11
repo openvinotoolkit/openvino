@@ -43,8 +43,8 @@ KERNEL(pooling_gpu_fs_bs_yx_bsv4_fsv32)(
     const uint bf   = (uint)get_global_id(2);
 	// we process 4 features per workitem that's why we need to divide it
     const uint aligned32_features = ((INPUT0_FEATURE_NUM + 31) / 32) * 32;
-    const uint f    = (get_global_id(2) * 4) % aligned32_features;
-    const uint b = 4 * ((get_global_id(2) * 4) / aligned32_features);
+    const uint f    = ((uint)get_global_id(2) * 4) % aligned32_features;
+    const uint b = 4 * (((uint)get_global_id(2) * 4) / aligned32_features);
     
     if (x >= OUTPUT_SIZE_X)
     {

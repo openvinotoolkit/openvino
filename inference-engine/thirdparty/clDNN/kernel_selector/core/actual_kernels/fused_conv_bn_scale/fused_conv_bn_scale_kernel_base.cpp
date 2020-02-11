@@ -90,7 +90,7 @@ fused_conv_bn_scale_kernel_base::DispatchData fused_conv_bn_scale_kernel_base::S
         global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

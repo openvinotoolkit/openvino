@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,10 +23,10 @@ class ExtractImagePatchesExtractor(FrontExtractorOp):
     op = 'ExtractImagePatches'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         node['batch_dims'] = 0
         node['channel_dims'] = 3
         node['spatial_dims'] = [1, 2]
         ReorgYoloOp.update_node_stat(node, {'stride': np.array(node.pb.attr['strides'].list.i[1])})
-        return __class__.enabled
+        return cls.enabled

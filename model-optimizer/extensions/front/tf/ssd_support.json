@@ -38,7 +38,9 @@
         "custom_attributes": {
             "code_type": "caffe.PriorBoxParameter.CENTER_SIZE",
             "pad_mode": "caffe.ResizeParameter.CONSTANT",
-            "resize_mode": "caffe.ResizeParameter.WARP"
+            "resize_mode": "caffe.ResizeParameter.WARP",
+            "clip_before_nms": true,
+            "clip_after_nms": false
         },
         "id": "ObjectDetectionAPISSDPostprocessorReplacement",
         "include_inputs_to_sub_graph": true,

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,8 +24,8 @@ class TransposeFrontExtractor(FrontExtractorOp):
     op = 'Transpose'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         # In case of undefined 'perm' attribute, Transpose operation in ONNX reverse the dimensions
         order = onnx_attr(node, 'perm', 'ints', default=None)
         attrs = {
@@ -33,4 +33,4 @@ class TransposeFrontExtractor(FrontExtractorOp):
             'reverse_order': order is None
         }
         Transpose.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled

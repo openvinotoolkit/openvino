@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -43,6 +43,20 @@ class Convolution(Op):
         }, attrs)
 
     def backend_attrs(self):
+        if self.ir_version == 10:
+            return [
+                'auto_pad',
+                ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
+                ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
+                ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0)))),
+                ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1)))),
+                ('output_padding', lambda node: ','.join(map(str, node.output_padding[node.spatial_dims])) \
+                    if node.has_valid('output_padding') else None),
+
+                # for BinaryConvolution only
+                'pad_value',
+                'mode',
+            ]
         return [
            'auto_pad',
            'group',
@@ -119,14 +133,7 @@ class Convolution(Op):
         if not node.has_valid('bias_term'):
             node['bias_term'] = len(node.in_nodes()) == 3
 
-        # In case of caffe we have to calculate input index for weights because
-        # caffe convolution can be with more than one input
-        weights_index = len(node.in_nodes()) - 2
-        if not node.bias_term:
-            weights_index = len(node.in_nodes()) - 1
-
-        if node.type == 'DeformableConvolution':
-            weights_index = 2
+        weights_index = node.weights_index if node.has_valid('weights_index') else 1
 
         # Reshape weights kernel to original shape
         # In case of caffe ot MXNet framework, values for weights has no structed shape like OIHW
@@ -189,6 +196,12 @@ class Convolution(Op):
         if not node.has_valid('output_padding'):
             node['output_padding'] = np.full([len(input_shape)], 0, dtype=np.int64)
 
+        if node.has_valid('output_padding') and len(input_shape) > len(node['output_padding']):
+            output_padding = np.zeros(len(input_shape), dtype=np.int64)
+            for i in range(len(node['output_padding'])):
+                output_padding[i] = node['output_padding'][i]
+            node['output_padding'] = output_padding
+
         input_spatial_shape = input_shape[node.spatial_dims]
         stride_spatial_shape = node.stride[node.spatial_dims]
 
@@ -227,8 +240,9 @@ class Convolution(Op):
                         pad_spatial_shape -= output_padding
                         for dim in range(len(pad_spatial_shape)):
                             node.pad_spatial_shape[dim][1] -= pad_spatial_shape[dim]
-                        node.pad[node.spatial_dims] = node.pad_spatial_shape
-                        node['output_padding'] = None
+                        if not node.graph.graph['cmd_params'].generate_experimental_IR_V10:
+                            node.pad[node.spatial_dims] = node.pad_spatial_shape
+                            node['output_padding'] = None
 
                     float_spatial = Convolution.calc_deconvolution(node, input_spatial_shape, pad_spatial_shape,
                                                                    kernel_extent)

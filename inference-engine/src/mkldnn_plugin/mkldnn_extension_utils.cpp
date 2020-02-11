@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,7 @@ memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::P
         case InferenceEngine::Precision::I8:
             return memory::s8;
         case InferenceEngine::Precision::U8:
+        case InferenceEngine::Precision::BOOL:
             return memory::u8;
         case InferenceEngine::Precision::BIN:
             return memory::bin;

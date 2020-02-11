@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ import numpy as np
 
 from extensions.back.ReshapeMutation import ReshapeMutation
 from mo.back.replacement import BackReplacementPattern
+from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
-from mo.ops.const import Const
-from mo.ops.reshape import Reshape
 from mo.ops.unsqueeze import Unsqueeze
 
 
@@ -57,13 +57,9 @@ class SelectBroadcast(BackReplacementPattern):
             assert np.array_equal(input_1.shape, input_2.shape)
 
             if len(condition.shape) == 1 and len(input_1.shape) > 1:
-                new_shape = np.array([0] + [1] * (len(input_1.shape) - 1), dtype=np.int64)
-
-                reshape_shape_const = Const(graph, {'name': select.name + '/Reshape/Dim/', 'value': new_shape}).create_node()
-
-                unsqueeze_op = Reshape(graph, dict(name=select.name+'/Broadcast/')).create_node(inputs=[condition])
-
-                reshape_shape_const.out_port(0).get_connection().set_destination(unsqueeze_op.in_port(1))
+                unsqueeze_op = create_op_node_with_second_input(
+                    graph, Unsqueeze, int64_array(range(1, len(input_1.shape))),
+                    {'name': select.name+'/Broadcast/'}, select.in_port(0).get_source().node)
 
                 select.in_port(0).disconnect()
                 select.in_port(0).get_connection().set_source(unsqueeze_op.out_port(0))

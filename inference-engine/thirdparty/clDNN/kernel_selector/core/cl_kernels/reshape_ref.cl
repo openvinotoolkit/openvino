@@ -20,10 +20,10 @@ KERNEL (reshape_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 {
     const uint d1 = get_global_id(0);
     const uint d2 = get_global_id(1);
-    const uint d3 = get_global_id(2) % INPUT0_SIZES[2];
-    const uint d4 = get_global_id(2) / INPUT0_SIZES[2] % INPUT0_SIZES[3];
-    const uint d5 = get_global_id(2) / INPUT0_SIZES[2] / INPUT0_SIZES[3] % INPUT0_SIZES[4];
-    const uint d6 = get_global_id(2) / INPUT0_SIZES[2] / INPUT0_SIZES[3] / INPUT0_SIZES[4] % INPUT0_SIZES[5];
+    const uint d3 = (uint)get_global_id(2) % INPUT0_SIZES[2];
+    const uint d4 = (uint)get_global_id(2) / INPUT0_SIZES[2] % INPUT0_SIZES[3];
+    const uint d5 = (uint)get_global_id(2) / INPUT0_SIZES[2] / INPUT0_SIZES[3] % INPUT0_SIZES[4];
+    const uint d6 = (uint)get_global_id(2) / INPUT0_SIZES[2] / INPUT0_SIZES[3] / INPUT0_SIZES[4] % INPUT0_SIZES[5];
 
     uint linear = d1 +
                   d2*INPUT0_SIZES[0] +

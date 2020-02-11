@@ -1,21 +1,22 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <algorithm>
-
 #include "tile_ie.hpp"
+
+#include <algorithm>
+#include <memory>
+
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
-
-
 
 using namespace std;
 using namespace ngraph;
 
-op::TileIE::TileIE(const std::shared_ptr<ngraph::Node> &data1, const int64_t axis, const int64_t tiles)
-        : Op("Tile", check_single_output_args({data1})), axis(axis), tiles(tiles) {
+constexpr NodeTypeInfo op::TileIE::type_info;
+
+op::TileIE::TileIE(const std::shared_ptr<ngraph::Node>& data1, const int64_t axis, const int64_t tiles)
+    : Op("Tile", check_single_output_args({data1})), axis(axis), tiles(tiles) {
     constructor_validate_and_infer_types();
 }
 

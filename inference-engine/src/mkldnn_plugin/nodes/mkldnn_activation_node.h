@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,6 @@ public:
 
 private:
     void initValues();
-    static Register<MKLDNNActivationNode> reg;
     bool initialized = false;
     float alpha = 0.0f;
     float beta = 0.0f;

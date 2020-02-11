@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ import unittest
 import numpy as np
 
 from extensions.middle.SharedWeightsDuplication import SharedWeightsDuplication
-from mo.middle.passes.eliminate import graph_clean_up
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes_attributes = {
     'const': {'shape': None, 'type': 'Const', 'kind': 'op', 'op': 'Const'},
@@ -81,7 +81,7 @@ class DuplicateSharedWeightsTests(unittest.TestCase):
                                  }, nodes_with_edges_only=True)
 
         SharedWeightsDuplication().find_and_replace_pattern(graph)
-        graph_clean_up(graph)
-        graph_clean_up(graph_ref)
+        graph.clean_up()
+        graph_ref.clean_up()
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data')
         self.assertTrue(flag, resp)

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ class Select(Op):
             'in_ports_count': 3,
             'out_ports_count': 1,
             'infer': __class__.infer,
+            'type_infer': __class__.type_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -63,3 +64,9 @@ class Select(Op):
         for _, out_node in node.graph.out_edges(node.id):
             node.graph.node[out_node]['shape'] = np.array(output_shape)
             node.graph.node[out_node]['value'] = None if output_value is None else np.array(output_value)
+
+    @staticmethod
+    def type_infer(node: Node):
+        assert node.in_port(1).get_source().get_data_type() == node.in_port(2).get_source().get_data_type(), \
+            'The data type of the second and the third inputs must be equal for the node {}'.format(node.name)
+        node.out_port(0).set_data_type(node.in_port(1).get_source().get_data_type())

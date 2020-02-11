@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,15 +11,11 @@
 
 #include <ie_layers_internal.hpp>
 
-#include <vpu/stub_stage.hpp>
+#include <vpu/stages/stub_stage.hpp>
 
 namespace vpu {
 
-void FrontEnd::parseDeconvolution(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseDeconvolution(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
@@ -92,7 +88,7 @@ void FrontEnd::parseDeconvolution(
         layer->name,
         StageType::StubDeconv,
         layer,
-        {input, weights, biases},
+        {input, weights, biases, model->addFakeData()},
         {output});
 
     stage->attrs().set<int>("kernelSizeX", kernelSizeX);

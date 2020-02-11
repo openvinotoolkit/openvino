@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,25 +13,24 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import re
 import logging as log
 from collections import deque
 
 import networkx as nx
 import numpy as np
 
-from mo.graph.graph import Node, Graph
-from mo.middle.pattern_match import apply_pattern
 from mo.utils.error import Error
-from mo.utils.graph import bfs_search
+from mo.utils.utils import deprecated_api
 
 
 # TODO: dep warning
-def get_nodes_with_attributes(graph: Graph, **attrs: dict):
+def get_nodes_with_attributes(graph, **attrs: dict):
     node_attrs = graph.nodes(data=True)
     return [n for n, d in node_attrs if all(a in d.items() for a in attrs.items())]
 
 
-def reverse_dfs(graph: Graph, node_name: str, update_func: callable, visited: set = None):
+def reverse_dfs(graph, node_name: str, update_func: callable, visited: set = None):
     d = deque()
 
     if visited is None:
@@ -47,17 +46,17 @@ def reverse_dfs(graph: Graph, node_name: str, update_func: callable, visited: se
                 d.append(in_node_name)
 
 
-def mark_input_nodes(graph: Graph, node_name: str, key: str, value):
+def mark_input_nodes(graph, node_name: str, key: str, value):
     for input, _ in graph.in_edges(node_name):
         graph.node[input][key] = value
 
 
-def mark_output_nodes(graph: Graph, node_name: str, key: str, value):
+def mark_output_nodes(graph, node_name: str, key: str, value):
     for output, _ in graph.out_edges(node_name):
         graph.node[output][key] = value
 
 
-def mark_output_reachable_nodes(graph: Graph):
+def mark_output_reachable_nodes(graph):
     """
     Mark nodes whether they are outputs reachable or not. The node is considered output reachable if it is connected to
     one of the nodes that has attribute op=Result.
@@ -72,7 +71,7 @@ def mark_output_reachable_nodes(graph: Graph):
                     lambda graph, node_name: mark_input_nodes(graph, node_name, 'is_output_reachable', True), visited)
 
 
-def mark_undead_nodes(graph: Graph, undead_types: list):
+def mark_undead_nodes(graph, undead_types: list):
     """
     Mark output nodes and nodes of the specific type as undead, meaning that they should survive the dead nodes
     elimination phase. Then mark all children nodes of the undead nodes (except children of inputs) as undead.
@@ -80,6 +79,8 @@ def mark_undead_nodes(graph: Graph, undead_types: list):
     :param undead_types: list of node types that should be marked as undead.
     :return: updated graph where each has attribute 'is_undead'.
     """
+    from mo.utils.graph import bfs_search
+
     nx.set_node_attributes(G=graph, name='is_undead', values=False)
 
     # mark output nodes as undead
@@ -106,7 +107,7 @@ def mark_undead_nodes(graph: Graph, undead_types: list):
     nx.set_node_attributes(G=graph, name='is_undead', values={n: True for n in inputs})
 
 
-def mark_const_producer_nodes(graph: Graph):
+def mark_const_producer_nodes(graph):
     """
     Mark nodes that produce constant values.
     :param graph: graph to operate on.
@@ -125,34 +126,43 @@ def mark_const_producer_nodes(graph: Graph):
                 graph.node[input]['is_const_producer'] = False
 
 
-def eliminate_dead_nodes(graph: Graph):
+def eliminate_dead_nodes(graph):
     nodes_to_remove = set()
     for node_name, node_attrs in graph.nodes(data=True):
-        if not node_attrs['is_output_reachable'] or (node_attrs['is_const_producer'] and not node_attrs['is_undead']):
+        if not node_attrs['is_output_reachable'] or \
+                (node_attrs['is_const_producer'] and (not node_attrs['is_undead'] or
+                                                      node_attrs.get('force_dead_node', False))):
             nodes_to_remove.add(node_name)
     log.debug('Removing the following dead nodes: {}'.format('\n'.join(sorted(map(str, nodes_to_remove)))))
     graph.remove_nodes_from(nodes_to_remove)
 
 
-def add_constant_operations(graph: Graph):
+def add_constant_operations(graph):
     data_nodes = graph.get_data_nodes(has_value=True)
     for node in data_nodes:
         # If data node has no producers we create Const operation
         if len(node.in_nodes()) == 0 and len(node.out_nodes()) != 0:
             # It's necessary to import here due to cycle dependencies
             from mo.ops.const import Const
-            const_node = Const(graph, dict(value=node.value)).create_node()
+            name = node.soft_get('name', node.id)
+            new_name = re.sub(r'\/Output_\d+\/Data_(.?)+', '', name)
+            const_node = Const(graph, dict(value=node.value, name=new_name,
+                                           force_shape=node.soft_get('force_shape', None),
+                                           override_output_shape=node.has_valid('force_shape'),
+                                           force_type=node.soft_get('force_type', None),
+                                           correct_data_type=node.soft_get('correct_data_type', False),
+                                           )).create_node()
             graph.add_edges_from([(const_node.id, node.id, {'out': 0})])
 
 
-def remove_const_ops(graph: Graph):
-    ops = [node for node in graph.get_op_nodes() if node.soft_get('type') == 'Const']
-    for node in ops:
+def remove_const_ops(graph):
+
+    for node in graph.get_op_nodes(type='Const'):
         graph.remove_edge(node.id, node.out_node().id)
         graph.remove_node(node.id)
 
 
-def shape_inference(graph: Graph):
+def shape_inference(graph):
     for node in graph.pseudo_topological_sort():
         if node.has_and_set('need_shape_inference'):
             old_out_shapes = [port.data.get_shape() for port in node.out_ports().values() if not port.disconnected()]
@@ -168,39 +178,23 @@ def shape_inference(graph: Graph):
             node.need_shape_inference = False
 
 
-def graph_clean_up(graph: Graph, undead_node_types: list = None):
-    if undead_node_types is None:
-        undead_node_types = []
-
-    if 'Shape' in undead_node_types and not graph.graph['cmd_params'].keep_shape_ops:
-        undead_node_types.remove('Shape')
-
-    if 'ShapeOf' in undead_node_types and not graph.graph['cmd_params'].keep_shape_ops:
-        undead_node_types.remove('ShapeOf')
-
-    mark_output_reachable_nodes(graph)
-    shape_inference(graph)
-    mark_undead_nodes(graph, undead_node_types)
-    mark_const_producer_nodes(graph)
-    eliminate_dead_nodes(graph)
-    # Add Const op for constant data nodes
-    add_constant_operations(graph)
+@deprecated_api('Graph', 'clean_up')
+def graph_clean_up(graph, undead_node_types: list = None):
+    graph.clean_up(undead_node_types)
 
 
-def graph_clean_up_tf(graph: Graph):
-    graph_clean_up(graph, ['TFCustomSubgraphCall', 'ShapeOf', 'Shape'])
+@deprecated_api('Graph', 'clean_up')
+def graph_clean_up_tf(graph):
+    graph.clean_up()
 
 
-def graph_clean_up_onnx(graph: Graph):
-    graph_clean_up(graph, ['ShapeOf', 'Shape'])
-
-
-def remove_identity_action(graph: Graph, matches: dict):
-    remove_op_node_with_data_node(graph, matches['identity'])
+@deprecated_api('Graph', 'clean_up')
+def graph_clean_up_onnx(graph):
+    graph.clean_up()
 
 
 # TODO: unit tests
-def merge_data_nodes(graph: Graph, survived: Node, removed: Node):
+def merge_data_nodes(graph, survived, removed):
     if survived.has_and_set('op') and survived.op == 'Result':
         graph.node[removed.id].update({'op': 'Result'})
 
@@ -225,7 +219,8 @@ def merge_data_nodes(graph: Graph, survived: Node, removed: Node):
 
 
 # TODO: unit tests
-def remove_op_node_with_data_node(graph: Graph, node_to_remove: Node):
+def remove_op_node_with_data_node(graph, node_to_remove):
+    from mo.graph.graph import Node
     assert node_to_remove.kind == 'op'
     input_data_node = node_to_remove.in_node()
     output_node = [v for _, v in graph.out_edges(node_to_remove.id)]
@@ -243,18 +238,13 @@ def remove_op_node_with_data_node(graph: Graph, node_to_remove: Node):
     graph.remove_nodes_from([node_to_remove.id, input_data_node.id])
 
 
-def remove_op_nodes(graph: Graph, attrs: dict):
-    op_attrs = {'kind': 'op'}
-    op_attrs.update(attrs)
-    apply_pattern(
-        graph,
-        nodes=[('identity', op_attrs)],
-        edges=[],
-        action=remove_identity_action
-    )
+def remove_op_nodes(graph, attrs: dict):
+    for node in graph.get_op_nodes(**attrs):
+        remove_op_node_with_data_node(graph, node)
 
 
-def remove_edges_for_nodes(graph: Graph, node_attrs: dict, edge_attrs: dict):
+def remove_edges_for_nodes(graph, node_attrs: dict, edge_attrs: dict):
+    from mo.graph.graph import Node
     for node in graph.nodes():
         node = Node(graph, node)
         if all([node.has(attr) and node[attr] == node_attrs[attr] for attr in node_attrs]):

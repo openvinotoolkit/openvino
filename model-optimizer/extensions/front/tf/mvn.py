@@ -1,5 +1,5 @@
 """
- Copyright (c) 2017-2019 Intel Corporation
+ Copyright (C) 2017-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 import logging as log
 
 from extensions.front.squared_difference import SquaredDifference
+from extensions.ops.elementwise import Mul, Add
+from extensions.ops.mvn import MVN
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
-from extensions.ops.elementwise import Mul, Add
-from mo.ops.op import Op
 
 
-class MVN(FrontReplacementSubgraph):
+class MVNReplacer(FrontReplacementSubgraph):
     enabled = True
 
     def run_before(self):
@@ -59,7 +59,6 @@ class MVN(FrontReplacementSubgraph):
             return
 
         log.debug('Confirmed MVN pattern after {} with name {}'.format(input.op, input.name))
-        MVN = Op.get_op_class_by_name('MVN')
 
         mvn = MVN(graph, dict(
             name=fbn.name + '/MVN_',

@@ -350,7 +350,8 @@ void jit_uni_bin_conv_fwd_kernel<isa>::width_blk_step(int ur_w, int pad_l, int p
         int tail_size = isa == sse42 ? nstl::min(jcp.oc_block / 2, oc_step - r * jcp.oc_block / 2) : oc_step;
         bool is_scalar_store = isa == sse42 ? tail_size < jcp.oc_block / 2 : tail_size < jcp.oc_block;
 
-        int kw_padding[ur_w];
+        std::vector<int> kw_padding(ur_w);
+
         if (jcp.exclude_pad) {
             mov(reg_tmp_32, jcp.ic);
             imul(reg_tmp_32,  ptr[param1 + GET_OFF(kh_padding)]);
@@ -469,7 +470,7 @@ void jit_uni_bin_conv_fwd_kernel<isa>::width_blk_step(int ur_w, int pad_l, int p
 
         pop(reg_oc_off);
 
-        mov(reg_b_weights, reinterpret_cast<size_t>(p.entry_[binarization_idx].binarization.weights_data));
+        mov(reg_b_weights, reinterpret_cast<size_t>(p.entry_[binarization_idx].binarization.thresholds_data));
         mov(reg_b_out_mask, reinterpret_cast<size_t>(p.entry_[binarization_idx].binarization.output_mask_data));
         add(reg_b_weights, reg_oc_off);
         add(reg_b_out_mask, reg_oc_off);

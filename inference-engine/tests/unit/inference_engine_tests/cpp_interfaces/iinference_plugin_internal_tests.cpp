@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include <ie_version.hpp>
-#include <inference_engine/cnn_network_impl.hpp>
+#include <cnn_network_impl.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 
 #include <mock_icnn_network.hpp>
@@ -24,12 +24,15 @@ using namespace InferenceEngine::details;
 
 class InferenceEnginePluginInternalTest : public ::testing::Test {
 protected:
+    IE_SUPPRESS_DEPRECATED_START
     shared_ptr<IInferencePlugin> plugin;
+    IE_SUPPRESS_DEPRECATED_END
     shared_ptr<MockInferencePluginInternal> mock_plugin_impl;
     shared_ptr<MockExecutableNetworkInternal> mockExeNetworkInternal;
     shared_ptr<MockExecutableNetworkThreadSafe> mockExeNetworkTS;
     shared_ptr<MockInferRequestInternal> mockInferRequestInternal;
     MockNotEmptyICNNNetwork mockNotEmptyNet;
+    std::string pluginId;
 
     ResponseDesc dsc;
     StatusCode sts;
@@ -42,9 +45,12 @@ protected:
     }
 
     virtual void SetUp() {
+        pluginId = "TEST";
         mock_plugin_impl.reset(new MockInferencePluginInternal());
+        mock_plugin_impl->SetName(pluginId);
         plugin = details::shared_from_irelease(make_ie_compatible_plugin({{2, 1}, "test", "version"}, mock_plugin_impl));
         mockExeNetworkInternal = make_shared<MockExecutableNetworkInternal>();
+        mockExeNetworkInternal->SetPointerToPluginInternal(mock_plugin_impl);
     }
 
     void getInferRequestWithMockImplInside(IInferRequest::Ptr &request) {
@@ -68,36 +74,6 @@ protected:
 MATCHER_P(blob_in_map_pointer_is_same, ref_blob, "") {
     auto a = arg.begin()->second.get();
     return (float *) (arg.begin()->second->buffer()) == (float *) (ref_blob->buffer());
-}
-
-TEST_F(InferenceEnginePluginInternalTest, canUseNewInferViaOldAPI) {
-    shared_ptr<Blob> inblob(new TBlob<float>(TensorDesc(Precision::FP32, { 1 }, Layout::C)));
-    shared_ptr<Blob> resblob(new TBlob<float>(TensorDesc(Precision::FP32, { 1 }, Layout::C)));
-
-    inblob->allocate();
-    resblob->allocate();
-
-    BlobMap blbi;
-    blbi[""] = inblob;
-    BlobMap blbo;
-    blbo[""] = resblob;
-    EXPECT_CALL(*mock_plugin_impl.get(), Infer(Matcher<const BlobMap &>(blob_in_map_pointer_is_same(inblob)),
-                                               Matcher<BlobMap &>(blob_in_map_pointer_is_same(resblob)))).Times(1);
-
-    IE_SUPPRESS_DEPRECATED_START
-    EXPECT_NO_THROW(plugin->Infer((Blob &) *inblob.get(), (Blob &) *resblob.get(), nullptr));
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(InferenceEnginePluginInternalTest, loadExeNetworkCallsSetNetworkIO) {
-    ICore * core = nullptr;
-    IExecutableNetwork::Ptr exeNetwork;
-    map<string, string> config;
-    EXPECT_CALL(*mockExeNetworkInternal.get(), setNetworkInputs(_)).Times(1);
-    EXPECT_CALL(*mockExeNetworkInternal.get(), setNetworkOutputs(_)).Times(1);
-    EXPECT_CALL(*mock_plugin_impl.get(), LoadExeNetworkImpl(core, Ref(mockNotEmptyNet), Ref(config))).WillOnce(
-            Return(mockExeNetworkInternal));
-    EXPECT_NO_THROW(plugin->LoadNetwork(exeNetwork, mockNotEmptyNet, config, nullptr));
 }
 
 TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithInCorrectName) {
@@ -167,87 +143,24 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetNotAllocatedBlob) {
     ASSERT_EQ(refError, dsc.msg);
 }
 
-class InferenceEnginePluginInternal2Test : public ::testing::Test {
-protected:
-    shared_ptr<IInferencePlugin> plugin;
-    shared_ptr<MockInferencePluginInternal2> mockPluginImpl;
-    shared_ptr<MockIExecutableNetwork> mockExeNetwork;
-    shared_ptr<MockIInferRequest> mockIInferRequest;
-    MockICNNNetwork mockEmptyNet;
-    MockNotEmptyICNNNetwork mockNotEmptyNet;
-
-    ResponseDesc dsc;
-    StatusCode sts;
-
-    virtual void TearDown() {}
-
-    virtual void SetUp() {
-        mockPluginImpl = make_shared<MockInferencePluginInternal2>();
-        plugin = details::shared_from_irelease(make_ie_compatible_plugin({{2, 1}, "test", "version"}, mockPluginImpl));
-        mockExeNetwork = make_shared<MockIExecutableNetwork>();
-    }
-
-    shared_ptr<MockIInferRequest> getMockIInferRequestPtr() {
-        auto mockRequest = make_shared<MockIInferRequest>();
-        EXPECT_CALL(*mockPluginImpl.get(), LoadNetwork(_, _, _)).WillOnce(SetArgReferee<0>(mockExeNetwork));
-        EXPECT_CALL(*mockExeNetwork.get(), CreateInferRequest(_, _)).WillOnce(DoAll(SetArgReferee<0>(mockRequest),
-                                                                                    Return(StatusCode::OK)));
-
-        IE_SUPPRESS_DEPRECATED_START
-        plugin->LoadNetwork(mockNotEmptyNet, nullptr);
-        IE_SUPPRESS_DEPRECATED_END
-        return mockRequest;
-    }
-};
-
-TEST_F(InferenceEnginePluginInternal2Test, loadExeNetworkWithEmptyNetworkReturnsError) {
-    string refError = "The network doesn't have inputs/outputs";
-    EXPECT_CALL(mockEmptyNet, getInputsInfo(_)).Times(1);
-    EXPECT_CALL(mockEmptyNet, getOutputsInfo(_)).Times(1);
-
-    IE_SUPPRESS_DEPRECATED_START
-    EXPECT_NO_THROW(sts = plugin->LoadNetwork(mockEmptyNet, &dsc));
-    IE_SUPPRESS_DEPRECATED_END
-
-    ASSERT_EQ(GENERAL_ERROR, sts);
-    dsc.msg[refError.length()] = '\0';
-    ASSERT_EQ(refError, dsc.msg);
+TEST_F(InferenceEnginePluginInternalTest, executableNetworkInternalExportsMagicAndName) {
+    std::stringstream strm;
+    ASSERT_NO_THROW(mockExeNetworkInternal->WrapOstreamExport(strm));
+    ExportMagic actualMagic = {};
+    strm.read(actualMagic.data(), actualMagic.size());
+    ASSERT_EQ(exportMagic, actualMagic);
+    std::string pluginName;
+    std::getline(strm, pluginName);
+    ASSERT_EQ(pluginId, pluginName);
+    std::string exportedString;
+    std::getline(strm, exportedString);
+    ASSERT_EQ(mockExeNetworkInternal->exportString, exportedString);
 }
 
-TEST_F(InferenceEnginePluginInternal2Test, canForwardGetPerfCount) {
-    mockIInferRequest = getMockIInferRequestPtr();
-    map<string, InferenceEngineProfileInfo> profileInfo;
-    EXPECT_CALL(*mockIInferRequest.get(), GetPerformanceCounts(Ref(profileInfo), _)).WillOnce(Return(StatusCode::OK));
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ(OK, plugin->GetPerformanceCounts(profileInfo, &dsc)) << dsc.msg;
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(InferenceEnginePluginInternal2Test, deprecatedInferCallsSetterAndInfer) {
-    mockIInferRequest = getMockIInferRequestPtr();
-
-    Blob::Ptr inBlob, resBlob;
-    BlobMap inBlobMap, resBlobMap;
-    inBlobMap[MockNotEmptyICNNNetwork::INPUT_BLOB_NAME] = inBlob;
-    resBlobMap[MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME] = resBlob;
-
-    EXPECT_CALL(*mockIInferRequest.get(), SetBlob(StrEq(MockNotEmptyICNNNetwork::INPUT_BLOB_NAME), inBlob, _)).WillOnce(
-            Return(StatusCode::OK));
-    EXPECT_CALL(*mockIInferRequest.get(),
-                SetBlob(StrEq(MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME), resBlob, _)).WillOnce(Return(StatusCode::OK));
-    EXPECT_CALL(*mockIInferRequest.get(), Infer(_)).WillOnce(Return(StatusCode::OK));
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ(OK, plugin->Infer(inBlobMap, resBlobMap, &dsc)) << dsc.msg;
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(InferenceEnginePluginInternal2Test, deprecatedLoadNetworkCallsCreateInferRequest) {
-    EXPECT_CALL(*mockPluginImpl.get(), LoadNetwork(_, _, _)).WillOnce(SetArgReferee<0>(mockExeNetwork));
-    EXPECT_CALL(*mockExeNetwork.get(), CreateInferRequest(_, _)).WillOnce(Return(StatusCode::OK));
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ(OK, plugin->LoadNetwork(mockNotEmptyNet, &dsc)) << dsc.msg;
-    IE_SUPPRESS_DEPRECATED_END
+TEST_F(InferenceEnginePluginInternalTest, pluginInternalEraseMagicAndNameWhenImports) {
+    std::stringstream strm;
+    ASSERT_NO_THROW(mockExeNetworkInternal->WrapOstreamExport(strm));
+    ASSERT_NO_THROW(mock_plugin_impl->ImportNetwork(strm, {}));
+    ASSERT_EQ(mockExeNetworkInternal->exportString, mock_plugin_impl->importedString);
+    mock_plugin_impl->importedString = {};
 }

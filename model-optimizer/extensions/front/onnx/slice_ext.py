@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ class SliceFrontExtractor(FrontExtractorOp):
     op = 'Slice'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         axis = np.array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
         start = np.array(onnx_attr(node, 'starts', 'ints', default=[]), dtype=np.int64)
         end = np.array(onnx_attr(node, 'ends', 'ints', default=[]), dtype=np.int64)
@@ -40,4 +40,4 @@ class SliceFrontExtractor(FrontExtractorOp):
 
         # update the attributes of the node
         Slice.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled

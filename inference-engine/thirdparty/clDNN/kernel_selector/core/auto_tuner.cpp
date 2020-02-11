@@ -52,11 +52,17 @@ std::tuple<std::string, int> AutoTuner::LoadKernelOnline(const TuningMode tuning
 
     // Tuning file is loaded
     auto computeUnitsStr = std::to_string(computeUnitsCount);
+    auto defaultComputeUnitsCount = "24";
     if (!onlineCache->IsNull()) {
         auto cacheObject = onlineCache->GetObject();
         if (onlineCache->HasMember(computeUnitsStr.c_str())) {
             if (cacheObject[computeUnitsStr.c_str()].HasMember(hash.c_str())) {
                 const rapidjson::Value& prog = cacheObject[computeUnitsStr.c_str()][hash.c_str()];
+                return std::make_tuple(prog[0].GetString(), prog[1].GetInt());
+            }
+        } else if (onlineCache->HasMember(defaultComputeUnitsCount)) {
+            if (cacheObject[defaultComputeUnitsCount].HasMember(hash.c_str())) {
+                const rapidjson::Value& prog = cacheObject[defaultComputeUnitsCount][hash.c_str()];
                 return std::make_tuple(prog[0].GetString(), prog[1].GetInt());
             }
         }

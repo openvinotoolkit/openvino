@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,16 +15,17 @@
 """
 
 from collections import deque
-from copy import deepcopy
 
 import numpy as np
+from copy import deepcopy
 
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.graph.graph import Node, Graph, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.op import Op
-from mo.ops.reshape import Reshape
+from mo.ops.squeeze import Squeeze
+from mo.ops.unsqueeze import Unsqueeze
 from mo.utils.graph import sub_graph_between_nodes, invert_sub_graph_between_nodes
 
 stop_nodes = ['TensorIteratorInput', 'TensorIteratorOutput', 'TensorIteratorBackEdge', 'TensorIteratorCondition']
@@ -285,9 +286,9 @@ class TensorIteratorMerge(MiddleReplacementPattern):
                 # it is practically useful to reshape along batch dimension, but here we cannot detect where it is
                 # so, we are guessing based on other transformations that it is the major dimension
                 dim[0] = -1
-                reshape_op = Reshape(body, dict(name=ext_inp['internal_data_id'].name + '/InputSqueeze'))
+                reshape_op = Squeeze(body, dict(name=ext_inp['internal_data_id'].name + '/InputSqueeze'))
                 reshape_dim_data = Const(body, {'name': ext_inp['internal_data_id'].name + '/ReshapeDim',
-                                                'value': dim}).create_node_with_data()
+                                                'value': ext_inp['axis']}).create_node_with_data()
                 reshape_op.create_node_with_data([new_input_data, reshape_dim_data],
                                                  data_nodes=[ext_inp['internal_data_id']])
                 ext_inp['internal_data_id'] = new_input_data
@@ -321,15 +322,17 @@ class TensorIteratorMerge(MiddleReplacementPattern):
                 # trying to make it dynamically reshapable (see related comment above for the first Reshape)
                 dim[0] = -1
                 assert not ext_out['internal_data_id'].has_valid('value')
-                reshape_op = Reshape(body, dict(name=ext_out['internal_data_id'].name + '/OutputUnsqueeze'))
+                reshape_op = Unsqueeze(body, dict(name=ext_out['internal_data_id'].name + '/OutputUnsqueeze'))
                 reshape_dim_data = Const(body, {'name': ext_out['internal_data_id'].name + '/ReshapeDim',
-                                                'value': np.insert(dim, ext_out['axis'], 1)}).create_node_with_data()
+                                                'value': ext_out['axis']}).create_node_with_data()
                 ext_out['internal_data_id'] = reshape_op.create_node_with_data([ext_out['internal_data_id'],
                                                                                 reshape_dim_data])
 
             # TODO: add here working with simple outputs
 
-            add_opoutput(body, ext_out['internal_data_id'].id, 0, False)
+            if not any([out_node.soft_get('op', None) == 'Result' for out_node in ext_out['internal_data_id'].out_nodes()]):
+                add_opoutput(body, ext_out['internal_data_id'].id, 0, False)
+
             # assert len(ext_out['internal_data_id'].out_nodes()) == 0
             assert len(ext_out['internal_data_id'].in_nodes()) == 1
             if not 'internal_layer_id' in ext_out['internal_data_id'].in_node():
@@ -376,3 +379,8 @@ class TensorIteratorMerge(MiddleReplacementPattern):
 
         for i, out in enumerate(ti_outs):
             out.in_edge()['external_port_id'] = external_outputs[i]['external_port_id']
+
+        ti = ti_outs[0].in_node()
+        TensorIterator.cover_body_input_data_nodes_with_parameter_ops(ti)
+        TensorIterator.cover_body_constant_data_nodes_with_const_ops(ti)
+        TensorIterator.normalize_internal_ids(ti)

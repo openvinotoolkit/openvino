@@ -24,8 +24,31 @@ ParamsKey ReorderKernelFastBatch1::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
-    k.EnableAllInputLayout();
-    k.EnableAllOutputLayout();
+
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::yxfb);
+    k.EnableInputLayout(DataLayout::byxf);
+    k.EnableInputLayout(DataLayout::fyxb);
+    k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfwzyx);
+    k.EnableInputLayout(DataLayout::bs_f_bsv8__af8);
+    k.EnableInputLayout(DataLayout::bs_f_bsv16__af8);
+    k.EnableInputLayout(DataLayout::bf8_xy16);
+    k.EnableInputLayout(DataLayout::bfyx_f16);
+    k.EnableInputLayout(DataLayout::bfzyx_f16);
+
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::yxfb);
+    k.EnableOutputLayout(DataLayout::byxf);
+    k.EnableOutputLayout(DataLayout::fyxb);
+    k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfwzyx);
+    k.EnableOutputLayout(DataLayout::bs_f_bsv8__af8);
+    k.EnableOutputLayout(DataLayout::bs_f_bsv16__af8);
+    k.EnableOutputLayout(DataLayout::bf8_xy16);
+    k.EnableOutputLayout(DataLayout::bfyx_f16);
+    k.EnableOutputLayout(DataLayout::bfzyx_f16);
+
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();

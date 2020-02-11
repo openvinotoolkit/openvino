@@ -5,16 +5,32 @@ from libcpp.vector cimport vector
 from libcpp.map cimport map
 from libcpp.set cimport set
 from libcpp.pair cimport pair
-from libcpp.memory cimport unique_ptr, shared_ptr
+from libcpp.memory cimport unique_ptr, shared_ptr, weak_ptr
 from libc.stdint cimport int64_t, uint8_t
 
 
 cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
     ctypedef vector[size_t] SizeVector
 
+
     cdef cppclass TensorDesc:
         SizeVector& getDims()
         const Precision& getPrecision() const
+
+    cdef cppclass Data:
+        const Precision getPrecision() const
+        void setPrecision(const Precision& precision) const
+        const SizeVector getDims()
+        const string& getName() const
+        const Layout getLayout() const
+        void setLayout(Layout layout) const
+        const bool isInitialized() const
+        weak_ptr[CNNLayer] & getCreatorLayer()
+        map[string, shared_ptr[CNNLayer]] & getInputTo()
+
+    ctypedef shared_ptr[Data] DataPtr
+    ctypedef weak_ptr[Data] DataWeakPtr
+    ctypedef shared_ptr[const Data] CDataPtr
 
     cdef cppclass Blob:
         ctypedef shared_ptr[Blob] Ptr
@@ -23,6 +39,22 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
 
     cdef cppclass Precision:
         const char*name() const
+        @staticmethod
+        const Precision FromStr(const string& str)
+
+    cdef cppclass CNNLayer:
+        string name
+        string type
+        Precision precision
+        vector[DataPtr] outData
+        vector[DataWeakPtr] insData
+        string affinity
+        map[string, string] params
+        map[string, Blob.Ptr] blobs
+
+    ctypedef weak_ptr[CNNLayer] CNNLayerWeakPtr
+    ctypedef shared_ptr[CNNLayer] CNNLayerPtr
+
 
     cdef struct apiVersion:
         int minor
@@ -33,34 +65,36 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const char *description
         apiVersion apiVersion
 
+    cdef enum Layout:
+        ANY
+        NCHW
+        NHWC
+        NCDHW
+        NDHWC
+        OIHW
+        GOIHW
+        OIDHW
+        GOIDHW
+        SCALAR
+        C
+        CHW
+        HW
+        NC
+        CN
+        BLOCKED
+
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
-    cdef cppclass IENetLayer:
-        string name
-        string type
-        string precision
-        string affinity
-        string shape
-        string layout
-        vector[string] children
-        vector[string] parents
-        map[string, string] params
-        void setAffinity(const string & target_affinity) except +
-        void setParams(const map[string, string] & params_map) except +
-        map[string, Blob.Ptr] getWeights() except +
-        void setPrecision(string precision) except +
 
-    cdef cppclass InputInfo:
-        vector[size_t] dims
-        string precision
-        string layout
-        void setPrecision(string precision) except +
-        void setLayout(string layout) except +
+#    cdef cppclass IENetLayer:
+#        string layout
+#        vector[string] children
+#        vector[string] parents
+#        void setAffinity(const string & target_affinity) except +
+#        void setParams(const map[string, string] & params_map) except +
+#        map[string, Blob.Ptr] getWeights() except +
+#        void setPrecision(string precision) except +
+#        vector[DataPtr] getOutData() except +
 
-    cdef cppclass OutputInfo:
-        vector[size_t] dims
-        string precision
-        string layout
-        void setPrecision(string precision) except +
 
     cdef cppclass ProfileInfo:
         string status
@@ -78,19 +112,23 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef cppclass IEExecNetwork:
         vector[InferRequestWrap] infer_requests
         IENetwork GetExecGraphInfo() except +
+        map[string, DataPtr] getInputs()
+        map[string, CDataPtr] getOutputs()
+        void exportNetwork(const string & model_file) except +
         object getMetric(const string & metric_name)
         object getConfig(const string & metric_name)
 
     cdef cppclass IENetwork:
         IENetwork() except +
-        IENetwork(const string &, const string &, bool ngraph_compatibility) except +
+        IENetwork(object) except +
+        IENetwork(const string &, const string &) except +
         string name
         size_t batch_size
         string precision
         map[string, vector[size_t]] inputs
-        const vector[pair[string, IENetLayer]] getLayers() except +
-        map[string, InputInfo] getInputs() except +
-        map[string, OutputInfo] getOutputs() except +
+        const vector[CNNLayerPtr] getLayers() except +
+        map[string, DataPtr] getInputs() except +
+        map[string, DataPtr] getOutputs() except +
         void addOutput(string &, size_t) except +
         void setAffinity(map[string, string] & types_affinity_map, map[string, string] & layers_affinity_map) except +
         void setBatch(size_t size) except +
@@ -100,6 +138,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void setStats(map[string, map[string, vector[float]]] & stats) except +
         map[string, map[string, vector[float]]] getStats() except +
         void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
+        object getFunction() except +
 
     cdef cppclass IEPlugin:
         IEPlugin() except +
@@ -128,6 +167,8 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         map[string, Version] getVersions(const string & deviceName) except +
         unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
                                               const map[string, string] & config, int num_requests) except +
+        unique_ptr[IEExecNetwork] importNetwork(const string & modelFIle, const string & deviceName,
+                                                const map[string, string] & config, int num_requests) except +
         map[string, string] queryNetwork(IENetwork network, const string deviceName,
                                          const map[string, string] & config) except +
         void setConfig(const map[string, string] & config, const string & deviceName) except +

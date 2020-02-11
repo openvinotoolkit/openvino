@@ -32,18 +32,30 @@ primitive_type_id arg_max_min::type_id() {
 layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node) {
     auto desc = node.get_primitive();
     auto input_layout = node.input().get_output_layout();
-    auto output_data_type = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
+    bool values_first = desc->values_first;
+    data_types output_data_type;
+    data_types output_idx_type;
+    output_data_type = desc->output_data_type ? *desc->output_data_type : input_layout.data_type;
+    if (node.get_dependencies().size() == 3) {
+        output_idx_type = node.get_dependency(2).get_output_layout().data_type;
+    } else {
+        output_idx_type = *(desc->output_data_type);
+    }
     auto size_check = [&](size_t tensor_size) {
+        if (desc->input.size() == 1 && values_first)
+            return;
         size_t max_size;
         // lowest integer not representable in floating point type = 2^(mantissa_bits + 1) + 1
         // https://stackoverflow.com/questions/3793838/which-is-the-first-integer-that-an-ieee-754-float-is-incapable-of-representing-e
-        if (output_data_type == data_types::f32) {
+        if (output_idx_type == data_types::f32) {
             max_size = (1 << std::numeric_limits<float>::digits);
-        } else if (output_data_type == data_types::f16) {
+        } else if (output_idx_type == data_types::f16) {
             // mantissa_bits for fp16 = 10
             max_size = (1 << 11);
-        } else if (output_data_type == data_types::u8) {
+        } else if (output_idx_type == data_types::u8) {
             max_size = std::numeric_limits<uint8_t>::max();
+        } else if (output_idx_type == data_types::i32) {
+            max_size = std::numeric_limits<int32_t>::max();
         } else {
             max_size = std::numeric_limits<size_t>::max();
         }

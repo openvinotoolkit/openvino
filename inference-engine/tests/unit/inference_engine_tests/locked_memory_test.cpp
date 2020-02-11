@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,8 @@ TEST_F(LockedMemoryTest, canUnlockMemoryAfterUsage) {
     {
         auto x = LockedMemory<char>(allocator.get(), (void *) 1, 1);
         //force locking of memory
-        auto UNUSED t = x[0];
+        auto t = x[0];
+        (void)t;
     }
 }
 

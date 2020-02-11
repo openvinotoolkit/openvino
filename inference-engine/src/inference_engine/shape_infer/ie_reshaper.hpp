@@ -1,22 +1,23 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <string>
-#include <vector>
+#include <ie_layers.h>
+
+#include <builders/ie_network_builder.hpp>
+#include <ie_context.hpp>
 #include <list>
 #include <map>
-#include <set>
 #include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
-#include <ie_layers.h>
-#include <ie_context.hpp>
-#include <builders/ie_network_builder.hpp>
 #include "details/caseless.hpp"
-#include "ie_reshape_launcher.hpp"
 #include "ie_icnn_network.hpp"
+#include "ie_reshape_launcher.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -33,8 +34,8 @@ public:
      * @param extensions - all registered extensions
      * @return - shared_ptr to the corresponding launcher.
      */
-    virtual ReshapeLauncher::Ptr
-    createNotInputLauncher(const CNNLayer* layer, const std::vector<IShapeInferExtensionPtr>& extensions);
+    virtual ReshapeLauncher::Ptr createNotInputLauncher(const CNNLayer* layer,
+                                                        const std::vector<IShapeInferExtensionPtr>& extensions);
 
     /**
      * @brief Creates reshape launcher for the given input layer. Supported types: Input, Const, Memory (as input)
@@ -42,8 +43,8 @@ public:
      * @param extensions - all registered extensions
      * @return - shared_ptr to the corresponding launcher.
      */
-    virtual ReshapeLauncher::Ptr
-    createInputLauncher(const CNNLayer* layer, const std::vector<IShapeInferExtensionPtr>& extensions);
+    virtual ReshapeLauncher::Ptr createInputLauncher(const CNNLayer* layer,
+                                                     const std::vector<IShapeInferExtensionPtr>& extensions);
 
     virtual ~LauncherCreator() = default;
 };
@@ -59,13 +60,16 @@ public:
      * @brief Constructor
      * @param network - const reference to the ICNNNetwork for performing shape inference
      */
-    explicit Reshaper(ICNNNetwork& network,
-            const LauncherCreator::Ptr& creator = std::make_shared<LauncherCreator>());
+    explicit Reshaper(ICNNNetwork& network, const LauncherCreator::Ptr& creator = std::make_shared<LauncherCreator>());
 
     explicit Reshaper(std::vector<DataPtr> inputs,
-            const LauncherCreator::Ptr& launcherCreator = std::make_shared<LauncherCreator>());
+                      const LauncherCreator::Ptr& launcherCreator = std::make_shared<LauncherCreator>());
 
-    Reshaper(Builder::Network* network);
+    IE_SUPPRESS_DEPRECATED_START
+
+    explicit Reshaper(Builder::Network* network);
+
+    IE_SUPPRESS_DEPRECATED_END
 
     virtual ~Reshaper() = default;
 
@@ -98,22 +102,25 @@ public:
     /**
      * @brief Return newly calculated shape for provided data.
      */
-    SizeVector getResultShapeFor(DataPtr &data, ResponseDesc* resp = nullptr);
+    SizeVector getResultShapeFor(DataPtr& data, ResponseDesc* resp = nullptr);
 
 private:
     ReshapeLauncher::Ptr getLauncherByLayerName(const std::string& layerName) const;
 
     StatusCode networkShapeInfer(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp);
 
-    InferenceEngine::details::caseless_set<std::string> getTypeNamesFromExtension(const IShapeInferExtensionPtr& extension);
+    InferenceEngine::details::caseless_set<std::string> getTypeNamesFromExtension(
+        const IShapeInferExtensionPtr& extension);
 
     std::vector<IShapeInferExtensionPtr> _extensions;
     std::set<ReshapeLauncher::Ptr> _launchers;
-    std::vector<CNNLayerPtr> _allSortedLayers{};
-    std::set<CNNLayerPtr> _inputLayers{};
+    std::vector<CNNLayerPtr> _allSortedLayers {};
+    std::set<CNNLayerPtr> _inputLayers {};
     InferenceEngine::details::caseless_set<std::string> _allTypes;
 
+    IE_SUPPRESS_DEPRECATED_START
     Builder::Network* network;
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace ShapeInfer

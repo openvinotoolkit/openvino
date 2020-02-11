@@ -20,6 +20,7 @@
 #include "primitive_inst.h"
 #include <memory>
 #include "topology_impl.h"
+#include "kernel_selector/core/actual_kernels/eltwise/eltwise_kernel_base.h"
 #include <string>
 
 namespace cldnn {
@@ -49,6 +50,10 @@ public:
     }
     bool inputs_calibration_term() const { return inputs_cf; }
     bool inputs_quantization_term() const { return inputs_qf; }
+
+    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
+        return std::make_shared<kernel_selector::eltwise_fuse_params>();
+    }
 
 private:
     float output_qf;

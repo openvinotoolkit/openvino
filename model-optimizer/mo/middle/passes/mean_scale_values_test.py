@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,11 +15,13 @@
 """
 
 import unittest
+from argparse import Namespace
 
 import numpy as np
 
 from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_2': {'type': 'Identity', 'value': None, 'kind': 'op'},
@@ -55,7 +57,7 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
                              'scaleshift_1_w': {'shape': np.array([3]), 'value': np.ones(3)},
                              'scaleshift_1_b': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
                              })
-
+        graph.graph['cmd_params'] = Namespace(reverse_input_channels=False)
         del graph['placeholder_1']['placeholder_1_data'][0]['in']
         del graph['scaleshift_1']['scaleshift_1_data'][0]['in']
 
@@ -85,7 +87,7 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
                              'scaleshift_1_w': {'shape': np.array([3]), 'value': np.array((1, 2, 3))},
                              'scaleshift_1_b': {'shape': np.array([3]), 'value': np.array([-1, -2, -3])},
                              })
-
+        graph.graph['cmd_params'] = Namespace(reverse_input_channels=False)
         del graph['placeholder_1']['placeholder_1_data'][0]['in']
         del graph['scaleshift_1']['scaleshift_1_data'][0]['in']
 
@@ -121,7 +123,7 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
                             {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
                              'scaleshift_1_w': {'shape': np.array([3]), 'value': np.array((1, 2, 3))},
                              })
-
+        graph.graph['cmd_params'] = Namespace(reverse_input_channels=False)
         del graph['placeholder_1']['placeholder_1_data'][0]['in']
         del graph['scaleshift_1']['scaleshift_1_data'][0]['in']
 
@@ -156,7 +158,7 @@ class TestScaleShift_To_Preprocess(unittest.TestCase):
                              'scaleshift_1_w': {'shape': np.array([3]), 'value': np.ones(3)},
                              'scaleshift_1_b': {'shape': np.array([3]), 'value': np.zeros(3)},
                              })
-
+        graph.graph['cmd_params'] = Namespace(reverse_input_channels=False)
         del graph['placeholder_1']['placeholder_1_data'][0]['in']
         del graph['scaleshift_1']['scaleshift_1_data'][0]['in']
 

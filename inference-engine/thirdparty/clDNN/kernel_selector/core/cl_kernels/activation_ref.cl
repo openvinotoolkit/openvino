@@ -47,37 +47,37 @@ KERNEL(activation)(
 
 #if defined OUTPUT_LAYOUT_BFZYX
     const unsigned x = get_global_id(0);
-    const uint y = get_global_id(1) % OUTPUT_SIZE_Y;
-    const uint z = get_global_id(1) / OUTPUT_SIZE_Y;
+    const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
+    const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
 #if OUTPUT_BATCH_NUM == 1
-    const unsigned feature = get_global_id(2);
+    const unsigned feature = (uint)get_global_id(2);
     const unsigned batch = 0;
 #else
-    const unsigned feature = get_global_id(2) % OUTPUT_FEATURE_NUM;
-    const unsigned batch = get_global_id(2) / OUTPUT_FEATURE_NUM;
+    const unsigned feature = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+    const unsigned batch = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
 #endif
 #else
 #if defined OUTPUT_LAYOUT_YXFB || defined OUTPUT_LAYOUT_BFYX_F16
-    const unsigned x = get_global_id(1);
-    const unsigned y = get_global_id(2);
+    const unsigned x = (uint)get_global_id(1);
+    const unsigned y = (uint)get_global_id(2);
 #define z 0
 #if OUTPUT_BATCH_NUM == 1
-    const unsigned feature = get_global_id(0);
+    const unsigned feature = (uint)get_global_id(0);
     const unsigned batch = 0;
 #else
-    const unsigned feature = get_global_id(0) % OUTPUT_FEATURE_NUM;
-    const unsigned batch = get_global_id(0) / OUTPUT_FEATURE_NUM;
+    const unsigned feature = (uint)get_global_id(0) % OUTPUT_FEATURE_NUM;
+    const unsigned batch = (uint)get_global_id(0) / OUTPUT_FEATURE_NUM;
 #endif
 #else
 #define z 0
-    const unsigned x = get_global_id(0);
-    const unsigned y = get_global_id(1);
+    const unsigned x = (uint)get_global_id(0);
+    const unsigned y = (uint)get_global_id(1);
 #if OUTPUT_BATCH_NUM == 1
-    const unsigned feature = get_global_id(2);
+    const unsigned feature = (uint)get_global_id(2);
     const unsigned batch = 0;
 #else
-    const unsigned feature = get_global_id(2) % OUTPUT_FEATURE_NUM;
-    const unsigned batch = get_global_id(2) / OUTPUT_FEATURE_NUM;
+    const unsigned feature = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+    const unsigned batch = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
 #endif
 #endif
 #endif

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from extensions.ops.BatchMatMul import BatchMatMul
+from extensions.ops.MatMul import MatMul
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -22,12 +22,27 @@ class BatchMatMulExtractor(FrontExtractorOp):
     op = 'BatchMatMul'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         attr = node.pb.attr
         attrs = {
             'transpose_a': int(attr['adj_x'].b),
             'transpose_b': int(attr['adj_y'].b),
         }
-        BatchMatMul.update_node_stat(node, attrs)
-        return __class__.enabled
+        MatMul.update_node_stat(node, attrs)
+        return cls.enabled
+
+
+class BatchMatMulV2Extractor(FrontExtractorOp):
+    op = 'BatchMatMulV2'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        attr = node.pb.attr
+        attrs = {
+            'transpose_a': int(attr['adj_x'].b),
+            'transpose_b': int(attr['adj_y'].b),
+        }
+        MatMul.update_node_stat(node, attrs)
+        return cls.enabled

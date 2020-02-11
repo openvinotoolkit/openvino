@@ -65,7 +65,7 @@ ReorderKernelBinary::DispatchData ReorderKernelBinary::SetDefault(const reorder_
     const auto& input = params.inputs[0];
 
     std::vector<size_t> global{input.Batch().v, CeilDiv(input.Feature().v, 32), input.Y().v * input.X().v};
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

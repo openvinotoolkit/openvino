@@ -1,17 +1,17 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
-#include "mkldnn_plugin/mkldnn_exec_network.h"
+#include "mkldnn_graph.h"
+#include "mkldnn_exec_network.h"
 
 #include "test_graph.hpp"
 
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
-#include <mkldnn_plugin/mkldnn_plugin.h>
-#include <mkldnn_plugin/config.h>
+#include <mkldnn_extension_utils.h>
+#include <mkldnn_plugin.h>
+#include <config.h>
 
 using namespace std;
 using namespace mkldnn;
@@ -27,9 +27,9 @@ public:
 
 class MKLDNNTestEngine: public MKLDNNPlugin::Engine {
 public:
-    MKLDNNPlugin::MKLDNNGraph& getGraph() {
+    MKLDNNPlugin::MKLDNNGraph& getGraph(InferenceEngine::IExecutableNetwork::Ptr execNetwork) {
         auto * execNetworkInt =
-                dynamic_cast<InferenceEngine::ExecutableNetworkBase<InferenceEngine::ExecutableNetworkInternal> *>(_loadedNetwork.get());
+                dynamic_cast<InferenceEngine::ExecutableNetworkBase<InferenceEngine::ExecutableNetworkInternal> *>(execNetwork.get());
         if (!execNetworkInt)
             THROW_IE_EXCEPTION << "Cannot find loaded network!";
 
@@ -263,18 +263,20 @@ TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
         ASSERT_NE(1, net_reader.getNetwork().getOutputsInfo().size());
 
         std::shared_ptr<MKLDNNTestEngine> score_engine(new MKLDNNTestEngine());
-        ASSERT_NO_THROW(score_engine->LoadNetwork(net_reader.getNetwork()));
+        InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
+        ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, net_reader.getNetwork(), {}));
 
-        size_t modified_outputs_size = score_engine->getGraph().GetOutputNodes().size();
+        size_t modified_outputs_size = score_engine->getGraph(exeNetwork1).GetOutputNodes().size();
 
         InferenceEngine::CNNNetReader net_reader2;
         net_reader2.ReadNetwork(model.c_str(), model.size());
         net_reader2.SetWeights(weights_ptr);
         ASSERT_EQ(1, net_reader2.getNetwork().getOutputsInfo().size());
 
-        ASSERT_NO_THROW(score_engine->LoadNetwork(net_reader2.getNetwork()));
+        InferenceEngine::IExecutableNetwork::Ptr exeNetwork2;
+        ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork2, net_reader2.getNetwork(), {}));
 
-        size_t original_outputs_size = score_engine->getGraph().GetOutputNodes().size();
+        size_t original_outputs_size = score_engine->getGraph(exeNetwork2).GetOutputNodes().size();
 
         ASSERT_NE(modified_outputs_size, original_outputs_size);
         ASSERT_EQ(1, original_outputs_size);

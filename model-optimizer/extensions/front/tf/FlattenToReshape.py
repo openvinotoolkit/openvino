@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -90,5 +90,5 @@ class FlattenToReshapeableReshape(FrontReplacementSubgraph):
         reshape_node.in_port(1).disconnect()
         reshape_const_node = Const(graph, {'value': int64_array([0, -1])}).create_node()
         reshape_node.in_port(1).connect(reshape_const_node.out_port(0))
+        reshape_node['special_zero'] = True
         log.debug('The node "{}" is actually a Flatten node'.format(reshape_node.soft_get('name')))
-

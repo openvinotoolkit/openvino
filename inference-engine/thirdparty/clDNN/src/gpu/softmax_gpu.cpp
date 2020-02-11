@@ -102,6 +102,8 @@ attach_softmax_gpu::attach_softmax_gpu() {
     implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
     implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16), val_fw);
     implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16), val_fw);
+    implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_b16f16), val_fw);
+    implementation_map<softmax>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_b16f16), val_fw);
 }
 
 }  // namespace detail

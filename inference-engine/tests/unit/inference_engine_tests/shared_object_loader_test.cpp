@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,8 @@
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+
+IE_SUPPRESS_DEPRECATED_START
 
 class SharedObjectLoaderTests: public TestsCommon {
 protected:

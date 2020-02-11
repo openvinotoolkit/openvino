@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,9 @@ using namespace InferenceEngine::details;
 class PluginBaseTests: public ::testing::Test {
  protected:
     std::shared_ptr<MockPluginImpl> mock_impl;
+    IE_SUPPRESS_DEPRECATED_START
     shared_ptr<IInferencePlugin> plugin;
+    IE_SUPPRESS_DEPRECATED_END
     ResponseDesc dsc;
     virtual void TearDown() {
     }
@@ -37,41 +39,7 @@ TEST_F(PluginBaseTests, canReportVersion) {
 
 }
 
-TEST_F(PluginBaseTests, canForwardLoadNetwork) {
-
-    EXPECT_CALL(*mock_impl.get(), LoadNetwork(_)).Times(1);
-
-    ICNNNetwork * network = nullptr;
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ(OK, plugin->LoadNetwork(*network, &dsc));
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-
-TEST_F(PluginBaseTests, canReportErrorInLoadNetwork) {
-
-    EXPECT_CALL(*mock_impl.get(), LoadNetwork(_)).WillOnce(Throw(std::runtime_error("compare")));
-
-    ICNNNetwork * network = nullptr;
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_NE(plugin->LoadNetwork(*network, &dsc), OK);
-    IE_SUPPRESS_DEPRECATED_END
-
-    ASSERT_STREQ(dsc.msg, "compare");
-}
-
-TEST_F(PluginBaseTests, canCatchUnknownErrorInLoadNetwork) {
-
-    EXPECT_CALL(*mock_impl.get(), LoadNetwork(_)).WillOnce(Throw(5));
-    ICNNNetwork * network = nullptr;
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ(UNEXPECTED, plugin->LoadNetwork(*network, nullptr));
-    IE_SUPPRESS_DEPRECATED_END
-}
-
 TEST_F(PluginBaseTests, canForwardLoadExeNetwork) {
-
     EXPECT_CALL(*mock_impl.get(), LoadExeNetwork(_,_,_)).Times(1);
 
     ICNNNetwork * network = nullptr;
@@ -81,7 +49,6 @@ TEST_F(PluginBaseTests, canForwardLoadExeNetwork) {
 
 
 TEST_F(PluginBaseTests, canReportErrorInLoadExeNetwork) {
-
     EXPECT_CALL(*mock_impl.get(), LoadExeNetwork(_,_,_)).WillOnce(Throw(std::runtime_error("compare")));
 
     ICNNNetwork * network = nullptr;
@@ -92,117 +59,13 @@ TEST_F(PluginBaseTests, canReportErrorInLoadExeNetwork) {
 }
 
 TEST_F(PluginBaseTests, canCatchUnknownErrorInLoadExeNetwork) {
-
     EXPECT_CALL(*mock_impl.get(), LoadExeNetwork(_,_,_)).WillOnce(Throw(5));
     ICNNNetwork * network = nullptr;
     IExecutableNetwork::Ptr exeNetwork = nullptr;
     ASSERT_EQ(UNEXPECTED, plugin->LoadNetwork(exeNetwork, *network, {}, nullptr));
 }
 
-TEST_F(PluginBaseTests, canForwarInfer) {
-
-    TBlob<float>  input(TensorDesc(Precision::FP32, NCHW));
-    TBlob<float>  result(TensorDesc(Precision::FP32, NCHW));
-
-
-    EXPECT_CALL(*mock_impl.get(), Infer(Ref(input), Ref(result))).Times(1);
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ(OK, plugin->Infer(input, result, &dsc));
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(PluginBaseTests, canReportErrorInInfer) {
-
-    EXPECT_CALL(*mock_impl.get(), Infer(_,_)).WillOnce(Throw(std::runtime_error("error")));
-
-    Blob * input = nullptr;
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_NE(plugin->Infer(*input, *input, &dsc), OK);
-    IE_SUPPRESS_DEPRECATED_END
-
-    ASSERT_STREQ(dsc.msg, "error");
-}
-
-TEST_F(PluginBaseTests, canCatchUnknownErrorInInfer) {
-    EXPECT_CALL(*mock_impl.get(), Infer(_,_)).WillOnce(Throw(5));
-    Blob * input = nullptr;
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ(UNEXPECTED, plugin->Infer(*input, *input, nullptr));
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(PluginBaseTests, canForwarBlobMapInfer) {
-    BlobMap  input;
-    BlobMap  result;
-
-    EXPECT_CALL(*mock_impl.get(), InferBlobMap(Ref(input), Ref(result))).Times(1);
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ(OK, plugin->Infer(input, result, &dsc));
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(PluginBaseTests, canReportErrorInBlobMapInfer) {
-
-    EXPECT_CALL(*mock_impl.get(), InferBlobMap(_,_)).WillOnce(Throw(std::runtime_error("error")));
-
-    BlobMap * input = nullptr;
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_NE(plugin->Infer(*input, *input, &dsc), OK);
-    IE_SUPPRESS_DEPRECATED_END
-
-    ASSERT_STREQ(dsc.msg, "error");
-}
-
-TEST_F(PluginBaseTests, canCatchUnknownErrorInBlobMapInfer) {
-    EXPECT_CALL(*mock_impl.get(), InferBlobMap(_,_)).WillOnce(Throw(5));
-    BlobMap * input = nullptr;
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ(UNEXPECTED, plugin->Infer(*input, *input, nullptr));
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-TEST_F(PluginBaseTests, canForwarGetPerformanceCounts) {
-
-    std::map <std::string, InferenceEngineProfileInfo> profileInfo;
-
-    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts(Ref(profileInfo))).Times(1);
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ(OK, plugin->GetPerformanceCounts(profileInfo, &dsc));
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-
-TEST_F(PluginBaseTests, canReportErrorInGetPerformanceCounts) {
-
-    std::map <std::string, InferenceEngineProfileInfo> profileInfo;
-
-    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts(_)).WillOnce(Throw(std::runtime_error("error")));
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_NE(OK, plugin->GetPerformanceCounts(profileInfo, &dsc));
-    IE_SUPPRESS_DEPRECATED_END
-
-    ASSERT_STREQ(dsc.msg, "error");
-}
-
-TEST_F(PluginBaseTests, canCatchUnknownErrorInGetPerformanceCounts) {
-    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts(_)).WillOnce(Throw(5));
-    std::map <std::string, InferenceEngineProfileInfo> profileInfo;
-
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_EQ(UNEXPECTED, plugin->GetPerformanceCounts(profileInfo, nullptr));
-    IE_SUPPRESS_DEPRECATED_END
-}
-
 TEST_F(PluginBaseTests, canForwarSetConfig) {
-
     const std::map <std::string, std::string> config;
     EXPECT_CALL(*mock_impl.get(), SetConfig(Ref(config))).Times(1);
     ASSERT_EQ(OK, plugin->SetConfig(config, &dsc));

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,11 @@ namespace op {
 
 class Eltwise : public Op {
 public:
-    Eltwise(const std::shared_ptr<Node>& data1,
-            const std::shared_ptr<Node>& data2,
+    static constexpr NodeTypeInfo type_info{"Eltwise", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
+
+    Eltwise(const Output<Node>& data1,
+            const Output<Node>& data2,
             const ELTWISE_TYPE eltwise_type);
 
     void validate_and_infer_types() override;

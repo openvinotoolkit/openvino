@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ static const char help_message[] = "Print a usage message";
 static const char input_message[] = "Optional. Path to a folder with images and/or binaries or to specific image or binary file.";
 
 /// @brief message for model argument
-static const char model_message[] = "Required. Path to an .xml file with a trained model.";
+static const char model_message[] = "Required. Path to an .xml file with a trained model or to a .blob files with a trained compiled model";
 
 /// @brief message for execution mode
 static const char api_message[] = "Optional. Enable Sync/Async API. Default value is \"async\".";
@@ -57,7 +57,8 @@ static const char custom_cldnn_message[] = "Required for GPU custom kernels. Abs
 static const char batch_size_message[] = "Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation.";
 
 // @brief message for CPU threads pinning option
-static const char infer_threads_pinning_message[] = "Optional. Enable (\"YES\" is default value) or disable (\"NO\") " \
+static const char infer_threads_pinning_message[] = "Optional. Enable threads->cores (\"YES\", default), threads->(NUMA)nodes (\"NUMA\") " \
+                                                    "or completely disable (\"NO\") " \
                                                     "CPU threads pinning for CPU-involved inference.";
 
 // @brief message for stream_output option

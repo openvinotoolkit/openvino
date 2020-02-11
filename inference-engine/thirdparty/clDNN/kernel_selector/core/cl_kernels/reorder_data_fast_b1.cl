@@ -21,8 +21,8 @@
 ///////////////////////// Input Index /////////////////////////
 inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x)
 {
-#if   INPUT0_SIMPLE && INPUT0_DIMS < 5
-    return GET_DATA_INDEX(INPUT0, b, f, y, x);
+#if INPUT0_DIMS < 5
+    return INPUT0_GET_INDEX(b, f, y, x);
 #elif INPUT0_SIMPLE && INPUT0_DIMS == 5
     return GET_DATA_INDEX_5D(INPUT0, b, f, z, y, x);
 #elif INPUT0_SIMPLE && INPUT0_DIMS == 6
@@ -45,8 +45,8 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x
 
 inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint x)
 {
-#if   OUTPUT_SIMPLE && OUTPUT_DIMS < 5
-    return GET_DATA_INDEX(OUTPUT, b, f, y, x);
+#if OUTPUT_DIMS < 5
+    return OUTPUT_GET_INDEX(b, f, y, x);
 #elif OUTPUT_SIMPLE && OUTPUT_DIMS == 5
     return GET_DATA_INDEX_5D(OUTPUT, b, f, z, y, x);
 #elif OUTPUT_SIMPLE && OUTPUT_DIMS == 6
@@ -66,7 +66,7 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
 }
 
 KERNEL (reorder_data_fast_b1)(
-    const __global INPUT_REORDER_TYPE* input, 
+    const __global INPUT_REORDER_TYPE* input,
     __global OUTPUT_REORDER_TYPE* output
 #ifdef MEAN_SUBTRACT_IN_BUFFER
     , __global MEAN_SUBTRACT_TYPE* mean_subtract
@@ -247,7 +247,7 @@ KERNEL (reorder_data_fast_b1)(
     const uint input_idx = FUNC_CALL(get_input_index)(ov[0],ov[1], ov[2], ov[3], ov[4],ov[5]);
     const uint output_idx  = FUNC_CALL(get_output_index)(b, f, w, z, y, x);
 #endif
-    
+
 #if   defined MEAN_SUBTRACT_INSIDE_PARAMS
     float res = TO_MEAN_TYPE(input[input_idx]);
     res -= VALUE_TO_SUBTRACT[f % VALUE_TO_SUBTRACT_SIZE];

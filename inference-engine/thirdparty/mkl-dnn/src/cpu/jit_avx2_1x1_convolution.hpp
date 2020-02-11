@@ -66,7 +66,8 @@ struct jit_avx2_1x1_convolution_fwd_t: public cpu_primitive_t {
                         this->desc()->weights_desc.data_type,
                         this->desc()->dst_desc.data_type)
                 && IMPLICATION(this->with_bias(),
-                        data_type::f32 == this->desc()->bias_desc.data_type);
+                        data_type::f32 == this->desc()->bias_desc.data_type)
+                && !this->attr()->has_asymmetric_quantization();
             if (!ok) return status::unimplemented;
 
             const convolution_desc_t *conv_d = this->desc();

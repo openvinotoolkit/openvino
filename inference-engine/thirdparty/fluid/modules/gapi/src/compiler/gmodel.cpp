@@ -47,7 +47,7 @@ ade::NodeHandle GModel::mkDataNode(GModel::Graph &g, const GOrigin& origin)
     {
         auto value = value_of(origin);
         meta       = descr_of(value);
-        storage    = Data::Storage::CONST;
+        storage    = Data::Storage::CONST_VAL;
         g.metadata(data_h).set(ConstValue{value});
     }
     g.metadata(data_h).set(Data{origin.shape, id, meta, origin.ctor, storage});
@@ -193,6 +193,7 @@ void GModel::log_clear(Graph &g, ade::NodeHandle node)
         g.metadata(node).get<Journal>().messages.clear();
     }
 }
+
 
 ade::NodeHandle GModel::detail::dataNodeOf(const ConstLayoutGraph &g, const GOrigin &origin)
 {

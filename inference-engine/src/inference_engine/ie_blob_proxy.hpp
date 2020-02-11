@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,17 +9,19 @@
  * @file ie_blob_proxy.hpp
  */
 
-#include "ie_blob.h"
-#include <utility>
 #include <memory>
+#include <utility>
+
+#include "ie_blob.h"
 
 namespace InferenceEngine {
 
 /**
  * @class TBlobProxy
- * @brief This class enables creation of several blobs based on a single allocation but using different offsets for read/write
+ * @brief This class enables creation of several blobs based on a single allocation but using different offsets for
+ * read/write
  */
-template<class T>
+template <class T>
 class TBlobProxy : public TBlob<T> {
     using base = TBlob<T>;
 
@@ -33,13 +35,15 @@ public:
      * @brief A move constructor
      * @param p Precision type
      * @param l Layout
-     * @param blob Source TBlob object to move from. It is deleted after a constructor call, since the ownership is transferred to the proxy
+     * @param blob Source TBlob object to move from. It is deleted after a constructor call, since the ownership is
+     * transferred to the proxy
      * @param offset Offset in memory
      * @param dims Dimensions of the given blob
      */
-    TBlobProxy(Precision p, Layout l, TBlob <T> &&blob, size_t offset, const SizeVector &dims)
-            : base(TensorDesc(p, dims, l)), realObject(make_shared_blob<T>(std::move(blob))),
-              offset(offset * blob.element_size()) {
+    TBlobProxy(Precision p, Layout l, TBlob<T>&& blob, size_t offset, const SizeVector& dims)
+        : base(TensorDesc(p, dims, l)),
+          realObject(make_shared_blob<T>(std::move(blob))),
+          offset(offset * blob.element_size()) {
         checkWindow();
     }
 
@@ -47,12 +51,13 @@ public:
      * @brief A move constructor
      * @param p Precision type
      * @param l Layout
-     * @param blob Source Blob object to move from. It is deleted after a constructor call, since the ownership is transferred to the proxy
+     * @param blob Source Blob object to move from. It is deleted after a constructor call, since the ownership is
+     * transferred to the proxy
      * @param offset Offset in memory
      * @param dims Dimensions of the given blob
      */
-    TBlobProxy(Precision p, Layout l, const Blob::Ptr &blob, size_t offset, const SizeVector &dims)
-            : base(TensorDesc(p, dims, l)), realObject(blob), offset(offset * blob->element_size()) {
+    TBlobProxy(Precision p, Layout l, const Blob::Ptr& blob, size_t offset, const SizeVector& dims)
+        : base(TensorDesc(p, dims, l)), realObject(blob), offset(offset * blob->element_size()) {
         checkWindow();
     }
 
@@ -64,8 +69,8 @@ public:
      * @param offset Offset in memory
      * @param dims Dimensions of the given blob
      */
-    TBlobProxy(Precision p, Layout l, const TBlobProxy<T> &blobProxy, size_t offset, const SizeVector &dims)
-            : TBlob<T>(TensorDesc(p, dims, l)), realObject(blobProxy.realObject), offset(offset * sizeof(T)) {
+    TBlobProxy(Precision p, Layout l, const TBlobProxy<T>& blobProxy, size_t offset, const SizeVector& dims)
+        : TBlob<T>(TensorDesc(p, dims, l)), realObject(blobProxy.realObject), offset(offset * sizeof(T)) {
         checkWindow();
     }
 
@@ -89,14 +94,14 @@ public:
      * @brief Creates a LockedMemory instance of the given type
      * @return LockedMemory instance of the given type
      */
-    LockedMemory <T> data() noexcept override {
+    LockedMemory<T> data() noexcept override {
         return {getAllocator().get(), getHandle(), offset};
     }
 
     /**
-    * @brief Creates a readOnly LockedMemory instance of the given type
-    * @return Read-only LockedMemory instance of the given type
-    */
+     * @brief Creates a readOnly LockedMemory instance of the given type
+     * @return Read-only LockedMemory instance of the given type
+     */
     LockedMemory<const T> readOnly() const noexcept override {
         return {getAllocator().get(), getHandle(), offset};
     }
@@ -106,7 +111,7 @@ protected:
      * @brief Gets an allocator
      * @return An allocator instance
      */
-    const std::shared_ptr<IAllocator> &getAllocator() const noexcept override {
+    const std::shared_ptr<IAllocator>& getAllocator() const noexcept override {
         return realObject->getAllocator();
     }
 
@@ -114,7 +119,7 @@ protected:
      * @brief Gets a handle pointer
      * @return A handle pointer
      */
-    void *getHandle() const noexcept override {
+    void* getHandle() const noexcept override {
         return realObject->getHandle();
     }
 
@@ -123,9 +128,9 @@ protected:
      */
     void checkWindow() {
         if (realObject->size() * realObject->element_size() < base::size() * base::element_size() + offset) {
-            THROW_IE_EXCEPTION << "cannot create proxy, offsetInBytes=" << offset << ", sizeInBytes="
-                               << base::size() * base::element_size() << ", out of original object size="
-                               << realObject->size() * realObject->element_size();
+            THROW_IE_EXCEPTION << "cannot create proxy, offsetInBytes=" << offset
+                               << ", sizeInBytes=" << base::size() * base::element_size()
+                               << ", out of original object size=" << realObject->size() * realObject->element_size();
         }
     }
 

@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 //  gna_helper.cpp : various GNA-related utility functions
 //
-
-#include "lstm.hpp"
 
 #define USING_GCC
 #define PROFILE
@@ -16,6 +14,9 @@
 #include <sstream>
 #include <string>
 #include "gna-api.h"
+#include "gna_plugin_log.hpp"
+
+#include "gna_lib_ver_selector.hpp"
 
 #ifndef WIN32
 #include <profiler.h>
@@ -77,8 +78,10 @@ void profilerRtcStartAccumulate(intel_gna_profiler_rtc *p) {
 //    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &p->start);
 }
 void profilerRtcStopAccumulate(intel_gna_profiler_rtc *p) {
-    timespec diff;
     if (nullptr == p) return;
+// TODO: consider removing dead code from this file
+
+//  timespec diff;
 //    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &p->stop);
 //    if ((p->stop.tv_nsec - p->start.tv_nsec)<0) {
 //        diff.tv_sec = p->stop.tv_sec - p->start.tv_sec - 1;
@@ -116,7 +119,7 @@ void PrintMatrixInt32(char *ptr_name, int32_t *ptr_matrix, int num_rows, int num
 }
 
 void PrintMatrixFloat32(char *ptr_name, float *ptr_matrix, int num_rows, int num_cols, int lda) {
-#if (_WIN32 || _WIN64) && (_MSC_VER < 1900)
+#if (defined _WIN32 || defined _WIN64) && (_MSC_VER < 1900)
     _set_output_format(_TWO_DIGIT_EXPONENT);
 #endif
     printf("%s:  %dx%d lda %d\n", ptr_name, num_rows, num_cols, lda);
@@ -226,7 +229,7 @@ uint32_t BufferOffsetFromAddress(std::vector<intel_memory_region_t> &vBuffer, vo
 }
 
 std::string LayerName(intel_nnet_layer_t *pLayer) {
-    intel_layer_kind_t nKind = pLayer->nLayerKind;
+    const auto nKind = pLayer->nLayerKind;
     std::string sKind;
     if (nKind == INTEL_AFFINE) {
         sKind = "affine";
@@ -244,7 +247,7 @@ std::string LayerName(intel_nnet_layer_t *pLayer) {
 }
 
 uint32_t NumInputs(intel_nnet_layer_t *pLayer) {
-    intel_layer_kind_t nKind = pLayer->nLayerKind;
+    const auto nKind = pLayer->nLayerKind;
     uint32_t nInputs;
     if ((nKind == INTEL_AFFINE) || (nKind == INTEL_AFFINE_DIAGONAL)) {
         nInputs = pLayer->nInputRows;
@@ -260,7 +263,7 @@ uint32_t NumInputs(intel_nnet_layer_t *pLayer) {
 }
 
 uint32_t NumOutputs(intel_nnet_layer_t *pLayer) {
-    intel_layer_kind_t nKind = pLayer->nLayerKind;
+    const auto nKind = pLayer->nLayerKind;
     uint32_t nOutputs;
     if ((nKind == INTEL_AFFINE) || (nKind == INTEL_AFFINE_DIAGONAL)) {
         nOutputs = pLayer->nOutputRows;
@@ -276,7 +279,7 @@ uint32_t NumOutputs(intel_nnet_layer_t *pLayer) {
 }
 
 uint32_t NumGroupSize(intel_nnet_layer_t *pLayer) {
-    intel_layer_kind_t nKind = pLayer->nLayerKind;
+    const auto nKind = pLayer->nLayerKind;
     uint32_t nGroupSize;
     if ((nKind == INTEL_AFFINE) || (nKind == INTEL_AFFINE_DIAGONAL)) {
         nGroupSize = pLayer->nOutputColumns;

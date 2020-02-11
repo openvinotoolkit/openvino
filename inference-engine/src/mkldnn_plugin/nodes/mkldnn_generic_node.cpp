@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -183,7 +183,9 @@ void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &confi
     }
 
     for (size_t j = 0; j < rightConfig.inConfs.size(); j++) {
-        if (getParentEdgeAt(j)->getParent()->getChildEdges().size() > 1) {
+        // TODO: we need to better recognize cases with possible inplace conficts
+        if (getParentEdgeAt(j)->getParent()->getType() != Split &&
+            getParentEdgeAt(j)->getParent()->getChildEdges().size() > 1) {
             rightConfig.inConfs[j].inPlace = -1;
         }
     }
@@ -217,3 +219,5 @@ void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &confi
         constant = ConstantType::Const;
     }
 }
+
+REG_MKLDNN_PRIM_FOR(MKLDNNGenericNode, Generic);

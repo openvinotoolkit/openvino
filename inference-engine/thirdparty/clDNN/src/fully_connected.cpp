@@ -53,13 +53,17 @@ bool is_batch_after_spatial(const std::string order) {
 }  // namespace
 
 layout fully_connected_inst::calc_output_layout(fully_connected_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
-           "Output data type forcing is not supported for "
-           "fully_connected_node!");
     auto desc = node.get_primitive();
 
     auto input_layout = node.input().get_output_layout();
     auto weights_layout = node.weights().get_output_layout();
+    auto output_type = input_layout.data_type;
+    if ((output_type == data_types::u8 || output_type == data_types::i8) && desc->output_data_type)
+        output_type = *desc->output_data_type;
+
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
+    }
 
     if (is_batch_after_spatial(input_layout.format.order()) ||
         (input_layout.format ==
@@ -68,12 +72,12 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
                                              // "is_batch_after_spatial" should return true)
         input_layout.format == format::bs_x_bsv16 ||
         input_layout.format == format::bs_xs_xsv8_bsv8) {
-        auto result = layout(input_layout.data_type,
+        auto result = layout(output_type,
                              format::yxfb,
                              tensor(input_layout.size.batch[0], weights_layout.size.batch[0], 1, 1));
         return result;
     } else {
-        auto result = layout(input_layout.data_type,
+        auto result = layout(output_type,
                              format::bfyx,
                              tensor(input_layout.size.batch[0], weights_layout.size.batch[0], 1, 1));
         return result;

@@ -72,6 +72,19 @@ struct concatenation : public primitive_base<concatenation> {
         const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding), axis(axis) {}
 
+    /// @li Constructs concatenation primitive.
+    /// @param id This primitive id.
+    /// @param input Vector of input primitives ids.
+    /// @param axis Selected dimension for concatenation.
+    /// @param output_dt Data type of output tensor
+    concatenation(
+        const primitive_id& id,
+        const std::vector<primitive_id>& input,
+        const concatenation_axis axis,
+        const data_types output_dt,
+        const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding, optional_data_type{output_dt}), axis(axis) {}
+
     /// @brief Dimension along which concatenation should take place
     concatenation_axis axis;
 };

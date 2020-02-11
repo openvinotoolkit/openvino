@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 
 namespace vpu {
 
-#if ENABLE_PROFILING_RAW
+#ifdef ENABLE_PROFILING_RAW
 
 struct CompileEnv;
 

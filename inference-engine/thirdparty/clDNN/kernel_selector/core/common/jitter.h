@@ -274,14 +274,17 @@ public:
 // target code as that would require looking into several place to understand
 // the logic.
 JitConstants MakeActivationJitConstants(const base_activation_params& params,
+                                        Datatype output_dt,
                                         const std::string& suffix = "",
                                         bool use_type_parameter = false,
                                         bool disable_type_conversion = false);
 JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
+                                        Datatype output_dt,
                                         const std::string& suffix,
                                         bool use_type_parameter,
                                         bool disable_type_conversion = false);
 JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activation_params> params,
+                                        Datatype output_dt,
                                         const std::string& suffix = "",
                                         bool use_type_parameter = false,
                                         bool disable_type_conversion = false);

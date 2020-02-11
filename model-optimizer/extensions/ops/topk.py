@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
+import numpy as np
 
 from mo.graph.graph import Graph
 from mo.ops.op import Op, PermuteAttrs
@@ -28,10 +30,12 @@ class TopK(Op):
             'type': __class__.op,
             'op': __class__.op,
             'infer': self.infer,
+            'type_infer': self.type_infer,
             'axis': None,
-            'mode': None,
+            'mode': 'max',
             'sort': 'none',
-            'force_precision_in_ports': {1: 'int32'},
+            'force_precision_in_ports': {
+                1: 'int32'},
             'in_ports_count': 3,
             'out_ports_count': 2,
         }, attrs)
@@ -67,3 +71,8 @@ class TopK(Op):
         if node.in_port(0).data.get_value() is not None:
             # TODO implement value propagation
             pass
+
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(node.in_port(0).get_data_type())
+        node.out_port(1).set_data_type(np.int32)

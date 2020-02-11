@@ -20,19 +20,25 @@ namespace kernel_selector {
 
 JitConstants PyramidROIAlignKernelBase::GetJitConstants(const PyramidROIAlign_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
+
+    jit.AddConstant(MakeJitConstant("IMAGE_SIZE_X", params.image_size_x));
+    jit.AddConstant(MakeJitConstant("IMAGE_SIZE_Y", params.image_size_y));
+    jit.AddConstant(MakeJitConstant("SAMPLING_RATIO_X", params.sampling_ratio_x));
+    jit.AddConstant(MakeJitConstant("SAMPLING_RATIO_Y", params.sampling_ratio_y));
+    jit.AddConstant(MakeJitConstant("PYRAMID_STARTING_LEVEL", params.pyramid_starting_level));
+
     return jit;
 }
 
-PyramidROIAlignKernelBase::DispatchData PyramidROIAlignKernelBase::SetDefault(const PyramidROIAlign_params& params) {
-    const auto& boxes = params.inputs.at(0);
+PyramidROIAlignKernelBase::DispatchData PyramidROIAlignKernelBase::SetDefault(const PyramidROIAlign_params& params) const {
     DispatchData kd;
 
     kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     std::vector<size_t> global;
-    global = {boxes.Y().v, 1, 1};
+    global = {1, 1, 1};
 
-    const auto& local = GetOptimalLocalWorkGroupSizes(global);
+    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

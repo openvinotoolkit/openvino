@@ -1,17 +1,19 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief POSIX compatible loader for a shared object
+ * 
  * @file lin_shared_object_loader.h
  */
 #pragma once
 
 #include <dlfcn.h>
 
-#include "../../ie_api.h"
-#include "../ie_exception.hpp"
+#include "ie_api.h"
+#include "details/ie_exception.hpp"
+#include "details/os/os_filesystem.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -21,7 +23,7 @@ namespace details {
  */
 class SharedObjectLoader {
 private:
-    void *shared_object = nullptr;
+    void* shared_object = nullptr;
 
 public:
     /**
@@ -35,6 +37,18 @@ public:
         if (shared_object == nullptr)
             THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << dlerror();
     }
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    /**
+     * @brief Loads a library with the name specified. The library is loaded according to
+     *        the POSIX rules for dlopen
+     * @param pluginName Full or relative path to the library
+     */
+    explicit SharedObjectLoader(const wchar_t* pluginName) : SharedObjectLoader(wStringtoMBCSstringChar(pluginName).c_str()) {
+    }
+
+#endif  // ENABLE_UNICODE_PATH_SUPPORT
+
     ~SharedObjectLoader() noexcept(false) {
         if (0 != dlclose(shared_object)) {
             THROW_IE_EXCEPTION << "dlclose failed: " << dlerror();
@@ -47,8 +61,8 @@ public:
      * @return A pointer to the function if found
      * @throws InferenceEngineException if the function is not found
      */
-    void *get_symbol(const char* symbolName) const {
-        void * procAddr = nullptr;
+    void* get_symbol(const char* symbolName) const {
+        void* procAddr = nullptr;
 
         procAddr = dlsym(shared_object, symbolName);
         if (procAddr == nullptr)

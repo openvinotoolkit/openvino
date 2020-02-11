@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,14 +13,17 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
+
 from extensions.ops.activation_ops import Sigmoid, Tanh
-from mo.front.caffe.extractors.utils import embed_input
+from extensions.ops.split import Split
+from mo.front.caffe.extractors.utils import input_as_const
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
 from mo.ops.concat import Concat
+from mo.ops.const import Const
 from mo.ops.eltwise import Eltwise
 from mo.ops.scale_shift import ScaleShiftOp
-from mo.ops.split import Split
 
 
 class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
@@ -31,19 +34,23 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         from extensions.front.restore_ports import RestorePorts
         return [RestorePorts]
 
+    def run_before(self):
+        from extensions.front.MatMul_normalizer import FullyConnectedDecomposer
+        return [FullyConnectedDecomposer]
+
     def replace_op(self, graph: Graph, node: Node):
         # split input to (i_part, f_part, c_part, o_part, ct_1)
+        split_node_axis = Const(graph, {'value': np.int64(1)}).create_node()
         split_node = Split(graph, {'name': graph.unique_id(prefix='Split_lstm_input_'),
-                                   'num_split': 5}).create_node()
+                                   'num_splits': 5}).create_node()
         node.in_port(0).get_connection().set_destination(split_node.in_port(0))
-        for i in range(5):
-            split_node.add_output_port(i)
+        split_node.in_port(1).connect(split_node_axis.out_port(0))
 
         # i_t = Sigmoid(i_part + w_ic*ct_1)
         i_scale_attrs = {'name': graph.unique_id(prefix='i_scaleshift'),
                          'bias_term': False}
-        embed_input(i_scale_attrs, 1, 'weights', node.i_weights)
         i_scale = ScaleShiftOp(graph, i_scale_attrs).create_node()
+        input_as_const(i_scale, i_scale_attrs, 1, 'weights', node.i_weights)
         split_node.out_port(4).connect(i_scale.in_port(0))
 
         sum_i_c = Eltwise(graph, {'name': graph.unique_id(prefix='sum_i_c_'), 'operation': 'sum'}).create_node()
@@ -56,8 +63,8 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         # f_t = Sigmoid(f_part + w_fc*ct_1)
         f_scale_attrs = {'name': graph.unique_id(prefix='f_scaleshift'),
                          'bias_term': False}
-        embed_input(f_scale_attrs, 1, 'weights', node.f_weights)
         f_scale = ScaleShiftOp(graph, f_scale_attrs).create_node()
+        input_as_const(f_scale, f_scale_attrs, 1, 'weights', node.f_weights)
         split_node.out_port(4).connect(f_scale.in_port(0))
 
         sum_f_c = Eltwise(graph, {'name': graph.unique_id(prefix='sum_f_c_'), 'operation': 'sum'}).create_node()
@@ -88,8 +95,8 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         #  o_t = Sigmoid(o_part + w_oc*c_t)
         o_scale_attrs = {'name': graph.unique_id(prefix='o_scaleshift'),
                          'bias_term': False}
-        embed_input(o_scale_attrs, 1, 'weights', node.o_weights)
         o_scale = ScaleShiftOp(graph, o_scale_attrs).create_node()
+        input_as_const(o_scale, o_scale_attrs, 1, 'weights', node.o_weights)
         sum_f_i.out_port(0).connect(o_scale.in_port(0))
 
         sum_o_c = Eltwise(graph, {'name': graph.unique_id(prefix='sum_o_c_'), 'operation': 'sum'}).create_node()

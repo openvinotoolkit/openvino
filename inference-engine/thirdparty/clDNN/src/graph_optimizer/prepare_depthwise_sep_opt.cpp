@@ -21,6 +21,14 @@
 
 template <typename T>
 void prepare_depthwise_sep_opt::optimize_depthwise_sep_pre(T& node) {
+    // Enable depthwise separable opt for quantized kernels, since fused ops don't support split at this moment
+    if (node.get_groups() > 1 &&
+       (node.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
+        node.get_dependency(0).get_output_layout().data_type == data_types::i8)) {
+        node.set_depthwise_sep_opt(true);
+        return;
+    }
+
     if (node.get_groups() == 1) {
         // enable optimization only when IFM / split <= 8 (otherwise scheduling multiple opt kernels is better) and
         // split >= 16

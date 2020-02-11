@@ -104,7 +104,6 @@ void compute_ref_conv_bin(const cldnn::memory &src,
     auto weights_data = weights.pointer<data_t_wei>();
     auto dst_data     = dst.pointer<data_t_dst>();
 
-    bool with_groups = p.g > 1;
     int pack_size = sizeof(data_t_src) * 8;
 
     int B = p.b;

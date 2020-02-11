@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "mkldnn_plugin/mkldnn_memory.h"
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_memory.h"
+#include "mkldnn_graph.h"
 
 using namespace std;
 using namespace MKLDNNPlugin;

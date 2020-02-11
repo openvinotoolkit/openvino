@@ -1,24 +1,26 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
+
+#include <cstdint>
 #include <cmath>
 #include <numeric>
+#include <iostream>
+
+#include <runtime/pwl.h>
 
 #include "nnet_base_matcher.hpp"
-#include "dnn.h"
-#include "pwl.h"
-#include "iostream"
 
 class PWLQuantizationMetricsMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
     const float rmse_threshold;
     const uint32_t activation_type;
     const uint16_t segment_threshold;
  public:
-    PWLQuantizationMetricsMatcher(uint32_t type, float presicion_threshold, uint16_t segments) :
+    PWLQuantizationMetricsMatcher(uint32_t type, float precision_threshold, uint16_t segments) :
                                                             activation_type(type),
-                                                            rmse_threshold(presicion_threshold),
+                                                            rmse_threshold(precision_threshold),
                                                             segment_threshold(segments) {}
 
     bool MatchAndExplain(const intel_nnet_type_t *nnet, ::testing::MatchResultListener *listener) const override {

@@ -65,12 +65,19 @@ struct jit_sse42_i8i8_pool_fwd_ker_t : public jit_generator {
     Reg32 reg_src_32 = r15d;
     Reg8 reg_src_8 = r15b;
 
+    Reg64 reg_oc_off = reg_tmp;
+    Reg64 reg_d_weights = aux_reg_src_h;
+    Reg64 reg_d_bias = aux_reg_src_w;
+
     size_t sizeof_src_dt() const { return data_type_size(jpp.src_dt); }
     size_t sizeof_dst_dt() const { return data_type_size(jpp.dst_dt); }
 
     Xmm xmm_tmp = Xmm(0);
     Xmm vreg_tmp = Xmm(14);
     Xmm vreg_zeros = Xmm(15);
+
+    Xmm vmm_d_weights = Xmm(0);
+    Xmm vmm_d_bias = Xmm(1);
 
     /* max pooling */
     Xmm vmm_src(int jj, int ii) {
@@ -114,13 +121,19 @@ struct jit_sse42_i8i8_pool_fwd_ker_t : public jit_generator {
         return Xmm(2*jj + ii + 4 * jpp.ur_c);
     }
 
+    Xmm xmm_dst_f32(int jj, int ii) {
+        return Xmm(2*jj + ii + 4 * jpp.ur_c);
+    }
+
     void (*ker_)(const call_params_t *);
     jit_pool_conf_t jpp;
+    const primitive_attr_t &attr;
 
     void init_tmp_reg();
 
     void load_src(int jj, int c_step);
     void store_dst(int jj, int c_step);
+    void apply_post_ops(int ur_c, int repeats);
 
     void compute_avg_step(int ur_c, int c_step);
     void compute_max_step(int ur_c, int c_step);
@@ -133,8 +146,8 @@ struct jit_sse42_i8i8_pool_fwd_ker_t : public jit_generator {
         const pooling_desc_t &pd, const memory_desc_wrapper &src_d,
         const memory_desc_wrapper &dst_d);
 
-    jit_sse42_i8i8_pool_fwd_ker_t(const jit_pool_conf_t &jpp_)
-           : jpp(jpp_) {
+    jit_sse42_i8i8_pool_fwd_ker_t(const jit_pool_conf_t &jpp_, const primitive_attr_t &attr_)
+           : jpp(jpp_), attr(attr_) {
         generate();
         ker_ = reinterpret_cast<decltype(ker_)>(const_cast<uint8_t*>(
                        getCode()));
@@ -230,11 +243,26 @@ void jit_sse42_i8i8_pool_fwd_ker_t::store_dst(int jj, int c_step) {
         case pooling_avg_exclude_padding: {
             auto offset = jj*c_step*sizeof_dst_dt();
             switch (jpp.dst_dt) {
+                case f32:
+                    if (c_step == jpp.c_block) {
+                        for (int ii = 0; ii < repeats; ii++) {
+                            uni_vmovups(ptr[reg_ptr_dst_i8 + offset + (jpp.c_block / 2) * ii * sizeof_dst_dt()],
+                                        vmm_dst_f32(jj, ii));
+                        }
+                    } else if (c_step == 1) {
+                        movq(reg_src_64, xmm_dst_f32(jj, 0));
+                        mov(ptr[reg_ptr_dst_i8 + offset], reg_src_32);
+                    }
+                    break;
                 case s32:
                     if (c_step == jpp.c_block) {
-                        for (int ii = 0; ii < repeats; ii++)
-                            uni_vmovups(ptr[reg_ptr_dst_i8 + offset + (jpp.c_block / 2) * ii * sizeof_dst_dt()], vmm_dst_s32(jj, ii));
+                        for (int ii = 0; ii < repeats; ii++) {
+                            uni_vcvtps2dq(vmm_dst_s32(jj, ii), vmm_dst_f32(jj, ii));
+                            uni_vmovups(ptr[reg_ptr_dst_i8 + offset + (jpp.c_block / 2) * ii * sizeof_dst_dt()],
+                                        vmm_dst_s32(jj, ii));
+                        }
                     } else if (c_step == 1) {
+                        uni_vcvtps2dq(vmm_dst_s32(jj, 0), vmm_dst_f32(jj, 0));
                         movq(reg_src_64, xmm_dst_s32(jj, 0));
                         mov(ptr[reg_ptr_dst_i8 + offset], reg_src_32);
                     }
@@ -242,12 +270,14 @@ void jit_sse42_i8i8_pool_fwd_ker_t::store_dst(int jj, int c_step) {
                 case s8:
                     if (c_step == jpp.c_block) {
                         for (int ii = 0; ii < repeats; ii++) {
+                            uni_vcvtps2dq(vmm_dst_s32(jj, ii), vmm_dst_f32(jj, ii));
                             uni_vpackssdw(vmm_dst_s32(jj, ii), vmm_dst_s32(jj, ii), vmm_dst_s32(jj, ii));
                             uni_vpacksswb(xmm_dst_s32(jj, ii), xmm_dst_s32(jj, ii), xmm_dst_s32(jj, ii));
 
                             movd(ptr[reg_ptr_dst_i8 + offset + (jpp.c_block / 2) * ii * sizeof_dst_dt()], xmm_dst_s32(jj, ii));
                         }
                     } else if (c_step == 1) {
+                        uni_vcvtps2dq(vmm_dst_s32(jj, 0), vmm_dst_f32(jj, 0));
                         vpackssdw(vmm_dst_s32(jj, 0), vmm_dst_s32(jj, 0), vmm_dst_s32(jj, 0));
                         vpacksswb(xmm_dst_s32(jj, 0), xmm_dst_s32(jj, 0), xmm_dst_s32(jj, 0));
                         movq(reg_src_64, xmm_dst_s32(jj, 0));
@@ -257,12 +287,14 @@ void jit_sse42_i8i8_pool_fwd_ker_t::store_dst(int jj, int c_step) {
                 case u8:
                     if (c_step == jpp.c_block) {
                         for (int ii = 0; ii < repeats; ii++) {
+                            uni_vcvtps2dq(vmm_dst_s32(jj, ii), vmm_dst_f32(jj, ii));
                             uni_vpackusdw(vmm_dst_s32(jj, ii), vmm_dst_s32(jj, ii), vmm_dst_s32(jj, ii));
                             uni_vpackuswb(xmm_dst_s32(jj, ii), xmm_dst_s32(jj, ii), xmm_dst_s32(jj, ii));
 
                             movd(ptr[reg_ptr_dst_i8 + offset + (jpp.c_block / 2) * ii * sizeof_dst_dt()], xmm_dst_s32(jj, ii));
                         }
                     } else if (c_step == 1) {
+                        uni_vcvtps2dq(vmm_dst_s32(jj, 0), vmm_dst_f32(jj, 0));
                         vpackusdw(vmm_dst_s32(jj, 0), vmm_dst_s32(jj, 0), vmm_dst_s32(jj, 0));
                         vpackuswb(xmm_dst_s32(jj, 0), xmm_dst_s32(jj, 0), xmm_dst_s32(jj, 0));
                         movq(reg_src_64, xmm_dst_s32(jj, 0));
@@ -274,6 +306,73 @@ void jit_sse42_i8i8_pool_fwd_ker_t::store_dst(int jj, int c_step) {
             break;
         }
         default: assert(!"unsupported pooling algorithm");
+    }
+}
+
+void jit_sse42_i8i8_pool_fwd_ker_t::apply_post_ops(int ur_c, int repeats) {
+    const auto &p = attr.post_ops_;
+    for (int i = 0; i < p.len_; i++) {
+        auto& post_op = p.entry_[i];
+        if (post_op.is_quantization()) {
+            bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
+            bool do_rounding = do_dequantization || jpp.dst_dt == mkldnn_f32 || i != p.len_ - 1;
+
+            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.crop_low_data));
+            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.crop_high_data));
+
+            add(reg_d_weights, reg_oc_off);
+            add(reg_d_bias, reg_oc_off);
+
+            for (int jj = 0; jj < ur_c; jj++) {
+                for (int ii = 0; ii < repeats; ii++) {
+                    uni_vmovups(vmm_d_weights, ptr[reg_d_weights + (ii * (jpp.c_block / 2) + jj * jpp.c_block) * sizeof(float)]);
+                    uni_vmovups(vmm_d_bias, ptr[reg_d_bias + (ii * (jpp.c_block / 2) + jj * jpp.c_block) * sizeof(float)]);
+
+                    Xmm vmm_dst = vmm_dst_f32(jj, ii);
+
+                    uni_vmaxps(vmm_dst, vmm_dst, vmm_d_weights);
+                    uni_vminps(vmm_dst, vmm_dst, vmm_d_bias);
+                }
+            }
+
+            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.input_scale_data));
+            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.input_shift_data));
+
+            add(reg_d_weights, reg_oc_off);
+            add(reg_d_bias, reg_oc_off);
+
+            for (int jj = 0; jj < ur_c; jj++) {
+                for (int ii = 0; ii < repeats; ii++) {
+                    uni_vmovups(vmm_d_weights, ptr[reg_d_weights + (ii * (jpp.c_block / 2) + jj * jpp.c_block) * sizeof(float)]);
+                    uni_vmovups(vmm_d_bias, ptr[reg_d_bias + (ii * (jpp.c_block / 2) + jj * jpp.c_block) * sizeof(float)]);
+
+                    Xmm vmm_dst = vmm_dst_f32(jj, ii);
+
+                    uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
+                    if (do_rounding)
+                        uni_vroundps(vmm_dst, vmm_dst, 0);
+                }
+            }
+
+            if (do_dequantization) {
+                mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.output_scale_data));
+                mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.output_shift_data));
+
+                add(reg_d_weights, reg_oc_off);
+                add(reg_d_bias, reg_oc_off);
+
+                for (int jj = 0; jj < ur_c; jj++) {
+                    for (int ii = 0; ii < repeats; ii++) {
+                        uni_vmovups(vmm_d_weights, ptr[reg_d_weights + (ii * (jpp.c_block / 2) + jj * jpp.c_block) * sizeof(float)]);
+                        uni_vmovups(vmm_d_bias, ptr[reg_d_bias + (ii * (jpp.c_block / 2) + jj * jpp.c_block) * sizeof(float)]);
+
+                        Xmm vmm_dst = vmm_dst_f32(jj, ii);
+
+                        uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -380,10 +479,12 @@ void jit_sse42_i8i8_pool_fwd_ker_t::compute_avg_step(int ur_c, int c_step)
             uni_vcvtdq2ps(vmm_dst_f32(jj, ii), vmm_dst_s32(jj, ii));
 
             mulps(vmm_dst_f32(jj, ii), vreg_tmp);
-
-            uni_vcvtps2dq(vmm_dst_s32(jj, ii), vmm_dst_f32(jj, ii));
         }
+    }
 
+    apply_post_ops(ur_c, repeats);
+
+    for (int jj = 0; jj < ur_c; jj++) {
         store_dst(jj, c_step);
     }
 }
@@ -407,6 +508,7 @@ void jit_sse42_i8i8_pool_fwd_ker_t::compute_c_block() {
     int ur_c = jpp.ur_c;
 
     xor_(c_iter, c_iter);
+    xor_(reg_oc_off, reg_oc_off);
 
     L(l_main_loop);
     {
@@ -418,6 +520,8 @@ void jit_sse42_i8i8_pool_fwd_ker_t::compute_c_block() {
         add(reg_ptr_src_i8, ur_c * jpp.c_block * sizeof_src_dt());
         add(reg_ptr_dst_i8, ur_c * jpp.c_block * sizeof_dst_dt());
         add(c_iter, ur_c * jpp.c_block);
+        add(reg_oc_off, ur_c * jpp.c_block * sizeof(float));
+
         jmp(l_main_loop);
     }
 
@@ -431,6 +535,8 @@ void jit_sse42_i8i8_pool_fwd_ker_t::compute_c_block() {
         add(reg_ptr_src_i8, ur_c * sizeof_src_dt());
         add(reg_ptr_dst_i8, ur_c * sizeof_dst_dt());
         add(c_iter, ur_c);
+        add(reg_oc_off, ur_c * sizeof(float));
+
         jmp(l_tail_loop);
     }
 
@@ -540,7 +646,7 @@ status_t jit_sse42_i8i8_pooling_fwd_t::pd_t::jit_conf() {
 jit_sse42_i8i8_pooling_fwd_t::jit_sse42_i8i8_pooling_fwd_t(const pd_t *apd,
           const input_vector &inputs, const output_vector &outputs)
     : cpu_primitive_t(apd, inputs, outputs), ker_(nullptr)
-{ ker_ = new jit_sse42_i8i8_pool_fwd_ker_t(pd()->jpp_); }
+{ ker_ = new jit_sse42_i8i8_pool_fwd_ker_t(pd()->jpp_, *pd()->attr()); }
 
 jit_sse42_i8i8_pooling_fwd_t::~jit_sse42_i8i8_pooling_fwd_t() {
     delete ker_;

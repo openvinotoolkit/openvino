@@ -23,15 +23,18 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct quantize_params : public base_params {
     quantize_params() : base_params(KernelType::QUANTIZE),
-    levels(0), packed_binary_output(false) {}
+    levels(0), packed_binary_output(false), scale_shift_opt(false) {}
 
     int levels;
     bool packed_binary_output;
+    bool scale_shift_opt;
 
     virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();
         if (packed_binary_output)
             k.EnableQuantizePackedBinaryOutput();
+        if (scale_shift_opt)
+            k.EnableQuantizeScaleShiftOpt();
         return k;
     }
 };
@@ -41,6 +44,21 @@ struct quantize_params : public base_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct quantize_optional_params : optional_params {
     quantize_optional_params() : optional_params(KernelType::QUANTIZE) {}
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// quantize_fuse_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct quantize_fuse_params : fuse_params {
+    quantize_fuse_params(bool scale_shift_opt, bool has_post_scale, bool has_post_shift)
+    : fuse_params(KernelType::QUANTIZE)
+    , scale_shift_opt(scale_shift_opt)
+    , has_post_scale(has_post_scale)
+    , has_post_shift(has_post_shift) { }
+
+    bool scale_shift_opt;
+    bool has_post_scale;
+    bool has_post_shift;
 };
 
 }  // namespace kernel_selector

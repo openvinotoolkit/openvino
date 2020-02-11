@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ from mo.utils.error import FrameworkError
 
 
 class TestMainErrors(unittest.TestCase):
-    @patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace())
+    @patch('argparse.ArgumentParser.parse_args', return_value=argparse.Namespace(generate_deprecated_IR_V7=False))
     @patch('mo.main.driver', side_effect=FrameworkError('FW ERROR MESSAGE'))
     def test_FrameworkError(self, mock_argparse, mock_driver):
         with self.assertLogs() as logger:

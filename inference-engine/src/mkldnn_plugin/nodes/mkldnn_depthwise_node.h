@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,8 +45,6 @@ public:
 private:
     void initValues();
     bool initialized = false;
-
-    static Register<MKLDNNDepthwiseNode> reg;
 
     mkldnn::algorithm algorithm = mkldnn::algorithm::depthwise_scale_shift;
     size_t realWeightSize = 0;

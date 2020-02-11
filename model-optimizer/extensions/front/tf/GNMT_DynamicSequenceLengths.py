@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ class GNMT_sequence_lengths(FrontReplacementPattern):
         return dict(
             nodes=[
                 ('loop_cond', dict(kind='op', op='LoopCond')),
-                ('logical_not', dict(kind='op', op='Not')),
+                ('logical_not', dict(kind='op', op='LogicalNot')),
 
                 ('all', dict(kind='op', op='ReduceAnd')),
 

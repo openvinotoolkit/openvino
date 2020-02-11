@@ -33,11 +33,11 @@ KERNEL(convolution_depthwise_weights_lwg)(
 #endif
     uint split_idx)
 {
-    const uint yx = get_global_id(0);
+    const uint yx = (uint)get_global_id(0);
     const uint x = yx % OUTPUT_SIZE_X;
     const uint y = yx / OUTPUT_SIZE_X;
-    const uint f = get_global_id(1);
-    const uint b = get_global_id(2);
+    const uint f = (uint)get_global_id(1);
+    const uint b = (uint)get_global_id(2);
 
     UNIT_TYPE dotProd = UNIT_VAL_ZERO;
 

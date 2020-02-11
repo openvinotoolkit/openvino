@@ -35,6 +35,12 @@ protected:
     std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
         return {WeightsLayout::o_i_yx_i16_o16};
     }
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ELTWISE,
+                 FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
     bool Validate(const Params& p, const optional_params& o) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;

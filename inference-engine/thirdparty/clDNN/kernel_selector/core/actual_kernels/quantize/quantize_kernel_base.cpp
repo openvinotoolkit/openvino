@@ -53,7 +53,7 @@ JitConstants QuantizeKernelBase::GetJitConstants(const quantize_params& params) 
         }
     }
 
-    jit.AddConstant(MakeJitConstant("LEVELS", params.levels));
+    jit.AddConstant(MakeJitConstant("LEVELS", static_cast<float>(params.levels)));
 
     return jit;
 }
