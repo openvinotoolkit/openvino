@@ -20,9 +20,9 @@
 #include "ocl_builder.h"
 
 #include "kernels_cache.h"
-#include "engine_info.h"
+#include "device_info.h"
 #include "event_impl.h"
-#include "confiugration.h"
+#include "configuration.h"
 
 #include <memory>
 #include <chrono>
@@ -48,7 +48,7 @@ class events_pool;
 class gpu_queue {
 public:
     const cl::CommandQueue& queue() const { return _command_queue; }
-    gpu_queue(int id, cl::CommandQueue queue, std::shared_ptr<gpu_toolkit> context);
+    gpu_queue(uint32_t id, cl::CommandQueue queue, std::shared_ptr<gpu_toolkit> context);
     gpu_queue(gpu_queue&& other)
         : id(other.id),
           _context(other._context),
@@ -90,10 +90,11 @@ public:
     void reset_events();
     event_impl::ptr create_user_event(bool set);
     void release_events_pool();
+    std::shared_ptr<gpu_toolkit> context() { return _context.lock(); }
 
 private:
-    int id;
-    std::shared_ptr<gpu_toolkit> _context;
+    uint32_t id;
+    std::weak_ptr<gpu_toolkit> _context;
     cl::CommandQueue _command_queue;
     std::atomic<uint64_t> _queue_counter{0};
     std::atomic<uint64_t> _last_barrier{0};

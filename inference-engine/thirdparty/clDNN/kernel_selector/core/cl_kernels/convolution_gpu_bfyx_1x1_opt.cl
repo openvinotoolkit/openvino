@@ -25,10 +25,10 @@ KERNEL(convolution)(
 #endif
     uint split_idx)
 {
-    const uint group_x = get_group_id(0) * OUT_BLOCK_WIDTH;
-    const uint group_y = get_group_id(1) * OUT_BLOCK_HEIGHT;
-    const uint f = (get_group_id(2) * SIMD_SIZE * OUT_BLOCK_DEPTH) % OUTPUT_FEATURE_NUM;
-    const uint b = (get_group_id(2) * SIMD_SIZE * OUT_BLOCK_DEPTH) / OUTPUT_FEATURE_NUM;;
+    const uint group_x = (uint)get_group_id(0) * OUT_BLOCK_WIDTH;
+    const uint group_y = (uint)get_group_id(1) * OUT_BLOCK_HEIGHT;
+    const uint f = ((uint)get_group_id(2) * SIMD_SIZE * OUT_BLOCK_DEPTH) % OUTPUT_FEATURE_NUM;
+    const uint b = ((uint)get_group_id(2) * SIMD_SIZE * OUT_BLOCK_DEPTH) / OUTPUT_FEATURE_NUM;;
 
     const uint ifm_part = get_sub_group_id();
     uint ifm_offset = ifm_part* OUT_BLOCK_DEPTH/2;

@@ -32,19 +32,14 @@ void pre_optimize_bias::run(program_impl& p) { run(p, _rf); }
 // function which prepares given primitive for weights optimization
 template <typename T>
 void pre_optimize_bias::optimize_bias(T& node, reorder_factory& rf, program_impl& p) {
-    layout output_layout = node.get_output_layout();
-
     size_t weights_offset = node.get_primitive()->input.size();
     size_t bias_offset = weights_offset + program_helpers::wrap_if_single(node.get_primitive()->weights).size();
     for (size_t i = bias_offset; i < node.get_dependencies().size() - node.get_fused_inputs_count(); ++i) {
         // find weights primitive with given pimitive_id and add it to weights_optimizer
         const program_node& bias = node.get_dependency(i);
-        auto new_layout = layout(output_layout.data_type,
+        auto new_layout = layout(bias.get_output_layout().data_type,
                                  format::bfyx,
                                  { 1, static_cast<tensor::value_type>(bias.get_output_layout().count()), 1, 1 });
-        if (new_layout.data_type == data_types::bin) {
-            new_layout.data_type = bias.get_output_layout().data_type;
-        }
         auto reorder = rf.get_reorder(bias.id(),
                                       bias.get_output_layout(),
                                       new_layout);
@@ -67,13 +62,11 @@ template void pre_optimize_bias::optimize_bias<embed_node>(embed_node& node, reo
 void pre_optimize_bias::run(program_impl& p, reorder_factory& rf) {
     for (auto& prim : p.get_processing_order()) {
         if (prim->type() == convolution::type_id()) {
-            if (!prim->as<convolution>().weights_quantization_term())
-                optimize_bias(prim->as<convolution>(), rf, p);
+            optimize_bias(prim->as<convolution>(), rf, p);
         } else if (prim->type() == deconvolution::type_id()) {
             optimize_bias(prim->as<deconvolution>(), rf, p);
         } else if (prim->type() == fully_connected::type_id()) {
-            if (!prim->as<fully_connected>().weights_quantization_term())
-                optimize_bias(prim->as<fully_connected>(), rf, p);
+            optimize_bias(prim->as<fully_connected>(), rf, p);
         } else if (prim->type() == embed::type_id()) {
             optimize_bias(prim->as<embed>(), rf, p);
         }

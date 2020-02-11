@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <tests_file_utils.hpp>
 #include "details/ie_exception.hpp"
 #include <fstream>
+#include <string>
 
 #include <sys/stat.h>
 

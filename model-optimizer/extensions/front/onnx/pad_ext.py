@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,11 +25,11 @@ class PadFrontExtractor(FrontExtractorOp):
     op = 'Pad'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         mode = onnx_attr(node, 'mode', 's', default='constant', dst_type=lambda x: x.decode())
         pads = onnx_attr(node, 'pads', 'ints', dst_type=lambda x: np.array(x, dtype=np.int64))
-        value = onnx_attr(node, 'value', 'f', default=0)
+        value = onnx_attr(node, 'value', 'f', default=0.)
 
         assert pads is not None
 
@@ -41,4 +41,4 @@ class PadFrontExtractor(FrontExtractorOp):
         pads = np.transpose(pads.reshape([2, -1]))
 
         Pad.update_node_stat(node, {'mode': mode, 'pads': pads, 'fill_value': value})
-        return __class__.enabled
+        return cls.enabled

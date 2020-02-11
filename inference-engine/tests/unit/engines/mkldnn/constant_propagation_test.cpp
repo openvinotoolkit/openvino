@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <ie_common.h>
 #include <ie_layers.h>
 #include <tests_common.hpp>
-#include <mkldnn_plugin/mkldnn_extension_mngr.h>
+#include <mkldnn_extension_mngr.h>
 #include "graph/test_graph.hpp"
 
 using namespace ::testing;
@@ -68,11 +68,6 @@ private:
 class ConstLayerFactory : public InferenceEngine::ILayerImplFactory {
 public:
     ConstLayerFactory(const InferenceEngine::CNNLayer *layer): cnnLayer(*layer) {}
-    // set output shapes by input shapes.
-    InferenceEngine::StatusCode getShapes(const std::vector<InferenceEngine::TensorDesc>& inShapes, std::vector<InferenceEngine::TensorDesc>& outShapes, InferenceEngine::ResponseDesc *resp) noexcept override {
-        outShapes.push_back(inShapes[0]);
-        return InferenceEngine::OK;
-    }
     // First implementation has more priority than next
     InferenceEngine::StatusCode getImplementations(std::vector<InferenceEngine::ILayerImpl::Ptr>& impls, InferenceEngine::ResponseDesc *resp) noexcept override {
         impls.push_back(InferenceEngine::ILayerImpl::Ptr(new ConstLayerImpl(&cnnLayer)));

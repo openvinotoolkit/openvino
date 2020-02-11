@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,6 @@ public:
     MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 private:
-    static Register<MKLDNNBatchNormalizationNode> reg;
     float eps = 0.0f;
     MKLDNNMemoryDesc GetVarianceDesc(const mkldnn::memory::primitive_desc& primitive_desc) const;
     MKLDNNMemoryDesc GetMeanDesc(const mkldnn::memory::primitive_desc& primitive_desc) const;

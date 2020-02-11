@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,14 +15,14 @@
 """
 
 import logging as log
+import math
 from typing import Dict
 
-import math
 import numpy as np
 
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
-from mo.front.common.layout import get_height_dim, get_width_dim
+from mo.front.common.layout import get_height_dim, get_width_dim, get_depth_dim
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
@@ -55,6 +55,10 @@ class UpsampleToResample(MiddleReplacementPattern):
         log.debug('UpsampleToResample is triggered')
         upsample = match['upsample']
         input_shape = upsample.in_port(0).data.get_shape()
+        input_shape_rank = len(input_shape)
+        if input_shape_rank not in [4, 5]:
+            log.warning('The input shape is not 4D or 5D for op {}'.format(upsample.soft_get('name')))
+            return
 
         if len(upsample.in_nodes()) == 2:
             if upsample.in_node(1).value is None:
@@ -69,21 +73,20 @@ class UpsampleToResample(MiddleReplacementPattern):
             height_scale = upsample['height_scale']
             width_scale = upsample['width_scale']
 
-        if not math.isclose(height_scale, width_scale, rel_tol=1e-5):
-            return
-
         if 1 in upsample.in_ports() and not upsample.in_port(1).disconnected():
             upsample.in_port(1).disconnect()
 
-        factor_value = width_scale
-        factor = Const(graph, {'value': np.array(factor_value)}).create_node()
+        factor = Const(graph, {'value': np.array([height_scale, width_scale])}).create_node()
 
         shape = Shape(graph, {'name': upsample.name + '/0_port'}).create_node()
 
-        begin = Const(graph, {'value': int64_array([get_height_dim(graph.graph['layout'],
-                                                                   len(input_shape))])}).create_node()
-        end = Const(graph, {'value': int64_array([get_width_dim(graph.graph['layout'],
-                                                                len(input_shape)) + 1])}).create_node()
+        layout = graph.graph['layout']
+        if input_shape_rank == 4:
+            begin = Const(graph, {'value': int64_array([get_height_dim(layout, input_shape_rank)])}).create_node()
+        else:
+            begin = Const(graph, {'value': int64_array([get_depth_dim(layout, input_shape_rank)])}).create_node()
+        end = Const(graph, {'value': int64_array([get_width_dim(layout, input_shape_rank) + 1])}).create_node()
+
         stride = Const(graph, {'value': int64_array([1])}).create_node()
         ss = StridedSlice(graph, {'name': upsample.name + '/ss_0_port', 'begin_mask': np.array([1]),
                                   'end_mask': np.array([0]), 'new_axis_mask': np.array([0]),
@@ -102,11 +105,16 @@ class UpsampleToResample(MiddleReplacementPattern):
         factor.out_port(0).connect(mul.in_port(1))
 
         # Create Interpolate operation
-        axes = int64_array([get_height_dim(graph.graph['layout'], len(input_shape)),
-                            get_width_dim(graph.graph['layout'], len(input_shape))])
+        if input_shape_rank == 4:
+            axes = int64_array([get_height_dim(layout, input_shape_rank),
+                                get_width_dim(layout, input_shape_rank)])
+        else:
+            axes = int64_array([get_depth_dim(layout, input_shape_rank),
+                                get_height_dim(layout, input_shape_rank),
+                                get_width_dim(layout, input_shape_rank)])
+
         resample_op = Interpolate(graph, dict(name='Interpolate/{}'.format(upsample.name),
-                                              factor=factor_value, axes=axes,
-                                              mode=upsample.attrs()['mode'],
+                                              axes=axes, mode=upsample.attrs()['mode'],
                                               antialias=0, convert_to_resample=True)).create_node()
 
         upsample.add_input_port(1, skip_if_exist=True)
@@ -115,3 +123,4 @@ class UpsampleToResample(MiddleReplacementPattern):
 
         upsample.in_port(0).get_connection().set_destination(resample_op.in_port(0))
         upsample.out_port(0).get_connection().set_source(resample_op.out_port(0))
+

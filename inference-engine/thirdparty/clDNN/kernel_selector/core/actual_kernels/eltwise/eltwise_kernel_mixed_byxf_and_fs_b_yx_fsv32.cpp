@@ -17,6 +17,7 @@
 #include "kernel_selector_utils.h"
 #include <string>
 #include <memory>
+#include <vector>
 
 namespace kernel_selector {
 
@@ -74,6 +75,11 @@ bool EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::Validate(const Params& params, 
         return false;
     }
 
+    for (auto in : inputs) {
+        if (in.GetLayout() != DataLayout::fs_b_yx_fsv32 && in.GetLayout() != DataLayout::byxf)
+            return false;
+    }
+
     const auto& input1 = inputs[0];
     const auto& input2 = inputs[1];
 
@@ -105,10 +111,29 @@ KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Par
         cldnn_jit.AddConstants({
             MakeJitConstant("INPUT_0_0", "tmp_input_0"),
             MakeJitConstant("INPUT_0_1", "tmp_input_1"),
-            GetJit_GetIndexForDataLayout("GET_INPUT_0_DATA_INDEX(b,f,y,x)", "INPUT0", newParams.inputs[0].GetLayout()),
-            GetJit_GetIndexForDataLayout("GET_INPUT_1_DATA_INDEX(b,f,y,x)", "INPUT1", newParams.inputs[1].GetLayout()),
-            GetJit_GetIndexForDataLayout("GET_OUTPUT_DATA_INDEX(b,f,y,x)", "OUTPUT", newParams.output.GetLayout()),
-        });
+            });
+
+        auto input0 = newParams.inputs[0];
+        std::vector<size_t> inp0_bfyx = { input0.Batch().v, input0.Feature().v, input0.Y().v, input0.X().v };
+        auto input1 = newParams.inputs[1];
+        std::vector<size_t> inp1_bfyx = { input1.Batch().v, input1.Feature().v, input1.Y().v, input1.X().v };
+        std::vector<std::string> bfyx_str   = { "b", "f0", "y", "x" };
+        std::vector<std::string> dims_names = { "BATCH_NUM", "FEATURE_NUM", "SIZE_Y", "SIZE_X" };
+        for (size_t dim = 0; dim < inp0_bfyx.size(); dim++) {
+            std::string dim_str = bfyx_str[dim];
+            std::string jit_str_inp0 = dim_str;
+            std::string jit_str_inp1 = dim_str;
+            if (inp0_bfyx[dim] > inp1_bfyx[dim]) {
+                jit_str_inp1 += " % INPUT1_" + dims_names[dim];
+            } else if (inp0_bfyx[dim] < inp1_bfyx[dim]) {
+                jit_str_inp0 += " % INPUT0_" + dims_names[dim];
+            }
+            cldnn_jit.AddConstants({
+                MakeJitConstant("INPUT0_DIM_" + dim_str, jit_str_inp0),
+                MakeJitConstant("INPUT1_DIM_" + dim_str, jit_str_inp1)
+                });
+        }
+
         jit = CreateJit(kernelName, cldnn_jit, entry_point);
     } catch (const std::runtime_error&) {
         return KernelsData();

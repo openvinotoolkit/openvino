@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,11 +46,18 @@ public:
             wasCalled = true;
         }
         for (size_t i = 0; i < inputs.size(); i++) {
-            auto inputBlob = inputs[i];
-            auto outputBlob = outputs[i];
-            auto inputData = inputBlob->buffer().as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>();
-            auto outputData = outputBlob->buffer().as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>();
-            for (size_t j = 0; j < inputBlob->size(); j++) {
+            InferenceEngine::MemoryBlob::CPtr minput = InferenceEngine::as<InferenceEngine::MemoryBlob>(inputs[i]);
+            InferenceEngine::MemoryBlob::Ptr moutput = InferenceEngine::as<InferenceEngine::MemoryBlob>(outputs[i]);
+            if (!moutput || !minput) {
+                return InferenceEngine::StatusCode::PARAMETER_MISMATCH;
+            }
+            // locked memory holder should be alive all time while access to its buffer happens
+            auto minputHolder = minput->rmap();
+            auto moutputHolder = moutput->wmap();
+
+            auto inputData = minputHolder.as<const float *>();
+            auto outputData = moutputHolder.as<float  *>();
+            for (size_t j = 0; j < minput->size(); j++) {
                 outputData[j] = inputData[j] < 0 ? 0 : inputData[j];
             }
         }
@@ -90,7 +97,11 @@ public:
             wasCalled = true;
         }
         for (const auto& blob : inBlobs) {
-            outShapes.push_back(blob->getTensorDesc().getDims());
+            InferenceEngine::MemoryBlob::CPtr blobm = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+            if (!blobm) {
+                return InferenceEngine::StatusCode::PARAMETER_MISMATCH;
+            }
+            outShapes.push_back(blobm->getTensorDesc().getDims());
         }
         return InferenceEngine::StatusCode::OK;
     }

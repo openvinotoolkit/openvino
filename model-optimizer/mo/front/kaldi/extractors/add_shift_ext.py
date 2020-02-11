@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ class AddShiftFrontExtractor(FrontExtractorOp):
     op = 'addshift'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         pb = node.parameters
         read_learning_info(pb)
         biases = read_binary_vector(pb)
@@ -35,4 +35,4 @@ class AddShiftFrontExtractor(FrontExtractorOp):
         embed_input(mapping_rule, 1, 'weights', np.ones(biases.shape))
         embed_input(mapping_rule, 2, 'biases', biases)
         ScaleShiftOp.update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        return cls.enabled

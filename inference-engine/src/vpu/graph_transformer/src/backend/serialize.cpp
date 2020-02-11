@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@
 namespace vpu {
 
 void BackEnd::serialize(
-        const Model::Ptr& model,
+        const Model& model,
         std::vector<char>& blob,
         std::pair<char*, size_t>& blobHeader,
         int& numActiveStages) {

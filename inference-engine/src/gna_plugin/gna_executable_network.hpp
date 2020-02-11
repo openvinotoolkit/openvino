@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,12 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
 
     void Export(const std::string &modelFileName) override {
         plg->Export(modelFileName);
+    }
+
+    using ExecutableNetworkInternal::Export;
+
+    void ExportImpl(std::ostream&) override {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 };
 }  // namespace GNAPluginNS

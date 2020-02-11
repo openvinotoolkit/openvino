@@ -28,20 +28,8 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
     const auto x_size = input.LogicalSize() / input.Batch().v;
 
     jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", x_size));
-    jit.AddConstant(MakeJitConstant("QUANTIZATION_TERM", params.int8_quantization));
 
-    if (params.int8_quantization) {
-        jit.AddConstants({MakeJitConstant("W_QF", params.weights_quantization_factors[0])});
-        jit.AddConstants({MakeJitConstant("I_QF", params.input_quantization_factor)});
-
-        if (params.output_calibration) {
-            jit.AddConstant(MakeJitConstant("CALIBRATION_TERM", params.output_calibration));
-            jit.AddConstant(MakeJitConstant("O_QF", params.output_calibration_factors[0]));
-
-        } else {
-            jit.AddConstants({MakeJitConstant("O_QF", params.output_quantization_factor)});
-        }
-    }
+    jit.AddConstant(MakeJitConstant("QUANTIZATION_TERM", params.quantization != QuantizationType::NONE));
 
     return jit;
 }
@@ -99,7 +87,11 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params& params,
         kd.reorderInput = true;
     }
 
-    bool succeed = UpdateWeightsParams(newParams, options, wl, kd.weightsReorderParams);
+    bool succeed = UpdateWeightsParams(newParams,
+                                       options,
+                                       wl,
+                                       kd.weightsReorderParams,
+                                       GetSupportedKey());
 
     if (!succeed) {
         return {};
@@ -113,6 +105,13 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params& params,
     auto cldnn_jit = GetJitConstants(newParams, runInfo);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
+    uint32_t fused_deps_total = 0;
+    for (auto& fused_dep : newParams.fused_ops) {
+        for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
+            fused_deps_total++;
+        }
+    }
+
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
                      runInfo,
@@ -124,8 +123,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params& params,
                      true,
                      !orgParams.bias.empty(),
                      1,
-                     newParams.int8_quantization,
-                     newParams.output_calibration);
+                     fused_deps_total);
 
     // TODO Pass estimated time only through DispatchData
     kd.estimatedTime = estimated_time;
@@ -154,6 +152,33 @@ KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params& p
                                 estimated_time,
                                 GetAutoTuneOptions(autoTuneIndex),
                                 autoTuneIndex);
+}
+
+
+JitConstants FullyConnectedKernelBase::GetFusedPrimitivesJitConstants(const fully_connected_params&, const DispatchData&) const {
+    return {};
+}
+
+bool FullyConnectedKernelBase::Validate(const Params& p, const optional_params&) const {
+    const fully_connected_params& params = static_cast<const fully_connected_params&>(p);
+
+    if (params.GetType() != KernelType::FULLY_CONNECTED) {
+        return false;
+    }
+
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
+    return true;
+}
+
+Datatype FullyConnectedKernelBase::GetActivationType(const fully_connected_params& params) const {
+    if (params.quantization != QuantizationType::NONE)
+        return Datatype::F32;
+
+    return GetUnitType(params);
 }
 
 }  // namespace kernel_selector

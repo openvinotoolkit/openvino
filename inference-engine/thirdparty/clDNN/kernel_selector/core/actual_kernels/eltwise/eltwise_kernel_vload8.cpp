@@ -45,11 +45,13 @@ bool EltwiseKernel_vload8::Validate(const Params& params, const optional_params&
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         if (ewParams.inputs[i].GetLayout() == DataLayout::fs_bs_yx_bsv4_fsv32 ||
             (ewParams.inputs[i].GetLayout() == DataLayout::bfyx_f16 && ewParams.inputs[i].Feature().v % 16 != 0) ||
+            (ewParams.inputs[i].GetLayout() == DataLayout::bfzyx_f16 && ewParams.inputs[i].Feature().v % 16 != 0) ||
             ewParams.inputs[i].GetLayout() == DataLayout::fs_b_yx_fsv32)
             return false;
     }
     if (ewParams.output.GetLayout() == DataLayout::fs_bs_yx_bsv4_fsv32 ||
        (ewParams.output.GetLayout() == DataLayout::bfyx_f16 && ewParams.output.Feature().v % 16 != 0) ||
+       (ewParams.output.GetLayout() == DataLayout::bfzyx_f16 && ewParams.output.Feature().v % 16 != 0) ||
         ewParams.output.GetLayout() == DataLayout::fs_b_yx_fsv32)
         return false;
 
@@ -111,7 +113,7 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params, const opt
 
     auto& kernel = kd.kernels[0];
     kernel.workGroups.global = {std::max(newParams.inputs[0].LogicalSize() / 8, (size_t)1), 1, 1};
-    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global);
+    kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global, params.engineInfo);
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
 

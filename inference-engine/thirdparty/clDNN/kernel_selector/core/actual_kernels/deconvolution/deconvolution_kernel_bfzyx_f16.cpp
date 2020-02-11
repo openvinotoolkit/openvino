@@ -32,6 +32,8 @@ ParamsKey DeconvolutionKernel_bfzyx_f16::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputLayout(DataLayout::bfzyx_f16);
     k.EnableOutputLayout(DataLayout::bfzyx_f16);
+    k.EnableInputLayout(DataLayout::bfzyx_b16f16);
+    k.EnableOutputLayout(DataLayout::bfzyx_b16f16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBiasPerFeature();
@@ -55,7 +57,7 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_bfzyx_f16::SetDefault(
 
     kd.gws0 = f;
     kd.gws1 = x * y * z;
-    kd.gws2 = CeilDiv(b, 16);
+    kd.gws2 = (b % 16 == 0)? b / 16 : CeilDiv(b, 16);
 
     kd.lws0 = sub_group_size;
     kd.lws1 = 1;
@@ -98,7 +100,11 @@ JitConstants DeconvolutionKernel_bfzyx_f16::GetJitConstants(const deconvolution_
     auto output = params.output;
     auto jit = Parent::GetJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("VER_8OW16C", 1));
+    if (output.Batch().v % 16 == 0) {
+        jit.AddConstant(MakeJitConstant("VER_16MB16C", 1));
+    } else {
+        jit.AddConstant(MakeJitConstant("VER_8OW16C", 1));
+    }
     jit.AddConstant(MakeJitConstant("OC_BLOCK", 16));
     jit.AddConstant(MakeJitConstant("NCHW", 1));
     jit.AddConstant(MakeJitConstant("CASE_3D", 1));
@@ -115,9 +121,14 @@ JitConstants DeconvolutionKernel_bfzyx_f16::GetJitConstants(const deconvolution_
     auto mb_block = 1;
     auto ic_block = 16;
 
-    jit.AddConstant(MakeJitConstant("MB_BLOCK", mb_block));
+    if (output.Batch().v % 16 == 0) {
+        jit.AddConstant(MakeJitConstant("MB_BLOCK", 16));
+        jit.AddConstant(MakeJitConstant("IC_BLOCK", 16));
+    } else {
+        jit.AddConstant(MakeJitConstant("MB_BLOCK", mb_block));
+        jit.AddConstant(MakeJitConstant("IC_BLOCK", ic_block));
+    }
     jit.AddConstant(MakeJitConstant("MB_LAST", (output.Batch().v / 16) * 16));
-    jit.AddConstant(MakeJitConstant("IC_BLOCK", ic_block));
     jit.AddConstant(MakeJitConstant("G", params.split));
     jit.AddConstant(MakeJitConstant("DD", params.dilation.z - 1));
     jit.AddConstant(MakeJitConstant("DH", params.dilation.y - 1));

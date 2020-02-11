@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ from argparse import Namespace
 import numpy as np
 
 from extensions.middle.ScaleInput import ScaleInput
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_1_data': {'value': None, 'kind': 'data', 'data_type': None},

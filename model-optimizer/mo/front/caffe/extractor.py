@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,10 +16,7 @@
 
 from mo.front.caffe.extractors.batchnorm import batch_norm_ext
 from mo.front.caffe.extractors.concat import concat_ext
-from mo.front.caffe.extractors.inner_product import inner_product_ext
-from mo.front.caffe.extractors.lrn import lrn_ext
 from mo.front.caffe.extractors.native_caffe import native_caffe_node_extractor
-from mo.front.caffe.extractors.reshape import reshape_ext
 from mo.front.caffe.extractors.roipooling import roipooling_ext
 from mo.front.caffe.extractors.scale import scale_ext
 from mo.front.caffe.extractors.slice import slice_ext
@@ -42,20 +39,16 @@ Full list is available here: http://caffe.berkeleyvision.org/tutorial/layers.htm
 """
 caffe_type_extractors = {
     # Common Layers
-    'innerproduct': node_pb_arg(inner_product_ext),
-    'inner_product': node_pb_arg(inner_product_ext),
     'dropout': node_pb_arg(lambda _, __: dict(op='Dropout', infer=copy_shape_infer)),
 
     # Normalization Layers
     'batchnorm': node_pb_arg(batch_norm_ext),
-    'lrn': node_pb_arg(lrn_ext),
 
     # Activation Layers
     'scale': node_pb_arg(scale_ext),
 
     # Utility Layers
     'concat': node_pb_arg(concat_ext),
-    'reshape': node_pb_arg(reshape_ext),
     'slice': node_pb_arg(slice_ext),
 
     # Custom, implemented in IE, Fast-RCNN-specific
@@ -78,7 +71,6 @@ def common_caffe_fields(node: Node) -> dict:
         'op': layer_type,
         # generic code relies on op; it should be overridden by specific op extractor
         'infer': None,
-        'precision': 'FP32'  # TODO use real precision derived from the model
     }
 
 

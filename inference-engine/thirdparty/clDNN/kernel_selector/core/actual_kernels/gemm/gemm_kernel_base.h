@@ -29,6 +29,13 @@ struct gemm_params : public base_params {
     float beta;
     bool transpose_input0;
     bool transpose_input1;
+    QuantizationType quantization = QuantizationType::NONE;
+
+    virtual ParamsKey GetParamsKey() const {
+        ParamsKey k = base_params::GetParamsKey();
+        k.EnableQuantization(quantization);
+        return k;
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,14 +51,19 @@ struct gemm_optional_params : optional_params {
 class GemmKernelBase : public common_kernel_base {
 public:
     using common_kernel_base::common_kernel_base;
-
+    using FusedOpDesc = base_params::fused_operation_desc;
     using DispatchData = CommonDispatchData;
+    virtual ~GemmKernelBase() {}
 
 protected:
-    JitConstants GetJitConstants(const gemm_params& params) const;
+    virtual JitConstants GetJitConstants(const gemm_params& params) const;
     DispatchData SetDefault(const gemm_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    // Fused ops
+    virtual JitConstants GetFusedPrimitivesJitConstants(const gemm_params& params, const DispatchData& kd) const;
+    Datatype GetActivationType(const gemm_params& params) const;
+    // --Fused ops
 
-    virtual Datatype GetAccumulatorType(const gemm_params& params) const;
+    bool Validate(const Params& p, const optional_params&) const override;
 };
 }  // namespace kernel_selector

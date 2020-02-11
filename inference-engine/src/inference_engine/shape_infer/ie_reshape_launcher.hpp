@@ -1,19 +1,20 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <string>
-#include <vector>
+#include <ie_layers.h>
+
 #include <list>
 #include <map>
-#include <set>
 #include <memory>
+#include <set>
+#include <string>
+#include <vector>
 
-#include <ie_layers.h>
-#include "shape_infer/const_infer/ie_const_infer_impl.hpp"
 #include "shape_infer/built-in/ie_built_in_holder.hpp"
+#include "shape_infer/const_infer/ie_const_infer_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -136,7 +137,8 @@ public:
  * If input shape is the same as in IR, it takes output shape from IR as is.
  * It sets batch size to the first output dimension of all outputs if:
  *      1) first dimension of all input layers should be the same (assume this is batch size)
- *      2) calculated input shape of the unsupported layer is different only in a first dimension from original input shape in IR.
+ *      2) calculated input shape of the unsupported layer is different only in a first dimension from original input
+ * shape in IR.
  */
 class FakeReshapeLauncher : public ReshapeLauncher {
 public:
@@ -166,8 +168,9 @@ class OutputOnlyReshapeLauncher : public ReshapeLauncher {
 public:
     using Ptr = std::shared_ptr<OutputOnlyReshapeLauncher>;
 
-    OutputOnlyReshapeLauncher(const CNNLayer* layer, const IShapeInferImpl::Ptr& impl,
-                              const OutputOnlyInitializer::Ptr& initializer = std::make_shared<OutputOnlyInitializer>());
+    OutputOnlyReshapeLauncher(
+        const CNNLayer* layer, const IShapeInferImpl::Ptr& impl,
+        const OutputOnlyInitializer::Ptr& initializer = std::make_shared<OutputOnlyInitializer>());
 
     void setShapeByName(const SizeVector& shape, const std::string& dataName) override;
 
@@ -189,8 +192,9 @@ public:
 
 /**
  * @class InputReshapeLauncher
- * @brief Helper class to infer shapes for input layers. Supported layer types: `Input` or `Memory`(as inputs only, if index=1)
- * It takes new given input shape and propagate for connected layers. If shape is not set, it takes shapes from IR.
+ * @brief Helper class to infer shapes for input layers. Supported layer types: `Input` or `Memory`(as inputs only, if
+ * index=1) It takes new given input shape and propagate for connected layers. If shape is not set, it takes shapes from
+ * IR.
  */
 class InputReshapeLauncher : public OutputOnlyReshapeLauncher {
 public:
@@ -210,8 +214,8 @@ public:
 /**
  * @class ConstReshapeLauncher
  * @brief Helper class to infer shapes for layers with Const type.
- * It checks if new given shape is the same as in IR. The launcher fails if not and propagate for connected layers otherwise.
- * If shape is not set, it propagates shapes from IR.
+ * It checks if new given shape is the same as in IR. The launcher fails if not and propagate for connected layers
+ * otherwise. If shape is not set, it propagates shapes from IR.
  */
 class ConstReshapeLauncher : public OutputOnlyReshapeLauncher {
 public:

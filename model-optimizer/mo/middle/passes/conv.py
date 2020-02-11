@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,11 +19,9 @@ import logging as log
 import numpy as np
 
 from mo.front.common.layout import get_batch_dim, get_features_dim
-from mo.front.common.partial_infer.utils import assign_dims_to_weights
 from mo.front.extractor import add_attrs_props
 from mo.front.extractor import update_ie_fields
 from mo.graph.graph import Node, Graph
-from mo.graph.port import Port
 from mo.middle.passes.fusing.helpers import get_value_id, get_tensor_id, get_tensor_in_port, get_value_in_port
 from mo.middle.pattern_match import apply_pattern
 from mo.ops.const import Const
@@ -74,52 +72,6 @@ def fuse_pad(graph: Graph):
                    ('pad_output', 'op', {'in': 0})],
             action=pad_op_transform
         )
-
-
-def convert_matmul_to_fully_connected(graph: Graph):
-    apply_pattern(
-        graph,
-        nodes=[
-            ('matmul', dict(kind='op', op='MatMul')),
-            ('output', dict(kind='data'))],
-        edges=[('matmul', 'output')],
-        action=matmul_to_fully_connected_action
-    )
-
-
-def matmul_to_fully_connected_action(graph: Graph, match: dict):
-    log.debug('fully_connected_matched')
-    matmul = match['matmul']
-    input = matmul.in_node(0)
-    weights = matmul.in_node(1)
-    weights_consumers = graph.out_edges(weights.node)
-    log.debug("len(input.shape) = {}, len(weights.shape) = {}, len(weights_consumers) = {}".format(
-        len(input.shape) if input.shape is not None else None, len(weights.shape) if not None else None,
-        len(weights_consumers) if weights_consumers is not None else None))
-
-    if not (weights.value is not None and
-            input.shape is not None and
-            len(input.shape) >= 2 and
-            weights.shape is not None and
-            len(weights.shape) == 2 and
-            len(weights_consumers) >= 1):
-        matmul['can_be_fused'] = False
-        return
-
-    matmul['out-size'] = matmul.out_node().shape[-1]
-    if graph.graph['cmd_params'].generate_experimental_IR_V10:
-        matmul['type'] = 'MatMul'
-    else:
-        matmul['type'] = 'FullyConnected'
-        matmul.in_edge(1)['bin'] = 'weights'
-    matmul['channel_dims'] = len(match['output'].shape) - 1
-    matmul['bias_addable'] = True
-    matmul['input_channel_dim'] = 0  # MatMul weights in IO
-    matmul['output_channel_dim'] = 1
-    matmul['layout'] = 'NHWC'
-
-    assign_dims_to_weights(matmul.in_node(1), None, matmul.input_channel_dim, matmul.output_channel_dim, 2)
-    # Do not transpose weights in this pass, it will be done as a separate pass
 
 
 def muladd_to_scaleshift_action(graph: Graph, match: dict):
@@ -190,8 +142,8 @@ def muladd_to_scaleshift_action(graph: Graph, match: dict):
 
     op_node = graph.unique_id(mul.name + '/Fused{}_'.format(op_name))
 
-    graph.add_node(op_node, **add_attrs_props(dict(kind='op', precision="FP32", type=op_name, name=op_node,
-                                                   op=op_name, data_type=input.data_type)))
+    graph.add_node(op_node, **add_attrs_props(dict(kind='op', type=op_name, name=op_node, op=op_name,
+                                                   data_type=input.data_type)))
     scsh = Node(graph, op_node)
     scsh.add_input_port(0)
     scsh.add_input_port(1)
@@ -199,6 +151,7 @@ def muladd_to_scaleshift_action(graph: Graph, match: dict):
     scsh.add_output_port(0)
 
     update_ie_fields(graph.node[op_node])
+
     graph.add_edges_from([
         (input.node, op_node, {'in': 0}),
         (weights.node, op_node, {'in': 1, 'bin': 'weights'}),
@@ -285,7 +238,8 @@ def convert_add_or_mul_to_scaleshift(graph: Graph):
 
             tensor_port, value_port = get_tensor_in_port(node), get_value_in_port(node)
 
-            if tensor_port is not None and not tensor_port.disconnected() and value_port is not None and node.soft_get('can_be_scaleshift') is not False:
+            if tensor_port is not None and not tensor_port.disconnected() and value_port is not None and \
+                    node.soft_get('can_be_scaleshift') is not False:
                 original_value = value_port.data.get_value()
                 if original_value.size == 1:
                     continue
@@ -302,11 +256,12 @@ def convert_add_or_mul_to_scaleshift(graph: Graph):
                                                  value=np.zeros(value_port.data.get_shape(), dtype=np.float32),
                                                  shape=np.array(value_port.data.get_shape()),
                                                  )).create_node()
+                    const_op.out_port(0).connect(scsh_op.in_port(2))
+                    scsh_op.in_port(2).bin = 'biases'
 
                     # Reconnect input and weights to scale shift node
                     tensor_port.get_connection().set_destination(scsh_op.in_port(0))
                     value_port.get_connection().set_destination(scsh_op.in_port(1))
-                    const_op.out_port(0).connect(scsh_op.in_port(2))
                 else:
                     # Create fake weights for scale shift node
                     const_op = Const(graph, dict(name='{}/weights'.format(scsh_op.name),
@@ -318,10 +273,10 @@ def convert_add_or_mul_to_scaleshift(graph: Graph):
                     tensor_port.get_connection().set_destination(scsh_op.in_port(0))
                     const_op.out_port(0).connect(scsh_op.in_port(1))
                     value_port.get_connection().set_destination(scsh_op.in_port(2))
+                    scsh_op.in_port(2).bin = 'biases'
 
                 node.out_port(0).get_connection().set_source(scsh_op.out_port(0))
 
                 # Set bin attribute to ScaleShift input ports
                 scsh_op.in_port(1).bin = 'weights'
-                scsh_op.in_port(2).bin = 'biases'
     graph.strict_mode = True

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -152,10 +152,168 @@ def node_defs_to_str(node: Node):
 
 
 def update_ie_fields(attrs: dict, ir_version = None):
+    ir_v4_attrs = {
+        'IE': [(
+            'layer',
+            [('id', lambda node: node.node), 'name', 'type', 'version'],
+            [
+                (
+                    'data',
+                    [
+                        'auto_pad',
+                        'epsilon',
+                        'min',
+                        'max',
+                        ('axis', lambda node: attr_getter(node, 'axis')),
+                        'tiles',
+                        ('dim', lambda node: attr_getter(node, 'dim')),
+                        'num_axes',
+                        ('pool-method', 'pool_method'),
+                        'group',
+                        ('rounding-type', 'rounding_type'),
+                        ('exclude-pad', 'exclude_pad'),
+                        'operation',
+                        'out-size',
+                        'power',
+                        'shift',
+                        'alpha',
+                        'beta',
+                        'coords',
+                        'classes',
+                        'num',
+                        ('local-size', 'local_size'),
+                        'region',
+                        'knorm',
+                        'bias',
+
+                        'num_classes',
+                        'keep_top_k',
+                        'variance_encoded_in_target',
+                        'code_type',
+                        'share_location',
+                        'nms_threshold',
+                        'confidence_threshold',
+                        'background_label_id',
+                        'top_k',
+                        'eta',
+                        'visualize',
+                        'visualize_threshold',
+                        'save_file',
+                        'output_directory',
+                        'output_name_prefix',
+                        'output_format',
+                        'label_map_file',
+                        'name_size_file',
+                        'num_test_image',
+                        'prob',
+                        'resize_mode',
+                        'height',
+                        'width',
+                        'height_scale',
+                        'width_scale',
+                        'pad_mode',
+                        'pad_value',
+                        'interp_mode',
+
+                        'img_size',
+                        'img_h',
+                        'img_w',
+                        'step',
+                        'step_h',
+                        'step_w',
+                        ('offset', lambda node: attr_getter(node, 'offset')),
+                        'variance',
+                        'flip',
+                        'clip',
+                        ('min_size', lambda node: attr_getter(node, 'min_size')),
+                        ('max_size', lambda node: attr_getter(node, 'max_size')),
+                        ('aspect_ratio', lambda node: attr_getter(node, 'aspect_ratio')),
+                        'decrease_label_id',
+                        'normalized',
+                        'scale_all_sizes',
+
+                        ('type', 'norm_type'),
+                        'eps',
+                        'eps_mode',
+                        'across_spatial',
+                        'channel_shared',
+
+                        'negative_slope',
+                        'engine',
+
+                        'num_filter',
+                        ('type', 'sample_type'),
+                        ('order', lambda node: attr_getter(node, 'order')),
+
+                        'pooled_h',
+                        'pooled_w',
+                        'spatial_scale',
+
+                        'cls_threshold',
+                        'max_num_proposals',
+                        'iou_threshold',
+                        'min_bbox_size',
+                        'feat_stride',
+                        'pre_nms_topn',
+                        'post_nms_topn',
+                        ('type', lambda node: node['filler_type'] if node.has('filler_type') else None),
+                        ('value', lambda node: node['filler_value'] if node.has('filler_value') else None),
+                        ('output',
+                         lambda node: node.output_shape[node.channel_dims][0] if node.has('output_shape') and node.has(
+                             'channel_dims') else None),
+                        ('input_nodes_names', lambda node: ' '.join(node['input_nodes_names']) if node.has(
+                            'input_nodes_names') else None),
+                        ('output_tensors_names', lambda node: ' '.join(node['output_tensors_names']) if node.has(
+                            'output_tensors_names') else None),
+                        ('real_input_dims', lambda node: ';'.join([' '.join(map(str, shape)) for shape in
+                                                                   node['real_input_dims']])
+                        if node.has('real_input_dims') else None),
+                        ('protobuf', lambda node: node_defs_to_str(node) if node.has('pbs') else None),
+                        {'custom_attributes': None},
+                        ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims])) if node.has_valid('stride') else None),
+                        ('kernel', lambda node: ','.join(map(str, node['kernel_spatial'])) if node.has_valid(
+                            'kernel_spatial') else None),
+                        ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims])) if node.has_valid('dilation') else None),
+
+                        ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0))) if node.has_valid('pad') else None),
+                        ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1))) if node.has_valid('pad') else None),
+
+                        ('scale', lambda node: attr_getter(node, 'scale')),
+                        'crop_width',
+                        'crop_height',
+                        'write_augmented',
+                        'max_multiplier',
+                        'augment_during_test',
+                        'recompute_mean',
+                        'write_mean',
+                        'mean_per_pixel',
+                        'mode',
+                        'bottomwidth',
+                        'bottomheight',
+                        'chromatic_eigvec',
+                        'kernel_size',
+                        'max_displacement',
+                        'stride_1',
+                        'stride_2',
+                        'single_direction',
+                        'do_abs',
+                        'correlation_type',
+                        'antialias',
+                        'resample_type',
+                        'factor',
+                        'coeff',
+                        ('ratio', lambda node: attr_getter(node, 'ratio')),
+                        'size',
+                    ],
+                    []),
+                '@ports',
+                '@consts'])]
+    }
+
     ir_v3_attrs = {
         'IE': [(
             'layer',
-            [('id', lambda node: node.node), 'name', 'precision', 'type'],
+            [('id', lambda node: node.node), 'name', 'precision', 'type', 'version'],
             [
                 (
                     'data',
@@ -313,7 +471,7 @@ def update_ie_fields(attrs: dict, ir_version = None):
     ir_v2_attrs = {
         'IE': [(
             'layer',
-            [('id', lambda node: node.node), 'name', 'precision', 'type'],
+            [('id', lambda node: node.node), 'name', 'precision', 'type', 'version'],
             [
                 (
                     'data',
@@ -473,9 +631,10 @@ def update_ie_fields(attrs: dict, ir_version = None):
     }
 
     ir_version_mapping = {
-        # Default behaviour is IR V3 attributes
-        None: ir_v3_attrs,
-        10: ir_v3_attrs,
+        # Default behaviour is IR V4 attributes
+        None: ir_v4_attrs,
+        10: ir_v4_attrs,
+        7: ir_v4_attrs,
         6: ir_v3_attrs,
         5: ir_v3_attrs,
         4: ir_v3_attrs,
@@ -559,24 +718,6 @@ def create_tensor_nodes(graph: Graph):
         # graph.add_edges_from([(out_tensor_dict[d['out']], v, {'in' : d['in']}) for u, v, d in out_edges])
         # remove old edges op1 ---> op2; due to bug in nx, need to repack out_edges to have (u,v) as an element
         graph.remove_edges_from([x[:2] for x in out_edges])
-
-        # Handle embedded_inputs if any.
-        # For each embedded input, a distinct data node is created with corresponding name and input port.
-        # embedded_inputs is a list of pairs (input_port, name), where name is attribute name that contains
-        # data node content (numpy array). Shape is initialized by this array.
-        if 'embedded_inputs' in node_attr:
-            for port_index, value_attr, attrs in node_attr['embedded_inputs']:
-                input_node_id = graph.unique_id('embedded_input_')
-                value = node_attr[value_attr]
-                shape = np.array(value.shape, dtype=np.int64)
-                graph.add_node(input_node_id, **add_attrs_props(
-                    dict(kind='data', value=value, shape=shape, data_type=None, infer=None)))
-                edge_attrs = {'in': port_index, 'name': value_attr}
-                edge_attrs.update(attrs)
-                op_node = Node(graph, node)
-                op_node.add_input_port(edge_attrs['in'], skip_if_exist=True)
-                graph.add_edge(input_node_id, node, **edge_attrs)
-                del node_attr[value_attr]
     return graph
 
 
@@ -692,7 +833,8 @@ def get_new_placeholder_name(node_id: str, is_out_port: bool = False, port: int 
     return '{}/placeholder{}_port_{}'.format(node_id, port_type, port)
 
 
-def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, np.ndarray], freeze_placeholder: dict):
+def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, np.ndarray],
+                           freeze_placeholder: dict, input_user_data_types = dict()):
     """
     Restructures user input cutting request. Splits ports out of node names. Transforms node names to node ids.
     :param graph: graph to operate on
@@ -703,6 +845,7 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
         provided both --input and --input_shape
     # np.ndarray if user provided only --input_shape key
     :param freeze_placeholder: dictionary with placeholder names as keys and freezing value as values
+    :param input_user_data_types: dictionary with input nodes and its data types
     :return: restructured input shapes and freeze placeholder shapes information
     Example of input dictionary:
     _input_shapes =
@@ -714,7 +857,7 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
             ],
         'node_1_ID':
             [
-                {'shape': [1, 227, 227, 3], 'port': None}
+                {'shape': [1, 227, 227, 3], 'port': None, 'data_type': np.int32}
             ],
         'node_2_ID':
             [
@@ -758,7 +901,11 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
         for input_name in input_user_shapes:
             node_id, direction, port = get_node_id_with_ports(graph, input_name)
             shape = None if isinstance(input_user_shapes, list) else input_user_shapes[input_name]
-            _input_shapes[node_id].append({'shape': shape, direction: port})
+            if input_name in input_user_data_types and input_user_data_types[input_name] is not None:
+                data_type = input_user_data_types[input_name]
+                _input_shapes[node_id].append({'shape': shape, direction: port, 'data_type': data_type})
+            else:
+                _input_shapes[node_id].append({'shape': shape, direction: port})
         if _freeze_placeholder is not None:
             # here we give user an opportunity not to provide node names from --freeze_placeholder_with_value in --input
             [_input_shapes[ph_id].append({'shape': None, 'port': None}) for ph_id in _freeze_placeholder if ph_id not in _input_shapes]
@@ -841,8 +988,8 @@ def output_user_data_repack(graph: Graph, outputs: list):
     return _outputs
 
 
-def user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, np.array], outputs: list,
-                     freeze_placeholder: dict):
+def user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, np.array],
+                     input_user_data_types: dict, outputs: list, freeze_placeholder: dict):
     """
     :param graph: graph to operate on
     :param input_user_shapes: data structure representing user input cutting request
@@ -850,7 +997,8 @@ def user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, np.arra
     :param freeze_placeholder: dictionary with placeholder names as keys and freezing value as values
     :return: restructured input, output and freeze placeholder dictionaries or None values
     """
-    _input_shapes, _freeze_placeholder = input_user_data_repack(graph, input_user_shapes, freeze_placeholder)
+    _input_shapes, _freeze_placeholder = input_user_data_repack(graph, input_user_shapes, freeze_placeholder,
+                                                                input_user_data_types=input_user_data_types)
     _outputs = output_user_data_repack(graph, outputs)
     return _input_shapes, _outputs, _freeze_placeholder
 
@@ -993,8 +1141,8 @@ def add_input_op_output_port_with_data(graph: Graph, node_id: str, input_op, por
     return input_node.id
 
 
-def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False, shape=None,
-                 is_out_port: bool = False):
+def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False,
+                 shape=None, data_type=None, is_out_port: bool = False):
     """
     This function adds Input node to node with id==node_id to specified port (in or out defined with is_out_port).
     :param graph: graph to operate on.
@@ -1007,8 +1155,10 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False, 
     """
     # We import it here because Op imports add_attrs_props and update_ie_fields from this file
     from extensions.ops.parameter import Parameter
-    input_op = Parameter(graph, dict(shape=shape, initial_node_name=node_id,
-                                     name=get_new_placeholder_name(node_id, is_out_port, port)))
+    if data_type is None:
+        data_type = np.float32
+    input_op = Parameter(graph, dict(shape=shape, data_type=data_type, initial_node_name=node_id,
+                                        name=get_new_placeholder_name(node_id, is_out_port, port)))
 
     edge_attrs = {'in': port, 'out': 0, 'in_attrs': ['in'], 'out_attrs': ['out'],
                   'fw_tensor_debug_info': [(Node(graph, node_id).soft_get('name'), port)],
@@ -1031,7 +1181,8 @@ def add_input_op(graph: Graph, node_id: str, port: int = 0, data: bool = False, 
 
 
 def add_input_ops_helper_before_infer_input_port(graph: Graph, smart_node: Node, port: int, node_id: str,
-                                                 shape: np.array, inputs: list, edges_to_remove: list):
+                                                 shape: np.array, data_type,
+                                                 inputs: list, edges_to_remove: list):
     n_inputs = len(smart_node.in_nodes())
     if n_inputs > 1 and port is None:
         raise Error(
@@ -1041,7 +1192,7 @@ def add_input_ops_helper_before_infer_input_port(graph: Graph, smart_node: Node,
     port = port if port is not None else 0
     edges_to_remove.append((smart_node.in_node(port).id, smart_node.id))
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=False,
-                               shape=shape))
+                               shape=shape, data_type=data_type))
 
 
 def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, port:int, node_id: str,
@@ -1059,17 +1210,17 @@ def add_input_ops_helper_after_infer_input_port(graph: Graph, smart_node: Node, 
         raise Error('Shape for tensor "{}" is not defined. Can not proceed.' + refer_to_faq_msg(41),
                     in_node.soft_get('name'))
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=True,
-                               shape=shape.copy()))
+                               shape=shape.copy(), data_type=in_node.soft_get('data_type', None)))
     edges_to_remove.append((in_node.id, node_id))
 
 
 def add_input_ops_helper_before_infer_output_port(graph: Graph, port:int, node_id: str,
-                                                 shape: np.array, inputs: list, edges_to_remove: list):
+                                                  shape: np.array, data_type, inputs: list, edges_to_remove: list):
     for u, v, edge_attrs in graph.out_edges(node_id, data=True):
         if edge_attrs['out'] == port:
             edges_to_remove.append((u, v))  # we need to remove all edges from this port
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=False,
-                               shape=shape, is_out_port=True))
+                               shape=shape, data_type=data_type, is_out_port=True))
 
 def add_input_ops_helper_after_infer_output_port(graph: Graph, smart_node: Node, port:int, node_id: str,
                                                  inputs: list, edges_to_remove: list):
@@ -1079,7 +1230,7 @@ def add_input_ops_helper_after_infer_output_port(graph: Graph, smart_node: Node,
         raise Error('Shape for tensor "{}" is not defined. Can not proceed.' + refer_to_faq_msg(41),
                     out_node.soft_get('name'))
     inputs.append(add_input_op(graph=graph, node_id=node_id, port=port, data=True,
-                               shape=shape.copy(), is_out_port=True))
+                                shape=shape.copy(), data_type=out_node.soft_get('data_type', None), is_out_port=True))
     edges_to_remove.append((node_id, out_node.id))
 
 
@@ -1115,6 +1266,7 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
 
                 is_out_port = 'out' in port_and_shape_info  # by default we assume input port or input node without port
                 shape = port_and_shape_info['shape'] if 'shape' in port_and_shape_info else None
+                data_type = port_and_shape_info['data_type'] if 'data_type' in port_and_shape_info else None
                 smart_node = Node(graph, node_id)
 
                 # Common port index check
@@ -1140,7 +1292,9 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                             'Parameter node "{}" doesn\'t have input port, but input port {} was provided. ' +
                             refer_to_faq_msg(28), node_id, port)
                     if shape is not None:
-                        graph.node[node_id]['shape'] = shape
+                        smart_node['shape'] = shape
+                    if data_type is not None:
+                        smart_node['data_type'] = data_type
                     inputs.append(node_id)
                     port_and_shape_info['added'] = True
                     continue
@@ -1150,10 +1304,10 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
                         continue
                     # We cut with shapes provided by user and there is no need to wait till infer
                     if is_out_port:
-                        add_input_ops_helper_before_infer_output_port(graph, port, node_id, shape, inputs,
+                        add_input_ops_helper_before_infer_output_port(graph, port, node_id, shape, data_type, inputs,
                                                                       edges_to_remove)
                     else:
-                        add_input_ops_helper_before_infer_input_port(graph, smart_node, port, node_id, shape, inputs,
+                        add_input_ops_helper_before_infer_input_port(graph, smart_node, port, node_id, shape, data_type, inputs,
                                                                      edges_to_remove)
                 else:
                     # We cut after infer and we need inferred shapes in nodes
@@ -1177,16 +1331,6 @@ def add_input_ops(graph: Graph, user_defined_inputs: dict, before_infer: bool):
             reverse_dfs(graph, output_name, check_input, visited)
 
     return inputs
-
-
-def remove_output_ops(graph: Graph):
-    for node in list(graph.nodes()):
-        node = Node(graph, node)
-        if node.has_valid('op') and node.op == 'Result':
-            if len(node.in_nodes()) > 0:
-                assert (len(node.in_nodes()) == 1)
-            if not graph.graph['cmd_params'].generate_experimental_IR_V10:
-                graph.remove_node(node.id)
 
 
 class FrontExtractorOp(object):

@@ -25,7 +25,7 @@
 using namespace cldnn;
 using namespace tests;
 
-static engine _engine(engine_configuration(false,
+static engine_configuration streams_config(false,
                                                  false,
                                                  false,
                                                  "",
@@ -36,10 +36,11 @@ static engine _engine(engine_configuration(false,
                                                  priority_mode_types::disabled,
                                                  throttle_mode_types::disabled,
                                                  true,
-                                                 2));
+                                                 2);
 
-TEST(gpu_streams, can_allocate_memory_for_stream)
+TEST(gpu_streams, DISABLED_can_allocate_memory_for_stream)
 {
+    engine _engine(streams_config);
 
     ASSERT_NO_THROW(memory::allocate(_engine, layout(data_types::f32, format::bfyx, {1, 2, 3, 4})));
     ASSERT_NO_THROW(memory::allocate(_engine, layout(data_types::f32, format::bfyx, {1, 2, 3, 4}), 0));
@@ -47,13 +48,15 @@ TEST(gpu_streams, can_allocate_memory_for_stream)
     ASSERT_ANY_THROW(memory::allocate(_engine, layout(data_types::f32, format::bfyx, {1, 2, 3, 4}), 2));
 
     auto mem0 = memory::allocate(_engine, layout(data_types::f32, format::bfyx, {1, 2, 3, 4}), 0);
-    ASSERT_EQ(mem0.get_stream_id(), 0);
+    ASSERT_EQ(mem0.get_net_id(), 0);
     auto mem1 = memory::allocate(_engine, layout(data_types::f32, format::bfyx, {1, 2, 3, 4}), 1);
-    ASSERT_EQ(mem1.get_stream_id(), 1);
+    ASSERT_EQ(mem1.get_net_id(), 1);
 }
 
 TEST(gpu_streams, can_create_networks_for_stream)
 {
+    engine _engine(streams_config);
+
     auto input = memory::allocate(_engine, { data_types::f32, format::yxfb, { 1, 1, 5, 4 } });
     set_values(input,
                { 1.0f, -2.0f, -3.0f, 4.0f, 5.0f,
@@ -69,11 +72,8 @@ TEST(gpu_streams, can_create_networks_for_stream)
     topology topology(
             input_layout("input", input.get_layout()),
             activation("relu", "input", activation_func::relu_negative_slope, activation_additional_params{ 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
-    network network(_engine, topology, build_options(), 1);
+    network network(_engine, topology, build_options());
 
-    ASSERT_ANY_THROW(cldnn::network network(_engine, topology, build_options(), 2));
-
-    ASSERT_EQ(network.get_stream_id(), 1);
     network.set_input_data("input", input);
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
@@ -83,7 +83,7 @@ TEST(gpu_streams, can_create_networks_for_stream)
     auto output_layout = output_memory.get_layout();
     auto output_ptr = output_memory.pointer<float>();
 
-    EXPECT_EQ(output_memory.get_stream_id(), network.get_stream_id());
+    EXPECT_EQ(output_memory.get_net_id(), network.get_id());
 
     int y_size = output_layout.size.spatial[1];
     int x_size = output_layout.size.spatial[0];
@@ -101,24 +101,30 @@ TEST(gpu_streams, can_create_networks_for_stream)
 }
 
 TEST(gpu_streams, check_networks_can_use_the_same_weights) {
-    auto input0 = memory::allocate(_engine, { data_types::f32,format::yxfb,{ 1, 1, 5, 4 } }, 0);
-    auto input1 = memory::allocate(_engine, { data_types::f32,format::yxfb,{ 1, 1, 5, 4 } }, 1);
+    engine _engine(streams_config);
+
     auto weights = memory::allocate(_engine, { data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
 
-    set_values(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
-    set_values(input1, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
-    set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
     VVF<float> output_vec = {
             { 20.0f, 27.0f, 38.0f },
             { 17.0f, 19.0f, 19.0f } };
 
+    layout input0_layout(data_types::f32, format::yxfb, { 1, 1, 5, 4 });
+
     topology topology(
-            input_layout("input", input0.get_layout()),
+            input_layout("input", input0_layout),
             data("weights", weights),
             convolution("conv", "input", { "weights" }, { 1,1,1,2 }));
 
-    network network0(_engine, topology, build_options(), 0);
-    network network1(_engine, topology, build_options(), 1);
+    network network0(_engine, topology, build_options());
+    network network1(_engine, topology, build_options());
+
+    auto input0 = memory::allocate(_engine, input0_layout, network0.get_id());
+    auto input1 = memory::allocate(_engine, input0_layout, network1.get_id());
+    set_values(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
+    set_values(input1, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
+    set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
+
     network0.set_input_data("input", input0);
     network1.set_input_data("input", input1);
 
@@ -135,8 +141,8 @@ TEST(gpu_streams, check_networks_can_use_the_same_weights) {
     auto output_ptr0 = output_memory0.pointer<float>();
     auto output_ptr1 = output_memory1.pointer<float>();
 
-    EXPECT_EQ(output_memory0.get_stream_id(), network0.get_stream_id());
-    EXPECT_EQ(output_memory1.get_stream_id(), network1.get_stream_id());
+    EXPECT_EQ(output_memory0.get_net_id(), network0.get_id());
+    EXPECT_EQ(output_memory1.get_net_id(), network1.get_id());
     auto wmem0 = network0.get_output_memory("weights");
     auto wmem1 = network1.get_output_memory("weights");
 

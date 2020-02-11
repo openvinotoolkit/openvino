@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,9 @@ namespace vpu {
 namespace {
 
 class LSTMCellStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<LSTMCellStage>(*this);
@@ -110,11 +113,7 @@ static void RNNRelayout(
     }
 }
 
-void FrontEnd::parseRNN(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector &inputs,
-        const DataVector &outputs) {
+void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector &inputs, const DataVector &outputs) const {
     IE_ASSERT(inputs.size() == 3);
     IE_ASSERT(outputs.size() == 1);
 
@@ -185,31 +184,63 @@ void FrontEnd::parseRNN(
     stage->attrs().set<int>("nBatches", nBatches);
 }
 
-void FrontEnd::parseLSTMCell(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector &inputs,
-        const DataVector &outputs) {
+void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector &inputs, const DataVector &outputs) {
     IE_ASSERT(inputs.size() == 3);
     IE_ASSERT(outputs.size() == 2);
 
-    auto layer = std::dynamic_pointer_cast<ie::LSTMCell>(_layer);
+    const int ngates = 4;
+
+    const auto layer = std::dynamic_pointer_cast<ie::LSTMCell>(_layer);
     IE_ASSERT(layer != nullptr);
+
+    Data weights;
+    std::tie(weights, std::ignore) = getWeightsAndBiases(model, layer);
+
+    const auto& src = inputs[0]->desc();
+
+    const std::size_t nBatches = src.dim(Dim::N);
+    IE_ASSERT(nBatches >= 1);
+
+    const std::size_t state_size = outputs[0]->desc().totalDimSize() / nBatches;
+    IE_ASSERT(src.numDims() == 2);
+    const std::size_t input_size = src.dim(Dim::C);
+
+    const std::size_t cell_state_size = inputs[2]->desc().totalDimSize() / nBatches;
+
+    IE_ASSERT(input_size == src.totalDimSize() / nBatches);
+    IE_ASSERT(state_size == cell_state_size);
+
+    const std::size_t weightsSize = weights->desc().totalDimSize();
+    IE_ASSERT(state_size * (input_size + state_size) * ngates == weightsSize);
+    auto newWeightsBlob = ie::make_shared_blob<fp16_t>(ie::TensorDesc(ie::Precision::FP16, {weightsSize}, ie::Layout::C));
+    newWeightsBlob->allocate();
+
+    auto newWeightsPtr = newWeightsBlob->buffer().as<fp16_t*>();
+    auto content = weights->content();
+    IE_ASSERT(content != nullptr);
+    auto origWeights0 = content->get<fp16_t>();
+    IE_ASSERT(origWeights0 != nullptr);
+    RNNRelayout(origWeights0,
+                newWeightsPtr,
+                newWeightsPtr + ngates * state_size * input_size,
+
+                ngates,
+                state_size,
+                input_size);
+
+    auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), ieBlobContent(newWeightsBlob));
+
 
     DataVector stageInputs = inputs;
     auto origWeights = layer->_weights;
 
     IE_ASSERT(origWeights != nullptr) << "weights are empty for layer: " << layer->name;
 
-    if (lstmWeights.count(origWeights) != 0) {
-        stageInputs.emplace_back(lstmWeights[origWeights]);
+    if (_lstmWeights.count(origWeights) != 0) {
+        stageInputs.emplace_back(_lstmWeights[origWeights]);
     } else {
-        auto weights = model->addConstData(
-                layer->name + "@weights",
-                DataDesc({origWeights->size()}),
-                ieBlobContent(origWeights));
-        lstmWeights[origWeights] = weights;
-        stageInputs.emplace_back(weights);
+        _lstmWeights[origWeights] = newWeights;
+        stageInputs.emplace_back(newWeights);
     }
 
     auto origBiases = layer->_biases;
@@ -218,28 +249,23 @@ void FrontEnd::parseLSTMCell(
     if (origBiases == nullptr) {
         biases = model->addFakeData();
     } else {
-        if (lstmBiases.count(origBiases) != 0) {
-            biases = lstmBiases[origBiases];
+        if (_lstmBiases.count(origBiases) != 0) {
+            biases = _lstmBiases[origBiases];
         } else {
             biases = model->addConstData(
                     layer->name + "@biases",
                     DataDesc({origBiases->size()}),
                     ieBlobContent(origBiases));
-            lstmBiases[origBiases] = biases;
+            _lstmBiases[origBiases] = biases;
         }
     }
 
     stageInputs.emplace_back(biases);
 
-    auto stage = model->addNewStage<LSTMCellStage>(
-            layer->name,
-            StageType::LSTMCell,
-            layer,
-            stageInputs,
-            outputs);
+    auto stage = model->addNewStage<LSTMCellStage>(layer->name, StageType::LSTMCell, layer, stageInputs, outputs);
     stage->attrs().set<bool>("RNNForward", true);
     stage->attrs().set<int>("nCells", 1);
-    stage->attrs().set<int>("nBatches", 1);
+    stage->attrs().set<int>("nBatches", nBatches);
 }
 
 }  // namespace vpu

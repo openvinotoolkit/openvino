@@ -21,7 +21,7 @@
 #include "refcounted_obj.h"
 #include "implementation_map.h"
 #include "memory_pool.h"
-#include "gpu/engine_info.h"
+#include "gpu/device_info.h"
 
 #include <memory>
 #include <set>
@@ -49,20 +49,22 @@ struct typed_program_node;
 
 struct engine_impl : public refcounted_obj<engine_impl> {
 public:
-    explicit engine_impl(const engine_configuration& conf);
+    explicit engine_impl(const device_impl& dev, const engine_configuration& conf);
     ~engine_impl();
     engine_types type() const { return engine_types::ocl; }
-    refcounted_obj_ptr<memory_impl> allocate_memory(const layout& layout, uint16_t stream_id);
+    refcounted_obj_ptr<memory_impl> allocate_memory(const layout& layout, uint32_t net_id);
     refcounted_obj_ptr<memory_impl> allocate_memory(const layout& layout,
                                                     primitive_id,
-                                                    uint32_t,
+                                                    uint32_t network_id,
                                                     std::set<primitive_id>,
-                                                    uint16_t stream_id,
                                                     bool reusable = true);
     refcounted_obj_ptr<memory_impl> reinterpret_buffer(const memory_impl& memory, const layout& new_layout);
+    refcounted_obj_ptr<memory_impl> reinterpret_handle(const layout& new_layout,
+                                                    const shared_mem_params* params,
+                                                        uint32_t net_id);
     bool is_the_same_buffer(const memory_impl& mem1, const memory_impl& mem2);
 
-    refcounted_obj_ptr<event_impl> create_user_event(uint16_t stream_id, bool set = false);
+    refcounted_obj_ptr<event_impl> create_user_event(uint32_t net_id, bool set = false);
     void wait_for_events(std::vector<event_impl::ptr> const& events);
 
     refcounted_obj_ptr<program_impl> build_program(const topology_impl& topology,
@@ -84,8 +86,8 @@ public:
     refcounted_obj_ptr<network_impl> build_network(const std::set<std::shared_ptr<program_node>>& nodes,
                                                    const build_options& options,
                                                    bool is_internal);
-    void flush_network(uint16_t stream_id);
-    void release_pending_memory(uint16_t stream_id);
+    void flush_network(uint32_t net_id);
+    void release_pending_memory(uint32_t net_id);
 
     template <class T>
     std::unique_ptr<primitive_impl> create_primitive_impl(typed_program_node<T> const& node) {
@@ -116,7 +118,8 @@ public:
     const engine_configuration& configuration() const { return _configuration; }
     void set_mem_pool(bool flag) { _configuration.enable_memory_pool = flag; }
     std::shared_ptr<gpu_toolkit> get_context() const { return _context; }
-    gpu::engine_info_internal get_engine_info() const;
+    gpu::device_info_internal get_device_info() const;
+    void* get_user_context() const;
     memory_pool& get_memory_pool() { return _memory_pool; }
 
     uint64_t get_max_used_device_memory() const { return _memory_pool.get_max_peak_device_memory_used(); }

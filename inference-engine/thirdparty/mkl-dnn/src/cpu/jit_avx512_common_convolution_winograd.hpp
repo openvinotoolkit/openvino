@@ -111,7 +111,8 @@ struct jit_avx512_common_convolution_winograd_fwd_t
                                this->desc()->weights_desc.data_type,
                                this->desc()->dst_desc.data_type)
                     && IMPLICATION(this->with_bias(), data_type::f32
-                                       == this->desc()->bias_desc.data_type);
+                                       == this->desc()->bias_desc.data_type)
+                    && !this->attr()->has_asymmetric_quantization();
 
             if (!ok)
                 return status::unimplemented;

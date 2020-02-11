@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,9 +25,9 @@ class ReduceMinFrontExtractor(FrontExtractorOp):
     op = 'ReduceMin'
     enabled = True
 
-    @staticmethod
-    def extract(node: Node):
+    @classmethod
+    def extract(cls, node: Node):
         axis = onnx_attr(node, 'axes', 'ints', default=None, dst_type=lambda x: int64_array(x))
         keep_dims = onnx_attr(node, 'keepdims', 'i', default=True)
         ReduceMin.update_node_stat(node, {'axis': axis, 'keep_dims': keep_dims})
-        return __class__.enabled
+        return cls.enabled

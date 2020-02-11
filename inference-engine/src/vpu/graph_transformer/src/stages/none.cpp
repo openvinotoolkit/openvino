@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,18 +14,12 @@ namespace vpu {
 namespace {
 
 class NoneStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<NoneStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>&,
-            ScalePropagationStep,
-            StageDataInfo<float>& scaleInfo) override {
-        for (const auto& outEdge : outputEdges()) {
-            scaleInfo.setOutput(outEdge, 1.0f);
-        }
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
@@ -54,7 +48,7 @@ private:
 }  // namespace
 
 Stage StageBuilder::addNoneStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         const DataVector& inputs,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,12 +14,12 @@
 #include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 #include <cpp_interfaces/ie_task_executor.hpp>
 #include "ie_parallel.hpp"
-#include "mkldnn/omp_manager.h"
+#include "mkldnn/system_conf.h"
 
-/* CPU "streams" implement a feature that allows multiple Infer Requests to be efficiently run simultaneously.
+/* CPU "streams" is a feature that allowing multiple Infer Requests to be efficiently run simultaneously.
  * To avoid potential oversubscription the CPU execution resources are divided accordingly.
  * The feature enables much better performance for the networks that originally do not scale well with #threads
- * even for a large batches. Examples are lightweight topologies or topologies with many sequential/mem-bound/etc or
+ * even for large batches. Examples are lightweight topologies or topologies with many sequential/mem-bound/etc or
  * otherwise non-scalable layers. This is especially pronounced for many-core (e.g. server) machines.
  * This is rather throughput-oriented feature,because running multiple requests in parallel might increase the latency
  * of each request.
@@ -118,28 +118,23 @@ class MultiWorkerTaskExecutor : public ITaskExecutor {
 public:
     typedef std::shared_ptr<MultiWorkerTaskExecutor> Ptr;
 
-    explicit MultiWorkerTaskExecutor(const std::vector<Task::Ptr>&, std::string name = "Default");
+    explicit MultiWorkerTaskExecutor(const std::vector<Task>&, std::string name = "Default");
 
     ~MultiWorkerTaskExecutor();
 
-    /**
-    * @brief Adds task for execution and notifies one of the working threads about the new task.
-    * @note can be called from multiple threads - tasks will be added to the queue and executed one-by-one in FIFO mode.
-    * @param task - shared pointer to the task
-    *  @return true if succeed to add task, otherwise - false
-    */
-    bool startTask(Task::Ptr task) override;
+    void run(Task task) override;
 
     static thread_local MultiWorkerTaskContext ptrContext;
+
+    void stop();
 
 private:
     std::vector<std::thread> _threads;
     std::mutex _queueMutex;
     std::condition_variable _queueCondVar;
-    std::queue<Task::Ptr> _taskQueue;
+    std::queue<Task> _taskQueue;
     std::atomic<bool> _isStopped;
     std::string _name;
-    std::atomic<int> _initCount;
 };
 
 /* Pure Infer Requests - just input and output data. */

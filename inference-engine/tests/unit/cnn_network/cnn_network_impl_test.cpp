@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include "cnn_network_impl.hpp"
-#include <../graph_tools/graph_test_base.hpp>
+#include <graph_tools/graph_test_base.hpp>
 
 using namespace testing;
 using namespace InferenceEngine;

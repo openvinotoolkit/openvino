@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -61,6 +61,12 @@ class Squeeze(Op):
                 real_squeeze_dims = np.append(real_squeeze_dims, get_canonical_axis_index(output_shape, dim))
             else:
                 raise Error('Trying to squeeze dimension not equal to 1 for node "{}"'.format(node.soft_get('name')))
+
+        # if squeeze_dims empty then all 1s should be removed (tf specification of Squeeze op)
+        if squeeze_dims.size == 0:
+            for i in range(output_shape.size):
+                if output_shape[i] == 1:
+                    real_squeeze_dims = np.append(real_squeeze_dims, get_canonical_axis_index(output_shape, i))
 
         output_shape = np.delete(output_shape, real_squeeze_dims)
         node.out_node().shape = output_shape

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -33,7 +33,17 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
     """
     Add Select before saving state with Memory to avoid garbage saving
     """
-    enabled = False
+    enabled = True
+
+    def run_after(self):
+        from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern
+        from extensions.middle.RemoveDuplicationMemory import MergeNeighborSplicePattern
+        return [ReplaceMemoryOffsetWithMemoryNodePattern,
+                MergeNeighborSplicePattern]
+
+    def run_before(self):
+        from extensions.middle.ReplaceSpliceNodePattern import ReplaceSpliceNodePattern
+        return [ReplaceSpliceNodePattern]
 
     @staticmethod
     def pattern():
@@ -115,29 +125,24 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
             input_port = Node(graph, inverse_dict(counter_match)['crop_out']).out_port(0)
         else:
             mem_out = Memory(graph, {'name': 'iteration_number', 'size': 2,
-                                     'index': 1, 'id': 'iteration_'+node.name,
+                                     'index': 1, 'id': 'iteration_' + node.name,
                                      'shape': int64_array([context_len]),
-                                     'force_precision': 'I32'}).create_node()
+                                     'dst_type': np.int32}).create_node()
             cut_first = Crop(graph, {'name': 'cut_first', 'axis': int64_array([1]),
-                                     'offset': int64_array([1]), 'dim': int64_array([context_len-1]),
-                                     'force_precision': 'I32'}).create_node()
+                                     'offset': int64_array([1]), 'dim': int64_array([context_len-1])}).create_node()
             cut_first.in_port(0).connect(mem_out.out_port(0))
-            ones = Const(graph, {'name': 'ones', 'value': np.ones([1, 1], dtype=np.int64),
-                                 'force_precision': 'I32'}).create_node()
-            concat = Concat(graph, {'name': 'concat_ones', 'in_ports_count': 2, 'axis': 1,
-                                    'force_precision': 'I32'}).create_node()
+            ones = Const(graph, {'name': 'ones', 'value': np.ones([1, 1], dtype=np.int32)}).create_node()
+            concat = Concat(graph, {'name': 'concat_ones', 'in_ports_count': 2, 'axis': 1}).create_node()
             concat.in_port(0).connect(cut_first.out_port(0))
             concat.in_port(1).connect(ones.out_port(0))
             mem_in = Memory(graph, {'name': 'iteration_number_out', 'size': 2,
-                                    'index': 0, 'id': 'iteration_'+node.name,
-                                    'shape': int64_array([context_len]),
-                                    'force_precision': 'I32'}).create_node()
+                                    'index': 0, 'id': 'iteration_' + node.name,
+                                    'shape': int64_array([context_len])}).create_node()
             mem_in.in_port(0).connect(concat.out_port(0))
             res = Result(graph, {}).create_node()
             mem_in.out_port(0).connect(res.in_port(0))
             cut_last = Crop(graph, {'name': 'cut_last', 'axis': int64_array([1]),
-                                    'offset': int64_array([0]), 'dim': int64_array([1]),
-                                    'force_precision': 'I32'}).create_node()
+                                    'offset': int64_array([0]), 'dim': int64_array([1])}).create_node()
             cut_last.in_port(0).connect(concat.out_port(0))
             input_port = cut_last.out_port(0)
 

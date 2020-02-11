@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,9 @@ namespace vpu {
 namespace {
 
 class ProposalStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<ProposalStage>(*this);
@@ -114,22 +117,13 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseProposal(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     ie::details::CaselessEq<std::string> cmp;
 
     IE_ASSERT(inputs.size() == 3);
     IE_ASSERT(outputs.size() == 1);
 
-    auto stage = model->addNewStage<ProposalStage>(
-        layer->name,
-        StageType::Proposal,
-        layer,
-        inputs,
-        outputs);
+    auto stage = model->addNewStage<ProposalStage>(layer->name, StageType::Proposal, layer, inputs, outputs);
 
     stage->attrs().set<int>("feat_stride", layer->GetParamAsInt("feat_stride", 16));
     stage->attrs().set<int>("base_size", layer->GetParamAsInt("base_size", 16));

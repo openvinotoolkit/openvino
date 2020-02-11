@@ -58,7 +58,7 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
 
     // for activation function
     jit.Merge(MakeUnitTypeJitConstants(unitType));
-    jit.Merge(MakeActivationJitConstants(params.activations));
+    jit.Merge(MakeActivationJitConstants(params.activations, unitType));
 
     for (size_t i = 0; i < params.inputs.size(); i++) {
         jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i]));
@@ -82,18 +82,21 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
     std::string input_decls = "";
     std::vector<std::string> fused_ops;
     std::vector<std::string> names;
+    std::vector<Datatype> in_types;
     for (const auto &c : conf) {
         fused_ops.emplace_back("");
         names.push_back(c.input_var_name);
+        in_types.push_back(c.input_dt);
     }
-
     for (size_t i = 0; i < params.fused_ops.size(); i++) {
         auto& fused_dep = params.fused_ops[i];
         for (size_t j = 0; j < conf.size(); j++) {
             std::string out_var = "";
-            jit.Merge(fused_dep.MakeLoadJitConstants(conf[j]));
-            jit.Merge(fused_dep.MakeOpJitConstants(conf[j], names[j], out_var));
+            Datatype out_type;
+            jit.Merge(fused_dep.MakeLoadJitConstants(conf[j], params.output));
+            jit.Merge(fused_dep.MakeOpJitConstants(conf[j], names[j], in_types[j], out_var, out_type));
             names[j] = out_var;
+            in_types[j] = out_type;
 
             fused_ops[j] += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + conf[j].suffix;
             fused_ops[j] += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + conf[j].suffix;
@@ -136,5 +139,19 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
 
     return jit;
 }
+
+bool KernelBase::IsFusedPrimitiveSupported(const base_params::fused_operation_desc& fused_op) const {
+    for (auto& supported_op : GetSupportedFusedOps()) {
+        if (fused_op.GetType() == supported_op)
+            return true;
+    }
+
+    return false;
+}
+
+std::vector<KernelBase::FusedOpType> KernelBase::GetSupportedFusedOps() const {
+    return {};
+}
+
 
 }  // namespace kernel_selector

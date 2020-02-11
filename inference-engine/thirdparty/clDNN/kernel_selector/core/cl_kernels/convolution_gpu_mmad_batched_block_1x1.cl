@@ -67,10 +67,10 @@ KERNEL(convolution_mmad_batched_block_1x1)(
 #endif
     uint split_idx)
 {
-    const uint x = get_global_id(0) * OUT_BLOCK_WIDTH;
-    const uint y = get_global_id(1) * OUT_BLOCK_HEIGHT;
+    const uint x = (uint)get_global_id(0) * OUT_BLOCK_WIDTH;
+    const uint y = (uint)get_global_id(1) * OUT_BLOCK_HEIGHT;
 
-    const uint b_f = (get_group_id(2) * WG_BATCH_COUNT + get_sub_group_id());
+    const uint b_f = ((uint)get_group_id(2) * WG_BATCH_COUNT + (uint)get_sub_group_id());
 #if WEIGHTS_PER_WORKITEM == 4
     const uint f = (b_f * 32 + get_sub_group_local_id() * 4) % FILTER_OFM_ALIGNED;
 #else

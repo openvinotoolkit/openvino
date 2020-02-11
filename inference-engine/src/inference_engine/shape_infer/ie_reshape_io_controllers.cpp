@@ -1,14 +1,16 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "shape_infer/ie_reshape_io_controllers.hpp"
+
+#include <ie_layers.h>
+
+#include <blob_factory.hpp>
+#include <ie_layer_validators.hpp>
 #include <set>
 #include <string>
 #include <vector>
-#include <ie_layers.h>
-#include <ie_layer_validators.hpp>
-#include <blob_factory.hpp>
-#include "shape_infer/ie_reshape_io_controllers.hpp"
 
 using namespace InferenceEngine;
 using namespace ShapeInfer;
@@ -22,7 +24,8 @@ void DefaultChecker::run(const std::vector<DataPtr>& dataVec, const std::string&
 }
 
 InputController::InputController(const std::vector<DataPtr>& dataVec, const std::string& layerName,
-                                 const DefaultChecker::Ptr& checker) : _dataVec(dataVec), _layerName(layerName) {
+                                 const DefaultChecker::Ptr& checker)
+    : _dataVec(dataVec), _layerName(layerName) {
     checker->run(_dataVec, layerName);
     for (const auto& data : _dataVec) {
         if (data) {
@@ -92,8 +95,8 @@ long InputController::getPositionByName(const std::string& dataName) {
 void InputController::setShapeByIndex(const SizeVector& shape, size_t index) {
     size_t numShapes = _shapes.size();
     if (index >= numShapes) {
-        THROW_IE_EXCEPTION << "Failed to set shape for index(" << index << ") that is more than number of shapes: "
-                           << numShapes;
+        THROW_IE_EXCEPTION << "Failed to set shape for index(" << index
+                           << ") that is more than number of shapes: " << numShapes;
     }
     _shapes[index] = shape;
 }
@@ -101,8 +104,10 @@ void InputController::setShapeByIndex(const SizeVector& shape, size_t index) {
 bool InputController::isDataAvailable() {
     if (_inferedData.empty()) return false;
     for (const auto& data : _inferedData) {
-        if (!data) return false;
-        else if (data->cbuffer() == nullptr) return false;
+        if (!data)
+            return false;
+        else if (data->cbuffer() == nullptr)
+            return false;
     }
     return true;
 }
@@ -128,7 +133,7 @@ void InputController::setBlobByName(const Blob::CPtr& blob, const std::string& d
 
 OutputController::OutputController(const std::vector<DataPtr>& data, const std::string& layerName,
                                    const DefaultChecker::Ptr& checker)
-        : InputController(data, layerName, checker) {}
+    : InputController(data, layerName, checker) {}
 
 void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& launchers) {
     checkCorrespondence();
@@ -141,10 +146,10 @@ void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& lau
                                    << "): connected layer is null";
             }
             auto layerName = layer->name;
-            auto foundLauncher = std::find_if(launchers.begin(), launchers.end(),
-                                              [&layerName](const ReshapeLauncher::Ptr& launcher) {
-                                                  return launcher->getLayerName() == layerName;
-                                              });
+            auto foundLauncher =
+                std::find_if(launchers.begin(), launchers.end(), [&layerName](const ReshapeLauncher::Ptr& launcher) {
+                    return launcher->getLayerName() == layerName;
+                });
             if (foundLauncher == launchers.end())
                 THROW_IE_EXCEPTION << "Failed to find ReshapeLauncher for layer: '" << layerName << "'";
             (*foundLauncher)->setShapeByName(_shapes[idx], outData->getName());
@@ -164,10 +169,10 @@ void OutputController::propagateBlobs(const std::set<ReshapeLauncher::Ptr>& laun
                                    << "): connected layer is null";
             }
             auto layerName = layer->name;
-            auto foundLauncher = std::find_if(launchers.begin(), launchers.end(),
-                                              [&layerName](const ReshapeLauncher::Ptr& launcher) {
-                                                  return launcher->getLayerName() == layerName;
-                                              });
+            auto foundLauncher =
+                std::find_if(launchers.begin(), launchers.end(), [&layerName](const ReshapeLauncher::Ptr& launcher) {
+                    return launcher->getLayerName() == layerName;
+                });
             if (foundLauncher == launchers.end())
                 THROW_IE_EXCEPTION << "Failed to find ReshapeLauncher for layer: '" << layerName << "'";
             (*foundLauncher)->setBlobByName(_inferedData[idx], outData->getName());
@@ -198,4 +203,3 @@ std::vector<Blob::Ptr> OutputController::createBlobs() {
     }
     return blobs;
 }
-

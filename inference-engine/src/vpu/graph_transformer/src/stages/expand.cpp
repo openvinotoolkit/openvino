@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,23 +11,17 @@
 #include <unordered_set>
 #include <algorithm>
 
-#include <vpu/utils/extra.hpp>
-
 namespace vpu {
 
 namespace {
 
 class ExpandStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 protected:
     StagePtr cloneImpl() const override {
         return std::make_shared<ExpandStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>&,
-            ScalePropagationStep,
-            StageDataInfo<float>&) override {
-        VPU_THROW_EXCEPTION << "Must never be called";
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
@@ -119,7 +113,7 @@ protected:
 }  // namespace
 
 Stage StageBuilder::addExpandStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         const Data& input,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,20 +8,22 @@
  */
 #pragma once
 
-#include <cstdlib>
-#include <cstdarg>
-#include <string>
-#include <ctime>
-#include <cstdint>
+#include <w_unistd.h>
+
 #include <algorithm>
-#include <functional>
 #include <cctype>
+#include <cstdarg>
+#include <cstdint>
+#include <cstdlib>
+#include <ctime>
+#include <functional>
 #include <iostream>
-#include <sstream>
-#include <vector>
 #include <iterator>
 #include <numeric>
-#include <w_unistd.h>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #include "ie_algorithm.hpp"
 
 #ifdef _WIN32
@@ -29,10 +31,10 @@
 
 #define POSIX_EPOCH_AS_FILETIME 116444736000000000ULL
 #define OPT_USAGE
-static void gettimeofday(struct timeval * tp, struct timezone *) {
-    SYSTEMTIME  system_time;
-    FILETIME    file_time;
-    uint64_t    time;
+static void gettimeofday(struct timeval* tp, struct timezone*) {
+    SYSTEMTIME system_time;
+    FILETIME file_time;
+    uint64_t time;
 
     GetSystemTime(&system_time);
     SystemTimeToFileTime(&system_time, &file_time);
@@ -51,7 +53,7 @@ static void gettimeofday(struct timeval * tp, struct timezone *) {
 
 #ifndef OPT_USAGE
 #ifdef __GNUC__
-#define OPT_USAGE __attribute__ ((unused))
+#define OPT_USAGE __attribute__((unused))
 #else
 #define OPT_USAGE
 #endif
@@ -66,44 +68,46 @@ namespace InferenceEngine {
 namespace details {
 
 /**
-* @brief vector serialisation to be used in exception
-*/
+ * @brief vector serialisation to be used in exception
+ */
 template <typename T>
-inline std::ostream & operator << (std::ostream &out, const std::vector<T> &vec) {
+inline std::ostream& operator<<(std::ostream& out, const std::vector<T>& vec) {
     if (vec.empty()) return std::operator<<(out, "[]");
     out << "[" << vec[0];
-    for (unsigned i=1; i < vec.size(); i++) {
+    for (unsigned i = 1; i < vec.size(); i++) {
         out << ", " << vec[i];
     }
     return out << "]";
 }
 
-
 /**
  * @brief trim from start (in place)
  * @param s - string to trim
  */
-inline void ltrim(std::string &s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int c){
-        return !std::isspace(c);
-    }));
+inline void ltrim(std::string& s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int c) {
+                return !std::isspace(c);
+            }));
 }
 
 /**
  * @brief trim from end (in place)
  * @param s - string to trim
  */
-inline void rtrim(std::string &s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](int c) {
-        return !std::isspace(c);
-    }).base(), s.end());
+inline void rtrim(std::string& s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(),
+                         [](int c) {
+                             return !std::isspace(c);
+                         })
+                .base(),
+            s.end());
 }
 
 /**
  * @brief trim from both ends (in place)
  * @param s - string to trim
  */
-inline std::string &trim(std::string &s) {
+inline std::string& trim(std::string& s) {
     ltrim(s);
     rtrim(s);
     return s;
@@ -115,13 +119,10 @@ inline std::string &trim(std::string &s) {
  * @param delimiter - string used as a delimiter
  * @return vector of substrings
  */
-inline std::vector<std::string> split(const std::string &src, const std::string &delimiter) {
+inline std::vector<std::string> split(const std::string& src, const std::string& delimiter) {
     std::vector<std::string> tokens;
     std::string tokenBuf;
-    size_t prev = 0,
-            pos = 0,
-            srcLength = src.length(),
-            delimLength = delimiter.length();
+    size_t prev = 0, pos = 0, srcLength = src.length(), delimLength = delimiter.length();
     do {
         pos = src.find(delimiter, prev);
         if (pos == std::string::npos) {
@@ -137,18 +138,27 @@ inline std::vector<std::string> split(const std::string &src, const std::string 
 }
 
 /**
- * @brief create a string representation for a vector of values
+ * @brief create a string representation for a vector of values, without any suffixes or prefixes
  * @param vec - vector of values
  * @return string representation
  */
-template<typename T, typename A>
-std::string dumpVec(std::vector<T, A> const &vec) {
-    if (vec.empty()) return "[]";
+template <typename T, typename A>
+std::string joinVec(std::vector<T, A> const& vec, std::string const& glue = std::string(",")) {
+    if (vec.empty()) return "";
     std::stringstream oss;
-    oss << "[" << vec[0];
-    for (size_t i = 1; i < vec.size(); i++) oss << "," << vec[i];
-    oss << "]";
+    oss << vec[0];
+    for (size_t i = 1; i < vec.size(); i++) oss << glue << vec[i];
     return oss.str();
+}
+
+/**
+ * @brief create a string representation for a vector of values, enclosing text in a square brackets
+ * @param vec - vector of values
+ * @return string representation
+ */
+template <typename T, typename A>
+std::string dumpVec(std::vector<T, A> const& vec) {
+    return "[" + joinVec(vec) + "]";
 }
 
 /**
@@ -156,8 +166,8 @@ std::string dumpVec(std::vector<T, A> const &vec) {
  * @param vec - vector with values
  * @return result of multiplication
  */
-template<typename T, typename A>
-T product(std::vector<T, A> const &vec) {
+template <typename T, typename A>
+T product(std::vector<T, A> const& vec) {
     if (vec.empty()) return 0;
     T ret = vec[0];
     for (size_t i = 1; i < vec.size(); ++i) ret *= vec[i];
@@ -170,20 +180,18 @@ T product(std::vector<T, A> const &vec) {
  * @param v2 - second vector
  * @return true if vectors contain same values
  */
-template<typename T, typename A>
-bool equal(const std::vector<T, A> &v1, const std::vector<T, A> &v2) {
+template <typename T, typename A>
+bool equal(const std::vector<T, A>& v1, const std::vector<T, A>& v2) {
     if (v1.size() != v2.size()) return false;
     for (auto i1 = v1.cbegin(), i2 = v2.cbegin(); i1 != v1.cend(); ++i1, ++i2) {
-        if (*i1 != *i2)
-            return false;
+        if (*i1 != *i2) return false;
     }
     return true;
 }
 
-inline bool equal(const std::string &lhs, const std::string &rhs, bool ignoreCase = true) {
-    return (lhs.size() == rhs.size()) && (ignoreCase ?
-        0 == strncasecmp(lhs.c_str(), rhs.c_str(), lhs.size()) :
-        0 == strncmp(lhs.c_str(), rhs.c_str(), lhs.size()));
+inline bool equal(const std::string& lhs, const std::string& rhs, bool ignoreCase = true) {
+    return (lhs.size() == rhs.size()) && (ignoreCase ? 0 == strncasecmp(lhs.c_str(), rhs.c_str(), lhs.size())
+                                                     : 0 == strncmp(lhs.c_str(), rhs.c_str(), lhs.size()));
 }
 
 /**
@@ -192,7 +200,7 @@ inline bool equal(const std::string &lhs, const std::string &rhs, bool ignoreCas
  * @param with - given substring
  * @return true if string end with given substring
  */
-inline bool endsWith(const std::string &src, const char *with) {
+inline bool endsWith(const std::string& src, const char* with) {
     int wl = static_cast<int>(strlen(with));
     int so = static_cast<int>(src.length()) - wl;
     if (so < 0) return false;
@@ -200,10 +208,10 @@ inline bool endsWith(const std::string &src, const char *with) {
 }
 
 /**
-* @brief converts all upper-case letters in a string to lower case
-* @param s - string to convert
-*/
-inline std::string tolower(const std::string &s) {
+ * @brief converts all upper-case letters in a string to lower case
+ * @param s - string to convert
+ */
+inline std::string tolower(const std::string& s) {
     std::string ret;
     ret.resize(s.length());
     std::transform(s.begin(), s.end(), ret.begin(), ::tolower);
@@ -220,7 +228,7 @@ inline std::string tolower(const std::string &s) {
  * @param line - string in file the message was dispatched from
  * @param msg - format for message + arguments
  */
-static void OPT_USAGE print_log(bool isErr, const char *level, const char *file, int line, const char *msg, ...) {
+static void OPT_USAGE print_log(bool isErr, const char* level, const char* file, int line, const char* msg, ...) {
     va_list va;
     va_start(va, msg);
     char buffer[64];
@@ -252,28 +260,37 @@ static void OPT_USAGE print_log(bool isErr, const char *level, const char *file,
  * @def LogError
  * @brief Log an error message
  */
-#define LogError(...) {print_log(true , "ERROR", __FILE__, __LINE__, ##__VA_ARGS__); }
+#define LogError(...) \
+    { print_log(true, "ERROR", __FILE__, __LINE__, ##__VA_ARGS__); }
 
 /**
  * @def LogWarning
  * @brief Log warning message
  */
-#define LogWarning(...) { print_log(true , "WARNING", __FILE__, __LINE__, ##__VA_ARGS__); }
+#define LogWarning(...) \
+    { print_log(true, "WARNING", __FILE__, __LINE__, ##__VA_ARGS__); }
 
 /**
  * @def LogInfo
  * @brief Log info message
  */
-#define LogInfo(...) { print_log(false, "INFO", __FILE__, __LINE__, ##__VA_ARGS__); }
+#define LogInfo(...) \
+    { print_log(false, "INFO", __FILE__, __LINE__, ##__VA_ARGS__); }
 
 /**
  * @def LogDebug
  * @brief Log debug message
  */
-#define LogDebug(...) { print_log(false, "DEBUG", __FILE__, __LINE__, ##__VA_ARGS__); }
+#define LogDebug(...) \
+    { print_log(false, "DEBUG", __FILE__, __LINE__, ##__VA_ARGS__); }
 
 /**
  * @def OssDebug
  * @brief Log oss debug message
  */
-#define OssDebug(x) { std::stringstream oss; oss << x ; LogDebug("%s", oss.str().c_str()); }
+#define OssDebug(x)                        \
+    {                                      \
+        std::stringstream oss;             \
+        oss << x;                          \
+        LogDebug("%s", oss.str().c_str()); \
+    }

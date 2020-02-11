@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,22 +14,12 @@ namespace vpu {
 namespace {
 
 class ReorgYoloStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<ReorgYoloStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>& inputScales,
-            ScalePropagationStep step,
-            StageDataInfo<float>& scaleInfo) override {
-        if (step == ScalePropagationStep::Propagate) {
-            scaleInfo.setOutput(outputEdge(0), inputScales[0]);
-        } else {
-            // ReorgYolo can only propagate scaling.
-            scaleInfo.setInput(inputEdge(0), 1.0f);
-            scaleInfo.setOutput(outputEdge(0), 1.0f);
-        }
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
@@ -71,20 +61,29 @@ private:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeOldBuffer(handle_from_this(), serializer);
-        output->serializeOldBuffer(handle_from_this(), serializer);
+        input->serializeNewBuffer(serializer);
+        output->serializeNewBuffer(serializer);
     }
 };
 
 }  // namespace
 
-void FrontEnd::parseReorgYolo(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseReorgYolo(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
+
+    const auto maxC = 96;
+    const auto maxH = 48;
+    const auto maxW = 48;
+
+    auto desc = inputs[0]->desc();
+    const auto dimC = desc.dim(Dim::C);
+    const auto dimH = desc.dim(Dim::H);
+    const auto dimW = desc.dim(Dim::W);
+
+    VPU_THROW_UNLESS((dimC <= maxC) && (dimH <= maxH) && (dimW <= maxW),
+                     "ReorgYolo: too big tensor sizes to process: CHW %v %v %v, limits are: %v %v %v",
+                     dimC, dimH, dimW, maxC, maxH, maxW);
 
     auto stage = model->addNewStage<ReorgYoloStage>(
         layer->name,

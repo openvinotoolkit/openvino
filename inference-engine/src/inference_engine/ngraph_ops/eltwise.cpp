@@ -1,23 +1,22 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <algorithm>
-
 #include "eltwise.hpp"
+
+#include <algorithm>
+#include <memory>
+
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
-
-
 
 using namespace std;
 using namespace ngraph;
 
-op::Eltwise::Eltwise(const std::shared_ptr<ngraph::Node> &data1,
-                     const std::shared_ptr<ngraph::Node> &data2,
-                     const ELTWISE_TYPE eltwise_type)
-        : Op("Eltwise", check_single_output_args({data1, data2})), eltwise_type(eltwise_type) {
+constexpr NodeTypeInfo op::Eltwise::type_info;
+
+op::Eltwise::Eltwise(const Output<Node>& data1, const Output<Node>& data2, const ELTWISE_TYPE eltwise_type)
+    : Op({data1, data2}), eltwise_type(eltwise_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -35,12 +34,8 @@ void op::Eltwise::validate_and_infer_types() {
     element::Type data2_et = get_input_element_type(1);
 
     element::Type et_result;
-    NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(et_result, data1_et, data2_et),
-                          "Element types for first and second do not match :",
-                          data1_et,
-                          " and ",
-                          data2_et);
+    NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, data1_et, data2_et),
+                          "Element types for first and second do not match :", data1_et, " and ", data2_et);
 
     auto shape1 = get_input_partial_shape(0).to_shape();
     auto shape2 = get_input_partial_shape(1).to_shape();

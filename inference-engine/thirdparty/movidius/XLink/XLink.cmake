@@ -1,10 +1,28 @@
 if(EXISTS "$ENV{MV_COMMON_BASE}")
-    set(MV_COMMON_BASE $ENV{MV_COMMON_BASE})
+    set(XLINK_ROOT_DIR "$ENV{MV_COMMON_BASE}/components/XLink")
 else()
-    set(MV_COMMON_BASE ${CMAKE_CURRENT_LIST_DIR}/..)
+    set(XLINK_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
 endif(EXISTS "$ENV{MV_COMMON_BASE}")
 
-if(NOT WIN32)
+set(XLINK_INCLUDE
+        ${XLINK_ROOT_DIR}/shared/include
+        ${XLINK_ROOT_DIR}/pc/protocols)
+
+set(XLINK_PRIVATE_INCLUDE)
+
+file(GLOB PC_SRC             "${XLINK_ROOT_DIR}/pc/*.c")
+file(GLOB PC_PROTO_SRC       "${XLINK_ROOT_DIR}/pc/protocols/*.c")
+file(GLOB_RECURSE SHARED_SRC "${XLINK_ROOT_DIR}/shared/*.c")
+
+list(APPEND XLINK_SOURCES ${PC_SRC} ${PC_PROTO_SRC} ${SHARED_SRC})
+
+if(WIN32)
+    set(XLINK_PLATFORM_INCLUDE
+            ${XLINK_ROOT_DIR}/pc/Win/include)
+
+    file(GLOB XLINK_PLATFORM_SRC "${XLINK_ROOT_DIR}/pc/Win/src/*.c")
+    list(APPEND XLINK_SOURCES ${XLINK_PLATFORM_SRC})
+else()
     find_package(Threads REQUIRED)
 
     find_path(LIBUSB_INCLUDE_DIR NAMES libusb.h PATH_SUFFIXES "include" "libusb" "libusb-1.0")
@@ -13,24 +31,13 @@ if(NOT WIN32)
     if(NOT LIBUSB_INCLUDE_DIR OR NOT LIBUSB_LIBRARY)
         message(FATAL_ERROR "libusb is required")
     endif()
-endif()
 
-set(XLINK_INCLUDE
-        ${MV_COMMON_BASE}/XLink/pc
-        ${MV_COMMON_BASE}/XLink/shared
-        ${MV_COMMON_BASE}/shared/include
-        )
+    set(XLINK_PLATFORM_INCLUDE
+            ${XLINK_ROOT_DIR}/pc/MacOS)
+    list(APPEND XLINK_SOURCES "${XLINK_ROOT_DIR}/pc/MacOS/pthread_semaphore.c")
+endif(WIN32)
 
+#This is for the Movidius team
 set(XLINK_INCLUDE_DIRECTORIES
         ${XLINK_INCLUDE}
-        ${LIBUSB_INCLUDE_DIR}
-        )
-
-set(XLINK_SOURCES
-        ${MV_COMMON_BASE}/XLink/pc/XLinkPlatform.c
-        ${MV_COMMON_BASE}/XLink/pc/usb_boot.c
-        ${MV_COMMON_BASE}/XLink/pc/pcie_host.c
-        ${MV_COMMON_BASE}/XLink/shared/XLink.c
-        ${MV_COMMON_BASE}/XLink/shared/XLinkDispatcher.c
-        ${MV_COMMON_BASE}/shared/src/mvStringUtils.c
-        )
+        ${LIBUSB_INCLUDE_DIR})

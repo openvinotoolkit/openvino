@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,8 +25,8 @@ class IntermediatesNodesAnalysis(AnalyzeAction):
         outputs_desc = dict()
 
         for node in graph.get_op_nodes():
-            outputs_desc[node.id] = {'shape': node.soft_get('shape', None),
+            outputs_desc[node.name] = {'shape': node.soft_get('shape', None),
                                      'data_type': None,
                                      'value': None,
                                      }
-        return {'intermediate': outputs_desc}
+        return {'intermediate': outputs_desc}, None

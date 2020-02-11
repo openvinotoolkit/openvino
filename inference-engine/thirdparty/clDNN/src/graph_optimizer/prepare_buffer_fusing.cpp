@@ -18,7 +18,6 @@
 
 #include "api/eltwise.hpp"
 #include "api/pooling.hpp"
-#include "api/upsampling.hpp"
 #include "primitive_inst.h"
 #include "activation_inst.h"
 #include "concatenation_inst.h"
@@ -81,8 +80,18 @@ void prepare_buffer_fusing::run(program_impl& p) {
                 if (output_format != l.format || output_datatype != l.data_type)
                     return;
 
-                if (l.format == format::bfyx_f16 &&
-                    (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
+                if (l.format == format::bfyx_f16 && (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
+                    return;
+
+                if ((l.format == format::b_fs_yx_fsv32 || l.format == format::b_fs_zyx_fsv32) &&
+                    (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != concatenation::along_f))
+                    return;
+
+                // TODO: If we replace byxf_af32 with byxf we can probably do this optimization, but support in kernels is required
+                if (l.format == format::byxf_af32 && (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != concatenation::along_f))
+                    return;
+
+                if (l.format == format::bfzyx_f16 || l.format == format::b_fs_yx_fsv4)
                     return;
             }
 
@@ -227,6 +236,17 @@ void prepare_buffer_fusing::run(program_impl& p) {
                 auto input_layout = node.get_dependency(0).get_output_layout();
                 const auto& crop_size = crop_layout.size;
                 const auto& out_padd = crop_layout.data_padding;
+                const auto opt_lower_pad = crop_prim->offsets.feature[0];
+                const auto opt_upper_pad = input_layout.size.feature[0] - crop_prim->offsets.feature[0] - crop_size.feature[0];
+
+                // do not optimize crop if paddings are not properly aligned
+                for (auto& usr : node.get_users()) {
+                    auto usr_layout = usr->get_output_layout();
+                    if (usr_layout.format == format::bfyx_f16 &&
+                        (opt_lower_pad % 16 != 0 || opt_upper_pad % 16 != 0))
+                        return;
+                }
+
                 if (format == format::bfyx && crop_size.batch[0] == input_layout.size.batch[0] &&
                     crop_size.spatial[0] == input_layout.size.spatial[0] &&
                     crop_size.spatial[1] == input_layout.size.spatial[1] && out_padd.lower_size().feature[0] == 0 &&
@@ -250,11 +270,11 @@ void prepare_buffer_fusing::run(program_impl& p) {
 
                     node.set_output_padding(
                         padding({out_padd.lower_size().batch[0],
-                                 crop_prim->offsets.feature[0],
+                                 opt_lower_pad,
                                  out_padd.lower_size().spatial[0],
                                  out_padd.lower_size().spatial[1]},
                                 {out_padd.upper_size().batch[0],
-                                 input_layout.size.feature[0] - crop_prim->offsets.feature[0] - crop_size.feature[0],
+                                 opt_upper_pad,
                                  out_padd.upper_size().spatial[0],
                                  out_padd.upper_size().spatial[1]}));
                     node.can_be_optimized(true);

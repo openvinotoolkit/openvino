@@ -62,7 +62,7 @@ KERNEL(convolution_gpu_byx8_f4_fs_bs_yx_bsv4_fsv32)(
     const uint x = get_group_id(1) * 8;
     const uint y = get_group_id(2) * OUT_BLOCK_HEIGHT;
 
-    const uint bf_id = (get_group_id(0) * WG_BATCH_SIZE + get_sub_group_id()) * 8 * WEIGHTS_PER_WORKITEM;
+    const uint bf_id = ((uint)get_group_id(0) * WG_BATCH_SIZE + (uint)get_sub_group_id()) * 8 * WEIGHTS_PER_WORKITEM;
 
     const uint f = (bf_id) % OUTPUT_FEATURE_NUM;
     const uint b = OUT_BLOCK_BATCH * (bf_id / OUTPUT_FEATURE_NUM);

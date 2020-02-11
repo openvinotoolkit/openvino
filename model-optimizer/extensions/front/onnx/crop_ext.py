@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ class CropFrontExtractor(FrontExtractorOp):
     op = 'Crop'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         # borders: leftBorder, topBorder, rightBorder, bottomBordes
         borders = onnx_attr(node, 'border', 'ints', default=None, dst_type=int64_array)
         scale = onnx_attr(node, 'scale', 'ints', default=None, dst_type=int64_array)

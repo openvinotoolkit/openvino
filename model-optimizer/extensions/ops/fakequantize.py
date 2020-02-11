@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ class FakeQuantize(Op):
             'type': __class__.op,
             'op': __class__.op,
             'levels': None,
+            'is_eltwise': True,
             # flag to switch between dumping FakeQuantize as statistics and keeping it as layer in IR
             'keep_in_IR': None,
             'infer': __class__.infer,

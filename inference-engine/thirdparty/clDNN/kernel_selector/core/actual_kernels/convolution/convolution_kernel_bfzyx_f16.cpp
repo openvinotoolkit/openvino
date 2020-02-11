@@ -17,11 +17,33 @@
 #include "convolution_kernel_bfzyx_f16.h"
 #include "kernel_selector_utils.h"
 #include <algorithm>
+#include <string>
 
 namespace kernel_selector {
 
 static const size_t sub_group_size = 16;
 static const size_t feature_block_size = 16;
+
+FusedOpsConfiguration GenerateFusedOpsConfiguration(size_t conf_id, std::string input_name, Datatype dt, bool is_vector) {
+    std::vector<std::string> idx_order;
+    std::string suffix = (is_vector ? "_VEC" : "_SCALAR") + std::to_string(conf_id);
+    std::string input_var_name = input_name + std::to_string(conf_id) + (is_vector ? "" : "[i]");
+    size_t vec_size = is_vector ? 8 : 1;
+    if (is_vector)
+        idx_order = {"(mb)", "(oc*OC_BLOCK + g*OC)", "od", "oh", "(ow + " + std::to_string(conf_id * 8) + ")"};
+    else
+        idx_order = {"(mb)", "(oc*OC_BLOCK + g*OC + local_id)", "od", "oh", "(ow + i)"};
+
+    return { suffix,
+             idx_order,
+             input_var_name,
+             dt,
+             vec_size,
+             is_vector ? FusedOpsConfiguration::LoadType::LT_ALIGNED_READ : FusedOpsConfiguration::LoadType::LT_UNALIGNED,
+             FusedOpsConfiguration::BoundaryCheck::ENABLED,
+             FusedOpsConfiguration::IndexType::TENSOR_COORD,
+             Tensor::DataChannelName::X };
+}
 
 ParamsKey ConvolutionKernel_bfzyx_f16::GetSupportedKey() const {
     ParamsKey k;
@@ -31,8 +53,11 @@ ParamsKey ConvolutionKernel_bfzyx_f16::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::F16);
+    k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::bfzyx_f16);
     k.EnableOutputLayout(DataLayout::bfzyx_f16);
+    k.EnableInputLayout(DataLayout::bfzyx_b16f16);
+    k.EnableOutputLayout(DataLayout::bfzyx_b16f16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBiasPerFeature();
@@ -49,6 +74,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfzyx_f16::SetDefault(cons
     DispatchData kd = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
 
     const auto& out = params.output;
+    const auto& input = params.inputs[0];
 
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -56,34 +82,78 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfzyx_f16::SetDefault(cons
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    auto oh_block = 1;
+    const bool is_1stconv = input.Feature().v == 3;
+    const bool ver_16mb16c = !is_1stconv &&
+        ((out.GetDType() == Datatype::F16 && b % 32 == 0) ||
+        (out.GetDType() == Datatype::F32 && b % 16 == 0));
 
-    auto div = 16;
-    while (div > 1) {
-        if (x % div == 0)
-            break;
-        div--;
+    if (is_1stconv) {
+        auto oh_block = 1;
+        auto ow_block = 8;
+        while (ow_block > 1) {
+            if (params.stride.x * ow_block + params.weights.X().v * params.dilation.x > 32)
+                ow_block--;
+            else
+                break;
+        }
+        kd.cldnnStyle.blockWidth = ow_block;
+        if (out.GetDType() == Datatype::F16) {
+            kd.lws0 = sub_group_size;
+            kd.lws1 = 1;
+            kd.lws2 = 1;
+
+            kd.gws0 = (f / 2);
+            kd.gws1 = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
+            kd.gws2 = b % 2 == 0 ? b / 2 : b;  // unroll mb by 2
+        } else {
+            kd.lws0 = sub_group_size;
+            kd.lws1 = 1;
+            kd.lws2 = 1;
+
+            auto ocb = (f % 32 == 0) ? 32 : 16;
+            kd.gws0 = 16;
+            kd.gws1 = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
+            kd.gws2 = b * f / ocb;
+        }
+    } else if (ver_16mb16c) {
+        kd.lws0 = sub_group_size;
+        kd.lws1 = 1;
+        kd.lws2 = 1;
+
+        kd.gws0 = f;
+        kd.gws1 = x * y * z;
+        kd.gws2 = (out.GetDType() == Datatype::F16) ? b / 32 : b / 16;
+
+        kd.cldnnStyle.blockWidth = 1;
+    } else {
+        auto oh_block = 1;
+
+        auto div = 16;
+        while (div > 1) {
+            if (x % div == 0)
+                break;
+            div--;
+        }
+        auto ow_block = std::max(8, div);
+
+        auto ocb = 128;
+        while (ocb > 16) {
+            if (f % ocb == 0)
+                break;
+            else
+                ocb /= 2;
+        }
+
+        kd.cldnnStyle.blockWidth = ow_block;
+
+        kd.gws0 = ocb;
+        kd.gws1 = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
+        kd.gws2 = b * (f / ocb);
+
+        kd.lws0 = sub_group_size;
+        kd.lws1 = 1;
+        kd.lws2 = 1;
     }
-    auto ow_block = std::max(8, div);
-
-    auto ocb = 128;
-    while (ocb > 16) {
-        if (f % ocb == 0)
-            break;
-        else
-            ocb /= 2;
-    }
-
-    kd.cldnnStyle.blockWidth = ow_block;
-
-    kd.gws0 = ocb;
-    kd.gws1 = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
-    kd.gws2 = b * (f / ocb);
-
-    kd.lws0 = sub_group_size;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
-
     if (b == 1)
         kd.effiency = FORCE_PRIORITY_2;
     else
@@ -108,8 +178,15 @@ bool ConvolutionKernel_bfzyx_f16::Validate(const Params& p, const optional_param
     if (output.Feature().v % feature_block_size != 0)
         return false;
 
-    if (input.Feature().v % feature_block_size != 0)
-        return false;
+    if (input.GetLayout() == DataLayout::bfzyx) {
+        if (input.Feature().v != 3)
+            return false;
+        if (output.GetDType() == Datatype::F16 && (output.Feature().v % 32 != 0))
+            return false;
+    } else {
+        if (input.Feature().v % feature_block_size != 0)
+            return false;
+    }
 
     // Check that padding before features doesn't miss-align the blocks
     if (input.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0) {
@@ -125,7 +202,16 @@ JitConstants ConvolutionKernel_bfzyx_f16::GetJitConstants(const convolution_para
     auto output = params.output;
     auto jit = Parent::GetJitConstants(params, runInfo);
 
-    jit.AddConstant(MakeJitConstant("VER_8OW16C", 1));
+    const bool is_1stconv = input.Feature().v == 3;
+    const bool ver_16mb16c = !is_1stconv &&
+        ((output.GetDType() == Datatype::F16 && output.Batch().v % 32 == 0) ||
+         (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
+
+    if (ver_16mb16c) {
+        jit.AddConstant(MakeJitConstant("VER_16MB16C", 1));
+    } else {
+        jit.AddConstant(MakeJitConstant("VER_8OW16C", 1));
+    }
     jit.AddConstant(MakeJitConstant("OC_BLOCK", 16));
     jit.AddConstant(MakeJitConstant("NCHW", 1));
     jit.AddConstant(MakeJitConstant("CASE_3D", 1));
@@ -134,21 +220,49 @@ JitConstants ConvolutionKernel_bfzyx_f16::GetJitConstants(const convolution_para
     jit.AddConstant(MakeJitConstant("LWS_1", runInfo.lws1));
     jit.AddConstant(MakeJitConstant("LWS_2", runInfo.lws2));
 
-    jit.AddConstant(MakeJitConstant("OCB", runInfo.gws0));
-
+    if (is_1stconv) {
+        if (output.GetDType() == Datatype::F16) {
+            jit.AddConstant(MakeJitConstant("OCB", 1));
+        } else {
+            jit.AddConstant(MakeJitConstant("OCB",
+                (output.Feature().v % 32 == 0) ? 32 : 16));
+        }
+    } else if (ver_16mb16c) {
+        jit.AddConstant(MakeJitConstant("OCB", 1));
+    } else {
+        jit.AddConstant(MakeJitConstant("OCB", runInfo.gws0));
+    }
     jit.AddConstant(MakeJitConstant("SUM_SCALE", 1));
 
     auto blockWidth = runInfo.cldnnStyle.blockWidth;
-    // the conditional code below was replaced to fix security issue
-    // auto is_1stconv = false;
-    // auto mb_block =(is_1stconv && output.Batch().v % 16 == 0) ? 16 : 1;
-    // auto ic_block = (is_1stconv) ? 1 : 16;
-    auto mb_block = 1;
-    auto ic_block = 16;
 
-    jit.AddConstant(MakeJitConstant("MB_BLOCK", mb_block));
-    jit.AddConstant(MakeJitConstant("MB_LAST", (output.Batch().v / 16) * 16));
-    jit.AddConstant(MakeJitConstant("IC_BLOCK", ic_block));
+    if (ver_16mb16c) {
+        jit.AddConstant(MakeJitConstant("MB_BLOCK", 16));
+    } else {
+        int mb_block;
+        if (output.GetDType() == Datatype::F16)
+            mb_block = (is_1stconv && output.Batch().v % 32 == 0) ? 16 : 1;
+        else
+            mb_block = (is_1stconv && output.Batch().v % 16 == 0) ? 16 : 1;
+
+        jit.AddConstant(MakeJitConstant("MB_BLOCK", mb_block));
+    }
+
+    if (ver_16mb16c) {
+        jit.AddConstant(MakeJitConstant("IC_BLOCK", 16));
+    } else {
+        auto ic_block = (is_1stconv && output.GetDType() != Datatype::F16) ? 1 : 16;
+        jit.AddConstant(MakeJitConstant("IC_BLOCK", ic_block));
+    }
+
+    auto input_dt = GetUnitType(params);
+    if (!is_1stconv && !ver_16mb16c && !params.fused_ops.empty()) {
+        FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration(0, "blockC0", input_dt, true);
+        FusedOpsConfiguration conf_vec1 = GenerateFusedOpsConfiguration(1, "blockC0", input_dt, true);
+        FusedOpsConfiguration conf_scalar0 = GenerateFusedOpsConfiguration(0, "blockC0", input_dt, false);
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_scalar0}));
+    }
+
     jit.AddConstant(MakeJitConstant("OH_BLOCK", 1));
     jit.AddConstant(MakeJitConstant("OW_BLOCK", blockWidth));
     jit.AddConstant(MakeJitConstant("OW_LAST", (output.X().v / blockWidth) * blockWidth));

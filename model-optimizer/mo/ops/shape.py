@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ class Shape(Op):
             'type': __class__.op,
             'op': __class__.op,
             'infer': __class__.infer,
+            'type_infer': self.type_infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
@@ -56,3 +57,7 @@ class Shape(Op):
         else:
             log.info('Can\'t infer shape and value for shape operation due to undefined input shape')
 
+    @staticmethod
+    def type_infer(node):
+        node.out_port(0).set_data_type(np.int64 if node.graph.graph['cmd_params'].generate_experimental_IR_V10 else
+                                       np.int32)

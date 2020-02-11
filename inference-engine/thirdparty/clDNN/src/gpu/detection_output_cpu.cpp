@@ -19,6 +19,7 @@
 #include "network_impl.h"
 #include "implementation_map.h"
 #include "math_utils.h"
+#include "cpu_impl_helpers.hpp"
 
 #include <algorithm>
 #include <stdexcept>
@@ -38,20 +39,7 @@ namespace cldnn {
 namespace gpu {
 
 namespace {
-struct bounding_box {
-    float xmin;
-    float ymin;
-    float xmax;
-    float ymax;
-
-    bounding_box() : xmin(0), ymin(0), xmax(0), ymax(0) {}
-
-    bounding_box(const float xmin, const float ymin, const float xmax, const float ymax)
-        : xmin(xmin), ymin(ymin), xmax(xmax), ymax(ymax) {}
-
-    // Computes the area of a bounding box.
-    float area() const { return (xmax - xmin) * (ymax - ymin); }
-};
+    using bounding_box = cldnn::cpu::bounding_box;
 }  // namespace
 
 /************************ Detection Output CPU ************************/
@@ -621,7 +609,7 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
             a->wait();
         }
 
-        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_stream_id(), false);
+        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_id(), false);
 
         const int num_of_images = instance.location_memory().get_layout().size.batch[0];  // batch size
 

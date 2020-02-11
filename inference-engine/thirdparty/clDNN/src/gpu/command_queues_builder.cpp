@@ -28,6 +28,8 @@ command_queues_builder::command_queues_builder(const cl::Context& context,
     : _context(context),
       _device(device),
       _platform_id(platform_id),
+      _profiling(false),
+      _out_of_order(false),
       _priority_mode(priority_mode_types::disabled),
       _throttle_mode(throttle_mode_types::disabled) {}
 

@@ -1,15 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include <inference_engine/shape_infer/built-in/ie_built_in_holder.hpp>
+#include <shape_infer/built-in/ie_built_in_holder.hpp>
 #include <xml_net_builder.hpp>
-#include <inference_engine/cnn_network_impl.hpp>
-#include <inference_engine/shape_infer/ie_reshaper.hpp>
+#include <cnn_network_impl.hpp>
+#include <shape_infer/ie_reshaper.hpp>
 #include <cpp/ie_cnn_net_reader.h>
 #include <test_model_path.hpp>
-#include <inference_engine/debug.h>
+#include <debug.h>
 #include "built_in_shape_infer_general_test.hpp"
 
 using namespace InferenceEngine;
@@ -718,6 +718,14 @@ INSTANTIATE_TEST_CASE_P(
                                                                                              {"batch_axis", "0"}})),
                                       LayerDataName("data"),
                                       CanInfer(true)),
+                ::testing::make_tuple(LayerType("SparseSegmentSum"),
+                                      InOutShapes({{{5, 2, 3}, {10}, {10}},
+                                                   {{10, 2, 3}}}),
+                                      NewInOutShapes({{{20, 5, 4}, {17}, {17}},
+                                                      {{17, 5, 4}}}),
+                                      MapParams(MapStrStr(std::map<std::string, std::string>{})),
+                                      LayerDataName("data"),
+                                      CanInfer(true)),
                 ::testing::make_tuple(LayerType("Select"),
                                       InOutShapes({ { {2, 4, 4 }, {2, 4, 4}, {2, 4, 4} },
                                                     { {2, 4, 4} } }),
@@ -824,7 +832,8 @@ INSTANTIATE_TEST_CASE_P(
                                                    {{6, 3}}}),
                                       NewInOutShapes({{{2, 5, 4}, {2, 3, 5}},
                                                       {{30, 3}}}),
-                                      MapParams(MapStrStr(std::map<std::string, std::string>{{"center_point_box", "0"}})),
+                                      MapParams(MapStrStr(std::map<std::string, std::string>{{"center_point_box", "0"}},
+                                      MapParams(MapStrStr(std::map<std::string, std::string>{{"sort_result_descending", "1"}})),
                                       LayerDataName("data"),
                                       CanInfer(true))
         )

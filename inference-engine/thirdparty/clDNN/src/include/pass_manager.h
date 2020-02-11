@@ -25,6 +25,8 @@
 #include <utility>
 #include <set>
 
+#include <fstream>
+
 namespace cldnn {
 class base_pass {
     friend class pass_manager;
@@ -45,24 +47,15 @@ private:
 
 class pass_manager {
 public:
-    pass_manager() { pass_count = 0; }
-    void run(program_impl& p, base_pass& pass) {
-        pass.run(p);
-        p.save_pass_info(pass.get_name());
-        std::string dump_file_name;
-        if (pass_count < 10)
-            dump_file_name += "0";
-        dump_file_name += std::to_string(pass_count) + "_" + pass.get_name();
-        p.dump_program(dump_file_name.c_str(), true);
-        pass.clean_marks(p);
-        pass_count++;
-    }
+    explicit pass_manager(program_impl& p);
+    void run(program_impl& p, base_pass& pass);
     uint32_t get_pass_count() { return pass_count; }
     uint32_t inc_pass_count() { return ++pass_count; }
     ~pass_manager() {}
 
 private:
     uint32_t pass_count;
+    std::ofstream graph_opt_log;
 };
 
 class add_required_reorders : public base_pass {
@@ -71,7 +64,7 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void add_reorder(program_impl& p, program_node* node, program_node* usr, layout reorder_layout);
+    void add_reorder(program_impl& p, program_node* node, program_node* usr, const layout& reorder_layout);
 };
 
 class add_reshape_to_primitives : public base_pass {
@@ -169,6 +162,9 @@ public:
 private:
     void run(program_impl& p) override;
     void prepare_packed_quantize(program_impl& p);
+    void prepare_scale_shift_opt(program_impl& p);
+    void remove_fake_reorders(program_impl& p);
+    void prepare_asymmetric_quantization(program_impl& p);
 };
 
 class prepare_conv_eltw_fusing : public base_pass {
@@ -254,7 +250,7 @@ public:
 
 private:
     void run(program_impl& p) override;
-    program_node& add_reorder(program_impl& p, program_node* node, program_node* usr, layout reorder_layout);
+    program_node& add_reorder(program_impl& p, program_node* node, program_node* usr, const layout& reorder_layout);
 };
 
 class post_optimize_weights : public base_pass {
@@ -287,7 +283,7 @@ public:
 
 private:
     void run(program_impl& p) override;
-    std::list<std::pair<primitive_id, memory_impl::ptr>> calculate(engine_impl& engine);
+    std::list<std::pair<primitive_id, memory_impl::ptr>> calculate(engine_impl& engine, build_options bo);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program_impl& prog, program_node& node);
     void add_constant(program_impl& prog, program_node& node);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,9 @@ public:
     void setDynamicBatchLim(int lim) override;
 
 private:
-    static Register<MKLDNNSplitNode> reg;
+    void optimizedImpl(size_t MB);
+
+    bool canUseOptimizedImpl = true;
     size_t axis = 1;
 };
 

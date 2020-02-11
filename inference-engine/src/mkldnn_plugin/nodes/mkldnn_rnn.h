@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,8 +32,6 @@ private:
     void fillSeqDesc();
 
 private:
-    static Register<MKLDNNRNN> reg;
-
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
     bool is_cell = false;
 

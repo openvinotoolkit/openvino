@@ -1,20 +1,21 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
- * @brief This is a header file with common inference engine definitions.
- * @file ie_common.h
+ * @brief This is a header file with common inference engine definitions
+ * 
+ * @file
  */
 #pragma once
 
-#include <vector>
-#include <memory>
-#include <string>
-#include <ostream>
 #include <algorithm>
 #include <cstdlib>
 #include <details/ie_exception.hpp>
+#include <memory>
+#include <ostream>
+#include <string>
+#include <vector>
 
 #ifdef UNICODE
 typedef wchar_t tchar;
@@ -27,8 +28,8 @@ typedef std::string file_name_t;
 namespace InferenceEngine {
 
 /**
-* @brief Conversion from possibly-wide character string to a single-byte chain.
-*/
+ * @brief Conversion from possibly-wide character string to a single-byte chain.
+ */
 inline std::string fileNameToString(const file_name_t& str) {
 #ifdef UNICODE
     size_t maxlen = (str.length() + 1) * sizeof(wchar_t) / sizeof(char);
@@ -43,8 +44,8 @@ inline std::string fileNameToString(const file_name_t& str) {
 }
 
 /**
-* @brief Conversion from single-byte character string to a possibly-wide one
-*/
+ * @brief Conversion from single-byte character string to a possibly-wide one
+ */
 inline file_name_t stringToFileName(const std::string& str) {
 #ifdef UNICODE
     size_t maxlen = str.length() + 1;

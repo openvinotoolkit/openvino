@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,10 @@ typedef struct {
 
 class Interp : public Op {
 public:
-    Interp(const std::shared_ptr<Node>& image, const InterpolateIEAttrs& attrs);
+    static constexpr NodeTypeInfo type_info{"Interp", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
+
+    Interp(const Output<Node>& image, const InterpolateIEAttrs& attrs);
 
     void validate_and_infer_types() override;
 
@@ -39,18 +42,31 @@ private:
     InterpolateIEAttrs m_attrs;
 };
 
+typedef struct {
+    bool antialias = true;
+    int64_t factor = 0;
+    std::string mode = "";
+} ResampleIEAttrs;
+
 class ResampleV2 : public Op {
 public:
-    ResampleV2(const std::shared_ptr<Node>& image,
-               const std::shared_ptr<Node>& output_shape,
-               const InterpolateIEAttrs& attrs);
+    static constexpr NodeTypeInfo type_info{"ResampleV2", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
+
+    ResampleV2(const Output<Node>& image,
+               const Output<Node>& output_shape,
+               const ResampleIEAttrs& attrs);
+
+    ResampleV2(const Output<Node>& image,
+               const ResampleIEAttrs& attrs);
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
 
+    ResampleIEAttrs get_attrs() { return m_attrs; }
 private:
-    InterpolateIEAttrs m_attrs;
+    ResampleIEAttrs m_attrs;
 };
 }  // namespace op
 }  // namespace ngraph

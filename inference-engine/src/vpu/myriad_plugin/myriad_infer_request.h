@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,10 +24,9 @@ namespace MyriadPlugin {
 
 class MyriadInferRequest : public InferenceEngine::InferRequestInternal {
     MyriadExecutorPtr _executor;
-    LayoutPreference _layoutPreference;
     Logger::Ptr _log;
     std::vector<StageMetaInfo> _stagesMetaData;
-    std::shared_ptr<MyriadConfig> _config;
+    MyriadConfig _config;
 
     const DataInfo _inputInfo;
     const DataInfo _outputInfo;
@@ -42,10 +41,10 @@ public:
     explicit MyriadInferRequest(GraphDesc &_graphDesc,
                                 InferenceEngine::InputsDataMap networkInputs,
                                 InferenceEngine::OutputsDataMap networkOutputs,
-                                DataInfo& inputInfo,
-                                DataInfo& outputInfo,
+                                DataInfo& compilerInputsInfo,
+                                DataInfo& compilerOutputsInfo,
                                 const std::vector<StageMetaInfo> &blobMetaData,
-                                const std::shared_ptr<MyriadConfig> &myriadConfig,
+                                const MyriadConfig &myriadConfig,
                                 const Logger::Ptr &log,
                                 const MyriadExecutorPtr &executor);
 

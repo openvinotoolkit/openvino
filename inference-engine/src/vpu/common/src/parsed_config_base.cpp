@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,110 +17,120 @@
 #include <ie_plugin_config.hpp>
 
 namespace vpu {
-namespace  {
-template<typename I, typename T, typename C>
-void check_input(const I &input, const T &options, const C &check) {
-    for (const auto& option : options) {
-        auto input_entry = input.find(option.first);
-        if (input_entry == input.end()) {
-            continue;
+
+const std::unordered_map<std::string, bool> ParsedConfigBase::switches = {
+    { CONFIG_VALUE(YES), true },
+    { CONFIG_VALUE(NO), false }
+};
+
+ParsedConfigBase::ParsedConfigBase() {
+    _log = std::make_shared<Logger>("Config", LogLevel::Warning, consoleOutput());
+}
+
+ParsedConfigBase::~ParsedConfigBase() = default;
+
+void ParsedConfigBase::update(
+        const std::map<std::string, std::string>& config,
+        ConfigMode mode) {
+    const auto& compileOptions = getCompileOptions();
+    const auto& runTimeOptions = getRunTimeOptions();
+    const auto& deprecatedOptions = getDeprecatedOptions();
+
+    for (const auto& entry : config) {
+        const bool isCompileOption = compileOptions.count(entry.first) != 0;
+        const bool isRunTimeOption = runTimeOptions.count(entry.first) != 0;
+        const bool isDeprecatedOption = deprecatedOptions.count(entry.first) != 0;
+
+        if (!isCompileOption && !isRunTimeOption) {
+            THROW_IE_EXCEPTION
+                    << NOT_FOUND_str << entry.first
+                    << " key is not supported for VPU";
         }
 
-        auto input_key = input_entry->first;
-        auto input_val = input_entry->second;
-        auto values = option.second;
+        if (mode == ConfigMode::RunTime) {
+            if (!isRunTimeOption) {
+                _log->warning("%s option is used in %s mode", entry.first, mode);
+            }
+        }
 
-        if (!check(values, input_val)) {
-            THROW_IE_EXCEPTION << "Incorrect value " << "\"" << input_val << "\"" << " for key " << input_key;
+        if (isDeprecatedOption) {
+            _log->warning("Deprecated option was used : %s", entry.first);
         }
     }
+
+    parse(config);
 }
 
-}  // namespace
-
-ParsedConfigBase::ParsedConfigBase(ConfigMode configMode): _mode(configMode) {
-        _log = std::make_shared<Logger>("Config", LogLevel::Warning, consoleOutput());
-}
-
-void ParsedConfigBase::checkSupportedValues(
-        const std::unordered_map<std::string, std::unordered_set<std::string>> &supported,
-        const std::map<std::string, std::string> &config) const {
-    auto contains = [](const std::unordered_set<std::string> &supported, const std::string &option) {
-        return supported.find(option) != supported.end();
+const std::unordered_set<std::string>& ParsedConfigBase::getCompileOptions() const {
+IE_SUPPRESS_DEPRECATED_START
+    static const std::unordered_set<std::string> options = {
+        CONFIG_KEY(LOG_LEVEL),
+        VPU_CONFIG_KEY(LOG_LEVEL)
     };
+IE_SUPPRESS_DEPRECATED_END
 
-    check_input(config, supported, contains);
+    return options;
 }
 
-void ParsedConfigBase::checkUnknownOptions(const std::map<std::string, std::string> &config) const {
-    auto knownOptions = getKnownOptions();
-    for (auto &&entry : config) {
-        if (knownOptions.find(entry.first) == knownOptions.end()) {
-            THROW_IE_EXCEPTION << NOT_FOUND_str << entry.first << " key is not supported for VPU";
-        }
-    }
-}
-
-void ParsedConfigBase::checkOptionsAccordingToMode(const std::map<std::string, std::string> &config) const {
-    auto compileOptions = getCompileOptions();
-    for (auto &&entry : config) {
-        std::stringstream errorMsgStream;
-        if (compileOptions.find(entry.first) != compileOptions.end() && _mode == ConfigMode::RUNTIME_MODE) {
-            _log->warning("%s option will be ignored. Seems you are using compiled graph", entry.first);
-        }
-    }
-}
-
-void ParsedConfigBase::checkInvalidValues(const std::map<std::string, std::string> &config) const {
-    const std::unordered_map<std::string, std::unordered_set<std::string>> supported_values = {
-        { CONFIG_KEY(LOG_LEVEL),
-          { CONFIG_VALUE(LOG_NONE), CONFIG_VALUE(LOG_WARNING), CONFIG_VALUE(LOG_INFO), CONFIG_VALUE(LOG_DEBUG) }},
-        { VPU_CONFIG_KEY(LOG_LEVEL),
-          { CONFIG_VALUE(LOG_NONE), CONFIG_VALUE(LOG_WARNING), CONFIG_VALUE(LOG_INFO), CONFIG_VALUE(LOG_DEBUG) }},
-        { CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),   { CONFIG_VALUE(YES), CONFIG_VALUE(NO) }}
+const std::unordered_set<std::string>& ParsedConfigBase::getRunTimeOptions() const {
+IE_SUPPRESS_DEPRECATED_START
+    static const std::unordered_set<std::string> options = {
+        CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
+        CONFIG_KEY(LOG_LEVEL),
+        VPU_CONFIG_KEY(LOG_LEVEL)
     };
+IE_SUPPRESS_DEPRECATED_END
 
-    checkSupportedValues(supported_values, config);
+    return options;
 }
 
-void ParsedConfigBase::configure(const std::map<std::string, std::string> &config) {
+const std::unordered_set<std::string>& ParsedConfigBase::getDeprecatedOptions() const {
+    IE_SUPPRESS_DEPRECATED_START
+        static const std::unordered_set<std::string> options = {
+            VPU_CONFIG_KEY(LOG_LEVEL)
+        };
+    IE_SUPPRESS_DEPRECATED_END
+
+    return options;
+}
+
+void ParsedConfigBase::parse(const std::map<std::string, std::string>& config) {
     static const std::unordered_map<std::string, LogLevel> logLevels = {
         { CONFIG_VALUE(LOG_NONE), LogLevel::None },
+        { CONFIG_VALUE(LOG_ERROR), LogLevel::Error },
         { CONFIG_VALUE(LOG_WARNING), LogLevel::Warning },
         { CONFIG_VALUE(LOG_INFO), LogLevel::Info },
-        { CONFIG_VALUE(LOG_DEBUG), LogLevel::Debug }
+        { CONFIG_VALUE(LOG_DEBUG), LogLevel::Debug },
+        { CONFIG_VALUE(LOG_TRACE), LogLevel::Trace }
     };
 
-    setOption(hostLogLevel,   logLevels, config, CONFIG_KEY(LOG_LEVEL));
-    setOption(deviceLogLevel, logLevels, config, VPU_CONFIG_KEY(LOG_LEVEL));
+    setOption(_logLevel, logLevels, config, CONFIG_KEY(LOG_LEVEL));
+    setOption(_exclusiveAsyncRequests, switches, config, CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
+
+IE_SUPPRESS_DEPRECATED_START
+    setOption(_logLevel, logLevels, config, VPU_CONFIG_KEY(LOG_LEVEL));
+IE_SUPPRESS_DEPRECATED_END
 
 #ifndef NDEBUG
-    if (auto envVar = std::getenv("IE_VPU_LOG_LEVEL")) {
-        hostLogLevel = logLevels.at(envVar);
+    if (const auto envVar = std::getenv("IE_VPU_LOG_LEVEL")) {
+        _logLevel = logLevels.at(envVar);
     }
 #endif
-
-    static const std::unordered_map<std::string, bool> switches = {
-            { CONFIG_VALUE(YES), true },
-            { CONFIG_VALUE(NO), false }
-    };
-
-    setOption(exclusiveAsyncRequests, switches, config, CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
 }
 
-std::unordered_set<std::string> ParsedConfigBase::getRuntimeOptions() const {
-        return { CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
-                 CONFIG_KEY(LOG_LEVEL),
-                 VPU_CONFIG_KEY(LOG_LEVEL)}; }
-
-std::unordered_set<std::string> ParsedConfigBase::getKnownOptions() const {
-    std::unordered_set<std::string> knownOptions;
-    auto compileOptions = getCompileOptions();
-    knownOptions.insert(compileOptions.begin(), compileOptions.end());
-
-    auto runtimeOptions = getRuntimeOptions();
-    knownOptions.insert(runtimeOptions.begin(), runtimeOptions.end());
-
-    return knownOptions;
+std::unordered_set<std::string> ParsedConfigBase::merge(
+            const std::unordered_set<std::string>& set1,
+            const std::unordered_set<std::string>& set2) {
+    auto out = set1;
+    out.insert(set2.begin(), set2.end());
+    return out;
 }
+
+void ParsedConfigBase::setOption(std::string& dst, const std::map<std::string, std::string>& config, const std::string& key) {
+    const auto value = config.find(key);
+    if (value != config.end()) {
+        dst = value->second;
+    }
+}
+
 }  // namespace vpu

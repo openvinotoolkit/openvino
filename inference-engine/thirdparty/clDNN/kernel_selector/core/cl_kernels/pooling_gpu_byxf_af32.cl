@@ -15,8 +15,11 @@
 
 #include "include/include_all.cl"
 
+#define OUTPUT_TYPE4 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4)
+#define TO_OUTPUT_TYPE4(x) CAT(convert_, OUTPUT_TYPE4)(x)
+
 #if MAX_POOLING
-    #define INIT_VAL CHAR_MIN
+    #define INIT_VAL INPUT0_VAL_MIN
 #elif AVG_POOLING
     #define INIT_VAL 0
 #else
@@ -34,8 +37,12 @@ inline int FUNC(apply_pooling)(int tmp, int in)
 }
 
 KERNEL(pooling_gpu_byxf_af32)(
-    const __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output)
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+)
 {
     const uint x    = (uint)get_global_id(0);
     const uint y    = (uint)get_global_id(1);
@@ -44,7 +51,8 @@ KERNEL(pooling_gpu_byxf_af32)(
     const uint aligned32_features = ((INPUT0_FEATURE_NUM + 31) / 32) * 32;
     const uint f    = 4 * (bf % (aligned32_features / 4));
     const uint b    = bf / (aligned32_features / 4);
-    
+
+    typedef MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) input_t;
     if (x >= OUTPUT_SIZE_X)
     {
         return;
@@ -52,7 +60,7 @@ KERNEL(pooling_gpu_byxf_af32)(
 
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
-    
+
     int4 result = INIT_VAL;
 
 #ifdef CHECK_BOUNDRY
@@ -81,12 +89,12 @@ KERNEL(pooling_gpu_byxf_af32)(
                 {
                     const uint input_idx = batch_and_feature_offset + input_offset_y*INPUT0_Y_PITCH + input_offset_x*INPUT0_X_PITCH;
 
-                    char4 input_data = as_char4(intel_sub_group_block_read((const __global uint*)(input + input_idx)));
+                    input_t input_data = AS_INPUT_TYPE(intel_sub_group_block_read((const __global uint*)(input + input_idx)));
                     result[0] = FUNC_CALL(apply_pooling)(result[0], (int)input_data[0]);
                     result[1] = FUNC_CALL(apply_pooling)(result[1], (int)input_data[1]);
                     result[2] = FUNC_CALL(apply_pooling)(result[2], (int)input_data[2]);
                     result[3] = FUNC_CALL(apply_pooling)(result[3], (int)input_data[3]);
-                    
+
 #ifdef DYNAMIC_KERNEL_DIVIDER
                     num_elementes++;
 #endif
@@ -106,7 +114,7 @@ KERNEL(pooling_gpu_byxf_af32)(
     {
         for(uint i = 0; i < POOL_SIZE_X; i++)
         {
-            char4 input_data = as_char4(intel_sub_group_block_read((const __global uint*)(input + input_idx)));
+            input_t input_data = AS_INPUT_TYPE(intel_sub_group_block_read((const __global uint*)(input + input_idx)));
             result[0] = FUNC_CALL(apply_pooling)(result[0], (int)input_data[0]);
             result[1] = FUNC_CALL(apply_pooling)(result[1], (int)input_data[1]);
             result[2] = FUNC_CALL(apply_pooling)(result[2], (int)input_data[2]);
@@ -116,32 +124,52 @@ KERNEL(pooling_gpu_byxf_af32)(
         }
         input_idx += (INPUT0_Y_PITCH - POOL_SIZE_X*INPUT0_X_PITCH);
     }
-    
+
 #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
     const uint num_elementes = POOL_SIZE_X*POOL_SIZE_Y;
 #endif
 #endif
 
 #if defined AVG_POOLING
+#if ENABLE_ROUND
+    int4 pool_result;
+    for (uint i = 0; i < 4; ++i) {
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-        for(uint i = 0; i < 4; i++)
-        {
-            result[i] = convert_int(round(((float)result[i] / max(num_elementes, (uint)1)));
-        }
+        pool_result[i] = convert_int(round(((float)result[i] / max(num_elementes, (uint)1)));
     #else
-        for(uint i = 0; i < 4; i++)
-        {
-            result[i] = convert_int(round((float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X)));
-        }
+        pool_result[i] = convert_int(round((float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X)));
     #endif
+    }
+#else  // ENABLE_ROUND
+    float4 pool_result;
+    for (uint i = 0; i < 4; ++i) {
+    #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
+        pool_result[i] = (float)result[i] / max(num_elementes, (uint)1);
+    #else
+        pool_result[i] = (float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X);
+    #endif
+    }
+#endif  // ENABLE_ROUND
+#else  // AVG_POOLING
+    int4 pool_result = result;
+#endif  // AVG_POOLING
+
+    OUTPUT_TYPE4 final_result;
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    final_result = FINAL_NAME;
+#else
+    final_result = TO_OUTPUT_TYPE4(pool_result);
 #endif
 
 for(uint op = 0; op < 4; op++)
 {
     const uint output_pos = GET_DATA_INDEX(OUTPUT, b, f+op, y, x);
-    output[output_pos] = ACTIVATION(convert_char(result[op]), ACTIVATION_PARAMS);
+    output[output_pos] = ACTIVATION(TO_OUTPUT_TYPE(final_result[op]), ACTIVATION_PARAMS);
 }
 
 }
 
 #undef INIT_VAL
+#undef OUTPUT_TYPE4
+#undef TO_OUTPUT_TYPE4

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <memory>
 #include <map>
 #include <vector>
-#include "inference_engine/parsers.h"
+#include "parsers.h"
 #include "pugixml.hpp"
 #include <fstream>
 #include <stdio.h>

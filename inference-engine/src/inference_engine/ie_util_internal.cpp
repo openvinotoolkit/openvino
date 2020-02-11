@@ -1,116 +1,53 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ie_util_internal.hpp"
-#include "graph_tools.hpp"
-#include "details/caseless.hpp"
-#include "ie_utils.hpp"
-#include "ie_icnn_network_stats.hpp"
-#include "cpp/ie_plugin_cpp.hpp"
-#include "details/ie_cnn_network_tools.h"
-#include "file_utils.h"
-#include "net_pass.h"
-#include "precision_utils.h"
+
 #include <ie_layers.h>
 
-#include <vector>
-#include <unordered_set>
-#include <unordered_map>
-#include <deque>
-#include <string>
 #include <cassert>
-#include <memory>
-#include <utility>
+#include <deque>
 #include <iomanip>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
+#include "cpp/ie_plugin_cpp.hpp"
+#include "details/caseless.hpp"
+#include "details/ie_cnn_network_tools.h"
+#include "details/os/os_filesystem.hpp"
+#include "file_utils.h"
+#include "graph_tools.hpp"
+#include "ie_icnn_network_stats.hpp"
+#include "net_pass.h"
+#include "precision_utils.h"
 
 using std::string;
 
 namespace InferenceEngine {
 
+std::exception_ptr& CurrentException() {
+    static thread_local std::exception_ptr currentException = nullptr;
+    return currentException;
+}
+
 using namespace details;
-
-namespace {
-template<typename Visitor>
-void groupSubgraphsHelper(const InferenceEngine::CNNLayerPtr& layer,
-                          Visitor&& visitor) {
-    for (auto&& out : layer->outData) {
-        for (auto&& out_link : out->getInputTo()) {
-            auto& nextLayer = out_link.second;
-            if (nullptr != nextLayer &&
-                visitor(layer, nextLayer)) {
-                groupSubgraphsHelper(nextLayer, std::forward<Visitor>(visitor));
-            }
-        }
-    }
-}
-}  // namespace
-
-std::vector<std::vector<CNNLayerPtr> >
-groupSubgraphs(ICNNNetwork& network,
-               std::function<bool(const CNNLayerPtr&,
-                                  const CNNLayerPtr&)> splitter) {
-    // TODO splitter std::function is heavy and can be replaced with
-    // llvm::function_ref-like lightweight callable when we add one
-    std::unordered_set<InferenceEngine::CNNLayerPtr> visitedObjects;
-    std::deque<InferenceEngine::CNNLayerPtr> layersToCheck;
-    InputsDataMap inputs;
-    network.getInputsInfo(inputs);
-    for (auto&& input : inputs) {
-        auto data = input.second->getInputData();
-        for (auto&& to : data->getInputTo()) {
-            auto nextLayer = to.second;
-            assert(nullptr != nextLayer);
-            layersToCheck.push_front(nextLayer);
-        }
-    }
-
-    std::vector<std::vector<InferenceEngine::CNNLayerPtr>> ret;
-
-    while (!layersToCheck.empty()) {
-        auto layer = layersToCheck.back();
-        layersToCheck.pop_back();
-        if (visitedObjects.find(layer) == visitedObjects.end()) {
-            visitedObjects.insert(layer);
-            std::vector<InferenceEngine::CNNLayerPtr> subgraph;
-            subgraph.push_back(layer);
-            groupSubgraphsHelper(layer,
-                                 [&](const InferenceEngine::CNNLayerPtr& layer1,
-                                     const InferenceEngine::CNNLayerPtr& layer2) {
-                if (visitedObjects.find(layer2) == visitedObjects.end()) {
-                    if (splitter(layer1, layer2)) {
-                        // Layer belongs to different subgraph
-                        // Do not add it to visited objects list here,
-                        // because we need to visit it during next while iteration
-                        layersToCheck.push_front(layer2);
-                        return false;
-                    } else {
-                        // Layer belongs to same subgraph
-                        // add it to list
-                        subgraph.push_back(layer2);
-                        visitedObjects.insert(layer2);
-                        return true;
-                    }
-                }
-                return false;
-            });
-            ret.emplace_back(std::move(subgraph));
-        }
-    }
-
-    return ret;
-}
-
 
 DataPtr cloneData(const InferenceEngine::Data& source) {
     auto cloned = std::make_shared<InferenceEngine::Data>(source);
-    cloned->getCreatorLayer().reset();
-    cloned->getInputTo().clear();
+    if (cloned != nullptr) {
+        cloned->getCreatorLayer().reset();
+        cloned->getInputTo().clear();
+    }
     return cloned;
 }
 
 namespace {
-template<typename T>
+template <typename T>
 CNNLayerPtr layerCloneImpl(const CNNLayer* source) {
     auto layer = dynamic_cast<const T*>(source);
     if (nullptr != layer) {
@@ -125,7 +62,7 @@ CNNLayerPtr layerCloneImpl(const CNNLayer* source) {
 
 /* Make this function explicit for TensorIterator layer
  * because of specific handling of the body field */
-template<>
+template <>
 CNNLayerPtr layerCloneImpl<TensorIterator>(const CNNLayer* source) {
     auto layer = dynamic_cast<const TensorIterator*>(source);
     if (nullptr != layer) {
@@ -146,58 +83,60 @@ CNNLayerPtr layerCloneImpl<TensorIterator>(const CNNLayer* source) {
 CNNLayerPtr clonelayer(const CNNLayer& source) {
     using fptr = CNNLayerPtr (*)(const CNNLayer*);
     // Most derived layers must go first in this list
-    static const fptr cloners[] = {
-        &layerCloneImpl<SelectLayer               >,
-        &layerCloneImpl<BatchNormalizationLayer   >,
-        &layerCloneImpl<TopKLayer                 >,
-        &layerCloneImpl<PowerLayer                >,
-        &layerCloneImpl<ScaleShiftLayer           >,
-        &layerCloneImpl<PReLULayer                >,
-        &layerCloneImpl<TileLayer                 >,
-        &layerCloneImpl<ReshapeLayer              >,
-        &layerCloneImpl<CropLayer                 >,
-        &layerCloneImpl<EltwiseLayer              >,
-        &layerCloneImpl<GemmLayer                 >,
-        &layerCloneImpl<PadLayer                  >,
-        &layerCloneImpl<GatherLayer               >,
-        &layerCloneImpl<StridedSliceLayer         >,
-        &layerCloneImpl<ShuffleChannelsLayer      >,
-        &layerCloneImpl<DepthToSpaceLayer         >,
-        &layerCloneImpl<SpaceToDepthLayer         >,
-        &layerCloneImpl<SparseFillEmptyRowsLayer  >,
-        &layerCloneImpl<ReverseSequenceLayer      >,
-        &layerCloneImpl<RangeLayer                >,
-        &layerCloneImpl<FillLayer                 >,
-        &layerCloneImpl<BroadcastLayer            >,
-        &layerCloneImpl<MathLayer                 >,
-        &layerCloneImpl<ReduceLayer               >,
-        &layerCloneImpl<ClampLayer                >,
-        &layerCloneImpl<ReLULayer                 >,
-        &layerCloneImpl<SoftMaxLayer              >,
-        &layerCloneImpl<GRNLayer                  >,
-        &layerCloneImpl<MVNLayer                  >,
-        &layerCloneImpl<NormLayer                 >,
-        &layerCloneImpl<SplitLayer                >,
-        &layerCloneImpl<ConcatLayer               >,
-        &layerCloneImpl<FullyConnectedLayer       >,
-        &layerCloneImpl<PoolingLayer              >,
-        &layerCloneImpl<DeconvolutionLayer        >,
-        &layerCloneImpl<DeformableConvolutionLayer>,
-        &layerCloneImpl<ConvolutionLayer          >,
-        &layerCloneImpl<TensorIterator            >,
-        &layerCloneImpl<RNNSequenceLayer          >,
-        &layerCloneImpl<LSTMCell                  >,
-        &layerCloneImpl<GRUCell                   >,
-        &layerCloneImpl<RNNCell                   >,
-        &layerCloneImpl<QuantizeLayer             >,
-        &layerCloneImpl<BinaryConvolutionLayer    >,
-        &layerCloneImpl<WeightableLayer           >,
-        &layerCloneImpl<OneHotLayer               >,
-        &layerCloneImpl<CNNLayer                  >,
-        &layerCloneImpl<UniqueLayer               >,
-        &layerCloneImpl<NonMaxSuppressionLayer    >,
-        &layerCloneImpl<ScatterLayer              >
-    };
+    static const fptr cloners[] = {&layerCloneImpl<ScatterLayer>,
+                                   &layerCloneImpl<NonMaxSuppressionLayer>,
+                                   &layerCloneImpl<SelectLayer>,
+                                   &layerCloneImpl<BatchNormalizationLayer>,
+                                   &layerCloneImpl<TopKLayer>,
+                                   &layerCloneImpl<PowerLayer>,
+                                   &layerCloneImpl<ScaleShiftLayer>,
+                                   &layerCloneImpl<PReLULayer>,
+                                   &layerCloneImpl<TileLayer>,
+                                   &layerCloneImpl<ReshapeLayer>,
+                                   &layerCloneImpl<CropLayer>,
+                                   &layerCloneImpl<EltwiseLayer>,
+                                   &layerCloneImpl<GemmLayer>,
+                                   &layerCloneImpl<PadLayer>,
+                                   &layerCloneImpl<GatherLayer>,
+                                   &layerCloneImpl<StridedSliceLayer>,
+                                   &layerCloneImpl<ShuffleChannelsLayer>,
+                                   &layerCloneImpl<DepthToSpaceLayer>,
+                                   &layerCloneImpl<SpaceToDepthLayer>,
+                                   &layerCloneImpl<SparseFillEmptyRowsLayer>,
+                                   &layerCloneImpl<SparseSegmentReduceLayer>,
+                                   &layerCloneImpl<ExperimentalSparseWeightedReduceLayer>,
+                                   &layerCloneImpl<SparseToDenseLayer>,
+                                   &layerCloneImpl<BucketizeLayer>,
+                                   &layerCloneImpl<ReverseSequenceLayer>,
+                                   &layerCloneImpl<RangeLayer>,
+                                   &layerCloneImpl<FillLayer>,
+                                   &layerCloneImpl<BroadcastLayer>,
+                                   &layerCloneImpl<MathLayer>,
+                                   &layerCloneImpl<ReduceLayer>,
+                                   &layerCloneImpl<ClampLayer>,
+                                   &layerCloneImpl<ReLULayer>,
+                                   &layerCloneImpl<SoftMaxLayer>,
+                                   &layerCloneImpl<GRNLayer>,
+                                   &layerCloneImpl<MVNLayer>,
+                                   &layerCloneImpl<NormLayer>,
+                                   &layerCloneImpl<SplitLayer>,
+                                   &layerCloneImpl<ConcatLayer>,
+                                   &layerCloneImpl<FullyConnectedLayer>,
+                                   &layerCloneImpl<PoolingLayer>,
+                                   &layerCloneImpl<DeconvolutionLayer>,
+                                   &layerCloneImpl<DeformableConvolutionLayer>,
+                                   &layerCloneImpl<ConvolutionLayer>,
+                                   &layerCloneImpl<TensorIterator>,
+                                   &layerCloneImpl<RNNSequenceLayer>,
+                                   &layerCloneImpl<LSTMCell>,
+                                   &layerCloneImpl<GRUCell>,
+                                   &layerCloneImpl<RNNCell>,
+                                   &layerCloneImpl<QuantizeLayer>,
+                                   &layerCloneImpl<BinaryConvolutionLayer>,
+                                   &layerCloneImpl<WeightableLayer>,
+                                   &layerCloneImpl<OneHotLayer>,
+                                   &layerCloneImpl<CNNLayer>,
+                                   &layerCloneImpl<UniqueLayer>};
     for (auto cloner : cloners) {
         auto cloned = cloner(&source);
         if (nullptr != cloned) {
@@ -208,9 +147,9 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
     return nullptr;  // Silence "control may reach end of non-void function" warning
 }
 
-details::CNNNetworkImplPtr cloneNet(const ICNNNetwork &network) {
+details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& network) {
     std::vector<CNNLayerPtr> layers;
-    details::CNNNetworkIterator i(const_cast<ICNNNetwork *>(&network));
+    details::CNNNetworkIterator i(const_cast<ICNNNetwork*>(&network));
     while (i != details::CNNNetworkIterator()) {
         layers.push_back(*i);
         i++;
@@ -222,24 +161,32 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork &network) {
     }
     // copy of the network
     details::CNNNetworkImplPtr net = cloneNet(layers, pstatsSrc);
-    // going over output layers and duplicatig them:
+    // going over output layers and aligning output ports and outputs
     OutputsDataMap outputs;
     network.getOutputsInfo(outputs);
+    OutputsDataMap outputInfo;
+    net->getOutputsInfo(outputInfo);
     for (auto o : outputs) {
-        net->addOutput(o.first);
+        auto it = outputInfo.find(o.first);
+        if (it != outputInfo.end()) {
+            outputInfo.erase(it);
+        } else {
+            net->addOutput(o.first);
+        }
+    }
+    // remove output ports which unconnected with outputs
+    for (auto o : outputInfo) {
+        net->removeOutput(o.first);
     }
     net->setPrecision(network.getPrecision());
     net->setName(network.getName());
-    IE_SUPPRESS_DEPRECATED_START
-    net->setTargetDevice(network.getTargetDevice());
-    IE_SUPPRESS_DEPRECATED_END
 
     InputsDataMap externalInputsData;
     network.getInputsInfo(externalInputsData);
 
     InputsDataMap clonedInputs;
     net->getInputsInfo(clonedInputs);
-    for (auto &&it : externalInputsData) {
+    for (auto&& it : externalInputsData) {
         auto inp = clonedInputs.find(it.first);
         if (inp != clonedInputs.end() && nullptr != inp->second) {
             inp->second->setPrecision(it.second->getPrecision());
@@ -250,12 +197,7 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork &network) {
     return net;
 }
 
-
-details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
-                                    const ICNNNetworkStats* networkStats,
-                                    std::function<CNNLayerPtr(const CNNLayer&)> layerCloner) {
-    // TODO layerCloner std::function is heavy and can be replaced with
-    // llvm::function_ref-like lightweight callable when we add one
+details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers, const ICNNNetworkStats* networkStats) {
     auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>();
 
     // Src to cloned data map
@@ -277,8 +219,8 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
         return dataMap[data];
     };
 
-    auto cloneLayerImpl = [&](const CNNLayer &srcLayer) {
-        CNNLayerPtr clonedLayer = layerCloner(srcLayer);
+    auto cloneLayerImpl = [&](const CNNLayer& srcLayer) {
+        CNNLayerPtr clonedLayer = clonelayer(srcLayer);
         clonedLayer->_fusedWith = nullptr;
         // We will need to reconstruct all connections in new graph
         clonedLayer->outData.clear();
@@ -302,7 +244,7 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
                 }
             }
             assert(!inputName.empty());
-            clonedData->getInputTo().insert({ inputName, clonedLayer });
+            clonedData->getInputTo().insert({inputName, clonedLayer});
             clonedLayer->insData.push_back(clonedData);
         }
 
@@ -376,132 +318,35 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers,
     return net;
 }
 
-Blob::Ptr convertBlobFP16toFP32(const Blob::Ptr& blob) {
-    Blob::Ptr weightsBlob = make_shared_blob<float>({ Precision::FP32, blob->getTensorDesc().getDims(), blob->getTensorDesc().getLayout()});
-    weightsBlob->allocate();
-    float* target = weightsBlob->buffer().as<float*>();
-    short* source = blob->buffer().as<short *>();
-    PrecisionUtils::f16tof32Arrays(target, source, blob->size(), 1.0f, 0.0f);
-    return weightsBlob;
-}
-
-void convertLayerFP16toFP32(const CNNLayerPtr& layer) {
-    // take all input and output data, set FP32 precision for them
-    for (auto &o : layer->outData) {
-        if (Precision::FP16 == o->getPrecision()) o->setPrecision(Precision::FP32);
-    }
-    for (auto &i : layer->insData) {
-        if (Precision::FP16 == i.lock()->getPrecision()) i.lock()->setPrecision(Precision::FP32);
-    }
-
-    if (layer->precision == Precision::FP16) layer->precision = Precision::FP32;
-
-    auto tiLayer = dynamic_cast<InferenceEngine::TensorIterator *>(layer.get());
-    if (tiLayer) {
-        // needs to update TI body and convert all the layers to FP32
-        const auto all_orig = NetPass::TIBodySortTopologically(tiLayer->body);
-        for (auto &orig : all_orig) {
-            convertLayerFP16toFP32(orig);
-        }
-    }
-
-    auto wLayer = dynamic_cast<InferenceEngine::WeightableLayer *>(layer.get());
-    if (wLayer) {
-        if (wLayer->_weights && wLayer->_weights->getTensorDesc().getPrecision() == Precision::FP16) {
-            wLayer->_weights = convertBlobFP16toFP32(wLayer->_weights);
-        }
-        if (wLayer->_biases && wLayer->_biases->getTensorDesc().getPrecision() == Precision::FP16) {
-            wLayer->_biases = convertBlobFP16toFP32(wLayer->_biases);
-        }
-    }
-
-    for (auto &&blob : layer->blobs) {
-        auto &&data = blob.second;
-        if (nullptr != data) {
-            if (data->getTensorDesc().getPrecision() == Precision::FP16) {
-                data = convertBlobFP16toFP32(data);
-            }
-        }
-    }
-}
-
-namespace traverse {
-
-void forward(const CNNLayerPtr& layer, std::deque<InferenceEngine::CNNLayerPtr>& layers) {
-    for (const auto& out : layer->outData) {
-        for (const auto& out_link : out->getInputTo()) {
-            const auto& nextLayer = out_link.second;
-            if (nullptr != nextLayer) {
-                layers.emplace_back(nextLayer);
-            }
-        }
-    }
-}
-
-void backward(const CNNLayerPtr& layer, std::deque<InferenceEngine::CNNLayerPtr>& layers) {
-    for (const auto& data : layer->insData) {
-        const auto data_ptr = data.lock();
-        const auto creatorLayer = data_ptr->getCreatorLayer().lock();
-        if (nullptr != creatorLayer &&
-            creatorLayer->type != "Input" &&
-            creatorLayer->type != "input" ) {
-            layers.emplace_back(creatorLayer);
-        }
-    }
-}
-
-void traverse(InferenceEngine::ICNNNetwork& network,
-              std::function<void(InferenceEngine::CNNLayerPtr& layer)> apply,
-              std::function<void(const InferenceEngine::CNNLayerPtr& layer, std::deque<InferenceEngine::CNNLayerPtr>& layers)> expand) {
-    std::vector<InferenceEngine::CNNLayerPtr> layers;
-
-    InferenceEngine::InputsDataMap inputs;
-    network.getInputsInfo(inputs);
-    for (const auto& input : inputs) {
-        const auto data = input.second->getInputData();
-        for (const auto& to : data->getInputTo()) {
-            const auto nextLayer = to.second;
-            assert(nullptr != nextLayer);
-            layers.emplace_back(nextLayer);
-        }
-    }
-
-    traverse(layers, apply, expand);
-}
-
-}  // namespace traverse
-
-
 struct NodePrinter {
     enum FILL_COLOR { DATA, SUPPORTED_LAYER, UNSOPPORTED_LAYER };
 
     std::unordered_set<InferenceEngine::Data*> printed_data;
     std::unordered_set<InferenceEngine::CNNLayer*> printed_layers;
-    std::ostream &out;
+    std::ostream& out;
 
     printer_callback layer_cb;
 
-    explicit NodePrinter(std::ostream &os, printer_callback cb)
-        : out(os), layer_cb(std::move(cb)) {}
+    explicit NodePrinter(std::ostream& os, printer_callback cb): out(os), layer_cb(std::move(cb)) {}
 
-    bool isPrinted(const CNNLayerPtr &layer) {
+    bool isPrinted(const CNNLayerPtr& layer) {
         return static_cast<bool>(printed_layers.count(layer.get()));
     }
 
-    bool isPrinted(const DataPtr &datum) {
+    bool isPrinted(const DataPtr& datum) {
         return static_cast<bool>(printed_data.count(datum.get()));
     }
 
     string colorToStr(FILL_COLOR color) {
         switch (color) {
-            case DATA :
-                return "#FCF6E3";
-            case SUPPORTED_LAYER:
-                return "#D9EAD3";
-            case UNSOPPORTED_LAYER:
-                return "#F4CCCC";
-            default:
-                return "#FFFFFF";
+        case DATA:
+            return "#FCF6E3";
+        case SUPPORTED_LAYER:
+            return "#D9EAD3";
+        case UNSOPPORTED_LAYER:
+            return "#F4CCCC";
+        default:
+            return "#FFFFFF";
         }
     }
 
@@ -523,17 +368,15 @@ struct NodePrinter {
         return node_name;
     }
 
-    void printLayerNode(const CNNLayerPtr &layer) {
+    void printLayerNode(const CNNLayerPtr& layer) {
         auto node_name = "layer_" + cleanNodeName_(layer->name);
         printed_layers.insert(layer.get());
 
         ordered_properties printed_properties;
 
-        ordered_properties node_properties = {
-            {"shape", "box"},
-            {"style", "filled"},
-            {"fillcolor", colorToStr(SUPPORTED_LAYER)}
-        };
+        ordered_properties node_properties = {{"shape", "box"},
+                                              {"style", "filled"},
+                                              {"fillcolor", colorToStr(SUPPORTED_LAYER)}};
 
         auto type = layer->type;
         printed_properties.emplace_back("type", type);
@@ -542,26 +385,35 @@ struct NodePrinter {
             auto* conv = dynamic_cast<ConvolutionLayer*>(layer.get());
 
             if (conv != nullptr) {
-                unsigned int
-                    depth = conv->_out_depth,
-                    group = conv->_group;
+                unsigned int depth = conv->_out_depth, group = conv->_group;
 
-                printed_properties.emplace_back("kernel size", formatSize_({&(conv->_kernel[0]), &(conv->_kernel[conv->_kernel.size() - 1])}));
+                printed_properties.emplace_back(
+                    "kernel size", formatSize_({&(conv->_kernel[0]), &(conv->_kernel[conv->_kernel.size() - 1])}));
                 printed_properties.emplace_back("output depth", std::to_string(depth));
                 printed_properties.emplace_back("group", std::to_string(group));
-                printed_properties.emplace_back("padding begin", formatSize_({&(conv->_padding[0]), &(conv->_padding[conv->_padding.size() - 1])}));
-                printed_properties.emplace_back("padding end", formatSize_({&(conv->_pads_end[0]), &(conv->_pads_end[conv->_pads_end.size() - 1])}));
-                printed_properties.emplace_back("strides", formatSize_({&(conv->_stride[0]), &(conv->_stride[conv->_stride.size() - 1])}));
-                printed_properties.emplace_back("dilations", formatSize_({&(conv->_dilation[0]), &(conv->_dilation[conv->_dilation.size() - 1])}));
+                printed_properties.emplace_back(
+                    "padding begin", formatSize_({&(conv->_padding[0]), &(conv->_padding[conv->_padding.size() - 1])}));
+                printed_properties.emplace_back(
+                    "padding end",
+                    formatSize_({&(conv->_pads_end[0]), &(conv->_pads_end[conv->_pads_end.size() - 1])}));
+                printed_properties.emplace_back(
+                    "strides", formatSize_({&(conv->_stride[0]), &(conv->_stride[conv->_stride.size() - 1])}));
+                printed_properties.emplace_back(
+                    "dilations", formatSize_({&(conv->_dilation[0]), &(conv->_dilation[conv->_dilation.size() - 1])}));
             }
         } else if (type == "Pooling") {
             auto* pool = dynamic_cast<PoolingLayer*>(layer.get());
 
             if (pool != nullptr) {
-                printed_properties.emplace_back("window size", formatSize_({&(pool->_kernel[0]), &(pool->_kernel[pool->_kernel.size() - 1])}));
-                printed_properties.emplace_back("padding begin", formatSize_({&(pool->_padding[0]), &(pool->_padding[pool->_padding.size() - 1])}));
-                printed_properties.emplace_back("padding end", formatSize_({&(pool->_pads_end[0]), &(pool->_pads_end[pool->_pads_end.size() - 1])}));
-                printed_properties.emplace_back("strides", formatSize_({&(pool->_stride[0]), &(pool->_stride[pool->_stride.size() - 1])}));
+                printed_properties.emplace_back(
+                    "window size", formatSize_({&(pool->_kernel[0]), &(pool->_kernel[pool->_kernel.size() - 1])}));
+                printed_properties.emplace_back(
+                    "padding begin", formatSize_({&(pool->_padding[0]), &(pool->_padding[pool->_padding.size() - 1])}));
+                printed_properties.emplace_back(
+                    "padding end",
+                    formatSize_({&(pool->_pads_end[0]), &(pool->_pads_end[pool->_pads_end.size() - 1])}));
+                printed_properties.emplace_back(
+                    "strides", formatSize_({&(pool->_stride[0]), &(pool->_stride[pool->_stride.size() - 1])}));
             }
         } else if (type == "ReLU") {
             auto* relu = dynamic_cast<ReLULayer*>(layer.get());
@@ -630,21 +482,19 @@ struct NodePrinter {
         printNode(node_name, layer->name, node_properties, printed_properties);
     }
 
-    void printDataNode(const std::shared_ptr<Data> &data) {
+    void printDataNode(const std::shared_ptr<Data>& data) {
         auto node_name = "data_" + cleanNodeName_(data->getName());
         printed_data.insert(data.get());
 
         ordered_properties printed_properties;
-        ordered_properties node_properties = {
-            {"shape", "ellipse"},
-            {"style", "filled"},
-            {"fillcolor", colorToStr(DATA)}
-        };
+        ordered_properties node_properties = {{"shape", "ellipse"},
+                                              {"style", "filled"},
+                                              {"fillcolor", colorToStr(DATA)}};
 
         std::stringstream dims_ss;
         size_t idx = data->getTensorDesc().getDims().size();
         dims_ss << '[';
-        for (auto &dim : data->getTensorDesc().getDims()) {
+        for (auto& dim : data->getTensorDesc().getDims()) {
             dims_ss << dim << ((--idx) != 0u ? ", " : "");
         }
         dims_ss << ']';
@@ -652,12 +502,17 @@ struct NodePrinter {
         printed_properties.emplace_back("dims", dims_ss.str());
         printed_properties.emplace_back("precision", data->getPrecision().name());
 
+        std::stringstream ss;
+        ss << data->getTensorDesc().getLayout();
+        printed_properties.emplace_back("layout", ss.str());
+        printed_properties.emplace_back("name", data->getName());
+        if (data->getCreatorLayer().lock() != nullptr)
+            printed_properties.emplace_back("creator layer", data->getCreatorLayer().lock()->name);
         printNode(node_name, data->getName(), node_properties, printed_properties);
     }
 
-    void printNode(string const &node_name, const string &node_title,
-                   ordered_properties const &node_properties,
-                   ordered_properties const &printed_properties) {
+    void printNode(string const& node_name, const string& node_title, ordered_properties const& node_properties,
+                   ordered_properties const& printed_properties) {
         // normalization of names, removing all prohibited symbols like "/"
         string nodeNameN = node_name;
         std::replace(nodeNameN.begin(), nodeNameN.end(), '/', '_');
@@ -665,38 +520,37 @@ struct NodePrinter {
         std::replace(dataNameN.begin(), dataNameN.end(), '/', '_');
 
         out << '\t' << nodeNameN << " [";
-        for (auto &node_property : node_properties) {
+        for (auto& node_property : node_properties) {
             out << node_property.first << "=\"" << node_property.second << "\", ";
         }
 
         out << "label=\"" << node_title;
-        for (auto &printed_property : printed_properties) {
+        for (auto& printed_property : printed_properties) {
             out << "\\n" << printed_property.first << ": " << printed_property.second;
         }
         out << "\"];\n";
     }
 
-    void printEdge(const CNNLayerPtr &from_, const DataPtr &to_, bool reverse) {
+    void printEdge(const CNNLayerPtr& from_, const DataPtr& to_, bool reverse) {
         auto from_name = "layer_" + cleanNodeName_(from_->name);
         auto to_name = "data_" + cleanNodeName_(to_->getName());
         std::replace(from_name.begin(), from_name.end(), '/', '_');
         std::replace(to_name.begin(), to_name.end(), '/', '_');
-        if (reverse)
-            std::swap(from_name, to_name);
+        if (reverse) std::swap(from_name, to_name);
         out << '\t' << from_name << " -> " << to_name << ";\n";
     }
 };
 
-void saveGraphToDot(InferenceEngine::ICNNNetwork &network, std::ostream &out, printer_callback layer_cb) {
+void saveGraphToDot(InferenceEngine::ICNNNetwork& network, std::ostream& out, printer_callback layer_cb) {
     NodePrinter printer(out, std::move(layer_cb));
 
-    out << "strict digraph Network {\n";
+    out << "digraph Network {\n";
     // Traverse graph and print nodes
-    for (const auto &layer : details::CNNNetSortTopologically(network)) {
+    for (const auto& layer : details::CNNNetSortTopologically(network)) {
         printer.printLayerNode(layer);
 
         // Print output Data Object
-        for (auto &dataptr : layer->outData) {
+        for (auto& dataptr : layer->outData) {
             if (!printer.isPrinted(dataptr)) {
                 printer.printDataNode(dataptr);
             }
@@ -704,29 +558,25 @@ void saveGraphToDot(InferenceEngine::ICNNNetwork &network, std::ostream &out, pr
         }
 
         // Print input Data objects
-        for (auto &datum : layer->insData) {
+        for (auto& datum : layer->insData) {
             auto dataptr = datum.lock();
             if (!printer.isPrinted(dataptr)) {
                 printer.printDataNode(dataptr);
             }
-            // in order not to keep additional set with
-            // printed edges, strict keyword for digraph is used
-            // to remove duplicate edges
             printer.printEdge(layer, dataptr, true);
         }
     }
     out << "}" << std::endl;
 }
 
-std::unordered_set<DataPtr> getRootDataObjects(ICNNNetwork &network) {
+std::unordered_set<DataPtr> getRootDataObjects(ICNNNetwork& network) {
     std::unordered_set<DataPtr> ret;
     details::CNNNetworkIterator i(&network);
     while (i != details::CNNNetworkIterator()) {
         CNNLayer::Ptr layer = *i;
 
         // TODO: Data without creatorLayer
-        if (CaselessEq<string>()(layer->type, "input") ||
-            CaselessEq<string>()(layer->type, "const") ||
+        if (CaselessEq<string>()(layer->type, "input") || CaselessEq<string>()(layer->type, "const") ||
             CaselessEq<string>()(layer->type, "memory")) {
             ret.insert(layer->outData.begin(), layer->outData.end());
         }
@@ -737,32 +587,54 @@ std::unordered_set<DataPtr> getRootDataObjects(ICNNNetwork &network) {
 
 namespace {
 
-std::string getPathName(const std::string & s) {
-    size_t i = s.rfind(FileUtils::FileSeparator, s.length());
+template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C> >
+std::basic_string<C> getPathName(const std::basic_string<C>& s) {
+    size_t i = s.rfind(FileUtils::FileTraits<C>::FileSeparator, s.length());
     if (i != std::string::npos) {
-        return(s.substr(0, i));
+        return (s.substr(0, i));
     }
 
-    return std::string();
+    return {};
 }
 
 }  // namespace
 
-std::string getIELibraryPath() {
+#ifndef _WIN32
+
+static std::string getIELibraryPathUnix() {
+    Dl_info info;
+    dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
+    return getPathName(std::string(info.dli_fname)).c_str();
+}
+
+#endif  // _WIN32
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+
+std::wstring getIELibraryPathW() {
 #if defined(_WIN32) || defined(_WIN64)
-    char ie_library_path[2048];
+    wchar_t ie_library_path[4096];
     HMODULE hm = NULL;
-    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                            (LPCSTR)getIELibraryPath, &hm)) {
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            (LPCWSTR)getIELibraryPath, &hm)) {
         THROW_IE_EXCEPTION << "GetModuleHandle returned " << GetLastError();
     }
-    GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
-    return getPathName(ie_library_path);
+    GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path));
+    return getPathName(std::wstring(ie_library_path));
 #else
     Dl_info info;
-    dladdr(reinterpret_cast<void *>(getIELibraryPath), &info);
-    return getPathName(info.dli_fname);
+    dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
+    return details::multiByteCharToWString(getIELibraryPathUnix().c_str());
+#endif
+}
+
+#endif
+
+std::string getIELibraryPath() {
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    return details::wStringtoMBCSstringChar(getIELibraryPathW());
+#else
+    return getIELibraryPathUnix();
 #endif
 }
 

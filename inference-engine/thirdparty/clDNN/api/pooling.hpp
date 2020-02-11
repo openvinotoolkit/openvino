@@ -113,8 +113,9 @@ struct pooling : public primitive_base<pooling> {
             const tensor& stride,
             const tensor& input_offset,
             tensor output_size,
+            const data_types output_data_type,
             const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, output_padding, optional_data_type{output_data_type}),
           argmax(""),
           mode(static_cast<pooling_mode>(mode)),
           global_pooling(false),
@@ -169,50 +170,6 @@ struct pooling : public primitive_base<pooling> {
           stride(1, 1, 1, 1),
           size(0, 0, 0, 0),
           with_output_size(false) {}
-
-    /// @brief Constructs pooling primitive (computes input paddings to match output size).
-    /// @param id This primitive id.
-    /// @param input Input primitive id.
-    /// @param mode Pooling mode.
-    /// @param stride Defines shift in input buffer between adjacent calculations of output values.
-    /// @param size Pooling kernel size.
-    /// @param output_size User-defined output data size of the primitive (w/o padding).
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer, where (0,0) point of the pooling window should start calculations.
-    /// @return Pooling primitive with specified settings.
-    static pooling create_with_output_size(const primitive_id& id,
-                                           const primitive_id& input,
-                                           tensor output_size,
-                                           pooling_mode mode,
-                                           const tensor& size,
-                                           const tensor& stride,
-                                           const tensor& input_offset = {0, 0, 0, 0},
-                                           const padding& output_padding = padding()) {
-        return pooling(id, input, mode, size, stride, input_offset, output_size, output_padding);
-    }
-
-    /// @brief Constructs pooling primitive with argmax (computes input paddings to match output size).
-    /// @param id This primitive id.
-    /// @param input Input primitive id.
-    /// @param argmax Primitive id which contains indices of each max pooling region.
-    /// Indices must be in flattened bfyx format with no padding. Needs to be fp32 data type.
-    /// @param mode Pooling mode.
-    /// @param stride Defines shift in input buffer between adjacent calculations of output values.
-    /// @param size Pooling kernel size.
-    /// @param output_size User-defined output data size of the primitive (w/o padding).
-    /// @param input_offset Defines a shift, relative to (0,0) position of the input buffer,
-    /// where (0,0) point of the pooling window should start calculations.
-    /// @return Pooling primitive with specified settings.
-    static pooling create_with_output_size(const primitive_id& id,
-                                           const primitive_id& input,
-                                           const primitive_id& argmax,
-                                           tensor output_size,
-                                           pooling_mode mode,
-                                           const tensor& size,
-                                           const tensor& stride,
-                                           const tensor& input_offset = {0, 0, 0, 0},
-                                           const padding& output_padding = padding()) {
-        return pooling(id, input, argmax, mode, size, stride, input_offset, output_size, output_padding);
-    }
 
     /// @brief Primitive id which contains indices of each max pooling region.
     /// Indices must be in flattened bfyx format with no padding. Needs to be fp32 data type.

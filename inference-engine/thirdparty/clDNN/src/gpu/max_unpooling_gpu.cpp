@@ -43,7 +43,7 @@ public:
     event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events, max_unpooling_inst& instance) override {
         // clear output buffer
         std::vector<event_impl::ptr> tmp_events(events);
-        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_stream_id(), false);
+        auto ev = instance.get_network().get_engine().create_user_event(instance.get_network().get_id(), false);
         instance.output_memory().fill(0, ev);
         tmp_events.push_back(ev);
         return parent::execute_impl(tmp_events, instance);

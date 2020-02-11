@@ -18,11 +18,11 @@
 
 __attribute__((reqd_work_group_size(WORK_GROUP_GROUP_SIZE, 1, 1)))
 KERNEL(deconvolution_gpu_bfyx_opt)(
-    const __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output,
-    const __global UNIT_TYPE* filter,
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output,
+    const __global FILTER_TYPE* filter,
 #if BIAS_TERM
-    const __global UNIT_TYPE* bias,
+    const __global BIAS_TYPE* bias,
 #endif
     uint split_idx
 #if FUSED_ELTWISE
@@ -36,17 +36,17 @@ KERNEL(deconvolution_gpu_bfyx_opt)(
     const uint batch_offset = b_f / OUTPUT_FEATURE_NUM;
     const uint ofm_offset   = b_f % OUTPUT_FEATURE_NUM;
 
-    const uint global_x_group    = get_group_id(0);    
+    const uint global_x_group    = get_group_id(0);
     const uint global_y_group    = get_group_id(1);
 
-    const uint local_x        = get_local_id(0);  
-    const uint local_y        = get_local_id(1);  
+    const uint local_x        = get_local_id(0);
+    const uint local_y        = get_local_id(1);
 
     const uint stride_x_id = global_x_group % STRIDE_SIZE_X;
     const uint stride_y_id = global_y_group % STRIDE_SIZE_Y;
 
     const uint id_x = (global_x_group / STRIDE_SIZE_X) * STRIDE_SIZE_X * WORK_GROUP_GROUP_SIZE + local_x * STRIDE_SIZE_X + stride_x_id;
-    
+
     if (id_x >= OUTPUT_SIZE_X)
         return;
 

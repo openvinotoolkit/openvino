@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,28 +28,6 @@ from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_ne
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
-
-
-def read_counts_file(file_path):
-    with open(file_path, 'r') as f:
-        file_content = f.readlines()
-    if len(file_content) > 1:
-        raise Error('Expect counts file to be one-line file. ' +
-                    refer_to_faq_msg(90))
-
-    counts_line = file_content[0].strip().replace('[', '').replace(']', '')
-    try:
-        counts = np.fromstring(counts_line, dtype=float, sep=' ')
-    except TypeError:
-        raise Error('Expect counts file to contain list of floats.' +
-                    refer_to_faq_msg(90))
-    cutoff = 1.00000001e-10
-    cutoff_idxs = np.where(counts < cutoff)
-    counts[cutoff_idxs] = cutoff
-    scale = 1.0 / np.sum(counts)
-    counts = np.log(counts * scale)  # pylint: disable=assignment-from-no-return
-    counts[cutoff_idxs] += np.finfo(np.float32).max / 2
-    return counts
 
 
 def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
@@ -237,13 +215,10 @@ def load_kaldi_nnet3_model(file_descr, nnet_name):
 def load_components(file_descr, graph, component_layer_map=None):
     num_components = collect_until_token_and_read(file_descr, b'<NumComponents>')
     log.debug('Network contains {} components'.format(num_components))
-    is_nnet3 = False
-    prev_pos = file_descr.tell()
-    try:
+    is_nnet3 = False if component_layer_map is None else True
+
+    if not is_nnet3:
         collect_until_token(file_descr, b'<Components>')
-    except Error:
-        is_nnet3 = True
-        file_descr.seek(prev_pos)
 
     all_components = list()
     name = ""
@@ -263,7 +238,7 @@ def load_components(file_descr, graph, component_layer_map=None):
         file_descr.seek(start_index)
         dim = 0
         try:
-            collect_until_token(file_descr, b'<Dim>')
+            collect_until_token(file_descr, b'<Dim>', size_search_zone=end_index-start_index)
             cur_index = file_descr.tell()
             if start_index < cur_index < end_index:
                 dim = read_binary_integer32_token(file_descr)

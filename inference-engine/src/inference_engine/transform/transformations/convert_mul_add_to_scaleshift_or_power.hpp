@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,9 +37,5 @@ enum class CONVERSION_RESULT {
 };
 
 CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::op::Constant> & constant,
-                                 const std::vector<int64_t> & output_shape);
+                                 const ngraph::Shape & shape);
 
-CONVERSION_RESULT check_dyn_broadcast(const std::shared_ptr<ngraph::op::DynBroadcast> & broadcast);
-
-std::shared_ptr<ngraph::Node> normalize_constant(const std::shared_ptr<ngraph::op::Constant> & constant,
-                                                 const ngraph::Shape & shape);

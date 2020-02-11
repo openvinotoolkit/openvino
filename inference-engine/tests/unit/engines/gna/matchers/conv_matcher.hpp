@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include"gna-api.h"
 #include "nnet_base_matcher.hpp"
-#include "quantization/quantization.h"
+#include "frontend/quantization.h"
 
 class ConvoluionLayerMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
     bool matchInserted;

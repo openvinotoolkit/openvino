@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ from mo.ops.const import Const
 
 
 class PowerToEltwises(FrontReplacementOp):
-    op = "Power"
+    op = "AttributedPower"
     enabled = True
     force_clean_up = True
 
@@ -31,21 +31,21 @@ class PowerToEltwises(FrontReplacementOp):
         op = match['op']
         out_port = op.in_port(0).get_source()
 
-        if op.has_valid('scale') and op.scale != 1:
+        if op.soft_get('scale', 1) != 1:
             const = Const(graph, {'value': np.array(op.scale)}).create_node()
             mul = Mul(graph, {'name': op.name + '/mul_'}).create_node()
             const.out_port(0).connect(mul.in_port(1))
             out_port.connect(mul.in_port(0))
             out_port = mul.out_port(0)
 
-        if op.has_valid('shift') and op.shift != 0:
+        if op.soft_get('shift', 0) != 0:
             const = Const(graph, {'value': np.array(op.shift)}).create_node()
             add = Add(graph, {'name': op.name + '/add_'}).create_node()
             const.out_port(0).connect(add.in_port(1))
             out_port.connect(add.in_port(0))
             out_port = add.out_port(0)
 
-        if op.has_valid('power') and op.power != 1:
+        if op.soft_get('power', 1) != 1:
             const = Const(graph, {'value': np.array(op.power)}).create_node()
             pow = Pow(graph, {'name': op.name + '/pow_'}).create_node()
             const.out_port(0).connect(pow.in_port(1))

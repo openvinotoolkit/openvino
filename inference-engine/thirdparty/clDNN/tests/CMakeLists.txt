@@ -71,6 +71,11 @@ set(__CLDNN_Label__gtest               "google test framework")
 file(GLOB __CLDNN_Sources__gtest
     "${__CLDNN_Directory__gtest}/*.cc"
   )
+
+if(UNIX)
+    set_source_files_properties(${__CLDNN_Sources__gtest} PROPERTIES
+        COMPILE_FLAGS "-Wno-undef")
+endif()
   
 if (MSVC)
   file(GLOB __CLDNN_Sources__natvis
@@ -109,12 +114,14 @@ include_directories(
     "${CLDNN__MAIN_DIR}/src"
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${__CLDNN_Directory__test_utils}"
-    "${CLDNN__GTEST_DIR}"
     "${__CLDNN_Directory__ks_core}"
     "${__CLDNN_Directory__ks_core}/common"
     "${__CLDNN_Directory__ks_actual_kernels}"
     "${__CLDNN_Directory__ks_common}"
   )
+
+include_directories(SYSTEM
+    "${CLDNN__GTEST_DIR}")
 
 # =================================== Link targets and dependencies ====================================
 

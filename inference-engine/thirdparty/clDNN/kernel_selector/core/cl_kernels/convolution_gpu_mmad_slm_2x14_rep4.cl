@@ -815,7 +815,7 @@ __global int8* weights,
 
 			uchar outchar = (uchar)max(((float)outint) * scale, 0.0f); */
 
-            const uint _feature = ((fmg * 32) % _OD) + get_local_id(0);
+            const uint _feature = ((fmg * 32) % _OD) + (uint)get_local_id(0);
             float quant_f = as_float(intel_sub_group_block_read((__global uint*) (quantizations + _feature) ));
             float bias_f = as_float(intel_sub_group_block_read((__global uint*) (biases + _feature) ));
             float calib_f = as_float(intel_sub_group_block_read((__global uint*) (calibrations + _feature) ));

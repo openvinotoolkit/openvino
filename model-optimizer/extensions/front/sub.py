@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,7 +28,10 @@ class Sub(FrontReplacementOp):
     def replace_op(self, graph: Graph, node: Node):
 
         # Add new nodes
-        const = Const(graph, dict(value=np.array(-1, dtype=np.int32))).create_node()
+        const_dtype = np.float32
+        if node.has_valid('data_type'):
+            const_dtype = node.data_type
+        const = Const(graph, dict(value=np.array(-1, dtype=const_dtype))).create_node()
         negate = Mul(graph, {'name': node.name + '/negate_'}).create_node()
         add = Add(graph, {'name': node.name + '/add_'}).create_node()
 

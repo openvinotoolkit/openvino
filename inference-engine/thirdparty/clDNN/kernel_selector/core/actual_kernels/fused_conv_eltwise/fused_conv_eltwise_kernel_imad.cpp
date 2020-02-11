@@ -22,40 +22,65 @@
 // Kernel specific constants
 //
 #define SIMD_SIZE 16
-// Threshold value to calculate the block size.
-#define OUT_BLOCK_THRESHOLD 7
-// For images 7x7 it's 7 (default), for 14x14 and above it's 14.
-#define OUT_BLOCK_WIDTH 7
-// For images 7x7 it's 1 (default), for 14x14 and above it's 2.
-#define OUT_BLOCK_HEIGHT 1
 
-static void getOutBlock_WH(size_t inW, size_t Stride, size_t Pad, size_t& outW, size_t& outH) {
-    outW = OUT_BLOCK_WIDTH * 2;
-    outH = OUT_BLOCK_HEIGHT * 2;
+static bool getOutBlock_WH(size_t output_size,
+                           size_t stride,
+                           size_t kernel_size,
+                           size_t& output_block_w,
+                           size_t& output_block_h) {
+    bool verify_output_ranges = false;
 
-    if ((inW <= OUT_BLOCK_THRESHOLD) || (outW * Stride + Pad > SIMD_SIZE)) {
-        outW = OUT_BLOCK_WIDTH;
-        outH = OUT_BLOCK_HEIGHT;
+    output_block_w = output_block_h = 0;
+
+    size_t upper_border = output_size < SIMD_SIZE ? output_size : SIMD_SIZE;
+
+    size_t stride_restrictions = (SIMD_SIZE - (kernel_size - 1)) / stride;
+
+    size_t max_posible_tile_size = upper_border < stride_restrictions ? upper_border : stride_restrictions;
+
+    if (output_size % max_posible_tile_size == 0) {
+        output_block_w = max_posible_tile_size;
+    } else {
+        size_t min_horisontal_block_size = 2;  // 4;
+
+        size_t block_size = 0;
+
+        for (size_t i = min_horisontal_block_size; i < max_posible_tile_size; i++) {
+            if (output_size % i == 0)
+                block_size = i;
+        }
+
+        if (block_size != 0) {
+            output_block_w = block_size;
+        } else {
+            output_block_w = max_posible_tile_size;
+            verify_output_ranges = true;
+        }
     }
-    if (outW * Stride + Pad > SIMD_SIZE) {
-        outW = outH = 4;
-    }
 
-    assert(outW * Stride + Pad <= SIMD_SIZE);
-}  // getOutBlock_WH
+    if (output_block_w <= 4)
+        output_block_h = output_block_w;
+    else
+        output_block_h = 1;
 
+    return verify_output_ranges;
+}
 namespace kernel_selector {
 
 ParamsKey fused_conv_eltwise_kernel_imad::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableInputWeightsType(WeightsType::UINT8);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
+    k.EnableOutputLayout(DataLayout::byxf_af32);
+
+    k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
@@ -81,6 +106,9 @@ JitConstants fused_conv_eltwise_kernel_imad::GetJitConstants(const fused_conv_el
 
     const auto& input = params.inputs[0];
     const auto& output = params.output;
+    mem_consts.Merge(MakeActivationJitConstants(params.conv.activations, GetUnitType(params), "_CONV_TYPED", true));
+    mem_consts.Merge(MakeActivationJitConstants(params.activations, GetUnitType(params), "_ELTW_TYPED", true));
+    mem_consts.Merge(MakeTypeJitConstants(Datatype::F32, "float"));
 
     const auto& iDims = input.GetDims();
     const auto& oDims = output.GetDims();
@@ -111,8 +139,12 @@ JitConstants fused_conv_eltwise_kernel_imad::GetJitConstants(const fused_conv_el
     });
 
     size_t obw, obh;
-    getOutBlock_WH(iDims[iX].v, params.conv.stride.x, iDims[iX].pad.before + iDims[iX].pad.after, obw, obh);
-    mem_consts.AddConstants({MakeJitConstant("OUT_BLOCK_WIDTH", obw), MakeJitConstant("OUT_BLOCK_HEIGHT", obh)});
+    bool verify_output_ranges = getOutBlock_WH(oDims[oX].v, params.conv.stride.x, wDims[iX].v, obw, obh);
+    mem_consts.AddConstants({MakeJitConstant("OUT_BLOCK_WIDTH", obw),
+                             MakeJitConstant("OUT_BLOCK_HEIGHT", obh),
+                             MakeJitConstant("NEED_TO_VERIFY_OUTPUT_RANGES", verify_output_ranges)});
+    if (params.non_conv_scale != 1.0f)
+        mem_consts.AddConstant(MakeJitConstant("NON_CONV_SCALE", params.non_conv_scale));
 
     return mem_consts;
 }  // GetJitConstants
@@ -134,6 +166,11 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_imad::Set
     size_t otw, oth;
     getOutBlock_WH(iDims[iX].v, params.conv.stride.x, iDims[iX].pad.before + iDims[iX].pad.after, otw, oth);
 
+    size_t dim_add = ((wDims[wOD].v * iDims[iB].v) % SIMD_SIZE);
+    if (dim_add != 0)
+        dim_add = SIMD_SIZE - dim_add;
+
+
     std::vector<size_t> global = {// globalRange[0] = ((_IW / K_STRIDE) + (OTW - 1)) / OTW;
                                   // number of tiles needed to cover output width
                                   (((iDims[iX].v / params.conv.stride.x) + (otw - 1)) / otw),
@@ -144,7 +181,7 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_imad::Set
 
                                   // globalRange[2] = (_OD * _B) + ((_B *_OD) % __WORKGROUP_SIZE);
                                   // round depth range up
-                                  ((wDims[wOD].v * iDims[iB].v) + ((wDims[wOD].v * iDims[iB].v) % SIMD_SIZE))};
+                                  ((wDims[wOD].v * iDims[iB].v) + dim_add)};
 
     std::vector<size_t> local = {1, 1, SIMD_SIZE};
 
@@ -158,7 +195,7 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_imad::Set
 
     kd.cldnnStyle = {0, 0, 0, 0, 0};
     kd.gemmStyle = {0, 0, 0, 0, 0, 0};
-    kd.effiency = FORCE_PRIORITY_1;
+    kd.effiency = FORCE_PRIORITY_2;
 
     return kd;
 }  // SetDefault
@@ -168,7 +205,7 @@ bool fused_conv_eltwise_kernel_imad::Validate(const Params& params, const option
         return false;
     }
 
-    KernelData kd = KernelData::Default<convolution_params>(params);
+    KernelData kd = KernelData::Default<fused_conv_eltwise_params>(params);
     fused_conv_eltwise_params& newParams = *static_cast<fused_conv_eltwise_params*>(kd.params.get());
 
     if (newParams.conv.stride.x != newParams.conv.stride.y) {
@@ -177,14 +214,6 @@ bool fused_conv_eltwise_kernel_imad::Validate(const Params& params, const option
     } else if ((newParams.conv.filterSize.x != m_FilterSizeX) || (newParams.conv.filterSize.y != m_FilterSizeY)) {
         // Kernel does not support such filter size
         return false;
-    } else {
-        const auto& in = newParams.inputs[0];
-        const auto& iDims = in.GetDims();
-        const int iX = DataTensor::Channelndex(in.GetLayout(), Tensor::DataChannelName::X);
-        if (iDims[iX].v % OUT_BLOCK_THRESHOLD != 0) {
-            // Input size must be multiple of OUT_BLOCK_THRESHOLD
-            return false;
-        }
     }
 
     return true;

@@ -28,6 +28,11 @@ using primitive_db = kernel_selector::gpu::cache::primitive_db;
 
 class KernelBase {
 public:
+    using FusedOpType = KernelType;
+    using LoadType = FusedOpsConfiguration::LoadType;
+    using BoundaryCheck = FusedOpsConfiguration::BoundaryCheck;
+    using IndexType = FusedOpsConfiguration::IndexType;
+
     explicit KernelBase(const std::string name) : kernelName(name) {}
     virtual ~KernelBase() {}
 
@@ -52,7 +57,10 @@ protected:
 
     static size_t UniqeID() { return counter++; }  // TODO: use interlocked
     virtual Datatype GetUnitType(const base_params& params) const;
+
+    bool IsFusedPrimitiveSupported(const base_params::fused_operation_desc& fused_op) const;
     JitConstants MakeBaseParamsJitConstants(const base_params& params) const;
+    virtual std::vector<FusedOpType> GetSupportedFusedOps() const;
     virtual JitConstants MakeFusedOpsJitConstants(const base_params &params, const std::vector<FusedOpsConfiguration> &conf) const;
     virtual JitConstants MakeFusedOpsDeclsJitConstants(const base_params &params, const std::vector<FusedOpsConfiguration> &conf) const;
 

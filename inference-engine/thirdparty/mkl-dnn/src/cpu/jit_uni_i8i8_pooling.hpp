@@ -47,21 +47,38 @@ struct jit_uni_i8i8_pooling_fwd_t : public cpu_primitive_t {
             assert(this->engine()->kind() == engine_kind::cpu);
             bool ok = true
                 && mayiuse(isa)
-                && desc()->src_desc.ndims == 4
+                && utils::one_of(desc()->src_desc.ndims, 4, 5)
                 && set_default_params() == status::success
                 && desc()->prop_kind == prop_kind::forward_inference
                 && utils::one_of(desc()->alg_kind, alg_kind::pooling_max,
                         alg_kind::pooling_avg_include_padding,
                         alg_kind::pooling_avg_exclude_padding)
-                && utils::one_of(src_pd()->desc()->data_type, data_type::s32,
-                        data_type::s8, data_type::u8)
-                && src_pd()->desc()->data_type == dst_pd()->desc()->data_type
-                && utils::everyone_is(memory_format::nhwc,
-                        src_pd()->desc()->format, dst_pd()->desc()->format)
-                && attr()->has_default_values();
+                && utils::one_of(src_pd()->desc()->data_type, data_type::s32, data_type::s8, data_type::u8)
+                && IMPLICATION(desc()->alg_kind == alg_kind::pooling_max, src_pd()->desc()->data_type == dst_pd()->desc()->data_type)
+                && IMPLICATION(utils::one_of(desc()->alg_kind, alg_kind::pooling_avg_include_padding, alg_kind::pooling_avg_exclude_padding),
+                               utils::one_of(dst_pd()->desc()->data_type, src_pd()->desc()->data_type, data_type::f32))
+                && utils::one_of(src_pd()->desc()->format, memory_format::nhwc, memory_format::ndhwc)
+                && src_pd()->desc()->format == dst_pd()->desc()->format
+                && is_supported_post_ops();
             if (!ok) return status::unimplemented;
 
             return jit_conf();
+        }
+
+        virtual bool is_supported_post_ops() const {
+            const auto &p = this->attr()->post_ops_;
+
+            auto all_post_ops_supported = [&]() {
+                bool ok = true;
+
+                for (int i = 0; i < p.len_; i++) {
+                    ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::quantization);
+                }
+                return ok;
+            };
+
+            return all_post_ops_supported()
+                   && IMPLICATION(p.len_ > 0, desc()->alg_kind == mkldnn_pooling_avg_include_padding || desc()->alg_kind == mkldnn_pooling_avg_exclude_padding);
         }
 
         jit_pool_conf_t jpp_;

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,23 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-####################################
-## to use C++11
-set (CMAKE_CXX_STANDARD 11)
-set (CMAKE_CXX_STANDARD_REQUIRED ON)
-if (NOT("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel"))
-    set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
-endif()
-####################################
-
-if (WIN32)
-    # add_compile_options("/WX")
-else()
-    add_compile_options("-Werror")
-endif()
-
-if (ENABLE_OPENCV)
-    add_subdirectory(calibration_tool/statistics_collector)
-endif()
-
 add_subdirectory(vpu)
+
+add_subdirectory(compile_tool)

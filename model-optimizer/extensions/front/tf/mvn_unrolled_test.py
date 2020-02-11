@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,8 @@ import unittest
 
 from extensions.front.tf.mvn_unrolled import MVNUnrolled
 from mo.ops.op import Op
-from mo.utils.unittest.graph import compare_graphs, build_graph_with_attrs
+from mo.utils.unittest.graph import build_graph_with_attrs
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 from extensions.ops.mvn import MVN
 
 

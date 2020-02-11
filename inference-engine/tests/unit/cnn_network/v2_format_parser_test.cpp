@@ -1,17 +1,10 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
-#include "xml_father.hpp"
-#include "inference_engine/ie_format_parser.h"
 #include <string>
-#include <pugixml.hpp>
-#include <fstream>
-#include <tests_common.hpp>
-#include <ie_blob_proxy.hpp>
-#include <inference_engine/xml_parse_utils.h>
 #include "mean_image.h"
 
 #define MT_BATCH 1

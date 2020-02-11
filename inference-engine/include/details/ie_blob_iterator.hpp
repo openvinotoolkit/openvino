@@ -1,21 +1,23 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 /**
  * @brief A header file for the BlobIterator class
+ * 
  * @file ie_blob_iterator.hpp
  */
 
-#include "ie_locked_memory.hpp"
 #include <utility>
+
+#include "ie_locked_memory.hpp"
 
 namespace InferenceEngine {
 namespace details {
 /**
  * @brief This class provides range loops support for TBlob objects
  */
-template<class T>
+template <class T>
 class BlobIterator {
     LockedMemory<T> _mem;
     size_t _offset;
@@ -27,15 +29,13 @@ public:
      * @param lk Rvalue of the memory instance to move from
      * @param offset Size of offset in memory
      */
-    explicit BlobIterator(LockedMemory<T> &&lk, size_t offset = 0)
-            : _mem(std::move(lk)), _offset(offset) {
-    }
+    explicit BlobIterator(LockedMemory<T>&& lk, size_t offset = 0): _mem(std::move(lk)), _offset(offset) {}
 
     /**
      * @brief Increments an offset of the current BlobIterator instance
      * @return The current BlobIterator instance
      */
-    BlobIterator &operator++() {
+    BlobIterator& operator++() {
         _offset++;
         return *this;
     }
@@ -53,7 +53,7 @@ public:
      * @param that Iterator to compare with
      * @return true if the given iterator is not equal to the current one, false - otherwise
      */
-    bool operator!=(const BlobIterator &that) const {
+    bool operator!=(const BlobIterator& that) const {
         return !operator==(that);
     }
 
@@ -61,23 +61,23 @@ public:
      * @brief Gets a value by the pointer to the current iterator
      * @return The value stored in memory for the current offset value
      */
-    const T &operator*() const {
-        return *(_mem.template as<const T *>() + _offset);
+    const T& operator*() const {
+        return *(_mem.template as<const T*>() + _offset);
     }
 
     /**
      * @brief Gets a value by the pointer to the current iterator
      * @return The value stored in memory for the current offset value
      */
-    T &operator*() {
-        return *(_mem.template as<T *>() + _offset);
+    T& operator*() {
+        return *(_mem.template as<T*>() + _offset);
     }
     /**
      * @brief Compares the given iterator with the current one
      * @param that Iterator to compare with
      * @return true if the given iterator is equal to the current one, false - otherwise
      */
-    bool operator==(const BlobIterator &that) const {
+    bool operator==(const BlobIterator& that) const {
         return &operator*() == &that.operator*();
     }
 };

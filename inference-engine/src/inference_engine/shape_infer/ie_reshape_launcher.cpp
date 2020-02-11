@@ -1,20 +1,23 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "shape_infer/ie_reshape_launcher.hpp"
+
 #include <ie_layers.h>
+
+#include <details/ie_exception.hpp>
 #include <ie_layer_validators.hpp>
+#include <map>
 #include <memory>
+#include <set>
+#include <shape_infer/const_infer/ie_const_infer_holder.hpp>
 #include <string>
 #include <vector>
-#include <map>
-#include <set>
-#include <details/ie_exception.hpp>
-#include <shape_infer/const_infer/ie_const_infer_holder.hpp>
-#include "shape_infer/ie_reshape_launcher.hpp"
-#include "shape_infer/ie_reshape_io_controllers.hpp"
-#include "ie_reshape_launcher.hpp"
+
 #include "built-in/ie_tensor_iterator_shape_infer.hpp"
+#include "ie_reshape_launcher.hpp"
+#include "shape_infer/ie_reshape_io_controllers.hpp"
 
 using namespace InferenceEngine;
 using namespace ShapeInfer;
@@ -38,7 +41,8 @@ OutputController* DefaultInitializer::createOutputController(const CNNLayer* lay
 }
 
 ReshapeLauncher::ReshapeLauncher(const CNNLayer* layer, const IShapeInferImpl::Ptr& impl,
-                                 const DefaultInitializer::Ptr& initializer) : _layer(layer), _reshapeImpl(impl) {
+                                 const DefaultInitializer::Ptr& initializer)
+    : _layer(layer), _reshapeImpl(impl) {
     initializer->check(layer, impl);
     ConstInferHolder holder;
     if (layer) _inferImpl = holder.getConstInferImpl(layer->type);
@@ -78,7 +82,7 @@ void ReshapeLauncher::reshape(const std::set<ReshapeLauncher::Ptr>& launchers) {
 
     // TODO: TensorIterator strongly required original layer instance because body is not presented
     //       in params map. Original subnetwork body is required for internal shape infer
-    TensorIteratorShapeProp *TI_shaper = dynamic_cast<TensorIteratorShapeProp*>(_reshapeImpl.get());
+    TensorIteratorShapeProp* TI_shaper = dynamic_cast<TensorIteratorShapeProp*>(_reshapeImpl.get());
     if (TI_shaper) {
         TI_shaper->setOriginalLayer(_layer);
     }
@@ -86,9 +90,8 @@ void ReshapeLauncher::reshape(const std::set<ReshapeLauncher::Ptr>& launchers) {
     auto sts = _reshapeImpl->inferShapes(_iController->getBlobs(true), _layer->params, _layer->blobs, outShapes, &resp);
     _oController->setShapes(outShapes);
     if (sts != OK)
-        THROW_IE_EXCEPTION <<
-                           "Failed to infer shapes for " + _layer->type + " layer (" + _layer->name + ") with error: " +
-                           resp.msg;
+        THROW_IE_EXCEPTION << "Failed to infer shapes for " + _layer->type + " layer (" + _layer->name +
+                                  ") with error: " + resp.msg;
     _oController->propagateShapes(launchers);
 }
 
@@ -99,17 +102,18 @@ void ReshapeLauncher::applyChanges(CNNLayer* layer) {
 
     // TODO: Need to finalize result of internal body shape infer and apply
     //       new shapes to body subnetwork
-    TensorIteratorShapeProp *TI_shaper = dynamic_cast<TensorIteratorShapeProp*>(_reshapeImpl.get());
+    TensorIteratorShapeProp* TI_shaper = dynamic_cast<TensorIteratorShapeProp*>(_reshapeImpl.get());
     if (TI_shaper) TI_shaper->apply();
 }
 
 void ReshapeLauncher::constInfer(const std::set<ReshapeLauncher::Ptr>& launchers) {
-    if (_iController->isDataAvailable() || _layer->type == "Const" || _layer->type == "Shape") {
+    if ((_iController->isDataAvailable() && _layer->type != "Quantize" && _layer->type != "FakeQuantize") ||
+        _layer->type == "Const" || _layer->type == "Shape") {
         auto outBlobs = _oController->createBlobs();
         _oController->setBlobs(outBlobs);
         if (!_inferImpl)
-            THROW_IE_EXCEPTION << "Failed to find reference implementation for `"
-                                  + _layer->name + "` Layer with `" + _layer->type + "` Type on constant propagation";
+            THROW_IE_EXCEPTION << "Failed to find reference implementation for `" + _layer->name + "` Layer with `" +
+                                      _layer->type + "` Type on constant propagation";
         _inferImpl->infer(_iController->getBlobs(false), _layer->params, _layer->blobs, outBlobs);
         _oController->propagateBlobs(launchers);
     }
@@ -134,8 +138,9 @@ void ReshapeLauncher::checkLayer(CNNLayer* layer) {
     }
     auto oldParams = _layer->params;
     auto newParams = layer->params;
-    if ((!oldParams.empty() && !newParams.empty() && !std::equal(oldParams.begin(), oldParams.end(), newParams.begin()))
-        || (_layer->name != layer->name) || (_layer->type != layer->type) || oldParams.size() != newParams.size()) {
+    if ((!oldParams.empty() && !newParams.empty() &&
+         !std::equal(oldParams.begin(), oldParams.end(), newParams.begin())) ||
+        (_layer->name != layer->name) || (_layer->type != layer->type) || oldParams.size() != newParams.size()) {
         THROW_IE_EXCEPTION << "Can't apply changes for layer with another params";
     }
 }
@@ -171,8 +176,7 @@ OutputController* FakeInitializer::createOutputController(const CNNLayer* layer)
 }
 
 FakeReshapeLauncher::FakeReshapeLauncher(const CNNLayer* layer, const IShapeInferImpl::Ptr& impl)
-        : ReshapeLauncher(layer, impl, std::make_shared<FakeInitializer>()) {
-}
+    : ReshapeLauncher(layer, impl, std::make_shared<FakeInitializer>()) {}
 
 void FakeReshapeLauncher::reshape(const std::set<ReshapeLauncher::Ptr>& launchers) {
     auto iShapesIR = _iController->getIRShapes();
@@ -184,9 +188,8 @@ void FakeReshapeLauncher::reshape(const std::set<ReshapeLauncher::Ptr>& launcher
         auto irInShape = iShapesIR[i];
         bool equal = std::equal(newInShape.begin(), newInShape.end(), irInShape.begin());
         if (!equal) {
-            THROW_IE_EXCEPTION
-                    << "Failed to infer shapes for layer with type: " << _layer->type
-                    << ". Use @IShapeInferExtension class to register shape infer function for this layer";
+            THROW_IE_EXCEPTION << "Failed to infer shapes for layer with type: " << _layer->type
+                               << ". Use @IShapeInferExtension class to register shape infer function for this layer";
         }
     }
 
@@ -212,7 +215,7 @@ OutputController* OutputOnlyInitializer::createOutputController(const CNNLayer* 
 
 OutputOnlyReshapeLauncher::OutputOnlyReshapeLauncher(const CNNLayer* layer, const IShapeInferImpl::Ptr& impl,
                                                      const OutputOnlyInitializer::Ptr& initializer)
-        : ReshapeLauncher(layer, impl, initializer) {}
+    : ReshapeLauncher(layer, impl, initializer) {}
 
 void OutputOnlyReshapeLauncher::setShapeByName(const SizeVector& shape, const std::string& dataName) {
     _oController->setShapeByName(shape, dataName);
@@ -241,8 +244,8 @@ void OutputOnlyReshapeLauncher::constInfer(const std::set<ReshapeLauncher::Ptr>&
         auto outBlobs = _oController->createBlobs();
         _oController->setBlobs(outBlobs);
         if (!_inferImpl)
-            THROW_IE_EXCEPTION << "Failed to find reference implementation for `"
-                                  + _layer->name + "` Layer with `" + _layer->type + "` Type on constant propagation";
+            THROW_IE_EXCEPTION << "Failed to find reference implementation for `" + _layer->name + "` Layer with `" +
+                                      _layer->type + "` Type on constant propagation";
         _inferImpl->infer({}, _layer->params, _layer->blobs, outBlobs);
         auto shapes = _oController->getShapes(true);
         for (int i = 0; i < outBlobs.size(); i++) {
@@ -257,8 +260,7 @@ void InputInitializer::check(const CNNLayer* layer, const IShapeInferImpl::Ptr& 
     OutputOnlyInitializer::check(layer, impl);
     std::string errorBase = "Failed to init reshape launcher: layer type (`" + layer->type + "`) is not";
     if (details::equal(layer->type, "memory")) {
-        if (!layer->GetParamAsInt("index"))
-            THROW_IE_EXCEPTION << errorBase << " `Memory`(as input)";
+        if (!layer->GetParamAsInt("index")) THROW_IE_EXCEPTION << errorBase << " `Memory`(as input)";
     } else if (!::details::equal(layer->type, "input")) {
         THROW_IE_EXCEPTION << errorBase << " `Input`";
     }
@@ -266,7 +268,7 @@ void InputInitializer::check(const CNNLayer* layer, const IShapeInferImpl::Ptr& 
 
 InputReshapeLauncher::InputReshapeLauncher(const CNNLayer* layer, const IShapeInferImpl::Ptr& impl,
                                            const DefaultInitializer::Ptr& initializer)
-        : OutputOnlyReshapeLauncher(layer, impl, initializer) {}
+    : OutputOnlyReshapeLauncher(layer, impl, initializer) {}
 
 void InputReshapeLauncher::reshape(const std::set<ReshapeLauncher::Ptr>& launchers) {
     auto oShapes = _oController->getShapes(false);
@@ -286,7 +288,7 @@ void ConstInitializer::check(const CNNLayer* layer, const IShapeInferImpl::Ptr& 
 }
 
 ConstReshapeLauncher::ConstReshapeLauncher(const CNNLayer* layer, const IShapeInferImpl::Ptr& impl)
-        : OutputOnlyReshapeLauncher(layer, impl, std::make_shared<ConstInitializer>()) {}
+    : OutputOnlyReshapeLauncher(layer, impl, std::make_shared<ConstInitializer>()) {}
 
 void ConstReshapeLauncher::reshape(const std::set<ReshapeLauncher::Ptr>& launchers) {
     auto oShapesIR = _oController->getIRShapes();
@@ -308,12 +310,11 @@ void OutMemoryInitializer::check(const CNNLayer* layer, const IShapeInferImpl::P
     if (!layer) THROW_IE_EXCEPTION << errorBase + " pointer to the layer is null";
     int index = layer->GetParamAsInt("index");
     if (!::details::equal(layer->type, "memory") && index)
-        THROW_IE_EXCEPTION
-                << "Failed to init reshape launcher: layer type (`" + layer->type + "`) is not `Memory` as output";
+        THROW_IE_EXCEPTION << "Failed to init reshape launcher: layer type (`" + layer->type +
+                                  "`) is not `Memory` as output";
     if (!layer->outData.empty())
         THROW_IE_EXCEPTION << "Failed to init reshape launcher: "
-                           << "layer type (`" + layer->type +
-                              "`) is supposed to not have outputs, but actually it has";
+                           << "layer type (`" + layer->type + "`) is supposed to not have outputs, but actually it has";
 }
 
 OutputController* OutMemoryInitializer::createOutputController(const CNNLayer* layer) {
@@ -321,8 +322,7 @@ OutputController* OutMemoryInitializer::createOutputController(const CNNLayer* l
 }
 
 OutMemoryReshapeLauncher::OutMemoryReshapeLauncher(const CNNLayer* layer, const IShapeInferImpl::Ptr& impl)
-        : ReshapeLauncher(layer, impl, std::make_shared<OutMemoryInitializer>()) {
-}
+    : ReshapeLauncher(layer, impl, std::make_shared<OutMemoryInitializer>()) {}
 
 void OutMemoryReshapeLauncher::applyChanges(CNNLayer* layer) {
     checkLayer(layer);

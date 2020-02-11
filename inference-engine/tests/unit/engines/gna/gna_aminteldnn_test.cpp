@@ -1,23 +1,32 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
+
+#include <inference_engine.hpp>
+#include <backend/am_intel_dnn.hpp>
+
 #include "gna_matcher.hpp"
-#include "inference_engine.hpp"
-#include "dnn.h"
 
 using namespace testing;
-using namespace InferenceEngine;
 
-class GNA_AmIntelDnn_test : public GNATest {
+class GNA_AmIntelDnn_test : public GNATest<> {
 protected:
-    AmIntelDnn amIntelDnn;
+    GNAPluginNS::backend::AMIntelDNN amIntelDnn;
+#if GNA_LIB_VER == 2
+    Gna2Model desc = {};
+#else
     intel_nnet_type_t  desc = {};
+#endif
 };
 
 TEST_F(GNA_AmIntelDnn_test, intel_nnet_type_tDoesNotFreeHisMemory) {
+#if GNA_LIB_VER == 2
+    desc.Operations = nullptr;
+#else
     desc.pLayers = nullptr;
+#endif
     amIntelDnn.component.resize(1);
     amIntelDnn.component[0].operation = kDnnAffineOp;
     ASSERT_NO_THROW(amIntelDnn.InitGNAStruct(&desc));  // thirst init is ok
@@ -33,6 +42,10 @@ TEST_F(GNA_AmIntelDnn_test, intel_nnet_type_t_pLayersIsNotNullptr) {
 }
 
 TEST_F(GNA_AmIntelDnn_test, ComponentIsEmpty) {
+#if GNA_LIB_VER == 2
+    desc.Operations = nullptr;
+#else
     desc.pLayers = nullptr;
+#endif
     ASSERT_THROW(amIntelDnn.InitGNAStruct(&desc), InferenceEngine::details::InferenceEngineException);
 }

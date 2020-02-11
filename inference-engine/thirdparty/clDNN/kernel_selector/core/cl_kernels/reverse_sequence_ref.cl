@@ -19,8 +19,8 @@ KERNEL(reverse_sequence_ref)(const __global UNIT_TYPE* input, const __global flo
 {
     const uint batch = get_global_id(0);
     const uint feature = get_global_id(1);
-    const uint y = get_global_id(2) / INPUT0_SIZE_X;
-    const uint x = get_global_id(2) % INPUT0_SIZE_X;
+    const uint y = (uint)get_global_id(2) / INPUT0_SIZE_X;
+    const uint x = (uint)get_global_id(2) % INPUT0_SIZE_X;
     uint dimensions[] = { batch, feature, y, x };
 
     const uint input_index = INPUT0_OFFSET +

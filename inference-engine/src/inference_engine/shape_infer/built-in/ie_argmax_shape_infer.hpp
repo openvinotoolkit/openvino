@@ -1,16 +1,18 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <description_buffer.hpp>
-#include "ie_built_in_impl.hpp"
 #include <ie_layers.h>
+
+#include <description_buffer.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "ie_built_in_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -20,13 +22,11 @@ namespace ShapeInfer {
  */
 class ArgMaxShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit ArgMaxShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
+    explicit ArgMaxShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-                         const std::map<std::string, std::string>& params,
-                         const std::map<std::string, Blob::Ptr>& blobs,
-                         std::vector<SizeVector>& outShapes) override {
-        LayerParams lp{};
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
+        LayerParams lp {};
         CNNLayer cnnLayer(lp);
         cnnLayer.params = params;
         cnnLayer.type = _type;
@@ -37,7 +37,7 @@ public:
         bool isValidAxis = true;
         try {
             axis = cnnLayer.GetParamAsInt("axis");
-        } catch(const details::InferenceEngineException &exception) {
+        } catch (const details::InferenceEngineException& exception) {
             isValidAxis = false;
         }
 

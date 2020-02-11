@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "mkldnn_plugin/mkldnn_graph.h"
+#include "mkldnn_graph.h"
 
 #include "test_graph.hpp"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_plugin/mkldnn_extension_utils.h>
-#include <extension/ext_list.hpp>
+#include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 
 #include "single_layer_common.hpp"
@@ -29,11 +28,9 @@ struct one_hot_base_params {
 
 struct one_hot_test_params : one_hot_base_params {
     std::string libraryName;
-    TargetDevice targetDevice;
 
-    one_hot_test_params(std::string name, one_hot_base_params params,
-                        TargetDevice targetDevice = TargetDevice::eDefault) :
-            one_hot_base_params(params), libraryName(name), targetDevice(targetDevice) {}
+    one_hot_test_params(std::string name, one_hot_base_params params) :
+            one_hot_base_params(params), libraryName(name) {}
 };
 
 class OneHotOnly1dTest: public TestsCommon,
@@ -121,12 +118,8 @@ protected:
                 FAIL() << e.what();
             }
 
-            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-            MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(net_reader.getNetwork());
 
             // Output Data
             InferenceEngine::OutputsDataMap out;
@@ -263,12 +256,8 @@ protected:
                 FAIL() << e.what();
             }
 
-            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-            MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(net_reader.getNetwork());
 
             // Output Data
             InferenceEngine::OutputsDataMap out;
@@ -418,12 +407,8 @@ protected:
                 FAIL() << e.what();
             }
 
-            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-            MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(net_reader.getNetwork());
 
             // Output Data
             InferenceEngine::OutputsDataMap out;
@@ -579,12 +564,8 @@ protected:
                 FAIL() << e.what();
             }
 
-            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-            MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(net_reader.getNetwork());
 
             // Output Data
             InferenceEngine::OutputsDataMap out;
@@ -754,12 +735,8 @@ protected:
                 FAIL() << e.what();
             }
 
-            InferenceEngine::Extension cpuExt(make_so_name("cpu_extension"));
-            MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
-            extMgr->AddExtension(InferenceEngine::IExtensionPtr(&cpuExt, [](InferenceEngine::IExtension*){}));
-
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(net_reader.getNetwork());
 
             // Output Data
             InferenceEngine::OutputsDataMap out;

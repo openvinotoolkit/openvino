@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "pooling_kernel_gpu_b_fs_yx_fsv4.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey PoolingKerneGPU_b_fs_yx_fsv4::GetSupportedKey() const {
@@ -21,9 +22,12 @@ ParamsKey PoolingKerneGPU_b_fs_yx_fsv4::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -44,11 +48,13 @@ PoolingKernelBase::DispatchData PoolingKerneGPU_b_fs_yx_fsv4::SetDefault(const p
     runInfo.gws0 = params.output.X().v;  // X
     runInfo.gws1 = params.output.Y().v;  // Y
     // we got b_fs_yx_fsv4 format, we process 4 features per workitem
-    runInfo.gws2 = (params.output.Feature().v * params.output.Batch().v) / 4;
+    runInfo.gws2 = CeilDiv(params.output.Feature().v, 4) * params.output.Batch().v;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    auto local = GetOptimalLocalWorkGroupSizes({ runInfo.gws0, runInfo.gws1, runInfo.gws2 }, params.engineInfo);
+
+    runInfo.lws0 = local[0];
+    runInfo.lws1 = local[1];
+    runInfo.lws2 = local[2];
 
     return runInfo;
 }
@@ -60,6 +66,20 @@ JitConstants PoolingKerneGPU_b_fs_yx_fsv4::GetJitConstants(const pooling_params&
     const size_t in_y_pitch = 4 * params.inputs[0].X().LogicalDimPadded();
     jit.AddConstant(MakeJitConstant("IN_X_PITCH", in_x_pitch));
     jit.AddConstant(MakeJitConstant("IN_Y_PITCH", in_y_pitch));
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);
+        FusedOpsConfiguration conf = { "",
+                                       {"b", "f", "y", "x"},
+                                       "pool_result",
+                                       input_dt,
+                                       4,
+                                       LoadType::LT_UNALIGNED,
+                                       BoundaryCheck::ENABLED,
+                                       IndexType::TENSOR_COORD,
+                                       Tensor::DataChannelName::FEATURE };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
 
     return jit;
 }

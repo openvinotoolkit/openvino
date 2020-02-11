@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,19 +6,15 @@
 #include <memory>
 
 CLDNNPlugin::CLDNNAsyncInferRequest::CLDNNAsyncInferRequest(const InferenceEngine::InferRequestInternal::Ptr &inferRequest,
-                                                               const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
-                                                               const InferenceEngine::TaskSynchronizer::Ptr &taskSynchronizer,
-                                                               const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor)
-        : InferenceEngine::AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, taskSynchronizer, callbackExecutor)
+                                                            const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,
+                                                            const InferenceEngine::ITaskExecutor::Ptr &callbackExecutor)
+        : InferenceEngine::AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, callbackExecutor)
         { }
 
-CLDNNPlugin::CLDNNAsyncInferRequest::~CLDNNAsyncInferRequest() {
-    waitAllAsyncTasks();
+void CLDNNPlugin::CLDNNAsyncInferRequest::Infer_ThreadUnsafe() {
+    InferUsingAsync();
 }
 
-void CLDNNPlugin::CLDNNAsyncInferRequest::Infer() {
-    _callbackManager.disableCallback();
-    StartAsync();
-    Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-    _callbackManager.enableCallback();
+CLDNNPlugin::CLDNNAsyncInferRequest::~CLDNNAsyncInferRequest() {
+    StopAndWait();
 }

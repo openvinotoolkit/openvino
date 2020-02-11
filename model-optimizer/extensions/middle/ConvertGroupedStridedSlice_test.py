@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ import numpy as np
 from extensions.middle.ConvertGroupedStridedSlice import ConvertGroupedStridedSlice
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from mo.middle.passes.eliminate import shape_inference
-from mo.utils.unittest.graph import build_graph, compare_graphs
+from mo.utils.unittest.graph import build_graph
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes_attributes = {
     'placeholder_1': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
@@ -45,7 +45,12 @@ nodes_attributes = {
     'sslice_3_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     # Split layer
-    'split_1': {'type': 'Split', 'kind': 'op', 'op': 'SplitV'},
+    'axis_const': {'kind': 'op'},
+    'axis_const_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'split_dim_const': {'kind': 'op'},
+    'split_dim_const_data': {'value': None, 'shape': None, 'kind': 'data'},
+
+    'split_1': {'type': 'VariadicSplit', 'kind': 'op', 'op': 'VariadicSplit'},
     'split_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     'split_2_data': {'value': None, 'shape': None, 'kind': 'data'},
     'split_3_data': {'value': None, 'shape': None, 'kind': 'data'},
@@ -114,7 +119,7 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
-                                 ('placeholder_1_data', 'split_1'),
+                                 ('placeholder_1_data', 'split_1', {'in': 0}),
                                  ('split_1', 'split_1_data'),
                                  ('split_1', 'split_2_data'),
                                  ('split_1', 'split_3_data'),
@@ -122,11 +127,16 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
                                  ('split_2_data', 'concat_1'),
                                  ('split_3_data', 'concat_1'),
                                  ('concat_1', 'concat_1_data'),
-                                 ('concat_1_data', 'op_output')
+                                 ('concat_1_data', 'op_output'),
+
+                                 ('axis_const', 'axis_const_data'),
+                                 ('split_dim_const', 'split_dim_const_data'),
+                                 ('axis_const_data', 'split_1', {'in': 1}),
+                                 ('split_dim_const_data', 'split_1', {'in': 2}),
 
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 54])},
-                                 'split_1': {'axis': 3},
+                                 'axis_const': {'value': 3},
                                  'split_1_data': {'shape': np.array([1, 227, 227, 18])},
                                  'split_2_data': {'shape': np.array([1, 227, 227, 18])},
                                  'split_3_data': {'shape': np.array([1, 227, 227, 18])},
@@ -181,10 +191,15 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
                                  ('split_2_data', 'concat_1'),
                                  ('split_3_data', 'concat_1'),
                                  ('concat_1', 'concat_1_data'),
-                                 ('concat_1_data', 'op_output')
+                                 ('concat_1_data', 'op_output'),
+
+                                 ('axis_const', 'axis_const_data'),
+                                 ('split_dim_const', 'split_dim_const_data'),
+                                 ('axis_const_data', 'split_1', {'in': 1}),
+                                 ('split_dim_const_data', 'split_1', {'in': 2}),
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 54])},
-                                 'split_1': {'axis': 3},
+                                 'axis_const': {'value': 3},
                                  'split_1_data': {'shape': np.array([1, 227, 227, 18])},
                                  'split_2_data': {'shape': np.array([1, 227, 227, 17])},
                                  'split_3_data': {'shape': np.array([1, 227, 227, 19])},
@@ -387,10 +402,15 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
                                  ('split_4_data', 'concat_1'),
                                  ('concat_1', 'concat_1_data'),
                                  ('concat_1_data', 'op_output'),
-                                 ('split_1_data', 'op_output_1')
+                                 ('split_1_data', 'op_output_1'),
+
+                                 ('axis_const', 'axis_const_data'),
+                                 ('split_dim_const', 'split_dim_const_data'),
+                                 ('axis_const_data', 'split_1', {'in': 1}),
+                                 ('split_dim_const_data', 'split_1', {'in': 2}),
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 54])},
-                                 'split_1': {'axis': 3},
+                                 'axis_const': {'value': 3},
                                  'split_1_data': {'shape': np.array([1, 227, 227, 1])},
                                  'split_2_data': {'shape': np.array([1, 227, 227, 18])},
                                  'split_3_data': {'shape': np.array([1, 227, 227, 17])},
@@ -447,9 +467,14 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
                                  ('concat_1_data', 'op_output'),
                                  ('split_2_data', 'op_output_1'),
                                  ('split_4_data', 'op_output_2'),
+
+                                 ('axis_const', 'axis_const_data'),
+                                 ('split_dim_const', 'split_dim_const_data'),
+                                 ('axis_const_data', 'split_1', {'in': 1}),
+                                 ('split_dim_const_data', 'split_1', {'in': 2}),
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 54])},
-                                 'split_1': {'axis': 3},
+                                 'axis_const': {'value': 3},
                                  'split_1_data': {'shape': np.array([1, 227, 227, 18])},
                                  'split_2_data': {'shape': np.array([1, 227, 227, 9])},
                                  'split_3_data': {'shape': np.array([1, 227, 227, 18])},
@@ -558,10 +583,15 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
                                  ('split_3_data', 'concat_1'),
                                  ('concat_1', 'concat_1_data'),
                                  ('concat_1_data', 'op_output'),
-                                 ('split_2_data', 'op_output_1')
+                                 ('split_2_data', 'op_output_1'),
+
+                                 ('axis_const', 'axis_const_data'),
+                                 ('split_dim_const', 'split_dim_const_data'),
+                                 ('axis_const_data', 'split_1', {'in': 1}),
+                                 ('split_dim_const_data', 'split_1', {'in': 2}),
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 54, 54, 3])},
-                                 'split_1': {'axis': 1},
+                                 'axis_const': {'value': 1},
                                  'split_1_data': {'shape': np.array([1, 18, 54, 3])},
                                  'split_2_data': {'shape': np.array([1, 18, 54, 3])},
                                  'split_3_data': {'shape': np.array([1, 18, 54, 3])},
@@ -868,6 +898,62 @@ class AddReshapeAfterStridedSliceTests(unittest.TestCase):
         graph_ref.clear()
         self.assertTrue(flag, resp)
 
+    def test_ss_shrink_only_short(self):
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'sslice_2'),
+                             ('placeholder_begin_data', 'sslice_2'),
+                             ('placeholder_end_data', 'sslice_2'),
+                             ('placeholder_stride_data', 'sslice_2'),
+                             ('sslice_2', 'sslice_2_data'),
+                             ('sslice_2_data', 'placeholder_2'),
+                             ('placeholder_2', 'placeholder_2_data')
+                             ],
+                            {'placeholder_1_data': {'shape': np.array([1, 227, 1, 54])},
+                             'sslice_2': {'slices': np.array(
+                                 [slice(0, 1, 1), slice(0, 227, 1), slice(0, 1, 1), slice(0, 54, 1)]),
+                                 'shrink_axis_mask': np.array([0, 0, 1])},
+                             'sslice_2_data': {'shape': np.array([1, 227, 54])}
+                             })
+        graph.graph['layout'] = 'NHWC'
+
+        graph_ref = graph.copy()
+
+        ConvertGroupedStridedSlice().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'sslice_2_data', check_op_attrs=True)
+        graph.clear()
+        graph_ref.clear()
+        self.assertTrue(flag, resp)
+
+    def test_ss_shrink_only_long(self):
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'sslice_2'),
+                             ('placeholder_begin_data', 'sslice_2'),
+                             ('placeholder_end_data', 'sslice_2'),
+                             ('placeholder_stride_data', 'sslice_2'),
+                             ('sslice_2', 'sslice_2_data'),
+                             ('sslice_2_data', 'placeholder_2'),
+                             ('placeholder_2', 'placeholder_2_data')
+                             ],
+                            {'placeholder_1_data': {'shape': np.array([1, 227, 1, 54])},
+                             'sslice_2': {'slices': np.array(
+                                 [slice(0, 1, 1), slice(0, 227, 1), slice(0, 1, 1), slice(0, 54, 1)]),
+                                 'shrink_axis_mask': np.array([0, 0, 1, 0, 0])},
+                             'sslice_2_data': {'shape': np.array([1, 227, 54])}
+                             })
+        graph.graph['layout'] = 'NHWC'
+
+        graph_ref = graph.copy()
+
+        ConvertGroupedStridedSlice().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'sslice_2_data', check_op_attrs=True)
+        graph.clear()
+        graph_ref.clear()
+        self.assertTrue(flag, resp)
+
     # test case with 2 strided slices with the same parameters but different outputs
     def test_1(self):
         graph = build_graph(nodes_attributes,
@@ -915,10 +1001,15 @@ class AddReshapeAfterStridedSliceTests(unittest.TestCase):
                                  ('placeholder_2', 'placeholder_2_data'),
                                  ('concat_1', 'concat_1_data'),
                                  ('concat_1_data', 'op_output'),
-                                 ('placeholder_2_data', 'op_output')
+                                 ('placeholder_2_data', 'op_output'),
+
+                                 ('axis_const', 'axis_const_data'),
+                                 ('split_dim_const', 'split_dim_const_data'),
+                                 ('axis_const_data', 'split_1', {'in': 1}),
+                                 ('split_dim_const_data', 'split_1', {'in': 2}),
                                  ],
                                 {'placeholder_1_data': {'shape': np.array([1, 227, 227, 54])},
-                                 'split_1': {'axis': 3},
+                                 'axis_const': {'value': 3},
                                  'split_1_data': {'shape': np.array([1, 227, 227, 27])},
                                  'split_2_data': {'shape': np.array([1, 227, 227, 27])},
                                  'concat_1_data': {'shape': np.array([1, 227, 227, 54])},

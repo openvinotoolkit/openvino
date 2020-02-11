@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,8 +22,37 @@ bool PoolingKernelBase::Validate(const Params& p, const optional_params& o) cons
         return false;
     }
 
+    auto& params = dynamic_cast<const pooling_params&>(p);
+
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
     return true;
 }
+
+Datatype PoolingKernelBase::GetAccumulatorType(const pooling_params& params) const {
+    if (params.quantization != QuantizationType::NONE)
+        return Datatype::INT32;
+
+    Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
+
+    for (Datatype type : types)
+        for (auto& in : params.inputs)
+            if (in.GetDType() == type)
+                return type;
+
+    return Datatype::F32;
+}
+
+Datatype PoolingKernelBase::GetActivationType(const pooling_params& params) const {
+    if (params.quantization != QuantizationType::NONE)
+        return Datatype::F32;
+
+    return GetUnitType(params);
+}
+
 
 JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp, PoolingKernelBase::DispatchData kd) const {
     JitConstants mem_consts = MakeBaseParamsJitConstants(pp);
@@ -38,6 +67,10 @@ JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp, Poolin
 
     if (kd.needsBoundary) {
         mem_consts.AddConstant(MakeJitConstant("CHECK_BOUNDRY", 1));
+    }
+
+    if (EnableRound(pp)) {
+        mem_consts.AddConstant(MakeJitConstant("ENABLE_ROUND", 1));
     }
 
     return mem_consts;
@@ -66,6 +99,23 @@ bool PoolingKernelBase::NeedsBoundaryCheck(const pooling_params& pp) const {
     return mod_x || mod_y || mod_z;
 }
 
+bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params &params) const {
+    bool has_fused_quantize_to_int8 = false;
+    for (auto& op : params.fused_ops) {
+        if (op.GetType() == FusedOpType::QUANTIZE &&
+            (op.output_tensor.GetDType() == Datatype::INT8 || op.output_tensor.GetDType() == Datatype::UINT8)) {
+            has_fused_quantize_to_int8 = true;
+        }
+    }
+
+    if (!has_fused_quantize_to_int8 && (params.output.GetDType() == Datatype::INT8 || params.output.GetDType() == Datatype::UINT8) &&
+        params.poolType == PoolType::AVG) {
+        return true;
+    }
+
+    return false;
+}
+
 PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_params& params) const {
     const auto& output = params.output;
 
@@ -73,14 +123,24 @@ PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_para
 
     kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
-    if (output.GetLayout() == DataLayout::bfyx || output.GetLayout() == DataLayout::byxf ||
-        output.GetLayout() == DataLayout::bfzyx || output.GetLayout() == DataLayout::bfzyx_f16) {
+    if (output.GetLayout() == DataLayout::bfyx || output.GetLayout() == DataLayout::b_fs_yx_fsv4 ||
+        output.GetLayout() == DataLayout::byxf || output.GetLayout() == DataLayout::byxf_af32 ||
+        output.GetLayout() == DataLayout::bfzyx || output.GetLayout() == DataLayout::bfzyx_f16 ||
+        output.GetLayout() == DataLayout::bfzyx_b16f16) {
         // Determine global work sizes.
-        kd.gws2 = output.Batch().v * output.Feature().v;  // B, F
         kd.gws0 = Align(output.X().v, 32);                // X
         kd.gws1 = output.Y().v * output.Z().v;            // Y, Z
+        kd.gws2 = output.Batch().v * output.Feature().v;  // B, F
 
         // Find largest positive local work size that is divider for global work size.
+        kd.lws0 = 32;
+        kd.lws1 = 1;
+        kd.lws2 = 1;
+    } else if (output.GetLayout() == DataLayout::b_fs_yx_fsv32 || output.GetLayout() == DataLayout::b_fs_zyx_fsv32) {
+        kd.gws0 = 32;
+        kd.gws1 = output.Y().v * output.X().v * output.Z().v;
+        kd.gws2 = output.Batch().v * CeilDiv(output.Feature().v, 32);
+
         kd.lws0 = 32;
         kd.lws1 = 1;
         kd.lws2 = 1;
@@ -121,9 +181,11 @@ KernelsData PoolingKernelBase::GetCommonKernelsData(const Params& params,
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, DEFAULT, false, false, 1,
+                     GetFusedPrimitiveInputsCount(params));
     if (orgParams.poolType == PoolType::MAX_WITH_ARGMAX)
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+
 
     kd.estimatedTime = estimatedTime;
 

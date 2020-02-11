@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -29,11 +29,11 @@ add_library(${TARGET_NAME} SHARED
             ${LIBRARY_HEADERS})
 
 target_include_directories (${TARGET_NAME} PRIVATE
-        "${IE_MAIN_SOURCE_DIR}/src/inference_engine")
+    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD 11)
 set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)

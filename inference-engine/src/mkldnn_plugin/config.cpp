@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,19 +6,18 @@
 #define NOMINMAX
 
 #include "config.h"
+
+#include <string>
+#include <map>
+#include <algorithm>
+
 #include "ie_plugin_config.hpp"
 #include "ie_common.h"
 
-#include <string>
-#include <cstring>
-#include <map>
-#include <algorithm>
-#include <stdexcept>
-
 #include <cpp_interfaces/exception2status.hpp>
-#include <thread>
+#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include <ie_parallel.hpp>
-#include "mkldnn/omp_manager.h"
+#include "mkldnn/system_conf.h"
 
 namespace MKLDNNPlugin {
 
@@ -30,11 +29,20 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         std::string val = kvp.second;
 
         if (key == PluginConfigParams::KEY_CPU_BIND_THREAD) {
-            if (val == PluginConfigParams::YES) useThreadBinding = true;
-            else if (val == PluginConfigParams::NO) useThreadBinding = false;
-            else
+            if (val == PluginConfigParams::YES || val == PluginConfigParams::NUMA) {
+                #ifdef _WIN32
+                // on the Windows the CORES and NUMA pinning options are the same
+                useThreadBinding = InferenceThreadsBinding::NUMA;
+                #else
+                useThreadBinding = (val == PluginConfigParams::YES)
+                        ? InferenceThreadsBinding::CORES : InferenceThreadsBinding::NUMA;
+                #endif
+            } else if (val == PluginConfigParams::NO) {
+                useThreadBinding = InferenceThreadsBinding::NONE;
+            } else {
                 THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_CPU_BIND_THREAD
-                                   << ". Expected only YES/NO";
+                                   << ". Expected only YES(binds to cores) / NO(no binding) / NUMA(binds to NUMA nodes)";
+            }
         } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
             int val_i = std::stoi(val);
             // zero and any negative value will be treated
@@ -54,9 +62,9 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                                    << ". Expected only YES/NO";
         } else if (key == PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
             if (val == PluginConfigParams::CPU_THROUGHPUT_NUMA) {
-                throughputStreams = MKLDNNPlugin::cpu::getNumberOfCPUSockets();
+                throughputStreams = MKLDNNPlugin::cpu::getAvailableNUMANodes().size();
             } else if (val == PluginConfigParams::CPU_THROUGHPUT_AUTO) {
-                const int sockets = MKLDNNPlugin::cpu::getNumberOfCPUSockets();
+                const int sockets = MKLDNNPlugin::cpu::getAvailableNUMANodes().size();
                 // bare minimum of streams (that evenly divides available number of core)
                 const int num_cores = sockets == 1 ? parallel_get_max_threads() : cpu::getNumberOfCPUCores();
                 if (0 == num_cores % 4)
@@ -102,6 +110,17 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         } else if (key.compare(PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT) == 0) {
             // empty string means that dumping is switched off
             dumpToDot = val;
+        } else if (key.compare(PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE) == 0) {
+            if (val == PluginConfigInternalParams::LP_TRANSFORMS_MODE_OFF)
+                lpTransformsMode = LPTransformsMode::Off;
+            else if (val == PluginConfigInternalParams::LP_TRANSFORMS_MODE_ON)
+                lpTransformsMode = LPTransformsMode::On;
+            else
+                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;
+        } else if (key.compare(PluginConfigParams::KEY_DUMP_QUANTIZED_GRAPH_AS_DOT) == 0) {
+            dumpQuantizedGraphToDot = val;
+        } else if (key.compare(PluginConfigParams::KEY_DUMP_QUANTIZED_GRAPH_AS_IR) == 0) {
+            dumpQuantizedGraphToIr = val;
         } else {
             THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property " << key << " by CPU plugin";
         }

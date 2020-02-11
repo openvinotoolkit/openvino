@@ -74,6 +74,20 @@ ParamsKey eltwise_params::GetParamsKey() const {
     return k;
 }
 
+Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params &params) const {
+    if (params.int8_quantization)
+        return Datatype::INT32;
+
+    Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
+
+    for (Datatype type : types)
+        for (auto& in : params.inputs)
+            if (in.GetDType() == type)
+                return type;
+
+    return Datatype::F32;
+}
+
 bool EltwiseKernelBase::Validate(const Params& p, const optional_params& o) const {
     if (p.GetType() != KernelType::ELTWISE || o.GetType() != KernelType::ELTWISE) {
         return false;
@@ -122,6 +136,8 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
                 bfyx_idx_order = { "d1", "d2", "d4", "d3" };
             } else if (l == DataLayout::fyxb) {
                 bfyx_idx_order = { "d1", "d4", "d3", "d2" };
+            } else if (l == DataLayout::byxf) {
+                bfyx_idx_order = { "d4", "d1", "d3", "d2" };
             } else {
                 bfyx_idx_order = { "d4", "d3", "d2", "d1" };
             }
@@ -149,6 +165,8 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
         MakeJitConstant("QUANTIZATION_TERM", params.int8_quantization),
         MakeJitConstant("ELTWISE_BROADCAST", params.broadcast),
     });
+
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     if (params.int8_quantization) {
         if (params.output_calibration) {
@@ -298,19 +316,11 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
         std::string input0_str, input1_str, cast_type, output_cast, op;
 
         if (useVload8) {
-            cast_type = "(MAKE_VECTOR_TYPE(UNIT_TYPE, 8))";
-            op = "const MAKE_VECTOR_TYPE(UNIT_TYPE, 8) tmp" + op_num_str + " = ";
-        } else if (params.int8_quantization) {
-            cast_type = "(int)";
-            op = "const int tmp" + op_num_str + " = ";
+            cast_type = "(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 8))";
+            op = "const MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 8) tmp" + op_num_str + " = ";
         } else {
-            cast_type = "(UNIT_TYPE)";
-            op = "const UNIT_TYPE tmp" + op_num_str + " = ";
-        }
-
-        if (params.output.GetDType() == Datatype::INT8 && !params.int8_quantization) {
-            output_cast = "(char)";
-            cast_type = "(" + toCLType(params.inputs[op_num].GetDType()) + ")";
+            cast_type = "(ACCUMULATOR_TYPE)";
+            op = "const ACCUMULATOR_TYPE tmp" + op_num_str + " = ";
         }
 
         input0_str = cast_type + "INPUT_" + op_num_str + "_0";
@@ -452,6 +462,8 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
         jit.AddConstant(MakeJitConstant("INPUT_STRIDED", 1));
     }
 
+    jit.Merge(MakeActivationJitConstants(params.activations, GetAccumulatorType(params), "_TYPED"));
+
     return jit;
 }
 
@@ -480,7 +492,8 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         }
 
         size_t n_dims;
-        if ((out.GetLayout() == DataLayout::bfzyx)  || (out.GetLayout() == DataLayout::bfzyx_f16))
+        if ((out.GetLayout() == DataLayout::bfzyx)  || (out.GetLayout() == DataLayout::bfzyx_f16) ||
+            (out.GetLayout() == DataLayout::bfzyx_b16f16))
             n_dims = 5;
         else
             n_dims = 4;
@@ -499,13 +512,24 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
         }
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes({kd.gws0, kd.gws1, kd.gws2});
+    auto local = GetOptimalLocalWorkGroupSizes({kd.gws0, kd.gws1, kd.gws2}, params.engineInfo);
 
+    const size_t optimal_lws_values[] = {256, 224, 192, 160, 128, 96, 64, 32, 16};
     if (params.output.GetLayout() == DataLayout::bfyx_f16 && params.output.Feature().v % 16 == 0 &&
         kd.gws1 % 16 == 0) {
         kd.lws0 = 1;
-        kd.lws1 = 16;
+        for (auto lws : optimal_lws_values) {
+            if (kd.gws1 % lws == 0) {
+                kd.lws1 = lws;
+                break;
+            }
+        }
         kd.lws2 = 1;
+    } else if (params.output.GetLayout() == DataLayout::fs_b_yx_fsv32) {
+        kd.gws2 = Align(kd.gws2, 32);
+        kd.lws0 = 1;
+        kd.lws1 = 1;
+        kd.lws2 = 32;
     } else {
         kd.lws0 = local[0];
         kd.lws1 = local[1];

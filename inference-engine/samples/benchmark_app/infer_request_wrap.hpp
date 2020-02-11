@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,10 @@ public:
         _request.StartAsync();
     }
 
+    void wait() {
+        _request.Wait(InferenceEngine::IInferRequest::RESULT_READY);
+    }
+
     void infer() {
         _startTime = Time::now();
         _request.Infer();
@@ -85,7 +89,14 @@ public:
         }
         resetTimes();
     }
-    ~InferRequestsQueue() = default;
+    ~InferRequestsQueue() {
+        // Inference Request guarantee that it will wait for all asynchronous internal tasks in destructor
+        // So it should be released before any context that the request can use inside internal asynchronous tasks
+        // For example all members of InferRequestsQueue would be destroyed before `requests` vector
+        // So requests can try to use this members from `putIdleRequest()` that would be called from request callback
+        // To avoid this we should move this vector declaration after all members declaration or just clear it manually in destructor
+        requests.clear();
+    }
 
     void resetTimes() {
         _startTime = Time::time_point::max();

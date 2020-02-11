@@ -28,7 +28,7 @@ namespace kernel_selector {
                                     params.output.Feature().v,  // batch
                                     1
                                   };
-        const auto& local = GetOptimalLocalWorkGroupSizes(global);
+        const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
         /*
             b -> time
             f -> batch

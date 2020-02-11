@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,5 +11,5 @@ class MockTaskExecutor : public InferenceEngine::ITaskExecutor {
 public:
     typedef std::shared_ptr<MockTaskExecutor> Ptr;
 
-    MOCK_METHOD1(startTask, bool(InferenceEngine::Task::Ptr));
+    MOCK_METHOD1(run, void(InferenceEngine::Task));
 };

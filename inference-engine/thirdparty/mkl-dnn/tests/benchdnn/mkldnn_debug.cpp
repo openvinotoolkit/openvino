@@ -112,6 +112,8 @@ mkldnn_memory_format_t str2fmt(const char *str) {
     CASE(OIdhw8i16o2i);
     CASE(OIhw4i16o4i);
     CASE(OIhw4i16o4i_s8s8);
+    CASE(OIdhw4i16o4i);
+    CASE(OIdhw4i16o4i_s8s8);
     CASE(OIhw8o16i2o);
     CASE(IOhw8o16i2o);
     CASE(OIhw8o8i);
@@ -125,6 +127,9 @@ mkldnn_memory_format_t str2fmt(const char *str) {
     CASE(hwigo);
     CASE(giohw);
     CASE(hwigo_s8s8);
+    CASE(dhwigo_s8s8);
+    CASE(dhwigo);
+    CASE(dhwio_s8s8);
     CASE(goiw);
     CASE(gOIw16i16o);
     CASE(gOIw16o16i);
@@ -144,6 +149,8 @@ mkldnn_memory_format_t str2fmt(const char *str) {
     CASE(gOIhw2i8o4i_s8s8);
     CASE(gOIhw4i16o4i);
     CASE(gOIhw4i16o4i_s8s8);
+    CASE(gOIdhw4i16o4i);
+    CASE(gOIdhw4i16o4i_s8s8);
     CASE(gOIhw8o16i2o);
     CASE(gIOhw8o16i2o);
     CASE(gOIhw4o4i);
@@ -155,8 +162,13 @@ mkldnn_memory_format_t str2fmt(const char *str) {
     CASE(gOhwi8o);
     CASE(gOhwi16o);
     CASE(Goihw8g);
+    CASE(Goihw8g_s8s8);
     CASE(Goihw16g);
     CASE(Goihw16g_s8s8);
+    CASE(Goidhw8g);
+    CASE(Goidhw8g_s8s8);
+    CASE(Goidhw16g);
+    CASE(Goidhw16g_s8s8);
     CASE(oIhw8i);
     CASE(oIhw16i);
     CASE(ncdhw);

@@ -41,7 +41,7 @@ CommonDispatchData ReverseSequenceKernelRef::SetDefault(const reverse_sequence_p
                                   params.output.Feature().v,
                                   params.output.Y().v * params.output.X().v};
 
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     runInfo.gws0 = global[0];
     runInfo.gws1 = global[1];

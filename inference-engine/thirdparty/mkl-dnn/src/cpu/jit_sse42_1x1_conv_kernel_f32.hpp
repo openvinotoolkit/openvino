@@ -99,6 +99,9 @@ private:
 
     xmm_t reg_bcast = xmm_t(15);
 
+    Xbyak::Xmm xmm_d_weights = Xbyak::Xmm(14);
+    Xbyak::Xmm xmm_d_bias = Xbyak::Xmm(15);
+
     nstl::vector<jit_uni_eltwise_injector_f32<sse42>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<sse42>*> depthwise_injectors;
 

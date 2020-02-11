@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include <map>
 #include <string>
 #include <set>
+#include <utility>
 
 #include <precision_utils.h>
 #include <ie_parallel.hpp>
@@ -40,8 +41,8 @@ const void* CalculatedDataContent::getRaw() const {
 }
 
 size_t CalculatedDataContent::getTempBufSize(const SmallVector<DataContent::Ptr, 2>&) const {
-    return checked_cast<size_t>(_desc.totalDimSize()) *
-           checked_cast<size_t>(_desc.elemSize());
+    return checked_cast<size_t>(desc().totalDimSize()) *
+           checked_cast<size_t>(desc().elemSize());
 }
 
 namespace {
@@ -52,7 +53,7 @@ public:
 
 protected:
     const void* getRaw() const override {
-        if (_desc.type() == DataType::FP16) {
+        if (desc().type() == DataType::FP16) {
             if (_blobFp16 == nullptr) {
                 _blobFp16 = getBlobFP16(_blob);
                 _blob.reset();
@@ -64,15 +65,15 @@ protected:
                 if (_tempFp16.empty()) {
                     VPU_PROFILE(IeBlobContent);
 
-                    IE_ASSERT(_desc.totalDimSize() % _repeat == 0);
+                    IE_ASSERT(desc().totalDimSize() % _repeat == 0);
 
-                    auto origNumElems = _desc.totalDimSize() / _repeat;
+                    auto origNumElems = desc().totalDimSize() / _repeat;
                     IE_ASSERT(checked_cast<size_t>(origNumElems) <= _blobFp16->size());
 
                     auto origPtr = _blobFp16->cbuffer().as<const fp16_t*>();
                     IE_ASSERT(origPtr != nullptr);
 
-                    _tempFp16.resize(checked_cast<size_t>(_desc.totalDimSize()));
+                    _tempFp16.resize(checked_cast<size_t>(desc().totalDimSize()));
 
                     ie::parallel_for(_repeat, [this, origPtr, origNumElems](int i) {
                         std::copy_n(origPtr, origNumElems, _tempFp16.data() + i * origNumElems);
@@ -81,22 +82,22 @@ protected:
 
                 return _tempFp16.data();
             }
-        } else if (_desc.type() == DataType::S32) {
+        } else if (desc().type() == DataType::S32) {
             if (_repeat == 1) {
                 return _blob->cbuffer();
             } else {
                 if (_tempS32.empty()) {
                     VPU_PROFILE(IeBlobContent);
 
-                    IE_ASSERT(_desc.totalDimSize() % _repeat == 0);
+                    IE_ASSERT(desc().totalDimSize() % _repeat == 0);
 
-                    auto origNumElems = _desc.totalDimSize() / _repeat;
+                    auto origNumElems = desc().totalDimSize() / _repeat;
                     IE_ASSERT(checked_cast<size_t>(origNumElems) <= _blob->size());
 
                     auto origPtr = _blob->cbuffer().as<const int32_t*>();
                     IE_ASSERT(origPtr != nullptr);
 
-                    _tempS32.resize(checked_cast<size_t>(_desc.totalDimSize()));
+                    _tempS32.resize(checked_cast<size_t>(desc().totalDimSize()));
 
                     ie::parallel_for(_repeat, [this, origPtr, origNumElems](int i) {
                         std::copy_n(origPtr, origNumElems, _tempS32.data() + i * origNumElems);
@@ -106,7 +107,7 @@ protected:
                 return _tempS32.data();
             }
         } else {
-            VPU_THROW_EXCEPTION << "Unsupported data type " << _desc.type();
+            VPU_THROW_EXCEPTION << "Unsupported data type " << desc().type();
         }
     }
 
@@ -129,10 +130,10 @@ namespace {
 
 class ReplicatedContent final : public CalculatedDataContent {
 public:
-    ReplicatedContent(float val, int count) : _val(val), _count(count) {}
+    ReplicatedContent(float val, int count) : _factor{val}, _count(count) {}
 
-    ReplicatedContent(const DataContent::Ptr& origContent, int count) :
-            CalculatedDataContent({origContent}), _count(count) {
+    ReplicatedContent(DataContent::Ptr origContent, int count) :
+        CalculatedDataContent({std::move(origContent)}), _count(count) {
     }
 
 protected:
@@ -141,9 +142,9 @@ protected:
             return checked_cast<size_t>(_count) * sizeof(fp16_t);
         } else {
             IE_ASSERT(baseContents.size() == 1);
-            IE_ASSERT(_desc.totalDimSize() % _count == 0);
+            IE_ASSERT(desc().totalDimSize() % _count == 0);
 
-            return checked_cast<size_t>(_desc.totalDimSize()) * sizeof(fp16_t);
+            return checked_cast<size_t>(desc().totalDimSize()) * sizeof(fp16_t);
         }
     }
 
@@ -153,12 +154,12 @@ protected:
         auto dstPtr = static_cast<fp16_t*>(tempBuf);
 
         if (baseContents.empty()) {
-            std::fill_n(dstPtr, _count, ie::PrecisionUtils::f32tof16(_val));
+            std::fill_n(dstPtr, _count, ie::PrecisionUtils::f32tof16(_factor));
         } else {
             IE_ASSERT(baseContents.size() == 1);
-            IE_ASSERT(_desc.totalDimSize() % _count == 0);
+            IE_ASSERT(desc().totalDimSize() % _count == 0);
 
-            auto origCount = _desc.totalDimSize() / _count;
+            auto origCount = desc().totalDimSize() / _count;
             auto origPtr = baseContents[0]->get<fp16_t>();
             IE_ASSERT(origPtr != nullptr);
 
@@ -169,21 +170,17 @@ protected:
     }
 
 private:
-    float _val = 0.0f;
+    float _factor = 1.0f;
     int _count = 0;
 };
 
 }  // namespace
 
-DataContent::Ptr replicateContent(
-        float val,
-        int count) {
+DataContent::Ptr replicateContent(float val, int count) {
     return std::make_shared<ReplicatedContent>(val, count);
 }
 
-DataContent::Ptr replicateContent(
-        const DataContent::Ptr& origContent,
-        int count) {
+DataContent::Ptr replicateContent(const DataContent::Ptr& origContent, int count) {
     return std::make_shared<ReplicatedContent>(origContent, count);
 }
 
@@ -191,10 +188,8 @@ namespace {
 
 class ScaledContent final : public CalculatedDataContent {
 public:
-    ScaledContent(
-            const DataContent::Ptr& origContent,
-            float scale) :
-            CalculatedDataContent({origContent}), _scale(scale) {
+    ScaledContent(const DataContent::Ptr& origContent, float scale) :
+        CalculatedDataContent({origContent}), _factor(scale) {
     }
 
 protected:
@@ -203,7 +198,7 @@ protected:
 
         IE_ASSERT(baseContents.size() == 1);
 
-        auto totalSize = _desc.totalDimSize();
+        auto totalSize = desc().totalDimSize();
 
         auto origDesc = baseContents[0]->desc();
         IE_ASSERT(origDesc.type() == DataType::FP16);
@@ -215,20 +210,76 @@ protected:
         auto dstPtr = static_cast<fp16_t*>(tempBuf);
 
         ie::parallel_for(totalSize, [this, srcPtr, dstPtr](int i) {
-            dstPtr[i] = ie::PrecisionUtils::f32tof16(ie::PrecisionUtils::f16tof32(srcPtr[i]) * _scale);
+            dstPtr[i] = ie::PrecisionUtils::f32tof16(ie::PrecisionUtils::f16tof32(srcPtr[i]) * _factor);
         });
     }
 
 private:
-    float _scale = 0.0f;
+    float _factor = 1.0f;
 };
 
 }  // namespace
 
-DataContent::Ptr scaleContent(
-        const DataContent::Ptr& origContent,
-        float scale) {
+DataContent::Ptr scaleContent(const DataContent::Ptr& origContent, float scale) {
     return std::make_shared<ScaledContent>(origContent, scale);
+}
+
+namespace {
+
+class ScaledChannelContent final : public CalculatedDataContent {
+public:
+    ScaledChannelContent(
+            const DataContent::Ptr& origContent,
+            const DataContent::Ptr& scaleContent) :
+            CalculatedDataContent({origContent, scaleContent}) {
+    }
+
+protected:
+    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override {
+        VPU_PROFILE(ScaledChannelContent);
+
+        IE_ASSERT(baseContents.size() == 2);
+
+        auto totalSize = desc().totalDimSize();
+
+        IE_ASSERT(desc().numDims() == 4 && desc().dimsOrder() == DimsOrder::NCHW);
+        auto numN = desc().dim(Dim::N);
+        auto numC = desc().dim(Dim::C);
+        auto numH = desc().dim(Dim::H);
+        auto numW = desc().dim(Dim::W);
+
+        auto origDesc = baseContents[0]->desc();
+        IE_ASSERT(origDesc.type() == DataType::FP16);
+        IE_ASSERT(origDesc.totalDimSize() == totalSize);
+        IE_ASSERT(baseContents[1]->desc().totalDimSize() == numN);
+
+        auto srcPtr = baseContents[0]->get<fp16_t>();
+        IE_ASSERT(srcPtr != nullptr);
+
+        auto scale = baseContents[1]->get<fp16_t>();
+        IE_ASSERT(scale != nullptr);
+
+        auto dstPtr = static_cast<fp16_t*>(tempBuf);
+
+        for (int n = 0; n < numN; n++) {
+            for (int c = 0; c < numC; c++) {
+               for (int h = 0; h < numH; h++) {
+                   for (int w = 0; w < numW; w++) {
+                       dstPtr[n * numC * numH * numW + c * numH * numW + h * numW + w] =
+                               srcPtr[n * numC * numH * numW + c * numH * numW + h * numW + w] * scale[n];
+                   }
+               }
+            }
+        }
+    }
+};
+
+}  // namespace
+
+DataContent::Ptr scaledChannelContent(
+        const DataContent::Ptr& origContent,
+        const DataContent::Ptr& scaleContent) {
+    return std::make_shared<ScaledChannelContent>(origContent, scaleContent);
 }
 
 //
@@ -236,7 +287,7 @@ DataContent::Ptr scaleContent(
 //
 
 Data DataNode::getTopParentData() const {
-    auto topParent = handle_from_this();
+    Data topParent = this;
     while (auto nextParent = topParent->parentData()) {
         topParent = nextParent;
     }
@@ -279,6 +330,10 @@ int DataNode::lastElemOffset() const {
         lastElem.set(p.first, p.second - 1);
     }
     return elemOffset(lastElem);
+}
+
+bool DataNode::canHaveAParent() const {
+    return parentData() == nullptr && usage() == DataUsage::Intermediate;
 }
 
 bool DataNode::checkStrides(const StridesRequirement& reqs) const {
@@ -569,13 +624,13 @@ void DataNode::serializeOldBuffer(
 
     if (stage != nullptr) {
         for (const auto& inEdge : stage->inputEdges()) {
-            if (inEdge->input() == handle_from_this()) {
+            if (inEdge->input() == this) {
                 inEdge->attrs().set<DataDesc>("newDesc", newDesc);
                 inEdge->attrs().set<DimValues>("newStrides", newStrides);
             }
         }
         for (const auto& outEdge : stage->outputEdges()) {
-            if (outEdge->output() == handle_from_this()) {
+            if (outEdge->output() == this) {
                 outEdge->attrs().set<DataDesc>("newDesc", newDesc);
                 outEdge->attrs().set<DimValues>("newStrides", newStrides);
             }
@@ -621,13 +676,13 @@ void DataNode::serializeOldBufferNC(
 
     if (stage != nullptr) {
         for (const auto& inEdge : stage->inputEdges()) {
-            if (inEdge->input() == handle_from_this()) {
+            if (inEdge->input() == this) {
                 inEdge->attrs().set<DataDesc>("newDesc", newDesc);
                 inEdge->attrs().set<DimValues>("newStrides", newStrides);
             }
         }
         for (const auto& outEdge : stage->outputEdges()) {
-            if (outEdge->output() == handle_from_this()) {
+            if (outEdge->output() == this) {
                 outEdge->attrs().set<DataDesc>("newDesc", newDesc);
                 outEdge->attrs().set<DimValues>("newStrides", newStrides);
             }

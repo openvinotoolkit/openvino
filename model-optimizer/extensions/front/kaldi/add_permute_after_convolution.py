@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ from collections import deque
 
 import numpy as np
 
+from extensions.front.MatMul_normalizer import FullyConnectedDecomposer
 from extensions.front.kaldi.add_reshape_around_convolution import ReplaceConvolutionReshape
 from extensions.middle.TensorIteratorMerge import op_type
 from extensions.ops.activation_ops import activation_ops
@@ -66,8 +67,14 @@ class ReplaceConvolutionTranspose(FrontReplacementSubgraph):
             order_const.out_port(0).connect(permute_node.in_port(1))
 
     def run_after(self):
+        from extensions.front.flatten_to_reshape import FlattenToReshape
         from extensions.front.kaldi.add_reshape_around_pooling import ReplacePoolingReshape
-        return [ReplaceConvolutionReshape, ReplacePoolingReshape]
+        return [FlattenToReshape,
+                ReplaceConvolutionReshape,
+                ReplacePoolingReshape]
+
+    def run_before(self):
+        return [FullyConnectedDecomposer]
 
     @staticmethod
     def search_target_node(node: Node):

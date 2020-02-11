@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,5 +16,6 @@ public:
     MOCK_METHOD2(CreateInferRequestImpl,
                  std::shared_ptr<InferRequestInternal>(InputsDataMap networkInputs, OutputsDataMap networkOutputs));
     MOCK_METHOD1(Export, void(const std::string &));
+    void Export(std::ostream &) override {}
     MOCK_METHOD1(GetMappedTopology, void(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &));
 };

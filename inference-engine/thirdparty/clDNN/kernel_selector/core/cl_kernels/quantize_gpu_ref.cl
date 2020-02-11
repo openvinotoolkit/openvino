@@ -26,9 +26,17 @@ KERNEL(quantize_ref)(const __global INPUT0_TYPE* input,
 {
     const int b = get_global_id(0);
     const int of = get_global_id(1);
+#if OUTPUT_DIMS <= 4
     const int yx = get_global_id(2);
-    const int x = get_global_id(2) % OUTPUT_SIZE_X;
-    const int y = get_global_id(2) / OUTPUT_SIZE_X;
+    const int x = yx % OUTPUT_SIZE_X;
+    const int y = yx / OUTPUT_SIZE_X;
+    const int z = 0;
+#elif OUTPUT_DIMS == 5
+    const int zyx = get_global_id(2);
+    const int x = zyx % OUTPUT_SIZE_X;
+    const int y = (zyx / OUTPUT_SIZE_X) % OUTPUT_SIZE_Y;
+    const int z = (zyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y;
+#endif
 
 #if PACKED_BINARY_OUTPUT
     const int output_offset = OUTPUT_OFFSET
@@ -65,39 +73,46 @@ KERNEL(quantize_ref)(const __global INPUT0_TYPE* input,
     output[output_offset] = res;
 
 #else
-    const int input_offset = INPUT0_OFFSET
-                           + b*INPUT0_BATCH_PITCH
-                           + of*INPUT0_FEATURE_PITCH
-                           + y*INPUT0_Y_PITCH
-                           + x*INPUT0_X_PITCH;
-    const int output_offset = OUTPUT_OFFSET
-                            + b*OUTPUT_BATCH_PITCH
-                            + of*OUTPUT_FEATURE_PITCH
-                            + y*OUTPUT_Y_PITCH
-                            + x*OUTPUT_X_PITCH;
-    const int input_low_offset = INPUT1_OFFSET
-                               + (b % INPUT1_BATCH_NUM)*INPUT1_BATCH_PITCH
-                               + (of % INPUT1_FEATURE_NUM)*INPUT1_FEATURE_PITCH
-                               + (y % INPUT1_SIZE_Y)*INPUT1_Y_PITCH
-                               + (x % INPUT1_SIZE_X)*INPUT1_X_PITCH;
-    const int input_high_offset = INPUT2_OFFSET
-                                + (b % INPUT2_BATCH_NUM)*INPUT2_BATCH_PITCH
-                                + (of % INPUT2_FEATURE_NUM)*INPUT2_FEATURE_PITCH
-                                + (y % INPUT2_SIZE_Y)*INPUT2_Y_PITCH
-                                + (x % INPUT2_SIZE_X)*INPUT2_X_PITCH;
-    const int output_low_offset = INPUT3_OFFSET
-                                + (b % INPUT3_BATCH_NUM)*INPUT3_BATCH_PITCH
-                                + (of % INPUT3_FEATURE_NUM)*INPUT3_FEATURE_PITCH
-                                + (y % INPUT3_SIZE_Y)*INPUT3_Y_PITCH
-                                + (x % INPUT3_SIZE_X)*INPUT3_X_PITCH;
-    const int output_high_offset = INPUT4_OFFSET
-                                 + (b % INPUT4_BATCH_NUM)*INPUT4_BATCH_PITCH
-                                 + (of % INPUT4_FEATURE_NUM)*INPUT4_FEATURE_PITCH
-                                 + (y % INPUT4_SIZE_Y)*INPUT4_Y_PITCH
-                                 + (x % INPUT4_SIZE_X)*INPUT4_X_PITCH;
+
+#if INPUT0_DIMS == 5
+    const int input_offset = INPUT0_GET_INDEX(b, of, z, y, x);
+#elif INPUT0_DIMS <= 4
+    const int input_offset = INPUT0_GET_INDEX(b, of, y, x);
+#endif
+
+#if OUTPUT_DIMS == 5
+    const int output_offset = OUTPUT_GET_INDEX(b, of, z, y, x);
+#elif OUTPUT_DIMS <= 4
+    const int output_offset = OUTPUT_GET_INDEX(b, of, y, x);
+#endif
+
+#if INPUT1_DIMS == 5
+    const int input_low_offset = INPUT1_GET_INDEX_SAFE(b, of, z, y, x);
+#elif INPUT1_DIMS <= 4
+    const int input_low_offset = INPUT1_GET_INDEX_SAFE(b, of, y, x);
+#endif
+
+#if INPUT2_DIMS == 5
+    const int input_high_offset = INPUT2_GET_INDEX_SAFE(b, of, z, y, x);
+#elif INPUT2_DIMS <= 4
+    const int input_high_offset = INPUT2_GET_INDEX_SAFE(b, of, y, x);
+#endif
+
+#if INPUT3_DIMS == 5
+    const int output_low_offset = INPUT3_GET_INDEX_SAFE(b, of, z, y, x);
+#elif INPUT3_DIMS <= 4
+    const int output_low_offset = INPUT3_GET_INDEX_SAFE(b, of, y, x);
+#endif
+
+#if INPUT4_DIMS == 5
+    const int output_high_offset = INPUT4_GET_INDEX_SAFE(b, of, z, y, x);
+#elif INPUT4_DIMS <= 4
+    const int output_high_offset = INPUT4_GET_INDEX_SAFE(b, of, y, x);
+#endif
+
 
     INPUT0_TYPE val = input[input_offset];
-    if (x >= OUTPUT_SIZE_X || y >= OUTPUT_SIZE_Y)
+    if (x >= OUTPUT_SIZE_X || y >= OUTPUT_SIZE_Y || z >= OUTPUT_SIZE_Z)
         return;
 
     INPUT0_TYPE input_low_val  = input_low[input_low_offset];
@@ -116,8 +131,14 @@ KERNEL(quantize_ref)(const __global INPUT0_TYPE* input,
     }
     else
     {
-       output[output_offset] = TO_OUTPUT_TYPE(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1)) /
-                                              (LEVELS-1) * (output_high_val - output_low_val) + output_low_val);
+#if OUTPUT_IS_FP
+       output[output_offset] = TO_OUTPUT_TYPE(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
+                             * (UNIT_VAL_ONE / (LEVELS-1) * (output_high_val - output_low_val)) + output_low_val);
+#else
+       // TODO: the outer round should be deleted once output range is correct
+        output[output_offset] = TO_OUTPUT_TYPE(round(round((val - input_low_val) / (input_high_val - input_low_val) * (LEVELS-1))
+                              * (UNIT_VAL_ONE / (LEVELS-1) * (output_high_val - output_low_val)) + output_low_val));
+#endif
     }
 
 #endif

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
 import logging as log
 import os
 from enum import Enum
@@ -21,9 +20,10 @@ from enum import Enum
 import networkx as nx
 
 from mo.graph.graph import Graph
-from mo.middle.passes.eliminate import graph_clean_up_tf, graph_clean_up_onnx, graph_clean_up, shape_inference
+from mo.middle.passes.eliminate import shape_inference
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.utils.error import Error, InternalError
+from mo.utils.logger import progress_bar
 from mo.utils.utils import refer_to_faq_msg
 
 _registered_classes_dict = {}
@@ -70,9 +70,11 @@ class ClassType(Enum):
     FRONT_REPLACER = 2
     MIDDLE_REPLACER = 3
     BACK_REPLACER = 4
+    IR_READER_EXTENDER = 5
 
 
-def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled_transforms: list, disabled_transforms: list):
+def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled_transforms: list,
+            disabled_transforms: list):
     new_keys = {}  # maps a custom name to class
     new_keys_lower = {}  # translates lowered custom name to its original form
     # print('Registering new subclasses for', cls)
@@ -221,79 +223,102 @@ class DependencyGraph(Graph):
         return order
 
 
-def apply_replacements(graph: Graph, replacements_type):
+def get_replacers_order(transform_types: list):
+    """
+    Gets all transforms that do not have 'op'.
+    If two or more classes replaces the same op (both have op class attribute and values match), such
+    pattern is not applied (while registration it will warn user that we have a conflict).
+    """
+    dependency_graph = DependencyGraph(name="UnifiedPipeline" if len(transform_types) != 1 else transform_types[0].name)
+
+    replacers = []
+    for class_type, classes_set in _registered_classes_dict.items():
+        if class_type in transform_types:
+            for cls in classes_set:
+                cur_cls_replacers = [c for c in cls.registered_cls if not hasattr(c, 'op')] + \
+                                    [c for op, c in cls.registered_ops.items() if c]
+                replacers.extend(
+                    [replacer for replacer in cur_cls_replacers if replacer not in cls.excluded_replacers])
+
+    for replacer_cls in replacers:
+        dependency_graph.add_node(replacer_cls)
+
+    for i, replacer_cls in enumerate(replacers):
+        for cls_after in replacer_cls().run_before():
+            dependency_graph.add_edge(replacer_cls, cls_after)
+        for cls_before in replacer_cls().run_after():
+            dependency_graph.add_edge(cls_before, replacer_cls)
+
+    replacers_order = dependency_graph.determined_sort()
+
+    debug_msg_list = ['|  id  | enabled | class ']
+    for i, replacer_cls in enumerate(replacers_order):
+        debug_msg_list.append('|{:5} |{:^9}| {}'.format(i, str(getattr(replacer_cls, 'enabled', None)), replacer_cls))
+    log.debug('Replacers execution order: \n{}'.format('\n'.join(debug_msg_list)))
+
+    return replacers_order
+
+
+@progress_bar
+def apply_transform(graph: Graph, replacer_cls, **kwargs):
+    """
+    Safely executes transform if it should be and validates graph after transform execution
+    """
+    replacer = replacer_cls()
+    replacement_id = 'REPLACEMENT_ID'
+    if hasattr(replacer, 'replacement_id'):
+        replacement_id = replacer.replacement_id
+
+    if hasattr(replacer, 'enabled') and not replacer.enabled:
+        log.info("Skip replacer {} (enabled = False)".format(replacer_cls))
+        return
+
+    if hasattr(replacer, 'graph_condition') and \
+            not all([condition(graph) for condition in replacer.graph_condition]):
+        log.info("Skip replacer {} (graph_condition not satisfied)".format(replacer_cls))
+        return
+
+    log.debug("Run replacer {}".format(replacer_cls))
+
+    try:
+        if hasattr(replacer, 'run_not_recursively'):
+            replacer.find_and_replace_pattern(graph)
+        else:
+            for_graph_and_each_sub_graph_recursively(graph, replacer.find_and_replace_pattern)
+
+        if hasattr(replacer, 'force_clean_up') and replacer.force_clean_up:
+            for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
+
+        if hasattr(replacer, 'force_shape_inference') and replacer.force_shape_inference:
+            shape_inference(graph)
+
+        for_graph_and_each_sub_graph_recursively(graph, lambda _: graph.check_empty_graph(replacer_cls))
+        for_graph_and_each_sub_graph_recursively(graph, lambda _: graph.check_shapes_consistency())
+
+    except Error as err:
+        raise Error('Exception occurred during running replacer "{}" ({}): {}'.format(
+            replacement_id,
+            replacer_cls,
+            str(err).replace('[REPLACEMENT_ID]', replacement_id),
+        )) from err
+    except Exception as err:
+        raise Exception('Exception occurred during running replacer "{} ({})": {}'.format(
+            replacement_id,
+            replacer_cls,
+            str(err).replace('[REPLACEMENT_ID]', replacement_id),
+        )) from err
+
+
+def apply_replacements(graph: Graph, replacements_type: list):
     """
     Apply all patterns that do not have 'op' first, then apply patterns from registered_ops.
     If two or more classes replaces the same op (both have op class attribute and values match), such
     pattern is not applied (while registration it will warn user that we have a conflict).
     """
-    dependency_graph = DependencyGraph(name=ClassType(replacements_type).name)
-    for class_type, classes_set in _registered_classes_dict.items():
-        if class_type == replacements_type:
-            replacers = []
-            for cls in classes_set:
-                cur_cls_replacers = [c for c in cls.registered_cls if not hasattr(c, 'op')] + \
-                                    [c for op, c in cls.registered_ops.items() if c]
-                replacers.extend([replacer for replacer in cur_cls_replacers if replacer not in cls.excluded_replacers])
-
-            for replacer_cls in replacers:
-                dependency_graph.add_node(replacer_cls)
-
-            for replacer_cls in replacers:
-                for cls_after in replacer_cls().run_before():
-                    log.debug("Replacer {} will be run before {}".format(replacer_cls, cls_after))
-                    dependency_graph.add_edge(replacer_cls, cls_after)
-                for cls_before in replacer_cls().run_after():
-                    log.debug("Replacer {} will be run after {}".format(replacer_cls, cls_before))
-                    dependency_graph.add_edge(cls_before, replacer_cls)
-
-    replacers_order = dependency_graph.determined_sort()
-    for replacer_cls in replacers_order:
-        replacer = replacer_cls()
-
-        replacement_id = 'REPLACEMENT_ID'
-        if hasattr(replacer, 'replacement_id'):
-            replacement_id = replacer.replacement_id
-
-        if hasattr(replacer, 'enabled') and not replacer.enabled:
-            log.info("Skip replacer {} (enabled = False)".format(replacer_cls))
-            continue
-
-        if hasattr(replacer, 'graph_condition') and \
-                not all([condition(graph) for condition in replacer.graph_condition]):
-            log.info("Skip replacer {} (graph_condition not satisfied)".format(replacer_cls))
-            continue
-
-        log.debug("Run replacer {}".format(replacer_cls))
-
-        try:
-            if hasattr(replacer, 'run_not_recursively'):
-                replacer.find_and_replace_pattern(graph)
-            else:
-                for_graph_and_each_sub_graph_recursively(graph, replacer.find_and_replace_pattern)
-
-            if hasattr(replacer, 'force_clean_up') and replacer.force_clean_up:
-                for_graph_and_each_sub_graph_recursively(
-                    graph,
-                    graph_clean_up_tf if graph.graph['fw'] == 'tf' else
-                    graph_clean_up_onnx if graph.graph['fw'] == 'onnx' else
-                    graph_clean_up)
-
-            if hasattr(replacer, 'force_shape_inference') and replacer.force_shape_inference:
-                shape_inference(graph)
-
-            for_graph_and_each_sub_graph_recursively(graph, lambda _: graph.check_empty_graph(replacer_cls))
-            for_graph_and_each_sub_graph_recursively(graph, lambda _: graph.check_shapes_consistency())
-
-        except Error as err:
-            raise Error('Exception occurred during running replacer "{}" ({}): {}'.format(
-                replacement_id,
-                replacer_cls,
-                str(err).replace('[REPLACEMENT_ID]', replacement_id),
-            )) from err
-        except Exception as err:
-            raise Exception('Exception occurred during running replacer "{} ({})": {}'.format(
-                replacement_id,
-                replacer_cls,
-                str(err).replace('[REPLACEMENT_ID]', replacement_id),
-            )) from err
+    replacers_order = get_replacers_order(replacements_type)
+    for i, replacer_cls in enumerate(replacers_order):
+        apply_transform(
+            graph=graph,
+            replacer_cls=replacer_cls,
+            curr_transform_num=i,
+            num_transforms=len(replacers_order))

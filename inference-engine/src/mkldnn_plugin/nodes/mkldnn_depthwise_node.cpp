@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -196,3 +196,4 @@ void MKLDNNDepthwiseNode::initOptimalPrimitiveDescriptor() {
 
     initDescriptor(config);
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNDepthwiseNode, Depthwise);

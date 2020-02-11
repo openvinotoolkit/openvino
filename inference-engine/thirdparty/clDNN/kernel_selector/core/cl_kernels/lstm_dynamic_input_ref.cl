@@ -26,8 +26,8 @@ KERNEL(lstm_dynamic_input_ref)(
     )
 {
     const uint y        = get_global_id(0);
-    const uint batch    = get_global_id(1) % INPUT0_BATCH_NUM;
-    const uint dir      = get_global_id(1) / INPUT0_BATCH_NUM;
+    const uint batch    = (uint)get_global_id(1) % INPUT0_BATCH_NUM;
+    const uint dir      = (uint)get_global_id(1) / INPUT0_BATCH_NUM;
     const uint timestep = get_global_id(2);
 
     if(timestep > (uint)dyn_lengths[batch])

@@ -1,270 +1,355 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <memory>
-#include <map>
-#include <list>
-#include <string>
-#include <mutex>
-#include <exception>
-#include <cpp_interfaces/interface/ie_iinfer_async_request_internal.hpp>
-#include <cpp_interfaces/ie_task_with_stages.hpp>
-#include <cpp_interfaces/ie_task_executor.hpp>
 #include <cpp_interfaces/exception2status.hpp>
+#include <cpp_interfaces/ie_immediate_executor.hpp>
+#include <cpp_interfaces/ie_task_executor.hpp>
+#include <cpp_interfaces/interface/ie_iinfer_async_request_internal.hpp>
+#include <exception>
+#include <future>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
 #include "ie_infer_async_request_thread_safe_internal.hpp"
+#include "ie_util_internal.hpp"
 
 namespace InferenceEngine {
-
 /**
- * @class CallbackManager for wrapping calling of callback
+ * @class AsyncInferRequestThreadSafeDefault
+ * @brief Base class with default implementation of asynchronous multi staged inference request.
+ *        To customize pipeline stages derived class should change the content
+ *        of _pipeline member container. It consists of pairs of tasks and executors which will run the task.
+ * @note  To synchronize derived context with stages
+ *        derived class should call StopAndWait() function in destructor.
+ * @section Example
+ *        Here is an example of asynchronous inference request implementation for some accelerator device.
+ *        It uses 5 different executors to run different stages of synchronous inference request.
+ * @code
+        // Inherits from AsyncInferRequestThreadSafeDefault
+        class AcceleratorAsyncInferRequest : public AsyncInferRequestThreadSafeDefault {
+
+            // Store the pointer to the synchronous request and five executors
+            AcceleratorAsyncInferRequest(const AcceleratorSyncRequest::Ptr& syncRequest,
+                                         const ITaskExecutor::Ptr& preprocessExecutor,
+                                         const ITaskExecutor::Ptr& writeToDeviceExecutor,
+                                         const ITaskExecutor::Ptr& runOnDeviceExecutor,
+                                         const ITaskExecutor::Ptr& readFromDeviceExecutor,
+                                         const ITaskExecutor::Ptr& postProcessExecutor) :
+            _accSyncRequest{syncRequest},
+            _preprocessExecutor{preprocessExecutor},
+            _writeToDeviceExecutor{writeToDeviceExecutor},
+            _runOnDeviceExecutor{runOnDeviceExecutor},
+            _readFromDeviceExecutor{readFromDeviceExecutor},
+            _postProcessExecutor{postProcessExecutor}
+            {
+                // Five pipeline stages of synchronous infer request are run by different executors
+                _pipeline = {
+                    { _preprocessExecutor , [this] {
+                        _accSyncRequest->Preprocess();
+                    }},
+                    { _writeToDeviceExecutor , [this] {
+                        _accSyncRequest->WriteToDevice();
+                    }},
+                    { _runOnDeviceExecutor , [this] {
+                        _accSyncRequest->RunOnDevice();
+                    }},
+                    { _readFromDeviceExecutor , [this] {
+                        _accSyncRequest->ReadFromDevice();
+                    }},
+                    { _postProcessExecutor , [this] {
+                        _accSyncRequest->PostProcess();
+                    }},
+                };
+            }
+
+            // As all stages use _accSyncRequest member we should wait for all stages tasks before the destructor
+ destroy this member. ~AcceleratorAsyncInferRequest() { StopAndWait();
+            }
+
+            AcceleratorSyncRequest::Ptr _accSyncRequest;
+            ITaskExecutor::Ptr _preprocessExecutor, _writeToDeviceExecutor, _runOnDeviceExecutor,
+ _readFromDeviceExecutor, _postProcessExecutor;
+        };
+ * @endcode
  */
-class CallbackManager {
-    std::exception_ptr _requestException = nullptr;
-    StatusCode _requestStatus = OK;
-    IInferRequest::CompletionCallback _callback = nullptr;
-    bool _enabled = false;
-    IInferRequest::Ptr _publicInterface;
-    ITaskExecutor::Ptr _callbackExecutor;
-
-public:
-    using Ptr = std::shared_ptr<CallbackManager>;
-
-    explicit CallbackManager(const ITaskExecutor::Ptr &callbackExecutor) : _callbackExecutor(callbackExecutor) {}
-
-    void enableCallback() {
-        _enabled = true;
-    }
-
-    void disableCallback() {
-        _enabled = false;
-    }
-
-    bool isCallbackEnabled() { return _enabled && _callback != nullptr; }
-
-    void startTask(Task::Ptr task) { _callbackExecutor->startTask(task); }
-
-    void reset() {
-        _requestException = nullptr;
-        _requestStatus = OK;
-    }
-
-    void runCallback() {
-        if (isCallbackEnabled()) {
-            if (nullptr == _publicInterface) THROW_IE_EXCEPTION << "Failed to run callback: can't get pointer to request";
-            _callback(_publicInterface, _requestStatus);
-            if (_requestException) std::rethrow_exception(_requestException);
-        }
-    }
-
-    void set_requestException(const std::exception_ptr &requestException) {
-        _requestException = requestException;
-    }
-
-    void set_requestStatus(StatusCode requestStatus) {
-        _requestStatus = requestStatus;
-    }
-
-    void set_callback(IInferRequest::CompletionCallback callback) {
-        enableCallback();
-        _callback = callback;
-    }
-
-    void set_publicInterface(IInferRequest::Ptr publicInterface) {
-        _publicInterface = std::shared_ptr<IInferRequest>(publicInterface.get(), [](IInferRequest*){});
-    }
-};
-
 class AsyncInferRequestThreadSafeDefault : public AsyncInferRequestThreadSafeInternal {
 public:
-    typedef std::shared_ptr<AsyncInferRequestThreadSafeDefault> Ptr;
+    using Ptr = std::shared_ptr<AsyncInferRequestThreadSafeDefault>;
+    using AtomicCallback = std::atomic<IInferRequest::CompletionCallback>;
+    using Futures = std::vector<std::shared_future<void>>;
+    using Promise = std::shared_ptr<std::promise<void>>;
+    using Stage = std::pair<ITaskExecutor::Ptr, Task>;
+    using Pipeline = std::vector<Stage>;
+    enum Stage_e : std::uint8_t { executor, task };
 
-    explicit AsyncInferRequestThreadSafeDefault(InferRequestInternal::Ptr request,
-                                                const ITaskExecutor::Ptr &taskExecutor,
-                                                const TaskSynchronizer::Ptr &taskSynchronizer,
-                                                const ITaskExecutor::Ptr &callbackExecutor)
-            : _syncRequest(request),
-              _requestExecutor(taskExecutor),
-              _requestSynchronizer(taskSynchronizer),
-              _userData(nullptr),
-              _callbackManager(callbackExecutor) {
-        _syncTask = std::make_shared<Task>([this]() { _syncRequest->Infer(); });
-        _currentTask = _syncTask;
+    explicit AsyncInferRequestThreadSafeDefault(const InferRequestInternal::Ptr& request,
+                                                const ITaskExecutor::Ptr& taskExecutor,
+                                                const ITaskExecutor::Ptr& callbackExecutor)
+        : _syncRequest {request},
+          _requestExecutor {taskExecutor},
+          _callbackExecutor {callbackExecutor},
+          _pipeline {{_requestExecutor, [this] {
+                          _syncRequest->Infer();
+                      }}} {}
+
+    ~AsyncInferRequestThreadSafeDefault() {
+        StopAndWait();
     }
 
-    virtual ~AsyncInferRequestThreadSafeDefault() {
-        waitAllAsyncTasks();
-    }
-
-    void waitAllAsyncTasks() {
-        try {
-            while (!_listAsyncTasks.empty()) {
-                _listAsyncTasks.remove_if([](StagedTask::Ptr task) -> bool {
-                    auto sts = task->getStatus();
-                    return !task->isOnWait() && (Task::Status::TS_DONE == sts || Task::Status::TS_ERROR == sts ||
-                                                 Task::Status::TS_INITIAL == sts);
-                });
-                auto findIter = std::find_if(_listAsyncTasks.begin(), _listAsyncTasks.end(),
-                                             [](StagedTask::Ptr task) { return !task->isOnWait(); });
-                if (findIter != _listAsyncTasks.end()) {
-                    try {
-                        (*findIter)->wait(-1);
-                    } catch (...) {}
-                }
-            }
-        } catch (...) {}
-    }
-
-    virtual void initNextAsyncTask() {
-        IE_PROFILING_AUTO_SCOPE(initNextAsyncTask)
-        // Most probably was called from callback (or when callback was started) or it was a sync task before, so new task is required
-        if (_currentTask->getStatus() == Task::Status::TS_POSTPONED || _currentTask == _syncTask) {
-            auto findIter = std::find_if(_listAsyncTasks.begin(), _listAsyncTasks.end(),
-                                         [this](StagedTask::Ptr task) -> bool {
-                                             return (!task->isOnWait()) && (task != _currentTask) &&
-                                                    (Task::Status::TS_DONE == task->getStatus() ||
-                                                     Task::Status::TS_ERROR == task->getStatus());
-                                         });
-            if (findIter == _listAsyncTasks.end()) {
-                _asyncTask = createAsyncRequestTask();
-                _listAsyncTasks.push_back(_asyncTask);
-            } else {
-                _asyncTask = *findIter;
-            }
+    /**
+     * @brief Waits for completion of all pipline stages
+     *        Just use the last '_futures' member to wait pipeline completion
+     *        If the pipeline raises an exception it will be rethrown here
+     */
+    StatusCode Wait(int64_t millis_timeout) override {
+        if (millis_timeout < IInferRequest::WaitMode::RESULT_READY) {
+            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str + "Timeout can't be less "
+                               << IInferRequest::WaitMode::RESULT_READY << " for InferRequest::Wait\n";
         }
-        _asyncTask->resetStages();
-        _currentTask = _asyncTask;
-    }
+        auto status = std::future_status::deferred;
 
-    virtual void startAsyncTask() {
-        if (!_requestExecutor->startTask(_currentTask))
-            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << StatusCode::REQUEST_BUSY << REQUEST_BUSY_str;
+        auto future = [&] {
+            std::lock_guard<std::mutex> lock {_mutex};
+            return _futures.empty() ? std::shared_future<void> {} : _futures.back();
+        }();
+
+        if (!future.valid()) {
+            return StatusCode::INFER_NOT_STARTED;
+        }
+
+        switch (millis_timeout) {
+        case IInferRequest::WaitMode::RESULT_READY: {
+            future.wait();
+            status = std::future_status::ready;
+        } break;
+        case IInferRequest::WaitMode::STATUS_ONLY: {
+            status = future.wait_for(std::chrono::milliseconds {0});
+        } break;
+        default: {
+            status = future.wait_for(std::chrono::milliseconds {millis_timeout});
+        } break;
+        }
+
+        if (std::future_status::ready == status) {
+            future.get();
+            return StatusCode::OK;
+        } else {
+            return StatusCode::RESULT_NOT_READY;
+        }
     }
 
     void StartAsync_ThreadUnsafe() override {
         _syncRequest->checkBlobs();
-        _callbackManager.reset();
-        initNextAsyncTask();
-        startAsyncTask();
-    }
-
-    virtual void processAsyncTaskFailure(StagedTask::Ptr asyncTask) {
-        setIsRequestBusy(false);
-        auto requestException = std::current_exception();
-        // callback was set and hasn't been called, it must be called
-        if (_callbackManager.isCallbackEnabled() && asyncTask->getStage() >= 1) {
-            // jump to the "callback" stage because of happened error
-            while (asyncTask->getStage() != 1) asyncTask->stageDone();
-            _callbackManager.set_requestStatus(GENERAL_ERROR);
-            _callbackManager.set_requestException(requestException);
-            _callbackManager.startTask(asyncTask);
-        } else {
-            std::rethrow_exception(requestException);
-        }
-    }
-
-    virtual StagedTask::Ptr createAsyncRequestTask() {
-        return std::make_shared<StagedTask>([this]() {
-            auto asyncTaskCopy = _asyncTask;
-            try {
-                switch (asyncTaskCopy->getStage()) {
-                    case 2: {
-                        _syncRequest->Infer();
-                        asyncTaskCopy->stageDone();
-                        if (_callbackManager.isCallbackEnabled()) {
-                            _callbackManager.startTask(asyncTaskCopy);
-                        } else {
-                            asyncTaskCopy->stageDone();
-                        }
-                    }
-                        break;
-                    case 1: {
-                        setIsRequestBusy(false);
-                        asyncTaskCopy->stageDone();
-                        _callbackManager.runCallback();
-                    }
-                        break;
-                    default:
-                        break;
-                }
-            } catch (...) {
-                processAsyncTaskFailure(asyncTaskCopy);
-            }
-        }, 2);
-    }
-
-    StatusCode Wait(int64_t millis_timeout) override {
-        auto taskCopy = _currentTask;
-        if (millis_timeout < IInferRequest::WaitMode::RESULT_READY) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str + "Timeout can't be less "
-                               << IInferRequest::WaitMode::RESULT_READY
-                               << " for InferRequest::Wait\n";
-        }
-        Task::Status status;
-        if (millis_timeout == IInferRequest::WaitMode::STATUS_ONLY) {
-            status = taskCopy->getStatus();
-        } else {
-            status = taskCopy->wait(millis_timeout);
-            setIsRequestBusy(false);
-        }
-
-        taskCopy->checkException();
-        return Task::TaskStatus2StatusCode(status);
+        RunFirstStage();
     }
 
     void Infer_ThreadUnsafe() override {
-        _currentTask = _syncTask;
-        auto status = _currentTask->runWithSynchronizer(_requestSynchronizer);
-        if (status == Task::Status::TS_BUSY)
-            THROW_IE_EXCEPTION << "Internal error: AsyncInferRequestThreadSafeDefault failed to start sync task";
-        _currentTask->checkException();
+        _syncRequest->checkBlobs();
+        _syncRequest->InferImpl();
     }
 
-    void GetPerformanceCounts_ThreadUnsafe(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const override {
+    void GetPerformanceCounts_ThreadUnsafe(std::map<std::string, InferenceEngineProfileInfo>& perfMap) const override {
         _syncRequest->GetPerformanceCounts(perfMap);
     }
 
-    void SetBlob_ThreadUnsafe(const char *name, const Blob::Ptr &data) override {
+    void SetBlob_ThreadUnsafe(const char* name, const Blob::Ptr& data) override {
         _syncRequest->SetBlob(name, data);
     }
 
-    void GetBlob_ThreadUnsafe(const char *name, Blob::Ptr &data) override {
+    void SetBlob_ThreadUnsafe(const char* name, const Blob::Ptr& data, const PreProcessInfo& info) override {
+        _syncRequest->SetBlob(name, data, info);
+    }
+
+    void GetBlob_ThreadUnsafe(const char* name, Blob::Ptr& data) override {
         _syncRequest->GetBlob(name, data);
     }
 
-    void SetCompletionCallback_ThreadUnsafe(InferenceEngine::IInferRequest::CompletionCallback callback) override {
-        _callbackManager.set_callback(callback);
+    void GetPreProcess_ThreadUnsafe(const char* name, const PreProcessInfo** info) const override {
+        _syncRequest->GetPreProcess(name, info);
     }
 
-    void GetUserData_ThreadUnsafe(void **data) override {
+    void SetCompletionCallback_ThreadUnsafe(InferenceEngine::IInferRequest::CompletionCallback callback) override {
+        _callback = callback;
+    }
+
+    void GetUserData_ThreadUnsafe(void** data) override {
         if (data == nullptr) THROW_IE_EXCEPTION << NOT_ALLOCATED_str;
         *data = _userData;
     }
 
-    void SetUserData_ThreadUnsafe(void *data) override {
+    void SetUserData_ThreadUnsafe(void* data) override {
         _userData = data;
-    }
-
-    void SetPointerToPublicInterface(InferenceEngine::IInferRequest::Ptr ptr) {
-        _callbackManager.set_publicInterface(ptr);
     }
 
     void SetBatch_ThreadUnsafe(int batch) override {
         _syncRequest->SetBatch(batch);
     }
 
-protected:
-    ITaskExecutor::Ptr _requestExecutor;
-    TaskSynchronizer::Ptr _requestSynchronizer;
-    InferRequestInternal::Ptr _syncRequest;
-    Task::Ptr _syncTask;
-    StagedTask::Ptr _asyncTask;
-    Task::Ptr _currentTask;
-    std::list<StagedTask::Ptr> _listAsyncTasks;
-    void *_userData;
-    CallbackManager _callbackManager;
-};
+    void SetPointerToPublicInterface(InferenceEngine::IInferRequest::Ptr ptr) {
+        _publicInterface = std::shared_ptr<IInferRequest>(ptr.get(), [](IInferRequest*) {});
+    }
 
+protected:
+    /**
+     * @brief Creates and run the first stage task. If destructor was not called add future to the futures list that
+     * would be used to wait pipeline finish
+     */
+    void RunFirstStage() {
+        _itStage = _pipeline.begin();
+        _promise = {};
+        bool stop = [&] {
+            std::lock_guard<std::mutex> lock(_mutex);
+            if (!_stop) {
+                _futures.erase(std::remove_if(std::begin(_futures), std::end(_futures),
+                                              [](const std::shared_future<void>& future) {
+                                                  if (future.valid()) {
+                                                      return (std::future_status::ready ==
+                                                              future.wait_for(std::chrono::milliseconds {0}));
+                                                  } else {
+                                                      return true;
+                                                  }
+                                              }),
+                               _futures.end());
+
+                _futures.emplace_back(_promise.get_future().share());
+            }
+            return _stop;
+        }();
+
+        if (!stop) {
+            try {
+                auto& firstStageExecutor = std::get<Stage_e::executor>(*_itStage);
+                IE_ASSERT(nullptr != firstStageExecutor);
+                firstStageExecutor->run(MakeNextStageTask());
+            } catch (...) {
+                _promise.set_exception(std::current_exception());
+                throw;
+            }
+        }
+    }
+
+    /**
+     * @brief Create a task whith next pipeline stage.
+     *        Each call to MakeNextStageTask() generates `InferenceEngine::Task` objects for each stage.
+     *        When stage task is called it incerements
+     *        `_stage` counter, call `_pipeline` task for this stage and generates next stage task using
+     * MakeNextStageTask() and pass it to executor. On last stage or if the exception is raised from `_pipeline` task
+     * the last stage task is called or passed to callback executor if it is presented. The last stage task call the
+     * callback, if it is presented, capture the `_promise` member and use it to forward completion or exception to the
+     * one of `_futures` member
+     */
+    Task MakeNextStageTask() {
+        return [this]() mutable {
+            StatusCode requestStatus = StatusCode::OK;
+            std::exception_ptr localCurrentException = nullptr;
+            auto& thisStage = *_itStage;
+            auto copyItStage = ++_itStage;
+
+            try {
+                auto& stageTask = std::get<Stage_e::task>(thisStage);
+                IE_ASSERT(nullptr != stageTask);
+                stageTask();
+                if (_pipeline.end() != _itStage) {
+                    auto nextStage = *_itStage;
+                    auto& nextStageExecutor = std::get<Stage_e::executor>(nextStage);
+                    IE_ASSERT(nullptr != nextStageExecutor);
+                    nextStageExecutor->run(MakeNextStageTask());
+                }
+            } catch (InferenceEngine::details::InferenceEngineException& ie_ex) {
+                requestStatus = ie_ex.hasStatus() ? ie_ex.getStatus() : StatusCode::GENERAL_ERROR;
+                localCurrentException = std::make_exception_ptr(ie_ex);
+            } catch (...) {
+                requestStatus = StatusCode::GENERAL_ERROR;
+                localCurrentException = std::current_exception();
+            }
+
+            if ((_pipeline.end() == copyItStage) || (nullptr != localCurrentException)) {
+                auto lastStageTask = [this, requestStatus, localCurrentException]() mutable {
+                    auto promise = std::move(_promise);
+                    auto callback = _callback.load();
+                    if (setIsRequestBusy(false)) {
+                        if (nullptr != callback) {
+                            InferenceEngine::CurrentException() = localCurrentException;
+                            try {
+                                callback(_publicInterface, requestStatus);
+                            } catch (...) {
+                                localCurrentException = std::current_exception();
+                            }
+                            InferenceEngine::CurrentException() = nullptr;
+                        }
+                        if (nullptr == localCurrentException) {
+                            promise.set_value();
+                        } else {
+                            promise.set_exception(localCurrentException);
+                        }
+                    }
+                };
+
+                if (nullptr == _callbackExecutor) {
+                    lastStageTask();
+                } else {
+                    _callbackExecutor->run(std::move(lastStageTask));
+                }
+            }
+        };
+    }
+
+    /**
+     * @brief Forbids pipeline start and wait for all started piplenes.
+     * @note Should be called in derived class destrutor to wait for completion of usage of derived context captured by
+     * pipline tasks
+     */
+    void StopAndWait() {
+        _callback = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            if (!_stop) {
+                _stop = true;
+                for (auto&& future : _futures) {
+                    if (future.valid()) {
+                        future.wait();
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * @brief Implements Infer() using StartAsync() and Wait()
+     */
+    void InferUsingAsync() {
+        struct CallbackStorage {
+            explicit CallbackStorage(AtomicCallback& callback)
+                : _callbackRef(callback), _callback(callback.exchange(nullptr)) {}
+            ~CallbackStorage() {
+                _callbackRef = _callback;
+            }
+            AtomicCallback& _callbackRef;
+            IInferRequest::CompletionCallback _callback;
+        } storage {_callback};
+        StartAsync_ThreadUnsafe();
+        Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    }
+
+    InferRequestInternal::Ptr _syncRequest;
+    ITaskExecutor::Ptr _requestExecutor;
+    ITaskExecutor::Ptr _callbackExecutor;
+    void* _userData = nullptr;
+    AtomicCallback _callback = {nullptr};
+    IInferRequest::Ptr _publicInterface;
+    Pipeline _pipeline;
+    Pipeline::iterator _itStage;
+    std::promise<void> _promise;
+    mutable std::mutex _mutex;
+    Futures _futures;
+    bool _stop = false;
+};
 }  // namespace InferenceEngine

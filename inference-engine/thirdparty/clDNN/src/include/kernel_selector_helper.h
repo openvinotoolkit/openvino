@@ -24,6 +24,7 @@
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
+#include "error_handler.h"
 
 #include <cstdint>
 #include <string>
@@ -74,7 +75,7 @@ using mean_op = kernel_selector::MeanOp;
 using concat_axis = kernel_selector::ConcatAxis;
 using tile_axis = kernel_selector::TileAxis;
 using tuning_mode = kernel_selector::TuningMode;
-using sample_type = kernel_selector::SampleType;
+using sample_type = kernel_selector::ResampleType;
 using border_type = kernel_selector::BorderType;
 using gather_axis = kernel_selector::GatherAxis;
 using reduce_mode = kernel_selector::ReduceMode;
@@ -175,25 +176,12 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
     convert_fused_activation_func_params(arg, params.activations);
     size_t op_id = 0;
     for (auto& fused_prim : arg.get_fused_primitives()) {
-        using op_type = kernel_selector::base_params::fused_operation_desc::Type;
         kernel_selector::base_params::fused_operation_desc desc;
-        if (fused_prim.prim->type == eltwise::type_id()) {
-            desc.type = op_type::ELTWISE;
-        } else if (fused_prim.prim->type == scale::type_id()) {
-            desc.type = op_type::SCALE;
-        } else if (fused_prim.prim->type == quantize::type_id()) {
-            desc.type = op_type::QUANTIZE;
-        } else if (fused_prim.prim->type == activation::type_id()) {
-            desc.type = op_type::ACTIVATION;
-            std::shared_ptr<const primitive> p = fused_prim.prim;
-            auto activation_prim = std::static_pointer_cast<const activation>(p);
-            desc.activation.m = activation_prim->additional_params.a;
-            desc.activation.n = activation_prim->additional_params.b;
-            desc.activation.function = get_kernel_selector_activation_param(activation_prim->activation_function);
-        } else {
-            throw std::runtime_error("Invalid fused primitive type in " + arg.id() + " node");
+        desc.op_params = fused_prim.node->get_fuse_params();
+        if (!desc.op_params) {
+            CLDNN_ERROR_MESSAGE(arg.id(), "Invalid fused operation (" + fused_prim.node->id() + ") of type " +
+                                           fused_prim.node->get_primitive()->type_string() );
         }
-
         desc.dep_idx_start = fused_prim.dep_start_idx;
         desc.dep_size = fused_prim.deps.size();
         desc.op_id = op_id++;
@@ -203,11 +191,6 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
             desc.tensors.push_back(convert_data_tensor(arg.get_dependency(i).get_output_layout()));
         }
 
-        if (fused_prim.activation != activation_func::none) {
-            desc.activation.m = fused_prim.activation_params.a;
-            desc.activation.n = fused_prim.activation_params.b;
-            desc.activation.function = get_kernel_selector_activation_param(fused_prim.activation);
-        }
         params.fused_ops.push_back(desc);
     }
 
@@ -217,32 +200,19 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
 template <typename params_t, typename arg_t>
 inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1) {
     params_t params = get_default_params<params_t>(arg, split);
-    const auto& weights_layout = arg.weights().get_output_layout();
-    if (groups == 1) {
-        params.weights = convert_weights_tensor(weights_layout);
-    } else {
-        params.weights = convert_weights_tensor(layout(weights_layout.data_type,
-                                                       weights_layout.format,
-                                                       {weights_layout.size.batch[0] / static_cast<int>(groups),
-                                                        weights_layout.size.feature[0],
-                                                        weights_layout.size.spatial[0],
-                                                        weights_layout.size.spatial[1]}));
+    auto weights_layout = arg.weights().get_output_layout();
+    if (groups != 1) {
+        weights_layout.size.batch[0] /= static_cast<int>(groups);
     }
+    params.weights = convert_weights_tensor(weights_layout);
 
     if (arg.bias_term()) {
-        const auto& bias_layout = arg.bias().get_output_layout();
+        auto bias_layout = arg.bias().get_output_layout();
         // bias per output is not supported on cldnn
-        if (groups == 1) {
-            params.bias.push_back(convert_data_tensor(bias_layout).FlattenFeatureAndSpatials());
-        } else {
-            params.bias.push_back(convert_data_tensor(layout(bias_layout.data_type,
-                                                             bias_layout.format,
-                                                             {bias_layout.size.batch[0],
-                                                              bias_layout.size.feature[0] / static_cast<int>(groups),
-                                                              bias_layout.size.spatial[0],
-                                                              bias_layout.size.spatial[1]}))
-                                      .FlattenFeatureAndSpatials());
+        if (groups != 1) {
+            bias_layout.size.feature[0] /= static_cast<int>(groups);
         }
+        params.bias.push_back(convert_data_tensor(bias_layout).FlattenFeatureAndSpatials());
     }
 
     return params;

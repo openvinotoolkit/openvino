@@ -102,6 +102,9 @@ private:
     ymm_t vreg_bcast = ymm_t(15);
     ymm_t vtmp = ymm_t(14);
 
+    ymm_t ymm_d_weights = Xbyak::Ymm(14);
+    ymm_t ymm_d_bias = Xbyak::Ymm(15);
+
     void generate_bcast_loop(int load_loop_blk);
     void generate_reduce_loop(int load_loop_blk, int ur);
     void generate_diff_bias_loop(int load_loop_blk);

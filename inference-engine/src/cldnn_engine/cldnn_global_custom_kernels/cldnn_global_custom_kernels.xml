@@ -29,22 +29,6 @@
     <!-- define the global worksize. The formulas can use the values of the B,F,Y,X dimensions and contain the operators: +,-,/,*,% (all evaluated in integer arithmetics) Default value: global="B*F*Y*X,1,1"-->
 </CustomLayer>
 
-<CustomLayer name="Interp" type="SimpleGPU" version="1">
-    <Kernel entry="interp">
-        <Source filename="interp.cl"/>
-        <Define name="pad_beg_" type="int" param="pad_beg" default="0"/>
-        <Define name="pad_end_" type="int" param="pad_end" default="0"/>
-        <Define name="align_corners_" type="int" param="align_corners" default="1"/>
-    </Kernel>
-    <Buffers>
-        <Tensor arg-index="0" type="input" port-index="0"  format="BFYX"/>
-        <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
-    </Buffers>
-
-    <CompilerOptions options="-cl-mad-enable"/>
-    <WorkSizes global="Y,((X + 31)/32)*32" local="1,32"/>
-</CustomLayer>
-
 <CustomLayer name="GRN" type="SimpleGPU" version="1">
     <Kernel entry="grn">
         <Source filename="grn.cl"/>

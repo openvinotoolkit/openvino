@@ -1,25 +1,12 @@
-/*
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-*/
 
 #if defined(_WIN32)
 #define NOMINMAX
 #endif
 #if (defined(_WIN32) || defined(_WIN64))
 #define WIN32_LEAN_AND_MEAN
-#include "win_pthread.h"
 #else
 #include <pthread.h>
 #endif
@@ -50,7 +37,7 @@
 
 static char* m_exename = nullptr;
 
-#if defined(WIN32) || defined(__APPLE__)
+#if defined(WIN32) || defined(__APPLE__) || defined(ANDROID)
 typedef std::chrono::time_point<std::chrono::steady_clock> time_point;
 #else
 typedef std::chrono::time_point<std::chrono::system_clock> time_point;
@@ -161,12 +148,12 @@ public:
 static short f32tof16(float x);
 static float f16tof32(short x);
 static bool loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blob);
+static bool loadVideo(const std::vector<std::string> &imagesFolder, InferenceEngine::Blob::Ptr &blob);
 static bool loadBinaryTensor(const std::string &binaryFilename, InferenceEngine::Blob::Ptr &blob);
 
 
 static void setConfig(std::map<std::string, std::string>& config,
                       const std::string& file_config_cl) {
-    config[VPU_CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
     config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
     config[VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME)] = CONFIG_VALUE(YES);
     config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = file_config_cl;
@@ -329,6 +316,7 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
     // add some more requests. they'll be excluded on performance measurement
     niter += 2 * 2 * num_requests;
 
+#if !(defined(_WIN32) || defined(_WIN64))
     if (pthread_setname_np(
 #ifndef __APPLE__
     pthread_self(),
@@ -336,6 +324,7 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
     "MainThread") != 0) {
         perror("Setting name for main thread failed");
     }
+#endif
 
     InferenceEngine::PluginDispatcher disp;
     InferenceEngine::InferenceEnginePluginPtr plugin(
@@ -384,11 +373,18 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
     networkOutputs = cnnNetwork.getOutputsInfo();
 
     for (auto &input : networkInputs) {
-        input.second->setPrecision(InferenceEngine::Precision::FP16);
+        const auto inputPrecision = input.second->getPrecision();
+        if (inputPrecision == InferenceEngine::Precision::FP32 ||
+            inputPrecision == InferenceEngine::Precision::U8) {
+            input.second->setPrecision(InferenceEngine::Precision::FP16);
+        }
     }
 
     for (auto &output : networkOutputs) {
-        output.second->setPrecision(InferenceEngine::Precision::FP16);
+        const auto outputPrecision = output.second->getPrecision();
+        if (outputPrecision == InferenceEngine::Precision::FP32) {
+            output.second->setPrecision(InferenceEngine::Precision::FP16);
+        }
     }
 
     std::vector<InferenceEngine::IExecutableNetwork::Ptr> exeNetwork(num_networks);
@@ -424,14 +420,17 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
 
             // number of channels is 3 for Image, dims order is always NCHW
             const bool isImage = ((layout == InferenceEngine::NHWC || layout == InferenceEngine::NCHW) && dims[1] == 3);
-
+            const bool isVideo = (inputBlob->getTensorDesc().getDims().size() == 5);
             if (isImage && (numPictures > 0)) {
                 if (!loadImage(pictures[(idxPic++) % numPictures], inputBlob))
+                    return 1;
+            } else if (isVideo && (numPictures > 0)) {
+                if (!loadVideo(pictures, inputBlob))
                     return 1;
             } else if (numBinaries > 0) {
                 if (!loadBinaryTensor(binaries[(idxPic++) % numBinaries], inputBlob))
                     return 1;
-            }   else {
+            } else {
                 std::cout << inputsDir << " directory doesn't contain correct input files" << std::endl;
                 return 1;
             }
@@ -696,12 +695,13 @@ static float f16tof32(short x) {
 
 static bool loadImage(const std::string &imageFilename, InferenceEngine::Blob::Ptr &blob) {
     InferenceEngine::TensorDesc tensDesc = blob->getTensorDesc();
+    const InferenceEngine::Layout layout = tensDesc.getLayout();
     if (tensDesc.getPrecision() != InferenceEngine::Precision::FP16) {
         std::cout << "loadImage error: Input must have FP16 precision" << std::endl;
         return false;
     }
 
-    if (tensDesc.getLayout() != InferenceEngine::NHWC && tensDesc.getLayout() != InferenceEngine::NCHW) {
+    if (layout != InferenceEngine::NHWC && layout != InferenceEngine::NCHW) {
         std::cout << "loadImage error: Input must have NCHW or NHWC layout" << std::endl;
         return false;
     }
@@ -709,44 +709,118 @@ static bool loadImage(const std::string &imageFilename, InferenceEngine::Blob::P
     BitMap reader(imageFilename);
 
     const auto dims = tensDesc.getDims();
-    auto numBlobChannels = dims[1];
-    size_t batch = dims[0];
-    size_t w = dims[3];
-    size_t h = dims[2];
-    size_t img_w = reader.width();
-    size_t img_h = reader.height();
 
-    size_t numImageChannels = reader.size() / (reader.width() * reader.height());
-    if (numBlobChannels != numImageChannels && numBlobChannels != 1) {
+    const size_t N = dims[0];
+    const size_t C = dims[1];
+    const size_t H = dims[2];
+    const size_t W = dims[3];
+
+    const size_t img_w = reader.width();
+    const size_t img_h = reader.height();
+
+    const auto strides = tensDesc.getBlockingDesc().getStrides();
+    const auto strideN = strides[0];
+    const auto strideC = layout == InferenceEngine::NHWC ? strides[3] : strides[1];
+    const auto strideH = layout == InferenceEngine::NHWC ? strides[1] : strides[2];
+    const auto strideW = layout == InferenceEngine::NHWC ? strides[2] : strides[3];
+
+    const size_t numImageChannels = reader.size() / (reader.width() * reader.height());
+    if (C != numImageChannels && C != 1) {
         std::cout << "loadImage error: Input channels mismatch: image channels " << numImageChannels << ", "
-                  << "network channels " << numBlobChannels << ", expecting count of image channels are equal "
+                  << "network channels " << C << ", expecting count of image channels are equal "
                   << "to count if network channels or count of network channels are equal to 1" << std::endl;
         return false;
     }
 
-    int16_t *blobDataPtr = std::dynamic_pointer_cast<InferenceEngine::TBlob<int16_t>>(blob)->data();
-    auto nPixels = w * h;
-    unsigned char *RGB8 = reader.getData().get();
-    float xscale = 1.0f * img_w / w;
-    float yscale = 1.0f * img_h / h;
+    int16_t* blobDataPtr = std::dynamic_pointer_cast<InferenceEngine::TBlob<int16_t>>(blob)->data();
+    const unsigned char* RGB8 = reader.getData().get();
+    const float xScale = 1.0f * img_w / W;
+    const float yScale = 1.0f * img_h / H;
 
-    for (int n = 0; n != batch; n++) {
-        for (int i = 0; i < h; ++i) {
-            int y = static_cast<int>(std::floor((i + 0.5f) * yscale));
-            for (int j = 0; j < w; ++j) {
-                int x = static_cast<int>(std::floor((j + 0.5f) * xscale));
-                for (int k = 0; k < numBlobChannels; k++) {
-                    if (tensDesc.getLayout() == InferenceEngine::NHWC) {
-                        blobDataPtr[n * h * w * numBlobChannels + (i * w + j) * numBlobChannels + k] =
-                                f32tof16(1.0 * RGB8[(y * img_w + x) * numImageChannels + k]);
-                    } else {
-                        blobDataPtr[n * h * w * numBlobChannels + (i * w + j) + k * nPixels] =
-                                f32tof16(1.0 * RGB8[(y * img_w + x) * numImageChannels + k]);
+    for (int n = 0; n != N; n++) {
+        for (int h = 0; h < H; ++h) {
+            int y = static_cast<int>(std::floor((h + 0.5f) * yScale));
+            for (int w = 0; w < W; ++w) {
+                int x = static_cast<int>(std::floor((w + 0.5f) * xScale));
+                for (int c = 0; c < C; c++) {
+                    blobDataPtr[n * strideN + c * strideC + h * strideH + w * strideW] =
+                            f32tof16(1.0 * RGB8[(y * img_w + x) * numImageChannels + c]);
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+static bool loadVideo(const std::vector<std::string> &imagesFolder, InferenceEngine::Blob::Ptr &blob) {
+    InferenceEngine::TensorDesc tensDesc = blob->getTensorDesc();
+    const InferenceEngine::Layout layout = tensDesc.getLayout();
+
+    if (tensDesc.getPrecision() != InferenceEngine::Precision::FP16) {
+        std::cout << "loadVideo error: Input must have FP16 precision" << std::endl;
+        return false;
+    }
+    if (layout != InferenceEngine::NDHWC && layout != InferenceEngine::NCDHW) {
+        std::cout << "loadVideo error: Input must have NCDHW or NDHWC layout" << std::endl;
+        return false;
+    }
+
+    const auto dims = tensDesc.getDims();
+    const size_t N = dims[0];
+    const size_t C = dims[1];
+    const size_t D = dims[2];
+    const size_t H = dims[3];
+    const size_t W = dims[4];
+
+    const auto numUsedImages = std::min(D, imagesFolder.size());
+    const auto strides = tensDesc.getBlockingDesc().getStrides();
+    const auto strideN = strides[0];
+    const auto strideC = layout == InferenceEngine::NDHWC ? strides[4] : strides[1];
+    const auto strideD = layout == InferenceEngine::NDHWC ? strides[1] : strides[2];
+    const auto strideH = layout == InferenceEngine::NDHWC ? strides[2] : strides[3];
+    const auto strideW = layout == InferenceEngine::NDHWC ? strides[3] : strides[4];
+
+    auto d = 0;
+    int16_t* blobDataPtr = std::dynamic_pointer_cast<InferenceEngine::TBlob<int16_t>>(blob)->data();
+    for ( ; d < numUsedImages; d++) {
+        BitMap reader(imagesFolder[d]);
+        const size_t img_w = reader.width();
+        const size_t img_h = reader.height();
+        const size_t numImageChannels = reader.size() / (reader.width() * reader.height());
+
+        if (C != numImageChannels && C != 1) {
+            std::cout << "loadVideo error: Input channels mismatch: image channels " << numImageChannels << ", "
+                      << "network channels " << C << ", expecting count of image channels are equal "
+                      << "to count if network channels or count of network channels are equal to 1" << std::endl;
+            return false;
+        }
+
+        const unsigned char* RGB8 = reader.getData().get();
+        const float xScale = 1.0f * img_w / W;
+        const float yScale = 1.0f * img_h / H;
+
+        for (int n = 0; n != N; n++) {
+            for (int h = 0; h < H; ++h) {
+                int y = static_cast<int>(std::floor((h + 0.5f) * yScale));
+                for (int w = 0; w < W; ++w) {
+                    int x = static_cast<int>(std::floor((w + 0.5f) * xScale));
+                    for (int c = 0; c < C; c++) {
+                        blobDataPtr[n * strideN + c * strideC + d * strideD + h * strideH + w * strideW] =
+                                f32tof16(1.0 * RGB8[(y * img_w + x) * numImageChannels + c]);
                     }
                 }
             }
         }
     }
+
+    for (; d < D; d++)
+        for (auto n = 0; n != N; n++)
+            for (auto c = 0; c < C; c++)
+                for (auto k = 0; k < strideD; k++) {
+                    blobDataPtr[n * strideN + c * strideC + (d)     * strideD + k] =
+                    blobDataPtr[n * strideN + c * strideC + (d - 1) * strideD + k];
+                }
 
     return true;
 }

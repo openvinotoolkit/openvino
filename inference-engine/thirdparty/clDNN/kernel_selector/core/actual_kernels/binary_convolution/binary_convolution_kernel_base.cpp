@@ -93,7 +93,7 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelBase::SetDefaul
         global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];
@@ -174,8 +174,6 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
                      true,
                      !newParams.bias.empty(),
                      1,
-                     false,
-                     false,
                      fused_deps_total);
     kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 

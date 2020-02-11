@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
             log.warning('Node {} has no weights node'.format(fuse_node.name))
             return False
 
-        if not fuse_node.has_valid('layout'):
+        if not backward and not fuse_node.has_valid('layout'):
             log.warning('Node {} has no layout attr'.format(fuse_node.name))
             return False
 
@@ -116,7 +116,8 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         w_const.connect(w_mul.in_port(tensor_port.idx))
 
         # If we fuse in backward direction we should multiply biases if they exists
-        if backward and len(fuse_node.in_ports()) == 3 and not fuse_node.in_port(2).disconnected():
+        if backward and len(fuse_node.in_ports()) == 3 and not fuse_node.in_port(2).disconnected() and \
+                not fuse_node.has_and_set('shape_input'):
             conv_bias = fuse_node.in_port(2)
             conv_bias.data.set_value(conv_bias.data.get_value() * np.squeeze(mul_val))
 
@@ -169,7 +170,7 @@ def _fuse_add(graph: Graph, node: Node, fuse_nodes: List[Node], backward: bool =
 
         # If forward, broadcast value
         if not backward:
-            cnt = weights_port.data.get_shape()[-1] / const_port.data.get_shape()[0]
+            cnt = weights_port.data.get_shape()[-1] / const_port.data.get_value().size
             if fuse_node.layout == 'NCHW':
                 tmp = []
                 for val in value:
@@ -233,7 +234,7 @@ def fuse_linear_ops(graph: Graph):
 
         # Fuse Mul to Convolution/FC
         if node.soft_get('op') == 'Mul' and get_value_in_port(node) is not None and node.soft_get('can_be_fused') is True:
-            fuse_nodes = backward_bfs(node, [], ['Convolution', 'Deconvolution', 'FullyConnected', 'MatMul'])
+            fuse_nodes = backward_bfs(node, [], ['Convolution', 'Deconvolution', 'MatMul'])
             is_fused = _fuse_mul(graph, node, fuse_nodes)
 
         if hasattr(graph, 'graph') and 'cmd_params' in graph.graph and \
@@ -242,7 +243,7 @@ def fuse_linear_ops(graph: Graph):
             if node.soft_get('op') == 'Add'\
                     and get_value_in_port(node) is not None\
                     and node.soft_get('can_be_fused') is True:
-                fuse_nodes = backward_bfs(node, [], ['Convolution', 'Deconvolution', 'FullyConnected', 'MatMul'])
+                fuse_nodes = backward_bfs(node, [], ['Convolution', 'Deconvolution', 'MatMul'])
                 is_fused = _fuse_add(graph, node, fuse_nodes)
 
         fuse_count += is_fused
@@ -254,7 +255,7 @@ def fuse_linear_ops(graph: Graph):
 
         # Fuse Mul to Convolution/FC
         if node.soft_get('op') == 'Mul' and get_value_in_port(node) is not None and node.soft_get('can_be_fused') is True:
-            fuse_nodes = forward_bfs(node, [], ['Convolution', 'Deconvolution', 'FullyConnected', 'MatMul'])
+            fuse_nodes = forward_bfs(node, [], ['Convolution', 'Deconvolution', 'MatMul'])
             is_fused = _fuse_mul(graph, node, fuse_nodes, False)
 
         # Fuse Add to Convolution/FC
@@ -263,7 +264,7 @@ def fuse_linear_ops(graph: Graph):
             if node.soft_get('op') == 'Add' and \
                     get_value_in_port(node) is not None and \
                     node.soft_get('can_be_fused') is True:
-                fuse_nodes = forward_bfs(node, [], ['FullyConnected', 'MatMul'])
+                fuse_nodes = forward_bfs(node, [], ['MatMul'])
                 is_fused = _fuse_add(graph, node, fuse_nodes, False)
 
         fuse_count += is_fused

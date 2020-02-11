@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -28,12 +28,23 @@ class SpaceToDepth(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'op': __class__.op,
+            'op': self.op,
+            'type': self.op,
+
+            'mode': 'blocks_first',
+
+            'infer': self.infer,
+
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': __class__.infer,
         }
         super().__init__(graph, mandatory_props, attrs)
+
+    def supported_attrs(self):
+        if self.ir_version == 10:
+            return ['mode', 'block_size']
+        else:
+            return []
 
     @staticmethod
     def infer(node: Node):

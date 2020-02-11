@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,21 @@ using namespace InferenceEngine;
 using namespace std;
 using namespace GNAPluginNS;
 
+IE_SUPPRESS_DEPRECATED_START
+
+static const Version gnaPluginDescription = {
+        {2, 1},
+        CI_BUILD_NUMBER
+#if GNA_LIB_VER == 2
+        "_with_GNA_LIB_VER==2"
+#endif
+        ,
+        "GNAPlugin"
+};
+
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     try {
-        plugin = make_ie_compatible_plugin({2, 1, "GNAPlugin", "GNAPlugin"}, make_shared<GNAPluginInternal>());
+        plugin = make_ie_compatible_plugin(gnaPluginDescription, make_shared<GNAPluginInternal>());
         return OK;
     }
     catch (std::exception &ex) {

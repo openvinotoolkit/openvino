@@ -49,10 +49,12 @@ layout gemm_inst::calc_output_layout(gemm_node const& node) {
 
     output_size.spatial[0] = N;
     output_size.spatial[1] = M;
-
-    data_types output_type = input0_layout.data_type;
-    if (static_cast<bool>(prim->output_data_type)) {
+    auto output_type = input0_layout.data_type;
+    if ((output_type == data_types::u8 || output_type == data_types::i8) && prim->output_data_type)
         output_type = *prim->output_data_type;
+
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
     }
 
     auto output_format = input0_layout.format;

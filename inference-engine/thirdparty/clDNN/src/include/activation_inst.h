@@ -18,6 +18,7 @@
 #pragma once
 #include "api/activation.hpp"
 #include "primitive_inst.h"
+#include "kernel_selector/core/actual_kernels/activation/activation_kernel_base.h"
 #include <memory>
 #include <string>
 
@@ -37,6 +38,14 @@ public:
     program_node& slope_input() const { return get_dependency(1); }
 
     bool is_parameterized() const { return !typed_desc()->additional_params_input.empty(); }
+
+    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
+        kernel_selector::base_activation_params p;
+        p.function = get_kernel_selector_activation_param(typed_desc()->activation_function);
+        p.m = typed_desc()->additional_params.a;
+        p.n = typed_desc()->additional_params.b;
+        return std::make_shared<kernel_selector::activation_fuse_params>(p);
+    }
 };
 
 using activation_node = typed_program_node<activation>;

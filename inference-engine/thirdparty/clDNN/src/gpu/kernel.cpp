@@ -49,7 +49,10 @@ void set_arguments(cl::Kernel& kernel,
                 if (args[i].index < data.inputs.size() && data.inputs[args[i].index]) {
                     const auto& input_mem = data.inputs[args[i].index];
                     if (input_mem) {
-                        status = kernel.setArg(i, dynamic_cast<const gpu::gpu_buffer&>(*input_mem).get_buffer());
+                        if (input_mem->get_layout().format.is_image_2d())
+                            status = kernel.setArg(i, dynamic_cast<const gpu::gpu_image2d&>(*input_mem).get_buffer());
+                        else
+                            status = kernel.setArg(i, dynamic_cast<const gpu::gpu_buffer&>(*input_mem).get_buffer());
                     }
                 }
                 break;
@@ -112,6 +115,27 @@ void set_arguments(cl::Kernel& kernel,
                     status = kernel.setArg(
                         i,
                         dynamic_cast<const gpu::gpu_buffer&>(*data.weights_quantization_factors).get_buffer());
+                }
+                break;
+            case kernel_selector::kernel_argument_types::WEIGHTS_ZERO_POINTS:
+                if (data.weights_zero_points) {
+                    status = kernel.setArg(
+                        i,
+                        dynamic_cast<const gpu::gpu_buffer&>(*data.weights_zero_points).get_buffer());
+                }
+                break;
+            case kernel_selector::kernel_argument_types::ACTIVATIONS_ZERO_POINTS:
+                if (data.activations_zero_points) {
+                    status = kernel.setArg(
+                        i,
+                        dynamic_cast<const gpu::gpu_buffer&>(*data.activations_zero_points).get_buffer());
+                }
+                break;
+            case kernel_selector::kernel_argument_types::COMPENSATION:
+                if (data.compensation) {
+                    status = kernel.setArg(
+                        i,
+                        dynamic_cast<const gpu::gpu_buffer&>(*data.compensation).get_buffer());
                 }
                 break;
             case kernel_selector::kernel_argument_types::OUTPUT_CALIBRATION_FACTORS:
@@ -223,7 +247,7 @@ void set_arguments(cl::Kernel& kernel,
 }
 }  // namespace
 
-event_impl::ptr kernel::run(int queue_id,
+event_impl::ptr kernel::run(uint32_t queue_id,
                             const kernel_selector::cl_kernel_data& kernel_data,
                             const std::vector<event_impl::ptr>& dependencies,
                             const kernel_arguments_data& args) const {

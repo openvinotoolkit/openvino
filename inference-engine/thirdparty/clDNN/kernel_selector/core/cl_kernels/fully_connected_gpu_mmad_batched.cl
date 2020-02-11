@@ -43,11 +43,11 @@ KERNEL(fully_connected_kernel_mmad_batched)(
 
     const uint batch_id = (uint)get_group_id(0) * 8;
     const uint b_block = batch_id / 4;
-    const uint f = get_global_id(1) % FILTER_OFM_ALIGNED;
+    const uint f = (uint)get_global_id(1) % FILTER_OFM_ALIGNED;
 
     uint in_addr = IN_OFFSET + b_block * IN_B_BLOCK_PITCH;
 
-    const uint filter_offset = (get_group_id(1) % FILTER_OFM_MMAD_NUM) * FILTER_OFM_BLOCK_PITCH;
+    const uint filter_offset = ((uint)get_group_id(1) % FILTER_OFM_MMAD_NUM) * FILTER_OFM_BLOCK_PITCH;
     uint filter_idx = filter_offset;
 
     int8 tileA;

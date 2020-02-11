@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "ie_built_in_impl.hpp"
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
-#include <algorithm>
 #include <vector>
+
+#include "ie_built_in_impl.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -19,13 +20,11 @@ namespace ShapeInfer {
  */
 class TopKShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit TopKShapeProp(const std::string& type) : BuiltInShapeInferImpl(type) {}
+    explicit TopKShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
-    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs,
-                         const std::map<std::string, std::string>& params,
-                         const std::map<std::string, Blob::Ptr>& blobs,
-                         std::vector<SizeVector>& outShapes) override {
-        LayerParams lp{};
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
+        LayerParams lp {};
         TopKLayer topKLayer(lp);
         topKLayer.params = params;
         topKLayer.type = _type;
@@ -45,17 +44,15 @@ public:
 
         SizeVector src_dims = inBlobs[TOPK_DATA]->getTensorDesc().getDims();
         int axis_ = topKLayer.axis;
-        if (axis_ < 0)
-            axis_ += src_dims.size();
+        if (axis_ < 0) axis_ += src_dims.size();
 
         size_t axis = static_cast<size_t>(axis_);
 
         if (src_dims.size() < (1 + axis))
             THROW_IE_EXCEPTION << " Incorrect input parameters dimensions and axis number!";
 
-        int *src_k = inBlobs[TOPK_K]->cbuffer().as<int *>();
-        if (src_k == nullptr)
-            THROW_IE_EXCEPTION << " Only const input for 'k' is supported!";
+        int* src_k = inBlobs[TOPK_K]->cbuffer().as<int*>();
+        if (src_k == nullptr) THROW_IE_EXCEPTION << " Only const input for 'k' is supported!";
 
         src_k += inBlobs[TOPK_K]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
@@ -68,4 +65,3 @@ public:
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine
-

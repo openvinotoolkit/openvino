@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -29,20 +29,28 @@ from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
 
-def load_symbol_nodes(model_name, legacy_mxnet_model: bool = False):
-    model_name = '%s-symbol.json' % model_name
-    if legacy_mxnet_model:
+def load_symbol_nodes(model_name, input_symbol: str = None, legacy_mxnet_model: bool = False):
+    if input_symbol:
+        json_name = input_symbol
+        if legacy_mxnet_model:
+            log.warning('If you use --input_symbol with legacy MXNet models be sure that symbol and param names ' +
+                        'have correct format supported by MXNet')
+    else:
+        json_name = '%s-symbol.json' % model_name
+        input_symbol = json_name
+
+    if legacy_mxnet_model and (input_symbol == json_name):
         log.warning('For legacy MXNet models Model Optimizer does not support conversion of old MXNet models' +
                     '(trained with 1.0.0 version of MXNet and lower) with custom layers. ' +
                     refer_to_faq_msg(93))
-        sym = mx.symbol.load(model_name)
+        sym = mx.symbol.load(json_name)
         model_nodes = json.loads(sym.tojson())
     else:
-        if os.path.isfile(model_name):
-            model_nodes = json.load(open(model_name))
+        if os.path.isfile(json_name):
+            model_nodes = json.load(open(json_name))
         else:
             raise Error('Specified input json {} does not exist. ' +
-                        refer_to_faq_msg(84), model_name)
+                        refer_to_faq_msg(84), json_name)
 
     return model_nodes['nodes']
 
@@ -80,7 +88,7 @@ def load_symbol_def(input_model_name, input_symbol, input_names: str = '', nd_pr
             "Arguments --nd_prefix_name, --pretrained_model_name and --input_symbol should be provided. Please provide all or do not use any. " +
             refer_to_faq_msg(81))
 
-    model_nodes = load_symbol_nodes(model_name, legacy_mxnet_model)
+    model_nodes = load_symbol_nodes(model_name, input_symbol, legacy_mxnet_model)
 
     return model_nodes, model_params, model_name, iteration_number
 

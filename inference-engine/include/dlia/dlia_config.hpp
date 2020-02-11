@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,5 +83,9 @@ DECLARE_DLIA_CONFIG_KEY(ENABLE_STREAMING);
  */
 DECLARE_DLIA_CONFIG_KEY(DUMP_SUPPORTED_LAYERS_INFORMATION);
 
+/**
+ * @brief The string with architecture name used by DLA to compile executable Network without initialization of device
+ */
+DECLARE_DLIA_CONFIG_KEY(ARCH_NAME);
 }  // namespace DLIAConfigParams
 }  // namespace InferenceEngine

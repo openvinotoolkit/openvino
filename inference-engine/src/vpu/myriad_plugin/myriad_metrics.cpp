@@ -1,9 +1,12 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "myriad_metrics.h"
+
 #include <algorithm>
+
+#include <vpu/utils/error.hpp>
 
 using namespace vpu::MyriadPlugin;
 using namespace InferenceEngine::VPUConfigParams;
@@ -20,16 +23,17 @@ MyriadMetrics::MyriadMetrics() {
         METRIC_KEY(SUPPORTED_METRICS),
         METRIC_KEY(SUPPORTED_CONFIG_KEYS),
         METRIC_KEY(OPTIMIZATION_CAPABILITIES),
-        METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)
+        METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
+        METRIC_KEY(DEVICE_THERMAL),
     };
 
+IE_SUPPRESS_DEPRECATED_START
     _supportedConfigKeys = {
         KEY_VPU_HW_STAGES_OPTIMIZATION,
-        KEY_VPU_LOG_LEVEL,
+        KEY_LOG_LEVEL,
         KEY_VPU_PRINT_RECEIVE_TENSOR_TIME,
-        KEY_VPU_NETWORK_CONFIG,
-        KEY_VPU_COMPUTE_LAYOUT,
         KEY_VPU_CUSTOM_LAYERS,
+        KEY_VPU_IR_WITH_SCALES_DIRECTORY,
         KEY_VPU_IGNORE_IR_STATISTIC,
         KEY_VPU_MYRIAD_FORCE_RESET,
         KEY_VPU_MYRIAD_PLATFORM,
@@ -39,6 +43,7 @@ MyriadMetrics::MyriadMetrics() {
         KEY_CONFIG_FILE,
         KEY_DEVICE_ID
     };
+IE_SUPPRESS_DEPRECATED_END
 
     _optimizationCapabilities = { METRIC_VALUE(FP16) };
     _rangeForAsyncInferRequests = RangeType(3, 6, 1);
@@ -84,6 +89,11 @@ std::string MyriadMetrics::FullName(std::string deviceName) const {
     }
 
     return deviceName;
+}
+
+float MyriadMetrics::DevicesThermal(const DevicePtr& device) const {
+    VPU_THROW_UNLESS(device != nullptr, "No device specified to get its thermal");
+    return MyriadExecutor::GetThermal(device);
 }
 
 const std::vector<std::string>& MyriadMetrics::SupportedMetrics() const {

@@ -22,7 +22,15 @@ namespace kernel_selector {
 // PyramidROIAlign_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct PyramidROIAlign_params : public base_params {
-    PyramidROIAlign_params() : base_params(KernelType::PYRAMID_ROI_ALIGN) {}
+    PyramidROIAlign_params() : base_params(KernelType::PYRAMID_ROI_ALIGN),
+    image_size_x(1), image_size_y(1), sampling_ratio_x(1), sampling_ratio_y(1),
+    pyramid_starting_level(0) {}
+
+    int image_size_x;
+    int image_size_y;
+    int sampling_ratio_x;
+    int sampling_ratio_y;
+    int pyramid_starting_level;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -44,7 +52,7 @@ public:
 
 protected:
     JitConstants GetJitConstants(const PyramidROIAlign_params& params) const;
-    static DispatchData SetDefault(const PyramidROIAlign_params& params);
+    virtual DispatchData SetDefault(const PyramidROIAlign_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
 };
 }  // namespace kernel_selector

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,10 +13,11 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
 from extensions.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
 from extensions.middle.permute_tensor_iterator import TransposeTensorIteratorLSTM
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.middle.passes.eliminate import remove_op_node_with_data_node
 from mo.middle.replacement import MiddleReplacementPattern
 
@@ -40,10 +41,24 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
         from extensions.middle.pass_separator import MiddleFinish
         return [MiddleFinish]
 
+    @staticmethod
+    def is_fusable_reverse_sequence(node: Node):
+        sequence_lengths = node.in_port(1).data.get_value()
+        assert sequence_lengths is not None
+        input_shape = node.in_port(0).data.get_shape()
+        assert input_shape is not None
+
+        seq_len = input_shape[node.seq_axis]
+        return np.all(sequence_lengths == seq_len)
+
     def pattern(self):
         return dict(
             nodes=[
-                ('input',  dict(kind='data')),
+                ('input', dict(kind='data')),
+
+                ('const', dict(type='Const')),
+                ('const_d', dict(kind='data')),
+
                 ('direct_reverse', dict(op='ReverseSequence')),
                 ('input_reversed', dict(kind='data')),
                 ('init_hidden', dict(kind='data')),
@@ -51,11 +66,17 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
                 ('ti', dict(kind='op', op='TensorIterator')),
 
                 ('output_reversed', dict(kind='data')),
+
+                ('const_1', dict(type='Const')),
+                ('const_1_d', dict(kind='data')),
+
                 ('inverse_reverse', dict(op='ReverseSequence')),
                 ('output', dict(kind='data')),
             ],
             edges=[
                 ('input', 'direct_reverse', {'in': 0}),
+                ('const', 'const_d'),
+                ('const_d', 'direct_reverse', {'in': 1}),
                 ('direct_reverse', 'input_reversed'),
 
                 ('input_reversed', 'ti', {'in': 0}),
@@ -63,6 +84,8 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
                 ('ti', 'output_reversed', {'out': 0}),
 
                 ('output_reversed', 'inverse_reverse', {'in': 0}),
+                ('const_1', 'const_1_d'),
+                ('const_1_d', 'inverse_reverse', {'in': 1}),
                 ('inverse_reverse', 'output'),
             ]
         )
@@ -75,6 +98,11 @@ class ReverseTensorIteratorLSTM(MiddleReplacementPattern):
         assert direct_reverse.seq_axis == inverse_reverse.seq_axis
         assert direct_reverse.batch_axis is None and inverse_reverse.batch_axis is None or \
                direct_reverse.batch_axis == inverse_reverse.batch_axis
+
+        if not self.is_fusable_reverse_sequence(direct_reverse) or \
+                not self.is_fusable_reverse_sequence(inverse_reverse):
+            # we can not merge ReverseSequence with ot equal sequences
+            return
 
         # Modify stride in TI
         for port_map in [ti.input_port_map, ti.output_port_map]:

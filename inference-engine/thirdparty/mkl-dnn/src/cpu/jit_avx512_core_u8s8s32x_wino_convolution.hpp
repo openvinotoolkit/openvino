@@ -70,7 +70,8 @@ struct jit_avx512_core_u8s8s32x_wino_convolution_fwd_t : public cpu_primitive_t 
                     utils::one_of(this->desc()->bias_desc.data_type,
                                                 data_type::f32, data_type::s32,
                                                 data_type::s8, data_type::u8))
-                && this->desc()->accum_data_type == data_type::s32;
+                && this->desc()->accum_data_type == data_type::s32
+                && !this->attr()->has_asymmetric_quantization();
 
             if (!ok) return status::unimplemented;
 

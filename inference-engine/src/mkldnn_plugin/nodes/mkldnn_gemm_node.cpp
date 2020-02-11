@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ void MKLDNNGemmNode::getSupportedDescriptors() {
 
     if (getParentEdges().size() != 2 && getParentEdges().size() != 3)
         THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
-    if (getChildEdges().size() != 1)
+    if (getChildEdges().empty())
         THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
     auto inDims0 = getParentEdgeAt(0)->getDims();
@@ -143,6 +143,32 @@ void MKLDNNGemmNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.push_back(same(memory::any));
 }
 
+void MKLDNNGemmNode::initOptimalPrimitiveDescriptor() {
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+    auto config = selected_pd->getConfig();
+    if (isInitConfig(config))
+        return;
+
+    MKLDNNNode::initOptimalPrimitiveDescriptor();
+
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
+    if (!selectedPD) {
+        return;
+    }
+
+    // Only FP32 is supported for now
+    auto& selectedConfig = getSelectedPrimitiveDescriptor()->getConfig();
+    for (auto &inConf : selectedConfig.inConfs) {
+        inConf.desc.setPrecision(Precision::FP32);
+    }
+
+    for (auto &outConf : selectedConfig.outConfs) {
+        outConf.desc.setPrecision(Precision::FP32);
+    }
+}
+
 void MKLDNNGemmNode::createPrimitive() {
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
@@ -239,3 +265,4 @@ int MKLDNNGemmNode::getMaxBatch() {
         return outDims[0][0];
     return 0;
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNGemmNode, Gemm);

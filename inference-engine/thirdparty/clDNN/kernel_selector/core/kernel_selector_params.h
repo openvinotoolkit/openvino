@@ -33,6 +33,19 @@ using WeightsLayout = Tensor::WeightsLayout;
 using MultiDataTensor = std::vector<DataTensor>;
 
 class JitConstants;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// fuse_params
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct fuse_params {
+    virtual ~fuse_params() {}
+
+    KernelType GetType() const { return kType; }
+protected:
+    explicit fuse_params(KernelType kt) : kType(kt) {}
+    KernelType kType;
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ParamsKey
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -69,6 +82,9 @@ public:
                 uint32_t momentum : 1;
                 uint32_t quantization : 1;
                 uint32_t output_calibration : 1;
+                uint32_t sym_quantization : 1;
+                uint32_t asym_w_quantization : 1;
+                uint32_t asym_d_quantization : 1;
 
                 union dedicated_t {
                     struct lookt_t {
@@ -159,9 +175,10 @@ public:
                         uint32_t oneKernel : 1;
                     } concat;
                     struct upsample_t {
-                        uint32_t nearest : 1;
-                        uint32_t bilinear : 1;
-                    } upsample;
+                        uint32_t nearest_neighbor : 1;
+                        uint32_t caffe_bilinear_interp : 1;
+                        uint32_t bilinear_interp : 1;
+                    } resample;
                     struct reorder_t {
                         uint32_t winograd : 1;
                     } reorder;
@@ -198,6 +215,7 @@ public:
                     } fused_conv_eltw;
                     struct quantize_t {
                         uint32_t packed_binary_output : 1;
+                        uint32_t scale_shift_opt : 1;
                     } quantize;
                 } dedicated;
             } val;
@@ -265,13 +283,13 @@ public:
     void EnableDifferentTypes() { key.restrict.val.different_types = 1; }
     void EnableDifferentInputWeightsTypes() { key.restrict.val.different_input_weights_types = 1; }
     void EnableInputLayout(DataLayout l) { key.inputLayout |= (1 << l); }
-    void EnableAllInputLayout() { key.inputLayout = -1; }
+    void EnableAllInputLayout() { key.inputLayout = ~static_cast<decltype(key.inputLayout)>(0); }
     void EnableOutputLayout(DataLayout l) { key.outputLayout |= (1 << l); }
-    void EnableAllOutputLayout() { key.outputLayout = -1; }
+    void EnableAllOutputLayout() { key.outputLayout = ~static_cast<decltype(key.outputLayout)>(0); }
     void EnableInputWeightsLayout(WeightsLayout l) { key.weightsInputLayout |= ((uint64_t)1 << l); }
-    void EnableAllInputWeightsLayout() { key.weightsInputLayout = -1; }
+    void EnableAllInputWeightsLayout() { key.weightsInputLayout = ~static_cast<decltype(key.weightsInputLayout)>(0); }
     void EnableOutputWeightsLayout(WeightsLayout l) { key.weightsOutputLayout |= ((uint64_t)1 << l); }
-    void EnableAllOutputWeightsLayout() { key.weightsOutputLayout = -1; }
+    void EnableAllOutputWeightsLayout() { key.weightsOutputLayout = ~static_cast<decltype(key.weightsOutputLayout)>(0); }
     void EnableTensorOffset() { key.restrict.val.offset = 1; }
     void EnableTensorPitches() { key.restrict.val.pitches = 1; }
     void EnableBatching() { key.restrict.val.batching = 1; }
@@ -292,6 +310,7 @@ public:
     void EnablePoolKernelDividerMode(KernelDividerMode m);
     void EnablePoolType(PoolType t);
     void EnablePoolRemainder(PoolRemainder r);
+    void EnableQuantization(QuantizationType q);
     void EnablePositionSensitivePooling() { key.restrict.val.dedicated.pooling.position_sensitive = 1; }
     void EnableSplitSupport() { key.restrict.val.dedicated.conv.split = 1; }
     void EnableDilation() { key.restrict.val.dedicated.conv.dilation = 1; }
@@ -316,11 +335,12 @@ public:
     void EnableFusedConvEltwEltwiseStride();
 
     void EnableQuantizePackedBinaryOutput() { key.restrict.val.dedicated.quantize.packed_binary_output = 1; }
+    void EnableQuantizeScaleShiftOpt() { key.restrict.val.dedicated.quantize.scale_shift_opt = 1; }
 
     void EnableWinogradReorder() { key.restrict.val.dedicated.reorder.winograd = 1; }
     void EnableSoftmaxDim(SoftmaxDim d);
     void EnableConcatAxis(ConcatAxis a);
-    void EnableUpSamplingSampleType(SampleType a);
+    void EnableReampleType(ResampleType a);
     void EnableEltwiseStride();
     void EnableEltwiseBroadcast() { key.restrict.val.dedicated.eltwise.broadcast = 1; }
     void EnableEltwiseInputsCalibration() { key.restrict.val.dedicated.eltwise.inputs_calibration = 1; }
@@ -389,6 +409,7 @@ protected:
 
 public:
     std::string layerID;
+    std::string forceImplementation;
     EngineInfo engineInfo;
 
     virtual std::string to_string() const;
@@ -414,31 +435,49 @@ struct base_activation_params {
 };
 
 struct FusedOpsConfiguration {
+    enum class LoadType {
+        LT_UNALIGNED = 0,
+        LT_ALIGNED_READ = 1
+    };
+
+    enum class BoundaryCheck {
+        DISABLED = 0,
+        ENABLED = 1
+    };
+
+    enum class IndexType {
+        TENSOR_COORD = 0,
+        LINEAR_OFFSET = 1
+    };
+
     std::string suffix;
-    std::vector<std::string> bfyx_idx_order;
+    std::vector<std::string> bfzyx_idx_order;
     std::string input_var_name;
+    Datatype input_dt;
     size_t vec_size;
-    bool aligned_load;
-    bool typed_activation;
-    bool safe_load;
-    bool simple_offset;
+    Tensor::DataChannelName vec_axis;
+    LoadType load_type;
+    BoundaryCheck boundary_check;
+    IndexType index_type;
 
     FusedOpsConfiguration(std::string suffix,
-                          std::vector<std::string> bfyx_idx_order,
+                          std::vector<std::string> bfzyx_idx_order,
                           std::string input_var_name,
+                          Datatype input_dt,
                           size_t vec_size = 1,
-                          bool aligned_load = false,
-                          bool typed_activation = false,
-                          bool safe_load = true,
-                          bool simple_offset = false)
+                          LoadType load_type = LoadType::LT_UNALIGNED,
+                          BoundaryCheck boundary_check = BoundaryCheck::ENABLED,
+                          IndexType index_type = IndexType::TENSOR_COORD,
+                          Tensor::DataChannelName vec_axis = Tensor::DataChannelName::COUNT)
       : suffix(suffix)
-      , bfyx_idx_order(bfyx_idx_order)
+      , bfzyx_idx_order(bfzyx_idx_order)
       , input_var_name(input_var_name)
+      , input_dt(input_dt)
       , vec_size(vec_size)
-      , aligned_load(aligned_load)
-      , typed_activation(typed_activation)
-      , safe_load(safe_load)
-      , simple_offset(simple_offset) { }
+      , vec_axis(vec_axis)
+      , load_type(load_type)
+      , boundary_check(boundary_check)
+      , index_type(index_type) { }
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -493,14 +532,6 @@ struct base_params : public Params {
     //  If you need an example of custom code generation for fused ops, check BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants
     //  method in binary_convolution_kernel_generic.cpp.
     struct fused_operation_desc {
-        enum class Type : uint8_t {
-            ELTWISE = 0,
-            SCALE = 1,
-            QUANTIZE = 2,
-            ACTIVATION = 3,
-            UNDEFINED
-        };
-
         struct idx_desc {
             std::string b;
             std::string f;
@@ -508,7 +539,7 @@ struct base_params : public Params {
             std::string y;
             std::string x;
             size_t dims;
-            explicit idx_desc(std::vector<std::string> idx) : b(""), f(""), z(""), y(""), x(""), dims(0) {
+            explicit idx_desc(std::vector<std::string> idx) : b("0"), f("0"), z("0"), y("0"), x("0"), dims(0) {
                 dims = idx.size();
                 switch (dims) {
                     case 1: f = idx[0]; break;
@@ -521,36 +552,51 @@ struct base_params : public Params {
             }
         };
 
-        Type type;
+        std::shared_ptr<fuse_params> op_params;
         size_t dep_idx_start;
         size_t dep_size;
         MultiDataTensor tensors;
         DataTensor output_tensor;
-        base_activation_params activation;
         size_t op_id;
 
         JitConstants MakeFusedTensorJitConstants(const FusedOpsConfiguration& conf) const;
         JitConstants MakeInputDeclsJitConstants(const FusedOpsConfiguration& conf) const;
-        JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf) const;
-        JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf, std::string in_var, std::string& out_var) const;
+        JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf, const DataTensor prim_output) const;
+        JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf,
+                                        const std::string in_var, const Datatype in_type,
+                                        std::string& out_var, Datatype& out_type) const;
 
         // Helper functions for operation generation
+        KernelType GetType() const { return op_params->GetType(); }
+        template<typename T>
+        std::shared_ptr<T> GetOpParams() const {
+            auto p = std::dynamic_pointer_cast<T>(op_params);
+            if (!p)
+                throw std::runtime_error("Invalid dynamic cast of fused operation parameters");
+
+            return p;
+        }
         std::string GetTypeStr() const;
         std::string GetInputTensorName(size_t input_id) const;
         std::string GetOutputTensorName() const;
         std::string GetInputTypeName(size_t input_id, size_t vec_size) const;
-        std::string GetJitLoad(const FusedOpsConfiguration& conf, size_t input_id,
+        std::string GetJitLoad(const FusedOpsConfiguration& conf, size_t input_id, const DataTensor prim_output,
                                bool reuse_index = false, std::string reused_idx = "") const;
         std::string GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const;
         std::string GetInputPtrName(size_t input_id) const;
         std::string GetInputVarName(size_t input_id) const;
         std::string GetOutputVarName(std::string input_var_name) const;
         std::string ConvertToOutputType(std::string var, size_t vec_size = 1) const;
+        std::string ConvertToType(std::string var, Datatype dt, size_t vec_size = 1) const;
+        std::string CastToType(std::string var, Datatype dt, size_t vec_size = 1) const;
+        std::string Broadcast(std::string var,  Datatype dt, size_t vec_size = 1) const;
         std::string ConvertToOutputTypeSat(std::string var, size_t vec_size = 1) const;
         std::string GetOutputType(size_t vec_size = 1) const;
-    };
+        std::string GetType(Datatype dt, size_t vec_size = 1) const;
 
-    base_activation_params activation;
+    private:
+        std::vector<size_t> GetRequiredInputs() const;
+    };
 
     std::vector<base_activation_params> activations;
     std::vector<fused_operation_desc> fused_ops = {};
@@ -604,4 +650,5 @@ protected:
     explicit optional_params(KernelType kt) : kType(kt) {}
     KernelType kType;
 };
+
 }  // namespace kernel_selector

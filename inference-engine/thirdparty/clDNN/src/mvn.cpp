@@ -26,9 +26,14 @@ primitive_type_id mvn::type_id() {
 }
 
 layout mvn_inst::calc_output_layout(mvn_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
-           "Output data type forcing is not supported for mvn_node!");
-    return node.input().get_non_padded_output_layout();
+    auto input_node_layout = node.input().get_non_padded_output_layout();
+    auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_node_layout.data_type;
+
+    if (input_node_layout.data_type == data_types::u8 || input_node_layout.data_type == data_types::i8) {
+        output_type = data_types::f32;
+    }
+
+    return layout(output_type, input_node_layout.format, input_node_layout.size);
 }
 
 std::string mvn_inst::to_string(mvn_node const& node) {

@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,73 +14,99 @@
  limitations under the License.
 """
 
-import logging as log
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
+from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
 
 
 class Tile(Op):
     op = 'Tile'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
-            'type': __class__.op,
-            'op': __class__.op,
+            'op': self.op,
+            'type': self.op,
+
+            'infer': self.infer,
+
+            'in_ports_count': 2,
+            'out_ports_count': 1,
+        }, attrs)
+
+    @staticmethod
+    def infer(node: Node):
+        name = node.soft_get('name', node.id)
+
+        connected_in_ports = {idx: port for idx, port in node.in_ports().items() if not port.disconnected()}
+        assert len(connected_in_ports) == 2 and 0 in connected_in_ports and 1 in connected_in_ports, \
+            "Tile should have 2 connected input port, but it doesn't for node: `{}`. Ports: {}" \
+            "".format(name, connected_in_ports)
+
+        shape = node.in_port(0).data.get_shape()
+        assert shape is not None, "Undefined input shape for Tile node '{}'.".format(name)
+        tile_array = node.in_port(1).data.get_value()
+        assert tile_array is not None, "Undefined `repeats` (1st port input value) of Tile node '{}'".format(name)
+
+        # align ranks of the tile_array tensor and input shape node
+        if shape.size < tile_array.size:
+            shape = np.insert(shape, 0, [1] * (tile_array.size - shape.size))
+        elif shape.size > tile_array.size:
+            tile_array = np.insert(tile_array, 0, [1] * (shape.size - tile_array.size))
+
+        if node.in_port(0).data.get_value() is not None:
+            node.out_port(0).data.set_value(np.tile(node.in_port(0).data.get_value().reshape(shape), tile_array))
+        else:
+            node.out_port(0).data.set_shape(shape * tile_array)
+
+        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
+
+
+class AttributedTile(Op):
+    op = 'AttributedTile'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'op': self.op,
+            'type': 'Tile',
+
+            'infer': self.infer,
+
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': Tile.infer
         }, attrs)
+
+        assert 'axis' in self.attrs
+        assert 'tiles' in self.attrs
 
     def supported_attrs(self):
         return ['axis', 'tiles']
 
     @staticmethod
-    def infer(node: Node):
-        shape = node.in_node().shape
-        if shape is None:
-            log.error("Undefined shape for the input tiles for the Tile operation '{}'.".format(node.node))
-            return
-        shape = np.copy(shape)
+    def infer(node):
+        name = node.soft_get('name', node.id)
 
-        if len(node.in_nodes()) == 2:
-            tile_array = node.in_node(1).value
-            if tile_array is None:
-                log.error('A tile values are None for a node "{}".'.format(node.name))
-                return
-            if len(shape) != len(tile_array):
-                log.error('Shape mismatch for a node "{}": {} vs {}.'.format(node.name, shape.shape, tile_array.shape))
-                return
-            non_one_tile = np.argwhere(tile_array != 1)
-            if len(non_one_tile) == 0:
-                log.info(
-                    'Redundant "Tile" operation "{}" with tile values for all dimensions equal to 1.'.format(node.name))
-                node['axis'] = 0
-                node['tiles'] = 1
-            elif len(non_one_tile) == 1:
-                node['axis'] = non_one_tile[0][0]
-                node['tiles'] = tile_array[node['axis']]
-            else:
-                node['type'] = None
-                node['tile_array'] = tile_array
-                log.warning("Tile operation with more than one dimension not equal to 1 is not supported.")
-                # do not return here to allow infer shape and values for the constant propagation case
-            node.graph.remove_edge(node.in_node(1).id, node.id)
-        elif len(node.in_nodes()) == 1:  # case when tiled dimension and count are specified in node attributes
-            if not node.has_valid('axis') or not node.has_valid('tiles'):
-                log.error('Mandatory attributes "axis" or "tiles" are not specified for a Tile node "{}"'.
-                          format(node.name))
-                return
-            tile_array = np.ones([len(shape)], dtype=np.int64)
-            tile_array[node.axis] = node.tiles
-        else:
-            log.error('Unsupported number of input parameters to Tile node "{}"'.format(node.name))
-            return
+        connected_in_ports = {idx: port for idx, port in node.in_ports().items() if not port.disconnected()}
+        assert len(connected_in_ports) == 1 and 0 in connected_in_ports, \
+            "AttributedTile should have 1 connected input port, but it doesn't for node: `{}`. Ports: {}" \
+            "".format(name, connected_in_ports)
+
+        shape = node.in_port(0).data.get_shape()
+        assert shape is not None, "Undefined input shape for AttributedTile node '{}'.".format(name)
+        axis = node.soft_get('axis', None)
+        assert axis is not None
+        tiles = node.soft_get('tiles', None)
+        assert tiles is not None, "Undefined `tiles` attribute of Tile node '{}'".format(name)
+
+        tile_array = int64_array(np.ones(shape.size))
+        tile_array[node.axis] = node.tiles
+
+        node.out_port(0).data.set_shape(shape * tile_array)
+        if node.in_port(0).data.get_value() is not None:
+            node.out_port(0).data.set_value(np.tile(node.in_port(0).data.get_value(), tile_array))
 
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
-        node.out_node().shape = shape * tile_array
-        if node.in_node(0).value is not None:
-            node.out_node().value = np.tile(node.in_node(0).value, tile_array)

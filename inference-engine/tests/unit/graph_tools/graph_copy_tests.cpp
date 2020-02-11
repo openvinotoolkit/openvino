@@ -1,21 +1,20 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include <inference_engine/graph_tools.hpp>
+#include <graph_tools.hpp>
 #include "test_assertions.hpp"
 #include <unordered_set>
 #include <gmock/gmock-generated-function-mockers.h>
 #include <gmock/gmock-generated-matchers.h>
 #include <gmock/gmock-more-actions.h>
-#include "xml_father.hpp"
 #include "ie_common.h"
 #include "graph_test_base.hpp"
 #include <memory>
 
 #ifdef ENABLE_GNA
-# include <gna_plugin/quantization/model_quantizer.hpp>
+# include <frontend/model_quantizer.hpp>
 #endif
 
 using namespace testing;
@@ -147,9 +146,9 @@ TEST_F(GraphCopyTests, canPreserveTopology) {
 
 #ifdef ENABLE_GNA
 using namespace GNAPluginNS;
-struct _FP32_2_FP32  : public GNAPluginNS::details::QuantDescTmpl<float, float, float, float, float> {
+struct _FP32_2_FP32  : public GNAPluginNS::frontend::QuantDescTmpl<float, float, float, float, float> {
 };
-using FP32_2_FP32 = GNAPluginNS::details::QuantPair<_FP32_2_FP32 , _FP32_2_FP32 >;
+using FP32_2_FP32 = GNAPluginNS::frontend::QuantPair<_FP32_2_FP32 , _FP32_2_FP32 >;
 
 TEST_F(GraphCopyTests, canQuantizeTopology) {
 

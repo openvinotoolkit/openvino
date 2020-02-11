@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,6 +15,29 @@
 """
 
 import re
+from argparse import Namespace
+
+from mo.utils.error import Error
+from mo.utils.utils import refer_to_faq_msg
+
+
+def deduce_framework_by_namespace(argv: Namespace):
+    if not argv.framework:
+        if getattr(argv, 'saved_model_dir', None) or getattr(argv, 'input_meta_graph', None):
+            argv.framework = 'tf'
+        elif getattr(argv, 'input_symbol', None) or getattr(argv, 'pretrained_model_name', None):
+            argv.framework = 'mxnet'
+        elif getattr(argv, 'input_proto', None):
+            argv.framework = 'caffe'
+        elif argv.input_model is None:
+            raise Error('Path to input model is required: use --input_model.')
+        else:
+            argv.framework = guess_framework_by_ext(argv.input_model)
+        if not argv.framework:
+            raise Error('Framework name can not be deduced from the given options: {}={}. Use --framework to choose '
+                        'one of caffe, tf, mxnet, kaldi, onnx', '--input_model', argv.input_model, refer_to_faq_msg(15))
+
+    return map(lambda x: argv.framework == x, ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'])
 
 
 def guess_framework_by_ext(input_model_path: str) -> int:

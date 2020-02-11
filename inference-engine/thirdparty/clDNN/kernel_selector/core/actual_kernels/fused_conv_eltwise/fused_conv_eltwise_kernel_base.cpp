@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2019 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -140,9 +140,9 @@ JitConstants fused_conv_eltwise_kernel_base::GetJitConstants(const fused_conv_el
         mem_consts.AddConstants({MakeJitConstant("LOCAL_CONVOLUTION", params.conv.local_convolution)});
     }
 
-    JitConstants eltw_activations = MakeActivationJitConstants(params.activations, "_ELTW");
+    JitConstants eltw_activations = MakeActivationJitConstants(params.activations, GetUnitType(params), "_ELTW");
     mem_consts.Merge(eltw_activations);
-    JitConstants conv_activations = MakeActivationJitConstants(params.conv.activations, "_CONV");
+    JitConstants conv_activations = MakeActivationJitConstants(params.conv.activations, GetUnitType(params), "_CONV");
     mem_consts.Merge(conv_activations);
     mem_consts.AddConstant(MakeJitConstant("ELTW_CALIBRATION_TERM", params.eltw.output_calibration));
 
@@ -232,13 +232,14 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_base::Set
     kd.fp16UnitUsed = out.GetDType() == Datatype::F16;
     std::vector<size_t> global;
     if (params.output.GetLayout() == DataLayout::bfyx || params.output.GetLayout() == DataLayout::byxf ||
-        params.output.GetLayout() == DataLayout::bfzyx || params.output.GetLayout() == DataLayout::bfzyx_f16) {
+        params.output.GetLayout() == DataLayout::bfzyx || params.output.GetLayout() == DataLayout::bfzyx_f16 ||
+        params.output.GetLayout() == DataLayout::bfzyx_b16f16) {
         global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
     } else {
         global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v * out.Z().v };
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];
@@ -310,9 +311,7 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
                      exeMode,
                      true,
                      !newParams.bias.empty(),
-                     1,
-                     newParams.conv.int8_quantization,
-                     newParams.conv.output_calibration);
+                     1);
     kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
     // eltwise's second input
     if (newParams.second_input_in_output) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,13 +8,16 @@
 #include <memory>
 #include <set>
 
-#include <vpu/sw/post_op_stage.hpp>
+#include <vpu/stages/post_op_stage.hpp>
 
 namespace vpu {
 
 namespace {
 
 class EluStage final : public PostOpStage {
+public:
+    using PostOpStage::PostOpStage;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<EluStage>(*this);
@@ -29,23 +32,13 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseELU(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseELU(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
     auto alpha = layer->GetParamAsFloat("alpha", 1.0f);
 
-    auto stage = model->addNewStage<EluStage>(
-        layer->name,
-        StageType::Elu,
-        layer,
-        inputs,
-        outputs);
-
+    auto stage = model->addNewStage<EluStage>(layer->name, StageType::Elu, layer, inputs, outputs);
     stage->attrs().set<float>("alpha", alpha);
 }
 

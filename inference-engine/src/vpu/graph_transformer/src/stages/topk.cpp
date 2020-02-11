@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,21 +32,21 @@ static TopKSort getSort(const std::shared_ptr<ie::TopKLayer> layer) {
 namespace {
 
 class TopKStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<TopKStage>(*this);
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 2);
-
-        auto inputValues = _inputEdges[0]->input();
+        auto inputValues = input(0);
 
         auto outputOrder = inputValues->desc().dimsOrder();
 
-        orderInfo.setOutput(_outputEdges[0], outputOrder);
-        orderInfo.setOutput(_outputEdges[1], outputOrder);
+        orderInfo.setOutput(outputEdge(0), outputOrder);
+        orderInfo.setOutput(outputEdge(1), outputOrder);
     }
 
     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& /*stridesInfo*/) override {
@@ -69,9 +69,7 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-
-        auto inputValues = _inputEdges[0]->input();
+        auto inputValues = input(0);
 
         auto axis = attrs().get<Dim>("axis");
         auto axisInd = inputValues->desc().dimsOrder().dimInd(axis);
@@ -85,13 +83,10 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        IE_ASSERT(_inputEdges.size() == 2);
-        IE_ASSERT(_outputEdges.size() == 2);
-
-        auto inputValues = _inputEdges[0]->input();
-        auto inputK = _inputEdges[1]->input();
-        auto outputValues = _outputEdges[0]->output();
-        auto outputIndices = _outputEdges[1]->output();
+        auto inputValues = input(0);
+        auto inputK = input(1);
+        auto outputValues = output(0);
+        auto outputIndices = output(1);
 
         inputValues->serializeNewBuffer(serializer);
         outputValues->serializeNewBuffer(serializer);
@@ -102,11 +97,7 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseTopK(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseTopK(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     auto layer = std::dynamic_pointer_cast<ie::TopKLayer>(_layer);
     IE_ASSERT(layer != nullptr);
 
@@ -132,12 +123,7 @@ void FrontEnd::parseTopK(
     TopKMode mode = getMode(layer);
     TopKSort sort = getSort(layer);
 
-    auto stage = model->addNewStage<TopKStage>(
-        layer->name,
-        StageType::TopK,
-        layer,
-        inputs,
-        outputs);
+    auto stage = model->addNewStage<TopKStage>(layer->name, StageType::TopK, layer, inputs, outputs);
 
     stage->attrs().set<Dim>("axis", axis);
     stage->attrs().set<TopKMode>("mode", mode);

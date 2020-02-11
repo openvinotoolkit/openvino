@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 
 #include "single_layer_common.hpp"
 #include "vpu/vpu_plugin_config.hpp"
-#include <vpu/graph_transformer/include/vpu/private_plugin_config.hpp>
+#include <graph_transformer/include/vpu/private_plugin_config.hpp>
 
 
 using config_t = std::map<std::string, std::string>;
@@ -95,6 +95,3 @@ static bool hasAppropriateStick(const config_t &config) {
 static bool hasHDDL_R() {
     return hasPlatform(ENV_HDDL_R);
 }
-
-/* this function assumes that the precision of a generated network is FP16 */
-std::shared_ptr<InferenceEngine::ICNNNetwork> createNetworkWithDesiredSize(std::size_t sizeInMB);

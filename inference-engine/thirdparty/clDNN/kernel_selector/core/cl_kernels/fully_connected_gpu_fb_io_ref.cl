@@ -32,10 +32,12 @@ KERNEL (fully_connected_gpu_xb_xb)(
     __global UNIT_TYPE* output,
     const __global UNIT_TYPE* weight
 #if BIAS_TERM
-    , __global UNIT_TYPE* bias)
-#else
-    )
+    , __global UNIT_TYPE* bias
 #endif
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+    )
 {
     const uint x = get_global_id(0);
     const uint batch_id = x % INPUT0_BATCH_NUM;
@@ -59,5 +61,12 @@ KERNEL (fully_connected_gpu_xb_xb)(
     result += bias[outXIdx];
 #endif
 
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    OUTPUT_TYPE res = FINAL_NAME;
+
+    output[x] = res;
+#else
     output[x] = ACTIVATION(result, ACTIVATION_PARAMS);
+#endif
 }

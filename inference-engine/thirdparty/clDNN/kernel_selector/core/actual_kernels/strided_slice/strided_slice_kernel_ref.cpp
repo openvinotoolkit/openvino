@@ -34,19 +34,14 @@ ParamsKey StridedSliceKernelRef::GetSupportedKey() const {
 
 CommonDispatchData StridedSliceKernelRef::SetDefault(const strided_slice_params& params, const optional_params&) const {
     CommonDispatchData runInfo;
-    std::vector<size_t> gws;
 
     // If the new_axis_mask is set, then begin, end, and stride are ignored
     // and a new length 1 dimension is adding. Input data just copying to output
     // TODO: remove data copying in case where only shape size changing
-    if (params.new_axis_mask.size() != 0)
-        gws = {params.inputs[0].Batch().v,
-               params.inputs[0].Feature().v,
-               params.inputs[0].Y().v * params.inputs[0].X().v};
-    else
-        gws = {params.output.Batch().v, params.output.Feature().v, params.output.Y().v * params.output.X().v};
+    std::vector<size_t> gws = {params.output.Batch().v, params.output.Feature().v,
+                               params.output.Z().v * params.output.Y().v * params.output.X().v};
 
-    auto lws = GetOptimalLocalWorkGroupSizes(gws);
+    auto lws = GetOptimalLocalWorkGroupSizes(gws, params.engineInfo);
 
     runInfo.gws0 = gws[0];
     runInfo.gws1 = gws[1];
@@ -66,8 +61,15 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         jit.AddConstant(MakeJitConstant(name + "_SIZES", vec));
         jit.AddConstant(MakeJitConstant(name + "_BATCH", vec[0]));
         jit.AddConstant(MakeJitConstant(name + "_FEATURE", vec[1]));
-        jit.AddConstant(MakeJitConstant(name + "_Y", vec[2]));
-        jit.AddConstant(MakeJitConstant(name + "_X", vec[3]));
+        if (vec.size() == 5) {  // BFZYX
+            jit.AddConstant(MakeJitConstant(name + "_Z", vec[2]));
+            jit.AddConstant(MakeJitConstant(name + "_Y", vec[3]));
+            jit.AddConstant(MakeJitConstant(name + "_X", vec[4]));
+        } else {  // BFYX
+            jit.AddConstant(MakeJitConstant(name + "_Z", 0));
+            jit.AddConstant(MakeJitConstant(name + "_Y", vec[2]));
+            jit.AddConstant(MakeJitConstant(name + "_X", vec[3]));
+        }
     };
 
     makeJitConstForParam(jit, "SLICE_BEGIN", params.striding_params[0]);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,13 +62,13 @@ void MKLDNNPowerNode::initSupportedPrimitiveDescriptors() {
                                                                  config.inConfs[0].desc.getDims(), {
                                                                          config.inConfs[0].desc.getBlockingDesc().getBlockDims(),
                                                                          config.inConfs[0].desc.getBlockingDesc().getOrder(),
-                                                                         std::numeric_limits<size_t>::max()
+                                                                         (std::numeric_limits<size_t>::max)()
                                                                  });
             config.outConfs[0].desc = InferenceEngine::TensorDesc(config.outConfs[0].desc.getPrecision(),
                                                                   config.outConfs[0].desc.getDims(), {
                                                                           config.outConfs[0].desc.getBlockingDesc().getBlockDims(),
                                                                           config.outConfs[0].desc.getBlockingDesc().getOrder(),
-                                                                          std::numeric_limits<size_t>::max()
+                                                                          (std::numeric_limits<size_t>::max)()
                                                                   });
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, format);
@@ -105,6 +105,11 @@ void MKLDNNPowerNode::execute(mkldnn::stream strm) {
             float val = src_ptr[i] * scale + shift;
             dst_ptr[i] = val * val;
         });
+    } else if (power == 3.0f) {
+        parallel_for(data_size, [&](size_t i) {
+            float val = src_ptr[i] * scale + shift;
+            dst_ptr[i] = val * val * val;
+        });
     } else {
         parallel_for(data_size, [&](size_t i) {
             dst_ptr[i] = pow(src_ptr[i] * scale + shift, power);
@@ -115,3 +120,4 @@ void MKLDNNPowerNode::execute(mkldnn::stream strm) {
 bool MKLDNNPowerNode::created() const {
     return getType() == Power;
 }
+REG_MKLDNN_PRIM_FOR(MKLDNNPowerNode, Power);

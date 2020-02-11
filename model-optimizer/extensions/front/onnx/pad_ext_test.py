@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,10 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from argparse import Namespace
 
 import onnx
 
 from extensions.front.onnx.pad_ext import PadFrontExtractor
+from mo.graph.graph import Graph
 from mo.utils.unittest.extractors import PB, BaseExtractorsTestingClass
 
 
@@ -37,7 +39,10 @@ class TestPad(BaseExtractorsTestingClass):
             inputs=['a'],
             outputs=['b']
         )
-        node = PB({'pb': pb})
+        graph = Graph()
+        graph.graph['cmd_params'] = Namespace(generate_experimental_IR_V10=True)
+        node = PB({'pb': pb, 'graph': graph})
+
         return node
 
     def test_ok(self):

@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ie_metric_helpers.hpp"
 #include "mkldnn_plugin.h"
 #include "mkldnn_extension_mngr.h"
+#include "mkldnn_layers_dispatcher.hpp"
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <memory>
 #include <ie_plugin_config.hpp>
@@ -23,32 +24,24 @@
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-std::vector<std::shared_ptr<MKLDNNWeightsSharing>> create_shared_weights_per_socket() {
-    std::vector<std::shared_ptr<MKLDNNWeightsSharing>> _weightsSharing;
-    const int sockets = MKLDNNPlugin::cpu::getNumberOfCPUSockets();
-    for (int s = 0; s < sockets; s++)
-        _weightsSharing.push_back(std::make_shared<MKLDNNWeightsSharing>());
+NumaNodesWeights create_shared_weights_per_socket() {
+    NumaNodesWeights _weightsSharing;
+    std::vector<int> sockets = MKLDNNPlugin::cpu::getAvailableNUMANodes();
+    for (auto s : sockets)
+        _weightsSharing[s] = std::make_shared<MKLDNNWeightsSharing>();
     return _weightsSharing;
 }
 
-std::vector<std::shared_ptr<MKLDNNWeightsSharing>> Engine::weightsSharing = create_shared_weights_per_socket();
+NumaNodesWeights Engine::weightsSharing = create_shared_weights_per_socket();
 const SimpleDataHash MKLDNNWeightsSharing::simpleCRC;
 
 Engine::Engine() {
     _pluginName = "CPU";
+    addDefaultExtensions(extensionManager);
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const ICore * /*core*/, InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config) {
-    IE_SUPPRESS_DEPRECATED_START
-    auto specifiedDevice = network.getTargetDevice();
-    auto supportedDevice = InferenceEngine::TargetDevice::eCPU;
-    if (specifiedDevice != InferenceEngine::TargetDevice::eDefault && specifiedDevice != supportedDevice) {
-        THROW_IE_EXCEPTION << "The plugin doesn't support target device: " << getDeviceName(specifiedDevice) << ".\n" <<
-                           "Supported target device: " << getDeviceName(supportedDevice);
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs;
     network.getInputsInfo(_networkInputs);
@@ -81,21 +74,6 @@ Engine::LoadExeNetworkImpl(const ICore * /*core*/, InferenceEngine::ICNNNetwork 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     // accumulate config parameters on engine level
     engConfig.readProperties(config);
-
-    // Pass config to already loaded network
-    // TODO: Clarify the behavior of SetConfig method. Should it pass data to already loaded networks?
-    if (_loadedNetwork) {
-        // ugly casting. can we avoid it?
-        auto exe_network =
-                dynamic_cast<ExecutableNetworkBase<ExecutableNetworkInternal>*>(_loadedNetwork.get());
-        if (exe_network == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get executable network!";
-        auto exe_network_impl = dynamic_cast<MKLDNNExecNetwork*>(exe_network->getImpl().get());
-        if (exe_network_impl == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get implementation of executable network!";
-
-        exe_network_impl->setProperty(config);
-    }
 }
 
 Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
@@ -185,10 +163,6 @@ void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
     extensionManager->AddExtension(extension);
 }
 
-void Engine::QueryNetwork(const ICNNNetwork& network, QueryNetworkResult& res) const {
-    QueryNetwork(network, {}, res);
-}
-
 void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
     details::CNNNetworkIterator i(const_cast<ICNNNetwork *>(&network));
     while (i != details::CNNNetworkIterator()) {
@@ -197,14 +171,13 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
             // if we can create and have not thrown exception, then layer is supported
             std::unique_ptr <MKLDNNNode>(MKLDNNNode::CreateNode(*i, eng, extensionManager));
             res.supportedLayersMap.insert({ (*i)->name, GetName() });
-            IE_SUPPRESS_DEPRECATED_START
-            res.supportedLayers.insert((*i)->name);
-            IE_SUPPRESS_DEPRECATED_END
         } catch (InferenceEngine::details::InferenceEngineException&) {
         }
         i++;
     }
 }
+
+IE_SUPPRESS_DEPRECATED_START
 
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc *resp) noexcept {
     try {
@@ -218,3 +191,5 @@ INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, R
         return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
     }
 }
+
+IE_SUPPRESS_DEPRECATED_END

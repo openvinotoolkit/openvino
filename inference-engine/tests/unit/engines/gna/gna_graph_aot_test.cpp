@@ -1,19 +1,17 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 #include <gtest/gtest.h>
-#include <inference_engine/layer_transform.hpp>
-#include <gna_plugin/quantization/model_quantizer.hpp>
-#include "gna_plugin/quantization/layer_quantizer.hpp"
+#include <layer_transform.hpp>
 #include "gna_matcher.hpp"
 
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
 using namespace GNATestIRs;
 
-class GNAAOTTests : public GNATest {
+class GNAAOTTests : public GNATest<>{
  protected:
     std::list<std::string> files_to_remove;
     std::string registerFileForRemove(std::string file_to_remove) {
@@ -44,7 +42,12 @@ TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_export_imported) {
 }
 
 
+// Disabled because of random fails: CVS-23611
 TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_imported_verify_structure) {
+
+#if GNA_LIB_VER == 2
+    GTEST_SKIP();
+#endif
 
     auto & nnet_type = storage<intel_nnet_type_t>();
 
@@ -66,6 +69,10 @@ TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_imported_verify_stru
 }
 
 TEST_F(GNAAOTTests, CanConvertFromAOTtoSueModel) {
+
+#if GNA_LIB_VER == 2
+    GTEST_SKIP();
+#endif
 
     auto & nnet_type = storage<intel_nnet_type_t>();
 

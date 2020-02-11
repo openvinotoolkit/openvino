@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,50 +75,12 @@ const std::map<ie::EltwiseLayer::eOperation, std::function<StageType(ie::Eltwise
 };
 
 class EltwiseStage final : public StageNode {
+public:
+    using StageNode::StageNode;
+
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<EltwiseStage>(*this);
-    }
-
-    void propagateScaleFactorsImpl(
-            const SmallVector<float>& inputScales,
-            ScalePropagationStep step,
-            StageDataInfo<float>& scaleInfo) override {
-        auto output = outputEdge(0)->output();
-
-        if (_type != StageType::Prod &&
-            step == ScalePropagationStep::Propagate) {
-            // Keep the largest input scale factor.
-            auto maxScale = std::numeric_limits<float>::lowest();
-            for (const auto& inEdge : inputEdges()) {
-                if (inEdge->input()->usage() == DataUsage::Fake) {
-                    continue;
-                }
-
-                maxScale = std::max(maxScale, inputScales[inEdge->portInd()]);
-            }
-
-            for (const auto& inEdge : inputEdges()) {
-                if (inEdge->input()->usage() == DataUsage::Fake) {
-                    continue;
-                }
-
-                auto curScale = inputScales[inEdge->portInd()];
-
-                if (!isFloatEqual(curScale, maxScale)) {
-                    scaleInfo.setInput(inEdge, maxScale / curScale);
-                }
-            }
-
-            scaleInfo.setOutput(outputEdge(0), maxScale);
-        } else {
-            // Eltwise can only propagate scaling for Sum and Max cases.
-            for (const auto& inEdge : inputEdges()) {
-                scaleInfo.setInput(inEdge, 1.0f);
-            }
-
-            scaleInfo.setOutput(outputEdge(0), 1.0f);
-        }
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
@@ -173,23 +135,58 @@ private:
     }
 
     void initialCheckImpl() const override {
-        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
+        const auto& operation = type();
+        const auto& dataTypeInput0 = input(0)->desc().type();
+
+        {
+            auto supportedDataTypesInput0 = EnumSet<DataType>{DataType::FP16};
+            if (operation == StageType::Sum || operation == StageType::Greater_equal || operation == StageType::Select || operation == StageType::Prod) {
+                supportedDataTypesInput0.insert(DataType::S32);
+            }
+
+            VPU_THROW_UNLESS(supportedDataTypesInput0.count(dataTypeInput0) != 0,
+                "Stage node %v types check error: input #0 has type %v, but one of %v is expected",
+                static_cast<Handle<StageNode>>(this), dataTypeInput0, supportedDataTypesInput0);
+        }
+
+        if (operation != StageType::Select || dataTypeInput0 == DataType::FP16) {
+            assertInputsOutputsTypes(this, {{dataTypeInput0}, {dataTypeInput0}, {dataTypeInput0}}, {{dataTypeInput0}});
+        } else {
+            auto supportedDataTypesInput1 = EnumSet<DataType>{DataType::FP16, DataType::S32};
+            const auto& dataTypeInput1 = input(1)->desc().type();
+            VPU_THROW_UNLESS(supportedDataTypesInput1.count(dataTypeInput1) != 0,
+                "Stage node %v types check error: input #1 has type %v, but one of %v is expected",
+                static_cast<Handle<StageNode>>(this), dataTypeInput1, supportedDataTypesInput1);
+
+            assertInputsOutputsTypes(this, {{dataTypeInput0}, {dataTypeInput1}, {dataTypeInput1}}, {{dataTypeInput1}});
+        }
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto coeff1 = attrs().getOrDefault<float>("coeff1", 1.0f);
-        auto coeff2 = attrs().getOrDefault<float>("coeff2", 1.0f);
-        auto postOperation = attrs().getOrDefault<StageType>("postOperation", StageType::Empty);
-        auto negativeSlope = attrs().getOrDefault<float>("negativeSlope", 0.0f);
-        auto min_value = attrs().getOrDefault<float>("min_value", 0.0f);
-        auto max_value = attrs().getOrDefault<float>("max_value", 1.0f);
+        const auto& type = input(0)->desc().type();
 
-        serializer.append(static_cast<float>(coeff1));
-        serializer.append(static_cast<float>(coeff2));
+        if (type == DataType::FP16) {
+            serializer.append(attrs().getOrDefault<float>("coeff1", 1.0f));
+            serializer.append(attrs().getOrDefault<float>("coeff2", 1.0f));
+        } else if (type == DataType::S32) {
+            serializer.append(attrs().getOrDefault<std::int32_t>("coeff1", 1));
+            serializer.append(attrs().getOrDefault<std::int32_t>("coeff2", 1));
+        } else {
+             THROW_IE_EXCEPTION << type << " isn't supported";
+        }
+
+        auto postOperation = attrs().getOrDefault<StageType>("postOperation", StageType::Empty);
         serializer.append(static_cast<int>(postOperation));
-        serializer.append(static_cast<float>(negativeSlope));
-        serializer.append(static_cast<float>(min_value));
-        serializer.append(static_cast<float>(max_value));
+
+        if (type == DataType::FP16) {
+            serializer.append(attrs().getOrDefault<float>("negativeSlope", 0.0f));
+            serializer.append(attrs().getOrDefault<float>("min_value", 0.0f));
+            serializer.append(attrs().getOrDefault<float>("max_value", 1.0f));
+        } else {
+            serializer.append(attrs().getOrDefault<std::int32_t>("negativeSlope", 0));
+            serializer.append(attrs().getOrDefault<std::int32_t>("min_value", 0));
+            serializer.append(attrs().getOrDefault<std::int32_t>("max_value", 1));
+        }
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -207,25 +204,21 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseEltwise(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseEltwise(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     auto layer = std::dynamic_pointer_cast<ie::EltwiseLayer>(_layer);
     IE_ASSERT(layer != nullptr);
 
     IE_ASSERT(outputs.size() == 1);
 
     auto stageType = StageType::None;
-    auto subCoefficient = 1.0f;
+    auto subCoefficient = 1;
 
     if (layer->_operation == ie::EltwiseLayer::eOperation::Sub) {
         if (inputs.size() != 2) {
             VPU_THROW_EXCEPTION << "Eltwise operation: " << layer->_operation << " with multiple inputs is not supported";
         }
         stageType = StageType::Sum;
-        subCoefficient = -1.f;
+        subCoefficient = -1;
     } else if (layer->_operation == ie::EltwiseLayer::eOperation::Mean) {
         if (inputs.size() != 2) {
             VPU_THROW_EXCEPTION << "Eltwise operation: " << layer->_operation << " with multiple inputs is not supported";
@@ -262,29 +255,34 @@ void FrontEnd::parseEltwise(
 
     tempInputs[2] = model->addFakeData();
 
-    auto stage = model->addNewStage<EltwiseStage>(
-        layer->name,
-        stageType,
-        layer,
-        tempInputs,
-        {tempOutput});
+    auto stage = model->addNewStage<EltwiseStage>(layer->name, stageType, layer, tempInputs, {tempOutput});
+
+    const auto& type = inputs.front()->desc().type();
+    IE_ASSERT(type == DataType::FP16 || type == DataType::S32);
 
     if (layer->_operation == ie::EltwiseLayer::eOperation::Mean) {
+        // Mean supports only FP16
+        IE_ASSERT(type == DataType::FP16);
         stage->attrs().set<float>("coeff1",  0.5);
         stage->attrs().set<float>("coeff2",  0.5);
     } else {
         if (layer->coeff.size() > 0) {
-            stage->attrs().set<float>("coeff1", layer->coeff[0]);
+            if (type == DataType::FP16) {
+                stage->attrs().set<float>("coeff1", layer->coeff[0]);
+            } else {
+                stage->attrs().set<std::int32_t>("coeff1", layer->coeff[0]);
+            }
         }
-        if (layer->coeff.size() > 1 || subCoefficient != 1.0f) {
-            stage->attrs().set<float>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1.0f));
+        if (layer->coeff.size() > 1 || subCoefficient != 1) {
+            if (type == DataType::FP16) {
+                stage->attrs().set<float>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1.0f));
+            } else {
+                stage->attrs().set<std::int32_t>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1));
+            }
         }
     }
 
     stage->attrs().set<StageType>("postOperation", StageType::Empty);
-    stage->attrs().set<float>("negativeSlope", 0.0f);
-    stage->attrs().set<float>("min_value", 0.0f);
-    stage->attrs().set<float>("max_value", 1.0f);
 
     tempInputs[0] = tempOutput;
     for (int ind = 2; ind < inputs.size(); ++ind) {
@@ -313,11 +311,7 @@ void FrontEnd::parseEltwise(
     }
 }
 
-void FrontEnd::parseSelect(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseSelect(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     auto layer = std::dynamic_pointer_cast<ie::SelectLayer>(_layer);
     IE_ASSERT(layer != nullptr);
 
@@ -325,16 +319,11 @@ void FrontEnd::parseSelect(
         VPU_THROW_EXCEPTION << "Select supports only three inputs";
     }
 
-    auto stage = model->addNewStage<EltwiseStage>(
-        layer->name,
-        StageType::Select,
-        layer,
-        inputs,
-        outputs);
+    auto stage = model->addNewStage<EltwiseStage>(layer->name, StageType::Select, layer, inputs, outputs);
 }
 
 Stage StageBuilder::addSumStage(
-        const Model::Ptr& model,
+        const Model& model,
         const std::string& name,
         const ie::CNNLayerPtr& layer,
         const Data& input0,

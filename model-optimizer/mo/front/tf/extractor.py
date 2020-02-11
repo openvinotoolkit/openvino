@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,21 +14,12 @@
  limitations under the License.
 """
 
-import numpy as np
-
-from mo.front.common.partial_infer.split import tf_split_infer
 from mo.front.tf.extractors.concat import tf_concat_ext
-from mo.front.tf.extractors.const import tf_const_ext
-from mo.front.tf.extractors.eltwise import make_tf_eltwise
 from mo.front.tf.extractors.fused_bn import tf_fused_bn_extractor
-from mo.front.tf.extractors.lrn import tf_lrn_ext
-from mo.front.tf.extractors.matmul import tf_matmul_ext, tf_batchmatmul_ext
 from mo.front.tf.extractors.native_tf import native_tf_node_extractor
 from mo.front.tf.extractors.pack import tf_pack_ext
 from mo.front.tf.extractors.random_uniform import tf_random_uniform_ext
 from mo.front.tf.extractors.space_to_batch import tf_space_to_batch_ext, tf_batch_to_space_ext
-from mo.front.tf.extractors.split import tf_split_ext
-from mo.front.tf.extractors.unpack import tf_unpack_ext
 from mo.front.tf.extractors.utils import get_tf_node_port
 from mo.graph.graph import Node
 
@@ -67,21 +58,14 @@ def node_pb_arg(pb_extractor: callable):
 
 tf_op_extractors = {
     'TFCustomSubgraphCall': node_pb_arg(lambda pb: None),
-    'LRN': node_pb_arg(tf_lrn_ext),
-    'Split': node_pb_arg(lambda pb: tf_split_ext(pb, tf_split_infer)),
     'FusedBatchNorm': node_pb_arg(tf_fused_bn_extractor),
+    'FusedBatchNormV2': node_pb_arg(tf_fused_bn_extractor),
+    'FusedBatchNormV3': node_pb_arg(tf_fused_bn_extractor),
     'ConcatV2': node_pb_arg(tf_concat_ext),
-    'MatMul': node_pb_arg(tf_matmul_ext),
-    'BatchMatMul': node_pb_arg(tf_batchmatmul_ext),
-    'BatchMatMulV2': node_pb_arg(tf_batchmatmul_ext),
     'Pack': node_pb_arg(tf_pack_ext),
-    'Unpack': node_pb_arg(tf_unpack_ext),
-    'Const': node_pb_arg(tf_const_ext),
-    'Identity': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
     'RandomUniform': node_pb_arg(tf_random_uniform_ext),
     'SpaceToBatchND': node_pb_arg(tf_space_to_batch_ext),
     'BatchToSpaceND': node_pb_arg(tf_batch_to_space_ext),
-    'ReadVariableOp': node_pb_arg(make_tf_eltwise(lambda v: v, attrs={'identity': True})),
 }
 
 
@@ -90,7 +74,6 @@ def common_tf_fields(node: Node):
         'kind': 'op',
         'name': node.pb.name,
         'op': node.pb.op,
-        'precision': 'FP32'  # TODO use real precision derived from the model
     }
 
 

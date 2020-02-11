@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,19 +14,47 @@
  limitations under the License.
 """
 
+from extensions.ops.split import VariadicSplit, Split, AttributedSplit
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
-from extensions.ops.splitv import SplitV
 
 
 class SplitVExtractor(FrontExtractorOp):
     op = 'SplitV'
     enabled = True
 
-    @staticmethod
-    def extract(node: Node):
-        SplitV.update_node_stat(node, {
-                                      'axis': None,
-                                      'size_splits': None
-                                      })
-        return __class__.enabled
+    @classmethod
+    def extract(cls, node: Node):
+        VariadicSplit.update_node_stat(node, {'out_ports_count': node.pb.attr['num_split'].i,
+                                              'swap_axis_and_split_size_inputs': True})
+        return cls.enabled
+
+
+class UnpackExtractor(FrontExtractorOp):
+    op = 'Unpack'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node: Node):
+        pb = node.pb
+        AttributedSplit.update_node_stat(node,
+                                         {
+                                             'axis': pb.attr['axis'].i,
+                                             'num_splits': pb.attr['num'].i,
+                                             'squeeze_axis': True,
+                                         })
+        return cls.enabled
+
+
+class SplitExtractor(FrontExtractorOp):
+    op = 'Split'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node: Node):
+        pb = node.pb
+        Split.update_node_stat(node, {
+            'num_splits': pb.attr['num_split'].i,
+            'input_port': 1,
+        })
+        return cls.enabled

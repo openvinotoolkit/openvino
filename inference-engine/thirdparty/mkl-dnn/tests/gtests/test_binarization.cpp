@@ -132,9 +132,9 @@ protected:
         }
 
         std::vector<primitive> pipeline;
-        auto binarization_desc = binarization_forward::desc(prop_kind::forward_training, p.alg_kind, src_desc, weights_desc, output_high_desc, dst_desc);
-        auto binarization_prim_desc = binarization_forward::primitive_desc(binarization_desc, eng);
-        auto binarization = binarization_forward(binarization_prim_desc, src.get(), weights.get(), output_mask.get(), dst.get());
+        auto binarization_desc = quantization_forward::desc(prop_kind::forward_training, p.alg_kind, 1, src_desc, weights_desc, output_high_desc, dst_desc);
+        auto binarization_prim_desc = quantization_forward::primitive_desc(binarization_desc, eng);
+        auto binarization = quantization_forward(binarization_prim_desc, src.get(), weights.get(), output_mask.get(), dst.get());
 
         pipeline.push_back(binarization);
         auto s = stream(stream::kind::lazy);

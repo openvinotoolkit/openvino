@@ -37,7 +37,7 @@ ReorderWeightsBinaryKernel::DispatchData ReorderWeightsBinaryKernel::SetDefault(
     DispatchData kd;
 
     std::vector<size_t> global = {out.OFM().v, CeilDiv(out.IFM().v, 32), out.X().v * out.Y().v};
-    auto local = GetOptimalLocalWorkGroupSizes(global);
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
     kd.gws1 = global[1];

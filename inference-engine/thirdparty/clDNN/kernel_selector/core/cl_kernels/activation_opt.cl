@@ -28,7 +28,7 @@ KERNEL(activation)(
 #endif
     )
 {
-    const unsigned int x = get_global_id(0) * NUM_COLS_WI;
+    const unsigned int x = (uint)get_global_id(0) * NUM_COLS_WI;
 
     unsigned int input_offset  = x + INPUT0_OFFSET; 
     unsigned int output_offset = x + OUTPUT_OFFSET; 

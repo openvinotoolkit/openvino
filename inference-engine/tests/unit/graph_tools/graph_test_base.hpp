@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include <inference_engine/graph_tools.hpp>
+#include <graph_tools.hpp>
 #include <gmock/gmock-generated-function-mockers.h>
 #include <gmock/gmock-generated-matchers.h>
 #include <gmock/gmock-more-actions.h>
@@ -170,10 +170,7 @@ class GraphTestsBase : public ::testing::Test {
 
     int numCreated = 0;
     CNNLayerPtr createGenericLayer (std::string name) {
-        auto newData = std::make_shared<Data>(name,
-                                              SizeVector({1, 1}),
-                                              Precision::FP32,
-                                              Layout::NC);
+        auto newData = std::make_shared<Data>(name, TensorDesc(Precision::FP32, SizeVector({ 1, 1 }), Layout::NC));
 
         CNNLayerPtr newLayer = make_shared<GenericLayer>(LayerParams({name, "Generic_" + std::to_string(numCreated++), Precision::FP32}));
         newData->getCreatorLayer() = newLayer;
@@ -192,7 +189,7 @@ class GraphTestsBase : public ::testing::Test {
                 if (isMarked == end(inputLayers))
                     continue;
                 auto info = make_shared<InputInfo>();
-                auto data = make_shared<Data>((*layer)->name, Precision::FP32, Layout::NC);
+                auto data = make_shared<Data>((*layer)->name, TensorDesc(Precision::FP32, Layout::NC));
                 SizeVector dims = data->getDims();
                 dims.push_back(batchSize);
                 dims.push_back(batchSize);

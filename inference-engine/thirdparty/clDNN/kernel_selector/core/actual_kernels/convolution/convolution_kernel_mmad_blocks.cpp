@@ -42,20 +42,25 @@ ConvolutionKernel_MMAD_blocks::ConvolutionKernel_MMAD_blocks() : ConvolutionKern
 ParamsKey ConvolutionKernel_MMAD_blocks::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
-    k.EnableDilation();
+//    k.EnableDilation(); TODO: Add dilation support
     k.EnableBiasPerFeature();
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableSplitSupport();
-    k.EnableInt8Quantization();
-    k.EnableOutputCalibration();
+    k.EnableQuantization(QuantizationType::SYMMETRIC);
+    k.EnableDifferentTypes();
+    k.EnableDifferentInputWeightsTypes();
     k.DisableTuning();
     return k;
 }
@@ -64,12 +69,6 @@ bool ConvolutionKernel_MMAD_blocks::Validate(const Params& p, const optional_par
     if (!Parent::Validate(p, o)) {
         return false;
     }
-
-    const convolution_params& params = static_cast<const convolution_params&>(p);
-
-    // this kernel is designed for quantization use case
-    if (!params.int8_quantization)
-        return false;
 
     return true;
 }
@@ -222,11 +221,20 @@ JitConstants ConvolutionKernel_MMAD_blocks::GetJitConstants(const convolution_pa
     jit.AddConstant(MakeJitConstant("IN_BLOCK_WIDTH", runInfo.cldnnStyle.inputBlockWidth));
     jit.AddConstant(MakeJitConstant("PREFETCH", runInfo.cldnnStyle.prefetch));
 
+    jit.Merge(MakeTypeJitConstants(GetPackedInputType(params), "PACKED"));
+
     // pitch for special block format used in this kernel
     const size_t ifm_32_aligned = Align(params.weights.IFM().v, 32);
     const size_t filter_ofm_block_pitch =
         (ifm_32_aligned / 32) * params.weights.X().v * params.weights.Y().v * 4 * 8 * 8;
     jit.AddConstant(MakeJitConstant("FILTER_OFM_BLOCK_PITCH", filter_ofm_block_pitch));
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf_scalar = {"", {"b", "f", "(y+br)", "(x+bc)"}, "res", input_dt, 1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
+    }
+
     return jit;
 }
 
@@ -255,4 +263,5 @@ KernelsData ConvolutionKernel_MMAD_blocks::GetKernelsDataForAutoTune(const Param
 
     return res;
 }
+
 }  // namespace kernel_selector

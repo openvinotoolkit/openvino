@@ -30,6 +30,7 @@ public:
 
 protected:
     ParamsKey GetSupportedKey() const override;
+    bool Validate(const Params& params, const optional_params& options) const override;
     std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
         return {
             WeightsLayout::oiyx,

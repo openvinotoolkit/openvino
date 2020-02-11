@@ -290,7 +290,7 @@ KERNEL(Kernel_GEMM_MMAD8_32x32SG_128x128WG_SLM_INT8_fused_eltwise)
     __local int4* l_workGroupTileA_int4 = (__local int4*)l_workGroupTileA;
     __local int4* l_workGroupTileB_int4 = (__local int4*)l_workGroupTileB;
 
-    const uint l_groupSize = get_local_size(DIM_X) * get_local_size(DIM_Y);
+    const uint l_groupSize = (uint)get_local_size(DIM_X) * (uint)get_local_size(DIM_Y);
 
     const uint l_pingPongOffsetA_uint = (WG_TILE_M * MATRIX_SMALL_K) / sizeof(uint);
     const uint l_pingPongOffsetB_int8 = (WG_TILE_N * MATRIX_SMALL_K) / sizeof(int8);
@@ -302,7 +302,7 @@ KERNEL(Kernel_GEMM_MMAD8_32x32SG_128x128WG_SLM_INT8_fused_eltwise)
     const uint g_tidX = get_global_id(DIM_X); // 0,...,all_wi_inX
     const uint l_tidX = get_local_id(DIM_X);  // 0,...,31 in WG
     const uint l_tidY = get_local_id(DIM_Y);  // 0,1,2,3  in WG
-    const uint l_tid = l_tidY * get_local_size(DIM_X) + l_tidX; // 0,1,2,...127
+    const uint l_tid = l_tidY * (uint)get_local_size(DIM_X) + l_tidX; // 0,1,2,...127
 
     // SubGroup IDs
     const uint sg_tid = get_sub_group_local_id();            // 0,1,...,8
@@ -335,14 +335,14 @@ KERNEL(Kernel_GEMM_MMAD8_32x32SG_128x128WG_SLM_INT8_fused_eltwise)
     uint g_idxA[2];
     uint g_idxB[2];
 #ifdef TILED_GLOBAL_LAYOUT // 32-row major (matrixA) and 32-col major (matrixB)
-    g_idxA[0] = ((MATRIX_SMALL_K / sizeof(int4)) * WG_TILE_M) * get_group_id(DIM_Y) + l_tid;
-    g_idxB[0] = ((MATRIX_SMALL_K / sizeof(int4)) * WG_TILE_N) * get_group_id(DIM_X) + l_tid;
+    g_idxA[0] = ((MATRIX_SMALL_K / sizeof(int4)) * WG_TILE_M) * (uint)get_group_id(DIM_Y) + l_tid;
+    g_idxB[0] = ((MATRIX_SMALL_K / sizeof(int4)) * WG_TILE_N) * (uint)get_group_id(DIM_X) + l_tid;
     g_idxA[1] = g_idxA[0] + l_groupSize;
     g_idxB[1] = g_idxB[0] + l_groupSize;
 #else // Row (matrixA) and Col (matrixB) major layout
-    g_idxA[0] = WG_TILE_M * (MATRIX_K / sizeof(int4)) * get_group_id(DIM_Y) +
+    g_idxA[0] = WG_TILE_M * (MATRIX_K / sizeof(int4)) * (uint)get_group_id(DIM_Y) +
                (l_tid / 2) * (MATRIX_K / sizeof(int4)) + (l_tid % 2);
-    g_idxB[0] = WG_TILE_N * (MATRIX_K / sizeof(int4)) * get_group_id(DIM_X) +
+    g_idxB[0] = WG_TILE_N * (MATRIX_K / sizeof(int4)) * (uint)get_group_id(DIM_X) +
                (l_tid / 2) * (MATRIX_K / sizeof(int4)) + (l_tid % 2);
     g_idxA[1] = g_idxA[0] + (l_groupSize / 2) * (MATRIX_K / sizeof(int4));
     g_idxB[1] = g_idxB[0] + (l_groupSize / 2) * (MATRIX_K / sizeof(int4));

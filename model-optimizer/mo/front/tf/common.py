@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ _tf_np_mapping = [('DT_BOOL', np.bool, lambda pb: pb.bool_val, lambda x: bool_ca
                   ('DT_UINT16', np.uint16, lambda pb: pb.int_val, lambda x: np.uint16(x)),
                   ('DT_UINT32', np.uint32, lambda pb: pb.uint32_val, lambda x: np.uint32(x)),
                   ('DT_UINT64', np.uint64, lambda pb: pb.uint64_val, lambda x: np.uint64(x)),
+                  ('DT_HALF', np.float16, lambda pb: pb.half_val, lambda x: np.float16(x)),
                   ('DT_FLOAT', np.float32, lambda pb: pb.float_val, lambda x: np.float32(x)),
                   ('DT_DOUBLE', np.double, lambda pb: pb.double_val, lambda x: np.double(x)),
                   ('DT_STRING', np.str, lambda pb: pb.string_val, lambda x: np.str(x)),

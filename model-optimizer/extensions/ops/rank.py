@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,13 +14,8 @@
  limitations under the License.
 """
 
-import networkx as nx
-import numpy as np
-
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from mo.ops.op import Op
-from mo.utils.error import Error
 
 
 class Rank(Op):
@@ -29,15 +24,9 @@ class Rank(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'op': __class__.op,
+            'type': None,
+            'infer': None,
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': __class__.infer,
         }
         super().__init__(graph, mandatory_props, attrs)
-
-    @staticmethod
-    def infer(node: Node):
-        rank = len(node.in_node(0).shape)
-        out_value = np.array(rank)
-        node.out_node().value = out_value
-        node.out_node().shape = int64_array(out_value.shape)

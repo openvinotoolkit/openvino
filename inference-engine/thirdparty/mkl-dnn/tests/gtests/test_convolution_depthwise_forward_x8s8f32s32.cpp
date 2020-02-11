@@ -71,6 +71,17 @@ TEST_P(convolution_test, TestConvolution)
                2, 32, 32, 9, 9, 32, 9, 9, 1, 1, 0, 0, 1, 1)
     );
 
+    INST_TEST_CASE(SimpleSmall_Gemm,
+        PARAMS(nhwc, hwio, x, nhwc,
+               2, 1, 32, 13, 13, 48, 11, 11, 3, 3, 0, 0, 1, 1),
+        PARAMS(nhwc, hwio, x, nhwc,
+               2, 1, 16, 13, 13, 48, 13, 13, 1, 1, 0, 0, 1, 1),
+        PARAMS(nhwc, hwigo, x, nhwc,
+               2, 64, 64, 16, 16, 64, 16, 16, 3, 3, 0, 0, 1, 1),
+        PARAMS(nhwc, hwigo, x, nhwc,
+               2, 32, 32, 9, 9, 32, 9, 9, 1, 1, 0, 0, 1, 1)
+    );
+
     INST_TEST_CASE(SimpleSmall_Blocked8,
         PARAMS(nhwc, FMT_WEIGHTS_BLOCKED8, x, nhwc,
                2, 1, 32, 13, 13, 48, 11, 11, 3, 3, 0, 0, 1, 1),

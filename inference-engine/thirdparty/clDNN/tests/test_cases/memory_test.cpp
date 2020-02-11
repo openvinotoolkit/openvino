@@ -210,7 +210,7 @@ TEST(memory_pool, oooq) {
     EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 2560);
 }
 
-TEST(memory_pool, shared_mem_pool_same_topology_twice) {
+TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     /*                -- relu1 - concat1- relu4 --
     input<  -- relu2 |                             >-- concat2 -- relu6
                       -- relu3 --  relu5 ---------
@@ -265,6 +265,7 @@ TEST(memory_pool, shared_mem_pool_same_topology_twice) {
     auto output_ptr_second = output_memory_second.pointer<float>();
 
     EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t) 3328);
+
     EXPECT_EQ(output_layout_first, output_layout_second);
 
     int y_size = output_layout_first.size.spatial[1];
@@ -289,7 +290,7 @@ TEST(memory_pool, shared_mem_pool_same_topology_twice) {
     } 
 }
 
-TEST(memory_pool, shared_mem_pool_same_topology_twice_weights) {
+TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
 
     engine_configuration cfg{ false, false, false, std::string(), std::string(), true /*oooq*/, std::string(),std::string(), priority_mode_types::disabled, throttle_mode_types::disabled, true /*mem_pool*/ };
     engine engine{ cfg };

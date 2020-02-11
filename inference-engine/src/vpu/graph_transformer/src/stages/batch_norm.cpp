@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ protected:
         auto srcPtr = baseContents[0]->get<fp16_t>();
         auto dstPtr = static_cast<fp16_t*>(tempBuf);
 
-        ie::parallel_for(_desc.totalDimSize(), [this, srcPtr, dstPtr](int i) {
+        ie::parallel_for(desc().totalDimSize(), [this, srcPtr, dstPtr](int i) {
             float val = ie::PrecisionUtils::f16tof32(srcPtr[i]) + _epsilon;
             val = 1.0f / std::sqrt(val);
             dstPtr[i] = ie::PrecisionUtils::f32tof16(val);
@@ -63,7 +63,7 @@ protected:
 
         auto dstPtr = static_cast<fp16_t*>(tempBuf);
 
-        ie::parallel_for(_desc.totalDimSize(), [origPtr, weightsPtr, dstPtr](int i) {
+        ie::parallel_for(desc().totalDimSize(), [origPtr, weightsPtr, dstPtr](int i) {
             // TODO : need to be extracted from IE layer.
             float beta = 0.0f;
 
@@ -75,11 +75,7 @@ protected:
 
 }  // namespace
 
-void FrontEnd::parseBatchNorm(
-        const Model::Ptr& model,
-        const ie::CNNLayerPtr& _layer,
-        const DataVector& inputs,
-        const DataVector& outputs) {
+void FrontEnd::parseBatchNorm(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
@@ -93,44 +89,22 @@ void FrontEnd::parseBatchNorm(
     std::tie(origWeights, origBiases) = getWeightsAndBiases(model, layer);
 
     IE_ASSERT(origWeights->desc().totalDimSize() >= input->desc().dim(Dim::C));
-    auto weights = model->duplicateData(
-        origWeights,
-        "@batch-norm",
-        DataDesc({input->desc().dim(Dim::C)}),
-        std::make_shared<BatchNormalizationWeightsContent>(
-            origWeights->content(),
-            layer->epsilon));
+    auto weights = model->duplicateData(origWeights, "@batch-norm", DataDesc({input->desc().dim(Dim::C)}),
+        std::make_shared<BatchNormalizationWeightsContent>(origWeights->content(), layer->epsilon));
 
     if (origBiases->usage() != DataUsage::Fake) {
         IE_ASSERT(origBiases->desc().totalDimSize() >= input->desc().dim(Dim::C));
-        auto biases = model->duplicateData(
-            origBiases,
-            "@batch-norm",
-            DataDesc({input->desc().dim(Dim::C)}),
-            std::make_shared<BatchNormalizationBiasesContent>(
-                origBiases->content(),
-                weights->content()));
+        auto biases = model->duplicateData(origBiases, "@batch-norm", DataDesc({input->desc().dim(Dim::C)}),
+            std::make_shared<BatchNormalizationBiasesContent>(origBiases->content(), weights->content()));
 
-        auto tempOutput = model->duplicateData(
-            output,
-            "@temp");
+        auto tempOutput = model->duplicateData(output, "@temp");
 
-        _stageBuilder->addBiasStage(
-            model,
-            layer->name,
-            layer,
-            tempOutput, biases,
-            output);
+        _stageBuilder->addBiasStage(model, layer->name, layer, tempOutput, biases, output);
 
         output = tempOutput;
     }
 
-    _stageBuilder->addScaleStage(
-        model,
-        layer->name,
-        layer,
-        input, weights,
-        output);
+    _stageBuilder->addScaleStage(model, layer->name, layer, input, weights, output);
 }
 
 }  // namespace vpu

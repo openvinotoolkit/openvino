@@ -1,5 +1,5 @@
 """
- Copyright (c) 2019 Intel Corporation
+ Copyright (C) 2018-2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -80,11 +80,17 @@ class TensorFlowYOLOV1V2Analysis(AnalyzeAction):
                 flavor = 'YOLOV2Full'
             elif pattern_instance_counter.counter == 8:
                 flavor = 'YOLOV2Tiny'
-
         if flavor is not None:
-            return {'model_type': {'YOLO': get_YOLO_params_by_flavor(flavor)}}
+            message = "Your model looks like YOLOv1 or YOLOv2 Model.\n" \
+                      "To generate the IR, provide TensorFlow YOLOv1 or YOLOv2 Model to the Model Optimizer with the following parameters:\n" \
+                      "\t--input_model <path_to_model>/<model_name>.pb\n" \
+                      "\t--batch 1\n" \
+                      "\t--tensorflow_use_custom_operations_config <OPENVINO_INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/<yolo_config>.json\n" \
+                      "All detailed information about conversion of this model can be fount at\n" \
+                      "https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow.html"
+            return {'model_type': {'YOLO': get_YOLO_params_by_flavor(flavor)}}, message
         else:
-            return None
+            return None, None
 
 
 class TensorFlowYOLOV3Analysis(AnalyzeAction):
@@ -102,6 +108,13 @@ class TensorFlowYOLOV3Analysis(AnalyzeAction):
             flavor = 'YOLOV3Tiny'
 
         if flavor is not None:
-            return {'model_type': {'YOLO': get_YOLO_params_by_flavor(flavor)}}
+            message = "Your model looks like YOLOv3 Model.\n" \
+                      "To generate the IR, provide TensorFlow YOLOv3 Model to the Model Optimizer with the following parameters:\n" \
+                      "\t--input_model <path_to_model>/yolo_v3.pb\n" \
+                      "\t--batch 1\n" \
+                      "\t--tensorflow_use_custom_operations_config <OPENVINO_INSTALL_DIR>/deployment_tools/model_optimizer/extensions/front/tf/yolo_v3.json\n" \
+                      "Detailed information about conversion of this model can be fount at\n" \
+                      "https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_YOLO_From_Tensorflow.html"
+            return {'model_type': {'YOLO': get_YOLO_params_by_flavor(flavor)}}, message
         else:
-            return None
+            return None, None

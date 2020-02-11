@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,6 @@
 #include <ie_util_internal.hpp>
 #include <tests_common.hpp>
 #include <graph_transformer.h>
-#include "ie_utils.hpp"
 #include "blob_factory.hpp"
 #include "debug.h"
 #include "util_test.hpp"
@@ -42,17 +41,17 @@ void RemoveLayerTests::SetUp() {
 //
 IE::details::CNNNetworkImplPtr RemoveLayerTests::getNetwork() {
     return netBuilder
-            .data("data1", IE::SizeVector{3, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data2", IE::SizeVector{3, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data3", IE::SizeVector{3, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data4", IE::SizeVector{3, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data5", IE::SizeVector{3, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data6", IE::SizeVector{3, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data7", IE::SizeVector{3, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data8", IE::SizeVector{3, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data9", IE::SizeVector{3, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data10", IE::SizeVector{3, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data11", IE::SizeVector{3, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
+            .data("data1", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1, 1, 3 }, IE::Layout::CHW))
+            .data("data2", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1, 1, 3 }, IE::Layout::CHW))
+            .data("data3", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1, 1, 3 }, IE::Layout::CHW))
+            .data("data4", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1, 1, 3 }, IE::Layout::CHW))
+            .data("data5", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1, 1, 3 }, IE::Layout::CHW))
+            .data("data6", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1, 1, 3 }, IE::Layout::CHW))
+            .data("data7", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1, 1, 3 }, IE::Layout::CHW))
+            .data("data8", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1, 1, 3 }, IE::Layout::CHW))
+            .data("data9", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1, 1, 3 }, IE::Layout::CHW))
+            .data("data10", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1, 1, 3 }, IE::Layout::CHW))
+            .data("data11", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1, 1, 3 }, IE::Layout::CHW))
             .layer<IE::CNNLayer>(IE::LayerParams{"input1", "input", IE::Precision::FP32})
             .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Input", IE::Precision::FP32})
             .layer<IE::CNNLayer>(IE::LayerParams{"input3", "input", IE::Precision::FP32})
@@ -230,7 +229,10 @@ TEST_F(RemoveLayerTests, canTrimL2) {
 
     auto newLayers = testTransformator->foldConstSubgraphsInternal({{constLayers[0], false}}, constData, sortedLayers);
 
-    ASSERT_EQ(newLayers, refNewLayers);
+    std::vector<std::string> newLayer_names;
+    for (const auto& layer : newLayers) newLayer_names.push_back(layer->name);
+
+    ASSERT_EQ(newLayer_names, refNewLayers);
     IE::CNNNetwork cnnNetwork(net);
     ASSERT_THROW(cnnNetwork.getLayerByName("layer2"), IE::NotFound);
     auto newLayer = cnnNetwork.getLayerByName(refNewLayers[0].c_str());
@@ -270,7 +272,10 @@ TEST_F(RemoveLayerTests, canTrimI1andL1) {
     auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
     auto newLayers = testTransformator->foldConstSubgraphsInternal(mapConstLayers, constData, sortedLayers);
 
-    ASSERT_EQ(newLayers, refNewLayers);
+    std::vector<std::string> newLayer_names;
+    for (auto layer : newLayers) newLayer_names.push_back(layer->name);
+
+    ASSERT_EQ(newLayer_names, refNewLayers);
     IE::CNNNetwork cnnNetwork(net);
     ASSERT_THROW(cnnNetwork.getLayerByName("input1"), IE::NotFound);
     ASSERT_THROW(cnnNetwork.getLayerByName("layer1"), IE::NotFound);
@@ -399,7 +404,7 @@ TEST_F(RemoveLayerTests, canTrimShapeInput) {
     auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
     auto mapConstLayers = testTransformator->getConstLayers(sortedLayers);
     auto newLayers = testTransformator->foldConstSubgraphsInternal(mapConstLayers, {}, sortedLayers);
-    testTransformator->trimShapeInputs(newLayers);
+    testTransformator->trimShapeInputs(newLayers, sortedLayers);
 
     ASSERT_EQ(nullptr, net->getData("data5"));
     ASSERT_EQ(nullptr, net->getData("data2"));
@@ -416,8 +421,8 @@ TEST_F(RemoveLayerTests, canTrimShapeInput) {
 }
 
 TEST_F(RemoveLayerTests, canTrimShapeInput2) {
-    std::vector<std::string> constLayers = {"input3", "input2"};
-    for (const auto& name : constLayers) {
+    std::vector<std::string> constLayer_names = {"input3", "input2"};
+    for (const auto& name : constLayer_names) {
         getLayer(name)->type = "Const";
     }
     auto layer1 = getLayer("layer1");
@@ -425,7 +430,12 @@ TEST_F(RemoveLayerTests, canTrimShapeInput2) {
     layer1->type = "Resample";
     layer2->type = "StridedSlice";
 
-    testTransformator->trimShapeInputs(constLayers);
+    std::vector<InferenceEngine::CNNLayerPtr> constLayers;
+    for (auto &const_input_name : constLayer_names)
+        constLayers.push_back(getLayer(const_input_name));
+
+    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    testTransformator->trimShapeInputs(constLayers, sortedLayers);
 
     auto data6 = net->getData("data6");
     auto data2 = net->getData("data2");
@@ -442,18 +452,19 @@ TEST_F(RemoveLayerTests, canTrimShapeInput2) {
 
 TEST_F(RemoveLayerTests, notTrimFirstConstInput) {
     std::vector<std::string> testLayers = {"Interp", "Reshape", "Pad", "Gather", "Resample"};
-    std::string constLayer = "input4";
-    getLayer(constLayer)->type = "Const";
+    auto constLayer = getLayer("input4");
+    constLayer->type = "Const";
     auto layer6 = getLayer("layer6");
     auto data10 = getData("data10");
     for (const auto& name: testLayers) {
         layer6->type = name;
 
-        testTransformator->trimShapeInputs({constLayer});
+        auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+        testTransformator->trimShapeInputs({constLayer}, sortedLayers);
 
         ASSERT_EQ(net->allLayers().size(), originalLayersNum);
         IE::CNNNetwork cnnNetwork(net);
-        auto input4 = cnnNetwork.getLayerByName(constLayer.c_str());
+        auto input4 = cnnNetwork.getLayerByName(constLayer->name.c_str());
         ASSERT_EQ(data10->getInputTo().size(), 1);
         ASSERT_EQ(data10->getCreatorLayer().lock(), input4);
         ASSERT_EQ(layer6->insData.size(), 2);
@@ -469,7 +480,8 @@ TEST_F(RemoveLayerTests, canSaveConstForEltWise) {
     input2->type = "Const";
     layer1->type = "Eltwise";
 
-    testTransformator->trimShapeInputs({input2->name});
+    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    testTransformator->trimShapeInputs({input2}, sortedLayers);
 
     IE::CNNNetwork cnnNetwork(net);
     ASSERT_NO_THROW(input2 = cnnNetwork.getLayerByName(input2->name.c_str()));
@@ -489,7 +501,8 @@ TEST_F(RemoveLayerTests, canSaveDataWithMultipleInputTo) {
     input3->type = "Const";
     layer2->type = "Reshape";
 
-    testTransformator->trimShapeInputs({input3->name});
+    auto sortedLayers = IE::details::CNNNetSortTopologically(*net);
+    testTransformator->trimShapeInputs({input3}, sortedLayers);
 
     IE::CNNNetwork cnnNetwork(net);
     ASSERT_NO_THROW(input3 = cnnNetwork.getLayerByName(input3->name.c_str()));
@@ -516,8 +529,11 @@ TEST_F(RemoveLayerTests, canFoldConstSubgraphToConst) {
     auto mapConstLayers = testTransformator->getConstLayers(sortedLayers);
     auto newLayers = testTransformator->foldConstSubgraphsInternal(mapConstLayers, {}, sortedLayers);
 
+    std::vector<std::string> newLayer_names;
+    for (auto layer : newLayers) newLayer_names.push_back(layer->name);
+
     ASSERT_EQ(net->allLayers().size(), originalLayersNum - 7);
-    ASSERT_EQ(newLayers, refNewLayers);
+    ASSERT_EQ(newLayer_names, refNewLayers);
     IE::CNNNetwork cnnNetwork(net);
     auto newLayer = cnnNetwork.getLayerByName(refNewLayers[0].c_str());
     ASSERT_EQ(newLayer->type, "Const");
@@ -660,16 +676,40 @@ TEST_F(RemoveLayerTests, canFullTrim) {
     ASSERT_EQ(layer6->insData[0].lock(), getData("data10"));
 }
 
-TEST_F(RemoveLayerTests, canFullTrimConstToReshape) {
+TEST_F(AdvancedShapeInferTests, canFullTrimConstToReshape) {
+    //
+    //      I2-d2
+    //          \
+    //  I1-d1-Reshape-d3-L2-d4
+    //
+    net = netBuilder
+            .data("data1", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{3, 1, 1}, IE::Layout::CHW))
+            .data("data2", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{3}, IE::Layout::C))
+            .data("data3", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 1}, IE::Layout::CHW))
+            .data("data4", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 1}, IE::Layout::CHW))
+            .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Input", IE::Precision::I32})
+            .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Input", IE::Precision::FP32})
+            .layer<IE::CNNLayer>(IE::LayerParams{"layer1", "Reshape", IE::Precision::FP32})
+            .layer<IE::CNNLayer>(IE::LayerParams{"layer2", "dummy", IE::Precision::FP32})
+            .linkToData("input1", "data1")
+            .linkToData("input2", "data2")
+            .linkDataTo("data1", "layer1")
+            .linkDataTo("data2", "layer1")
+            .linkToData("layer1", "data3")
+            .linkDataTo("data3", "layer2")
+            .linkToData("layer2", "data4")
+            .addInput("data1")
+            .addInput("data2")
+            .finalize();
+
     IE::BlobMap refBlobs = initConstLayers({"input2"});
     auto layer1 = getLayer("layer1");
-    layer1->type = "Reshape";
 
     IE::ConstTransformer transformator(net.get());
     transformator.fullTrim();
 
     IE::CNNNetwork cnnNetwork(net);
-    ASSERT_EQ(net->allLayers().size(), originalLayersNum);
+    ASSERT_EQ(net->allLayers().size(), 3);
     ASSERT_EQ(layer1->insData.size(), 1);
     ASSERT_EQ(layer1->insData[0].lock(), getData("data1"));
 }
@@ -683,10 +723,10 @@ TEST_F(AdvancedShapeInferTests, canReshape) {
     //  I1-d1-Reshape-d4
     //
     net = netBuilder
-            .data("data1", IE::SizeVector{1, 1, 3}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data2", IE::SizeVector{1, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data3", IE::SizeVector{1}, IE::Precision::FP32, IE::Layout::C)
-            .data("data4", IE::SizeVector{1, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
+            .data("data1", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{3, 1, 1}, IE::Layout::CHW))
+            .data("data2", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 1}, IE::Layout::CHW))
+            .data("data3", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1}, IE::Layout::C))
+            .data("data4", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 1}, IE::Layout::CHW))
             .layer<IE::CNNLayer>(IE::LayerParams{"input1", "input", IE::Precision::FP32})
             .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Input", IE::Precision::FP32})
             .layer<IE::CNNLayer>(IE::LayerParams{"layer1", "Reshape", IE::Precision::FP32})
@@ -728,14 +768,14 @@ TEST_F(AdvancedShapeInferTests, canReshape2) {
     //                                   I1-d1-Reshape(L1)-d8
     //
     net = netBuilder
-            .data("data1", IE::SizeVector{1}, IE::Precision::FP32, IE::Layout::C)
-            .data("data2", IE::SizeVector{1, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data3", IE::SizeVector{1, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data4", IE::SizeVector{1}, IE::Precision::FP32, IE::Layout::C)
-            .data("data5", IE::SizeVector{1}, IE::Precision::FP32, IE::Layout::C)
-            .data("data6", IE::SizeVector{1}, IE::Precision::FP32, IE::Layout::C)
-            .data("data7", IE::SizeVector{1}, IE::Precision::FP32, IE::Layout::C)
-            .data("data8", IE::SizeVector{1, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
+            .data("data1", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1}, IE::Layout::C))
+            .data("data2", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 1}, IE::Layout::CHW))
+            .data("data3", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 1}, IE::Layout::CHW))
+            .data("data4", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1}, IE::Layout::C))
+            .data("data5", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1}, IE::Layout::C))
+            .data("data6", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1}, IE::Layout::C))
+            .data("data7", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1}, IE::Layout::C))
+            .data("data8", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 1}, IE::Layout::CHW))
             .layer<IE::CNNLayer>(IE::LayerParams{"input1", "input", IE::Precision::FP32})
             .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Input", IE::Precision::FP32})
             .layer<IE::CNNLayer>(IE::LayerParams{"input3", "Input", IE::Precision::FP32})
@@ -801,9 +841,9 @@ TEST_F(AdvancedShapeInferTests, canReshapeConst) {
     // I1-d1-Reshape(L1)-d3
     //
     net = netBuilder
-            .data("data1", IE::SizeVector{1}, IE::Precision::FP32, IE::Layout::C)
-            .data("data2", IE::SizeVector{3}, IE::Precision::FP32, IE::Layout::C)
-            .data("data3", IE::SizeVector{1, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
+            .data("data1", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1 }, IE::Layout::C))
+            .data("data2", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 3 }, IE::Layout::C))
+            .data("data3", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{ 1, 1, 1 }, IE::Layout::CHW))
             .layer<IE::CNNLayer>(IE::LayerParams{"input1", "input", IE::Precision::FP32})
             .layer<IE::CNNLayer>(IE::LayerParams{"const1", "dummy", IE::Precision::FP32})
             .layer<IE::CNNLayer>(IE::LayerParams{"layer1", "Reshape", IE::Precision::FP32})
@@ -839,8 +879,8 @@ TEST_F(AdvancedShapeInferTests, canReshapeCHWConst) {
     //    Const-d1-Tile-d2
     //
     net = netBuilder
-            .data("data1", IE::SizeVector{3, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
-            .data("data2", IE::SizeVector{1, 1, 1}, IE::Precision::FP32, IE::Layout::CHW)
+            .data("data1", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 3}, IE::Layout::CHW))
+            .data("data2", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1, 1, 1}, IE::Layout::CHW))
             .layer<IE::CNNLayer>(IE::LayerParams{"const", "dummy", IE::Precision::FP32})
             .layer<IE::CNNLayer>(IE::LayerParams{"tile", "Tile", IE::Precision::FP32})
             .linkToData("const", "data1")
@@ -867,9 +907,9 @@ TEST_F(AdvancedShapeInferTests, canReshapeWithScalar) {
     // I1-d1-Reshape(L1)-d3
     //
     net = netBuilder
-            .data("data1", IE::SizeVector{1}, IE::Precision::FP32, IE::Layout::C)
-            .data("data2", IE::SizeVector{}, IE::Precision::FP32, IE::Layout::SCALAR)
-            .data("data3", IE::SizeVector{1}, IE::Precision::FP32, IE::Layout::C)
+            .data("data1", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1}, IE::Layout::C))
+            .data("data2", IE::TensorDesc(IE::Precision::FP32, IE::Layout::SCALAR))
+            .data("data3", IE::TensorDesc(IE::Precision::FP32, IE::SizeVector{1}, IE::Layout::C))
             .layer<IE::CNNLayer>(IE::LayerParams{"input1", "input", IE::Precision::FP32})
             .layer<IE::CNNLayer>(IE::LayerParams{"scalar", "dummy", IE::Precision::FP32})
             .layer<IE::CNNLayer>(IE::LayerParams{"layer1", "Reshape", IE::Precision::FP32})
@@ -907,10 +947,10 @@ TEST_F(AdvancedShapeInferTests, canFoldConstWithOneHot) {
     auto testFunc = [&](IE::Precision precision) {
         netBuilder = NetBuilder();
         net = netBuilder
-                .data("data1", IE::SizeVector{2}, precision, IE::Layout::C)
-                .data("data2", IE::SizeVector{2, 10}, precision, IE::Layout::NC)
-                .data("data3", IE::SizeVector{2, 10}, precision, IE::Layout::NC)
-                .data("data4", IE::SizeVector{2, 10}, precision, IE::Layout::NC)
+                .data("data1", IE::TensorDesc(precision, IE::SizeVector{2}, IE::Layout::C))
+                .data("data2", IE::TensorDesc(precision, IE::SizeVector{10, 2}, IE::Layout::NC))
+                .data("data3", IE::TensorDesc(precision, IE::SizeVector{10, 2}, IE::Layout::NC))
+                .data("data4", IE::TensorDesc(precision, IE::SizeVector{10, 2}, IE::Layout::NC))
                 .layer<IE::CNNLayer>(IE::LayerParams{"const", "dummy", precision})
                 .layer<IE::CNNLayer>(IE::LayerParams{"oneHot", "OneHot", precision})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input", "input", precision})
@@ -960,9 +1000,9 @@ TEST_F(AdvancedShapeInferTests, MulWithTensorConstInferTest) {
 
         netBuilder = NetBuilder();
         net = netBuilder
-                .data("data1", IE::SizeVector{2, 2}, precisionInData1, IE::Layout::NC)
-                .data("data2", IE::SizeVector{2, 2}, precisionInData2, IE::Layout::NC)
-                .data("data3", IE::SizeVector{2, 2}, precisionOutData, IE::Layout::NC)
+                .data("data1", IE::TensorDesc(precisionInData1, IE::SizeVector{2, 2}, IE::Layout::NC))
+                .data("data2", IE::TensorDesc(precisionInData2, IE::SizeVector{2, 2}, IE::Layout::NC))
+                .data("data3", IE::TensorDesc(precisionOutData, IE::SizeVector{2, 2}, IE::Layout::NC))
                 .layer<IE::CNNLayer>(IE::LayerParams{"mulLayer", "Eltwise"})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", precisionInData1})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", precisionInData2})
@@ -1070,9 +1110,9 @@ TEST_F(AdvancedShapeInferTests, MulWithScalarConstInferTest) {
 
         netBuilder = NetBuilder();
         net = netBuilder
-                .data("data1", IE::SizeVector{2, 2}, precisionInData1, IE::Layout::NC)
-                .data("data2", IE::SizeVector{}, precisionInData2, IE::Layout::SCALAR)
-                .data("data3", IE::SizeVector{2, 2}, precisionOutData, IE::Layout::NC)
+                .data("data1", IE::TensorDesc(precisionInData1, IE::SizeVector{2, 2}, IE::Layout::NC))
+                .data("data2", IE::TensorDesc(precisionInData2, IE::Layout::SCALAR))
+                .data("data3", IE::TensorDesc(precisionOutData, IE::SizeVector{2, 2}, IE::Layout::NC))
                 .layer<IE::CNNLayer>(IE::LayerParams{"mulLayer", "Eltwise"})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", precisionInData1})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", precisionInData2})
@@ -1179,9 +1219,9 @@ TEST_F(AdvancedShapeInferTests, AddWithScalarConstInferTest) {
 
         netBuilder = NetBuilder();
         net = netBuilder
-                .data("data1", IE::SizeVector{2, 2}, precisionInData1, IE::Layout::NC)
-                .data("data2", IE::SizeVector{}, precisionInData2, IE::Layout::SCALAR)
-                .data("data3", IE::SizeVector{2, 2}, precisionOutData, IE::Layout::NC)
+                .data("data1", IE::TensorDesc(precisionInData1, IE::SizeVector{2, 2}, IE::Layout::NC))
+                .data("data2", IE::TensorDesc(precisionInData2, IE::Layout::SCALAR))
+                .data("data3", IE::TensorDesc(precisionOutData, IE::SizeVector{2, 2},IE::Layout::NC))
                 .layer<IE::CNNLayer>(IE::LayerParams{"addLayer", "Eltwise"})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", precisionInData1})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", precisionInData2})
@@ -1288,9 +1328,9 @@ TEST_F(AdvancedShapeInferTests, AddWithTensorConstInferTest) {
 
         netBuilder = NetBuilder();
         net = netBuilder
-                .data("data1", IE::SizeVector{2, 2}, precisionInData1, IE::Layout::NC)
-                .data("data2", IE::SizeVector{2,2}, precisionInData2, IE::Layout::NC)
-                .data("data3", IE::SizeVector{2, 2}, precisionOutData, IE::Layout::NC)
+                .data("data1", IE::TensorDesc(precisionInData1, IE::SizeVector{2, 2}, IE::Layout::NC))
+                .data("data2", IE::TensorDesc(precisionInData2, IE::SizeVector{2, 2}, IE::Layout::NC))
+                .data("data3", IE::TensorDesc(precisionOutData, IE::SizeVector{2, 2}, IE::Layout::NC))
                 .layer<IE::CNNLayer>(IE::LayerParams{"addLayer", "Eltwise"})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", precisionInData1})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", precisionInData2})
@@ -1397,9 +1437,9 @@ TEST_F(AdvancedShapeInferTests, AddWithBroadcastingConstInferTest) {
 
         netBuilder = NetBuilder();
         net = netBuilder
-                .data("data1", IE::SizeVector{2, 2}, precisionInData1, IE::Layout::NC)
-                .data("data2", IE::SizeVector{1, 2}, precisionInData2, IE::Layout::NC)
-                .data("data3", IE::SizeVector{2, 2}, precisionOutData, IE::Layout::NC)
+                .data("data1", IE::TensorDesc(precisionInData1, IE::SizeVector{2, 2}, IE::Layout::NC))
+                .data("data2", IE::TensorDesc(precisionInData2, IE::SizeVector{2, 1}, IE::Layout::NC))
+                .data("data3", IE::TensorDesc(precisionOutData, IE::SizeVector{2, 2}, IE::Layout::NC))
                 .layer<IE::CNNLayer>(IE::LayerParams{"addLayer", "Eltwise"})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", precisionInData1})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", precisionInData2})
@@ -1506,9 +1546,9 @@ TEST_F(AdvancedShapeInferTests, MulWithBroadcastingConstInferTest) {
 
         netBuilder = NetBuilder();
         net = netBuilder
-                .data("data1", IE::SizeVector{2, 2}, precisionInData1, IE::Layout::NC)
-                .data("data2", IE::SizeVector{1, 2}, precisionInData2, IE::Layout::NC)
-                .data("data3", IE::SizeVector{2, 2}, precisionOutData, IE::Layout::NC)
+                .data("data1", IE::TensorDesc(precisionInData1, IE::SizeVector{ 2, 2 }, IE::Layout::NC))
+                .data("data2", IE::TensorDesc(precisionInData2, IE::SizeVector{ 2, 1 }, IE::Layout::NC))
+                .data("data3", IE::TensorDesc(precisionOutData, IE::SizeVector{ 2, 2 }, IE::Layout::NC))
                 .layer<IE::CNNLayer>(IE::LayerParams{"mulLayer", "Eltwise"})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input1", "Const", precisionInData1})
                 .layer<IE::CNNLayer>(IE::LayerParams{"input2", "Const", precisionInData2})
