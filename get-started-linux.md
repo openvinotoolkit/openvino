@@ -9,7 +9,7 @@ This guide provides you with the information that will help you to start using t
 3. [Run the Image Classification Sample Application with the model](#run-the-image-classification-sample-application)
 
 ## Prerequisites
-1. This guide assumes that you have already cloned the `dldt` repo and successfully built the Inference Engine and Samples using the [build instructions](inference-engine/README.md). 
+1. This guide assumes that you have already cloned the `dldt` repo and successfully built the Inference Engine and Samples using the [build instructions](inference-engine/README.md).
 2. The original structure of the repository directories is kept unchanged.
 
 > **NOTE**: Below, the directory to which the `dldt` repository is cloned is referred to as `<DLDT_DIR>`.  
@@ -37,7 +37,7 @@ You can choose to either configure all supported frameworks at once **OR** confi
 
 1.  Go to the Model Optimizer prerequisites directory:
 ```sh
-cd <DLDT_DIR>/model_optimizer/install_prerequisites
+cd <DLDT_DIR>/model-optimizer/install_prerequisites
 ```
 2.  Run the script to configure the Model Optimizer for Caffe,
     TensorFlow, MXNet, Kaldi\*, and ONNX:
@@ -51,7 +51,7 @@ Configure individual frameworks separately **ONLY** if you did not select **Opti
 
 1.  Go to the Model Optimizer prerequisites directory:
 ```sh
-cd <DLDT_DIR>/model_optimizer/install_prerequisites
+cd <DLDT_DIR>/model-optimizer/install_prerequisites
 ```
 2.  Run the script for your model framework. You can run more than one script:
 
@@ -87,7 +87,7 @@ This paragraph contains the steps to get the pre-trained model for sample infere
 
 ### Download a Trained Model
 
-To run the Image Classification Sample you'll need a pre-trained model to run the inference on. This guide will use the public SqueezeNet 1.1 Caffe* model. You can find and download this model manually or use the OpenVINO™ [Model Downloader](https://github.com/opencv/open_model_zoo/tree/master/model_downloader). 
+To run the Image Classification Sample you'll need a pre-trained model to run the inference on. This guide will use the public SqueezeNet 1.1 Caffe* model. You can find and download this model manually or use the OpenVINO™ [Model Downloader](https://github.com/opencv/open_model_zoo/tree/master/model_downloader).
 
 With the Model Downloader, you can download other popular public deep learning topologies and the [OpenVINO™ pre-trained models](https://github.com/opencv/open_model_zoo/tree/master/intel_models) prepared for running inference for a wide list of inference scenarios: object detection, object recognition, object re-identification, human pose estimation, action recognition and others.
 
@@ -102,7 +102,7 @@ To download the SqueezeNet 1.1 Caffe* model to a models folder with the Model Do
    ###############|| Downloading topologies ||###############
 
    ========= Downloading /home/username/public_models/classification/squeezenet/1.1/caffe/squeezenet1.1.prototxt
-   
+
    ========= Downloading /home/username/public_models/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel
    ... 100%, 4834 KB, 3157 KB/s, 1 seconds passed
 
@@ -115,19 +115,19 @@ To download the SqueezeNet 1.1 Caffe* model to a models folder with the Model Do
 
 > **NOTE**: This section assumes that you have configured the Model Optimizer using the instructions from the [Configure the Model Optimizer](#configure-the-model-optimizer) section.
 
-1. Create a `<ir_dir>` directory that will contains the Intermediate Representation (IR) of the model. 
+1. Create a `<ir_dir>` directory that will contains the Intermediate Representation (IR) of the model.
 
 2. Inference Engine can perform inference on a [list of supported devices](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_supported_plugins_Supported_Devices.html) using specific device plugins. Different plugins support models of [different precision formats](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_supported_plugins_Supported_Devices.html#supported_model_formats), such as FP32, FP16, INT8. To prepare an IR to run inference on a particular hardware, run the Model Optimizer with the appropriate `--data_type` options:
 
    **For CPU (FP32):**
    ```sh  
-   python3 <DLDT_DIR>/model_optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP32 --output_dir <ir_dir>
+   python3 <DLDT_DIR>/model-optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
 
    **For GPU and MYRIAD (FP16):**
    ```sh  
-   python3 <DLDT_DIR>/model_optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP16 --output_dir <ir_dir>
-   ``` 
+   python3 <DLDT_DIR>/model-optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP16 --output_dir <ir_dir>
+   ```
    After the Model Optimizer script is completed, the produced IR files (`squeezenet1.1.xml`, `squeezenet1.1.bin`) are in the specified `<ir_dir>` directory.
 
 3. Copy the `squeezenet1.1.labels` file from the `<DLDT_DIR>/inference-engine/samples/sample_data/` to the model IR directory. This file contains the classes that ImageNet uses so that the inference results show text instead of classification numbers:
@@ -141,7 +141,7 @@ Now you are ready to run the Image Classification Sample Application.
 
 The Inference Engine sample applications are automatically compiled when you built the Inference Engine using the [build instructions](inference-engine/README.md). The binary files are located in the `<DLDT_DIR>/inference-engine/bin/intel64/Release` directory.
 
-Follow the steps below to run the Image Classification sample application on the prepared IR and with an input image: 
+Follow the steps below to run the Image Classification sample application on the prepared IR and with an input image:
 
 1. Go to the samples build directory:
    ```sh
@@ -158,8 +158,8 @@ Follow the steps below to run the Image Classification sample application on the
    ```sh
    ./classification_sample -i <DLDT_DIR>/inference-engine/samples/sample_data/car.png -m <ir_dir>/squeezenet1.1.xml -d GPU
    ```
-   
-   **For MYRIAD:** 
+
+   **For MYRIAD:**
    >**NOTE**: Running inference on VPU devices (Intel® Movidius™ Neural Compute Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires performing [additional hardware configuration steps](inference-engine/README.md#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2).
    ```sh
    ./classification_sample -i <DLDT_DIR>/inference-engine/samples/sample_data/car.png -m <ir_dir>/squeezenet1.1.xml -d MYRIAD
@@ -200,4 +200,4 @@ Throughput: 375.3339402 FPS
 * [Introduction to Intel® Deep Learning Deployment Toolkit](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Introduction.html)
 * [Inference Engine Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html)
 * [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
-* [Inference Engine Samples Overview](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html). 
+* [Inference Engine Samples Overview](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html).
