@@ -317,12 +317,14 @@ install(TARGETS ${TARGET_NAME} ${TARGET_NAME}_nn_builder
         ARCHIVE DESTINATION ${IE_CPACK_LIBRARY_PATH}
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
         COMPONENT core)
-install(FILES "${OpenVINO_BINARY_DIR}/share/ie_parallel.cmake"
+if(DEFINED ${OpenVINO_BINARY_DIR})
+	install(FILES "${OpenVINO_BINARY_DIR}/share/ie_parallel.cmake"
               "${OpenVINO_BINARY_DIR}/share/ie_rh_decoder.cmake"
               "${OpenVINO_BINARY_DIR}/share/InferenceEngineConfig.cmake"
               "${OpenVINO_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
         DESTINATION ${IE_CPACK_IE_DIR}/share
         COMPONENT core)
+endif()
 install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
         DESTINATION ${IE_CPACK_LIBRARY_PATH}
         COMPONENT core)
