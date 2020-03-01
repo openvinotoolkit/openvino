@@ -810,14 +810,15 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     int inputNum = 0;
     for (auto &input : inputs) {
         auto inputLayout = input.second->getTensorDesc().getLayout();
-        if (inputLayout != Layout::NC && inputLayout != Layout::CN && inputLayout != NCHW) {
-            THROW_GNA_EXCEPTION << "Expected input blob to have Layout::NC or Layout::CN, but was: "
+        if (inputLayout != Layout::NC && inputLayout != Layout::CN && inputLayout != NCHW && inputLayout != CHW) {
+            THROW_GNA_EXCEPTION << "Expected input blob to have Layout::NC or Layout::CN or Layout::CHW or Layout::NCHW, but was: "
                                 << input.second->getTensorDesc().getLayout();
         }
-        if (inputLayout == NCHW) {
+        if (inputLayout == NCHW || inputLayout == CHW) {
             inputLayout = NC;
         }
         auto is2D = input.second->getTensorDesc().getLayout() == Layout::NC || input.second->getTensorDesc().getLayout() == Layout::CN;
+        auto is3D = input.second->getTensorDesc().getLayout() == Layout::CHW;
 
         if (!inputsDesc->ptr_inputs_global_id.count(input.first)) {
             // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
@@ -851,10 +852,11 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                      inputsDesc->orientation_in[input.first],
                      dims[0],
                      is2D ? dims[dims.size() - 2] : dims[0],
-                     is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3],
-                     is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3]);
+                     is2D ? dims[dims.size() - 1] : is3D ? dims[dims.size() - 1] * dims[dims.size() - 2] :  dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3] ,
+                     is2D ? dims[dims.size() - 1] : is3D ? dims[dims.size() - 1] * dims[dims.size() - 2] :  dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3]);
 
-        bool isOneChannel = input.second->getTensorDesc().getDims()[1] == 1;
+	bool isOneChannel;
+	is3D ? isOneChannel = input.second->getTensorDesc().getDims()[0] == 1 : input.second->getTensorDesc().getDims()[1] == 1;
         if (((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
             != (inputsDesc->orientation_in[input.first] == kDnnInterleavedOrientation))
             && !isOneChannel) {
@@ -1037,7 +1039,7 @@ Blob::Ptr GNAPlugin::GetInputBlob(const std::string& name, InferenceEngine::Prec
     // need to have intermediate blob for interleave conversion
     // TODO: NCHW format support is experimental = c++ MO did insert reshape, while TF mo - not
     auto inputDims = inputsDataMap[name]->getTensorDesc().getDims();
-    inputBlob = make_blob_with_precision(TensorDesc(precision, inputDims, inputDims.size() == 2 ? NC : NCHW));
+    inputBlob = make_blob_with_precision(TensorDesc(precision, inputDims, inputDims.size() == 2 ? NC : inputDims.size() == 3 ? CHW : NCHW));
     inputBlob->allocate();
     return inputBlob;
 }
