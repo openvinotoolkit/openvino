@@ -34,31 +34,30 @@ struct GraphDesc {
 };
 
 class MyriadExecutor {
-    Logger::Ptr _log;
-    unsigned int _numStages = 0;
-
 public:
-    explicit MyriadExecutor(const Logger::Ptr& log);
+    MyriadExecutor(const DevicePtr& device, const Logger::Ptr& log);
     ~MyriadExecutor() = default;
 
-    void allocateGraph(DevicePtr &device,
-                       GraphDesc &graphDesc,
-                       const std::vector<char> &graphFileContent,
+    void allocateGraph(const std::vector<char> &graphFileContent,
                        const std::pair<const char*, size_t> &graphHeaderDesc,
                        size_t numStages,
-                       const std::string & networkName,
+                       const std::string& networkName,
                        int executors);
 
-    void deallocateGraph(DevicePtr &device, GraphDesc &graphDesc);
+    void deallocateGraph();
 
-    void queueInference(GraphDesc &graphDesc, void *input_data, size_t input_bytes,
+    void queueInference(void *input_data, size_t input_bytes,
                         void *result_data, size_t result_bytes);
 
-    void getResult(GraphDesc &graphDesc, void *result_data, unsigned int result_bytes);
+    void getResult(void *result_data, unsigned int result_bytes);
 
-    std::vector<float> getPerfTimeInfo(ncGraphHandle_t *graphHandle);
+    std::vector<float> getPerfTimeInfo();
 
-    static float GetThermal(const DevicePtr& device);
+private:
+    DevicePtr    m_device;
+    Logger::Ptr  m_log;
+    GraphDesc    m_graphDesc;
+    unsigned int m_numStages = 0;
 };
 
 using MyriadExecutorPtr = std::shared_ptr<MyriadExecutor>;

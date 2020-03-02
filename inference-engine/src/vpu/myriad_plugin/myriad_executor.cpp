@@ -30,34 +30,35 @@ using namespace std;
 using namespace vpu;
 
 MyriadExecutor::MyriadExecutor(
+    const DevicePtr& device,
     const Logger::Ptr& log) :
-    _log(log) {}
+    m_device(device),
+    m_log(log) {}
 
-void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
-                                   const std::vector<char> &graphFileContent,
+void MyriadExecutor::allocateGraph(const std::vector<char> &graphFileContent,
                                    const std::pair<const char*, size_t> &graphHeaderDesc,
-                                   size_t numStages, const std::string & networkName, int executors) {
+                                   size_t numStages, const std::string& networkName, int executors) {
     VPU_PROFILE(allocateGraph);
-    _numStages = numStages;
-    graphDesc._name = networkName;
-    if (device->_deviceHandle == nullptr) {
+    m_numStages = numStages;
+    m_graphDesc._name = networkName;
+    if (m_device->_deviceHandle == nullptr) {
         THROW_IE_EXCEPTION << "Failed to allocate graph: MYRIAD device is not opened.";
     }
 
     ncStatus_t status;
 
-    status = ncGraphCreate(networkName.c_str(), &graphDesc._graphHandle);
+    status = ncGraphCreate(networkName.c_str(), &m_graphDesc._graphHandle);
     if (status != NC_OK) {
         THROW_IE_EXCEPTION << "Failed to init graph: " << Mvnc::ncStatusToStr(nullptr, status);
     }
 
-    status = ncGraphSetOption(graphDesc._graphHandle, NC_RW_GRAPH_EXECUTORS_NUM, &executors, sizeof(executors));
+    status = ncGraphSetOption(m_graphDesc._graphHandle, NC_RW_GRAPH_EXECUTORS_NUM, &executors, sizeof(executors));
     if (status != NC_OK) {
         THROW_IE_EXCEPTION << "Failed to set graph executors: " << Mvnc::ncStatusToStr(nullptr, status);
     }
 
-    status = ncGraphAllocate(device->_deviceHandle,
-                             graphDesc._graphHandle,
+    status = ncGraphAllocate(m_device->_deviceHandle,
+                             m_graphDesc._graphHandle,
                              graphFileContent.data(),
                              static_cast<unsigned int>(graphFileContent.size()),
                              graphHeaderDesc.first,
@@ -69,60 +70,85 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
     unsigned int dataLength = sizeof(int);
 
     int numInputs = 0;
-    status = ncGraphGetOption(graphDesc._graphHandle, NC_RO_GRAPH_INPUT_COUNT, &numInputs, &dataLength);
+    status = ncGraphGetOption(m_graphDesc._graphHandle, NC_RO_GRAPH_INPUT_COUNT, &numInputs, &dataLength);
     if (status != NC_OK) {
-        THROW_IE_EXCEPTION << "Failed to get number of inputs: " << Mvnc::ncStatusToStr(graphDesc._graphHandle, status);
+        THROW_IE_EXCEPTION << "Failed to get number of inputs: " << Mvnc::ncStatusToStr(m_graphDesc._graphHandle, status);
     }
     if (numInputs != 1) {
         THROW_IE_EXCEPTION << "Unsupported number of inputs: " << numInputs;
     }
 
     int numOutputs = 0;
-    status = ncGraphGetOption(graphDesc._graphHandle, NC_RO_GRAPH_OUTPUT_COUNT, &numOutputs, &dataLength);
+    status = ncGraphGetOption(m_graphDesc._graphHandle, NC_RO_GRAPH_OUTPUT_COUNT, &numOutputs, &dataLength);
     if (status != NC_OK) {
-        THROW_IE_EXCEPTION << "Failed to get number of outputs: " << Mvnc::ncStatusToStr(graphDesc._graphHandle, status);
+        THROW_IE_EXCEPTION << "Failed to get number of outputs: " << Mvnc::ncStatusToStr(m_graphDesc._graphHandle, status);
     }
     if (numOutputs != 1) {
         THROW_IE_EXCEPTION << "Unsupported number of outputs: " << numOutputs;
     }
 
     dataLength = sizeof(ncTensorDescriptor_t);
-    status = ncGraphGetOption(graphDesc._graphHandle, NC_RO_GRAPH_INPUT_TENSOR_DESCRIPTORS, &graphDesc._inputDesc,
+    status = ncGraphGetOption(m_graphDesc._graphHandle, NC_RO_GRAPH_INPUT_TENSOR_DESCRIPTORS, &m_graphDesc._inputDesc,
                               &dataLength);
     if (status != NC_OK) {
-        THROW_IE_EXCEPTION << "Failed to get input description: " << Mvnc::ncStatusToStr(graphDesc._graphHandle, status);
+        THROW_IE_EXCEPTION << "Failed to get input description: " << Mvnc::ncStatusToStr(m_graphDesc._graphHandle, status);
     }
 
-    status = ncGraphGetOption(graphDesc._graphHandle, NC_RO_GRAPH_OUTPUT_TENSOR_DESCRIPTORS, &graphDesc._outputDesc,
+    status = ncGraphGetOption(m_graphDesc._graphHandle, NC_RO_GRAPH_OUTPUT_TENSOR_DESCRIPTORS, &m_graphDesc._outputDesc,
                               &dataLength);
     if (status != NC_OK) {
-        THROW_IE_EXCEPTION << "Failed to get output description: " << Mvnc::ncStatusToStr(graphDesc._graphHandle, status);
+        THROW_IE_EXCEPTION << "Failed to get output description: " << Mvnc::ncStatusToStr(m_graphDesc._graphHandle, status);
     }
 
-    unsigned int fifo_elements = (device->_platform == NC_MYRIAD_2 && executors == 1) ? 4 : 2 * executors;
+    unsigned int fifo_elements = (m_device->_platform == NC_MYRIAD_2 && executors == 1) ? 4 : 2 * executors;
 
-    status = ncFifoCreate("input", NC_FIFO_HOST_WO, &graphDesc._inputFifoHandle);
+    status = ncFifoCreate("input", NC_FIFO_HOST_WO, &m_graphDesc._inputFifoHandle);
     if (status != NC_OK) {
-        THROW_IE_EXCEPTION << "Failed to init input FIFO: " << Mvnc::ncStatusToStr(graphDesc._graphHandle, status);
+        THROW_IE_EXCEPTION << "Failed to init input FIFO: " << Mvnc::ncStatusToStr(m_graphDesc._graphHandle, status);
     }
 
-    status = ncFifoAllocate(graphDesc._inputFifoHandle, device->_deviceHandle, &graphDesc._inputDesc, fifo_elements);
+    status = ncFifoAllocate(m_graphDesc._inputFifoHandle, m_device->_deviceHandle, &m_graphDesc._inputDesc, fifo_elements);
     if (status != NC_OK) {
-        THROW_IE_EXCEPTION << "Failed to create input FIFO: " << Mvnc::ncStatusToStr(graphDesc._graphHandle, status);
+        THROW_IE_EXCEPTION << "Failed to create input FIFO: " << Mvnc::ncStatusToStr(m_graphDesc._graphHandle, status);
     }
 
-    status = ncFifoCreate("output", NC_FIFO_HOST_RO, &graphDesc._outputFifoHandle);
+    status = ncFifoCreate("output", NC_FIFO_HOST_RO, &m_graphDesc._outputFifoHandle);
     if (status != NC_OK) {
-        THROW_IE_EXCEPTION << "Failed to init output FIFO: " << Mvnc::ncStatusToStr(graphDesc._graphHandle, status);
+        THROW_IE_EXCEPTION << "Failed to init output FIFO: " << Mvnc::ncStatusToStr(m_graphDesc._graphHandle, status);
     }
 
-    status = ncFifoAllocate(graphDesc._outputFifoHandle, device->_deviceHandle, &graphDesc._outputDesc, fifo_elements);
+    status = ncFifoAllocate(m_graphDesc._outputFifoHandle, m_device->_deviceHandle, &m_graphDesc._outputDesc, fifo_elements);
     if (status != NC_OK) {
-        THROW_IE_EXCEPTION << "Failed to create output FIFO: " << Mvnc::ncStatusToStr(graphDesc._graphHandle, status);
+        THROW_IE_EXCEPTION << "Failed to create output FIFO: " << Mvnc::ncStatusToStr(m_graphDesc._graphHandle, status);
     }
 }
 
-void MyriadExecutor::queueInference(GraphDesc &graphDesc, void *input_data, size_t input_bytes,
+void MyriadExecutor::deallocateGraph() {
+    VPU_PROFILE(deallocateGraph);
+    if (m_graphDesc._inputFifoHandle != nullptr) {
+        auto res = ncFifoDestroy(&m_graphDesc._inputFifoHandle);
+        if (res != NC_OK)
+            m_log->warning("ncFifoDelete result %s", Mvnc::ncStatusToStr(nullptr, res));
+        m_graphDesc._inputFifoHandle = nullptr;
+    }
+    if (m_graphDesc._outputFifoHandle != nullptr) {
+        auto res = ncFifoDestroy(&m_graphDesc._outputFifoHandle);
+        if (res != NC_OK)
+            m_log->warning("ncFifoDelete result %s", Mvnc::ncStatusToStr(nullptr, res));
+        m_graphDesc._outputFifoHandle = nullptr;
+    }
+    if (m_graphDesc._graphHandle != nullptr) {
+        auto res = ncGraphDestroy(&m_graphDesc._graphHandle);
+        if (res !=NC_OK)
+            m_log->warning("Deallocate Graph result %s.", Mvnc::ncStatusToStr(nullptr, res));
+        m_graphDesc._graphHandle = nullptr;
+    }
+    if (m_device->_deviceHandle != nullptr) {
+        m_device->_graphNum -= 1;
+    }
+}
+
+void MyriadExecutor::queueInference(void *input_data, size_t input_bytes,
                     void *result_data, size_t result_bytes) {
     VPU_PROFILE(queueInference);
 #ifndef NDEBUG
@@ -135,74 +161,32 @@ void MyriadExecutor::queueInference(GraphDesc &graphDesc, void *input_data, size
     }
 #endif
 
-    if (graphDesc._inputDesc.totalSize != input_bytes) {
+    if (m_graphDesc._inputDesc.totalSize != input_bytes) {
         THROW_IE_EXCEPTION << "Input has unexpected size " << input_bytes << ", expected "
-                           << graphDesc._inputDesc.totalSize;
+                           << m_graphDesc._inputDesc.totalSize;
     }
 
-    ncStatus_t status = ncGraphQueueInferenceWithFifoElem(graphDesc._graphHandle,
-                                graphDesc._inputFifoHandle, graphDesc._outputFifoHandle,
-                                input_data, &graphDesc._inputDesc.totalSize, nullptr);
+    ncStatus_t status = ncGraphQueueInferenceWithFifoElem(m_graphDesc._graphHandle,
+                                m_graphDesc._inputFifoHandle, m_graphDesc._outputFifoHandle,
+                                input_data, &m_graphDesc._inputDesc.totalSize, nullptr);
     if (status != NC_OK) {
-        THROW_IE_EXCEPTION << "Failed to queue inference: " << Mvnc::ncStatusToStr(graphDesc._graphHandle, status);
+        THROW_IE_EXCEPTION << "Failed to queue inference: " << Mvnc::ncStatusToStr(m_graphDesc._graphHandle, status);
     }
 
     if (result_data != nullptr && result_bytes != 0) {
-        getResult(graphDesc, result_data, result_bytes);
+        getResult(result_data, result_bytes);
     }
 }
 
-void MyriadExecutor::getResult(GraphDesc &graphDesc, void *result_data, unsigned int result_bytes) {
+void MyriadExecutor::getResult(void *result_data, unsigned int result_bytes) {
     ncStatus_t status;
     void *userParam = nullptr;
-    status = ncFifoReadElem(graphDesc._outputFifoHandle, result_data, &result_bytes, &userParam);
+    status = ncFifoReadElem(m_graphDesc._outputFifoHandle, result_data, &result_bytes, &userParam);
     if (status != NC_OK) {
-        THROW_IE_EXCEPTION << "Failed to read output from FIFO: " << Mvnc::ncStatusToStr(graphDesc._graphHandle, status);
+        THROW_IE_EXCEPTION << "Failed to read output from FIFO: " << Mvnc::ncStatusToStr(m_graphDesc._graphHandle, status);
     }
 }
 
-void MyriadExecutor::deallocateGraph(DevicePtr &device, GraphDesc &graphDesc) {
-    VPU_PROFILE(deallocateGraph);
-    if (graphDesc._inputFifoHandle != nullptr) {
-        auto res = ncFifoDestroy(&graphDesc._inputFifoHandle);
-        if (res != NC_OK)
-            _log->warning("ncFifoDelete result %s", Mvnc::ncStatusToStr(nullptr, res));
-        graphDesc._inputFifoHandle = nullptr;
-    }
-    if (graphDesc._outputFifoHandle != nullptr) {
-        auto res = ncFifoDestroy(&graphDesc._outputFifoHandle);
-        if (res != NC_OK)
-            _log->warning("ncFifoDelete result %s", Mvnc::ncStatusToStr(nullptr, res));
-        graphDesc._outputFifoHandle = nullptr;
-    }
-    if (graphDesc._graphHandle != nullptr) {
-        auto res = ncGraphDestroy(&graphDesc._graphHandle);
-        if (res !=NC_OK)
-            _log->warning("Deallocate Graph result %s.", Mvnc::ncStatusToStr(nullptr, res));
-        graphDesc._graphHandle = nullptr;
-    }
-    if (device->_deviceHandle != nullptr) {
-        device->_graphNum -= 1;
-    }
-}
-
-float MyriadExecutor::GetThermal(const DevicePtr& device) {
-    unsigned int thermal_stats_len = NC_THERMAL_BUFFER_SIZE;
-    static_assert(NC_THERMAL_BUFFER_SIZE % sizeof(float) == 0,
-                  "NC_THERMAL_BUFFER_SIZE is not divisible by sizeof(float)");
-    float thermal_stats[NC_THERMAL_BUFFER_SIZE / sizeof(float)];
-    ncStatus_t status = ncDeviceGetOption(device->_deviceHandle,
-                                          NC_RO_DEVICE_THERMAL_STATS,
-                                          reinterpret_cast<void *>(&thermal_stats),
-                                          &thermal_stats_len);
-
-    if (status != NC_OK) {
-        THROW_IE_EXCEPTION << "Failed to get thermal stats: " << Mvnc::ncStatusToStr(nullptr, status);
-    } else {
-        return thermal_stats[0];
-    }
-}
-
-std::vector<float> MyriadExecutor::getPerfTimeInfo(ncGraphHandle_t *graphHandle) {
-    return Mvnc::getGraphInfo<float>(graphHandle, NC_RO_GRAPH_TIME_TAKEN, _numStages + 2);
+std::vector<float> MyriadExecutor::getPerfTimeInfo() {
+    return Mvnc::getGraphInfo<float>(m_graphDesc._graphHandle, NC_RO_GRAPH_TIME_TAKEN, m_numStages + 2);
 }

@@ -24,8 +24,7 @@ using namespace InferenceEngine;
 
 #define MEMCPY(dst, src, bytes) std::copy_n((src), (bytes), (dst))
 
-MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
-                                       InferenceEngine::InputsDataMap networkInputs,
+MyriadInferRequest::MyriadInferRequest(InferenceEngine::InputsDataMap networkInputs,
                                        InferenceEngine::OutputsDataMap networkOutputs,
                                        DataInfo& compilerInputsInfo,
                                        DataInfo& compilerOutputsInfo,
@@ -35,8 +34,7 @@ MyriadInferRequest::MyriadInferRequest(GraphDesc &graphDesc,
                                        const MyriadExecutorPtr &executor) :
         InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
         _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
-        _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo),
-        _graphDesc(graphDesc) {
+        _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo) {
     VPU_PROFILE(MyriadInferRequest);
 
     const auto& ioStrides = _config.compileConfig().ioStrides;
@@ -137,7 +135,7 @@ void MyriadInferRequest::InferAsync() {
         }
     }
 
-    _executor->queueInference(_graphDesc, inputBuffer.data(),
+    _executor->queueInference(inputBuffer.data(),
                               _inputInfo.totalSize, nullptr, 0);
 }
 
@@ -195,12 +193,12 @@ void MyriadInferRequest::GetResult() {
         const auto& blob = (*it).second;
 
         if (blob->getTensorDesc().getLayout() == getVpuLayout(name)) {
-            _executor->getResult(_graphDesc, blob->buffer(), blob->byteSize());
+            _executor->getResult(blob->buffer(), blob->byteSize());
             return;
         }
     }
 
-    _executor->getResult(_graphDesc, resultBuffer.data(), resultBuffer.size());
+    _executor->getResult(resultBuffer.data(), resultBuffer.size());
 
     for (const auto& output : _outputs) {
         const auto& ieBlobName = output.first;
@@ -268,7 +266,7 @@ void MyriadInferRequest::GetResult() {
 }
 
 void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
-    auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
+    auto perfInfo = _executor->getPerfTimeInfo();
 
     if (_log->isActive(LogLevel::Info)) {
         if (!perfInfo.empty()) {

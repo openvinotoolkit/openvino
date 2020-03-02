@@ -44,6 +44,23 @@ std::vector<std::string> Mvnc::AvailableDevicesNames() const {
     return availableDevices;
 }
 
+float Mvnc::GetThermal(ncDeviceHandle_t * deviceHandle) {
+    unsigned int thermal_stats_len = NC_THERMAL_BUFFER_SIZE;
+    static_assert(NC_THERMAL_BUFFER_SIZE % sizeof(float) == 0,
+                  "NC_THERMAL_BUFFER_SIZE is not divisible by sizeof(float)");
+    float thermal_stats[NC_THERMAL_BUFFER_SIZE / sizeof(float)];
+    ncStatus_t status = ncDeviceGetOption(deviceHandle,
+                                          NC_RO_DEVICE_THERMAL_STATS,
+                                          reinterpret_cast<void *>(&thermal_stats),
+                                          &thermal_stats_len);
+
+    if (status != NC_OK) {
+        THROW_IE_EXCEPTION << "Failed to get thermal stats: " << Mvnc::ncStatusToStr(nullptr, status);
+    } else {
+        return thermal_stats[0];
+    }
+}
+
 std::string Mvnc::ncStatusToStr(ncGraphHandle_t *graphHandle, ncStatus_t status) {
 #define MVNC_STATUS_TO_STR(E) case E: return #E;
     switch (status) {

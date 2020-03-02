@@ -50,7 +50,7 @@ public:
 
     virtual ~ExecutableNetwork() {
         try {
-            _executor->deallocateGraph(_device, _graphDesc);
+            _executor->deallocateGraph();
         }
         catch (...) {
             std::cerr << "ERROR ~ExecutableNetwork():\n"
@@ -65,7 +65,7 @@ public:
                                << _device->_platform;
         }
 
-        return std::make_shared<MyriadInferRequest>(_graphDesc, networkInputs, networkOutputs,
+        return std::make_shared<MyriadInferRequest>(networkInputs, networkOutputs,
                                                     _inputInfo, _outputInfo,
                                                     _graphMetaData.stagesMeta, _config, _log, _executor);
     }
@@ -76,7 +76,7 @@ public:
                                << _device->_platform;
         }
 
-        auto syncRequestImpl = std::make_shared<MyriadInferRequest>(_graphDesc, _networkInputs, _networkOutputs,
+        auto syncRequestImpl = std::make_shared<MyriadInferRequest>(_networkInputs, _networkOutputs,
                                                                     _inputInfo, _outputInfo,
                                                                     _graphMetaData.stagesMeta, _config, _log,
                                                                     _executor);
@@ -111,9 +111,9 @@ public:
 private:
     Logger::Ptr _log;
     MyriadExecutorPtr _executor;
+    std::string _networkName;
     MyriadDeviceProviderPtr _deviceProvider;
     std::vector<char> _graphBlob;
-    GraphDesc _graphDesc;
     DevicePtr _device;
     GraphMetaInfo _graphMetaData;
     MyriadConfig _config;

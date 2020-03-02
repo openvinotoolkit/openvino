@@ -36,7 +36,7 @@ ExecutableNetwork::ExecutableNetwork(
     _deviceProvider = MyriadDeviceProviderPtr(
         new MyriadDeviceProvider(_config.forceReset(), std::move(mvnc), _log));
     _device = _deviceProvider->openDevice(devicePool, _config);
-    _executor = std::make_shared<MyriadExecutor>(_log);
+    _executor = std::make_shared<MyriadExecutor>(_device, _log);
 
     const auto& compileConfig = config.compileConfig();
     const auto& revision = _device->revision();
@@ -83,8 +83,8 @@ ExecutableNetwork::ExecutableNetwork(
         return;
     }
 
-    auto networkName = network.getName();
-    _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages, networkName, _actualNumExecutors);
+    _networkName = network.getName();
+    _executor->allocateGraph(_graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages, _networkName, _actualNumExecutors);
     if (_config.exclusiveAsyncRequests()) {
         ExecutorManager *executorManager = ExecutorManager::getInstance();
         _taskExecutor = executorManager->getExecutor("MYRIAD");
@@ -92,7 +92,7 @@ ExecutableNetwork::ExecutableNetwork(
 
     for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
         std::stringstream idStream;
-        idStream << networkName << "_TaskExecutorGetResult" << i;
+        idStream << _networkName << "_TaskExecutorGetResult" << i;
         _taskExecutorGetResultIds.emplace(idStream.str());
     }
 }
@@ -125,7 +125,7 @@ void ExecutableNetwork::Import(std::istream& strm,
     _inputInfo  = blobReader.getInputInfo();
     _outputInfo = blobReader.getOutputInfo();
 
-    _executor->allocateGraph(_device, _graphDesc, _graphBlob, blobHeader, numStages, networkName, _actualNumExecutors);
+    _executor->allocateGraph(_graphBlob, blobHeader, numStages, networkName, _actualNumExecutors);
 
     _graphMetaData.stagesMeta.resize(numStages);
     for (auto &meta : _graphMetaData.stagesMeta) {
@@ -167,7 +167,7 @@ ExecutableNetwork::ExecutableNetwork(
 
 void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        result = IE_SET_METRIC(NETWORK_NAME, _graphDesc._name);
+        result = IE_SET_METRIC(NETWORK_NAME, _networkName);
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         result = IE_SET_METRIC(SUPPORTED_METRICS, _supportedMetrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
@@ -175,14 +175,14 @@ void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, Re
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(2u * _actualNumExecutors));
     } else if (name == METRIC_KEY(DEVICE_THERMAL)) {
-        result = IE_SET_METRIC(DEVICE_THERMAL, _executor->GetThermal(_device));
+        result = IE_SET_METRIC(DEVICE_THERMAL, Mvnc::GetThermal(_device->_deviceHandle));
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 }
 
 void ExecutableNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) {
-    auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
+    auto perfInfo = _executor->getPerfTimeInfo();
     graphPtr = buildRuntimeGraph(_graphMetaData, perfInfo);
 }
 

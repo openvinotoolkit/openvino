@@ -31,15 +31,13 @@ class MyriadInferRequest : public InferenceEngine::InferRequestInternal {
     const DataInfo _inputInfo;
     const DataInfo _outputInfo;
 
-    GraphDesc _graphDesc;
     std::vector<uint8_t> resultBuffer;
     std::vector<uint8_t> inputBuffer;
 
 public:
     typedef std::shared_ptr<MyriadInferRequest> Ptr;
 
-    explicit MyriadInferRequest(GraphDesc &_graphDesc,
-                                InferenceEngine::InputsDataMap networkInputs,
+    explicit MyriadInferRequest(InferenceEngine::InputsDataMap networkInputs,
                                 InferenceEngine::OutputsDataMap networkOutputs,
                                 DataInfo& compilerInputsInfo,
                                 DataInfo& compilerOutputsInfo,

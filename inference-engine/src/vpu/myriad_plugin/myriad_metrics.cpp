@@ -91,7 +91,7 @@ std::string MyriadMetrics::FullName(std::string deviceName) const {
 
 float MyriadMetrics::DevicesThermal(const DevicePtr& device) const {
     VPU_THROW_UNLESS(device != nullptr, "No device specified to get its thermal");
-    return MyriadExecutor::GetThermal(device);
+    return Mvnc::GetThermal(device->_deviceHandle);
 }
 
 const std::unordered_set<std::string>& MyriadMetrics::SupportedMetrics() const {
