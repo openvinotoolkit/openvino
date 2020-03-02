@@ -104,7 +104,7 @@ typedef struct
 {
     char* devicePath;
     char* devicePath2;
-    int linkId;
+    linkId_t linkId;
     XLinkProtocol_t protocol;
 } XLinkHandler_t;
 

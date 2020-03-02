@@ -90,7 +90,7 @@ std::string Mvnc::ncStatusToStr(ncGraphHandle_t *graphHandle, ncStatus_t status)
             }
         }
         default:
-            return "UNKNOWN MVNC STATUS";
+            return "UNKNOWN MVNC STATUS: " + std::to_string(status);
     }
 #undef MVNC_STATUS_TO_STR
 }

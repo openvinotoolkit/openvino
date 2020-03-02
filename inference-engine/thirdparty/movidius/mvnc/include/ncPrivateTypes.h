@@ -41,7 +41,6 @@ struct _devicePrivate_t {
     XLinkHandler_t *xlink;
     struct _devicePrivate_t *next;  // Next device in chain
     struct _graphPrivate_t *graphs; // List of associated graphs
-    struct _fifoPrivate_t *fifos;   // List of associated fifos
     streamId_t device_mon_stream_id;
     streamId_t graph_monitor_stream_id;
     streamId_t printf_over_xlink_stream_id;
@@ -86,31 +85,6 @@ struct _graphPrivate_t {
     streamId_t graph_stream_id;
     ncGraphState_t state;
 };
-
-struct _fifoPrivate_t {
-    ncFifoType_t type;
-    int consumer_cnt;
-    uint32_t id;
-    streamId_t streamId;
-    struct ncTensorDescriptor_t graph_tensor_desc;
-    struct ncTensorDescriptor_t host_tensor_desc;
-    struct _devicePrivate_t *dev;
-    struct _fifoPrivate_t *next;
-    char name[NC_MAX_NAME_SIZE];
-    struct _userParamPrivate_t *user_param_in;  //used for write fifo
-    struct _userParamPrivate_t *user_param_out; //used for read fifo
-    int write_count;
-    int consumed_by_graph;
-    int num_elements;
-    int api_read_element;
-    int consumers_remaining;
-    int datasize;
-    int timeout_msec;
-    pthread_mutex_t fifo_mutex;
-    ncFifoState_t state;
-    void* output_data;
-};
-
 
 #if (!defined(_WIN32) && !defined(_WIN64))
 #define PACKED(name) struct __attribute__((packed)) name

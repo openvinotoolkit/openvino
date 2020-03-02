@@ -137,13 +137,7 @@ typedef enum {
 
 typedef struct _devicePrivate_t devicePrivate_t;
 typedef struct _graphPrivate_t graphPrivate_t;
-typedef struct _fifoPrivate_t fifoPrivate_t;
 typedef struct _ncTensorDescriptorPrivate_t ncTensorDescriptorPrivate_t;
-
-struct ncFifoHandle_t {
-    // keep place for public data here
-    fifoPrivate_t* private_data;
-};
 
 struct ncGraphHandle_t {
     // keep place for public data here
@@ -168,11 +162,9 @@ typedef struct ncDeviceOpenParams {
 } ncDeviceOpenParams_t;
 
 typedef enum {
-    NC_FIFO_HOST_RO = 0, // fifo can be read through the API but can not be
-                         // written ( graphs can read and write data )
-    NC_FIFO_HOST_WO = 1, // fifo can be written through the API but can not be
-                         // read (graphs can read but can not write)
-} ncFifoType_t;
+    NC_READ = 0,
+    NC_WRITE = 1,
+} ncChannelType_t;
 
 struct ncTensorDescriptor_t {
     unsigned int n;         // batch size, currently only 1 is supported
@@ -236,29 +228,20 @@ MVNC_EXPORT_API ncStatus_t ncGraphSetOption(struct ncGraphHandle_t *graphHandle,
                                             ncGraphOption_t option, const void *data, unsigned int dataLength);
 MVNC_EXPORT_API ncStatus_t ncGraphGetOption(struct ncGraphHandle_t *graphHandle,
                                             ncGraphOption_t option, void *data, unsigned int *dataLength);
-MVNC_EXPORT_API ncStatus_t ncGraphQueueInference(struct ncGraphHandle_t *graphHandle,
-                            struct ncFifoHandle_t** fifoIn, unsigned int inFifoCount,
-                            struct ncFifoHandle_t** fifoOut, unsigned int outFifoCount);
 
-// Fifo
-MVNC_EXPORT_API ncStatus_t ncFifoCreate(const char *name, ncFifoType_t type,
-                        struct ncFifoHandle_t **fifoHandle);
-MVNC_EXPORT_API ncStatus_t ncFifoAllocate(struct ncFifoHandle_t* fifoHandle,
-                        struct ncDeviceHandle_t* device,
-                        struct ncTensorDescriptor_t* tensorDesc,
-                        unsigned int numElem);
+MVNC_EXPORT_API ncStatus_t ncGraphTrigger(struct ncGraphHandle_t *graphHandle,
+                                          unsigned int channelInId,
+                                          unsigned int channelOutId);
 
-MVNC_EXPORT_API ncStatus_t ncFifoDestroy(struct ncFifoHandle_t** fifoHandle);
-MVNC_EXPORT_API ncStatus_t ncFifoWriteElem(struct ncFifoHandle_t* fifoHandle, const void *inputTensor,
-                        unsigned int * inputTensorLength, void *userParam);
-MVNC_EXPORT_API ncStatus_t ncFifoReadElem(struct ncFifoHandle_t* fifoHandle, void *outputData,
-                        unsigned int* outputDataLen, void **userParam);
+MVNC_EXPORT_API ncStatus_t ncIOBufferAllocate(unsigned int    channelId,
+                                              ncChannelType_t channelType,
+                                              const char*     channelName,
+                                              const struct ncDeviceHandle_t *device,
+                                              const struct ncTensorDescriptor_t *tensorDesc,
+                                              unsigned int numElem);
 
-//Helper functions
-MVNC_EXPORT_API ncStatus_t ncGraphQueueInferenceWithFifoElem(struct ncGraphHandle_t *graphHandle,
-                                                             struct ncFifoHandle_t* fifoIn,
-                                                             struct ncFifoHandle_t* fifoOut, const void *inputTensor,
-                                                             unsigned int * inputTensorLength, void *userParam);
+MVNC_EXPORT_API ncStatus_t ncIOBufferDeallocate(unsigned int channelId,
+                                                const struct ncDeviceHandle_t *device);
 
 #ifdef __cplusplus
 }

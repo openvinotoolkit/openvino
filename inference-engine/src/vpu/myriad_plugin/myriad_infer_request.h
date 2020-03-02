@@ -24,6 +24,7 @@ namespace MyriadPlugin {
 
 class MyriadInferRequest : public InferenceEngine::InferRequestInternal {
     MyriadExecutorPtr _executor;
+    InferFuture _inferFuture;
     Logger::Ptr _log;
     std::vector<StageMetaInfo> _stagesMetaData;
     MyriadConfig _config;
@@ -33,6 +34,8 @@ class MyriadInferRequest : public InferenceEngine::InferRequestInternal {
 
     std::vector<uint8_t> resultBuffer;
     std::vector<uint8_t> inputBuffer;
+
+    bool _outputBlobBufferReused;
 
 public:
     typedef std::shared_ptr<MyriadInferRequest> Ptr;
@@ -52,6 +55,9 @@ public:
 
     void
     GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
+
+private:
+    InferenceEngine::Layout getVpuLayout(const std::string& name) const;
 };
 
 }  // namespace MyriadPlugin

@@ -1572,67 +1572,6 @@ static int deallocateGraph(struct _graphPrivate_t *g)
     return -!found;
 }
 
-static int findFifo(struct _fifoPrivate_t *f)
-{
-    if (!f || !f->dev)
-        return 0;
-
-    if (f->dev->fifos == f) {
-        return 1;
-    } else {
-        struct _fifoPrivate_t *fp = f->dev->fifos;
-        while (fp->next) {
-            if (fp->next == f) {
-                return 1;
-            }
-            fp = fp->next;
-        }
-    }
-    return 0;
-}
-
-static int deallocateFifo(struct _fifoPrivate_t *f)
-{
-    int found = 0;
-    if (!f) {
-        return -!found;
-    }
-    // Remove it from the list of the associated device
-    if (f->dev->fifos == f) {
-        f->dev->fifos = f->next;
-        found = 1;
-    } else {
-        struct _fifoPrivate_t *fp = f->dev->fifos;
-        while (fp->next) {
-            if (fp->next == f) {
-                found = 1;
-                fp->next = fp->next->next;
-                break;
-            }
-            fp = fp->next;
-        }
-    }
-
-    // Free it with all its data
-    if (found) {
-        //deallocate on device
-        XLinkCloseStream(f->streamId);
-        struct _userParamPrivate_t *temp;
-        while (f->user_param_in) {
-            temp = f->user_param_in;
-            f->user_param_in = f->user_param_in->next;
-            free(temp);
-        }
-        while (f->user_param_out) {
-            temp = f->user_param_out;
-            f->user_param_out = f->user_param_out->next;
-            free(temp);
-        }
-    }
-    f->state = NC_FIFO_DEALLOCATED;
-    return -!found;
-}
-
 static ncStatus_t destroyDeviceHandle(struct ncDeviceHandle_t **deviceHandlePtr) {
     if (!deviceHandlePtr) {
         mvLog(MVLOG_ERROR, "Handle is NULL");
@@ -1731,14 +1670,6 @@ ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr, WatchdogHndl
               "Graphs on the device hasn't been destroyed! Graphs will be deallocated");
         while (deallocateGraph(d->graphs) != -1) {
             mvLog(MVLOG_INFO, "Graph was deallocated");
-        }
-    }
-    // Deallocate all associated fifos
-    if (d->fifos) {
-        mvLog(MVLOG_WARN,
-              "Fifos on the device hasn't been destroyed! Fifos will be deallocated");
-        while (deallocateFifo(d->fifos) != -1) {
-            mvLog(MVLOG_INFO, "Fifo was deallocated");
         }
     }
 
@@ -1855,6 +1786,308 @@ ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr, WatchdogHndl
     return status;
 }
 
+ncStatus_t ncGlobalSetOption(ncGlobalOption_t option, const void *data,
+                             unsigned int dataLength)
+{
+    if (!data) {
+        mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
+        return NC_INVALID_PARAMETERS;
+    }
+
+    switch (option) {
+        case NC_RW_LOG_LEVEL:
+        {
+            mvLog_t log_level = *(mvLog_t *) data;
+            if (log_level >= MVLOG_LAST || log_level < 0) {
+                mvLog(MVLOG_ERROR, "log_level value is invalid %d\n",
+                      log_level);
+                return NC_INVALID_PARAMETERS;
+            }
+            mvLogLevelSet(*(mvLog_t *) data);
+            mvLogDefaultLevelSet(*(mvLog_t *) data);    //Allow turning off warnings and errors
+        }
+            break;
+        case NC_RO_API_VERSION:
+            mvLog(MVLOG_ERROR, "API version is read-only");
+            return NC_UNAUTHORIZED;
+        case NC_RW_RESET_ALL:
+            if (!initialized)
+                reset_all = *(int*)data;
+            break;
+        case NC_RW_COMMON_TIMEOUT_MSEC: {
+            int gTimeout = *(int *) data;
+            XLinkError_t rc = XLinkSetCommonTimeOutMsec(gTimeout);
+            if (rc) {
+                mvLog(MVLOG_ERROR, "Set global common timeout failed, rc = %s\n", XLinkErrorToStr(rc));
+                return NC_INVALID_PARAMETERS;
+            }
+            break;
+        }
+        case NC_RW_DEVICE_OPEN_TIMEOUT_MSEC: {
+            int gTimeout = *(int *) data;
+            XLinkError_t rc = XLinkSetDeviceOpenTimeOutMsec(gTimeout);
+            if (rc) {
+                mvLog(MVLOG_ERROR, "Set global open device timeout failed, rc = %s\n", XLinkErrorToStr(rc));
+                return NC_INVALID_PARAMETERS;
+            }
+            break;
+        }
+        default:
+            mvLog(MVLOG_ERROR, "No such option");
+            return NC_INVALID_PARAMETERS;
+    }
+
+    return NC_OK;
+}
+
+ncStatus_t ncGlobalGetOption(ncGlobalOption_t option, void *data, unsigned int *dataLength)
+{
+    if (!data || !dataLength) {
+        mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
+        return NC_INVALID_PARAMETERS;
+    }
+    switch (option) {
+        case NC_RW_LOG_LEVEL:
+            *(int *) data = mvLogLevel_ncAPI;
+            *dataLength = sizeof(mvLogLevel_ncAPI);
+            break;
+        case NC_RO_API_VERSION:
+            return NC_UNSUPPORTED_FEATURE;
+            break;
+        case NC_RW_RESET_ALL:
+            *(int*)data = reset_all;
+            *dataLength = sizeof(reset_all);
+            break;
+        default:
+            mvLog(MVLOG_ERROR, "No such option");
+            return NC_INVALID_PARAMETERS;
+    }
+
+    return NC_OK;
+}
+
+static ncStatus_t getDeviceOption(struct _devicePrivate_t *d,
+                                  ncDeviceOption_t option,
+                                  void *data, unsigned int *dataLength)
+{
+    ncStatus_t rc = NC_OK;
+
+    switch (option) {
+        case NC_RO_DEVICE_THERMAL_STATS:
+            if (*dataLength < NC_THERMAL_BUFFER_SIZE) {
+                mvLog(MVLOG_ERROR,
+                      "data length of output buffer (%d) is smaller that required (%d)!\n",
+                      *dataLength, NC_THERMAL_BUFFER_SIZE);
+                *dataLength = NC_THERMAL_BUFFER_SIZE;
+                return NC_INVALID_DATA_LENGTH;
+            }
+            rc = getThermalStats(d);
+            if (rc) {
+                return rc;
+            }
+            mvnc_memcpy((float *) data, *dataLength, &d->thermal_stats[1], NC_THERMAL_BUFFER_SIZE);
+            *dataLength = NC_THERMAL_BUFFER_SIZE;
+            break;
+        case NC_RO_DEVICE_THERMAL_THROTTLING_LEVEL:
+            rc = getThermalStats(d);
+            if (rc) {
+                return rc;
+            }
+            d->throttle_happened = d->thermal_stats[0];
+            *(int *) data = d->throttle_happened;
+            *dataLength = sizeof(int);
+            break;
+        case NC_RO_DEVICE_MEMORY_SIZE:
+            *(int *) data = d->dev_attr.max_memory;
+            *dataLength = sizeof(int);
+            break;
+        case NC_RO_DEVICE_MAX_GRAPH_NUM:
+            *(int *) data = d->dev_attr.max_graphs;
+            *dataLength = sizeof(int);
+            break;
+        case NC_RO_DEVICE_NAME:
+            if (*dataLength < strlen(d->dev_addr) + 1) {
+                mvLog(MVLOG_ERROR,
+                      "data length of output buffer (%d) is smaller that required (%zu)!\n",
+                      *dataLength, strlen(d->dev_addr) + 1);
+                *dataLength = strlen(d->dev_addr) + 1;
+                return NC_INVALID_DATA_LENGTH;
+            }
+            *dataLength = strlen(d->dev_addr) + 1;
+            mv_strncpy((char *) data, *dataLength, d->dev_addr, *dataLength - 1);
+            break;
+        case NC_RO_DEVICE_PLATFORM:
+            if (d->dev_attr.fw_version[1] == 0x2480){
+                *(ncDevicePlatform_t *) data = NC_MYRIAD_X;
+            } else if (d->dev_attr.fw_version[1] == 0x2450) {
+                *(ncDevicePlatform_t *) data = NC_MYRIAD_2;
+            } else {
+                *(ncDevicePlatform_t *) data = NC_ANY_PLATFORM;
+            }
+            *dataLength = sizeof(ncDevicePlatform_t);
+            break;
+        case NC_RO_DEVICE_PROTOCOL:
+            *(ncDeviceProtocol_t *) data = convertProtocolToNC(d->protocol);
+            *dataLength = sizeof(ncDeviceProtocol_t);
+            break;
+        case NC_RO_DEVICE_CURRENT_MEMORY_USED:{
+            uint32_t mem;
+            if (deviceGetDeviceMemory(d, &mem)) {
+                rc = NC_ERROR;
+                break;
+            }
+            *(int *) data = mem;
+            *dataLength = sizeof(int);
+            break;
+        }
+        default:
+            mvLog(MVLOG_ERROR, "No such option");
+            return NC_INVALID_PARAMETERS;
+    }
+    return rc;
+}
+
+static ncStatus_t setDevicePowerConfig(struct _devicePrivate_t *d,
+                                       ncDeviceOption_t option,
+                                       const void *data, unsigned int dataLength){
+    XLinkError_t rc = X_LINK_SUCCESS;
+    deviceCommand_t config;
+
+    if (option != NC_RW_DEVICE_POWER_CONFIG_RESET && option != NC_RW_DEVICE_POWER_CONFIG) {
+        mvLog(MVLOG_ERROR, "No such option");
+        return NC_INVALID_PARAMETERS;
+    }
+
+    config.type = (option == NC_RW_DEVICE_POWER_CONFIG ? DEVICE_SET_POWER_CONFIG : DEVICE_RESET_POWER_CONFIG);
+    config.arg = *(uint32_t*)data;
+
+    rc = XLinkWriteData(d->device_mon_stream_id, (const uint8_t *)&config, sizeof(config));
+
+    if (rc != X_LINK_SUCCESS)
+    {
+        mvLog(MVLOG_ERROR, "Failed to write data, rc: %s", XLinkErrorToStr(rc));
+        return parseXLinkError(rc);
+    }
+
+    return NC_OK;
+}
+
+ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
+                             ncDeviceOption_t option,
+                             const void *data, unsigned int dataLength){
+    ncStatus_t rc = NC_OK;
+    if (!deviceHandle || !data){
+        mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
+        return NC_INVALID_PARAMETERS;
+    }
+    if (dataLength != sizeof(int) && dataLength != sizeof(void*)){
+        mvLog(MVLOG_ERROR, "The dataLength must be %zu or %zu", sizeof(int), sizeof(void*));
+        return NC_INVALID_PARAMETERS;
+    }
+
+    if (option < DEVICE_OPTION_BASE ||
+        option > (DEVICE_OPTION_BASE + OPTION_CLASS_SIZE * NC_OP_ACCESS_LAST)) {
+        mvLog(MVLOG_ERROR, "Option %d is invalid", option);
+        return NC_INVALID_PARAMETERS;
+    }
+
+    ncOptionAccess_t opAccess = getOptionAccess(option, DEVICE_OPTION_BASE);
+    if(opAccess == NC_OP_ACCESS_READ_ONLY) {
+        mvLog(MVLOG_ERROR, "Option is read-only");
+        return NC_UNAUTHORIZED;
+    }
+
+    struct _devicePrivate_t *d = deviceHandle->private_data;
+    GLOBAL_LOCK();
+
+    if (findDevice(d)) {
+        mvLog(MVLOG_ERROR,
+              "This device handle is corrupt or has been destroyed");
+        GLOBAL_UNLOCK();
+
+        return NC_INVALID_HANDLE;
+    }
+
+    if (opAccess != NC_OP_ACCESS_READ_WRITE) {
+        mvLog(MVLOG_ERROR, "There is no such option");
+        return NC_INVALID_PARAMETERS;
+    }
+
+    switch (option) {
+        case NC_RW_DEVICE_POWER_CONFIG:
+        case NC_RW_DEVICE_POWER_CONFIG_RESET:
+        {
+            rc = setDevicePowerConfig(d, option, data, dataLength);
+            break;
+        }
+        default:
+            rc = NC_INVALID_PARAMETERS;
+            mvLog(MVLOG_ERROR, "There is no such option");
+    }
+
+    GLOBAL_UNLOCK();
+    return rc;
+}
+
+//static options can be read before device is open
+static int isDeviceStaticOption(int option)
+{
+    switch (option) {
+        case NC_RO_DEVICE_NAME:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t * deviceHandle,
+                             ncDeviceOption_t option, void *data, unsigned int *dataLength)
+{
+    CHECK_HANDLE_CORRECT(deviceHandle);
+    ncStatus_t rc;
+
+    if (!dataLength || (*dataLength != 0 && !data)) {
+        mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
+        return NC_INVALID_PARAMETERS;
+    }
+
+    if (option < DEVICE_OPTION_BASE ||
+        option > (DEVICE_OPTION_BASE + OPTION_CLASS_SIZE * NC_OP_ACCESS_LAST)) {
+        mvLog(MVLOG_ERROR, "Option %d is invalid", option);
+        return NC_INVALID_PARAMETERS;
+    }
+
+    struct _devicePrivate_t *d = deviceHandle->private_data;
+
+    GLOBAL_LOCK();
+    if (!isDeviceStaticOption(option) && d->state != NC_DEVICE_OPENED) {
+        mvLog(MVLOG_ERROR, "This device hasn't been opened");
+        GLOBAL_UNLOCK();
+        return NC_UNAUTHORIZED;
+    }
+
+    if (!isDeviceStaticOption(option)) {
+        if (findDevice(d)) {
+            mvLog(MVLOG_ERROR,
+                  "This device handle is corrupt or has been destroyed");
+            GLOBAL_UNLOCK();
+            return NC_INVALID_HANDLE;
+        }
+    }
+
+    ncOptionAccess_t opAccess = getOptionAccess(option, DEVICE_OPTION_BASE);
+    if (opAccess != NC_OP_ACCESS_READ_ONLY &&
+        opAccess != NC_OP_ACCESS_READ_WRITE) {
+        mvLog(MVLOG_ERROR, "There is no such option");
+        return NC_INVALID_PARAMETERS;
+    }
+
+    rc = getDeviceOption(d, option, data, dataLength);
+    GLOBAL_UNLOCK();
+
+    return rc;
+}
+
 ncStatus_t ncGraphCreate(const char *name,
                          struct ncGraphHandle_t ** graphHandle)
 {
@@ -1878,13 +2111,12 @@ ncStatus_t ncGraphCreate(const char *name,
     g->batch_size = 1;
     g->dev = NULL;
     g->executors_number = 1;
-    g->started = 0;
     g->state = NC_GRAPH_CREATED;
     *graphHandle = gH;
     return NC_OK;
 }
 
-ncStatus_t trySendCommand(streamId_t graphMonStream, void* buffer, int size) {
+ncStatus_t trySendCommand(streamId_t graphMonStream, const void* buffer, int size) {
     XLinkError_t rc = XLinkWriteData(graphMonStream, (uint8_t*)buffer, size);
     return parseXLinkError(rc);
 }
@@ -1949,6 +2181,31 @@ static void unlockAllInferences() {
         d = d->next;
     }
     return;
+}
+
+ncStatus_t ncSendGraphCommand(struct _devicePrivate_t* devicePrivateData,
+                              const void* cmd, int commandSize) {
+    mvLog(MVLOG_INFO, "Send graph command");
+    CHECK_HANDLE_CORRECT(devicePrivateData);
+
+    CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&devicePrivateData->graph_stream_m));
+
+    ncStatus_t rc = trySendCommand(devicePrivateData->graph_monitor_stream_id, cmd, commandSize);
+    if(rc != 0){
+        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&devicePrivateData->graph_stream_m));
+        mvLog(MVLOG_WARN, "can't send command");
+        return rc;
+    }
+
+    if (checkGraphMonitorResponse(devicePrivateData->graph_monitor_stream_id)) {
+        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&devicePrivateData->graph_stream_m));
+        mvLog(MVLOG_WARN, "myriad NACK\n");
+        return NC_ERROR;
+    }
+
+    CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&devicePrivateData->graph_stream_m));
+
+    return rc;
 }
 
 ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
@@ -2524,939 +2781,77 @@ ncStatus_t ncGraphGetOption(struct ncGraphHandle_t * graphHandle,
     return getGraphOption(g, option, data, dataLength);
 }
 
-ncStatus_t ncGlobalSetOption(ncGlobalOption_t option, const void *data,
-                             unsigned int dataLength)
-{
-    if (!data) {
-        mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
-        return NC_INVALID_PARAMETERS;
-    }
-
-    switch (option) {
-    case NC_RW_LOG_LEVEL:
-        {
-            mvLog_t log_level = *(mvLog_t *) data;
-            if (log_level >= MVLOG_LAST || log_level < 0) {
-                mvLog(MVLOG_ERROR, "log_level value is invalid %d\n",
-                      log_level);
-                return NC_INVALID_PARAMETERS;
-            }
-            mvLogLevelSet(*(mvLog_t *) data);
-            mvLogDefaultLevelSet(*(mvLog_t *) data);    //Allow turning off warnings and errors
-        }
-        break;
-    case NC_RO_API_VERSION:
-        mvLog(MVLOG_ERROR, "API version is read-only");
-        return NC_UNAUTHORIZED;
-    case NC_RW_RESET_ALL:
-        if (!initialized)
-            reset_all = *(int*)data;
-        break;
-    case NC_RW_COMMON_TIMEOUT_MSEC: {
-        int gTimeout = *(int *) data;
-        XLinkError_t rc = XLinkSetCommonTimeOutMsec(gTimeout);
-        if (rc) {
-            mvLog(MVLOG_ERROR, "Set global common timeout failed, rc = %s\n", XLinkErrorToStr(rc));
-            return NC_INVALID_PARAMETERS;
-        }
-        break;
-    }
-    case NC_RW_DEVICE_OPEN_TIMEOUT_MSEC: {
-        int gTimeout = *(int *) data;
-        XLinkError_t rc = XLinkSetDeviceOpenTimeOutMsec(gTimeout);
-        if (rc) {
-            mvLog(MVLOG_ERROR, "Set global open device timeout failed, rc = %s\n", XLinkErrorToStr(rc));
-            return NC_INVALID_PARAMETERS;
-        }
-        break;
-    }
-    default:
-        mvLog(MVLOG_ERROR, "No such option");
-        return NC_INVALID_PARAMETERS;
-    }
-
-    return NC_OK;
-}
-
-ncStatus_t ncGlobalGetOption(ncGlobalOption_t option, void *data, unsigned int *dataLength)
-{
-    if (!data || !dataLength) {
-        mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
-        return NC_INVALID_PARAMETERS;
-    }
-    switch (option) {
-    case NC_RW_LOG_LEVEL:
-        *(int *) data = mvLogLevel_ncAPI;
-        *dataLength = sizeof(mvLogLevel_ncAPI);
-        break;
-    case NC_RO_API_VERSION:
-        return NC_UNSUPPORTED_FEATURE;
-        break;
-    case NC_RW_RESET_ALL:
-        *(int*)data = reset_all;
-        *dataLength = sizeof(reset_all);
-        break;
-    default:
-        mvLog(MVLOG_ERROR, "No such option");
-        return NC_INVALID_PARAMETERS;
-    }
-
-    return NC_OK;
-}
-
-static ncStatus_t getDeviceOption(struct _devicePrivate_t *d,
-                                        ncDeviceOption_t option,
-                                        void *data, unsigned int *dataLength)
-{
-    ncStatus_t rc = NC_OK;
-
-    switch (option) {
-    case NC_RO_DEVICE_THERMAL_STATS:
-        if (*dataLength < NC_THERMAL_BUFFER_SIZE) {
-            mvLog(MVLOG_ERROR,
-                  "data length of output buffer (%d) is smaller that required (%d)!\n",
-                  *dataLength, NC_THERMAL_BUFFER_SIZE);
-            *dataLength = NC_THERMAL_BUFFER_SIZE;
-            return NC_INVALID_DATA_LENGTH;
-        }
-        rc = getThermalStats(d);
-        if (rc) {
-            return rc;
-        }
-        mvnc_memcpy((float *) data, *dataLength, &d->thermal_stats[1], NC_THERMAL_BUFFER_SIZE);
-        *dataLength = NC_THERMAL_BUFFER_SIZE;
-        break;
-    case NC_RO_DEVICE_THERMAL_THROTTLING_LEVEL:
-        rc = getThermalStats(d);
-        if (rc) {
-            return rc;
-        }
-        d->throttle_happened = d->thermal_stats[0];
-        *(int *) data = d->throttle_happened;
-        *dataLength = sizeof(int);
-        break;
-    case NC_RO_DEVICE_MEMORY_SIZE:
-        *(int *) data = d->dev_attr.max_memory;
-        *dataLength = sizeof(int);
-        break;
-    case NC_RO_DEVICE_MAX_GRAPH_NUM:
-        *(int *) data = d->dev_attr.max_graphs;
-        *dataLength = sizeof(int);
-        break;
-    case NC_RO_DEVICE_NAME:
-        if (*dataLength < strlen(d->dev_addr) + 1) {
-            mvLog(MVLOG_ERROR,
-                  "data length of output buffer (%d) is smaller that required (%zu)!\n",
-                  *dataLength, strlen(d->dev_addr) + 1);
-            *dataLength = strlen(d->dev_addr) + 1;
-            return NC_INVALID_DATA_LENGTH;
-        }
-        *dataLength = strlen(d->dev_addr) + 1;
-        mv_strncpy((char *) data, *dataLength, d->dev_addr, *dataLength - 1);
-        break;
-    case NC_RO_DEVICE_PLATFORM:
-        if (d->dev_attr.fw_version[1] == 0x2480){
-            *(ncDevicePlatform_t *) data = NC_MYRIAD_X;
-        } else if (d->dev_attr.fw_version[1] == 0x2450) {
-            *(ncDevicePlatform_t *) data = NC_MYRIAD_2;
-        } else {
-            *(ncDevicePlatform_t *) data = NC_ANY_PLATFORM;
-        }
-        *dataLength = sizeof(ncDevicePlatform_t);
-        break;
-    case NC_RO_DEVICE_PROTOCOL:
-        *(ncDeviceProtocol_t *) data = convertProtocolToNC(d->protocol);
-        *dataLength = sizeof(ncDeviceProtocol_t);
-        break;
-    case NC_RO_DEVICE_CURRENT_MEMORY_USED:{
-            uint32_t mem;
-            if (deviceGetDeviceMemory(d, &mem)) {
-                rc = NC_ERROR;
-                break;
-            }
-            *(int *) data = mem;
-            *dataLength = sizeof(int);
-            break;
-        }
-    default:
-        mvLog(MVLOG_ERROR, "No such option");
-        return NC_INVALID_PARAMETERS;
-    }
-    return rc;
-}
-
-static ncStatus_t setDevicePowerConfig(struct _devicePrivate_t *d,
-                                        ncDeviceOption_t option,
-                                        const void *data, unsigned int dataLength){
-    XLinkError_t rc = X_LINK_SUCCESS;
-    deviceCommand_t config;
-
-    if (option != NC_RW_DEVICE_POWER_CONFIG_RESET && option != NC_RW_DEVICE_POWER_CONFIG) {
-        mvLog(MVLOG_ERROR, "No such option");
-        return NC_INVALID_PARAMETERS;
-    }
-
-    config.type = (option == NC_RW_DEVICE_POWER_CONFIG ? DEVICE_SET_POWER_CONFIG : DEVICE_RESET_POWER_CONFIG);
-    config.arg = *(uint32_t*)data;
-
-    rc = XLinkWriteData(d->device_mon_stream_id, (const uint8_t *)&config, sizeof(config));
-
-    if (rc != X_LINK_SUCCESS)
-    {
-        mvLog(MVLOG_ERROR, "Failed to write data, rc: %s", XLinkErrorToStr(rc));
-        return parseXLinkError(rc);
-    }
-
-    return NC_OK;
-}
-
-ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
-                            ncDeviceOption_t option,
-                            const void *data, unsigned int dataLength){
-    ncStatus_t rc = NC_OK;
-    if (!deviceHandle || !data){
-        mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
-        return NC_INVALID_PARAMETERS;
-    }
-    if (dataLength != sizeof(int) && dataLength != sizeof(void*)){
-        mvLog(MVLOG_ERROR, "The dataLength must be %zu or %zu", sizeof(int), sizeof(void*));
-        return NC_INVALID_PARAMETERS;
-    }
-
-    if (option < DEVICE_OPTION_BASE ||
-        option > (DEVICE_OPTION_BASE + OPTION_CLASS_SIZE * NC_OP_ACCESS_LAST)) {
-        mvLog(MVLOG_ERROR, "Option %d is invalid", option);
-        return NC_INVALID_PARAMETERS;
-    }
-
-    ncOptionAccess_t opAccess = getOptionAccess(option, DEVICE_OPTION_BASE);
-    if(opAccess == NC_OP_ACCESS_READ_ONLY) {
-        mvLog(MVLOG_ERROR, "Option is read-only");
-        return NC_UNAUTHORIZED;
-    }
-
-    struct _devicePrivate_t *d = deviceHandle->private_data;
-    GLOBAL_LOCK();
-
-    if (findDevice(d)) {
-        mvLog(MVLOG_ERROR,
-              "This device handle is corrupt or has been destroyed");
-        GLOBAL_UNLOCK();
-
-        return NC_INVALID_HANDLE;
-    }
-
-    if (opAccess != NC_OP_ACCESS_READ_WRITE) {
-        mvLog(MVLOG_ERROR, "There is no such option");
-        return NC_INVALID_PARAMETERS;
-    }
-
-    switch (option) {
-        case NC_RW_DEVICE_POWER_CONFIG:
-        case NC_RW_DEVICE_POWER_CONFIG_RESET:
-        {
-            rc = setDevicePowerConfig(d, option, data, dataLength);
-            break;
-        }
-        default:
-            rc = NC_INVALID_PARAMETERS;
-            mvLog(MVLOG_ERROR, "There is no such option");
-    }
-
-    GLOBAL_UNLOCK();
-    return rc;
-}
-
-//static options can be read before device is open
-static int isDeviceStaticOption(int option)
-{
-    switch (option) {
-    case NC_RO_DEVICE_NAME:
-        return 1;
-    default:
-        return 0;
-    }
-}
-
-ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t * deviceHandle,
-        ncDeviceOption_t option, void *data, unsigned int *dataLength)
-{
-    CHECK_HANDLE_CORRECT(deviceHandle);
-    ncStatus_t rc;
-
-    if (!dataLength || (*dataLength != 0 && !data)) {
-        mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
-        return NC_INVALID_PARAMETERS;
-    }
-
-    if (option < DEVICE_OPTION_BASE ||
-        option > (DEVICE_OPTION_BASE + OPTION_CLASS_SIZE * NC_OP_ACCESS_LAST)) {
-        mvLog(MVLOG_ERROR, "Option %d is invalid", option);
-        return NC_INVALID_PARAMETERS;
-    }
-
-    struct _devicePrivate_t *d = deviceHandle->private_data;
-
-    GLOBAL_LOCK();
-    if (!isDeviceStaticOption(option) && d->state != NC_DEVICE_OPENED) {
-        mvLog(MVLOG_ERROR, "This device hasn't been opened");
-        GLOBAL_UNLOCK();
-        return NC_UNAUTHORIZED;
-    }
-
-    if (!isDeviceStaticOption(option)) {
-        if (findDevice(d)) {
-            mvLog(MVLOG_ERROR,
-                  "This device handle is corrupt or has been destroyed");
-            GLOBAL_UNLOCK();
-            return NC_INVALID_HANDLE;
-        }
-    }
-
-    ncOptionAccess_t opAccess = getOptionAccess(option, DEVICE_OPTION_BASE);
-    if (opAccess != NC_OP_ACCESS_READ_ONLY &&
-       opAccess != NC_OP_ACCESS_READ_WRITE) {
-        mvLog(MVLOG_ERROR, "There is no such option");
-        return NC_INVALID_PARAMETERS;
-    }
-
-    rc = getDeviceOption(d, option, data, dataLength);
-    GLOBAL_UNLOCK();
-
-    return rc;
-}
-
-static int fifoWriteAccess(struct _fifoPrivate_t *fifoHandle)
-{
-    if (fifoHandle->type == NC_FIFO_HOST_WO) {
-        return 1;
-    }
-    return 0;
-}
-
-static int fifoReadAccess(struct _fifoPrivate_t *fifoHandle)
-{
-    if (fifoHandle->type == NC_FIFO_HOST_RO) {
-        return 1;
-    }
-    return 0;
-}
-
-ncStatus_t ncFifoCreate(const char *name, ncFifoType_t type,
-                        struct ncFifoHandle_t ** fifoHandle)
-{
-    mvLog(MVLOG_INFO, "Init fifo");
-    CHECK_HANDLE_CORRECT(fifoHandle);
-    CHECK_HANDLE_CORRECT(name);
-
-    if (type != NC_FIFO_HOST_RO && type != NC_FIFO_HOST_WO) {
-        mvLog(MVLOG_ERROR, "Fifo typo not supported!");
-        return NC_UNSUPPORTED_FEATURE;
-    }
-
-    static int fifoIdCounter = 0;
-    *fifoHandle = (struct ncFifoHandle_t *) malloc(sizeof(struct ncFifoHandle_t));
-    if (!(*fifoHandle)) {
-        mvLog(MVLOG_ERROR, "Memory allocation failed");
-        return NC_OUT_OF_MEMORY;
-    }
-
-    struct _fifoPrivate_t *handle = (struct _fifoPrivate_t *) malloc(sizeof(struct _fifoPrivate_t));
-    (*fifoHandle)->private_data = handle;
-    if (!handle) {
-        mvLog(MVLOG_ERROR, "Memory allocation failed");
-        return NC_OUT_OF_MEMORY;
-    }
-
-    handle->type = type;
-    handle->consumer_cnt = 1;   //default consumers
-
-    handle->state = NC_FIFO_CREATED;
-    CHECK_MUTEX_SUCCESS(pthread_mutex_init(&handle->fifo_mutex, NULL));
-    handle->consumed_by_graph = 0;
-    handle->write_count = 0;
-    handle->user_param_in = NULL;
-    handle->user_param_out = NULL;
-    handle->api_read_element = 0;
-    handle->id = fifoIdCounter++;
-    handle->num_elements = 0;
-    memset(&handle->host_tensor_desc, 0, sizeof(struct ncTensorDescriptor_t));
-    mv_strncpy(handle->name, NC_MAX_NAME_SIZE, name, NC_MAX_NAME_SIZE - 1);
-
-    return NC_OK;
-}
-
-int pushUserParam(struct _fifoPrivate_t *fH, void *user_param, int isIn)
-{
-    struct _userParamPrivate_t *new_user_param =
-        calloc(1, sizeof(struct _userParamPrivate_t));
-    if (!new_user_param) {
-        mvLog(MVLOG_ERROR, "Memory allocation failed");
-        return NC_OUT_OF_MEMORY;
-    }
-    new_user_param->next = NULL;
-    new_user_param->data = user_param;
-    if (isIn) {
-        new_user_param->next = fH->user_param_in;
-        fH->user_param_in = new_user_param;
-    } else {
-        new_user_param->next = fH->user_param_out;
-        fH->user_param_out = new_user_param;
-    }
-    return NC_OK;
-}
-int popUserParam(struct _fifoPrivate_t* fH, void** user_param, int isIn)
-{
-    struct _userParamPrivate_t* prev = NULL;
-    struct _userParamPrivate_t* curr = NULL;
-    if (isIn)
-        curr = fH->user_param_in;
-    else
-        curr = fH->user_param_out;
-
-    if (curr == NULL) {
-        *user_param = NULL;
-        mvLog(MVLOG_ERROR, "Trying to read user param from an empty queue!");
-        return NC_ERROR;
-    }
-
-    while (curr->next != NULL)
-    {
-        prev = curr;
-        curr = curr->next;
-    }
-
-    *user_param = curr->data;
-
-    if (prev)
-        prev->next = NULL;
-    else {
-        if (isIn)
-            fH->user_param_in = NULL;
-        else
-            fH->user_param_out = NULL;
-    }
-    free(curr);
-    curr = NULL;
-    return NC_OK;
-}
-
-ncStatus_t ncFifoAllocate(struct ncFifoHandle_t * fifoHandle,
-                          struct ncDeviceHandle_t * device,
-                          struct ncTensorDescriptor_t * tensor_desc,
-                          unsigned int numElem)
-{
-    mvLog(MVLOG_INFO, "Creating fifo");
-    CHECK_HANDLE_CORRECT(fifoHandle);
-    CHECK_HANDLE_CORRECT(device);
-
-    if (!tensor_desc || !numElem) {
-        mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
-        return NC_INVALID_PARAMETERS;
-    }
-    if (tensor_desc->n * tensor_desc->c * tensor_desc->w * tensor_desc->h == 0
-        || !tensor_desc->totalSize) {
-        mvLog(MVLOG_ERROR,
-              "Tensor descriptor is invalid. Total size 0 or other element is zero");
-        return NC_INVALID_PARAMETERS;
-    }
-    struct _fifoPrivate_t *handle = fifoHandle->private_data;
-    if (handle->state == NC_FIFO_ALLOCATED) {
-        mvLog(MVLOG_ERROR, "Fifo has already been allocated");
-        return NC_UNAUTHORIZED;
-    }
-    if (handle->state != NC_FIFO_CREATED) {
-        mvLog(MVLOG_ERROR, "Fifo handle is corrupt or has been destroyed");
-        return NC_INVALID_HANDLE;
-    }
-    struct _devicePrivate_t *d = devices;
-    GLOBAL_LOCK();
-    while (d) {
-        if (d == device->private_data)
-            break;
-        d = d->next;
-    }
-    if (!d) {
-        GLOBAL_UNLOCK();
-        mvLog(MVLOG_ERROR, "Device not found!\n");
-        return NC_INVALID_PARAMETERS;
-    }
-    GLOBAL_UNLOCK();
-
-    ncStatus_t rc = NC_OK;
-    handle->graph_tensor_desc = *tensor_desc;
-    handle->host_tensor_desc = *tensor_desc;
-    handle->user_param_in = NULL;
-    handle->user_param_out = NULL;
-    handle->num_elements = numElem;
-    handle->consumers_remaining = handle->consumer_cnt; //default consumers
-    handle->dev = d;
-    handle->next = NULL;
-
-    handle->datasize = handle->host_tensor_desc.totalSize;
-
-    if (d->fifos)
-        handle->next = d->fifos;
-    d->fifos = handle;
-
-    bufferAllocateCommand_t cmd;
-    cmd.type = GRAPH_BUFFER_ALLOCATE_CMD;
-    struct tensorDescriptor_t privateDesc;
-    privateDesc.c = tensor_desc->c;
-    privateDesc.n = tensor_desc->n;
-    privateDesc.h = tensor_desc->h;
-    privateDesc.w = tensor_desc->w;
-    // should be removiedd: #-17902
-    privateDesc.totalSize = tensor_desc->totalSize;
-
-    cmd.desc  = privateDesc;
-    cmd.elemCnt = numElem;
-    snprintf(cmd.name, MAX_STREAM_NAME_LENGTH, "FIFO%d", handle->id);
-    cmd.id = handle->id;
-
-    uint32_t writeSize;
-    if (fifoWriteAccess(handle)) {
-        writeSize = tensor_desc->totalSize * numElem;
-        cmd.writeChannel = 1;
-    } else {
-        cmd.writeChannel = 0;
-        writeSize = 8; // no write permission on this buffer, so we shouldn't bother allocating buffer on the device
-    }
-    if (fifoReadAccess(handle)) {
-        cmd.readChannel = 1;
-    } else {
-        cmd.readChannel = 0;
-    }
-    streamId_t streamId = XLinkOpenStream(d->xlink->linkId, cmd.name, writeSize);
-
-    char out_msg[NC_MAX_NAME_SIZE * 2];
-    snprintf(out_msg, NC_MAX_NAME_SIZE * 2, "%s %s", "can't open stream: ", cmd.name);
-
-    CHECK_STREAM_ID(streamId, {
-            handle->state = NC_FIFO_FAILED;
-            handle->dev->state = NC_DEVICE_FAILED;
-        }, out_msg);
-
-    handle->streamId = streamId;
-    CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
-
-    rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
-    if(rc != 0){
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-        mvLog(MVLOG_ERROR, "can't send command\n");
-        return rc;
-    }
-    if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-        mvLog(MVLOG_ERROR, "myriad NACK\n");
-        return NC_ERROR;
-    }
-    CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-
-    handle->state = NC_FIFO_ALLOCATED;
-    return NC_OK;
-
-}
-
-ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
-{
-    CHECK_HANDLE_CORRECT(fifoHandle);
-    struct ncFifoHandle_t *fh = *fifoHandle;
-    if (!fh) {
-        mvLog(MVLOG_INFO, "handle is already destroyed");
-        return NC_OK;
-    }
-
-    struct _fifoPrivate_t *handle = fh->private_data;
-
-    if (handle->state == NC_FIFO_CREATED || handle->state == NC_FIFO_DEALLOCATED) {
-        pthread_mutex_t * fifo_mutex = &fh->private_data->fifo_mutex;
-#if !(defined(_WIN32) || defined(_WIN64))
-        /**
-         * There is no wrapper for pthread_mutex_trylock on windows at the moment.
-         */
-        int error = pthread_mutex_trylock(fifo_mutex);
-        if (error && error != EBUSY) {
-            /**
-             * Calling pthread_mutex_unlock with not locked mutex is undefined behavior.
-             * There is no standard C-API functions for checking whether mutex is locked or not as well as state entry.
-             * After pthread_mutex_trylock mutex can be safely unlocked since it is already locked.
-             * EBUSY error code stands for already locked mutex that is not an error in this case.
-             */
-             mvLog(MVLOG_ERROR, "pthread_mutex_trylock(fifo_mutex) failed with error: %d", error);
-        }
-#endif
-
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(fifo_mutex));
-        CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(fifo_mutex));
-
-        free(fh->private_data);
-        fh->private_data = NULL;
-
-        free(fh);
-        *fifoHandle = NULL;
-
-        return NC_OK;
-    }
-    if (!findFifo(handle)) {
-        mvLog(MVLOG_ERROR,
-              "fifo handle seems to be corrupt or has been destroyed");
-        return NC_INVALID_HANDLE;
-    }
-    //clean up fifo
-    /*if (fifoReadAccess(handle)) {
-        int fillLevel;
-        int rc = XLinkGetFillLevel(handle->streamId, 0, &fillLevel);
-        if (rc == X_LINK_SUCCESS) {
-            while (fillLevel && rc == X_LINK_SUCCESS) {
-                rc = XLinkReleaseData(handle->streamId);
-                fillLevel--;
-            }
-        }
-    }*/
-    //First write to the fifo to stop it's thread
-    if (fifoWriteAccess(handle)) {
-        int msg = 0xdead;
-        if (XLinkWriteData(handle->streamId, (uint8_t *) & msg, sizeof(msg)) !=
-            0) {
-            mvLog(MVLOG_ERROR, "Failed to write to fifo before deleting it!");
-            return NC_ERROR;
-        }
-    }
-
-    ncStatus_t rc = NC_OK;
-    graphCommonCommand_t cmd;
-    cmd.type = GRAPH_BUFFER_DEALLOCATE_CMD;
-    cmd.id = handle->id;
-
-    struct _devicePrivate_t *d = handle->dev;
-    CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->graph_stream_m));
-    rc = trySendCommand(d->graph_monitor_stream_id, &cmd, sizeof(cmd));
-    if(rc != 0){
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-        mvLog(MVLOG_WARN, "can't send command\n");
-        return rc;
-    }
-    if (checkGraphMonitorResponse(d->graph_monitor_stream_id)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-        mvLog(MVLOG_WARN, "myriad NACK\n");
-        return NC_ERROR;
-    }
-    CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->graph_stream_m));
-
-    CHECK_MUTEX_SUCCESS(pthread_mutex_lock(&d->dev_data_m));
-    if (deallocateFifo(handle)) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
-        return NC_INVALID_PARAMETERS;
-    }
-    CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&d->dev_data_m));
-
-    free(fh->private_data);
-    fh->private_data = NULL;
-    free(fh);
-    *fifoHandle = NULL;
-    return NC_OK;
-
-}
-
-ncStatus_t ncFifoWriteElem(struct ncFifoHandle_t * fifoHandle,
-                           const void *inputTensor,
-                           unsigned int * inputTensorLength,
-                           void *userParam)
-{
-    CHECK_HANDLE_CORRECT(fifoHandle);
-
-    if (inputTensorLength == NULL || *inputTensorLength <= 0) {
-        mvLog(MVLOG_ERROR, "inputTensorSize is null or invalid value");
-        return NC_INVALID_PARAMETERS;
-    }
-    struct _fifoPrivate_t *handle = fifoHandle->private_data;
-    if (!findFifo(handle)) {
-        if (!handle) {
-            mvLog(MVLOG_ERROR,
-                  "fifo handle seems to be corrupt or has been destroyed");
-            return NC_INVALID_HANDLE;
-        }
-        if (handle->state == NC_FIFO_CREATED) {
-            mvLog(MVLOG_ERROR, "FIFO is not yet allocated");
-            return NC_NOT_ALLOCATED;
-        }
-        if (handle->state != NC_FIFO_ALLOCATED) {
-            mvLog(MVLOG_ERROR,
-                  "FIFO is not yet allocated or have been destroyed.");
-            return NC_UNAUTHORIZED;
-        }
-    }
-
-    CHECK_HANDLE_CORRECT_RC(inputTensor, NC_INVALID_PARAMETERS);
-
-    if (!fifoWriteAccess(handle)) {
-        mvLog(MVLOG_ERROR, "No write access to fifo");
-        return NC_UNAUTHORIZED;
-    }
-    if (*inputTensorLength != handle->datasize) {
-            mvLog(MVLOG_ERROR,
-                  "input tensor length (%d) doesnt match expected value (%d)",
-                  *inputTensorLength, handle->datasize);
-            *inputTensorLength = handle->datasize;
-            return NC_INVALID_DATA_LENGTH;
-    }
-    int rc = XLinkWriteData(handle->streamId, inputTensor, *inputTensorLength);
-    if (rc != 0)
-        return NC_ERROR;
-
-    CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&handle->fifo_mutex), NC_ERROR);
-    rc = pushUserParam(handle, userParam, 1);
-    if (rc != NC_OK) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&handle->fifo_mutex));
-        return rc;
-    }
-    handle->write_count++;
-    CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&handle->fifo_mutex));
-
-    mvLog(MVLOG_DEBUG, "write count %d num_elements %d userparam %p\n",
-          handle->write_count - 1, handle->num_elements, userParam);
-    return NC_OK;
-
-}
-
-ncStatus_t ncFifoReadElem(struct ncFifoHandle_t * fifoHandle, void *outputData,
-                          unsigned int *outputDataLen, void **userParam)
-{
-    if (!fifoHandle) {
-        mvLog(MVLOG_ERROR, "fifo handle is NULL");
-        return NC_INVALID_HANDLE;
-    }
-    if (!outputDataLen || (*outputDataLen != 0 && !outputData)) {
-        mvLog(MVLOG_ERROR, "Some of the parameters are NULL");
-        return NC_INVALID_PARAMETERS;
-    }
-
-    struct _fifoPrivate_t *handle = fifoHandle->private_data;
-    if (!findFifo(handle)) {
-        if (!handle) {
-            mvLog(MVLOG_ERROR,
-                  "fifo handle seems to be corrupt or has been destroyed");
-            return NC_INVALID_HANDLE;
-        }
-        if (handle->state == NC_FIFO_CREATED) {
-            mvLog(MVLOG_ERROR, "FIFO is not yet allocated");
-            return NC_NOT_ALLOCATED;
-        }
-    }
-
-    if (handle->state != NC_FIFO_ALLOCATED) {
-        mvLog(MVLOG_ERROR, "FIFO is not yet allocated or have been destroyed.");
-        return NC_UNAUTHORIZED;
-    }
-
-    if (*outputDataLen < handle->datasize) {
-        mvLog(MVLOG_ERROR,
-              "This datasize in tensorDesc (%d) is smaller than required (%d)!",
-              *outputDataLen, handle->datasize);
-        *outputDataLen = handle->datasize;
-        return NC_INVALID_DATA_LENGTH;
-    }
-
-    if (!fifoReadAccess(handle)) {
-        mvLog(MVLOG_ERROR, "FIFO has no read access");
-        return NC_UNAUTHORIZED;
-    }
-    if (handle->api_read_element != 0) {
-        mvLog(MVLOG_ERROR, "API already read this element");
-        return NC_UNAUTHORIZED;
-    }
-    streamPacketDesc_t *packet = 0;
-    if (!XLinkReadData(handle->streamId, &packet) && packet) {
-        mvnc_memcpy(outputData, *outputDataLen, packet->data, packet->length);
-        XLinkReleaseData(handle->streamId);
-    } else {
-        mvLog(MVLOG_ERROR, "Packet reading is failed.");
-        return NC_ERROR;
-    }
-
-    //As user should see an API read to be the same as Graph read, we need to write the element in 2 queues.
-    //if we read it here, we will need to remove the element on the device side
-    //to avoid sending a message just for this purpose, we can send it at the next trigger which touches this FIFO.
-    CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&handle->fifo_mutex), NC_ERROR);
-    handle->api_read_element = 1;
-
-    handle->consumers_remaining--;
-    if (handle->consumers_remaining == 0) {
-        handle->api_read_element = 0;
-        handle->consumers_remaining = handle->consumer_cnt;
-        //no other action required when the element is consumed
-    }
-    popUserParam(handle, userParam, 0);
-    CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&handle->fifo_mutex));
-    *outputDataLen = handle->datasize;
-    mvLog(MVLOG_DEBUG, "num_elements %d userparam %p output length %d\n",
-          handle->num_elements, userParam, handle->datasize);
-    return NC_OK;
-}
-
-static ncStatus_t tensorCompatibility(struct ncTensorDescriptor_t *tens1,
-                                      struct ncTensorDescriptor_t *tens2)
-{
-    if (tens1->totalSize != tens2->totalSize ||
-        tens1->n != tens2->n || tens1->c != tens2->c ||
-        tens1->h != tens2->h || tens1->w != tens2->w)
-        return NC_ERROR;
-    return NC_OK;
-}
-
-ncStatus_t ncGraphQueueInference(struct ncGraphHandle_t * graphHandle,
-                                 struct ncFifoHandle_t ** fifoIn,
-                                 unsigned int inFifoCount,
-                                 struct ncFifoHandle_t ** fifoOut,
-                                 unsigned int outFifoCount)
-{
-    mvLog(MVLOG_DEBUG, "Trigger start");
+MVNC_EXPORT_API ncStatus_t ncGraphTrigger(struct ncGraphHandle_t *graphHandle,
+                                          unsigned int channelInId,
+                                          unsigned int channelOutId) {
+    mvLog(MVLOG_DEBUG, "Graph trigger");
     CHECK_HANDLE_CORRECT(graphHandle);
-    CHECK_HANDLE_CORRECT(fifoIn);
-    CHECK_HANDLE_CORRECT(fifoOut);
 
-    if (!fifoIn[0] || !fifoOut[0]) {
-        mvLog(MVLOG_ERROR, "Fifos data are NULL");
-        return NC_INVALID_HANDLE;
-    }
-    if (!inFifoCount || !outFifoCount)
-        return NC_INVALID_PARAMETERS;
-
-    struct _graphPrivate_t *g = graphHandle->private_data;
-
-    if(g) {
-        CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&g->dev->graph_stream_m), NC_ERROR);
-    } else {
-        return NC_NOT_ALLOCATED;
-    }
-
-    if (!g || g->state != NC_GRAPH_ALLOCATED) {
-        mvLog(MVLOG_ERROR, "Graph hasn't been allocated");
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-        return NC_NOT_ALLOCATED;
-    }
-
-    if (g->input_count != inFifoCount || g->output_count != outFifoCount) {
-        mvLog(MVLOG_ERROR,
-              "number of input or output fifos is not compatible with graph");
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-        return NC_INVALID_PARAMETERS;
-    }
-
-    if (inFifoCount != 1 || outFifoCount != 1) {
-        mvLog(MVLOG_ERROR,
-              "Currently multiple inputs and outputs are not supported");
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-        return NC_UNSUPPORTED_FEATURE;
-    }
-    struct _fifoPrivate_t *fi = fifoIn[0]->private_data;
-    struct _fifoPrivate_t *fo = fifoOut[0]->private_data;
-    ncStatus_t rc;
-    if (fi->state != NC_FIFO_ALLOCATED || fo->state != NC_FIFO_ALLOCATED) {
-        mvLog(MVLOG_ERROR, "ffos hasn't been allocated");
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-        return NC_NOT_ALLOCATED;
-    }
-    //WO fifos have no graph access
-    if (fo->type == NC_FIFO_HOST_WO) {
-        //graphs have no access to one of the fifos
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-        return NC_INVALID_PARAMETERS;
-    }
-    if (tensorCompatibility(&fi->graph_tensor_desc, &g->input_tensor_desc) != NC_OK ||
-        tensorCompatibility(&fo->graph_tensor_desc,
-                            &g->output_tensor_desc) != NC_OK) {
-        mvLog(MVLOG_WARN,
-              "Input/Output tensor shape is not compatible with graph");
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-        return NC_INVALID_PARAMETERS;
-    }
+    graphPrivate_t* graphPrivate = graphHandle->private_data;
 
     graphCMDCommand_t cmd;
     cmd.type = GRAPH_TRIGGER_CMD;
-    cmd.id = g->id;
-    cmd.buffId1 = fi->id;
-    cmd.buffId2 = fo->id;
+    cmd.id = graphPrivate->id;
+    cmd.buffId1 = channelInId;
+    cmd.buffId2 = channelOutId;
 
-    void* user_param;
-    CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&fi->fifo_mutex), NC_ERROR);
-    fi->consumers_remaining--;
-
-    if (fi->consumers_remaining == 0) {
-        if (!fi->api_read_element && fifoReadAccess(fi)) {//the element was entirely consumed by graphs. This means we need to free it up from XLink
-            streamPacketDesc_t* packet = 0;
-            XLinkError_t rc = XLinkReadData(fi->streamId, &packet);
-            if (rc) {
-                mvLog(MVLOG_ERROR, "Can't read packet, rc: %s", XLinkErrorToStr(rc));
-                CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&fi->fifo_mutex));
-                fi->dev->state = NC_DEVICE_FAILED;
-                CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-                return parseXLinkError(rc);
-            }
-            rc = XLinkReleaseData(fi->streamId);
-            if (rc) {
-                mvLog(MVLOG_ERROR,"Failed to release data, rc: %s", XLinkErrorToStr(rc));
-                CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&fi->fifo_mutex));
-                fi->dev->state = NC_DEVICE_FAILED;
-                CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-                return parseXLinkError(rc);
-            }
-        }
-        fi->consumers_remaining = fi->consumer_cnt;
-        fi->api_read_element = 0;
-    }
-    popUserParam(fi, &user_param, 1);
-    if (fi->write_count <= fi->consumed_by_graph) {
-        mvLog(MVLOG_WARN, "No point on triggering graph. There are no more elements in the input FIFO");
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&fi->fifo_mutex));
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-        return NC_UNAUTHORIZED;
-    }
-    fi->consumed_by_graph++;
-    CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&fi->fifo_mutex));
-
-    CHECK_MUTEX_SUCCESS_RC(pthread_mutex_lock(&fo->fifo_mutex), NC_ERROR);
-    rc = pushUserParam(fo, user_param , 0);
+    ncStatus_t rc = ncSendGraphCommand(graphPrivate->dev, &cmd, sizeof(cmd));
     if(rc != NC_OK) {
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&fo->fifo_mutex));
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-        return rc;
+        graphPrivate->dev->state = NC_DEVICE_FAILED;
     }
-    fo->write_count++;
-    CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&fo->fifo_mutex));
 
-    rc = trySendCommand(g->dev->graph_monitor_stream_id, &cmd, sizeof(cmd));
-    if(rc != 0){
-        mvLog(MVLOG_ERROR, "Can't send trigger request");
-        g->dev->state = NC_DEVICE_FAILED;
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-        return rc;
-    }
-    if(checkGraphMonitorResponse(g->dev->graph_monitor_stream_id)) {
-        mvLog(MVLOG_ERROR, "Can't get trigger response");
-        g->dev->state = NC_DEVICE_FAILED;
-        CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-        return NC_ERROR;
-    }
-    CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&g->dev->graph_stream_m));
-    g->started = 1;
-    mvLog(MVLOG_DEBUG, "Trigger end");
-    return NC_OK;
+    return rc;
 }
 
-ncStatus_t ncGraphQueueInferenceWithFifoElem(struct ncGraphHandle_t *
-                                             graphHandle,
-                                             struct ncFifoHandle_t * fifoIn,
-                                             struct ncFifoHandle_t * fifoOut,
-                                             const void *inputTensor,
-                                             unsigned int * inputTensorLength,
-                                             void *userParam)
-{
-    ncStatus_t rc = ncFifoWriteElem(fifoIn, inputTensor, inputTensorLength,
-                                    userParam);
-    if (rc != NC_OK)
-        return rc;
+MVNC_EXPORT_API ncStatus_t ncIOBufferAllocate(unsigned int    channelId,
+                                              ncChannelType_t channelType,
+                                              const char *    channelName,
+                                              const struct ncDeviceHandle_t *device,
+                                              const struct ncTensorDescriptor_t *tensorDesc,
+                                              unsigned int numElem) {
+    mvLog(MVLOG_INFO, "Allocate I/O buffer");
+    CHECK_HANDLE_CORRECT(device);
+    CHECK_HANDLE_CORRECT(channelName);
+    CHECK_HANDLE_CORRECT(tensorDesc);
 
-    return ncGraphQueueInference(graphHandle, &fifoIn, 1, &fifoOut, 1);
+    if (!numElem) {
+        mvLog(MVLOG_ERROR, "Number of elements for I/O \"%s\" channel is zero", channelName);
+        return NC_INVALID_PARAMETERS;
+    }
+
+    struct tensorDescriptor_t privateDesc;
+    privateDesc.c = tensorDesc->c;
+    privateDesc.n = tensorDesc->n;
+    privateDesc.h = tensorDesc->h;
+    privateDesc.w = tensorDesc->w;
+    privateDesc.totalSize = tensorDesc->totalSize;
+
+    bufferAllocateCommand_t cmd = {0};
+    cmd.type = GRAPH_BUFFER_ALLOCATE_CMD;
+    cmd.desc  = privateDesc;
+    cmd.elemCnt = numElem;
+    cmd.id = channelId;
+    snprintf(cmd.name, MAX_STREAM_NAME_LENGTH, "%s", channelName);
+
+    if(channelType == NC_READ) {
+        cmd.writeChannel = 0;
+        cmd.readChannel = 1;
+    } else {
+        cmd.writeChannel = 1;
+        cmd.readChannel = 0;
+    }
+
+    return ncSendGraphCommand(device->private_data, &cmd, sizeof(cmd));
+}
+
+MVNC_EXPORT_API ncStatus_t ncIOBufferDeallocate(unsigned int channelId,
+                                                const struct ncDeviceHandle_t *device) {
+    mvLog(MVLOG_INFO, "Deallocate I/O buffer");
+    CHECK_HANDLE_CORRECT(device);
+
+    graphCommonCommand_t cmd;
+    cmd.type = GRAPH_BUFFER_DEALLOCATE_CMD;
+    cmd.id = channelId;
+
+    return ncSendGraphCommand(device->private_data, &cmd, sizeof(cmd));
 }

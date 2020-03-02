@@ -34,7 +34,8 @@ MyriadInferRequest::MyriadInferRequest(InferenceEngine::InputsDataMap networkInp
                                        const MyriadExecutorPtr &executor) :
         InferRequestInternal(networkInputs, networkOutputs), _executor(executor),
         _log(log), _stagesMetaData(blobMetaData), _config(myriadConfig),
-        _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo) {
+        _inputInfo(compilerInputsInfo), _outputInfo(compilerOutputsInfo),
+        _outputBlobBufferReused(false) {
     VPU_PROFILE(MyriadInferRequest);
 
     const auto& ioStrides = _config.compileConfig().ioStrides;
@@ -135,8 +136,26 @@ void MyriadInferRequest::InferAsync() {
         }
     }
 
-    _executor->queueInference(inputBuffer.data(),
-                              _inputInfo.totalSize, nullptr, 0);
+    TensorBuffer outBuffer = {};
+    if (_outputInfo.offset.size() == 1) {
+        const auto& it = _outputs.begin();
+        const auto& name = (*it).first;
+        const auto& blob = (*it).second;
+
+        if (blob->getTensorDesc().getLayout() == getVpuLayout(name)) {
+            outBuffer.m_data = blob->buffer();
+            outBuffer.m_length = blob->byteSize();
+
+            _outputBlobBufferReused = true;
+            _inferFuture = _executor->sendInferAsync(inputBuffer, outBuffer);
+            return;
+        }
+    }
+
+    outBuffer.m_data = resultBuffer.data();
+    outBuffer.m_length = resultBuffer.size();
+
+    _inferFuture = _executor->sendInferAsync(inputBuffer, outBuffer);
 }
 
 static void copyBlobAccordingUpperBound(
@@ -178,27 +197,18 @@ static void copyBlobAccordingUpperBound(
 void MyriadInferRequest::GetResult() {
     VPU_PROFILE(GetResult);
 
-    auto networkOutputs = _networkOutputs;
-    const auto getVpuLayout = [&networkOutputs] (const std::string& name){
-        const auto foundBlob = networkOutputs.find(name);
-        IE_ASSERT(foundBlob != networkOutputs.end()) << "MyriadInferRequest::InferAsync()\n"
-                                                     << "Output [" << name << "] is not provided.";
-        return foundBlob->second->getTensorDesc().getLayout();
-    };
+    try {
+        _inferFuture.get();
+        if (_outputBlobBufferReused) {
+            _outputBlobBufferReused = false;
 
-    // For networks with only one output
-    if (_outputInfo.offset.size() == 1) {
-        const auto& it = _outputs.begin();
-        const auto& name = (*it).first;
-        const auto& blob = (*it).second;
-
-        if (blob->getTensorDesc().getLayout() == getVpuLayout(name)) {
-            _executor->getResult(blob->buffer(), blob->byteSize());
+            // We have one output with the same layout as required in _networkOutputs,
+            // then we can skip the copyBlob procedure
             return;
         }
+    } catch (std::exception& ex) {
+        VPU_THROW_FORMAT(ex.what());
     }
-
-    _executor->getResult(resultBuffer.data(), resultBuffer.size());
 
     for (const auto& output : _outputs) {
         const auto& ieBlobName = output.first;
@@ -225,7 +235,7 @@ void MyriadInferRequest::GetResult() {
         const auto& shapeInfo = _outputInfo.offset.find(ieBlobName + "@shape");
         // if (isDynamic)
         if (shapeInfo != _outputInfo.offset.end()) {
-            auto outData = networkOutputs[ieBlobName];
+            auto outData = _networkOutputs[ieBlobName];
             const auto& descFromPlugin = _outputInfo.descFromPlugin.find(ieBlobName);
             VPU_THROW_UNLESS(descFromPlugin != _outputInfo.descFromPlugin.end(),
                 "Can not find tensor descriptor by plugin for {} output", ieBlobName);
@@ -278,4 +288,11 @@ void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEng
         _stagesMetaData,
         perfInfo.data(), perfInfo.size(),
         _config.perfReport(), _config.printReceiveTensorTime());
+}
+
+InferenceEngine::Layout MyriadInferRequest::getVpuLayout(const std::string& name) const {
+    const auto foundBlob = _networkOutputs.find(name);
+    IE_ASSERT(foundBlob != _networkOutputs.end()) << "MyriadInferRequest::InferAsync()\n"
+                                                 << "Output [" << name << "] is not provided.";
+    return foundBlob->second->getTensorDesc().getLayout();
 }

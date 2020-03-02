@@ -14,6 +14,7 @@
 #include <mvnc.h>
 #include "myriad_mvnc_wraper.h"
 #include "myriad_device_provider.h"
+#include "myriad_infer_router.h"
 
 #include <ie_parameter.hpp>
 
@@ -22,16 +23,6 @@
 namespace vpu {
 namespace MyriadPlugin {
 
-struct GraphDesc {
-    ncGraphHandle_t *_graphHandle = nullptr;
-    std::string _name;
-
-    ncTensorDescriptor_t _inputDesc = {};
-    ncTensorDescriptor_t _outputDesc = {};
-
-    ncFifoHandle_t *_inputFifoHandle = nullptr;
-    ncFifoHandle_t *_outputFifoHandle = nullptr;
-};
 
 class MyriadExecutor {
 public:
@@ -46,10 +37,8 @@ public:
 
     void deallocateGraph();
 
-    void queueInference(void *input_data, size_t input_bytes,
-                        void *result_data, size_t result_bytes);
-
-    void getResult(void *result_data, unsigned int result_bytes);
+    InferFuture sendInferAsync(
+        const std::vector<uint8_t>& inTensor, const TensorBuffer& outTensorBuffer);
 
     std::vector<float> getPerfTimeInfo();
 
@@ -58,6 +47,8 @@ private:
     Logger::Ptr  m_log;
     GraphDesc    m_graphDesc;
     unsigned int m_numStages = 0;
+
+    MyriadInferRouter::Ptr m_infersRouter;
 };
 
 using MyriadExecutorPtr = std::shared_ptr<MyriadExecutor>;
