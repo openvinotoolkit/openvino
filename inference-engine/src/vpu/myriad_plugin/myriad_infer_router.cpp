@@ -40,14 +40,15 @@ InferPromise& InferResultProvider::getPromise() {
     return m_promise;
 }
 
-void InferResultProvider::copyAndSetResult(const streamPacketDesc_t& resultPacket) {
+void InferResultProvider::copyAndSetResult(const inferPacketDesc_t& resultPacket) {
     try {
         VPU_THROW_UNLESS(!m_isCompleted, "Inference's result provider has already received the result.");
-        VPU_THROW_UNLESS(resultPacket.length == m_outputTensor.m_length,
+        VPU_THROW_UNLESS(resultPacket.streamPacket.length == m_outputTensor.m_length,
                          "Unexpected buffer size. Actual size: %zu; Expect size: %zu",
-                         resultPacket.length, m_outputTensor.m_length);
+                         resultPacket.streamPacket.length, m_outputTensor.m_length);
 
-        std::memcpy(m_outputTensor.m_data, resultPacket.data, resultPacket.length);
+        std::memcpy(m_outputTensor.m_data,
+            resultPacket.streamPacket.data, resultPacket.streamPacket.length);
         m_promise.set_value();
     } catch (...) {
         m_promise.set_exception(std::current_exception());
@@ -124,8 +125,8 @@ MyriadInferRouter::~MyriadInferRouter() {
     m_isRunning = false;
     m_receiveResultTask.wait();
 
-    XLinkError_t rc = XLinkWriteData(m_inputStreamDesc.m_id,
-        reinterpret_cast<const uint8_t*>(&m_stopSignal), sizeof(m_stopSignal));
+    inferPacketDesc_t packet = { m_stopSignal, {nullptr, 0}};
+    XLinkError_t rc = XLinkWriteInferPacket(m_inputStreamDesc.m_id, &packet);
     if (rc != X_LINK_SUCCESS) {
         m_log->warning("Fail to send stop signal into input \"%s\", rc = %s",
                        m_inputStreamDesc.m_name, XLinkErrorToStr(rc));
@@ -163,11 +164,12 @@ InferFuture MyriadInferRouter::sendInferAsync(
     VPU_THROW_UNLESS(m_isRunning == true, "Myriad infer router was stopped");
 
     uint32_t requestID = getRequestID();
-    XLinkError_t rc = XLinkWriteData(m_inputStreamDesc.m_id,
-        reinterpret_cast<const uint8_t*>(&requestID), static_cast<int>(sizeof(requestID)));
-    VPU_THROW_UNLESS(rc == X_LINK_SUCCESS, "Failed to send infer request ID by stream %s", m_inputStreamDesc.m_name);
+    inferPacketDesc_t packet = {
+        requestID,
+        {const_cast<uint8_t *>(inTensor.data()),
+        static_cast<uint32_t>(inTensor.size())} };
 
-    rc = XLinkWriteData(m_inputStreamDesc.m_id, inTensor.data(), static_cast<int>(inTensor.size()));
+    XLinkError_t rc = XLinkWriteInferPacket(m_inputStreamDesc.m_id, &packet);
     VPU_THROW_UNLESS(rc == X_LINK_SUCCESS, "Failed to send tensor by stream %s", m_inputStreamDesc.m_name);
 
     ncStatus_t ncRc = ncGraphTrigger(m_graphDesc._graphHandle, m_inputStreamDesc.m_channelId, m_outputStreamDesc.m_channelId);
@@ -195,28 +197,18 @@ uint32_t MyriadInferRouter::getRequestID() {
 }
 
 void MyriadInferRouter::receiveInferResult() {
-    streamPacketDesc_t* packetDesc;
-    XLinkError_t rc = XLinkReadData(m_outputStreamDesc.m_id, &packetDesc);
-    VPU_THROW_UNLESS(rc == X_LINK_SUCCESS, "Failed to read infer request ID from stream %s", m_outputStreamDesc.m_name);
-    VPU_THROW_UNLESS(packetDesc->length == sizeof(uint32_t),
-                     "Read wrong packet from stream %s. Expect size: %zu, actual size: %zu",
-                     m_inputStreamDesc.m_name, sizeof(uint32_t), packetDesc->length);
-
-    uint32_t requestId = *(reinterpret_cast<const uint32_t*>(packetDesc->data));
-    rc = XLinkReleaseData(m_outputStreamDesc.m_id);
-    VPU_THROW_UNLESS(rc == X_LINK_SUCCESS,
-        "Failed to release data from stream %s", m_outputStreamDesc.m_name);
+    inferPacketDesc_t* inferPacket;
+    XLinkError_t rc = XLinkReadDataPacket(
+        m_outputStreamDesc.m_id, reinterpret_cast<void**>(&inferPacket));
+    VPU_THROW_UNLESS(rc == X_LINK_SUCCESS, "Failed to release data from stream %s", m_outputStreamDesc.m_name);
+    uint32_t requestId = inferPacket->id;
 
     std::lock_guard<std::mutex> lockMapMutex(m_inferResultsMapMutex);
     const auto requestPosition = m_idToInferResultMap.find(requestId);
     VPU_THROW_UNLESS(requestPosition != m_idToInferResultMap.end(),
         "Can't find infer result provider by id = %zu", requestId);
 
-    rc = XLinkReadData(m_outputStreamDesc.m_id, &packetDesc);
-    VPU_THROW_UNLESS(rc == X_LINK_SUCCESS,
-        "Failed to read infer request result from stream %s", m_outputStreamDesc.m_name);
-
-    requestPosition->second->copyAndSetResult(*packetDesc);
+    requestPosition->second->copyAndSetResult(*inferPacket);
     m_idToInferResultMap.erase(requestPosition);
 
     rc = XLinkReleaseData(m_outputStreamDesc.m_id);

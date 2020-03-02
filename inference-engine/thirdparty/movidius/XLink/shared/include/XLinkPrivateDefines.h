@@ -121,6 +121,7 @@ typedef enum
 typedef struct xLinkEventHeader_t{
     eventId_t           id;
     xLinkEventType_t    type;
+    xLinkPacketType_t   packetType;
     char                streamName[MAX_STREAM_NAME_LENGTH];
     streamId_t          streamId;
     uint32_t            size;
@@ -142,14 +143,22 @@ typedef struct xLinkEventHeader_t{
 typedef struct xLinkEvent_t {
     XLINK_ALIGN_TO_BOUNDARY(64) xLinkEventHeader_t header;
     xLinkDeviceHandle_t deviceHandle;
-    void* data;
+    void* packet;
 }xLinkEvent_t;
 
-#define XLINK_INIT_EVENT(event, in_streamId, in_type, in_size, in_data, in_deviceHandle) do { \
+#define XLINK_INIT_EVENT_WITH_PACKET(event, in_streamId, in_type, in_packetType, in_size, in_packet, in_deviceHandle) do { \
+    (event).header.streamId = (in_streamId); \
+    (event).header.type = (in_type); \
+    (event).header.packetType = (in_packetType); \
+    (event).header.size = (in_size); \
+    (event).packet = (in_packet); \
+    (event).deviceHandle = (in_deviceHandle); \
+} while(0)
+
+#define XLINK_INIT_EVENT(event, in_streamId, in_type, in_size, in_deviceHandle) do { \
     (event).header.streamId = (in_streamId); \
     (event).header.type = (in_type); \
     (event).header.size = (in_size); \
-    (event).data = (in_data); \
     (event).deviceHandle = (in_deviceHandle); \
 } while(0)
 

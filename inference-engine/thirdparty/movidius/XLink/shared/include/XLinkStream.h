@@ -20,13 +20,24 @@
 /**
  * @brief Streams opened to device
  */
+typedef enum
+{
+    PACKET_SIMPLE,
+    PACKET_INFER
+} xLinkPacketType_t;
+
+typedef struct streamPacketInternal_t {
+    xLinkPacketType_t packetType;
+    void* data;
+} streamPacketInternal_t;
+
 typedef struct{
     char name[MAX_STREAM_NAME_LENGTH];
     streamId_t id;
     uint32_t writeSize;
     uint32_t readSize;  /*No need of read buffer. It's on remote,
     will read it directly to the requested buffer*/
-    streamPacketDesc_t packets[XLINK_MAX_PACKETS_PER_STREAM];
+    streamPacketInternal_t packets[XLINK_MAX_PACKETS_PER_STREAM];
     uint32_t availablePackets;
     uint32_t blockedPackets;
 

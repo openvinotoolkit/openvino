@@ -58,7 +58,7 @@ public:
     InferFuture getFuture();
     InferPromise& getPromise();
 
-    void copyAndSetResult(const streamPacketDesc_t& resultPacket);
+    void copyAndSetResult(const inferPacketDesc_t& resultPacket);
 
 private:
     size_t m_id;

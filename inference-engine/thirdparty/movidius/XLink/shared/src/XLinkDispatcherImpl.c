@@ -10,13 +10,10 @@
 #include "XLinkPlatform.h"
 #include "XLinkDispatcherImpl.h"
 #include "XLinkPrivateFields.h"
-
-#ifdef MVLOG_UNIT_NAME
-#undef MVLOG_UNIT_NAME
-#define MVLOG_UNIT_NAME xLink
-#endif
-#include "XLinkLog.h"
 #include "XLinkStringUtils.h"
+
+#define MVLOG_UNIT_NAME xLink
+#include "XLinkLog.h"
 
 // ------------------------------------
 // Helpers declaration. Begin.
@@ -24,11 +21,19 @@
 
 static int isStreamSpaceEnoughFor(streamDesc_t* stream, uint32_t size);
 
-static streamPacketDesc_t* getPacketFromStream(streamDesc_t* stream);
+static streamPacketInternal_t* getPacketFromStream(streamDesc_t* stream);
+static int releaseBuffer(streamDesc_t* stream, void* buffer, uint32_t length);
 static int releasePacketFromStream(streamDesc_t* stream, uint32_t* releasedSize);
-static int addNewPacketToStream(streamDesc_t* stream, void* buffer, uint32_t size);
+static int addNewPacketToStream(streamDesc_t* stream, const streamPacketInternal_t* packet);
 
 static int handleIncomingEvent(xLinkEvent_t* event);
+
+static int serializeSimplePacket(xLinkEvent_t* event);
+static int serializeInferPacket(xLinkEvent_t* event);
+
+static int readBuffer(streamDesc_t* stream, xLinkEvent_t* event, void** buffer);
+static int deserializeSimplePacket(xLinkEvent_t* event);
+static int deserializeInferPacket(xLinkEvent_t* event);
 
 // ------------------------------------
 // Helpers declaration. End.
@@ -50,16 +55,23 @@ int dispatcherEventSend(xLinkEvent_t *event)
         &event->header, sizeof(event->header));
 
     if(rc < 0) {
-        mvLog(MVLOG_ERROR,"Write failed (header) (err %d) | event %s\n", rc, TypeToStr(event->header.type));
+        mvLog(MVLOG_ERROR,"Fail to write event header (err %d) | event %s\n", rc, TypeToStr(event->header.type));
         return rc;
     }
 
     if (event->header.type == XLINK_WRITE_REQ) {
-        rc = XLinkPlatformWrite(&event->deviceHandle,
-            event->data, event->header.size);
-        if(rc < 0) {
-            mvLog(MVLOG_ERROR,"Write failed %d\n", rc);
-            return rc;
+        switch (event->header.packetType) {
+            case PACKET_SIMPLE:
+            {
+                return serializeSimplePacket(event);
+            }
+            case PACKET_INFER:
+            {
+                return serializeInferPacket(event);
+            }
+            default:
+                mvLog(MVLOG_ERROR,"Unexpected packet type %d\n", event->header.packetType);
+                return -1;
         }
     }
 
@@ -148,10 +160,16 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
                 XLINK_SET_EVENT_FAILED_AND_SERVE(event);
                 break;
             }
-            streamPacketDesc_t* packet = getPacketFromStream(stream);
+            streamPacketInternal_t* packet = getPacketFromStream(stream);
             if (packet){
+                if(packet->packetType == PACKET_SIMPLE) {
+                    event->header.size = ((streamPacketDesc_t*)packet->data)->length;
+                } else {
+                    event->header.size = ((inferPacketDesc_t*)packet->data)->streamPacket.length;
+                }
+
                 //the read can be served with this packet
-                event->data = packet;
+                event->packet = packet->data;
                 XLINK_EVENT_ACKNOWLEDGE(event);
                 event->header.flags.bitField.block = 0;
             }
@@ -484,9 +502,9 @@ int isStreamSpaceEnoughFor(streamDesc_t* stream, uint32_t size)
     return 1;
 }
 
-streamPacketDesc_t* getPacketFromStream(streamDesc_t* stream)
+streamPacketInternal_t* getPacketFromStream(streamDesc_t* stream)
 {
-    streamPacketDesc_t* ret = NULL;
+    streamPacketInternal_t* ret = NULL;
     if (stream->availablePackets)
     {
         ret = &stream->packets[stream->firstPacketUnused];
@@ -495,37 +513,73 @@ streamPacketDesc_t* getPacketFromStream(streamDesc_t* stream)
                            XLINK_MAX_PACKETS_PER_STREAM);
         stream->blockedPackets++;
     }
+
     return ret;
+}
+
+static int releaseBuffer(streamDesc_t* stream, void* buffer, uint32_t length) {
+    XLINK_RET_IF(stream == NULL);
+    XLINK_RET_IF(buffer == NULL);
+
+    stream->localFillLevel -= length;
+    mvLog(MVLOG_DEBUG, "S%d: Got release of %ld , current local fill level is %ld out of %ld %ld\n",
+          stream->id, length, stream->localFillLevel, stream->readSize, stream->writeSize);
+
+    XLinkPlatformDeallocateData(buffer,
+        ALIGN_UP_INT32((int32_t) length, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
+
+    CIRCULAR_INCREMENT(stream->firstPacket, XLINK_MAX_PACKETS_PER_STREAM);
+    stream->blockedPackets--;
+
+    return 0;
 }
 
 int releasePacketFromStream(streamDesc_t* stream, uint32_t* releasedSize)
 {
-    streamPacketDesc_t* currPack = &stream->packets[stream->firstPacket];
+    streamPacketInternal_t* currPack = &stream->packets[stream->firstPacket];
     if(stream->blockedPackets == 0){
         mvLog(MVLOG_ERROR,"There is no packet to release\n");
         return 0; // ignore this, although this is a big problem on application side
     }
 
-    stream->localFillLevel -= currPack->length;
-    mvLog(MVLOG_DEBUG, "S%d: Got release of %ld , current local fill level is %ld out of %ld %ld\n",
-          stream->id, currPack->length, stream->localFillLevel, stream->readSize, stream->writeSize);
+    switch (currPack->packetType) {
+        case PACKET_SIMPLE:
+        {
+            streamPacketDesc_t* packet = currPack->data;
+            int rc = releaseBuffer(stream, packet->data, packet->length);
+            if (!rc && releasedSize) {
+                *releasedSize = packet->length;
+            }
 
-    XLinkPlatformDeallocateData(currPack->data,
-                                ALIGN_UP_INT32((int32_t) currPack->length, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
+            free(packet);
+            return rc;
+        }
+        case PACKET_INFER:
+        {
+            inferPacketDesc_t* inferPacket = currPack->data;
+            if(inferPacket == NULL){
+                mvLog(MVLOG_ERROR,"inferPacket is NULL\n");
+            }
 
-    CIRCULAR_INCREMENT(stream->firstPacket, XLINK_MAX_PACKETS_PER_STREAM);
-    stream->blockedPackets--;
-    if (releasedSize) {
-        *releasedSize = currPack->length;
+            streamPacketDesc_t* packet = &inferPacket->streamPacket;
+            int rc = releaseBuffer(stream, packet->data, packet->length);
+            if (!rc && releasedSize) {
+                *releasedSize = packet->length;
+            }
+
+            free(inferPacket);
+            return rc;
+        }
+        default:
+            mvLog(MVLOG_ERROR,"Unexpected packet type %d\n", currPack->packetType);
+            return -1;
     }
-    return 0;
 }
 
-int addNewPacketToStream(streamDesc_t* stream, void* buffer, uint32_t size) {
+int addNewPacketToStream(streamDesc_t* stream, const streamPacketInternal_t* packet) {
     if (stream->availablePackets + stream->blockedPackets < XLINK_MAX_PACKETS_PER_STREAM)
     {
-        stream->packets[stream->firstPacketFree].data = buffer;
-        stream->packets[stream->firstPacketFree].length = size;
+        stream->packets[stream->firstPacketFree] = *packet;
         CIRCULAR_INCREMENT(stream->firstPacketFree, XLINK_MAX_PACKETS_PER_STREAM);
         stream->availablePackets++;
         return 0;
@@ -547,29 +601,80 @@ int handleIncomingEvent(xLinkEvent_t* event) {
         return 0;
     }
 
+    switch (event->header.packetType) {
+        case PACKET_SIMPLE:
+        {
+            return deserializeSimplePacket(event);
+        }
+        case PACKET_INFER:
+        {
+            return deserializeInferPacket(event);
+        }
+        default:
+            mvLog(MVLOG_ERROR,"Unexpected packet type %d\n", event->header.packetType);
+            return -1;
+    }
+}
+
+int serializeSimplePacket(xLinkEvent_t* event) {
+    XLINK_RET_IF(event == NULL);
+    XLINK_RET_IF(event->packet == NULL);
+
+    int rc = XLinkPlatformWrite(&event->deviceHandle,
+        event->packet, event->header.size);
+    if(rc < 0) {
+        mvLog(MVLOG_ERROR,"Fail to write simple packet (err %d)\n", rc);
+        return rc;
+    }
+
+    return 0;
+}
+
+int serializeInferPacket(xLinkEvent_t* event) {
+    XLINK_RET_IF(event == NULL);
+    XLINK_RET_IF(event->packet == NULL);
+
+    inferPacketDesc_t* inferPacket = (inferPacketDesc_t*)event->packet;
+    int rc = XLinkPlatformWrite(&event->deviceHandle,
+                                (void*)&inferPacket->id, sizeof(inferPacket->id));
+    if(rc < 0) {
+        mvLog(MVLOG_ERROR,"Fail to write infer packet id (err %d)\n", rc);
+        return rc;
+    }
+
+    rc = XLinkPlatformWrite(&event->deviceHandle,
+                            (void*)inferPacket->streamPacket.data, inferPacket->streamPacket.length);
+    if(rc < 0) {
+        mvLog(MVLOG_ERROR,"Fail to write infer packet data (err %d)\n", rc);
+        return rc;
+    }
+
+    return 0;
+}
+
+int readBuffer(streamDesc_t* stream, xLinkEvent_t* event, void** out_buffer) {
+    XLINK_RET_IF(stream == NULL);
+    XLINK_RET_IF(event == NULL);
+    XLINK_RET_IF(out_buffer == NULL);
+
     int rc = -1;
-    streamDesc_t* stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
-    ASSERT_XLINK(stream);
+    void* buffer = NULL;
 
     stream->localFillLevel += event->header.size;
     mvLog(MVLOG_DEBUG,"S%d: Got write of %ld, current local fill level is %ld out of %ld %ld\n",
           event->header.streamId, event->header.size, stream->localFillLevel, stream->readSize, stream->writeSize);
 
-    void* buffer = XLinkPlatformAllocateData(ALIGN_UP(event->header.size, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
+    buffer = XLinkPlatformAllocateData(ALIGN_UP(event->header.size, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
     XLINK_OUT_WITH_LOG_IF(buffer == NULL,
-        mvLog(MVLOG_FATAL,"out of memory to receive data of size = %zu\n", event->header.size));
+                          mvLog(MVLOG_FATAL,"out of memory to receive data of size = %zu\n", event->header.size));
 
-    const int sc = XLinkPlatformRead(&event->deviceHandle, buffer, event->header.size);
-    XLINK_OUT_WITH_LOG_IF(sc < 0, mvLog(MVLOG_ERROR,"%s() Read failed %d\n", __func__, sc));
+    rc = XLinkPlatformRead(&event->deviceHandle, buffer, event->header.size);
+    XLINK_OUT_WITH_LOG_IF(rc < 0, mvLog(MVLOG_ERROR,"Read failed %d\n", rc));
 
-    event->data = buffer;
-    XLINK_OUT_WITH_LOG_IF(addNewPacketToStream(stream, buffer, event->header.size),
-        mvLog(MVLOG_WARN,"No more place in stream. release packet\n"));
+    *out_buffer = buffer;
     rc = 0;
 
-XLINK_OUT:
-    releaseStream(stream);
-
+    XLINK_OUT:
     if(rc != 0) {
         if(buffer != NULL) {
             XLinkPlatformDeallocateData(buffer,
@@ -579,6 +684,84 @@ XLINK_OUT:
     }
 
     return rc;
+}
+
+int deserializeSimplePacket(xLinkEvent_t* event) {
+    XLINK_RET_IF(event == NULL);
+
+    streamDesc_t* stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
+    ASSERT_XLINK(stream);
+
+    streamPacketDesc_t* streamPacket = malloc(sizeof(streamPacketDesc_t));
+    void* buffer = NULL;
+    int rc = readBuffer(stream, event, &buffer);
+    XLINK_OUT_WITH_LOG_IF(rc != 0,
+        mvLog(MVLOG_ERROR, "Fail to read data from stream: %s", event->header.streamName));
+
+    streamPacket->data = buffer;
+    streamPacket->length = event->header.size;
+    event->packet = streamPacket;
+
+    streamPacketInternal_t internalPacket = {0};
+    internalPacket.packetType = PACKET_SIMPLE;
+    internalPacket.data = streamPacket;
+
+    XLINK_OUT_WITH_LOG_IF(addNewPacketToStream(stream, &internalPacket),
+                          mvLog(MVLOG_WARN,"No more place in stream. release packet\n"));
+
+    XLINK_OUT:
+    releaseStream(stream);
+
+    if(rc != 0) {
+        free(streamPacket);
+        if(buffer != NULL) {
+            XLinkPlatformDeallocateData(buffer,
+                ALIGN_UP(event->header.size, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
+        }
+        XLINK_EVENT_NOT_ACKNOWLEDGE(event);
+    }
+
+    return  rc;
+}
+
+int deserializeInferPacket(xLinkEvent_t* event) {
+    XLINK_RET_IF(event == NULL);
+
+    streamDesc_t* stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
+    ASSERT_XLINK(stream);
+
+    inferPacketDesc_t* inferPacket = malloc(sizeof(inferPacketDesc_t));
+    int rc = XLinkPlatformRead(&event->deviceHandle, &inferPacket->id, sizeof(inferPacket->id));
+    XLINK_OUT_WITH_LOG_IF(rc < 0, mvLog(MVLOG_ERROR,"Read failed %d\n", rc));
+
+    void* buffer = NULL;
+    rc = readBuffer(stream, event, &buffer);
+    XLINK_OUT_WITH_LOG_IF(rc < 0,  mvLog(MVLOG_ERROR, "Fail to read data from stream: %s", event->header.streamName));
+
+    inferPacket->streamPacket.data = buffer;
+    inferPacket->streamPacket.length = event->header.size;
+    event->packet = inferPacket;
+
+    streamPacketInternal_t internalPacket = {0};
+    internalPacket.packetType = PACKET_INFER;
+    internalPacket.data = inferPacket;
+
+    XLINK_OUT_WITH_LOG_IF(addNewPacketToStream(stream, &internalPacket),
+                          mvLog(MVLOG_WARN,"No more place in stream. release packet\n"));
+
+    XLINK_OUT:
+    releaseStream(stream);
+
+    if(rc != 0) {
+        free(inferPacket);
+        if(buffer != NULL) {
+            XLinkPlatformDeallocateData(buffer,
+                ALIGN_UP(event->header.size, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
+        }
+        XLINK_EVENT_NOT_ACKNOWLEDGE(event);
+    }
+
+    return  rc;
 }
 
 // ------------------------------------
