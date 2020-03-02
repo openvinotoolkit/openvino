@@ -22,7 +22,6 @@ endif()
 target_include_directories(${TARGET_NAME}
         PUBLIC
         ${XLINK_INCLUDE}
-        PRIVATE
         ${XLINK_PLATFORM_INCLUDE})
 
 target_compile_definitions(${TARGET_NAME}
