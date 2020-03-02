@@ -79,6 +79,12 @@ typedef struct streamPacketDesc_t
     uint32_t length;
 } streamPacketDesc_t;
 
+typedef struct inferPacketDesc_t
+{
+    uint32_t id;
+    streamPacketDesc_t streamPacket;
+} inferPacketDesc_t;
+
 typedef struct XLinkProf_t
 {
     float totalReadTime;

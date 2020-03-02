@@ -147,12 +147,29 @@ XLinkError_t XLinkCloseStream(streamId_t streamId);
 XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer, int size);
 
 /**
+ * @brief Sends a package to initiate the writing of data to a remote stream
+ * @warning Actual size of the written data is ALIGN_UP(size, 64)
+ * @param[in] streamId – stream link Id obtained from XLinkOpenStream call
+ * @param[in] packet – data packet to be transmitted
+ * @return Status code of the operation: X_LINK_SUCCESS (0) for success
+ */
+XLinkError_t XLinkWriteInferPacket(streamId_t streamId, const inferPacketDesc_t* packet);
+
+/**
  * @brief Reads data from local stream. Will only have something if it was written to by the remote
  * @param[in]   streamId – stream link Id obtained from XLinkOpenStream call
  * @param[out]  packet – structure containing output data buffer and received size
  * @return Status code of the operation: X_LINK_SUCCESS (0) for success
  */
 XLinkError_t XLinkReadData(streamId_t streamId, streamPacketDesc_t** packet);
+
+/**
+ * @brief Reads data from local stream. Will only have something if it was written to by the remote
+ * @param[in]   streamId – stream link Id obtained from XLinkOpenStream call
+ * @param[out]  packet – structure containing output data buffer and received size
+ * @return Status code of the operation: X_LINK_SUCCESS (0) for success
+ */
+XLinkError_t XLinkReadDataPacket(streamId_t streamId, void** packet);
 
 /**
  * @brief Releases data from stream - This should be called after the data obtained from

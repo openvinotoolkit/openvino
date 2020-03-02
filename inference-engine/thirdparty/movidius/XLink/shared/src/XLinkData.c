@@ -58,7 +58,7 @@ streamId_t XLinkOpenStream(linkId_t id, const char* name, int stream_write_size)
 
         xLinkEvent_t event = {0};
         XLINK_INIT_EVENT(event, INVALID_STREAM_ID, XLINK_CREATE_STREAM_REQ,
-                         stream_write_size, NULL, link->deviceHandle);
+                         stream_write_size, link->deviceHandle);
         mv_strncpy(event.header.streamName, MAX_STREAM_NAME_LENGTH,
                    name, MAX_STREAM_NAME_LENGTH - 1);
 
@@ -110,14 +110,13 @@ XLinkError_t XLinkCloseStream(streamId_t streamId)
 
     xLinkEvent_t event = {0};
     XLINK_INIT_EVENT(event, streamId, XLINK_CLOSE_STREAM_REQ,
-        0, NULL, link->deviceHandle);
+        0, link->deviceHandle);
 
     XLINK_RET_IF(addEvent(&event));
     return X_LINK_SUCCESS;
 }
 
-XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer,
-                            int size)
+XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer, int size)
 {
     XLINK_RET_IF(buffer == NULL);
 
@@ -127,8 +126,8 @@ XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer,
     streamId = EXTRACT_STREAM_ID(streamId);
 
     xLinkEvent_t event = {0};
-    XLINK_INIT_EVENT(event, streamId, XLINK_WRITE_REQ,
-        size,(void*)buffer, link->deviceHandle);
+    XLINK_INIT_EVENT_WITH_PACKET(event, streamId, XLINK_WRITE_REQ, PACKET_SIMPLE,
+                                 size, (void*)buffer, link->deviceHandle);
 
     XLINK_RET_IF(addEventWithPerf(&event, &opTime));
 
@@ -140,7 +139,29 @@ XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer,
     return X_LINK_SUCCESS;
 }
 
-XLinkError_t XLinkReadData(streamId_t streamId, streamPacketDesc_t** packet)
+XLinkError_t XLinkWriteInferPacket(streamId_t streamId, const inferPacketDesc_t* packet) {
+    XLINK_RET_IF(packet == NULL);
+
+    float opTime = 0;
+    xLinkDesc_t* link = NULL;
+    XLINK_RET_IF(getLinkByStreamId(streamId, &link));
+    streamId = EXTRACT_STREAM_ID(streamId);
+
+    xLinkEvent_t event = {0};
+    XLINK_INIT_EVENT_WITH_PACKET(event, streamId, XLINK_WRITE_REQ, PACKET_INFER,
+                     packet->streamPacket.length, (void*)packet, link->deviceHandle);
+
+    XLINK_RET_IF(addEventWithPerf(&event, &opTime));
+
+    if( glHandler->profEnable) {
+        glHandler->profilingData.totalWriteBytes += packet->streamPacket.length;
+        glHandler->profilingData.totalWriteTime += opTime;
+    }
+
+    return X_LINK_SUCCESS;
+}
+
+XLinkError_t XLinkReadDataPacket(streamId_t streamId, void** packet)
 {
     XLINK_RET_IF(packet == NULL);
 
@@ -151,21 +172,26 @@ XLinkError_t XLinkReadData(streamId_t streamId, streamPacketDesc_t** packet)
 
     xLinkEvent_t event = {0};
     XLINK_INIT_EVENT(event, streamId, XLINK_READ_REQ,
-        0, NULL, link->deviceHandle);
+                     0, link->deviceHandle);
 
     XLINK_RET_IF(addEventWithPerf(&event, &opTime));
 
-    *packet = (streamPacketDesc_t *)event.data;
+    *packet = event.packet;
     if(*packet == NULL) {
         return X_LINK_ERROR;
     }
 
     if( glHandler->profEnable) {
-        glHandler->profilingData.totalReadBytes += (*packet)->length;
+        glHandler->profilingData.totalReadBytes += event.header.size;
         glHandler->profilingData.totalReadTime += opTime;
     }
 
     return X_LINK_SUCCESS;
+}
+
+XLinkError_t XLinkReadData(streamId_t streamId, streamPacketDesc_t** packet)
+{
+    return XLinkReadDataPacket(streamId, (void**)packet);
 }
 
 XLinkError_t XLinkReleaseData(streamId_t streamId)
@@ -176,7 +202,7 @@ XLinkError_t XLinkReleaseData(streamId_t streamId)
 
     xLinkEvent_t event = {0};
     XLINK_INIT_EVENT(event, streamId, XLINK_READ_REL_REQ,
-        0, NULL, link->deviceHandle);
+        0, link->deviceHandle);
 
     XLINK_RET_IF(addEvent(&event));
 
