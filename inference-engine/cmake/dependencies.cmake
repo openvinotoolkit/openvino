@@ -147,6 +147,8 @@ if (ENABLE_OPENCV)
             set(OPENCV_SUFFIX "ubuntu16")
         elseif (${LINUX_OS_NAME} STREQUAL "Ubuntu 18.04")
             set(OPENCV_SUFFIX "ubuntu18")
+        else()
+            set(OPENCV_SUFFIX "ubuntu18")
         endif()
         RESOLVE_DEPENDENCY(OPENCV
                 ARCHIVE_LIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
