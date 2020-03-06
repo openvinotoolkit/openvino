@@ -3116,9 +3116,8 @@ ncStatus_t ncFifoDestroy(struct ncFifoHandle_t ** fifoHandle)
     }*/
     //First write to the fifo to stop it's thread
     if (fifoWriteAccess(handle)) {
-        int msg = 0xdead;
-        if (XLinkWriteData(handle->streamId, (uint8_t *) & msg, sizeof(msg)) !=
-            0) {
+        inferPacketDesc_t inferPacket = {0xdead, {NULL, 0}};
+        if (XLinkWriteInferPacket(handle->streamId, &inferPacket)) {
             mvLog(MVLOG_ERROR, "Failed to write to fifo before deleting it!");
             return NC_ERROR;
         }
@@ -3201,7 +3200,8 @@ ncStatus_t ncFifoWriteElem(struct ncFifoHandle_t * fifoHandle,
             *inputTensorLength = handle->datasize;
             return NC_INVALID_DATA_LENGTH;
     }
-    int rc = XLinkWriteData(handle->streamId, inputTensor, *inputTensorLength);
+    inferPacketDesc_t inferPacket = {0, {(uint8_t*)inputTensor, *inputTensorLength}};
+    int rc = XLinkWriteInferPacket(handle->streamId, &inferPacket);
     if (rc != 0)
         return NC_ERROR;
 
@@ -3266,9 +3266,9 @@ ncStatus_t ncFifoReadElem(struct ncFifoHandle_t * fifoHandle, void *outputData,
         mvLog(MVLOG_ERROR, "API already read this element");
         return NC_UNAUTHORIZED;
     }
-    streamPacketDesc_t *packet = 0;
-    if (!XLinkReadData(handle->streamId, &packet) && packet) {
-        mvnc_memcpy(outputData, *outputDataLen, packet->data, packet->length);
+    inferPacketDesc_t *inferPacket = NULL;
+    if (!XLinkReadDataPacket(handle->streamId, (void**)&inferPacket) && inferPacket) {
+        mvnc_memcpy(outputData, *outputDataLen, inferPacket->streamPacket.data, inferPacket->streamPacket.length);
         XLinkReleaseData(handle->streamId);
     } else {
         mvLog(MVLOG_ERROR, "Packet reading is failed.");
