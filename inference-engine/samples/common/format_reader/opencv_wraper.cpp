@@ -6,6 +6,7 @@
 #include "opencv_wraper.h"
 #include <fstream>
 #include <iostream>
+#include <cstring>
 
 #include <opencv2/opencv.hpp>
 
@@ -40,9 +41,7 @@ std::shared_ptr<unsigned char> OCVReader::getData(size_t width = 0, size_t heigh
 
     size_t size = resized.size().width * resized.size().height * resized.channels();
     _data.reset(new unsigned char[size], std::default_delete<unsigned char[]>());
-    for (size_t id = 0; id < size; ++id) {
-        _data.get()[id] = resized.data[id];
-    }
+    std::memcpy(_data.get(), resized.data, size);
     return _data;
 }
 #endif
