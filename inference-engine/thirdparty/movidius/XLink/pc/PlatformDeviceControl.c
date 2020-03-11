@@ -94,11 +94,10 @@ void XLinkPlatformInit()
 
 int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
 {
-    int rc = 0;
     FILE *file;
     long file_size;
 
-    void *image_buffer;
+    char *image_buffer;
 
     /* Open the mvcmd file */
     file = fopen(binaryPath, "rb");
@@ -126,21 +125,28 @@ int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
     }
     fclose(file);
 
+    if(XLinkPlatformBootFirmware(deviceDesc, image_buffer, file_size)) {
+        free(image_buffer);
+        return -1;
+    }
+
+    free(image_buffer);
+    return 0;
+}
+
+int XLinkPlatformBootFirmware(deviceDesc_t* deviceDesc, const char* firmware, size_t length) {
     if (deviceDesc->protocol == X_LINK_PCIE) {
         // Temporary open fd to boot device and then close it
         int* pcieFd = NULL;
-        rc = pcie_init(deviceDesc->name, (void**)&pcieFd);
+        int rc = pcie_init(deviceDesc->name, (void**)&pcieFd);
         if (rc) {
-            free(image_buffer);
             return rc;
         }
 #if (!defined(_WIN32) && !defined(_WIN64))
-        rc = pcie_boot_device(*(int*)pcieFd, image_buffer, file_size);
+        rc = pcie_boot_device(*(int*)pcieFd, firmware, length);
 #else
-        rc = pcie_boot_device(pcieFd, image_buffer, file_size);
+        rc = pcie_boot_device(pcieFd, firmware, length);
 #endif
-        free(image_buffer);
-
         pcie_close(pcieFd); // Will not check result for now
         return rc;
     } else if (deviceDesc->protocol == X_LINK_USB_VSC) {
@@ -152,16 +158,13 @@ int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
             printf("Path to your boot util is too long for the char array here!\n");
         }
         // Boot it
-        rc = usb_boot(deviceDesc->name, image_buffer, file_size);
-        free(image_buffer);
+        int rc = usb_boot(deviceDesc->name, firmware, length);
 
         if(!rc) {
             mvLog(MVLOG_DEBUG, "Boot successful, device address %s", deviceDesc->name);
         }
         return rc;
     } else {
-        printf("Selected protocol not supported\n");
-        free(image_buffer);
         return -1;
     }
 }
