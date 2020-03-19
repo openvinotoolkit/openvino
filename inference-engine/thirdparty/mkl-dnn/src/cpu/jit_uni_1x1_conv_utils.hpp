@@ -97,6 +97,7 @@ inline void rtus_prepare(conv_pd_t *self, const convolution_desc_t *&conv_d,
 template <typename conv_pd_t>
 inline void rtus_prepare_space_info(conv_pd_t *self,
         memory_tracking::registrar_t &scratchpad) {
+    if (!self->rtus_.reduce_src_) return;
     const auto &jcp = self->jcp_;
 
     const int max_threads = mkldnn_get_max_threads();

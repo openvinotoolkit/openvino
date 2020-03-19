@@ -112,9 +112,9 @@ class Core::Impl : public ICore {
     mutable std::map<std::string, InferencePlugin, details::CaselessLess<std::string> > plugins;
 
     struct PluginDescriptor {
-        file_name_t libraryLocation;
+        FileUtils::FilePath libraryLocation;
         std::map<std::string, std::string> defaultConfig;
-        std::vector<std::string> listOfExtentions;
+        std::vector<FileUtils::FilePath> listOfExtentions;
     };
     std::map<std::string, PluginDescriptor, details::CaselessLess<std::string> > pluginRegistry;
     IErrorListener * listener = nullptr;
@@ -123,12 +123,20 @@ public:
     ~Impl() override;
 
     /**
-     * @brief Register plugins for devices which are located in .xml configuration file
+     * @brief Register plugins for devices which are located in .xml configuration file. The function supports UNICODE path
      * @param xmlConfigFile - an .xml configuraion with device / plugin information
      */
     void RegisterPluginsInRegistry(const std::string & xmlConfigFile) {
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        std::wstring wFilePath = InferenceEngine::details::multiByteCharToWString(xmlConfigFile.c_str());
+        const wchar_t* resolvedFilepath = wFilePath.c_str();
+#else
+        const char* resolvedFilepath = xmlConfigFile.c_str();
+#endif
+
+
         pugi::xml_document xmlDoc;
-        pugi::xml_parse_result res = xmlDoc.load_file(xmlConfigFile.c_str());
+        pugi::xml_parse_result res = xmlDoc.load_file(resolvedFilepath);
 
         if (res.status != pugi::status_ok) {
             std::ifstream t(xmlConfigFile);
@@ -160,7 +168,7 @@ public:
         for (auto pluginNode = devicesNode.child("plugin"); !pluginNode.empty();
              pluginNode = pluginNode.next_sibling("plugin")) {
             std::string deviceName = GetStrAttr(pluginNode, "name");
-            file_name_t pluginPath = GetStrAttr(pluginNode, "location");
+            FileUtils::FilePath pluginPath = FileUtils::toFilePath(GetStrAttr(pluginNode, "location").c_str());
 
             if (deviceName.find('.') != std::string::npos) {
                 THROW_IE_EXCEPTION << "Device name must not contain dot '.' symbol";
@@ -168,9 +176,8 @@ public:
 
             // append IR library path for default IE plugins
             {
-                std::string absPluginPath = FileUtils::makePath(getIELibraryPath(), pluginPath);
-                if (FileUtils::fileExist(absPluginPath))
-                    pluginPath = absPluginPath;
+                FileUtils::FilePath absFilePath = FileUtils::makePath(getInferenceEngineLibraryPath(), pluginPath);
+                if (FileUtils::fileExist(absFilePath)) pluginPath = absFilePath;
             }
 
             // check properties
@@ -188,12 +195,12 @@ public:
 
             // check extensions
             auto extensionsNode = pluginNode.child("extensions");
-            std::vector<std::string> listOfExtentions;
+            std::vector<FileUtils::FilePath> listOfExtentions;
 
             if (extensionsNode) {
                 for (auto extensionNode = extensionsNode.child("extension"); !extensionNode.empty();
                      extensionNode = extensionNode.next_sibling("extension")) {
-                    std::string extensionLocation = GetStrAttr(extensionNode, "location");
+                    FileUtils::FilePath extensionLocation = FileUtils::toFilePath(GetStrAttr(extensionNode, "location").c_str());
                     listOfExtentions.push_back(extensionLocation);
                 }
             }
@@ -262,8 +269,10 @@ public:
                 {
                     cppPlugin.SetConfig(desc.defaultConfig);
 
-                    for (auto && extensionLocation : desc.listOfExtentions) {
-                        cppPlugin.AddExtension(make_so_pointer<IExtension>(extensionLocation));
+                    for (auto&& extensionLocation : desc.listOfExtentions) {
+                        // TODO: fix once InferenceEngine::Extension can accept FileUtils::FilePath
+                        //       currently, extensions cannot be loaded using wide path
+                        cppPlugin.AddExtension(make_so_pointer<IExtension>(FileUtils::fromFilePath(extensionLocation)));
                     }
 
                     if (listener)
@@ -271,8 +280,9 @@ public:
                 }
 
                 plugins[deviceName] = cppPlugin;
-            } catch (const details::InferenceEngineException & ex) {
-                THROW_IE_EXCEPTION << "Failed to create plugin " << desc.libraryLocation << " for device " << deviceName << "\n"
+            } catch (const details::InferenceEngineException& ex) {
+                THROW_IE_EXCEPTION << "Failed to create plugin " << FileUtils::fromFilePath(desc.libraryLocation)
+                                   << " for device " << deviceName << "\n"
                                    << "Please, check your environment\n"
                                    << ex.what() << "\n";
             }
@@ -309,13 +319,12 @@ public:
         }
 
         // append IR library path for default IE plugins
-        std::string pluginPath;
+        FileUtils::FilePath pluginPath;
         {
-            pluginPath = make_plugin_name(file_name_t(), pluginName);
+            pluginPath = FileUtils::makeSharedLibraryName({}, FileUtils::toFilePath(pluginName.c_str()));
 
-            std::string absPluginPath = FileUtils::makePath(getIELibraryPath(), pluginPath);
-            if (FileUtils::fileExist(absPluginPath))
-                pluginPath = absPluginPath;
+            FileUtils::FilePath absFilePath = FileUtils::makePath(getInferenceEngineLibraryPath(), pluginPath);
+            if (FileUtils::fileExist(absFilePath)) pluginPath = absFilePath;
         }
 
         PluginDescriptor desc = { pluginPath, { }, { } };
@@ -368,7 +377,8 @@ Core::Core(const std::string & xmlConfigFile) {
     std::string xmlConfigFile_ = xmlConfigFile;
     if (xmlConfigFile_.empty()) {
         // register plugins from default plugins.xml config
-        xmlConfigFile_ = FileUtils::makePath(getIELibraryPath(), "plugins.xml");
+        FileUtils::FilePath xmlConfigFileDefault = FileUtils::makePath(getInferenceEngineLibraryPath(), FileUtils::toFilePath("plugins.xml"));
+        xmlConfigFile_ = FileUtils::fromFilePath(xmlConfigFileDefault);
     }
 
     RegisterPlugins(xmlConfigFile_);

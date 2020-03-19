@@ -615,12 +615,19 @@ status_t jit_avx2_conv_fwd_kernel_f32::init_conf(jit_conv_conf_t &jcp,
             // adjust one of nb_oc_block, ur_w preserving to ur_w >= l_pad
             if (jcp.ur_w > jcp.l_pad && jcp.ur_w > 1)
                 jcp.ur_w -= 1;
-            else
-                for (int b = 3; b > 1; b--)
+            else {
+                for (int b = 3; b > 1; b--) {
                     if (jcp.nb_oc % b == 0) {
                         jcp.nb_oc_blocking = b;
                         break;
                     }
+                }
+                if ((jcp.nb_oc_blocking + 1) * jcp.ur_w > num_avail_regs) {
+                    // No optimal size for 'nb_oc_blocking' with regards to
+                    // 'nb_oc', default to only unroll by 'ur_w'.
+                    jcp.nb_oc_blocking = 1;
+                }
+            }
         }
     }
 

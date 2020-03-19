@@ -9,6 +9,7 @@
 #include "ie_icnn_network_stats.hpp"
 #include "cpp/ie_plugin_cpp.hpp"
 #include "details/ie_cnn_network_tools.h"
+#include "details/os/os_filesystem.hpp"
 #include "file_utils.h"
 #include "net_pass.h"
 #include "precision_utils.h"
@@ -737,32 +738,54 @@ std::unordered_set<DataPtr> getRootDataObjects(ICNNNetwork &network) {
 
 namespace {
 
-std::string getPathName(const std::string & s) {
-    size_t i = s.rfind(FileUtils::FileSeparator, s.length());
+template <typename C, typename = InferenceEngine::details::enableIfSupportedChar<C> >
+std::basic_string<C> getPathName(const std::basic_string<C>& s) {
+    size_t i = s.rfind(FileUtils::FileTraits<C>::FileSeparator, s.length());
     if (i != std::string::npos) {
         return(s.substr(0, i));
     }
 
-    return std::string();
+    return {};
 }
 
 }  // namespace
 
-std::string getIELibraryPath() {
+#ifndef _WIN32
+
+static std::string getIELibraryPathUnix() {
+    Dl_info info;
+    dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
+    return getPathName(std::string(info.dli_fname)).c_str();
+}
+
+#endif  // _WIN32
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+
+std::wstring getIELibraryPathW() {
 #if defined(_WIN32) || defined(_WIN64)
-    char ie_library_path[2048];
+    wchar_t ie_library_path[4096];
     HMODULE hm = NULL;
-    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                            (LPCSTR)getIELibraryPath, &hm)) {
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            (LPCWSTR)getIELibraryPath, &hm)) {
         THROW_IE_EXCEPTION << "GetModuleHandle returned " << GetLastError();
     }
-    GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
-    return getPathName(ie_library_path);
+    GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path));
+    return getPathName(std::wstring(ie_library_path));
 #else
     Dl_info info;
-    dladdr(reinterpret_cast<void *>(getIELibraryPath), &info);
-    return getPathName(info.dli_fname);
+    dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
+    return details::multiByteCharToWString(getIELibraryPathUnix().c_str());
+#endif
+}
+
+#endif
+
+std::string getIELibraryPath() {
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    return details::wStringtoMBCSstringChar(getIELibraryPathW());
+#else
+    return getIELibraryPathUnix();
 #endif
 }
 

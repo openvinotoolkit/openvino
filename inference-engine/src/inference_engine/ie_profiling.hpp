@@ -263,7 +263,7 @@ inline static void annotateEnd(IttStatic&, IttProfilingTask& t) {
 
 #define IE_PROFILING_AUTO_SCOPE_TASK(PROFILING_TASK) IE_ITT_TASK_SCOPE(PROFILING_TASK); IE_TIMER_SCOPE(PROFILING_TASK.name)
 
-inline static void anotateSetThreadName(const char* name) {
+inline static void annotateSetThreadName(const char* name) {
     #ifdef ENABLE_PROFILING_ITT
     __itt_thread_set_name(name);
     #endif

@@ -10,10 +10,14 @@
 
 #include <memory>
 #include "ie_so_loader.h"
+
 #include "ie_common.h"
 #include "ie_plugin.hpp"
 #include "details/ie_exception.hpp"
 #include "details/ie_no_release.hpp"
+#include "details/os/os_filesystem.hpp"
+
+#include <type_traits>
 #include <string>
 #include <cassert>
 
@@ -86,11 +90,17 @@ public:
     * @brief The main constructor
     * @param name Name of a shared library file
     */
-    explicit SOPointer(const file_name_t &name)
-        : _so_loader(new Loader(name.c_str()))
-        , _pointedObj(details::shared_from_irelease(
-            SymbolLoader<Loader>(_so_loader).template instantiateSymbol<T>(SOCreatorTrait<T>::name))) {
-    }
+    template <typename C,
+              typename = enableIfSupportedChar<C>>
+    explicit SOPointer(const std::basic_string<C> & name)
+        : _so_loader(new Loader(name.c_str())),
+          _pointedObj(details::shared_from_irelease(
+              SymbolLoader<Loader>(_so_loader).template instantiateSymbol<T>(SOCreatorTrait<T>::name))) {}
+
+    explicit SOPointer(const char * name)
+        : _so_loader(new Loader(name)),
+          _pointedObj(details::shared_from_irelease(
+              SymbolLoader<Loader>(_so_loader).template instantiateSymbol<T>(SOCreatorTrait<T>::name))) {}
 
     /**
     * @brief Constructs an object with existing reference

@@ -8,8 +8,9 @@
  */
 #pragma once
 
-#include "../../ie_api.h"
-#include "../ie_exception.hpp"
+#include "ie_api.h"
+#include "details/ie_exception.hpp"
+#include "details/os/os_filesystem.hpp"
 
 // Avoidance of Windows.h to include winsock library.
 #define _WINSOCKAPI_
@@ -30,14 +31,7 @@ class SharedObjectLoader {
 private:
     HMODULE shared_object;
 
-public:
-    /**
-     * @brief Loads a library with the name specified. The library is loaded according to the
-     *        WinAPI LoadLibrary rules
-     * @param pluginName Full or relative path to the plugin library
-     */
-    explicit SharedObjectLoader(LPCTSTR pluginName) {
-        char cwd[1024];
+    void ExcludeCurrentDirectory() {
         // Exclude current directory from DLL search path process wise.
         // If application specific path was configured before then
         // current directory is alread excluded.
@@ -45,21 +39,38 @@ public:
         // path was set to "" or NULL so reset it to "" to keep
         // aplication safe.
         if (GetDllDirectory(0, NULL) <= 1) {
-            SetDllDirectory(
-#if defined UNICODE
-                L"");
-#else
-                "");
-#endif
-        }
-        shared_object = LoadLibrary(pluginName);
-        if (!shared_object) {
-            THROW_IE_EXCEPTION << "Cannot load library '"
-                << pluginName << "': "
-                << GetLastError()
-                << " from cwd: " << _getcwd(cwd, 1024);
+            SetDllDirectory(TEXT(""));
         }
     }
+
+public:
+    /**
+     * @brief Loads a library with the name specified. The library is loaded according to the
+     *        WinAPI LoadLibrary rules
+     * @param pluginName Full or relative path to the plugin library
+     */
+    explicit SharedObjectLoader(LPCWSTR pluginName) {
+        ExcludeCurrentDirectory();
+
+        shared_object = LoadLibraryW(pluginName);
+        if (!shared_object) {
+            char cwd[1024];
+            THROW_IE_EXCEPTION << "Cannot load library '" << details::wStringtoMBCSstringChar(std::wstring(pluginName)) << "': " << GetLastError()
+                               << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+        }
+    }
+
+    explicit SharedObjectLoader(LPCSTR pluginName) {
+        ExcludeCurrentDirectory();
+
+        shared_object = LoadLibrary(pluginName);
+        if (!shared_object) {
+            char cwd[1024];
+            THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << GetLastError()
+                << " from cwd: " << _getcwd(cwd, sizeof(cwd));
+        }
+    }
+
     ~SharedObjectLoader() {
         FreeLibrary(shared_object);
     }

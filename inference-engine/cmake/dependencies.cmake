@@ -72,18 +72,18 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     if (WIN32)
         #TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "tbb2019_20181010_win.zip" #TODO: windows zip archive created incorrectly using old name for folder
+                ARCHIVE_WIN "tbb2019_20181010_win_with_mall_proxy.zip" #TODO: windows zip archive created incorrectly using old name for folder
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
     elseif(LINUX)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "tbb2019_20181010_lin.tgz"
+                ARCHIVE_LIN "tbb2019_20181010_lin_with_mall_proxy.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT")
     else(APPLE)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "tbb2019_20190414_v1_mac.tgz"
+                ARCHIVE_MAC "tbb2019_20190414_v1_mac_with_mall_proxy.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")

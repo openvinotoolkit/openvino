@@ -328,6 +328,42 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
         }
     }
 
+    // This logic is needed to cover cases when Split node cannot be optimized out for particular block size
+    // In general it is significantly better to have additional reorders in graph than to use reference Split implementation
+    if (convertTo == memory::nChw16c || convertTo == memory::nCdhw16c ||
+        convertTo == memory::nChw8c || convertTo == memory::nCdhw8c) {
+        int blockSize = convertTo == memory::nChw16c || convertTo == memory::nCdhw16c ? 16 : 8;
+        bool shouldDecreaseBlockSize = false;
+        for (auto& parentEdge : getParentEdges()) {
+            if (parentEdge.lock()->getDims()[1] % blockSize != 0)
+                shouldDecreaseBlockSize = true;
+        }
+
+        for (auto& childEdge : getChildEdges()) {
+            if (childEdge.lock()->getDims()[1] % blockSize != 0)
+                shouldDecreaseBlockSize = true;
+        }
+
+        if (shouldDecreaseBlockSize) {
+            int decreasedBlockSize = 8;
+            bool canDecreaseBlockSize = true;
+            for (auto &parentEdge : getParentEdges()) {
+                if (parentEdge.lock()->getDims()[1] % decreasedBlockSize != 0)
+                    canDecreaseBlockSize = false;
+            }
+
+            for (auto &childEdge : getChildEdges()) {
+                if (childEdge.lock()->getDims()[1] % decreasedBlockSize != 0)
+                    canDecreaseBlockSize = false;
+            }
+
+            if (canDecreaseBlockSize)
+                convertTo = getParentEdgeAt(0)->getDims().ndims() == 5 ? memory::nCdhw8c : memory::nChw8c;
+            else
+                convertTo = MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims());
+        }
+    }
+
     if (canOptimize && MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, convertTo).blocksExtended())
         canOptimize = false;
     for (size_t i = 0; canOptimize && i < getChildEdges().size(); i++) {

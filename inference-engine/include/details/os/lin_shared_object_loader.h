@@ -10,8 +10,9 @@
 
 #include <dlfcn.h>
 
-#include "../../ie_api.h"
-#include "../ie_exception.hpp"
+#include "ie_api.h"
+#include "details/ie_exception.hpp"
+#include "details/os/os_filesystem.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -35,6 +36,18 @@ public:
         if (shared_object == nullptr)
             THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << dlerror();
     }
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+    /**
+     * @brief Loads a library with the name specified. The library is loaded according to
+     *        the POSIX rules for dlopen
+     * @param pluginName Full or relative path to the library
+     */
+    explicit SharedObjectLoader(const wchar_t* pluginName) : SharedObjectLoader(wStringtoMBCSstringChar(pluginName).c_str()) {
+    }
+
+#endif  // ENABLE_UNICODE_PATH_SUPPORT
+
     ~SharedObjectLoader() noexcept(false) {
         if (0 != dlclose(shared_object)) {
             THROW_IE_EXCEPTION << "dlclose failed: " << dlerror();
