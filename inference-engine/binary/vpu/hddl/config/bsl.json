@@ -1,0 +1,26 @@
+{
+  "autoscan": true,
+  "comment_on_autoscan": "auto-scan can be true or false",
+  "hid-f75114": {
+    "enabled": false,
+    "Linux_comment": "You can use setup_tools/path_detaction.sh to get the suggested paths",
+    "Linux_path_example": "/sys/devices/pci0000:00/0000:00:01.1/0000:02:00.0/0000:03:04.0/0000:07:00.0/usb9/9-2/9-2.2/9-2.2:1.0",
+    "Windows_comment": "HID\\VID_2C42&PID_5114\\6&A471F67&0&0000 is for Windows",
+    "Comment": "Leave empty to pass all paths",
+    "hid_paths": [
+    ]
+  },
+  "ioexpander": {
+    "enabled": false,
+    "i2c_addr": [
+      37,
+      39
+    ]
+  },
+  "mcu": {
+    "enabled": false,
+    "i2c_addr": [
+      31
+    ]
+  }
+}

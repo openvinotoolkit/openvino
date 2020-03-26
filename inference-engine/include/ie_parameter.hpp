@@ -100,7 +100,7 @@ public:
     /**
      * @brief Destructor
      */
-    virtual ~Parameter();
+     virtual ~Parameter();
 
     /**
      * Copy operator for Parameter
@@ -265,9 +265,9 @@ private:
 
     struct Any {
 #ifdef __clang__
-        virtual ~Any();
+       virtual ~Any();
 #else
-        virtual ~Any() = default;
+	virtual ~Any() = default;
 #endif
         virtual bool is(const std::type_info&) const = 0;
         virtual Any* copy() const = 0;

@@ -1,0 +1,1 @@
+SUBSYSTEM=="usbmisc", ATTRS{idVendor}=="03e7", ATTRS{idProduct}=="f63b", GROUP="users", MODE="0660"
