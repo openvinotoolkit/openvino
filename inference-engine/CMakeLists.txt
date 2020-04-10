@@ -123,11 +123,13 @@ install(FILES samples/CMakeLists.txt
 
 # install Python samples
 
-ie_cpack_add_component(python_samples REQUIRED DEPENDS core)
+if (ENABLE_PYTHON)
+    ie_cpack_add_component(python_samples REQUIRED DEPENDS core)
 
-install(DIRECTORY ${ie_python_api_SOURCE_DIR}/sample/
-        DESTINATION ${IE_CPACK_IE_DIR}/samples/python
-        COMPONENT python_samples)
+    install(DIRECTORY ${ie_python_api_SOURCE_DIR}/sample/
+            DESTINATION ${IE_CPACK_IE_DIR}/samples/python
+            COMPONENT python_samples)
+endif()
 
 # Custom target to build only Inference Engine Developer Package targets
 
