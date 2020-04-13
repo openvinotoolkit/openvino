@@ -766,15 +766,6 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     if (rc != X_LINK_SUCCESS) {
         CHECK_MUTEX_SUCCESS(pthread_mutex_unlock(&deviceOpenMutex));
         GLOBAL_UNLOCK();
-        if (in_ncDeviceDesc.platform == NC_ANY_PLATFORM) {
-            mvLog(MVLOG_WARN, "Failed to find a device, rc: %s", XLinkErrorToStr(rc));
-        } else {
-            /**
-             * If user asked for a specific device and there is no suitable one then it can be an expected behavior
-             * e.g. compile blob without a connected device
-             */
-            mvLog(MVLOG_WARN, "Failed to find %s device, rc: %s", ncPlatformToStr(in_ncDeviceDesc.platform), XLinkErrorToStr(rc));
-        }
         return parseXLinkError(NC_ERROR);
     }
 

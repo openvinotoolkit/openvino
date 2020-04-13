@@ -345,12 +345,27 @@ def add_quantization_statistics(graph, net_element):
         log.info('Statistics were inserted to IR')
 
 
+def add_quantization_info_section(net: Element, meta_info: dict):
+    if 'quantization_parameters' in meta_info:
+        parameters = meta_info['quantization_parameters']
+        quant_params = SubElement(net, 'quantization_parameters')
+
+        config = SubElement(quant_params, 'config')
+        config.text = parameters['config']
+
+        version = SubElement(quant_params, 'version')
+        version.set('value', parameters['version'])
+
+        cli_params = SubElement(quant_params, 'cli_params')
+        cli_params.set('value', parameters['cli_params'])
+
+
 def add_meta_data(net: Element, meta_info: dict):
     meta = SubElement(net, 'meta_data')
     SubElement(meta, 'MO_version').set('value', get_version())
     parameters = SubElement(meta, 'cli_parameters')
     [SubElement(parameters, str(key)).set('value', str(meta_info[key])) for key in sorted(meta_info.keys()) if
-     key != 'unset']
+     key not in ('unset', 'quantization_parameters')]
     SubElement(parameters, 'unset').set('unset_cli_parameters', ', '.join(sorted(meta_info['unset'])))
 
 
@@ -407,6 +422,7 @@ def generate_ie_ir(graph: Graph, file_name: str, input_names: tuple = (), mean_o
     serialize_network(graph, net, unsupported)
     add_quantization_statistics(graph, net)
     add_meta_data(net, meta_info)
+    add_quantization_info_section(net, meta_info)
     xml_string = tostring(net)
     xml_doc = parseString(xml_string)
     pretty_xml_as_string = xml_doc.toprettyxml()

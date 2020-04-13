@@ -158,7 +158,7 @@ namespace Xbyak {
 
 enum {
 	DEFAULT_MAX_CODE_SIZE = 4096,
-	VERSION = 0x5760 /* 0xABCD = A.BC(D) */
+	VERSION = 0x5800 /* 0xABCD = A.BC(D) */
 };
 
 #ifndef MIE_INTEGER_TYPE_DEFINED
@@ -478,7 +478,8 @@ public:
 		kind_ = kind;
 		bit_ = kind == XMM ? 128 : kind == YMM ? 256 : 512;
 	}
-	void setBit(int bit) { bit_ = bit; }
+	// err if MMX/FPU/OPMASK/BNDREG
+	void setBit(int bit);
 	void setOpmaskIdx(int idx, bool ignore_idx0 = false)
 	{
 		if (!ignore_idx0 && idx == 0) throw Error(ERR_K0_IS_INVALID);
@@ -561,6 +562,49 @@ public:
 	const Reg& getReg() const;
 };
 
+inline void Operand::setBit(int bit)
+{
+	if (bit != 8 && bit != 16 && bit != 32 && bit != 64 && bit != 128 && bit != 256 && bit != 512) goto ERR;
+	if (isBit(bit)) return;
+	if (is(MEM)) {
+		bit_ = bit;
+		return;
+	}
+	if (is(REG | XMM | YMM | ZMM)) {
+		int idx = getIdx();
+		// err if converting ah, bh, ch, dh
+		if (isREG(8) && (4 <= idx && idx < 8) && !isExt8bit()) goto ERR;
+		Kind kind = REG;
+		switch (bit) {
+		case 8:
+			if (idx >= 16) goto ERR;
+#ifdef XBYAK32
+			if (idx >= 4) goto ERR;
+#else
+			if (4 <= idx && idx < 8) idx |= EXT8BIT;
+#endif
+			break;
+		case 16:
+		case 32:
+		case 64:
+			if (idx >= 16) goto ERR;
+			break;
+		case 128: kind = XMM; break;
+		case 256: kind = YMM; break;
+		case 512: kind = ZMM; break;
+		}
+		idx_ = idx;
+		kind_ = kind;
+		bit_ = bit;
+		if (bit >= 128) return; // keep mask_ and rounding_
+		mask_ = 0;
+		rounding_ = 0;
+		return;
+	}
+ERR:
+	throw Error(ERR_CANT_CONVERT);
+}
+
 class Label;
 
 struct Reg8;
@@ -573,7 +617,8 @@ class Reg : public Operand {
 public:
 	Reg() { }
 	Reg(int idx, Kind kind, int bit = 0, bool ext8bit = false) : Operand(idx, kind, bit, ext8bit) { }
-	Reg changeBit(int bit) const { return Reg(getIdx(), getKind(), bit, isExt8bit()); }
+	// convert to Reg8/Reg16/Reg32/Reg64/XMM/YMM/ZMM
+	Reg changeBit(int bit) const { Reg r(*this); r.setBit(bit); return r; }
 	uint8 getRexW() const { return isREG(64) ? 8 : 0; }
 	uint8 getRexR() const { return isExtIdx() ? 4 : 0; }
 	uint8 getRexX() const { return isExtIdx() ? 2 : 0; }
@@ -697,34 +742,23 @@ struct RegRip {
 
 inline Reg8 Reg::cvt8() const
 {
-	const int idx = getIdx();
-	if (isBit(8)) return Reg8(idx, isExt8bit());
-#ifdef XBYAK32
-	if (idx >= 4) throw Error(ERR_CANT_CONVERT);
-#endif
-	return Reg8(idx, 4 <= idx && idx < 8);
+	Reg r = changeBit(8); return Reg8(r.getIdx(), r.isExt8bit());
 }
 
 inline Reg16 Reg::cvt16() const
 {
-	const int idx = getIdx();
-	if (isBit(8) && (4 <= idx && idx < 8) && !isExt8bit()) throw Error(ERR_CANT_CONVERT);
-	return Reg16(idx);
+	return Reg16(changeBit(16).getIdx());
 }
 
 inline Reg32 Reg::cvt32() const
 {
-	const int idx = getIdx();
-	if (isBit(8) && (4 <= idx && idx < 8) && !isExt8bit()) throw Error(ERR_CANT_CONVERT);
-	return Reg32(idx);
+	return Reg32(changeBit(32).getIdx());
 }
 
 #ifdef XBYAK64
 inline Reg64 Reg::cvt64() const
 {
-	const int idx = getIdx();
-	if (isBit(8) && (4 <= idx && idx < 8) && !isExt8bit()) throw Error(ERR_CANT_CONVERT);
-	return Reg64(idx);
+	return Reg64(changeBit(64).getIdx());
 }
 #endif
 

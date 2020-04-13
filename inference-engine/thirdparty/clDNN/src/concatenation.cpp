@@ -44,8 +44,8 @@ layout concatenation_inst::calc_output_layout(concatenation_node const& node) {
     result_sizes[axis_index] = 0;
     for (size_t i = 0; i < desc->input.size(); ++i) {
         auto input_sizes = node.input(i).get_output_layout().size.sizes();
-        if (node.input(i).get_output_layout().format == format::bfyx_f16)
-            output_format = format::bfyx_f16;
+        if (node.input(i).get_output_layout().format == format::b_fs_yx_fsv16)
+            output_format = format::b_fs_yx_fsv16;
 
         result_sizes[axis_index] += input_sizes[axis_index];
     }

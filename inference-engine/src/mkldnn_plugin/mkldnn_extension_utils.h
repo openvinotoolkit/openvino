@@ -11,7 +11,6 @@
 #include <string>
 
 #include "mkldnn.hpp"
-#include "inference_engine.hpp"
 #include "mkldnn_memory.h"
 
 namespace MKLDNNPlugin {

@@ -68,13 +68,13 @@ private:
         auto outputClasses = outputEdges()[1]->output();
         auto outputScores = outputEdges()[2]->output();
 
-        inputBoxes->serializeNewBuffer(serializer);
-        inputDeltas->serializeNewBuffer(serializer);
-        inputScores->serializeNewBuffer(serializer);
-        inputIMinfo->serializeNewBuffer(serializer);
-        outputBoxes->serializeNewBuffer(serializer);
-        outputClasses->serializeNewBuffer(serializer);
-        outputScores->serializeNewBuffer(serializer);
+        inputBoxes->serializeBuffer(serializer);
+        inputDeltas->serializeBuffer(serializer);
+        inputScores->serializeBuffer(serializer);
+        inputIMinfo->serializeBuffer(serializer);
+        outputBoxes->serializeBuffer(serializer);
+        outputClasses->serializeBuffer(serializer);
+        outputScores->serializeBuffer(serializer);
     }
 };
 

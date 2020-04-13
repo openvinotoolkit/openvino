@@ -24,8 +24,8 @@
 namespace cldnn {
 
 struct memory_impl : refcounted_obj<memory_impl> {
-    memory_impl(const engine_impl::ptr& engine, const layout& layout, uint32_t net_id, bool reused = false)
-        : _engine(engine.get()), _layout(layout), _net_id(net_id), _reused(reused), _bytes_count(_layout.bytes_count()) {}
+    memory_impl(const engine_impl::ptr& engine, const layout& layout, uint32_t net_id,  allocation_type type, bool reused = false)
+        : _engine(engine.get()), _layout(layout), _net_id(net_id), _bytes_count(_layout.bytes_count()), _type(type), _reused(reused) {}
 
     virtual ~memory_impl() {
         if (_engine != nullptr && !_reused) {
@@ -42,22 +42,24 @@ struct memory_impl : refcounted_obj<memory_impl> {
     const layout& get_layout() const { return _layout; }
     uint32_t get_net_id() const { return _net_id; }
     void set_net(uint32_t id) { _net_id = id; }
+    allocation_type get_allocation_type() const { return _type; }
 
 protected:
     engine_impl *const _engine;
     const layout _layout;
     uint32_t _net_id;
+    size_t _bytes_count;
 
 private:
-    bool _reused;
     // layout bytes count, needed because of traits static map destruction
     // before run of memory_impl destructor, when engine is static
-    size_t _bytes_count;
+    allocation_type _type;
+    bool _reused;
 };
 
 struct simple_attached_memory : memory_impl {
     simple_attached_memory(const layout& layout, void* pointer, uint32_t net_id)
-        : memory_impl((engine_impl::ptr) nullptr, layout, net_id), _pointer(pointer) {}
+        : memory_impl((engine_impl::ptr) nullptr, layout, net_id, allocation_type::unknown), _pointer(pointer) {}
 
     void* lock() override { return _pointer; }
     void unlock() override {}

@@ -433,8 +433,17 @@ void jit_trans_iw_ic_int16_t::transpose(int nrows, int l_pad, int r_pad,
             int store_pad = div_up(r_pad, 2);
             int addr_shift = r_pad % 2;
             add(reg_tr_src_tmp, (nrows - addr_shift) * typesize);
-            padding(reg_tr_src_tmp, store_pad);
-            sub(reg_tr_src_tmp, (nrows - addr_shift) * typesize);
+            // note: r_pad can be bigger than 16 because of dilation
+            int tail = store_pad % transpose_size;
+            int pad_rows = store_pad / transpose_size;
+            for (int pad = 0; pad < pad_rows; pad++) {
+                padding(reg_tr_src_tmp, transpose_size);
+                add(reg_tr_src_tmp, 2 * transpose_size * typesize);
+            }
+            if (tail > 0) padding(reg_tr_src_tmp, tail);
+            sub(reg_tr_src_tmp,
+                    (pad_rows * 2 * transpose_size + nrows - addr_shift)
+                            * typesize);
         }
 
         int store_tail = rnd_up(nrows, 2);

@@ -50,6 +50,25 @@ T square_fwd(T s) {
 }
 
 template <typename T>
+T gelu_fwd(T s) {
+    const float a = 0.797884;
+    const float b = 0.044715;
+    const float g = a * s * (1 + b * s * s);
+    return static_cast<T>(0.5 * s * (1 + tanh_fwd(g)));
+}
+
+template <typename T>
+T gelu_bwd(T dd, T s) {
+    const float a = 0.797884;
+    const float b = 0.044715;
+    const float g = a * s * (1 + b * s * s);
+    const float dg = a * (1 + 3 * b * s * s);
+    return static_cast<T>(
+            dd * (0.5 * (1 + tanh_fwd(g)) * (1 + s * (1 - tanh_fwd(g)) * dg)));
+}
+
+
+template <typename T>
 T square_bwd(T dd, T s) {
     return dd * 2*s;
 }
@@ -119,6 +138,16 @@ T logistic_bwd(T dd, T s) {
     return dd * v * (1 - v);
 }
 
+template <typename T>
+T exp_fwd(T s) {
+    return (T)(::expf((float)s));
+}
+
+template <typename T>
+T exp_bwd(T dd, T s) {
+    return dd * exp_fwd<T>(s);
+}
+
 template <typename T, typename A>
 inline T clamp_fwd(T s, A alpha, A beta) {
     return s > alpha ? alpha : s < beta ? beta : s;
@@ -130,18 +159,19 @@ inline T clamp_bwd(T dd, T s, A alpha, A beta) {
 }
 
 template <typename T>
-inline T exp_fwd(T s) {
-    return (T)(::expf((float)s));
-}
-
-template <typename T>
- inline T exp_bwd(T dd, T s) {
-    return (T)(::expf((float)s));
-}
-
-template <typename T>
 inline T not_fwd(T s) {
     return (T)(!s);
+}
+
+template <typename T, typename A>
+T swish_fwd(T s, A alpha) {
+    return (T)(s / (1.0f + ::expf(-alpha * (float)s)));
+}
+
+template <typename T, typename A>
+T swish_bwd(T dd, T s, A alpha) {
+    float v = logistic_fwd<float>(alpha * s);
+    return dd * (v + s * alpha * v * (1 - v));
 }
 
 struct eltwise_test_params {
@@ -185,9 +215,11 @@ void ref_eltwise_fwd(const eltwise_test_params &p,
         case eltwise_bounded_relu: ref_d = bounded_relu_fwd(s, p.alpha);  break;
         case eltwise_soft_relu:   ref_d = soft_relu_fwd(s);               break;
         case eltwise_logistic:    ref_d = logistic_fwd(s);                break;
-        case eltwise_clamp:       ref_d = clamp_fwd(s, p.alpha, p.beta);  break;
         case eltwise_exp:         ref_d = exp_fwd(s);                     break;
+        case eltwise_gelu:        ref_d = gelu_fwd(s);                    break;
+        case eltwise_clamp:       ref_d = clamp_fwd(s, p.alpha, p.beta);  break;
         case eltwise_not:         ref_d = not_fwd(s);                     break;
+        case eltwise_swish:       ref_d = swish_fwd(s, p.alpha);          break;
         default: assert(!"unknown alg_kind");
         }
         dst_data[i] = ref_d;
@@ -255,8 +287,10 @@ void check_eltwise_bwd(const eltwise_test_params &p,
             ref_ds = soft_relu_bwd(ref_dd, ref_s);
             break;
         case eltwise_logistic: ref_ds = logistic_bwd(ref_dd, ref_s); break;
+        case eltwise_exp:      ref_ds = exp_bwd(ref_dd, ref_s);      break;
+        case eltwise_gelu:     ref_ds = gelu_bwd(ref_dd, ref_s);     break;
         case eltwise_clamp: ref_ds = clamp_bwd(ref_dd, ref_s, p.alpha, p.beta); break;
-        case eltwise_exp: ref_ds = exp_bwd(ref_dd, ref_s); break;
+        case eltwise_swish: ref_ds = swish_bwd(ref_dd, ref_s, p.alpha);         break;
         default: assert(!"unknown alg_kind");
         }
         float diff_err = diff_src_data[map_index(diff_data_d, i)] - ref_ds;

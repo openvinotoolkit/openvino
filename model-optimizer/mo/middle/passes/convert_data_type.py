@@ -23,6 +23,14 @@ from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
+
+class packed_U1(np.generic):
+    # packed U1 and U8 types of data are stored in numpy uint8 data type
+    # to distinguish true uint8 and u1 data we introduce this class not to store,
+    # but to have unique data type in SUPPORTED_DATA_TYPES map
+    pass
+
+
 SUPPORTED_DATA_TYPES = {
     'float': (np.float32, 'FP32', 'f32'),
     'half': (np.float16, 'FP16', 'f16'),
@@ -35,7 +43,7 @@ SUPPORTED_DATA_TYPES = {
     'int32': (np.int32, 'I32', 'i32'),
     'int64': (np.int64, 'I64', 'i64'),
     'bool': (np.bool, 'BOOL', 'boolean'),
-    'U1': (np.uint8, 'U1', 'u1'),
+    'U1': (packed_U1, 'U1', 'u1'),
 }
 
 

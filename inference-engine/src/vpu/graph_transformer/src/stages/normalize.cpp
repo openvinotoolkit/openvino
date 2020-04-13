@@ -63,9 +63,9 @@ private:
         auto scales = inputEdge(1)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
-        scales->serializeNewBuffer(serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
+        scales->serializeBuffer(serializer);
     }
 };
 

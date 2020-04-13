@@ -96,10 +96,13 @@ def common_onnx_pool_extractor(node):
         pads = np.transpose(pads)
         final_pads = np.array([[0, 0], [0, 0], *[p for p in pads]], dtype=np.int64)
 
-    # Extract dilations attribute
-    # In case if dilations is not specified it will be set in default (1) in infer function
+    # Extract strides attribute
+    # In case if strides is not specified it will be set in default (1) in infer function
     strides = onnx_attr(node, 'strides', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
     final_strides = np.array([1, 1, *[x for x in strides]], dtype=np.int64) if strides is not None else None
+
+    dilations = onnx_attr(node, 'dilations', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
+    assert dilations is None, 'dilations attribute is not supported in node {}'.format(node.id)
 
     kernel_shape = onnx_attr(node, 'kernel_shape', 'ints', default=None, dst_type=lambda x: np.array(x, dtype=np.int64))
     final_kernel_shape = np.array([1, 1, *[x for x in kernel_shape]], dtype=np.int64) if kernel_shape is not None else None
@@ -117,7 +120,7 @@ def common_onnx_pool_extractor(node):
 
     # TODO check if it is a correct choice for ONNX
     pooling_convention = 'valid'  # for Caffe rounding type should be ceil
-    rt = 'floor'
+    rt = 'floor' if onnx_attr(node, 'ceil_mode', 'i', default=0) == 0 else 'ceil'
 
     auto_pad = onnx_attr(node, 'auto_pad', 's', default=None, dst_type=get_onnx_autopad)
     if auto_pad:

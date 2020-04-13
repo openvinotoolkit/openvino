@@ -42,7 +42,30 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
 
 JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    jit.AddConstant(MakeJitConstant("PERMUTE_ORDER", params.order));
+
+    std::vector<std::string> in_idx;
+    std::vector<std::string> out_idx;
+    switch (DataTensor::ChannelsCount(params.inputs[0].GetLayout())) {
+        case 6: in_idx = {"b", "f", "x", "y", "z", "w" }; break;
+        case 5: in_idx = {"b", "f", "x", "y", "z" }; break;
+        default: in_idx = {"b", "f", "x", "y" }; break;
+    }
+
+    for (auto& o : params.order) {
+        out_idx.push_back(in_idx[o]);
+    }
+
+    std::string input_order = in_idx[0] + "," + in_idx[1];
+    std::string output_order = out_idx[0] + "," + out_idx[1];
+
+    for (size_t i = in_idx.size() - 1; i > 1; i--) {
+        input_order += "," + in_idx[i];
+        output_order += "," + out_idx[i];
+    }
+
+    jit.AddConstant(MakeJitConstant("IN_IDX", "INPUT0_GET_INDEX(" + input_order + ")"));
+    jit.AddConstant(MakeJitConstant("OUT_IDX", "OUTPUT_GET_INDEX(" + output_order + ")"));
+
     return jit;
 }
 
@@ -59,7 +82,7 @@ KernelsData PermuteKernelRef::GetKernelsData(const Params& params, const optiona
     const auto& in = newParams.inputs[0];
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = {in.Y().v * in.Z().v * in.W().v, in.X().v, in.Feature().v * in.Batch().v};
+    kernel.workGroups.global = {in.X().v, in.Y().v * in.Z().v * in.W().v, in.Feature().v * in.Batch().v};
     kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global, params.engineInfo);
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc(1, false, false);

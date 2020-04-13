@@ -108,7 +108,7 @@ KERNEL(convolution_MMAD)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE result = FINAL_NAME;
+    OUTPUT_TYPE result = FUSED_OPS_RESULT;
 #else
     OUTPUT_TYPE result = TO_OUTPUT_TYPE(res);
 #endif

@@ -16,7 +16,6 @@
 #include <type_traits>
 #include <vector>
 
-#include <gna-api.h>
 #include "am_intel_dnn.hpp"
 #include "dnn_types.h"
 

@@ -138,9 +138,9 @@ TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
 
 TEST(memory_pool, multi_outputs_network) {
     //            -- relu -- relu1 -- relu4
-    //     input<           
+    //     input<
     //            -- relu2 --  relu3 -- relu5--relu6--relu7
-    // neither of relu5, relu6 nor relu7 can share resource with relu4. 
+    // neither of relu5, relu6 nor relu7 can share resource with relu4.
 
     // uncomment this line to disable memory pool
     /*engine_configuration cfg{ false, false, false, std::string(), std::string(), true, std::string(),std::string(), 0, false };
@@ -175,9 +175,9 @@ TEST(memory_pool, multi_outputs_network) {
 }
 
 TEST(memory_pool, oooq) {
-    /*          -- relu1 - concat1- relu4 -- 
+    /*          -- relu1 - concat1- relu4 --
         input<  -- relu2 /                   >-- concat2 -- relu6
-                -- relu3 --  relu5 --------- 
+                -- relu3 --  relu5 ---------
        neither of relu5, relu6 nor relu7 can share resource with relu4. */
 
     engine_configuration cfg{ false, false, false, std::string(), std::string(), true /*oooq*/, std::string(),std::string(), priority_mode_types::disabled, throttle_mode_types::disabled, true /*mem_pool*/ };
@@ -225,7 +225,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_num)) } });
 
-    set_values(input, 
+    set_values(input,
     {   1.0f, 2.5f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 6.1f, 4.7f, 1.0f, 1.0f, 8.2f, 1.0f, 2.0f, 1.0f,
         5.0f, 2.0f, 2.0f, 3.0f, 5.0f, 2.0f, 2.0f, 3.0f, 1.1f, 2.4f, 1.0f, 1.0f, 4.0f, 6.0f, 3.0f, 3.6f,
         4.0f, 6.0f, 3.0f, 3.0f, 1.0f, 1.0f, 1.5f, 1.0f, 4.0f, 6.5f, 3.0f, 3.0f, 4.0f, 6.0f, 1.8f, 3.5f,
@@ -278,16 +278,16 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     {
         for (int f = 0; f < f_size; ++f)
         {
-            for (int y = 0; y < y_size; ++y) 
+            for (int y = 0; y < y_size; ++y)
             {
-                for (int x = 0; x < x_size; ++x) 
+                for (int x = 0; x < x_size; ++x)
                 {
                     int idx = b * b_offset + f * f_offset + y * x_size + x;
                     EXPECT_EQ(output_ptr_first[idx], output_ptr_second[idx]);
                 }
             }
         }
-    } 
+    }
 }
 
 TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
@@ -301,7 +301,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
 
     auto input= memory::allocate(engine, { data_types::f32, format::bfyx,{ tensor(spatial(inp_x_size, inp_y_size), feature(feature_num), batch(batch_num)) } });
     auto weights = memory::allocate(engine, { data_types::f32,format::bfyx,{ 1, 1, 3, 2 } });
-    
+
     std::vector<float> dummy_input_data_1 = {
        /*f0 xy*/ 0.8f, 0.65f, 0.1f, 1.0f, 1.0f, 0.5f, 0.11f, 0.33f, 0.66f, 0.11f, 0.22f, 0.33f, 0.99f, 0.8f, 0.7f, 0.5f,
        /*f1 xy*/ 0.48f, 0.05f, 0.35f, 1.0f, 1.0f, 0.51f, 0.51f, 0.13f, 0.86f, 0.10f, 0.29f, 0.53f, 0.99f, 0.4f, 0.3f, 0.1f,
@@ -323,8 +323,11 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
     network network_first(engine, topology, bo);
     network_first.set_input_data("input", input);
     auto outputs = network_first.execute();
-
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)824);
+    uint64_t cl_mem_result = 824;
+    uint64_t usm_result = 1208; // USM have a higher peak, since transfering memory to device adds temporay memory bytes allocated. Old memory is deallocated quickly, but max peak is higher.
+    auto is_correct = engine.get_max_used_device_memory_size() == cl_mem_result
+        || engine.get_max_used_device_memory_size() == usm_result;
+    EXPECT_TRUE(is_correct) << "Memory max peak is not correct";
 
     auto output_memory_first = outputs.at("softmax").get_memory();
     auto output_layout_first = output_memory_first.get_layout();
@@ -338,7 +341,11 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
     auto output_layout_second = output_memory_second.get_layout();
     auto output_ptr_second = output_memory_second.pointer<float>();
 
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)1224);
+    cl_mem_result = 1224;
+    usm_result = 1992; // USM have a higher peak, since transfering memory to device adds temporay memory bytes allocated. Old memory is deallocated quickly, but max peak is higher.
+    is_correct = engine.get_max_used_device_memory_size() == cl_mem_result
+        || engine.get_max_used_device_memory_size() == usm_result;
+    EXPECT_TRUE(is_correct) << "Memory max peak is not correct";
     EXPECT_EQ(output_layout_first, output_layout_second);
 
     int y_size = output_layout_first.size.spatial[1];
@@ -400,15 +407,23 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
     network_first.set_input_data("input", input_8);
     auto outputs = network_first.execute();
 
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)3928);
+    auto dev_info = engine.get_info();
+    if (dev_info.supports_usm) {
+        EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)4312);
+    } else {
+        EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)3928);
+    }
 
     topo.change_input_layout("input", input_1.get_layout());//change input layout to batch=1
 
     network network_second(engine, topo, bo);
     network_second.set_input_data("input", input_1);
     auto outputs_second = network_second.execute();
-
-    EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)3928);
+    if (dev_info.supports_usm) {
+        EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)4312);
+    } else {
+        EXPECT_EQ(engine.get_max_used_device_memory_size(), (uint64_t)3928);
+    }
 }
 
 TEST(memory_pool, shared_dep_two_output) {

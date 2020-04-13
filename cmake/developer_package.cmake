@@ -2,11 +2,31 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set(CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake/download" ${CMAKE_MODULE_PATH})
+
 include(CPackComponent)
 unset(IE_CPACK_COMPONENTS_ALL CACHE)
 
 set(IE_CPACK_IE_DIR       deployment_tools/inference_engine)
 
+# Search packages for the host system instead of packages for the target system
+# in case of cross compilation these macros should be defined by the toolchain file
+if(NOT COMMAND find_host_package)
+    macro(find_host_package)
+        find_package(${ARGN})
+    endmacro()
+endif()
+if(NOT COMMAND find_host_program)
+    macro(find_host_program)
+        find_program(${ARGN})
+    endmacro()
+endif()
+
+#
+# ie_cpack_set_library_dir()
+#
+# Set library directory for cpack
+#
 function(ie_cpack_set_library_dir)
     string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
     if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
@@ -16,7 +36,7 @@ function(ie_cpack_set_library_dir)
     endif()
 
     if(WIN32)
-        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/$<CONFIG>/${ARCH} PARENT_SCOPE)
+        set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${CMAKE_BUILD_TYPE}/${ARCH} PARENT_SCOPE)
     else()
         set(IE_CPACK_LIBRARY_PATH ${IE_CPACK_IE_DIR}/lib/${ARCH} PARENT_SCOPE)
     endif()
@@ -38,7 +58,7 @@ endmacro()
 macro(ie_cpack)
     set(CPACK_GENERATOR "TGZ")
     if(WIN32)
-        set(CPACK_PACKAGE_NAME inference-engine_$<CONFIG>)
+        set(CPACK_PACKAGE_NAME inference-engine_${CMAKE_BUILD_TYPE})
     else()
         set(CPACK_PACKAGE_NAME inference-engine)
     endif()
@@ -46,6 +66,7 @@ macro(ie_cpack)
     set(CPACK_ARCHIVE_COMPONENT_INSTALL ON)
     set(CPACK_PACKAGE_VENDOR "Intel")
     set(CPACK_COMPONENTS_ALL ${ARGN})
+    set(CPACK_STRIP_FILES ON)
 
     if(OS_FOLDER)
         set(CPACK_SYSTEM_NAME "${OS_FOLDER}")
@@ -53,6 +74,32 @@ macro(ie_cpack)
 
     include(CPack)
 endmacro()
+
+# prepare temporary folder
+function(set_temp_directory temp_variable source_tree_dir)
+    if (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
+        message(STATUS "DL_SDK_TEMP environment is set : $ENV{DL_SDK_TEMP}")
+
+        if (WIN32)
+            string(REPLACE "\\" "\\\\" temp $ENV{DL_SDK_TEMP})
+        else()
+            set(temp $ENV{DL_SDK_TEMP})
+        endif()
+
+        if (ENABLE_ALTERNATIVE_TEMP)
+            set(ALTERNATIVE_PATH ${source_tree_dir}/temp)
+        endif()
+    else ()
+        set(temp ${source_tree_dir}/temp)
+    endif()
+
+    set("${temp_variable}" "${temp}" CACHE PATH "Path to temp directory")
+    if(ALTERNATIVE_PATH)
+        set(ALTERNATIVE_PATH "${ALTERNATIVE_PATH}" PARENT_SCOPE)
+    endif()
+endfunction()
+
+include(coverage/coverage)
 
 # External dependencies
 find_package(Threads)
@@ -63,9 +110,8 @@ include(target_flags)
 # printing debug messages
 include(debug)
 
-if(UNIX AND NOT APPLE)
-    set(LINUX ON)
-endif()
+# linking libraries without discarding symbols
+include(whole_archive)
 
 string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH_FOLDER)
 if(ARCH_FOLDER STREQUAL "x86_64" OR ARCH_FOLDER STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
@@ -89,14 +135,6 @@ endif()
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
     debug_message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
     set(CMAKE_BUILD_TYPE "Release")
-endif()
-
-if(COVERAGE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage -O0")
-endif()
-
-if(UNIX)
-    SET(LIB_DL ${CMAKE_DL_LIBS})
 endif()
 
 set(OUTPUT_ROOT ${OpenVINO_MAIN_SOURCE_DIR})
@@ -163,7 +201,7 @@ endif(APPLE)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 include(sdl)
-include(os_flags)
+include(os_flags NO_POLICY_SCOPE)
 include(sanitizer)
 
 function(set_ci_build_number)

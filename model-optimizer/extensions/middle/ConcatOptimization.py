@@ -16,11 +16,11 @@
 
 import logging as log
 
-import networkx as nx
+import numpy as np
 
 from extensions.middle.fusings import Fusing
 from extensions.middle.pass_separator import PostMiddleStart
-from mo.graph.graph import Node
+from mo.graph.graph import Node, Graph
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -37,19 +37,17 @@ class ConcatOptimization(MiddleReplacementPattern):
     def run_before(self):
         return [PostMiddleStart]
 
-    def find_and_replace_pattern(self, graph: nx.MultiDiGraph):
+    def find_and_replace_pattern(self, graph: Graph):
         mp = {}
         used = {}
-        for node in graph.nodes():
-            node = Node(graph, node)
-            if node.kind == 'op' and node.soft_get('type') == 'Concat':
-                in_nodes = tuple([node.in_node(idx).id for idx in range(len(node.in_nodes()))])
-                out_node = (node.id, node.out_node().id)
-                if in_nodes in mp:
-                    log.warning("Something is weird! {} and {}".format(node.id, mp[in_nodes]))
-                else:
-                    mp.update({in_nodes: out_node})
-                    used.update({node.id: {x: False for x in in_nodes}})
+        for node in graph.get_op_nodes(type='Concat'):
+            in_nodes = tuple([node.in_node(idx).id for idx in range(len(node.in_nodes()))])
+            out_node = (node.id, node.out_node().id)
+            if in_nodes in mp:
+                log.warning("Something is weird! {} and {}".format(node.id, mp[in_nodes]))
+            else:
+                mp.update({in_nodes: out_node})
+                used.update({node.id: {x: False for x in in_nodes}})
 
         for key in mp.keys():
             replacers = []
@@ -98,3 +96,24 @@ class ConcatOptimization(MiddleReplacementPattern):
                     in_node = concat_node.in_nodes()[p]
                     graph[in_node.id][concat_id][0]['in'] = p_id
                     p_id += 1
+
+
+class ConcatOdInputEraser(MiddleReplacementPattern):
+    """
+    Disconnects empty inputs of Concat operations -- as there is nothing to concatenate
+    """
+    enabled = True
+    force_clean_up = True
+
+    def find_and_replace_pattern(self, graph: Graph):
+        for concat in graph.get_op_nodes(type='Concat'):
+            for in_port in concat.in_ports().values():
+                if in_port.disconnected():
+                    continue
+                shape = in_port.data.get_shape()
+                assert shape is not None
+                if np.array_equal(shape, [0]):
+                    in_port.disconnect()
+
+            connected_input_ports = [in_port for in_port in concat.in_ports().values() if not in_port.disconnected()]
+            assert len(connected_input_ports), 'Concat {} does nothing'.format(concat.soft_get('name', concat.id))

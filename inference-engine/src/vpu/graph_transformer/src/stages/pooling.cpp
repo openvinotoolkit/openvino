@@ -4,10 +4,13 @@
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <string>
 #include <vector>
 #include <unordered_set>
 #include <memory>
 #include <set>
+
+#include <cmath>
 
 #include <ie_layers_internal.hpp>
 
@@ -17,69 +20,24 @@
 namespace vpu {
 
 static
-void parsePool2D(const     Model      & model,
-                 const ie::CNNLayerPtr& layer,
-                 const     Data       & input,
-                 const     Data       & output) {
-    //
-    // Extract parameters
-    //
-
-    auto poolLayer = std::dynamic_pointer_cast<ie::PoolingLayer>(layer);
-    IE_ASSERT(poolLayer != nullptr);
-
-    int kernelSizeX = poolLayer->_kernel_x;
-    int kernelSizeY = poolLayer->_kernel_y;
-
-    int kernelStrideX = poolLayer->_stride_x;
-    int kernelStrideY = poolLayer->_stride_y;
-
-    auto paddings  = getPaddings(*poolLayer);
-    int  padLeft   = paddings.begin.exist(ie::X_AXIS) ? paddings.begin[ie::X_AXIS] : 0;
-    int  padRight  = paddings.end.exist(ie::X_AXIS)   ? paddings.end[ie::X_AXIS]   : padLeft;
-    int  padTop    = paddings.begin.exist(ie::Y_AXIS) ? paddings.begin[ie::Y_AXIS] : 0;
-    int  padBottom = paddings.end.exist(ie::Y_AXIS)   ? paddings.end[ie::Y_AXIS]   : padTop;
-
-    // for old IR's IE doesn't return valid padding. Fix paddings
-    {
-        int iw = input->desc().dim(Dim::W);
-        int ih = input->desc().dim(Dim::H);
-
-        int ow = output->desc().dim(Dim::W);
-        int oh = output->desc().dim(Dim::H);
-
-        int expectedIW = (ow - 1)*kernelStrideX + kernelSizeX;
-        int expectedOW = (oh - 1)*kernelStrideY + kernelSizeY;
-
-        if (expectedIW > iw + padLeft + padRight) {
-            padRight  = expectedIW - (iw + padLeft);
-        }
-
-        if (expectedOW > ih + padTop + padBottom) {
-            padBottom = expectedOW - (ih + padTop);
-        }
-    }
-
-    auto poolType = poolLayer->_type;
-
-    auto excludePad = poolLayer->_exclude_pad;
-
-    //
-    // Check if HW is applicable
-    //
-
-    const auto& env = CompileEnv::get();
-
-    auto stageType = StageType::None;
-    auto tryHW = env.config.hwOptimization;
-
-    if (poolType == ie::PoolingLayer::MAX) {
-        stageType = StageType::StubMaxPool;
-    } else if (poolType == ie::PoolingLayer::AVG) {
-        stageType = StageType::StubAvgPool;
-    } else {
-        VPU_THROW_EXCEPTION << "Pooling Layer " << poolLayer->name << " has unsupported type: " << poolType;
-    }
+bool canTryHW(const ie::PoolingLayer::PoolType poolType,
+              const int inputWidth,
+              const int inputHeight,
+              const int outputWidth,
+              const int outputHeight,
+              const int kernelSizeX,
+              const int kernelSizeY,
+              const int kernelStrideX,
+              const int kernelStrideY,
+              const int padLeft,
+              const int padRight,
+              const int padTop,
+              const int padBottom,
+              const std::string& autoPad,
+              const bool excludePad,
+              const bool hwOptimization,
+              const bool hwDisabled) {
+    auto tryHW = hwOptimization;
 
     // HW restrictions
     if (kernelStrideX != kernelStrideY) {
@@ -88,11 +46,11 @@ void parsePool2D(const     Model      & model,
 
     // check if HW pooling has correct output size
     {
-        int iw = input->desc().dim(Dim::W);
-        int ih = input->desc().dim(Dim::H);
+        int iw = inputWidth;
+        int ih = inputHeight;
 
-        int ow = output->desc().dim(Dim::W);
-        int oh = output->desc().dim(Dim::H);
+        int ow = outputWidth;
+        int oh = outputHeight;
 
         // take additional hw paddings into account
         if ((iw % 2 == 1) && (kernelSizeX % 2 == 0) && (padRight == 0)) iw++;
@@ -130,7 +88,7 @@ void parsePool2D(const     Model      & model,
 
     // TODO: Avg pooling with even kernel size and odd input is not supported
     if ((kernelSizeX % 2 == 0 || kernelSizeY % 2 == 0)) {
-        if (input->desc().dim(Dim::W) % 2 == 1 || input->desc().dim(Dim::H) % 2 == 1) {
+        if (inputWidth % 2 == 1 || inputHeight % 2 == 1) {
             if (poolType == ie::PoolingLayer::PoolType::AVG) {
                 tryHW = false;
             }
@@ -144,7 +102,7 @@ void parsePool2D(const     Model      & model,
 
     // TODO : 2x2s2 1278x718 HW MAX pool works worse than SW version
     if ((kernelSizeX % 2 == 0 || kernelSizeY % 2 == 0)) {
-        if (input->desc().dim(Dim::W) > 1000 || input->desc().dim(Dim::H) > 700) {
+        if (inputWidth > 1000 || inputHeight > 700) {
             tryHW = false;
         }
     }
@@ -160,8 +118,8 @@ void parsePool2D(const     Model      & model,
 
     //  FIX #14949, enable HW AVG pooling, need SW postproc
     if (excludePad && poolType == ie::PoolingLayer::PoolType::AVG) {
-        if (output->desc().dim(Dim::W) == 5 &&
-            output->desc().dim(Dim::H) == 5 &&
+        if (outputWidth == 5 &&
+            outputHeight == 5 &&
             kernelSizeX == 5 &&
             kernelSizeY == 5) {
             tryHW = false;
@@ -177,14 +135,116 @@ void parsePool2D(const     Model      & model,
     // ToDo: evaluate exact problem, more cases and proper fix
     if (kernelSizeX == 2 && kernelSizeY == 2 &&
         kernelStrideX == 1 && kernelStrideY == 1 &&
-        (output->desc().dim(Dim::W) & 1) == 0 &&
-        (output->desc().dim(Dim::H) & 1) == 0 &&
-        poolLayer->_auto_pad == "same_upper") {
+        (outputWidth % 2) == 0 &&
+        (outputHeight % 2) == 0 &&
+        autoPad == "same_upper") {
         tryHW = false;
     }
-    if (env.config.hwDisabled(layer->name)) {
+
+    // #28057: custom sample hangs if stressed
+    if (inputWidth == 382 && inputHeight == 214 &&
+        kernelSizeX == 2 && kernelSizeY == 2 &&
+        kernelStrideX == 2 && kernelStrideY ==2 &&
+        poolType == ie::PoolingLayer::MAX) {
         tryHW = false;
     }
+
+    if (hwDisabled) {
+        tryHW = false;
+    }
+
+    return tryHW;
+}
+
+static
+void parsePool2D(const     Model      & model,
+                 const ie::CNNLayerPtr& layer,
+                 const     Data       & input,
+                 const     Data       & output) {
+    //
+    // Extract parameters
+    //
+
+    auto poolLayer = std::dynamic_pointer_cast<ie::PoolingLayer>(layer);
+    VPU_THROW_UNLESS(poolLayer != nullptr, "failed dynamic cast to PoolingLayer");
+
+    int kernelSizeX = poolLayer->_kernel_x;
+    int kernelSizeY = poolLayer->_kernel_y;
+
+    int kernelStrideX = poolLayer->_stride_x;
+    int kernelStrideY = poolLayer->_stride_y;
+
+    auto paddings  = getPaddings(*poolLayer);
+    int  padLeft   = paddings.begin.exist(ie::X_AXIS) ? paddings.begin[ie::X_AXIS] : 0;
+    int  padRight  = paddings.end.exist(ie::X_AXIS)   ? paddings.end[ie::X_AXIS]   : padLeft;
+    int  padTop    = paddings.begin.exist(ie::Y_AXIS) ? paddings.begin[ie::Y_AXIS] : 0;
+    int  padBottom = paddings.end.exist(ie::Y_AXIS)   ? paddings.end[ie::Y_AXIS]   : padTop;
+
+    // for old IR's IE doesn't return valid padding. Fix paddings
+    {
+        int iw = input->desc().dim(Dim::W);
+        int ih = input->desc().dim(Dim::H);
+
+        int ow = output->desc().dim(Dim::W);
+        int oh = output->desc().dim(Dim::H);
+
+        int expectedIW = (ow - 1)*kernelStrideX + kernelSizeX;
+        int expectedOW = (oh - 1)*kernelStrideY + kernelSizeY;
+
+        if (expectedIW > iw + padLeft + padRight) {
+            padRight  = expectedIW - (iw + padLeft);
+        }
+
+        if (expectedOW > ih + padTop + padBottom) {
+            padBottom = expectedOW - (ih + padTop);
+        }
+    }
+
+    auto poolType = poolLayer->_type;
+
+    auto excludePad = poolLayer->_exclude_pad;
+
+    auto autoPad = poolLayer->_auto_pad;
+
+    auto stageType = StageType::None;
+    if (poolType == ie::PoolingLayer::MAX) {
+        stageType = StageType::StubMaxPool;
+    } else if (poolType == ie::PoolingLayer::AVG) {
+        stageType = StageType::StubAvgPool;
+    } else {
+        VPU_THROW_EXCEPTION << "Pooling Layer " << poolLayer->name << " has unsupported type: " << poolType;
+    }
+
+    //
+    // Check if HW is applicable
+    //
+
+    const auto& env = CompileEnv::get();
+    bool hwOptimization = env.config.hwOptimization;
+    bool hwDisabled = env.config.hwDisabled(layer->name);
+
+    int inputWidth = input->desc().dim(Dim::W);
+    int inputHeight = input->desc().dim(Dim::H);
+    int outputWidth = output->desc().dim(Dim::W);
+    int outputHeight = output->desc().dim(Dim::H);
+
+    bool tryHW = canTryHW(poolType,
+                          inputWidth,
+                          inputHeight,
+                          outputWidth,
+                          outputHeight,
+                          kernelSizeX,
+                          kernelSizeY,
+                          kernelStrideX,
+                          kernelStrideY,
+                          padLeft,
+                          padRight,
+                          padTop,
+                          padBottom,
+                          autoPad,
+                          excludePad,
+                          hwOptimization,
+                          hwDisabled);
 
     //
     // Create stub stage
@@ -238,7 +298,7 @@ private:
         } else if (nDims == 5) {
             outputOrder.moveDim(Dim::C, 3);  // ->NCDHW
         } else {
-            IE_ASSERT(3 <= nDims && nDims <= 5);
+            VPU_THROW_UNLESS(3 <= nDims && nDims <= 5, "unsupported nDims=%d", nDims);
         }
         orderInfo.setOutput(outputEdge(0), outputOrder);
     }
@@ -266,8 +326,8 @@ private:
         auto inputValues = input(0);
         auto outputValues = output(0);
 
-        inputValues->serializeNewBuffer(serializer);
-        outputValues->serializeNewBuffer(serializer);
+        inputValues->serializeBuffer(serializer);
+        outputValues->serializeBuffer(serializer);
     }
 
     using PV = InferenceEngine::PropertyVector<unsigned int>;
@@ -319,7 +379,7 @@ void parsePoolND(const     Model      & model,
     //
 
     auto poolLayer = std::dynamic_pointer_cast<ie::PoolingLayer>(layer);
-    IE_ASSERT(poolLayer != nullptr);
+    VPU_THROW_UNLESS(poolLayer != nullptr, "failed dynamic cast to PoolingLayer");
 
     auto kernel_shape = poolLayer->_kernel;
     int kernel_ndims = kernel_shape.size();
@@ -328,33 +388,47 @@ void parsePoolND(const     Model      & model,
     // check if (kernelNDims >= 3), so that
     // 2D case is supported separately with
     // parsePool2D() function
-    IE_ASSERT(kernel_ndims == 3);
+    VPU_THROW_UNLESS(kernel_ndims == 3, "unsupported kernel ndims=%d", kernel_ndims);
 
     auto paddings = getPaddings(*poolLayer);
     auto pads_begin = paddings.begin;
     auto pads_end   = paddings.end;
-    IE_ASSERT(pads_begin.size() == kernel_ndims);
-    IE_ASSERT(pads_end.size() == kernel_ndims);
+    VPU_THROW_UNLESS(pads_begin.size() == kernel_ndims,
+                     "incompatible pad ndims: actual=%lu, expected=%d",
+                     pads_begin.size(), kernel_ndims);
+    VPU_THROW_UNLESS(pads_end.size() == kernel_ndims,
+                     "incompatible pad ndims: actual=%lu, expected=%d",
+                     pads_end.size(), kernel_ndims);
 
     auto strides = poolLayer->_stride;
-    IE_ASSERT(strides.size() == kernel_ndims);
+    VPU_THROW_UNLESS(strides.size() == kernel_ndims,
+                     "incompatible stride ndims: actual=%lu, expected=%d",
+                     strides.size(), kernel_ndims);
 
     int input_ndims = input->desc().numDims();
     int output_ndims = output->desc().numDims();
 
-    IE_ASSERT(input_ndims == output_ndims);
-    IE_ASSERT(input_ndims == kernel_ndims + 2);  // NCDHW, 6D, ...
+    VPU_THROW_UNLESS(input_ndims == output_ndims,
+                     "incompatible input and output ndims: input ndims=%d, output ndims=%d",
+                     input_ndims, output_ndims);
+    VPU_THROW_UNLESS(input_ndims == kernel_ndims + 2,
+                     "input must have batch and channels, but: input ndims=%d, kernel ndims=%d",
+                     input_ndims, kernel_ndims);
 
-    IE_ASSERT(input->desc().type() == DataType::FP16);
-    IE_ASSERT(output->desc().type() == DataType::FP16);
+    VPU_THROW_UNLESS(input->desc().type() == DataType::FP16, "unsupported input data type");
+    VPU_THROW_UNLESS(output->desc().type() == DataType::FP16, "unsupported output data type");
 
     int input_channels = input->desc().dim(Dim::C);
     int output_channels = output->desc().dim(Dim::C);
-    IE_ASSERT(input_channels == output_channels);
+    VPU_THROW_UNLESS(input_channels == output_channels,
+                     "numbers of channels must be equal: input channels=%d, output channels=%d",
+                     input_channels, output_channels);
 
     int input_batch = input->desc().dim(Dim::N);
     int output_batch = output->desc().dim(Dim::N);
-    IE_ASSERT(input_batch == output_batch);
+    VPU_THROW_UNLESS(input_batch == output_batch,
+                     "incompatible batch sizes: input batch=%d, output batch=%d",
+                     input_batch, output_batch);
 
     // Checking spacial dimensions of output...
     // NB: Note, that input/output shape arrays
@@ -372,7 +446,9 @@ void parsePoolND(const     Model      & model,
                                        + pads_begin[i] + pads_end[i]
                                        - kernel_shape[i])
                                     / strides[i] + 1;
-        IE_ASSERT(output_shape[i] == expected_output_shape_i);
+        VPU_THROW_UNLESS(output_shape[i] == expected_output_shape_i,
+                         "failed check of output shape: i=%d, actual=%d, expected=%d",
+                         i, output_shape[i] == expected_output_shape_i);
     }
 
     int interleaved = 0;
@@ -395,6 +471,33 @@ void parsePoolND(const     Model      & model,
     int exclude_pad = poolLayer->_exclude_pad ? 1 : 0;
 
     //
+    // Check if HW is applicable
+    //
+
+    const auto& env = CompileEnv::get();
+    bool hwOptimization = env.config.hwOptimization;
+    bool hwDisabled = env.config.hwDisabled(layer->name);
+
+    bool tryHW = canTryHW(poolLayer->_type,
+                          input_shape[0],
+                          input_shape[1],
+                          output_shape[0],
+                          output_shape[1],
+                          kernel_shape[0],
+                          kernel_shape[1],
+                          strides[0],
+                          strides[1],
+                          pads_begin[0],
+                          pads_end[0],
+                          pads_begin[1],
+                          pads_end[1],
+                          poolLayer->_auto_pad,
+                          poolLayer->_exclude_pad,
+                          hwOptimization,
+                          hwDisabled);
+    int try_hw = tryHW ? 1 : 0;
+
+    //
     // Add new stage
     //
 
@@ -414,22 +517,30 @@ void parsePoolND(const     Model      & model,
     stage->attrs().set("pooling_method", pooling_method);
     stage->attrs().set("rounding_type",  rounding_type);
     stage->attrs().set("exclude_pad",    exclude_pad);
+
+    stage->attrs().set("try_hw", try_hw);
 }
 
 //----------------------------------------------------------------------
 
-void FrontEnd::parsePooling(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 1);
-    IE_ASSERT(outputs.size() == 1);
+void FrontEnd::parsePooling(const     Model      & model,
+                            const ie::CNNLayerPtr& layer,
+                            const     DataVector & inputs,
+                            const     DataVector & outputs) const {
+    VPU_THROW_UNLESS(inputs.size() == 1, "number of inputs must be equal to 1, but it equals to %lu", inputs.size());
+    VPU_THROW_UNLESS(outputs.size() == 1, "number of outputs must be equal to 1, but it equals to %lu", outputs.size());
 
     auto input = inputs[0];
     auto output = outputs[0];
 
     if (input->desc().numDims() < 3 || input->desc().numDims() > 5) {
-        VPU_THROW_EXCEPTION << "Pooling supports only 3D or 4D or 5D input";
+        VPU_THROW_FORMAT("Pooling supports only 3D or 4D or 5D input, but input number of dims=%d",
+                         input->desc().numDims());
     }
     if (output->desc().numDims() != input->desc().numDims()) {
-        VPU_THROW_EXCEPTION << "Pooling supports only same num dims in input and output";
+        VPU_THROW_FORMAT("Pooling supports only same num dims in input and output"
+                         ", but input ndims=%d and output ndims=%d",
+                         input->desc().numDims(), output->desc().numDims());
     }
 
     bool is2D = input->desc().numDims() == 3 ||
@@ -440,6 +551,47 @@ void FrontEnd::parsePooling(const Model& model, const ie::CNNLayerPtr& layer, co
     } else {
         parsePoolND(model, layer, input, output);
     }
+}
+
+//----------------------------------------------------------------------
+
+Stage StageBuilder::addPoolingStage(
+        const Model& model,
+        const std::string& name,
+        const ie::CNNLayerPtr& layer,
+        const Data& input,
+        const Data& output,
+        const ie::PoolingLayer::PoolType& poolType) {
+    //
+    // Check parameters: only 2D pooling is supported (yet)
+    //
+    VPU_THROW_UNLESS(input->desc().dimsOrder() == DimsOrder::NCHW, "unsupported input dims order");
+    VPU_THROW_UNLESS(output->desc().dimsOrder() == DimsOrder::NCHW, "unsupported output dims order");
+
+    //
+    // Check pooling method: only "avg" or "max" pooling (yet)
+    //
+    StageType stageType;
+    if (poolType == ie::PoolingLayer::PoolType::AVG) {
+        stageType = StageType::StubAvgPool;
+    } else if (poolType == ie::PoolingLayer::PoolType::MAX) {
+        stageType = StageType::StubMaxPool;
+    } else {
+        stageType = StageType::Empty;
+        VPU_THROW_UNLESS(poolType == ie::PoolingLayer::PoolType::AVG ||
+                         poolType == ie::PoolingLayer::PoolType::MAX,
+                         "unsupported pooling type: %d", poolType);
+    }
+
+    //
+    // Add 2D pooling stage (stub)
+    //
+    auto stage = model->addNewStage<StubStage>(name,
+                                               stageType,
+                                               layer,
+                                               {input},
+                                               {output});
+    return stage;
 }
 
 }  // namespace vpu

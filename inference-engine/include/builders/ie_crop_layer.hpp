@@ -52,7 +52,7 @@ public:
     const std::vector<Port>& getInputPorts() const;
     /**
      * @brief Sets input ports
-     * @param port Vector of input ports
+     * @param ports Vector of input ports
      * @return reference to layer builder
      */
     CropLayer& setInputPorts(const std::vector<Port>& ports);

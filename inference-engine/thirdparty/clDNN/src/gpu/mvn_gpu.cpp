@@ -84,13 +84,13 @@ attach_mvn_gpu::attach_mvn_gpu() {
                                  mvn_gpu::create);
     implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx),
                                  mvn_gpu::create);
-    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16),
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16),
                                  mvn_gpu::create);
-    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16),
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16),
                                  mvn_gpu::create);
-    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_b16f16),
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
                                  mvn_gpu::create);
-    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_b16f16),
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
                                  mvn_gpu::create);
 }
 

@@ -319,13 +319,13 @@ public:
         movss(addr, x);
     }
     void uni_vmovss(const Xbyak::Address& addr, const Xbyak::Ymm &x) {
-        vmovss(addr, x);
+        vmovss(addr, Xbyak::Xmm(x.getIdx()));
     }
     void uni_vmovss(const Xbyak::Xmm &x, const Xbyak::Address& addr) {
         movss(x, addr);
     }
     void uni_vmovss(const Xbyak::Ymm &x, const Xbyak::Address& addr) {
-        vmovss(x, addr);
+        vmovss(Xbyak::Xmm(x.getIdx()), addr);
     }
 
     void uni_vmovsd(const Xbyak::Address& addr, const Xbyak::Xmm &x) {

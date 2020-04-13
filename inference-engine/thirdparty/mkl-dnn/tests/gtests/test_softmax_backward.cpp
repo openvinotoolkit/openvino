@@ -153,7 +153,7 @@ using softmax_backward_test_float = softmax_test<float>;
 using softmax_bwd_test_params_float = softmax_test_params<float>;
 
 TEST_P(softmax_backward_test_float, TestsSoftmax) { }
-INSTANTIATE_TEST_CASE_P(TestSoftmaxBackward, softmax_backward_test_float,
+INSTANTIATE_TEST_SUITE_P(TestSoftmaxBackward, softmax_backward_test_float,
         ::testing::Values(
             softmax_bwd_test_params_float{ engine::kind::cpu, memory::format::nchw, memory::format::nchw, {2, -2, 128, 256}, 0, true, mkldnn_invalid_arguments},
             softmax_bwd_test_params_float{ engine::kind::cpu, memory::format::nchw, memory::format::nchw, {2, 19, 128, 256}, 5, true, mkldnn_invalid_arguments},

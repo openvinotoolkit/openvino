@@ -18,11 +18,11 @@
 namespace InferenceEngine {
 
 /**
- * @deprecated Use InferenceEngine::Core instead.
+ * @deprecated Use InferenceEngine::Core instead. Will be removed in 2020.3
  * @brief This is a class to load a suitable plugin
  */
 class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead which dispatches plugin automatically."
-                                  "Will be removed in 2020 R2") INFERENCE_ENGINE_API_CLASS(PluginDispatcher) {
+                                  "Will be removed in 2020.3") INFERENCE_ENGINE_API_CLASS(PluginDispatcher) {
 public:
     /**
      * @brief A constructor

@@ -54,12 +54,12 @@ void _jit_uni_x8s8s32x_dw_convolution_fwd_t<isa, src_type, dst_type>::execute_fo
 
     const auto &oscales = pd()->attr()->output_scales_;
     const int32_t* compensation = (jcp.with_input_zp) ? pd()->attr()->output_compensations_.shifts_ : nullptr;
-    const uint8_t* input_zp = pd()->attr()->input_zero_points_.zero_points_;
+    const uint8_t* input_zp = pd()->attr()->input_zero_points_.shifts_;
     int32_t *weights_zp = nullptr;
     if (jcp.with_weights_zp) {
         weights_zp = scratchpad().template get<int32_t>(key_weights_zp);
         for (int i = 0; i < pd()->attr()->weights_zero_points_.count_; i++) {
-            weights_zp[i] = (int32_t)pd()->attr()->weights_zero_points_.zero_points_[i];
+            weights_zp[i] = (int32_t)pd()->attr()->weights_zero_points_.shifts_[i];
         }
     }
 

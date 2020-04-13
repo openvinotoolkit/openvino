@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ SoftmaxKernel_fb::Parent::DispatchData SoftmaxKernel_fb::SetDefault(const softma
 
     assert(kd.itemsNum > 0 && kd.lws0 && kd.gws0 > 0);
 
-    kd.effiency = FORCE_PRIORITY_6;
+    kd.efficiency = FORCE_PRIORITY_6;
     return kd;
 }
 

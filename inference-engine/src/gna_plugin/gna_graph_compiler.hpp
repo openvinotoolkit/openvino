@@ -42,10 +42,6 @@ private:
     CropConnection   crop_connection;
     ConstConnections const_connections;
 
-    uint32_t num_feature_maps = 1;
-    uint32_t num_memory_bytes = 0;
-    uint32_t num_cnn_rows_out = 0;
-
     intel_dnn_component_t * find_first_unused_input(InferenceEngine::CNNLayerPtr current);
 
 public:

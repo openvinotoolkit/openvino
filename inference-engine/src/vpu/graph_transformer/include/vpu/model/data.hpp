@@ -79,7 +79,7 @@ class DataContent {
 public:
     using Ptr = std::shared_ptr<DataContent>;
 
-    virtual ~DataContent() = default;
+    virtual ~DataContent();
 
     // TYPED pointer
     template <typename T>
@@ -87,7 +87,9 @@ public:
         return static_cast<const T*>(getRaw());
     }
 
-    const DataDesc& desc() const { return _desc; }
+    const DataDesc& desc() const {
+        return _desc;
+    }
 
 private:
     // RAW pointer
@@ -95,6 +97,7 @@ private:
 
 private:
     DataDesc _desc;
+
     friend ModelObj;
 };
 
@@ -289,34 +292,9 @@ public:
 
     // Serialize as-is for new MvTensor kernels that can work with ND data.
     // If `newOrder` is not empty, it will be used instead of original and missing dimensions will be set to 1.
-    void serializeNewBuffer(
+    void serializeBuffer(
             BlobSerializer& serializer,
             DimsOrder newOrder = DimsOrder());
-
-    // Serialize for deprecated MvTensor kernels that can work only with 3D data.
-    //
-    // `dimsReloc` is a map from new dims to original dims.
-    // Empty record means use 1 for the new dim and reuse previous stride.
-    // For example :
-    //   * Original order : NC
-    //   * `newOrder` : HWC
-    //   * `dimsReloc` : {(C -> C), {H -> N}}
-    // The Data will be serialized as HWC with
-    //   * newDims[H] == origDims[N]
-    //   * newDims[W] == 1
-    //   * newDims[C] == origDims[C]
-    // If there is several original dims per new dim, they will be multiplied
-    // (assuming that original dims are near and have no strides between).
-    void serializeOldBuffer(
-            const Stage& stage,
-            BlobSerializer& serializer,
-            DimsOrder newOrder = DimsOrder(),
-            const EnumMap<Dim, DimVector>& dimsReloc = EnumMap<Dim, DimVector>());
-
-    void serializeOldBufferNC(
-            const Stage& stage,
-            BlobSerializer& serializer);
-
 
     void serializeIOInfo(BlobSerializer& serializer) const;
 

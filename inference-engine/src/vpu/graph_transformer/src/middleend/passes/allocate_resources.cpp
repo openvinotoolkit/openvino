@@ -106,6 +106,7 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
                     AllocationResult res;
                     res.status = AllocationStatus::DATA_FAILED;
                     res.failedStage = stage;
+                    res.failedData = output;
                     return res;
                 }
             }
@@ -130,6 +131,7 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
                     AllocationResult res;
                     res.status = AllocationStatus::DATA_FAILED;
                     res.failedStage = stage;
+                    res.failedData = tempBufferEdge->tempBuffer();
                     return res;
                 }
             }
@@ -218,7 +220,7 @@ void PassImpl::run(const Model& model) {
     // Allocation statistics
     //
 
-    model->attrs().set<UsedMemory>("usedMemory", allocator.usedMemory());
+    model->attrs().set<UsedMemory>("usedMemory", allocator.usedMemoryAmount());
 }
 
 }  // namespace

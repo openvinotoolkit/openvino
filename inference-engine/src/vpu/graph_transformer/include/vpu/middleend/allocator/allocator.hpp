@@ -43,7 +43,8 @@ VPU_DECLARE_ENUM(AllocationStatus,
 
 struct AllocationResult final {
     AllocationStatus status = AllocationStatus::OK;
-    Stage failedStage;
+    Stage failedStage = nullptr;
+    Data failedData = nullptr;
 };
 
 //
@@ -80,7 +81,8 @@ public:
 
     void selfCheck();
 
-    UsedMemory usedMemory() const;
+    UsedMemory usedMemoryAmount() const;
+    std::size_t freeMemoryAmount(const MemoryType& type) const;
 
     DataVector getAllocatedDatas(MemoryType memType) const;
 
@@ -103,6 +105,9 @@ private:
     allocator::MemChunk* checkMemPool(allocator::MemoryPool& pool, MemoryType memType, int size, int inUse);
 
     void extractDatas(MemoryType memType, const DataSet& from, DataVector& out) const;
+
+    std::size_t freeDDRMemoryAmount() const;
+    std::size_t freeCMXMemoryAmount() const;
 
 private:
     int _modelBatchSize = 1;

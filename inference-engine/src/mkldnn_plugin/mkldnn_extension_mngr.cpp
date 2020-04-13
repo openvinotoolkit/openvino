@@ -4,11 +4,7 @@
 
 #include <vector>
 #include <string>
-#include <w_unistd.h>
-#include <w_dirent.h>
-#include <debug.h>
 #include <algorithm>
-#include <file_utils.h>
 
 #include "mkldnn_extension_mngr.h"
 
@@ -19,20 +15,41 @@ void MKLDNNExtensionManager::AddExtension(IExtensionPtr extension) {
     _extensions.push_back(extension);
 }
 
-InferenceEngine::ILayerImplFactory* MKLDNNExtensionManager::CreateExtensionFactory(
+InferenceEngine::ILayerImpl::Ptr MKLDNNExtensionManager::CreateImplementation(const std::shared_ptr<ngraph::Node>& op) {
+    if (!op)
+        THROW_IE_EXCEPTION << "Cannot get nGraph operation!";
+    for (const auto& ext : _extensions) {
+        auto implTypes = ext->getImplTypes(op);
+        for (const auto& type : implTypes) {
+            if (type != "CPU")
+                continue;
+            auto impl = ext->getImplementation(op, "CPU");
+            if (impl)
+                return impl;
+        }
+    }
+    return nullptr;
+}
+
+IE_SUPPRESS_DEPRECATED_START
+
+std::shared_ptr<InferenceEngine::ILayerImplFactory> MKLDNNExtensionManager::CreateExtensionFactory(
         const InferenceEngine::CNNLayerPtr &layer) {
     if (!layer)
         THROW_IE_EXCEPTION << "Cannot get cnn layer!";
-    ILayerImplFactory* factory = nullptr;
+    std::shared_ptr<ILayerImplFactory> factory;
     for (auto& ext : _extensions) {
         ResponseDesc responseDesc;
         StatusCode rc;
-        rc = ext->getFactoryFor(factory, layer.get(), &responseDesc);
+        ILayerImplFactory* factory_ptr = nullptr;
+        rc = ext->getFactoryFor(factory_ptr, layer.get(), &responseDesc);
         if (rc != OK) {
             factory = nullptr;
             continue;
+        } else {
+            factory.reset(factory_ptr);
         }
-        if (factory != nullptr) {
+        if (factory) {
             break;
         }
     }
@@ -58,5 +75,4 @@ IShapeInferImpl::Ptr MKLDNNExtensionManager::CreateReshaper(const InferenceEngin
     return reshaper;
 }
 
-
-
+IE_SUPPRESS_DEPRECATED_END

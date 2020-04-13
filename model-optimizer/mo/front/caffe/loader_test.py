@@ -21,6 +21,7 @@ from google.protobuf import text_format
 
 from mo.front.caffe.loader import caffe_pb_to_nx
 from mo.front.caffe.proto import caffe_pb2
+from mo.graph.graph import Graph
 from mo.utils.error import Error
 
 proto_str_one_input = 'name: "network" ' \
@@ -105,7 +106,7 @@ class TestLoader(unittest.TestCase):
     def test_caffe_pb_to_nx_one_input(self):
         proto = caffe_pb2.NetParameter()
         text_format.Merge(proto_str_one_input, proto)
-        graph, input_shapes = caffe_pb_to_nx(proto, None)
+        input_shapes = caffe_pb_to_nx(Graph(), proto, None)
         expected_input_shapes = {
             'Input0': np.array([1, 3, 224, 224])
         }
@@ -116,12 +117,12 @@ class TestLoader(unittest.TestCase):
     def test_caffe_pb_to_nx_old_styled_multi_input(self):
         proto = caffe_pb2.NetParameter()
         text_format.Merge(proto_str_old_styled_multi_input + layer_proto_str, proto)
-        self.assertRaises(Error, caffe_pb_to_nx, proto, None)
+        self.assertRaises(Error, caffe_pb_to_nx, Graph(), proto, None)
 
     def test_caffe_pb_to_nx_old_styled_input(self):
         proto = caffe_pb2.NetParameter()
         text_format.Merge(proto_str_old_styled_input + layer_proto_str, proto)
-        graph, input_shapes = caffe_pb_to_nx(proto, None)
+        input_shapes = caffe_pb_to_nx(Graph(), proto, None)
         expected_input_shapes = {
             'data': np.array([1, 3, 224, 224])
         }
@@ -132,7 +133,7 @@ class TestLoader(unittest.TestCase):
     def test_caffe_pb_to_standart_input(self):
         proto = caffe_pb2.NetParameter()
         text_format.Merge(proto_str_input + layer_proto_str, proto)
-        graph, input_shapes = caffe_pb_to_nx(proto, None)
+        input_shapes = caffe_pb_to_nx(Graph(), proto, None)
         expected_input_shapes = {
             'data': np.array([1, 3, 224, 224])
         }
@@ -143,7 +144,7 @@ class TestLoader(unittest.TestCase):
     def test_caffe_pb_to_multi_input(self):
         proto = caffe_pb2.NetParameter()
         text_format.Merge(proto_str_multi_input + layer_proto_str, proto)
-        graph, input_shapes = caffe_pb_to_nx(proto, None)
+        input_shapes = caffe_pb_to_nx(Graph(), proto, None)
         expected_input_shapes = {
             'data': np.array([1, 3, 224, 224]),
             'data1': np.array([1, 3])
@@ -155,6 +156,7 @@ class TestLoader(unittest.TestCase):
     def test_caffe_same_name_layer(self):
         proto = caffe_pb2.NetParameter()
         text_format.Merge(proto_str_multi_input + proto_same_name_layers, proto)
-        graph, input_shapes = caffe_pb_to_nx(proto, None)
+        graph = Graph()
+        caffe_pb_to_nx(graph, proto, None)
         # 6 nodes because: 2 inputs + 2 convolutions
         np.testing.assert_equal(len(graph.nodes()), 4)

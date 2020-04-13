@@ -400,18 +400,22 @@ inline bool memory_desc_wrapper::operator==(const memory_desc_wrapper &rhs)
             && utils::array_cmp(dims(), rhs.dims(), ndims())
             && data_type() == rhs.data_type()
             && ((is_blocking_desc() && rhs.is_blocking_desc())
-                       || (is_wino_desc() && rhs.is_wino_desc())
-                       || (is_rnn_packed_desc() && rhs.is_rnn_packed_desc()))
-            && (is_blocking_desc() ? blocking_desc_is_equal(blocking_desc(),
-                                             rhs.blocking_desc(), ndims()) :
-                                     true)
-            && (is_wino_desc() ? wino_desc_is_equal(
-                                         wino_desc(), rhs.wino_desc()) :
-                                 true)
-            && (is_rnn_packed_desc() ?
-                               rnn_packed_desc_is_equal(rnn_packed_desc(),
-                                       rhs.rnn_packed_desc()) :
-                               true);
+                    || (is_wino_desc() && rhs.is_wino_desc())
+                    || (is_rnn_packed_desc() && rhs.is_rnn_packed_desc()))
+            && (is_blocking_desc() ? blocking_desc_is_equal(
+                        blocking_desc(), rhs.blocking_desc(), ndims())
+                                   : true)
+            && IMPLICATION(
+                    utils::one_of(true,
+                            types::is_format_double_blocked(format()),
+                            types::is_format_double_blocked(rhs.format())),
+                    format() == rhs.format())
+            && (is_wino_desc()
+                            ? wino_desc_is_equal(wino_desc(), rhs.wino_desc())
+                            : true)
+            && (is_rnn_packed_desc() ? rnn_packed_desc_is_equal(
+                        rnn_packed_desc(), rhs.rnn_packed_desc())
+                                     : true);
 }
 
 inline bool memory_desc_wrapper::similar_to(const memory_desc_wrapper &rhs,

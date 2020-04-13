@@ -68,18 +68,20 @@ const {
     auto src = reinterpret_cast<const src_data_t *>(this->input_memory(0));
     auto weights =
         reinterpret_cast<const wei_data_t *>(this->input_memory(1));
-    auto bias = reinterpret_cast<const float *>(this->input_memory(2));
+    auto bias = reinterpret_cast<const char *>(this->input_memory(2));
     auto dst = reinterpret_cast<dst_data_t *>(this->memory());
 
     auto scratchpad = this->scratchpad();
 
-    const auto &jcp = kernel_->jcp;
     if (pd()->wants_padded_bias()) {
-        auto padded_bias = scratchpad.template get<float>(
+        auto padded_bias = scratchpad.template get<char>(
                 memory_tracking::names::key_conv_padded_bias);
-        utils::array_copy(padded_bias, bias, jcp.oc_without_padding);
-        utils::array_set(padded_bias + jcp.oc_without_padding, 0.f,
-                jcp.oc - jcp.oc_without_padding);
+        utils::array_copy(padded_bias, bias,
+            pd()->jcp_.typesize_bia * pd()->jcp_.oc_without_padding);
+        utils::array_set(padded_bias +
+            pd()->jcp_.typesize_bia * pd()->jcp_.oc_without_padding,
+            0, pd()->jcp_.typesize_bia *
+                    (pd()->jcp_.oc - pd()->jcp_.oc_without_padding));
         bias = padded_bias;
     }
 
@@ -95,7 +97,7 @@ template <data_type_t dst_type>
 void _jit_avx512_core_bf16_1x1_convolution_fwd_t<dst_type>::execute_forward_thr(
             const int ithr, const int nthr,
             const src_data_t *src, const wei_data_t *weights,
-            const float *bias, dst_data_t *dst,
+            const char *bias, dst_data_t *dst,
             const memory_tracking::grantor_t &scratchpad)
 const {
     const memory_desc_wrapper src_d(pd()->src_pd());
@@ -174,7 +176,7 @@ const {
         const size_t dst_off = data_blk_off(dst_d, n, _ocb , oh, ow);
 
         p.output_data = &dst[dst_off];
-        p.bias_data = &bias[_ocb * jcp.oc_block];
+        p.bias_data = bias +  pd()->jcp_.typesize_bia * (_ocb * jcp.oc_block);
         p.load_data = &weights[pd()->with_groups()
             ? weights_d.blk_off(g, ocb, icb)
             : weights_d.blk_off(ocb, icb)];
@@ -486,7 +488,6 @@ void _jit_avx512_core_bf16_1x1_convolution_bwd_weights_t<diff_weights_type>::
     auto diff_dst =
         reinterpret_cast<const diff_dst_data_t *>(this->input_memory(1));
     auto diff_weights = reinterpret_cast<diff_wei_data_t *>(this->memory(0));
-    auto diff_bias_in = reinterpret_cast<float *>(this->memory(1));
 
     const memory_desc_wrapper diff_dst_d(pd()->diff_dst_pd());
     const memory_desc_wrapper src_d(pd()->src_pd());
@@ -497,8 +498,18 @@ void _jit_avx512_core_bf16_1x1_convolution_bwd_weights_t<diff_weights_type>::
     const auto scratchpad = this->scratchpad();
 
     auto rtus_space = scratchpad.template get<src_data_t>(key_conv_rtus_space);
-    float *diff_bias = pd()->wants_padded_bias()
-        ? scratchpad.template get<float>(key_conv_padded_bias) : diff_bias_in;
+
+    float *diff_bias = nullptr;
+
+    if (pd()->with_bias() && pd()->jcp_.bia_dt == data_type::bf16) {
+        diff_bias =
+            scratchpad.template get<float>(key_conv_bias_bf16_convert_wsp);
+    } else {
+        auto diff_bias_in = reinterpret_cast<float *>(memory(1));
+        diff_bias = pd()->wants_padded_bias()
+            ? scratchpad.template get<float>(key_conv_padded_bias) : diff_bias_in;
+    }
+
     auto wei_reduction = scratchpad.template get<float>(key_conv_wei_reduction);
 
 #ifndef BF16_CONV_1x1_BWD_W_JIT_KER_USES_PERMW_TRANSPOSITION
@@ -835,9 +846,16 @@ void _jit_avx512_core_bf16_1x1_convolution_bwd_weights_t<diff_weights_type>::
             ker_bias(ithr, jcp.nthr);
     });
 
-    /* TODO: put this in ker_bias */
-    if (pd()->wants_padded_bias()) {
+    if (pd()->with_bias() && pd()->jcp_.bia_dt == data_type::bf16) {
+        auto diff_bias_in =
+            reinterpret_cast<mkldnn_bfloat16_t *>(this->memory(1));
+        bf16_cvt_utils::cvt_float_to_bfloat16(diff_bias_in, diff_bias,
+                            pd()->jcp_.oc_without_padding * pd()->jcp_.ngroups);
+    } else if(pd()->wants_padded_bias()) {
+        /* TODO: put this in ker_bias */
         assert(jcp.ngroups == 1);
+        auto diff_bias_in =
+            reinterpret_cast<float *>(this->memory(1));
         utils::array_copy(diff_bias_in, diff_bias, jcp.oc_without_padding);
     }
 }

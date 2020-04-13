@@ -30,8 +30,8 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {WeightsLayout::i_yxs_os_yxsv2_osv16};
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &p) const override {
+        return (p.groups > 1) ? WeightsLayout::gi_yxs_os_yxsv2_osv16 : WeightsLayout::i_yxs_os_yxsv2_osv16;
     }
 
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;

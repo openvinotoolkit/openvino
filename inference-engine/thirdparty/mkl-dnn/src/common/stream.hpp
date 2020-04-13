@@ -72,8 +72,11 @@ struct mkldnn_stream: public mkldnn::impl::c_compatible {
 #endif
     };
 
-    mkldnn_stream(): modifiable_(true), state_(mkldnn_stream::running) {}
+    mkldnn_stream(mkldnn::impl::stream_kind_t kind)
+        : kind_(kind), modifiable_(true), state_(mkldnn_stream::running) {}
     virtual ~mkldnn_stream() {}
+
+    mkldnn::impl::stream_kind_t kind() const { return kind_; }
 
     /** submits vector of primitives @p prims to a stream
      *
@@ -155,6 +158,7 @@ struct mkldnn_stream: public mkldnn::impl::c_compatible {
             mkldnn::impl::primitive_t **error_prim) = 0;
 
 protected:
+    mkldnn::impl::stream_kind_t kind_;
     bool modifiable_;
     state_t state_;
 
@@ -169,6 +173,8 @@ struct stream_lazy_t;
 /** \brief non-lazy stream */
 struct stream_eager_t: public stream_t {
     friend stream_lazy_t;
+
+    stream_eager_t(): stream_t(stream_kind::eager) {}
 
     virtual status_t submit_impl(size_t begin, size_t end,
             primitive_t **error_prim) {
@@ -241,6 +247,8 @@ protected:
  *     guaranteed that the pointer will be valid till the stream is alive
  */
 struct stream_lazy_t: public stream_t {
+    stream_lazy_t(): stream_t(stream_kind::lazy) {}
+
     virtual status_t wait_impl(primitive_t **error_prim) {
         stream_eager_.stream_ = stream_;
 #if 0
@@ -258,6 +266,34 @@ struct stream_lazy_t: public stream_t {
 
 protected:
     stream_eager_t stream_eager_;
+};
+
+/** \brief eager_nostore stream
+ *
+ * This is a pseudo stream as it doesn't store the primitives inside,
+ * essentially it is just a shell to run primitives by submitting them to
+ * the stream
+ */
+struct stream_eager_nostore_t: public stream_t {
+    stream_eager_nostore_t(): stream_t(stream_kind::eager_nostore) {}
+
+    virtual status_t submit_impl(size_t begin, size_t end,
+            primitive_t **error_prim) {
+        UNUSED(begin);
+        UNUSED(end);
+        UNUSED(error_prim);
+        return status::invalid_arguments;
+    }
+
+    virtual status_t wait_impl(primitive_t **error_prim) {
+        UNUSED(error_prim);
+        return status::success;
+    }
+
+    virtual status_t rerun_impl(primitive_t **error_prim) {
+        UNUSED(error_prim);
+        return status::invalid_arguments;
+    }
 };
 
 }

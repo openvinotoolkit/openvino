@@ -161,8 +161,14 @@ protected:
             // TODO: if mask is 0 precompute mul and inverse
             if (mask == 0)
                 uni_vbroadcastss(tmp1, ptr[weights_scales_reg]);
-            else
-                uni_vmovups(tmp1, ptr[weights_scales_reg + gate * rnn_.dic * qscale_dt_size]);
+            else {
+                auto scales_ptr = ptr[weights_scales_reg
+                    + gate * rnn_.dic * qscale_dt_size];
+                if (packed)
+                    uni_vmovups(tmp1, scales_ptr);
+                else
+                    uni_vmovss(tmp1, scales_ptr);
+            }
             uni_vcvtdq2ps(s, s);
             uni_vmulps(tmp1, tmp1, dscale_off_addr);
 #ifdef MKLDNN_ENABLE_FAST_RCP
@@ -190,6 +196,13 @@ protected:
 #else
         auto addr_c_states_t_l_reg = abi_param5;
 #endif
+        // helper lambda to address the gates and biases
+        auto G_addr = [&](int i) {
+            return ptr[addr_ws_gates_reg + i * rnn_.dic * gate_dt_size];
+        };
+        auto B_addr = [&](int i) {
+            return ptr[addr_bias_reg + i * rnn_.dic * bias_dt_size];
+        };
 
         // initialize registers with addresses and constants
         mov(table_reg, table_label);
@@ -204,10 +217,10 @@ protected:
         L(vector_loop_start_label);
         {
             // load G0 G1 G2 G3
-            uni_vmovups(G0, ptr[addr_ws_gates_reg + 0 * rnn_.dic * gate_dt_size]);
-            uni_vmovups(G1, ptr[addr_ws_gates_reg + 1 * rnn_.dic * gate_dt_size]);
-            uni_vmovups(G2, ptr[addr_ws_gates_reg + 2 * rnn_.dic * gate_dt_size]);
-            uni_vmovups(G3, ptr[addr_ws_gates_reg + 3 * rnn_.dic * gate_dt_size]);
+            uni_vmovups(G0, G_addr(0));
+            uni_vmovups(G1, G_addr(1));
+            uni_vmovups(G2, G_addr(2));
+            uni_vmovups(G3, G_addr(3));
 
             // dequantize the gates from s32 to f32 if needed
             if (src_data_t == data_type::u8){
@@ -218,16 +231,28 @@ protected:
             }
 
             // add biases
-            uni_vaddps(G0, G0, ptr[addr_bias_reg + 0 * rnn_.dic * bias_dt_size]);
-            uni_vaddps(G1, G1, ptr[addr_bias_reg + 1 * rnn_.dic * bias_dt_size]);
-            uni_vaddps(G2, G2, ptr[addr_bias_reg + 2 * rnn_.dic * bias_dt_size]);
-            uni_vaddps(G3, G3, ptr[addr_bias_reg + 3 * rnn_.dic * bias_dt_size]);
+            uni_vmovups(tmp1_vmm, B_addr(0));
+            uni_vaddps(G0, G0, tmp1_vmm);
+            uni_vmovups(tmp1_vmm, B_addr(1));
+            uni_vaddps(G1, G1, tmp1_vmm);
+            uni_vmovups(tmp1_vmm, B_addr(2));
+            uni_vaddps(G2, G2, tmp1_vmm);
+            uni_vmovups(tmp1_vmm, B_addr(3));
+            uni_vaddps(G3, G3, tmp1_vmm);
 
             // inject eltwise code
             sigmoid_injector_->compute_vector(G0.getIdx());
             sigmoid_injector_->compute_vector(G1.getIdx());
             tanh_injector_->compute_vector(G2.getIdx());
             sigmoid_injector_->compute_vector(G3.getIdx());
+
+            // if training we write back the gates
+            if (pd_->desc()->prop_kind == prop_kind::forward_training) {
+                uni_vmovups(G_addr(0), G0);
+                uni_vmovups(G_addr(1), G1);
+                uni_vmovups(G_addr(2), G2);
+                uni_vmovups(G_addr(3), G3);
+            }
 
             // compute c_states_t_l = G1 * c_tm1_l + G0 * G2
             uni_vmovups(tmp1_vmm, ptr[addr_c_states_tm1_l_reg]);
@@ -253,8 +278,7 @@ protected:
                 case 16: uni_vmovups(ptr[addr_states_t_l_reg], Xmm(tmp1_vmm.getIdx())); break;
                 case 8: uni_vmovsd(ptr[addr_states_t_l_reg], Xmm(tmp1_vmm.getIdx())); break;
                 case 4: uni_vmovss(ptr[addr_states_t_l_reg], Xmm(tmp1_vmm.getIdx())); break;
-                default:
-                    assert(!"Unsuported vector length for quantization");
+                default: assert(!"Unsuported vector length for quantization");
                 }
 
             // increment address pointers
@@ -275,19 +299,14 @@ protected:
 
         cmp(loop_cnt, 0);
         je(rem_loop_end_label, Xbyak::CodeGenerator::T_NEAR);
-        // Same code as above, we just use movuss for accessing inputs
-        // TODO: smarter handling of tails with Zmm -> Ymm -> Xmm -> scalar
+        // Same code as above, we just use vmovss for accessing inputs
         L(rem_loop_start_label);
         {
-            // remaping registers to Xmms
-            Xmm G0s(G0.getIdx()), G1s(G1.getIdx()), G2s(G2.getIdx()), G3s(G3.getIdx());
-            Xmm tmp1s_vmm(tmp1_vmm.getIdx());
-
             // load G0 G1 G2 G3
-            uni_vmovss(G0s, ptr[addr_ws_gates_reg + 0 * rnn_.dic * gate_dt_size]);
-            uni_vmovss(G1s, ptr[addr_ws_gates_reg + 1 * rnn_.dic * gate_dt_size]);
-            uni_vmovss(G2s, ptr[addr_ws_gates_reg + 2 * rnn_.dic * gate_dt_size]);
-            uni_vmovss(G3s, ptr[addr_ws_gates_reg + 3 * rnn_.dic * gate_dt_size]);
+            uni_vmovss(G0, G_addr(0));
+            uni_vmovss(G1, G_addr(1));
+            uni_vmovss(G2, G_addr(2));
+            uni_vmovss(G3, G_addr(3));
 
             // dequantize the gates from s32 to f32 if needed
             if (src_data_t == data_type::u8){
@@ -298,30 +317,38 @@ protected:
             }
 
             // add biases
-            uni_vmovss(tmp1s_vmm, ptr[addr_bias_reg + 0 * rnn_.dic * bias_dt_size]);
-            uni_vaddps(G0s, G0s, tmp1s_vmm);
-            uni_vmovss(tmp1s_vmm, ptr[addr_bias_reg + 1 * rnn_.dic * bias_dt_size]);
-            uni_vaddps(G1s, G1s, tmp1s_vmm);
-            uni_vmovss(tmp1s_vmm, ptr[addr_bias_reg + 2 * rnn_.dic * bias_dt_size]);
-            uni_vaddps(G2s, G2s, tmp1s_vmm);
-            uni_vmovss(tmp1s_vmm, ptr[addr_bias_reg + 3 * rnn_.dic * bias_dt_size]);
-            uni_vaddps(G3s, G3s, tmp1s_vmm);
+            uni_vmovss(tmp1_vmm, B_addr(0));
+            uni_vaddps(G0, G0, tmp1_vmm);
+            uni_vmovss(tmp1_vmm, B_addr(1));
+            uni_vaddps(G1, G1, tmp1_vmm);
+            uni_vmovss(tmp1_vmm, B_addr(2));
+            uni_vaddps(G2, G2, tmp1_vmm);
+            uni_vmovss(tmp1_vmm, B_addr(3));
+            uni_vaddps(G3, G3, tmp1_vmm);
 
             // inject eltwise code
-            sigmoid_injector_->compute_vector(G0s.getIdx());
-            sigmoid_injector_->compute_vector(G1s.getIdx());
-            tanh_injector_->compute_vector(G2s.getIdx());
-            sigmoid_injector_->compute_vector(G3s.getIdx());
+            sigmoid_injector_->compute_vector(G0.getIdx());
+            sigmoid_injector_->compute_vector(G1.getIdx());
+            tanh_injector_->compute_vector(G2.getIdx());
+            sigmoid_injector_->compute_vector(G3.getIdx());
 
-            // compute c_states_t_l = G1 * c_tm1_l + G0s * G2
-            uni_vmovups(tmp1s_vmm, ptr[addr_c_states_tm1_l_reg]);
-            uni_vmulps(tmp1s_vmm, tmp1s_vmm, G1s);
-            uni_vfmadd231ps(tmp1s_vmm, G0s, G2s);
-            uni_vmovss(ptr[addr_c_states_t_l_reg], tmp1s_vmm);
+            // if training we write back the gates
+            if (pd_->desc()->prop_kind == prop_kind::forward_training) {
+                uni_vmovss(G_addr(0), G0);
+                uni_vmovss(G_addr(1), G1);
+                uni_vmovss(G_addr(2), G2);
+                uni_vmovss(G_addr(3), G3);
+            }
+
+            // compute c_states_t_l = G1 * c_tm1_l + G0 * G2
+            uni_vmovups(tmp1_vmm, ptr[addr_c_states_tm1_l_reg]);
+            uni_vmulps(tmp1_vmm, tmp1_vmm, G1);
+            uni_vfmadd231ps(tmp1_vmm, G0, G2);
+            uni_vmovss(ptr[addr_c_states_t_l_reg], tmp1_vmm);
 
             // states_t_l = G3 * tanh(c_states_t_l)
-            tanh_injector_->compute_vector(tmp1s_vmm.getIdx());
-            uni_vmulps(tmp1s_vmm, tmp1s_vmm, G3s);
+            tanh_injector_->compute_vector(tmp1_vmm.getIdx());
+            uni_vmulps(tmp1_vmm, tmp1_vmm, G3);
 
             // if int8, we quantize the resulting state
             if (src_data_t == data_type::u8) {
@@ -329,12 +356,11 @@ protected:
             }
 
             // write back the result
-	    switch(hstate_dt_size){
-	    case 4: uni_vmovss(ptr[addr_states_t_l_reg], tmp1s_vmm); break;
-            case 1: pextrb(ptr[addr_states_t_l_reg], tmp1s_vmm, 0x0); break;
-	    default:
-                assert(!"Unsuported vector length for quantization");
-	    }
+            switch(hstate_dt_size) {
+            case 4: uni_vmovss(ptr[addr_states_t_l_reg], tmp1_vmm); break;
+            case 1: pextrb(ptr[addr_states_t_l_reg], Xmm(tmp1_vmm.getIdx()), 0x0); break;
+            default: assert(!"Unsuported vector length for quantization");
+            }
 
             // increment address pointers
             add(addr_ws_gates_reg, gate_dt_size);

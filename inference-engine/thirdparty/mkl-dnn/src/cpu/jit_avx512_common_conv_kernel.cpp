@@ -141,6 +141,7 @@ void _jit_avx512_common_conv_fwd_kernel<Vmm>::store_output(int ur_w)
 
     int eltwise_inj_idx = 0;
     int depthwise_inj_idx = 0;
+    int quantization_inj_idx = 0;
     const auto &p = attr_.post_ops_;
 
     for (int i = 0; i < p.len_; i++) {
@@ -185,58 +186,25 @@ void _jit_avx512_common_conv_fwd_kernel<Vmm>::store_output(int ur_w)
 
             depthwise_inj_idx++;
         } else if (post_op.is_quantization()) {
-            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.crop_low_data));
-            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.crop_high_data));
-
-            add(reg_d_weights, ptr[this->param1 + GET_OFF(oc_off)]);
-            add(reg_d_bias, ptr[this->param1 + GET_OFF(oc_off)]);
-
+            quantization_injectors[quantization_inj_idx]->init_crop_ptrs(ptr[this->param1 + GET_OFF(oc_off)]);
             for (int k = 0; k < jcp.nb_oc_blocking; k++) {
-                uni_vmovups(vmm_d_weights, ptr[reg_d_weights + k * jcp.oc_block * sizeof(float)]);
-                uni_vmovups(vmm_d_bias, ptr[reg_d_bias + k * jcp.oc_block * sizeof(float)]);
-
-                for (int j = 0; j < ur_w; j++) {
-                    Vmm vmm_dst = vmm_out(j, k);
-
-                    uni_vmaxps(vmm_dst, vmm_dst, vmm_d_weights);
-                    uni_vminps(vmm_dst, vmm_dst, vmm_d_bias);
-                }
+                int s_idx = vmm_out(0, k).getIdx();
+                quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + ur_w, k * jcp.oc_block * sizeof(float));
             }
 
-            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.input_scale_data));
-            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.input_shift_data));
-
-            add(reg_d_weights, ptr[this->param1 + GET_OFF(oc_off)]);
-            add(reg_d_bias, ptr[this->param1 + GET_OFF(oc_off)]);
-
+            quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(ptr[this->param1 + GET_OFF(oc_off)]);
             for (int k = 0; k < jcp.nb_oc_blocking; k++) {
-                uni_vmovups(vmm_d_weights, ptr[reg_d_weights + k * jcp.oc_block * sizeof(float)]);
-                uni_vmovups(vmm_d_bias, ptr[reg_d_bias + k * jcp.oc_block * sizeof(float)]);
-
-                for (int j = 0; j < ur_w; j++) {
-                    Vmm vmm_dst = vmm_out(j, k);
-
-                    uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
-                    uni_vroundps(vmm_dst, vmm_dst, 0);
-                }
+                int s_idx = vmm_out(0, k).getIdx();
+                quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + ur_w, k * jcp.oc_block * sizeof(float), true);
             }
 
-            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.output_scale_data));
-            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.output_shift_data));
-
-            add(reg_d_weights, ptr[this->param1 + GET_OFF(oc_off)]);
-            add(reg_d_bias, ptr[this->param1 + GET_OFF(oc_off)]);
-
+            quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(ptr[this->param1 + GET_OFF(oc_off)]);
             for (int k = 0; k < jcp.nb_oc_blocking; k++) {
-                uni_vmovups(vmm_d_weights, ptr[reg_d_weights + k * jcp.oc_block * sizeof(float)]);
-                uni_vmovups(vmm_d_bias, ptr[reg_d_bias + k * jcp.oc_block * sizeof(float)]);
-
-                for (int j = 0; j < ur_w; j++) {
-                    Vmm vmm_dst = vmm_out(j, k);
-
-                    uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
-                }
+                int s_idx = vmm_out(0, k).getIdx();
+                quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + ur_w, k * jcp.oc_block * sizeof(float));
             }
+
+            quantization_inj_idx++;
         }
     }
 
@@ -1119,6 +1087,12 @@ void _jit_avx512_common_conv_fwd_kernel<Vmm>::generate()
                     this,
                     post_op.depthwise.alg
             ));
+        } else if (post_op.is_quantization()) {
+            quantization_injectors.push_back(new jit_uni_quantization_injector_f32<avx512_common>(
+                    this,
+                    post_op,
+                    zmm_d_weights, zmm_d_bias, reg_d_weights, reg_d_bias
+            ));
         }
     }
 
@@ -1603,6 +1577,7 @@ status_t jit_avx512_common_conv_fwd_kernel::init_conf(
     if (jcp.l_pad > 0 && r_pad > 0)
         n_oi--;
 
+    // Heuristic to optimize code size on KNX
     bool large_code_size = jcp.ur_w != jcp.ow && jcp.l_pad > 0 && r_pad > 0
             && ((jcp.l_pad <= 0 && n_oi > 0) || (jcp.l_pad > 0 && n_oi > 1));
     if (large_code_size) {
@@ -1906,6 +1881,18 @@ status_t jit_avx512_common_conv_fwd_kernel::init_conf(
         }
     }
 
+    // A rough check on code size
+    // TODO: come up with a tighter bound
+    {
+        const int max_code_size = 256 * 1024; // default size of jit generator
+        int mult = 1 + (jcp.l_pad > 0) + (r_pad > 0);
+        const float max_instruction_size = 15;
+        float ur_fac
+                = (float)jcp.kw * jcp.ic_block * jcp.nb_oc_blocking * jcp.ur_w;
+        float code_size = mult * ur_fac * max_instruction_size;
+        if (code_size > max_code_size) return status::unimplemented;
+    }
+
     return status::success;
 }
 
@@ -1932,7 +1919,7 @@ void jit_avx512_common_conv_bwd_data_kernel_f32::prepare_output(int ur_w)
 
 void jit_avx512_common_conv_bwd_data_kernel_f32::store_output(int ur_w)
 {
-    Label no_update_label;
+    Label no_update_label, skip_post_ops;
 
     mov(reg_channel, ptr[param + GET_OFF(channel)]);
     cmp(reg_channel, 0);
@@ -1946,8 +1933,32 @@ void jit_avx512_common_conv_bwd_data_kernel_f32::store_output(int ur_w)
                         reg_long_offt));
         }
     }
+    jmp(skip_post_ops, T_NEAR);
 
     L(no_update_label);
+    const auto &p = attr_.post_ops_;
+    int depthwise_inj_idx = 0;
+    for (int i = 0; i < p.len_; i++) {
+        auto& post_op = p.entry_[i];
+        if (post_op.is_depthwise()) {
+            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.depthwise.weights_data));
+            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data));
+
+            add(reg_d_weights, ptr[this->param1 + GET_OFF(oc_off)]);
+            add(reg_d_bias, ptr[this->param1 + GET_OFF(oc_off)]);
+
+            for (int k = 0; k < jcp.nb_ic_blocking; k++) {
+                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(
+                        k*jcp.ur_w, k*jcp.ur_w + ur_w, reg_d_weights, reg_d_bias);
+
+                add(reg_d_weights, jcp.ic_block * sizeof(float));
+                add(reg_d_bias, jcp.ic_block * sizeof(float));
+            }
+        }
+        depthwise_inj_idx++;
+    }
+    L(skip_post_ops);
+
     for (int k = 0; k < jcp.nb_ic_blocking; k++) {
         for (int j = 0; j < ur_w; j++) {
             Zmm zmm = zmm_out(j, k);
@@ -2541,6 +2552,16 @@ inline void jit_avx512_common_conv_bwd_data_kernel_f32::compute_loop(
 
 void jit_avx512_common_conv_bwd_data_kernel_f32::generate()
 {
+    const auto &p = attr_.post_ops_;
+    for (int i = 0; i < p.len_; i++) {
+        auto &post_op = p.entry_[i];
+        if (post_op.is_depthwise()) {
+            depthwise_injectors.push_back(new jit_uni_depthwise_injector_f32<avx512_common>(
+                    this,
+                    post_op.depthwise.alg
+            ));
+        }
+    }
     int iw = jcp.iw;
     int kw = jcp.kw;
     int ur_w = jcp.ur_w;
@@ -2567,8 +2588,8 @@ void jit_avx512_common_conv_bwd_data_kernel_f32::generate()
     int l_overflow = nstl::max(0, ((kw - 1) * dilate_w - jcp.l_pad) / stride_w);
     int r_overflow = nstl::max(0, ((kw - 1) * dilate_w
                     - nstl::max(0, jcp.r_pad)) / stride_w);
-    int r_overflow1 = nstl::max(0, ((kw - 1) * dilate_w
-                    - nstl::max(0, jcp.r_pad) - ur_w_tail) / stride_w);
+    int r_overflow1 = nstl::max(
+            0, ((kw - 1) * dilate_w - jcp.r_pad - ur_w_tail) / stride_w);
 
     int n_oi = iw / ur_w;
     if (r_overflow1 > 0) n_oi--;
@@ -2624,12 +2645,27 @@ void jit_avx512_common_conv_bwd_data_kernel_f32::generate()
     postamble();
 }
 
+bool jit_avx512_common_conv_bwd_data_kernel_f32::post_ops_ok(const primitive_attr_t &attr) {
+    const auto &p = attr.post_ops_;
+    if (p.len_ > 1)
+        return false;
+
+    auto all_post_ops_supported = [&]() {
+        bool ok = true;
+
+        for (int i = 0; i < p.len_; i++) {
+            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::depthwise);
+        }
+        return ok;
+    };
+
+    return all_post_ops_supported();
+}
+
 status_t jit_avx512_common_conv_bwd_data_kernel_f32::init_conf(
-        jit_conv_conf_t &jcp,
-        const convolution_desc_t &cd,
-        const memory_desc_wrapper &diff_src_d,
-        const memory_desc_wrapper &weights_d,
-        const memory_desc_wrapper &diff_dst_d)
+        jit_conv_conf_t &jcp, const convolution_desc_t &cd,
+        const memory_desc_wrapper &diff_src_d, const memory_desc_wrapper &weights_d,
+        const memory_desc_wrapper &diff_dst_d, const primitive_attr_t &attr)
 {
     if (!mayiuse(avx512_common)) return status::unimplemented;
 
@@ -2683,6 +2719,12 @@ status_t jit_avx512_common_conv_bwd_data_kernel_f32::init_conf(
     jcp.back_pad = (jcp.od - 1) * jcp.stride_d
             + (jcp.kd - 1) * (jcp.dilate_d + 1) - (jcp.id + jcp.f_pad - 1);
 
+    /* XXX BUGBUGBUG: current workaround to support negative padding: use the
+     * 'stride-complement' of padding instead. */
+    if (jcp.kh == 1 && jcp.b_pad < 0) jcp.b_pad = jcp.stride_h + jcp.b_pad;
+    if (jcp.kd == 1 && jcp.back_pad < 0)
+        jcp.back_pad = jcp.stride_d + jcp.back_pad;
+
     jcp.aligned_threads = 0;
 
     jcp.is_1stconv = false;
@@ -2711,6 +2753,9 @@ status_t jit_avx512_common_conv_bwd_data_kernel_f32::init_conf(
     if (!args_ok)
         return status::unimplemented;
 
+    if (!post_ops_ok(attr))
+        return status::unimplemented;
+
     jcp.nb_ic = jcp.ic / jcp.ic_block;
     jcp.nb_oc = jcp.oc / jcp.oc_block;
 
@@ -2728,8 +2773,9 @@ status_t jit_avx512_common_conv_bwd_data_kernel_f32::init_conf(
     }
     int l_overflow = nstl::max(0, ((jcp.kw - 1) * (jcp.dilate_w + 1)
                     - jcp.l_pad) / jcp.stride_w);
-    int r_overflow1 = nstl::max(0, ((jcp.kw - 1) * (jcp.dilate_w + 1)
-                    - nstl::max(0, jcp.r_pad) - jcp.iw % jcp.ur_w) / jcp.stride_w);
+    int r_overflow1 = nstl::max(0,
+            ((jcp.kw - 1) * (jcp.dilate_w + 1) - jcp.r_pad - jcp.iw % jcp.ur_w)
+                    / jcp.stride_w);
     int n_oi = jcp.iw / jcp.ur_w;
     if (r_overflow1 > 0) n_oi--;
 
@@ -2795,7 +2841,8 @@ status_t jit_avx512_common_conv_bwd_data_kernel_f32::init_conf(
         }
     }
     if (jcp.ver == ver_4fma) {
-        if (jcp.kw == 3 && jcp.kh == 3 && jcp.iw == 7 && jcp.ih == 7) {
+        if (jcp.kw == 3 && jcp.kh == 3 && jcp.iw == 7 && jcp.ih == 7
+                && jcp.nb_ic % 2 == 0) {
             jcp.nb_ic_blocking = 2;
         } else {
             for (int i = jcp.nb_ic; i > 0; i--)
@@ -2808,6 +2855,7 @@ status_t jit_avx512_common_conv_bwd_data_kernel_f32::init_conf(
 
     jcp.loop_order = loop_gnc;
 
+    // Heuristic to optimize code size on KNX
     bool large_code_size = (jcp.ur_w != jcp.ow)
          && ((l_overflow <= 0 && n_oi > 0) ||(l_overflow > 0 && n_oi > 1))
          && (r_overflow1 > 0) && (l_overflow > 0);
@@ -2844,8 +2892,10 @@ status_t jit_avx512_common_conv_bwd_data_kernel_f32::init_conf(
             jcp.kernel_kind = embd_bcast;
             jcp.ur_w = nstl::min(jcp.iw, regs);
             jcp.nb_ic_blocking = jcp.nb_oc_blocking = 1;
-            if (!(jcp.kw > 3 || (jcp.kw == 3 && ker_total_size < L1_cache_size
-                && jcp.ow > 8)) && jcp.stride_h == 1)
+            if (!(jcp.kw > 3
+                        || (jcp.kw == 3 && ker_total_size < L1_cache_size
+                                && jcp.ow > 8))
+                    && jcp.stride_h == 1 && jcp.stride_d == 1)
                 if (jcp.nb_ic % try_nb_ic_blocking == 0) {
                     jcp.nb_ic_blocking = try_nb_ic_blocking;
                     jcp.ur_w = 31 / (jcp.nb_ic_blocking + 1);
@@ -2870,11 +2920,17 @@ status_t jit_avx512_common_conv_bwd_data_kernel_f32::init_conf(
 
     if (l_overflow * jcp.stride_w > jcp.ur_w)
         return status::unimplemented;
-    int r_overflow_no_tail = nstl::max(0, ((jcp.kw - 1) * (jcp.dilate_w + 1)
-                    - nstl::max(0, jcp.r_pad) - jcp.ur_w_tail) / jcp.stride_w);
-    if (r_overflow_no_tail * jcp.stride_w > jcp.ur_w)
-        return status::unimplemented;
-    if ((jcp.iw > jcp.ur_w) && (jcp.ur_w % jcp.stride_w != 0))
+    int r_overflow_no_tail = nstl::max(0,
+            ((jcp.kw - 1) * (jcp.dilate_w + 1) - jcp.r_pad - jcp.ur_w_tail)
+                    / jcp.stride_w);
+    bool tails_not_ok = false
+            /* maximum 1 ur_w block with r_overflow so far */
+            || r_overflow_no_tail * jcp.stride_w > jcp.ur_w
+            /* ur_w must be a multiple of stride */
+            || ((jcp.iw > jcp.ur_w) && (jcp.ur_w % jcp.stride_w != 0))
+            /* r_pad must not extend beyond ur_w_tail */
+            || ((jcp.iw > jcp.ur_w) && (jcp.r_pad + jcp.ur_w_tail < 0));
+    if (tails_not_ok)
         return status::unimplemented;
 
     pick_loop_order(jcp);
@@ -2909,6 +2965,18 @@ status_t jit_avx512_common_conv_bwd_data_kernel_f32::init_conf(
         && jcp.ic <= weights_d.blocking_desc().padding_dims[with_groups + 1]
         && jcp.oc <= weights_d.blocking_desc().padding_dims[with_groups + 0];
     if (!args_ok) return status::unimplemented;
+
+    // A rough check on code size
+    // TODO: come up with a tighter bound
+    {
+        const int max_code_size = 256 * 1024; // default size of jit generator
+        int mult = 1 + (l_overflow > 0) + (r_overflow1 > 0);
+        const float max_instruction_size = 15;
+        float ur_fac
+                = (float)jcp.kw * jcp.oc_block * jcp.nb_ic_blocking * jcp.ur_w;
+        float code_size = mult * ur_fac * max_instruction_size;
+        if (code_size > max_code_size) return status::unimplemented;
+    }
 
     return status::success;
 }
@@ -3631,8 +3699,8 @@ void jit_avx512_common_conv_bwd_weights_kernel_f32
     int iw = utils::one_of(jcp.ver, ver_4fma, ver_4vnni, ver_vnni) ? jcp.tr_iw
         : jcp.iw;
     Label oh_label, oh_label_end, oh_tpad_label, oh_tpad_tail_label,
-            oh_bpad_label, oh_bpad_label_end, od_label, od_label_end,
-            oh_dilate_label_shift, oh_dilate_label_noshift, oh_dilate_label_end;
+            oh_bpad_label, oh_bpad_label_end, oh_dilate_label_shift,
+            oh_dilate_label_noshift, oh_dilate_label_end;
 
     int ow = (jcp.ver == ver_4vnni || jcp.ver == ver_vnni) ? jcp.tr_ow : jcp.ow;
 
@@ -3659,6 +3727,9 @@ void jit_avx512_common_conv_bwd_weights_kernel_f32
                     add(reg_input, jcp.typesize_in * shift * iw * inp_mult);
             }
             L(oh_tpad_label); {
+                cmp(reg_oj, jcp.oh);
+                jge(oh_label_end, T_NEAR);
+
                 compute_oh_step_disp();
                 add(reg_output, jcp.typesize_in * ow * jcp.oc_block);
                 if (is_dilated) {
@@ -3697,6 +3768,9 @@ void jit_avx512_common_conv_bwd_weights_kernel_f32
             assert(!is_dilated);
             mov(reg_kh, jcp.ih);
             L(oh_tpad_tail_label); {
+                cmp(reg_oj, jcp.oh);
+                jge(oh_label_end, T_NEAR);
+
                 compute_oh_step_disp();
                 add(reg_output, jcp.typesize_in * ow * jcp.oc_block);
                 sub(reg_kernel, jcp.typesize_out * stride_h * jcp.kw
@@ -3732,7 +3806,7 @@ void jit_avx512_common_conv_bwd_weights_kernel_f32
     cmp(reg_ih_count, jcp.ihp - b_pad - (jcp.kh - 1) * dilate_h);
     jge(oh_label_end, T_NEAR);
     cmp(reg_oj, jcp.oh);
-    jge(oh_label, T_NEAR);
+    jge(oh_label_end, T_NEAR);
 
     /* Compute middle block(s) */
     mov(reg_kh, jcp.kh);
@@ -3850,7 +3924,7 @@ void jit_avx512_common_conv_bwd_weights_kernel_f32::compute_oh_loop_partial() {
         /* Final number of kernel elements that overlap with input */
         const int inp_ker_overlap = nstl::min(jcp.kh, jcp.ih);
         cmp(reg_kh, inp_ker_overlap);
-        jl(common_block_label, T_NEAR);
+        jle(common_block_label, T_NEAR);
 
         /* Correct any excess shifts to kernel and input */
         if (jcp.t_pad <= jcp.oh * jcp.stride_h) {
@@ -3866,7 +3940,7 @@ void jit_avx512_common_conv_bwd_weights_kernel_f32::compute_oh_loop_partial() {
         }
 
         /* Apply correction */
-        mov(reg_kh, jcp.kh);
+        mov(reg_kh, inp_ker_overlap);
         jmp(common_block_label);
 
         L(top_padding_end_label);
@@ -3971,7 +4045,7 @@ void jit_avx512_common_conv_bwd_weights_kernel_f32::compute_od_loop_partial() {
         /* Final number of kernel elements that overlap with input */
         const int inp_ker_overlap = nstl::min(jcp.kd, jcp.id);
         cmp(reg_kd_count, inp_ker_overlap);
-        jl(common_block_label, T_NEAR);
+        jle(common_block_label, T_NEAR);
 
         /* Correct any excess shifts to kernel and input */
         if (jcp.f_pad <= jcp.od * jcp.stride_d) {
@@ -3987,7 +4061,7 @@ void jit_avx512_common_conv_bwd_weights_kernel_f32::compute_od_loop_partial() {
         }
 
         /* Apply correction */
-        mov(reg_kd_count, jcp.kd);
+        mov(reg_kd_count, inp_ker_overlap);
         jmp(common_block_label);
 
         L(fpad_end_label);

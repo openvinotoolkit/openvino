@@ -473,7 +473,7 @@ void jit_uni_x8s8s32x_conv_fwd_kernel<isa>::width_blk_step(int ur_w, int pad_l, 
                 }
 
                 if (jcp.with_weights_zp) {
-                    mov(reg_d_weights, reinterpret_cast<size_t>(attr_.weights_zero_points_.zero_points_));
+                    mov(reg_d_weights, reinterpret_cast<size_t>(attr_.weights_zero_points_.shifts_));
                     add(reg_d_weights, reg_oc_off);
                     uni_vmovups(vmm_d_weights, ptr[reg_d_weights + ii * jcp.oc_block * sizeof(float)]);
 
@@ -495,6 +495,7 @@ void jit_uni_x8s8s32x_conv_fwd_kernel<isa>::width_blk_step(int ur_w, int pad_l, 
 
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
+        int quantization_inj_idx = 0;
         int end_idx = jcp.with_dw_conv ? p.find(primitive_kind::convolution) : p.len_;
         for (int i = 0; i < end_idx; i++) {
             int start_idx = 1 + r * jcp.ur_w * jcp.nb_oc_blocking;
@@ -564,61 +565,28 @@ void jit_uni_x8s8s32x_conv_fwd_kernel<isa>::width_blk_step(int ur_w, int pad_l, 
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                 bool do_rounding = do_dequantization || jcp.dst_dt == mkldnn_f32 || i != end_idx - 1;
 
-                mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.crop_low_data));
-                mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.crop_high_data));
-
-                add(reg_d_weights, reg_oc_off);
-                add(reg_d_bias, reg_oc_off);
-
+                quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
                 for (int ii = 0; ii < oc_blocks; ii++) {
-                    uni_vmovups(vmm_d_weights, ptr[reg_d_weights + (ii * jcp.oc_block + r * (jcp.oc_block / 2)) * sizeof(float)]);
-                    uni_vmovups(vmm_d_bias, ptr[reg_d_bias + (ii * jcp.oc_block + r * (jcp.oc_block / 2)) * sizeof(float)]);
-
-                    for (int jj = 0; jj < ur_w; jj++) {
-                        Vmm vmm_dst = get_acc_reg(r * jcp.ur_w * jcp.nb_oc_blocking + ur_w * ii + jj);
-
-                        uni_vmaxps(vmm_dst, vmm_dst, vmm_d_weights);
-                        uni_vminps(vmm_dst, vmm_dst, vmm_d_bias);
-                    }
+                    int s_idx = get_acc_reg(r * jcp.ur_w * jcp.nb_oc_blocking + ur_w * ii).getIdx();
+                    quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + ur_w,
+                            (ii * jcp.oc_block + r * (jcp.oc_block / 2)) * sizeof(float));
                 }
 
-                mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.input_scale_data));
-                mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.input_shift_data));
-
-                add(reg_d_weights, reg_oc_off);
-                add(reg_d_bias, reg_oc_off);
-
+                quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
                 for (int ii = 0; ii < oc_blocks; ii++) {
-                    uni_vmovups(vmm_d_weights, ptr[reg_d_weights + (ii * jcp.oc_block + r * (jcp.oc_block / 2)) * sizeof(float)]);
-                    uni_vmovups(vmm_d_bias, ptr[reg_d_bias + (ii * jcp.oc_block + r * (jcp.oc_block / 2)) * sizeof(float)]);
-
-                    for (int jj = 0; jj < ur_w; jj++) {
-                        Vmm vmm_dst = get_acc_reg(r * jcp.ur_w * jcp.nb_oc_blocking + ur_w * ii + jj);
-
-                        uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
-                        if (do_rounding)
-                            uni_vroundps(vmm_dst, vmm_dst, 0);
-                    }
+                    int s_idx = get_acc_reg(r * jcp.ur_w * jcp.nb_oc_blocking + ur_w * ii).getIdx();
+                    quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + ur_w,
+                            (ii * jcp.oc_block + r * (jcp.oc_block / 2)) * sizeof(float), do_rounding);
                 }
 
-                if (do_dequantization) {
-                    mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.output_scale_data));
-                    mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.output_shift_data));
-
-                    add(reg_d_weights, reg_oc_off);
-                    add(reg_d_bias, reg_oc_off);
-
-                    for (int ii = 0; ii < oc_blocks; ii++) {
-                        uni_vmovups(vmm_d_weights, ptr[reg_d_weights + (ii * jcp.oc_block + r * (jcp.oc_block / 2)) * sizeof(float)]);
-                        uni_vmovups(vmm_d_bias, ptr[reg_d_bias + (ii * jcp.oc_block + r * (jcp.oc_block / 2)) * sizeof(float)]);
-
-                        for (int jj = 0; jj < ur_w; jj++) {
-                            Vmm vmm_dst = get_acc_reg(r * jcp.ur_w * jcp.nb_oc_blocking + ur_w * ii + jj);
-
-                            uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
-                        }
-                    }
+                quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
+                for (int ii = 0; ii < oc_blocks; ii++) {
+                    int s_idx = get_acc_reg(r * jcp.ur_w * jcp.nb_oc_blocking + ur_w * ii).getIdx();
+                    quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + ur_w,
+                            (ii * jcp.oc_block + r * (jcp.oc_block / 2)) * sizeof(float));
                 }
+
+                quantization_inj_idx++;
             }
         }
 
@@ -792,6 +760,12 @@ void jit_uni_x8s8s32x_conv_fwd_kernel<isa>::generate()
                     this,
                     post_op.depthwise.alg
             ));
+        } else if (post_op.is_quantization()) {
+            quantization_injectors.push_back(new jit_uni_quantization_injector_f32<isa>(
+                    this,
+                    post_op,
+                    vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias
+            ));
         }
     }
 
@@ -881,7 +855,7 @@ void jit_uni_x8s8s32x_conv_fwd_kernel<isa>::prepare_table() {
     };
 
     uint8_t input_zero_point = jcp.signed_input ? (uint8_t)128 :
-                               jcp.with_input_zp ? attr_.input_zero_points_.zero_points_[0] : (uint8_t)0;
+                               jcp.with_input_zp ? attr_.input_zero_points_.shifts_[0] : (uint8_t)0;
     const uint8_t cvals_shift[] = {
         input_zero_point,
     };

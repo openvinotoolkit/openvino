@@ -22,6 +22,7 @@
 #include "api/data.hpp"
 #include "api/mutable_data.hpp"
 #include "api/input_layout.hpp"
+#include <src/include/to_string_utils.h>
 
 #include "error_handler.h"
 #include "primitive_inst.h"
@@ -29,6 +30,7 @@
 #include "mutable_data_inst.h"
 #include "condition_inst.h"
 #include "kernel_selector_helper.h"
+#include "gpu/memory_gpu.h"
 #include <algorithm>
 
 #include "gpu/ocl_toolkit.h"
@@ -209,26 +211,22 @@ template <class T>
 static void dump(memory_impl& mem, std::ofstream& file_stream) {
     auto&& size = mem.get_layout().size;
 
-    file_stream << "shape: ";
-    file_stream << size.batch[0] << " ";
-    file_stream << size.feature[0] << " ";
-    file_stream << size.spatial[3] << " ";
-    file_stream << size.spatial[2] << " ";
-    file_stream << size.spatial[1] << " ";
-    file_stream << size.spatial[0] << " ";
-    file_stream << "(" << size.batch[0] * size.feature[0] * size.spatial[3] * size.spatial[2] * size.spatial[1] * size.spatial[0] << ")" << std::endl;
+    file_stream << "shape: " << size.to_string() << " ";
+    file_stream << "(count: " << size.count() << ", original format: " << cldnn::fmt_to_str(mem.get_layout().format) << ")" << std::endl;
 
     auto mem_ptr = static_cast<T*>(mem.lock());
 
-    for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
-        for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f) {
-            for (cldnn::tensor::value_type w = 0; w < size.spatial[3]; ++w) {
-                for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
-                    for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
-                        for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x) {
-                            cldnn::tensor t(cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, z, w));
-                            size_t input_it = mem.get_layout().get_linear_offset(t);
-                            file_stream << std::fixed << std::setprecision(6) << convert_element(mem_ptr[input_it]) << std::endl;
+    for (cldnn::tensor::value_type g = 0; g < size.group[0]; ++g) {
+        for (cldnn::tensor::value_type b = 0; b < size.batch[0]; ++b) {
+            for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f) {
+                for (cldnn::tensor::value_type w = 0; w < size.spatial[3]; ++w) {
+                    for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
+                        for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
+                            for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x) {
+                                cldnn::tensor t(cldnn::group(g), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(x, y, z, w));
+                                size_t input_it = mem.get_layout().get_linear_offset(t);
+                                file_stream << std::fixed << std::setprecision(6) << convert_element(mem_ptr[input_it]) << std::endl;
+                            }
                         }
                     }
                 }
@@ -314,8 +312,10 @@ network_impl::network_impl(const program_impl& program, uint16_t stream_id, bool
 }
 
 network_impl::~network_impl() {
+    auto toolkit = get_engine().get_context();
+    get_engine().get_memory_pool().clear_pool_for_network(net_id);
+    toolkit->release_pending_memory(net_id);
     if (net_id) {
-        auto toolkit = get_engine().get_context();
         toolkit->remove_network(net_id);
     }
 }
@@ -686,7 +686,7 @@ void network_impl::allocate_mutable_data_for_streams(std::vector<std::shared_ptr
 
         if (is_secondary_stream()) {
             // Alloc new buffer for this stream and copy data to have valid initial state
-            memory_impl::ptr result = get_engine().allocate_memory(mem->get_layout(), get_id());
+            memory_impl::ptr result = get_engine().allocate_memory(mem->get_layout(), get_id(), false);
             {
                 mem_lock<char> src(mem);
                 mem_lock<char> dst(result);
@@ -720,6 +720,28 @@ void network_impl::allocate_primitive_instance(program_node const& node) {
         _outputs.push_back(inst);
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
+    }
+    if (node.is_constant())
+        transfer_memory_to_device(inst, node);
+}
+
+void network_impl::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node) {
+    auto& inst_mem = instance->output_memory();
+    auto alloc_type = inst_mem.get_allocation_type();
+
+    // Do not transfer memory if a user requires lockable memory.
+    // If memory is used in both gpu and cpu implementations, primitive itself is responsible for correct allocation type
+    if (node.need_lockable_memory())
+        return;
+
+    if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
+        // Allocate and transfer memory
+        auto device_mem = inst_mem.get_engine()->allocate_memory(
+            inst_mem.get_layout(),
+            allocation_type::usm_device,
+            inst_mem.get_net_id());
+        dynamic_cast<gpu::gpu_usm&>(*device_mem).copy_from_other(dynamic_cast<gpu::gpu_usm&>(inst_mem));
+        instance->set_output_memory(*device_mem);
     }
 }
 }  // namespace cldnn

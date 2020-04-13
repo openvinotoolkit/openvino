@@ -544,16 +544,19 @@ mkldnn_status_t MKLDNN_API mkldnn_post_ops_get_params_binarization(
  * where quantization_op is configured with given parameters.
  */
 mkldnn_status_t MKLDNN_API mkldnn_post_ops_append_quantization(
-        mkldnn_post_ops_t post_ops, mkldnn_alg_kind_t alg, const float* crop_low, const float* crop_high,
-        const float* input_scale, const float* input_shift, const float* output_scale, const float* output_shift);
+        mkldnn_post_ops_t post_ops, mkldnn_alg_kind_t alg,
+        int crop_low_count, const float* crop_low, int crop_high_count, const float* crop_high,
+        int input_scale_count, const float* input_scale, int input_shift_count, const float* input_shift,
+        int output_scale_count, const float* output_scale, int output_shift_count, const float* output_shift);
 
 /** Gets the quantization parameters of the post operation with index @p index in
  * the sequence of @p post_ops.
  */
 mkldnn_status_t MKLDNN_API mkldnn_post_ops_get_params_quantization(
-        const_mkldnn_post_ops_t post_ops, int index,
-        mkldnn_alg_kind_t *alg, const float** crop_low, const float** crop_high,
-        const float** input_scale, const float** input_shift, const float** output_scale, const float** output_shift);
+        const_mkldnn_post_ops_t post_ops, int index, mkldnn_alg_kind_t *alg,
+        int* crop_low_count, const float** crop_low, int* crop_high_count, const float** crop_high,
+        int* input_scale_count, const float** input_scale, int* input_shift_count, const float** input_shift,
+        int* output_scale_count, const float** output_scale, int* output_shift_count, const float** output_shift);
 
 /** @} */
 
@@ -2010,13 +2013,13 @@ unsigned int MKLDNN_API mkldnn_get_cache_size(int level, int per_core);
  *      because it returns mkldnn_status_t for error handling.
  *      XERBLA is not supported: no error message will be printed
  *      in case of incorrect parameters. */
-mkldnn_status_t MKLDNN_API mkldnn_sgemm(const char *transa, const char *transb,
-        const int *M, const int *N, const int *K,
-        const float *alpha, const float *A, const int *lda,
-        const float *B, const int *ldb,
-        const float *beta, float *C, const int *ldc);
+mkldnn_status_t MKLDNN_API mkldnn_sgemm(char transa, char transb,
+        int M, int N, int K,
+        float alpha, const float *A, int lda,
+        const float *B, int ldb,
+        float beta, float* C, int ldc);
 
-/** gemm_s8u8s32 and gemm_s8s8s32 perform a matrix-matrix multiplication
+/** gemm_u8s8s32 and gemm_s8s8s32 perform a matrix-matrix multiplication
  * operation and add the result to a scalar-matrix product. For the final
  * result, a vector is added to each row or column of the output matrix.
  * The operation is defined as:
@@ -2042,42 +2045,17 @@ mkldnn_status_t MKLDNN_API mkldnn_sgemm(const char *transa, const char *transb,
  *      because it returns mkldnn_status_t for error handling.
  *      XERBLA is not supported: no error message will be printed
  *      in case of incorrect parameters. */
-mkldnn_status_t MKLDNN_API mkldnn_gemm_s8u8s32(const char *transa,
-        const char *transb, const char *offsetc, const int *M, const int *N,
-        const int *K, const float *alpha, const int8_t *A, const int *lda,
-        const int8_t *ao, const uint8_t *B, const int *ldb, const int8_t *bo,
-        const float *beta, int32_t *c, const int *ldc, const int32_t *co);
+mkldnn_status_t MKLDNN_API mkldnn_gemm_u8s8s32(char transa,
+        char transb, char offsetc, int M, int N,
+        int K, float alpha, const uint8_t *A, int lda,
+        uint8_t ao, const int8_t *B, int ldb, int8_t bo,
+        float beta, int32_t *c, int ldc, const int32_t *co);
 
-mkldnn_status_t MKLDNN_API mkldnn_gemm_s8s8s32(const char *transa,
-        const char *transb, const char *offsetc, const int *M, const int *N,
-        const int *K, const float *alpha, const int8_t *A, const int *lda,
-        const int8_t *ao, const int8_t *B, const int *ldb, const int8_t *bo,
-        const float *beta, int32_t *c, const int *ldc, const int32_t *co);
-
-/** gemm_bf16bf16f32 performs a matrix-matrix multiplication operation defined
- * as
- *
- * C := alpha*op( A )*op( B ) + beta*C
- *
- * where
- *  - op( X ) is one of op( X ) = X or op( X ) = X**T,
- *  - alpha and beta are scalars,
- *  - A, B and C are matrices, with op( A ) an m by k matrix, op( B ) a k by n
- *    matrix and C an m by n matrix.
- *
- * The matrices are assumed to be stored in column-major order (the elements
- * in a matrix columns are contiguous in memory).
- *
- * @note
- *      The API is different from the standard BLAS routine
- *      because it returns mkldnn_status_t for error handling.
- *      XERBLA is not supported: no error message will be printed
- *      in case of incorrect parameters. */
-mkldnn_status_t MKLDNN_API mkldnn_gemm_bf16bf16f32(const char *transa,
-        const char *transb, const int *M, const int *N, const int *K,
-        const float *alpha, const mkldnn_bfloat16_t *A, const int *lda,
-        const mkldnn_bfloat16_t *B, const int *ldb, const float *beta,
-        float *c, const int *ldc);
+mkldnn_status_t MKLDNN_API mkldnn_gemm_s8s8s32(char transa,
+        char transb, char offsetc, int M, int N,
+        int K, float alpha, const int8_t *A, int lda,
+        int8_t ao, const int8_t *B, int ldb, int8_t bo,
+        float beta, int32_t *c, int ldc, const int32_t *co);
 
 /** @} */
 

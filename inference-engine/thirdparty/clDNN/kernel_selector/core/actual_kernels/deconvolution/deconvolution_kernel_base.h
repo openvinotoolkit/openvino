@@ -79,17 +79,14 @@ public:
     using DispatchData = CommonDispatchData;
 
 protected:
-    virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const;
+    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     virtual JitConstants GetJitConstants(const deconvolution_params& params) const;
     virtual DispatchData SetDefault(const deconvolution_params& params) const;
-    virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const deconvolution_params&) const {
-        return {
-            WeightsLayout::oiyx,
-            WeightsLayout::iyxo,
-            WeightsLayout::yxio,
-            WeightsLayout::oyxi,
-            WeightsLayout::oizyx
-        };
+    virtual WeightsLayout GetPreferredWeightsLayout(const deconvolution_params &params) const {
+        if (params.inputs[0].Dimentions() == 4)
+            return (params.groups > 1) ? WeightsLayout::goiyx : WeightsLayout::oiyx;
+        else
+            return (params.groups > 1) ? WeightsLayout::goizyx : WeightsLayout::oizyx;
     }
     bool Validate(const Params& p, const optional_params& o) const override;
 };

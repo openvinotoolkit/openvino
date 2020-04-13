@@ -162,7 +162,7 @@ kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code&
     return std::move(scode);
 }
 
-kernels_cache::kernels_cache(gpu_toolkit& context) : _context(context) {}
+kernels_cache::kernels_cache(gpu_toolkit& context, uint32_t prog_id) : _context(context), _prog_id(prog_id) {}
 
 kernels_cache::kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_selector::kernel_string>& kernel_string,
@@ -228,7 +228,7 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
                 cl::Program program(_context.context(), sources);
                 program.build({_context.device()}, program_source.options.c_str());
                 // Store kernels for serialization process.
-                _context.store_binaries(program.getInfo<CL_PROGRAM_BINARIES>());
+                _context.store_binaries(program.getInfo<CL_PROGRAM_BINARIES>(), _prog_id);
 
                 if (dump_sources && dump_file.good()) {
                     dump_file << "\n/* Build Log:\n";
@@ -240,9 +240,10 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
                 cl::vector<cl::Kernel> kernels;
                 program.createKernels(&kernels);
 
+
                 for (auto& k : kernels) {
                     auto kernel_name = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
-                    kmap.emplace(kernel_name, k);
+                    kmap.emplace(kernel_name, kernels_cache::kernel_type(k, _context.get_device_info().supports_usm));
                 }
             } catch (const cl::BuildError& err) {
                 if (dump_sources && dump_file.good())
@@ -301,6 +302,13 @@ void kernels_cache::build_all() {
         }
     }
 
+    _kernels_code.clear();
+    _pending_compilation = false;
+}
+
+void kernels_cache::reset() {
+    _kernels.clear();
+    _one_time_kernels.clear();
     _kernels_code.clear();
     _pending_compilation = false;
 }

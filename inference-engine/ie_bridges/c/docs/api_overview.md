@@ -1,7 +1,7 @@
 # Overview of Inference Engine C* API
 
 > **NOTE**: It is a preview version of the Inference Engine C* API for evaluation purpose only.
-> Module structure and API itself may be changed in future releases.  
+> Module structure and API itself may be changed in future releases.
 
 This API provides a simplified interface for Inference Engine functionality that allows to:
 
@@ -11,10 +11,10 @@ This API provides a simplified interface for Inference Engine functionality that
 
 ## Supported OSes
 
-Currently the Inference Engine C* API is supported on Ubuntu* 16.04, Microsoft Windows* 10 and CentOS* 7.3 OSes.   
-Supported Python* versions:  
+Currently the Inference Engine C* API is supported on Ubuntu* 16.04, Microsoft Windows* 10 and CentOS* 7.3 OSes.
+Supported Python* versions:
 
-- On Ubuntu 16.04: 2.7, 3.5, 3.6  
+- On Ubuntu 16.04: 2.7, 3.5, 3.6
 - On Windows 10: 3.5, 3.6
 - On CentOS 7.3: 3.4, 3.5, 3.6
 
@@ -25,7 +25,7 @@ To configure the environment for the Inference Engine C* API, run:
 - On Ubuntu 16.04: `source <INSTALL_DIR>/bin/setupvars.sh .`
 - On Windows 10: XXXX
 
-The script automatically detects latest installed C* version and configures required environment if the version is supported.  
+The script automatically detects latest installed C* version and configures required environment if the version is supported.
 If you want to use certain version of C*, set the environment variable XXXXX
 after running the environment configuration script.
 
@@ -78,7 +78,7 @@ typedef struct ie_param_config {
 ```
 typedef struct desc {
 
-​    char msg[256]; 
+​    char msg[256];
 
 }desc_t;
 ```
@@ -133,6 +133,8 @@ enum precision_e{
 ​    I32 = 70,   /**< 32bit signed integer value */
 
 ​    I64 = 72,   /**< 64bit signed integer value */
+
+​    U64 = 73,   /**< 64bit unsigned integer value */
 
 ​    BIN = 71,   /**< 1bit integer value */
 
@@ -295,26 +297,26 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
 - `IEStatusCode ie_core_create(char *xml_config_file, ie_core_t *core_result)`
 
   > Note: create an ie_core_t instance with default configuration when xml_config_file=null.
-  
+
   - Parameters:
-  
+
     - `xml_config_file`- A full path to`.xml` file containing plugins configuration. If the parameter is not specified, the default configuration is handled automatically.
     - `core_result` - A pointer to the newly created `ie_core_t`.
-    
+
   - Return value: Status code of the operation: OK(0) for success.
-  
+
   - Usage examples:
-  
+
     Create an `ie_core_t` t instance with a custom configuration location sepcified:
-  
+
     ```
     char *xml_config_file="/localdisk/plugins/my_custom_cfg.xml";
     ie_core_t ie;
     IEStatusCode status = ie_core_create(xml_config_file,ie);
     ```
-  
+
     .`xml` file has the following structure:
-  
+
     ```
     <ie>
     	<plugins>
@@ -329,7 +331,7 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
         </plugins>
     </ie>
     ```
-  
+
 
 ### <a name="iecore-methods"></a>Methods
 
@@ -342,11 +344,11 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
     - `core` -A pointer to `ie_core_t` instance.
     - `device_name` - Name of the the registered plugin.
   - `version_result` - Dictionary mapping a plugin name .
-  
+
   - Return value: Status  of the operation: OK(0) for success.
-  
+
   - Usage example:
-  
+
     ```
     char *xml_config_file="/localdisk/plugins/my_custom_cfg.xml";
   char *device_name="CPU";
@@ -356,30 +358,30 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
     IEStatusCode status2=ie_core_get_versions(ie,device_name, version);
     print("description:%s, major:%d, minor:%d, build_number:%s.\n",version-		  >description, version->major, version->minor, version->build_number);
     ```
-  
+
 - `IEStatusCode ie_core_load_network(ie_core_t *core, ie_network_t *network, const char *device_name,  ie_config_t config, ie_executable_network_t *exec_network_result)`
-  
+
   - Description: Loads a network that was read from the Intermediate Representation (IR) to the plugin with specified device name and creates an `ie_executable_network_t` instance of the `ie_network_t` struct.
     You can create as many networks as you need and use them simultaneously (up to the limitation of the hardware resources).
-    
+
   - Parameters:
-    
+
     - `core` - A pointer to `ie_core_t` instance.
     - `network` - A pointer to `ie_network_t` instance.
-    - `device_name` - A device name of a target plugin.     
+    - `device_name` - A device name of a target plugin.
     - `config` - A dictionary of plugin configuration keys and their values.
     - `exec_network_result` - A pointer to the newly loaded network.
-    
+
   - Return value: Status code of the operation: OK(0) for success.
-  
+
   - Usage example:
-  
+
     ```
-    
+
     ```
-  
+
 - `IEStatusCode ie_core_set_config(ie_core_t *core, ie_config_t *ie_core_config, const char *device_name)`
-  
+
   - Description: Sets a configuration for a plugin.
   - Parameters:
     - `core`- A pointer to `ie_core_t` instance.
@@ -387,7 +389,7 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
     - `device_name` - A device name of a target plugin.
   - Return value: Status code of the operation: OK(0) for success.
 - `IEStatusCode ie_core_register_plugin(ie_core_t *core, const char *plugin_name, const char *device_name )`
-  
+
   - Description: Registers a new device and a plugin which implement this device inside Inference Engine.
   - Parameters:
     - `core`- A pointer to `ie_core_t` instance.
@@ -396,13 +398,13 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
       a plugin with the default name.
   - Return value: Status code of the operation: OK(0) for success.
 - `IEStatusCode ie_core_register_plugins(ie_core_t *core, const char *xml_config_file)`
-  
+
   - Description: Registers plugins specified in an `.xml` configuration file
   - Parameters:
     - `core` - A pointer to `ie_core_t` instance.
     - `xml_config_file` -  A full path to `.xml` file containing plugins configuration.
   - Return value: Status code of the operation: 0 for success.
-  
+
 - `IEStatusCode ie_core_unregister_plugin(ie_core_t *core, const char *device_name)`
 
   - Description: Unregisters a plugin with a specified device name
@@ -413,7 +415,7 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
   - Return value: Status code of the operation: OK(0) for success.
 
 - `IEStatusCode ie_core_add_extension(ie_core_t *core, const char *extension_path, const char *device_name)`
-  
+
   - Description:  Loads extension library to the plugin with a specified device name.
   - Parameters:
     - `core` - A pointer `ie_core_t` instance.
@@ -421,7 +423,7 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
     - `device_name` -  A device name of a plugin to load the extensions to.
   - Return value: Status code of the operation: OK(0) for success.
 - `IEStatusCode ie_core_get_metric(ie_core_t *core, const char *device_name, const char *metric_name, ie_param_t *param_result)`
-  
+
   - Description: Gets a general runtime metric for dedicated hardware. Enables to request common device properties, which are `ie_executable_network_t` agnostic, such as device name, temperature, and other devices-specific values.
   - Parameters:
     - `core` - A pointer `ie_core_t` instance.
@@ -429,20 +431,20 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
     - `metric_name` - A metric name to request.
     - `param_result` - A metric value corresponding to a metric key.
   -  Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_core_get_config(ie_core_t *core, const char *device_name, const char *config_name, ie_param_t *param_result)`
-  
+
   - Description:  Gets a configuration dedicated to device behavior. The method targets to extract information which can be set via SetConfig method.
-  
+
   - Parameters:
     - `core` - A pointer `ie_core_t` instance.
     - `device_name` - A name of a device to get a metric value.
     - `config_name` - A configuration value corresponding to a configuration key.
     - `param_result` - A metric value corresponding to a metric key.
-    
+
   - Return value: Status code of the operation: OK(0) for success.
-  
-    
+
+
 
 ## IENetwork
 
@@ -453,7 +455,7 @@ This struct contains the information about the network model read from IR and al
 - `IEStatusCode ie_network_read(char *xml, char *weights_file, ie_network_t *network_result)`
   - Description: Reads the model from the `.xml` and `.bin` files of the IR.
   - Parameters:
-    - `xml_file` -  `.xml` file's path of the IR. 
+    - `xml_file` -  `.xml` file's path of the IR.
     - `weights_file` - `.bin` file's path of the IR.
     - `network_result` - A pointer to the newly created network.
   - Return value: Status code of the operation: OK(0) for success.
@@ -538,7 +540,7 @@ This struct contains the information about the network model read from IR and al
     - `resize_algo` - Resize algorithm.
   - Return value: Status code of the operation: OK(0) for success.
 - `IEStatusCode ie_network_get_color_format(ie_network_t *network, char *input_name, colorformat_e *colformat_result)`
-  - Description: Gets color format of the input data named "input_name". 
+  - Description: Gets color format of the input data named "input_name".
   - Parameters:
     - `network` - A pointer to `ie_network_t` instance.
     - `input` - Name of input data.
@@ -594,7 +596,7 @@ This struct represents a network instance loaded to plugin and ready for inferen
 ### Methods
 
 - `IEStatusCode ie_exec_network_create_infer_request(ie_executable_network_t *ie_exec_network, desc_t *desc, ie_infer_request_t **req)`
-  
+
   - Description:  Creates an inference request instance used to infer the network. The created request has allocated input and output blobs (that can be changed later).
   - Parameters:
     - `ie_exec_network` - A pointer to `ie_executable_network_t` instance.
@@ -602,22 +604,22 @@ This struct represents a network instance loaded to plugin and ready for inferen
     - `req`  - A pointer to the newly created `ie_infer_request_t` instance.
   - Return value: Status code of the operation: OK(0) for success.
 - `IEStatusCode ie_exec_network_get_metric(ie_executable_network_t *ie_exec_network, const char *metric_name, ie_param_t *param_result)`
-  
+
   - Description: - Gets general runtime metric for an executable network. It can be network name, actual device ID on which executable network is running or all other properties which cannot be changed dynamically.
-  - Parameters:  
+  - Parameters:
     - `ie_exec_network`: A pointer to `ie_executable_network_t` instance.
     - `metric_name` - A metric name to request.
     - `param_result` - A metric value corresponding to a metric key.
   - Return value: Status code of the operation: OK(0) for success.
 - `IEStatusCode ie_exec_network_set_config(ie_executable_network_t *ie_exec_network, ie_param_config_t *param_config, desc_t *desc)`
-  
+
   - Description: Sets a configuration for current executable network.
   - Parameters:
     - `ie_exec_network`: A pointer to `ie_executable_network_t` instance.
     - `config`:  An  config for current executable network.
   - Return value: Status code of the operation: OK(0) for success.
 - `IEStatusCode ie_exec_network_get_config(ie_executable_network_t *ie_exec_network, const char *metric_config, ie_param_t *param_result)`
-  
+
   - Description: - Gets configuration for current executable network. The method is responsible to extract information
     - which affects executable network execution
   - Parameters:
@@ -625,47 +627,47 @@ This struct represents a network instance loaded to plugin and ready for inferen
     - `metric_config` - A configuration parameter name to request.
     - `param_result` - A configuration value corresponding to a configuration key.
   - Return value: Status code of the operation: OK(0) for success.
-  
-  
-  
+
+
+
 
 ## InferRequest
 
-This struct provides an interface to infer requests of `ExecutableNetwork` and serves to handle infer requests execution and to set and get output data.   
+This struct provides an interface to infer requests of `ExecutableNetwork` and serves to handle infer requests execution and to set and get output data.
 
 ### Methods
 
 - `IEStatusCode *ie_infer_request_get_blob(ie_infer_request_t *infer_request, const char *name, ie_blob_t **blob_result)`
-  
+
   - Description: Get a Blob corresponding to blob name.
   - Parameters:
     - `infer_request` - A pointer to `ie_infer_request_t` instance
-    - `name` - Blob name. 
+    - `name` - Blob name.
     -  `blob_result` - A pointer to the blob corresponding to the blob name.
   - Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_infer_request_set_blob(ie_infer_request_t *infer_request, ie_blob_t *blob)`
-  
+
   - Description: Sets the blob in a inference request.
   - Parameters:
     - `infer_request`: A pointer to `ie_infer_request_t` instance.
     - `blob ` -   A pointer to `ie_blob_t` instance.
   - Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_infer_request_infer(ie_infer_request_t *infer_request)`
-  
-  - Description:  Starts synchronous inference of the infer request and fill outputs array		 
+
+  - Description:  Starts synchronous inference of the infer request and fill outputs array
   - Parameters:
-    - `infer_request`: A pointer to `ie_infer_request_t` instance. 
+    - `infer_request`: A pointer to `ie_infer_request_t` instance.
   - Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_infer_request_infer_async(ie_infer_request_t *infer_request)`
-  
+
   -  Description: Starts asynchronous inference of the infer request and fill outputs array.
-  - Parameters:	
-    - `infer_request` - A pointer to `ie_infer_request_t` instance.  
+  - Parameters:
+    - `infer_request` - A pointer to `ie_infer_request_t` instance.
   - Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_infer_set_completion_callback(ie_infer_request_t *infer_request,completeCallBackFunc callback)`
 
   - Description: Sets a callback function that will be called on success or failure of asynchronous request.
@@ -673,10 +675,10 @@ This struct provides an interface to infer requests of `ExecutableNetwork` and s
     - `infer_request` - A pointer to a `ie_infer_request_t` instance.
     - `callback` -  A function to be called.
   - Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_infer_request_wait(ie_infer_request_t *infer_request, int64_t timeout)`
 
-  - Description:  Waits for the result to become available. Blocks until specified timeout elapses or the result becomes available, whichever comes first.  
+  - Description:  Waits for the result to become available. Blocks until specified timeout elapses or the result becomes available, whichever comes first.
 
     NOTE:** There are special values of the timeout parameter:
 
@@ -684,7 +686,7 @@ This struct provides an interface to infer requests of `ExecutableNetwork` and s
       ind statuses meaning.
     - -1 - Waits until inference result becomes available (default value).
 
-  - Parameters:	
+  - Parameters:
 
     - `infer_request` -A pointer to a `ie_infer_request_t` instance.
     - `timeout` - Time to wait in milliseconds or special (0, -1) cases described above. If not specified, `timeout` value is set to -1 by default.
@@ -695,12 +697,12 @@ This struct provides an interface to infer requests of `ExecutableNetwork` and s
 
   - Description:  Sets new batch size for certain infer request when dynamic batching is enabled in executable network that created this request.
 
-    NOTE:** Support of dynamic batch size depends on the target plugin.   
+    NOTE:** Support of dynamic batch size depends on the target plugin.
 
   - Parameters:
 
     - `infer_request` -A pointer to a `ie_infer_request_t` instance.
-    - `size` - New batch size to be used by all the following inference calls for this request.     
+    - `size` - New batch size to be used by all the following inference calls for this request.
 
   - Return value: Status code of the operation: OK(0) for success.
 
@@ -712,42 +714,42 @@ This struct provides an interface to infer requests of `ExecutableNetwork` and s
 
 - `IEStatusCode make_memory_blob(const tensor_desc *tensorDesc, ie_blob_t *blob_result)`
   - Description: Creates a `ie_blob_t` instance with the specified dimensions and layout but does not allocate the memory. Use the allocate() method to allocate memory. `tensor_desc` Defines the layout and dims of the blob.
-  - Parameters: 
+  - Parameters:
     - `tensorDesc` - Defines the layout and dims of the blob.
     - `blob_result` - A pointer to an empty ie_blob_t instance.
   -  Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode make_memory_blob_from_preallocated_memory(const tensor_desc *tensorDesc, void *ptr, size_t size = 0, ie_blob_t *blob_result)`
   - Description: The constructor creates a `ie_blob_t` instance with the specified dimensions and layout on the pre-allocated memory. The allocate() call is not required.
-  - Parameters: 
+  - Parameters:
     - `tensorDesc` - Tensor description for Blob creation.
     - `ptr` - A pointer to the pre-allocated memory.
     - `size` -Length of the pre-allocated array. If not set, size is assumed equal to the dot product of dims.
     - `blob_result` - A pointer to the newly created  ie_blob_t instance.
   -  Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode make_memory_blob_with_roi(const ie_blob_t **inputBlob, const roi_e *roi, ie_blob_t *blob_result)`
   - Description:  Creates a blob describing given roi instance based on the given blob with pre-allocated memory.
-  - Parameters: 
+  - Parameters:
     - `inputBlob` - Original blob with pre-allocated memory.
     - `roi` - A roi object inside of the original blob.
     - `blob_result` - A  pointer to the newly created blob.
   -  Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_blob_size(ie_blob_t *blob, int *size_result)`
   - Description: Gets the total number of elements, which is a product of all the dimensions.
   - Parameters:
     - `blob` -  A  pointer to the blob.
     - `size_result` - The total number of elements.
   -  Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_blob_byte_size(ie_blob_t *blob, int *bsize_result)`
   - Description: Gets the size of the current Blob in bytes.
   - Parameters:
     - `blob` -  A  pointer to the blob.
     - `bsize_result` - The size of the current Blob in bytes.
   -  Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_blob_allocate(ie_blob_t *blob)`
   - Description:  Allocates memory for blob.
   - Parameters:
@@ -756,38 +758,38 @@ This struct provides an interface to infer requests of `ExecutableNetwork` and s
 
 - `IEStatusCode ie_blob_deallocate(ie_blob_t *blob)`
   - Description:  Releases previously allocated data.
-  - Parameters: 
+  - Parameters:
     - `blob` - A  pointer to the blob.
   - Return value: Status code of the operation: OK(0) for success.
 
 - `IEStatusCode ie_blob_buffer(ie_blob_t *blob, void *buffer)`
   - Description: Gets access to the allocated memory .
-  - Parameters: 
+  - Parameters:
     - `blob` - A  pointer to the blob.
-    - `buffer` - A pointer  to the coped date from the given pointer to the blob. 
+    - `buffer` - A pointer  to the coped date from the given pointer to the blob.
   -  Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_blob_cbuffer(ie_blob_t *blob, const void *cbuffer)`
   - Description:   Gets read-only access to the allocated memory.
-  - Parameters: 
+  - Parameters:
     - `blob` - A  pointer to the blob.
     - `cbuffer` - A pointer  to the coped date from the given pointer to the blob and the date is read-only.
   -  Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_blob_get_dims(ie_blob_t *blob, dimensions_t *dims_result)`
   - Description: Gets dimensions of blob instance's tensor.
   - Parameters:
     - `blob` - A  pointer to the blob.
     - `dims_result` - A pointer to the dimensions of blob instance's tensor.
   -  Return value:  Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_blob_get_layout(ie_blob_t *blob, layout_t *layout_result)`
   - Description: Gets layout of blob instance's tensor.
   - Parameters:
     - `blob` - A  pointer to the blob.
     - `layout_result` -  A pointer to the layout of blob instance's tensor.
   -  Return value: Status code of the operation: OK(0) for success.
-  
+
 - `IEStatusCode ie_blob_get_precision(ie_blob_t *blob, precision_e *prec_result)`
   - Description: Gets precision of blob instance's tensor.
   - Parameters:

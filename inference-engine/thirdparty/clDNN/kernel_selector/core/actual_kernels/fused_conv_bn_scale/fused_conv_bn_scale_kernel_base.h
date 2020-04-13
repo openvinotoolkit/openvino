@@ -66,7 +66,7 @@ public:
     using DispatchData = CommonDispatchData;
 
 protected:
-    virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const fused_conv_bn_scale_params&) const = 0;
+    virtual WeightsLayout GetPreferredWeightsLayout(const fused_conv_bn_scale_params &) const = 0;
     virtual std::string GetKernelName(const fused_conv_bn_scale_params&) const { return kernelName; }
     bool Validate(const Params& p, const optional_params& o) const override;
     virtual JitConstants GetJitConstants(const fused_conv_bn_scale_params& params, const DispatchData& kd) const;

@@ -30,10 +30,18 @@
 #define CONCAT_WITH_UNDERSCORE_(a,b) a ## _ ## b
 #define CONCAT_WITH_UNDERSCORE(a,b) CONCAT_WITH_UNDERSCORE_(a,b)
 
-#define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_CASE_P( \
+#define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_SUITE_P( \
         str, gemm_test, ::testing::Values(__VA_ARGS__))
 #define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
         CONCAT_WITH_UNDERSCORE(str,TEST_CASE_NAME_PREFIX), __VA_ARGS__)
+
+// Declare bfloat16 GEMM interfaces for testing
+extern "C" {
+mkldnn_status_t mkldnn_gemm_bf16bf16f32(char transa, char transb, int M,
+        int N, int K, float alpha, const mkldnn_bfloat16_t *A,
+        int lda, const mkldnn_bfloat16_t *B, int ldb, float beta,
+        float *C, int ldc);
+}
 
 namespace mkldnn {
 
@@ -248,10 +256,10 @@ void ref_gemm(const char *transa, const char *transb, int m, int n, int k,
     });
 }
 
-template <typename b_dt>
+template <typename a_dt>
 void ref_gemm_s8x8s32(const char *transa, const char *transb,
         const char *offsetc, int M, int N, int K, const float alpha,
-        int8_t *A, int lda, const int8_t *oa, b_dt *B, int ldb,
+        a_dt *A, int lda, const int8_t *oa, int8_t *B, int ldb,
         const int8_t *ob, const float beta, int32_t *C, int ldc,
         const int32_t *oc) {
     const bool tr_a = transa && (*transa == 'T' || *transa == 't');
@@ -402,24 +410,24 @@ template <typename a_dt, typename b_dt, typename c_dt>
 void run_test_gemm(const test_params &p) {}
 
 template <>
-void run_test_gemm<int8_t, uint8_t, int32_t>(const test_params &p) {
+void run_test_gemm<uint8_t, int8_t, int32_t>(const test_params &p) {
     if (p.expect_to_fail) {
-        int8_t dummy_s8, *A = &dummy_s8, oa = 0, ob = 0;
-        uint8_t dummy_u8, *B = &dummy_u8;
+        uint8_t dummy_u8, *A = &dummy_u8, oa = 0, ob = 0;
+        int8_t dummy_s8, *B = &dummy_s8;
         int32_t dummy_s32, *C = &dummy_s32, *oc = &dummy_s32;
-        auto status = mkldnn_gemm_s8u8s32(&p.transA, &p.transB,
-                &p.igemm_params.offsetc, &p.M, &p.N, &p.K,
-                &p.alpha, A, &p.lda, &oa, B, &p.ldb, &ob, &p.beta, C, &p.ldc, oc);
+        auto status = mkldnn_gemm_u8s8s32(p.transA, p.transB,
+                p.igemm_params.offsetc, p.M, p.N, p.K,
+                p.alpha, A, p.lda, oa, B, p.ldb, ob, p.beta, C, p.ldc, oc);
         if (status != mkldnn_success)
-            throw error(status, "mkldnn_gemm_s8u8s32 returned error");
+            throw error(status, "mkldnn_gemm_u8s8s32 returned error");
         return;
     }
 
     size_t sizeA, sizeB, sizeC;
     get_matrix_size(p, sizeA, sizeB, sizeC);
 
-    int8_t  *A = get_matrix_buffer<int8_t>(sizeA);
-    uint8_t *B = get_matrix_buffer<uint8_t>(sizeB);
+    uint8_t  *A = get_matrix_buffer<uint8_t>(sizeA);
+    int8_t *B = get_matrix_buffer<int8_t>(sizeB);
     int32_t *C = get_matrix_buffer<int32_t>(sizeC);
     int32_t *C_ref = get_matrix_buffer<int32_t>(sizeC);
     int8_t oa, ob;
@@ -431,9 +439,9 @@ void run_test_gemm<int8_t, uint8_t, int32_t>(const test_params &p) {
 
     fill_matrices(p, mapper_m, mapper_n, A, B, C, C_ref, &oa, &ob, oc);
 
-    auto status = mkldnn_gemm_s8u8s32(&p.transA, &p.transB,
-            &p.igemm_params.offsetc, &p.M, &p.N, &p.K,
-            &p.alpha, A, &p.lda, &oa, B, &p.ldb, &ob, &p.beta, C, &p.ldc, oc);
+    auto status = mkldnn_gemm_u8s8s32(p.transA, p.transB,
+            p.igemm_params.offsetc, p.M, p.N, p.K,
+            p.alpha, A, p.lda, oa, B, p.ldb, ob, p.beta, C, p.ldc, oc);
 
     if (status == mkldnn_success) {
         ref_gemm_s8x8s32<uint8_t>(&p.transA, &p.transB, &p.igemm_params.offsetc,
@@ -450,7 +458,7 @@ void run_test_gemm<int8_t, uint8_t, int32_t>(const test_params &p) {
     test_free((char *)oc);
 
     if (status != mkldnn_success)
-        throw error(status, "mkldnn_gemm_s8u8s32 returned error");
+        throw error(status, "mkldnn_gemm_u8s8s32 returned error");
 }
 
 template <>
@@ -458,9 +466,9 @@ void run_test_gemm<int8_t, int8_t, int32_t>(const test_params &p) {
     if (p.expect_to_fail) {
         int8_t dummy_s8, *A = &dummy_s8, *B = &dummy_s8, oa = 0, ob = 0;
         int32_t dummy_s32, *C = &dummy_s32, *oc = &dummy_s32;
-        auto status = mkldnn_gemm_s8s8s32(&p.transA, &p.transB,
-                &p.igemm_params.offsetc, &p.M, &p.N, &p.K,
-                &p.alpha, A, &p.lda, &oa, B, &p.ldb, &ob, &p.beta, C, &p.ldc, oc);
+        auto status = mkldnn_gemm_s8s8s32(p.transA, p.transB,
+                p.igemm_params.offsetc, p.M, p.N, p.K,
+                p.alpha, A, p.lda, oa, B, p.ldb, ob, p.beta, C, p.ldc, oc);
         if (status != mkldnn_success)
             throw error(status, "mkldnn_gemm_s8s8s32 returned error");
         return;
@@ -482,9 +490,9 @@ void run_test_gemm<int8_t, int8_t, int32_t>(const test_params &p) {
 
     fill_matrices(p, mapper_m, mapper_n, A, B, C, C_ref, &oa, &ob, oc);
 
-    auto status = mkldnn_gemm_s8s8s32(&p.transA, &p.transB,
-            &p.igemm_params.offsetc, &p.M, &p.N, &p.K,
-            &p.alpha, A, &p.lda, &oa, B, &p.ldb, &ob, &p.beta, C, &p.ldc, oc);
+    auto status = mkldnn_gemm_s8s8s32(p.transA, p.transB,
+            p.igemm_params.offsetc, p.M, p.N, p.K,
+            p.alpha, A, p.lda, oa, B, p.ldb, ob, p.beta, C, p.ldc, oc);
 
     if (status == mkldnn_success) {
         ref_gemm_s8x8s32<int8_t>(&p.transA, &p.transB, &p.igemm_params.offsetc,
@@ -508,8 +516,8 @@ template <>
 void run_test_gemm<float, float, float>(const test_params &p) {
     if (p.expect_to_fail) {
         float dummy_f32, *A = &dummy_f32, *B = &dummy_f32, *C = &dummy_f32;
-        auto status = mkldnn_sgemm(&p.transA, &p.transB, &p.M, &p.N, &p.K,
-                &p.alpha, A, &p.lda, B, &p.ldb, &p.beta, C, &p.ldc);
+        auto status = mkldnn_sgemm(p.transA, p.transB, p.M, p.N, p.K,
+                p.alpha, A, p.lda, B, p.ldb, p.beta, C, p.ldc);
         if (status != mkldnn_success)
             throw error(status, "mkldnn_sgemm returned error");
         return;
@@ -529,8 +537,8 @@ void run_test_gemm<float, float, float>(const test_params &p) {
 
     fill_matrices(p, mapper_m, mapper_n, A, B, C, C_ref);
 
-    auto status = mkldnn_sgemm(&p.transA, &p.transB, &p.M, &p.N, &p.K, &p.alpha,
-        A, &p.lda, B, &p.ldb, &p.beta, C, &p.ldc);
+    auto status = mkldnn_sgemm(p.transA, p.transB, p.M, p.N, p.K, p.alpha,
+        A, p.lda, B, p.ldb, p.beta, C, p.ldc);
 
     if (status == mkldnn_success) {
         ref_gemm(&p.transA, &p.transB, M_test, N_test, p.K,
@@ -554,8 +562,8 @@ void run_test_gemm<mkldnn_bfloat16_t, mkldnn_bfloat16_t, float>(
     if (p.expect_to_fail) {
         mkldnn_bfloat16_t dummy_bf16, *A = &dummy_bf16, *B = &dummy_bf16;
         float dummy_f32,  *C = &dummy_f32;
-        auto status = mkldnn_gemm_bf16bf16f32(&p.transA, &p.transB, &p.M, &p.N,
-                &p.K, &p.alpha, A, &p.lda, B, &p.ldb, &p.beta, C, &p.ldc);
+        auto status = mkldnn_gemm_bf16bf16f32(p.transA, p.transB, p.M, p.N,
+                p.K, p.alpha, A, p.lda, B, p.ldb, p.beta, C, p.ldc);
         if (status != mkldnn_success)
             throw error(status, "mkldnn_gemm_bf16bf16f32 returned error");
         return;
@@ -575,8 +583,8 @@ void run_test_gemm<mkldnn_bfloat16_t, mkldnn_bfloat16_t, float>(
     fill_matrices<mkldnn_bfloat16_t, mkldnn_bfloat16_t, float>(p, mapper_m,
             mapper_n, A, B, C, C_ref);
 
-    auto status = mkldnn_gemm_bf16bf16f32(&p.transA, &p.transB, &p.M, &p.N,
-            &p.K, &p.alpha, A, &p.lda, B, &p.ldb, &p.beta, C, &p.ldc);
+    auto status = mkldnn_gemm_bf16bf16f32(p.transA, p.transB, p.M, p.N,
+            p.K, p.alpha, A, p.lda, B, p.ldb, p.beta, C, p.ldc);
 
     if (status == mkldnn_success) {
         ref_gemm_bf16bf16f32(&p.transA, &p.transB, M_test, N_test, p.K,

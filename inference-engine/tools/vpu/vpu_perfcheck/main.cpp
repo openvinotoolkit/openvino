@@ -29,7 +29,7 @@
 #include <stdio.h>
 #include <ios>
 #include <sys/stat.h>
-#include <w_dirent.h>
+#include <os/windows/w_dirent.h>
 
 #include <inference_engine.hpp>
 #include <common.hpp>

@@ -34,7 +34,7 @@
 #include "XLinkLog.h"
 #include "XLinkStringUtils.h"
 #include "pcie_host.h"
-#include "XLinkPlatformTool.h"
+#include "XLinkPlatformErrorUtils.h"
 
 #ifndef XLINK_PCIE_DATA_TIMEOUT
 #define XLINK_PCIE_DATA_TIMEOUT 0
@@ -100,8 +100,8 @@ static inline void sleepForSeconds(const unsigned int seconds) {
 
 #if !defined(_WIN32)
 static pcieHostError_t getDeviceFwStatusIOCTL(const int fd, enum mx_fw_status *fwStatus) {
-    ASSERT_X_LINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(fwStatus, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(fwStatus, PCIE_INVALID_PARAMETERS);
 
     int ret = ioctl(fd, MXLK_STATUS_DEV, fwStatus);
 
@@ -114,8 +114,8 @@ static pcieHostError_t getDeviceFwStatusIOCTL(const int fd, enum mx_fw_status *f
 }
 #else
 static pcieHostError_t getDeviceFwStatusIOCTL(const HANDLE deviceHandle, enum mx_fw_status *fwStatus) {
-    ASSERT_X_LINK_PLATFORM_R(deviceHandle, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(fwStatus, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(deviceHandle, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(fwStatus, PCIE_INVALID_PARAMETERS);
 
     DWORD junk = 0;
 
@@ -138,9 +138,9 @@ static pcieHostError_t getDeviceFwStatusIOCTL(const HANDLE deviceHandle, enum mx
 #if (defined(_WIN32) || defined(_WIN64))
 int pcie_write(HANDLE fd, void * buf, size_t bufSize)
 {
-    ASSERT_X_LINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(buf, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(bufSize >= 0, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(buf, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(bufSize >= 0, PCIE_INVALID_PARAMETERS);
 
     HANDLE dev =  fd;
     OVERLAPPED Overlapped;
@@ -182,9 +182,9 @@ int pcie_write(HANDLE fd, void * buf, size_t bufSize)
 #else
 int pcie_write(void *fd, void * buf, size_t bufSize)
 {
-    ASSERT_X_LINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(buf, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(bufSize >= 0, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(buf, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(bufSize >= 0, PCIE_INVALID_PARAMETERS);
 
     fd_set wrfds;
     int ret;
@@ -215,9 +215,9 @@ int pcie_write(void *fd, void * buf, size_t bufSize)
 #if (defined(_WIN32) || defined(_WIN64))
 int pcie_read(HANDLE fd, void * buf, size_t bufSize)
 {
-    ASSERT_X_LINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(buf, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(bufSize >= 0, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(buf, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(bufSize >= 0, PCIE_INVALID_PARAMETERS);
 
     HANDLE dev =  fd;
     OVERLAPPED Overlapped;
@@ -259,9 +259,9 @@ int pcie_read(HANDLE fd, void * buf, size_t bufSize)
 #else
 int pcie_read(void *fd, void *buf, size_t bufSize)
 {
-    ASSERT_X_LINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(buf, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(bufSize >= 0, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(buf, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(bufSize >= 0, PCIE_INVALID_PARAMETERS);
 
     fd_set rdfds;
     int ret;
@@ -289,8 +289,8 @@ int pcie_read(void *fd, void *buf, size_t bufSize)
 #if (defined(_WIN32) || defined(_WIN64))
 pcieHostError_t pcie_init(const char *slot, HANDLE *fd)
 {
-    ASSERT_X_LINK_PLATFORM_R(slot, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(slot, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
 
     HANDLE hDevice = CreateFile(slot,
         GENERIC_READ | GENERIC_WRITE,
@@ -313,8 +313,8 @@ pcieHostError_t pcie_init(const char *slot, HANDLE *fd)
 #else
 pcieHostError_t pcie_init(const char *slot, void **fd)
 {
-    ASSERT_X_LINK_PLATFORM_R(slot, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(slot, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
 
     int mx_fd = open(slot, O_RDWR);
 
@@ -339,7 +339,7 @@ pcieHostError_t pcie_init(const char *slot, void **fd)
 
 pcieHostError_t pcie_close(void *fd)
 {
-    ASSERT_X_LINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
 #if (defined(_WIN32) || defined(_WIN64))
     HANDLE hDevice = (HANDLE)fd;
     if (hDevice == INVALID_HANDLE_VALUE) {
@@ -400,9 +400,9 @@ int pci_count_devices(uint16_t vid, uint16_t pid)
 
 pcieHostError_t pcie_find_device_port(
     int index, char* port_name, int name_length, const pciePlatformState_t requiredState) {
-    ASSERT_X_LINK_PLATFORM_R(port_name, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(index >= 0, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(name_length > 0, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(port_name, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(index >= 0, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(name_length > 0, PCIE_INVALID_PARAMETERS);
 
     pcieHostError_t rc = PCIE_HOST_DEVICE_NOT_FOUND;
 
@@ -497,7 +497,7 @@ pcieHostError_t pcie_find_device_port(
 #if (!defined(_WIN32) && !defined(_WIN64))
 pcieHostError_t pcie_reset_device(int fd)
 {
-    ASSERT_X_LINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
     int ret = ioctl(fd, MXLK_RESET_DEV);
 
     if (ret) {
@@ -509,7 +509,7 @@ pcieHostError_t pcie_reset_device(int fd)
 #else
 pcieHostError_t pcie_reset_device(HANDLE fd)
 {
-    ASSERT_X_LINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
 
     BOOL bResult   = FALSE;
     DWORD junk     = 0;                     // discard results
@@ -538,9 +538,9 @@ pcieHostError_t pcie_boot_device(int fd, void *buffer, size_t length)
 pcieHostError_t pcie_boot_device(HANDLE fd, void *buffer, size_t length)
 #endif
 {
-    ASSERT_X_LINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(buffer, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(length >= 0, PCIE_INVALID_PARAMETERS)
+    ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(buffer, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(length >= 0, PCIE_INVALID_PARAMETERS);
 
     // Get device context
     enum mx_fw_status fw_status = MX_FW_STATUS_UNKNOWN_STATE;
@@ -596,8 +596,8 @@ pcieHostError_t pcie_boot_device(HANDLE fd, void *buffer, size_t length)
 }
 
 pcieHostError_t pcie_get_device_state(const char *port_name, pciePlatformState_t *platformState) {
-    ASSERT_X_LINK_PLATFORM_R(port_name, PCIE_INVALID_PARAMETERS);
-    ASSERT_X_LINK_PLATFORM_R(platformState, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(port_name, PCIE_INVALID_PARAMETERS);
+    ASSERT_XLINK_PLATFORM_R(platformState, PCIE_INVALID_PARAMETERS);
     pcieHostError_t retCode = PCIE_HOST_SUCCESS;
 
 #if (!defined(_WIN32) && !defined(_WIN64))       // Linux implementation
@@ -635,7 +635,7 @@ pcieHostError_t pcie_get_device_state(const char *port_name, pciePlatformState_t
                          NULL);             // do not copy file attributes
 
     if (hDevice == INVALID_HANDLE_VALUE){   // cannot open the drive
-        mvLog(MVLOG_ERROR, "Failed to open device: %s. Error %d", port_name, GetLastError());
+        mvLog(MVLOG_DEBUG, "No PCIE device found: %s. Error %d", port_name, GetLastError());
         *platformState = PCIE_PLATFORM_ANY_STATE;
         return PCIE_HOST_DEVICE_NOT_FOUND;
     }

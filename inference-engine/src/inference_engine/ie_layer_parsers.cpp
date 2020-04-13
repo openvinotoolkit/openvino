@@ -12,7 +12,10 @@
 #include "ie_cnn_net_reader_impl.h"
 
 namespace InferenceEngine {
+
 namespace details {
+
+IE_SUPPRESS_DEPRECATED_START
 
 CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParameters& layerParsePrms) {
     pugi::xml_node dn = GetChild(node, {"data", "activation_data"}, false);

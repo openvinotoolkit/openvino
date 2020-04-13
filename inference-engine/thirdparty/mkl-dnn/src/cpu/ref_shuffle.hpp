@@ -19,6 +19,7 @@
 
 #include <assert.h>
 
+#include "cpu_isa_traits.hpp"
 #include "c_types_map.hpp"
 #include "cpu_shuffle_pd.hpp"
 #include "cpu_engine.hpp"
@@ -45,8 +46,13 @@ struct ref_shuffle_t : public cpu_primitive_t {
             assert(this->engine()->kind() == engine_kind::cpu);
 
             bool ok = true
-                 && data_type_size ==
-                     types::data_type_size(this->desc()->data_desc.data_type);
+                    && data_type_size
+                            == types::data_type_size(
+                                       this->desc()->data_desc.data_type)
+                    /*bf16<->f32 cvt operators don't work on non-avx512_core*/
+                    && IMPLICATION(this->desc()->data_desc.data_type
+                                       == data_type::bf16,
+                               mayiuse(avx512_core));
             if (!ok)
                 return status::unimplemented;
             return status::success;

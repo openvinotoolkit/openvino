@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,13 +55,13 @@ static block_params get_out_block_size(const convolution_params& p) {
     return {1, 1, 1};
 }
 
-std::vector<WeightsLayout> ConvolutionKernel_mmad_batched_block_1x1::GetSupportedWeightLayouts(
-    const convolution_params& cp) const {
+WeightsLayout ConvolutionKernel_mmad_batched_block_1x1::GetPreferredWeightsLayout(
+        const convolution_params &cp) const {
     auto block = get_out_block_size(cp);
     if (block.out_depth == 4)
-        return {WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4};
+        return WeightsLayout::os_is_yx_isa8_osv8_isv4_swizzled_by_4;
     else
-        return {WeightsLayout::os_is_yx_isa8_osv8_isv4};
+        return WeightsLayout::os_is_yx_isa8_osv8_isv4;
 }
 
 bool ConvolutionKernel_mmad_batched_block_1x1::Validate(const Params& p, const optional_params& o) const {
@@ -103,7 +103,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_batched_block_1x1::Se
 
     constexpr size_t sub_group_size = 8;
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    runInfo.efficiency = FORCE_PRIORITY_3;
 
     auto block = get_out_block_size(arg);
 

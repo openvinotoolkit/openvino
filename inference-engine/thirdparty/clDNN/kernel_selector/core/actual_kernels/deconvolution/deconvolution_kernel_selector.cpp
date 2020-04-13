@@ -16,13 +16,15 @@
 #include "deconvolution_kernel_selector.h"
 #include "deconvolution_kernel_ref.h"
 #include "deconvolution_kernel_bfyx_opt.h"
-#include "deconvolution_kernel_bfzyx_f16.h"
+#include "deconvolution_kernel_b_fs_zyx_fsv16.h"
+#include "deconvolution_kernel_b_fs_zyx_fsv16_dw.h"
 
 namespace kernel_selector {
 deconvolution_kernel_selector::deconvolution_kernel_selector() {
     Attach<DeconvolutionKernelRef>();
     Attach<DeconvolutionKernel_bfyx_opt>();
-    Attach<DeconvolutionKernel_bfzyx_f16>();
+    Attach<DeconvolutionKernel_b_fs_zyx_fsv16>();
+    Attach<DeconvolutionKernel_b_fs_zyx_fsv16_dw>();
 }
 
 KernelsData deconvolution_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {

@@ -32,20 +32,46 @@ namespace impl {
 namespace cpu {
 
 namespace {
+inline memory_format_t wei_compatible_fmt(int ndims, memory_format_t src_fmt) {
+    using namespace memory_format;
+    using namespace utils;
+
+    if (src_fmt == nc)
+        return oi;
+    else if (one_of(src_fmt, ncw, nchw, ncdhw))
+        return utils::pick(ndims - 3, oiw, oihw, oidhw);
+    else if (one_of(src_fmt, nwc, nhwc, ndhwc))
+        return utils::pick(ndims - 3, wio, hwio, dhwio);
+    else if (one_of(src_fmt, nChw8c, nCdhw8c))
+        return utils::pick(ndims - 4, oIhw8i, oIdhw8i);
+    else if (one_of(src_fmt, nChw16c, nCdhw16c))
+        return utils::pick(ndims - 4, oIhw16i, oIdhw16i);
+    else
+        return undef;
+}
+inline memory_format_t src_compatible_fmt(int ndims, memory_format_t wei_fmt) {
+    using namespace memory_format;
+    using namespace utils;
+
+    if (wei_fmt == oi || wei_fmt == io)
+        return nc;
+    else if (one_of(wei_fmt, oiw, oihw, oidhw))
+        return utils::pick(ndims - 3, ncw, nchw, ncdhw);
+    else if (one_of(wei_fmt, wio, owi, hwio, ohwi, dhwio, odhwi))
+        return utils::pick(ndims - 3, nwc, nhwc, ndhwc);
+    else if (one_of(wei_fmt, oIhw8i, oIdhw8i))
+        return utils::pick(ndims - 4, nChw8c, nCdhw8c);
+    else if (one_of(wei_fmt, oIhw16i, oIdhw16i))
+        return utils::pick(ndims - 4, nChw16c, nCdhw16c);
+    else
+        return undef;
+}
 inline bool dense_gemm_consitency_check(const memory_desc_wrapper &src_d,
         const memory_desc_wrapper &wei_d, const memory_desc_wrapper &dst_d) {
     using namespace memory_format;
     using namespace utils;
     return true
-        && IMPLICATION(src_d.format() == nChw8c, wei_d.format() == oIhw8i)
-        && IMPLICATION(src_d.format() == nChw16c, wei_d.format() == oIhw16i)
-        && IMPLICATION(src_d.format() == nCdhw8c, wei_d.format() == oIdhw8i)
-        && IMPLICATION(src_d.format() == nCdhw16c, wei_d.format() == oIdhw16i)
-        && IMPLICATION(src_d.format() == nchw, wei_d.format() == oihw)
-        && IMPLICATION(src_d.format() == ncdhw, wei_d.format() == oidhw)
-        && IMPLICATION(src_d.format() == nhwc, wei_d.format() == hwio)
-        && IMPLICATION(src_d.format() == ndhwc, wei_d.format() == dhwio)
-        && IMPLICATION(src_d.format() == nc, one_of(wei_d.format(), oi, io))
+        && src_d.format() == src_compatible_fmt(wei_d.ndims(), wei_d.format())
         && dst_d.format() == nc
         && src_d.only_padded_dim(1)
         && wei_d.only_padded_dim(1)
@@ -96,30 +122,20 @@ protected:
 
     virtual status_t set_default_params() {
         using namespace memory_format;
-        if (src_pd_.desc()->format == any)
-        {
-            switch (ndims()) {
-            case 0: // XXX: tmp fix
-            case 2: CHECK(src_pd_.set_format(nc)); break;
-            case 3: CHECK(src_pd_.set_format(ncw)); break;
-            case 4: CHECK(src_pd_.set_format(nchw)); break;
-            case 5: CHECK(src_pd_.set_format(ncdhw)); break;
-            default: assert(!"unsupported ndims format");
-            }
-        }
+        if (src_pd_.desc()->format == any
+                && weights_pd_.desc()->format == any) {
+            CHECK(src_pd_.set_format(
+                    utils::pick(ndims() - 2, nc, ncw, nchw, ncdhw)));
+            CHECK(weights_pd_.set_format(
+                    utils::pick(ndims() - 2, oi, oiw, oihw, oidhw)));
+        } else if (src_pd_.desc()->format == any)
+            CHECK(src_pd_.set_format(
+                    src_compatible_fmt(ndims(), weights_pd_.desc()->format)));
+        else if (weights_pd_.desc()->format == any)
+            CHECK(weights_pd_.set_format(
+                    wei_compatible_fmt(ndims(), src_pd_.desc()->format)));
         if (dst_pd_.desc()->format == any)
             CHECK(dst_pd_.set_format(nc));
-        if (weights_pd_.desc()->format == any)
-        {
-            switch (ndims()) {
-            case 0: // XXX: tmp fix
-            case 2: CHECK(weights_pd_.set_format(oi)); break;
-            case 3: CHECK(weights_pd_.set_format(oiw)); break;
-            case 4: CHECK(weights_pd_.set_format(oihw)); break;
-            case 5: CHECK(weights_pd_.set_format(oidhw)); break;
-            default: assert(!"unsupported ndims format");
-            }
-        }
         if (bias_pd_.desc()->format == any)
             CHECK(bias_pd_.set_format(x));
         return status::success;
@@ -162,30 +178,20 @@ protected:
 
     virtual status_t set_default_params() {
         using namespace memory_format;
-        if (diff_src_pd_.desc()->format == any)
-        {
-            switch (ndims()) {
-            case 0: // XXX: tmp fix
-            case 2: CHECK(diff_src_pd_.set_format(nc)); break;
-            case 3: CHECK(diff_src_pd_.set_format(ncw)); break;
-            case 4: CHECK(diff_src_pd_.set_format(nchw)); break;
-            case 5: CHECK(diff_src_pd_.set_format(ncdhw)); break;
-            default: assert(!"unsupported ndims format");
-            }
-        }
+        if (diff_src_pd_.desc()->format == any
+                && weights_pd_.desc()->format == any) {
+            CHECK(diff_src_pd_.set_format(
+                    utils::pick(ndims() - 2, nc, ncw, nchw, ncdhw)));
+            CHECK(weights_pd_.set_format(
+                    utils::pick(ndims() - 2, oi, oiw, oihw, oidhw)));
+        } else if (diff_src_pd_.desc()->format == any)
+            CHECK(diff_src_pd_.set_format(
+                    src_compatible_fmt(ndims(), weights_pd_.desc()->format)));
+        else if (weights_pd_.desc()->format == any)
+            CHECK(weights_pd_.set_format(
+                    wei_compatible_fmt(ndims(), diff_src_pd_.desc()->format)));
         if (diff_dst_pd_.desc()->format == any)
             CHECK(diff_dst_pd_.set_format(nc));
-        if (weights_pd_.desc()->format == any)
-        {
-            switch (ndims()) {
-            case 0: // XXX: tmp fix
-            case 2: CHECK(weights_pd_.set_format(oi)); break;
-            case 3: CHECK(weights_pd_.set_format(oiw)); break;
-            case 4: CHECK(weights_pd_.set_format(oihw)); break;
-            case 5: CHECK(weights_pd_.set_format(oidhw)); break;
-            default: assert(!"unsupported ndims format");
-            }
-        }
         return status::success;
     }
 };
@@ -232,30 +238,20 @@ protected:
 
     virtual status_t set_default_params() {
         using namespace memory_format;
-        if (src_pd_.desc()->format == any)
-        {
-            switch (ndims()) {
-            case 0: // XXX: tmp fix
-            case 2: CHECK(src_pd_.set_format(nc)); break;
-            case 3: CHECK(src_pd_.set_format(ncw)); break;
-            case 4: CHECK(src_pd_.set_format(nchw)); break;
-            case 5: CHECK(src_pd_.set_format(ncdhw)); break;
-            default: assert(!"unsupported ndims format");
-            }
-        }
+        if (src_pd_.desc()->format == any
+                && diff_weights_pd_.desc()->format == any) {
+            CHECK(src_pd_.set_format(
+                    utils::pick(ndims() - 2, nc, ncw, nchw, ncdhw)));
+            CHECK(diff_weights_pd_.set_format(
+                    utils::pick(ndims() - 2, oi, oiw, oihw, oidhw)));
+        } else if (src_pd_.desc()->format == any)
+            CHECK(src_pd_.set_format(src_compatible_fmt(
+                    ndims(), diff_weights_pd_.desc()->format)));
+        else if (diff_weights_pd_.desc()->format == any)
+            CHECK(diff_weights_pd_.set_format(
+                    wei_compatible_fmt(ndims(), src_pd_.desc()->format)));
         if (diff_dst_pd_.desc()->format == any)
             CHECK(diff_dst_pd_.set_format(nc));
-        if (diff_weights_pd_.desc()->format == any)
-        {
-            switch (ndims()) {
-            case 0: // XXX: tmp fix
-            case 2: CHECK(diff_weights_pd_.set_format(oi)); break;
-            case 3: CHECK(diff_weights_pd_.set_format(oiw)); break;
-            case 4: CHECK(diff_weights_pd_.set_format(oihw)); break;
-            case 5: CHECK(diff_weights_pd_.set_format(oidhw)); break;
-            default: assert(!"unsupported ndims format");
-            }
-        }
         if (diff_bias_pd_.desc()->format == any)
             CHECK(diff_bias_pd_.set_format(x));
         return status::success;

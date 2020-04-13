@@ -34,8 +34,8 @@ ParamsKey ReorderKernelFastBatch1::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bs_f_bsv8__af8);
     k.EnableInputLayout(DataLayout::bs_f_bsv16__af8);
     k.EnableInputLayout(DataLayout::bf8_xy16);
-    k.EnableInputLayout(DataLayout::bfyx_f16);
-    k.EnableInputLayout(DataLayout::bfzyx_f16);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
 
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::yxfb);
@@ -46,8 +46,8 @@ ParamsKey ReorderKernelFastBatch1::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bs_f_bsv8__af8);
     k.EnableOutputLayout(DataLayout::bs_f_bsv16__af8);
     k.EnableOutputLayout(DataLayout::bf8_xy16);
-    k.EnableOutputLayout(DataLayout::bfyx_f16);
-    k.EnableOutputLayout(DataLayout::bfzyx_f16);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
 
     k.EnableTensorOffset();
     k.EnableTensorPitches();

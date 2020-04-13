@@ -16,9 +16,9 @@ namespace GNAPluginNS {
 class GNAPluginInternal  : public InferenceEngine::InferencePluginInternal {
  public:
     InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore * core,
-                                                InferenceEngine::ICNNNetwork &network,
+                                                const InferenceEngine::ICNNNetwork &network,
                                                 const std::map<std::string, std::string> &config) override {
-        return std::make_shared<GNAExecutableNetwork>(network, config);
+        return std::make_shared<GNAExecutableNetwork>(*cloneNet(network), config);
     }
     void SetConfig(const std::map<std::string, std::string> &config) override {
         auto plg = std::make_shared<GNAPlugin>();
@@ -29,19 +29,11 @@ class GNAPluginInternal  : public InferenceEngine::InferencePluginInternal {
                                                 const std::map<std::string, std::string> &config) override {
         return make_executable_network(std::make_shared<GNAExecutableNetwork>(modelFileName, config));
     }
-    InferenceEngine::ExecutableNetwork ImportNetwork(
-                                        std::istream &,
-                                        const std::map<std::string, std::string> &) override {
-        THROW_GNA_EXCEPTION << "Not implemented";
-    }
+    using InferenceEngine::InferencePluginInternal::ImportNetwork;
 
     std::string GetName() const noexcept override {
         auto plg = std::make_shared<GNAPlugin>();
         return plg->GetName();
-    }
-
-    InferenceEngine::ICNNNetwork&  RemoveConstLayers(InferenceEngine::ICNNNetwork &network) override {
-        return network;
     }
 
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network,

@@ -158,5 +158,6 @@ private:
 //
 
 int calculateHwBufferSize(const DimValues& dims, const DimsOrder& order = DimsOrder());
+int tilingCMXLimit(int numSlices);
 
 }  // namespace vpu

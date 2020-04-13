@@ -139,7 +139,7 @@ struct _ref_rnn_common_t : public cpu_primitive_t {
 
             // initialize the workspace_pd if needed
             if (rnn_.is_training) {
-                dims_t ws_dims = {(int)ws_sz};
+                dims_t ws_dims = { (dim_t)ws_sz };
                 memory_desc_t ws_d;
                 mkldnn_memory_desc_init(&ws_d, 1, ws_dims, data_type::u8, x);
                 this->ws_pd_ = cpu_memory_t::pd_t(this->engine(), &ws_d);

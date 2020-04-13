@@ -25,6 +25,7 @@
 
 namespace cl {
 class Kernel;
+class KernelIntel;
 }
 
 namespace kernel_selector {
@@ -61,7 +62,7 @@ public:
     };
 
     typedef std::string kernel_id;
-    typedef cl::Kernel kernel_type;
+    typedef cl::KernelIntel kernel_type;
     using sorted_code = std::map<std::string, program_code>;
     using kernels_map = std::map<std::string, kernel_type>;
     using kernels_code = std::map<std::string, kernel_code>;
@@ -74,13 +75,13 @@ private:
     std::map<std::string, kernel_type> _kernels;
     std::map<std::string, kernel_type> _one_time_kernels;  // These kernels are intended to be executed only once (can
                                                            // be removed later from the cache).
+    uint32_t _prog_id;
 
     sorted_code get_program_source(const kernels_code& kernels_source_code) const;
-    friend class gpu_toolkit;
-    explicit kernels_cache(gpu_toolkit& context);
     kernels_map build_program(const program_code& pcode) const;
 
 public:
+    explicit kernels_cache(gpu_toolkit& context, uint32_t prog_id);
     kernel_id set_kernel_source(const std::shared_ptr<kernel_selector::kernel_string>& kernel_string,
                                 bool dump_custom_program,
                                 bool one_time_kernel);
@@ -88,6 +89,7 @@ public:
     gpu_toolkit& get_context() { return _context; }
     // forces compilation of all pending kernels/programs
     void build_all();
+    void reset();
 };
 
 }  // namespace gpu

@@ -28,7 +28,8 @@ class SetPortsPattern(FrontReplacementSubgraph):
         return [RestorePorts]
 
     def run_after(self):
-        return []
+        from extensions.load.loader import LoadFinish
+        return [LoadFinish]
 
     def find_and_replace_pattern(self, graph: Graph):
         graph.stage = 'front'

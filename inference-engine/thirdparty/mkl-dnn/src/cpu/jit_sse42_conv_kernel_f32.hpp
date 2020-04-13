@@ -23,6 +23,7 @@
 #include "jit_primitive_conf.hpp"
 #include "jit_uni_eltwise.hpp"
 #include "jit_uni_depthwise.hpp"
+#include "jit_uni_quantization.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -45,6 +46,10 @@ struct jit_sse42_conv_fwd_kernel_f32: public jit_generator {
         for (auto inj : depthwise_injectors)
             delete inj;
         depthwise_injectors.clear();
+
+        for (auto inj : quantization_injectors)
+            delete inj;
+        quantization_injectors.clear();
     }
 
     static bool post_ops_ok(jit_conv_conf_t &jcp,
@@ -90,6 +95,7 @@ private:
 
     nstl::vector<jit_uni_eltwise_injector_f32<sse42>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<sse42>*> depthwise_injectors;
+    nstl::vector<jit_uni_quantization_injector_f32<sse42>*> quantization_injectors;
 
     inline void oh_step_unroll_kw(int ur_w, int pad_l, int pad_r,
             int oc_blocks);

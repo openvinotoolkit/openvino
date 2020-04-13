@@ -13,25 +13,6 @@
 #include "nmmintrin.h"
 
 // NB: define these before opencv_hal_sse.hpp
-namespace cv {
-namespace hal {
-
-enum StoreMode {
-    STORE_UNALIGNED = 0,
-    STORE_ALIGNED = 1,
-    STORE_ALIGNED_NOCACHE = 2
-};
-
-}  // namespace hal
-}  // namespace cv
-
-// NB: define these before opencv_hal_sse.hpp
-#define OPENCV_HAL_ADD(a, b) ((a) + (b))
-#define OPENCV_HAL_AND(a, b) ((a) & (b))
-#define OPENCV_HAL_NOP(a) (a)
-#define OPENCV_HAL_1ST(a, b) (a)
-
-// NB: define these before opencv_hal_sse.hpp
 #ifdef CV_SSE4_2
   #undef CV_SSE4_2
   #undef CV_SSE4_1
@@ -47,14 +28,16 @@ enum StoreMode {
 #define CV_SSE2   1
 #define CV_SSE    1
 #define CV_CPU_HAS_SUPPORT_SSE2 1
-#define CV_CPU_OPTIMIZATION_HAL_NAMESPACE_BEGIN  // empty
-#define CV_CPU_OPTIMIZATION_HAL_NAMESPACE_END
 
-// OpenCV universal intrinsic
-#include "opencv_hal_sse.hpp"
+#ifdef CV_SIMD128
+#undef CV_SIMD128
+#endif
 
-// AFTER "opencv_hal_sse.hpp"
-// (CV_SIMD128 defined there)
+#define CV_SIMD128 1
+
+#include "opencv_hal_intrin.hpp"
+#include "ie_preprocess_gapi_kernels_simd_impl.hpp"
+
 #if   !CV_SIMD128
 #error CV_SIMD128 is required!
 #endif
@@ -69,191 +52,12 @@ namespace kernels {
 
 //----------------------------------------------------------------------
 
-#if CV_SSE
-static inline void v_deinterleave(const v_float32x4& low, const v_float32x4& high,
-                                        v_float32x4& even,      v_float32x4& odd) {
-    __m128 tmp0 = _mm_unpacklo_ps(low.val, high.val);
-    __m128 tmp1 = _mm_unpackhi_ps(low.val, high.val);
-    even.val = _mm_unpacklo_ps(tmp0, tmp1);
-    odd .val = _mm_unpackhi_ps(tmp0, tmp1);
-}
-#endif
-
-#if CV_SSE2
-static inline void v_deinterleave(const v_uint8x16& i0, const v_uint8x16& i1,
-                                  const v_uint8x16& i2, const v_uint8x16& i3,
-                                        v_uint8x16& o0,       v_uint8x16& o1,
-                                        v_uint8x16& o2,       v_uint8x16& o3) {
-    __m128i u0 = i0.val;                     // a0 b0 c0 d0 a1 b1 c1 d1 ...
-    __m128i u1 = i1.val;                     // a4 b4 c4 d4 ...
-    __m128i u2 = i2.val;                     // a8 b8 c8 d8 ...
-    __m128i u3 = i3.val;                     // a12 b12 c12 d12 ...
-
-    __m128i v0 = _mm_unpacklo_epi8(u0, u2);  // a0 a8 b0 b8 ...
-    __m128i v1 = _mm_unpackhi_epi8(u0, u2);  // a2 a10 b2 b10 ...
-    __m128i v2 = _mm_unpacklo_epi8(u1, u3);  // a4 a12 b4 b12 ...
-    __m128i v3 = _mm_unpackhi_epi8(u1, u3);  // a6 a14 b6 b14 ...
-
-    u0 = _mm_unpacklo_epi8(v0, v2);          // a0 a4 a8 a12 ...
-    u1 = _mm_unpacklo_epi8(v1, v3);          // a2 a6 a10 a14 ...
-    u2 = _mm_unpackhi_epi8(v0, v2);          // a1 a5 a9 a13 ...
-    u3 = _mm_unpackhi_epi8(v1, v3);          // a3 a7 a11 a15 ...
-
-    v0 = _mm_unpacklo_epi8(u0, u1);          // a0 a2 a4 a6 ...
-    v1 = _mm_unpacklo_epi8(u2, u3);          // a1 a3 a5 a7 ...
-    v2 = _mm_unpackhi_epi8(u0, u1);          // c0 c2 c4 c6 ...
-    v3 = _mm_unpackhi_epi8(u2, u3);          // c1 c3 c5 c7 ...
-
-    o0.val = _mm_unpacklo_epi8(v0, v1);      // a0 a1 a2 a3 ...
-    o1.val = _mm_unpackhi_epi8(v0, v1);      // b0 b1 b2 b3 ...
-    o2.val = _mm_unpacklo_epi8(v2, v3);      // c0 c1 c2 c3 ...
-    o3.val = _mm_unpackhi_epi8(v2, v3);      // d0 d1 d2 d3 ...
-}
-
-static inline v_uint8x16 v_interleave_low(const v_uint8x16& a, const v_uint8x16& b) {
-    return v_uint8x16(_mm_unpacklo_epi8(a.val, b.val));
-}
-
-static inline v_uint8x16 v_interleave_high(const v_uint8x16& a, const v_uint8x16& b) {
-    return v_uint8x16(_mm_unpackhi_epi8(a.val, b.val));
-}
-
-static inline v_int16x8 v_interleave_low(const v_int16x8& a, const v_int16x8& b) {
-    return v_int16x8(_mm_unpacklo_epi16(a.val, b.val));
-}
-
-static inline v_int16x8 v_interleave_high(const v_int16x8& a, const v_int16x8& b) {
-    return v_int16x8(_mm_unpackhi_epi16(a.val, b.val));
-}
-
 static inline v_uint16x8 v_expand_low(const v_uint8x16& a) {
     return v_uint16x8(_mm_unpacklo_epi8(a.val, _mm_setzero_si128()));
 }
 
 static inline v_uint16x8 v_expand_high(const v_uint8x16& a) {
     return v_uint16x8(_mm_unpackhi_epi8(a.val, _mm_setzero_si128()));
-}
-
-static inline v_uint8x16 v_saturate_u8(const v_int16x8& a) {
-    v_uint8x16 r;
-    r.val = _mm_packus_epi16(a.val, _mm_setzero_si128());
-    return r;
-}
-
-static inline v_int16x8 v_saturate_s16(const v_int32x4& a) {
-    v_int16x8 r;
-    r.val = _mm_packs_epi32(a.val, _mm_setzero_si128());
-    return r;
-}
-
-// for each j=index[k], load two chars src[j] and src[j+1]
-static inline v_uint8x16 v_gather_pairs(const uchar src[], const v_int16x8& index) {
-    v_uint8x16 r;
-    r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const ushort*>(&src[_mm_extract_epi16(index.val, 0)]), 0);
-    r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const ushort*>(&src[_mm_extract_epi16(index.val, 1)]), 1);
-    r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const ushort*>(&src[_mm_extract_epi16(index.val, 2)]), 2);
-    r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const ushort*>(&src[_mm_extract_epi16(index.val, 3)]), 3);
-    r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const ushort*>(&src[_mm_extract_epi16(index.val, 4)]), 4);
-    r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const ushort*>(&src[_mm_extract_epi16(index.val, 5)]), 5);
-    r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const ushort*>(&src[_mm_extract_epi16(index.val, 6)]), 6);
-    r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const ushort*>(&src[_mm_extract_epi16(index.val, 7)]), 7);
-    return r;
-}
-
-namespace {
-    template<int chanNum>
-    static inline v_int16x8 v_gather_chan(const uchar src[], const v_int16x8& index, int channel, int pos) {
-        v_int16x8 r;
-        r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm_extract_epi16(index.val, 0) + pos) + channel]), 0);
-        r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm_extract_epi16(index.val, 1) + pos) + channel]), 1);
-        r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm_extract_epi16(index.val, 2) + pos) + channel]), 2);
-        r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm_extract_epi16(index.val, 3) + pos) + channel]), 3);
-        r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm_extract_epi16(index.val, 4) + pos) + channel]), 4);
-        r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm_extract_epi16(index.val, 5) + pos) + channel]), 5);
-        r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm_extract_epi16(index.val, 6) + pos) + channel]), 6);
-        r.val = _mm_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm_extract_epi16(index.val, 7) + pos) + channel]), 7);
-        return r;
-    }
-}  // namespace
-
-static inline void v_gather_pairs(const float src[], const v_int32x4& index,
-                                  v_float32x4& low, v_float32x4& high) {
-    int i[4];
-    v_store(i, index);
-
-    __m128 l = _mm_setzero_ps();
-    l = _mm_loadl_pi(l, (const __m64*)&src[i[0]]);  // pair of floats
-    l = _mm_loadh_pi(l, (const __m64*)&src[i[1]]);
-    low.val = l;
-
-    __m128 h = _mm_setzero_ps();
-    h = _mm_loadl_pi(h, (const __m64*)&src[i[2]]);
-    h = _mm_loadh_pi(h, (const __m64*)&src[i[3]]);
-    high.val = h;
-}
-
-static inline v_int32x4 v_madd(const v_int16x8& a, const v_int16x8& b) {
-    v_int32x4 r;
-    r.val = _mm_madd_epi16(a.val, b.val);
-    return r;
-}
-
-static inline v_int16x8 v_mulhi(const v_int16x8& a, short b) {
-    v_int16x8 r;
-    r.val = _mm_mulhi_epi16(a.val, _mm_set1_epi16(b));
-    return r;
-}
-
-static inline v_uint16x8 v_mulhi(const v_uint16x8& a, v_uint16x8 b) {
-    v_uint16x8 r;
-    r.val = _mm_mulhi_epu16(a.val, b.val);
-    return r;
-}
-
-static inline v_uint16x8 v_mulhi(const v_uint16x8& a, uint16_t b) {
-    v_uint16x8 r;
-    r.val = _mm_mulhi_epu16(a.val, _mm_set1_epi16(b));
-    return r;
-}
-
-static inline v_int16x8 v_mulhrs(const v_int16x8& a, const v_int16x8& b) {
-    v_int16x8 r;
-    r.val = _mm_mulhrs_epi16(a.val, b.val);
-    return r;
-}
-
-static inline v_int16x8 v_mulhrs(const v_int16x8& a, short b) {
-    return v_mulhrs(a, v_setall_s16(b));
-}
-#endif  // SSE2
-
-#ifdef CV_SSE3
-static inline void v_deinterleave_expand(const v_uint8x16& src, v_int16x8& even, v_int16x8& odd) {
-    static const __m128i mask_even = _mm_setr_epi8(0, -1, 2, -1, 4, -1, 6, -1, 8, -1, 10, -1, 12, -1, 14, -1);
-    static const __m128i mask_odd  = _mm_setr_epi8(1, -1, 3, -1, 5, -1, 7, -1, 9, -1, 11, -1, 13, -1, 15, -1);
-    even.val = _mm_shuffle_epi8(src.val, mask_even);
-    odd .val = _mm_shuffle_epi8(src.val, mask_odd);
-}
-#endif
-
-static inline v_float32x4 v_fma(const v_float32x4& a, float b, const v_float32x4& c) {
-    return v_fma(a, v_setall_f32(b), c);
-}
-
-static inline v_int16x8 operator+ (const v_int16x8& a, short b) {
-    return a + v_setall_s16(b);
-}
-
-static inline v_int16x8 operator- (short a, const v_int16x8& b) {
-    return v_setall_s16(a) - b;
-}
-
-static inline v_float32x4 operator- (float a, const v_float32x4& b) {
-    return v_setall_f32(a) - b;
-}
-
-static inline v_float32x4 operator* (const v_float32x4& a, float b) {
-    return a * v_setall_f32(b);
 }
 
 //------------------------------------------------------------------------------
@@ -1047,7 +851,7 @@ void calcRowLinear_32F(float *dst[],
 }
 
 //------------------------------------------------------------------------------
-
+namespace calcRowArea {
 // vertical pass
 template<typename T, typename A, typename I, typename W>
 static inline void downy(const T *src[], int inWidth, const MapperUnit<A, I>& ymap, A yalpha,
@@ -1137,21 +941,22 @@ static inline void downx(T dst[], int outWidth, int xmaxdf, const I xindex[], co
     }
 #undef HSUM
 }
+}  // namespace calcRowArea
 
 template<typename T, typename A, typename I, typename W>
-static void calcRowArea_impl(T dst[], const T *src[], const Size& inSz, const Size& outSz,
+static void calcRowArea_impl_sse4(T dst[], const T *src[], const Size& inSz, const Size& outSz,
     A yalpha, const MapperUnit<A, I>& ymap, int xmaxdf, const I xindex[], const A xalpha[],
     W vbuf[]) {
     bool xRatioEq1 = inSz.width  == outSz.width;
     bool yRatioEq1 = inSz.height == outSz.height;
 
     if (!yRatioEq1 && !xRatioEq1) {
-        downy(src, inSz.width, ymap, yalpha, vbuf);
-        downx(dst, outSz.width, xmaxdf, xindex, xalpha, vbuf);
+        calcRowArea::downy(src, inSz.width, ymap, yalpha, vbuf);
+        calcRowArea::downx(dst, outSz.width, xmaxdf, xindex, xalpha, vbuf);
 
     } else if (!yRatioEq1) {
         GAPI_DbgAssert(xRatioEq1);
-        downy(src, inSz.width, ymap, yalpha, vbuf);
+        calcRowArea::downy(src, inSz.width, ymap, yalpha, vbuf);
         for (int x = 0; x < outSz.width; x++) {
             dst[x] = convert_cast<T>(vbuf[x]);
         }
@@ -1161,7 +966,7 @@ static void calcRowArea_impl(T dst[], const T *src[], const Size& inSz, const Si
         for (int w = 0; w < inSz.width; w++) {
             vbuf[w] = convert_cast<W>(src[0][w]);
         }
-        downx(dst, outSz.width, xmaxdf, xindex, xalpha, vbuf);
+        calcRowArea::downx(dst, outSz.width, xmaxdf, xindex, xalpha, vbuf);
 
     } else {
         GAPI_DbgAssert(xRatioEq1 && yRatioEq1);
@@ -1172,13 +977,13 @@ static void calcRowArea_impl(T dst[], const T *src[], const Size& inSz, const Si
 void calcRowArea_8U(uchar dst[], const uchar *src[], const Size& inSz, const Size& outSz,
     Q0_16 yalpha, const MapperUnit8U &ymap, int xmaxdf, const short xindex[], const Q0_16 xalpha[],
     Q8_8 vbuf[]) {
-    calcRowArea_impl(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
+    calcRowArea_impl_sse4(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
 }
 
 void calcRowArea_32F(float dst[], const float *src[], const Size& inSz, const Size& outSz,
     float yalpha, const MapperUnit32F& ymap, int xmaxdf, const int xindex[], const float xalpha[],
     float vbuf[]) {
-    calcRowArea_impl(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
+    calcRowArea_impl_sse4(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
 }
 
 //------------------------------------------------------------------------------
@@ -1493,29 +1298,7 @@ void mergeRow_8UC2(const uint8_t in0[],
                    const uint8_t in1[],
                          uint8_t out[],
                              int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    cycle:
-    for (; l <= length - 16; l += 16) {
-        v_uint8x16 r0, r1;
-        r0 = v_load(&in0[l]);
-        r1 = v_load(&in1[l]);
-        v_store_interleave(&out[2*l], r0, r1);
-    }
-
-    // FIXME: get rid of all gotos below
-    // Also to think about how to remove those ifs
-    if (l < length && length >= 16) {
-        l = length - 16;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out[2*l + 0] = in0[l];
-        out[2*l + 1] = in1[l];
-    }
+    mergeRow_8UC2_Impl(in0, in1, out, length);
 }
 
 void mergeRow_8UC3(const uint8_t in0[],
@@ -1523,29 +1306,7 @@ void mergeRow_8UC3(const uint8_t in0[],
                    const uint8_t in2[],
                          uint8_t out[],
                              int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    cycle:
-    for (; l <= length - 16; l += 16) {
-        v_uint8x16 r0, r1, r2;
-        r0 = v_load(&in0[l]);
-        r1 = v_load(&in1[l]);
-        r2 = v_load(&in2[l]);
-        v_store_interleave(&out[3*l], r0, r1, r2);
-    }
-
-    if (l < length && length >= 16) {
-        l = length - 16;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out[3*l + 0] = in0[l];
-        out[3*l + 1] = in1[l];
-        out[3*l + 2] = in2[l];
-    }
+    mergeRow_8UC3_Impl(in0, in1, in2, out, length);
 }
 
 void mergeRow_8UC4(const uint8_t in0[],
@@ -1554,58 +1315,14 @@ void mergeRow_8UC4(const uint8_t in0[],
                    const uint8_t in3[],
                          uint8_t out[],
                              int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    cycle:
-    for (; l <= length - 16; l += 16) {
-        v_uint8x16 r0, r1, r2, r3;
-        r0 = v_load(&in0[l]);
-        r1 = v_load(&in1[l]);
-        r2 = v_load(&in2[l]);
-        r3 = v_load(&in3[l]);
-        v_store_interleave(&out[4*l], r0, r1, r2, r3);
-    }
-
-    if (l < length && length >= 16) {
-        l = length - 16;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out[4*l + 0] = in0[l];
-        out[4*l + 1] = in1[l];
-        out[4*l + 2] = in2[l];
-        out[4*l + 3] = in3[l];
-    }
+    mergeRow_8UC4_Impl(in0, in1, in2, in3, out, length);
 }
 
 void mergeRow_32FC2(const float in0[],
                     const float in1[],
                           float out[],
                             int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    cycle:
-    for (; l <= length - 4; l += 4) {
-        v_float32x4 r0, r1;
-        r0 = v_load(&in0[l]);
-        r1 = v_load(&in1[l]);
-        v_store_interleave(&out[2*l], r0, r1);
-    }
-
-    if (l < length && length >= 4) {
-        l = length - 4;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out[2*l + 0] = in0[l];
-        out[2*l + 1] = in1[l];
-    }
+    mergeRow_32FC2_Impl(in0, in1, out, length);
 }
 
 void mergeRow_32FC3(const float in0[],
@@ -1613,29 +1330,7 @@ void mergeRow_32FC3(const float in0[],
                     const float in2[],
                           float out[],
                             int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    cycle:
-    for (; l <= length - 4; l += 4) {
-        v_float32x4 r0, r1, r2;
-        r0 = v_load(&in0[l]);
-        r1 = v_load(&in1[l]);
-        r2 = v_load(&in2[l]);
-        v_store_interleave(&out[3*l], r0, r1, r2);
-    }
-
-    if (l < length && length >= 4) {
-        l = length - 4;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out[3*l + 0] = in0[l];
-        out[3*l + 1] = in1[l];
-        out[3*l + 2] = in2[l];
-    }
+    mergeRow_32FC3_Impl(in0, in1, in2, out, length);
 }
 
 void mergeRow_32FC4(const float in0[],
@@ -1644,57 +1339,14 @@ void mergeRow_32FC4(const float in0[],
                     const float in3[],
                           float out[],
                             int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    cycle:
-    for (; l <= length - 4; l += 4) {
-        v_float32x4 r0, r1, r2, r3;
-        r0 = v_load(&in0[l]);
-        r1 = v_load(&in1[l]);
-        r2 = v_load(&in2[l]);
-        r3 = v_load(&in3[l]);
-        v_store_interleave(&out[4*l], r0, r1, r2, r3);
-    }
-
-    if (l < length && length >= 4) {
-        l = length - 4;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out[4*l + 0] = in0[l];
-        out[4*l + 1] = in1[l];
-        out[4*l + 2] = in2[l];
-        out[4*l + 3] = in3[l];
-    }
+    mergeRow_32FC4_Impl(in0, in1, in2, in3, out, length);
 }
 
 void splitRow_8UC2(const uint8_t in[],
                          uint8_t out0[],
                          uint8_t out1[],
                              int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    cycle:
-    for (; l <= length - 16; l += 16) {
-        v_uint8x16 r0, r1;
-        v_load_deinterleave(&in[2*l], r0, r1);
-        v_store(&out0[l], r0);
-        v_store(&out1[l], r1);
-    }
-    if (l < length && length >= 16) {
-        l = length - 16;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out0[l] = in[2*l + 0];
-        out1[l] = in[2*l + 1];
-    }
+    splitRow_8UC2_Impl(in, out0, out1, length);
 }
 
 void splitRow_8UC3(const uint8_t in[],
@@ -1702,28 +1354,7 @@ void splitRow_8UC3(const uint8_t in[],
                          uint8_t out1[],
                          uint8_t out2[],
                              int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    cycle:
-    for (; l <= length - 16; l += 16) {
-        v_uint8x16 r0, r1, r2;
-        v_load_deinterleave(&in[3*l], r0, r1, r2);
-        v_store(&out0[l], r0);
-        v_store(&out1[l], r1);
-        v_store(&out2[l], r2);
-    }
-    if (l < length && length >= 16) {
-        l = length - 16;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out0[l] = in[3*l + 0];
-        out1[l] = in[3*l + 1];
-        out2[l] = in[3*l + 2];
-    }
+    splitRow_8UC3_Impl(in, out0, out1, out2, length);
 }
 
 void splitRow_8UC4(const uint8_t in[],
@@ -1732,57 +1363,14 @@ void splitRow_8UC4(const uint8_t in[],
                          uint8_t out2[],
                          uint8_t out3[],
                              int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    cycle:
-    for (; l <= length - 16; l += 16) {
-        v_uint8x16 r0, r1, r2, r3;
-        v_load_deinterleave(&in[4*l], r0, r1, r2, r3);
-        v_store(&out0[l], r0);
-        v_store(&out1[l], r1);
-        v_store(&out2[l], r2);
-        v_store(&out3[l], r3);
-    }
-    if (l < length && length >= 16) {
-        l = length - 16;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out0[l] = in[4*l + 0];
-        out1[l] = in[4*l + 1];
-        out2[l] = in[4*l + 2];
-        out3[l] = in[4*l + 3];
-    }
+    splitRow_8UC4_Impl(in, out0, out1, out2, out3, length);
 }
 
 void splitRow_32FC2(const float in[],
                           float out0[],
                           float out1[],
                             int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    cycle:
-    for (; l <= length - 4; l += 4) {
-        v_float32x4 r0, r1;
-        v_load_deinterleave(&in[2*l], r0, r1);
-        v_store(&out0[l], r0);
-        v_store(&out1[l], r1);
-    }
-
-    if (l < length && length >= 4) {
-        l = length - 4;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out0[l] = in[2*l + 0];
-        out1[l] = in[2*l + 1];
-    }
+    splitRow_32FC2_Impl(in, out0, out1, length);
 }
 
 void splitRow_32FC3(const float in[],
@@ -1790,29 +1378,7 @@ void splitRow_32FC3(const float in[],
                           float out1[],
                           float out2[],
                             int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    cycle:
-    for (; l <= length - 4; l += 4) {
-        v_float32x4 r0, r1, r2;
-        v_load_deinterleave(&in[3*l], r0, r1, r2);
-        v_store(&out0[l], r0);
-        v_store(&out1[l], r1);
-        v_store(&out2[l], r2);
-    }
-
-    if (l < length && length >= 4) {
-        l = length - 4;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out0[l] = in[3*l + 0];
-        out1[l] = in[3*l + 1];
-        out2[l] = in[3*l + 2];
-    }
+    splitRow_32FC3_Impl(in, out0, out1, out2, length);
 }
 
 void splitRow_32FC4(const float in[],
@@ -1821,195 +1387,14 @@ void splitRow_32FC4(const float in[],
                           float out2[],
                           float out3[],
                             int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    cycle:
-    for (; l <= length - 4; l += 4) {
-        v_float32x4 r0, r1, r2, r3;
-        v_load_deinterleave(&in[4*l], r0, r1, r2, r3);
-        v_store(&out0[l], r0);
-        v_store(&out1[l], r1);
-        v_store(&out2[l], r2);
-        v_store(&out3[l], r3);
-    }
-
-    if (l < length && length >= 4) {
-        l = length - 4;
-        goto cycle;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out0[l] = in[4*l + 0];
-        out1[l] = in[4*l + 1];
-        out2[l] = in[4*l + 2];
-        out3[l] = in[4*l + 3];
-    }
-}
-
-static const int ITUR_BT_601_CY = 1220542;
-static const int ITUR_BT_601_CUB = 2116026;
-static const int ITUR_BT_601_CUG = -409993;
-static const int ITUR_BT_601_CVG = -852492;
-static const int ITUR_BT_601_CVR = 1673527;
-static const int ITUR_BT_601_SHIFT = 20;
-
-static inline void uvToRGBuv(const uchar u, const uchar v, int& ruv, int& guv, int& buv) {
-    int uu, vv;
-    uu = static_cast<int>(u) - 128;
-    vv = static_cast<int>(v) - 128;
-
-    ruv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVR * vv;
-    guv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CVG * vv + ITUR_BT_601_CUG * uu;
-    buv = (1 << (ITUR_BT_601_SHIFT - 1)) + ITUR_BT_601_CUB * uu;
-}
-
-static inline void uvToRGBuv(const v_uint8x16& u, const v_uint8x16& v,
-                             v_int32x4 (&ruv)[4],
-                             v_int32x4 (&guv)[4],
-                             v_int32x4 (&buv)[4]) {
-    v_uint8x16 v128 = v_setall_u8(128);
-    v_int8x16 su = v_reinterpret_as_s8(v_sub_wrap(u, v128));
-    v_int8x16 sv = v_reinterpret_as_s8(v_sub_wrap(v, v128));
-
-    v_int16x8 uu0, uu1, vv0, vv1;
-    v_expand(su, uu0, uu1);
-    v_expand(sv, vv0, vv1);
-    v_int32x4 uu[4], vv[4];
-    v_expand(uu0, uu[0], uu[1]); v_expand(uu1, uu[2], uu[3]);
-    v_expand(vv0, vv[0], vv[1]); v_expand(vv1, vv[2], vv[3]);
-
-    v_int32x4 vshift = v_setall_s32(1 << (ITUR_BT_601_SHIFT - 1));
-    v_int32x4 vr = v_setall_s32(ITUR_BT_601_CVR);
-    v_int32x4 vg = v_setall_s32(ITUR_BT_601_CVG);
-    v_int32x4 ug = v_setall_s32(ITUR_BT_601_CUG);
-    v_int32x4 ub = v_setall_s32(ITUR_BT_601_CUB);
-
-    for (int k = 0; k < 4; k++) {
-        ruv[k] = vshift + vr * vv[k];
-        guv[k] = vshift + vg * vv[k] + ug * uu[k];
-        buv[k] = vshift + ub * uu[k];
-    }
-}
-
-static inline void yRGBuvToRGB(const uchar vy, const int ruv, const int guv, const int buv,
-                                uchar& r, uchar& g, uchar& b) {
-    int yy = static_cast<int>(vy);
-    int y = std::max(0, yy - 16) * ITUR_BT_601_CY;
-    r = saturate_cast<uchar>((y + ruv) >> ITUR_BT_601_SHIFT);
-    g = saturate_cast<uchar>((y + guv) >> ITUR_BT_601_SHIFT);
-    b = saturate_cast<uchar>((y + buv) >> ITUR_BT_601_SHIFT);
-}
-
-
-static inline void yRGBuvToRGB(const v_uint8x16& vy,
-                                const v_int32x4 (&ruv)[4],
-                                const v_int32x4 (&guv)[4],
-                                const v_int32x4 (&buv)[4],
-                                v_uint8x16& rr, v_uint8x16& gg, v_uint8x16& bb) {
-    v_uint8x16 v16 = v_setall_u8(16);
-    v_uint8x16 posY = vy - v16;
-    v_uint16x8 yy0, yy1;
-    v_expand(posY, yy0, yy1);
-    v_int32x4 yy[4];
-    v_int32x4 yy00, yy01, yy10, yy11;
-    v_expand(v_reinterpret_as_s16(yy0), yy[0], yy[1]);
-    v_expand(v_reinterpret_as_s16(yy1), yy[2], yy[3]);
-
-    v_int32x4 vcy = v_setall_s32(ITUR_BT_601_CY);
-
-    v_int32x4 y[4], r[4], g[4], b[4];
-    for (int k = 0; k < 4; k++) {
-        y[k] = yy[k]*vcy;
-        r[k] = (y[k] + ruv[k]) >> ITUR_BT_601_SHIFT;
-        g[k] = (y[k] + guv[k]) >> ITUR_BT_601_SHIFT;
-        b[k] = (y[k] + buv[k]) >> ITUR_BT_601_SHIFT;
-    }
-
-    v_int16x8 r0, r1, g0, g1, b0, b1;
-    r0 = v_pack(r[0], r[1]);
-    r1 = v_pack(r[2], r[3]);
-    g0 = v_pack(g[0], g[1]);
-    g1 = v_pack(g[2], g[3]);
-    b0 = v_pack(b[0], b[1]);
-    b1 = v_pack(b[2], b[3]);
-
-    rr = v_pack_u(r0, r1);
-    gg = v_pack_u(g0, g1);
-    bb = v_pack_u(b0, b1);
+    splitRow_32FC4_Impl(in, out0, out1, out2, out3, length);
 }
 
 void calculate_nv12_to_rgb(const  uchar **srcY,
                            const  uchar *srcUV,
                                   uchar **dstRGBx,
                                     int width) {
-    int i = 0;
-
-    #if CV_SIMD128
-
-    const int vsize = v_uint8x16::nlanes;
-
-    for ( ; i <= width - 2*vsize; i += 2*vsize) {
-        v_uint8x16 u, v;
-        v_load_deinterleave(srcUV + i, u, v);
-
-        v_uint8x16 vy[4];
-        v_load_deinterleave(srcY[0] + i, vy[0], vy[1]);
-        v_load_deinterleave(srcY[1] + i, vy[2], vy[3]);
-
-        v_int32x4 ruv[4], guv[4], buv[4];
-        uvToRGBuv(u, v, ruv, guv, buv);
-
-        v_uint8x16 r[4], g[4], b[4];
-
-        for (int k = 0; k < 4; k++) {
-            yRGBuvToRGB(vy[k], ruv, guv, buv, r[k], g[k], b[k]);
-        }
-
-        for (int k = 0; k < 4; k++)
-            std::swap(r[k], b[k]);
-
-        // [r0...], [r1...] => [r0, r1, r0, r1...], [r0, r1, r0, r1...]
-        v_uint8x16 r0_0, r0_1, r1_0, r1_1;
-        v_zip(r[0], r[1], r0_0, r0_1);
-        v_zip(r[2], r[3], r1_0, r1_1);
-        v_uint8x16 g0_0, g0_1, g1_0, g1_1;
-        v_zip(g[0], g[1], g0_0, g0_1);
-        v_zip(g[2], g[3], g1_0, g1_1);
-        v_uint8x16 b0_0, b0_1, b1_0, b1_1;
-        v_zip(b[0], b[1], b0_0, b0_1);
-        v_zip(b[2], b[3], b1_0, b1_1);
-
-        v_store_interleave(dstRGBx[0] + i * 3, b0_0, g0_0, r0_0);
-        v_store_interleave(dstRGBx[0] + i * 3 + 3 * vsize, b0_1, g0_1, r0_1);
-
-        v_store_interleave(dstRGBx[1] + i * 3, b1_0, g1_0, r1_0);
-        v_store_interleave(dstRGBx[1] + i * 3 + 3 * vsize, b1_1, g1_1, r1_1);
-    }
-
-    v_cleanup();
-
-    #endif
-
-    for (; i < width; i += 2) {
-        uchar u = srcUV[i];
-        uchar v = srcUV[i + 1];
-        int ruv, guv, buv;
-        uvToRGBuv(u, v, ruv, guv, buv);
-
-        for (int y = 0; y < 2; y++) {
-            for (int x = 0; x < 2; x++) {
-                uchar vy = srcY[y][i + x];
-                uchar r, g, b;
-                yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
-
-                dstRGBx[y][3*(i + x)]     = r;
-                dstRGBx[y][3*(i + x) + 1] = g;
-                dstRGBx[y][3*(i + x) + 2] = b;
-            }
-        }
-    }
+    calculate_nv12_to_rgb_impl(srcY, srcUV, dstRGBx, width);
 }
 
 void calculate_i420_to_rgb(const  uchar **srcY,
@@ -2017,121 +1402,19 @@ void calculate_i420_to_rgb(const  uchar **srcY,
                            const  uchar *srcV,
                                   uchar **dstRGBx,
                                     int width) {
-    int i = 0;
-
-    #if CV_SIMD128
-
-    const int vsize = v_uint8x16::nlanes;
-
-    for ( ; i <= width - 2*vsize; i += 2*vsize) {
-        v_uint8x16 u = v_load(srcU + i/2);
-        v_uint8x16 v = v_load(srcV + i/2);
-
-        v_uint8x16 vy[4];
-        v_load_deinterleave(srcY[0] + i, vy[0], vy[1]);
-        v_load_deinterleave(srcY[1] + i, vy[2], vy[3]);
-
-        v_int32x4 ruv[4], guv[4], buv[4];
-        uvToRGBuv(u, v, ruv, guv, buv);
-
-        v_uint8x16 r[4], g[4], b[4];
-
-        for (int k = 0; k < 4; k++) {
-            yRGBuvToRGB(vy[k], ruv, guv, buv, r[k], g[k], b[k]);
-        }
-
-        for (int k = 0; k < 4; k++)
-            std::swap(r[k], b[k]);
-
-        // [r0...], [r1...] => [r0, r1, r0, r1...], [r0, r1, r0, r1...]
-        v_uint8x16 r0_0, r0_1, r1_0, r1_1;
-        v_zip(r[0], r[1], r0_0, r0_1);
-        v_zip(r[2], r[3], r1_0, r1_1);
-        v_uint8x16 g0_0, g0_1, g1_0, g1_1;
-        v_zip(g[0], g[1], g0_0, g0_1);
-        v_zip(g[2], g[3], g1_0, g1_1);
-        v_uint8x16 b0_0, b0_1, b1_0, b1_1;
-        v_zip(b[0], b[1], b0_0, b0_1);
-        v_zip(b[2], b[3], b1_0, b1_1);
-
-        v_store_interleave(dstRGBx[0] + i * 3, b0_0, g0_0, r0_0);
-        v_store_interleave(dstRGBx[0] + i * 3 + 3 * vsize, b0_1, g0_1, r0_1);
-
-        v_store_interleave(dstRGBx[1] + i * 3, b1_0, g1_0, r1_0);
-        v_store_interleave(dstRGBx[1] + i * 3 + 3 * vsize, b1_1, g1_1, r1_1);
-    }
-
-    v_cleanup();
-
-    #endif
-
-    for (; i < width; i += 2) {
-        uchar u = srcU[i/2];
-        uchar v = srcV[i/2];
-        int ruv, guv, buv;
-        uvToRGBuv(u, v, ruv, guv, buv);
-
-        for (int y = 0; y < 2; y++) {
-            for (int x = 0; x < 2; x++) {
-                uchar vy = srcY[y][i + x];
-                uchar r, g, b;
-                yRGBuvToRGB(vy, ruv, guv, buv, r, g, b);
-
-                dstRGBx[y][3*(i + x)]     = r;
-                dstRGBx[y][3*(i + x) + 1] = g;
-                dstRGBx[y][3*(i + x) + 2] = b;
-            }
-        }
-    }
-}
-
-template <typename VecT, typename T>
-void copyRow_impl(const T in[], T out[], int l) {
-    VecT r;
-    r = v_load(&in[l]);
-    v_store(&out[l], r);
+    calculate_i420_to_rgb_impl(srcY, srcU, srcV, dstRGBx, width);
 }
 
 void copyRow_8U(const uint8_t in[],
                  uint8_t out[],
                  int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    for (; l <= length - 16; l += 16) {
-        copyRow_impl<v_uint8x16>(in, out, l);
-    }
-
-    if (l < length && length >= 16) {
-        copyRow_impl<v_uint8x16>(in, out, length - 16);
-        l = length;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out[l] = in[l];
-    }
+    copyRow_8U_impl(in, out, length);
 }
 
 void copyRow_32F(const float in[],
                  float out[],
                  int length) {
-    int l = 0;
-
-#if CV_SIMD128
-    for (; l <= length - 4; l += 4) {
-        copyRow_impl<v_float32x4>(in, out, l);
-    }
-
-    if (l < length && length >= 4) {
-        copyRow_impl<v_float32x4>(in, out, length - 4);
-        l = length;
-    }
-#endif
-
-    for (; l < length; l++) {
-        out[l] = in[l];
-    }
+    copyRow_32F_impl(in, out, length);
 }
 
 }  // namespace kernels

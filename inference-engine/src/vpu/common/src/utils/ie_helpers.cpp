@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <functional>
 #include <vpu/utils/ie_helpers.hpp>
+#include <vpu/utils/extra.hpp>
+#include <vpu/utils/error.hpp>
+#include <vpu/utils/numeric.hpp>
 
 #include <precision_utils.h>
 #include <details/ie_exception.hpp>
@@ -12,9 +13,9 @@
 #include <blob_factory.hpp>
 #include <ie_profiling.hpp>
 
-#include <vpu/utils/extra.hpp>
-#include <vpu/utils/error.hpp>
-#include <vpu/utils/numeric.hpp>
+#include <vector>
+#include <functional>
+#include <algorithm>
 
 namespace vpu {
 
@@ -61,6 +62,13 @@ ie::Blob::Ptr getBlobFP16(const ie::Blob::Ptr& in) {
     ie::PrecisionUtils::f32tof16Arrays(out->buffer().as<fp16_t*>(), in->cbuffer().as<float*>(), in->size());
 
     return out;
+}
+
+ie::Blob::Ptr copyBlob(const ie::Blob::Ptr& original) {
+    auto copied = make_blob_with_precision(original->getTensorDesc());
+    copied->allocate();
+    copyBlob(original, copied);
+    return copied;
 }
 
 ie::Blob::Ptr copyBlob(const ie::Blob::Ptr& in, ie::Layout outLayout, void* ptr) {
@@ -117,6 +125,57 @@ void copyBlob(const ie::Blob::Ptr& in, const ie::Blob::Ptr& out) {
         in->cbuffer().as<uint8_t *>(),
         in->byteSize(),
         out->buffer().as<uint8_t *>());
+}
+
+void printTo(DotLabel& lbl, const ie::DataPtr& ieData) {
+    VPU_INTERNAL_CHECK(ieData != nullptr, "NULL pointer");
+
+    const auto& desc = ieData->getTensorDesc();
+
+    DotLabel subLbl(lbl);
+    subLbl.appendPair("name", ieData->getName());
+    subLbl.appendPair("precision", desc.getPrecision().name());
+    subLbl.appendPair("dims", desc.getDims());
+    subLbl.appendPair("layout", desc.getLayout());
+}
+
+void printTo(DotLabel& lbl, const ie::Blob::Ptr& ieBlob) {
+    VPU_INTERNAL_CHECK(ieBlob != nullptr, "NULL pointer");
+
+    const auto& desc = ieBlob->getTensorDesc();
+
+    DotLabel subLbl(lbl);
+    subLbl.appendPair("precision", desc.getPrecision().name());
+    subLbl.appendPair("dims", desc.getDims());
+    subLbl.appendPair("layout", desc.getLayout());
+
+    if (desc.getPrecision() == ie::Precision::FP32) {
+        auto contentPtr = ieBlob->cbuffer().as<const uint8_t*>();
+        auto count = ieBlob->size();
+
+        SmallVector<uint8_t, 8> temp(
+            contentPtr,
+            contentPtr + std::min<size_t>(count, 8));
+
+        subLbl.appendPair("content", temp);
+    } else if (desc.getPrecision() == ie::Precision::FP16) {
+        auto contentPtr = ieBlob->cbuffer().as<const fp16_t*>();
+        auto count = ieBlob->size();
+
+        auto temp = SmallVector<float, 8>(std::min<size_t>(count, 8));
+        ie::PrecisionUtils::f16tof32Arrays(temp.data(), contentPtr, temp.size());
+
+        lbl.appendPair("content", temp);
+    }
+}
+
+void printTo(DotLabel& lbl, const ie::CNNLayerPtr& ieLayer) {
+    VPU_INTERNAL_CHECK(ieLayer != nullptr, "NULL pointer");
+
+    DotLabel subLbl(lbl);
+    subLbl.appendPair("name", ieLayer->name);
+    subLbl.appendPair("type", ieLayer->type);
+    subLbl.appendPair("precision", ieLayer->precision.name());
 }
 
 }  // namespace vpu

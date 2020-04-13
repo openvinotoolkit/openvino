@@ -235,6 +235,34 @@ inline U logistic_bwd(T dd, T s) {
     return dd * v * (1 - v);
 }
 
+template <typename T, typename U = typename utils::remove_reference<T>::type>
+inline U exp_fwd(T s) {
+    return (U)(::expf((float)s));
+}
+
+template <typename T, typename U = typename utils::remove_reference<T>::type>
+inline U exp_bwd(T dd, T s) {
+    return dd * exp_fwd<T, U>(s);
+}
+
+template <typename T, typename U = typename utils::remove_reference<T>::type>
+inline U gelu_fwd(T s) {
+    const float sqrt_2_over_pi = 0.797884;
+    const float fitting_const = 0.044715;
+    float v = tanh_fwd(sqrt_2_over_pi * s * (1 + fitting_const * s * s));
+    return (U)(0.5 * s * (1. + v));
+}
+
+template <typename T, typename U = typename utils::remove_reference<T>::type>
+inline U gelu_bwd(T dd, T s) {
+    const float sqrt_2_over_pi = 0.797884;
+    const float fitting_const = 0.044715;
+    float g = s * sqrt_2_over_pi * (1 + fitting_const * s * s);
+    float dg = sqrt_2_over_pi * (1 + 3 * fitting_const * s * s);
+    float v = tanh_fwd(g);
+    return (U)(dd * 0.5 * (1. + v) * (1. + s * (1 - v) * dg));
+}
+
 template <typename T, typename A,
          typename U = typename utils::remove_reference<T>::type>
 inline U clamp_fwd(T s, A alpha, A beta) {
@@ -248,21 +276,22 @@ inline U clamp_bwd(T dd, T s, A alpha, A beta) {
 }
 
 template <typename T,
-         typename U = typename utils::remove_reference<T>::type>
-inline U exp_fwd(T s) {
-    return (U)(::expf((float)s));
-}
-
-template <typename T,
-         typename U = typename utils::remove_reference<T>::type>
- inline U exp_bwd(T dd, T s) {
-    return (U)(::expf((float)s));
-}
-
-template <typename T,
         typename U = typename utils::remove_reference<T>::type>
 inline U not_fwd(T s) {
     return (U)(!s);
+}
+
+template <typename T, typename A,
+        typename U = typename utils::remove_reference<T>::type>
+inline U swish_fwd(T s, A alpha) {
+    return (U)(s / (1 + ::expf(-alpha * (float)s)));
+}
+
+template <typename T, typename A,
+        typename U = typename utils::remove_reference<T>::type>
+inline U swish_bwd(T dd, T s, A alpha) {
+    float v = 1 / (1.0f + ::expf((float)-s * alpha));
+    return dd * (v + s * alpha * v * (1 - v));
 }
 
 template <typename T, typename A,
@@ -281,8 +310,9 @@ inline bool eltwise_fwd_preserves_zero(alg_kind_t alg, bool jit_impl = false) {
     using namespace alg_kind;
     using namespace utils;
     const bool preserves_zero = true
-        && !one_of(alg, eltwise_linear, eltwise_soft_relu, eltwise_logistic, eltwise_clamp, eltwise_exp, eltwise_not)
-        && IMPLICATION(jit_impl, !one_of(alg, eltwise_elu, eltwise_tanh, eltwise_clamp, eltwise_exp, eltwise_not));
+        && !one_of(alg, eltwise_linear, eltwise_soft_relu, eltwise_logistic,
+                eltwise_exp, eltwise_clamp, eltwise_not, eltwise_swish)
+        && IMPLICATION(jit_impl, !one_of(alg, eltwise_elu, eltwise_tanh, eltwise_clamp, eltwise_not, eltwise_swish));
     return preserves_zero;
 }
 

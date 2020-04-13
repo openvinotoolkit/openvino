@@ -27,6 +27,7 @@
 #include "jit_primitive_conf.hpp"
 #include "jit_generator.hpp"
 #include "jit_uni_eltwise.hpp"
+#include "jit_uni_quantization.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -34,8 +35,8 @@ namespace cpu {
 
 template <cpu_isa_t isa>
 struct jit_uni_depthwise_injector_f32 {
-    jit_uni_depthwise_injector_f32(jit_generator* host, alg_kind_t depthwise_alg_)
-        : h(host), depthwise_alg(depthwise_alg_) {
+    jit_uni_depthwise_injector_f32(jit_generator* host, alg_kind_t depthwise_alg_, Xbyak::Opmask k_mask_ = Xbyak::Opmask(1))
+        : h(host), depthwise_alg(depthwise_alg_), k_mask(k_mask_) {
         assert(utils::one_of(isa, sse42, avx2, avx512_common));
         assert(utils::one_of(depthwise_alg, alg_kind::depthwise_scale_shift, alg_kind::depthwise_prelu));
     }
@@ -55,7 +56,7 @@ private:
     Vmm vmm_mask;
     Vmm vmm_aux0;
 
-    Xbyak::Opmask k_mask = Xbyak::Opmask(1);
+    Xbyak::Opmask k_mask;
 
     const static size_t preserved_vecs_max = 5;
     size_t vecs_to_preserve = 0;
@@ -132,6 +133,10 @@ struct jit_uni_dw_conv_row_f32: public jit_generator {
         for (auto inj : depthwise_injectors)
             delete inj;
         depthwise_injectors.clear();
+
+        for (auto inj : quantization_injectors)
+            delete inj;
+        quantization_injectors.clear();
     }
 
     static bool post_ops_ok(jit_conv_conf_t &jcp,
@@ -220,6 +225,7 @@ private:
 
     nstl::vector<jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<isa>*> depthwise_injectors;
+    nstl::vector<jit_uni_quantization_injector_f32<isa>*> quantization_injectors;
 };
 
 }

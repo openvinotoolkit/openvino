@@ -446,7 +446,7 @@ class DataQuantizer<Desc, InferenceEngine::ReshapeLayer *> : public DataQuantize
         base::operator()(reshapeLayer);
         // reshape layer doesnt change it's data at all
         for (auto &&outData : reshapeLayer->outData) {
-            outData->setPrecision(Desc::mandatory().getInputPrecision());
+            outData->setPrecision(reshapeLayer->insData.front().lock()->getPrecision());
         }
         return true;
     }

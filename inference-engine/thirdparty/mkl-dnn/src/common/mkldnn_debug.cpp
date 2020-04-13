@@ -72,12 +72,15 @@ const char *mkldnn_fmt2str(mkldnn_memory_format_t v) {
     if (v == mkldnn_io) return "io";
     if (v == mkldnn_oiw) return "oiw";
     if (v == mkldnn_wio) return "wio";
+    if (v == mkldnn_owi) return "owi";
     if (v == mkldnn_oihw) return "oihw";
     if (v == mkldnn_hwio) return "hwio";
+    if (v == mkldnn_ohwi) return "ohwi";
     if (v == mkldnn_ihwo) return "ihwo";
     if (v == mkldnn_iohw) return "iohw";
     if (v == mkldnn_oidhw) return "oidhw";
     if (v == mkldnn_dhwio) return "dhwio";
+    if (v == mkldnn_odhwi) return "odhwi";
     if (v == mkldnn_goiw) return "goiw";
     if (v == mkldnn_goihw) return "goihw";
     if (v == mkldnn_hwigo) return "hwigo";
@@ -295,9 +298,11 @@ const char *mkldnn_alg_kind2str(mkldnn_alg_kind_t v) {
     if (v == mkldnn_eltwise_bounded_relu) return "eltwise_bounded_relu";
     if (v == mkldnn_eltwise_soft_relu) return "eltwise_soft_relu";
     if (v == mkldnn_eltwise_logistic) return "eltwise_logistic";
-    if (v == mkldnn_eltwise_clamp) return "eltwise_clamp";
+    if (v == mkldnn_eltwise_gelu) return "eltwise_gelu";
     if (v == mkldnn_eltwise_exp) return "eltwise_exp";
+    if (v == mkldnn_eltwise_clamp) return "eltwise_clamp";
     if (v == mkldnn_eltwise_not) return "eltwise_not";
+    if (v == mkldnn_eltwise_swish) return "eltwise_swish";
     if (v == mkldnn_pooling_max) return "pooling_max";
     if (v == mkldnn_pooling_avg_include_padding) return "pooling_avg_include_padding";
     if (v == mkldnn_pooling_avg_exclude_padding) return "pooling_avg_exclude_padding";

@@ -14,20 +14,19 @@
  limitations under the License.
 """
 
-import logging as log
 from copy import copy
 
-from extensions.back.blob_normalizer import BlobNormalizer
 from extensions.back.ConvolutionNormalizer import ConvolutionNormalizer, ConvolutionWithGroupsResolver
+from extensions.back.PackBinaryWeights import PackBinaryWeights
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement
 from extensions.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
 from extensions.back.TopKNormalizer import TopKNormalizer
-
+from extensions.back.blob_normalizer import BlobNormalizer
 from mo.graph.graph import Graph
-from mo.middle.passes.convert_data_type import np_data_type_to_precision
+from mo.middle.passes.convert_data_type import data_type_str_to_precision
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir
-
+from mo.utils.class_registration import apply_replacements_list
 from mo.utils.ir_engine.ir_engine import IREngine
 from mo.utils.ir_reader.layer_to_class import copy_graph_with_ops, collect_extenders, collect_ops
 from mo.utils.utils import get_mo_root_dir
@@ -67,32 +66,23 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
     if name is None:
         name = graph.name
 
-    precisions = set()
+    precision = data_type_str_to_precision(graph.graph['cmd_params'].data_type)
+    assert precision in ['FP16', 'FP32'], 'Cannot define precision for restored model!'
 
-    for op in graph.get_op_nodes():
-        if op.type in ('Convolution', 'MatMul'):
-            if op.in_port(1).get_source().node.type == 'FakeQuantize':
-                data_type = op.in_port(1).get_source().node.in_port(0).get_source().node.soft_get('data_type', None)
-            else:
-                data_type = op.in_port(1).get_source().node.soft_get('data_type', None)
-
-            if data_type is not None:
-                precisions.add(np_data_type_to_precision(data_type))
-            else:
-                log.warning('Cannot check data type for node {} with type {}, skip it.'.format(op.name, op.type))
-
-    precision = 'FP16' if 'FP16' in precisions else 'FP32'
+    # List items order matters, do not change it.
+    transformation_list = [
+        ConvolutionWithGroupsResolver,
+        TopKNormalizer,
+        StridedSliceMasksNormalizer,
+        PackBinaryWeights,
+        BlobNormalizer,
+        ConvolutionNormalizer,
+    ]
 
     # We need to run some specific passes from MO back stage.
-    # After some of them we need to clean up graph!
-    for_graph_and_each_sub_graph_recursively(graph, ConvolutionWithGroupsResolver().find_and_replace_pattern)
-    for_graph_and_each_sub_graph_recursively(graph, TopKNormalizer().find_and_replace_pattern)
-    graph.clean_up()
+    apply_replacements_list(graph, transformation_list)
 
-    for_graph_and_each_sub_graph_recursively(graph, StridedSliceMasksNormalizer().find_and_replace_pattern)
-
-    for_graph_and_each_sub_graph_recursively(graph, BlobNormalizer().find_and_replace_pattern)
-    for_graph_and_each_sub_graph_recursively(graph, ConvolutionNormalizer().find_and_replace_pattern)
+    # Transformations with enabled=False should be run manually.
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
 

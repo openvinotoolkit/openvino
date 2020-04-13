@@ -59,7 +59,8 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
     for i in range(nnet_count):
         read_token_value(file_descr, b'<NestedNnet>')
         collect_until_token(file_descr, b'<Nnet>')
-        g = load_kalid_nnet1_model(file_descr, 'Nested_net_{}'.format(i))
+        g = Graph()
+        load_kalid_nnet1_model(g, file_descr, 'Nested_net_{}'.format(i))
         input_nodes = [n for n in graph.nodes(data=True) if n[1]['op'] == 'Parameter']
         shape = input_nodes[0][1]['shape']
         if i != nnet_count - 1:
@@ -93,7 +94,7 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
     return concat_id
 
 
-def load_kaldi_model(nnet_path):
+def load_kaldi_model(graph, nnet_path):
     """
     Structure of the file is the following:
     magic-number(16896)<Nnet> <Next Layer Name> weights etc.
@@ -128,12 +129,10 @@ def load_kaldi_model(nnet_path):
                     refer_to_faq_msg(89))
     read_placeholder(file_desc, 1)
 
-    return load_function(file_desc, nnet_name)
+    return load_function(graph, file_desc, nnet_name)
 
 
-def load_kalid_nnet1_model(file_descr, name):
-    graph = Graph(name=name)
-
+def load_kalid_nnet1_model(graph, file_descr, name):
     prev_layer_id = 'Parameter'
     graph.add_node(prev_layer_id, name=prev_layer_id, kind='op', op='Parameter', parameters=None)
 
@@ -169,11 +168,9 @@ def load_kalid_nnet1_model(file_descr, name):
         graph.create_edge(prev_node, Node(graph, layer_id), 0, 0)
         prev_layer_id = layer_id
         log.debug('{} (type is {}) was loaded'.format(prev_layer_id, component_type))
-    return graph
 
 
-def load_kalid_nnet2_model(file_descr, nnet_name):
-    graph = Graph(name=nnet_name)
+def load_kalid_nnet2_model(graph, file_descr, nnet_name):
     input_name = 'Input'
     graph.add_node(input_name, name=input_name, kind='op', op='Parameter', parameters=None, shape=None)
 
@@ -192,11 +189,9 @@ def load_kalid_nnet2_model(file_descr, nnet_name):
         graph.create_edge(prev_node, Node(graph, layer_id), 0, 0)
         prev_layer_id = layer_id
         log.debug('{} and {} were connected'.format(prev_layer_id, layer_id))
-    return graph
 
 
-def load_kaldi_nnet3_model(file_descr, nnet_name):
-    graph = Graph(name=nnet_name)
+def load_kaldi_nnet3_model(graph, file_descr, nnet_name):
     file_descr.read(1)
     component_layer_map = load_topology_map(file_descr, graph)
     # add information for shape calculation for MemoryOffset
@@ -209,7 +204,6 @@ def load_kaldi_nnet3_model(file_descr, nnet_name):
                 o_n['parameters']['element_size'] = node['shape'][1]
 
     load_components(file_descr, graph, component_layer_map)
-    return graph
 
 
 def load_components(file_descr, graph, component_layer_map=None):

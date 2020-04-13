@@ -16,6 +16,7 @@
 # and the following imported targets:
 #
 #   IE::inference_engine            - The Inference Engine library
+#   IE::inference_engine_legacy     - The Inference Engine library with legacy API for IR v7 and older.
 #   IE::inference_engine_c_api      - The Inference Engine C API library
 #   IE::inference_engine_nn_builder - The Inference Engine NN Builder library
 #
@@ -38,7 +39,8 @@ set(InferenceEngine_FOUND FALSE)
 if(TARGET IE::inference_engine)
     set(InferenceEngine_FOUND TRUE)
     get_target_property(InferenceEngine_INCLUDE_DIRS IE::inference_engine INTERFACE_INCLUDE_DIRECTORIES)
-    set(InferenceEngine_LIBRARIES IE::inference_engine IE::inference_engine_c_api IE::inference_engine_nn_builder)
+    set(InferenceEngine_LIBRARIES IE::inference_engine_legacy IE::inference_engine
+                                  IE::inference_engine_c_api IE::inference_engine_nn_builder)
 else()
     if (WIN32)
         set(_ARCH intel64)
@@ -84,28 +86,31 @@ else()
 
     if(WIN32)
         find_library(IE_RELEASE_LIBRARY inference_engine@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
+        find_library(IE_LEGACY_RELEASE_LIBRARY inference_engine_legacy@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
         find_library(IE_C_API_RELEASE_LIBRARY inference_engine_c_api@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
         find_library(IE_NN_BUILDER_RELEASE_LIBRARY inference_engine_nn_builder@IE_RELEASE_POSTFIX_WIN@ "${IE_LIB_REL_DIR}" NO_DEFAULT_PATH)
     elseif(APPLE)
         find_library(IE_RELEASE_LIBRARY inference_engine@IE_RELEASE_POSTFIX_MAC@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+        find_library(IE_LEGACY_RELEASE_LIBRARY inference_engine_legacy@IE_RELEASE_POSTFIX_MAC@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
         find_library(IE_C_API_RELEASE_LIBRARY inference_engine_c_api@IE_RELEASE_POSTFIX_MAC@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
         find_library(IE_NN_BUILDER_RELEASE_LIBRARY inference_engine_nn_builder@IE_RELEASE_POSTFIX_MAC@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
     else()
         find_library(IE_RELEASE_LIBRARY inference_engine@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
+        find_library(IE_LEGACY_RELEASE_LIBRARY inference_engine_legacy@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
         find_library(IE_C_API_RELEASE_LIBRARY inference_engine_c_api@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
         find_library(IE_NN_BUILDER_RELEASE_LIBRARY inference_engine_nn_builder@IE_RELEASE_POSTFIX_LIN@ "${IE_LIB_DIR}" NO_DEFAULT_PATH)
     endif()
 
     find_package_handle_standard_args(  InferenceEngine
                                         FOUND_VAR INFERENCEENGINE_FOUND
-                                        REQUIRED_VARS IE_RELEASE_LIBRARY IE_C_API_RELEASE_LIBRARY IE_NN_BUILDER_RELEASE_LIBRARY IE_INCLUDE_DIR
+                                        REQUIRED_VARS IE_RELEASE_LIBRARY IE_LEGACY_RELEASE_LIBRARY IE_C_API_RELEASE_LIBRARY IE_NN_BUILDER_RELEASE_LIBRARY IE_INCLUDE_DIR
                                         FAIL_MESSAGE "Some of mandatory Inference Engine components are not found. Please consult InferenceEgnineConfig.cmake module's help page.")
 
     if(INFERENCEENGINE_FOUND)
         # to keep this line for successful execution in CMake 2.8
         set(InferenceEngine_FOUND TRUE)
 
-        foreach(ie_library_suffix "" "_c_api" "_nn_builder")
+        foreach(ie_library_suffix "" "_legacy" "_c_api" "_nn_builder")
             string(TOUPPER "${ie_library_suffix}" ie_library_usuffix)
             add_library(IE::inference_engine${ie_library_suffix} SHARED IMPORTED GLOBAL)
 
@@ -161,7 +166,8 @@ else()
         endforeach()
 
         set(InferenceEngine_INCLUDE_DIRS ${IE_INCLUDE_DIR})
-        set(InferenceEngine_LIBRARIES IE::inference_engine_c_api IE::inference_engine_nn_builder IE::inference_engine)
+        set(InferenceEngine_LIBRARIES IE::inference_engine_legacy IE::inference_engine
+                                      IE::inference_engine_c_api IE::inference_engine_nn_builder)
 
         set(IE_EXTERNAL_DIR "${IE_ROOT_DIR}/external")
         include("${IE_ROOT_DIR}/share/ie_parallel.cmake")

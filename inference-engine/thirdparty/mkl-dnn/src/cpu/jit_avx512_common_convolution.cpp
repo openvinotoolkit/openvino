@@ -594,10 +594,12 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
                     + diff_dst_d.blk_off(n, g_ocb + ocb_l2);
                 auto wht_w = weights + wht_blk_off(weights_d, g, ocb_l2, icb);
 
+                int ic_off = g_icb * jcp.ic_block * sizeof(diff_src_data_t);
+
                 for (int ocb = ocb_l2;
                       ocb < min(jcp.nb_oc, ocb_l2 + jcp.nb_oc_L2); ++ocb) {
                     jit_conv_ker_pipeline(kernel_->jit_ker, par_conv,
-                            diff_src_w, diff_dst_w, wht_w, 0, ocb, 1, 0);
+                            diff_src_w, diff_dst_w, wht_w, 0, ocb, 1, ic_off);
                     diff_dst_w += diff_dst_c_stride;
                     wht_w += wht_oc_stride;
                 }
@@ -712,8 +714,9 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
                                 - jcp.t_pad) / jcp.stride_h);
                             int i_b_overflow = max(0, (jcp.kh - jcp.ih + ij
                                 - jcp.b_pad) / jcp.stride_h);
-                            int overflow_kh_hi = jcp.kh - 1 - abs((jcp.ih - 1
-                                + jcp.b_pad - ij) % jcp.stride_h);
+                            int overflow_kh_hi = jcp.kh - 1
+                              - modulo(jcp.ih - 1 + jcp.b_pad - ij,
+                                       jcp.stride_h);
                             int overflow_kh_lo = (ij + jcp.t_pad)
                                 % jcp.stride_h;
 
@@ -724,11 +727,13 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
                             oj = (ij + jcp.t_pad - k_lo) / jcp.stride_h;
                         }
 
+                        int ic_off = g_icb * jcp.ic_block * sizeof(diff_src_data_t);
+
                         jit_conv_ker_pipeline(kernel_->jit_ker, par_conv,
                                 diff_src_w + ij * diff_src_h_stride,
                                 diff_dst_w + oj * diff_dst_h_stride,
                                 wht_w + k_lo * wht_h_stride,
-                                0, ocb, k_len, 0);
+                                0, ocb, k_len, ic_off);
                     }
                     diff_dst_w += diff_dst_c_stride;
                     wht_w += wht_oc_stride;
@@ -836,8 +841,9 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
                                 - jcp.f_pad) / jcp.stride_d);
                     int d_b_overflow = max(0, (jcp.kd - jcp.id + id_s
                                 - jcp.back_pad) / jcp.stride_d);
-                    int overflow_kd_hi = jcp.kd - 1 - abs((jcp.id - 1
-                                + jcp.back_pad - id_s) % jcp.stride_d);
+                    int overflow_kd_hi = jcp.kd - 1
+                            - modulo(jcp.id - 1 + jcp.back_pad - id_s,
+                                    jcp.stride_d);
                     int overflow_kd_lo = (id_s + jcp.f_pad)
                         % jcp.stride_d;
 
@@ -885,8 +891,9 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
                                 - jcp.t_pad) / jcp.stride_h);
                             int i_b_overflow = max(0, (jcp.kh - jcp.ih + ij
                                 - jcp.b_pad) / jcp.stride_h);
-                            int overflow_kh_hi = jcp.kh - 1 - abs((jcp.ih - 1
-                                + jcp.b_pad - ij) % jcp.stride_h);
+                            int overflow_kh_hi = jcp.kh - 1
+                              - modulo(jcp.ih - 1 + jcp.b_pad - ij,
+                                       jcp.stride_h);
                             int overflow_kh_lo = (ij + jcp.t_pad)
                                 % jcp.stride_h;
 
@@ -898,11 +905,13 @@ void jit_avx512_common_convolution_bwd_data_t<diff_dst_type, wei_type,
                         }
                         assert(k_len >= 0);
 
+                        int ic_off = g_icb * jcp.ic_block * sizeof(diff_src_data_t);
+
                         jit_conv_3d_ker_pipeline(kernel_->jit_ker, par_conv,
                                 diff_src_w + ij * diff_src_h_stride,
                                 diff_dst_w + oj * diff_dst_h_stride,
                                 wht_w + k_lo * wht_h_stride,
-                                0, ocb, k_len, d_len, 0);
+                                0, ocb, k_len, d_len, ic_off);
                     }
                     diff_dst_w += diff_dst_c_stride;
                     wht_w += wht_oc_stride;

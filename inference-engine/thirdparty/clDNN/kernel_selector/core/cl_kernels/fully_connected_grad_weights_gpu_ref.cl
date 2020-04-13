@@ -43,7 +43,7 @@ KERNEL(fully_connected_grad_weights_gpu_ref)(
     ACCUMULATOR_TYPE grad_b = 0;
 #endif
 
-    const uint filter_idx = GET_FILTER_INDEX(FILTER, ofm, ifm, id_y, id_x);
+    const uint filter_idx = GET_FILTER_INDEX(FILTER, 0, ofm, ifm, id_y, id_x);
     for (uint b = 0; b < INPUT0_BATCH_NUM; b++)
     {
         const uint input_grad_idx = GET_DATA_INDEX(INPUT0, b, 0, 0, ofm);

@@ -34,6 +34,8 @@ inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
         return ::ngraph::element::Type(::ngraph::element::Type_t::i32);
     case Precision::I64:
         return ::ngraph::element::Type(::ngraph::element::Type_t::i64);
+    case Precision::U64:
+        return ::ngraph::element::Type(::ngraph::element::Type_t::u64);
     case Precision::BOOL:
         return ::ngraph::element::Type(::ngraph::element::Type_t::boolean);
     case Precision::BIN:
@@ -97,7 +99,7 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
     case ::ngraph::element::Type_t::i64:
         return Precision(Precision::I64);
     case ::ngraph::element::Type_t::u64:
-        return Precision(Precision::I64);
+        return Precision(Precision::U64);
     case ::ngraph::element::Type_t::u1:
         return Precision(Precision::BIN);
     case ::ngraph::element::Type_t::u8:
@@ -107,7 +109,7 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
     case ::ngraph::element::Type_t::boolean:
         return Precision(Precision::BOOL);
     default:
-        THROW_IE_EXCEPTION << "Incorrect precision!";
+        THROW_IE_EXCEPTION << "Incorrect precision " << precision.get_type_name() << "!";
     }
 }
 

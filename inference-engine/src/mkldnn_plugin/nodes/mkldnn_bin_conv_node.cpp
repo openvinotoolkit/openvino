@@ -264,6 +264,8 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool 
             } else {
                 ops.append_binarization(binarization_depthwise, nullptr, nullptr);
             }
+
+            continue;
         }
 #endif
 
@@ -321,6 +323,8 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool 
             continue;
         }
 #endif
+
+        THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
     attr.set_post_ops(ops);

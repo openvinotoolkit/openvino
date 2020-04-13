@@ -21,10 +21,25 @@ namespace impl {
 namespace cpu {
 namespace bf16_cvt_utils {
 
-jit_avx512_core_cvt_ps_to_bf16_t cvt_one_ps_to_bf16(1);
-jit_avx512_core_cvt_ps_to_bf16_t cvt_ps_to_bf16_;
-jit_avx512_core_cvt_bf16_to_ps_t cvt_bf16_to_ps_;
-jit_avx512_core_add_cvt_ps_to_bf16_t add_cvt_ps_to_bf16_;
+jit_avx512_core_cvt_ps_to_bf16_t &cvt_one_ps_to_bf16() {
+    static jit_avx512_core_cvt_ps_to_bf16_t singleton(1);
+    return singleton;
+}
+
+jit_avx512_core_cvt_ps_to_bf16_t &cvt_ps_to_bf16_() {
+    static jit_avx512_core_cvt_ps_to_bf16_t singleton;
+    return singleton;
+}
+
+jit_avx512_core_cvt_bf16_to_ps_t &cvt_bf16_to_ps_() {
+    static jit_avx512_core_cvt_bf16_to_ps_t singleton;
+    return singleton;
+}
+
+jit_avx512_core_add_cvt_ps_to_bf16_t &add_cvt_ps_to_bf16_() {
+    static jit_avx512_core_add_cvt_ps_to_bf16_t singleton;
+    return singleton;
+}
 
 }
 }

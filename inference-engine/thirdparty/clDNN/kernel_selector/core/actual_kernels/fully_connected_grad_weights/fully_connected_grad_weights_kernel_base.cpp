@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ FullyConnectedGradWeightsKernelBase::DispatchData FullyConnectedGradWeightsKerne
     kd.lws0 = lws0;
     kd.lws1 = 1;
     kd.lws2 = 1;
-    kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return kd;
 }
 
@@ -53,19 +53,12 @@ KernelsData FullyConnectedGradWeightsKernelBase::GetKernelsData(const Params& pa
     const fully_connected_grad_weights_params& orgParams =
         static_cast<const fully_connected_grad_weights_params&>(params);
 
-    const std::vector<WeightsLayout> weightsLayouts = {WeightsLayout::oi,
-                                                       WeightsLayout::io,
-                                                       WeightsLayout::oiyx,
-                                                       WeightsLayout::iyxo,
-                                                       WeightsLayout::yxio,
-                                                       WeightsLayout::oyxi};
-
     DispatchData runInfo = SetDefault(orgParams);
     KernelData kd = KernelData::Default<fully_connected_grad_weights_params>(params);
     fully_connected_grad_weights_params& newParams =
         *static_cast<fully_connected_grad_weights_params*>(kd.params.get());
 
-    bool succeed = UpdateWeightsParams(newParams, options, weightsLayouts, kd.weightsReorderParams);
+    bool succeed = UpdateWeightsParams(newParams, options, WeightsLayout::oi, kd.weightsReorderParams);
 
     if (!succeed) {
         return {};
@@ -93,7 +86,7 @@ KernelsData FullyConnectedGradWeightsKernelBase::GetKernelsData(const Params& pa
     kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     kernel.arguments.push_back({ArgumentDescriptor::Types::LEARNING_RATE, 0});
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = runInfo.efficiency;
 
     return {kd};
 }

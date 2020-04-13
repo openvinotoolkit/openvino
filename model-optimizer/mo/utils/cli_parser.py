@@ -321,6 +321,9 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='[ Experimental feature ] Enables `Shape` operation with all children keeping. '
                                    'This feature makes model reshapable in Inference Engine',
                               action='store_true', default=False)
+    common_group.add_argument('--disable_weights_compression',
+                              help='Disable compression and store weights with original precision',
+                              action='store_true', default=False)
     common_group.add_argument('--progress',
                               help='Enables model conversion progress display',
                               action='store_true', default=False)
@@ -370,8 +373,6 @@ def get_caffe_cli_options():
 def get_tf_cli_options():
     d = {
         'input_model_is_text': '- Input model in text protobuf format',
-        'tensorflow_subgraph_patterns': '- Patterns to offload',
-        'tensorflow_operation_patterns': '- Operations to offload',
         'tensorflow_custom_operations_config_update': '- Update the configuration file with input/output node names',
         'tensorflow_use_custom_operations_config': '- Use the config file',
         'tensorflow_object_detection_api_pipeline_config': '- Use configuration file used to generate the model with '
@@ -500,16 +501,6 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
     tf_group.add_argument('--saved_model_tags', type=str, default=None,
                           help="Group of tag(s) of the MetaGraphDef to load, in string format, separated by ','. "
                                "For tag-set contains multiple tags, all tags must be passed in.")
-    tf_group.add_argument('--tensorflow_subgraph_patterns',
-                          help='TensorFlow*: a list of comma separated patterns that will be applied to ' +
-                               'TensorFlow* node names to ' +
-                               'infer a part of the graph using TensorFlow*.',
-                          action=DeprecatedTensorflowOffloadFeatureAction)
-    tf_group.add_argument('--tensorflow_operation_patterns',
-                          help='TensorFlow*: a list of comma separated patterns that will be applied to ' +
-                               'TensorFlow* node type (ops) ' +
-                               'to infer these operations using TensorFlow*.',
-                          action=DeprecatedTensorflowOffloadFeatureAction)
     tf_group.add_argument('--tensorflow_custom_operations_config_update',
                           help='TensorFlow*: update the configuration file with node name patterns with input/output '
                                'nodes information.',

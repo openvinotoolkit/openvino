@@ -45,8 +45,6 @@ Options:
       -c "<absolute_path>"  Required for GPU custom kernels.Absolute path to the .xml file with kernels description
     -d "<device>"           Optional. Specify the target device to infer on (the list of available devices is shown below). Default value is CPU. Sample will look for a suitable plugin for device specified.
     -nt "<integer>"         Optional. Number of top results. Default value is 10.
-    -p_msg                  Optional. Enables messages from a plugin
-
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.

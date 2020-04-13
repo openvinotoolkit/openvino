@@ -21,7 +21,7 @@
 #include "XLinkLog.h"
 #include "XLink.h"
 #include "XLinkPrivateDefines.h"
-#include "XLinkTool.h"
+#include "XLinkErrorUtils.h"
 
 namespace {
 
@@ -103,7 +103,7 @@ public:
 private:
     bool sendPingMessage() {
         XLinkError_t rc = X_LINK_SUCCESS;
-        XLINK_RET_IF_RC(pthread_mutex_lock(&privateDevice.dev_stream_m), false);
+        XLINK_RET_ERR_IF(pthread_mutex_lock(&privateDevice.dev_stream_m), false);
 
         deviceCommand_t config = {};
         config.type = DEVICE_WATCHDOG_PING;
@@ -111,7 +111,9 @@ private:
         // xlink ping acknowledge interval shouldn't be more then expected ping interval
         rc = XLinkWriteDataWithTimeout(privateDevice.device_mon_stream_id, (const uint8_t*)&config, sizeof(config), deviceHangTimeout);
 
-        XLINK_CHECK_CALL(pthread_mutex_unlock(&privateDevice.dev_stream_m));
+        if(pthread_mutex_unlock(&privateDevice.dev_stream_m) != 0) {
+            mvLog(MVLOG_ERROR, "Failed to unlock privateDevice.dev_stream_m");
+        }
 
         if (rc != X_LINK_SUCCESS) {
             mvLog(MVLOG_ERROR, "Failed send ping message: %s", XLinkErrorToStr(rc));

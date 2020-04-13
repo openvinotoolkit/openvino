@@ -20,9 +20,10 @@
 #include "mkldnn_thread.hpp"
 #include "utils.hpp"
 
-#include "ref_gemm_f32.hpp"
+#include "../gemm_driver.hpp"
 #include "gemm_utils_f32.hpp"
 #include "jit_avx512_common_gemm_f32.hpp"
+#include "ref_gemm_f32.hpp"
 
 #include "jit_generator.hpp"
 
@@ -54,12 +55,13 @@ struct xbyak_gemm : public jit_generator {
     xbyak_gemm(char isTransA, char isTransB, float beta, bool hasBias = false,
             void *code_ptr = nullptr,
             size_t code_size = 80 * Xbyak::DEFAULT_MAX_CODE_SIZE)
-        : jit_generator(code_ptr, code_size)
-    {
+        : jit_generator(code_ptr, code_size) {
         using namespace Xbyak;
 
-        enum { ver_avx512_core, ver_avx512_mic } ver =
-            mayiuse(avx512_core) ? ver_avx512_core : ver_avx512_mic;
+        enum {
+            ver_avx512_core,
+            ver_avx512_mic
+        } ver = mayiuse(avx512_core) ? ver_avx512_core : ver_avx512_mic;
 
         bool isBeta0 = (beta == 0.0);
         bool isBetaN = (!isBeta0 && beta != 1.0);
@@ -71,10 +73,10 @@ struct xbyak_gemm : public jit_generator {
         auto ARG_ALPHA = abi_param4;
 #ifdef _WIN32
         auto ARG_A = ptr[rsp + OFFSET_SHADOWSPACE + STACKSIZE];
-        auto ARG_LDA = qword[rsp + OFFSET_SHADOWSPACE +
-            sizeof(float *) + STACKSIZE];
-        const auto stackOffset = OFFSET_SHADOWSPACE +
-            sizeof(float *) + STACKSIZE;
+        auto ARG_LDA
+                = qword[rsp + OFFSET_SHADOWSPACE + sizeof(float *) + STACKSIZE];
+        const auto stackOffset
+                = OFFSET_SHADOWSPACE + sizeof(float *) + STACKSIZE;
         auto A = rsi;
         auto LDA = rdi;
 #else
@@ -127,9 +129,9 @@ struct xbyak_gemm : public jit_generator {
         auto PREFETCHSIZEA = ver == ver_avx512_core ? 48 : 80;
         auto PREFETCHSIZEB = 16;
 
-        Zmm regs[] = { zmm8, zmm9, zmm10, zmm11, zmm12, zmm13, zmm14, zmm15,
-            zmm16, zmm17, zmm18, zmm19, zmm20, zmm21, zmm22, zmm23, zmm24,
-            zmm25, zmm26, zmm27, zmm28, zmm29, zmm30, zmm31 };
+        Zmm regs[] = {zmm8, zmm9, zmm10, zmm11, zmm12, zmm13, zmm14, zmm15,
+                zmm16, zmm17, zmm18, zmm19, zmm20, zmm21, zmm22, zmm23, zmm24,
+                zmm25, zmm26, zmm27, zmm28, zmm29, zmm30, zmm31};
 
         // Function for packing if needed
         auto do_pack = [&](int unroll_m) {
@@ -293,68 +295,74 @@ struct xbyak_gemm : public jit_generator {
 
         // Function to update C, covering masking and other considerations
         auto update = [&](Zmm reg, bool useCO1, int offset, int mask,
-                bool useScale = false) {
+                              bool useScale = false) {
             vmulps(reg, reg, VALPHA);
             if (!isBeta0) {
                 if (!useScale) {
                     switch (mask) {
-                    case 0:
-                        if (useCO1)
-                            vmovups(zmm0, ptr[CO1 + offset * SIZE]);
-                        else
-                            vmovups(zmm0, ptr[CO2 + offset * SIZE]);
-                        break;
-                    case 1:
-                        if (useCO1)
-                            vmovups(zmm0 | k1 | T_z, ptr[CO1 + offset * SIZE]);
-                        else
-                            vmovups(zmm0 | k1 | T_z, ptr[CO2 + offset * SIZE]);
-                        break;
-                    case 2:
-                        if (useCO1)
-                            vmovups(zmm0 | k2 | T_z, ptr[CO1 + offset * SIZE]);
-                        else
-                            vmovups(zmm0 | k2 | T_z, ptr[CO2 + offset * SIZE]);
-                        break;
-                    case 3:
-                        if (useCO1)
-                            vmovups(zmm0 | k3 | T_z, ptr[CO1 + offset * SIZE]);
-                        else
-                            vmovups(zmm0 | k3 | T_z, ptr[CO2 + offset * SIZE]);
-                        break;
+                        case 0:
+                            if (useCO1)
+                                vmovups(zmm0, ptr[CO1 + offset * SIZE]);
+                            else
+                                vmovups(zmm0, ptr[CO2 + offset * SIZE]);
+                            break;
+                        case 1:
+                            if (useCO1)
+                                vmovups(zmm0 | k1 | T_z,
+                                        ptr[CO1 + offset * SIZE]);
+                            else
+                                vmovups(zmm0 | k1 | T_z,
+                                        ptr[CO2 + offset * SIZE]);
+                            break;
+                        case 2:
+                            if (useCO1)
+                                vmovups(zmm0 | k2 | T_z,
+                                        ptr[CO1 + offset * SIZE]);
+                            else
+                                vmovups(zmm0 | k2 | T_z,
+                                        ptr[CO2 + offset * SIZE]);
+                            break;
+                        case 3:
+                            if (useCO1)
+                                vmovups(zmm0 | k3 | T_z,
+                                        ptr[CO1 + offset * SIZE]);
+                            else
+                                vmovups(zmm0 | k3 | T_z,
+                                        ptr[CO2 + offset * SIZE]);
+                            break;
                     }
                 } else {
                     switch (mask) {
-                    case 0:
-                        if (useCO1)
-                            vmovups(zmm0, ptr[CO1 + LDC + offset * SIZE]);
-                        else
-                            vmovups(zmm0, ptr[CO2 + LDC + offset * SIZE]);
-                        break;
-                    case 1:
-                        if (useCO1)
-                            vmovups(zmm0 | k1 | T_z,
-                                    ptr[CO1 + LDC + offset * SIZE]);
-                        else
-                            vmovups(zmm0 | k1 | T_z,
-                                    ptr[CO2 + LDC + offset * SIZE]);
-                        break;
-                    case 2:
-                        if (useCO1)
-                            vmovups(zmm0 | k2 | T_z,
-                                    ptr[CO1 + LDC + offset * SIZE]);
-                        else
-                            vmovups(zmm0 | k2 | T_z,
-                                    ptr[CO2 + LDC + offset * SIZE]);
-                        break;
-                    case 3:
-                        if (useCO1)
-                            vmovups(zmm0 | k3 | T_z,
-                                    ptr[CO1 + LDC + offset * SIZE]);
-                        else
-                            vmovups(zmm0 | k3 | T_z,
-                                    ptr[CO2 + LDC + offset * SIZE]);
-                        break;
+                        case 0:
+                            if (useCO1)
+                                vmovups(zmm0, ptr[CO1 + LDC + offset * SIZE]);
+                            else
+                                vmovups(zmm0, ptr[CO2 + LDC + offset * SIZE]);
+                            break;
+                        case 1:
+                            if (useCO1)
+                                vmovups(zmm0 | k1 | T_z,
+                                        ptr[CO1 + LDC + offset * SIZE]);
+                            else
+                                vmovups(zmm0 | k1 | T_z,
+                                        ptr[CO2 + LDC + offset * SIZE]);
+                            break;
+                        case 2:
+                            if (useCO1)
+                                vmovups(zmm0 | k2 | T_z,
+                                        ptr[CO1 + LDC + offset * SIZE]);
+                            else
+                                vmovups(zmm0 | k2 | T_z,
+                                        ptr[CO2 + LDC + offset * SIZE]);
+                            break;
+                        case 3:
+                            if (useCO1)
+                                vmovups(zmm0 | k3 | T_z,
+                                        ptr[CO1 + LDC + offset * SIZE]);
+                            else
+                                vmovups(zmm0 | k3 | T_z,
+                                        ptr[CO2 + LDC + offset * SIZE]);
+                            break;
                     }
                 }
                 if (!isBetaN) {
@@ -364,113 +372,125 @@ struct xbyak_gemm : public jit_generator {
                 }
                 if (!useScale) {
                     switch (mask) {
-                    case 0:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + offset * SIZE], zmm0);
-                        else
-                            vmovups(ptr[CO2 + offset * SIZE], zmm0);
-                        break;
-                    case 1:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + offset * SIZE], zmm0 | k1);
-                        else
-                            vmovups(ptr[CO2 + offset * SIZE], zmm0 | k1);
-                        break;
-                    case 2:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + offset * SIZE], zmm0 | k2);
-                        else
-                            vmovups(ptr[CO2 + offset * SIZE], zmm0 | k2);
-                        break;
-                    case 3:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + offset * SIZE], zmm0 | k3);
-                        else
-                            vmovups(ptr[CO2 + offset * SIZE], zmm0 | k3);
-                        break;
+                        case 0:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + offset * SIZE], zmm0);
+                            else
+                                vmovups(ptr[CO2 + offset * SIZE], zmm0);
+                            break;
+                        case 1:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + offset * SIZE], zmm0 | k1);
+                            else
+                                vmovups(ptr[CO2 + offset * SIZE], zmm0 | k1);
+                            break;
+                        case 2:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + offset * SIZE], zmm0 | k2);
+                            else
+                                vmovups(ptr[CO2 + offset * SIZE], zmm0 | k2);
+                            break;
+                        case 3:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + offset * SIZE], zmm0 | k3);
+                            else
+                                vmovups(ptr[CO2 + offset * SIZE], zmm0 | k3);
+                            break;
                     }
                 } else {
                     switch (mask) {
-                    case 0:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + LDC + offset * SIZE], zmm0);
-                        else
-                            vmovups(ptr[CO2 + LDC + offset * SIZE], zmm0);
-                        break;
-                    case 1:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + LDC + offset * SIZE], zmm0 | k1);
-                        else
-                            vmovups(ptr[CO2 + LDC + offset * SIZE], zmm0 | k1);
-                        break;
-                    case 2:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + LDC + offset * SIZE], zmm0 | k2);
-                        else
-                            vmovups(ptr[CO2 + LDC + offset * SIZE], zmm0 | k2);
-                        break;
-                    case 3:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + LDC + offset * SIZE], zmm0 | k3);
-                        else
-                            vmovups(ptr[CO2 + LDC + offset * SIZE], zmm0 | k3);
-                        break;
+                        case 0:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + LDC + offset * SIZE], zmm0);
+                            else
+                                vmovups(ptr[CO2 + LDC + offset * SIZE], zmm0);
+                            break;
+                        case 1:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + LDC + offset * SIZE],
+                                        zmm0 | k1);
+                            else
+                                vmovups(ptr[CO2 + LDC + offset * SIZE],
+                                        zmm0 | k1);
+                            break;
+                        case 2:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + LDC + offset * SIZE],
+                                        zmm0 | k2);
+                            else
+                                vmovups(ptr[CO2 + LDC + offset * SIZE],
+                                        zmm0 | k2);
+                            break;
+                        case 3:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + LDC + offset * SIZE],
+                                        zmm0 | k3);
+                            else
+                                vmovups(ptr[CO2 + LDC + offset * SIZE],
+                                        zmm0 | k3);
+                            break;
                     }
                 }
             } else {
                 if (!useScale) {
                     switch (mask) {
-                    case 0:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + offset * SIZE], reg);
-                        else
-                            vmovups(ptr[CO2 + offset * SIZE], reg);
-                        break;
-                    case 1:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + offset * SIZE], reg | k1);
-                        else
-                            vmovups(ptr[CO2 + offset * SIZE], reg | k1);
-                        break;
-                    case 2:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + offset * SIZE], reg | k2);
-                        else
-                            vmovups(ptr[CO2 + offset * SIZE], reg | k2);
-                        break;
-                    case 3:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + offset * SIZE], reg | k3);
-                        else
-                            vmovups(ptr[CO2 + offset * SIZE], reg | k3);
-                        break;
+                        case 0:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + offset * SIZE], reg);
+                            else
+                                vmovups(ptr[CO2 + offset * SIZE], reg);
+                            break;
+                        case 1:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + offset * SIZE], reg | k1);
+                            else
+                                vmovups(ptr[CO2 + offset * SIZE], reg | k1);
+                            break;
+                        case 2:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + offset * SIZE], reg | k2);
+                            else
+                                vmovups(ptr[CO2 + offset * SIZE], reg | k2);
+                            break;
+                        case 3:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + offset * SIZE], reg | k3);
+                            else
+                                vmovups(ptr[CO2 + offset * SIZE], reg | k3);
+                            break;
                     }
                 } else {
                     switch (mask) {
-                    case 0:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + LDC + offset * SIZE], reg);
-                        else
-                            vmovups(ptr[CO2 + LDC + offset * SIZE], reg);
-                        break;
-                    case 1:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + LDC + offset * SIZE], reg | k1);
-                        else
-                            vmovups(ptr[CO2 + LDC + offset * SIZE], reg | k1);
-                        break;
-                    case 2:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + LDC + offset * SIZE], reg | k2);
-                        else
-                            vmovups(ptr[CO2 + LDC + offset * SIZE], reg | k2);
-                        break;
-                    case 3:
-                        if (useCO1)
-                            vmovups(ptr[CO1 + LDC + offset * SIZE], reg | k3);
-                        else
-                            vmovups(ptr[CO2 + LDC + offset * SIZE], reg | k3);
-                        break;
+                        case 0:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + LDC + offset * SIZE], reg);
+                            else
+                                vmovups(ptr[CO2 + LDC + offset * SIZE], reg);
+                            break;
+                        case 1:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + LDC + offset * SIZE],
+                                        reg | k1);
+                            else
+                                vmovups(ptr[CO2 + LDC + offset * SIZE],
+                                        reg | k1);
+                            break;
+                        case 2:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + LDC + offset * SIZE],
+                                        reg | k2);
+                            else
+                                vmovups(ptr[CO2 + LDC + offset * SIZE],
+                                        reg | k2);
+                            break;
+                        case 3:
+                            if (useCO1)
+                                vmovups(ptr[CO1 + LDC + offset * SIZE],
+                                        reg | k3);
+                            else
+                                vmovups(ptr[CO2 + LDC + offset * SIZE],
+                                        reg | k3);
+                            break;
                     }
                 }
             }
@@ -483,129 +503,135 @@ struct xbyak_gemm : public jit_generator {
                 if (ver == ver_avx512_core) {
                     if (!isTransB) {
                         switch (i) {
-                        case 2:
-                            vbroadcastss(
-                                    zmm3,
-                                    ptr[BO1 + LDB * 2
-                                            + (iteration - OFFSET) * SIZE]);
-                            break;
-                        case 3:
-                            vbroadcastss(
-                                    zmm3,
-                                    ptr[BO1 + LDB3
-                                            + (iteration - OFFSET) * SIZE]);
-                            break;
-                        case 4:
-                            vbroadcastss(zmm3,
-                                    ptr[BO2 + (iteration - OFFSET) * SIZE]);
-                            break;
-                        case 5:
-                            vbroadcastss(
-                                    zmm3,
-                                    ptr[BO2 + LDB * 1
-                                            + (iteration - OFFSET) * SIZE]);
-                            break;
-                        case 6:
-                            vbroadcastss(
-                                    zmm3,
-                                    ptr[BO2 + LDB * 2
-                                            + (iteration - OFFSET) * SIZE]);
-                            break;
-                        case 7:
-                            vbroadcastss(
-                                    zmm3,
-                                    ptr[BO2 + LDB3
-                                            + (iteration - OFFSET) * SIZE]);
-                            break;
+                            case 2:
+                                vbroadcastss(zmm3,
+                                        ptr[BO1 + LDB * 2
+                                                + (iteration - OFFSET) * SIZE]);
+                                break;
+                            case 3:
+                                vbroadcastss(zmm3,
+                                        ptr[BO1 + LDB3
+                                                + (iteration - OFFSET) * SIZE]);
+                                break;
+                            case 4:
+                                vbroadcastss(zmm3,
+                                        ptr[BO2 + (iteration - OFFSET) * SIZE]);
+                                break;
+                            case 5:
+                                vbroadcastss(zmm3,
+                                        ptr[BO2 + LDB * 1
+                                                + (iteration - OFFSET) * SIZE]);
+                                break;
+                            case 6:
+                                vbroadcastss(zmm3,
+                                        ptr[BO2 + LDB * 2
+                                                + (iteration - OFFSET) * SIZE]);
+                                break;
+                            case 7:
+                                vbroadcastss(zmm3,
+                                        ptr[BO2 + LDB3
+                                                + (iteration - OFFSET) * SIZE]);
+                                break;
                         }
                     } else {
                         vbroadcastss(zmm3, ptr[BO1 + (i - OFFSET) * SIZE]);
                     }
                     vfmadd231ps(regs[i], zmm3, zmm0);
-                    if (unroll_m >= 32)
-                        vfmadd231ps(regs[i + 8], zmm3, zmm1);
-                    if (unroll_m >= 48)
-                        vfmadd231ps(regs[i + 16], zmm3, zmm2);
+                    if (unroll_m >= 32) vfmadd231ps(regs[i + 8], zmm3, zmm1);
+                    if (unroll_m >= 48) vfmadd231ps(regs[i + 16], zmm3, zmm2);
                 } else {
                     if (!isTransB) {
                         switch (i) {
-                        case 2:
-                            vfmadd231ps(regs[i], zmm0,
-                                    zword_b[BO1 + LDB * 2
-                                    + (iteration - OFFSET) * SIZE]);
-                            if (unroll_m >= 32)
-                                vfmadd231ps(regs[i + 8], zmm1,
+                            case 2:
+                                vfmadd231ps(regs[i], zmm0,
                                         zword_b[BO1 + LDB * 2
-                                        + (iteration - OFFSET) * SIZE]);
-                            if (unroll_m >= 48)
-                                vfmadd231ps(regs[i + 16], zmm2,
-                                        zword_b[BO1 + LDB * 2
-                                        + (iteration - OFFSET) * SIZE]);
-                            break;
-                        case 3:
-                            vfmadd231ps(regs[i], zmm0,
-                                    zword_b[BO1 + LDB3
-                                    + (iteration - OFFSET) * SIZE]);
-                            if (unroll_m >= 32)
-                                vfmadd231ps(regs[i + 8], zmm1,
+                                                + (iteration - OFFSET) * SIZE]);
+                                if (unroll_m >= 32)
+                                    vfmadd231ps(regs[i + 8], zmm1,
+                                            zword_b[BO1 + LDB * 2
+                                                    + (iteration - OFFSET)
+                                                            * SIZE]);
+                                if (unroll_m >= 48)
+                                    vfmadd231ps(regs[i + 16], zmm2,
+                                            zword_b[BO1 + LDB * 2
+                                                    + (iteration - OFFSET)
+                                                            * SIZE]);
+                                break;
+                            case 3:
+                                vfmadd231ps(regs[i], zmm0,
                                         zword_b[BO1 + LDB3
-                                        + (iteration - OFFSET) * SIZE]);
-                            if (unroll_m >= 48)
-                                vfmadd231ps(regs[i + 16], zmm2,
-                                        zword_b[BO1 + LDB3
-                                        + (iteration - OFFSET) * SIZE]);
-                            break;
-                        case 4:
-                            vfmadd231ps(regs[i], zmm0,
-                                    zword_b[BO2 + (iteration - OFFSET) * SIZE]);
-                            if (unroll_m >= 32)
-                                vfmadd231ps(regs[i + 8], zmm1,
-                                        zword_b[BO2 + (iteration - OFFSET)
-                                        * SIZE]);
-                            if (unroll_m >= 48)
-                                vfmadd231ps(regs[i + 16], zmm2,
-                                        zword_b[BO2 + (iteration - OFFSET)
-                                        * SIZE]);
-                            break;
-                        case 5:
-                            vfmadd231ps(regs[i], zmm0,
-                                    zword_b[BO2 + LDB * 1
-                                    + (iteration - OFFSET) * SIZE]);
-                            if (unroll_m >= 32)
-                                vfmadd231ps(regs[i + 8], zmm1,
+                                                + (iteration - OFFSET) * SIZE]);
+                                if (unroll_m >= 32)
+                                    vfmadd231ps(regs[i + 8], zmm1,
+                                            zword_b[BO1 + LDB3
+                                                    + (iteration - OFFSET)
+                                                            * SIZE]);
+                                if (unroll_m >= 48)
+                                    vfmadd231ps(regs[i + 16], zmm2,
+                                            zword_b[BO1 + LDB3
+                                                    + (iteration - OFFSET)
+                                                            * SIZE]);
+                                break;
+                            case 4:
+                                vfmadd231ps(regs[i], zmm0,
+                                        zword_b[BO2
+                                                + (iteration - OFFSET) * SIZE]);
+                                if (unroll_m >= 32)
+                                    vfmadd231ps(regs[i + 8], zmm1,
+                                            zword_b[BO2
+                                                    + (iteration - OFFSET)
+                                                            * SIZE]);
+                                if (unroll_m >= 48)
+                                    vfmadd231ps(regs[i + 16], zmm2,
+                                            zword_b[BO2
+                                                    + (iteration - OFFSET)
+                                                            * SIZE]);
+                                break;
+                            case 5:
+                                vfmadd231ps(regs[i], zmm0,
                                         zword_b[BO2 + LDB * 1
-                                        + (iteration - OFFSET) * SIZE]);
-                            if (unroll_m >= 48)
-                                vfmadd231ps(regs[i + 16], zmm2,
-                                        zword_b[BO2 + LDB * 1
-                                        + (iteration - OFFSET) * SIZE]);
-                            break;
-                        case 6:
-                            vfmadd231ps(regs[i], zmm0,
-                                    zword_b[BO2 + LDB * 2
-                                    + (iteration - OFFSET) * SIZE]);
-                            if (unroll_m >= 32)
-                                vfmadd231ps(regs[i + 8], zmm1,
+                                                + (iteration - OFFSET) * SIZE]);
+                                if (unroll_m >= 32)
+                                    vfmadd231ps(regs[i + 8], zmm1,
+                                            zword_b[BO2 + LDB * 1
+                                                    + (iteration - OFFSET)
+                                                            * SIZE]);
+                                if (unroll_m >= 48)
+                                    vfmadd231ps(regs[i + 16], zmm2,
+                                            zword_b[BO2 + LDB * 1
+                                                    + (iteration - OFFSET)
+                                                            * SIZE]);
+                                break;
+                            case 6:
+                                vfmadd231ps(regs[i], zmm0,
                                         zword_b[BO2 + LDB * 2
-                                        + (iteration - OFFSET) * SIZE]);
-                            if (unroll_m >= 48)
-                                vfmadd231ps(regs[i + 16], zmm2,
-                                        zword_b[BO2 + LDB * 2
-                                        + (iteration - OFFSET) * SIZE]);
-                            break;
-                        case 7:
-                            vfmadd231ps(regs[i], zmm0,
-                                    zword_b[BO2 + LDB3
-                                    + (iteration - OFFSET) * SIZE]);
-                            if (unroll_m >= 32)
-                                vfmadd231ps(regs[i + 8], zmm1,
+                                                + (iteration - OFFSET) * SIZE]);
+                                if (unroll_m >= 32)
+                                    vfmadd231ps(regs[i + 8], zmm1,
+                                            zword_b[BO2 + LDB * 2
+                                                    + (iteration - OFFSET)
+                                                            * SIZE]);
+                                if (unroll_m >= 48)
+                                    vfmadd231ps(regs[i + 16], zmm2,
+                                            zword_b[BO2 + LDB * 2
+                                                    + (iteration - OFFSET)
+                                                            * SIZE]);
+                                break;
+                            case 7:
+                                vfmadd231ps(regs[i], zmm0,
                                         zword_b[BO2 + LDB3
-                                        + (iteration - OFFSET) * SIZE]);
-                            if (unroll_m >= 48)
-                                vfmadd231ps(regs[i + 16], zmm2,
-                                        zword_b[BO2 + LDB3
-                                        + (iteration - OFFSET) * SIZE]);
-                            break;
+                                                + (iteration - OFFSET) * SIZE]);
+                                if (unroll_m >= 32)
+                                    vfmadd231ps(regs[i + 8], zmm1,
+                                            zword_b[BO2 + LDB3
+                                                    + (iteration - OFFSET)
+                                                            * SIZE]);
+                                if (unroll_m >= 48)
+                                    vfmadd231ps(regs[i + 16], zmm2,
+                                            zword_b[BO2 + LDB3
+                                                    + (iteration - OFFSET)
+                                                            * SIZE]);
+                                break;
                         }
                     } else {
                         vfmadd231ps(regs[i], zmm0,
@@ -623,7 +649,8 @@ struct xbyak_gemm : public jit_generator {
 
         // Innerkernel; called by kernel
         auto innerkernel = [&](int unroll_m, int unroll_n, bool isDirect,
-                bool isCopy, bool doCPrefetch, bool isUnmasked = true) {
+                                   bool isCopy, bool doCPrefetch,
+                                   bool isUnmasked = true) {
             for (int i = 0; i < 8; i++) {
                 if (!isDirect) {
                     prefetcht0(ptr[AO1
@@ -631,12 +658,14 @@ struct xbyak_gemm : public jit_generator {
                                     * SIZE]);
                     if (unroll_m >= 32)
                         prefetcht0(ptr[AO1
-                            + (PREFETCHSIZEA + i * unroll_m + 1 * 16 - OFFSET)
-                                    * SIZE]);
+                                + (PREFETCHSIZEA + i * unroll_m + 1 * 16
+                                          - OFFSET)
+                                        * SIZE]);
                     if (unroll_m >= 48)
                         prefetcht0(ptr[AO1
-                            + (PREFETCHSIZEA + i * unroll_m + 2 * 16 - OFFSET)
-                                    * SIZE]);
+                                + (PREFETCHSIZEA + i * unroll_m + 2 * 16
+                                          - OFFSET)
+                                        * SIZE]);
                 } else {
                     prefetcht0(ptr[AO1 + LDA4 + (16 * 0 * SIZE)]);
                     if (unroll_m >= 32)
@@ -660,10 +689,11 @@ struct xbyak_gemm : public jit_generator {
                         }
                         if (unroll_m >= 32) {
                             if (isUnmasked || unroll_m > 32) {
-                                vmovups(zmm1, ptr[AO1
-                                                      + (unroll_m * i + 1 * 16
-                                                                - OFFSET)
-                                                              * SIZE]);
+                                vmovups(zmm1,
+                                        ptr[AO1
+                                                + (unroll_m * i + 1 * 16
+                                                          - OFFSET)
+                                                        * SIZE]);
                             } else {
                                 vmovups(zmm1 | k2 | T_z,
                                         ptr[AO1
@@ -674,10 +704,11 @@ struct xbyak_gemm : public jit_generator {
                         }
                         if (unroll_m >= 48) {
                             if (isUnmasked) {
-                                vmovups(zmm2, ptr[AO1
-                                                      + (unroll_m * i + 2 * 16
-                                                                - OFFSET)
-                                                              * SIZE]);
+                                vmovups(zmm2,
+                                        ptr[AO1
+                                                + (unroll_m * i + 2 * 16
+                                                          - OFFSET)
+                                                        * SIZE]);
                             } else {
                                 vmovups(zmm2 | k3 | T_z,
                                         ptr[AO1
@@ -720,10 +751,8 @@ struct xbyak_gemm : public jit_generator {
                         vbroadcastss(zmm3, ptr[BO1 + (0 - OFFSET) * SIZE]);
                     }
                     vfmadd231ps(regs[0], zmm3, zmm0);
-                    if (unroll_m >= 32)
-                        vfmadd231ps(regs[0 + 8], zmm3, zmm1);
-                    if (unroll_m >= 48)
-                        vfmadd231ps(regs[0 + 16], zmm3, zmm2);
+                    if (unroll_m >= 32) vfmadd231ps(regs[0 + 8], zmm3, zmm1);
+                    if (unroll_m >= 48) vfmadd231ps(regs[0 + 16], zmm3, zmm2);
                 } else {
                     if (!isTransB) {
                         vfmadd231ps(regs[0], zmm0,
@@ -749,38 +778,38 @@ struct xbyak_gemm : public jit_generator {
                 if (unroll_n >= i + 1) {
                     if (!isTransB) {
                         switch (i) {
-                        case 0:
-                            prefetcht0(
-                                    ptr[BO1 + (PREFETCHSIZEB - OFFSET) * SIZE]);
-                            break;
-                        case 1:
-                            prefetcht0(ptr[BO1 + LDB
-                                    + (PREFETCHSIZEB - OFFSET) * SIZE]);
-                            break;
-                        case 2:
-                            prefetcht0(ptr[BO1 + LDB * 2
-                                    + (PREFETCHSIZEB - OFFSET) * SIZE]);
-                            break;
-                        case 3:
-                            prefetcht0(ptr[BO1 + LDB3
-                                    + (PREFETCHSIZEB - OFFSET) * SIZE]);
-                            break;
-                        case 4:
-                            prefetcht0(
-                                    ptr[BO2 + (PREFETCHSIZEB - OFFSET) * SIZE]);
-                            break;
-                        case 5:
-                            prefetcht0(ptr[BO2 + LDB
-                                    + (PREFETCHSIZEB - OFFSET) * SIZE]);
-                            break;
-                        case 6:
-                            prefetcht0(ptr[BO2 + LDB * 2
-                                    + (PREFETCHSIZEB - OFFSET) * SIZE]);
-                            break;
-                        case 7:
-                            prefetcht0(ptr[BO2 + LDB3
-                                    + (PREFETCHSIZEB - OFFSET) * SIZE]);
-                            break;
+                            case 0:
+                                prefetcht0(ptr[BO1
+                                        + (PREFETCHSIZEB - OFFSET) * SIZE]);
+                                break;
+                            case 1:
+                                prefetcht0(ptr[BO1 + LDB
+                                        + (PREFETCHSIZEB - OFFSET) * SIZE]);
+                                break;
+                            case 2:
+                                prefetcht0(ptr[BO1 + LDB * 2
+                                        + (PREFETCHSIZEB - OFFSET) * SIZE]);
+                                break;
+                            case 3:
+                                prefetcht0(ptr[BO1 + LDB3
+                                        + (PREFETCHSIZEB - OFFSET) * SIZE]);
+                                break;
+                            case 4:
+                                prefetcht0(ptr[BO2
+                                        + (PREFETCHSIZEB - OFFSET) * SIZE]);
+                                break;
+                            case 5:
+                                prefetcht0(ptr[BO2 + LDB
+                                        + (PREFETCHSIZEB - OFFSET) * SIZE]);
+                                break;
+                            case 6:
+                                prefetcht0(ptr[BO2 + LDB * 2
+                                        + (PREFETCHSIZEB - OFFSET) * SIZE]);
+                                break;
+                            case 7:
+                                prefetcht0(ptr[BO2 + LDB3
+                                        + (PREFETCHSIZEB - OFFSET) * SIZE]);
+                                break;
                         }
                     }
                 }
@@ -801,16 +830,16 @@ struct xbyak_gemm : public jit_generator {
                     } else {
                         if (!isTransB) {
                             vfmadd231ps(regs[1], zmm0,
-                                    zword_b[BO1 + LDB * 1 + (i - OFFSET)
-                                    * SIZE]);
+                                    zword_b[BO1 + LDB * 1
+                                            + (i - OFFSET) * SIZE]);
                             if (unroll_m >= 32)
                                 vfmadd231ps(regs[1 + 8], zmm1,
                                         zword_b[BO1 + LDB * 1
-                                        + (i - OFFSET) * SIZE]);
+                                                + (i - OFFSET) * SIZE]);
                             if (unroll_m >= 48)
                                 vfmadd231ps(regs[1 + 16], zmm2,
                                         zword_b[BO1 + LDB * 1
-                                        + (i - OFFSET) * SIZE]);
+                                                + (i - OFFSET) * SIZE]);
                         } else {
                             vfmadd231ps(regs[1], zmm0,
                                     zword_b[BO1 + (1 - OFFSET) * SIZE]);
@@ -862,8 +891,7 @@ struct xbyak_gemm : public jit_generator {
                                     zmm2 | k3);
                         }
                     }
-                    if (i == 7)
-                        sub(LDA4, -unroll_m * 8 * SIZE);
+                    if (i == 7) sub(LDA4, -unroll_m * 8 * SIZE);
                 }
                 fmaloop(unroll_m, unroll_n, i);
 
@@ -917,8 +945,7 @@ struct xbyak_gemm : public jit_generator {
 
             if (!isTransB) {
                 sub(BO1, -8 * SIZE);
-                if (unroll_n >= 4)
-                    sub(BO2, -8 * SIZE);
+                if (unroll_n >= 4) sub(BO2, -8 * SIZE);
             }
             if (!isTransA) {
                 if (unroll_m >= 48) {
@@ -940,9 +967,10 @@ struct xbyak_gemm : public jit_generator {
                 }
                 if (unroll_m >= 32) {
                     if (isUnmasked || unroll_m > 32) {
-                        vmovups(zmm1, ptr[AO1
-                                              + (unroll_m * 8 + 1 * 16 - OFFSET)
-                                                      * SIZE]);
+                        vmovups(zmm1,
+                                ptr[AO1
+                                        + (unroll_m * 8 + 1 * 16 - OFFSET)
+                                                * SIZE]);
                     } else {
                         vmovups(zmm1 | k2 | T_z,
                                 ptr[AO1
@@ -952,9 +980,10 @@ struct xbyak_gemm : public jit_generator {
                 }
                 if (unroll_m >= 48) {
                     if (isUnmasked) {
-                        vmovups(zmm2, ptr[AO1
-                                              + (unroll_m * 8 + 2 * 16 - OFFSET)
-                                                      * SIZE]);
+                        vmovups(zmm2,
+                                ptr[AO1
+                                        + (unroll_m * 8 + 2 * 16 - OFFSET)
+                                                * SIZE]);
                     } else {
                         vmovups(zmm2 | k3 | T_z,
                                 ptr[AO1
@@ -972,7 +1001,7 @@ struct xbyak_gemm : public jit_generator {
         // After calculating results in registers, writes back to C matrix by
         // calling update
         auto kernel = [&](int unroll_m, int unroll_n, bool isDirect,
-                bool isCopy, bool isUnmasked = true) {
+                              bool isCopy, bool isUnmasked = true) {
             if (!isDirect) {
                 lea(AO1, ptr[rsp + 128 + OFFSET * SIZE]);
             } else {
@@ -1000,9 +1029,10 @@ struct xbyak_gemm : public jit_generator {
                 }
                 if (unroll_m >= 32) {
                     if (isUnmasked || unroll_m > 32) {
-                        vmovups(zmm1, ptr[AO1
-                                              + (unroll_m * 0 + 1 * 16 - OFFSET)
-                                                      * SIZE]);
+                        vmovups(zmm1,
+                                ptr[AO1
+                                        + (unroll_m * 0 + 1 * 16 - OFFSET)
+                                                * SIZE]);
                     } else {
                         vmovups(zmm1 | k2 | T_z,
                                 ptr[AO1
@@ -1012,9 +1042,10 @@ struct xbyak_gemm : public jit_generator {
                 }
                 if (unroll_m >= 48) {
                     if (isUnmasked) {
-                        vmovups(zmm2, ptr[AO1
-                                              + (unroll_m * 0 + 2 * 16 - OFFSET)
-                                                      * SIZE]);
+                        vmovups(zmm2,
+                                ptr[AO1
+                                        + (unroll_m * 0 + 2 * 16 - OFFSET)
+                                                * SIZE]);
                     } else {
                         vmovups(zmm2 | k3 | T_z,
                                 ptr[AO1
@@ -1085,47 +1116,43 @@ struct xbyak_gemm : public jit_generator {
             for (int i = 0; i < unroll_n; i++) {
                 if (!isTransB) {
                     switch (i) {
-                    case 0:
-                        vbroadcastss(zmm3, ptr[BO1 + (0 - OFFSET) * SIZE]);
-                        break;
-                    case 1:
-                        vbroadcastss(
-                                zmm3, ptr[BO1 + LDB * 1 + (0 - OFFSET) * SIZE]);
-                        break;
-                    case 2:
-                        vbroadcastss(
-                                zmm3, ptr[BO1 + LDB * 2 + (0 - OFFSET) * SIZE]);
-                        break;
-                    case 3:
-                        vbroadcastss(
-                                zmm3, ptr[BO1 + LDB3 + (0 - OFFSET) * SIZE]);
-                        break;
-                    case 4:
-                        vbroadcastss(zmm3, ptr[BO2 + (0 - OFFSET) * SIZE]);
-                        break;
-                    case 5:
-                        vbroadcastss(
-                                zmm3, ptr[BO2 + LDB * 1 + (0 - OFFSET) * SIZE]);
-                        break;
-                    case 6:
-                        vbroadcastss(
-                                zmm3, ptr[BO2 + LDB * 2 + (0 - OFFSET) * SIZE]);
-                        break;
-                    case 7:
-                        vbroadcastss(
-                                zmm3, ptr[BO2 + LDB3 + (0 - OFFSET) * SIZE]);
-                        break;
+                        case 0:
+                            vbroadcastss(zmm3, ptr[BO1 + (0 - OFFSET) * SIZE]);
+                            break;
+                        case 1:
+                            vbroadcastss(zmm3,
+                                    ptr[BO1 + LDB * 1 + (0 - OFFSET) * SIZE]);
+                            break;
+                        case 2:
+                            vbroadcastss(zmm3,
+                                    ptr[BO1 + LDB * 2 + (0 - OFFSET) * SIZE]);
+                            break;
+                        case 3:
+                            vbroadcastss(zmm3,
+                                    ptr[BO1 + LDB3 + (0 - OFFSET) * SIZE]);
+                            break;
+                        case 4:
+                            vbroadcastss(zmm3, ptr[BO2 + (0 - OFFSET) * SIZE]);
+                            break;
+                        case 5:
+                            vbroadcastss(zmm3,
+                                    ptr[BO2 + LDB * 1 + (0 - OFFSET) * SIZE]);
+                            break;
+                        case 6:
+                            vbroadcastss(zmm3,
+                                    ptr[BO2 + LDB * 2 + (0 - OFFSET) * SIZE]);
+                            break;
+                        case 7:
+                            vbroadcastss(zmm3,
+                                    ptr[BO2 + LDB3 + (0 - OFFSET) * SIZE]);
+                            break;
                     }
                 } else {
                     vbroadcastss(zmm3, ptr[BO1 + (i - OFFSET) * SIZE]);
                 }
                 vfmadd231ps(regs[i], zmm3, zmm0);
-                if (unroll_m >= 32) {
-                    vfmadd231ps(regs[i + 8], zmm3, zmm1);
-                }
-                if (unroll_m >= 48) {
-                    vfmadd231ps(regs[i + 16], zmm3, zmm2);
-                }
+                if (unroll_m >= 32) { vfmadd231ps(regs[i + 8], zmm3, zmm1); }
+                if (unroll_m >= 48) { vfmadd231ps(regs[i + 16], zmm3, zmm2); }
             }
 
             if (isCopy) {
@@ -1175,9 +1202,10 @@ struct xbyak_gemm : public jit_generator {
                 }
                 if (unroll_m >= 32) {
                     if (isUnmasked || unroll_m > 32) {
-                        vmovups(zmm1, ptr[AO1
-                                              + (unroll_m * 1 + 1 * 16 - OFFSET)
-                                                      * SIZE]);
+                        vmovups(zmm1,
+                                ptr[AO1
+                                        + (unroll_m * 1 + 1 * 16 - OFFSET)
+                                                * SIZE]);
                     } else {
                         vmovups(zmm1 | k2 | T_z,
                                 ptr[AO1
@@ -1187,9 +1215,10 @@ struct xbyak_gemm : public jit_generator {
                 }
                 if (unroll_m >= 48) {
                     if (isUnmasked) {
-                        vmovups(zmm2, ptr[AO1
-                                              + (unroll_m * 1 + 2 * 16 - OFFSET)
-                                                      * SIZE]);
+                        vmovups(zmm2,
+                                ptr[AO1
+                                        + (unroll_m * 1 + 2 * 16 - OFFSET)
+                                                * SIZE]);
                     } else {
                         vmovups(zmm2 | k3 | T_z,
                                 ptr[AO1
@@ -1202,9 +1231,7 @@ struct xbyak_gemm : public jit_generator {
 
             if (!isTransB) {
                 sub(BO1, -SIZE);
-                if (unroll_n >= 4) {
-                    sub(BO2, -SIZE);
-                }
+                if (unroll_n >= 4) { sub(BO2, -SIZE); }
             } else {
                 add(BO1, LDB);
             }
@@ -1216,9 +1243,7 @@ struct xbyak_gemm : public jit_generator {
             L(kernel18);
             vbroadcastss(VALPHA, ALPHA);
 
-            if (isBetaN) {
-                vbroadcastss(VBETA, BETA);
-            }
+            if (isBetaN) { vbroadcastss(VBETA, BETA); }
 
             // Write back the results; all beta cases need to be handled
             if (hasBias) {
@@ -1244,20 +1269,16 @@ struct xbyak_gemm : public jit_generator {
             for (int i = 0; i < unroll_n; i++) {
                 bool useScale = i % 2 != 0;
                 bool useCO1 = i < 2;
-                if (i == 2)
-                    lea(CO2, ptr[CO1 + LDC * 2]);
-                if (i == 4 || i == 6)
-                    lea(CO2, ptr[CO2 + LDC * 2]);
-                if (hasBias)
-                    vaddps(regs[i], VBIAS1, regs[i]);
+                if (i == 2) lea(CO2, ptr[CO1 + LDC * 2]);
+                if (i == 4 || i == 6) lea(CO2, ptr[CO2 + LDC * 2]);
+                if (hasBias) vaddps(regs[i], VBIAS1, regs[i]);
                 if (isUnmasked || unroll_m > 16) {
                     update(regs[i], useCO1, 0, 0, useScale);
                 } else {
                     update(regs[i], useCO1, 0, 1, useScale);
                 }
                 if (unroll_m >= 32) {
-                    if (hasBias)
-                        vaddps(regs[i + 8], VBIAS2, regs[i + 8]);
+                    if (hasBias) vaddps(regs[i + 8], VBIAS2, regs[i + 8]);
                     if (isUnmasked || unroll_m > 32) {
                         update(regs[i + 8], useCO1, 16, 0, useScale);
                     } else {
@@ -1265,8 +1286,7 @@ struct xbyak_gemm : public jit_generator {
                     }
                 }
                 if (unroll_m >= 48) {
-                    if (hasBias)
-                        vaddps(regs[i + 16], VBIAS3, regs[i + 16]);
+                    if (hasBias) vaddps(regs[i + 16], VBIAS3, regs[i + 16]);
                     if (isUnmasked) {
                         update(regs[i + 16], useCO1, 32, 0, useScale);
                     } else {
@@ -1276,56 +1296,56 @@ struct xbyak_gemm : public jit_generator {
             }
 
             switch (unroll_n) {
-            case 1: add(CO1, LDC); break;
-            case 2: lea(CO1, ptr[CO1 + LDC * 2]); break;
-            case 3: lea(CO1, ptr[CO2 + LDC * 1]); break;
-            case 4: lea(CO1, ptr[CO2 + LDC * 2]); break;
-            case 5: lea(CO1, ptr[CO2 + LDC * 1]); break;
-            case 6: lea(CO1, ptr[CO2 + LDC * 2]); break;
-            case 7: lea(CO1, ptr[CO2 + LDC * 1]); break;
-            case 8: lea(CO1, ptr[CO2 + LDC * 2]); break;
+                case 1: add(CO1, LDC); break;
+                case 2: lea(CO1, ptr[CO1 + LDC * 2]); break;
+                case 3: lea(CO1, ptr[CO2 + LDC * 1]); break;
+                case 4: lea(CO1, ptr[CO2 + LDC * 2]); break;
+                case 5: lea(CO1, ptr[CO2 + LDC * 1]); break;
+                case 6: lea(CO1, ptr[CO2 + LDC * 2]); break;
+                case 7: lea(CO1, ptr[CO2 + LDC * 1]); break;
+                case 8: lea(CO1, ptr[CO2 + LDC * 2]); break;
             }
 
             // Compute next address of B
             if (!isTransB) {
                 lea(rax, ptr[K * SIZE]);
                 switch (unroll_n) {
-                case 1:
-                    add(BO1, LDB);
-                    add(BO2, LDB);
-                    break;
-                case 2:
-                    lea(BO1, ptr[BO1 + LDB * 2]);
-                    lea(BO2, ptr[BO2 + LDB * 2]);
-                    break;
-                case 3:
-                    lea(BO1, ptr[BO1 + LDB3]);
-                    lea(BO2, ptr[BO2 + LDB3]);
-                    break;
-                case 4:
-                    lea(BO1, ptr[BO1 + LDB * 4]);
-                    lea(BO2, ptr[BO2 + LDB * 4]);
-                    break;
-                case 5:
-                    lea(BO1, ptr[BO1 + LDB * 4]);
-                    add(BO1, LDB);
-                    lea(BO2, ptr[BO2 + LDB * 4]);
-                    add(BO2, LDB);
-                    break;
-                case 6:
-                    lea(BO1, ptr[BO1 + LDB3 * 2]);
-                    lea(BO2, ptr[BO2 + LDB3 * 2]);
-                    break;
-                case 7:
-                    lea(BO1, ptr[BO1 + LDB * 8]);
-                    sub(BO1, LDB);
-                    lea(BO2, ptr[BO2 + LDB * 8]);
-                    sub(BO2, LDB);
-                    break;
-                case 8:
-                    lea(BO1, ptr[BO1 + LDB * 8]);
-                    lea(BO2, ptr[BO2 + LDB * 8]);
-                    break;
+                    case 1:
+                        add(BO1, LDB);
+                        add(BO2, LDB);
+                        break;
+                    case 2:
+                        lea(BO1, ptr[BO1 + LDB * 2]);
+                        lea(BO2, ptr[BO2 + LDB * 2]);
+                        break;
+                    case 3:
+                        lea(BO1, ptr[BO1 + LDB3]);
+                        lea(BO2, ptr[BO2 + LDB3]);
+                        break;
+                    case 4:
+                        lea(BO1, ptr[BO1 + LDB * 4]);
+                        lea(BO2, ptr[BO2 + LDB * 4]);
+                        break;
+                    case 5:
+                        lea(BO1, ptr[BO1 + LDB * 4]);
+                        add(BO1, LDB);
+                        lea(BO2, ptr[BO2 + LDB * 4]);
+                        add(BO2, LDB);
+                        break;
+                    case 6:
+                        lea(BO1, ptr[BO1 + LDB3 * 2]);
+                        lea(BO2, ptr[BO2 + LDB3 * 2]);
+                        break;
+                    case 7:
+                        lea(BO1, ptr[BO1 + LDB * 8]);
+                        sub(BO1, LDB);
+                        lea(BO2, ptr[BO2 + LDB * 8]);
+                        sub(BO2, LDB);
+                        break;
+                    case 8:
+                        lea(BO1, ptr[BO1 + LDB * 8]);
+                        lea(BO2, ptr[BO2 + LDB * 8]);
+                        break;
                 }
                 sub(BO1, rax);
                 sub(BO2, rax);
@@ -1381,17 +1401,13 @@ struct xbyak_gemm : public jit_generator {
             cmp(rax, 0xffff);
             jne(subloop96, T_NEAR);
 
-            if (isTransA) {
-                do_pack(unroll_m);
-            }
+            if (isTransA) { do_pack(unroll_m); }
 
             mov(CO1, C);
             add(C, unroll_m * SIZE);
 
             mov(BO1, B);
-            if (!isTransB) {
-                lea(BO2, ptr[B + LDB * 4]);
-            }
+            if (!isTransB) { lea(BO2, ptr[B + LDB * 4]); }
 
             if (!isTransA) {
                 lea(AA, ptr[A + (unroll_m + 16 - 1 - OFFSET) * SIZE]);
@@ -1472,8 +1488,7 @@ struct xbyak_gemm : public jit_generator {
                         jne(subloop99, T_NEAR);
                     }
                     kernel(unroll_m, i, true, false);
-                    if (i < 7)
-                        jmp(subloop99, T_NEAR);
+                    if (i < 7) jmp(subloop99, T_NEAR);
                     align(16);
                 }
             }
@@ -1481,16 +1496,12 @@ struct xbyak_gemm : public jit_generator {
             align(16);
 
             L(subloop96);
-            if (isTransA) {
-                do_pack(unroll_m);
-            }
+            if (isTransA) { do_pack(unroll_m); }
 
             mov(CO1, C);
             add(C, unroll_m * SIZE);
             mov(BO1, B);
-            if (!isTransB) {
-                lea(BO2, ptr[B + LDB * 4]);
-            }
+            if (!isTransB) { lea(BO2, ptr[B + LDB * 4]); }
 
             if (!isTransA) {
                 lea(AA, ptr[A + (unroll_m + 16 - 1 - OFFSET) * SIZE]);
@@ -1570,8 +1581,7 @@ struct xbyak_gemm : public jit_generator {
                         jne(subloop99, T_NEAR);
                     }
                     kernel(unroll_m, i, true, false, false);
-                    if (i < 7)
-                        jmp(subloop99, T_NEAR);
+                    if (i < 7) jmp(subloop99, T_NEAR);
                     align(16);
                 }
             }
@@ -1587,9 +1597,7 @@ struct xbyak_gemm : public jit_generator {
             }
 
             // Compute next address of BIAS
-            if (hasBias) {
-                add(BIAS, unroll_m * SIZE);
-            }
+            if (hasBias) { add(BIAS, unroll_m * SIZE); }
         };
 
         preamble();
@@ -1601,8 +1609,7 @@ struct xbyak_gemm : public jit_generator {
         mov(LDB, ARG_LDB);
         mov(r15, ARG_BETA);
         mov(r12, ARG_C);
-        if (hasBias)
-            mov(r10, ARG_BIAS);
+        if (hasBias) mov(r10, ARG_BIAS);
         mov(LDC, ARG_LDC);
         mov(rbp, rsp);
 
@@ -1634,8 +1641,7 @@ struct xbyak_gemm : public jit_generator {
         mov(M, ARG_M);
         mov(N, ARG_N);
         mov(C, r12);
-        if (hasBias)
-            mov(BIAS, r10);
+        if (hasBias) mov(BIAS, r10);
         vmovss(ALPHA, xmm0);
         vmovss(BETA, xmm1);
         sub(A, -OFFSET * SIZE);
@@ -1709,16 +1715,15 @@ struct xbyak_gemm : public jit_generator {
         ker_ = this->getCode<ker_t>();
     }
 
-    typedef void (*ker_t)(dim_t m, dim_t n, dim_t k,
-            const float *alpha, const float *a, dim_t lda,
-            const float *b, dim_t ldb, const float *beta, float *c,
-            dim_t ldc, const float *bias, float *ws);
+    typedef void (*ker_t)(dim_t m, dim_t n, dim_t k, const float *alpha,
+            const float *a, dim_t lda, const float *b, dim_t ldb,
+            const float *beta, float *c, dim_t ldc, const float *bias,
+            float *ws);
 
-    void operator()(dim_t m, dim_t n, dim_t k,
-            const float *alpha, const float *a, dim_t lda,
-            const float *b, dim_t ldb, const float *beta, float *c,
-            dim_t ldc, const float *bias, float *ws) const
-    {
+    void operator()(dim_t m, dim_t n, dim_t k, const float *alpha,
+            const float *a, dim_t lda, const float *b, dim_t ldb,
+            const float *beta, float *c, dim_t ldc, const float *bias,
+            float *ws) const {
         ker_(m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, bias, ws);
     }
 
@@ -1735,26 +1740,27 @@ const xbyak_gemm *get_xbyak_gemm(
     // Kernel table [isTransA][isTransB][hasBias][beta (0, 1, other)]
     static xbyak_gemm *kernel_table[2][2][2][3];
     static std::once_flag initialized;
-    std::call_once(initialized, [=]{
-            for (bool isTransA: {false, true})
-            for (bool isTransB: {false, true})
-            for (bool hasBias: {false, true})
-            for (float beta: {0.0f, 1.0f, 2.0f}) {
-                // nocopy sgemm with bias for beta != 0.0 is not supported
-                if (hasBias && beta != 0.0)
-                    continue;
-                kernel_table[isTransA][isTransB][hasBias][beta_idx(beta)] =
-                    new xbyak_gemm(isTransA, isTransB, beta, hasBias);
-            }
+    std::call_once(initialized, [=] {
+        for (bool isTransA : {false, true})
+            for (bool isTransB : {false, true})
+                for (bool hasBias : {false, true})
+                    for (float beta : {0.0f, 1.0f, 2.0f}) {
+                        // nocopy sgemm with bias for beta != 0.0 is not supported
+                        if (hasBias && beta != 0.0) continue;
+                        kernel_table[isTransA][isTransB][hasBias]
+                                    [beta_idx(beta)]
+                                = new xbyak_gemm(
+                                        isTransA, isTransB, beta, hasBias);
+                    }
     });
 
     return kernel_table[isTransA][isTransB][hasBias][beta_idx(beta)];
 }
 
-void sgemm_nocopy_driver(const char *transa,
-        const char *transb, int m, int n, int k, const float *alpha,
-        const float *a, dim_t lda, const float *b, dim_t ldb, const float *beta,
-        float *c, dim_t ldc, const float *bias, float *ws) {
+void sgemm_nocopy_driver(const char *transa, const char *transb, int m, int n,
+        int k, const float *alpha, const float *a, dim_t lda, const float *b,
+        dim_t ldb, const float *beta, float *c, dim_t ldc, const float *bias,
+        float *ws) {
 
     bool isTransA = (*transa == 'T' || *transa == 't');
     bool isTransB = (*transb == 'T' || *transb == 't');
@@ -1763,8 +1769,7 @@ void sgemm_nocopy_driver(const char *transa,
 
     int i, j;
 
-    if ((m <= 0) || (n <= 0))
-        return;
+    if ((m <= 0) || (n <= 0)) return;
 
     if ((k <= 0) || (alpha[0] == 0.)) {
 
@@ -1797,8 +1802,7 @@ void sgemm_nocopy_driver(const char *transa,
     } else {
         BN = isTransA ? 96 : 64;
         BK = isTransB ? 96 : 192;
-        if (!isTransA && !isTransB)
-            BK = 128;
+        if (!isTransA && !isTransB) BK = 128;
     }
     const float *curA, *curB, *curBias = nullptr;
     float *curC;
@@ -1808,8 +1812,7 @@ void sgemm_nocopy_driver(const char *transa,
         if (sizeK >= BK * 2)
             sizeK = BK;
         else {
-            if (sizeK > BK)
-                sizeK = (sizeK + 1) / 2;
+            if (sizeK > BK) sizeK = (sizeK + 1) / 2;
         }
 
         for (Bm = 0; Bm < m; Bm += sizeM) {
@@ -1817,8 +1820,7 @@ void sgemm_nocopy_driver(const char *transa,
             if (sizeM >= BM * 2)
                 sizeM = BM;
             else {
-                if (sizeM > BM + BM / 2)
-                    sizeM = (sizeM + 1) / 2;
+                if (sizeM > BM + BM / 2) sizeM = (sizeM + 1) / 2;
             }
 
             for (Bn = 0; Bn < n; Bn += sizeN) {
@@ -1826,8 +1828,7 @@ void sgemm_nocopy_driver(const char *transa,
                 if (sizeN >= BN * 2)
                     sizeN = BN;
                 else {
-                    if (sizeN > BN + BN / 2)
-                        sizeN = (sizeN + 1) / 2;
+                    if (sizeN > BN + BN / 2) sizeN = (sizeN + 1) / 2;
                 }
 
                 if (!isTransA) {
@@ -1858,19 +1859,18 @@ void sgemm_nocopy_driver(const char *transa,
                                 alpha, curA, lda, curB, ldb, beta, curC, ldc,
                                 curBias, ws);
                 } else {
-                    (*ker_b1)((dim_t)sizeM, (dim_t)sizeN, (dim_t)sizeK,
-                            alpha, curA, lda, curB, ldb, beta, curC, ldc,
-                            curBias, ws);
+                    (*ker_b1)((dim_t)sizeM, (dim_t)sizeN, (dim_t)sizeK, alpha,
+                            curA, lda, curB, ldb, beta, curC, ldc, curBias, ws);
                 }
             }
         }
     }
+    msan_unpoison_matrix(c, m, n, ldc, sizeof(*c));
 }
 
-}
+} // namespace avx512_common_gemm_f32
 
-mkldnn_status_t jit_avx512_common_gemm_f32(
-        const char *transa, const char *transb,
+mkldnn_status_t jit_avx512_common_gemm_f32(const char *transa, const char *transb,
         const int *p_m, const int *p_n, const int *p_k, const float *p_alpha,
         const float *A, const int *p_lda, const float *B, const int *p_ldb,
         const float *p_beta, float *C, const int *p_ldc, const float *bias) {
@@ -1880,8 +1880,8 @@ mkldnn_status_t jit_avx512_common_gemm_f32(
     using namespace gemm_utils;
 
     if (*p_beta != 0 && bias)
-        return ref_gemm(transa, transb, p_m, p_n, p_k,
-                p_alpha, A, p_lda, B, p_lda, p_beta, C, p_ldc, bias);
+        return ref_gemm(transa, transb, p_m, p_n, p_k, p_alpha, A, p_lda, B,
+                p_lda, p_beta, C, p_ldc, bias);
 
     int nthr = (mkldnn_in_parallel()) ? 1 : mkldnn_get_max_threads();
 
@@ -1902,29 +1902,30 @@ mkldnn_status_t jit_avx512_common_gemm_f32(
     assert(IMPLICATION(!mkldnn_thr_syncable(), nthr_k == 1));
 
     // May not happen, but just in case
-    if (nthr < nthr_m * nthr_n * nthr_k)
-        nthr = nthr_m * nthr_n * nthr_k;
+    if (nthr < nthr_m * nthr_n * nthr_k) nthr = nthr_m * nthr_n * nthr_k;
 
     nthr_mn = nthr_m * nthr_n;
 
-    unsigned char * ompstatus_ = nullptr;
+    unsigned char *ompstatus_ = nullptr;
     unsigned char volatile *ompstatus = nullptr;
 
     float *c_buffers = nullptr;
     float *ws_buffers = nullptr;
 
     if (nthr_k > 1) {
-        ompstatus_ = (unsigned char *) malloc(
-                nthr * CACHE_LINE_SIZE,
-                CACHE_LINE_SIZE);
-        ompstatus = (unsigned char volatile *) ompstatus_;
+        ompstatus_ = (unsigned char *)malloc(
+                nthr * CACHE_LINE_SIZE, CACHE_LINE_SIZE);
+        if (!ompstatus_) return mkldnn_out_of_memory;
+
+        ompstatus = (unsigned char volatile *)ompstatus_;
         assert(ompstatus);
 
         for (int i = 0; i < nthr; i++)
             ompstatus[i * CACHE_LINE_SIZE] = 0;
 
-        c_buffers = (float *)malloc(nthr_m * nthr_n * (nthr_k - 1) * MB * NB
-                * sizeof(float), PAGE_4K);
+        c_buffers = (float *)malloc(
+                nthr_m * nthr_n * (nthr_k - 1) * MB * NB * sizeof(float),
+                PAGE_4K);
     }
 
     const size_t ws_elems_per_thr = (size_t)k * 48 + 64;
@@ -1942,8 +1943,9 @@ mkldnn_status_t jit_avx512_common_gemm_f32(
         int cbase, ibase;
         const float *myA, *myB, *myBias = nullptr;
         float *myC = C, myBeta;
-        float *ws = ws_buffers ?
-                ws_buffers + ithr * ws_size_per_thr / sizeof(float) : 0;
+        float *ws = ws_buffers
+                ? ws_buffers + ithr * ws_size_per_thr / sizeof(float)
+                : 0;
         dim_t ld = ldc;
 
         int sum_later = (mkldnn_get_num_threads() < nthr_m * nthr_n * nthr_k);
@@ -1963,20 +1965,17 @@ mkldnn_status_t jit_avx512_common_gemm_f32(
 
             m_from = MB * (ithr_m);
             m_to = MB * (ithr_m + 1);
-            if (m_to > m)
-                m_to = m;
+            if (m_to > m) m_to = m;
             myM = m_to - m_from;
 
             n_from = NB * (ithr_n);
             n_to = NB * (ithr_n + 1);
-            if (n_to > n)
-                n_to = n;
+            if (n_to > n) n_to = n;
             myN = n_to - n_from;
 
             k_from = KB * (ithr_k);
             k_to = KB * (ithr_k + 1);
-            if (k_to > k)
-                k_to = k;
+            if (k_to > k) k_to = k;
             myK = k_to - k_from;
 
             cbase = (ithr_m + nthr_m * ithr_n) * (nthr_k - 1);
@@ -1998,8 +1997,7 @@ mkldnn_status_t jit_avx512_common_gemm_f32(
                     myC = &(C[m_from + n_from * ldc]);
                     myBeta = beta;
                     ld = ldc;
-                    if (bias)
-                        myBias = &(bias[m_from]);
+                    if (bias) myBias = &(bias[m_from]);
                 } else {
                     myC = c_buffers + (dim_t)MB * NB * (cbase + ithr_k - 1);
                     myBeta = 0.0;
@@ -2024,10 +2022,9 @@ mkldnn_status_t jit_avx512_common_gemm_f32(
                 if (ithr_k > 0) {
 
                     myC = c_buffers + (dim_t)MB * NB * (cbase + ithr_k - 1)
-                        + (dim_t)n1 * MB;
+                            + (dim_t)n1 * MB;
                     /* need to wait until main thread finishes */
-                    while (ompstatus[ibase * CACHE_LINE_SIZE] != 1) {
-                    };
+                    while (ompstatus[ibase * CACHE_LINE_SIZE] != 1) {};
 
                     /* my cache is hot */
                     sum_two_matrices(myM, n2, myC, MB,
@@ -2038,7 +2035,7 @@ mkldnn_status_t jit_avx512_common_gemm_f32(
                     if (ik != ithr_k) {
 
                         myC = c_buffers + (dim_t)MB * NB * (cbase + ik - 1)
-                            + (dim_t)n1 * MB;
+                                + (dim_t)n1 * MB;
 
                         while (ompstatus[(ibase + ik) * CACHE_LINE_SIZE] != 1) {
                         };
@@ -2050,7 +2047,6 @@ mkldnn_status_t jit_avx512_common_gemm_f32(
             }
         }
     });
-
 
     // handle C summation later
     if (nthr_k > 1 && ompstatus[0] == 0) {
@@ -2077,14 +2073,12 @@ mkldnn_status_t jit_avx512_common_gemm_f32(
 
                 m_from = MB * (ithr_m);
                 m_to = MB * (ithr_m + 1);
-                if (m_to > m)
-                    m_to = m;
+                if (m_to > m) m_to = m;
                 myM = m_to - m_from;
 
                 n_from = NB * (ithr_n);
                 n_to = NB * (ithr_n + 1);
-                if (n_to > n)
-                    n_to = n;
+                if (n_to > n) n_to = n;
                 myN = n_to - n_from;
 
                 cbase = (ithr_m + nthr_m * ithr_n) * (nthr_k - 1);
@@ -2098,18 +2092,18 @@ mkldnn_status_t jit_avx512_common_gemm_f32(
                     if (ithr_k > 0) {
 
                         myC = c_buffers + (dim_t)MB * NB * (cbase + ithr_k - 1)
-                            + (dim_t)n1 * MB;
+                                + (dim_t)n1 * MB;
 
                         /* my cache is hot */
                         sum_two_matrices(myM, n2, myC, MB,
-                                         &C[m_from + (n_from + n1) * ldc], ldc);
+                                &C[m_from + (n_from + n1) * ldc], ldc);
                     }
 
                     for (int ik = 1; ik < nthr_k; ++ik) {
                         if (ik != ithr_k) {
 
                             myC = c_buffers + (dim_t)MB * NB * (cbase + ik - 1)
-                                + (dim_t)n1 * MB;
+                                    + (dim_t)n1 * MB;
 
                             sum_two_matrices(myM, n2, myC, MB,
                                     &C[m_from + (n_from + n1) * ldc], ldc);
@@ -2127,8 +2121,8 @@ mkldnn_status_t jit_avx512_common_gemm_f32(
     return mkldnn_success;
 }
 
-}
-}
-}
+} // namespace cpu
+} // namespace impl
+} // namespace mkldnn
 
-// vim: et ts=4 sw=4 cindent cino^=l0,\:0,N-s
+// vim: et ts=4 sw=4 cindent cino+=l0,\:4,N-s

@@ -35,6 +35,7 @@ class ExperimentalSparseWeightedSum(Op):
             'infer': self.infer,
             'in_ports_count': 6,
             'out_ports_count': 1,
+            'version': 'experimental',
         }, attrs)
 
     def supported_attrs(self):

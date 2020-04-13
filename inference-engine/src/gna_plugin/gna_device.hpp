@@ -12,7 +12,6 @@
 
 #include <ie_common.h>
 
-#include <gna-api.h>
 #if GNA_LIB_VER == 2
 #include "gna2-common-api.h"
 #include "gna2-inference-api.h"
@@ -22,6 +21,7 @@
 #include "gna2-model-api.h"
 #include "gna2-model-suecreek-header.h"
 #else
+#include <gna-api.h>
 #include "gna-api-dumper.h"
 #include "gna-api-instrumentation.h"
 #endif
@@ -38,7 +38,7 @@ class GNADeviceHelper {
     intel_gna_perf_t nGNAPerfResults;
     intel_gna_perf_t nGNAPerfResultsTotal;
 #else
-    gna_device_id nGnaDeviceIndex = 0;
+    uint32_t nGnaDeviceIndex = 0;
     Gna2AccelerationMode gna2AccelerationMode = Gna2AccelerationModeAuto;
     Gna2DeviceVersion gna2HwConsistency = Gna2DeviceVersionSoftwareEmulation;
     Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;

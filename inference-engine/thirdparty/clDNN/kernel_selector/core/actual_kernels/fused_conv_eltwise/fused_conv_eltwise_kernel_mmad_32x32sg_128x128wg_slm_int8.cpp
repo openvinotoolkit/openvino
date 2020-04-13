@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_mmad_32x3
     int) const {
     DispatchData runInfo = fused_conv_eltwise_kernel_base::SetDefault(arg);
 
-    runInfo.effiency = FORCE_PRIORITY_1;
+    runInfo.efficiency = FORCE_PRIORITY_1;
 
     size_t mat_m = arg.output.X().v * arg.output.Y().v * arg.output.Batch().v;
     size_t mat_n = arg.output.Feature().v;
