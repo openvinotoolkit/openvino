@@ -80,7 +80,10 @@ void prepare_buffer_fusing::run(program_impl& p) {
                 if (output_format != l.format || output_datatype != l.data_type)
                     return;
 
-                if (l.format == format::bfyx_f16 && (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
+                if (l.format == format::b_fs_yx_fsv16 && (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
+                    return;
+
+                if (l.format == format::b_fs_zyx_fsv16 && (l.size.feature[0] % 16 != 0 || node.get_primitive()->axis != concatenation::along_f))
                     return;
 
                 if ((l.format == format::b_fs_yx_fsv32 || l.format == format::b_fs_zyx_fsv32) &&
@@ -91,7 +94,7 @@ void prepare_buffer_fusing::run(program_impl& p) {
                 if (l.format == format::byxf_af32 && (l.size.feature[0] % 32 != 0 || node.get_primitive()->axis != concatenation::along_f))
                     return;
 
-                if (l.format == format::bfzyx_f16 || l.format == format::b_fs_yx_fsv4)
+                if (l.format == format::b_fs_yx_fsv4 || l.format == format::bs_fs_yx_bsv16_fsv16)
                     return;
             }
 
@@ -129,7 +132,8 @@ void prepare_buffer_fusing::run(program_impl& p) {
                     // reverted condition - if any of this node's inputs is used by more than one primitive
                     // and is not optimized concatenation then do not fuse buffers
                     // todo: we need add padding support for all optimized kernels to remove this condition
-                    if (!input->is_type<pooling>() && !input->is_type<convolution>() && !input->is_type<activation>() &&
+                    if (!input->is_type<pooling>() && !input->is_type<convolution>() &&
+                        !input->is_type<activation>() && !input->is_type<deconvolution>() &&
                         !input->is_type<concatenation>() && !input->is_type<crop>() && !input->is_type<scale>())
                         return;
 
@@ -242,7 +246,7 @@ void prepare_buffer_fusing::run(program_impl& p) {
                 // do not optimize crop if paddings are not properly aligned
                 for (auto& usr : node.get_users()) {
                     auto usr_layout = usr->get_output_layout();
-                    if (usr_layout.format == format::bfyx_f16 &&
+                    if (usr_layout.format == format::b_fs_yx_fsv16 &&
                         (opt_lower_pad % 16 != 0 || opt_upper_pad % 16 != 0))
                         return;
                 }

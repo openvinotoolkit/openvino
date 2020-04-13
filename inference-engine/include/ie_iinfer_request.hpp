@@ -50,7 +50,7 @@ public:
     /**
      * @brief Sets input/output data to infer
      *
-     * @note: Memory allocation does not happen
+     * @note Memory allocation does not happen
      * @param name Name of input or output blob.
      * @param data Reference to input or output blob. The type of a blob must match the network input precision and
      * size.
@@ -62,7 +62,7 @@ public:
     /**
      * @brief Gets input/output data for inference
      *
-     * @note: Memory allocation does not happen
+     * @note Memory allocation does not happen
      * @param name Name of input or output blob.
      * @param data Reference to input or output blob. The type of Blob must match the network input precision and size.
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
@@ -73,6 +73,7 @@ public:
     /**
      * @brief Sets pre-process for input data
      * @param name Name of input blob.
+     * @param data Reference to input or output blob. The type of Blob must match the network input precision and size.
      * @param info Preprocess info for blob.
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: OK (0) for success
@@ -99,7 +100,7 @@ public:
     /**
      * @brief Queries performance measures per layer to get feedback of what is the most time consuming layer
      *
-     * @note: not all plugins provide meaningful data
+     * @note not all plugins provide meaningful data
      * @param perfMap Map of layer names to profiling information for that layer
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: InferenceEngine::OK (0) for success
@@ -125,7 +126,7 @@ public:
     /**
      * @brief Starts inference of specified input(s) in asynchronous mode
      *
-     * @note: It returns immediately. Inference starts also immediately
+     * @note It returns immediately. Inference starts also immediately
      * @param resp Optional: a pointer to an already allocated object to contain extra information of a failure (if
      * occurred)
      * @return Enumeration of the resulted action: InferenceEngine::OK (0) for success

@@ -2,8 +2,11 @@
 --reset --cfg=f32
 --mb=2
 --dir=FWD_D --batch=conv_mobilenet_dw
+--dir=FWD_D --batch=conv_regression_dw
 --dir=BWD_D --batch=conv_mobilenet_dw
+--dir=BWD_D --batch=conv_regression_dw
 --dir=BWD_WB --batch=conv_mobilenet_dw
+--dir=BWD_WB --batch=conv_regression_dw
 --attr=post_ops='relu'
 --dir=FWD_D --batch=conv_mobilenet_dw # +relu
 
@@ -22,6 +25,7 @@
 --allow-unimpl=true
 --dir=FWD_D
 --cfg=u8s8u8s32 --batch=conv_mobilenet_dw
+--cfg=u8s8u8s32 --batch=conv_regression_dw
 
 #i8 attrs
 --reset

@@ -157,7 +157,7 @@ KERNEL(pooling_gpu_byxf_af32)(
     OUTPUT_TYPE4 final_result;
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    final_result = FINAL_NAME;
+    final_result = FUSED_OPS_RESULT;
 #else
     final_result = TO_OUTPUT_TYPE4(pool_result);
 #endif

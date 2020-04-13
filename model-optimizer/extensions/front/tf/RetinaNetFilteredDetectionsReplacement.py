@@ -16,6 +16,7 @@
 
 import numpy as np
 
+from extensions.ops.Cast import Cast
 from extensions.ops.DetectionOutput import DetectionOutput
 from extensions.ops.elementwise import Mul, Sub, Pow
 from extensions.ops.gather import Gather
@@ -141,11 +142,15 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
         spatial.in_port(2).connect(end.out_port(0))
         spatial.in_port(3).connect(stride.out_port(0))
 
-        power = Const(graph, {'value': int64_array([-1])}).create_node()
+        power = Const(graph, {'value': np.array([-1.])}).create_node()
         spatial_scale = Pow(graph, {}).create_node()
 
         spatial_scale.in_port(0).connect(spatial.out_port(0))
         spatial_scale.in_port(1).connect(power.out_port(0))
+
+        # Power `type_infer` requires inputs to have equal data type
+        convert_to_fp32 = Cast(graph, {'dst_type': np.float32}).create_node()
+        spatial_scale.in_port(0).get_connection().insert_node(convert_to_fp32)
 
         order = Const(graph, {'value': int64_array([1, 0])}).create_node()
         axis_const = Const(graph, {'value': int64_array(0)}).create_node()
@@ -172,12 +177,12 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
         priors_name = initial_priors_node.soft_get('name', initial_priors_node.id)
         # model calculates identical prior boxes for each batch, so we take first slice of them
         begin = Const(graph, {'value': np.array([0, 0, 0], dtype=np.int32)}).create_node()
-        end = Const(graph, {'value': np.array([1], dtype=np.int32)}).create_node()
+        end = Const(graph, {'value': np.array([1, 0, 0], dtype=np.int32)}).create_node()
         stride = Const(graph, {'value': np.array([1, 1, 1], dtype=np.int32)}).create_node()
 
         priors_node = StridedSlice(graph, {'name': priors_name + '/0_batch_slice',
                                            'begin_mask': np.array([1, 1, 1], dtype=np.int32),
-                                           'end_mask': np.array([1, 1, 1], dtype=np.int32),
+                                           'end_mask': np.array([1, 0, 0], dtype=np.int32),
                                            'new_axis_mask': np.array([0], dtype=np.int32),
                                            'shrink_axis_mask': np.array([0], dtype=np.int32),
                                            'ellipsis_mask': np.array([0], dtype=np.int32)}).create_node()

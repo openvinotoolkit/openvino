@@ -72,7 +72,7 @@ void _jit_uni_x8s8s32x_convolution_fwd_t<isa, src_type, dst_type>::execute_forwa
         oscales = local_scales;
     }
 
-    const uint8_t* input_zp = pd()->attr()->input_zero_points_.zero_points_;
+    const uint8_t* input_zp = pd()->attr()->input_zero_points_.shifts_;
     if (jcp.signed_input || jcp.with_input_zp) {
         if (jcp.oc != jcp.oc_padded) {
             auto padded_compensation = this->scratchpad().template get<int32_t>(key_conv_padded_compensation);
@@ -253,7 +253,7 @@ void _jit_uni_x8s8s32x_convolution_fwd_t<isa, src_type, dst_type>::execute_forwa
         oscales = local_scales;
     }
 
-    const uint8_t* input_zp = pd()->attr()->input_zero_points_.zero_points_;
+    const uint8_t* input_zp = pd()->attr()->input_zero_points_.shifts_;
     if (jcp.signed_input || jcp.with_input_zp) {
         if (jcp.oc != jcp.oc_padded) {
             auto padded_compensation = this->scratchpad().template get<int32_t>(key_conv_padded_compensation);

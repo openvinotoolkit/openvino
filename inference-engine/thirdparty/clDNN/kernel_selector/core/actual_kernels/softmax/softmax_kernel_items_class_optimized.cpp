@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,9 +64,9 @@ SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOpti
     runInfo.leftovers = item_class_count % workitems_per_classes;
 
     if (item_class_count >= 32) {
-        runInfo.effiency = FORCE_PRIORITY_7;
+        runInfo.efficiency = FORCE_PRIORITY_7;
     } else {
-        runInfo.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+        runInfo.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     }
 
     return runInfo;

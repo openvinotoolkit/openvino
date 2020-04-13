@@ -32,7 +32,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const fused_conv_eltwise_params&) const override;
+    WeightsLayout GetPreferreddWeightsLayout(const fused_conv_eltwise_params &) const override;
     std::string GetKernelName(const fused_conv_eltwise_params& params) const override;
     bool NeedPaddedInput() const override { return true; }
     JitConstants GetJitConstants(const fused_conv_eltwise_params& params, const DispatchData& kd) const override;

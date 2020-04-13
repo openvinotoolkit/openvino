@@ -94,6 +94,6 @@
 --reset --alg=LBR_GRU
 --direction=left2right
 --activation=TANH
---prop=FWD_D --batch=rnn_small
---prop=BWD_DW --batch=rnn_small
+--prop=FWD_D --batch=rnn_gru_small
+--prop=BWD_DW --batch=rnn_gru_small
 

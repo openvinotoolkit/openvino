@@ -116,14 +116,15 @@ TEST(gpu_streams, check_networks_can_use_the_same_weights) {
             data("weights", weights),
             convolution("conv", "input", { "weights" }, { 1,1,1,2 }));
 
-    network network0(_engine, topology, build_options());
-    network network1(_engine, topology, build_options());
+    set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
+    program prog(_engine, topology, build_options());
+    network network0(prog, 0);
+    network network1(prog, 1);
 
     auto input0 = memory::allocate(_engine, input0_layout, network0.get_id());
     auto input1 = memory::allocate(_engine, input0_layout, network1.get_id());
     set_values(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
     set_values(input1, { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 2.0f, 2.0f, 3.0f, 4.0f, 6.0f, 3.0f, 3.0f, 3.0f, 5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
-    set_values(weights, { 1.0f, 2.0f, 1.0f, 2.0f, 1.0f, 2.0f });
 
     network0.set_input_data("input", input0);
     network1.set_input_data("input", input1);

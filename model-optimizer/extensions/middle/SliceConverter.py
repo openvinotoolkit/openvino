@@ -17,7 +17,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph, Node, rename_node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.crop import Crop
@@ -103,15 +103,18 @@ class ConvertSlice(MiddleReplacementPattern):
 
             ss_steps[axis] = steps[i]
 
-        begin_node = Const(graph, {'value': ss_begin}).create_node()
-        end_node = Const(graph, {'value': ss_end}).create_node()
-        strides_node = Const(graph, {'value': ss_steps}).create_node()
+        slice_node_name = node.soft_get('name', node.id)
+
+        begin_node = Const(graph, {'value': ss_begin, 'name': slice_node_name + '/begin'}).create_node()
+        end_node = Const(graph, {'value': ss_end, 'name': slice_node_name + '/end'}).create_node()
+        strides_node = Const(graph, {'value': ss_steps, 'name': slice_node_name + '/stride'}).create_node()
 
         ss = StridedSlice(graph, dict(new_axis_mask=np.zeros(len(output_shape), dtype=np.int32),
                                       shrink_axis_mask=np.zeros(len(output_shape), dtype=np.int32),
                                       ellipsis_mask=np.zeros(len(output_shape), dtype=np.int32),
                                       begin_mask=ss_begin_mask,
                                       end_mask=ss_end_mask)).create_node()
+        rename_nodes([(node, slice_node_name + '_delete'), (ss, slice_node_name)])
         node.in_port(0).get_connection().set_destination(ss.in_port(0))
         begin_node.out_port(0).connect(ss.in_port(1))
         end_node.out_port(0).connect(ss.in_port(2))
@@ -156,6 +159,8 @@ class ConvertSlice(MiddleReplacementPattern):
                     ss_end[axis[i]] = end[i]
         axes = np.array(axes, dtype=bool)
 
+        slice_node_name = node.soft_get('name', node.id)
+
         if dims == 1 or dims == 0:
             # If Slice use only one axis or no axis, than
             # convert Slice to StridedSlice
@@ -163,26 +168,26 @@ class ConvertSlice(MiddleReplacementPattern):
                                           shrink_axis_mask=np.zeros(len(output_data.shape), dtype=np.int32),
                                           ellipsis_mask=np.zeros(len(output_data.shape), dtype=np.int32),
                                           begin_mask=axes_begin,
-                                          end_mask=axes_end))
+                                          end_mask=axes_end)).create_node()
 
             convert_negative_indices(ss_begin, input.shape)
             convert_negative_indices(ss_end, input.shape)
 
-            begin_node = Const(graph, {'value': ss_begin}).create_node_with_data()
-            end_node = Const(graph, {'value': ss_end}).create_node_with_data()
+            begin_node = Const(graph, {'value': ss_begin, 'name': slice_node_name + '/begin'}).create_node()
+            end_node = Const(graph, {'value': ss_end, 'name': slice_node_name + '/end'}).create_node()
 
-            ss.create_node_with_data(inputs=[input, begin_node, end_node], data_nodes=[output_data])
-            # Remove unnecessary edges from and to to Slice vertex
-            graph.remove_edge(input.id, node.id)
-            graph.remove_edge(node.id, output_data.id)
+            rename_nodes([(node, slice_node_name + '_delete'), (ss, slice_node_name)])
+
+            node.in_port(0).get_connection().set_destination(ss.in_port(0))
+            begin_node.out_port(0).connect(ss.in_port(1))
+            end_node.out_port(0).connect(ss.in_port(2))
+            node.out_port(0).get_connection().set_source(ss.out_port(0))
         else:
             # If Slice use more than one axis use Crop layer
             crop = Crop(graph, dict(axis=axis[axes],
                                     offset=begin[axes],
-                                    dim=end[axes] - begin[axes]))
-            # creating node with data
-            crop.create_node_with_data(inputs=[input], data_nodes=[output_data])
+                                    dim=end[axes] - begin[axes])).create_node()
+            rename_nodes([(node, slice_node_name + '_delete'), (crop, slice_node_name)])
 
-            # Remove unnecessary edges from and to to Slice vertex
-            graph.remove_edge(input.id, node.id)
-            graph.remove_edge(node.id, output_data.id)
+            node.in_port(0).get_connection().set_destination(crop.in_port(0))
+            node.out_port(0).get_connection().set_source(crop.out_port(0))

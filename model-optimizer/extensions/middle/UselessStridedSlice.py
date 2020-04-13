@@ -46,6 +46,16 @@ class UselessStridedSliceEraser(MiddleReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         node_ss = match['strided_slice']
+        # slices = [elem for elem in node_ss.slices if elem is not None]
+        # node_ss.slices = np.array(slices)
+
+        if node_ss.out_port(0).data.get_value() is not None:
+            # StridedSlices(SS) in shape-calculating sub-graphs that should not be deleted that easily
+            # Example:
+            # In RetinaNetFilteredDetectionsReplacement we have SS that slices first batch
+            # We delete such SS for batch 1, but it should be performed while reshaping the model
+            return
+
         output_data_node = node_ss.out_node(0)
         input_data_node = node_ss.in_node(0)
 

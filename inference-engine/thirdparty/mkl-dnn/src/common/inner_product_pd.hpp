@@ -175,12 +175,10 @@ struct inner_product_bwd_data_pd_t: public primitive_desc_t {
     inline int KD() const
     { return ndims() == 5 ? desc_.weights_desc.dims[2] : 1; }
     inline int KH() const {
-        assert(ndims() == 4 || ndims() == 5);
-        return desc_.weights_desc.dims[ndims()-2];
+        return ndims() < 4 ? 1 : desc_.weights_desc.dims[ndims()-2];
     }
     inline int KW() const {
-        assert(ndims() == 4 || ndims() == 5);
-        return desc_.weights_desc.dims[ndims()-1];
+        return ndims() < 3 ? 1 : desc_.weights_desc.dims[ndims()-1];
     }
 
     inline int ndims() const { return desc_.diff_src_desc.ndims; }
@@ -267,12 +265,10 @@ struct inner_product_bwd_weights_pd_t: public primitive_desc_t {
     inline int KD() const
     { return ndims() == 5 ? desc_.src_desc.dims[2] : 1; }
     inline int KH() const {
-        assert(ndims() == 4 || ndims() == 5);
-        return desc_.src_desc.dims[ndims()-2];
+        return ndims() < 4 ? 1 : desc_.src_desc.dims[ndims()-2];
     }
     inline int KW() const {
-        assert(ndims() == 4 || ndims() == 5);
-        return desc_.src_desc.dims[ndims()-1];
+        return ndims() < 3 ? 1 : desc_.src_desc.dims[ndims()-1];
     }
 
     inline int ndims() const { return desc_.src_desc.ndims; }

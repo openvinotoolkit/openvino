@@ -36,7 +36,7 @@ void StubStage::getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) 
         auto weights = inputEdge(1)->input();
         auto biases = inputEdge(2)->input();
 
-        IE_ASSERT(weights->usage() == DataUsage::Const);
+        IE_ASSERT(weights->usage() == DataUsage::Const || weights->usage() == DataUsage::Intermediate);
         IE_ASSERT(biases->usage() == DataUsage::Const || biases->usage() == DataUsage::Fake);
 
         batchInfo.setInput(inputEdge(0), BatchSupport::Split);

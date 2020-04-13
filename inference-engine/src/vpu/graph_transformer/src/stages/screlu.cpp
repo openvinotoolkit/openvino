@@ -79,10 +79,10 @@ private:
         auto inputBiases = inputEdge(2)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeNewBuffer(serializer, output->desc().dimsOrder());
-        output->serializeNewBuffer(serializer);
-        inputScales->serializeNewBuffer(serializer, output->desc().dimsOrder());
-        inputBiases->serializeNewBuffer(serializer, output->desc().dimsOrder());
+        input->serializeBuffer(serializer, output->desc().dimsOrder());
+        output->serializeBuffer(serializer);
+        inputScales->serializeBuffer(serializer, output->desc().dimsOrder());
+        inputBiases->serializeBuffer(serializer, output->desc().dimsOrder());
     }
 };
 

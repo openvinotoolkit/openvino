@@ -177,7 +177,7 @@ using shuffle_test_u8 = shuffle_test<uint8_t>;
 
 #define INST_TEST_CASE(test) \
 TEST_P(test, TestsShuffle) {} \
-INSTANTIATE_TEST_CASE_P(TestShuffle_nChw16c, \
+INSTANTIATE_TEST_SUITE_P(TestShuffle_nChw16c, \
         test, \
         ::testing::Values( \
             shuffle_test_params{ prop_kind::forward_training, \
@@ -190,7 +190,7 @@ INSTANTIATE_TEST_CASE_P(TestShuffle_nChw16c, \
             engine::kind::cpu, memory::format::nChw16c, {2, 16, 4, 4}, 1, 2 } \
             )); \
  \
-INSTANTIATE_TEST_CASE_P(TestShuffle_nChw16c_Tail, \
+INSTANTIATE_TEST_SUITE_P(TestShuffle_nChw16c_Tail, \
         test, \
         ::testing::Values( \
             shuffle_test_params{ prop_kind::forward_training, \
@@ -203,7 +203,7 @@ INSTANTIATE_TEST_CASE_P(TestShuffle_nChw16c_Tail, \
             engine::kind::cpu, memory::format::nChw16c, {2, 12, 10, 10}, 1, 2 } \
             )); \
  \
-INSTANTIATE_TEST_CASE_P(TestShuffle_NCHW, test, \
+INSTANTIATE_TEST_SUITE_P(TestShuffle_NCHW, test, \
         ::testing::Values( \
             shuffle_test_params{ prop_kind::forward_training, \
             engine::kind::cpu, memory::format::nchw, {2, 10, 4, 4}, 2, 2 } \
@@ -211,7 +211,7 @@ INSTANTIATE_TEST_CASE_P(TestShuffle_NCHW, test, \
             engine::kind::cpu, memory::format::nchw, {2, 10, 4, 4}, 1, 5 } \
             )); \
  \
-INSTANTIATE_TEST_CASE_P(TestShuffle_NCDHW, test, \
+INSTANTIATE_TEST_SUITE_P(TestShuffle_NCDHW, test, \
         ::testing::Values( \
             shuffle_test_params{ prop_kind::forward_training, \
             engine::kind::cpu, memory::format::ncdhw, {2, 10, 2, 4, 4}, 2, 2 } \
@@ -231,7 +231,7 @@ INSTANTIATE_TEST_CASE_P(TestShuffle_NCDHW, test, \
             engine::kind::cpu, memory::format::ncdhw, {2, 12, 1, 7, 7}, 1, 4 } \
             )); \
  \
-INSTANTIATE_TEST_CASE_P(TestShuffleNHWC, test, \
+INSTANTIATE_TEST_SUITE_P(TestShuffleNHWC, test, \
         ::testing::Values( \
             shuffle_test_params{ prop_kind::forward_training, \
             engine::kind::cpu, memory::format::nhwc, {2, 10, 4, 4}, 3, 2 } \
@@ -243,7 +243,7 @@ INSTANTIATE_TEST_CASE_P(TestShuffleNHWC, test, \
             engine::kind::cpu, memory::format::nhwc, {2, 10, 4, 4}, 1, 2 } \
             )); \
  \
-INSTANTIATE_TEST_CASE_P(TestShuffle_nChw8c, test, \
+INSTANTIATE_TEST_SUITE_P(TestShuffle_nChw8c, test, \
         ::testing::Values( \
             shuffle_test_params{ prop_kind::forward_training, \
             engine::kind::cpu, memory::format::nChw8c, {2, 16, 4, 4}, 2, 4 } \
@@ -259,7 +259,7 @@ INSTANTIATE_TEST_CASE_P(TestShuffle_nChw8c, test, \
             engine::kind::cpu, memory::format::nChw8c, {1, 8, 1, 1}, 1, 2 } \
             )); \
  \
-INSTANTIATE_TEST_CASE_P(TestShuffle_nCdhw16c, test, \
+INSTANTIATE_TEST_SUITE_P(TestShuffle_nCdhw16c, test, \
         ::testing::Values( \
             shuffle_test_params{ prop_kind::forward_training, \
             engine::kind::cpu, memory::format::nCdhw16c, \
@@ -299,7 +299,7 @@ INSTANTIATE_TEST_CASE_P(TestShuffle_nCdhw16c, test, \
             {1, 32, 1, 15, 15}, 3, 5 } \
             )); \
  \
-INSTANTIATE_TEST_CASE_P(TestShuffle_OIHW, \
+INSTANTIATE_TEST_SUITE_P(TestShuffle_OIHW, \
         test, \
         ::testing::Values( \
             shuffle_test_params{ prop_kind::forward_training, \
@@ -312,7 +312,7 @@ INSTANTIATE_TEST_CASE_P(TestShuffle_OIHW, \
             engine::kind::cpu, memory::format::oihw, {2, 16, 4, 4}, 1, 2 } \
             )); \
  \
-INSTANTIATE_TEST_CASE_P(TestShuffle_NC, test, \
+INSTANTIATE_TEST_SUITE_P(TestShuffle_NC, test, \
         ::testing::Values( \
             shuffle_test_params{ prop_kind::forward_training, \
             engine::kind::cpu, memory::format::nc, {10, 8}, 1, 2 } \
@@ -324,7 +324,7 @@ INSTANTIATE_TEST_CASE_P(TestShuffle_NC, test, \
             engine::kind::cpu, memory::format::nc, {10, 32}, 0, 5 } \
             )); \
  \
-INSTANTIATE_TEST_CASE_P(TestShuffle_NCW, test, \
+INSTANTIATE_TEST_SUITE_P(TestShuffle_NCW, test, \
         ::testing::Values( \
             shuffle_test_params{ prop_kind::forward_training, \
             engine::kind::cpu, memory::format::ncw, {10, 8, 5}, 1, 2 } \
@@ -336,7 +336,7 @@ INSTANTIATE_TEST_CASE_P(TestShuffle_NCW, test, \
             engine::kind::cpu, memory::format::ncw, {10, 32, 5}, 0, 5 } \
             )); \
  \
-INSTANTIATE_TEST_CASE_P(TestShuffle_X, test, \
+INSTANTIATE_TEST_SUITE_P(TestShuffle_X, test, \
         ::testing::Values( \
             shuffle_test_params{ prop_kind::forward_training, \
             engine::kind::cpu, memory::format::x, {10}, 0, 2 } \
@@ -348,7 +348,7 @@ INSTANTIATE_TEST_CASE_P(TestShuffle_X, test, \
             engine::kind::cpu, memory::format::x, {10}, 0, 5 } \
             )); \
  \
-INSTANTIATE_TEST_CASE_P(TestShuffleEF_NCHW, \
+INSTANTIATE_TEST_SUITE_P(TestShuffleEF_NCHW, \
         test, \
         ::testing::Values( \
             shuffle_test_params{ prop_kind::forward_training, \

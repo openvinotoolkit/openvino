@@ -15,8 +15,8 @@
 *******************************************************************************/
 
 #include "c_types_map.hpp"
-#include "mkldnn_thread.hpp"
 #include "type_helpers.hpp"
+#include "mkldnn_thread.hpp"
 #include "utils.hpp"
 
 #include "jit_generator.hpp"
@@ -31,29 +31,6 @@ using namespace mkldnn::impl::status;
 using namespace mkldnn::impl::memory_format;
 using namespace mkldnn::impl::memory_tracking::names;
 using namespace mkldnn::impl::utils;
-
-namespace {
-template <typename T, typename U>
-void balance2D(U nthr, U ithr, T ny, T &ny_start, T &ny_end,
-    T nx, T &nx_start, T &nx_end, T nx_divider)
-{
-    const T grp_size = utils::div_up(nthr, nx_divider);
-    const T grp_count = utils::div_up(nthr, grp_size);
-
-    T grp = ithr / grp_size;
-    T grp_ithr = ithr % grp_size;
-    T grp_nthr = grp_size;
-    T first_grps = nthr % grp_count;
-    if (first_grps > 0 && grp >= first_grps) {
-        ithr -= first_grps * grp_size;
-        grp_nthr--;
-        grp = ithr / grp_nthr + first_grps;
-        grp_ithr = ithr % grp_nthr;
-    }
-    balance211(nx, grp_count, grp, nx_start, nx_end);
-    balance211(ny, grp_nthr, grp_ithr, ny_start, ny_end);
-}
-}
 
 /* convolution forward */
 template <data_type_t src_type, data_type_t dst_type>

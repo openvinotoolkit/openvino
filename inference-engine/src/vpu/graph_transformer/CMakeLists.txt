@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(ENABLE_LTO)
+    ie_enable_lto()
+endif()
+
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h *.inc)
 
 function(add_graph_transformer_target TARGET_NAME STATIC_IE)
@@ -23,6 +27,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
             PUBLIC
                 USE_STATIC_IE)
     endif()
+    target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
     target_include_directories(${TARGET_NAME}
         PUBLIC
@@ -30,7 +35,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
 
     target_include_directories(${TARGET_NAME}
         SYSTEM PUBLIC
-            "${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src"
+            $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include")
 
@@ -40,7 +45,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
         target_link_libraries(${TARGET_NAME} PUBLIC pugixml vpu_common_lib)
     endif()
 
-    target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES})
+    target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} inference_engine_lp_transformations)
 
     if(WIN32)
         target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
@@ -49,8 +54,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
     endif()
 
     if(NOT STATIC_IE)
-        add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-        add_cppcheck(${TARGET_NAME})
+        add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} CUSTOM_FILTERS "+runtime/explicit")
 
         ie_developer_export_targets(${TARGET_NAME})
     endif()

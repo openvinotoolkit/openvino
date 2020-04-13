@@ -67,33 +67,35 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
     if type_helper is None:
         raise Error("Data type is unsupported: {}. " +
                     refer_to_faq_msg(50), tf_dtype)
-    if len(shape) == 0:
-        value = type_helper[1](pb_tensor)
-        value = np.array(value).copy()
-        assert len(value) == 1
-        log.debug("value = {}, shape = {}, res = {}, res.shape = {}".format(str(type_helper[1](pb_tensor)), shape,
-                                                                            np.array(type_helper[1](pb_tensor),
-                                                                                     dtype=type_helper[0]),
-                                                                            np.array(type_helper[1](pb_tensor),
-                                                                                     dtype=type_helper[0]).shape))
-        return np.array(value[0], dtype=type_helper[0])
-        # return np.array(type_helper[1](pb_tensor), dtype=type_helper[0])
+
+    if pb_tensor.tensor_content:
+        value = np.array(np.frombuffer(pb_tensor.tensor_content, type_helper[0]))
     else:
-        if pb_tensor.tensor_content:
-            flat = np.array(np.frombuffer(pb_tensor.tensor_content, type_helper[0]))
-            if len(flat) == shape.prod():
-                return flat.reshape(shape)
-            else:
-                log.warning("Shape and content size of tensor don't match, shape: {} content size: {}".
-                            format(shape, len(flat)))
-                # broadcast semantics: no reshape
-                return flat
+        # load typed value
+        value = np.array(type_helper[1](pb_tensor), dtype=type_helper[0])
+
+    if len(shape) == 0 or shape.prod() == 0:
+        if len(value) == 1:
+            # return scalar if shape is [] otherwise broadcast according to shape
+            return np.array(value[0], dtype=type_helper[0])
         else:
-            # probably a broadcast semantics
-            # load constant instead of tensor
-            value = np.array(type_helper[1](pb_tensor), dtype=type_helper[0])
-            log.warning("Broadcast of scalar to shape: {}".format(shape))
-            return np.broadcast_to(value, shape=shape).copy()
+            # no shape, return value as is
+            return value
+
+    if len(value) != shape.prod():
+        log.warning("Shape and content size of tensor don't match, shape: {} content size: {}".
+                    format(shape, len(value)))
+        # broadcast semantics according to TensorFlow v1.5 documentation:
+        # The argument value can be a constant value, or a list of values of type dtype. If value is a list,
+        # then the length of the list must be less than or equal to the number of elements implied by the shape
+        # argument (if specified). In the case where the list length is less than the number of elements specified
+        # by shape, the last element in the list will be used to fill the remaining entries.
+        value_flatten = value.flatten()
+        add_value = value_flatten[-1]
+        add_length = shape.prod() - len(value_flatten)
+        value = np.concatenate([value_flatten, np.full([add_length], add_value)])
+
+    return value.reshape(shape)
 
 
 def check_attr_type(a):

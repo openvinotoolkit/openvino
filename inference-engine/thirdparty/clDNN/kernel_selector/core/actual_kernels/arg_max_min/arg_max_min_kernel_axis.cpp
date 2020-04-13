@@ -83,7 +83,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     }
 
-    kd.estimatedTime = FORCE_PRIORITY_9;
+    kd.estimatedTime = FORCE_PRIORITY_3;
 
     return {kd};
 }

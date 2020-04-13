@@ -6,7 +6,7 @@
 #include "stdlib.h"
 
 #include "XLinkMacros.h"
-#include "XLinkTool.h"
+#include "XLinkErrorUtils.h"
 #include "XLinkPlatform.h"
 #include "XLinkDispatcherImpl.h"
 #include "XLinkPrivateFields.h"
@@ -125,7 +125,7 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
             event->header.flags.bitField.localServe = 0;
 
             if(!isStreamSpaceEnoughFor(stream, event->header.size)){
-                mvLog(MVLOG_FATAL,"local NACK RTS. stream '%s' is full (event %d)\n", stream->name, event->header.id);
+                mvLog(MVLOG_DEBUG,"local NACK RTS. stream '%s' is full (event %d)\n", stream->name, event->header.id);
                 event->header.flags.bitField.block = 1;
                 event->header.flags.bitField.localServe = 1;
                 // TODO: easy to implement non-blocking read here, just return nack
@@ -166,7 +166,7 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
         case XLINK_READ_REL_REQ:
         {
             stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
-            ASSERT_X_LINK(stream);
+            ASSERT_XLINK(stream);
             XLINK_EVENT_ACKNOWLEDGE(event);
             uint32_t releasedSize = 0;
             releasePacketFromStream(stream, &releasedSize);
@@ -184,7 +184,7 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
         {
             stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
 
-            ASSERT_X_LINK(stream);
+            ASSERT_XLINK(stream);
             XLINK_EVENT_ACKNOWLEDGE(event);
             if (stream->remoteFillLevel != 0){
                 stream->closeStreamInitiated = 1;
@@ -221,7 +221,12 @@ int dispatcherLocalEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response)
             event->header.flags.bitField.localServe = 1;
             break;
         default:
-            ASSERT_X_LINK(0);
+        {
+            mvLog(MVLOG_ERROR,
+                  "Fail to get response for local event. type: %d, stream name: %s\n",
+                  event->header.type, event->header.streamName);
+            ASSERT_XLINK(0);
+        }
     }
     return 0;
 }
@@ -264,7 +269,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
             response->deviceHandle = event->deviceHandle;
             stream = getStreamById(event->deviceHandle.xLinkFD,
                                    event->header.streamId);
-            ASSERT_X_LINK(stream);
+            ASSERT_XLINK(stream);
             stream->remoteFillLevel -= event->header.size;
             stream->remoteFillPacketLevel--;
 
@@ -376,8 +381,8 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
                                                                event->header.streamName,
                                                                event->header.size, 0,
                                                                event->header.streamId);
-            XLINK_RET_IF_RC(response->header.streamId
-                == INVALID_STREAM_ID, X_LINK_ERROR);
+            XLINK_RET_IF(response->header.streamId
+                == INVALID_STREAM_ID);
             response->deviceHandle = event->deviceHandle;
             break;
         }
@@ -405,7 +410,12 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
         case XLINK_RESET_RESP:
             break;
         default:
-            ASSERT_X_LINK(0);
+        {
+            mvLog(MVLOG_ERROR,
+                "Fail to get response for remote event. type: %d, stream name: %s\n",
+                event->header.type, event->header.streamName);
+            ASSERT_XLINK(0);
+        }
     }
     return 0;
 }
@@ -528,44 +538,47 @@ int handleIncomingEvent(xLinkEvent_t* event) {
     //specific actions to this peer
     mvLog(MVLOG_DEBUG, "%s, size %u, streamId %u.\n", TypeToStr(event->header.type), event->header.size, event->header.streamId);
 
-    ASSERT_X_LINK(event->header.type >= XLINK_WRITE_REQ
-        && event->header.type != XLINK_REQUEST_LAST
-        && event->header.type < XLINK_RESP_LAST);
+    ASSERT_XLINK(event->header.type >= XLINK_WRITE_REQ
+               && event->header.type != XLINK_REQUEST_LAST
+               && event->header.type < XLINK_RESP_LAST);
 
-    if(event->header.type == XLINK_WRITE_REQ) {
-        streamDesc_t* stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
-        ASSERT_X_LINK(stream);
-
-        stream->localFillLevel += event->header.size;
-        mvLog(MVLOG_DEBUG,"S%d: Got write of %ld, current local fill level is %ld out of %ld %ld\n",
-              event->header.streamId, event->header.size, stream->localFillLevel, stream->readSize, stream->writeSize);
-
-        void* buffer = XLinkPlatformAllocateData(ALIGN_UP(event->header.size, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
-        if (buffer == NULL){
-            mvLog(MVLOG_FATAL,"out of memory\n");
-            releaseStream(stream);
-            return -1;
-        }
-        const int sc = XLinkPlatformRead(&event->deviceHandle, buffer, event->header.size);
-        if(sc < 0){
-            mvLog(MVLOG_ERROR,"%s() Read failed %d\n", __func__, (int)sc);
-            XLinkPlatformDeallocateData(buffer, ALIGN_UP(event->header.size, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
-            releaseStream(stream);
-            return -1;
-        }
-
-        event->data = buffer;
-        if (addNewPacketToStream(stream, buffer, event->header.size)){
-            mvLog(MVLOG_WARN,"No more place in stream. release packet\n");
-            XLinkPlatformDeallocateData(buffer, ALIGN_UP(event->header.size, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
-            XLINK_EVENT_NOT_ACKNOWLEDGE(event);
-            releaseStream(stream);
-            return -1;
-        }
-        releaseStream(stream);
+    // Then read the data buffer, which is contained only in the XLINK_WRITE_REQ event
+    if(event->header.type != XLINK_WRITE_REQ) {
+        return 0;
     }
 
-    return 0;
+    int rc = -1;
+    streamDesc_t* stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
+    ASSERT_XLINK(stream);
+
+    stream->localFillLevel += event->header.size;
+    mvLog(MVLOG_DEBUG,"S%d: Got write of %ld, current local fill level is %ld out of %ld %ld\n",
+          event->header.streamId, event->header.size, stream->localFillLevel, stream->readSize, stream->writeSize);
+
+    void* buffer = XLinkPlatformAllocateData(ALIGN_UP(event->header.size, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
+    XLINK_OUT_WITH_LOG_IF(buffer == NULL,
+        mvLog(MVLOG_FATAL,"out of memory to receive data of size = %zu\n", event->header.size));
+
+    const int sc = XLinkPlatformRead(&event->deviceHandle, buffer, event->header.size);
+    XLINK_OUT_WITH_LOG_IF(sc < 0, mvLog(MVLOG_ERROR,"%s() Read failed %d\n", __func__, sc));
+
+    event->data = buffer;
+    XLINK_OUT_WITH_LOG_IF(addNewPacketToStream(stream, buffer, event->header.size),
+        mvLog(MVLOG_WARN,"No more place in stream. release packet\n"));
+    rc = 0;
+
+XLINK_OUT:
+    releaseStream(stream);
+
+    if(rc != 0) {
+        if(buffer != NULL) {
+            XLinkPlatformDeallocateData(buffer,
+                ALIGN_UP(event->header.size, __CACHE_LINE_SIZE), __CACHE_LINE_SIZE);
+        }
+        XLINK_EVENT_NOT_ACKNOWLEDGE(event);
+    }
+
+    return rc;
 }
 
 // ------------------------------------

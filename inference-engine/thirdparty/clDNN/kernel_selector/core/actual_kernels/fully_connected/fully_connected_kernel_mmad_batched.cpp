@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -100,7 +100,7 @@ FullyConnected_mmad_batched::DispatchData FullyConnected_mmad_batched::SetDefaul
     runInfo.lws1 = sub_group_size;
     runInfo.lws2 = 1;
 
-    runInfo.effiency = FORCE_PRIORITY_1;
+    runInfo.efficiency = FORCE_PRIORITY_1;
     return runInfo;
 }
 
@@ -110,7 +110,7 @@ KernelsData FullyConnected_mmad_batched::GetKernelsData(const Params& params, co
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     options,
                                                     DataLayout::fs_bs_yx_bsv4_fsv32,
-                                                    {WeightsLayout::os_is_yx_isa8_osv8_isv4},
+                                                    WeightsLayout::os_is_yx_isa8_osv8_isv4,
                                                     FORCE_PRIORITY_1,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

@@ -117,7 +117,7 @@ void PassImpl::run(const Model& model) {
                         IE_ASSERT(producer == child);
                         IE_ASSERT(consumer == parent);
                     } else if (connectionStage->type() == StageType::Split ||
-                               connectionStage->type() == StageType::Shrink) {
+                               connectionStage->type() == StageType::Crop) {
                         IE_ASSERT(producer == parent);
                         IE_ASSERT(consumer == child);
                     } else {

@@ -76,6 +76,8 @@ class ScalarNormalizeForSpecificOps(BackReplacementPattern):
         rules = {'Broadcast': [0],
                  'Unsqueeze': [1],
                  'Squeeze': [1],
+                 'Eltwise': [1],
+                 'Range': [0, 1, 2],
                  'FakeQuantize': [1, 2, 3, 4]
                  }
         for node in graph.get_op_nodes():

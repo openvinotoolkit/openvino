@@ -16,19 +16,64 @@
 #include "include/data_types.cl"
 #include "include/include_all.cl"
 
+inline uint FUNC(get_input_index)(uint b, uint f, uint z, uint y, uint x)
+{
+#if INPUT0_DIMS < 5
+    return INPUT0_GET_INDEX(b, f, y, x);
+#elif INPUT0_DIMS == 5
+    return INPUT0_GET_INDEX(b, f, z, y, x);
+#else
+#error [clDNN resample_ref.cl]: input format - not supported
+#endif
+}
+
+inline uint FUNC(get_output_index)(uint b, uint f, uint z, uint y, uint x)
+{
+#if OUTPUT_DIMS < 5
+    return OUTPUT_GET_INDEX(b, f, y, x);
+#elif OUTPUT_DIMS == 5
+    return OUTPUT_GET_INDEX(b, f, z, y, x);
+#else
+#error [clDNN resample_ref.cl]: output format - not supported
+#endif
+}
+
+
 #define TRIANGLE_COEFF(x) (INPUT0_MAX_FUNC(INPUT0_VAL_ZERO, INPUT0_VAL_ONE - INPUT0_ABS_FUNC(x)))
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
-KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
+                          __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+                          , FUSED_OPS_DECLS
+#endif
+)
 {
 #if defined(SAMPLE_TYPE_NEAREST)
     const int ox = get_global_id(0);
+#if OUTPUT_DIMS <= 4
     const int oy = get_global_id(1);
-    const int feature = get_global_id(2) % OUTPUT_FEATURE_NUM;
-    const int batch = get_global_id(2) / OUTPUT_FEATURE_NUM;
+    const int oz = 0;
+#else
+    const int oy = (int)get_global_id(1) % OUTPUT_SIZE_Y;
+    const int oz = (int)get_global_id(1) / OUTPUT_SIZE_Y;
+#endif
+    const int feature = (int)get_global_id(2) % OUTPUT_FEATURE_NUM;
+    const int batch = (int)get_global_id(2) / OUTPUT_FEATURE_NUM;
     const int ix = floor(ox * X_RATIO);
     const int iy = floor(oy * Y_RATIO);
-    output[OUTPUT_GET_INDEX(batch, feature, oy, ox)] = ACTIVATION(input[INPUT0_GET_INDEX(batch, feature, iy, ix)], ACTIVATION_PARAMS);
+    const int iz = floor(oz * Z_RATIO);
+
+    INPUT0_TYPE interp_val = input[FUNC_CALL(get_input_index)(batch, feature, iz, iy, ix)];
+#if HAS_FUSED_OPS
+    #define OF_ID (feature)
+    FUSED_OPS;
+    OUTPUT_TYPE res = FUSED_OPS_RESULT;
+#else
+    OUTPUT_TYPE res = ACTIVATION(interp_val, ACTIVATION_PARAMS);
+#endif
+    output[FUNC_CALL(get_output_index)(batch, feature, oz, oy, ox)] = res;
+
 #elif defined(SAMPLE_TYPE_INTERP)
     const int ox = get_global_id(0);
     const int oy = get_global_id(1);
@@ -59,33 +104,50 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* out
         INPUT0_TYPE top    = top_left + (top_right - top_left) * dx;
         INPUT0_TYPE bottom = bottom_left + (bottom_right - bottom_left) * dx;
 
-        output[OUTPUT_GET_INDEX(batch, in_f, oy, ox)] = ACTIVATION(top + (bottom - top) * dy, ACTIVATION_PARAMS);
+        INPUT0_TYPE interp_val = top + (bottom - top) * dy;
+
+#if HAS_FUSED_OPS
+        #define OF_ID (in_f)
+        FUSED_OPS;
+        OUTPUT_TYPE res = FUSED_OPS_RESULT;
+#else
+        OUTPUT_TYPE res = ACTIVATION(interp_val, ACTIVATION_PARAMS);
+#endif
+        output[OUTPUT_GET_INDEX(batch, in_f, oy, ox)] = res;
     }
 #elif defined(SAMPLE_TYPE_CAFFE_INTERP)
-    const int ox = get_global_id(0) % OUTPUT_SIZE_X;
-    const int oy = get_global_id(0) / OUTPUT_SIZE_X;
+    const int ox = (int)get_global_id(0) % OUTPUT_SIZE_X;
+    const int oy = (int)get_global_id(0) / OUTPUT_SIZE_X;
     const int feature_block_nun = get_global_id(1);
     const int feature = feature_block_nun * FEATURE_BLOCK_SIZE;
+#if OUTPUT_DIMS <= 4
     const int batch = get_global_id(2);
+    const int oz = 0;
+#else
+    const int batch = (int)get_global_id(2) % OUTPUT_BATCH_NUM;
+    const int oz    = (int)get_global_id(2) / OUTPUT_BATCH_NUM;
+#endif
 
-    __global INPUT0_TYPE* input_ptr = input + batch * INPUT0_BATCH_PITCH + feature * INPUT0_FEATURE_PITCH;
-    __global OUTPUT_TYPE* output_ptr = output + batch * OUTPUT_BATCH_PITCH + feature * OUTPUT_FEATURE_PITCH;
-
-    const INPUT0_TYPE ix = ox * X_RATIO + Y_RATIO_HALF - 0.5f;
-    const INPUT0_TYPE iy = oy * Y_RATIO + X_RATIO_HALF - 0.5f;
+    const INPUT0_TYPE ix = ox * X_RATIO + X_RATIO_HALF - 0.5f;
+    const INPUT0_TYPE iy = oy * Y_RATIO + Y_RATIO_HALF - 0.5f;
+    const INPUT0_TYPE iz = oz * Z_RATIO + Z_RATIO_HALF - 0.5f;
 
     const int ix_r = (int)ix;
     const int iy_r = (int)iy;
+    const int iz_r = (int)iz;
 
 #if ANTIALIAS == 1
     const INPUT0_TYPE ax = 1.0f / X_RATIO;
     const INPUT0_TYPE ay = 1.0f / Y_RATIO;
+    const INPUT0_TYPE az = 1.0f / Z_RATIO;
 #else
     const INPUT0_TYPE ax = 1.0f;
     const INPUT0_TYPE ay = 1.0f;
+    const INPUT0_TYPE az = 1.0f;
 #endif
     const int rx = (X_RATIO < 1.0f) ? 2 : (int)ceil(TO_INPUT0_TYPE(KERNEL_W) / ax);
     const int ry = (Y_RATIO < 1.0f) ? 2 : (int)ceil(TO_INPUT0_TYPE(KERNEL_W) / ay);
+    const int rz = (Z_RATIO < 1.0f) ? 2 : (int)ceil(TO_INPUT0_TYPE(KERNEL_W) / az);
 
     INPUT0_TYPE sum[FEATURE_BLOCK_SIZE];
     for (int i = 0; i < FEATURE_BLOCK_SIZE; i++)
@@ -95,29 +157,34 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* out
 
     int const y_init = max(0, iy_r - ry);
     int const x_init = max(0, ix_r - rx);
+    int const z_init = max(0, iz_r - rz);
     int const y_max = min(INPUT0_SIZE_Y, iy_r + ry + 1);
     int const x_max = min(INPUT0_SIZE_X, ix_r + rx + 1);
+    int const z_max = min(INPUT0_SIZE_Z, iz_r + rz + 1);
 
-    unroll_for (int y = y_init; y < y_max; y++) {
-        unroll_for (int x = x_init; x < x_max; x++) {
-            INPUT0_TYPE dx = ix - x;
-            INPUT0_TYPE dy = iy - y;
+    unroll_for(int z = z_init; z < z_max; z++) {
+        unroll_for(int y = y_init; y < y_max; y++) {
+            unroll_for(int x = x_init; x < x_max; x++) {
+                INPUT0_TYPE dx = ix - x;
+                INPUT0_TYPE dy = iy - y;
+                INPUT0_TYPE dz = iz - z;
 #if ANTIALIAS == 1
-            INPUT0_TYPE w = ax * TRIANGLE_COEFF(ax * dx) * ay * TRIANGLE_COEFF(ay * dy);
+                INPUT0_TYPE w = ax * TRIANGLE_COEFF(ax * dx) * ay * TRIANGLE_COEFF(ay * dy) * az * triangleCoeff(az * dz);
 #else
-            INPUT0_TYPE w = TRIANGLE_COEFF(dx) * TRIANGLE_COEFF(dy);
+                INPUT0_TYPE w = TRIANGLE_COEFF(dx) * TRIANGLE_COEFF(dy) * TRIANGLE_COEFF(dz);
 #endif
 
 #ifndef LEFTOVERS
-            unroll_for (int f = 0; f < FEATURE_BLOCK_SIZE; f++) {
+                unroll_for(int f = 0; f < FEATURE_BLOCK_SIZE; f++) {
 #else
-            const int f_max = min(FEATURE_BLOCK_SIZE, FEATURE_LEFTOVER);
-            unroll_for (int f = 0; f < f_max; f++) {
+                const int f_max = min(FEATURE_BLOCK_SIZE, FEATURE_LEFTOVER);
+                unroll_for(int f = 0; f < f_max; f++) {
 #endif
                 if (w != 0)
-                    sum[f] += w * input_ptr[f * INPUT0_FEATURE_PITCH + y * INPUT0_Y_PITCH + x];
+                    sum[f] += w * input[FUNC_CALL(get_input_index)(batch, feature + f, z, y, x)];
+                }
+                wsum += w;
             }
-            wsum += w;
         }
     }
 #ifndef LEFTOVERS
@@ -126,7 +193,16 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* out
     const int f_max = min(FEATURE_BLOCK_SIZE, FEATURE_LEFTOVER);
     unroll_for (int f = 0; f < f_max; f++) {
 #endif
-        output_ptr[f * OUTPUT_FEATURE_PITCH + oy * OUTPUT_Y_PITCH + ox] = ACTIVATION((wsum == 0) ? 0 : (sum[f] / wsum), ACTIVATION_PARAMS);
+
+        INPUT0_TYPE interp_val = (wsum == 0) ? 0 : (sum[f] / wsum);
+#if HAS_FUSED_OPS
+        #define OF_ID (feature + f)
+        FUSED_OPS;
+        OUTPUT_TYPE res = FUSED_OPS_RESULT;
+#else
+        OUTPUT_TYPE res = ACTIVATION(interp_val, ACTIVATION_PARAMS);
+#endif
+        output[FUNC_CALL(get_output_index)(batch, feature + f, oz, oy, ox)] = res;
     }
 #endif
 }

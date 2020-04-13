@@ -194,7 +194,7 @@ void FrontEnd::addPreProcessStages(const Model& model) {
 
             _stageBuilder->addPowerStage(
                 model,
-                input->name() + "@stdScale=" + std::to_string(preProcess[0]->stdScale),
+                input->name() + "@stdScale=" + InferenceEngine::CNNLayer::ie_serialize_float(preProcess[0]->stdScale),
                 nullptr,
                 preProcess[0]->stdScale,
                 1.0f,

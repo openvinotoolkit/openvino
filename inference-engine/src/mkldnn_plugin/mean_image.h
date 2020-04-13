@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "inference_engine.hpp"
+#include "ie_input_info.hpp"
+
 #include "mkldnn_dims.h"
 #include "ie_parallel.hpp"
 #include <vector>
@@ -41,8 +42,8 @@ public:
             InferenceEngine::parallel_for2d(MB, srcSize, [&](int mb, int i) {
                 int buf = input[srcSize * mb + i];
                 buf -= meanBufferValues[i];
-                if (buf < std::numeric_limits<T>::min()) buf = std::numeric_limits<T>::min();
-                if (buf > std::numeric_limits<T>::max()) buf = std::numeric_limits<T>::max();
+                if (buf < (std::numeric_limits<T>::min)()) buf = (std::numeric_limits<T>::min)();
+                if (buf > (std::numeric_limits<T>::max)()) buf = (std::numeric_limits<T>::max)();
                 input[srcSize * mb + i] = buf;
             });
         } else if (!meanValues.empty()) {
@@ -53,8 +54,8 @@ public:
                 InferenceEngine::parallel_for3d(MB, C, srcSize, [&](int mb, int c, int i) {
                     int buf = input[srcSize * mb * C + c * srcSize + i];
                     buf -= meanValues[c];
-                    if (buf < std::numeric_limits<T>::min()) buf = std::numeric_limits<T>::min();
-                    if (buf > std::numeric_limits<T>::max()) buf = std::numeric_limits<T>::max();
+                    if (buf < (std::numeric_limits<T>::min)()) buf = (std::numeric_limits<T>::min)();
+                    if (buf > (std::numeric_limits<T>::max)()) buf = (std::numeric_limits<T>::max)();
                     input[srcSize * mb * C + c * srcSize + i] = buf;
                 });
             } else if (layout == InferenceEngine::NHWC) {
@@ -62,8 +63,8 @@ public:
                     for (int c = 0; c < C; c++) {
                         int buf = input[mb * srcSize * C + i * C + c];
                         buf -= meanValues[c];
-                        if (buf < std::numeric_limits<T>::min()) buf = std::numeric_limits<T>::min();
-                        if (buf > std::numeric_limits<T>::max()) buf = std::numeric_limits<T>::max();
+                        if (buf < (std::numeric_limits<T>::min)()) buf = (std::numeric_limits<T>::min)();
+                        if (buf > (std::numeric_limits<T>::max)()) buf = (std::numeric_limits<T>::max)();
                         input[mb * srcSize * C + i * C + c] = buf;
                     }
                 });

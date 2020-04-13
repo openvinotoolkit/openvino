@@ -8,10 +8,11 @@
 #include <map>
 #include <vector>
 
+#include <net_pass.h>
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include "gna_infer_request.hpp"
 #include "gna_plugin.hpp"
-#include <cpp_interfaces/ie_executor_manager.hpp>
+#include <threading/ie_executor_manager.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_async_only.hpp>
 
 namespace GNAPluginNS {
@@ -29,6 +30,8 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
 
     GNAExecutableNetwork(InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config)
         : plg(std::make_shared<GNAPlugin>(config)) {
+        InferenceEngine::NetPass::ConvertPrecision(network, InferenceEngine::Precision::I64, InferenceEngine::Precision::I32);
+        InferenceEngine::NetPass::ConvertPrecision(network, InferenceEngine::Precision::U64, InferenceEngine::Precision::I32);
         plg->LoadNetwork(network);
     }
 

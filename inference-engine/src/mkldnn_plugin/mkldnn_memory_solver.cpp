@@ -14,6 +14,11 @@ namespace MKLDNNPlugin {
 
 MemorySolver::MemorySolver(const std::vector<Box>& boxes) : _boxes(boxes) {
     int max_ts = 0;
+    // TODO: add validation of data correctness:
+    // 1. Box.start >= 0 and Box.finish >= -1
+    // 2. Box.finish >= Box.start (except Box.finish == -1)
+    // 3. Box.size > 0 (or == 0 ?)
+    // 4. Box.id == any unique value
     for (const Box &box : _boxes) max_ts = std::max(std::max(max_ts, box.start), box.finish);
     for (Box &box : _boxes) if (box.finish == -1) box.finish = max_ts;
 
@@ -85,7 +90,7 @@ int64_t MemorySolver::solve() {
 
         // store the max top bound for each box
         _min_required = std::max(_min_required, box.id + box.size);
-        _offsets[id] = box.id;
+        _offsets[id] = box.id;  // TODO: move to constructor (use .insert instead of [])
     }
 
     return _min_required;

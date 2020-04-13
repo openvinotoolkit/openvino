@@ -27,8 +27,8 @@
 namespace cldnn {
 namespace gpu {
 
-kernel_runner::kernel_runner(engine_impl& engine_ref, bool weights_and_bias_exist)
-    : engine(&engine_ref), weights_and_bias_exist(weights_and_bias_exist) {}
+kernel_runner::kernel_runner(engine_impl& engine_ref, uint32_t program_id, bool weights_and_bias_exist, bool zero_points_exist)
+    : engine(&engine_ref), program_id(program_id), weights_and_bias_exist(weights_and_bias_exist), zero_points_exist(zero_points_exist) {}
 
 void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kernels_data,
                                         gpu::kernel::kernel_arguments_data& args) {
@@ -45,7 +45,20 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
     for (const auto& input : input_buffers) {
         args.inputs.push_back(input);
     }
-
+    // Prepare fused operations buffers
+    if (fused_ops_buffers.empty()) {
+        for (auto& fused_op : base_params.fused_ops) {
+            for (auto& fused_ops_input : fused_op.tensors) {
+                auto num_of_elements = static_cast<int>(fused_ops_input.PhysicalSize());
+                fused_ops_buffers.push_back(engine->allocate_memory(
+                    { from_data_type(fused_ops_input.GetDType()), format::bfyx, tensor(1, 1, num_of_elements, 1) },
+                    0));
+            }
+        }
+    }
+    for (const auto& fused_op_input : fused_ops_buffers) {
+        args.fused_op_inputs.push_back(fused_op_input);
+    }
     // Prepare output buffer
     if (output_buffers.empty()) {
         int num_of_output_elements = static_cast<int>(base_params.output.PhysicalSize());
@@ -119,6 +132,43 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
             }
             args.bias = bias_buffers[0];
         }
+        if (zero_points_exist) {
+            const auto& zero_point_params =
+                static_cast<const kernel_selector::weight_bias_zero_point_params&>(weights_bias_params);
+            if (weight_zero_point_buffers.empty()) {
+                for (auto& weight_zero_point : zero_point_params.weights_zero_points) {
+                    auto num_of_elements = static_cast<int>(weight_zero_point.PhysicalSize());
+                    weight_zero_point_buffers.push_back(
+                        engine->allocate_memory({
+                            from_data_type(weight_zero_point.GetDType()),
+                            format::bfyx,
+                            tensor(1, num_of_elements, 1, 1) },
+                            0));
+                }
+            }
+            if (activation_zero_point_buffers.empty()) {
+                for (auto& activation_zero_point : zero_point_params.activations_zero_points) {
+                    auto num_of_elements = static_cast<int>(activation_zero_point.PhysicalSize());
+                    weight_zero_point_buffers.push_back(
+                        engine->allocate_memory({
+                            from_data_type(activation_zero_point.GetDType()),
+                            format::bfyx,
+                            tensor(1, num_of_elements, 1, 1) },
+                            0));
+                }
+            }
+            if (compensation_buffers.empty()) {
+                for (auto& compensation : zero_point_params.compensation) {
+                    auto num_of_elements = static_cast<int>(compensation.PhysicalSize());
+                    weight_zero_point_buffers.push_back(
+                        engine->allocate_memory({
+                            from_data_type(compensation.GetDType()),
+                            format::bfyx,
+                            tensor(1, num_of_elements, 1, 1) },
+                            0));
+                }
+            }
+        }
     }
 
     args.split = 0;
@@ -130,6 +180,7 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
     std::vector<std::chrono::nanoseconds> run_times;
 
     int num_of_kernels_to_run = static_cast<int>(kernels_data.size());
+    int num_of_kernels_run = 0;
 
     kernel_selector::KernelsData::const_iterator batch_start = kernels_data.begin();
     kernel_selector::KernelsData::const_iterator batch_end;
@@ -140,12 +191,13 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
         std::vector<gpu::kernel> kernels;
 
         for (auto it = batch_start; it < batch_end; it++) {
-            kernels.push_back(kernel(context, it->kernels[0].kernelString, false, true));
+            kernels.push_back(kernel(context, it->kernels[0].kernelString, program_id, false, true));
         }
 
         gpu::kernel::kernel_arguments_data args;
 
         prepare_kernel_args(kernels_data, args);
+        context->queue(0).finish();
 
         int i = 0;
         for (auto it = batch_start; it < batch_end; it++) {
@@ -180,6 +232,7 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
 
             if (num_of_runs > 0) {
                 run_times.push_back(kernel_run_time / num_of_runs);
+                num_of_kernels_run += 1;
             } else {
                 run_times.push_back(std::chrono::nanoseconds::max());
             }
@@ -188,6 +241,11 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
 
         num_of_kernels_to_run -= current_compilation_batch;
         batch_start += current_compilation_batch;
+    }
+
+    if (num_of_kernels_run == 0) {
+        // If all kernels failed to run throw to avoid corrupting cache
+        throw std::runtime_error("kernel_runner::run_kernels - could not run any of provided kernels");
     }
 
     return run_times;

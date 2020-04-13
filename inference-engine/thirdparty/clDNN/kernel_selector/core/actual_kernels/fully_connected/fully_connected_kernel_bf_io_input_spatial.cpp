@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,14 +44,14 @@ FullyConnected_bf_io_input_spatial::DispatchData FullyConnected_bf_io_input_spat
     kd.lws1 = 1;
     kd.lws2 = 1;
 
-    kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 
     const auto& input = arg.inputs[0];
     const auto& output = arg.output;
 
     if (input.Batch().v == 1 && output.Batch().v == 1) {
         if ((input.LogicalSize() / output.Batch().v >= 4096) && (output.Feature().v >= 4096)) {
-            kd.effiency = FORCE_PRIORITY_1;
+            kd.efficiency = FORCE_PRIORITY_1;
         }
     }
 
@@ -91,7 +91,7 @@ KernelsData FullyConnected_bf_io_input_spatial::GetKernelsData(const Params& par
         efficiency = FORCE_PRIORITY_1;
     }
 
-    return GetCommonKernelsData(params, optParams, DataLayout::bf, { WeightsLayout::io }, efficiency);
+    return GetCommonKernelsData(params, optParams, DataLayout::bf, WeightsLayout::io, efficiency);
 }
 
 KernelsData FullyConnected_bf_io_input_spatial::GetKernelsDataForAutoTune(const Params& params, const optional_params& optParams) const {
@@ -101,7 +101,7 @@ KernelsData FullyConnected_bf_io_input_spatial::GetKernelsDataForAutoTune(const 
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     optParams,
                                                     DataLayout::bf,
-                                                    {WeightsLayout::io},
+                                                    WeightsLayout::io,
                                                     DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

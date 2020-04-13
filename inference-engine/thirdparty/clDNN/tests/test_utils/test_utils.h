@@ -94,7 +94,7 @@ inline VF<T> flatten_4d(cldnn::format input_format, VVVVF<T> &data) {
                         for (size_t bi = 0; bi < a; ++bi)
                             vec[idx++] = data[bi][fi][yi][xi];
             break;
-        
+
         case cldnn::format::fyxb:
             for (size_t fi = 0; fi < b; ++fi)
                 for (size_t yi = 0; yi < c; ++yi)
@@ -164,7 +164,7 @@ std::vector<std::vector<std::vector<std::vector<T>>>> generate_random_4d(size_t 
     return v;
 }
 
-// parameters order is assumed to be sbfyx for filters when split > 1 
+// parameters order is assumed to be sbfyx for filters when split > 1
 template<typename T>
 std::vector<std::vector<std::vector<std::vector<std::vector<T>>>>> generate_random_5d(size_t a, size_t b, size_t c, size_t d, size_t e, int min, int max, int k = 8) {
     std::vector<std::vector<std::vector<std::vector<std::vector<T>>>>> v(a);
@@ -224,7 +224,7 @@ void set_random_values(const cldnn::memory& mem, bool sign = false, unsigned sig
 
     std::mt19937 gen;
     for (auto it = ptr.begin(); it != ptr.end(); ++it)
-    {   
+    {
         *it = rnd_generators::gen_number<T>(gen, significand_bit, sign, false, scale);
     }
 }
@@ -303,18 +303,18 @@ inline bool floating_point_equal(float x, float y, int max_ulps_diff = 4) {
     }
 }
 
-class test_params 
+class test_params
 {
 public:
-    
+
     test_params() :
         fmt(cldnn::format::bfyx)
-    {        
+    {
     }
 
     test_params(cldnn::data_types dt, cldnn::format input_format, int32_t batch_size, int32_t feature_size, cldnn::tensor input_size, cldnn::build_options const& options = cldnn::build_options()) :
         data_type(dt),
-        fmt(input_format), 
+        fmt(input_format),
         network_build_options(options)
     {
         cldnn::tensor t = cldnn::tensor(batch_size, feature_size, input_size.spatial[0],  input_size.spatial[1] );
@@ -323,10 +323,10 @@ public:
 
     cldnn::data_types data_type;
     cldnn::format fmt;
-    std::vector<cldnn::layout> input_layouts;            
+    std::vector<cldnn::layout> input_layouts;
 
     void * opaque_custom_param = nullptr;
-    
+
     cldnn::build_options network_build_options;
 
     std::string print();
@@ -355,7 +355,7 @@ private:
     const std::string name_str = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 };
 
-class generic_test : public ::testing::TestWithParam<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>>
+class generic_test : public ::testing::TestWithParam<std::tuple<std::shared_ptr<test_params>, std::shared_ptr<cldnn::primitive>>>
 {
 
 public:
@@ -372,7 +372,7 @@ public:
 
     static memory_desc get_linear_memory_desc(const cldnn::layout & layout);
 
-    static std::vector<test_params*> generate_generic_test_params(std::vector<test_params*>& all_generic_params);
+    static std::vector<std::shared_ptr<test_params>> generate_generic_test_params(std::vector<std::shared_ptr<test_params>>& all_generic_params);
 
     static void dump_graph(const std::string test_name, cldnn::build_options& bo);
 
@@ -381,25 +381,25 @@ public:
     virtual cldnn::tensor get_expected_output_tensor();
 
     struct custom_param_name_functor {
-            std::string operator()(const ::testing::TestParamInfo<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>>& info) {
+            std::string operator()(const ::testing::TestParamInfo<std::tuple<std::shared_ptr<test_params>, std::shared_ptr<cldnn::primitive>>>& info) {
                     return std::to_string(info.index);
             }
     };
 
 protected:
     const cldnn::engine& engine = get_test_engine();
-    test_params* generic_params;
+    std::shared_ptr<test_params> generic_params;
     test_dump test_info;
     std::shared_ptr<cldnn::primitive> layer_params;
     int max_ulps_diff_allowed; //Max number of ulps allowed between 2 values when comparing the output buffer and the reference buffer.
     bool random_values; // if set memory buffers will be filled with random values
-    bool dump_graphs; // if set tests will dump graphs to file   
+    bool dump_graphs; // if set tests will dump graphs to file
     bool dump_memory; // if set memory buffers will be dumped to file
     virtual cldnn::memory generate_reference(const std::vector<cldnn::memory>& inputs) = 0;
     // Allows the test to override the random input data that the framework generates
 
     virtual void prepare_input_for_test(std::vector<cldnn::memory>& /*inputs*/) { }
-   
+
     static std::vector<cldnn::data_types> test_data_types();
     static std::vector<cldnn::format> test_input_formats;
     static std::vector<cldnn::format> test_weight_formats;
@@ -411,7 +411,7 @@ protected:
 // When a test assertion such as EXPECT_EQ fails, Google-Test prints the argument values to help with debugging.
 // It does this using a user - extensible value printer.
 // This function will be used to print the test params in case of an error.
-inline void PrintTupleTo(const std::tuple<tests::test_params*, std::shared_ptr<cldnn::primitive>>& t, ::std::ostream* os)
+inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::shared_ptr<cldnn::primitive>>& t, ::std::ostream* os)
 {
     std::stringstream str;
 
@@ -473,7 +473,7 @@ inline void PrintTupleTo(const std::tuple<tests::test_params*, std::shared_ptr<c
         std::string norm_region = normalize->across_spatial ? "across_spatial" : "within_spatial";
         str << "Norm region: " << norm_region << " Epsilon: " << normalize->epsilon << " Scale input id: " << normalize->scale_input;
     }
-    else if (primitive->type == cldnn::convolution::type_id()) 
+    else if (primitive->type == cldnn::convolution::type_id())
     {
         auto convolution = std::static_pointer_cast<cldnn::convolution>(primitive);
         str << "Stride x: " << convolution->stride.spatial[0] << " Stride y: " << convolution->stride.spatial[1]

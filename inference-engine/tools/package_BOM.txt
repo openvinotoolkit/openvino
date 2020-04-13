@@ -1,4 +1,0 @@
-benchmark_tool/benchmark_app.py
-benchmark_tool/parameters.py
-benchmark_tool/requirements.txt
-benchmark_tool/README.md

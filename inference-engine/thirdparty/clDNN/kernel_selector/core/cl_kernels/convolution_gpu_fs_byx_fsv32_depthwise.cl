@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,11 +33,11 @@
 // Required JIT definitions:
 // --------------------------------------------------------------------------------------
 // SUB_GROUP_SIZE     - [int] sub-group/simd size; limited to 16
-// FSV                - [int] feature slice size; limted to 32
+// FSV                - [int] feature slice size; limited to 32
 // FSV_PER_THREAD     - [int] number of features from slice per thread;
 //                            must be equal FSV / SUB_GROUP_SIZE
 // OUTPUT_BLOCK_WIDTH - [int] number of elements calculated in x dimension by one thread
-// INPUT_BLOCK_WIDTH  - [int] number of continous input elements to calculate output
+// INPUT_BLOCK_WIDTH  - [int] number of continuous input elements to calculate output
 // ======================================================================================
 
 
@@ -195,7 +195,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
 #if HAS_FUSED_OPS
             unroll_for (uint out_f = 0; out_f < 2; ++out_f)
             {
-                { FUSED_OPS_VEC_ELEM; tmp_write[out_f] = FINAL_NAME_VEC_ELEM; }
+                { FUSED_OPS_VEC_ELEM; tmp_write[out_f] = FUSED_OPS_RESULT_VEC_ELEM; }
             }
 #endif
             UNIT_BLOCK_WRITE2(output, output_offset, tmp_write);
@@ -212,7 +212,7 @@ KERNEL(convolution_gpu_fs_byx_fsv32)(
                 {
                     const uint out_idx = out_x * FSV_PER_THREAD + out_f;
 #if HAS_FUSED_OPS
-                    { FUSED_OPS_SCALAR; out[out_idx] = FINAL_NAME_SCALAR; }
+                    { FUSED_OPS_SCALAR; out[out_idx] = FUSED_OPS_RESULT_SCALAR; }
 #endif
                     output[output_offset + sglid] = out[out_idx];
                 }

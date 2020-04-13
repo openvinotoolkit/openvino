@@ -11,9 +11,21 @@
 
 namespace vpu {
 
+struct DeviceResources {
+    static int numShaves(const Platform& platform);
+    static int numSlices(const Platform& platform);
+    static int numStreams();
+};
+
+struct DefaultAllocation {
+    static int numStreams(const Platform& platform, const CompilationConfig& configuration);
+    static int numSlices(const Platform& platform, int numStreams);
+    static int numShaves(const Platform& platform, int numStreams, int numSlices);
+};
+
 struct CompileEnv final {
 public:
-    Platform platform = Platform::UNKNOWN;
+    Platform platform;
     Resources resources;
 
     CompilationConfig config;
@@ -26,7 +38,6 @@ public:
 
     bool initialized = false;
 
-public:
     CompileEnv(const CompileEnv&) = delete;
     CompileEnv& operator=(const CompileEnv&) = delete;
 
@@ -44,7 +55,7 @@ public:
     static void free();
 
 private:
-    inline CompileEnv() = default;
+    explicit CompileEnv(Platform platform);
 };
 
 }  // namespace vpu

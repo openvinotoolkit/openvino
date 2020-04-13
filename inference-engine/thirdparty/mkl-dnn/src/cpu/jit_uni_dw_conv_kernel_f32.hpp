@@ -24,6 +24,7 @@
 #include "jit_primitive_conf.hpp"
 #include "jit_uni_eltwise.hpp"
 #include "jit_uni_depthwise.hpp"
+#include "jit_uni_quantization.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -47,6 +48,10 @@ struct jit_uni_dw_conv_fwd_kernel_f32 : public jit_generator {
         for (auto inj : depthwise_injectors)
             delete inj;
         depthwise_injectors.clear();
+
+        for (auto inj : quantization_injectors)
+            delete inj;
+        quantization_injectors.clear();
     }
 
     jit_conv_conf_t jcp;
@@ -81,6 +86,10 @@ private:
     reg64_t reg_d_weights = imm_addr64;
     reg64_t reg_d_bias = iter_kh;
 
+    reg64_t reg_kd = abi_not_param1;
+    reg64_t aux_reg_inp_d = reg_input;
+    reg64_t aux_reg_ker_d = reg_kernel;
+
     Vmm vmm_d_weights = Vmm(0);
     Vmm vmm_d_bias = Vmm(1);
 
@@ -99,17 +108,27 @@ private:
 
     nstl::vector<jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<isa>*> depthwise_injectors;
+    nstl::vector<jit_uni_quantization_injector_f32<isa>*> quantization_injectors;
 };
 
 template <cpu_isa_t isa>
 struct jit_uni_dw_conv_bwd_data_kernel_f32: public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_dw_conv_bwd_data_kernel_f32)
 
-    jit_uni_dw_conv_bwd_data_kernel_f32(jit_conv_conf_t ajcp): jcp(ajcp) {
+    jit_uni_dw_conv_bwd_data_kernel_f32(jit_conv_conf_t ajcp, const primitive_attr_t &attr)
+            : jcp(ajcp), attr_(attr) {
         this->generate();
         jit_ker = (void (*)(jit_conv_call_s *))this->getCode();
     }
+
+    ~jit_uni_dw_conv_bwd_data_kernel_f32() {
+        for (auto inj : depthwise_injectors)
+            delete inj;
+        depthwise_injectors.clear();
+    }
+
     jit_conv_conf_t jcp;
+    const primitive_attr_t &attr_;
     void (*jit_ker)(jit_conv_call_s *);
 
 private:
@@ -137,12 +156,18 @@ private:
     reg64_t reg_kh  = r13;
     reg64_t reg_kw  = r14;
 
+    reg64_t reg_d_weights = r15;
+    reg64_t reg_d_bias = iter_kh;
+
     inline void loop_body(int ur_ch_blocks);
     inline void load_ddst(int ur_ch_blocks, int ur_str_w);
     inline void apply_filter(int ur_ch_blocks, int ur_str_w);
+    inline void apply_postprocess(int ur_ch_blocks, int ur_str_w);
     inline void store_dsrc(int ur_ch_blocks, int ur_str_w);
 
     void generate();
+
+    nstl::vector<jit_uni_depthwise_injector_f32<isa>*> depthwise_injectors;
 };
 
 template <cpu_isa_t isa>

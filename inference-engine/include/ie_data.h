@@ -47,9 +47,9 @@ public:
      * @param _precision Precision of the data
      * @param layout Data layout
      */
-    INFERENCE_ENGINE_DEPRECATED("Use Data(const std::string &name, const TensorDesc& desc) as a replacement."
-                                "The ctor will be removed in 2020 R2")
+    INFERENCE_ENGINE_DEPRECATED("Use Data(const std::string &, const TensorDesc&). The ctor will be removed in 2020.3")
     Data(const std::string& name, const SizeVector& a_dims, Precision _precision, Layout layout = NCHW);
+
     /**
      * @brief A constructor with tensor descriptor
      *
@@ -126,8 +126,11 @@ public:
     const SizeVector& getDims() const;
 
     /**
-     * @return owner of this data layer, parent layer in di-graph
+     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
+     * @brief Returns an owner of this data layer, parent layer in di-graph
+     * @return A weak pointer to CNNLayer that creates this data
      */
+    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly")
     virtual CNNLayerWeakPtr& getCreatorLayer();
 
     /**
@@ -144,8 +147,11 @@ public:
     void setName(const std::string& newName);
 
     /**
-     * @brief returns child layers in di-graph
+     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
+     * @brief Privates child layers in di-graph
+     * @return A map of child layers
      */
+    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly")
     virtual std::map<std::string, CNNLayerPtr>& getInputTo();
 
     /**

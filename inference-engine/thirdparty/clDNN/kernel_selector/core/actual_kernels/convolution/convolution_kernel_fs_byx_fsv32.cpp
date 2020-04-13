@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -112,7 +112,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32::SetDefault(c
 
     AutoTuneOption option = GetAutoTuneOptions(arg, autoTuneIndex);
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    runInfo.efficiency = FORCE_PRIORITY_3;
 
     runInfo.cldnnStyle.blockHeight = 1;
     runInfo.cldnnStyle.blockWidth = option.blockWidth;

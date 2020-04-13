@@ -168,6 +168,19 @@ private:
                         "@SW",
                         newWeightsDesc,
                         std::make_shared<ConvIm2ColWeightsContent>(weights->content()));
+
+                    double im2ColBufSizeF = static_cast<double>(kernelSizeX) * kernelSizeY *
+                        output->desc().dim(Dim::W) * output->desc().dim(Dim::H) * input->desc().dim(Dim::C)
+                        + 32;
+
+                    if (im2ColBufSizeF >= std::numeric_limits<int>::max()) {
+                        VPU_THROW_EXCEPTION << "stage: " << name() << ", im2col bufferSize cannot fit 32s: "
+                            << std::setprecision(0) << std::fixed << im2ColBufSizeF
+                            << "(" << kernelSizeX << "x" << kernelSizeY << "x"
+                            << output->desc().dim(Dim::W) << "x" << output->desc().dim(Dim::H) << "x" << output->desc().dim(Dim::C) << ")";
+                    }
+
+                    model()->addTempBuffer(this, DataDesc({static_cast<int>(im2ColBufSizeF)}));
                 }
 
                 weights->attrs().set<Data>("swWeights", swWeights);
@@ -221,7 +234,7 @@ private:
 
     void finalCheckImpl() const override {
         assertInputsOutputsTypes(this,
-              {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}, {DataType::FP16}},
+              {{DataType::FP16}, {DataType::FP16}},
               {{DataType::FP16}});
     }
 
@@ -248,19 +261,15 @@ private:
     void serializeDataImpl(BlobSerializer& serializer) const override {
         auto input = inputEdge(0)->input();
         auto weights = inputEdge(1)->input();
-        auto biases = inputEdge(2)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeOldBuffer(this, serializer);
-        output->serializeOldBuffer(this, serializer);
-        weights->serializeOldBuffer(this, serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
+        weights->serializeBuffer(serializer);
 
         if (numTempBuffers() == 1) {
-            tempBuffer(0)->serializeOldBuffer(this, serializer);
+            tempBuffer(0)->serializeBuffer(serializer);
         }
-
-        // TODO: remove this
-        biases->serializeOldBuffer(this, serializer);
     }
 };
 
@@ -332,7 +341,7 @@ void PassImpl::run(const Model& model) {
             groupSize == 1);
 
 #if REFERENCE_CONVOLUTION
-        isSpatialConv  = false;
+        isSpatialConv = false;
         isConv3x3 = false;
         isConv1x1 = false;
 #endif
@@ -349,43 +358,13 @@ void PassImpl::run(const Model& model) {
                     scales,
                     output);
             } else {
-                if (biases->usage() != DataUsage::Fake) {
-                    auto tempOutput = model->duplicateData(
-                        output,
-                        "@temp");
-
-                    _stageBuilder->addBiasStage(
-                        model,
-                        origStageName + "@biases",
-                        origLayer,
-                        tempOutput, biases,
-                        output);
-
-                    output = tempOutput;
-                }
-
-                if (scales->usage() != DataUsage::Fake) {
-                    auto tempOutput = model->duplicateData(
-                        output,
-                        "@temp");
-
-                    _stageBuilder->addScaleStage(
-                        model,
-                        origStageName + "@scales",
-                        origLayer,
-                        tempOutput, scales,
-                        output);
-
-                    output = tempOutput;
-                }
-
                 Stage swStage;
                 if (isConv1x1 || isSpatialConv || isConv3x3) {
                     swStage = model->addNewStage<ConvStage>(
                         origStageName,
                         StageType::Conv,
                         origLayer,
-                        {input, weights, biases, scales},
+                        {input, weights},
                         {output});
                 } else {
                     swStage = model->addNewStage<ConvStage>(
@@ -396,21 +375,8 @@ void PassImpl::run(const Model& model) {
                         StageType::Im2ColConvolution,
 #endif
                         origLayer,
-                        {input, weights, biases, scales},
+                        {input, weights},
                         {output});
-
-                    double im2ColBufSizeF = static_cast<double>(kernelSizeX) * kernelSizeY *
-                        output->desc().dim(Dim::W) * output->desc().dim(Dim::H) * input->desc().dim(Dim::C)
-                        + 32;
-
-                    if (im2ColBufSizeF >= std::numeric_limits<int>::max()) {
-                        VPU_THROW_EXCEPTION << "stage: " << origStageName << ", im2col bufferSize cannot fit 32s: "
-                            << std::setprecision(0) << std::fixed << im2ColBufSizeF
-                            << "(" << kernelSizeX << "x" << kernelSizeY << "x"
-                            << output->desc().dim(Dim::W) << "x" << output->desc().dim(Dim::H) << "x" << output->desc().dim(Dim::C) << ")";
-                    }
-
-                    model->addTempBuffer(swStage, DataDesc({static_cast<int>(im2ColBufSizeF)}));
                 }
 
                 swStage->attrs().set<int>("kernelSizeX", kernelSizeX);
@@ -430,44 +396,46 @@ void PassImpl::run(const Model& model) {
                 swStage->attrs().set<bool>("isSpatialConv", isSpatialConv);
                 swStage->attrs().set<bool>("isConv1x1", isConv1x1);
                 swStage->attrs().set<bool>("isConv3x3", isConv3x3);
+
+                if (biases->usage() != DataUsage::Fake) {
+                    auto biasesInput = model->duplicateData(
+                        output,
+                        "@pre-bias");
+
+                    const auto outputProducerEdge = output->producerEdge();
+                    model->replaceStageOutput(outputProducerEdge, biasesInput);
+
+                    _stageBuilder->addBiasStage(
+                        model,
+                        origStageName + "@biases",
+                        origLayer,
+                        biasesInput, biases,
+                        output);
+                }
+
+                if (scales->usage() != DataUsage::Fake) {
+                    auto scalesInput = model->duplicateData(
+                        output,
+                        "@pre-scaled");
+
+                    const auto outputProducerEdge = output->producerEdge();
+                    model->replaceStageOutput(outputProducerEdge, scalesInput);
+
+                    _stageBuilder->addScaleStage(
+                        model,
+                        origStageName + "@scales",
+                        origLayer,
+                        scalesInput, scales,
+                        output);
+                }
             }
         } else if (groupSize == input->desc().dim(Dim::C) &&
                    groupSize == output->desc().dim(Dim::C)) {
-            if (biases->usage() != DataUsage::Fake) {
-                auto tempOutput = model->duplicateData(
-                    output,
-                    "@temp");
-
-                _stageBuilder->addBiasStage(
-                    model,
-                    origStageName + "@biases",
-                    origLayer,
-                    tempOutput, biases,
-                    output);
-
-                output = tempOutput;
-            }
-
-            if (scales->usage() != DataUsage::Fake) {
-                auto tempOutput = model->duplicateData(
-                    output,
-                    "@temp");
-
-                _stageBuilder->addScaleStage(
-                    model,
-                    origStageName + "@scales",
-                    origLayer,
-                    tempOutput, scales,
-                    output);
-
-                output = tempOutput;
-            }
-
             auto swStage = model->addNewStage<ConvStage>(
                 origStageName,
                 StageType::DepthConv,
                 origLayer,
-                {input, weights, biases, scales},
+                {input, weights},
                 {output});
 
             swStage->attrs().set<int>("kernelSizeX", kernelSizeX);
@@ -483,6 +451,38 @@ void PassImpl::run(const Model& model) {
 
             swStage->attrs().set<int>("dilationX", dilationX);
             swStage->attrs().set<int>("dilationY", dilationY);
+
+            if (biases->usage() != DataUsage::Fake) {
+                auto biasesInput = model->duplicateData(
+                    output,
+                    "@pre-bias");
+
+                const auto outputProducerEdge = output->producerEdge();
+                model->replaceStageOutput(outputProducerEdge, biasesInput);
+
+                _stageBuilder->addBiasStage(
+                    model,
+                    origStageName + "@biases",
+                    origLayer,
+                    biasesInput, biases,
+                    output);
+            }
+
+            if (scales->usage() != DataUsage::Fake) {
+                auto scalesInput = model->duplicateData(
+                    output,
+                    "@pre-scaled");
+
+                const auto outputProducerEdge = output->producerEdge();
+                model->replaceStageOutput(outputProducerEdge, scalesInput);
+
+                _stageBuilder->addScaleStage(
+                    model,
+                    origStageName + "@scales",
+                    origLayer,
+                    scalesInput, scales,
+                    output);
+            }
         } else {
             VPU_THROW_EXCEPTION << "Internal error : grouped convolution was not processed";
         }

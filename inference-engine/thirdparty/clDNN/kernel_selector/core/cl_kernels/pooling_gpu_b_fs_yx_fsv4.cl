@@ -159,7 +159,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUT_VEC4 final_result = FINAL_NAME;
+    OUT_VEC4 final_result = FUSED_OPS_RESULT;
 #else
     OUT_VEC4 final_result = CONVERT_OUT_VEC4(pool_result);
 #endif

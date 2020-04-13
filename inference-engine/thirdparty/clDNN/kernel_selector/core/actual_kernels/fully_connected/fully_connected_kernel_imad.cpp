@@ -106,7 +106,7 @@ KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     options,
                                                     DataLayout::b_fs_yx_fsv4,
-                                                    {WeightsLayout::os_is_yx_osv16_isv4},
+                                                    WeightsLayout::os_is_yx_osv16_isv4,
                                                     FORCE_PRIORITY_1,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

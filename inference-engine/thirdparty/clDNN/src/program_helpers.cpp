@@ -29,7 +29,7 @@ void program_helpers::merge_buffers(engine_impl& engine,
                                     const layout& target_layout,
                                     size_t begin_offset,
                                     size_t end_offset) {
-    memory_impl::ptr data_to_allocate = engine.allocate_memory(target_layout, 0);
+    memory_impl::ptr data_to_allocate = engine.allocate_memory(target_layout, 0, false);
 
     for (size_t i = begin_offset; i < end_offset; i++) {
         auto& weights = node.get_dependency(i).as<data>();
@@ -86,16 +86,18 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         (l2.format == format::b_fs_yx_fsv4 && l1.format != format::b_fs_yx_fsv4) ||
         (l1.format == format::fs_b_yx_fsv32 && l2.format != format::fs_b_yx_fsv32) ||
         (l2.format == format::fs_b_yx_fsv32 && l1.format != format::fs_b_yx_fsv32) ||
-        (l1.format == format::bfyx_f16 && l2.format != format::bfyx_f16) ||
-        (l2.format == format::bfyx_f16 && l1.format != format::bfyx_f16) ||
+        (l1.format == format::b_fs_yx_fsv16 && l2.format != format::b_fs_yx_fsv16) ||
+        (l2.format == format::b_fs_yx_fsv16 && l1.format != format::b_fs_yx_fsv16) ||
         (l1.format == format::b_fs_yx_fsv32 && l2.format != format::b_fs_yx_fsv32) ||
         (l2.format == format::b_fs_yx_fsv32 && l1.format != format::b_fs_yx_fsv32) ||
         (l1.format == format::b_fs_zyx_fsv32 && l2.format != format::b_fs_zyx_fsv32) ||
         (l2.format == format::b_fs_zyx_fsv32 && l1.format != format::b_fs_zyx_fsv32) ||
-        (l1.format == format::bfzyx_f16 && l2.format != format::bfzyx_f16) ||
-        (l2.format == format::bfzyx_f16 && l1.format != format::bfzyx_f16) ||
-        (l1.format == format::bfzyx_b16f16 && l2.format != format::bfzyx_b16f16) ||
-        (l2.format == format::bfzyx_b16f16 && l1.format != format::bfzyx_b16f16))
+        (l1.format == format::b_fs_zyx_fsv16 && l2.format != format::b_fs_zyx_fsv16) ||
+        (l2.format == format::b_fs_zyx_fsv16 && l1.format != format::b_fs_zyx_fsv16) ||
+        (l1.format == format::bs_fs_yx_bsv16_fsv16 && l2.format != format::bs_fs_yx_bsv16_fsv16) ||
+        (l2.format == format::bs_fs_yx_bsv16_fsv16 && l1.format != format::bs_fs_yx_bsv16_fsv16) ||
+        (l1.format == format::bs_fs_zyx_bsv16_fsv16 && l2.format != format::bs_fs_zyx_bsv16_fsv16) ||
+        (l2.format == format::bs_fs_zyx_bsv16_fsv16 && l1.format != format::bs_fs_zyx_bsv16_fsv16))
         return {false, false};
 
     auto l1_pitch = l1.get_pitches();

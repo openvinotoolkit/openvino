@@ -70,9 +70,6 @@ JitConstants ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetJitConstants(const reorder_
 ReorderKernelBase::DispatchData ReorderKernel_fs_b_yx_fsv32_to_bfyx::SetDefault(const reorder_params& params) const {
     DispatchData kd;
 
-    auto global = GetTensorFriendlyWorkGroups(params.inputs[0]);
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
     auto x_aligned = Align(params.output.X().v, x_block_align);
 
     kd.gws0 = params.output.Batch().v;

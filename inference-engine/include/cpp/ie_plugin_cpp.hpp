@@ -22,12 +22,12 @@
 namespace InferenceEngine {
 
 /**
- * @deprecated Use InferenceEngine::Core instead.
+ * @deprecated Use InferenceEngine::Core instead. Will be removed in 2020.3
  * @brief This class is a C++ API wrapper for IInferencePlugin.
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead. Will be removed in 2020 R2") InferencePlugin {
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead. Will be removed in 2020.3") InferencePlugin {
     IE_SUPPRESS_DEPRECATED_START
     InferenceEnginePluginPtr actual;
 
@@ -40,7 +40,11 @@ public:
      *
      * @param pointer Initialized Plugin pointer
      */
-    explicit InferencePlugin(const InferenceEnginePluginPtr& pointer): actual(pointer) {}
+    explicit InferencePlugin(const InferenceEnginePluginPtr& pointer): actual(pointer) {
+        if (actual == nullptr) {
+            THROW_IE_EXCEPTION << "InferencePlugin wrapper was not initialized.";
+        }
+    }
 
     IE_SUPPRESS_DEPRECATED_END
 
@@ -48,6 +52,7 @@ public:
      * @copybrief IInferencePlugin::GetVersion
      *
      * Wraps IInferencePlugin::GetVersion
+     * @return A plugin version
      */
     const Version* GetVersion() {
         const Version* versionInfo = nullptr;
@@ -61,17 +66,15 @@ public:
     }
 
     /**
-     * @copybrief IInferencePlugin::LoadNetwork(IExecutableNetwork::Ptr&, ICNNNetwork&, const std::map<std::string,
-     * std::string> &, ResponseDesc*)
+     * @copybrief IInferencePlugin::LoadNetwork
      *
-     * Wraps IInferencePlugin::LoadNetwork(IExecutableNetwork::Ptr&, ICNNNetwork&, const std::map<std::string,
-     * std::string> &, ResponseDesc*)
+     * Wraps IInferencePlugin::LoadNetwork
      *
      * @param network A network object to load
      * @param config A map of configuration options
      * @return Created Executable Network object
      */
-    ExecutableNetwork LoadNetwork(ICNNNetwork& network, const std::map<std::string, std::string>& config) {
+    ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
         IExecutableNetwork::Ptr ret;
         IE_SUPPRESS_DEPRECATED_START
         CALL_STATUS_FNC(LoadNetwork, ret, network, config);
@@ -80,11 +83,9 @@ public:
     }
 
     /**
-     * @copybrief IInferencePlugin::LoadNetwork(IExecutableNetwork::Ptr&, ICNNNetwork&, const std::map<std::string,
-     * std::string> &, ResponseDesc*)
+     * @copybrief InferencePlugin::LoadNetwork
      *
-     * Wraps IInferencePlugin::LoadNetwork(IExecutableNetwork::Ptr&, ICNNNetwork&, const std::map<std::string,
-     * std::string> &, ResponseDesc*)
+     * Wraps IInferencePlugin::LoadNetwork
      * @param network A network object to load
      * @param config A map of configuration options
      * @return Created Executable Network object
@@ -141,11 +142,9 @@ public:
     }
 
     /**
-     * @copybrief IInferencePlugin::QueryNetwork(const ICNNNetwork&, const std::map<std::string, std::string> &,
-     * QueryNetworkResult&)
+     * @copybrief IInferencePlugin::QueryNetwork
      *
-     * Wraps IInferencePlugin::QueryNetwork(const ICNNNetwork&, const std::map<std::string, std::string> &,
-     * QueryNetworkResult&) const
+     * Wraps IInferencePlugin::QueryNetwork
      *
      * @param network A network object to query
      * @param config A configuration map

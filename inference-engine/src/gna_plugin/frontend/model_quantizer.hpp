@@ -47,6 +47,7 @@ class ModelQuantizer {
         auto copiedNet = InferenceEngine::CNNNetCopy(model);
         cb(copiedNet, true);
 
+        IE_ASSERT(copiedNet.get() != nullptr);
         copiedNet = InferenceEngine::CNNNetCopy(*copiedNet, visitor);
 
         // TODO: probably not the best way of using dynamic cast in order to transform Precision
@@ -79,7 +80,7 @@ class ModelQuantizer {
             auto inputLayer = inputData.second->getInputData()->getCreatorLayer().lock();
             auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
             if (scaleFactor.size() <= scaleIndex) {
-                THROW_GNA_EXCEPTION << "Index of scale factor element is incorrect";
+                THROW_GNA_EXCEPTION << "Scale factors are not set for some of the inputs";
             }
             IE_ASSERT(quantData != nullptr);
             quantData->_src_quant.scale = scaleFactor[scaleIndex];

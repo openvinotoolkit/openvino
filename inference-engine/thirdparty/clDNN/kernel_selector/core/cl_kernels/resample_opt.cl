@@ -28,7 +28,12 @@
 #endif
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
-KERNEL (resample_opt)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+KERNEL (resample_opt)(__global INPUT0_TYPE* input,
+                      __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+                      , FUSED_OPS_DECLS
+#endif
+)
 {
     const int xy = get_global_id(0);
     const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
@@ -72,9 +77,24 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
         const unit_t bottom = bottom_left + (bottom_right - bottom_left) * dx;
         unit_t res = top + (bottom - top) * dy;
 #endif
+#if HAS_FUSED_OPS
+        FUSED_OPS;
+        res = FUSED_OPS_RESULT;
+#else
         res = ACTIVATION(res, ACTIVATION_PARAMS);
+#endif
 
+#if OUTPUT_IS_FP
         WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_num, y, (x + out_x)), res);
+#else
+#if VEC_SIZE > 1
+        for (uint i = 0; i < VEC_SIZE; i++)
+            output[OUTPUT_GET_INDEX(b, feature_num + i*SUB_GROUP_SIZE, y, (x + out_x))] = res[i];
+#else
+            output[OUTPUT_GET_INDEX(b, feature_num, y, (x + out_x))] = res;
+#endif
+
+#endif
     }
 }
 

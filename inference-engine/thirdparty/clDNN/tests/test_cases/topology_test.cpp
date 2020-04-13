@@ -20,7 +20,7 @@
 #include <deque>
 #include <set>
 
-typedef std::tuple<cldnn::layout*, std::vector<unsigned>> topology_params;
+typedef std::tuple<cldnn::layout, std::vector<unsigned>> topology_params;
 
 void PrintTupleTo(const topology_params& t, ::std::ostream* os)
 {
@@ -29,8 +29,8 @@ void PrintTupleTo(const topology_params& t, ::std::ostream* os)
     std::stringstream ss;
 
     ss << "Topology test failed: ("
-        << cldnn::data_type_traits::name(output_layout->data_type) << " "
-        << tests::test_params::print_tensor(output_layout->size) << ") Generator: [";
+        << cldnn::data_type_traits::name(output_layout.data_type) << " "
+        << tests::test_params::print_tensor(output_layout.size) << ") Generator: [";
     for (auto v : generator)
     {
         ss << v << ", ";
@@ -52,7 +52,7 @@ protected:
             // return false for invalid output_layout
             virtual bool AddPrimitive(cldnn::topology& topology, cldnn::primitive_id id, cldnn::layout output_layout, std::deque<named_layout>& input_layouts) = 0;
         };
-        static std::vector<topology_layer_type*> layer_types;
+        static std::vector<std::shared_ptr<topology_layer_type>> layer_types;
         static cldnn::topology* CreateTopology(cldnn::layout output_layout, const std::vector<unsigned> generator_vec)
         {
             if (generator_vec.size() < 2)
@@ -279,7 +279,7 @@ protected:
                 );
                 input_layouts.push_back({ input_id1, input_layout1 });
                 input_layouts.push_back({ input_id2, input_layout2 });
-                
+
                 topology.add(cldnn::concatenation(id, { input_id1,input_id2 }, cldnn::concatenation::along_f));
                 return true;
             }
@@ -360,7 +360,7 @@ public:
     topology_test() : output_layout(std::get<0>(GetParam())), generator(std::get<1>(GetParam())) {}
     void run_single_test()
     {
-        cldnn::topology* topology = topology_generator::CreateTopology(*output_layout, generator);
+        cldnn::topology* topology = topology_generator::CreateTopology(output_layout, generator);
         EXPECT_NE(topology, nullptr);
         cldnn::build_options options;
         options.set_option(cldnn::build_option::optimize_data(true));
@@ -372,7 +372,7 @@ public:
         delete topology;
     }
 
-    static std::vector<cldnn::layout*> generate_all_output_layouts()
+    static std::vector<cldnn::layout> generate_all_output_layouts()
     {
         assert(all_output_layouts.empty());
         std::vector<cldnn::data_types> data_types = { cldnn::data_types::f32, cldnn::data_types::f16 };
@@ -386,7 +386,7 @@ public:
 
         for (auto dt : data_types) {
             for (auto t : output_tensors) {
-                all_output_layouts.push_back(new cldnn::layout(dt, cldnn::format::bfyx, t));
+                all_output_layouts.push_back(cldnn::layout(dt, cldnn::format::bfyx, t));
             }
         }
         return all_output_layouts;
@@ -415,13 +415,7 @@ public:
         }
         return all_generators;
     }
-    static void TearDownTestCase()
-    {
-        for (auto& p : all_output_layouts)
-        {
-            delete p;
-        }
-    }
+    static void TearDownTestCase() { }
     static std::string custom_param_name(const ::testing::TestParamInfo<topology_params>& info)
     {
         const auto & output_layout = std::get<0>(info.param);
@@ -432,37 +426,37 @@ public:
         {
             ss << v << "_";
         }
-        ss << cldnn::data_type_traits::name(output_layout->data_type) << "_";
-        ss << cldnn::format::traits(output_layout->format).order;
-        for (const auto& d : output_layout->size.raw)
+        ss << cldnn::data_type_traits::name(output_layout.data_type) << "_";
+        ss << cldnn::format::traits(output_layout.format).order;
+        for (const auto& d : output_layout.size.raw)
         {
             ss << "_" << d;
         }
-        
+
         return ss.str();
     }
 protected:
-    cldnn::layout* output_layout;
+    cldnn::layout output_layout;
     std::vector<unsigned> generator;
 
     static const cldnn::engine& engine;
-    static std::vector<cldnn::layout*> all_output_layouts;//just for tear-down
+    static std::vector<cldnn::layout> all_output_layouts;//just for tear-down
 };
 
 const cldnn::engine& topology_test::engine = tests::get_test_engine();
-std::vector<cldnn::layout*> topology_test::all_output_layouts = {};
+std::vector<cldnn::layout> topology_test::all_output_layouts = {};
 
-std::vector<topology_test::topology_generator::topology_layer_type*> topology_test::topology_generator::layer_types = {
-    new topology_test::topology_generator::normalization_layer_type(),
-    new topology_test::topology_generator::pooling_layer_type(),
-    new topology_test::topology_generator::convolution_layer_type(),
-    new topology_test::topology_generator::fully_connected_layer_type(),
-    new topology_test::topology_generator::reorder_layer_type(),
-    new topology_test::topology_generator::activation_layer_type(),
-    new topology_test::topology_generator::depth_concatenate_layer_type(),
-    new topology_test::topology_generator::eltwise_layer_type(),
-    new topology_test::topology_generator::scale_layer_type(),
-    new topology_test::topology_generator::softmax_layer_type(),
+std::vector<std::shared_ptr<topology_test::topology_generator::topology_layer_type>> topology_test::topology_generator::layer_types = {
+    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::normalization_layer_type()),
+    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::pooling_layer_type()),
+    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::convolution_layer_type()),
+    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::fully_connected_layer_type()),
+    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::reorder_layer_type()),
+    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::activation_layer_type()),
+    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::depth_concatenate_layer_type()),
+    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::eltwise_layer_type()),
+    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::scale_layer_type()),
+    std::shared_ptr<topology_test::topology_generator::topology_layer_type>(new topology_test::topology_generator::softmax_layer_type()),
     // Only add new types at the end
 };
 const cldnn::primitive_id topology_test::topology_generator::output_layer_id("tg_output_layer");

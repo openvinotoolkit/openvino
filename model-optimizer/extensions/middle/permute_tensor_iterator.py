@@ -20,6 +20,9 @@ from extensions.middle.LSTMRNNSequenceToTensorIterator import LSTMToTensorIterat
 from extensions.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
 from extensions.middle.SwapAxesMiddleReplacer import SwapAxisMiddleReplacer
 from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
+from extensions.ops.gather import Gather
+from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import dict_includes, Graph
 from mo.middle.passes.eliminate import remove_op_node_with_data_node
 from mo.middle.pattern_match import find_isomorphisms
@@ -157,6 +160,16 @@ class TransposeTensorIteratorLSTM(MiddleReplacementPattern):
         inverse_order = inverse_permute.in_port(1).data.get_value()
         if inverse_order is None or not np.array_equal(inverse_order, permute_order):
             return
+
+        # Check non-ShapeOf output out of direct Transpose is exactly one
+        direct_permute_dsts = direct_permute.out_port(0).get_destinations()
+        if len([dst for dst in direct_permute_dsts if dst.node.soft_get('type') != 'ShapeOf']) != 1:
+            return
+        for shape_of_dst in [dst for dst in direct_permute_dsts if dst.node.soft_get('type') == 'ShapeOf']:
+            name = shape_of_dst.node.soft_get('name', shape_of_dst.node.id) + '/FusedToTITranspose'
+            gather = create_op_with_const_inputs(graph, op=Gather, op_attrs={'name': name},
+                                                 port_value_dict={1: int64_array(permute_order), 2: int64_array(0)})
+            shape_of_dst.node.out_port(0).get_connection().insert_node(gather)
 
         def find_ports(port_map: list, attrs: dict):
             """ Find all ports in a given port map with specified attributes """

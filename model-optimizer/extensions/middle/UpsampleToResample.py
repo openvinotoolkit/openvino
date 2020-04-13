@@ -20,6 +20,7 @@ from typing import Dict
 
 import numpy as np
 
+from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.layout import get_height_dim, get_width_dim, get_depth_dim
@@ -60,31 +61,45 @@ class UpsampleToResample(MiddleReplacementPattern):
             log.warning('The input shape is not 4D or 5D for op {}'.format(upsample.soft_get('name')))
             return
 
+        depth_scale = None
         if len(upsample.in_nodes()) == 2:
             if upsample.in_node(1).value is None:
                 return
             scales = upsample.in_node(1).value
-            assert scales.shape == (4,)
+            assert len(scales) in (4, 5), 'Supported scales rank is 4 or 5, but it is {} for node {}'.format(
+                len(scales), upsample.soft_get('name', upsample.id)
+            )
             if not (math.isclose(scales[0], 1, rel_tol=1e-5) and math.isclose(scales[1], 1, rel_tol=1e-5)):
                 return
             height_scale = scales[2]
             width_scale = scales[3]
+            if len(scales) == 5:
+                depth_scale = scales[4]
         else:
             height_scale = upsample['height_scale']
             width_scale = upsample['width_scale']
 
+        if not math.isclose(height_scale, width_scale, rel_tol=1e-5):
+            log.debug('Width and height scales are not equal: {} vs {} for node {}'.format(
+                width_scale, height_scale, upsample.soft_get('name')))
+            return
+        if depth_scale is not None and not math.isclose(height_scale, depth_scale, rel_tol=1e-5):
+            log.debug('Depth and height scales are not equal: {} vs {} for node {}'.format(
+                depth_scale, height_scale, upsample.soft_get('name')))
+            return
+
         if 1 in upsample.in_ports() and not upsample.in_port(1).disconnected():
             upsample.in_port(1).disconnect()
-
-        factor = Const(graph, {'value': np.array([height_scale, width_scale])}).create_node()
 
         shape = Shape(graph, {'name': upsample.name + '/0_port'}).create_node()
 
         layout = graph.graph['layout']
         if input_shape_rank == 4:
             begin = Const(graph, {'value': int64_array([get_height_dim(layout, input_shape_rank)])}).create_node()
+            factor = Const(graph, {'value': np.array([height_scale, width_scale])}).create_node()
         else:
             begin = Const(graph, {'value': int64_array([get_depth_dim(layout, input_shape_rank)])}).create_node()
+            factor = Const(graph, {'value': np.array([depth_scale, height_scale, width_scale])}).create_node()
         end = Const(graph, {'value': int64_array([get_width_dim(layout, input_shape_rank) + 1])}).create_node()
 
         stride = Const(graph, {'value': int64_array([1])}).create_node()
@@ -124,3 +139,9 @@ class UpsampleToResample(MiddleReplacementPattern):
         upsample.in_port(0).get_connection().set_destination(resample_op.in_port(0))
         upsample.out_port(0).get_connection().set_source(resample_op.out_port(0))
 
+        convert_to_float = Cast(graph, dict(dst_type=np.float32)).create_node()
+        int_np_type = np.int64 if graph.graph['cmd_params'].generate_experimental_IR_V10 else np.int32
+        convert_to_int = Cast(graph, dict(dst_type=int_np_type)).create_node()
+
+        mul.in_port(0).get_connection().insert_node(convert_to_float)
+        mul.out_port(0).get_connection().insert_node(convert_to_int)

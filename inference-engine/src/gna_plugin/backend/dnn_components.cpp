@@ -12,18 +12,19 @@
 
 #include "dnn_components.hpp"
 
+using namespace GNAPluginNS;
 
-intel_dnn_component_t & GNAPluginNS::backend::DnnComponents::addComponent(const std::string layerName, const std::string layerMetaType) {
+intel_dnn_component_t & backend::DnnComponents::addComponent(const std::string layerName, const std::string layerMetaType) {
     components.emplace_back(layerName, intel_dnn_component_t());
     auto &currentComponent = components.back().second;
 #ifdef PLOT
-    currentComponent.orignal_layer_name = components.back().first.c_str();
+    currentComponent.original_layer_name = components.back().first.c_str();
     std::cout << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << components.size() - 1 << std::endl;
 #endif
     return currentComponent;
 }
 
-intel_dnn_component_t * GNAPluginNS::backend::DnnComponents::findComponent(InferenceEngine::CNNLayerPtr __layer) {
+intel_dnn_component_t * backend::DnnComponents::findComponent(InferenceEngine::CNNLayerPtr __layer) {
     auto component = std::find_if(begin(components),
                                   end(components),
                                   [&](storage_type ::value_type &comp) {

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -91,7 +91,7 @@ ConcatenationKernelBase::DispatchData ConcatenationKernelBase::SetDefault(const 
 
     kd.lws1 = 1;
     kd.lws2 = 1;
-    kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return kd;
 }
 
@@ -106,7 +106,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
 
     uint32_t lastOffset = 0;
     const auto concatChannelIndex = GetConcatChannelIndex(orgParams);
-    float effiency = FORCE_PRIORITY_1;
+    float efficiency = FORCE_PRIORITY_1;
     size_t ifm_offset = 0;
     for (size_t i = 0; i < orgParams.inputs.size(); i++) {
         const auto& input = orgParams.inputs[i];
@@ -137,10 +137,10 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         kernel.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
         lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
-        effiency = std::max(effiency, runInfo.effiency);
+        efficiency = std::max(efficiency, runInfo.efficiency);
     }
 
-    kd.estimatedTime = effiency;
+    kd.estimatedTime = efficiency;
 
     return {kd};
 }

@@ -27,6 +27,7 @@
 /**
  * @def INFERENCE_PLUGIN_API(type)
  * @brief Defines Inference Engine Plugin API method
+ * @param type A plugin type
  */
 
 #if defined(_WIN32)
@@ -70,10 +71,10 @@ struct QueryNetworkResult {
 };
 
 /**
- * @deprecated Use InferenceEngine::Core instead.
+ * @deprecated Use InferenceEngine::Core instead. Will be removed in 2020.3
  * @brief This class is a main plugin interface
  */
-class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead. Will be removed in 2020 R2")
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead. Will be removed in 2020.3")
     INFERENCE_ENGINE_API_CLASS(IInferencePlugin)
     : public details::IRelease {
 public:
@@ -85,12 +86,16 @@ public:
     virtual void GetVersion(const Version*& versionInfo) noexcept = 0;
 
     /**
+     * @deprecated IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations
      * @brief Sets logging callback
      *
      * Logging is used to track what is going on inside
      * @param listener Logging sink
      */
+    IE_SUPPRESS_DEPRECATED_START
+    INFERENCE_ENGINE_DEPRECATED("IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations")
     virtual void SetLogCallback(IErrorListener& listener) noexcept = 0;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Creates an executable network from a network object. User can create as many networks as they need and use
@@ -102,7 +107,7 @@ public:
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      * @return Status code of the operation. InferenceEngine::OK if succeeded
      */
-    virtual StatusCode LoadNetwork(IExecutableNetwork::Ptr& ret, ICNNNetwork& network,
+    virtual StatusCode LoadNetwork(IExecutableNetwork::Ptr& ret, const ICNNNetwork& network,
                                    const std::map<std::string, std::string>& config, ResponseDesc* resp) noexcept = 0;
 
     /**

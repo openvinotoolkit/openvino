@@ -19,7 +19,7 @@ from extensions.back.ElementwiseOpsToEltwiseOps import SimpleEltwiseToEltwiseOp
 from extensions.back.insert_compatibility_l2normalization import CompatibilityL2NormalizationPattern
 from extensions.ops.elementwise import Mul
 from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, rename_node
 from mo.ops.const import Const
 
 
@@ -44,6 +44,12 @@ class NormalizeToNormalizeL2(BackReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         node = match['normalize']
+
+        # rename normalize node since it will be no longer output node after the transformation
+        output_name = node.soft_get('name', node.id)
+        normalizel2_name = output_name + '/normalizel2'
+        rename_node(node, normalizel2_name)
+
         assert node.in_port(0).data.get_shape().size in [2, 3, 4]
         assert node.has_valid('across_spatial')
         assert node.has_valid('channel_shared')
@@ -63,7 +69,9 @@ class NormalizeToNormalizeL2(BackReplacementPattern):
             new_shape[1] = -1
             node.in_port(1).get_source().data.set_value(np.array(weights).reshape(new_shape))
 
-        mul = Mul(graph, {'name': node.name + '/Normalize_weights_multiplication'}).create_node()
+        mul = Mul(graph, {'name': output_name}).create_node()
+        rename_node(mul, output_name)
+
         node.out_port(0).get_connection().set_source(mul.out_port(0))
         node.out_port(0).connect(mul.in_port(0))
         node.in_port(1).get_connection().get_source().connect(mul.in_port(1))

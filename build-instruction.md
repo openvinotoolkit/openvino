@@ -57,7 +57,7 @@ The software was validated on:
 - CentOS\* 7.4 (64-bit) with default GCC\* 4.8.5
 
 ### Software Requirements
-- [CMake]\* 3.5 or higher
+- [CMake]\* 3.11 or higher
 - GCC\* 4.8 or higher to build the Inference Engine
 - Python 2.7 or higher for Inference Engine Python API wrapper
 - (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441].
@@ -234,7 +234,6 @@ with the following content:
       build-essential \
       crossbuild-essential-armhf \
       git \
-      cmake \
       wget \
       libusb-1.0-0-dev:armhf \
       libgtk-3-dev:armhf \
@@ -245,6 +244,11 @@ with the following content:
       libgstreamer-plugins-base1.0-dev:armhf \
       libpython3-dev:armhf \
       python3-pip
+
+  RUN wget https://www.cmake.org/files/v3.14/cmake-3.14.3.tar.gz && \
+      tar xf cmake-3.14.3.tar.gz && \
+      (cd cmake-3.14.3 && ./bootstrap --parallel=$(nproc --all) && make --jobs=$(nproc --all) && make install) && \
+      rm -rf cmake-3.14.3 cmake-3.14.3.tar.gz
   ```
 
   It uses the Debian\* Stretch (Debian 9) OS for compilation because it is a base of the Raspbian\* Stretch.
@@ -331,7 +335,7 @@ The software was validated on:
   Compiler 2018 Update 3
 
 ### Software Requirements
-- [CMake]\*3.5 or higher
+- [CMake]\*3.11 or higher
 - Microsoft\* Visual Studio 2017, 2019 or [Intel® C++ Compiler] 18.0
 - (Optional) Intel® Graphics Driver for Windows* (26.20) [driver package].
 - Python 3.4 or higher for Inference Engine Python API wrapper
@@ -377,8 +381,8 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
 
 6. Before running the samples, add paths to the TBB and OpenCV binaries used for
    the build to the `%PATH%` environment variable. By default, TBB binaries are
-   downloaded by the CMake-based script to the `<dldt_repo>/inference-engine/temp/tbb/lib`
-   folder, OpenCV binaries to the `<dldt_repo>/inference-engine/temp/opencv_4.2.0/bin`
+   downloaded by the CMake-based script to the `<dldt_repo>/inference-engine/temp/tbb/bin`
+   folder, OpenCV binaries to the `<dldt_repo>/inference-engine/temp/opencv_4.3.0/opencv/bin`
    folder.
 
 ### Additional Build Options
@@ -449,7 +453,7 @@ The software was validated on:
 
 ### Software Requirements
 
-- [CMake]\* 3.9 or higher
+- [CMake]\* 3.11 or higher
 - Clang\* compiler from Xcode\* 10.1 or higher
 - Python\* 3.4 or higher for the Inference Engine Python API wrapper
 
@@ -525,9 +529,8 @@ This section describes how to build Inference Engine for Android x86 (64-bit) op
 
 ### Software Requirements
 
-- [CMake]\* 3.5 or higher
+- [CMake]\* 3.11 or higher
 - Android NDK (this guide has been validated with r20 release)
-- OpenCV for Android
 
 ### Build Steps
 
@@ -540,26 +543,18 @@ This section describes how to build Inference Engine for Android x86 (64-bit) op
   mv android-ndk-r20 android-ndk
   ```
 
-2. Download and unpack OpenCV
-  ```sh
-  cd ~/Downloads
-  wget https://github.com/opencv/opencv/releases/download/4.2.0/opencv-4.2.0-android-sdk.zip
-
-  unzip opencv-4.2.0-android-sdk.zip
-  ```
-
-3. Clone submodules
+2. Clone submodules
   ```sh
   cd dldt
   git submodule update --init --recursive
   ```
 
-4. Create a build folder:
+3. Create a build folder:
   ```sh
     mkdir build
   ```
 
-5. Change working directory to `build` and run `cmake` to create makefiles. Then run `make`.
+4. Change working directory to `build` and run `cmake` to create makefiles. Then run `make`.
   ```sh
   cd build
 
@@ -568,7 +563,7 @@ This section describes how to build Inference Engine for Android x86 (64-bit) op
     -DANDROID_ABI=x86_64 \
     -DANDROID_PLATFORM=21 \
     -DANDROID_STL=c++_shared \
-    -DOpenCV_DIR=~/Downloads/OpenCV-android-sdk/sdk/native/jni/
+    -DENABLE_OPENCV=OFF
 
   make --jobs=$(nproc --all)
   ```
@@ -580,7 +575,7 @@ This section describes how to build Inference Engine for Android x86 (64-bit) op
 
 ## Use Custom OpenCV Builds for Inference Engine
 
-> **NOTE**: The recommended and tested version of OpenCV is 4.2. The minimum
+> **NOTE**: The recommended and tested version of OpenCV is 4.3. The minimum
 supported version is 3.4.0.
 
 Required versions of OpenCV packages are downloaded automatically during the

@@ -103,8 +103,10 @@ public:
         switch (weights_layout.fused_format()) {
             case fuse(data_types::f32, format::bfyx):
             case fuse(data_types::f32, format::yxfb):
+            case fuse(data_types::f32, format::oiyx):
             case fuse(data_types::f16, format::bfyx):
             case fuse(data_types::f16, format::yxfb):
+            case fuse(data_types::f16, format::oiyx):
                 break;
             default:
                 throw std::runtime_error("convolution_grad_weights weights format unsupported");

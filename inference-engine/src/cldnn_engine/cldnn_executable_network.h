@@ -14,7 +14,6 @@
 #include "ie_plugin.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "debug_options.h"
-#include "inference_engine.hpp"
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include "cldnn_graph.h"
 #include "cldnn_config.h"
@@ -33,15 +32,15 @@ public:
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
 
-    static unsigned int GetWaitingCounter();
-    static unsigned int GetRunningCounter();
     void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
     void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
     void GetContext(RemoteContext::Ptr &pContext, ResponseDesc *resp) const override;
 
+
     std::vector<std::shared_ptr<CLDNNGraph>> m_graphs;
     gpu::ClContext::Ptr m_context;
     Config m_config;
+    InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
 };
 
 };  // namespace CLDNNPlugin

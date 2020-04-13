@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,6 +64,7 @@ ParamsKey ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedKey() const {
     k.EnableSplitSupport();
     k.EnableDilation();
     k.EnableTranspose();
+    k.EnableGroupedConvolution();
     return k;
 }
 
@@ -147,7 +148,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16::AutoTuneOption ConvolutionKernel_bfyx_os_iy
         option.blockWidth = 4;
         option.blockHeight = 3;
         option.prefetch = 5;
-        // run_info.effiency = FORCE_PRIORITY_7; // GEMM is better
+        // run_info.efficiency = FORCE_PRIORITY_7; // GEMM is better
     }
 
     // if this is not 1x1 batch1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
@@ -164,9 +165,10 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
     DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
 
     const auto of_maps = cp.output.Feature().v;
-    const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
+    const auto of_maps_per_group = of_maps / cp.groups;
+    const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size) * cp.groups;
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    runInfo.efficiency = FORCE_PRIORITY_3;
 
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
     runInfo.cldnnStyle.blockWidth = tuneOptions.blockWidth;
@@ -206,8 +208,9 @@ bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p, const option
 JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolution_params& params,
                                                                   const DispatchData& runInfo) const {
     const auto of_maps = params.output.Feature().v;
-    const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
-    size_t leftovers = of_threads_per_batch - of_maps;
+    const auto of_maps_per_group = of_maps / params.groups;
+    const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size);
+    size_t leftovers = of_threads_per_batch - of_maps_per_group;
 
     auto jit = Parent::GetJitConstants(params, runInfo);
 
@@ -232,12 +235,12 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
     return jit;
 }
 
-std::vector<WeightsLayout> ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedWeightLayouts(
-    const convolution_params& params) const {
+WeightsLayout ConvolutionKernel_bfyx_os_iyx_osv16::GetPreferredWeightsLayout(
+        const convolution_params &params) const {
     if (!params.transposed) {
-        return {WeightsLayout::os_iyx_osv16};
+        return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv16 : WeightsLayout::os_iyx_osv16;
     } else {
-        return {WeightsLayout::os_iyx_osv16_rotate_180};
+        return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv16_rotate_180 : WeightsLayout::os_iyx_osv16_rotate_180;
     }
 }
 

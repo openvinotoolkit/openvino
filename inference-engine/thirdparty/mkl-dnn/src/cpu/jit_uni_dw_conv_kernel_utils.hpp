@@ -115,6 +115,8 @@ status_t jit_uni_dw_conv_fwd_kernel<isa, kernel_dt>::init_conf(
     jcp.dst_dt = cd.dst_desc.data_type;
     const bool is_bf16 = src_d.data_type() == data_type::bf16;
 
+    jcp.isa = is_bf16 && mayiuse(avx512_core_bf16) ? avx512_core_bf16 : isa;
+
     if (!mayiuse(isa) || (is_bf16 && !mayiuse(avx512_core)))
         return status::unimplemented;
 
@@ -125,6 +127,9 @@ status_t jit_uni_dw_conv_fwd_kernel<isa, kernel_dt>::init_conf(
     const bool with_groups = weights_d.ndims() == src_d.ndims() + 1;
     if (!with_groups) return status::unimplemented;
 
+    int ndims = src_d.ndims();
+    jcp.ndims = ndims;
+
     jcp.ngroups = weights_d.dims()[0];
     jcp.mb = src_d.dims()[0];
 
@@ -132,24 +137,31 @@ status_t jit_uni_dw_conv_fwd_kernel<isa, kernel_dt>::init_conf(
     jcp.oc_without_padding = jcp.oc;
     jcp.ic = src_d.dims()[1];
 
-    jcp.ih = src_d.dims()[2];
-    jcp.iw = src_d.dims()[3];
-    jcp.oh = dst_d.dims()[2];
-    jcp.ow = dst_d.dims()[3];
+    jcp.id = (ndims == 5) ? src_d.dims()[2] : 1;
+    jcp.ih = src_d.dims()[ndims - 2];
+    jcp.iw = src_d.dims()[ndims - 1];
+    jcp.od = (ndims == 5) ? dst_d.dims()[2] : 1;
+    jcp.oh = dst_d.dims()[ndims - 2];
+    jcp.ow = dst_d.dims()[ndims - 1];
 
-    jcp.kh = weights_d.dims()[3];
-    jcp.kw = weights_d.dims()[4];
+    jcp.kd = (ndims == 5) ? weights_d.dims()[3] : 1;
+    jcp.kh = weights_d.dims()[ndims - 1];
+    jcp.kw = weights_d.dims()[ndims];
 
-    jcp.t_pad = cd.padding[0][0];
-    jcp.l_pad = cd.padding[0][1];
-    jcp.b_pad = cd.padding[1][0];
-    jcp.r_pad = cd.padding[1][1];
+    jcp.f_pad = (ndims == 5) ? cd.padding[0][0] : 0;
+    jcp.t_pad = cd.padding[0][ndims - 4];
+    jcp.l_pad = cd.padding[0][ndims - 3];
+    jcp.back_pad = (ndims == 5) ? cd.padding[1][0] : 0;
+    jcp.b_pad = cd.padding[1][ndims - 4];
+    jcp.r_pad = cd.padding[1][ndims - 3];
 
-    jcp.stride_h = cd.strides[0];
-    jcp.stride_w = cd.strides[1];
+    jcp.stride_d = (ndims == 5) ? cd.strides[0] : 1;
+    jcp.stride_h = cd.strides[ndims - 4];
+    jcp.stride_w = cd.strides[ndims - 3];
 
-    jcp.dilate_h = cd.dilates[0];
-    jcp.dilate_w = cd.dilates[1];
+    jcp.dilate_d = (ndims == 5) ? cd.dilates[0] : 0;
+    jcp.dilate_h = cd.dilates[ndims - 4];
+    jcp.dilate_w = cd.dilates[ndims - 3];
 
     jcp.src_fmt = src_d.format();
     jcp.with_bias = cd.bias_desc.format != memory_format::undef;
@@ -174,10 +186,10 @@ status_t jit_uni_dw_conv_fwd_kernel<isa, kernel_dt>::init_conf(
         jcp.ngroups = rnd_up(jcp.ngroups, simd_w);
     }
 
-    auto desired_act_fmt
-            = one_of(isa, avx512_common, avx512_core) ? nChw16c : nChw8c;
-    auto desired_wei_fmt
-            = one_of(isa, avx512_common, avx512_core) ? Goihw16g : Goihw8g;
+    auto desired_act_fmt = (ndims == 5) ? one_of(isa, avx512_common, avx512_core) ? nCdhw16c : nCdhw8c
+                                        : one_of(isa, avx512_common, avx512_core) ? nChw16c : nChw8c;
+    auto desired_wei_fmt = (ndims == 5) ? one_of(isa, avx512_common, avx512_core) ? Goidhw16g : Goidhw8g
+                                        : one_of(isa, avx512_common, avx512_core) ? Goihw16g : Goihw8g;
 
     bool args_ok = true
         && jcp.oc == jcp.ngroups
@@ -192,15 +204,13 @@ status_t jit_uni_dw_conv_fwd_kernel<isa, kernel_dt>::init_conf(
         && jcp.ngroups <= weights_d.blocking_desc().padding_dims[0];
     if (!args_ok) return status::unimplemented;
 
-    jcp.is_cpx = (mayiuse(avx512_core_bf16)) ? true : false;
-
     jcp.typesize_out = jcp.dst_dt == data_type::bf16 ? sizeof(mkldnn_bfloat16_t)
                                                      : sizeof(float);
     jcp.typesize_in = src_d.data_type() == data_type::bf16
             ? sizeof(mkldnn_bfloat16_t)
             : sizeof(float);
 
-    jcp.ur_w = is_bf16 ? (jcp.is_cpx ? 6 : 4)
+    jcp.ur_w = is_bf16 ? (isa_has_bf16(jcp.isa) ? 6 : 4)
                        : isa == avx512_common ? 6 : isa == avx2 ? 4 : 3;
 
     jcp.ch_block = simd_w;
@@ -210,13 +220,17 @@ status_t jit_uni_dw_conv_fwd_kernel<isa, kernel_dt>::init_conf(
     if (jcp.nb_ch < jcp.nb_ch_blocking)
         jcp.nb_ch_blocking = jcp.nb_ch;
 
+    jcp.bia_dt = jcp.with_bias ? cd.bias_desc.data_type : data_type::undef;
+
     return status::success;
 }
 
 template <cpu_isa_t isa, data_type_t kernel_dt>
 void jit_uni_dw_conv_fwd_kernel<isa, kernel_dt>::init_scratchpad(
         memory_tracking::registrar_t &scratchpad, const jit_conv_conf_t &jcp) {
-    if (jcp.with_bias && jcp.oc_without_padding != jcp.oc)
+    if (jcp.bia_dt == data_type::bf16)
+        scratchpad.book(key_conv_bias_bf16_convert_wsp, sizeof(float) * jcp.oc);
+    else if (jcp.with_bias && jcp.oc_without_padding != jcp.oc)
         scratchpad.book(key_conv_padded_bias, sizeof(float) * jcp.oc);
 }
 
@@ -228,19 +242,21 @@ template struct jit_uni_dw_conv_fwd_kernel<sse42, data_type::f32>;
 template <cpu_isa_t isa, data_type_t kernel_dt>
 struct jit_uni_dw_conv_bwd_data_kernel {
 
-    jit_uni_dw_conv_bwd_data_kernel(jit_conv_conf_t ajcp)
+    jit_uni_dw_conv_bwd_data_kernel(jit_conv_conf_t ajcp, const primitive_attr_t &attr)
         : jit_ker(nullptr), ker_(nullptr) {
-        ker_ = new jit_kernel_t(ajcp);
+        ker_ = new jit_kernel_t(ajcp, attr);
         jit_ker = ker_->jit_ker;
     }
     ~jit_uni_dw_conv_bwd_data_kernel(){
         delete ker_;
     }
 
+    static bool post_ops_ok(const primitive_attr_t &attr);
+
     static status_t init_conf(jit_conv_conf_t &jcp,
             const convolution_desc_t &cd, const memory_desc_wrapper &diff_src_d,
             const memory_desc_wrapper &weights_d,
-            const memory_desc_wrapper &diff_dst_d);
+            const memory_desc_wrapper &diff_dst_d, const primitive_attr_t &attr);
 
     static void init_scratchpad(memory_tracking::registrar_t &scratchpad,
             const jit_conv_conf_t &jcp);
@@ -256,14 +272,33 @@ private:
 };
 
 template <cpu_isa_t isa, data_type_t kernel_dt>
+bool jit_uni_dw_conv_bwd_data_kernel<isa, kernel_dt>::post_ops_ok(const primitive_attr_t &attr) {
+    const auto &p = attr.post_ops_;
+    if (p.len_ > 1)
+        return false;
+
+    auto all_post_ops_supported = [&]() {
+        bool ok = true;
+
+        for (int i = 0; i < p.len_; i++) {
+            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::depthwise);
+        }
+        return ok;
+    };
+
+    return all_post_ops_supported();
+}
+
+template <cpu_isa_t isa, data_type_t kernel_dt>
 status_t jit_uni_dw_conv_bwd_data_kernel<isa, kernel_dt>::init_conf(
         jit_conv_conf_t &jcp, const convolution_desc_t &cd,
-        const memory_desc_wrapper &diff_src_d,
-        const memory_desc_wrapper &weights_d,
-        const memory_desc_wrapper &diff_dst_d) {
+        const memory_desc_wrapper &diff_src_d, const memory_desc_wrapper &weights_d,
+        const memory_desc_wrapper &diff_dst_d, const primitive_attr_t &attr) {
 
     jcp.dsrc_dt = cd.diff_src_desc.data_type;
     const bool is_bf16 = diff_dst_d.data_type() == data_type::bf16;
+
+    jcp.isa = is_bf16 && mayiuse(avx512_core_bf16) ? avx512_core_bf16 : isa;
 
     if (!mayiuse(isa) || (is_bf16 && !mayiuse(avx512_core)))
         return status::unimplemented;
@@ -304,6 +339,9 @@ status_t jit_uni_dw_conv_bwd_data_kernel<isa, kernel_dt>::init_conf(
 
     jcp.src_fmt = diff_src_d.format();
 
+    if (!post_ops_ok(attr))
+        return status::unimplemented;
+
     bool ok_to_pad_channels = true
         && jcp.oc == jcp.ngroups
         && jcp.ic == jcp.ngroups
@@ -335,8 +373,6 @@ status_t jit_uni_dw_conv_bwd_data_kernel<isa, kernel_dt>::init_conf(
         && jcp.ngroups <= weights_d.blocking_desc().padding_dims[0];
     if (!args_ok) return status::unimplemented;
 
-    jcp.is_cpx = (mayiuse(avx512_core_bf16)) ? true : false;
-
     jcp.typesize_out = diff_src_d.data_type() == data_type::bf16
             ? sizeof(mkldnn_bfloat16_t)
             : sizeof(float);
@@ -344,7 +380,7 @@ status_t jit_uni_dw_conv_bwd_data_kernel<isa, kernel_dt>::init_conf(
             ? sizeof(mkldnn_bfloat16_t)
             : sizeof(float);
 
-    jcp.ur_w = is_bf16 ? (jcp.is_cpx ? 6 : 4)
+    jcp.ur_w = is_bf16 ? (isa_has_bf16(jcp.isa) ? 6 : 4)
                        : isa == avx512_common ? 6 : isa == avx2 ? 4 : 3;
 
     jcp.ch_block = simd_w;
@@ -410,6 +446,8 @@ status_t jit_uni_dw_conv_bwd_weights_kernel<isa, kernel_dt>::init_conf(
     jcp.dwei_dt = cd.diff_weights_desc.data_type;
     const bool is_bf16 = src_d.data_type() == data_type::bf16;
 
+    jcp.isa = is_bf16 && mayiuse(avx512_core_bf16) ? avx512_core_bf16 : isa;
+
     if (!mayiuse(isa) || (is_bf16 && !mayiuse(avx512_core)))
         return status::unimplemented;
 
@@ -466,6 +504,7 @@ status_t jit_uni_dw_conv_bwd_weights_kernel<isa, kernel_dt>::init_conf(
             && one_of(cd.bias_desc.format, memory_format::undef, any, x)
             && jcp.ngroups % jcp.ch_block == 0 && jcp.dilate_h == 0
             && jcp.dilate_w == 0 && jcp.kw <= 3
+            && jcp.stride_w <= jcp.kw // no gaps in kernel
             && jcp.oh == (jcp.ihp - jcp.kh) / jcp.stride_h + 1
             && jcp.ow == (jcp.iwp - jcp.kw) / jcp.stride_w + 1;
     if (!args_ok)
@@ -482,13 +521,17 @@ status_t jit_uni_dw_conv_bwd_weights_kernel<isa, kernel_dt>::init_conf(
      * but ideally the check should belong to a specific kernel... */
     const int max_hpad = (jcp.kh - 1 + 1) / 2;
     const int max_wpad = (jcp.kw - 1 + 1) / 2;
+    const int min_ih = jcp.kh + nstl::modulo(-jcp.t_pad, jcp.stride_h);
     const bool boundaries_ok = true && jcp.t_pad <= max_hpad
             && jcp.b_pad <= max_hpad && jcp.l_pad <= max_wpad
-            && jcp.r_pad <= max_wpad;
+            && jcp.r_pad <= max_wpad
+            // input must fully accommodate the filter
+            && jcp.ih >= min_ih
+            // non-unit padding must be a multiple of the stride
+            && IMPLICATION(jcp.t_pad > 1, jcp.t_pad % jcp.stride_h == 0)
+            && IMPLICATION(jcp.b_pad > 1, jcp.b_pad % jcp.stride_h == 0);
     if (!boundaries_ok)
         return status::unimplemented;
-
-    jcp.is_cpx = (mayiuse(avx512_core_bf16)) ? true : false;
 
     /* BF16: accumulation of output happens in f32, down-conversion to bf16
      * happens during the reduction phase. */
@@ -496,6 +539,7 @@ status_t jit_uni_dw_conv_bwd_weights_kernel<isa, kernel_dt>::init_conf(
     jcp.typesize_in = src_d.data_type() == data_type::bf16
             ? sizeof(mkldnn_bfloat16_t)
             : sizeof(float);
+    jcp.bia_dt = jcp.with_bias ? cd.diff_bias_desc.data_type : data_type::undef;
 
     balance(jcp, nthreads);
 
@@ -521,6 +565,9 @@ void jit_uni_dw_conv_bwd_weights_kernel<isa, kernel_dt>::init_scratchpad(
         const size_t wei_size = jcp.ngroups * jcp.kh * jcp.kw;
         scratchpad.book(key_conv_wei_reduction, sizeof(float) * wei_size);
     }
+    if (jcp.bia_dt == data_type::bf16)
+        scratchpad.book(key_conv_bias_bf16_convert_wsp,
+                sizeof(float) * jcp.ngroups);
 }
 
 template <cpu_isa_t isa, data_type_t kernel_dt>

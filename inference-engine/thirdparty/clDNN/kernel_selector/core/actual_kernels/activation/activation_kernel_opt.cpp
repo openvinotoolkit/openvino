@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ ActivationKernelOpt::Parent::DispatchData ActivationKernelOpt::SetDefault(const 
     runInfo.lws1 = 1;
     runInfo.lws2 = 1;
 
-    runInfo.effiency = FORCE_PRIORITY_6;
+    runInfo.efficiency = FORCE_PRIORITY_6;
 
     return runInfo;
 }
@@ -65,7 +65,7 @@ bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) co
 
     const activation_params& params = static_cast<const activation_params&>(p);
 
-    if (params.output.GetLayout() == DataLayout::bfyx_f16 && params.output.Feature().v % 16 != 0)
+    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 && params.output.Feature().v % 16 != 0)
         return false;
 
     const auto totalSize = params.inputs[0].LogicalSize();

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -159,6 +159,7 @@ REGISTER_GPU(select);
 REGISTER_GPU(shuffle_channels);
 REGISTER_GPU(softmax);
 REGISTER_GPU(softmax_loss_grad);
+REGISTER_GPU(space_to_depth);
 REGISTER_GPU(strided_slice);
 REGISTER_GPU(tile);
 REGISTER_GPU(fused_conv_bn_scale);

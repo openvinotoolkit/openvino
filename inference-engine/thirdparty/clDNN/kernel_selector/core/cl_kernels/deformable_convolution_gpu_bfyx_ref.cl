@@ -29,10 +29,10 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
     const uint x = get_global_id(0);
     const uint y = get_global_id(1);
 #if OUTPUT_BATCH_NUM == 1
-    const uint f = get_global_id(2);
+    const uint of = get_global_id(2);
     const uint b = 0;
 #else
-    const uint f = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+    const uint of = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
     const uint b = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
 #endif
 
@@ -40,13 +40,17 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-    const int channel_per_deformable_group = INPUT0_FEATURE_NUM / DEFORMABLE_GROUPS;
-    const uint out_index = GET_DATA_INDEX(OUTPUT, b, f, y, x);
+    const int channel_per_deformable_group = INPUT0_FEATURE_NUM / DEFORMABLE_GROUPS / FILTER_GROUPS_NUM;
+    const uint out_index = GET_DATA_INDEX(OUTPUT, b, of, y, x);
 
-#if DEPTHWISE_SEPARABLE_OPT
-    const uint in_split_offset = (f / FILTER_OFM_NUM) * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
+#if GROUPED
+    const uint f = of % FILTER_OFM_NUM;
+    const uint conv_group = of / FILTER_OFM_NUM;
+    const uint in_split_offset = conv_group * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
 #else
-    const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
+    const uint f = of;
+    const uint conv_group = 0;
+    const uint in_split_offset = conv_group * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
 #endif
 
     for (uint dg = 0; dg < DEFORMABLE_GROUPS; ++dg)
@@ -74,11 +78,8 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
                     if(!zero_x) {
                         for (uint c = 0; c < channel_per_deformable_group; ++c) {
                             uint ifm = ifm_offset + c;
-                            uint filter_idx = GET_FILTER_INDEX(FILTER, f, ifm, j, i);
+                            uint filter_idx = GET_FILTER_INDEX(FILTER, conv_group, f, ifm, j, i);
 
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-    filter_idx += split_idx * FILTER_LENGTH;
-#endif
 #ifdef LOCAL_CONVOLUTION
     filter_idx += FILTER_SIZE_X * FILTER_SIZE_Y * (x + OUTPUT_SIZE_X * y);
 #endif
@@ -108,19 +109,14 @@ KERNEL(deformable_convolution_gpu_bfyx_ref)(
     } // dg
 
 #if BIAS_TERM
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-        const uint bias_offset = split_idx * BIAS_LENGTH;
-#else
-        const uint bias_offset = 0;
-#endif
 #if   BIAS_PER_OUTPUT
-        const uint bias_index = bias_offset + GET_DATA_INDEX(BIAS, b, f, y, x);
+        const uint bias_index = GET_DATA_INDEX(BIAS, b, of, y, x);
 #elif BIAS_PER_OFM
-        const uint bias_index = bias_offset + f;
+        const uint bias_index = of;
 #endif
         dotProd += (UNIT_TYPE)biases[bias_index];
 #endif
     const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
-    const uint dst_index = GET_DATA_INDEX(OUTPUT, b, f, y, x) + out_split_offset;
+    const uint dst_index = GET_DATA_INDEX(OUTPUT, b, of, y, x) + out_split_offset;
     output[dst_index] = ACTIVATION(dotProd, ACTIVATION_PARAMS);
 }

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 
 namespace kernel_selector {
 
-ParamsKey ConvolutionKernel_MMAD::GetSupportedKey() const {
+ParamsKey ConvolutionKernel_mmad::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
@@ -42,7 +42,7 @@ ParamsKey ConvolutionKernel_MMAD::GetSupportedKey() const {
     return k;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_MMAD::SetDefault(const convolution_params& arg, int) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad::SetDefault(const convolution_params& arg, int) const {
     DispatchData runInfo = ConvolutionKernelBase::SetDefault(arg);
 
     constexpr size_t sub_group_size = 8;
@@ -50,7 +50,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_MMAD::SetDefault(const con
     const auto of_maps = arg.output.Feature().v;
     const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
 
-    runInfo.effiency = FORCE_PRIORITY_4;
+    runInfo.efficiency = FORCE_PRIORITY_4;
 
     runInfo.gws0 = arg.output.X().v;
     runInfo.gws1 = arg.output.Y().v;
@@ -63,7 +63,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_MMAD::SetDefault(const con
     return runInfo;
 }
 
-JitConstants ConvolutionKernel_MMAD::GetJitConstants(const convolution_params& params,
+JitConstants ConvolutionKernel_mmad::GetJitConstants(const convolution_params& params,
                                                      const DispatchData& runInfo) const {
     auto jit = Parent::GetJitConstants(params, runInfo);
 
@@ -84,7 +84,7 @@ JitConstants ConvolutionKernel_MMAD::GetJitConstants(const convolution_params& p
     return jit;
 }
 
-KernelsData ConvolutionKernel_MMAD::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ConvolutionKernel_mmad::GetKernelsData(const Params& params, const optional_params& options) const {
     KernelsData kd = GetTunedKernelsDataByIndex(params, options);
     if (!kd.empty())
         kd[0].estimatedTime = FORCE_PRIORITY_4;

@@ -17,6 +17,8 @@
 #include <vpu/utils/auto_scope.hpp>
 #include <vpu/utils/profiling.hpp>
 
+#include "blob_factory.hpp"
+
 namespace vpu {
 
 //
@@ -28,7 +30,6 @@ void printTo(std::ostream& os, const Resources& res) {
 
     os << "numCMXSlices=" << res.numCMXSlices << std::endl;
     os << "numSHAVEs=" << res.numSHAVEs << std::endl;
-    os << "cmxLimit=" << res.cmxLimit << std::endl;
 
     os << "]";
 }
@@ -37,7 +38,6 @@ void printTo(DotLabel& lbl, const Resources& res) {
     DotLabel subLbl(lbl);
     subLbl.appendPair("numCMXSlices", res.numCMXSlices);
     subLbl.appendPair("numSHAVEs", res.numSHAVEs);
-    subLbl.appendPair("cmxLimit", res.cmxLimit);
 }
 
 //
@@ -112,6 +112,15 @@ Data ModelObj::addConstData(
     _allocator.setNeedToAllocNonIntermData();
 
     return data;
+}
+
+Data ModelObj::addConstData(const std::string& name, const DataDesc& descriptor, const std::function<void(const ie::Blob::Ptr&)>& generator) {
+    const auto ieBlob = make_blob_with_precision(descriptor.toTensorDesc());
+    ieBlob->allocate();
+    if (generator) {
+        generator(ieBlob);
+    }
+    return addConstData(name, descriptor, ieBlobContent(ieBlob));
 }
 
 Data ModelObj::addNewData(
@@ -1351,7 +1360,7 @@ Stage getDataConnectionStage(
             IE_ASSERT(producer == child);
             IE_ASSERT(consumer == parent);
         } else if (connectionStage->type() == StageType::Split ||
-                   connectionStage->type() == StageType::Shrink) {
+                   connectionStage->type() == StageType::Crop) {
             IE_ASSERT(producer == parent);
             IE_ASSERT(consumer == child);
         } else {
@@ -1383,8 +1392,10 @@ Stage getDataConnectionStage(
         // Check strides requirements
         //
 
-        IE_ASSERT(checkStrides(child->desc(), parent->strides(), child->requiredStrides()));
-        child->resetRequiredStrides();
+        VPU_INTERNAL_CHECK(
+            checkStrides(child->desc(), parent->strides(), child->requiredStrides()),
+            "Strides requirements mismatch between parent Data node %v and child Data node %v",
+            parent, child);
     } else if (mode == SharedDataMode::Reshape) {
         //
         // Check connection stage type.
@@ -1653,7 +1664,8 @@ void ModelObj::cleanUp() {
             }
         } else {
             if (data->_consumerEdges.empty() && data->_producerEdge == nullptr) {
-                if (data->usage() != DataUsage::Intermediate) {
+                if (data->usage() != DataUsage::Intermediate &&
+                    data->usage() != DataUsage::Temp) {
                     needAllocatorPreprocess = true;
                 }
 
@@ -1692,7 +1704,10 @@ void ModelObj::buildStageOrder() const {
     IE_ASSERT(!_initialStages.empty());
 
     StageMap<bool> visitedMap;
-    for (const auto& stage : _initialStages) {
+
+    // Traverse input Stages in reverse order, because the algorithm uses push_front.
+    // With reverse order at the loop we will get original order in result.
+    for (const auto& stage : _initialStages | asRange() | reverse()) {
         runDFS(stage, visitedMap);
     }
 
@@ -1722,6 +1737,8 @@ void ModelObj::runDFS(
     if (_nextStagesComparator)
         std::sort(nextStages.begin(), nextStages.end(), _nextStagesComparator);
 
+    // Traverse next Stages in reverse order, because the algorithm uses push_front.
+    // With reverse order at the loop we will get original order in result.
     for (const auto& nextStage : nextStages | asRange() | reverse()) {
         auto it = visitedMap.find(nextStage);
 

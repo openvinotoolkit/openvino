@@ -86,14 +86,11 @@ private:
         auto input1 = inputEdge(1)->input();
         auto output = outputEdge(0)->output();
 
-        input0->serializeOldBuffer(this, serializer);
-        output->serializeOldBuffer(this, serializer);
+        input0->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
 
-        input1->serializeOldBuffer(
-            this,
-            serializer,
-            DimsOrder::HWC,
-            {{Dim::W, {Dim::C}}});
+        IE_ASSERT(inputEdge(1)->input()->desc().dimsOrder() == DimsOrder::C);
+        input1->serializeBuffer(serializer);
     }
 };
 

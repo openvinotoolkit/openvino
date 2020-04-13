@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -147,7 +147,7 @@ ConvolutionKernel_bfyx_os_iyx_osv16_2_sg::AutoTuneOption ConvolutionKernel_bfyx_
         option.blockWidth = 4;
         option.blockHeight = 3;
         option.prefetch = 5;
-        // run_info.effiency = FORCE_PRIORITY_7; // GEMM is better
+        // run_info.efficiency = FORCE_PRIORITY_7; // GEMM is better
     }
 
     // if this is not 1x1 batch1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
@@ -166,7 +166,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16_2_sg::Se
     const auto of_maps = cp.output.Feature().v;
     const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    runInfo.efficiency = FORCE_PRIORITY_3;
 
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
     runInfo.cldnnStyle.blockWidth = tuneOptions.blockWidth;
@@ -233,12 +233,12 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16_2_sg::GetJitConstants(const con
     return jit;
 }
 
-std::vector<WeightsLayout> ConvolutionKernel_bfyx_os_iyx_osv16_2_sg::GetSupportedWeightLayouts(
-    const convolution_params& params) const {
+WeightsLayout ConvolutionKernel_bfyx_os_iyx_osv16_2_sg::GetPreferredWeightsLayout(
+        const convolution_params &params) const {
     if (!params.transposed) {
-        return {WeightsLayout::os_iyx_osv16};
+        return WeightsLayout::os_iyx_osv16;
     } else {
-        return {WeightsLayout::os_iyx_osv16_rotate_180};
+        return WeightsLayout::os_iyx_osv16_rotate_180;
     }
 }
 

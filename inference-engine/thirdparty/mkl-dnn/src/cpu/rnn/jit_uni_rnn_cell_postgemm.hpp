@@ -152,6 +152,9 @@ protected:
         auto addr_bias_reg = abi_param2;
         auto addr_states_t_l_reg = abi_param3;
 
+        auto G_addr = ptr[addr_ws_gates_reg + 0 * rnn_.dic * gate_dt_size];
+        auto B_addr = ptr[addr_bias_reg + 0 * rnn_.dic * bias_dt_size];
+
         // initialize registers with addresses and constants
         mov(table_reg, table_label);
         mov(weights_scales_reg, size_t(weights_scales));
@@ -164,7 +167,7 @@ protected:
         L(vector_loop_start_label);
         {
             // load G
-            uni_vmovups(G, ptr[addr_ws_gates_reg + 0 * rnn_.dic * gate_dt_size]);
+            uni_vmovups(G, G_addr);
 
             // dequantize the gates from s32 to f32 if needed
             if (src_data_t == data_type::u8){
@@ -172,13 +175,18 @@ protected:
             }
 
             // add biases
-            uni_vaddps(G, G, ptr[addr_bias_reg + 0 * rnn_.dic * bias_dt_size]);
+            uni_vmovups(tmp1_vmm, B_addr);
+            uni_vaddps(G, G, tmp1_vmm);
 
             // inject eltwise code
 	    injector_->compute_vector(G.getIdx());
 
-            // if int8, we quantize the resulting state
-            if (src_data_t == data_type::u8) {
+        // if training we write back the gates
+        if (pd_->desc()->prop_kind == prop_kind::forward_training)
+            uni_vmovups(G_addr, G);
+
+        // if int8, we quantize the resulting state
+        if (src_data_t == data_type::u8) {
 	        q_d(G, tmp1_vmm, tmp_reg);
             }
 
@@ -216,23 +224,27 @@ protected:
         L(rem_loop_start_label);
         {
             // remaping registers to Xmms
-	    Xmm Gs(G.getIdx());
-	    Xmm tmp1s_vmm(tmp1_vmm.getIdx());
+            Xmm Gs(G.getIdx());
+            Xmm tmp1s_vmm(tmp1_vmm.getIdx());
 
             // load G
-            uni_vmovss(Gs, ptr[addr_ws_gates_reg + 0 * rnn_.dic * gate_dt_size]);
+            uni_vmovss(Gs, G_addr);
 
             // dequantize the gates from s32 to f32 if needed
-            if (src_data_t == data_type::u8){
+            if (src_data_t == data_type::u8) {
                 deq_w(G, tmp1_vmm, tmp2_vmm, 0, false);
             }
 
             // add biases
-            uni_vmovss(tmp1s_vmm, ptr[addr_bias_reg + 0 * rnn_.dic * bias_dt_size]);
+            uni_vmovss(tmp1s_vmm, B_addr);
             uni_vaddps(Gs, Gs, tmp1s_vmm);
 
             // inject eltwise code
 	    injector_->compute_vector(Gs.getIdx());
+
+            // if training we write back the gates
+            if (pd_->desc()->prop_kind == prop_kind::forward_training)
+                uni_vmovss(G_addr, Gs);
 
             // if int8, we quantize the resulting state
             if (src_data_t == data_type::u8) {

@@ -3,7 +3,8 @@
 //
 
 /**
- * @file
+ * @brief A header file for NN Builder API
+ * @file ie_builders.hpp
  */
 
 #pragma once

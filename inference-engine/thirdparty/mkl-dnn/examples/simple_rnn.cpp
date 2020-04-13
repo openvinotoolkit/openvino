@@ -58,10 +58,10 @@ void compute_weighted_annotations(float *weighted_annotations,
 
     // annotation[i] = GEMM(weights_annot, enc_dst_layer[i]);
     int num_weighted_annotations = src_seq_length_max * batch;
-    mkldnn_sgemm("N", "N",
-            &feature_size, &num_weighted_annotations, &feature_size,
-            &onef, weights_annot, &feature_size, annotations, &feature_size,
-            &zerof, weighted_annotations, &feature_size);
+    mkldnn_sgemm('N', 'N',
+            feature_size, num_weighted_annotations, feature_size,
+            onef, weights_annot, feature_size, annotations, feature_size,
+            zerof, weighted_annotations, feature_size);
 }
 
 void compute_attention(float *context_vectors, int src_seq_length_max,
@@ -79,10 +79,10 @@ void compute_attention(float *context_vectors, int src_seq_length_max,
     // p is (n, 1)
 
     // first we precompute the weighted_dec_src_layer
-    mkldnn_sgemm("N", "N",
-            &feature_size, &batch, &feature_size, &onef,
-            weights_src_layer, &feature_size, dec_src_layer, &feature_size,
-            &zerof, weighted_src_layer.data(), &feature_size);
+    mkldnn_sgemm('N', 'N',
+            feature_size, batch, feature_size, onef,
+            weights_src_layer, feature_size, dec_src_layer, feature_size,
+            zerof, weighted_src_layer.data(), feature_size);
 
     // then we compute the alignment model
     float *alignment_model_ptr = alignment_model.data();
@@ -98,10 +98,10 @@ void compute_attention(float *context_vectors, int src_seq_length_max,
 
     // gemv with alignments weights. the resulting alignments are in alignments
     int num_weighted_annotations = src_seq_length_max * batch;
-    mkldnn_sgemm("N", "N",
-            &onei, &num_weighted_annotations, &feature_size, &onef,
-            weights_alignments, &onei, alignment_model_ptr, &feature_size,
-            &zerof, alignments.data(), &onei);
+    mkldnn_sgemm('N', 'N',
+            onei, num_weighted_annotations, feature_size, onef,
+            weights_alignments, onei, alignment_model_ptr, feature_size,
+            zerof, alignments.data(), onei);
 
     // softmax on alignments. the resulting context weights are in alignments
 #ifdef _OPENMP

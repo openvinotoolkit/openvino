@@ -21,11 +21,11 @@
 
 namespace kernel_selector {
 
-class ConvolutionKernel_MMAD_blocks : public ConvolutionKernelBase {
+class ConvolutionKernel_mmad_blocks : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
-    ConvolutionKernel_MMAD_blocks();
-    virtual ~ConvolutionKernel_MMAD_blocks() {}
+    ConvolutionKernel_mmad_blocks();
+    virtual ~ConvolutionKernel_mmad_blocks() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const override;
@@ -35,10 +35,8 @@ protected:
     bool Validate(const Params& p, const optional_params& o) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {
-            WeightsLayout::os_is_yx_isa8_osv8_isv4,
-        };
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+        return WeightsLayout::os_is_yx_isa8_osv8_isv4;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,

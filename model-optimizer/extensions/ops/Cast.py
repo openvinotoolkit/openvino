@@ -54,6 +54,8 @@ class Cast(Op):
         assert node.has_valid('dst_type'), 'Destination type of "Cast" operation should be extracted earlier'
         dst_type = node.dst_type
         copy_shape_infer(node)
+        if node.has_and_set('stop_value_propagation'):
+            return
         if node.in_node(0).has_valid('value'):
             new_blob, finite_match_count, zero_match_count = convert_blob(node.in_node(0).value, dst_type)
             node.out_port(0).data.set_value(new_blob)

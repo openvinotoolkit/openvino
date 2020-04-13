@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 
-#include "XLinkTool.h"
+#include "XLinkErrorUtils.h"
 #include "XLinkPrivateFields.h"
 #include "XLinkPrivateDefines.h"
 #include "XLinkPlatform.h"
@@ -40,28 +40,25 @@ streamId_t XLinkAddOrUpdateStream(void *fd, const char *name,
     mvLog(MVLOG_DEBUG, "name: %s, writeSize: %ld, readSize: %ld, forcedId: %ld\n",
         name, writeSize, readSize, forcedId);
 
-    streamDesc_t* stream;
+    streamId_t retStreamId = INVALID_STREAM_ID;
+    streamDesc_t* stream = NULL;
     xLinkDesc_t* link = getLink(fd);
-    ASSERT_X_LINK_R(link != NULL, INVALID_STREAM_ID);
+    XLINK_OUT_IF(link == NULL);
 
     stream = getStreamByName(link, name);
     if (stream != NULL) {
-        if ((writeSize > stream->writeSize && stream->writeSize != 0) ||
-            (readSize > stream->readSize && stream->readSize != 0)) {
-            mvLog(MVLOG_ERROR, "Stream with name:%s already exists: id=%ld\n", name, stream->id);
-            releaseStream(stream);
-            return INVALID_STREAM_ID;
-        }
+        int streamAlreadyExists = (writeSize > stream->writeSize && stream->writeSize != 0)
+            || (readSize > stream->readSize && stream->readSize != 0);
+        XLINK_OUT_WITH_LOG_IF(streamAlreadyExists,
+            mvLog(MVLOG_ERROR, "Stream with name:%s already exists: id=%ld\n", name, stream->id));
     } else {
         streamId_t nextStreamId = forcedId == INVALID_STREAM_ID ?
                                   getNextStreamUniqueId(link) : forcedId;
         int idx = 0;
-        XLINK_RET_IF_RC(getNextAvailableStreamIndex(link, &idx),
-            INVALID_STREAM_ID);
+        XLINK_OUT_IF(getNextAvailableStreamIndex(link, &idx));
         stream = &link->availableStreams[idx];
 
-        XLINK_RET_IF_RC(XLinkStreamInitialize(stream, nextStreamId, name),
-            INVALID_STREAM_ID);
+        XLINK_OUT_IF(XLinkStreamInitialize(stream, nextStreamId, name));
     }
 
     if (readSize && !stream->readSize) {
@@ -83,11 +80,15 @@ streamId_t XLinkAddOrUpdateStream(void *fd, const char *name,
         stream->writeSize = writeSize;
     }
 
+    retStreamId = stream->id;
     mvLog(MVLOG_DEBUG, "The stream \"%s\"  created, id = %u, writeSize = %d, readSize = %d\n",
           stream->name, stream->id, stream->writeSize, stream->readSize);
 
-    releaseStream(stream);
-    return stream->id;
+XLINK_OUT:
+    if(stream != NULL) {
+        releaseStream(stream);
+    }
+    return retStreamId;
 }
 
 // ------------------------------------
@@ -102,7 +103,7 @@ streamId_t XLinkAddOrUpdateStream(void *fd, const char *name,
 
 XLinkError_t getNextAvailableStreamIndex(xLinkDesc_t* link, int* out_id)
 {
-    ASSERT_X_LINK(link);
+    ASSERT_XLINK(link);
 
     *out_id = XLINK_MAX_STREAMS;
     for (int idx = 0; idx < XLINK_MAX_STREAMS; idx++) {
@@ -118,7 +119,7 @@ XLinkError_t getNextAvailableStreamIndex(xLinkDesc_t* link, int* out_id)
 
 streamId_t getNextStreamUniqueId(xLinkDesc_t *link)
 {
-    ASSERT_X_LINK_R(link != NULL, INVALID_STREAM_ID);
+    XLINK_RET_ERR_IF(link == NULL, INVALID_STREAM_ID);
     uint32_t start = link->nextUniqueStreamId;
     uint32_t curr = link->nextUniqueStreamId;
     do

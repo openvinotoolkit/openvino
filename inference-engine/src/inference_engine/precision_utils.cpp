@@ -3,13 +3,9 @@
 //
 
 #include "precision_utils.h"
-
-#include <ie_blob.h>
-#include <stdint.h>
-
 #include <details/ie_exception.hpp>
 
-#include "inference_engine.hpp"
+#include <stdint.h>
 
 namespace InferenceEngine {
 namespace PrecisionUtils {

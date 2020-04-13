@@ -35,20 +35,6 @@
 #endif
 
 /**
- * @brief This class represents a console error listener.
- *
- */
-class ConsoleErrorListener : public InferenceEngine::IErrorListener {
-    /**
-     * @brief The plugin calls this method with a null terminated error message (in case of error)
-     * @param msg Error message
-     */
-    void onError(const char *msg) noexcept override {
-        std::clog << "Device message: " << msg << std::endl;
-    }
-};
-
-/**
  * @brief trim from start (in place)
  * @param s - string to trim
  */

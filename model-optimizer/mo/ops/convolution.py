@@ -48,8 +48,8 @@ class Convolution(Op):
                 'auto_pad',
                 ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
                 ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
-                ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0)))),
-                ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1)))),
+                ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0))) if node.has_valid('pad') else None),
+                ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1))) if node.has_valid('pad') else None),
                 ('output_padding', lambda node: ','.join(map(str, node.output_padding[node.spatial_dims])) \
                     if node.has_valid('output_padding') else None),
 
@@ -175,7 +175,7 @@ class Convolution(Op):
 
         if not node.has_valid('output'):
             # restore the number of output feature maps from the second argument that is weights
-            if node.type in ['Convolution', 'Deconvolution', 'DeformableConvolution']:
+            if node.type in ['Convolution', 'Deconvolution', 'DeformableConvolution', 'BinaryConvolution']:
                 node['output'] = kernel_shape[node.output_feature_channel]
             else:
                 raise Error(
@@ -221,7 +221,7 @@ class Convolution(Op):
             node.pad = pad
         else:
             pad_spatial_shape = np.add.reduce(node.pad_spatial_shape, axis=1)
-            if node.type == 'Convolution':
+            if node.type in ('Convolution', 'BinaryConvolution'):
                 float_spatial = Convolution.calc_convolution(input_spatial_shape, stride_spatial_shape,
                                                              pad_spatial_shape,
                                                              kernel_extent)

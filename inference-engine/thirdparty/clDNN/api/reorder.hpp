@@ -111,7 +111,25 @@ struct reorder : public primitive_base<reorder> {
           subtract_per_feature(0),
           mean_mode(mode) {}
 
-    /// @brief Constructs reorder primitive which takes mean subtract values from another primitive.
+    /// @brief Constructs reorder primitive with two inputs and directly provided mean subtract values.
+    /// @param id This primitive id.
+    /// @param input input primitive id.
+    /// @param input input2 primitive id.
+    /// @param output_layout Requested memory layout.
+    /// @param values_to_subtract Array of mean subtract values.
+    reorder(const primitive_id& id,
+        const primitive_id& input,
+        const primitive_id& input2,
+        const layout& output_layout,
+        const std::vector<float>& values_to_subtract = {},
+        const reorder_mean_mode mode = reorder_mean_mode::subtract)
+        : primitive_base(id, { input, input2 }, output_layout.data_padding, optional_data_type { output_layout.data_type }),
+          output_format(output_layout.format),
+          mean(""),
+          subtract_per_feature(values_to_subtract),
+          mean_mode(mode) {}
+
+    /// @brief Constructs reorder primitive with two inputs, which takes mean subtract values from another primitive.
     /// @param id This primitive id.
     /// @param input input primitive id.
     /// @param input input2 primitive id.
@@ -121,13 +139,12 @@ struct reorder : public primitive_base<reorder> {
         const primitive_id& input,
         const primitive_id& input2,
         const layout& output_layout,
-        const std::vector<float>& values_to_subtract = {},
-            const reorder_mean_mode mode = reorder_mean_mode::subtract)
-        : primitive_base(id, { input, input2 }, output_layout.data_padding, optional_data_type { output_layout.data_type }),
-          output_format(output_layout.format),
-          mean(""),
-          subtract_per_feature(values_to_subtract),
-          mean_mode(mode) {}
+        primitive_id const& mean,
+        const reorder_mean_mode mode = reorder_mean_mode::subtract)
+        : primitive_base(id, { input, input2 }, output_layout.data_padding, optional_data_type{ output_layout.data_type }),
+        output_format(output_layout.format),
+        mean(mean),
+        mean_mode(mode) {}
 
     /// @brief Requested memory format.
     format output_format;

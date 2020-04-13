@@ -37,7 +37,10 @@ void prepare_padding::run(program_impl& p) {
                     continue;
 
                 auto format = node->get_output_layout().format;
-                if (format == format::bfzyx_f16 || format == format::bfzyx_b16f16 || format == format::b_fs_zyx_fsv32)
+                if (format == format::b_fs_zyx_fsv16 ||
+                    format == format::bs_fs_zyx_bsv16_fsv16 ||
+                    format == format::bs_fs_yx_bsv16_fsv16 ||
+                    format == format::b_fs_zyx_fsv32)
                     continue;
 
                 auto filter_size = prim_node.weights(0).get_output_layout().size;
@@ -80,7 +83,7 @@ void prepare_padding::run(program_impl& p) {
 
                 padding needed_padding;
                 // WA for this format. sliding window needs to be fixed --perf degradation for IncepctionV1 type models
-                if (node->get_output_layout().format == format::bfyx_f16)
+                if (node->get_output_layout().format == format::b_fs_yx_fsv16)
                     needed_padding = calc_sliding_window_needed_input_padding(prim_node.input().get_output_layout(),
                                                                               prim->output_size,
                                                                               prim->size,
@@ -119,7 +122,7 @@ void prepare_padding::run(program_impl& p) {
         // right now output padding optimization is only available for bfyx format and data type = float32
         if (conv_layout.format != cldnn::format::bfyx &&
             conv_layout.format != cldnn::format::bf8_xy16 &&
-            conv_layout.format != cldnn::format::bfyx_f16 &&
+            conv_layout.format != cldnn::format::b_fs_yx_fsv16 &&
             conv_layout.format != cldnn::format::byxf_af32 &&
             conv_layout.format != cldnn::format::fs_bs_yx_bsv4_fsv32 &&
             conv_layout.format != cldnn::format::b_fs_yx_fsv4 &&
@@ -164,7 +167,6 @@ void prepare_padding::run(program_impl& p) {
 
         cldnn::padding needed_padding({0, 0, left_padding, top_padding}, {0, 0, right_padding, bottom_padding}, 0);
         needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);
-
         p.apply_needed_padding(node, conv_input_node, needed_padding);
     }
 

@@ -115,7 +115,7 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
     // locked memory holder should be alive all time while access to its buffer happens
     auto minputHolder = minput->wmap();
 
-    auto inputBlobData = minputHolder.as<T *>();
+    auto inputBlobData = minputHolder.as<char *>();
     for (size_t i = 0ULL, inputIndex = requestId*batchSize*inputSize + inputId; i < batchSize; i++, inputIndex += inputSize) {
         inputIndex %= filePaths.size();
 
@@ -130,13 +130,12 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
         if (!binaryFile.good()) {
             THROW_IE_EXCEPTION << "Can not read " << filePaths[inputIndex];
         }
-
         auto inputSize = inputBlob->size()*sizeof(T)/batchSize;
         if (fileSize != inputSize) {
             THROW_IE_EXCEPTION << "File " << filePaths[inputIndex] << " contains " << std::to_string(fileSize) << " bytes "
                                             "but the network expects " << std::to_string(inputSize);
         }
-        binaryFile.read(reinterpret_cast<char *>(&inputBlobData[i*inputSize]), inputSize);
+        binaryFile.read(&inputBlobData[i*inputSize], inputSize);
     }
 }
 
@@ -152,7 +151,8 @@ void fillBlobRandom(Blob::Ptr& inputBlob) {
 
     auto inputBlobData = minputHolder.as<T *>();
     for (size_t i = 0; i < inputBlob->size(); i++) {
-        inputBlobData[i] = (T) rand() / RAND_MAX * 10;
+        auto rand_max = RAND_MAX;
+        inputBlobData[i] = (T) rand() / static_cast<T>(rand_max) * 10;
     }
 }
 

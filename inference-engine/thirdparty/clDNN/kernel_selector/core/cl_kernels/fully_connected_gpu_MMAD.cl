@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ KERNEL(fully_connected_gpu_MMAD)(
 #endif
 
 #if SPATIAL_MAJOR
-    for (uint k = 0; k < (FILTER_IFM_NUM + 31) / 32; ++k) {
+    for (uint k = 0; k < FEATURE_BLOCKS_COUNT; ++k) {
 #   if !SPLIT_SPATIAL
         for (uint spatial = 0; spatial < FILTER_SPATIAL_SIZE; ++spatial) {
 #   else
@@ -73,7 +73,7 @@ KERNEL(fully_connected_gpu_MMAD)(
     for (uint xi = 0; xi < FILTER_SIZE_X; ++xi) {
         const uint spatial = xi + yi * FILTER_SIZE_X + zi * FILTER_SIZE_X * FILTER_SIZE_Y;
 #   endif
-        for (uint k = 0; k < (FILTER_IFM_NUM + 31) / 32; ++k) {
+        for (uint k = 0; k < FEATURE_BLOCKS_COUNT; ++k) {
 #endif
 #if !SPLIT_SPATIAL
             uint input_idx = input_offset + spatial * MMAD_INPUT_SPATIAL_PITCH + k * MMAD_INPUT_FBLOCK_PITCH;
@@ -102,6 +102,61 @@ KERNEL(fully_connected_gpu_MMAD)(
         }
     }
 
+#if HAS_FEATURE_LEFTOVERS
+        const uint lid = get_sub_group_local_id();
+#if SPATIAL_MAJOR
+#if !SPLIT_SPATIAL
+        for (uint spatial = 0; spatial < FILTER_SPATIAL_SIZE; ++spatial) {
+#else
+        for (uint zi = 0; zi < FILTER_SIZE_Z; ++zi)
+        for (uint yi = 0; yi < FILTER_SIZE_Y; ++yi)
+        for (uint xi = 0; xi < FILTER_SIZE_X; ++xi) {
+            const uint spatial = xi + yi * FILTER_SIZE_X + zi * FILTER_SIZE_X * FILTER_SIZE_Y;
+#endif  // !SPLIT_SPATIAL
+
+#else  // SPATIAL_MAJOR
+#if !SPLIT_SPATIAL
+    for (uint spatial = 0; spatial < FILTER_SPATIAL_SIZE; ++spatial) {
+#else  // !SPLIT_SPATIAL
+    for (uint zi = 0; zi < FILTER_SIZE_Z; ++zi)
+        for (uint yi = 0; yi < FILTER_SIZE_Y; ++yi)
+        for (uint xi = 0; xi < FILTER_SIZE_X; ++xi) {
+            const uint spatial = xi + yi * FILTER_SIZE_X + zi * FILTER_SIZE_X * FILTER_SIZE_Y;
+#endif  // !SPLIT_SPATIAL
+#endif  // SPATIAL_MAJOR
+
+#if !SPLIT_SPATIAL
+            uint input_idx = input_offset + spatial * MMAD_INPUT_SPATIAL_PITCH + FEATURE_BLOCKS_COUNT * INPUT0_FEATURE_PITCH;
+#else  // !SPLIT_SPATIAL
+            uint input_idx = input_offset + FEATURE_BLOCK_COUNT * INPUT0_FEATURE_PITCH + zi * MMAD_INPUT_Z_PITCH + yi * MMAD_INPUT_Y_PITCH + xi * MMAD_INPUT_X_PITCH;
+#endif  // !SPLIT_SPATIAL
+            uint filter_idx = filter_offset + spatial * MMAD_FILTER_SPATIAL_PITCH + FEATURE_BLOCKS_COUNT * MMAD_FILTER_FBLOCK_PITCH;
+
+            MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) input_data_u = (0, 0, 0, 0);
+            for (uint i = 0; i < 4; i++) {
+                if (FEATURE_BLOCKS_COUNT*32 + lid*4 + i < INPUT0_FEATURE_NUM) {
+                    input_data_u[i] = input[input_idx + (lid*4 + i)*INPUT0_FEATURE_PITCH];
+                }
+            }
+            INPUT_PACKED_TYPE input_data = AS_TYPE(INPUT_PACKED_TYPE, input_data_u);
+
+            INPUT_PACKED_TYPE_8 activations;  //activations of all lanes
+            activations.s0 = sub_group_broadcast(input_data, 0);
+            activations.s1 = sub_group_broadcast(input_data, 1);
+            activations.s2 = sub_group_broadcast(input_data, 2);
+            activations.s3 = sub_group_broadcast(input_data, 3);
+            activations.s4 = sub_group_broadcast(input_data, 4);
+            activations.s5 = sub_group_broadcast(input_data, 5);
+            activations.s6 = sub_group_broadcast(input_data, 6);
+            activations.s7 = sub_group_broadcast(input_data, 7);
+
+            uint8 weights_data_u = intel_sub_group_block_read8((const __global uint*)(weights + filter_idx));
+            FILTER_PACKED_TYPE_8 weights_data = AS_TYPE(FILTER_PACKED_TYPE_8, weights_data_u);
+
+            dotProd = MMAD_8(activations, weights_data, dotProd);
+        }
+#endif  // HAS_FEATURE_LEFTOVERS
+
     if (OUTPUT_FEATURE_NUM % SUB_GROUP_SIZE != 0 && f >= OUTPUT_FEATURE_NUM)
         return;
 
@@ -121,7 +176,7 @@ KERNEL(fully_connected_gpu_MMAD)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE res = FINAL_NAME;
+    OUTPUT_TYPE res = FUSED_OPS_RESULT;
 
     output[out_idx] = res;
 #else
