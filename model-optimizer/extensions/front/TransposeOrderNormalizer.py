@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.front.tf.pad_tf_to_pad import PadTFToPad
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Graph
@@ -30,6 +30,11 @@ class TransposeOrderNormalizer(FrontReplacementSubgraph):
     TransposeOrderNormalizer reforms Transpose operations to store axis info in 1-port input.
     """
     enabled = True
+
+    def run_before(self):
+        # refer to the comments of the ObjectDetectionAPIPreprocessorReplacement transformation in the
+        # <MO_DIR>/extensions/front/tf/ObjectDetectionAPI.py file for more details why this dependency is needed.
+        return [PadTFToPad]
 
     def pattern(self):
         return dict(
@@ -52,4 +57,4 @@ class TransposeOrderNormalizer(FrontReplacementSubgraph):
                 assert node.has_and_set('reverse_order')
             else:
                 raise Error('Can not deduce transpose `order` for {}: only one in_port and no `order` parameter.'
-                            ''.format(node.op))
+                            ''.format(node.soft_get('name', node.id)))

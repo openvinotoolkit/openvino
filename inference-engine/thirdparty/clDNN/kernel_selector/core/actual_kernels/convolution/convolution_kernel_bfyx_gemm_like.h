@@ -31,7 +31,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override;
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override;
     std::string GetKernelName(const convolution_params& params) const override;
     bool NeedPaddedInput() const override { return true; }
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;

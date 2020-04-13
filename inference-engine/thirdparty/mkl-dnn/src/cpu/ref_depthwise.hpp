@@ -55,6 +55,8 @@ struct ref_depthwise_fwd_t: public cpu_primitive_t {
             bool ok = true
                 && utils::one_of(desc()->prop_kind, forward_training,
                         forward_inference)
+                && desc()->src_desc.ndims == desc()->dst_desc.ndims
+                && desc()->src_desc.ndims > 0 && desc()->src_desc.ndims <= 5
                 && utils::everyone_is(data_type, desc()->src_desc.data_type, desc()->dst_desc.data_type)
                 && attr()->has_default_values();
             if (!ok) return status::unimplemented;

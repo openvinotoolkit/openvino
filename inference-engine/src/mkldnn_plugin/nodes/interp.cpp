@@ -62,20 +62,34 @@ struct jit_uni_interp_kernel_f32 : public jit_uni_interp_kernel, public jit_gene
         uni_vmovups(vmm_src01, ptr[reg_src01]);
         uni_vmovups(vmm_src10, ptr[reg_src10]);
         uni_vmovups(vmm_src11, ptr[reg_src11]);
+
         uni_vbroadcastss(vmm_h_lambda0, ptr[reg_h_lambda0]);
         uni_vbroadcastss(vmm_h_lambda1, ptr[reg_h_lambda1]);
         uni_vbroadcastss(vmm_w_lambda0, ptr[reg_w_lambda0]);
         uni_vbroadcastss(vmm_w_lambda1, ptr[reg_w_lambda1]);
 
-        uni_vmulps(vmm_src01, vmm_src01, vmm_w_lambda0);
-        uni_vmulps(vmm_src11, vmm_src11, vmm_w_lambda0);
-        uni_vfmadd231ps(vmm_src01, vmm_w_lambda1, vmm_src00);
-        uni_vfmadd231ps(vmm_src11, vmm_w_lambda1, vmm_src10);
-        uni_vmulps(vmm_src01, vmm_src01, vmm_h_lambda1);
-        uni_vfmadd231ps(vmm_src01, vmm_h_lambda0, vmm_src11);
-        uni_vmovups(ptr[reg_dst], vmm_src01);
-        if (isa == sse42) {
-            int stride = 4*sizeof(float);  //  block is also 8 when sse42
+        if (isa != sse42) {
+            uni_vmulps(vmm_src01, vmm_src01, vmm_w_lambda0);
+            uni_vmulps(vmm_src11, vmm_src11, vmm_w_lambda0);
+            uni_vfmadd231ps(vmm_src01, vmm_w_lambda1, vmm_src00);
+            uni_vfmadd231ps(vmm_src11, vmm_w_lambda1, vmm_src10);
+            uni_vmulps(vmm_src01, vmm_src01, vmm_h_lambda1);
+            uni_vfmadd231ps(vmm_src01, vmm_h_lambda0, vmm_src11);
+            uni_vmovups(ptr[reg_dst], vmm_src01);
+        } else {
+            uni_vmulps(vmm_src01, vmm_src01, vmm_w_lambda0);
+            uni_vmulps(vmm_src11, vmm_src11, vmm_w_lambda0);
+            uni_vfmadd231ps(vmm_src01, vmm_w_lambda1, vmm_src00);
+            // uni_vfmadd231ps affects XMM (vmm_w_lambda1) register. Need to initialize again.
+            uni_vbroadcastss(vmm_w_lambda1, ptr[reg_w_lambda1]);
+            uni_vfmadd231ps(vmm_src11, vmm_w_lambda1, vmm_src10);
+            uni_vmulps(vmm_src01, vmm_src01, vmm_h_lambda1);
+            uni_vfmadd231ps(vmm_src01, vmm_h_lambda0, vmm_src11);
+            uni_vmovups(ptr[reg_dst], vmm_src01);
+
+            // Next 4 elements
+            size_t stride = 4 * sizeof(float);
+
             add(reg_src00, stride);
             add(reg_src01, stride);
             add(reg_src10, stride);
@@ -87,9 +101,13 @@ struct jit_uni_interp_kernel_f32 : public jit_uni_interp_kernel, public jit_gene
             uni_vmovups(vmm_src10, ptr[reg_src10]);
             uni_vmovups(vmm_src11, ptr[reg_src11]);
 
+            uni_vbroadcastss(vmm_h_lambda0, ptr[reg_h_lambda0]);
+            uni_vbroadcastss(vmm_w_lambda1, ptr[reg_w_lambda1]);
+
             uni_vmulps(vmm_src01, vmm_src01, vmm_w_lambda0);
             uni_vmulps(vmm_src11, vmm_src11, vmm_w_lambda0);
             uni_vfmadd231ps(vmm_src01, vmm_w_lambda1, vmm_src00);
+            uni_vbroadcastss(vmm_w_lambda1, ptr[reg_w_lambda1]);
             uni_vfmadd231ps(vmm_src11, vmm_w_lambda1, vmm_src10);
             uni_vmulps(vmm_src01, vmm_src01, vmm_h_lambda1);
             uni_vfmadd231ps(vmm_src01, vmm_h_lambda0, vmm_src11);
@@ -133,10 +151,14 @@ public:
             if (layer->insData.size() != 1 || layer->outData.empty())
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
-            if (layer->insData[0].lock()->getTensorDesc().getDims().size() != 4)
+            auto inData = layer->insData[0].lock();
+            if (inData == nullptr) {
+                THROW_IE_EXCEPTION << "Layer '" << layer->name << "' has nullable input data.";
+            }
+            if (inData->getTensorDesc().getDims().size() != 4)
                 THROW_IE_EXCEPTION << "Interp supports only 4d blobs!";
 
-            auto src_precision = layer->insData[0].lock()->getTensorDesc().getPrecision();
+            auto src_precision = inData->getTensorDesc().getPrecision();
             if (src_precision != Precision::FP32 && src_precision != Precision::U8)
                 THROW_IE_EXCEPTION << layer->name << " Incorrect input data tensor precision. Only U8 or FP32 are supported!";
 
@@ -152,7 +174,7 @@ public:
             if (src_precision == Precision::U8) {
                 LayerConfig config;
                 DataConfig dataConfigDct;
-                dataConfigDct.desc = TensorDesc(Precision::U8, layer->insData[0].lock()->getTensorDesc().getDims(), Layout::NCHW);
+                dataConfigDct.desc = TensorDesc(Precision::U8, inData->getTensorDesc().getDims(), Layout::NCHW);
                 config.inConfs.push_back(dataConfigDct);
 
                 DataConfig dataConfigOut;
@@ -189,6 +211,33 @@ public:
         }
     }
 
+    StatusCode init(LayerConfig& config, ResponseDesc *resp) noexcept override {
+        if (config.inConfs.size() != 1 || config.outConfs.size() != 1) {
+            strncpy(resp->msg, "Interp layer has invalid configs", sizeof(resp->msg));
+            return GENERAL_ERROR;
+        }
+
+        if (config.inConfs[0].desc.getDims().size() != 4) {
+            std::ostringstream result;
+            result << "Interp layer has invalid layout: " << config.inConfs[0].desc.getLayout();
+            strncpy(resp->msg, result.str().c_str(), sizeof(resp->msg) - 1);
+            return GENERAL_ERROR;
+        }
+
+        auto inPrecision = config.inConfs[0].desc.getPrecision();
+        if (inPrecision != Precision::U8 && inPrecision != Precision::FP32)  {
+            strncpy(resp->msg, "Interp layer has unsupported input precision", sizeof(resp->msg));
+            return GENERAL_ERROR;
+        }
+
+        if (config.outConfs[0].desc.getPrecision() != Precision::FP32)  {
+            strncpy(resp->msg, "Interp layer has unsupported output precision", sizeof(resp->msg));
+            return GENERAL_ERROR;
+        }
+
+        return OK;
+    }
+
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
                        ResponseDesc *resp) noexcept override {
 #ifdef WIN32
@@ -203,21 +252,23 @@ public:
         size_t IH_pad = IH + pad_beg + pad_end;
         size_t IW_pad = IW + pad_beg + pad_end;
 
-        auto *dst_data = outputs[0]->buffer().as<float *>();
+        auto *dst_data = outputs[0]->buffer().as<float *>() + outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         switch (inputs[0]->getTensorDesc().getPrecision()) {
         case Precision::FP32:
         {
+            const float* src_data = inputs[0]->cbuffer().as<const float *>() + inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
             size_t IC = inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[1] *
                         inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[4];
-            interpolate(IN, IC, inputs[0]->buffer().as<const float *>(),
+            interpolate(IN, IC, src_data,
                 -pad_beg, -pad_beg, IH_pad, IW_pad, IH, IW, dst_data, 0, 0, OH, OW, OH, OW);
         }
         break;
         case Precision::U8:
         {
+            const uint8_t* src_data = inputs[0]->cbuffer().as<const uint8_t *>() + inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
             size_t IC = inputs[0]->getTensorDesc().getDims()[1];
-            interpolate_8u(inputs[0]->getTensorDesc().getLayout(), IN, IC, inputs[0]->buffer().as<const uint8_t *>(),
+            interpolate_8u(inputs[0]->getTensorDesc().getLayout(), IN, IC, src_data,
                 -pad_beg, -pad_beg, IH_pad, IW_pad, IH, IW, dst_data, 0, 0, OH, OW, OH, OW);
         }
         break;

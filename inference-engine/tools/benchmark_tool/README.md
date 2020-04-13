@@ -34,6 +34,12 @@ For asynchronous mode, the primary metric is throughput in frames per second (FP
 The infer requests are executed asynchronously. Callback is used to wait for previous execution to complete. The application measures all infer requests executions and reports the throughput metric based on batch size and total execution duration.
 
 ## Run the Tool
+
+Before running the Benchmark tool, install the requirements:
+```sh
+pip install -r  requirements.txt
+```
+
 Notice that the benchmark_app usually produces optimal performance for any device out of the box.
 
 **So in most cases you don't need to play the app options explicitly and the plain device name is enough**, for example, for CPU:

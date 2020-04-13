@@ -16,7 +16,6 @@
 
 import logging as log
 
-import networkx as nx
 from networkx.algorithms import isomorphism as ism
 
 from mo.graph.graph import Node, dict_includes, Graph
@@ -44,6 +43,7 @@ def for_each_sub_graph_recursively(graph: Graph, func: callable):
 
         A given function `func` shouldn't contain a recursion for sub-graphs of the second level.
     """
+
     def recursive_helper(sub_graph):
         # user action
         func(sub_graph)
@@ -129,7 +129,7 @@ def edge_match(datasets1, datasets2):
 
 
 def build_matcher(graph: Graph, nodes: list, edges: list, node_attrs: list = None,
-                         edge_attrs: list = None):
+                  edge_attrs: list = None):
     if node_attrs is not None or edge_attrs is not None:
         log.warning('\'edge_attrs\' or `\'node_attrs\'` parameter was passed to function \'find_pattern_matches\', '
                     'but they are not used anymore. Pattern matching proceeds according to \'nodes\' and \'edges\' '

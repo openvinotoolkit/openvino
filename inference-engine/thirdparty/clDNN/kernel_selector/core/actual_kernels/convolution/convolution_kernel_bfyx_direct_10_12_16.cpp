@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ ParamsKey ConvolutionKernel_bfyx_Direct_10_10_12::GetSupportedKey() const {
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
+    k.EnableGroupedConvolution();
     return k;
 }
 
@@ -42,7 +42,8 @@ JitConstants ConvolutionKernel_bfyx_Direct_10_10_12::GetJitConstants(const convo
     JitConstants jit = Parent::GetJitConstants(cp, runInfo);
 
     jit.AddConstants({
-        MakeJitConstant("ALIGNED_OFM", RoundUp(cp.output.Feature().v, runInfo.gemmStyle.subBlockDimN)),
+        MakeJitConstant("ALIGNED_OFM", RoundUp(cp.output.Feature().v / cp.groups, runInfo.gemmStyle.subBlockDimN) * cp.groups),
+        MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(cp.output.Feature().v / cp.groups, runInfo.gemmStyle.subBlockDimN)),
         MakeJitConstant("DX", runInfo.gemmStyle.globalWorkSizeDX),
         MakeJitConstant("DY", runInfo.gemmStyle.globalWorkSizeDY),
         MakeJitConstant("KERNEL_SLICE_DIV2", (cp.filterSize.x * cp.filterSize.y) / 2),
@@ -69,13 +70,13 @@ ConvolutionKernel_bfyx_Direct_10_10_12::Parent::DispatchData ConvolutionKernel_b
 
     runInfo.gws0 = RoundUp(arg.output.X().v, runInfo.gemmStyle.globalWorkSizeDX) / runInfo.gemmStyle.globalWorkSizeDX;
     runInfo.gws1 = RoundUp(arg.output.Y().v, runInfo.gemmStyle.globalWorkSizeDY) / runInfo.gemmStyle.globalWorkSizeDY;
-    runInfo.gws2 = RoundUp(arg.output.Feature().v, TILE_N) * arg.output.Batch().v;
+    runInfo.gws2 = RoundUp(arg.output.Feature().v / arg.groups, TILE_N) * arg.output.Batch().v * arg.groups;
 
     runInfo.lws0 = 1;
     runInfo.lws1 = 1;
     runInfo.lws2 = TILE_N;
 
-    runInfo.effiency = FORCE_PRIORITY_4;
+    runInfo.efficiency = FORCE_PRIORITY_4;
 
     return runInfo;
 }

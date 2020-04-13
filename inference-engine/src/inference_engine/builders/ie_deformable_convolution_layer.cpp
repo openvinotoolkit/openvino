@@ -111,7 +111,7 @@ REG_VALIDATOR_FOR(DeformableConvolution, [] (const InferenceEngine::Builder::Lay
 
     size_t weight_size = deformableConvBuilder.getOutDepth() * IC / deformableConvBuilder.getGroup();
     for (size_t kernel_dim : l_kernel) {
-        if (static_cast<double>(weight_size) * kernel_dim > std::numeric_limits<size_t>::max()) {
+        if (0 != kernel_dim &&weight_size > std::numeric_limits<size_t>::max() / kernel_dim) {
             THROW_IE_EXCEPTION << "Weight size exceeds the size_t max";
         }
         weight_size *= kernel_dim;

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_slm_2x14_rep4::SetDef
                                                                                      int) const {
     DispatchData runInfo = ConvolutionKernelBase::SetDefault(arg);
 
-    runInfo.effiency = FORCE_PRIORITY_1;
+    runInfo.efficiency = FORCE_PRIORITY_1;
 
     const size_t rep_count = 4;
     const size_t batch_per_wi = 1;

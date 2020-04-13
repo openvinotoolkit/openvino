@@ -23,6 +23,7 @@
 
 #include "quantize_inst.h"
 #include "binary_convolution_inst.h"
+#include "scale_inst.h"
 #include "eltwise_inst.h"
 #include "data_inst.h"
 #include "pass_manager.h"
@@ -128,10 +129,10 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
             scales_layout.size = tensor::max(scales_layout.size, mem_output_low.get_layout().size);
             scales_layout.size = tensor::max(scales_layout.size, mem_output_high.get_layout().size);
 
-            auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout, mem_input_low.get_net_id());
-            auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout, mem_input_high.get_net_id());
-            auto mem_output_scale = p.get_engine().allocate_memory(scales_layout, mem_output_low.get_net_id());
-            auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, mem_output_high.get_net_id());
+            auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout, mem_input_low.get_net_id(), false);
+            auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout, mem_input_high.get_net_id(), false);
+            auto mem_output_scale = p.get_engine().allocate_memory(scales_layout, mem_output_low.get_net_id(), false);
+            auto mem_output_shift = p.get_engine().allocate_memory(scales_layout, mem_output_high.get_net_id(), false);
 
             auto get_offset_safe = [](layout l, tensor idx) -> int {
                 auto sizes = l.size;
@@ -146,6 +147,18 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
 
             bool need_post_scale = false;
             bool need_post_shift = false;
+            bool need_pre_shift = false;
+            bool per_tensor_in_scale = true;
+            bool per_tensor_in_shift = true;
+            bool per_tensor_in_range = true;
+            bool per_tensor_out_scale = true;
+            bool per_tensor_out_shift = true;
+            float in_scale_val = 0.0f;
+            float in_shift_val = 0.0f;
+            float out_scale_val = 0.0f;
+            float out_shift_val = 0.0f;
+            float in_lo_val = 0.0f;
+            float in_hi_val = 0.0f;
             switch (mem_output_high.get_layout().data_type) {
                 case data_types::f32: {
                     // TODO [LOW PRECISION]: Output low/high values can be removed.
@@ -157,7 +170,6 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                     auto data_input_shift = static_cast<float*>(mem_input_shift->lock());
                     auto data_output_scale = static_cast<float*>(mem_output_scale->lock());
                     auto data_output_shift = static_cast<float*>(mem_output_shift->lock());
-
 
                     for (int b = 0; b < scales_layout.size.batch[0]; b++) {
                         for (int f = 0; f < scales_layout.size.feature[0]; f++) {
@@ -185,6 +197,30 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                             }
                         }
                     }
+
+                    in_scale_val = data_input_scale[0];
+                    in_shift_val = data_input_shift[0];
+                    out_scale_val = data_output_scale[0];
+                    out_shift_val = data_output_shift[0];
+                    in_lo_val = data_input_low[0];
+                    in_hi_val = data_input_high[0];
+
+                    for (size_t i = 0; i < scales_layout.count(); i++) {
+                        if (in_scale_val != data_input_scale[i])
+                            per_tensor_in_scale = false;
+                        if (in_shift_val != data_input_shift[i])
+                            per_tensor_in_shift = false;
+                        if (out_scale_val != data_output_scale[i])
+                            per_tensor_out_scale = false;
+                        if (out_shift_val != data_output_shift[i])
+                            per_tensor_out_shift = false;
+                        if (data_input_shift[i] != 0.0f)
+                            need_pre_shift = true;
+
+                        if (in_lo_val != data_input_low[i % mem_input_low.get_layout().count()] ||
+                            in_hi_val != data_input_high[i % mem_input_high.get_layout().count()])
+                            per_tensor_in_range = false;
+                    }
                     break;
                 }
                 case data_types::f16: {
@@ -196,7 +232,6 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                     auto data_input_shift = static_cast<uint16_t*>(mem_input_shift->lock());
                     auto data_output_scale = static_cast<uint16_t*>(mem_output_scale->lock());
                     auto data_output_shift = static_cast<uint16_t*>(mem_output_shift->lock());
-
 
                     for (int b = 0; b < scales_layout.size.batch[0]; b++) {
                         for (int f = 0; f < scales_layout.size.feature[0]; f++) {
@@ -223,6 +258,29 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                                 }
                             }
                         }
+                    }
+
+                    in_scale_val = half_to_float(data_input_scale[0]);
+                    in_shift_val = half_to_float(data_input_shift[0]);
+                    out_scale_val = half_to_float(data_output_scale[0]);
+                    out_shift_val = half_to_float(data_output_shift[0]);
+                    in_lo_val = half_to_float(data_input_low[0]);
+                    in_hi_val = half_to_float(data_input_high[0]);
+                    for (size_t i = 0; i < scales_layout.count(); i++) {
+                        if (in_scale_val != half_to_float(data_input_scale[i]))
+                            per_tensor_in_scale = false;
+                        if (in_shift_val != half_to_float(data_input_shift[i]))
+                            per_tensor_in_shift = false;
+                        if (out_scale_val != half_to_float(data_output_scale[i]))
+                            per_tensor_out_scale = false;
+                        if (out_shift_val != half_to_float(data_output_shift[i]))
+                            per_tensor_out_shift = false;
+                        if (half_to_float(data_input_shift[i]) != 0.0f)
+                            need_pre_shift = true;
+
+                        if (in_lo_val != half_to_float(data_input_low[i % mem_input_low.get_layout().count()]) ||
+                            in_hi_val != half_to_float(data_input_high[i % mem_input_high.get_layout().count()]))
+                            per_tensor_in_range = false;
                     }
                     break;
                 }
@@ -268,11 +326,42 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
 
             quantize_node.set_scale_shift_opt();
 
-            if (need_post_scale)
+            if (need_post_scale) {
                 quantize_node.set_need_post_scale();
+            }
 
-            if (need_post_shift)
+            if (need_post_shift) {
                 quantize_node.set_need_post_shift();
+            }
+
+            if (need_pre_shift) {
+                quantize_node.set_need_pre_shift();
+            }
+
+            if (per_tensor_in_scale) {
+                quantize_node.set_per_tensor_input_scale();
+                quantize_node.set_input_scale_val(in_scale_val);
+            }
+
+            if (per_tensor_in_shift && need_pre_shift) {
+                quantize_node.set_per_tensor_input_shift();
+                quantize_node.set_input_shift_val(in_shift_val);
+            }
+
+            if (per_tensor_in_range) {
+                quantize_node.set_per_tensor_input_range();
+                quantize_node.set_input_lo_val(in_lo_val);
+                quantize_node.set_input_hi_val(in_hi_val);
+            }
+            if (per_tensor_out_scale) {
+                quantize_node.set_per_tensor_output_scale();
+                quantize_node.set_output_scale_val(out_scale_val);
+            }
+
+            if (per_tensor_out_shift) {
+                quantize_node.set_per_tensor_output_shift();
+                quantize_node.set_output_shift_val(out_shift_val);
+            }
 
             mem_input_low.unlock();
             mem_input_high.unlock();
@@ -482,7 +571,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p) {
 
                 auto l = layout{new_a_zp->get_output_layout().data_type, format::bfyx, tensor{1, ifm_aligned, 1, 1}};
                 int s = new_a_zp->get_output_layout().size.feature[0];
-                auto azp_aligned = p.get_engine().allocate_memory(l, 0);
+                auto azp_aligned = p.get_engine().allocate_memory(l, 0, false);
                 mem_lock<int8_t> new_data{azp_aligned};
                 mem_lock<int8_t> old_data{new_a_zp->as<data>().get_attached_memory()};
                 for (int i = 0; i < ifm_aligned; i++) {
@@ -501,7 +590,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p) {
 
                 auto l = layout{new_w_zp->get_output_layout().data_type, format::bfyx, tensor{ofm_aligned, 1, 1, 1}};
                 int s = new_w_zp->get_output_layout().size.batch[0];
-                auto wzp_aligned = p.get_engine().allocate_memory(l, 0);
+                auto wzp_aligned = p.get_engine().allocate_memory(l, 0, false);
                 mem_lock<int8_t> new_data{wzp_aligned};
                 mem_lock<int8_t> old_data{new_w_zp->as<data>().get_attached_memory()};
                 for (int i = 0; i < ofm_aligned; i++) {
@@ -515,7 +604,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p) {
 
             if (need_compensation) {
                 auto l = layout{data_types::f32, format::bfyx, tensor{1, ofm_aligned, 1, 1}};
-                auto data_to_allocate = p.get_engine().allocate_memory(l, 0);
+                auto data_to_allocate = p.get_engine().allocate_memory(l, 0, false);
                 auto w = &new_weights->as<data>().get_attached_memory();
                 auto azp = asymmetric_data ? &new_a_zp->as<data>().get_attached_memory() : nullptr;
                 auto wzp = asymmetric_weights ? &new_w_zp->as<data>().get_attached_memory() : nullptr;
@@ -621,9 +710,84 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p) {
     }
 }
 
+void prepare_quantization::prepare_dequantize_merge(program_impl &p) {
+    auto itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto &node = (*itr++);
+
+        if (node->is_output())
+            continue;
+
+        program_helpers::do_for_types<scale>(*node, [&p](scale_node& node) {
+            for (size_t i = 1; i < node.get_dependencies().size(); i++) {
+                if (!node.get_dependency(i).is_type<data>()) {
+                    return;
+                }
+            }
+
+            auto get_scale_shift_mem = [](const scale_node& scale, size_t dep_id) -> memory_impl& {
+                if (dep_id >= scale.get_dependencies().size())
+                    CLDNN_ERROR_MESSAGE(scale.id(), "Invalid dependency id in dequantize optimization");
+
+                return scale.get_dependency(dep_id).as<data>().get_attached_memory();
+            };
+
+            auto& input = node.input();
+
+            for (auto& user : input.get_users()) {
+                if (user == &node)
+                    continue;
+
+                if (!user->is_type<scale>() || user->get_dependencies().size() != node.get_dependencies().size())
+                    continue;
+
+                auto& scale_dep = user->as<scale>();
+                bool valid_scale_node = true;
+                for (size_t i = 1; i < scale_dep.get_dependencies().size(); i++) {
+                    if (!scale_dep.get_dependency(i).is_type<data>()) {
+                        valid_scale_node = false;
+                    }
+                }
+
+                if (!valid_scale_node)
+                    continue;
+
+                bool same_params = true;
+                for (size_t i = 1; i < node.get_dependencies().size(); i++) {
+                    auto& mem0 = get_scale_shift_mem(user->as<scale>(), i);
+                    auto& mem1 = get_scale_shift_mem(node, i);
+
+                    auto ptr0 = static_cast<uint8_t*>(mem0.lock());
+                    auto ptr1 = static_cast<uint8_t*>(mem1.lock());
+
+                    for (size_t j = 0; j < mem0.get_layout().bytes_count(); j++) {
+                        if (ptr0[j] != ptr1[j]) {
+                            same_params = false;
+                            break;
+                        }
+                    }
+                    mem0.unlock();
+                    mem1.unlock();
+                }
+
+                if (same_params) {
+                    while (!node.get_dependencies().empty()) {
+                        auto& dep = node.get_dependency(0);
+                        p.remove_connection(dep, node);
+                        p.remove_if_dangling(dep);
+                    }
+                    p.add_optimized_primitive_info(node.id(), {user->id()});
+                    p.replace_all_usages(node, *user);
+                }
+            }
+        });
+    }
+}
+
 void prepare_quantization::run(program_impl& p) {
     prepare_packed_quantize(p);
     prepare_scale_shift_opt(p);
+    prepare_dequantize_merge(p);
     remove_fake_reorders(p);
     prepare_asymmetric_quantization(p);
 }

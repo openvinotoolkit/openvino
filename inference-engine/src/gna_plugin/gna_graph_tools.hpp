@@ -5,11 +5,13 @@
 #pragma once
 
 #include "graph_tools.hpp"
+#include "gna_plugin_log.hpp"
 
 #include <utility>
 #include <string>
 #include <vector>
 #include <limits>
+#include <memory>
 
 namespace InferenceEngine {
 
@@ -83,6 +85,117 @@ inline InferenceEngine::CNNLayerPtr  CNNNetPrevLayer(const InferenceEngine::CNNL
     } else {
         THROW_IE_EXCEPTION << "Layer " << layer->name << " has no previous layer";
     }
+}
+
+template <class T>
+class ExtractRawPtr {
+    T ptr;
+ public:
+    using raw_ptr_type = T;
+    explicit ExtractRawPtr(T ptr) : ptr(ptr) {}
+    T raw() {
+        return ptr;
+    }
+};
+
+template <class U>
+class ExtractRawPtr<std::shared_ptr<U>> {
+    std::shared_ptr<U> ptr;
+ public:
+    using raw_ptr_type = U*;
+    explicit ExtractRawPtr(const std::shared_ptr<U> & ptr) : ptr(ptr) {}
+    U * raw() {
+        return ptr.get();
+    }
+};
+
+template <class T>
+inline typename ExtractRawPtr<T>::raw_ptr_type raw_ptr(T obj) {
+    ExtractRawPtr<T> x(obj);
+    return x.raw();
+}
+
+/**
+ * @brief gets pointer to previous layer
+ * @param idx - index in previous layer connection - in other layers only zero idx will be used
+ * @param layer - source layer
+ * @param shouldSkip - skip kriteria
+ */
+template <class Layer>
+inline InferenceEngine::CNNLayerPtr  CNNNetPrevLayerSkipCertain(Layer layer, int idx,
+                                                                const std::function<bool(CNNLayerPtr)> &shouldSkip) {
+    IE_ASSERT(layer != nullptr);
+    if (!CNNNetHasPrevLayer(raw_ptr(layer), idx)) {
+        THROW_GNA_EXCEPTION << "Can't find PrevLayer. All layers are skipped.";
+        return nullptr;
+    }
+    auto prev = CNNNetPrevLayer(layer, idx);
+
+    /// using upper search simplified version
+    if (shouldSkip(prev)) {
+        return CNNNetPrevLayerSkipCertain(prev, 0, shouldSkip);
+    }
+
+    return prev;
+}
+
+/**
+ * @brief returns next layer, skipping certain layers based on given functor
+ * @param layer - given start layer
+ * @param oidx - index of output data
+ * @param iidx - index of input layers for given output
+ * @param bOnlyCheck - doesn't throw exception if next layer missed
+ * @param shouldSkip
+ * @return layer pointer and it's insData index that uses to connect to previous layer in chain
+ */
+
+template <class Layer>
+inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCertain(Layer layer, int oidx, int iidx, bool bOnlyCheck,
+                                                                const std::function<bool(CNNLayerPtr)> &shouldSkip) {
+    if (oidx >= layer->outData.size()) {
+        if (bOnlyCheck) return {nullptr, 0};
+        THROW_GNA_LAYER_EXCEPTION(layer) << " no next output layer for outdata: " << oidx;
+    }
+    if (iidx >= layer->outData[oidx]->getInputTo().size()) {
+        if (bOnlyCheck) return {nullptr, 0};
+        THROW_GNA_LAYER_EXCEPTION(layer) << " no next output layer for outdata: " << oidx << " and inputTo index: " << iidx;
+    }
+
+    auto outLayer = layer->outData[oidx]->getInputTo().begin();
+    std::advance(outLayer, iidx);
+
+    if (!shouldSkip(outLayer->second)) {
+        auto insDataIdx = CNNLayerFindInsDataIdxes(layer->outData[oidx], outLayer->second);
+        if (insDataIdx.size() != 1) {
+            if (bOnlyCheck) return {nullptr, 0};
+            THROW_GNA_LAYER_EXCEPTION(layer) << " has multiple connection to " << oidx << " outData";
+        }
+        return {outLayer->second, insDataIdx.front()};
+    }
+    return CNNNetCheckNextLayerSkipCertain(outLayer->second, 0, 0, bOnlyCheck, shouldSkip);
+}
+
+/// @brief alias for strict checkNextLayer (false)
+template <class Layer>
+inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetGetNextLayerSkipCertain(Layer layer, int oidx, int iidx,
+                                                                               const std::function<bool(CNNLayerPtr)> &shouldSkip) {
+    return CNNNetCheckNextLayerSkipCertain(layer, oidx, iidx, false, shouldSkip);
+}
+
+/// @brief alias for non-strict checkNextLayer (false)
+template <class Layer>
+inline bool CNNNetHasNextLayerSkipCertain(Layer layer, int oidx, int iidx, const std::function<bool(CNNLayerPtr)> &shouldSkip) {
+    auto l = CNNNetCheckNextLayerSkipCertain(layer, oidx, iidx, true, shouldSkip);
+    return l.first.get() != nullptr;
+}
+
+
+/// @brief utility to locate output data idx from given insData index and given layer
+inline int CNNLayerFindOutDataIdx(CNNLayerPtr layer, int insDataIdx) {
+    auto prevLayer = CNNNetPrevLayer(layer, insDataIdx);
+    auto outDataToSearch = layer->insData[insDataIdx].lock();
+    auto outDataIt = std::find(prevLayer->outData.begin(), prevLayer->outData.end(), outDataToSearch);
+    return std::distance(prevLayer->outData.begin(), outDataIt);
 }
 
 /**

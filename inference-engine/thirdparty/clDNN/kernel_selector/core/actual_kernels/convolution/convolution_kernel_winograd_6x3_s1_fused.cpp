@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,13 +82,13 @@ JitConstants ConvolutionKernel_Winograd_6x3_s1_fused::GetJitConstants(const conv
     return jit;
 }
 
-std::vector<WeightsLayout> ConvolutionKernel_Winograd_6x3_s1_fused::GetSupportedWeightLayouts(
-    const convolution_params& params) const {
+WeightsLayout ConvolutionKernel_Winograd_6x3_s1_fused::GetPreferredWeightsLayout(
+        const convolution_params &params) const {
     // check if image weights layout will fit into device memory, if not then try to fallback to buffer
     if (CheckImageSize(params, WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb)) {
-        return {WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb};
+        return WeightsLayout::image_2d_weights_winograd_6x3_s1_xfbyb;
     } else {
-        return {WeightsLayout::winograd_6x3_s1_fused_weights};
+        return WeightsLayout::winograd_6x3_s1_fused_weights;
     }
 }
 
@@ -123,7 +123,7 @@ ConvolutionKernel_Winograd_6x3_s1_fused::Parent::DispatchData ConvolutionKernel_
     runInfo.lws1 = local_size[1];
     runInfo.lws2 = local_size[2];
 
-    runInfo.effiency = FORCE_PRIORITY_1;
+    runInfo.efficiency = FORCE_PRIORITY_1;
 
     return runInfo;
 }

@@ -15,59 +15,11 @@
 """
 
 import logging as log
-from re import compile, match, findall
-
-import networkx as nx
+from re import findall
 
 from mo.front.extractor import update_ie_fields
 from mo.graph.graph import Node, merge_edge_props, Graph
-from mo.utils.graph import nodes_matching_name_pattern, is_connected_component
-
-
-def replace_subgraph_calls(graph: Graph, patterns_string: str):
-    """
-    The function replaces sub-graphs defined by the node names with single nodes that are executed using the TensorFlow.
-    The patterns applied independently, so N patterns produce N TensorFlow call nodes.
-    :param graph: networkX graph to operate on.
-    :param patterns_string: comma separated list of node names patterns.
-    """
-    cycle_exist = False
-    patterns = patterns_string.split(',')
-    for pattern in patterns:
-        log.info("Merging nodes using pattern '{}'".format(pattern))
-        matched_nodes = nodes_matching_name_pattern(graph, pattern)
-        if len(matched_nodes) != 0:
-            merge_nodes(graph, matched_nodes)
-            try:
-                # the function 'find_cycle' raises exception if the cycle is not found
-                nx.find_cycle(graph)
-                cycle_exist = True
-            except nx.exception.NetworkXNoCycle:
-                cycle_exist = False
-            if cycle_exist:
-                log.warning("Graph contains a cycle after merging nodes using pattern '{}'".format(pattern))
-    if cycle_exist:
-        graph.dump_graph_for_graphviz()
-        log.error('graph contains cycle after applying all merge node patterns')
-        
-
-def offload_operations_to_tf(graph: Graph, op_names_patterns: str):
-    """
-    The function accepts the list of strings with operation names patterns. The patterns applied independently and nodes
-    matching specific pattern are executed using the TF runtime.
-    :param graph: networkX graph to operate on.
-    :param op_names_patterns: string with regular expressions specifying operation names patterns.
-    """
-    patterns = op_names_patterns.split(',')
-    for pattern in patterns:
-        log.info("Running nodes with operation using pattern '{}'".format(pattern))
-        compiled_pattern = compile(pattern)
-        for node_name, attrs in list(graph.nodes(data=True)):
-            if 'pb' in graph.node[node_name]:
-                op = graph.node[node_name]['pb'].op
-                if match(compiled_pattern, op):
-                    log.debug("Node '{}' operation matches pattern '{}'".format(node_name, pattern))
-                    merge_nodes(graph, [node_name])
+from mo.utils.graph import is_connected_component
 
 
 def internal_output_name_for_node(node_name: str, output_port: int):
@@ -210,19 +162,3 @@ def set_tf_custom_call_node_attrs(node_attrs: dict):
     node_attrs['op'] = 'TFCustomSubgraphCall'
     node_attrs['infer'] = tf_subgraph_infer
     node_attrs['kind'] = 'op'
-
-
-def tf_find_constant_inputs(node: Node):
-    """
-    The function finds constant inputs of the node and nodes with Identity operation.
-    :param node: node to add constants inputs.
-    :return: set of added nodes (Node).
-    """
-    added_nodes = set()
-    for in_node in node.in_nodes().values():
-        if in_node.has_valid('pb'):
-            if in_node['pb'].op == 'Const':
-                added_nodes.add(in_node)
-            if in_node['pb'].op == 'Identity':
-                added_nodes.update(tf_find_constant_inputs(in_node))
-    return added_nodes

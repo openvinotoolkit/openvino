@@ -11,7 +11,7 @@
 
 namespace MKLDNNPlugin {
 
-class MKLDNNAsyncInferRequest : virtual public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+class MKLDNNAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
     MKLDNNAsyncInferRequest(const InferenceEngine::InferRequestInternal::Ptr &inferRequest,
                             const InferenceEngine::ITaskExecutor::Ptr &taskExecutor,

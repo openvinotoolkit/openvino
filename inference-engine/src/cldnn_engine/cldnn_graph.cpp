@@ -21,7 +21,7 @@
 #include <ie_layers_internal.hpp>
 #include <net_pass.h>
 #include "cldnn_infer_request.h"
-#include <cpp_interfaces/ie_executor_manager.hpp>
+#include <threading/ie_executor_manager.hpp>
 #include "details/caseless.hpp"
 #include <fstream>
 #include <utility>
@@ -444,6 +444,25 @@ void CLDNNGraph::UpdatePerfStatistics() {
         return;
     }
 
+    // Collect timings
+    auto collectTimings = [](cldnn::instrumentation::profiling_info& cldnnInfo, PerfCounter& pc) {
+        for (auto &interval : cldnnInfo.intervals) {
+            using duration_t = std::chrono::duration<long long, std::chrono::microseconds::period>;
+            auto count = std::chrono::duration_cast<duration_t>(interval.value->value()).count();
+
+            if (interval.name == "submission") {
+                pc.cpu_uSec += count;
+            } else if (interval.name == "executing") {
+                pc.realTime_uSec += count;
+            } else if (interval.name == "duration") {  // "duration" is used for CPU layers
+                pc.cpu_uSec += count;
+
+                if (pc.num == 0)
+                    pc.isCPU = true;
+            }
+        }
+    };
+
     std::map<cldnn::primitive_id, cldnn::event> executedPrimitives = GetNetwork()->get_executed_primitives();
     auto allPrimitives = GetNetwork()->get_all_primitives();
 
@@ -468,23 +487,22 @@ void CLDNNGraph::UpdatePerfStatistics() {
 
         cldnn::instrumentation::profiling_info cldnnInfo{profiledID, event.get_profiling_info()};
 
-        // Collect timings
-        for (auto &interval : cldnnInfo.intervals) {
-            using duration_t = std::chrono::duration<long long, std::chrono::microseconds::period>;
-            auto count = std::chrono::duration_cast<duration_t>(interval.value->value()).count();
-
-            if (interval.name == "submission") {
-                perfCount.cpu_uSec += count;
-            } else if (interval.name == "executing") {
-                perfCount.realTime_uSec += count;
-            } else if (interval.name == "duration") {  // "duration" is used for CPU layers
-                perfCount.cpu_uSec += count;
-
-                if (perfCount.num == 0)
-                    perfCount.isCPU = true;
-            }
-        }
+        collectTimings(cldnnInfo, perfCount);
         perfCount.num++;
+    }
+
+    for (auto &executedID : executedPrimitives) {
+        auto pcIter = perfMap.find(executedID.first);
+        if (pcIter == perfMap.end()) {
+            perfMap[executedID.first].first = executedID.first;
+            pcIter = perfMap.find(executedID.first);
+            auto& perfCount = pcIter->second.second;
+
+            cldnn::instrumentation::profiling_info cldnnInfo{executedID.first, executedID.second.get_profiling_info()};
+
+            collectTimings(cldnnInfo, perfCount);
+            perfCount.num++;
+        }
     }
 }
 

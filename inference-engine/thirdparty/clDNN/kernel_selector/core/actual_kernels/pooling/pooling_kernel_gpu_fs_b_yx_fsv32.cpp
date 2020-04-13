@@ -32,6 +32,8 @@ ParamsKey PoolingKerneGPU_fs_b_yx_fsv32::GetSupportedKey() const {
     k.EnablePoolKernelDividerMode(KernelDividerMode::FIXED);
     k.EnablePoolKernelDividerMode(KernelDividerMode::DYNAMIC);
     k.EnablePoolKernelDividerMode(KernelDividerMode::DYNAMIC_WITH_PADDING);
+    k.EnableSubGroup();
+    k.EnableSubGroupShort();
     return k;
 }
 

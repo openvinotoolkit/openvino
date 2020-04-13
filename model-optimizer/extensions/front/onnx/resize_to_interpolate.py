@@ -53,7 +53,7 @@ class ResizeToInterpolate2D(FrontReplacementSubgraph):
                 ('cast_2', dict(op='Cast')),
                 ('div', dict(op='Div')),
                 ('concat_2', dict(op='Concat')),
-                ('resize', dict(op='Resize')),
+                ('resize', dict(op='Upsample')),
             ],
             edges=[
                 ('input', 'resize', {'in': 0}),
@@ -139,7 +139,7 @@ class ResizeToInterpolate3D(FrontReplacementSubgraph):
                 ('cast_5', dict(op='Cast')),
                 ('div', dict(op='Div')),
                 ('concat_2', dict(op='Concat')),
-                ('resize', dict(op='Resize')),
+                ('resize', dict(op='Upsample')),
             ],
             edges=[
                 ('input', 'resize', {'in': 0}),

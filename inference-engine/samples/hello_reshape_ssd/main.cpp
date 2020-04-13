@@ -6,7 +6,10 @@
 #include <memory>
 #include <string>
 
-#include <inference_engine.hpp>
+#include <ie_core.hpp>
+#include <ngraph/function.hpp>
+#include <ngraph/op/experimental/layers/detection_output.hpp>
+
 #include <samples/ocv_common.hpp>
 
 #include "reshape_ssd_extension.hpp"
@@ -47,18 +50,14 @@ int main(int argc, char* argv[]) {
             throw std::logic_error("Sample supports clean SSD network with one input and one output");
 
         // --------------------------- Resize network to match image sizes and given batch----------------------
-        if (device_name.find("CPU") != std::string::npos) {
-            // register sample's custom shape inference (CustomReLU)
-            network.AddExtension(inPlaceExtension);
-        }
         auto input_shapes = network.getInputShapes();
         std::string input_name;
         SizeVector input_shape;
         std::tie(input_name, input_shape) = *input_shapes.begin();
         cv::Mat image = cv::imread(input_image_path);
         input_shape[0] = batch_size;
-        input_shape[2] = image.rows;
-        input_shape[3] = image.cols;
+        input_shape[2] = static_cast<size_t>(image.rows);
+        input_shape[3] = static_cast<size_t>(image.cols);
         input_shapes[input_name] = input_shape;
         std::cout << "Resizing network to the image size = [" << image.rows << "x" << image.cols << "] "
                   << "with batch = " << batch_size << std::endl;
@@ -75,11 +74,21 @@ int main(int argc, char* argv[]) {
         DataPtr output_info;
         std::string output_name;
         std::tie(output_name, output_info) = *outputs_info.begin();
-        if (output_info->getCreatorLayer().lock()->type != "DetectionOutput")
-            throw std::logic_error("Can't find a DetectionOutput layer in the topology");
+
+        if (auto ngraphFunction = network.getFunction()) {
+            for (const auto & op : ngraphFunction->get_ops()) {
+                if (op->get_type_info() == ngraph::op::DetectionOutput::type_info) {
+                    if (output_info->getName() != op->get_friendly_name()) {
+                        throw std::logic_error("Detection output op does not produce a network output");
+                    }
+                    break;
+                }
+            }
+        }
+
         const SizeVector output_shape = output_info->getTensorDesc().getDims();
-        const int max_proposal_count = output_shape[2];
-        const int object_size = output_shape[3];
+        const size_t max_proposal_count = output_shape[2];
+        const size_t object_size = output_shape[3];
         if (object_size != 7) {
             throw std::logic_error("Output item should have 7 as a last dimension");
         }
@@ -135,12 +144,12 @@ int main(int argc, char* argv[]) {
         const float *detection = moutputHolder.as<const float *>();
 
         /* Each detection has image_id that denotes processed image */
-        for (int cur_proposal = 0; cur_proposal < max_proposal_count; cur_proposal++) {
+        for (size_t cur_proposal = 0; cur_proposal < max_proposal_count; cur_proposal++) {
             float image_id = detection[cur_proposal * object_size + 0];
             float label = detection[cur_proposal * object_size + 1];
             float confidence = detection[cur_proposal * object_size + 2];
             /* CPU and GPU devices have difference in DetectionOutput layer, so we need both checks */
-            if (image_id < 0 || confidence == 0) {
+            if (image_id < 0 || confidence == 0.0f) {
                 continue;
             }
 
@@ -149,7 +158,7 @@ int main(int argc, char* argv[]) {
             float xmax = detection[cur_proposal * object_size + 5] * image.cols;
             float ymax = detection[cur_proposal * object_size + 6] * image.rows;
 
-            if (confidence > 0.5) {
+            if (confidence > 0.5f) {
                 /** Drawing only objects with >50% probability **/
                 std::ostringstream conf;
                 conf << ":" << std::fixed << std::setprecision(3) << confidence;

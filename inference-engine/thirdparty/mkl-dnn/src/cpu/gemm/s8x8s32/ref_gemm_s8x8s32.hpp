@@ -29,11 +29,9 @@ template <typename b_dt>
 mkldnn_status_t ref_gemm_s8x8s32(const char *transa, const char *transb,
         const char *offsetc, const int *M, const int *N, const int *K,
         const float *alpha, const int8_t *A, const int *LDA, const int8_t *ao,
-        const b_dt *B, const int *LDB, const int8_t *bo, const float *beta,
+        const b_dt *B, const int *LDB, const b_dt *bo, const float *beta,
         int32_t *C, const int *LDC, const int32_t *co);
-
 }
-}
-}
+} // namespace impl
+} // namespace mkldnn
 #endif // REF_GEMM_S8X8S32_HPP
-

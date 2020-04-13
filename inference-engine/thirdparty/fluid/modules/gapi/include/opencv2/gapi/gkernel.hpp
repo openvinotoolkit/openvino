@@ -230,27 +230,140 @@ public:
 // The problem is that every typed kernel should have ::id() but body
 // of the class is defined by user (with outMeta, other stuff)
 
+//! @cond IGNORED
 #define G_ID_HELPER_CLASS(Class)  Class##IdHelper
 
 #define G_ID_HELPER_BODY(Class, Id)                                         \
-    namespace detail                                                        \
+    struct G_ID_HELPER_CLASS(Class)                                         \
     {                                                                       \
-        struct G_ID_HELPER_CLASS(Class)                                     \
-        {                                                                   \
-            static constexpr const char * id() {return Id;};                \
-        };                                                                  \
-    }
+        static constexpr const char * id() {return Id;}                     \
+    };                                                                      \
+//! @endcond
 
-#define G_TYPED_KERNEL(Class, API, Id)                                      \
+#define GET_G_TYPED_KERNEL(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, NAME, ...) NAME
+#define COMBINE_SIGNATURE(...) __VA_ARGS__
+// Ensure correct __VA_ARGS__ expansion on Windows
+#define __WRAP_VAARGS(x) x
+
+/**
+ * Helper for G_TYPED_KERNEL declares a new G-API Operation. See [Kernel API](@ref gapi_kernel_api)
+ * for more details.
+ *
+ * @param Class type name for this operation.
+ * @param API an `std::function<>`-like signature for the operation;
+ *    return type is a single value.
+ * @param Id string identifier for the operation. Must be unique.
+ */
+#define G_TYPED_KERNEL_HELPER(Class, API, Id)                               \
     G_ID_HELPER_BODY(Class, Id)                                             \
     struct Class final: public cv::GKernelType<Class, std::function API >,  \
-                        public detail::G_ID_HELPER_CLASS(Class)
+                        public G_ID_HELPER_CLASS(Class)
 // {body} is to be defined by user
 
-#define G_TYPED_KERNEL_M(Class, API, Id)                                    \
+#define G_TYPED_KERNEL_HELPER_2(Class, _1, _2, Id) \
+G_TYPED_KERNEL_HELPER(Class, COMBINE_SIGNATURE(_1, _2), Id)
+
+#define G_TYPED_KERNEL_HELPER_3(Class, _1, _2, _3, Id) \
+G_TYPED_KERNEL_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3), Id)
+
+#define G_TYPED_KERNEL_HELPER_4(Class, _1, _2, _3, _4, Id) \
+G_TYPED_KERNEL_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4), Id)
+
+#define G_TYPED_KERNEL_HELPER_5(Class, _1, _2, _3, _4, _5, Id) \
+G_TYPED_KERNEL_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4, _5), Id)
+
+#define G_TYPED_KERNEL_HELPER_6(Class, _1, _2, _3, _4, _5, _6, Id) \
+G_TYPED_KERNEL_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4, _5, _6), Id)
+
+#define G_TYPED_KERNEL_HELPER_7(Class, _1, _2, _3, _4, _5, _6, _7, Id) \
+G_TYPED_KERNEL_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4, _5, _6, _7), Id)
+
+#define G_TYPED_KERNEL_HELPER_8(Class, _1, _2, _3, _4, _5, _6, _7, _8, Id) \
+G_TYPED_KERNEL_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4, _5, _6, _7, _8), Id)
+
+#define G_TYPED_KERNEL_HELPER_9(Class, _1, _2, _3, _4, _5, _6, _7, _8, _9, Id) \
+G_TYPED_KERNEL_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4, _5, _6, _7, _8, _9), Id)
+
+#define G_TYPED_KERNEL_HELPER_10(Class, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, Id) \
+G_TYPED_KERNEL_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10), Id)
+
+/**
+ * Declares a new G-API Operation. See [Kernel API](@ref gapi_kernel_api)
+ * for more details.
+ *
+ * @param Class type name for this operation.
+ */
+#define G_TYPED_KERNEL(Class, ...) __WRAP_VAARGS(GET_G_TYPED_KERNEL(__VA_ARGS__, \
+                                                 G_TYPED_KERNEL_HELPER_10, \
+                                                 G_TYPED_KERNEL_HELPER_9, \
+                                                 G_TYPED_KERNEL_HELPER_8, \
+                                                 G_TYPED_KERNEL_HELPER_7, \
+                                                 G_TYPED_KERNEL_HELPER_6, \
+                                                 G_TYPED_KERNEL_HELPER_5, \
+                                                 G_TYPED_KERNEL_HELPER_4, \
+                                                 G_TYPED_KERNEL_HELPER_3, \
+                                                 G_TYPED_KERNEL_HELPER_2, \
+                                                 G_TYPED_KERNEL_HELPER)(Class, __VA_ARGS__)) \
+
+/**
+ * Helper for G_TYPED_KERNEL_M declares a new G-API Operation. See [Kernel API](@ref gapi_kernel_api)
+ * for more details.
+ *
+ * @param Class type name for this operation.
+ * @param API an `std::function<>`-like signature for the operation;
+ *    return type is a tuple of multiple values.
+ * @param Id string identifier for the operation. Must be unique.
+ */
+#define G_TYPED_KERNEL_M_HELPER(Class, API, Id) \
     G_ID_HELPER_BODY(Class, Id)                                             \
     struct Class final: public cv::GKernelTypeM<Class, std::function API >, \
-                        public detail::G_ID_HELPER_CLASS(Class)
+                        public G_ID_HELPER_CLASS(Class)
+// {body} is to be defined by user
+
+#define G_TYPED_KERNEL_M_HELPER_2(Class, _1, _2, Id) \
+    G_TYPED_KERNEL_M_HELPER(Class, COMBINE_SIGNATURE(_1, _2), Id)
+
+#define G_TYPED_KERNEL_M_HELPER_3(Class, _1, _2, _3, Id) \
+    G_TYPED_KERNEL_M_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3), Id)
+
+#define G_TYPED_KERNEL_M_HELPER_4(Class, _1, _2, _3, _4, Id) \
+    G_TYPED_KERNEL_M_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4), Id)
+
+#define G_TYPED_KERNEL_M_HELPER_5(Class, _1, _2, _3, _4, _5, Id) \
+    G_TYPED_KERNEL_M_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4, _5), Id)
+
+#define G_TYPED_KERNEL_M_HELPER_6(Class, _1, _2, _3, _4, _5, _6, Id) \
+    G_TYPED_KERNEL_M_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4, _5, _6), Id)
+
+#define G_TYPED_KERNEL_M_HELPER_7(Class, _1, _2, _3, _4, _5, _6, _7, Id) \
+    G_TYPED_KERNEL_M_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4, _5, _6, _7), Id)
+
+#define G_TYPED_KERNEL_M_HELPER_8(Class, _1, _2, _3, _4, _5, _6, _7, _8, Id) \
+    G_TYPED_KERNEL_M_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4, _5, _6, _7, _8), Id)
+
+#define G_TYPED_KERNEL_M_HELPER_9(Class, _1, _2, _3, _4, _5, _6, _7, _8, _9, Id) \
+    G_TYPED_KERNEL_M_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4, _5, _6, _7, _8, _9), Id)
+
+#define G_TYPED_KERNEL_M_HELPER_10(Class, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, Id) \
+    G_TYPED_KERNEL_M_HELPER(Class, COMBINE_SIGNATURE(_1, _2, _3, _4, _5, _6, _7, _8, _9, _10), Id)
+
+/**
+ * Declares a new G-API Operation. See [Kernel API](@ref gapi_kernel_api)
+ * for more details.
+ *
+ * @param Class type name for this operation.
+ */
+#define G_TYPED_KERNEL_M(Class, ...) __WRAP_VAARGS(GET_G_TYPED_KERNEL(__VA_ARGS__, \
+                                                   G_TYPED_KERNEL_M_HELPER_10, \
+                                                   G_TYPED_KERNEL_M_HELPER_9, \
+                                                   G_TYPED_KERNEL_M_HELPER_8, \
+                                                   G_TYPED_KERNEL_M_HELPER_7, \
+                                                   G_TYPED_KERNEL_M_HELPER_6, \
+                                                   G_TYPED_KERNEL_M_HELPER_5, \
+                                                   G_TYPED_KERNEL_M_HELPER_4, \
+                                                   G_TYPED_KERNEL_M_HELPER_3, \
+                                                   G_TYPED_KERNEL_M_HELPER_2, \
+                                                   G_TYPED_KERNEL_M_HELPER)(Class, __VA_ARGS__)) \
 // {body} is to be defined by user
 
 #define G_API_OP   G_TYPED_KERNEL
@@ -323,7 +436,7 @@ namespace gapi {
      * implementations in form of type list (variadic template) and
      * generates a kernel package atop of that.
      *
-     * Kernel packages can be also generated programatically, starting
+     * Kernel packages can be also generated programmatically, starting
      * with an empty package (created with the default constructor)
      * and then by populating it with kernels via call to
      * GKernelPackage::include(). Note this method is also a template
@@ -539,8 +652,29 @@ namespace gapi {
 
     /** @} */
 
+    // FYI - this function is already commented above
     GAPI_EXPORTS GKernelPackage combine(const GKernelPackage  &lhs,
                                         const GKernelPackage  &rhs);
+
+    /**
+     * @brief Combines multiple G-API kernel packages into one
+     *
+     * @overload
+     *
+     * This function successively combines the passed kernel packages using a right fold.
+     * Calling `combine(a, b, c)` is equal to `combine(a, combine(b, c))`.
+     *
+     * @return The resulting kernel package
+     */
+    template<typename... Ps>
+    GKernelPackage combine(const GKernelPackage &a, const GKernelPackage &b, Ps&&... rest)
+    {
+        return combine(a, combine(b, rest...));
+    }
+
+    /** \addtogroup gapi_compile_args
+     * @{
+     */
     /**
      * @brief cv::use_only() is a special combinator which hints G-API to use only
      * kernels specified in cv::GComputation::compile() (and not to extend kernels available by
@@ -550,6 +684,7 @@ namespace gapi {
     {
         GKernelPackage pkg;
     };
+    /** @} */
 
 } // namespace gapi
 

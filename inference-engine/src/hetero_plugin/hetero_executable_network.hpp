@@ -39,7 +39,7 @@ public:
     /**
     * @brief constructor
     */
-    HeteroExecutableNetwork(InferenceEngine::ICNNNetwork&               network,
+    HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&               network,
                             const std::map<std::string, std::string>&   config,
                             Engine*                                     plugin);
 
@@ -50,7 +50,7 @@ public:
                             const std::map<std::string, std::string>&   config,
                             Engine*                                     plugin);
 
-    virtual ~HeteroExecutableNetwork() = default;
+    ~HeteroExecutableNetwork() override = default;
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;

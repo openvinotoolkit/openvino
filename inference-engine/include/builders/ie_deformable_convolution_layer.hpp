@@ -19,6 +19,7 @@ namespace Builder {
  * @deprecated Use ngraph API instead.
  * @brief The class represents a builder for Deconvolution layer
  */
+IE_SUPPRESS_DEPRECATED_START
 class INFERENCE_ENGINE_NN_BUILDER_API_CLASS(DeformableConvolutionLayer): public ConvolutionLayer {
 public:
     /**
@@ -48,6 +49,7 @@ public:
      */
     Builder::DeformableConvolutionLayer& setDeformableGroup(size_t deformableGroup);
 };
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace Builder
 }  // namespace InferenceEngine

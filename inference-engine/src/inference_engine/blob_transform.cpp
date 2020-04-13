@@ -4,9 +4,9 @@
 
 #include "blob_transform.hpp"
 
-#include "cpu_detector.hpp"
+#include "ie_system_conf.h"
 #ifdef HAVE_SSE
-#include "blob_transform_sse42.hpp"
+#include "cpu_x86_sse42/blob_transform_sse42.hpp"
 #endif
 
 #include <cstdint>

@@ -41,6 +41,10 @@ public:
         return _tbl.empty();
     }
 
+    size_t size() const {
+        return _tbl.size();
+    }
+
     inline bool has(const std::string& name) const {
         return _tbl.count(name) != 0;
     }
@@ -138,17 +142,16 @@ public:
         }
     }
 
-    inline void printImpl(std::ostream& os) const {
-        printTo(os, _tbl);
-    }
-
-    inline void printImpl(DotLabel& lbl) const {
-        printTo(lbl, _tbl);
-    }
-
 private:
     BaseMap _tbl;
 };
+
+inline void printTo(std::ostream& os, const AttributesMap& attrs) {
+    details::printMap(os, attrs);
+}
+inline void printTo(DotLabel& lbl, const AttributesMap& attrs) {
+    details::printMap(lbl, attrs);
+}
 
 //
 // EnableCustomAttributes

@@ -60,9 +60,8 @@ endfunction()
 
 register_benchdnn_test(test_conv "benchdnn -v1 --conv --batch=inputs/test_conv_all")
 register_benchdnn_test(test_benchdnn_conv "benchdnn -v1 --conv --batch=inputs/test_conv_all")
-register_benchdnn_test(test_benchdnn_conv_bf16 "benchdnn -v1 --conv
-        --batch=inputs/test_conv_bfloat16
-        --batch=inputs/test_conv_dw_bfloat16"
+register_benchdnn_test(test_benchdnn_conv_bf16
+"benchdnn -v1 --conv --batch=inputs/test_conv_bfloat16 --batch=inputs/test_conv_dw_bfloat16"
     )
 register_benchdnn_test(test_benchdnn_deconv "benchdnn -v1 --deconv --batch=inputs/deconv/test_deconv_all")
 register_benchdnn_test(test_benchdnn_deconv_bf16 "benchdnn -v1 --deconv --batch=inputs/deconv/test_deconv_bfloat16")
@@ -71,12 +70,16 @@ register_benchdnn_test(test_benchdnn_reorder "benchdnn --reorder --batch=inputs/
 register_benchdnn_test(test_benchdnn_bnorm "benchdnn --bnorm  --batch=inputs/bnorm/test_bnorm_all")
 register_benchdnn_test(test_benchdnn_bnorm_bf16 "benchdnn --bnorm  --batch=inputs/bnorm/test_bnorm_bfloat16")
 register_benchdnn_test(test_benchdnn_ip "benchdnn --ip --batch=inputs/ip/test_ip_all")
+register_benchdnn_test(test_benchdnn_ip_bf16 "benchdnn --ip --batch=inputs/ip/test_ip_bfloat16")
 register_benchdnn_test(test_benchdnn_regression
     "benchdnn --conv --batch=inputs/test_conv_regression"
     "benchdnn --bnorm --batch=inputs/bnorm/test_bnorm_regressions"
     )
 register_benchdnn_test(test_benchdnn_regression_large
     "benchdnn --bnorm --batch=inputs/bnorm/test_bnorm_regressions_large"
+    )
+register_benchdnn_test(test_benchdnn_shuffle
+    "benchdnn -v1 --shuffle --batch=inputs/shuffle/test_shuffle"
     )
 
 if(MKLDNN_INSTALL_MODE STREQUAL "BUNDLE")

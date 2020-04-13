@@ -292,7 +292,7 @@ protected:
 
 #define INST_TEST_CASE(test, omit_output) \
 TEST_P(test, TestsSum) {} \
-INSTANTIATE_TEST_CASE_P(TestSum, test, ::testing::Values( \
+INSTANTIATE_TEST_SUITE_P(TestSum, test, ::testing::Values( \
     sum_test_params{engine::kind::cpu, \
     {memory::format::blocked, memory::format::blocked}, memory::format::blocked, \
     {2, 8, 4, 4}, {1.0f, 1.0f}, omit_output}, \
@@ -357,7 +357,7 @@ INSTANTIATE_TEST_CASE_P(TestSum, test, ::testing::Values( \
     {2, 16, 3, 3}, {2.0f, 3.0f}, omit_output} \
 )); \
 \
-INSTANTIATE_TEST_CASE_P(TestSumEF, test, ::testing::Values( \
+INSTANTIATE_TEST_SUITE_P(TestSumEF, test, ::testing::Values( \
     sum_test_params{engine::kind::cpu, \
     {memory::format::nchw, memory::format::nChw8c}, memory::format::nchw, \
     {1, 8, 4 ,4}, {1.0f}, 0, true, mkldnn_invalid_arguments}, \
@@ -378,7 +378,7 @@ using sum_test_s32 = sum_test<int32_t,float>;
 
 using sum_cc_f32 = sum_test<float,float>;
 TEST_P(sum_cc_f32, TestSumCornerCases) {}
-INSTANTIATE_TEST_CASE_P(TestSumCornerCases, sum_cc_f32, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(TestSumCornerCases, sum_cc_f32, ::testing::Values(
     CASE_CC(nchw, nChw8c, nchw, ({0, 7, 4, 4}), false, mkldnn_success),
     CASE_CC(nchw, nChw8c, nchw, ({1, 0, 4, 4}), false, mkldnn_success),
     CASE_CC(nchw, nChw8c, nchw, ({1, 8, 0, 4}), false, mkldnn_success),
@@ -405,7 +405,7 @@ using sum_test_bf16bf16_omit_output =
 
 #define INST_TEST_CASE_BF16(test, omit_output) \
 TEST_P(test, TestsSum) {} \
-INSTANTIATE_TEST_CASE_P(TestSum, test, ::testing::Values( \
+INSTANTIATE_TEST_SUITE_P(TestSum, test, ::testing::Values( \
     sum_test_params{engine::kind::cpu, \
     {memory::format::nChw16c, memory::format::nChw16c}, \
     memory::format::nChw16c, \

@@ -4,7 +4,7 @@
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unknown-warning-option -Wno-error=inconsistent-missing-override -Wno-error=pass-failed")
-  set(CMAKE_CC_FLAGS "${CMAKE_CC_FLAGS} -Wno-error=unknown-warning-option -Wno-error=inconsistent-missing-override -Wno-error=pass-failed")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=unknown-warning-option -Wno-error=inconsistent-missing-override -Wno-error=pass-failed")
 endif()
 
 function(build_with_lto)
@@ -42,6 +42,8 @@ function(build_with_lto)
 
     # developer package
 
+    target_include_directories(pugixml INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pugixml/src>")
+
     ie_developer_export_targets(ade fluid pugixml)
     if(TARGET pugixml_mt)
         ie_developer_export_targets(pugixml_mt)
@@ -51,5 +53,6 @@ endfunction()
 build_with_lto()
 
 if(ENABLE_MKL_DNN)
+    set(SDL_cmake_included ON)
     include(mkldnn.cmake)
 endif()

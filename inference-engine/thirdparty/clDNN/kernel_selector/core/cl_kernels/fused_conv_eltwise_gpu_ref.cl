@@ -63,12 +63,12 @@ KERNEL(kernel_name)(
     const int input_z = 0;
 #endif
 
-#if DEPTHWISE_SEPARABLE_OPT
+#if DEPTHWISE_SEPARABLE_OPT || GROUPED
     const uint g = (f / FILTER_OFM_NUM);
-    const uint of = f;
+    const uint of = (f % FILTER_OFM_NUM);
 #else
-    const uint g = split_idx;
-    const uint of = f + split_idx*FILTER_OFM_NUM;
+    const uint g = 0;
+    const uint of = f;
 #endif
 
     for (uint k = 0; k < FILTER_IFM_NUM; ++k)
@@ -96,16 +96,13 @@ KERNEL(kernel_name)(
                             if(!zero_x)
                             {
 #if INPUT0_SIZE <= 4
-                                uint input_idx = INPUT0_GET_INDEX(b, k + g*FILTER_IFM_NUM, input_offset_y, input_offset_x);
-                                uint filter_idx = GET_FILTER_INDEX(FILTER, f, k, j, i);
+                                uint input_idx = INPUT0_GET_INDEX(b, (k + g*FILTER_IFM_NUM), input_offset_y, input_offset_x);
+                                uint filter_idx = GET_FILTER_INDEX(FILTER, g, of, k, j, i);
 #else
-                                uint input_idx = INPUT0_GET_INDEX(b, k + g*FILTER_IFM_NUM, input_offset_z, input_offset_y, input_offset_x);
-                                uint filter_idx = GET_FILTER_INDEX_5D(FILTER, f, k, l, j, i);
+                                uint input_idx = INPUT0_GET_INDEX(b, (k + g*FILTER_IFM_NUM), input_offset_z, input_offset_y, input_offset_x);
+                                uint filter_idx = GET_FILTER_INDEX_5D(FILTER, g, of, k, l, j, i);
 #endif
 
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-                                filter_idx += split_idx * FILTER_LENGTH;
-#endif
 #ifdef LOCAL_CONVOLUTION
                                 filter_idx += FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z
                                     * (x + OUTPUT_SIZE_X * y + OUTPUT_SIZE_X * OUTPUT_SIZE_Y * z);
@@ -116,7 +113,7 @@ KERNEL(kernel_name)(
 #endif
                                 ACCUMULATOR_TYPE wei = TO_ACCUMULATOR_TYPE(weights[filter_idx]);
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-                                wei -= TO_ACCUMULATOR_TYPE(weights_zp[of]);
+                                wei -= TO_ACCUMULATOR_TYPE(weights_zp[f]);
 #endif
                                 dotProd += in * wei;
                             }
@@ -130,8 +127,8 @@ KERNEL(kernel_name)(
     }
 
 #if BIAS_TERM
-    #if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-        const uint bias_offset = split_idx * BIAS_LENGTH;
+    #if GROUPED || DEPTHWISE_SEPARABLE_OPT
+        const uint bias_offset = 0;
     #else
         const uint bias_offset = 0;
     #endif
@@ -148,14 +145,14 @@ KERNEL(kernel_name)(
 
 
 #if OUTPUT_SIZE <= 4
-    const uint dst_index = OUTPUT_GET_INDEX(b, of, y, x);
+    const uint dst_index = OUTPUT_GET_INDEX(b, f, y, x);
 #else
-    const uint dst_index = OUTPUT_GET_INDEX(b, of, z, y, x);
+    const uint dst_index = OUTPUT_GET_INDEX(b, f, z, y, x);
 #endif
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE res = FINAL_NAME;
+    OUTPUT_TYPE res = FUSED_OPS_RESULT;
 
     output[dst_index] = res;
 #else

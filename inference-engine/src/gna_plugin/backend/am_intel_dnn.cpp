@@ -9,7 +9,7 @@
 #include <string>
 #include <algorithm>
 
-#ifdef _WIN32
+#if defined __INTEL_COMPILER || defined _MSC_VER
 #include <malloc.h>
 #else
 #include <mm_malloc.h>
@@ -439,8 +439,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
                  "  <TR><TD  colspan=\"2\">" <<  l << "</TD></TR>\n";
 
 #ifdef PLOT
-        if (components[k].orignal_layer_name != nullptr) {
-            graph << "  <TR><TD> IR </TD><TD>" << components[k].orignal_layer_name << "</TD></TR>\n";
+        if (components[k].original_layer_name != nullptr) {
+            graph << "  <TR><TD> IR </TD><TD>" << components[k].original_layer_name << "</TD></TR>\n";
         }
 #endif
         graph << "  <TR><TD> dims</TD><TD>" <<  components[k].num_rows_in << "x" <<  components[k].num_rows_out<< "</TD></TR>\n";
@@ -1529,9 +1529,6 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                     auto pConvolutionalLayer = reinterpret_cast<intel_convolutional_layer_t *>(pLayer->pLayerStruct);
                     pConvolutionalLayer->pwl.nSegments = component[i].op.pwl.num_segments;
                     pConvolutionalLayer->pwl.pSegments = component[i].op.pwl.ptr_segments;
-                    if (component[i - 1].operation != kDnnMaxPoolOp) {
-                        pLayer->nOutputColumns = component[i].num_columns_out;
-                    }
                 }
                 pLayer++;
 #endif

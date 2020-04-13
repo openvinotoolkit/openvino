@@ -23,9 +23,7 @@ void StageNode::setNumSHAVEs(int numSHAVEs) {
         // Check resources assigned to current Model.
         //
 
-        IE_ASSERT(_model != nullptr);
-
-        auto totalNumSHAVEs = _model->attrs().get<Resources>("resources").numSHAVEs;
+        const auto totalNumSHAVEs = model()->attrs().get<Resources>("resources").numSHAVEs;
         IE_ASSERT(numSHAVEs <= totalNumSHAVEs);
     } else {
         //
@@ -115,8 +113,9 @@ void StageNode::finalizeDataLayout() {
     // Stage <-> Stage edges are not allowed here.
     //
 
-    IE_ASSERT(_parentStageEdge == nullptr);
-    IE_ASSERT(_injectedStageEdge == nullptr);
+    VPU_INTERNAL_CHECK(
+        parentStageEdge() == nullptr && injectedStageEdge() == nullptr,
+        "finalizeDataLayout was called for Stage node %v which is a part of Injection pair", this);
 
     finalizeDataLayoutImpl();
 }
@@ -145,8 +144,6 @@ const StageDataInfo<BatchSupport>& StageNode::getBatchSupportInfo() {
 
             if (curReq == BatchSupport::Split) {
                 hasSplit = true;
-            } else {
-                IE_ASSERT(curReq == BatchSupport::ReplicateConstContent);
             }
         }
     }
@@ -289,7 +286,11 @@ StageSHAVEsRequirements StageNode::getSHAVEsRequirementsImpl() const {
 }
 
 void printTo(std::ostream& os, const Stage& stage) {
-    os << (stage == nullptr ? "<null>" : stage->name());
+    if (stage == nullptr) {
+        os << "<null>";
+    } else {
+        os << stage->name() << " (" << stage->type() << ")";
+    }
 }
 
 void assertAllInputsOutputsTypes(const Stage& stage,
@@ -316,9 +317,9 @@ void assertAllInputsOutputsTypes(const Stage& stage,
 }
 
 void assertInputsOutputsTypes(const Stage& stage,
-                              const std::vector<EnumSet<DataType>>& expectedInputsTypes,
-                              const std::vector<EnumSet<DataType>>& expectedOutputsTypes) {
-    auto assertTypes = [stage](const std::vector<EnumSet<DataType>>& expectedTypes,
+                              const DataTypesRequirement& expectedInputsTypes,
+                              const DataTypesRequirement& expectedOutputsTypes) {
+    auto assertTypes = [stage](const DataTypesRequirement& expectedTypes,
                                const std::vector<Data>& datas,
                                const std::string& token) {
         VPU_THROW_UNLESS(

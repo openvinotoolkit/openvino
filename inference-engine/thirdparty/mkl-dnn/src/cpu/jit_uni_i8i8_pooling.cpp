@@ -24,7 +24,7 @@
 #include "utils.hpp"
 
 #include "jit_generator.hpp"
-
+#include "jit_uni_quantization.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -129,8 +129,11 @@ struct jit_uni_i8i8_pooling_fwd_ker_t: public jit_generator {
     Vmm vreg_dst_s32(int jj, int ll) { return base_vr(3*max_num_ll*jj + ll + 1*max_num_ll); }  // ll: 0..4 [4..7]
     Vmm vreg_dst_f32(int jj, int ll) { return base_vr(3*max_num_ll*jj + ll + 2*max_num_ll); }  // ll: 0..4 [8..11]
 
-    Vmm vreg_d_weights(int jj, int ll) { return vreg_src_s32(jj, ll); }     // ll: 0..4 [0..3]
-    Vmm vreg_d_bias(int jj, int ll) { return vreg_dst_s32(jj, ll); }        // ll: 0..4 [4..7]
+    Vmm vmm_d_weights = Vmm(vidx_base + 0);
+    Vmm vmm_d_bias = Vmm(vidx_base + 1);
+
+//    Vmm vreg_d_weights(int jj, int ll) { return vreg_src_s32(jj, ll); }     // ll: 0..4 [0..3]
+//    Vmm vreg_d_bias(int jj, int ll) { return vreg_dst_s32(jj, ll); }        // ll: 0..4 [4..7]
 
     Vmm vreg_mask_dst = vreg_src(1);
 
@@ -170,6 +173,14 @@ struct jit_uni_i8i8_pooling_fwd_ker_t: public jit_generator {
         ker_ = reinterpret_cast<decltype(ker_)>(const_cast<uint8_t*>(
                        getCode()));
     }
+
+    ~jit_uni_i8i8_pooling_fwd_ker_t() {
+        for (auto inj : quantization_injectors)
+            delete inj;
+        quantization_injectors.clear();
+    }
+
+    nstl::vector<jit_uni_quantization_injector_f32<isa>*> quantization_injectors;
 };
 
 template <>
@@ -501,6 +512,7 @@ void jit_uni_i8i8_pooling_fwd_ker_t<isa>::store_dst(int jj, int ll,
 
 template <cpu_isa_t isa>
 void jit_uni_i8i8_pooling_fwd_ker_t<isa>::apply_post_ops(int ur_c, int c_tail) {
+    int quantization_inj_idx = 0;
     const auto &p = attr.post_ops_;
     const int num_ll = data_type_size(avg_proc_dt)/data_type_size(jpp.dst_dt);
     for (int i = 0; i < p.len_; i++) {
@@ -509,73 +521,46 @@ void jit_uni_i8i8_pooling_fwd_ker_t<isa>::apply_post_ops(int ur_c, int c_tail) {
             bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
             bool do_rounding = do_dequantization || jpp.dst_dt == mkldnn_f32 || i != p.len_ - 1;
 
-            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.crop_low_data));
-            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.crop_high_data));
-
-            add(reg_d_weights, reg_oc_off);
-            add(reg_d_bias, reg_oc_off);
-
+            quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
             for (int jj = 0; jj < ur_c; jj++) {
                 for (int ll = 0; ll < num_ll; ll++) {
                     bool masked = jj == ur_c - 1 && c_tail;
                     size_t msk = jpp.tail[ll];
                     if (!(masked && !msk)) {
-                        uni_vmovups(vreg_d_weights(jj, ll), ptr[reg_d_weights + (jj + ll) * jpp.c_block / num_ll * sizeof(float)]);
-                        uni_vmovups(vreg_d_bias(jj, ll), ptr[reg_d_bias +  (jj + ll) * jpp.c_block / num_ll * sizeof(float)]);
-
-                        Vmm vmm_dst = vreg_dst_f32(jj, ll);
-
-                        uni_vmaxps(vmm_dst, vmm_dst, vreg_d_weights(jj, ll));
-                        uni_vminps(vmm_dst, vmm_dst, vreg_d_bias(jj, ll));
+                        int s_idx = vreg_dst_f32(jj, ll).getIdx();
+                        quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + 1,
+                                (jj + ll) * jpp.c_block / num_ll * sizeof(float));
                     }
                 }
             }
 
-            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.input_scale_data));
-            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.input_shift_data));
-
-            add(reg_d_weights, reg_oc_off);
-            add(reg_d_bias, reg_oc_off);
-
+            quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
             for (int jj = 0; jj < ur_c; jj++) {
                 for (int ll = 0; ll < num_ll; ll++) {
                     bool masked = jj == ur_c - 1 && c_tail;
                     size_t msk = jpp.tail[ll];
                     if (!(masked && !msk)) {
-                        uni_vmovups(vreg_d_weights(jj, ll), ptr[reg_d_weights +  (jj + ll) * jpp.c_block / num_ll * sizeof(float)]);
-                        uni_vmovups(vreg_d_bias(jj, ll), ptr[reg_d_bias +  (jj + ll) * jpp.c_block / num_ll * sizeof(float)]);
-
-                        Vmm vmm_dst = vreg_dst_f32(jj, ll);
-
-                        uni_vfmadd213ps(vmm_dst, vreg_d_weights(jj, ll), vreg_d_bias(jj, ll));
-                        if (do_rounding)
-                            uni_vroundps(vmm_dst, vmm_dst, 0);
+                        int s_idx = vreg_dst_f32(jj, ll).getIdx();
+                        quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + 1,
+                                (jj + ll) * jpp.c_block / num_ll * sizeof(float), do_rounding);
                     }
                 }
             }
 
-            if (do_dequantization) {
-                mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.output_scale_data));
-                mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.output_shift_data));
-
-                add(reg_d_weights, reg_oc_off);
-                add(reg_d_bias, reg_oc_off);
-
-                for (int jj = 0; jj < ur_c; jj++) {
-                    for (int ll = 0; ll < num_ll; ll++) {
-                        bool masked = jj == ur_c - 1 && c_tail;
-                        size_t msk = jpp.tail[ll];
-                        if (!(masked && !msk)) {
-                            uni_vmovups(vreg_d_weights(jj, ll), ptr[reg_d_weights +  (jj + ll) * jpp.c_block / num_ll * sizeof(float)]);
-                            uni_vmovups(vreg_d_bias(jj, ll), ptr[reg_d_bias +  (jj + ll) * jpp.c_block / num_ll * sizeof(float)]);
-
-                            Vmm vmm_dst = vreg_dst_f32(jj, ll);
-
-                            uni_vfmadd213ps(vmm_dst, vreg_d_weights(jj, ll), vreg_d_bias(jj, ll));
-                        }
+            quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
+            for (int jj = 0; jj < ur_c; jj++) {
+                for (int ll = 0; ll < num_ll; ll++) {
+                    bool masked = jj == ur_c - 1 && c_tail;
+                    size_t msk = jpp.tail[ll];
+                    if (!(masked && !msk)) {
+                        int s_idx = vreg_dst_f32(jj, ll).getIdx();
+                        quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + 1,
+                                (jj + ll) * jpp.c_block / num_ll * sizeof(float));
                     }
                 }
             }
+
+            quantization_inj_idx++;
         }
     }
 }
@@ -969,6 +954,18 @@ void jit_uni_i8i8_pooling_fwd_ker_t<isa>::init_tmp_reg() {
 
 template <cpu_isa_t isa>
 void jit_uni_i8i8_pooling_fwd_ker_t<isa>::generate() {
+    const auto &p = attr.post_ops_;
+    for (int i = 0; i < p.len_; i++) {
+        auto &post_op = p.entry_[i];
+        if (post_op.is_quantization()) {
+            quantization_injectors.push_back(new jit_uni_quantization_injector_f32<isa>(
+                    this,
+                    post_op,
+                    vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias
+            ));
+        }
+    }
+
     preamble();
 
 #if !defined(_WIN32)

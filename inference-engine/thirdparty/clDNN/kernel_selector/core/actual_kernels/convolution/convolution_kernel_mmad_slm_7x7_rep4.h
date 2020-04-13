@@ -32,10 +32,8 @@ protected:
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     bool Validate(const Params& p, const optional_params& o) const override;
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {
-            WeightsLayout::os_is_yx_isa8_osv8_isv4,
-        };
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+        return WeightsLayout::os_is_yx_isa8_osv8_isv4;
     }
 };
 }  // namespace kernel_selector

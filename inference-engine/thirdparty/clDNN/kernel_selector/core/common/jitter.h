@@ -293,4 +293,79 @@ JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount);
 JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroName);
 JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& macroName);
 inline JitConstants MakeUnitTypeJitConstants(Datatype dataType) { return MakeTypeJitConstants(dataType, "UNIT"); }
+
+
+class FusedOpsCodeGenerator {
+public:
+    explicit FusedOpsCodeGenerator(fused_operation_desc desc) : desc(desc) {}
+
+    struct idx_desc {
+        std::string b;
+        std::string f;
+        std::string z;
+        std::string y;
+        std::string x;
+        size_t dims;
+        explicit idx_desc(std::vector<std::string> idx, DataTensor t) : b("0"), f("0"), z("0"), y("0"), x("0"), dims(0) {
+            dims = idx.size();
+            switch (dims) {
+                case 1: f = idx[0]; break;
+                case 2: b = idx[0]; f = idx[1]; break;
+                case 3: b = idx[0]; f = idx[1]; y = idx[2]; break;
+                case 4: b = idx[0]; f = idx[1]; y = idx[2]; x = idx[3]; break;
+                case 5: b = idx[0]; f = idx[1]; z = idx[2]; y = idx[3]; x = idx[4]; break;
+                default: throw std::runtime_error("More than 5 dimenstions is not supported in fused op generator");
+            }
+
+            if (t.Batch().v == 1) {
+                b = "0";
+            }
+            if (t.Feature().v == 1) {
+                f = "0";
+            }
+            if (t.Z().v == 1) {
+                z = "0";
+            }
+            if (t.Y().v == 1) {
+                y = "0";
+            }
+            if (t.X().v == 1) {
+                x = "0";
+            }
+        }
+    };
+
+    JitConstants MakeFusedTensorJitConstants(const FusedOpsConfiguration& conf) const;
+    JitConstants MakeInputDeclsJitConstants(const FusedOpsConfiguration& conf) const;
+    JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf, const DataTensor prim_output) const;
+    JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf,
+                                    const std::string in_var, const Datatype in_type,
+                                    std::string& out_var, Datatype& out_type) const;
+
+    bool CanPreloadData(const FusedOpsConfiguration& conf) const;
+
+    std::string GetTypeStr() const;
+    std::string GetInputTensorName(size_t input_id) const;
+    std::string GetOutputTensorName() const;
+    std::string GetInputTypeName(size_t input_id, size_t vec_size) const;
+    std::string GetJitLoad(const FusedOpsConfiguration& conf, size_t input_id, const DataTensor prim_output,
+                           bool reuse_index = false, std::string reused_idx = "") const;
+    std::string GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const;
+    std::string GetInputPtrName(size_t input_id) const;
+    std::string GetInputVarName(size_t input_id) const;
+    std::string GetOutputVarName(std::string input_var_name) const;
+    std::string ConvertToOutputType(std::string var, size_t vec_size = 1) const;
+    std::string ConvertToType(std::string var, Datatype dt, size_t vec_size = 1) const;
+    std::string CastToType(std::string var, Datatype dt, size_t vec_size = 1) const;
+    std::string Broadcast(std::string var,  Datatype dt, size_t vec_size = 1) const;
+    std::string ConvertToOutputTypeSat(std::string var, size_t vec_size = 1) const;
+    std::string GetOutputType(size_t vec_size = 1) const;
+    std::string GetType(Datatype dt, size_t vec_size = 1) const;
+
+private:
+    std::vector<size_t> GetRequiredInputs() const;
+
+    fused_operation_desc desc;
+};
+
 }  // namespace kernel_selector

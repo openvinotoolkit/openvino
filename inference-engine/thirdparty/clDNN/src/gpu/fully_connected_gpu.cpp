@@ -69,7 +69,7 @@ public:
         }
 
         fc_optional_params.tuningParams.runner =
-            std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), true);
+            std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true);
 
         auto& kernel_selector = kernel_selector::fully_connected_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(fc_params, fc_optional_params);

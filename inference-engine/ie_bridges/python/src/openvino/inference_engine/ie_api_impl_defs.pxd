@@ -117,6 +117,8 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void exportNetwork(const string & model_file) except +
         object getMetric(const string & metric_name)
         object getConfig(const string & metric_name)
+        int wait(int num_requests, int64_t timeout)
+        int getIdleRequestId()
 
     cdef cppclass IENetwork:
         IENetwork() except +
@@ -132,6 +134,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void addOutput(string &, size_t) except +
         void setAffinity(map[string, string] & types_affinity_map, map[string, string] & layers_affinity_map) except +
         void setBatch(size_t size) except +
+        size_t getBatch() except +
         void setLayerParams(map[string, map[string, string]] params_map) except +
         void serialize(const string& path_to_xml, const string& path_to_bin) except +
         void reshape(map[string, vector[size_t]] input_shapes) except +
@@ -153,6 +156,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
     cdef cppclass InferRequestWrap:
         double exec_time;
+        int index;
         void getBlobPtr(const string & blob_name, Blob.Ptr & blob_ptr) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
         void infer() except +
@@ -165,6 +169,8 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         IECore() except +
         IECore(const string & xml_config_file) except +
         map[string, Version] getVersions(const string & deviceName) except +
+        IENetwork readNetwork(const string& modelPath, const string& binPath) except +
+        IENetwork readNetwork(const string& modelPath,uint8_t*bin, size_t bin_size) except +
         unique_ptr[IEExecNetwork] loadNetwork(IENetwork network, const string deviceName,
                                               const map[string, string] & config, int num_requests) except +
         unique_ptr[IEExecNetwork] importNetwork(const string & modelFIle, const string & deviceName,

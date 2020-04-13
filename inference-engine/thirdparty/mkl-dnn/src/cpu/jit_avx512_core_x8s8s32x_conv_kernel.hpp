@@ -26,6 +26,7 @@
 #include "jit_primitive_conf.hpp"
 #include "jit_uni_eltwise.hpp"
 #include "jit_uni_depthwise.hpp"
+#include "jit_uni_quantization.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -52,6 +53,10 @@ struct _jit_avx512_core_x8s8s32x_fwd_kernel : public jit_generator {
         for (auto inj : depthwise_injectors)
             delete inj;
         depthwise_injectors.clear();
+
+        for (auto inj : quantization_injectors)
+            delete inj;
+        quantization_injectors.clear();
     }
 
     jit_conv_conf_t jcp;
@@ -61,6 +66,7 @@ struct _jit_avx512_core_x8s8s32x_fwd_kernel : public jit_generator {
 private:
     nstl::vector<jit_uni_eltwise_injector_f32<avx512_common>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<avx512_common>*> depthwise_injectors;
+    nstl::vector<jit_uni_quantization_injector_f32<avx512_common>*> quantization_injectors;
 
     enum {
         typesize = sizeof(float),
@@ -102,11 +108,13 @@ private:
 
     const Xbyak::Reg64 reg_input_zp = reg_bias_alpha;
 
-    const Vmm vmm_d_weights = Vmm(31);
-    const Vmm vmm_d_bias = Vmm(30);
+    const Xbyak::Zmm zmm_d_weights = Xbyak::Zmm(31);
+    const Xbyak::Zmm zmm_d_bias = Xbyak::Zmm(30);
 
     const Xbyak::Opmask ktail_mask = Xbyak::Opmask(2);
     const Xbyak::Opmask kblend_mask = Xbyak::Opmask(3);
+    Xbyak::Opmask mask_post_op_reserved = Xbyak::Opmask(1);
+    Xbyak::Reg64 eltwise_reserved = rax;
 
     const Vmm vmm_wei = Vmm(31);
     /* used during bias section of store_output */

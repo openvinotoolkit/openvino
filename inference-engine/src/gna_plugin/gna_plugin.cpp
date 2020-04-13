@@ -153,7 +153,7 @@ void GNAPlugin::copyInputDataWithSplit(T *const dst,
         }
         for (uint32_t i = begin; i < end; ++i) {
             if (!std::is_same<T, U>::value) {
-                *(dst_ptr++) = GNAPluginNS::ConvertFloatToInt16(*(src_ptr++) * inputsDesc->inputScaleFactors[idx]);
+                *(dst_ptr++) = GNAPluginNS::ConvertFloatToInt16(*(src_ptr++) * inputsDesc->getScaleFactor(idx));
             } else {
                 *(dst_ptr++) = *(src_ptr++);
             }
@@ -349,6 +349,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     }
 
     // network optimisation phases
+    int passIdx = 0;
     auto run_passes = [&] (const CNNNetPtr& network, bool runBeforeCopy) {
         auto passes = make_shared<PassManager>(policy, network, runBeforeCopy);
         passes->registerPass<RemoveConstPass>();
@@ -357,6 +358,8 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         passes->registerPass<UnrollLSTMCellPass>();
 
         passes->registerPass<SubstitutePReluPass>();
+        passes->registerPass<SubstituteSoftSignPass>();
+
         passes->registerPass<ReorderMaxPoolPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
@@ -370,7 +373,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
-        passes->run();
+        passIdx = passes->run(passIdx);
     };
 
     ICNNNetwork::Ptr newNet;
@@ -453,8 +456,6 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         gnaFlags->gna_lib_async_threads_num = 1;
     }
 
-    auto networkPrecision = newNet->getPrecision();
-
     if (gnaFlags->sw_fp32) {
         gnamem.reset(new gna_memory_type(memory::make_polymorph<std::allocator<uint8_t>>()));
         graphCompiler.setGNAMemoryPtr(gnamem);
@@ -475,7 +476,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     }
 
     for (auto && input : inputsDataMap) {
-        inputsDesc->get_ptr_inputs_global(input.first).resize(gnaFlags->gna_lib_async_threads_num);
+        inputsDesc->getPtrInputsGlobal(input.first).resize(gnaFlags->gna_lib_async_threads_num);
     }
 
     // CreatingLayer primitives
@@ -485,7 +486,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     for (auto& inputLayer : inputLayers) {
         auto layerInfo = LayerInfo(inputLayer);
         if (layerInfo.isInput() && 0 == inputsDesc->bytes_allocated_for_input[inputLayer->name]) {
-            graphCompiler.connectOutput(inputLayer, &inputsDesc->get_ptr_inputs_global(inputLayer->name).front(), 0);
+            graphCompiler.connectOutput(inputLayer, &inputsDesc->getPtrInputsGlobal(inputLayer->name).front(), 0);
         }
     }
     // TODO: graph might be static - should we support that
@@ -824,13 +825,13 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             THROW_GNA_EXCEPTION << "network not loaded : input pointer for " << input.first << " not set";
         }
 
-        if (inputsDesc->get_ptr_inputs_global(input.first)[idx] == nullptr) {
+        if (inputsDesc->getPtrInputsGlobal(input.first)[idx] == nullptr) {
             // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
             THROW_GNA_EXCEPTION << "network not loaded : input pointer for (" << input.first << " at inferRequest #"
                                 << idx << " not set";
         }
 
-        if (inputsDesc->orientation_in[input.first] == kDnnUnknownOrientation) {
+        if (inputsDesc->getOrientation(input.first) == kDnnUnknownOrientation) {
             // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
             THROW_GNA_EXCEPTION << "network not loaded : input orientation for " << input.first << " not set";
         }
@@ -844,11 +845,11 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 
         auto dims = input.second->getTensorDesc().getDims();
 
-        ImportFrames(inputsDesc->get_ptr_inputs_global(input.first)[idx],
+        ImportFrames(inputsDesc->getPtrInputsGlobal(input.first)[idx],
                      input.second->cbuffer().as<float *>(),
                      input.second->getTensorDesc().getPrecision(),
-                     gnaFlags->sw_fp32 ? 1.0f : inputsDesc->inputScaleFactors[inputNum],
-                     inputsDesc->orientation_in[input.first],
+                     gnaFlags->sw_fp32 ? 1.0f : inputsDesc->getScaleFactor(inputNum),
+                     inputsDesc->getOrientation(input.first),
                      dims[0],
                      is2D ? dims[dims.size() - 2] : dims[0],
                      is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3],
@@ -856,9 +857,9 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 
         bool isOneChannel = input.second->getTensorDesc().getDims()[1] == 1;
         if (((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
-            != (inputsDesc->orientation_in[input.first] == kDnnInterleavedOrientation))
+            != (inputsDesc->getOrientation(input.first) == kDnnInterleavedOrientation))
             && !isOneChannel) {
-            RotateFeatures(reinterpret_cast<uint8_t *>(inputsDesc->get_ptr_inputs_global(input.first)[idx]),
+            RotateFeatures(reinterpret_cast<uint8_t *>(inputsDesc->getPtrInputsGlobal(input.first)[idx]),
                            gnadevice ? 2 : 4,
                            // TODO: only works for cnn4a and google command so far
                            dims[0],
@@ -1087,7 +1088,7 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::str
 #endif
     serial.Import(basePtr, header.gnaMemSize, inputStream);
 
-    inputsDesc->get_ptr_inputs_global("input").push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + header.input.descriptor_offset));
+    inputsDesc->getPtrInputsGlobal("input").push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + header.input.descriptor_offset));
     // TODO: import of multioutput network not supported
     outputsDesc.resize(1);
     auto &outputDesc = outputsDesc.front();
@@ -1209,7 +1210,8 @@ void GNAPlugin::SetConfig(const std::map<std::string, std::string> &config) {
 
     for (auto& item : config) {
         auto keys = std::find_if(supportedConfigOptions.begin(), supportedConfigOptions.end(), [&item](const std::string& supportedConfigOption) {
-            return item.first.find(supportedConfigOption) != std::string::npos;
+            return item.first == supportedConfigOption ||
+                   item.first.find(GNA_CONFIG_KEY(SCALE_FACTOR)) == 0;
         });
         if (keys == supportedConfigOptions.end()) {
             THROW_GNA_EXCEPTION << as_status << NOT_FOUND << "Incorrect GNA Plugin config. Key " << item.first << " not supported";

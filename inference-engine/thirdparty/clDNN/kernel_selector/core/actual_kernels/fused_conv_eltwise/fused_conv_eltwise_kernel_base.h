@@ -66,6 +66,7 @@ struct fused_conv_eltwise_params : public weight_bias_params {
     bool second_input_in_output = false;
 
     std::string to_string() const override;
+    std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
 };
 
@@ -117,7 +118,7 @@ public:
                                                    int autoTuneIndex = -1) const override;
 
 protected:
-    virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const fused_conv_eltwise_params&) const = 0;
+    virtual WeightsLayout GetPreferreddWeightsLayout(const fused_conv_eltwise_params &) const = 0;
     virtual std::string GetKernelName(const fused_conv_eltwise_params&) const { return kernelName; }
     virtual bool NeedPaddedInput() const { return false; }
     bool Validate(const Params& p, const optional_params& o) const override;

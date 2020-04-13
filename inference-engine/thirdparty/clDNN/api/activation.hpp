@@ -66,7 +66,8 @@ enum class activation_func {
     selu,                 // for val <= 0: b * (a * e^val - a); for val > 0: b * val (a,b are additional params)
     sign,                 // val > 0: 1; val < 0: -1; val == 0: 0
     softplus,             // ln(exp(val) + 1)
-    softsign              // (val/(1+|val|))
+    softsign,             // (val/(1+|val|))
+    swish                 // (val*sigmoid(val))
 };
 
 /// @brief activation gradient functions

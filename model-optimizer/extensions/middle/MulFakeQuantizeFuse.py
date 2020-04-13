@@ -62,7 +62,7 @@ class MulFakeQuantizeFuse(MiddleReplacementPattern):
     def pattern(self):
         return dict(
             nodes=[
-                ('preop', dict(op='Mul')),
+                ('preop', dict(op='Mul', can_be_fused=True)),
                 ('preoped', dict()),
                 ('quantize', dict(op='FakeQuantize', keep_in_IR=True)),
             ],

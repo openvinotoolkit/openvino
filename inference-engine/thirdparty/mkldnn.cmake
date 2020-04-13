@@ -142,4 +142,6 @@ endif()
 endif()
 ## enable jit_gemm from mlk-dnn
 
+add_definitions(-DMKLDNN_ENABLE_CONCURRENT_EXEC)
+
 target_link_libraries(${TARGET} PRIVATE ${${TARGET}_LINKER_LIBS})

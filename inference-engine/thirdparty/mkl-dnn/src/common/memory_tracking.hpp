@@ -160,6 +160,7 @@ enum {
     key_conv_gemm_imtr,
     key_conv_int_dat_in_acc_dt,
     key_conv_padded_bias,
+    key_conv_bias_bf16_convert_wsp,
     key_conv_rtus_space,
     key_conv_tr_diff_dst,
     key_conv_tr_diff_dst_bctx,
@@ -169,9 +170,11 @@ enum {
     key_conv_wei_bia_reduction,
     key_conv_wei_bia_reduction_bctx,
     key_conv_dst_bf16_convert_wsp,
+    key_deconv_dst_bf16_convert_wsp,
     key_pool_src_bf16cvt,
     key_pool_dst_bf16cvt,
     key_iprod_dst_bf16_convert_wsp,
+    key_iprod_bias_bf16_convert_wsp,
     key_iprod_int_dat_in_acc_dt,
     key_reducer_space,
     key_reducer_space_bctx,
@@ -274,6 +277,8 @@ struct registrar_t {
     void book(const key_t &key, size_t size,
             size_t alignment = default_alignment)
     { registry_.book(make_key(prefix_, key), size, alignment); }
+
+    size_t size() const { return registry_.size(); }
 
 protected:
     registry_t &registry_;

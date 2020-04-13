@@ -39,6 +39,7 @@ struct binary_convolution_params : public weight_bias_params {
     uint32_t groups = 1;
 
     std::string to_string() const override;
+    std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
 };
 

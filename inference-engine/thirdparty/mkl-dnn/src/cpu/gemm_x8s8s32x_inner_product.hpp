@@ -64,9 +64,7 @@ struct gemm_x8s8s32x_inner_product_fwd_t: public cpu_primitive_t {
                 && IMPLICATION(this->with_bias(), utils::one_of(
                             this->desc()->bias_desc.data_type, f32, s32, s8,
                             u8))
-                && attr()->post_ops_.len_ <= 1
-                && IMPLICATION(attr()->post_ops_.len_,
-                        attr()->post_ops_.entry_[0].is_eltwise())
+                && is_supported_post_ops()
                 && dense_gemm_consitency_check(src_pd(), weights_pd(),
                         dst_pd());
             if (!ok) return status::unimplemented;
@@ -76,6 +74,22 @@ struct gemm_x8s8s32x_inner_product_fwd_t: public cpu_primitive_t {
             init_scratchpad();
 
             return status::success;
+        }
+
+        virtual bool is_supported_post_ops() const {
+            const auto &p = this->attr()->post_ops_;
+
+            auto all_post_ops_supported = [&]() {
+                bool ok = true;
+
+                for (int i = 0; i < p.len_; i++) {
+                    ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::eltwise, primitive_kind::depthwise,
+                                             primitive_kind::quantization);
+                }
+                return ok;
+            };
+
+            return all_post_ops_supported();
         }
 
         bool dst_is_acc_;
@@ -119,8 +133,15 @@ struct gemm_x8s8s32x_inner_product_fwd_t: public cpu_primitive_t {
     gemm_x8s8s32x_inner_product_fwd_t(const pd_t *apd,
             const input_vector &inputs, const output_vector &outputs)
         : cpu_primitive_t(apd, inputs, outputs, true) {
-        pp_kernel_ = new inner_product_utils::pp_kernel_t<data_type::s32,
-                dst_type>(apd);
+        if (mayiuse(avx512_common)) {
+            pp_kernel_ = new inner_product_utils::jit_pp_kernel_t<avx512_common, data_type::s32, dst_type>(apd);
+        } else if (mayiuse(avx2)) {
+            pp_kernel_ = new inner_product_utils::jit_pp_kernel_t<avx2, data_type::s32, dst_type>(apd);
+        } else if (mayiuse(sse42)) {
+            pp_kernel_ = new inner_product_utils::jit_pp_kernel_t<sse42, data_type::s32, dst_type>(apd);
+        } else {
+            pp_kernel_ = new inner_product_utils::ref_pp_kernel_t<data_type::s32, dst_type>(apd);
+        }
     }
     ~gemm_x8s8s32x_inner_product_fwd_t() { delete pp_kernel_; }
 
@@ -140,7 +161,7 @@ private:
     void execute_forward() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 
-    inner_product_utils::pp_kernel_t<data_type::s32, dst_type> *pp_kernel_;
+    inner_product_utils::uni_pp_kernel_t<data_type::s32, dst_type> *pp_kernel_;
 };
 }
 }

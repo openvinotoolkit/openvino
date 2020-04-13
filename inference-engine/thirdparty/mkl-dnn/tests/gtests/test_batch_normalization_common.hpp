@@ -22,7 +22,7 @@
 #include "mkldnn.hpp"
 
 #define ENGINE engine::kind::cpu
-#define INST_TEST_CASE(str, ...) INSTANTIATE_TEST_CASE_P( \
+#define INST_TEST_CASE(str, ...) INSTANTIATE_TEST_SUITE_P( \
         str, bnorm_test, ::testing::Values(__VA_ARGS__));
 
 namespace mkldnn {

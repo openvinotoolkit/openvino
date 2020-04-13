@@ -30,6 +30,9 @@ public:
     DataVector hwInputTiles;
     std::vector<DimValues> hwInputTilesOffsets;
 
+    DataVector hwWeightsTiles;
+    std::vector<DimValues> hwWeightsTilesOffsets;
+
     DataVector hwOutputTiles;
     std::vector<DimValues> hwOutputTilesOffsets;
 
@@ -59,8 +62,11 @@ private:
 
     Data createTileBiases(const Data& hwBiases, const HwConvChannelTilePtr& channelTile);
 
-    Data createTileWeights(const HwConvChannelTilePtr& channelTile, const std::string& channelTilePostfix,
-                           const HWConvStageIO& io, const HWConvStageOptions& options);
+    Data createConstTileWeights(const HwConvChannelTilePtr& channelTile, const std::string& channelTilePostfix,
+                                const HWConvStageIO& io, const HWConvStageOptions& options);
+
+    Data createIntermediateTileWeights(const HwConvChannelTilePtr& channelTile, const std::string& channelTilePostfix,
+                                       const HWConvStageIO& io, const HWConvStageOptions& options);
 
     void createHWStageForTile(const Data& hwInputTile, const Data& hwTileWeights, const Data& hwTileBiases,
                               const Data& hwScales, const Data& hwOutputTile, bool tileStageWithPool,

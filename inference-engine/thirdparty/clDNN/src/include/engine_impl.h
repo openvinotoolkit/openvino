@@ -21,7 +21,7 @@
 #include "refcounted_obj.h"
 #include "implementation_map.h"
 #include "memory_pool.h"
-#include "gpu/device_info.h"
+#include "device_impl.h"
 
 #include <memory>
 #include <set>
@@ -52,16 +52,18 @@ public:
     explicit engine_impl(const device_impl& dev, const engine_configuration& conf);
     ~engine_impl();
     engine_types type() const { return engine_types::ocl; }
-    refcounted_obj_ptr<memory_impl> allocate_memory(const layout& layout, uint32_t net_id);
+    refcounted_obj_ptr<memory_impl> allocate_memory(const layout& layout, uint32_t net_id, bool reset = true);
+    refcounted_obj_ptr<memory_impl> allocate_memory(const layout& layout, allocation_type type, uint32_t net_id = 0, bool reset = true);
     refcounted_obj_ptr<memory_impl> allocate_memory(const layout& layout,
                                                     primitive_id,
                                                     uint32_t network_id,
                                                     std::set<primitive_id>,
+                                                    allocation_type type,
                                                     bool reusable = true);
     refcounted_obj_ptr<memory_impl> reinterpret_buffer(const memory_impl& memory, const layout& new_layout);
     refcounted_obj_ptr<memory_impl> reinterpret_handle(const layout& new_layout,
-                                                    const shared_mem_params* params,
-                                                        uint32_t net_id);
+                                                       const shared_mem_params* params,
+                                                       uint32_t net_id);
     bool is_the_same_buffer(const memory_impl& mem1, const memory_impl& mem2);
 
     refcounted_obj_ptr<event_impl> create_user_event(uint32_t net_id, bool set = false);
@@ -129,6 +131,9 @@ public:
         _memory_pool.dump_memory_pool(program, path, dependencies);
     }
     bool use_memory_pool() const;
+    bool use_unified_shared_memory() const;
+    bool supports_allocation(allocation_type type) const;
+    allocation_type get_lockable_preffered_memory_allocation_type(bool is_image_layout = false) const;
 
 private:
     engine_configuration _configuration;

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -86,9 +86,9 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_yxfb_yxio
     const size_t ofmPerWorkItem = GetOfmPerWorkitem(arg.inputs[0].GetDType());
 
     if (arg.inputs[0].GetDType() == Datatype::F16) {
-        runInfo.effiency = FORCE_PRIORITY_7;
+        runInfo.efficiency = FORCE_PRIORITY_7;
     } else {
-        runInfo.effiency = FORCE_PRIORITY_9;
+        runInfo.efficiency = FORCE_PRIORITY_9;
     }
 
     runInfo.lws0 = min_lws;

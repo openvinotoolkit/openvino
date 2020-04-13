@@ -53,7 +53,7 @@ class PassName##Pass : public BasePass {\
     using BasePass::BasePass;\
     void run() override;\
     std::string getName() const override { return #PassName;}\
-};
+}
 
 #define DECL_PASS_BEFORE_COPY(PassName) \
 class PassName##Pass : public BasePass {\
@@ -62,10 +62,10 @@ class PassName##Pass : public BasePass {\
     void run() override;\
     bool runBeforeCopyPass() override { return true; };\
     std::string getName() const override { return #PassName;}\
-};
+}
 
 /**
-* @brief GNA affine layers are always have activation atached, while IR not
+* @brief GNA affine layers are always have activation attached, while IR not
 */
 DECL_PASS(InsertIdentityLayer);
 
@@ -87,9 +87,13 @@ DECL_PASS(ReversePermutations);
 
 /**
  * brief @search for specific patter in the graph (6 layers are replaced by single one)
- * @param layers
  */
 DECL_PASS(SubstitutePRelu);
+
+/**
+ * brief @search for specific patter in the graph (5 layers are replaced by single one)
+ */
+DECL_PASS(SubstituteSoftSign);
 
 /**
  * diagonal layer insertion required in cases where activation followed by split layers, or any other
@@ -103,7 +107,7 @@ DECL_PASS(InsertDiagonalLayer);
  */
 DECL_PASS(ReorderMaxPool);
 /**
- * @brief GNA doen't support multiple activations fused with functional layer
+ * @brief GNA doesn't support multiple activations fused with functional layer
  * currently for n activations for the layer X, it will be 1 PWL identity inserted, and n diagonal layers.
  * if one of activations is already identity, n-1 diagonal layers will be inserted
  */
@@ -172,7 +176,11 @@ public:
     const InferenceEngine::CNNNetPtr & getNetwork() const override {
         return network;
     }
-    void run();
+    /**
+     * @brief returns number of passes have been passed
+     * @param index - start index start index of first pass - used only in logging right now
+     */
+    int run(int index = 0);
 };
 
 }  // namespace GNAPluginNS

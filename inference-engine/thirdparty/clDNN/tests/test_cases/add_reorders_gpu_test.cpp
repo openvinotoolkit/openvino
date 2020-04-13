@@ -104,8 +104,8 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     build_opt.set_option(build_option::optimize_data(false));
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
-    auto weights1 = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 1, 1, 2 } });
-    auto weights2 = memory::allocate(engine, { data_types::f32, format::byxf,{ 1, 1, 1, 2 } });
+    auto weights1 = memory::allocate(engine, { data_types::f32, format::yxio,{ 1, 1, 1, 2 } });
+    auto weights2 = memory::allocate(engine, { data_types::f32, format::oiyx,{ 1, 1, 1, 2 } });
 
     set_values(input, { 1.1f, 1.2f, 1.3f, 1.4f });
     set_values(weights1, { 2.1f, 3.1f});

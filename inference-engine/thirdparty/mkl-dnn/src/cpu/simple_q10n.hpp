@@ -65,6 +65,12 @@ struct qz_a1b0<in_t, out_t,
     out_t operator()(in_t in, round_mode_t rmode) { return (out_t)in; }
 };
 
+template <> struct qz_a1b0<float, mkldnn_bfloat16_t> {
+    mkldnn_bfloat16_t operator()(float in, round_mode_t rmode) {
+        return bf16_cvt_utils::cvt_float_to_bfloat16(in);
+    }
+};
+
 /* Quantization with alpha == 1 */
 template <typename in_t, typename out_t> struct qz_a1 {
     out_t operator()(in_t in, out_t out, float beta, round_mode_t rmode)

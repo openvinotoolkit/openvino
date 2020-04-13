@@ -23,12 +23,13 @@
 
 namespace InferenceEngine {
 /**
+ * @deprecated Use InferenceEngine::Core::ReadNetwork methods. This API will be removed in 2020.3
  * @brief This is a wrapper class used to build and parse a network from the given IR.
  *
  * All the methods here can throw exceptions.
  */
 IE_SUPPRESS_DEPRECATED_START
-class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core::ReadNetwork() method this API will be removed in 2020 R2")
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core::ReadNetwork methods. This API will be removed in 2020.3")
     CNNNetReader {
 public:
     /**
@@ -39,7 +40,11 @@ public:
     /**
      * @brief A default constructor
      */
-    CNNNetReader(): actual(shared_from_irelease(InferenceEngine::CreateCNNNetReader())) {}
+    CNNNetReader(): actual(shared_from_irelease(InferenceEngine::CreateCNNNetReader())) {
+        if (actual == nullptr) {
+            THROW_IE_EXCEPTION << "CNNNetReader was not initialized.";
+        }
+    }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     /**

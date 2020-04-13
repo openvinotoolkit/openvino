@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@ struct CommonDispatchData {
     size_t lws0, lws1, lws2;
     bool
         fp16UnitUsed;  ///< Value indicating that FP16 half precision floating point type will be used (instead of single precision).
-    float effiency;
+    float efficiency;
 
-    CommonDispatchData() : gws0(0), gws1(0), gws2(0), lws0(0), lws1(0), lws2(0), fp16UnitUsed(false), effiency(0.0f){}
+    CommonDispatchData() : gws0(0), gws1(0), gws2(0), lws0(0), lws1(0), lws2(0), fp16UnitUsed(false), efficiency(0.0f){}
 };
 
 class common_kernel_base : public KernelBase {

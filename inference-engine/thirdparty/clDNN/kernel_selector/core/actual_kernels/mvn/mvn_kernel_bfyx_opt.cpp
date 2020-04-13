@@ -15,20 +15,28 @@
 
 #include "mvn_kernel_bfyx_opt.h"
 #include "kernel_selector_utils.h"
+
 #include <algorithm>
+#include <vector>
+#include <string>
 
 namespace kernel_selector {
 ParamsKey MVNKernelBfyxOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableBatching();
+    k.EnableDifferentTypes();
     k.EnableMVNMode(MVNMode::WITHIN_CHANNELS);
     k.EnableMVNMode(MVNMode::ACROSS_CHANNELS);
     k.EnableMVNNormalizeVariance();
@@ -88,6 +96,41 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
         MakeJitConstant("DATA_SET_SIZE", kd.dataSetSize),
         MakeJitConstant("LEFTOVERS", kd.leftovers),
     });
+    auto activation_dt = GetActivationType(params);
+    jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
+
+    if (!params.fused_ops.empty()) {
+        std::vector<std::string> idx_order;
+        if (params.inputs[0].GetDims().size() <= 4) {
+            if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
+                idx_order = { "(data_set_idx / OUTPUT_FEATURE_NUM)",
+                              "(data_set_idx % OUTPUT_FEATURE_NUM)",
+                              "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X)",
+                              "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
+            } else if (params.mvnMode == MVNMode::ACROSS_CHANNELS) {
+                idx_order = { "data_set_idx",
+                              "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y))",
+                              "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y)",
+                              "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
+            }
+        } else if (params.inputs[0].GetDims().size() == 5) {
+            if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
+                idx_order = { "(data_set_idx / OUTPUT_FEATURE_NUM)",
+                              "(data_set_idx % OUTPUT_FEATURE_NUM)",
+                              "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y))",
+                              "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y)",
+                              "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
+            } else if (params.mvnMode == MVNMode::ACROSS_CHANNELS) {
+                idx_order = { "data_set_idx",
+                              "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z))",
+                              "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % OUTPUT_SIZE_Z)",
+                              "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y)",
+                              "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
+            }
+        }
+        auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED);
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
 
     return jit;
 }

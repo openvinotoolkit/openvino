@@ -62,12 +62,12 @@ private:
         auto input5 = inputEdges()[4]->input();
         auto output = outputEdges()[0]->output();
 
-        input1->serializeNewBuffer(serializer);
-        input2->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
-        input3->serializeNewBuffer(serializer);
-        input4->serializeNewBuffer(serializer);
-        input5->serializeNewBuffer(serializer);
+        input1->serializeBuffer(serializer);
+        input2->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
+        input3->serializeBuffer(serializer);
+        input4->serializeBuffer(serializer);
+        input5->serializeBuffer(serializer);
     }
 };
 

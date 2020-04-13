@@ -21,9 +21,11 @@ private:
     void SLTMTransform(MKLDNNGraph& graph);
     void MergeConversions(MKLDNNGraph& graph);
     void MergeGroupConvolution(MKLDNNGraph& graph);
+    void MergeTwoEqualScaleShifts(MKLDNNGraph& graph);
+    void MergeSigmoidAndMultiplyToSwish(MKLDNNGraph& graph);
 #if defined(COMPILED_CPU_MKLDNN_ACTIVATION_NODE)
     void FuseConvolutionAndActivation(MKLDNNGraph &graph);
-    void FuseFullyConnectedAndActivation(MKLDNNGraph &graph);
+    void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
 #endif
 #if defined (COMPILED_CPU_MKLDNN_DEPTHWISE_NODE)
     void FuseConvolutionAndDepthwise(MKLDNNGraph &graph);
@@ -40,6 +42,7 @@ private:
     void FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph);
 #endif
     void FuseMVNAndSimpleOperation(MKLDNNGraph &graph);
+    void FuseResampleAndSimpleOperation(MKLDNNGraph &graph);
     void RemoveIdentityOperator(MKLDNNGraph& graph);
 
     void RemoveIOScaleShifts(MKLDNNGraph& graph);
@@ -50,7 +53,8 @@ private:
     void FuseConvolutionAndZeroPoints(MKLDNNGraph &graph);
     void FuseBroadcastAndEltwise(MKLDNNGraph &graph);
     void FuseEltwiseAndSimple(MKLDNNGraph &graph);
-
+    void FuseScaleShiftAndQuantize(MKLDNNGraph &graph);
+    void FuseClampAndQuantize(MKLDNNGraph &graph);
 
     bool IsOneOf(Type type, std::vector<Type> types);
 };

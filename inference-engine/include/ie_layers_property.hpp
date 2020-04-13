@@ -5,7 +5,7 @@
 /**
  * @brief a header file for describing property style structure used by CNNLayers
  * 
- * @file
+ * @file ie_layers_property.hpp
  */
 #pragma once
 

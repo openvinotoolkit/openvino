@@ -21,11 +21,11 @@
 
 namespace kernel_selector {
 
-class ConvolutionKernel_MMAD_b_fs_yx_fsv32_dw : public ConvolutionKernelBase {
+class ConvolutionKernel_mmad_b_fs_yx_fsv32_dw : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
-    ConvolutionKernel_MMAD_b_fs_yx_fsv32_dw() : ConvolutionKernelBase("convolution_gpu_mmad_b_fs_yx_fsv32_dw") {}
-    virtual ~ConvolutionKernel_MMAD_b_fs_yx_fsv32_dw() {}
+    ConvolutionKernel_mmad_b_fs_yx_fsv32_dw() : ConvolutionKernelBase("convolution_gpu_mmad_b_fs_yx_fsv32_dw") {}
+    virtual ~ConvolutionKernel_mmad_b_fs_yx_fsv32_dw() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
@@ -34,10 +34,8 @@ protected:
     bool Validate(const Params& p, const optional_params& o) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {
-            WeightsLayout::oiyx,
-        };
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+        return WeightsLayout::goiyx;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,

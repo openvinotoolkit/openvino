@@ -169,7 +169,7 @@ KERNEL(binary_convolution_generic)(const __global INPUT0_TYPE* input,
         dst[i] = res;
 #elif HAS_FUSED_OPS
         FUSED_OPS;
-        dst[i] = FINAL_NAME;
+        dst[i] = FUSED_OPS_RESULT;
 #else
         dst[i] = res;
 #endif

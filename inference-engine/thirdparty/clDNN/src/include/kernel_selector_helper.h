@@ -176,7 +176,7 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
     convert_fused_activation_func_params(arg, params.activations);
     size_t op_id = 0;
     for (auto& fused_prim : arg.get_fused_primitives()) {
-        kernel_selector::base_params::fused_operation_desc desc;
+        kernel_selector::fused_operation_desc desc;
         desc.op_params = fused_prim.node->get_fuse_params();
         if (!desc.op_params) {
             CLDNN_ERROR_MESSAGE(arg.id(), "Invalid fused operation (" + fused_prim.node->id() + ") of type " +
@@ -200,10 +200,7 @@ inline params_t get_default_params(const arg_t& arg, uint32_t split = 1) {
 template <typename params_t, typename arg_t>
 inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1) {
     params_t params = get_default_params<params_t>(arg, split);
-    auto weights_layout = arg.weights().get_output_layout();
-    if (groups != 1) {
-        weights_layout.size.batch[0] /= static_cast<int>(groups);
-    }
+    const auto& weights_layout = arg.weights().get_output_layout();
     params.weights = convert_weights_tensor(weights_layout);
 
     if (arg.bias_term()) {
@@ -213,6 +210,30 @@ inline params_t get_weights_bias_default_params(const arg_t& arg, uint32_t split
             bias_layout.size.feature[0] /= static_cast<int>(groups);
         }
         params.bias.push_back(convert_data_tensor(bias_layout).FlattenFeatureAndSpatials());
+    }
+
+    return params;
+}
+
+template <typename params_t, typename arg_t>
+params_t get_weight_bias_zero_point_default_params(const arg_t& arg, uint32_t split = 1, uint32_t groups = 1) {
+    params_t params = get_weights_bias_default_params<params_t>(arg, split, groups);
+
+    if (arg.weights_zero_points_term()) {
+        params.weights_zero_points.push_back(
+            convert_data_tensor(arg.weights_zero_points().get_output_layout())
+            .FlattenFeatureAndSpatials());
+    }
+
+    if (arg.activations_zero_points_term()) {
+        params.activations_zero_points.push_back(
+            convert_data_tensor(arg.activations_zero_points().get_output_layout())
+            .FlattenFeatureAndSpatials());
+    }
+
+    if (arg.compensation_term()) {
+        params.compensation.push_back(
+            convert_data_tensor(arg.compensation().get_output_layout()).FlattenFeatureAndSpatials());
     }
 
     return params;

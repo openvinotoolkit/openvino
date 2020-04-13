@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,11 +43,11 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
     const auto& out = arg.output;
 
     if (arg.resampleType == ResampleType::NEAREST_NEIGHBOR)
-        global = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
+        global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
     else if (arg.resampleType == ResampleType::BILINEAR_INTERP)
         global = {Align(out.X().v, 32), out.Y().v, out.Batch().v};
     else if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP)
-        global = {out.X().v * out.Y().v, CeilDiv(out.Feature().v, GetFeatureBlockSize(arg)), out.Batch().v};
+        global = {out.X().v * out.Y().v, CeilDiv(out.Feature().v, GetFeatureBlockSize(arg)), out.Batch().v * out.Z().v};
 
     local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
 
@@ -65,7 +65,7 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
     runInfo.lws1 = local[1];
     runInfo.lws2 = local[2];
 
-    runInfo.effiency = FORCE_PRIORITY_7;
+    runInfo.efficiency = FORCE_PRIORITY_7;
     runInfo.fp16UnitUsed = out.GetDType() == Datatype::F16;
 
     return runInfo;
@@ -78,9 +78,19 @@ bool ResampleKernelBase::Validate(const Params& p, const optional_params& o) con
 
     const resample_params& params = static_cast<const resample_params&>(p);
 
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
     if (params.inputs.size() == 0) {
         return false;
     }
+
+    const auto& input = params.inputs[0];
+    if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
+        params.resampleType != ResampleType::NEAREST_NEIGHBOR)
+        return false;
 
     return true;
 }
@@ -95,25 +105,32 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     const auto pad_end = params.pad_end;
     const auto x_size_padded = pad_begin + input.X().v + pad_end;
     const auto y_size_padded = pad_begin + input.Y().v + pad_end;
+    const auto z_size_padded = pad_begin + input.Z().v + pad_end;
     const auto out_x_size_padded = pad_begin + output.X().v + pad_end;
     const auto out_y_size_padded = pad_begin + output.Y().v + pad_end;
+    const auto out_z_size_padded = pad_begin + output.Z().v + pad_end;
     float x_ratio = 0;
     float y_ratio = 0;
+    float z_ratio = 0;
 
     if (align_corners) {
         x_ratio = (out_x_size_padded) > 1 ? static_cast<float>(x_size_padded - 1) / static_cast<float>(out_x_size_padded - 1) : 0.0f;
         y_ratio = (out_y_size_padded) > 1 ? static_cast<float>(y_size_padded - 1) / static_cast<float>(out_y_size_padded - 1) : 0.0f;
+        z_ratio = (out_z_size_padded) > 1 ? static_cast<float>(z_size_padded - 1) / static_cast<float>(out_z_size_padded - 1) : 0.0f;
     } else {
         x_ratio = static_cast<float>(x_size_padded) / static_cast<float>(out_x_size_padded);
         y_ratio = static_cast<float>(y_size_padded) / static_cast<float>(out_y_size_padded);
+        z_ratio = static_cast<float>(z_size_padded) / static_cast<float>(out_z_size_padded);
     }
 
     jit.AddConstants({
         MakeJitConstant(toString(params.resampleType), ""),
         MakeJitConstant("X_RATIO", x_ratio),
         MakeJitConstant("Y_RATIO", y_ratio),
+        MakeJitConstant("Z_RATIO", z_ratio),
         MakeJitConstant("X_RATIO_HALF", x_ratio / 2.0f),
         MakeJitConstant("Y_RATIO_HALF", y_ratio / 2.0f),
+        MakeJitConstant("Z_RATIO_HALF", z_ratio / 2.0f),
         MakeJitConstant("PAD_BEGIN", pad_begin),
         MakeJitConstant("PAD_END", pad_end),
         MakeJitConstant("ALIGN_CORNERS", align_corners),
@@ -157,7 +174,7 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
     FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point,
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = runInfo.efficiency;
 
     return {kd};
 }

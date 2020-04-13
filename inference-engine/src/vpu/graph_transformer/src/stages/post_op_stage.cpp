@@ -50,11 +50,11 @@ void PostOpStage::serializeDataImpl(BlobSerializer& serializer) const {
     auto input = inputEdge(0)->input();
     auto output = outputEdge(0)->output();
 
-    input->serializeNewBuffer(serializer);
-    output->serializeNewBuffer(serializer);
+    input->serializeBuffer(serializer);
+    output->serializeBuffer(serializer);
 
     for (int i = 1; i < numInputs(); ++i) {
-        this->input(i)->serializeNewBuffer(serializer);
+        this->input(i)->serializeBuffer(serializer);
     }
 }
 

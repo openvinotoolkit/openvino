@@ -38,7 +38,7 @@ struct jit_uni_pool_kernel: public jit_generator {
     jit_uni_pool_kernel(jit_pool_conf_t ajpp):
         jpp(ajpp), bf16_emu_(nullptr)
     {
-        if (jpp.is_bf16 && !jpp.is_cpx)
+        if (jpp.is_bf16 && !isa_has_bf16(jpp.isa))
             bf16_emu_ = new bf16_emulation_t(this,
                     bf16_emu_reserv_1, bf16_emu_reserv_2,
                     bf16_emu_reserv_3, bf16_emu_reserv_4,

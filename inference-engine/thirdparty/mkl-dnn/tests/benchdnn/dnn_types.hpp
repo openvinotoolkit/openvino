@@ -70,8 +70,21 @@ struct attr_t {
     };
 
     struct post_ops_t {
-        enum kind_t { SUM, RELU, TANH, ELU, SQUARE, ABS, SQRT, LINEAR, BRELU,
-            SRELU, LOGISTIC, KIND_TOTAL };
+        enum kind_t {
+            SUM,
+            RELU,
+            TANH,
+            ELU,
+            SQUARE,
+            ABS,
+            SQRT,
+            LINEAR,
+            BRELU,
+            SRELU,
+            LOGISTIC,
+            EXP,
+            KIND_TOTAL
+        };
         static kind_t str2kind(const char *str);
         static const char *kind2str(kind_t kind);
         static mkldnn_alg_kind_t kind2mkldnn_kind(kind_t kind);

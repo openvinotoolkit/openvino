@@ -199,7 +199,7 @@ void jit_avx512_core_x8s8s32x_convolution_fwd_t<src_type,
     int32_t* compensation = (jcp.signed_input) ? reinterpret_cast<int32_t *>(&w[offset]) :
                             (jcp.with_input_zp) ? pd()->attr()->output_compensations_.shifts_ : 0;
 
-    const uint8_t* input_zp = pd()->attr()->input_zero_points_.zero_points_;
+    const uint8_t* input_zp = pd()->attr()->input_zero_points_.shifts_;
 
     int oc_chunks = jcp.nb_oc / jcp.nb_oc_blocking_thr_chunk;
     int nb_groups = jcp.nb_ch;
@@ -356,7 +356,7 @@ void jit_avx512_core_x8s8s32x_convolution_fwd_t<src_type,
     int32_t* compensation = (jcp.signed_input) ? reinterpret_cast<int32_t *>(&w[offset]) :
                             (jcp.with_input_zp) ? pd()->attr()->output_compensations_.shifts_ : 0;
 
-    const uint8_t* input_zp = pd()->attr()->input_zero_points_.zero_points_;
+    const uint8_t* input_zp = pd()->attr()->input_zero_points_.shifts_;
 
     int oc_chunks = jcp.nb_oc / jcp.nb_oc_blocking_thr_chunk;
     int nb_groups = jcp.nb_ch;
@@ -523,7 +523,7 @@ void jit_avx512_core_x8s8s32x_convolution_fwd_t<src_type,
     int32_t* compensation = (jcp.signed_input) ? reinterpret_cast<int32_t *>(&w[offset]) :
                             (jcp.with_input_zp) ? pd()->attr()->output_compensations_.shifts_ : 0;
 
-    const uint8_t* input_zp = pd()->attr()->input_zero_points_.zero_points_;
+    const uint8_t* input_zp = pd()->attr()->input_zero_points_.shifts_;
 
     int nb_groups = jcp.nb_ch / jcp.nb_ch_blocking;
     int group_block = jcp.ch_block;
@@ -623,7 +623,7 @@ void jit_avx512_core_x8s8s32x_convolution_fwd_t<src_type,
     int32_t* compensation = (jcp.signed_input) ? reinterpret_cast<int32_t *>(&w[offset]) :
                             (jcp.with_input_zp) ? pd()->attr()->output_compensations_.shifts_ : 0;
 
-    const uint8_t* input_zp = pd()->attr()->input_zero_points_.zero_points_;
+    const uint8_t* input_zp = pd()->attr()->input_zero_points_.shifts_;
 
     int nb_groups = jcp.nb_ch / jcp.nb_ch_blocking;
     int group_block = jcp.ch_block;

@@ -4,6 +4,8 @@
 
 #include "mkldnn_fullyconnected_node.h"
 #include "mkldnn_activation_node.h"
+#include "mkldnn_depthwise_node.h"
+#include "mkldnn_quantize_node.h"
 #include "desc_iterator.hpp"
 #include <ie_layers.h>
 #include <string>
@@ -68,9 +70,15 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
     }
 
     if (baseInputsNumber > 1) {
+        if (!fusedWith.empty()) {
+            auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
+            if (lastFusedLayer) {
+                outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(lastFusedLayer->outData[0]->getPrecision());
+            }
+        }
         auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->insData[1].lock()->getPrecision());
 
-        if (weightsDataType != memory::s8) {
+        if (inputDataType != memory::u8 || weightsDataType != memory::s8) {
             inputDataType = memory::f32;
             outputDataType = memory::f32;
         }
@@ -172,6 +180,86 @@ void MKLDNNFullyConnectedNode::createPrimitive() {
     }
 }
 
+void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false) {
+    int blob_idx = 0;
+    mkldnn::post_ops ops;
+
+    for (auto &node : fusedWith) {
+        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
+        if (quantizeNode) {
+            quantizeNode->appendPostOps(ops);
+            continue;
+        }
+
+        auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode *>(node.get());
+        if (depthwiseNode) {
+            if (initWeights) {
+                auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(depthwiseNode->getCnnLayer().get());
+                MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(getChildEdgeAt(0)->getDims()[1], 16))});
+
+                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
+                PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+
+                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
+                                                        depthwiseLayer->_weights->buffer(),
+                                                        depthwiseLayer->_weights->size() *
+                                                        MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+
+                if (depthwiseNode->isBroadcast()) {
+                    float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[0];
+                    for (int i = 1; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
+                        static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
+                    }
+                }
+
+                if (depthwiseNode->getAlgorithm() == depthwise_scale_shift) {
+                    PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
+                    PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32,
+                                                               memory::format::x);
+                    PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
+                                                                depthwiseLayer->_biases->buffer(),
+                                                                depthwiseLayer->_biases->size() *
+                                                                MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+
+                    if (depthwiseNode->isBroadcast()) {
+                        float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[0];
+                        for (int i = 1; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
+                            static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
+                        }
+                    }
+
+                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
+                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
+                                         (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
+
+                    blob_idx += 2;
+                } else {
+                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
+                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
+                                         nullptr);
+
+                    blob_idx += 1;
+                }
+            } else {
+                ops.append_depthwise(depthwiseNode->getAlgorithm(),
+                                     nullptr,
+                                     nullptr);
+            }
+
+            continue;
+        }
+
+        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
+        if (activationNode) {
+            ops.append_eltwise(1.0, activationNode->getAlgorithm(), activationNode->getAlpha(), activationNode->getBeta());
+
+            continue;
+        }
+    }
+
+    attr.set_post_ops(ops);
+}
+
 bool MKLDNNFullyConnectedNode::created() const {
     return getType() == FullyConnected;
 }
@@ -209,6 +297,7 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
             impl_desc_type::gemm_sse42,
             impl_desc_type::gemm_any,
             impl_desc_type::gemm,
+            impl_desc_type::jit_gemm,
             impl_desc_type::jit_uni_dw,
             impl_desc_type::jit_uni_1x1,
             impl_desc_type::jit_uni,
@@ -233,7 +322,7 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
     return implPriorities;
 }
 
-std::shared_ptr<mkldnn::primitive_attr> MKLDNNFullyConnectedNode::initPrimitiveAttr() const {
+std::shared_ptr<mkldnn::primitive_attr> MKLDNNFullyConnectedNode::initPrimitiveAttr() {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
     bool scaled = false;
     if (wScale != nullptr) {
@@ -256,17 +345,8 @@ std::shared_ptr<mkldnn::primitive_attr> MKLDNNFullyConnectedNode::initPrimitiveA
        attr->set_output_scales(1 << 1 /*through C dim*/, oScaleDataVector);
     }
 
-#if defined(COMPILED_CPU_MKLDNN_ACTIVATION_NODE)
-    mkldnn::post_ops ops;
-    for (auto &node : fusedWith) {
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
-        if (activationNode) {
-            ops.append_eltwise(1.0, activationNode->getAlgorithm(), activationNode->getAlpha(),
-                               activationNode->getBeta());
-        }
-        attr->set_post_ops(ops);
-    }
-#endif
+    setPostOps(*attr, true);
+
     return attr;
 }
 

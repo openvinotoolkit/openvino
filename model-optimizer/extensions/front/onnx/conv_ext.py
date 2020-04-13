@@ -153,6 +153,7 @@ class ConvTransposeFrontExtractor(FrontExtractorOp):
             'pad': final_pads,
             'dilation': final_dilations,
             'output_spatial_shape': output_shape,
+            'original_output_spatial_shape': output_shape,
             'output_shape': None,
             'output_padding': final_output_padding,
             'stride': final_strides,

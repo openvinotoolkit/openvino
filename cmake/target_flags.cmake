@@ -29,3 +29,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*)")
   set(AARCH64 ON)
 endif()
+
+if(UNIX AND NOT APPLE)
+    set(LINUX ON)
+endif()

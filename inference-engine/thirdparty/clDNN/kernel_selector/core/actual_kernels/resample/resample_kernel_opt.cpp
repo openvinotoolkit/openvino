@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,9 +34,11 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
-    k.EnableInputLayout(DataLayout::bfyx_f16);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::bfyx_f16);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableDifferentTypes();
     k.EnableTensorOffset();
@@ -44,6 +46,8 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableReampleType(ResampleType::BILINEAR_INTERP);
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
+    k.EnableSubGroup();
+    k.EnableSubGroupShort();
     return k;
 }
 
@@ -59,7 +63,7 @@ ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_sele
     runInfo.lws1 = sub_group_size;
     runInfo.lws2 = 1;
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    runInfo.efficiency = FORCE_PRIORITY_3;
     runInfo.fp16UnitUsed = out.GetDType() == Datatype::F16;
 
     return runInfo;
@@ -79,7 +83,7 @@ bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) cons
 
     const auto& input = params.inputs[0];
 
-    if (input.GetLayout() != DataLayout::fs_b_yx_fsv32 && input.GetLayout() != DataLayout::bfyx_f16)
+    if (input.GetLayout() != DataLayout::fs_b_yx_fsv32 && input.GetLayout() != DataLayout::b_fs_yx_fsv16)
         return false;
 
     return true;
@@ -91,15 +95,28 @@ JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) c
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", GetOptimalBlockSize(params)));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
     jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(params.output.X().v, GetOptimalBlockSize(params))));
+    size_t vec_size = 0;
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
-        jit.AddConstant(MakeJitConstant("VEC_SIZE", 2));
+        vec_size = 2;
         jit.AddConstant(MakeJitConstant("FEATURE_SLICE_SIZE", 32));
     } else {
-        jit.AddConstant(MakeJitConstant("VEC_SIZE", 1));
+        vec_size = 1;
         jit.AddConstant(MakeJitConstant("FEATURE_SLICE_SIZE", 16));
+    }
+    jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
+
+    if (!params.fused_ops.empty()) {
+        std::vector<std::string> idx_order = {"b", "feature_num", "y", "(x + out_x)"};
+        FusedOpsConfiguration conf = {"", idx_order, "res", params.inputs[0].GetDType(), vec_size, LoadType::LT_ALIGNED_READ};
+        conf.SetVectorAxis(Tensor::DataChannelName::FEATURE);
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;
+}
+
+Datatype ResampleKernelOpt::GetUnitType(const base_params& params) const {
+    return params.inputs[0].GetDType();
 }
 
 KernelsData ResampleKernelOpt::GetKernelsData(const Params& params, const optional_params& options) const {

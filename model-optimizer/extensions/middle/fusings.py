@@ -13,6 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from extensions.front.div import Div
+from extensions.front.sub import Sub
 from extensions.middle.AddFakeQuantizeFuse import AddFakeQuantizeFuse
 from extensions.middle.EltwiseInputNormalization import EltwiseInputNormalize
 from extensions.middle.MulFakeQuantizeFuse import MulFakeQuantizeFuse
@@ -61,12 +63,14 @@ class Fusing(MiddleReplacementPattern):
         # Converting FusedBatchNorm layer to Mul->Add->Mul->Add sequence
         # IE doesn't support BN with 4 inputs, so we have to split it to two ScaleShift
         for_graph_and_each_sub_graph_recursively(graph, convert_batch_norm)
-        for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
         if fw == 'caffe':
             # Converting ScaleShift layer to Mul->Add
             for_graph_and_each_sub_graph_recursively(graph, convert_scale_shift_to_mul_add)
-            for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
+
+        for_graph_and_each_sub_graph_recursively(graph, Div().find_and_replace_pattern)
+        for_graph_and_each_sub_graph_recursively(graph, Sub().find_and_replace_pattern)
+        for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
         if not argv.disable_fusing:
             if fw != 'caffe':

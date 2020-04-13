@@ -54,6 +54,7 @@ DECLARE_VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION);
 
 /**
  * @deprecated Use CONFIG_KEY(LOG_LEVEL) instead.
+ * @brief The key to define log level
  */
 INFERENCE_ENGINE_DEPRECATED("Use CONFIG_KEY(LOG_LEVEL) instead")
 DECLARE_VPU_CONFIG_KEY(LOG_LEVEL);

@@ -82,9 +82,9 @@ std::vector<float> createReferenceData(std::vector<unsigned char> data, int widt
             int u_comp = data[width * height + i / 2 * width + ((j >> 1) << 1)];
             int v_comp = data[width * height + i / 2 * width + ((j >> 1) << 1) + 1];
 
-            float R = (1.164f * (float)(y_comp - 16) + 1.596f * (float)(v_comp - 128));
+            float B = (1.164f * (float)(y_comp - 16) + 1.596f * (float)(v_comp - 128));
             float G = (1.164f * (float)(y_comp - 16) - 0.813f * (float)(v_comp - 128) - 0.391f * (u_comp - 128));
-            float B = (1.164f * (float)(y_comp - 16) + 2.018f * (float)(u_comp - 128));
+            float R = (1.164f * (float)(y_comp - 16) + 2.018f * (float)(u_comp - 128));
             
             R = std::min(std::max(R, 0.f), 255.f);
             G = std::min(std::max(G, 0.f), 255.f);

@@ -173,16 +173,48 @@ struct ref_convolution_bwd_data_t: public cpu_primitive_t {
                 && this->desc()->weights_desc.data_type == wei_type
                 && this->desc()->accum_data_type == acc_type
                 && this->desc()->diff_src_desc.data_type == diff_src_type
-                && this->attr()->has_default_values();
+                && is_supported_post_ops();
             return ok ? status::success : status::unimplemented;
         }
 
         virtual bool support_bias() const override { return true; }
+
+        virtual bool is_supported_post_ops() const {
+            const auto &p = this->attr()->post_ops_;
+            if (p.len_ > 1)
+                return false;
+
+            auto all_post_ops_supported = [&]() {
+                bool ok = true;
+
+                for (int i = 0; i < p.len_; i++) {
+                    ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::depthwise);
+                }
+                return ok;
+            };
+
+            return all_post_ops_supported();
+        }
     };
 
     ref_convolution_bwd_data_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
-        : cpu_primitive_t(apd, inputs, outputs) {}
+        : cpu_primitive_t(apd, inputs, outputs) {
+        const auto &post_ops = pd()->attr()->post_ops_;
+
+        for (int i = 0; i < post_ops.len_; i++) {
+            auto &post_op = post_ops.entry_[i];
+            if (post_op.is_depthwise()) {
+                depthwise_injectors.push_back(new ref_depthwise_scalar_fwd_t(post_op.depthwise.alg));
+            }
+        }
+    }
+
+    ~ref_convolution_bwd_data_t() {
+        for (auto inj : depthwise_injectors)
+            delete inj;
+        depthwise_injectors.clear();
+    }
 
     typedef typename prec_traits<diff_src_type>::type diff_src_data_t;
     typedef typename prec_traits<wei_type>::type wei_data_t;
@@ -203,6 +235,8 @@ struct ref_convolution_bwd_data_t: public cpu_primitive_t {
 private:
     void execute_backward_data() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
+
+    nstl::vector<ref_depthwise_scalar_fwd_t*> depthwise_injectors;
 };
 
 template <impl::data_type_t src_type, impl::data_type_t diff_wei_type,

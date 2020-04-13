@@ -7,7 +7,6 @@ cmake_policy(SET CMP0054 NEW)
 #we have number of dependencies stored on ftp
 include(dependency_solver)
 
-set_temp_directory(TEMP "${IE_MAIN_SOURCE_DIR}")
 if (CMAKE_CROSSCOMPILING)
     set(CMAKE_STAGING_PREFIX "${TEMP}")
 endif()
@@ -49,25 +48,29 @@ endif ()
 
 ## Intel OMP package
 if (THREADING STREQUAL "OMP")
-    if (WIN32)
+    reset_deps_cache(OMP)
+    if (WIN32 AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_WIN "iomp.zip"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-    elseif(LINUX)
+    elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_LIN "iomp.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-    else(APPLE)
+    elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_MAC "iomp_20190130_mac.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+    else()
+        message(FATAL_ERROR "Intel OMP is not available on current platform")
     endif()
+    update_deps_cache(OMP "${OMP}" "Path to OMP root folder")
     log_rpath_from_dir(OMP "${OMP}/lib")
     debug_message(STATUS "intel_omp=" ${OMP})
 endif ()
@@ -77,10 +80,10 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     reset_deps_cache(TBBROOT TBB_DIR)
 
     if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
-        if (WIN32)
+        if (WIN32 AND X86_64)
             #TODO: add target_path to be platform specific as well, to avoid following if
             RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_WIN "tbb2020_20191023_win_tbbbind_patched.zip"
+                    ARCHIVE_WIN "tbb2020_20200214_win.zip"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT"
                     VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
@@ -90,17 +93,19 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT"
                     VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-        elseif(LINUX)
+        elseif(LINUX AND X86_64)
             RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "tbb2020_20191023_lin_tbbbind_patched.tgz"
+                    ARCHIVE_LIN "tbb2020_20200327_lin_strip.tgz"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT")
-        else(APPLE)
+        elseif(APPLE AND X86_64)
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_MAC "tbb2020_20191023_mac.tgz"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT"
                     VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+        else()
+            message(FATAL_ERROR "TBB is not available on current platform")
         endif()
     else()
         if(DEFINED TBB_DIR)
@@ -124,15 +129,15 @@ endif ()
 if (ENABLE_OPENCV)
     reset_deps_cache(OpenCV_DIR)
 
-    set(OPENCV_VERSION "4.2.0")
-    set(OPENCV_BUILD "082")
-    if (WIN32)
+    set(OPENCV_VERSION "4.3.0")
+    set(OPENCV_BUILD "060")
+    if (WIN32 AND X86_64)
         RESOLVE_DEPENDENCY(OPENCV
                 ARCHIVE_WIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}.txz"
                 TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
                 ENVIRONMENT "OpenCV_DIR"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    elseif(APPLE)
+    elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(OPENCV
                 ARCHIVE_MAC "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
                 TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx/opencv"
@@ -147,6 +152,8 @@ if (ENABLE_OPENCV)
             set(OPENCV_SUFFIX "ubuntu16")
         elseif (${LINUX_OS_NAME} STREQUAL "Ubuntu 18.04")
             set(OPENCV_SUFFIX "ubuntu18")
+        else()
+            message(FATAL_ERROR "OpenCV is not available on current platform")
         endif()
         RESOLVE_DEPENDENCY(OPENCV
                 ARCHIVE_LIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
@@ -177,6 +184,7 @@ include(ie_parallel)
 
 if (ENABLE_GNA)
     reset_deps_cache(
+            GNA
             GNA_PLATFORM_DIR
             GNA_KERNEL_LIB_NAME
             GNA_LIBS_LIST
@@ -192,13 +200,14 @@ if (ENABLE_GNA)
             set(GNA_VERSION "01.00.00.1401")
         endif()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "02.00.00.0587")
+            set(GNA_VERSION "02.00.00.0654")
         endif()
         RESOLVE_DEPENDENCY(GNA
                 ARCHIVE_UNIFIED "GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*")
     endif()
+    update_deps_cache(GNA "${GNA}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA})
 endif()
 

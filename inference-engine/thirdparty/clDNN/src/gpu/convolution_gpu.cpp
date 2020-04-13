@@ -86,38 +86,19 @@ public:
         const auto& input_offset = primitive->input_offset;
         const auto& groups = primitive->groups;
         const auto& deformable_groups = primitive->deformable_groups;
-
-        const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
-        const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
-
         const auto transposed = arg.get_transposed();
 
-        assert(arg.get_output_layout().size.feature[0] / primitive->split() == weights_layout.size.batch[0]);
+        assert(arg.get_output_layout().size.feature[0] == weights_layout.size.batch[0] * weights_layout.size.group[0]);
 
-        auto conv_params = get_weights_bias_default_params<kernel_selector::convolution_params>(
-            arg,
-            (groups > 1 && !depthwise_separable_opt) ? groups : actual_split,
-            groups);
+        auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(
+            arg, split, 1);
         auto conv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
-
-        // TODO: change the way of handling groups
-        // Plugin should always pass weights in goiyx or goizyx layout for forward conv as a single input
-        // cldnn optimizer then should transform this layouts to other ones and split if necessary
-        // This WA is required to keep correct logical size of tensors for weights reorder
-        if (conv_params.inputs[0].GetLayout() == kernel_selector::DataLayout::bfyx_f16 ||
-            conv_params.inputs[0].GetLayout() == kernel_selector::DataLayout::fs_b_yx_fsv32) {
-            conv_params.weights = convert_weights_tensor(
-                layout(weights_layout.data_type, weights_layout.format,
-                {weights_layout.size.batch[0], weights_layout.size.feature[0], weights_layout.size.spatial[0], weights_layout.size.spatial[1]}));
-        }
 
         const auto additional_offset = tensor::max(input_offset, (tensor) 0);
         if (additional_offset != (tensor) 0) {
             conv_params.inputs[0] =
-                convert_data_tensor(input_layout,
-                                    (groups > 1 && !depthwise_separable_opt) ? groups : actual_split,
-                                    additional_offset);
+                convert_data_tensor(input_layout, split, additional_offset);
         }
 
         if (primitive->deformable_mode) {
@@ -125,7 +106,6 @@ public:
             conv_params.deformable_mode = true;
         }
 
-        conv_params.depthwise_separable_opt = depthwise_separable_opt;
         conv_params.transposed = transposed;
         conv_params.deformable_groups = deformable_groups;
 
@@ -159,39 +139,25 @@ public:
             } else {
                 conv_params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
             }
-
-            if (!primitive->weights_zero_points.empty()) {
-                conv_params.weights_zero_points.push_back(
-                    convert_data_tensor(arg.weights_zero_points().get_output_layout())
-                        .FlattenFeatureAndSpatials());
-            }
-
-            if (!primitive->activations_zero_points.empty()) {
-                conv_params.activations_zero_points.push_back(
-                        convert_data_tensor(arg.activations_zero_points().get_output_layout())
-                                .FlattenFeatureAndSpatials());
-
-                if (!primitive->compensation.empty()) {
-                    conv_params.compenstaion.push_back(
-                            convert_data_tensor(arg.compensation().get_output_layout()).FlattenFeatureAndSpatials());
-                    conv_params.has_compensation = true;
-                }
-            }
         } else {
             conv_params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
         auto format = arg.get_output_layout().format;
-        if (format == format::bfzyx_f16 || format == format::bfzyx_b16f16 || format == format::b_fs_zyx_fsv32)
+        if (format == format::b_fs_zyx_fsv16 ||
+            format == format::bs_fs_zyx_bsv16_fsv16 ||
+            format == format::bs_fs_yx_bsv16_fsv16 ||
+            format == format::b_fs_zyx_fsv32)
             conv_optional_params.allowInputReordering = true;
 
         auto& kernel_selector = kernel_selector::convolution_kernel_selector::Instance();
 
         const auto& tuning_config = arg.get_program().get_options().get<build_option_type::tuning_config>();
 
-        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache) {
+        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache ||
+            tuning_config->config.mode == tuning_mode::tuning_retune_and_cache) {
             conv_optional_params.tuningParams.runner =
-                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), true);
+                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true, true);
         }
 
         kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);
@@ -228,8 +194,8 @@ attach_convolution_gpu::attach_convolution_gpu() {
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
     // block f16 format
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx_f16), val_fw);
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx_f16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv16), val_fw);
     // MMAD
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf_af32), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf_af32), val_fw);
@@ -248,10 +214,12 @@ attach_convolution_gpu::attach_convolution_gpu() {
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), val_fw);
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16), val_fw);
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16), val_fw);
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_b16f16), val_fw);
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_b16f16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_zyx_bsv16_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_yx_bsv16_fsv16), val_fw);
 }
 
 }  // namespace detail

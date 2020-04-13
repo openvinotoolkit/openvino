@@ -11,15 +11,15 @@
 
 namespace InferenceEngine {
 /**
+ * @deprecated IErrorListener is not used anymore. An exception is thrown / StatusCode set in case of any unexpected situations
  * @brief This class represents a custom error listener.
- *
- * Plugin consumers can provide it via InferenceEngine::SetLogCallback
  */
-class IErrorListener {
+class
+INFERENCE_ENGINE_DEPRECATED("IErrorListener is not used anymore. An exception is thrown / StatusCode set in case of any unexpected situations")
+    IErrorListener {
 public:
     /**
      * @brief The plugin calls this method with a null terminated error message (in case of error)
-     *
      * @param msg Error message
      */
     virtual void onError(const char* msg) noexcept = 0;

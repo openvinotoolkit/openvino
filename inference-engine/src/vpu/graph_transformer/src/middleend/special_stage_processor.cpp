@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "vpu/middleend/special_stage_processor.hpp"
+
 #include <vector>
 #include <set>
-
-#include <vpu/middleend/special_stage_processor.hpp>
+#include <utility>
 
 namespace vpu {
 
@@ -480,7 +481,7 @@ void SpecialStageProcessor::processExpand(
         .done();
 }
 
-void SpecialStageProcessor::processShrink(
+void SpecialStageProcessor::processCrop(
         const Model& model,
         const Stage& stage) {
     auto input = stage->input(0);
@@ -550,11 +551,11 @@ void SpecialStageProcessor::processShrink(
 
         auto copyStage = _stageBuilder->addCopyStage(
             model,
-            formatString("%s@copy-output-for-shrink", stage->name()),
+            formatString("%s@copy-output-for-crop", stage->name()),
             stage->origLayer(),
             outputCopy,
             output,
-            "special::shrink");
+            "special::crop");
         if (stage->attrs().has("batchInd")) {
             copyStage->attrs().set("batchInd", stage->attrs().get<int>("batchInd"));
         }
@@ -583,11 +584,19 @@ void SpecialStageProcessor::processLoopStart(const Model& model, const Stage& st
 
             VPU_THROW_UNLESS(src->canHaveAParent() || dst->canHaveAParent(), "for all back-edge connections required copy stages must be already introduced");
 
+            auto parent = dst;
+            auto child  = src;
+            auto order  = SharedDataOrder::ChildWritesToParent;
+            if (!src->canHaveAParent()) {
+                std::swap(parent, child);
+                order = SharedDataOrder::ParentWritesToChild;
+            }
+
             model->connectDatas()
-                .parent(src->canHaveAParent() ? dst : src)
-                .child(src->canHaveAParent() ? src : dst)
+                .parent(parent)
+                .child(child)
                 .mode(SharedDataMode::ROI)
-                .order(SharedDataOrder::ChildWritesToParent)
+                .order(order)
                 .connectionMode(SharedConnectionMode::SUBGRAPH)
                 .done();
         }
@@ -597,8 +606,8 @@ void SpecialStageProcessor::processLoopStart(const Model& model, const Stage& st
         const auto& src = backedge.first;
         const auto& dst = backedge.second;
 
+        // Tensor Iterator's body output data object must be a parent since it's not processed yet and don't have neither parent or child
         model->connectDatas()
-            // Tensor Iterator's body output data object must be a parent since it's not processed yet and don't have neither parent or child
             .parent(dst)
             .child(src)
             .mode(SharedDataMode::ROI)
@@ -609,15 +618,27 @@ void SpecialStageProcessor::processLoopStart(const Model& model, const Stage& st
 }
 
 void SpecialStageProcessor::processLoopEnd(const Model& model, const Stage& stage) {
-    for (const auto& input : stage->inputs()) {
-        if (input->attrs().has("end-shared-allocation")) {
-            const auto& src = input;
-            const auto& dst = input->attrs().get<Data>("end-shared-allocation");
+    for (const auto& output : stage->outputs()) {
+        if (output->attrs().has("end-shared-allocation")) {
+            const auto& src = output->attrs().get<Data>("end-shared-allocation");
+            const auto& dst = output;
+
+            VPU_THROW_UNLESS(src->canHaveAParent() || dst->canHaveAParent(),
+                "for all shared allocation connections required copy stages must be already introduced");
+
+            auto parent = dst;
+            auto child  = src;
+            auto order  = SharedDataOrder::ChildWritesToParent;
+            if (!src->canHaveAParent()) {
+                std::swap(parent, child);
+                order = SharedDataOrder::ParentWritesToChild;
+            }
+
             model->connectDatas()
-                .parent(src)
-                .child(dst)
+                .parent(parent)
+                .child(child)
                 .mode(SharedDataMode::ROI)
-                .order(SharedDataOrder::ChildWritesToParent)
+                .order(order)
                 .connectionMode(SharedConnectionMode::SUBGRAPH)
                 .done();
         }

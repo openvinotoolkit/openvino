@@ -15,6 +15,7 @@
 """
 import numpy as np
 
+from extensions.back.ConvolutionNormalizer import DeconvolutionNormalizer
 from extensions.back.CropToStridedSlice import CropToStridedSlice
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
@@ -28,7 +29,7 @@ class StridedSliceMasksNormalizer(BackReplacementPattern):
     graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     def run_after(self):
-        return [CropToStridedSlice]
+        return [CropToStridedSlice, DeconvolutionNormalizer]
 
     @staticmethod
     def pattern():

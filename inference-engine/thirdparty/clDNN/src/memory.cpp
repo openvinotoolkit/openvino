@@ -21,12 +21,13 @@
 
 namespace cldnn {
 
-memory memory::allocate(const engine& engine, const layout& layout, uint32_t net_id) {
+memory memory::allocate(const engine& engine, const layout& layout, uint32_t net_id, bool reset) {
     size_t size = layout.bytes_count();
     if (size == 0)
         throw std::invalid_argument("size should be more than 0");
 
-    return memory(engine.get()->allocate_memory(layout, net_id).detach());
+    allocation_type type = engine.get()->get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d());
+    return memory(engine.get()->allocate_memory(layout, type, net_id, reset).detach());
 }
 
 memory memory::share_buffer(const engine& engine, const layout& layout, shared_handle buf, uint32_t net_id) {

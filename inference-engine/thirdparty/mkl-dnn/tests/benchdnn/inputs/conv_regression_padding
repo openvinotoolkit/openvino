@@ -18,3 +18,9 @@ mb1ic16oc16_ih10kh3_kh3ph1sh1
 mb1ic16oc16_ih10kh1_kh1ph3sh1
 mb1ic16oc16_ih10kh1_kh1ph2sh1
 mb1ic16oc16_ih10kh1_kh1ph1sh1
+
+# 3d with depth padding
+mb1ic1oc16_kd2kh1kw1_id2ih1iw1_od1oh1ow1_sd2sh1sw1_pd1ph0pw0
+
+# Skip compute on kh
+mb1ic16id1ih1iw1oc16od2oh2ow1kd3kh3kw1dd1dh1ph1pd1

@@ -1,0 +1,134 @@
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp"
+
+#include <memory>
+#include <vector>
+#include <string>
+#include <set>
+#include <map>
+
+#include <ngraph/opsets/opset1.hpp>
+
+#include <ngraph_ops/interp.hpp>
+
+void ngraph::pass::ConvertInterpolateToInterpOrResample::convert_interpolate_to_interp_or_resample() {
+    auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
+    auto shp = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
+    auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(data, shp, ngraph::op::InterpolateAttrs());
+
+    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        auto interpolate = std::dynamic_pointer_cast<ngraph::opset1::Interpolate> (m.get_match_root());
+
+        auto data_node = interpolate->input_value(0);
+        auto out_shape_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(interpolate->input_value(1).get_node_shared_ptr());
+        auto interpolate_attrs = interpolate->get_attrs();
+        auto input_shape = data_node.get_shape();
+
+        if (!out_shape_node) {
+            return false;
+        }
+
+        auto out_spatial_shape = out_shape_node->get_vector<int64_t> ();
+
+        std::size_t num_of_spatial_vars = input_shape.size() - 2;
+        auto interpolate_axes = interpolate_attrs.axes;
+        auto interpolate_mode = interpolate_attrs.mode;
+        if (num_of_spatial_vars != 2 && num_of_spatial_vars != 3) {
+            return false;
+        }
+        // Interpolate can be converted when interpolation is performed over spatial dimensions only
+        if (num_of_spatial_vars == 2 && interpolate_axes != AxisSet{2, 3}) {
+            return false;
+        }
+
+        if (num_of_spatial_vars == 2 && interpolate_axes.size() == 2 && std::set<std::string>{"nearest", "cubic", "area"}.count(interpolate_mode) == 0) {
+            auto attrs = ngraph::op::InterpolateIEAttrs();
+            attrs.pad_beg = interpolate_attrs.pads_begin[0];
+            attrs.pad_end = interpolate_attrs.pads_end[0];
+            attrs.height = out_spatial_shape[0];
+            attrs.width = out_spatial_shape[1];
+            attrs.align_corners = interpolate_attrs.align_corners;
+            attrs.mode = interpolate_mode;
+            attrs.antialias = interpolate_attrs.antialias;
+
+            auto interp = std::make_shared<ngraph::op::Interp>(data_node, attrs);
+            interp->set_friendly_name(m.get_match_root()->get_friendly_name());
+            ngraph::replace_node(m.get_match_root(), std::dynamic_pointer_cast<ngraph::Node>(interp));
+        } else if (interpolate_attrs.pads_begin[0] == 0 && interpolate_attrs.pads_end[0] == 0 && !interpolate_attrs.align_corners) {
+            auto attrs = ngraph::op::ResampleIEAttrs();
+            attrs.mode = interpolate_mode;
+            attrs.antialias = interpolate_attrs.antialias;
+
+            std::shared_ptr<Node> resample;
+
+            if (num_of_spatial_vars == 3 && interpolate_axes != AxisSet{2, 3, 4}) {
+                auto corrected_output_spatial_shape = std::vector<int64_t>(num_of_spatial_vars);
+
+                std::map<int64_t, int64_t> axis_to_index;
+                /*
+                 * Because interpolate_axes != AxisSet{2, 3, 4} and num_of_spatial_vars == 3, then
+                 * interpolate_axes can have one of the following values:
+                 *      {2}, {3}, {4}, {2, 3}, {2, 4}
+                 * Sizes of out_spatial_shape are correspondigly 1, 1, 1, 2, 2.
+                 * Hence, we need to add missing axes, and shape component for missing axes will be taken from input_shape.
+                 */
+                int64_t counter = 0;
+                for (int64_t axis : interpolate_axes) {
+                    axis_to_index[axis] = counter++;
+                }
+
+                for (int64_t axis = 2; axis <= 4; ++axis) {
+                    auto it = interpolate_axes.find(axis);
+                    if (it != interpolate_axes.end()) {
+                        corrected_output_spatial_shape[axis - 2] = out_spatial_shape[axis_to_index[axis]];
+                    } else {
+                        corrected_output_spatial_shape[axis - 2] = input_shape[axis];
+                    }
+                }
+
+                out_spatial_shape = corrected_output_spatial_shape;
+            }
+
+            // In case if output shape differ only in spatial dims and can be produced by using factor we set factor attr
+            bool has_same_factor(true);
+            int64_t factor(0);
+            for (size_t i = 0; i < out_spatial_shape.size(); ++i) {
+                if (out_spatial_shape[i] % input_shape[i + 2] == 0) {
+                    int64_t f = out_spatial_shape[i] / input_shape[i + 2];
+                    if (factor == 0) {
+                        factor = f;
+                    } else if (factor != f) {
+                        has_same_factor = false;
+                    }
+                } else {
+                    has_same_factor = false;
+                }
+            }
+
+            if (has_same_factor && factor != 0) {
+                attrs.factor = factor;
+                resample = std::make_shared<ngraph::op::ResampleV2>(data_node, attrs);
+            } else {
+                // first concatenates [N,C] shapes from the input tensor with the Interpolate second input value to
+                // create the desired output shape for the Resample
+                auto output_shape = out_spatial_shape;
+                output_shape.insert(output_shape.begin(), input_shape[0]);
+                output_shape.insert(output_shape.begin() + 1, input_shape[1]);
+                auto constant = std::make_shared<ngraph::opset1::Constant>(out_shape_node->get_element_type(), Shape{output_shape.size()}, output_shape);
+                resample = std::make_shared<ngraph::op::ResampleV2>(data_node, constant, attrs);
+            }
+
+            resample->set_friendly_name(m.get_match_root()->get_friendly_name());
+            ngraph::replace_node(m.get_match_root(), resample);
+        } else {
+            return false;
+        }
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(interpolate, "ConvertInterpolateToInterpOrResample");
+    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+}

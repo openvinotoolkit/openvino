@@ -150,8 +150,8 @@ private:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
     }
 };
 
@@ -290,6 +290,7 @@ public:
         VPU_PROFILE(hwFullyConnectedTiling);
 
         const auto& env = CompileEnv::get();
+        const auto cmxLimit = tilingCMXLimit(env.resources.numCMXSlices);
 
         for (const auto& origStage : model->getStages()) {
             if (origStage->type() != StageType::StubFullyConnected) {
@@ -312,7 +313,7 @@ public:
 
             const auto& withReLU = origStage->attrs().getOrDefault<bool>("withReLU", false);
             const auto& tiles = std::get<2>(split);
-            if (tiles.numOutTiles == 0 || calculateHwBufferSize(hwOutputDesc.dims()) > env.resources.cmxLimit) {
+            if (tiles.numOutTiles == 0 || calculateHwBufferSize(hwOutputDesc.dims()) > cmxLimit) {
                 fallbackToSW(model, origStage, relayoutStage, withReLU);
                 continue;
             }

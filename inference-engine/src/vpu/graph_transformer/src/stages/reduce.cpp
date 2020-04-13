@@ -104,7 +104,10 @@ private:
     }
 
     void initialCheckImpl() const override {
-        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::S32}}, {{DataType::FP16}});
+        IE_ASSERT(input(0)->desc().type() == output(0)->desc().type());
+        assertInputsOutputsTypes(this,
+                                 {{DataType::FP16, DataType::S32}, {DataType::S32}},
+                                 {{DataType::FP16, DataType::S32}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -118,9 +121,9 @@ private:
          auto input1 = inputEdge(1)->input();
          auto output = outputEdge(0)->output();
 
-         input0->serializeNewBuffer(serializer);
-         output->serializeNewBuffer(serializer);
-         input1->serializeNewBuffer(serializer);
+         input0->serializeBuffer(serializer);
+         output->serializeBuffer(serializer);
+         input1->serializeBuffer(serializer);
     }
 };
 

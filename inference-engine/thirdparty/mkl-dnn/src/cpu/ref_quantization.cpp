@@ -109,7 +109,8 @@ void ref_quantization_fwd_t<src_type, dst_type>::execute_forward() const {
                 size_t src_off = src_d.ndims() == 5 ? src_d.off(n, c, d, h, w) :
                                  src_d.ndims() == 4 ? src_d.off(n, c, h, w) :
                                  src_d.ndims() == 3 ? src_d.off(n, c, h) :
-                                                      src_d.off(n, c);
+                                 src_d.ndims() == 2 ? src_d.off(n, c) :
+                                                      src_d.off(n);
 
                 int wei_idx = pd()->axis() == 0 ? n : c;
 
@@ -137,7 +138,8 @@ void ref_quantization_fwd_t<src_type, dst_type>::execute_forward() const {
                 size_t dst_off = dst_d.ndims() == 5 ? dst_d.off(n, c, d, h, w) :
                                  dst_d.ndims() == 4 ? dst_d.off(n, c, h, w) :
                                  dst_d.ndims() == 3 ? dst_d.off(n, c, h) :
-                                                      dst_d.off(n, c);
+                                 dst_d.ndims() == 2 ? dst_d.off(n, c) :
+                                                      dst_d.off(n);
 
                 dst[dst_off] = saturate<dst_data_t>(dst_val);
         });

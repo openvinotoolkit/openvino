@@ -359,21 +359,6 @@ fused_conv_eltwise_inst::typed_primitive_inst(network_impl& network, fused_conv_
                               "input feature maps number",
                               filter_inst.size.feature[0],
                               "Weights/ifm mismatch");
-        if (filter_inst.format == format::bf_lyx_yx) {  // local convolution
-            auto local = filter_inst.size.local;
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Number of local x dimension",
-                                  local[0],
-                                  "output x dimension",
-                                  output_inst.size.spatial[0],
-                                  "Weights/output dims mismatch");
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Number of local y dimension",
-                                  local[1],
-                                  "output y dimension",
-                                  output_inst.size.spatial[1],
-                                  "Weights/output dims mismatch");
-        }
     }
 }
 }  // namespace cldnn
