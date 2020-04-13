@@ -131,7 +131,7 @@ TEST_P(test_for_nd, Parallel) {
     CheckID();
 }
 
-INSTANTIATE_TEST_CASE_P(Case0, test_for_nd, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(Case0, test_for_nd, ::testing::Values(
     np_t{{0}}, np_t{{1}}, np_t{{100}},
     np_t{{0, 0}}, np_t{{1, 2}}, np_t{{10, 10}},
     np_t{{0, 1, 0}}, np_t{{1, 2, 1}}, np_t{{4, 4, 10}},
@@ -158,7 +158,7 @@ TEST_P(test_for_nd_with_diff_types, Test) {
 
     CheckID();
 }
-INSTANTIATE_TEST_CASE_P(Case0, test_for_nd_with_diff_types, ::testing::Values(np_t{{4, 9}}));
+INSTANTIATE_TEST_SUITE_P(Case0, test_for_nd_with_diff_types, ::testing::Values(np_t{{4, 9}}));
 
 class test_parallel_nd: public test_nd {
 protected:
@@ -231,7 +231,7 @@ TEST_P(test_parallel_nd, Test) {
     CheckID();
 }
 
-INSTANTIATE_TEST_CASE_P(Case, test_parallel_nd, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(Case, test_parallel_nd, ::testing::Values(
     np_t{{0}}, np_t{{1}}, np_t{{100}},
     np_t{{0, 0}}, np_t{{1, 2}}, np_t{{10, 10}},
     np_t{{0, 1, 0}}, np_t{{1, 2, 1}}, np_t{{4, 4, 10}},

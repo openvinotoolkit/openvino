@@ -1,11 +1,10 @@
 // Copyright (C) 2018-2020 Intel Corporation
-// SPDX-License-Identifier : Apache-2.0
+// SPDX-License-Identifier: Apache-2.0
 //
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 #include <sys/stat.h>
 #include <c_api/ie_c_api.h>
 #include "object_detection_sample_ssd.h"
@@ -105,13 +104,13 @@ void readInputFilesArgument(const char *arg) {
         while (NULL != (ep = readdir(dp))) {
             const char *fileName = ep->d_name;
             if (strcmp(fileName, ".") == 0 || strcmp(fileName, "..") == 0) continue;
-            char *file_path = (char *)malloc(strlen(arg) + strlen(ep->d_name) + 1);
+            char *file_path = (char *)calloc(strlen(arg) + strlen(ep->d_name) + 2, sizeof(char));
             strcpy(file_path, arg);
             strcat(file_path, "/");
             strcat(file_path, ep->d_name);
 
             if (file_num == 0) {
-                file_paths = (char **)malloc(sizeof(char *));
+                file_paths = (char **)calloc(1, sizeof(char *));
                 file_paths[0] = file_path;
                 ++file_num;
             } else {
@@ -131,10 +130,10 @@ void readInputFilesArgument(const char *arg) {
         closedir(dp);
         dp = NULL;
     } else {
-        char *file_path = malloc(strlen(arg));
+        char *file_path = (char *)calloc(strlen(arg) + 1, sizeof(char));
         strcpy(file_path, arg);
         if (file_num == 0) {
-            file_paths = (char **)malloc(sizeof(char *));
+            file_paths = (char **)calloc(1, sizeof(char *));
         }
         file_paths[file_num++] = file_path;
     }
@@ -186,11 +185,11 @@ ie_config_t *parseConfig(const char *config_file, char comment) {
     char key[256], value[256];
     
     if (fscanf(file, "%s", key)!= EOF && fscanf(file, "%s", value) != EOF) {
-        char *cfg_name = (char *)malloc(strlen(key));
-        char *cfg_value = (char *)malloc(strlen(value));
+        char *cfg_name = (char *)calloc(strlen(key) + 1, sizeof(char));
+        char *cfg_value = (char *)calloc(strlen(value) + 1, sizeof(char));
         strcpy(cfg_name, key);
         strcpy(cfg_value, value);
-        ie_config_t *cfg_t = (ie_config_t *)malloc(sizeof(ie_config_t));
+        ie_config_t *cfg_t = (ie_config_t *)calloc(1, sizeof(ie_config_t));
         cfg_t->name = cfg_name;
         cfg_t->value = cfg_value;
         cfg_t->next = NULL;
@@ -202,11 +201,11 @@ ie_config_t *parseConfig(const char *config_file, char comment) {
             if (strlen(key) == 0 || key[0] == comment) {
                 continue;
             }
-            char *cfg_name = (char *)malloc(strlen(key));
-            char *cfg_value = (char *)malloc(strlen(value));
+            char *cfg_name = (char *)calloc(strlen(key) + 1, sizeof(char));
+            char *cfg_value = (char *)calloc(strlen(value) + 1, sizeof(char));
             strcpy(cfg_name, key);
             strcpy(cfg_value, value);
-            ie_config_t *cfg_t = (ie_config_t *)malloc(sizeof(ie_config_t));
+            ie_config_t *cfg_t = (ie_config_t *)calloc(1, sizeof(ie_config_t));
             cfg_t->name = cfg_name;
             cfg_t->value = cfg_value;
             cfg_t->next = NULL;
@@ -256,7 +255,7 @@ void int2str(char *str, int num) {
         str[1] = '\0';
     return;
     }
-    
+
     while (num != 0) {
         str[i++] = num % 10 + '0';
         num = num / 10;
@@ -273,17 +272,28 @@ void int2str(char *str, int num) {
 
 int main(int argc, char **argv) {
     /** This sample covers certain topology and cannot be generalized for any object detection one **/
+    ie_version_t version = ie_c_api_version();
     printf("%sInferenceEngine: \n", info);
-    printf("%s\n", ie_c_api_version());
+    printf("%s\n", version.api_version);
+    ie_version_free(&version);
 
-    char **argv_temp =(char **)malloc(sizeof(char *) * argc);
+    char **argv_temp =(char **)calloc(argc, sizeof(char *));
     int i, j;
     for (i = 0; i < argc; ++i) {
         argv_temp[i] = argv[i];
     }
+
+    char *input_weight = NULL, *imageInputName = NULL, *imInfoInputName = NULL, *output_name = NULL;
+    ie_core_t *core = NULL;
+    ie_network_t *network = NULL;
+    ie_executable_network_t *exe_network = NULL;
+    ie_infer_request_t *infer_request = NULL;
+    ie_blob_t *imageInput = NULL, *output_blob = NULL;
+
     // --------------------------- 1. Parsing and validation of input args ---------------------------------
     if (ParseAndCheckCommandLine(argc, argv) < 0) {
-        return -1;
+        free(argv_temp);
+        return EXIT_FAILURE;
     }
     // -----------------------------------------------------------------------------------------------------
 
@@ -292,19 +302,22 @@ int main(int argc, char **argv) {
     parseInputFilesArguments(argc, argv_temp);
     if (!file_num) {
         printf("No suitable images were found\n");
-        return -1;
+        free(argv_temp);
+        return EXIT_FAILURE;
     }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- 3. Load inference engine ------------------------------------------------
     printf("%sLoading Inference Engine\n", info);
-    ie_core_t *core = NULL;
     IEStatusCode status = ie_core_create("", &core);
-    assert(core);
+    if (status != OK)
+        goto err;
 
     ie_core_versions_t ver;
     printf("%sDevice info: \n", info);
-    ie_core_get_versions(core, device_name, &ver);
+    status = ie_core_get_versions(core, device_name, &ver);
+    if (status != OK)
+        goto err;
     for (i = 0; i < ver.num_vers; ++i) {
         printf("         %s\n", ver.versions[i].device_name);
         printf("         %s version ......... %zu.%zu\n", ver.versions[i].description, ver.versions[i].major, ver.versions[i].minor);
@@ -314,30 +327,33 @@ int main(int argc, char **argv) {
 
     if (custom_cpu_library_msg) {
         // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
-        ie_core_add_extension(core, custom_cpu_library_msg, "CPU");
+        status = ie_core_add_extension(core, custom_cpu_library_msg, "CPU");
+        if (status != OK)
+            goto err;
         printf("%sCPU Extension loaded: %s\n", info, custom_cpu_library_msg);
     }
 
     if (custom_cldnn_msg) {
         // clDNN Extensions are loaded from an .xml description and OpenCL kernel files
         ie_config_t cfg = {"CONFIG_FILE", custom_cldnn_msg, NULL};
-        ie_core_set_config(core, &cfg, "GPU");
+        status = ie_core_set_config(core, &cfg, "GPU");
+        if (status != OK)
+            goto err;
         printf("%sGPU Extension loaded: %s\n", info, custom_cldnn_msg);
     }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- 4. Read IR Generated by ModelOptimizer (.xml and .bin files) ------------
-    char *input_weight = (char *)malloc(strlen(input_model) + 1);
+    input_weight = (char *)calloc(strlen(input_model) + 1, sizeof(char));
     strncpy(input_weight, input_model, strlen(input_model)-4);
-    input_weight[strlen(input_model)-4] = '\0';
     strcat(input_weight, ".bin");
     printf("%sLoading network files:\n", info);
     printf("\t%s\n", input_model);
     printf("\t%s\n", input_weight);
 
-    ie_network_t *network = NULL;
-    ie_core_read_network(core, input_model, input_weight, &network);
-    assert(network);
+    status = ie_core_read_network(core, input_model, input_weight, &network);
+    if (status != OK)
+        goto err;
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- 5. Prepare input blobs --------------------------------------------------
@@ -346,9 +362,9 @@ int main(int argc, char **argv) {
     /** SSD network has one input and one output **/
     size_t input_num = 0;
     status = ie_network_get_inputs_number(network, &input_num);
-    if (input_num != 1 && input_num != 2) {
+    if (status != OK || (input_num != 1 && input_num != 2)) {
         printf("Sample supports topologies only with 1 or 2 inputs\n");
-        return -1;
+        goto err;
     }
 
     /**
@@ -358,7 +374,6 @@ int main(int argc, char **argv) {
      * Although object_datection_sample_ssd's main task is to support clean SSD, it could score
      * the networks with two inputs as well. For such networks imInfoInputName will contain the "second" input name.
      */
-    char *imageInputName = NULL, *imInfoInputName = NULL;
     size_t input_width = 0, input_height = 0;
 
     /** Stores input image **/
@@ -366,9 +381,11 @@ int main(int argc, char **argv) {
     /** Iterating over all input blobs **/
     for (i = 0; i < input_num; ++i) {
         char *name = NULL;
-        ie_network_get_input_name(network, i, &name);
+        status |= ie_network_get_input_name(network, i, &name);
         dimensions_t input_dim;
-        ie_network_get_input_dims(network, name, &input_dim);
+        status |= ie_network_get_input_dims(network, name, &input_dim);
+        if (status != OK)
+            goto err;
 
         /** Working with first input tensor that stores image **/
         if(input_dim.ranks == 4) {
@@ -377,30 +394,35 @@ int main(int argc, char **argv) {
             input_width = input_dim.dims[3];
 
             /** Creating first input blob **/
-            ie_network_set_input_precision(network, name, U8);
+            status = ie_network_set_input_precision(network, name, U8);
+            if (status != OK)
+                goto err;
         } else if (input_dim.ranks == 2) {
             imInfoInputName = name;
         
-            ie_network_set_input_precision(network, name, FP32);
-            if(input_dim.dims[1] != 3 && input_dim.dims[1] != 6) {
+            status = ie_network_set_input_precision(network, name, FP32);
+            if(status !=OK || (input_dim.dims[1] != 3 && input_dim.dims[1] != 6)) {
                 printf("Invalid input info. Should be 3 or 6 values length\n");
-                return -1;
+                goto err;
             }
         }
     }
 
     if (imageInputName == NULL) {
-        ie_network_get_input_name(network, 0, &imageInputName);
-
+        status = ie_network_get_input_name(network, 0, &imageInputName);
+        if (status != OK)
+            goto err;
         dimensions_t input_dim;
-        ie_network_get_input_dims(network, imageInputName, &input_dim);
+        status = ie_network_get_input_dims(network, imageInputName, &input_dim);
+        if (status != OK)
+            goto err;
         input_height = input_dim.dims[2];
         input_width = input_dim.dims[3];
     }
 
     /** Collect images data **/
-    c_mat_t *originalImages = (c_mat_t *)malloc(file_num * sizeof(c_mat_t));
-    c_mat_t *images = (c_mat_t *)malloc(file_num * sizeof(c_mat_t));
+    c_mat_t *originalImages = (c_mat_t *)calloc(file_num, sizeof(c_mat_t));
+    c_mat_t *images = (c_mat_t *)calloc(file_num, sizeof(c_mat_t));
     int image_num = 0;
     for (i = 0; i < file_num; ++i) {
         c_mat_t img = {NULL, 0, 0, 0, 0, 0};
@@ -410,13 +432,13 @@ int main(int argc, char **argv) {
         }
         /** Store image data **/
         c_mat_t resized_img = {NULL, 0, 0, 0, 0, 0};
-        if (input_width == img.mat_width && input_height == img.mat_height) {
+        if ((input_width == img.mat_width) && (input_height == img.mat_height)) {
             resized_img.mat_data_size = img.mat_data_size;
             resized_img.mat_channels = img.mat_channels;
             resized_img.mat_width = img.mat_width;
             resized_img.mat_height = img.mat_height;
             resized_img.mat_type = img.mat_type;
-            resized_img.mat_data = malloc(resized_img.mat_data_size);
+            resized_img.mat_data = calloc(1, resized_img.mat_data_size);
             for (j = 0; j < resized_img.mat_data_size; ++j)
                 resized_img.mat_data[j] = img.mat_data[j];
         } else {
@@ -435,17 +457,26 @@ int main(int argc, char **argv) {
 
     if (!image_num) {
         printf("Valid input images were not found!\n");
-        return -1;
+        free(originalImages);
+        free(images);
+        goto err;
     }
 
     input_shapes_t shapes;
-    ie_network_get_input_shapes(network, &shapes);
+    status = ie_network_get_input_shapes(network, &shapes);
+    if (status != OK)
+        goto err;
+
     shapes.shapes[0].shape.dims[0] = image_num;
-    ie_network_reshape(network, shapes);
+    status = ie_network_reshape(network, shapes);
+    if (status != OK)
+        goto err;
     ie_network_input_shapes_free(&shapes);
 
     input_shapes_t shapes2;
-    ie_network_get_input_shapes(network, &shapes2);
+    status = ie_network_get_input_shapes(network, &shapes2);
+    if (status != OK)
+        goto err;
     size_t batchSize = shapes2.shapes[0].shape.dims[0];
     ie_network_input_shapes_free(&shapes2);
     printf("%sBatch size is %zu\n", info, batchSize);
@@ -455,22 +486,24 @@ int main(int argc, char **argv) {
     printf("%sPreparing output blobs\n", info);
 
     size_t output_num = 0;
-    ie_network_get_outputs_number(network, &output_num);
+    status = ie_network_get_outputs_number(network, &output_num);
 
-    if (!output_num) {
+    if (status != OK || !output_num) {
         printf("Can't find a DetectionOutput layer in the topology\n");
-        return -1;
+        goto err;
     }
 
-    char *output_name = NULL;
-    ie_network_get_output_name(network, output_num-1, &output_name);
+    status = ie_network_get_output_name(network, output_num-1, &output_name);
+    if (status !=OK)
+        goto err;
 
     dimensions_t output_dim;
-    ie_network_get_output_dims(network, output_name, &output_dim);
-
+    status = ie_network_get_output_dims(network, output_name, &output_dim);
+    if (status != OK)
+        goto err;
     if (output_dim.ranks != 4) {
         printf("Incorrect output dimensions for SSD model\n");
-        return -1;
+        goto err;
     }
 
     const int maxProposalCount = (int)output_dim.dims[2];
@@ -478,51 +511,60 @@ int main(int argc, char **argv) {
 
     if (objectSize != 7) {
         printf("Output item should have 7 as a last dimension\n");
-        return -1;
+        goto err;
     }
 
     /** Set the precision of output data provided by the user, should be called before load of the network to the device **/
-    ie_network_set_output_precision(network, output_name, FP32);
+    status = ie_network_set_output_precision(network, output_name, FP32);
+    if (status != OK)
+        goto err;
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- 7. Loading model to the device ------------------------------------------
     printf("%sLoading model to the device\n", info);
-    ie_executable_network_t *exe_network = NULL;
     if (config_msg) {
         ie_config_t * config = parseConfig(config_msg, '#');
-        ie_core_load_network(core, network, device_name, config, &exe_network);
-        config_free(config);
+        status = ie_core_load_network(core, network, device_name, config, &exe_network);
+        if (status != OK) {
+            config_free(config);
+            goto err;
+        }
     } else {
         ie_config_t cfg = {NULL, NULL, NULL};
-        ie_core_load_network(core, network, device_name, &cfg, &exe_network);
+        status = ie_core_load_network(core, network, device_name, &cfg, &exe_network);
+        if (status != OK)
+            goto err;
     }
-    assert(exe_network);
 
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- 8. Create infer request -------------------------------------------------
     printf("%sCreate infer request\n", info);
-    ie_infer_request_t *infer_request = NULL;
-    ie_exec_network_create_infer_request(exe_network, &infer_request);
-    assert(infer_request);
+    status = ie_exec_network_create_infer_request(exe_network, &infer_request);
+    if (status != OK)
+        goto err;
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- 9. Prepare input --------------------------------------------------------
 
 
     /** Creating input blob **/
-    ie_blob_t *imageInput = NULL;
-    ie_infer_request_get_blob(infer_request, imageInputName, &imageInput);
-    assert(imageInput);
+    status = ie_infer_request_get_blob(infer_request, imageInputName, &imageInput);
+    if (status != OK)
+        goto err;
 
     /** Filling input tensor with images. First b channel, then g and r channels **/
     dimensions_t input_tensor_dims;
-    ie_blob_get_dims(imageInput, &input_tensor_dims);
+    status = ie_blob_get_dims(imageInput, &input_tensor_dims);
+    if (status != OK)
+        goto err;
     size_t num_channels = input_tensor_dims.dims[1];
     size_t image_size = input_tensor_dims.dims[3] * input_tensor_dims.dims[2];
 
     ie_blob_buffer_t blob_buffer;
-    ie_blob_get_buffer(imageInput, &blob_buffer);
+    status = ie_blob_get_buffer(imageInput, &blob_buffer);
+    if (status != OK)
+        goto err;
     unsigned char *data = (unsigned char *)(blob_buffer.buffer);
 
     /** Iterate over all input images **/
@@ -540,16 +582,21 @@ int main(int argc, char **argv) {
         image_free(&images[image_id]);
     }
     free(images);
+    ie_blob_free(&imageInput);
 
     if (imInfoInputName != NULL) {
         ie_blob_t *input2 = NULL;
-        ie_infer_request_get_blob(infer_request, imInfoInputName, &input2);
+        status = ie_infer_request_get_blob(infer_request, imInfoInputName, &input2);
 
         dimensions_t imInfoDim;
-        ie_blob_get_dims(input2, &imInfoDim);
+        status |= ie_blob_get_dims(input2, &imInfoDim);
         //Fill input tensor with values 
         ie_blob_buffer_t info_blob_buffer;
-        ie_blob_get_buffer(input2, &info_blob_buffer);
+        status |= ie_blob_get_buffer(input2, &info_blob_buffer);
+        if (status != OK) {
+            ie_blob_free(&input2);
+            goto err;
+        }
         float *p = (float *)(info_blob_buffer.buffer);
         for (image_id = 0; image_id < batchSize; ++image_id) {
             p[image_id * imInfoDim.dims[1] + 0] = (float)input_height;
@@ -559,32 +606,37 @@ int main(int argc, char **argv) {
                 p[image_id * imInfoDim.dims[1] + k] = 1.0f;  // all scale factors are set to 1.0
             }
         }
+        ie_blob_free(&input2);
     }
     // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- 10. Do inference ---------------------------------------------------------
     printf("%sStart inference\n", info);
-    ie_infer_request_infer_async(infer_request);
-    ie_infer_request_wait(infer_request, -1);
+    status = ie_infer_request_infer_async(infer_request);
+    status |= ie_infer_request_wait(infer_request, -1);
+    if (status != OK)
+        goto err;
     // ----------------------------------------------------------------------------------------------------- 
 
     // --------------------------- 11. Process output -------------------------------------------------------
     printf("%sProcessing output blobs\n", info);
 
-    ie_blob_t *output_blob = NULL;
-    ie_infer_request_get_blob(infer_request, output_name, &output_blob);
-    assert(output_blob);
+    status = ie_infer_request_get_blob(infer_request, output_name, &output_blob);
+    if (status != OK)
+        goto err;
 
     ie_blob_buffer_t output_blob_buffer;
-    ie_blob_get_cbuffer(output_blob, &output_blob_buffer);
+    status = ie_blob_get_cbuffer(output_blob, &output_blob_buffer);
+    if (status != OK)
+        goto err;
     const float* detection = (float *)(output_blob_buffer.cbuffer);
 
-    int **classes = (int **)malloc(image_num * sizeof(int *));
-    rectangle_t **boxes = (rectangle_t **)malloc(image_num * sizeof(rectangle_t *));
-    int *object_num = (int *)malloc(image_num * sizeof(int));
+    int **classes = (int **)calloc(image_num, sizeof(int *));
+    rectangle_t **boxes = (rectangle_t **)calloc(image_num, sizeof(rectangle_t *));
+    int *object_num = (int *)calloc(image_num, sizeof(int));
     for ( i = 0; i < image_num; ++i) {
-        classes[i] = (int *)malloc(maxProposalCount * sizeof(int));
-        boxes[i] = (rectangle_t *)malloc(maxProposalCount * sizeof(rectangle_t));
+        classes[i] = (int *)calloc(maxProposalCount, sizeof(int));
+        boxes[i] = (rectangle_t *)calloc(maxProposalCount, sizeof(rectangle_t));
         object_num[i] = 0;
     }
 
@@ -625,10 +677,10 @@ int main(int argc, char **argv) {
             image_add_rectangles(&originalImages[batch_id], boxes[batch_id], classes[batch_id], object_num[batch_id], 2);
         }
         const char *out = "out_";
-        char *img_path = (char *)malloc(strlen(out) + 1);
         char str_num[16] = {0};
-        strcpy(img_path, out);
         int2str(str_num, batch_id); 
+        char *img_path = (char *)calloc(strlen(out) + strlen(str_num) + strlen(".bmp") + 1, sizeof(char));
+        strcpy(img_path, out);
         strcat(img_path, str_num);
         strcat(img_path, ".bmp");
         image_save(img_path, &originalImages[batch_id]);
@@ -648,6 +700,7 @@ int main(int argc, char **argv) {
     free(classes);
     free(boxes);
     free(object_num);
+    ie_blob_free(&output_blob);
     ie_infer_request_free(&infer_request);
     ie_exec_network_free(&exe_network);
     ie_network_free(&network);
@@ -657,6 +710,28 @@ int main(int argc, char **argv) {
     ie_network_name_free(&output_name);
     free(input_weight);
     free(argv_temp);
-    
-    return 0;
+
+    return EXIT_SUCCESS;
+err:
+    free(argv_temp);
+    if (input_weight)
+        free(input_weight);
+    if (core)
+        ie_core_free(&core);
+    if (network)
+        ie_network_free(&network);
+    if (imageInputName)
+        ie_network_name_free(&imageInputName);
+    if (imInfoInputName)
+        ie_network_name_free(&imInfoInputName);
+    if (output_name)
+        ie_network_name_free(&output_name);
+    if (exe_network)
+        ie_exec_network_free(&exe_network);
+    if (imageInput)
+        ie_blob_free(&imageInput);
+    if (output_blob)
+        ie_blob_free(&output_blob);
+
+    return EXIT_FAILURE;
 }

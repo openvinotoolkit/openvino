@@ -13,9 +13,9 @@
 
 using namespace InferenceEngine;
 
-PluginDispatcher::PluginDispatcher(const std::vector<file_name_t>& pp): pluginDirs(pp) {}
-
 IE_SUPPRESS_DEPRECATED_START
+
+PluginDispatcher::PluginDispatcher(const std::vector<file_name_t>& pp): pluginDirs(pp) {}
 
 InferencePlugin PluginDispatcher::getPluginByName(const file_name_t& name) const {
     std::stringstream err;
@@ -90,3 +90,5 @@ InferencePlugin PluginDispatcher::getPluginByDevice(const std::string& deviceNam
 file_name_t PluginDispatcher::make_plugin_name(const file_name_t& path, const file_name_t& input) const {
     return FileUtils::makeSharedLibraryName(path, input);
 }
+
+IE_SUPPRESS_DEPRECATED_END

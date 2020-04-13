@@ -23,10 +23,6 @@ namespace InferenceEngine {
  */
 namespace Metrics {
 
-#ifndef DECLARE_METRIC_KEY_IMPL
-#define DECLARE_METRIC_KEY_IMPL(...)
-#endif
-
 /**
  * @def METRIC_KEY(name)
  * @brief shortcut for defining common Inference Engine metrics
@@ -39,9 +35,14 @@ namespace Metrics {
  */
 #define EXEC_NETWORK_METRIC_KEY(name) METRIC_KEY(name)
 
+#ifndef DECLARE_METRIC_KEY_IMPL
+#define DECLARE_METRIC_KEY(name, ...)            \
+    static constexpr auto METRIC_##name = #name
+#else
 #define DECLARE_METRIC_KEY(name, ...)            \
     static constexpr auto METRIC_##name = #name; \
     DECLARE_METRIC_KEY_IMPL(name, __VA_ARGS__)
+#endif
 
 #define DECLARE_EXEC_NETWORK_METRIC_KEY(name, ...) DECLARE_METRIC_KEY(name, __VA_ARGS__)
 
@@ -184,7 +185,7 @@ DECLARE_CONFIG_VALUE(YES);
 DECLARE_CONFIG_VALUE(NO);
 
 /**
- * @brief Limit #threads that are used by Inference Engine for inference on the CPU.
+ * @brief Limit `#threads` that are used by Inference Engine for inference on the CPU.
  */
 DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
 
@@ -281,14 +282,22 @@ DECLARE_CONFIG_KEY(DUMP_KERNELS);
 /**
  * @brief This key controls performance tuning done or used by the plugin.
  *
- * This option should be used with values: PluginConfigParams::TUNING_CREATE,
- * PluginConfigParams::TUNING_USE_EXISTING or PluginConfigParams::TUNING_DISABLED (default)
+ * This option should be used with values:
+ * PluginConfigParams::TUNING_DISABLED (default)
+ * PluginConfigParams::TUNING_USE_EXISTING - use existing data from tuning file
+ * PluginConfigParams::TUNING_CREATE - create tuning data for parameters not present in tuning file
+ * PluginConfigParams::TUNING_UPDATE - perform non-tuning updates like removal of invalid/deprecated data
+ * PluginConfigParams::TUNING_RETUNE - create tuning data for all parameters, even if already present
+ *
+ * For values TUNING_CREATE and TUNING_RETUNE the file will be created if it does not exist.
  */
 DECLARE_CONFIG_KEY(TUNING_MODE);
 
 DECLARE_CONFIG_VALUE(TUNING_CREATE);
 DECLARE_CONFIG_VALUE(TUNING_USE_EXISTING);
 DECLARE_CONFIG_VALUE(TUNING_DISABLED);
+DECLARE_CONFIG_VALUE(TUNING_UPDATE);
+DECLARE_CONFIG_VALUE(TUNING_RETUNE);
 
 /**
  * @brief This key defines the tuning data filename to be created/used
@@ -335,7 +344,7 @@ DECLARE_CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS);
  *
  * Should be passed into LoadNetwork method to enable dumping of internal graph of primitives and
  * corresponding configuration information. Value is a name of output dot file without extension.
- * Files <dot_file_name>_init.dot and <dot_file_name>_perf.dot will be produced.
+ * Files `<dot_file_name>_init.dot` and `<dot_file_name>_perf.dot` will be produced.
  */
 DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
 

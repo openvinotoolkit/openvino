@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <vpu/utils/io.hpp>
+#include <vpu/utils/extra.hpp>
+
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -12,20 +15,11 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <utility>
+#include <list>
 
-#include <ie_data.h>
-#include <ie_blob.h>
-#include <ie_layers.h>
-
-#include <details/ie_exception.hpp>
-
-#include <vpu/utils/extra.hpp>
-#include <vpu/utils/io.hpp>
-#include <vpu/utils/small_vector.hpp>
+#include <cassert>
 
 namespace vpu {
-
-namespace ie = InferenceEngine;
 
 //
 // DotSerializer
@@ -40,6 +34,7 @@ public:
         }
 
         ~Ident() {
+            assert(_out._ident > 0);
             --_out._ident;
         }
 
@@ -54,11 +49,12 @@ public:
     DotSerializer& operator=(const DotSerializer&) = delete;
 
     template <typename... Args>
-    void append(const char* format, const Args&... args) {
-        for (size_t i = 0; i < _ident; ++i)
+    void append(const char* str, const Args&... args) {
+        for (size_t i = 0; i < _ident; ++i) {
             _os << "    ";
+        }
 
-        formatPrint(_os, format, args...);
+        formatPrint(_os, str, args...);
 
         _os << std::endl;
     }
@@ -70,7 +66,8 @@ private:
     friend class Ident;
 };
 
-#define VPU_DOT_IDENT(dotOut) vpu::DotSerializer::Ident VPU_COMBINE(dotIdent, __LINE__) (dotOut)
+#define VPU_DOT_IDENT(dotOut) \
+    vpu::DotSerializer::Ident VPU_COMBINE(dotIdent, __LINE__) (dotOut)
 
 //
 // DotLabel
@@ -80,6 +77,7 @@ class DotLabel final {
 public:
     DotLabel(const std::string& caption, DotSerializer& out);
     explicit DotLabel(DotLabel& other);
+
     ~DotLabel();
 
     DotLabel(const DotLabel& other) = delete;
@@ -110,39 +108,50 @@ void printTo(DotLabel& lbl, const T& val);
 template <typename T1, typename T2>
 void printTo(DotLabel& lbl, const std::pair<T1, T2>& p);
 
-template <typename T>
-void printTo(DotLabel& lbl, const std::vector<T>& cont);
+template <typename T, size_t Count>
+void printTo(DotLabel& lbl, const std::array<T, Count>& cont);
 
-template <typename T>
-void printTo(DotLabel& lbl, const std::set<T>& cont);
+template <typename T, class A>
+void printTo(DotLabel& lbl, const std::vector<T, A>& cont);
 
-template <typename T, class H>
-void printTo(DotLabel& lbl, const std::unordered_set<T, H>& cont);
+template <typename T, int Capacity, class A>
+void printTo(DotLabel& lbl, const SmallVector<T, Capacity, A>& cont);
 
-template <typename K, typename V>
-void printTo(DotLabel& lbl, const std::map<K, V>& map);
+template <typename T, class A>
+void printTo(DotLabel& lbl, const std::list<T, A>& cont);
 
-template <typename K, typename V, class H>
-void printTo(DotLabel& lbl, const std::unordered_map<K, V, H>& map);
+template <class Obj>
+void printTo(DotLabel& lbl, const IntrusiveHandleList<Obj>& cont);
 
-void printTo(DotLabel& lbl, const ie::DataPtr& ieData);
+template <typename T, class C, class A>
+void printTo(DotLabel& lbl, const std::set<T, C, A>& cont);
 
-void printTo(DotLabel& lbl, const ie::Blob::Ptr& ieBlob);
+template <typename T, class H, class P, class A>
+void printTo(DotLabel& lbl, const std::unordered_set<T, H, P, A>& cont);
 
-void printTo(DotLabel& lbl, const ie::CNNLayerPtr& ieLayer);
+template <typename K, typename V, class C, class A>
+void printTo(DotLabel& lbl, const std::map<K, V, C, A>& map);
 
-class Any;
-void printTo(DotLabel& lbl, const Any& any);
-
-class AttributesMap;
-void printTo(DotLabel& lbl, const AttributesMap& attrs);
-
-template <typename T, int Capacity>
-void printTo(DotLabel& lbl, const SmallVector<T, Capacity>& cont);
+template <typename K, typename V, class H, class P, class A>
+void printTo(DotLabel& lbl, const std::unordered_map<K, V, H, P, A>& map);
 
 //
 // Implementation
 //
+
+template <typename K, typename V>
+void DotLabel::appendPair(const K& key, const V& val) {
+    addIdent();
+    printTo(*this, key);
+    appendValue(" = ");
+    printTo(*this, val);
+    appendValue("\\l");
+}
+
+template <typename... Args>
+void DotLabel::appendValue(const char* format, const Args&... args) {
+    formatPrint(_ostr, format, args...);
+}
 
 template <typename T>
 void printTo(DotLabel& lbl, const T& val) {
@@ -155,6 +164,8 @@ void printTo(DotLabel& lbl, const std::pair<T1, T2>& p) {
     subLbl.appendPair("first", p.first);
     subLbl.appendPair("second", p.second);
 }
+
+namespace details {
 
 template <class Cont>
 void printContainer(DotLabel& lbl, const Cont& cont) {
@@ -179,20 +190,44 @@ void printContainer(DotLabel& lbl, const Cont& cont) {
     }
 }
 
-template <typename T>
-void printTo(DotLabel& lbl, const std::vector<T>& cont) {
-    printContainer(lbl, cont);
+}  // namespace details
+
+template <typename T, size_t Count>
+void printTo(DotLabel& lbl, const std::array<T, Count>& cont) {
+    details::printContainer(lbl, cont);
 }
 
-template <typename T>
-void printTo(DotLabel& lbl, const std::set<T>& cont) {
-    printContainer(lbl, cont);
+template <typename T, class A>
+void printTo(DotLabel& lbl, const std::vector<T, A>& cont) {
+    details::printContainer(lbl, cont);
 }
 
-template <typename T, class H>
-void printTo(DotLabel& lbl, const std::unordered_set<T, H>& cont) {
-    printContainer(lbl, cont);
+template <typename T, int Capacity, class A>
+void printTo(DotLabel& lbl, const SmallVector<T, Capacity, A>& cont) {
+    details::printContainer(lbl, cont);
 }
+
+template <typename T, class A>
+void printTo(DotLabel& lbl, const std::list<T, A>& cont) {
+    details::printContainer(lbl, cont);
+}
+
+template <class Obj>
+void printTo(DotLabel& lbl, const IntrusiveHandleList<Obj>& cont) {
+    details::printContainer(lbl, cont);
+}
+
+template <typename T, class C, class A>
+void printTo(DotLabel& lbl, const std::set<T, C, A>& cont) {
+    details::printContainer(lbl, cont);
+}
+
+template <typename T, class H, class P, class A>
+void printTo(DotLabel& lbl, const std::unordered_set<T, H, P, A>& cont) {
+    details::printContainer(lbl, cont);
+}
+
+namespace details {
 
 template <class Map>
 void printMap(DotLabel& lbl, const Map& map) {
@@ -202,33 +237,16 @@ void printMap(DotLabel& lbl, const Map& map) {
     }
 }
 
-template <typename K, typename V>
-void printTo(DotLabel& lbl, const std::map<K, V>& map) {
-    printMap(lbl, map);
+}  // namespace details
+
+template <typename K, typename V, class C, class A>
+void printTo(DotLabel& lbl, const std::map<K, V, C, A>& map) {
+    details::printMap(lbl, map);
 }
 
-template <typename K, typename V, class H>
-void printTo(DotLabel& lbl, const std::unordered_map<K, V, H>& map) {
-    printMap(lbl, map);
-}
-
-template <typename T, int Capacity>
-void printTo(DotLabel& lbl, const SmallVector<T, Capacity>& cont) {
-    printContainer(lbl, cont);
-}
-
-template <typename K, typename V>
-void DotLabel::appendPair(const K& key, const V& val) {
-    addIdent();
-    printTo(*this, key);
-    appendValue(" = ");
-    printTo(*this, val);
-    appendValue("\\l");
-}
-
-template <typename... Args>
-void DotLabel::appendValue(const char* format, const Args&... args) {
-    formatPrint(_ostr, format, args...);
+template <typename K, typename V, class H, class P, class A>
+void printTo(DotLabel& lbl, const std::unordered_map<K, V, H, P, A>& map) {
+    details::printMap(lbl, map);
 }
 
 }  // namespace vpu

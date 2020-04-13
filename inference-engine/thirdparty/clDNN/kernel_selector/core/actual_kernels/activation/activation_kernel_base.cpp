@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
     } else if (out.GetLayout() == DataLayout::yxfb) {
         global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
         local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
-    } else if (out.GetLayout() == DataLayout::bfyx_f16) {
+    } else if (out.GetLayout() == DataLayout::b_fs_yx_fsv16) {
         global = {Align(out.Feature().v, 16) * out.Batch().v, out.X().v, out.Y().v};
         local = {16, 1, 1};
     } else {
@@ -47,7 +47,7 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
     runInfo.lws1 = local[1];
     runInfo.lws2 = local[2];
 
-    runInfo.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    runInfo.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     runInfo.fp16UnitUsed = out.GetDType() == Datatype::F16;
 
     return runInfo;
@@ -107,7 +107,7 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
         kernel.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});
     }
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = runInfo.efficiency;
 
     return {kd};
 }

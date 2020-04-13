@@ -39,10 +39,10 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node) {
     for (size_t i = 1; i < node.inputs_count(); i++) {
         auto l = node.input(i).get_non_padded_output_layout();
         size = tensor::max(size, l.size);
-        if (l.format == format::bfzyx_f16)  // use optimized 5D
-            format = format::bfzyx_f16;
-        else if (l.format == format::bfzyx_b16f16)
-            format = format::bfzyx_b16f16;
+        if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
+            format = format::b_fs_zyx_fsv16;
+        else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
+            format = format::bs_fs_zyx_bsv16_fsv16;
     }
     auto output_layout = layout(output_type, format, size);
 

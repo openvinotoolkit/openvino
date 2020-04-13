@@ -8,7 +8,7 @@
 
 #include "XLinkPrivateFields.h"
 #include "XLinkPrivateDefines.h"
-#include "XLinkTool.h"
+#include "XLinkErrorUtils.h"
 
 #ifdef MVLOG_UNIT_NAME
 #undef MVLOG_UNIT_NAME
@@ -51,7 +51,7 @@ streamId_t getStreamIdByName(xLinkDesc_t* link, const char* name)
 streamDesc_t* getStreamById(void* fd, streamId_t id)
 {
     xLinkDesc_t* link = getLink(fd);
-    ASSERT_X_LINK_R(link != NULL, NULL);
+    XLINK_RET_ERR_IF(link == NULL, NULL);
     int stream;
     for (stream = 0; stream < XLINK_MAX_STREAMS; stream++) {
         if (link->availableStreams[stream].id == id) {
@@ -65,7 +65,7 @@ streamDesc_t* getStreamById(void* fd, streamId_t id)
 
 streamDesc_t* getStreamByName(xLinkDesc_t* link, const char* name)
 {
-    ASSERT_X_LINK_R(link != NULL, NULL);
+    XLINK_RET_ERR_IF(link == NULL, NULL);
     int stream;
     for (stream = 0; stream < XLINK_MAX_STREAMS; stream++) {
         if (link->availableStreams[stream].id != INVALID_STREAM_ID &&
@@ -90,7 +90,7 @@ void releaseStream(streamDesc_t* stream)
 
 xLinkState_t getXLinkState(xLinkDesc_t* link)
 {
-    ASSERT_X_LINK_R(link != NULL, XLINK_NOT_INIT);
+    XLINK_RET_ERR_IF(link == NULL, XLINK_NOT_INIT);
     mvLog(MVLOG_DEBUG,"%s() link %p link->peerState %d\n", __func__,link, link->peerState);
     return link->peerState;
 }

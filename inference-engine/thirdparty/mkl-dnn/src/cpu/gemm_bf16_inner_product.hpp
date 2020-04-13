@@ -26,79 +26,11 @@
 #include "utils.hpp"
 #include "gemm/gemm.hpp"
 #include "memory_tracking.hpp"
-#include "jit_generator.hpp"
-#include "jit_avx512_core_bf16cvt.hpp"
+#include "gemm_inner_product_utils.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
-
-template<data_type_t store_type>
-struct gemm_bf16_ip_pp_kernel_t: public jit_generator {
-public:
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(gemm_bf16_ip_pp_kernel_t<store_type>);
-    /* row_length must be equal to OC for fwd w/ bias ip, for other case can be
-       set to 0 to use the most appropriate unrolling */
-    gemm_bf16_ip_pp_kernel_t(size_t row_length = 0,
-        bool do_bias = false, bool do_relu = false);
-
-    typedef typename prec_traits<store_type>::type store_data_t;
-    typedef typename prec_traits<data_type::f32>::type acc_data_t;
-
-    void operator()(store_data_t *dst, const acc_data_t *acc,
-            const acc_data_t *bias, float nslope,
-            size_t start, size_t end);
-
-    ~gemm_bf16_ip_pp_kernel_t() {
-        delete bf16_emu_;
-    }
-
-private:
-    struct ker_args {
-        store_data_t *dst;
-        const acc_data_t *acc;
-        const acc_data_t *bias;
-        float nslope;
-        size_t len;
-        size_t row_offset; // required for fwd ip w/ bias only
-    };
-
-    void (*ker_)(const ker_args *args);
-
-    size_t row_length_;
-    bool do_bias_;
-    bool do_relu_;
-    bool is_ajustable_row_length_;
-    size_t def_unroll_, max_unroll_;
-    size_t vlen_;
-
-    Xbyak::Reg64 reg_param = abi_param1;
-    Xbyak::Reg64 reg_dst = rdx;
-    Xbyak::Reg64 reg_acc = rax;
-    Xbyak::Reg64 reg_bias = rbx;
-
-    Xbyak::Reg64 reg_len = r8;
-    Xbyak::Reg64 reg_tmp = rcx; // intentional for shifting purposes
-    Xbyak::Reg64 reg_row_offset = r9;
-    Xbyak::Reg64 reg_rem_mask = r10;
-    Xbyak::Opmask kreg_rem_mask = k1;
-    Xbyak::Opmask kreg_relu_cmp = k2;
-
-    Xbyak::Zmm vreg_zero = Xbyak::Zmm(0);
-    Xbyak::Zmm vreg_nslope = Xbyak::Zmm(1);
-
-    Xbyak::Zmm bf16_emu_reserv_1 = Xbyak::Zmm(27);
-    Xbyak::Zmm bf16_emu_reserv_2 = Xbyak::Zmm(28);
-    Xbyak::Zmm bf16_emu_reserv_3 = Xbyak::Zmm(29);
-    Xbyak::Reg64 bf16_emu_reserv_4 = r11;
-    Xbyak::Zmm bf16_emu_reserv_5 = Xbyak::Zmm(30);
-    Xbyak::Zmm bf16_emu_reserv_6 = Xbyak::Zmm(31);
-
-    bool is_cpx_;
-    bf16_emulation_t *bf16_emu_;
-
-    void generate();
-};
 
 template <data_type_t dst_data_type>
 struct gemm_bf16_inner_product_fwd_t: public cpu_primitive_t {
@@ -124,18 +56,17 @@ struct gemm_bf16_inner_product_fwd_t: public cpu_primitive_t {
                        desc()->src_desc.data_type,
                        desc()->weights_desc.data_type)
                 && dst_data_type == desc()->dst_desc.data_type
-                && IMPLICATION(this->with_bias(),
-                        data_type::f32 == desc()->bias_desc.data_type)
+                && IMPLICATION(this->with_bias(), one_of(
+                        desc()->bias_desc.data_type,
+                        data_type::f32, data_type::bf16))
                 && attr()->post_ops_.len_ <= 1
                 && IMPLICATION(attr()->post_ops_.len_ == 1,
-                        attr()->post_ops_.entry_[0].is_relu(true, false))
+                        attr()->post_ops_.entry_[0].is_eltwise())
                 && dense_gemm_consitency_check(src_pd(), weights_pd(),
                         dst_pd());
             if (!ok) return status::unimplemented;
 
             dst_is_acc_ = one_of(dst_data_type, data_type::f32);
-            do_relu_ = attr()->post_ops_.len_ == 1
-                && attr()->post_ops_.entry_[0].is_relu(true, false);
 
             init_scratchpad();
 
@@ -143,7 +74,6 @@ struct gemm_bf16_inner_product_fwd_t: public cpu_primitive_t {
         }
 
         bool dst_is_acc_;
-        bool do_relu_;
 
     private:
         void init_scratchpad() {
@@ -161,12 +91,17 @@ struct gemm_bf16_inner_product_fwd_t: public cpu_primitive_t {
         : cpu_primitive_t(apd, inputs, outputs)
         , pp_kernel_(nullptr)
     {
-        bool do_relu = pd()->do_relu_;
-        bool with_bias = pd()->with_bias();
-        if (!pd()->dst_is_acc_ || do_relu || with_bias) {
-            size_t row_size = with_bias ? pd()->OC() : 0;
-            pp_kernel_ = new gemm_bf16_ip_pp_kernel_t<dst_data_type>(
-                row_size, with_bias, do_relu);
+        bool has_bias = pd()->with_bias(),
+             has_eltwise = pd()->attr()->post_ops_.len_ == 1,
+             has_scale = !pd()->attr()->output_scales_.has_default_values();
+        postops_in_ip_ = false
+                || !pd()->dst_is_acc_ || has_bias || has_eltwise || has_scale;
+        if (postops_in_ip_) {
+            if (mayiuse(avx512_core_bf16)) {
+                pp_kernel_ = new inner_product_utils::jit_pp_kernel_t<avx512_core_bf16, data_type::f32, dst_data_type>(apd);
+            } else {
+                pp_kernel_ = new inner_product_utils::jit_pp_kernel_t<avx512_common, data_type::f32, dst_data_type>(apd);
+            }
         }
     }
 
@@ -183,7 +118,9 @@ struct gemm_bf16_inner_product_fwd_t: public cpu_primitive_t {
     }
 
 private:
-    gemm_bf16_ip_pp_kernel_t<dst_data_type> *pp_kernel_;
+    inner_product_utils::uni_pp_kernel_t<data_type::f32, dst_data_type> *pp_kernel_;
+    bool postops_in_ip_;
+
     void execute_forward() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 };
@@ -281,20 +218,25 @@ struct gemm_bf16_inner_product_bwd_weights_t: public cpu_primitive_t {
                         desc()->src_desc.data_type,
                         desc()->diff_dst_desc.data_type)
                 && diff_wei_data_type == desc()->diff_weights_desc.data_type
+                && IMPLICATION(this->with_bias(), one_of(
+                        desc()->diff_bias_desc.data_type,
+                        data_type::f32, data_type::bf16))
                 && attr()->has_default_values()
                 && dense_gemm_consitency_check(src_pd(), diff_weights_pd(),
                         diff_dst_pd());
 
             if (!ok) return status::unimplemented;
 
-            diff_wei_is_acc_ = one_of(diff_wei_data_type, data_type::f32);
+            diff_wei_is_acc_ = diff_wei_data_type == data_type::f32;
+            diff_bias_is_acc_ = with_bias()
+                    && desc()->diff_bias_desc.data_type == data_type::f32;
 
             init_scratchpad();
 
             return status::success;
         }
 
-        bool diff_wei_is_acc_;
+        bool diff_wei_is_acc_, diff_bias_is_acc_;
 
     private:
         void init_scratchpad() {
@@ -304,10 +246,16 @@ struct gemm_bf16_inner_product_bwd_weights_t: public cpu_primitive_t {
                         memory_tracking::names::key_iprod_int_dat_in_acc_dt,
                         sizeof(acc_data_t) * OC() * IC_total_padded());
 
-            if (with_bias())
+            if (with_bias()) {
                 scratchpad.book(
                     memory_tracking::names::key_iprod_dst_bf16_convert_wsp,
                     sizeof(acc_data_t) * OC());
+                if (!diff_bias_is_acc_)
+                    scratchpad.book(
+                        memory_tracking::names::
+                                key_iprod_bias_bf16_convert_wsp,
+                        sizeof(acc_data_t) * OC());
+            }
         }
     };
 

@@ -12,11 +12,16 @@
 
 namespace MKLDNNPlugin {
 
+class MKLDNNExecNetwork;
+
 class MKLDNNInferRequest : public InferenceEngine::InferRequestInternal {
 public:
     typedef std::shared_ptr<MKLDNNInferRequest> Ptr;
-    explicit MKLDNNInferRequest(InferenceEngine::InputsDataMap networkInputs,
-                          InferenceEngine::OutputsDataMap networkOutputs);
+    explicit MKLDNNInferRequest(InferenceEngine::InputsDataMap      networkInputs,
+                                InferenceEngine::OutputsDataMap     networkOutputs,
+                                std::shared_ptr<MKLDNNExecNetwork>  execNetwork);
+
+    ~MKLDNNInferRequest() override;
 
     void InferImpl() override;
 
@@ -36,15 +41,15 @@ public:
      */
     void GetBlob(const char *name, InferenceEngine::Blob::Ptr &data) override;
 
-    void SetGraph(const MKLDNNGraph::Ptr& graph);
-
     void SetBatch(int batch = -1) override;
 
 private:
     template <typename T> void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob);
 
     void changeDefaultPtr();
-    MKLDNNGraph::Ptr graph;
-    std::map<std::string, void*> externalPtr;
+    std::shared_ptr<MKLDNNExecNetwork>  execNetwork;
+    MKLDNNGraph*                        graph = nullptr;
+    std::map<std::string, void*>        externalPtr;
+    InferenceEngine::ProfilingTask      profilingTask;
 };
 }  // namespace MKLDNNPlugin

@@ -72,7 +72,7 @@ void jit_avx512_core_bf16_sum_kernel::loop_iteration(int current_unroll)
             vshuff64x2(vsrc0, vsrc0, vtmp, 0x44);
             vpermw(vsrc0, zmm_idx, vsrc0);
 
-                if (!jsp.is_cpx) {
+                if (!isa_has_bf16(jsp.isa)) {
                     bf16_emu_->r_vdpbf16ps(vacc0, vsrc0, vscale);
                     vpbroadcastd(vscale,
                         ptr[reg_scales + 2 * acc_iter * jsp.typesize_in]);
@@ -87,7 +87,7 @@ void jit_avx512_core_bf16_sum_kernel::loop_iteration(int current_unroll)
             vmovups(zword[reg_dst + 2 * u_idx * dst_shift], vacc0);
             vmovups(zword[reg_dst + (2 * u_idx + 1) * dst_shift], vacc1);
         } else {
-            if (jsp.is_cpx) {
+            if (isa_has_bf16(jsp.isa)) {
                 zmm_t zmm_str = Zmm(tmp_vreg_idx(u_idx, 0));
                 vcvtne2ps2bf16(zmm_str, vacc1, vacc0);
                 vmovups(zword[reg_dst + 2 * u_idx * dst_shift], zmm_str);
@@ -133,7 +133,7 @@ void jit_avx512_core_bf16_sum_kernel::generate()
         vpbroadcastd(vscale, ptr[reg_scales + 2 * acc_iter * jsp.typesize_in]);
     }
 
-    if (!jsp.is_cpx) bf16_emu_->init_vcvtneps2bf16();
+    if (!isa_has_bf16(jsp.isa)) bf16_emu_->init_vcvtneps2bf16();
     if (jsp.loop_unroll > 1)
         loop_iteration(jsp.loop_unroll);
 
@@ -176,7 +176,7 @@ void jit_avx512_core_bf16_sum_kernel::generate()
         vinserti64x4(vsrc, vsrc, vysrc1, 0x1);
         vpermw(vsrc, zmm_idx, vsrc);
 
-        if (!jsp.is_cpx) {
+        if (!isa_has_bf16(jsp.isa)) {
             bf16_emu_->r_vdpbf16ps(vacc, vsrc, vscale);
         } else {
             vdpbf16ps(vacc, vsrc, vscale);
@@ -185,7 +185,7 @@ void jit_avx512_core_bf16_sum_kernel::generate()
     if (!jsp.is_bf16_dst) {
         vmovups(zword[reg_dst] | k_mask, vacc);
     } else {
-        if (jsp.is_cpx) {
+        if (isa_has_bf16(jsp.isa)) {
             auto ymm_str = Ymm(tmp_vreg_idx(0, 0));
             vcvtneps2bf16(ymm_str, vacc);
             vmovdqu16(yword[reg_dst] | k_mask, ymm_str);
@@ -222,7 +222,7 @@ status_t jit_avx512_core_bf16_sum_kernel::init_conf(
                                 const int num_srcs,
                                 const cpu_memory_pd_t &dst_d)
 {
-    jsp.is_cpx = mayiuse(avx512_core_bf16);
+    jsp.isa = mayiuse(avx512_core_bf16) ? avx512_core_bf16 : avx512_core;
 
     jsp.num_srcs = num_srcs;
     jsp.loop_unroll = 0;
@@ -231,7 +231,7 @@ status_t jit_avx512_core_bf16_sum_kernel::init_conf(
     for (/*continue*/; jsp.loop_unroll < max_unroll; jsp.loop_unroll++)
     {
         int num_regs = num_vregs_required(jsp.loop_unroll + 1, jsp.num_srcs);
-        if (num_regs > max_vregs_available(jsp.is_cpx))
+        if (num_regs > max_vregs_available(isa_has_bf16(jsp.isa)))
             break;
     }
     const int bf16_simd_w = 32;

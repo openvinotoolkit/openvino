@@ -56,9 +56,9 @@ private:
          auto seq_lengths = inputEdge(1)->input();
          auto output = outputEdge(0)->output();
 
-         input->serializeNewBuffer(serializer);
-         seq_lengths->serializeNewBuffer(serializer);
-         output->serializeNewBuffer(serializer);
+         input->serializeBuffer(serializer);
+         seq_lengths->serializeBuffer(serializer);
+         output->serializeBuffer(serializer);
     }
 };
 

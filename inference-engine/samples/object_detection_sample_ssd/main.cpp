@@ -12,6 +12,7 @@
 
 #include <format_reader_ptr.h>
 #include <inference_engine.hpp>
+#include <ngraph/ngraph.hpp>
 
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
@@ -23,8 +24,6 @@
 #include "object_detection_sample_ssd.h"
 
 using namespace InferenceEngine;
-
-ConsoleErrorListener error_listener;
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
@@ -83,10 +82,6 @@ int main(int argc, char *argv[]) {
 
         slog::info << "Device info: " << slog::endl;
         std::cout << ie.GetVersions(FLAGS_d);
-
-        if (FLAGS_p_msg) {
-            ie.SetLogCallback(error_listener);
-        }
 
         if (!FLAGS_l.empty()) {
             // CPU(MKLDNN) extensions are loaded as a shared library and passed as a pointer to base extension
@@ -172,11 +167,20 @@ int main(int argc, char *argv[]) {
 
         std::string outputName;
         DataPtr outputInfo;
-        for (const auto& out : outputsInfo) {
-            if (out.second->getCreatorLayer().lock()->type == "DetectionOutput") {
-                outputName = out.first;
-                outputInfo = out.second;
+        if (auto ngraphFunction = network.getFunction()) {
+            for (const auto& out : outputsInfo) {
+                for (const auto & op : ngraphFunction->get_ops()) {
+                    if (op->get_type_info() == ngraph::op::DetectionOutput::type_info &&
+                            op->get_friendly_name() == out.second->getName()) {
+                        outputName = out.first;
+                        outputInfo = out.second;
+                        break;
+                    }
+                }
             }
+        } else {
+            outputInfo = outputsInfo.begin()->second;
+            outputName = outputInfo->getName();
         }
 
         if (outputInfo == nullptr) {

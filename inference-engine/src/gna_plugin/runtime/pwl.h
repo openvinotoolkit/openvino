@@ -13,6 +13,8 @@
 #define SIGMOID_DOMAIN 10.0f  // portion of input to be approximated (-10,10)
 #define TANH_NUM_SEGMENTS 65
 #define TANH_DOMAIN 5.0f  // portion of input to be approximated (-5,5)
+#define SOFTSIGN_NUM_SEGMENTS 65
+#define SOFTSIGN_DOMAIN 10.0f  // portion of input to be approximated (-10,10)
 #define RELU_NUM_SEGMENTS 2
 #define LEAKYRELU_SLOPE 0.01
 #define IDENTITY_NUM_SEGMENTS 3
@@ -27,6 +29,9 @@
 #define XBASEMASK 0xFFFFFFFC  // only top 30 bits are used
 #define KALDI_LSTM_CLIP_LOWER (-50.0)
 #define KALDI_LSTM_CLIP_UPPER (50.0)
+#define LOG_DOMAIN (2981.0)
+#define EXP_DOMAIN (8.0)
+#define EXP_BREAK (0.045)
 
 typedef struct {
     double t;
@@ -39,6 +44,8 @@ typedef struct {
 double first_deriv_tanh(const double x);
 double sigmoid(const double x);
 double first_deriv_sigmoid(const double x);
+double softsign(const double x);
+double first_deriv_softsign(const double x);
 double relu(const double x);
 double leaky_relu(const double x);
 

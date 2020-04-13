@@ -52,6 +52,17 @@ struct desc_t {
 
     const char *name;
 };
+
+inline bool is_problem_3d(const desc_t *p) {
+    const auto id_p = p->id + p->pd;
+    return id_p > 1 || p->kd > 1 || p-> od > 1;
+}
+
+inline bool is_problem_1d(const desc_t *p) {
+    const auto ih_p = p->ih + p->ph;
+    return !is_problem_3d(p) && ih_p == 1 && p->kh == 1 && p->oh == 1;
+}
+
 const size_t max_desc_len = 196;
 int str2desc(desc_t *desc, const char *str, bool is_deconv);
 void desc2str(const desc_t *d, char *buffer, bool canonical = false);
@@ -144,8 +155,11 @@ extern const char *perf_template; /* performance output template */
 inline size_t src_off_f(const prb_t *p, int mb, int g, int ic,
                         int id, int ih, int iw)
 {
-    return ((((size_t)mb * p->ic + g * p->ic/p->g + ic)
-        * p->id + id) * p->ih + ih) * p->iw + iw;
+    return ((((size_t)mb * p->ic + (size_t)g * p->ic / p->g + ic) * p->id + id)
+                           * p->ih
+                   + ih)
+            * p->iw
+            + iw;
 }
 
 inline void inv_src_off_f(const prb_t *p, size_t off, int &mb, int &g, int &ic,
@@ -190,8 +204,11 @@ inline void inv_bia_off_f(const prb_t *p, size_t off, int &g, int &oc) {
 inline size_t dst_off_f(const prb_t *p, int mb, int g, int oc,
                         int od, int oh, int ow)
 {
-    return ((((size_t)mb * p->oc + g * p->oc/p->g + oc) * p->od + od)
-        * p->oh + oh) * p->ow + ow;
+    return ((((size_t)mb * p->oc + (size_t)g * p->oc / p->g + oc) * p->od + od)
+                           * p->oh
+                   + oh)
+            * p->ow
+            + ow;
 }
 
 inline void inv_dst_off_f(const prb_t *p, size_t off, int &mb, int &g, int &oc,

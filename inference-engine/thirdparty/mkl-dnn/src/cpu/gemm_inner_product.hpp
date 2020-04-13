@@ -55,24 +55,46 @@ struct gemm_inner_product_fwd_t: public cpu_primitive_t {
                         desc()->dst_desc.data_type)
                 && IMPLICATION(this->with_bias(),
                         data_type == desc()->bias_desc.data_type)
-                && attr()->post_ops_.len_ <= 1
-                && IMPLICATION(attr()->post_ops_.len_ == 1,
-                        attr()->post_ops_.entry_[0].is_eltwise())
+                && is_supported_post_ops()
                 && dense_gemm_consitency_check(src_pd(), weights_pd(),
                         dst_pd());
             return ok ? status::success : status::unimplemented;
         }
+
+        virtual bool is_supported_post_ops() const {
+            const auto &p = this->attr()->post_ops_;
+
+            auto all_post_ops_supported = [&]() {
+                bool ok = true;
+
+                for (int i = 0; i < p.len_; i++) {
+                    ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::eltwise, primitive_kind::depthwise,
+                                             primitive_kind::quantization);
+                }
+                return ok;
+            };
+
+            return all_post_ops_supported();
+        }
+
     };
 
     gemm_inner_product_fwd_t(const pd_t *apd, const input_vector &inputs,
             const output_vector &outputs)
         : cpu_primitive_t(apd, inputs, outputs) {
         bool has_bias = pd()->with_bias(),
-             has_eltwise = pd()->attr()->post_ops_.len_ == 1,
+             has_post_ops = pd()->attr()->post_ops_.len_ > 0,
              has_scale = !pd()->attr()->output_scales_.has_default_values();
-        postops_in_ip_ = has_bias || has_eltwise || has_scale;
-        pp_kernel_ = new inner_product_utils::pp_kernel_t<data_type, data_type>(
-                apd);
+        postops_in_ip_ = has_bias || has_post_ops || has_scale;
+        if (mayiuse(avx512_common)) {
+            pp_kernel_ = new inner_product_utils::jit_pp_kernel_t<avx512_common, data_type, data_type>(apd);
+        } else if (mayiuse(avx2)) {
+            pp_kernel_ = new inner_product_utils::jit_pp_kernel_t<avx2, data_type, data_type>(apd);
+        } else if (mayiuse(sse42)) {
+            pp_kernel_ = new inner_product_utils::jit_pp_kernel_t<sse42, data_type, data_type>(apd);
+        } else {
+            pp_kernel_ = new inner_product_utils::ref_pp_kernel_t<data_type, data_type>(apd);
+        }
     }
     ~gemm_inner_product_fwd_t() { delete pp_kernel_; }
 
@@ -87,7 +109,7 @@ private:
     void execute_forward() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 
-    inner_product_utils::pp_kernel_t<data_type, data_type> *pp_kernel_;
+    inner_product_utils::uni_pp_kernel_t<data_type, data_type> *pp_kernel_;
     bool postops_in_ip_;
 };
 

@@ -8,40 +8,60 @@
 #include <algorithm>
 #include <vector>
 
-#include <inference_engine.hpp>
+#include <ie_layouts.h>
+#include <ie_iextension.h>
+#include <ie_blob.h>
 
-#define CUSTOM_RELU_TYPE std::string("CustomReLU")
+#include <ngraph/op/op.hpp>
+#include <ngraph/node.hpp>
+#include <ngraph/opsets/opset.hpp>
+
+#define CUSTOM_RELU_TYPE "CustomReLU"
 
 class CustomReLUImpl : public InferenceEngine::ILayerExecImpl {
 public:
-    explicit CustomReLUImpl(const InferenceEngine::CNNLayer& layer) : _layer(layer) {}
+    explicit CustomReLUImpl(const std::shared_ptr<ngraph::Node>& node) : _node(node) {}
 
     InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf,
-                                                           InferenceEngine::ResponseDesc* resp) noexcept override {
-        InferenceEngine::DataConfig inDataConfig;
-        InferenceEngine::DataConfig outDataConfig;
-        auto firstInput = *_layer.insData.begin();
-        auto firstOutput = *_layer.outData.begin();
-        inDataConfig.desc = firstInput.lock()->getTensorDesc();
-        outDataConfig.desc = firstOutput->getTensorDesc();
+                                                           InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         InferenceEngine::LayerConfig layerConfig;
-        layerConfig.inConfs = {inDataConfig};
-        layerConfig.outConfs = {outDataConfig};
+        layerConfig.dynBatchSupport = true;
+
+        if (_node->outputs().size() != 1 && _node->inputs().size() != 1)
+            return InferenceEngine::GENERAL_ERROR;
+
+        InferenceEngine::DataConfig cfg;
+        cfg.constant = false;
+        cfg.inPlace = 0;
+
+        InferenceEngine::SizeVector order;
+        auto partialShape = _node->get_output_partial_shape(0);
+        if (partialShape.is_dynamic())
+            return InferenceEngine::GENERAL_ERROR;
+
+        auto shape = _node->get_output_shape(0);
+        for (size_t i = 0; i < shape.size(); i++) {
+            order.push_back(i);
+        }
+        cfg.desc = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
+                                               shape, {shape, order});
+        layerConfig.outConfs.push_back(cfg);
+        layerConfig.inConfs.push_back(cfg);
         conf.push_back(layerConfig);
-        return InferenceEngine::StatusCode::OK;
+        return InferenceEngine::OK;
     }
 
     InferenceEngine::StatusCode
-    init(InferenceEngine::LayerConfig& config, InferenceEngine::ResponseDesc* resp) noexcept override {
+    init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         return InferenceEngine::StatusCode::OK;
     }
 
     InferenceEngine::StatusCode
     execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs,
-            InferenceEngine::ResponseDesc* resp) noexcept override {
+            InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
         static bool wasCalled = false;
         if (!wasCalled) {
-            std::cout << "Running " + CUSTOM_RELU_TYPE + " kernel for the first time (next messages won't be printed)"
+            std::cout << "Running " + std::string(CUSTOM_RELU_TYPE) + " kernel for the first time (next messages won't be printed)"
                       << std::endl;
             wasCalled = true;
         }
@@ -65,94 +85,81 @@ public:
     }
 
 private:
-    const InferenceEngine::CNNLayer _layer;
+    const std::shared_ptr<ngraph::Node> _node;
 };
 
-class CustomReLUFactory : public InferenceEngine::ILayerImplFactory {
+class CustomReluOp: public ngraph::op::Op {
 public:
-    explicit CustomReLUFactory(const InferenceEngine::CNNLayer* layer) : _layer(*layer) {}
+    static constexpr ngraph::NodeTypeInfo type_info{CUSTOM_RELU_TYPE, 0};
+    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
 
-    InferenceEngine::StatusCode
-    getImplementations(std::vector<InferenceEngine::ILayerImpl::Ptr>& impls,
-                       InferenceEngine::ResponseDesc* resp) noexcept override {
-        impls.push_back(std::make_shared<CustomReLUImpl>(_layer));
-        return InferenceEngine::StatusCode::OK;
+    CustomReluOp() = default;
+    explicit CustomReluOp(const ngraph::Output<ngraph::Node>& arg): Op({arg}) {
+        constructor_validate_and_infer_types();
     }
 
-private:
-    InferenceEngine::CNNLayer _layer;
-};
+    void validate_and_infer_types() override {
+        auto input_shape = get_input_partial_shape(0).to_shape();
 
-class CustomReLUResizeImpl : public InferenceEngine::IShapeInferImpl {
-public:
-    InferenceEngine::StatusCode inferShapes(const std::vector<InferenceEngine::Blob::CPtr>& inBlobs,
-                                            const std::map<std::string, std::string>& params,
-                                            const std::map<std::string, InferenceEngine::Blob::Ptr>& blobs,
-                                            std::vector<InferenceEngine::SizeVector>& outShapes,
-                                            InferenceEngine::ResponseDesc* desc) noexcept override {
-        static bool wasCalled = false;
-        if (!wasCalled) {
-            std::cout << "Running " + CUSTOM_RELU_TYPE +
-                         " shape inference for the first time (next messages won't be printed)" << std::endl;
-            wasCalled = true;
+        ngraph::Shape output_shape(input_shape);
+        for (size_t i = 0; i < input_shape.size(); ++i) {
+            output_shape[i] = input_shape[i];
         }
-        for (const auto& blob : inBlobs) {
-            InferenceEngine::MemoryBlob::CPtr blobm = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-            if (!blobm) {
-                return InferenceEngine::StatusCode::PARAMETER_MISMATCH;
-            }
-            outShapes.push_back(blobm->getTensorDesc().getDims());
+
+        set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));
+    }
+
+    std::shared_ptr<ngraph::Node> copy_with_new_args(const ngraph::NodeVector& new_args) const override {
+        if (new_args.size() != 1) {
+            throw ngraph::ngraph_error("Incorrect number of new arguments");
         }
-        return InferenceEngine::StatusCode::OK;
+
+        return std::make_shared<CustomReluOp>(new_args.at(0));
+    }
+
+    bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
+        return true;
     }
 };
+
+constexpr ngraph::NodeTypeInfo CustomReluOp::type_info;
 
 class InPlaceExtension : public InferenceEngine::IExtension {
 public:
     InPlaceExtension() {
-        _shapeInferImpl = std::make_shared<CustomReLUResizeImpl>();
+        impls["CustomReLU"] = [](const std::shared_ptr<ngraph::Node>& node) -> InferenceEngine::ILayerImpl::Ptr {
+            return std::make_shared<CustomReLUImpl>(node);
+        };
     }
 
-    InferenceEngine::StatusCode
-    getPrimitiveTypes(char**& types, unsigned int& size, InferenceEngine::ResponseDesc* resp) noexcept override {
-        size = 1;
-        types = new char* [size];
-        std::string type = CUSTOM_RELU_TYPE;
-        types[0] = new char[type.size() + 1];
-        std::copy(type.begin(), type.end(), types[0]);
-        types[0][type.size()] = 0;
-        return InferenceEngine::OK;
-    };
+    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
 
-    InferenceEngine::StatusCode
-    getShapeInferTypes(char**& types, unsigned int& size, InferenceEngine::ResponseDesc* resp) noexcept override {
-        return getPrimitiveTypes(types, size, resp);
-    };
-
-    InferenceEngine::StatusCode getShapeInferImpl(InferenceEngine::IShapeInferImpl::Ptr& impl, const char* type,
-                                                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        if (CUSTOM_RELU_TYPE.compare(type) != 0) return InferenceEngine::StatusCode::NOT_IMPLEMENTED;
-        impl = _shapeInferImpl;
-        return InferenceEngine::StatusCode::OK;
-    }
-
-    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {};
-
-    void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept override {};
-
-    void Unload() noexcept override {};
+    void Unload() noexcept override {}
 
     void Release() noexcept override {}
 
-    InferenceEngine::StatusCode
-    getFactoryFor(InferenceEngine::ILayerImplFactory*& factory, const InferenceEngine::CNNLayer* cnnLayer,
-                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        if (cnnLayer->type != CUSTOM_RELU_TYPE)
-            return InferenceEngine::StatusCode::NOT_IMPLEMENTED;
-        factory = new CustomReLUFactory(cnnLayer);
-        return InferenceEngine::StatusCode::OK;
-    };
+    std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
+        if (impls.find(node->description()) == impls.end())
+            return {};
+        return {"CPU"};
+    }
+
+    InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
+        if (impls.find(node->description()) == impls.end() || implType != "CPU")
+            return nullptr;
+        return impls[node->description()](node);
+    }
+
+    std::map<std::string, ngraph::OpSet> getOpSets() override {
+        static std::map<std::string, ngraph::OpSet> opsets;
+        if (opsets.empty()) {
+            ngraph::OpSet opset;
+            opset.insert<CustomReluOp>();
+            opsets["experimental"] = opset;
+        }
+        return opsets;
+    }
 
 private:
-    InferenceEngine::IShapeInferImpl::Ptr _shapeInferImpl;
+    std::map<std::string, std::function<InferenceEngine::ILayerImpl::Ptr(const std::shared_ptr<ngraph::Node>)>> impls;
 };

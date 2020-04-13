@@ -164,8 +164,10 @@ status_t check_dim_consistency(const rnn_cell_desc_t *rnn_cell_desc,
 
     // * algorithm specific
     args_ok = true
-        && IMPLICATION(rnn_cell_desc->cell_kind == alg_kind::vanilla_gru,
-                       DIC == SIC);
+            && IMPLICATION(utils::one_of(rnn_cell_desc->cell_kind,
+                                   alg_kind::vanilla_gru,
+                                   alg_kind::gru_linear_before_reset),
+                    DIC == SIC);
     if (!args_ok) return invalid_arguments;
     int extra_bias =
             rnn_cell_desc->cell_kind == alg_kind::gru_linear_before_reset;

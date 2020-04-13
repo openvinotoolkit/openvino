@@ -332,7 +332,7 @@ Data HWConvStageTiler::reducePartialOverChannelsOutputs(const Data& hwOutputPlan
         innerOffset.set(Dim::W, planeTile->widthInfo.outputJunkBefore);
         innerOffset.set(Dim::H, planeTile->heightInfo.outputJunkBefore);
 
-        _stageBuilder->addShrinkStage(
+        _stageBuilder->addCropStage(
             _model,
             _original->name() + tilePostfix + "@remove-junk",
             _original->origLayer(),
@@ -346,7 +346,7 @@ Data HWConvStageTiler::reducePartialOverChannelsOutputs(const Data& hwOutputPlan
     return hwOutputTile;
 }
 
-Data HWConvStageTiler::createTileWeights(const HwConvChannelTilePtr& channelTile, const std::string& channelTilePostfix,
+Data HWConvStageTiler::createConstTileWeights(const HwConvChannelTilePtr& channelTile, const std::string& channelTilePostfix,
                                         const HWConvStageIO& io, const HWConvStageOptions& options) {
     auto& tileWeightsMap = io.origWeights->attrs().getOrSet<TileWeightsMap>("weightsPerTile");
     auto hwTileWeights = tileWeightsMap[channelTile->socInd];
@@ -371,6 +371,47 @@ Data HWConvStageTiler::createTileWeights(const HwConvChannelTilePtr& channelTile
     }
 
     return hwTileWeights;
+}
+
+Data HWConvStageTiler::createIntermediateTileWeights(const HwConvChannelTilePtr& channelTile, const std::string& channelTilePostfix,
+                                                     const HWConvStageIO& io, const HWConvStageOptions& options) {
+    auto newDesc = io.origWeights->desc();
+    newDesc.setDim(Dim::W, channelTile->numInputChannels);
+
+    Data hwTileWeights = _model->duplicateData(io.origWeights, "@HW" + channelTilePostfix, newDesc);
+
+    const auto weightsDims = hwTileWeights->desc().dims();
+    const auto K = weightsDims[Dim::W];
+    const auto M = weightsDims[Dim::H];
+
+    /* Prepare matrix A for HWConvolution:
+       matrix (K, M, 1) (reshape)-> (K, 8, M / 8) (transpose)-> (8, K, M / 8)
+     */
+    const auto hwTileWeightsConvolved = _model->duplicateData(hwTileWeights, "@reshape", DataDesc{K, 8, M / 8, 1});
+    const auto hwTileWeightsRepacked  = _model->duplicateData(hwTileWeights, "@transposed", DataDesc{8, K, M / 8, 1});
+
+    _stageBuilder->addReshapeStage(
+        _model,
+        _original->name() + channelTilePostfix + "@reshape",
+        _original->origLayer(),
+        hwTileWeights,
+        hwTileWeightsConvolved);
+
+    _stageBuilder->addPermuteStage(
+        _model,
+        _original->name() + channelTilePostfix + "@transpose",
+        _original->origLayer(),
+        hwTileWeightsConvolved,
+        hwTileWeightsRepacked,
+        DimValues_<Dim>{{Dim::N, Dim::N}, {Dim::H, Dim::W}, {Dim::W, Dim::H}, {Dim::D, Dim::D}, {Dim::C, Dim::C}});
+
+    hwWeightsTiles.emplace_back(hwTileWeights);
+    hwWeightsTilesOffsets.emplace_back(DimValues({{Dim::W, channelTile->channelStartIndex},
+                                                 {Dim::H, 0},
+                                                 {Dim::C, 0},
+                                                 {Dim::N, 0}}));
+
+    return hwTileWeightsRepacked;
 }
 
 Data HWConvStageTiler::createTileBiases(const Data& hwBiases, const HwConvChannelTilePtr& channelTile) {
@@ -399,11 +440,13 @@ void HWConvStageTiler::createHWStageForTile(const Data& hwInputTile,
             stageOptions.poolPadTop - stageOptions.poolPadBottom);
     }
 
+    auto hwTileWeightsFinal = hwTileWeights;
+
     auto hwStage = _model->addNewStage<MyriadXHwStage>(
         _original->name() + tilePostfix,
         StageType::MyriadXHwOp,
         _original->origLayer(),
-        {hwInputTile, hwTileWeights, hwTileBiases, hwScales},
+        {hwInputTile, hwTileWeightsFinal, hwTileBiases, hwScales},
         {hwOutputTile});
 
     hwStage->attrs().set<HwOpType>("hwOpType", tileStageWithPool ? HwOpType::CONV_POOL : HwOpType::CONV);
@@ -474,6 +517,14 @@ HWConvStageTiler::HWConvStageTiler(const HWConvStageOptions& stageOptions, const
 
     hwInputTiles.reserve(tiling->socTiles * tiling->sohTiles * tiling->sowTiles);
     hwInputTilesOffsets.reserve(tiling->socTiles * tiling->sohTiles * tiling->sowTiles);
+
+    bool isWeightsIntermediate = (stageIO.origWeights->usage() == DataUsage::Intermediate);
+
+    if (isWeightsIntermediate) {
+        hwWeightsTiles.reserve(tiling->socTiles);
+        hwWeightsTilesOffsets.reserve(tiling->socTiles);
+    }
+
     hwOutputTiles.reserve(tiling->socTiles * tiling->sohTiles * tiling->sowTiles);
     hwOutputTilesOffsets.reserve(tiling->socTiles * tiling->sohTiles * tiling->sowTiles);
 
@@ -498,7 +549,8 @@ HWConvStageTiler::HWConvStageTiler(const HWConvStageOptions& stageOptions, const
                 tiling,
                 prevPartialSum);
 
-            const auto hwTileWeights = createTileWeights(channelTile, channelTilePostfix, stageIO, stageOptions);
+            const auto hwTileWeights = isWeightsIntermediate ? createIntermediateTileWeights(channelTile, channelTilePostfix, stageIO, stageOptions)
+                                                             : createConstTileWeights(channelTile, channelTilePostfix, stageIO, stageOptions);
 
             const auto hwTileBiases = createTileBiases(hwBiases, channelTile);
 

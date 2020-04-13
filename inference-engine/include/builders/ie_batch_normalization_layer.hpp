@@ -19,6 +19,7 @@ namespace Builder {
  * @deprecated Use ngraph API instead.
  * @brief The class represents a builder for BatchNormalization layer
  */
+IE_SUPPRESS_DEPRECATED_START
 class INFERENCE_ENGINE_NN_BUILDER_API_CLASS(BatchNormalizationLayer): public LayerDecorator {
 public:
     /**
@@ -67,6 +68,7 @@ public:
      */
     BatchNormalizationLayer& setEpsilon(float eps);
 };
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace Builder
 }  // namespace InferenceEngine

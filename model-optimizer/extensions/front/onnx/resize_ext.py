@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
+from extensions.ops.upsample import UpsampleOp
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.graph.graph import Node
-from mo.ops.op import Op
 
 
 class ResizeExtractor(FrontExtractorOp):
@@ -27,5 +27,5 @@ class ResizeExtractor(FrontExtractorOp):
     @staticmethod
     def extract(node: Node):
         mode = onnx_attr(node, 'mode', 's', default=b'nearest').decode()
-        Op.update_node_stat(node, {'mode': mode, 'op': ResizeExtractor.op})
+        UpsampleOp.update_node_stat(node, {'mode': mode})
         return __class__.enabled

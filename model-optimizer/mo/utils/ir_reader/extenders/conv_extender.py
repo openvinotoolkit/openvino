@@ -34,6 +34,9 @@ class Conv_extender(Extender):
         op['batch_dims'] = int64_array([0])
         op['channel_dims'] = int64_array([1])
 
+        if op.has_valid('output_padding'):
+            op.output_padding = int64_array([0, 0] + op.output_padding)
+
         # Be VERY careful with these attributes!
         op['input_feature_channel'] = 1
         op['output_feature_channel'] = 0

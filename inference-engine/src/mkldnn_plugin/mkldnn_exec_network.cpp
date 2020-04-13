@@ -13,18 +13,20 @@
 #include <ie_util_internal.hpp>
 #include <graph_tools.hpp>
 #include <cnn_network_int8_normalizer.hpp>
-#include <cpp_interfaces/ie_executor_manager.hpp>
+#include <threading/ie_executor_manager.hpp>
 #include "low_precision_transformations/convolution.hpp"
-#include "low_precision_transformations/eltwise_cpu.hpp"
+#include "low_precision_transformations/eltwise.hpp"
 #include "low_precision_transformations/fully_connected.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 #include "low_precision_transformations/transformer.hpp"
-
+#include <threading/ie_cpu_streams_executor.hpp>
+#include <ie_system_conf.h>
+#include <threading/ie_thread_affinity.hpp>
 #include <algorithm>
 #include <unordered_set>
+#include <utility>
 
 using namespace MKLDNNPlugin;
-using namespace MKLDNNPlugin::cpu;
 using namespace InferenceEngine;
 using InferenceEngine::details::CNNNetworkInt8Normalizer;
 using namespace InferenceEngine::details;
@@ -32,35 +34,58 @@ using namespace InferenceEngine::details;
 InferenceEngine::InferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                           InferenceEngine::OutputsDataMap networkOutputs) {
-    if (graphs.size() > 1)  // streams uses special requests that are not connected to graphs
-        return std::make_shared<MKLDNNGraphlessInferRequest>(networkInputs, networkOutputs);
-    else
-        return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs);
+    return std::make_shared<MKLDNNInferRequest>(networkInputs, networkOutputs, std::static_pointer_cast<MKLDNNExecNetwork>(shared_from_this()));
 }
 
 MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network,
                                      const Config &cfg,
-                                     const MKLDNNExtensionManager::Ptr& extMgr) : extensionManager(extMgr) {
+                                     const MKLDNNExtensionManager::Ptr& extMgr) :
+    InferenceEngine::ExecutableNetworkThreadSafeDefault([&] ()->ITaskExecutor::Ptr {
+        ExecutorManager *executorManager = ExecutorManager::getInstance();
+
+        if (cfg.exclusiveAsyncRequests) {
+            // special case when all InferRequests are muxed into a single queue
+            return executorManager->getExecutor("CPU");;
+        } else {
+            const int env_threads = parallel_get_env_threads();
+            const auto& numa_nodes = getAvailableNUMANodes();
+            const auto numa_nodes_num = numa_nodes.size();
+            auto streamExecutorConfig = cfg.streamExecutorConfig;
+            // use logical cores only for single-socket targets in throughput mode
+            const int hw_cores = streamExecutorConfig._streams > 1 && numa_nodes_num == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
+            const int threads = streamExecutorConfig._threads ? streamExecutorConfig._threads : (env_threads ? env_threads : hw_cores);
+            streamExecutorConfig._threadsPerStream = std::max(1, threads/streamExecutorConfig._streams);
+            streamExecutorConfig._name = "CPUStreamsExecutor";
+            return executorManager->getIdleCPUStreamsExecutor(streamExecutorConfig);
+        }
+    } ()),
+    extensionManager(extMgr),
+    _cfg{cfg},
+    _name{network.getName()} {
     ICNNNetworkStats* pstats = nullptr;
     StatusCode s = network.getStats(&pstats, nullptr);
     // we are cloning network if we have statistics and we can transform network.
-    auto clonedNetwork = cloneNet(network);
+    _clonedNetwork = cloneNet(network);
 
+    IE_SUPPRESS_DEPRECATED_START
     if (Precision::FP16 == network.getPrecision()) {
-        clonedNetwork->setPrecision(Precision::FP32);
+        _clonedNetwork->setPrecision(Precision::FP32);
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     // CPU Plugin doesn't natively support some precision like int64/fp16/bool
     // so will convert all layer/tensors fp16->fp32 , bool->u8.
     // Default int64->int32 conversion is already applied in IE common module.
-    NetPass::ConvertPrecision(*clonedNetwork, Precision::FP16, Precision::FP32);
-    NetPass::ConvertPrecision(*clonedNetwork, Precision::BOOL, Precision::U8);
+    NetPass::ConvertPrecision(*_clonedNetwork, Precision::I64, Precision::I32);
+    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U64, Precision::I32);
+    NetPass::ConvertPrecision(*_clonedNetwork, Precision::FP16, Precision::FP32);
+    NetPass::ConvertPrecision(*_clonedNetwork, Precision::BOOL, Precision::U8);
 
     if (s == StatusCode::OK && pstats && !pstats->isEmpty()) {
         CNNNetworkInt8Normalizer cnnorm;
-        cnnorm.NormalizeNetwork(*clonedNetwork, *pstats);
+        cnnorm.NormalizeNetwork(*_clonedNetwork, *pstats);
     } else {
-        if (cfg.lpTransformsMode == Config::LPTransformsMode::On) {
+        if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
             auto params = LayerTransformation::Params(true,  // updatePrecisions
                                                       true,  // quantizeOutputs
                                                       true,  // weightsToConst
@@ -70,70 +95,48 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                                                       true,  // updateBiases
                                                       true);  // supportAsymmetricQuantization
             LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
-                addBranchSpecific<EltwiseCpuTransformation>(LayerTransformation::Params(params), "Eltwise").
                 add<ConvolutionTransformation>(LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }), "Convolution").
                 addCleanup<ScaleShiftToConvolutionTransformation>(
                     LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
                     "ScaleShift"));
-            transformer.transform(*clonedNetwork);
+            transformer.transform(*_clonedNetwork);
         }
     }
 
-    MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*clonedNetwork));
+    MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
 
-    if (cfg.batchLimit > 1) {
+    if (_cfg.batchLimit > 1) {
         // check topology for applicability
-        if (!CanProcessDynBatch(*clonedNetwork)) {
+        if (!CanProcessDynBatch(*_clonedNetwork)) {
             THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
         }
     }
-    // general #threads logic
-    const int env_threads = parallel_get_env_threads();
-    const auto& numa_nodes = MKLDNNPlugin::cpu::getAvailableNUMANodes();
-    const auto numa_nodes_num = numa_nodes.size();
-    // use logical cores only for single-socket targets in throughput mode
-    const int hw_cores = cfg.throughputStreams > 1 && numa_nodes_num == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
 
-    const int threads = cfg.threadsNum ? cfg.threadsNum : (env_threads ? env_threads : hw_cores);
-    const int threads_per_stream = std::max(1, threads/cfg.throughputStreams);
-
-    // graph(s) initialization in taskExecutor threads (streams), in parallel (in case of streams)
-    std::vector<Task> tasks;
-    const int workers_per_socket = std::max(1,
-            static_cast<int>(std::ceil(static_cast<float>(cfg.throughputStreams)/numa_nodes_num)));
-    for (int n = 0; n < cfg.throughputStreams; n++) {
-        MKLDNNGraph::Ptr _graph = std::make_shared<MKLDNNGraph>();
-        graphs.push_back(_graph);
-        tasks.push_back([=, &cfg, &clonedNetwork]() {
-        _graph->setConfig(cfg);
-         const int node = n / workers_per_socket;
-         if (cfg.useThreadBinding)
-            pin_current_thread_to_socket(numa_nodes[node]);
-        _graph->CreateArenaWithObserverAndLoadGraph(threads_per_stream, numa_nodes[node], n,
-                cfg.useThreadBinding,
-                clonedNetwork, extensionManager);
-        if (cfg.throughputStreams > 1)  // for streams, each worker thread has it's own graph
-            MKLDNNPlugin::MultiWorkerTaskExecutor::ptrContext.ptrGraph = _graph;
-        });
-    }
-
-    if (cfg.throughputStreams > 1) {
-        // special executor with as many threads as requested #streams, each with it's own initialization task
-        _taskExecutor = std::make_shared<MultiWorkerTaskExecutor>(tasks);
-    } else {
-        if (cfg.exclusiveAsyncRequests) {
-            // special case when all InferRequests are muxed into a single queue
-            ExecutorManager *executorManager = ExecutorManager::getInstance();
-            _taskExecutor = executorManager->getExecutor("CPU");
+    _graphs = decltype(_graphs){[&] {
+        // TODO: Remove `cloneNet` to `localNetwork` when `MKLDNNGraph::CreateGraph`
+        //       is fixed and does not change content of network passed (CVS-26420)
+        auto localNetwork = cloneNet(static_cast<ICNNNetwork&>(*_clonedNetwork));
+        auto graph = std::make_shared<MKLDNNGraph>();
+        {
+            std::unique_lock<std::mutex> lock{_cfgMutex};
+            graph->setConfig(_cfg);
         }
-        _taskExecutor->runAndWait(tasks);
-    }
+        int numaNode = 0;
+        auto* streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(_taskExecutor.get());
+        if (nullptr != streamExecutor) {
+            numaNode = streamExecutor->GetNumaNodeId();
+        }
+        graph->CreateGraph(static_cast<ICNNNetwork&>(*localNetwork), extensionManager, numaNode);
+        return graph;
+    }};
+
+    _taskExecutor->runAndWait({std::thread::hardware_concurrency(), [this] {_graphs.local();}});
 
     // Save all MemoryLayer data tensors. Will use insight about mechanics
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
-    if (graphs.size() == 1) {
-        for (auto &node : graphs[0]->GetNodes()) {
+    if (_graphs.size() == 1) {
+        for (auto &node : _graphs.begin()->get()->GetNodes()) {
             if (node->getType() == MemoryInput) {
                 auto state_store = node->getChildEdgeAt(0)->getMemoryPtr();
                 auto state_name = node->getName();
@@ -150,8 +153,13 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
 }
 
 void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &properties) {
-    for (auto g : graphs)
+    {
+        std::lock_guard<std::mutex> lock{_cfgMutex};
+        _cfg.readProperties(properties);
+    }
+    for (auto g : _graphs) {
         g->setProperty(properties);
+    }
 }
 
 void MKLDNNExecNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) {
@@ -162,21 +170,19 @@ void MKLDNNExecNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr &
                        [](IInferRequest *p) { p->Release(); });
 
     asyncRequestImpl->SetPointerToPublicInterface(asyncRequest);
-
-    if (graphs.size() == 1) {  // single-stream (legacy/hetero) case - single graph for all requests
-        auto mkldnnSyncRequest = dynamic_cast<MKLDNNInferRequest *>(syncRequestImpl.get());
-        if (!mkldnnSyncRequest)
-            THROW_IE_EXCEPTION << " Cannot get mkldnn sync request.";
-        mkldnnSyncRequest->SetGraph(graphs[0]);
-    }
 }
 
 void MKLDNNExecNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) {
-    graphPtr = graphs[0]->dump();
+    if (_graphs.size() == 0)
+        THROW_IE_EXCEPTION << "No graph was found";
+
+    graphPtr = _graphs.begin()->get()->dump();
 }
 
 void MKLDNNExecNetwork::GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const {
-    Config engConfig = graphs[0]->getProperty();
+    if (_graphs.size() == 0)
+        THROW_IE_EXCEPTION << "No graph was found";
+    Config engConfig = _graphs.begin()->get()->getProperty();
     auto option = engConfig._config.find(name);
     if (option != engConfig._config.end()) {
         result = option->second;
@@ -186,8 +192,13 @@ void MKLDNNExecNetwork::GetConfig(const std::string &name, Parameter &result, Re
 }
 
 void MKLDNNExecNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
+    if (_graphs.size() == 0)
+        THROW_IE_EXCEPTION << "No graph was found";
+
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        result = IE_SET_METRIC(NETWORK_NAME, graphs[0]->dump()->getName());
+        if (_graphs.begin()->get()->dump() == nullptr)
+            THROW_IE_EXCEPTION << "Invalid graph dump";
+        result = IE_SET_METRIC(NETWORK_NAME, _graphs.begin()->get()->dump()->getName());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
@@ -197,12 +208,12 @@ void MKLDNNExecNetwork::GetMetric(const std::string &name, Parameter &result, Re
         result = IE_SET_METRIC(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
-        for (auto && key : graphs[0]->getProperty()._config) {
+        for (auto && key : _graphs.begin()->get()->getProperty()._config) {
             configKeys.push_back(key.first);
         }
         result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
-        Config engConfig = graphs[0]->getProperty();
+        Config engConfig = _graphs.begin()->get()->getProperty();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(std::stoi(option->second)));
@@ -232,6 +243,14 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
         auto tileLayer = dynamic_cast<TileLayer *>(layer.get());
         if (tileLayer && tileLayer->axis)
             return;
+
+        auto reshapeLayer = dynamic_cast<ReshapeLayer *>(layer.get());
+        if (reshapeLayer &&
+            type == Reshape &&
+            (reshapeLayer->outData[0]->getTensorDesc().getDims()[0] ==
+             reshapeLayer->insData[0].lock()->getTensorDesc().getDims()[0])) {
+            return;
+        }
 
         if (type != Input &&
             type != Output &&

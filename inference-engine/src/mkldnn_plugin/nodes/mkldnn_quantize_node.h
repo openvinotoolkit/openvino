@@ -9,6 +9,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <utility>
 
 namespace MKLDNNPlugin {
 
@@ -23,99 +24,35 @@ public:
     bool created() const override;
     void execute(mkldnn::stream strm) override;
 
-    const float* getBinarizationTresholdsPtr() {
-        if (!initialized)
-            initValues();
-        return &binarizationThresholds[0];
-    }
+    size_t getAxis() const { return axis; }
 
-    size_t getBinarizationTresholdsSize() {
-        if (!initialized)
-            initValues();
-        return binarizationThresholds.size();
-    }
+    bool isBinarization() const { return quantizeAlgorithm == mkldnn::algorithm::binarization_depthwise; }
+    mkldnn::algorithm getAlgorithm() const { return quantizeAlgorithm; }
 
-    const float* getBinarizationOutputMaskPtr() {
-        if (!initialized)
-            initValues();
-        return reinterpret_cast<float*>(&binarizationOutputMask[0]);
-    }
+    const float* getBinarizationTresholdsPtr() const { return &binarizationThresholds[0]; }
+    const float* getBinarizationOutputMaskPtr() const { return reinterpret_cast<const float*>(&binarizationOutputMask[0]); }
+    size_t getBinarizationTresholdsSize() const { return binarizationThresholds.size(); }
+    size_t getBinarizationOutputMaskSize() const { return binarizationOutputMask.size(); }
 
-    size_t getBinarizationOutputMaskSize() {
-        if (!initialized)
-            initValues();
-        return binarizationOutputMask.size();
-    }
+    const std::vector<float>& getCropLow() const { return cropLow; }
+    const std::vector<float>& getCropHigh() const { return cropHigh; }
+    const std::vector<float>& getInputScale() const { return inputScale; }
+    const std::vector<float>& getInputShift() const { return inputShift; }
 
-    bool isBinarization() {
-        if (!initialized)
-            initValues();
-        return quantizeAlgorithm == mkldnn::algorithm::binarization_depthwise;
-    }
+    void setCropLow(std::vector<float> newCropLow) { cropLow = std::move(newCropLow); }
+    void setCropHigh(std::vector<float> newCropHigh) { cropHigh = std::move(newCropHigh); }
+    void setInputScale(std::vector<float> newInputScale) { inputScale = std::move(newInputScale); }
+    void setInputShift(std::vector<float> newInputShift) { inputShift = std::move(newInputShift); }
 
-    size_t getAxis() {
-        if (!initialized)
-            initValues();
-        return axis;
-    }
+    InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
+    InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
-    const float* getCropLowPtr() {
-        if (!initialized)
-            initValues();
-        return &cropLow[0];
-    }
-
-    const float* getCropHighPtr() {
-        if (!initialized)
-            initValues();
-        return &cropHigh[0];
-    }
-
-    const float* getInputScalePtr() {
-        if (!initialized)
-            initValues();
-        return &inputScale[0];
-    }
-
-    const float* getInputShiftPtr() {
-        if (!initialized)
-            initValues();
-        return &inputShift[0];
-    }
-
-    const float* getOutputScalePtr() {
-        if (!initialized)
-            initValues();
-        return &outputScale[0];
-    }
-
-    const float* getOutputShiftPtr() {
-        if (!initialized)
-            initValues();
-        return &outputShift[0];
-    }
-
-    InferenceEngine::Precision getInputPrecision() {
-        if (!initialized)
-            initValues();
-        return inputPrecision;
-    }
-
-    InferenceEngine::Precision getOutputPrecision() {
-        if (!initialized)
-            initValues();
-        return outputPrecision;
-    }
-
-    mkldnn::algorithm getAlgorithm() {
-        return quantizeAlgorithm;
-    }
+    void appendPostOps(mkldnn::post_ops& ops) override;
 
 private:
-    void initValues();
-    std::vector<mkldnn::memory::format> getDataFormats();
+    void init() override;
+    std::vector<mkldnn::memory::format> getDataFormats() const;
 
-    bool initialized = false;
     int levels = -1;
 
     std::vector<float> binarizationThresholds;
@@ -128,10 +65,10 @@ private:
     std::vector<float> outputScale;
     std::vector<float> outputShift;
 
-    size_t inputLowAxis = 0;
-    size_t inputHighAxis = 0;
-    size_t outputLowAxis = 0;
-    size_t outputHighAxis = 0;
+    bool isInputLowBroadcasted = false;
+    bool isInputHighBroadcasted = false;
+    bool isOutputLowBroadcasted = false;
+    bool isOutputHighBroadcasted = false;
 
     size_t axis = 0;
 

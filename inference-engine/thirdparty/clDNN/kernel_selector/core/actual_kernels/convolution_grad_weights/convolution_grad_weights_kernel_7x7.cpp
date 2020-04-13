@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ ConvolutionGradWeightsKernelBase::DispatchData ConvolutionGradWeightsKernel7x7::
         kd.lws1 -= 16;
     }
     kd.lws2 = 1;
-    kd.effiency = FORCE_PRIORITY_8;
+    kd.efficiency = FORCE_PRIORITY_8;
     return kd;
 }
 }  // namespace kernel_selector

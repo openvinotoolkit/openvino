@@ -19,7 +19,7 @@
 
 #include "jit_generator.hpp"
 
-#define S16_COPY_KERNEL_CODE_SIZE          (4096L * 8)
+#define S16_COPY_KERNEL_CODE_SIZE (4096L * 8)
 
 namespace mkldnn {
 namespace impl {
@@ -28,32 +28,32 @@ namespace cpu {
 class jit_avx512_core_s16_copy_an_kern : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_avx512_core_s16_copy_an_kern);
 
-    public:
-        jit_avx512_core_s16_copy_an_kern();
+public:
+    jit_avx512_core_s16_copy_an_kern();
 };
 
 class jit_avx512_core_s16_copy_at_kern : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_avx512_core_s16_copy_at_kern);
 
-    public:
-        jit_avx512_core_s16_copy_at_kern();
+public:
+    jit_avx512_core_s16_copy_at_kern();
 };
 
 class jit_avx512_core_s16_copy_bn_kern : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_avx512_core_s16_copy_bn_kern);
 
-    public:
-        jit_avx512_core_s16_copy_bn_kern();
+public:
+    jit_avx512_core_s16_copy_bn_kern();
 };
 
 class jit_avx512_core_s16_copy_bt_kern : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_avx512_core_s16_copy_bt_kern);
 
-    public:
-        jit_avx512_core_s16_copy_bt_kern();
+public:
+    jit_avx512_core_s16_copy_bt_kern();
 };
 
-}
-}
-}
+} // namespace cpu
+} // namespace impl
+} // namespace mkldnn
 #endif // COMMON_S16_HPP

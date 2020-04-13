@@ -34,6 +34,7 @@
 namespace cldnn {
 typedef cl::vector<cl::vector<unsigned char>> kernels_binaries_vector;
 typedef cl::vector<kernels_binaries_vector> kernels_binaries_container;
+using queue_type = cl::CommandQueueIntel;
 namespace gpu {
 typedef CL_API_ENTRY cl_command_queue(CL_API_CALL* pfn_clCreateCommandQueueWithPropertiesINTEL)(
     cl_context context,
@@ -59,26 +60,34 @@ protected:
     std::shared_ptr<gpu_toolkit> _context;
 };
 
+struct gpu_program_state {
+    kernels_cache _kernels_cache;
+    kernels_binaries_container _binaries;
+
+    gpu_program_state(gpu_toolkit& context, uint32_t prog_id) :
+        _kernels_cache(context, prog_id) {}
+};
+
 class gpu_toolkit : public std::enable_shared_from_this<gpu_toolkit> {
     friend class context_holder;
 
 protected:
-    explicit gpu_toolkit(const device_impl& device,
+    explicit gpu_toolkit(const device_impl& device_impl,
         const configuration& aconfiguration = configuration());
 
 public:
-    static std::shared_ptr<gpu_toolkit> create(const device_impl& device,
+    static std::shared_ptr<gpu_toolkit> create(const device_impl& device_impl,
         const configuration& cfg = configuration());
-    const cl::Context& context() const { return _context; }
-    const cl::Device& device() const { return _device; }
-    const cl::CommandQueue& queue(uint32_t id) { return get_command_queue(id).queue(); }
+    const cl::Context context() const { return _device->get_context(); }
+    const cl::Device device() const { return _device->get_device(); }
+    const memory_capabilities memory_caps() const { return _device->mem_caps(); }
+    const queue_type& queue(uint32_t id) { return get_command_queue(id).queue(); }
 
     const configuration& get_configuration() const { return _configuration; }
-    device_info_internal get_device_info() const { return _device_info; }
-    std::shared_ptr<rapidjson::Document> get_device_cache() const { return _device_cache; }
-    kernels_cache& get_kernels_cache() { return _kernels_cache; }
-    kernels_binaries_container get_binaries() { return _binaries; }
-    void store_binaries(kernels_binaries_vector binaries) { _binaries.push_back(binaries); }
+    device_info_internal get_device_info() const { return _device->get_info(); }
+    std::shared_ptr<kernel_selector::TuningCache> get_device_cache() const { return _device_cache; }
+    kernels_cache& get_kernels_cache(uint32_t prog_id);
+    void store_binaries(kernels_binaries_vector binaries, uint32_t prog_id);
     bool get_serialization_flag() { return _serialize; }
     void set_serialization_flag(bool serialization_flag) { _serialize = serialization_flag; }
 
@@ -94,7 +103,7 @@ public:
     void set_output_event(uint32_t queue_id, bool out_event);
 
     event_impl::ptr enqueue_kernel(uint32_t queue_id,
-                                   cl::Kernel const& kern,
+                                   kernels_cache::kernel_type const& kern,
                                    cl::NDRange const& global,
                                    cl::NDRange const& local,
                                    std::vector<event_impl::ptr> const& deps);
@@ -115,16 +124,16 @@ public:
     void add_network(uint32_t net_id);
     void remove_network(uint32_t net_id);
 
+    void add_program(uint32_t prog_id);
+    void remove_program(uint32_t prog_id);
+
 private:
     configuration _configuration;
-    cl::Device _device;
-    cl::Context _context;
-    cl_platform_id _platform_id;
-    device_info_internal _device_info;
+    device_impl::cptr _device;
     bool _neo_driver = false;
-    kernels_cache _kernels_cache;
+    std::map<uint32_t, std::shared_ptr<gpu_program_state>> _program_states;
     std::map<uint32_t, gpu_queue> _command_queues_w;
-    std::shared_ptr<rapidjson::Document> _device_cache;
+    std::shared_ptr<kernel_selector::TuningCache> _device_cache;
     kernels_binaries_container _binaries;
     bool _serialize = false;
 
@@ -136,10 +145,10 @@ private:
     // returns whether a barrier has been added
     std::ofstream& open_log();
 
-    std::string get_device_version() { return _device.getInfo<CL_DEVICE_VERSION>(); }
+    std::string get_device_version() { return device().getInfo<CL_DEVICE_VERSION>(); }
 
-    // void build_command_queues();
     gpu_queue& get_command_queue(uint32_t id);
+    gpu_program_state& get_program_state(uint32_t id);
 };
 
 }  // namespace gpu

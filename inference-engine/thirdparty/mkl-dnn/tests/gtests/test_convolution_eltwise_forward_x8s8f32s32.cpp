@@ -34,7 +34,7 @@ using convolution_test_s8s8s32f32 =
 #define CONCAT_WITH_UNDERSCORE_(a,b) a ## _ ## b
 #define CONCAT_WITH_UNDERSCORE(a,b) CONCAT_WITH_UNDERSCORE_(a,b)
 
-#define INST_TEST_CASE_(str, test, ...) INSTANTIATE_TEST_CASE_P( \
+#define INST_TEST_CASE_(str, test, ...) INSTANTIATE_TEST_SUITE_P( \
         str, test, ::testing::Values(__VA_ARGS__))
 
 #define INST_TEST_CASE(str, test, ...) INST_TEST_CASE_( \
@@ -54,7 +54,8 @@ using convolution_test_s8s8s32f32 =
     EXPAND_ARGS(PARAMS_CONV(eltwise_bounded_relu, __VA_ARGS__)), \
     EXPAND_ARGS(PARAMS_CONV(eltwise_soft_relu, __VA_ARGS__)), \
     EXPAND_ARGS(PARAMS_CONV(eltwise_logistic, __VA_ARGS__)), \
-    EXPAND_ARGS(PARAMS_CONV(eltwise_clamp, __VA_ARGS__))
+    EXPAND_ARGS(PARAMS_CONV(eltwise_clamp, __VA_ARGS__)), \
+    EXPAND_ARGS(PARAMS_CONV(eltwise_swish, __VA_ARGS__))
 //    EXPAND_ARGS(PARAMS_CONV(eltwise_exp, __VA_ARGS__))
 
 #define ELTWISE_ALPHA 0.5f

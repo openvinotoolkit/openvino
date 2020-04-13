@@ -50,13 +50,17 @@ public:
     std::map<std::string, Version> GetVersions(const std::string& deviceName) const;
 
     /**
+     * @deprecated IErrorListener is not used anymore. An exception is thrown in case of any unexpected situations.
      * @brief Sets logging callback
      *
      * Logging is used to track what is going on inside the plugins, Inference Engine library
      *
      * @param listener Logging sink
      */
+    IE_SUPPRESS_DEPRECATED_START
+    INFERENCE_ENGINE_DEPRECATED("IErrorListener is not used anymore. An exception is thrown in case of any unexpected situations.")
     void SetLogCallback(IErrorListener& listener) const;
+    IE_SUPPRESS_DEPRECATED_END
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     /**
@@ -100,7 +104,7 @@ public:
      * @return An executable network reference
      */
     ExecutableNetwork LoadNetwork(
-        CNNNetwork network, const std::string& deviceName,
+        const CNNNetwork network, const std::string& deviceName,
         const std::map<std::string, std::string>& config = std::map<std::string, std::string>());
 
     /**
@@ -113,13 +117,12 @@ public:
      * @brief Creates an executable network from a network object within a specified remote context.
      * @param network CNNNetwork object acquired from CNNNetReader
      * @param context Pointer to RemoteContext object
-     * @param deviceName Name of device to load network to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
      * @return An executable network reference
      */
     ExecutableNetwork LoadNetwork(
-        CNNNetwork network, RemoteContext::Ptr context,
+        const CNNNetwork network, RemoteContext::Ptr context,
         const std::map<std::string, std::string>& config = std::map<std::string, std::string>());
 
     /**
@@ -152,6 +155,20 @@ public:
      * @return An executable network reference
      */
     ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+                                    const std::map<std::string, std::string>& config = {});
+
+    /**
+     * @brief Creates an executable network from a previously exported network within a specified
+     * remote context.
+     *
+     * @param networkModel Network model stream
+     * @param context Pointer to RemoteContext object
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @return An executable network reference
+     */
+    ExecutableNetwork ImportNetwork(std::istream& networkModel,
+                                    const RemoteContext::Ptr& context,
                                     const std::map<std::string, std::string>& config = {});
 
     /**
@@ -262,12 +279,14 @@ public:
      * using specified plugin-specific low level device API parameters (device handle, pointer, etc.)
      * @param deviceName Name of a device to create new shared context on.
      * @param params Map of device-specific shared context parameters.
+     * @return A shared pointer to a created remote context.
      */
     RemoteContext::Ptr CreateContext(const std::string& deviceName, const ParamMap& params);
 
     /**
      * @brief Get a pointer to default(plugin-supplied) shared context object for specified accelerator device.
      * @param deviceName  - A name of a device to get create shared context from.
+     * @return A shared pointer to a default remote context.
      */
     RemoteContext::Ptr GetDefaultContext(const std::string& deviceName);
 };

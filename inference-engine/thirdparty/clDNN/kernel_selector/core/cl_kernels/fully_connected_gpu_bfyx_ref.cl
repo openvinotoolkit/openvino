@@ -39,7 +39,7 @@ KERNEL(fc)(
            for(uint x = 0; x < INPUT0_SIZE_X; ++x )
            {
                const uint input0_idx = GET_DATA_INDEX(INPUT0, b, ifm, y, x);
-               const uint filter_idx = GET_FILTER_INDEX(FILTER, ofm, ifm, y, x);
+               const uint filter_idx = GET_FILTER_INDEX(FILTER, 0, ofm, ifm, y, x);
                dotProd += (ACCUMULATOR_TYPE)(input[input0_idx] * weights[filter_idx]);
           }
        }
@@ -56,7 +56,7 @@ KERNEL(fc)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE res = FINAL_NAME;
+    OUTPUT_TYPE res = FUSED_OPS_RESULT;
     output[dst_index] = res;
 #else
     output[dst_index] = TO_OUTPUT_TYPE(ACTIVATION_TYPED(dequantized, ACTIVATION_PARAMS_TYPED));

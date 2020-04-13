@@ -404,7 +404,7 @@ TEST_P(deconvolution_test_float, TestDeconvolution)
             EXPAND_FORMATS(src, weights, bias, dst), {}, \
                 {__VA_ARGS__} }
 
-#define INST_TEST_CASE(str, ...) INSTANTIATE_TEST_CASE_P( \
+#define INST_TEST_CASE(str, ...) INSTANTIATE_TEST_SUITE_P( \
         str, deconvolution_test_float, ::testing::Values(__VA_ARGS__))
 
 #define FMT_BIAS x

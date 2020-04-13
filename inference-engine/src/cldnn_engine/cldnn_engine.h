@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "inference_engine.hpp"
 #include <map>
 #include <string>
 #include <memory>
@@ -29,10 +28,10 @@ class clDNNEngine : public InferenceEngine::InferencePluginInternal,
 public:
     clDNNEngine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore * core, InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore * core, const InferenceEngine::ICNNNetwork &network,
                                                                        const std::map<std::string, std::string> &config) override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore * core, InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore * core, const InferenceEngine::ICNNNetwork &network,
                                                                         InferenceEngine::RemoteContext::Ptr context,
                                                                         const std::map<std::string, std::string> &config) override;
 

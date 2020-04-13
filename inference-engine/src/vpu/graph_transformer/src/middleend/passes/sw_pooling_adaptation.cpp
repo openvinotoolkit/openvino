@@ -25,30 +25,13 @@ private:
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
         auto input = inputEdge(0)->input();
 
-        auto finalOrder = input->desc().dimsOrder();
-        if (input->desc().dim(Dim::N, 1) > 1) {
-            // To merge batch into channels
-            finalOrder = finalOrder.createMovedDim(Dim::C, 2);
-        }
-
-        orderInfo.setInput(inputEdge(0), finalOrder);
-        orderInfo.setOutput(outputEdge(0), finalOrder);
+        orderInfo.setInput(inputEdge(0), input->desc().dimsOrder());
+        orderInfo.setOutput(outputEdge(0), input->desc().dimsOrder());
     }
 
     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
         auto input = inputEdge(0)->input();
-
         auto dimsOrder = input->desc().dimsOrder();
-
-        StridesRequirement reqs;
-
-        if (input->desc().dim(Dim::N, 1) > 1) {
-            // To merge batch into previous dimension.
-            reqs.add(dimsOrder.dimInd(Dim::N), DimStride::Compact);
-        }
-
-        stridesInfo.setInput(inputEdge(0), reqs);
-        stridesInfo.setOutput(outputEdge(0), reqs);
 
         //
         // * AvgPool/MaxPool support both YXZ and ZYX orders:
@@ -67,8 +50,7 @@ private:
     void finalizeDataLayoutImpl() override {
     }
 
-    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>&) override {
-        // Pooling will support batch by merging it with previous dimension.
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
     void finalCheckImpl() const override {
@@ -97,37 +79,8 @@ private:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        if (type() == StageType::GlobalMaxPool ||
-            type() == StageType::GlobalAvgPool) {
-            input->serializeNewBuffer(serializer);
-            output->serializeNewBuffer(serializer);
-        } else {
-            auto perm = input->desc().dimsOrder().toPermutation();
-            IE_ASSERT(perm.size() == 4);
-            IE_ASSERT(perm.back() == Dim::N);
-
-            perm.pop_back();
-
-            input->serializeOldBuffer(
-                this,
-                serializer,
-                DimsOrder::fromPermutation(perm),
-                {
-                    {perm[2], {perm[2], Dim::N}},
-                    {perm[1], {perm[1]}},
-                    {perm[0], {perm[0]}}
-                });
-
-            output->serializeOldBuffer(
-                this,
-                serializer,
-                DimsOrder::fromPermutation(perm),
-                {
-                    {perm[2], {perm[2], Dim::N}},
-                    {perm[1], {perm[1]}},
-                    {perm[0], {perm[0]}}
-                });
-        }
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
     }
 };
 
@@ -160,17 +113,21 @@ void PassImpl::run(const Model& model) {
 
         model->disconnectStage(stage);
 
+        const bool isOverlapByX = (input->desc().dim(Dim::W) + padLeft + padRight) == kernelSizeX;
+        const bool isOverlapByY = (input->desc().dim(Dim::H) + padTop + padBottom) == kernelSizeY;
+        const bool isOverlapByKernel = isOverlapByX && isOverlapByY;
+        const bool paddingsNotExist = padLeft == 0 && padRight == 0 && padTop == 0 && padBottom == 0;
+        const bool isGlobalPoolingOutputFormat =
+                output->desc().dim(Dim::W) == 1 && output->desc().dim(Dim::H) == 1;
         auto stageType = StageType::None;
         if (stage->type() == StageType::StubMaxPool) {
-            if (padLeft == 0 && padRight == 0 && padTop == 0 && padBottom == 0 &&
-                output->desc().dim(Dim::W) == 1 && output->desc().dim(Dim::H) == 1) {
+            if (isGlobalPoolingOutputFormat && isOverlapByKernel) {
                 stageType = StageType::GlobalMaxPool;
             } else {
                 stageType = StageType::MaxPool;
             }
         } else {
-            if (padLeft == 0 && padRight == 0 && padTop == 0 && padBottom == 0 &&
-                output->desc().dim(Dim::W) == 1 && output->desc().dim(Dim::H) == 1) {
+            if (isGlobalPoolingOutputFormat && (isOverlapByKernel && (paddingsNotExist || excludePad))) {
                 stageType = StageType::GlobalAvgPool;
             } else {
                 stageType = StageType::AvgPool;

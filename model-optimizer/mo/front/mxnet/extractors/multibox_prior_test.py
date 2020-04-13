@@ -39,7 +39,7 @@ class TestMultiBoxPrior_Parsing(unittest.TestCase):
             'variance': '0.100000,0.100000,0.200000,0.200000',
             'flip': 0,
             'clip': 0,
-            'min_size': (0.1, 0.141),
+            'min_size': [0.1, 0.141],
             'max_size': '',
             'aspect_ratio': [1, 2, 0.5],
         }

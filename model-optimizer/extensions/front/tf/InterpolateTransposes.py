@@ -15,6 +15,7 @@
 """
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
 from mo.graph.graph import Graph, Node
 from mo.middle.pattern_match import find_pattern_matches, inverse_dict
@@ -28,15 +29,22 @@ class InterpolateTranspose(FrontReplacementFromConfigFileGeneral):
     """
     enabled = True
     replacement_id = 'InterpolateTranspose'
+    graph_condition = [lambda graph: graph.graph['layout'] == 'NCHW']
 
     pattern_nodes = [
         ('interpolate', {'kind': 'op', 'op': 'Interpolate'}),
         ('transpose_1', {'kind': 'op', 'op': 'Transpose'}),
+        ('transpose_1_order', {'kind': 'op', 'op': 'Const',
+                               'value': lambda x: x is not None and np.array_equal(x, int64_array([0, 2, 3, 1]))}),
         ('transpose_2', {'kind': 'op', 'op': 'Transpose'}),
+        ('transpose_2_order', {'kind': 'op', 'op': 'Const',
+                               'value': lambda x: x is not None and np.array_equal(x, int64_array([0, 3, 1, 2]))}),
     ]
     pattern_edges = [
-        ('transpose_1', 'interpolate'),
-        ('interpolate', 'transpose_2'),
+        ('transpose_1', 'interpolate', {'in': 0, 'out': 0}),
+        ('transpose_1_order', 'transpose_1', {'in': 1, 'out': 0}),
+        ('interpolate', 'transpose_2', {'in': 0, 'out': 0}),
+        ('transpose_2_order', 'transpose_2', {'in': 1, 'out': 0}),
     ]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
@@ -47,10 +55,8 @@ class InterpolateTranspose(FrontReplacementFromConfigFileGeneral):
             transpose_1 = Node(graph, inverse_match['transpose_1'])
             transpose_2 = Node(graph, inverse_match['transpose_2'])
 
-            # Check for data layout and transposes orders
-            if graph.graph['layout'] != 'NCHW' or np.array_equal(transpose_1.in_port(1).data.get_value(), [0, 2, 3, 1]) or \
-                                                  np.array_equal(transpose_2.in_port(1).data.get_value(), [0, 3, 1, 2]):
-                return
+            # because we remove Transpose layers the ResizeNearestNeighbor should be updated for NCHW layout
+            interpolate.axes = int64_array([2, 3])
 
             transpose_1.in_port(0).get_connection().set_destination(interpolate.in_port(0))
             transpose_2.out_port(0).get_connection().set_source(interpolate.out_port(0))

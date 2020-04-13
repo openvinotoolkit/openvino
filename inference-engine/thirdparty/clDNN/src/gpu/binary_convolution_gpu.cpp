@@ -121,9 +121,10 @@ public:
 
         const auto& tuning_config = arg.get_program().get_options().get<build_option_type::tuning_config>();
 
-        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache) {
+        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache ||
+            tuning_config->config.mode == tuning_mode::tuning_retune_and_cache) {
             conv_optional_params.tuningParams.runner =
-                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), true);
+                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true);
         }
 
         kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(conv_params, conv_optional_params);

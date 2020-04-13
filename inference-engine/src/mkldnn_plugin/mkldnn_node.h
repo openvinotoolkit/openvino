@@ -9,9 +9,11 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <cassert>
 #include <algorithm>
 #include <ie_common.h>
 #include <ie_profiling.hpp>
+#include <ie_layers_property.hpp>
 #include "details/caseless.hpp"
 #include "mkldnn_dims.h"
 #include "mkldnn_memory.h"
@@ -69,7 +71,8 @@ enum Type {
     DeformableConvolution,
     TensorIterator,
     Convert,
-    MVN
+    MVN,
+    Resample
 };
 
 Type TypeFromName(const std::string type);
@@ -148,6 +151,8 @@ static std::string NameFromType(Type type) {
             return "TensorIterator";
         case Convert:
             return "Convert";
+        case Resample:
+            return "Resample";
         default:
             return "Unknown";
     }
@@ -338,6 +343,12 @@ public:
         return created();
     }
 
+    /**
+     * @brief Performs Node initialization based on graph context.
+     * This is an auxiliary method that allows to use information not available in Node constructor (e.g. connection information with other nodes)
+     */
+    virtual void init() {}
+
     template <class PD, class D, typename FPD = bool>
     PD createPrimitiveDescriptor(const mkldnn::primitive_attr &attr = mkldnn::primitive_attr()) {
         auto descsEqual = [](const std::vector<InferenceEngine::TensorDesc>& srcDescs,
@@ -439,6 +450,12 @@ protected:
     virtual MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
     virtual MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx);
 
+    /**
+     * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
+     * Seed node should call this routine and pass its post operations list as parameter.
+     * @param ops List of fused post operations
+     */
+    virtual void appendPostOps(mkldnn::post_ops& ops);
     virtual std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const { return nullptr; }
 
     typedef std::function<MKLDNNMemoryDesc (mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx)>

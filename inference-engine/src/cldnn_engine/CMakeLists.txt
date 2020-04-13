@@ -25,14 +25,13 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${INTEL_ITT_LIBS} inference_engine clDNN_lib pugixml)
+target_link_libraries(${TARGET_NAME} PRIVATE ${INTEL_ITT_LIBS} inference_engine inference_engine_lp_transformations clDNN_lib pugixml)
 
 set (CLDNN_TOP_FOLDER ${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN)
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CLDNN__IOCL_ICD_INCDIRS}
-        ${CLDNN_TOP_FOLDER}
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src)
+        ${CLDNN_TOP_FOLDER})
 
 # copy default global xml file describing the custom kernels and the *.cl files
 

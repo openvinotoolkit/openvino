@@ -851,6 +851,7 @@ void jit_uni_dw_conv_row_f32<isa>::apply_postprocessing(int ur_w, int oc_step) {
 
     int eltwise_inj_idx = 0;
     int depthwise_inj_idx = 0;
+    int quantization_inj_idx = 0;
     int start_idx = p.find(primitive_kind::convolution) + 1;
     for (int i = start_idx; i < p.len_; i++) {
         auto& post_op = p.entry_[i];
@@ -878,61 +879,25 @@ void jit_uni_dw_conv_row_f32<isa>::apply_postprocessing(int ur_w, int oc_step) {
             bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
             bool do_rounding = do_dequantization || jcp.dst_dt == mkldnn_f32 || i != p.len_ - 1;
 
-            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.crop_low_data));
-            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.crop_high_data));
-
-            add(reg_d_weights, reg_oc_off);
-            add(reg_d_bias, reg_oc_off);
-
+            quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
             for (int r = 0; r < repeats; r++) {
-                uni_vmovups(vmm_d_weights, ptr[reg_d_weights + r * (jcp.ch_block / 2) * sizeof(float)]);
-                uni_vmovups(vmm_d_bias, ptr[reg_d_bias + r * (jcp.ch_block / 2) * sizeof(float)]);
-
-                for (int jj = 0; jj < ur_w; jj++) {
-                    Vmm vmm_dst = get_acc_reg(r * ur_w + jj);
-
-                    uni_vmaxps(vmm_dst, vmm_dst, vmm_d_weights);
-                    uni_vminps(vmm_dst, vmm_dst, vmm_d_bias);
-                }
+                int s_idx = get_acc_reg(r * ur_w).getIdx();
+                quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + ur_w, r * (jcp.ch_block / 2) * sizeof(float));
             }
 
-            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.input_scale_data));
-            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.input_shift_data));
-
-            add(reg_d_weights, reg_oc_off);
-            add(reg_d_bias, reg_oc_off);
-
+            quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
             for (int r = 0; r < repeats; r++) {
-                uni_vmovups(vmm_d_weights, ptr[reg_d_weights + r * (jcp.ch_block / 2) * sizeof(float)]);
-                uni_vmovups(vmm_d_bias, ptr[reg_d_bias + r * (jcp.ch_block / 2) * sizeof(float)]);
-
-                for (int jj = 0; jj < ur_w; jj++) {
-                    Vmm vmm_dst = get_acc_reg(r * ur_w + jj);
-
-                    uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
-                    if (do_rounding)
-                        uni_vroundps(vmm_dst, vmm_dst, 0);
-                }
+                int s_idx = get_acc_reg(r * ur_w).getIdx();
+                quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + ur_w, r * (jcp.ch_block / 2) * sizeof(float), do_rounding);
             }
 
-            if (do_dequantization) {
-                mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.output_scale_data));
-                mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.output_shift_data));
-
-                add(reg_d_weights, reg_oc_off);
-                add(reg_d_bias, reg_oc_off);
-
-                for (int r = 0; r < repeats; r++) {
-                    uni_vmovups(vmm_d_weights, ptr[reg_d_weights + r * (jcp.ch_block / 2) * sizeof(float)]);
-                    uni_vmovups(vmm_d_bias, ptr[reg_d_bias + r * (jcp.ch_block / 2) * sizeof(float)]);
-
-                    for (int jj = 0; jj < ur_w; jj++) {
-                        Vmm vmm_dst = get_acc_reg(r * ur_w + jj);
-
-                        uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
-                    }
-                }
+            quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
+            for (int r = 0; r < repeats; r++) {
+                int s_idx = get_acc_reg(r * ur_w).getIdx();
+                quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + ur_w, r * (jcp.ch_block / 2) * sizeof(float));
             }
+
+            quantization_inj_idx++;
         }
     }
 }
@@ -1244,6 +1209,12 @@ void jit_uni_dw_conv_row_f32<isa>::generate() {
             depthwise_injectors.push_back(new jit_uni_depthwise_injector_f32<isa>(
                     this,
                     post_op.depthwise.alg
+            ));
+        } else if (post_op.is_quantization()) {
+            quantization_injectors.push_back(new jit_uni_quantization_injector_f32<isa>(
+                    this,
+                    post_op,
+                    vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias
             ));
         }
     }

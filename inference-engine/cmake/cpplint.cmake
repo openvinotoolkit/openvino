@@ -3,10 +3,10 @@
 #
 
 if(ENABLE_CPPLINT)
-    find_package(PythonInterp 2.7 EXACT)
+    find_host_package(PythonInterp)
 
-    if(NOT PYTHONINTERP_FOUND OR NOT PYTHON_VERSION_MAJOR EQUAL 2)
-        message(WARNING "Python 2.7 was not found (required for cpplint check)")
+    if(NOT PYTHONINTERP_FOUND)
+        message(WARNING "Python interpreter was not found (required for cpplint check)")
         set(ENABLE_CPPLINT OFF)
     endif()
 endif()
@@ -23,7 +23,7 @@ function(add_cpplint_target TARGET_NAME)
 
     set(options "")
     set(oneValueArgs "")
-    set(multiValueArgs "FOR_TARGETS" "FOR_SOURCES" "EXCLUDE_PATTERNS")
+    set(multiValueArgs FOR_TARGETS FOR_SOURCES EXCLUDE_PATTERNS CUSTOM_FILTERS)
     cmake_parse_arguments(CPPLINT "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     foreach(target IN LISTS CPPLINT_FOR_TARGETS)
@@ -31,6 +31,11 @@ function(add_cpplint_target TARGET_NAME)
         list(APPEND CPPLINT_FOR_SOURCES ${target_sources})
     endforeach()
     list(REMOVE_DUPLICATES CPPLINT_FOR_SOURCES)
+
+    set(custom_filter "")
+    foreach(filter IN LISTS CPPLINT_CUSTOM_FILTERS)
+        string(CONCAT custom_filter "${custom_filter}" "," "${filter}")
+    endforeach()
 
     set(all_output_files "")
     foreach(source_file IN LISTS CPPLINT_FOR_SOURCES)
@@ -62,12 +67,12 @@ function(add_cpplint_target TARGET_NAME)
                 "${output_file}"
             COMMAND
                 "${CMAKE_COMMAND}"
-                -D "PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
                 -D "CPPLINT_SCRIPT=${IE_MAIN_SOURCE_DIR}/scripts/cpplint.py"
                 -D "INPUT_FILE=${source_file}"
                 -D "OUTPUT_FILE=${output_file}"
                 -D "WORKING_DIRECTORY=${CMAKE_CURRENT_SOURCE_DIR}"
                 -D "SKIP_RETURN_CODE=${ENABLE_CPPLINT_REPORT}"
+                -D "CUSTOM_FILTER=${custom_filter}"
                 -P "${IE_MAIN_SOURCE_DIR}/cmake/cpplint_run.cmake"
             DEPENDS
                 "${source_file}"

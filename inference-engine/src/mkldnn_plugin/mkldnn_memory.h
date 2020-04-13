@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "inference_engine.hpp"
+#include "ie_layouts.h"
 #include "mkldnn_dims.h"
 #include <mkldnn.hpp>
 #include <string>

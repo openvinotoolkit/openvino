@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,7 +81,7 @@ ConvolutionGradWeightsKernelBase::DispatchData ConvolutionGradWeightsKernelBase:
     kd.lws0 = lws0;
     kd.lws1 = 1;
     kd.lws2 = 1;
-    kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return kd;
 }
 
@@ -95,16 +95,11 @@ KernelsData ConvolutionGradWeightsKernelBase::GetKernelsData(const Params& param
 
     const convolution_grad_weights_params& orgParams = static_cast<const convolution_grad_weights_params&>(params);
 
-    const std::vector<WeightsLayout> weightsLayouts = {WeightsLayout::oiyx,
-                                                       WeightsLayout::iyxo,
-                                                       WeightsLayout::yxio,
-                                                       WeightsLayout::oyxi};
-
     DispatchData runInfo = SetDefault(orgParams);
     KernelData kd = KernelData::Default<convolution_grad_weights_params>(params);
     convolution_grad_weights_params& newParams = *static_cast<convolution_grad_weights_params*>(kd.params.get());
 
-    bool succeed = UpdateWeightsParams(newParams, options, weightsLayouts, kd.weightsReorderParams);
+    bool succeed = UpdateWeightsParams(newParams, options, WeightsLayout::oiyx, kd.weightsReorderParams);
 
     if (!succeed) {
         return {};
@@ -133,7 +128,7 @@ KernelsData ConvolutionGradWeightsKernelBase::GetKernelsData(const Params& param
     kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
     kernel.arguments.push_back({ArgumentDescriptor::Types::LEARNING_RATE, 0});
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = runInfo.efficiency;
 
     return {kd};
 }

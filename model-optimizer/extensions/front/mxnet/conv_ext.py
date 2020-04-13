@@ -107,6 +107,7 @@ class DeconvFrontExtractor(FrontExtractorOp):
             'pad_spatial_shape': np.array([[pad, pad] for pad in padding], dtype=np.int64),
             'dilation': final_dilations,
             'output_spatial_shape': target_shape,
+            'original_output_spatial_shape': target_shape,
             'output_shape': None,
             'stride': np.array([1, 1, *[s for s in stride]], dtype=np.int64),
             'group': group,

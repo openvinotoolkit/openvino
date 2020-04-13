@@ -8,7 +8,6 @@
 #include <utility>
 
 #include <ie_metric_helpers.hpp>
-#include <inference_engine.hpp>
 #include <cnn_network_ngraph_impl.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
@@ -27,14 +26,22 @@ using namespace vpu::MyriadPlugin;
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         const ICore* /*core*/,
-        ICNNNetwork& network,
+        const ICNNNetwork& network,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
 
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    return std::make_shared<ExecutableNetwork>(network, _devicePool, parsedConfigCopy);
+    std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
+
+    if (auto networkNGraph = dynamic_cast<const CNNNetworkNGraphImpl*>(&network)) {
+        clonedNetwork = networkNGraph->cloneNGraphImpl();
+    } else {
+        clonedNetwork = cloneNet(network);
+    }
+
+    return std::make_shared<ExecutableNetwork>(*clonedNetwork, _devicePool, parsedConfigCopy);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -93,6 +100,20 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     }
 
     _pluginName = "MYRIAD";
+
+    _config = {
+        { KEY_VPU_HW_STAGES_OPTIMIZATION, "ON" },
+        { KEY_LOG_LEVEL, "LOG_NONE" },
+        { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, "OFF" },
+        { KEY_VPU_CUSTOM_LAYERS, "" },
+        { KEY_VPU_IGNORE_IR_STATISTIC, "OFF" },
+        { KEY_VPU_MYRIAD_FORCE_RESET, "OFF" },
+        { KEY_VPU_MYRIAD_PLATFORM, "" },
+        { KEY_EXCLUSIVE_ASYNC_REQUESTS, "OFF" },
+        { KEY_PERF_COUNT, "OFF" },
+        { KEY_CONFIG_FILE, "" },
+        { KEY_DEVICE_ID, "" },
+    };
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
@@ -158,11 +179,14 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _metrics->FullName(getSpecifiedDeviceName()));
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics->SupportedMetrics());
+        const auto& supportedMetrics = _metrics->SupportedMetrics();
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{supportedMetrics.cbegin(), supportedMetrics.cend()});
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, _metrics->SupportedConfigKeys());
+        const auto& supportedConfigKeys = _metrics->SupportedConfigKeys();
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{supportedConfigKeys.cbegin(), supportedConfigKeys.cend()});
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
-        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, _metrics->OptimizationCapabilities());
+        const auto& optimizationCapabilities = _metrics->OptimizationCapabilities();
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{optimizationCapabilities.cbegin(), optimizationCapabilities.cend()});
     } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics->RangeForAsyncInferRequests(_config));
     } else if (name == METRIC_KEY(DEVICE_THERMAL)) {
@@ -174,12 +198,4 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
         }
     }
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-}
-
-std::shared_ptr<ICNNNetwork> Engine::ConvertAndCloneNetwork(ICNNNetwork& network) {
-    if (auto networkNGraph = dynamic_cast<InferenceEngine::details::CNNNetworkNGraphImpl*>(&network)) {
-        auto networkClone = networkNGraph->cloneNGraphImpl();
-        return std::shared_ptr<ICNNNetwork>(networkClone);
-    }
-    return CloneNetwork(network);
 }

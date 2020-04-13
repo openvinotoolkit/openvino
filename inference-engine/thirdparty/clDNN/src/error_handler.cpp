@@ -28,7 +28,13 @@ void err_details::cldnn_print_error_message(const std::string& file,
                                             const std::string& add_msg) {
     {
         std::stringstream source_of_error;
+
+#ifndef NDEBUG
         source_of_error << file << " at line: " << line << std::endl;
+#else
+        (void)file;
+        (void)line;
+#endif
         source_of_error << "Error has occured for: " << instance_id << std::endl;
 
         std::stringstream addidtional_message;

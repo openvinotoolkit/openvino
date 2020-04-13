@@ -17,10 +17,12 @@
 
 #include "mvn_kernel_base.h"
 #include <string>
+#include <vector>
 
 namespace kernel_selector {
 class MVNKernelRef : public MVNKernelBase {
 public:
+    using Parent = MVNKernelBase;
     MVNKernelRef() : MVNKernelBase("mvn_gpu_ref") {}
     virtual ~MVNKernelRef() {}
 
@@ -28,6 +30,15 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
+    JitConstants GetJitConstants(const mvn_params& params, DispatchData kd) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {
+            FusedOpType::ACTIVATION,
+            FusedOpType::QUANTIZE,
+            FusedOpType::ELTWISE,
+            FusedOpType::SCALE
+        };
+    }
     std::string GetKernelName(const mvn_params&) const override;
 };
 }  // namespace kernel_selector

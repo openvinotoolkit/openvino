@@ -84,10 +84,24 @@ attach_resample_gpu::attach_resample_gpu() {
          {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), resample_gpu::create},
          {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), resample_gpu::create},
          {std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), resample_gpu::create},
-         {std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx_f16), resample_gpu::create},
-         {std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx_f16), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv16), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv16), resample_gpu::create},
          {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), resample_gpu::create},
-         {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), resample_gpu::create}});
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv4), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::f32, format::byxf_af32), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), resample_gpu::create},
+         {std::make_tuple(engine_types::ocl, data_types::u8, format::byxf_af32), resample_gpu::create}});
 }
 
 }  // namespace detail

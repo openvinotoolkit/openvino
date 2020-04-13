@@ -74,17 +74,21 @@ void ref_depthwise_fwd_t<data_type>::execute_forward() const {
 
     parallel_nd(MB, C, D, H, W,
         [&](int n, int c, int d, int h, int w) {
-        size_t data_off = data_d.ndims() == 3
+        size_t data_off = data_d.ndims() == 2
+                        ? data_d.off(n, c)
+                        : data_d.ndims() == 3
                         ? data_d.off(n, c, h)
                         : data_d.ndims() == 4
                         ? data_d.off(n, c, h, w)
                         : data_d.ndims() == 5
-                            ? data_d.off(n, c, d, h, w)
-                            : data_d.off(n, c);
+                        ? data_d.off(n, c, d, h, w)
+                        : data_d.off(n);
+
+        int wei_idx = data_d.ndims() == 1 ? n : c;
 
         data_t s_val = src[data_off];
-        data_t w_val = weights[weights_d.off(c)];
-        data_t b_val = bias ? bias[bias_d.off(c)] : (data_t)0;
+        data_t w_val = weights[weights_d.off(wei_idx)];
+        data_t b_val = bias ? bias[bias_d.off(wei_idx)] : (data_t)0;
         data_t &d_val = dst[data_off];
 
         switch (alg_kind) {

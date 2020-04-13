@@ -16,9 +16,6 @@ using C3 = std::integral_constant<int, 3>;
 using C4 = std::integral_constant<int, 4>;
 //----------------------------------------------------------------------
 
-typedef MapperUnit<float,   int> MapperUnit32F;
-typedef MapperUnit<Q0_16, short> MapperUnit8U;
-
 void calcRowArea_8U(uchar dst[], const uchar *src[], const Size &inSz, const Size &outSz,
     Q0_16 yalpha, const MapperUnit8U& ymap, int xmaxdf, const short xindex[], const Q0_16 xalpha[],
     Q8_8 vbuf[]);

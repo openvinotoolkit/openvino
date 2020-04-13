@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 #include <algorithm>
 
 namespace kernel_selector {
-ConvolutionKernel_MMAD_blocks::ConvolutionKernel_MMAD_blocks() : ConvolutionKernelBase("convolution_gpu_mmad_blocks") {
+ConvolutionKernel_mmad_blocks::ConvolutionKernel_mmad_blocks() : ConvolutionKernelBase("convolution_gpu_mmad_blocks") {
     // Generate the dispatch options to the auto-tuner.
     std::vector<size_t> blockWidthSizes = {1, 2, 4, 5, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32};
     std::vector<size_t> blockHeightSizes = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
@@ -39,7 +39,7 @@ ConvolutionKernel_MMAD_blocks::ConvolutionKernel_MMAD_blocks() : ConvolutionKern
     }
 }
 
-ParamsKey ConvolutionKernel_MMAD_blocks::GetSupportedKey() const {
+ParamsKey ConvolutionKernel_mmad_blocks::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
@@ -65,7 +65,7 @@ ParamsKey ConvolutionKernel_MMAD_blocks::GetSupportedKey() const {
     return k;
 }
 
-bool ConvolutionKernel_MMAD_blocks::Validate(const Params& p, const optional_params& o) const {
+bool ConvolutionKernel_mmad_blocks::Validate(const Params& p, const optional_params& o) const {
     if (!Parent::Validate(p, o)) {
         return false;
     }
@@ -88,7 +88,7 @@ static void shrink_blocks_to_output_size(size_t output_x, size_t output_y, size_
     block_y -= unused_y / simds_y;
 }
 
-ConvolutionKernel_MMAD_blocks::AutoTuneOption ConvolutionKernel_MMAD_blocks::GetAutoTuneOptions(
+ConvolutionKernel_mmad_blocks::AutoTuneOption ConvolutionKernel_mmad_blocks::GetAutoTuneOptions(
     const Params& p,
     int autoTuneIndex) const {
     if ((autoTuneIndex >= 0) && (autoTuneIndex < static_cast<int>(autoTuneOptions.size()))) {
@@ -131,7 +131,7 @@ ConvolutionKernel_MMAD_blocks::AutoTuneOption ConvolutionKernel_MMAD_blocks::Get
         option.blockWidth = 4;
         option.blockHeight = 3;
         option.prefetch = 5;
-        // run_info.effiency = FORCE_PRIORITY_7; // GEMM is better
+        // run_info.efficiency = FORCE_PRIORITY_7; // GEMM is better
     }
 
     // if this is not 1x1 batch1 case then shrink filters, other way we're memory bound and it's best to use 16x1 block
@@ -170,7 +170,7 @@ static std::pair<size_t, size_t> get_byxf_af32_req_input_block_dims(size_t outpu
     return std::make_pair(input_block_array_size, input_block_read_width);
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_MMAD_blocks::SetDefault(const convolution_params& cp,
+ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_blocks::SetDefault(const convolution_params& cp,
                                                                               int autoTuneIndex) const {
     // Sub-group size used by "convolution_gpu_mmad_blocks" kernel.
     constexpr size_t sub_group_size = 8;
@@ -197,7 +197,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_MMAD_blocks::SetDefault(co
     const auto of_maps = cp.output.Feature().v;
     const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    runInfo.efficiency = FORCE_PRIORITY_3;
 
     runInfo.gws0 = CeilDiv(cp.output.X().v, runInfo.cldnnStyle.blockWidth);
     runInfo.gws1 = CeilDiv(cp.output.Y().v, runInfo.cldnnStyle.blockHeight);
@@ -210,7 +210,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_MMAD_blocks::SetDefault(co
     return runInfo;
 }
 
-JitConstants ConvolutionKernel_MMAD_blocks::GetJitConstants(const convolution_params& params,
+JitConstants ConvolutionKernel_mmad_blocks::GetJitConstants(const convolution_params& params,
                                                             const DispatchData& runInfo) const {
     auto jit = Parent::GetJitConstants(params, runInfo);
 
@@ -238,7 +238,7 @@ JitConstants ConvolutionKernel_MMAD_blocks::GetJitConstants(const convolution_pa
     return jit;
 }
 
-KernelsData ConvolutionKernel_MMAD_blocks::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ConvolutionKernel_mmad_blocks::GetKernelsData(const Params& params, const optional_params& options) const {
     KernelsData kd = GetTunedKernelsDataByIndex(params, options);
     if (!kd.empty())
         kd[0].estimatedTime = FORCE_PRIORITY_2;
@@ -246,7 +246,7 @@ KernelsData ConvolutionKernel_MMAD_blocks::GetKernelsData(const Params& params, 
     return kd;
 }
 
-KernelsData ConvolutionKernel_MMAD_blocks::GetKernelsDataForAutoTune(const Params& params,
+KernelsData ConvolutionKernel_mmad_blocks::GetKernelsDataForAutoTune(const Params& params,
                                                                      const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};

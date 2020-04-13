@@ -5,6 +5,21 @@
 #ifndef MVMACROS_H__
 #define MVMACROS_H__
 
+#define CIRCULAR_INCREMENT(x, maxVal) \
+    { \
+         x++; \
+         if (x == maxVal) \
+             x = 0; \
+    }
+
+#define CIRCULAR_INCREMENT_BASE(x, maxVal, base) \
+    { \
+        x++; \
+        if (x == maxVal) \
+            x = base; \
+    }
+
+
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((!(sizeof(x) % sizeof(0[x])))))
 #ifndef MIN
 #define MIN(a,b)                                \

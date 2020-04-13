@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ KernelsData LSTMGemmKernelBase::GetCommonKernelsData(const Params& params, const
 
     KernelData kd = KernelData::Default<lstm_gemm_params>(params, orgParams.inputs.size());
 
-    float effiency = FORCE_PRIORITY_9;
+    float efficiency = FORCE_PRIORITY_9;
     const auto& input = orgParams.inputs[0];
 
     auto newParams = orgParams;
@@ -76,7 +76,7 @@ KernelsData LSTMGemmKernelBase::GetCommonKernelsData(const Params& params, const
         kernel.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
     }
 
-    kd.estimatedTime = effiency;
+    kd.estimatedTime = efficiency;
 
     return {kd};
 }

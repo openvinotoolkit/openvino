@@ -37,6 +37,7 @@
 #include <vpu/utils/file_system.hpp>
 #include <vpu/utils/numeric.hpp>
 #include <vpu/utils/profiling.hpp>
+#include <vpu/utils/ie_helpers.hpp>
 
 namespace vpu {
 
@@ -339,7 +340,7 @@ void BackEnd::dumpModelToDot(
                 {
                     VPU_DOT_IDENT(out);
 
-                    out.append("style=dotted");
+                    out.append("style=dashed");
 
                     DotLabel lbl("Injected Stage", out);
                     if (!injectionEdge->attrs().empty()) {

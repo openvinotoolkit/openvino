@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -78,7 +78,8 @@ enum class KernelType {
     LSTM_DYNAMIC_INPUT,
     LSTM_DYNAMIC_TIMELOOP,
     REDUCE,
-    GATHER_TREE
+    GATHER_TREE,
+    SPACE_TO_DEPTH
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -154,7 +155,8 @@ enum class ActivationFunction {
     SELU,
     SIGN,
     SOFTPLUS,
-    SOFTSIGN
+    SOFTSIGN,
+    SWISH
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -426,10 +428,31 @@ struct DimTensor {
 // AutoTunerMode
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class TuningMode {
-    TUNING_DISABLED,       // Tuning is disabled.
-    TUNING_USE_CACHE,      // Tuning using the cached data (no on-line tuning for non-existing data).
-    TUNING_TUNE_AND_CACHE  // Tuning using the cached data if exist, tune and update cache otherwise.attention_params
+    TUNING_DISABLED,         // Tuning is disabled.
+    TUNING_USE_CACHE,        // Tuning using the cached data (no on-line tuning for non-existing data).
+    TUNING_TUNE_AND_CACHE,   // Tuning using the cached data if exist, tune and update cache otherwise.attention_params
+    TUNING_USE_AND_UPDATE,   // Tuning using the cached data and other updating tasks.
+                             // Performs updating tasks like removal of invalid caches, promoting to new formats, etc.
+                             // No tuning for non-existing data.
+    TUNING_RETUNE_AND_CACHE  // Perform tuning even if the cached data exists.
 };
+
+inline bool UseCached(const TuningMode& mode) {
+    return mode == TuningMode::TUNING_USE_CACHE
+        || mode == TuningMode::TUNING_TUNE_AND_CACHE
+        || mode == TuningMode::TUNING_USE_AND_UPDATE;
+}
+
+inline bool PerformTuning(const TuningMode& mode) {
+    return mode == TuningMode::TUNING_TUNE_AND_CACHE
+        || mode == TuningMode::TUNING_RETUNE_AND_CACHE;
+}
+
+inline bool PerformUpdates(const TuningMode& mode) {
+    return mode == TuningMode::TUNING_TUNE_AND_CACHE
+        || mode == TuningMode::TUNING_USE_AND_UPDATE
+        || mode == TuningMode::TUNING_RETUNE_AND_CACHE;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Aliases:
@@ -475,6 +498,7 @@ enum class ReduceMode {
     LOG_SUM,
     LOG_SUM_EXP
 };
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // QuantizationType
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -484,5 +508,13 @@ enum class QuantizationType {
     ASYMMETRIC_WEIGHTS,
     ASYMMETRIC_DATA,
     ASYMMETRIC_DATA_AND_WEIGHTS
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// SpaceToDepthMode
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class SpaceToDepthMode {
+    DEPTH_FIRST,
+    BLOCKS_FIRST
 };
 }  // namespace kernel_selector

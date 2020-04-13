@@ -310,6 +310,13 @@ status_t fill_wio(memory_desc_t &md) {
     return fill_nonblocked(md, perm);
 }
 
+status_t fill_owi(memory_desc_t &md) {
+    if (md.ndims != 3) return invalid_arguments;
+
+    const int perm[3] = {0, 2, 1};
+    return fill_nonblocked(md, perm);
+}
+
 status_t fill_Owi4o(memory_desc_t &md) {
     if (md.ndims != 3) return invalid_arguments;
 
@@ -471,6 +478,13 @@ status_t fill_hwio(memory_desc_t &md) {
     return fill_nonblocked(md, perm);
 }
 
+status_t fill_ohwi(memory_desc_t &md) {
+    if (md.ndims != 4) return invalid_arguments;
+
+    const int perm[4] = {0, 2, 3, 1};
+    return fill_nonblocked(md, perm);
+}
+
 status_t fill_iohw(memory_desc_t &md) {
     if (md.ndims != 4) return invalid_arguments;
 
@@ -482,6 +496,13 @@ status_t fill_dhwio(memory_desc_t &md) {
     if (md.ndims != 5) return invalid_arguments;
 
     const int perm[5] = {2, 3, 4, 1, 0};
+    return fill_nonblocked(md, perm);
+}
+
+status_t fill_odhwi(memory_desc_t &md) {
+    if (md.ndims != 5) return invalid_arguments;
+
+    const int perm[5] = {0, 2, 3, 4, 1};
     return fill_nonblocked(md, perm);
 }
 
@@ -1031,7 +1052,7 @@ status_t fill_gOIdhw16i16o(memory_desc_t &md) {
 }
 
 status_t fill_OIdhw8o16i2o(memory_desc_t &md) {
-    if (md.ndims != 4) return invalid_arguments;
+    if (md.ndims != 5) return invalid_arguments;
 
     const dims_t block_dims = {16, 16, 1, 1, 1};
     const int perm[] = {
@@ -1041,7 +1062,7 @@ status_t fill_OIdhw8o16i2o(memory_desc_t &md) {
 }
 
 status_t fill_IOdhw8o16i2o(memory_desc_t &md) {
-    if (md.ndims != 4) return invalid_arguments;
+    if (md.ndims != 5) return invalid_arguments;
 
     const dims_t block_dims = {16, 16, 1, 1, 1};
     const int perm[] = {
@@ -1454,6 +1475,7 @@ status_t memory_desc_wrapper::compute_blocking(memory_desc_t &memory_desc)
     case io: return fill_io(memory_desc);
     case oiw: return fill_oiw(memory_desc);
     case wio: return fill_wio(memory_desc);
+    case owi: return fill_owi(memory_desc);
     case Owi4o: return fill_Owi4o(memory_desc);
     case OIw4i4o: return fill_OIw4i4o(memory_desc);
     case Owi8o: return fill_Owi8o(memory_desc);
@@ -1471,9 +1493,11 @@ status_t memory_desc_wrapper::compute_blocking(memory_desc_t &memory_desc)
     case oihw: return fill_oihw(memory_desc);
     case ihwo: return fill_ihwo(memory_desc);
     case hwio: return fill_hwio(memory_desc);
+    case ohwi: return fill_ohwi(memory_desc);
     case iohw: return fill_iohw(memory_desc);
     case hwio_s8s8: return fill_hwio(memory_desc);
     case dhwio: return fill_dhwio(memory_desc);
+    case odhwi: return fill_odhwi(memory_desc);
     case OIhw4i4o: return fill_OIhw4i4o(memory_desc);
     case OIhw8i8o: return fill_OIhw8i8o(memory_desc);
     case OIhw16i16o: return fill_OIhw16i16o(memory_desc);

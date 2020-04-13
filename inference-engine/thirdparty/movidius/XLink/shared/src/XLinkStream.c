@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "XLinkStream.h"
-#include "XLinkTool.h"
+#include "XLinkErrorUtils.h"
 
 #ifdef MVLOG_UNIT_NAME
 #undef MVLOG_UNIT_NAME
@@ -18,7 +18,7 @@
 XLinkError_t XLinkStreamInitialize(
     streamDesc_t* stream, streamId_t id, const char* name) {
     mvLog(MVLOG_DEBUG, "name: %s, id: %ld\n", name, id);
-    ASSERT_X_LINK(stream);
+    ASSERT_XLINK(stream);
 
     memset(stream, 0, sizeof(*stream));
 

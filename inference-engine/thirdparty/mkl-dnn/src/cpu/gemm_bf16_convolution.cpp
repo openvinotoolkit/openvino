@@ -77,9 +77,7 @@ gemm_bf16_convolution_fwd_t<dst_data_type>::pp_ker_t::pp_ker_t(
 
     vlen_ = cpu_isa_traits<avx512_common>::vlen / sizeof(float);
 
-    is_cpx_ = mayiuse(avx512_core_bf16);
-
-    if (!is_cpx_) {
+    if (!mayiuse(avx512_core_bf16)) {
         max_data_reg_idx_ = 26;
         bf16_emu_ = new bf16_emulation_t(this,
                             bf16_emu_reserv_1, bf16_emu_reserv_2,
@@ -121,6 +119,10 @@ void gemm_bf16_convolution_fwd_t<dst_data_type>::pp_ker_t::generate()
     auto compute = [&](size_t offset, int idx, bool apply_mask) {
         auto acc_addr = ptr[reg_acc + offset * sizeof(acc_data_t)];
         auto vreg_dst_ = vreg_dst(idx);
+
+        if (dst_data_type == data_type::bf16 && !mayiuse(avx512_core_bf16))
+            bf16_emu_->init_vcvtneps2bf16();
+
         if (apply_mask)
             vreg_dst_ = vreg_dst_ | kreg_rem_mask;
         vmovups(vreg_dst_, acc_addr);
@@ -157,7 +159,7 @@ void gemm_bf16_convolution_fwd_t<dst_data_type>::pp_ker_t::generate()
         if (dst_data_type == data_type::bf16) {
             // TODO: implement store by zmm registers for bf16
             auto vreg_dst_ymm_ = vreg_dst_ymm(idx);
-            if (is_cpx_)
+            if (mayiuse(avx512_core_bf16))
                 vcvtneps2bf16(vreg_dst_ymm_, vreg_dst(idx));
             else
                 bf16_emu_->r_vcvtneps2bf16(vreg_dst_ymm_, vreg_dst(idx));
@@ -275,7 +277,6 @@ template <data_type_t dst_data_type>
 void gemm_bf16_convolution_fwd_t<dst_data_type>::execute_forward() const {
     auto src = reinterpret_cast<const src_data_t *>(this->input_memory(0));
     auto weights = reinterpret_cast<const wei_data_t *>(this->input_memory(1));
-    auto bias = reinterpret_cast<const acc_data_t *>(this->input_memory(2));
     auto dst = reinterpret_cast<dst_data_t*>(this->memory());
 
     bool is_bf16_dst = dst_data_type == data_type::bf16;
@@ -285,27 +286,34 @@ void gemm_bf16_convolution_fwd_t<dst_data_type>::execute_forward() const {
         ? scratchpad().template get<acc_data_t>(key_conv_int_dat_in_acc_dt)
         : nullptr;
 
+    const jit_gemm_conv_conf_t &jcp = this->pd()->jcp_;
+
+    float *bias = nullptr;
+    if (pd()->desc()->bias_desc.data_type == data_type::bf16) {
+        auto bias_in = reinterpret_cast<const mkldnn_bfloat16_t *>(this->input_memory(2));
+        bias = scratchpad().template get<float>(key_conv_bias_bf16_convert_wsp);
+        bf16_cvt_utils::cvt_bfloat16_to_float(bias, bias_in, jcp.oc * jcp.ngroups);
+    } else {
+        auto bias_in = reinterpret_cast<const float *>(this->input_memory(2));
+        bias = const_cast<float*>(bias_in);
+    }
+
     const auto &post_ops = pd()->attr()->post_ops_;
     const bool do_sum = post_ops.contain(primitive_kind::sum, 0);
     const float sum_scale = do_sum ? post_ops.entry_[0].sum.scale : 0;
-
-    const jit_gemm_conv_conf_t &jcp = this->pd()->jcp_;
 
     const int M = jcp.os * jcp.od;
     const size_t src_step = (size_t)jcp.ic * jcp.ih * jcp.iw * jcp.id;
     const size_t dst_step = (size_t)jcp.oc * M;
     const size_t weights_g_size = (size_t)jcp.ic * jcp.oc * jcp.ks;
+    const bool is_problem_3d = pd()->ndims() == 5;
 
     assert(IMPLICATION(
-            jcp.id != 1, jcp.oh_block == jcp.oh && jcp.ow_block == jcp.ow));
+            is_problem_3d, jcp.oh_block == jcp.oh && jcp.ow_block == jcp.ow));
     assert(IMPLICATION(jcp.ow_block != jcp.ow, jcp.oh_block == 1));
 
     const int K = jcp.ic * jcp.ks;
     const int N = jcp.oc;
-
-    if (jcp.im2col_sz && jcp.id != 1)
-        parallel_nd(jcp.im2col_sz * jcp.nthr,
-                [&](ptrdiff_t i) { col[i] = (src_data_t)0; });
 
     const int nb_oh = div_up(jcp.oh, jcp.oh_block);
     const int nb_ow = div_up(jcp.ow, jcp.ow_block);
@@ -313,6 +321,12 @@ void gemm_bf16_convolution_fwd_t<dst_data_type>::execute_forward() const {
         * jcp.mb * jcp.od * nb_oh * nb_ow;
     parallel(jcp.nthr, [&](const int ithr, const int nthr) {
         src_data_t *_col = col + (ptrdiff_t)ithr * jcp.im2col_sz;
+        if (is_problem_3d) {
+            // jit_gemm_convolution_utils::im2col_3d() requires external
+            // data initialization by zeroes
+            for (ptrdiff_t i = 0; i < jcp.im2col_sz; i++)
+                _col[i] = (src_data_t)0;
+        }
 
         int g{ 0 }, n{ 0 }, od{ 0 }, ohb{ 0 }, owb{ 0 };
         size_t start = 0, end = 0;
@@ -329,9 +343,9 @@ void gemm_bf16_convolution_fwd_t<dst_data_type>::execute_forward() const {
             const int h_step = nstl::min(jcp.oh_block, jcp.oh - oh);
             const int w_step = nstl::min(jcp.ow_block, jcp.ow - ow);
             if (jcp.im2col_sz) {
-                if (jcp.id == 1)
+                if (!is_problem_3d)
                     jit_gemm_convolution_utils::im2col<src_data_t>(
-                            jcp, _src, _col, oh, h_step, ow, w_step);
+                            jcp, _src, _col, 0, jcp.os, 0, jcp.ic);
                 else
                     jit_gemm_convolution_utils::im2col_3d<src_data_t>(
                             jcp, _src, _col, od);
@@ -348,7 +362,7 @@ void gemm_bf16_convolution_fwd_t<dst_data_type>::execute_forward() const {
                       + ithr * rnd_up(jcp.oc * jcp.oh_block * jcp.ow_block, 16)
                 : (acc_data_t *)dst_local;
 
-            mkldnn_gemm_bf16bf16f32("N", "N", &m, &N, &K, &one,
+            gemm_bf16bf16f32("N", "N", &m, &N, &K, &one,
                     jcp.im2col_sz ? _col : _src + od * m, &LDA, _weights, &K,
                     &this->beta_, _acc, &LDC);
 
@@ -392,6 +406,7 @@ void gemm_bf16_convolution_bwd_data_t<diff_src_data_type>::
     const int LDC = jcp.im2col_sz ? m : M;
 
     const size_t work_amount = (size_t)jcp.ngroups * jcp.mb;
+    const bool is_problem_3d = pd()->ndims() == 5;
 
     parallel(jcp.nthr, [&](const int ithr, const int nthr) {
         acc_data_t *_col = col + (ptrdiff_t)ithr * jcp.im2col_sz;
@@ -408,7 +423,7 @@ void gemm_bf16_convolution_bwd_data_t<diff_src_data_type>::
                 ? acc_base + ithr * rnd_up(src_step, 16)
                 : (acc_data_t *)diff_src_local;
 
-            if (jcp.id > 1 && jcp.im2col_sz > 0) {
+            if (is_problem_3d && jcp.im2col_sz > 0) {
                 // jit_gemm_convolution_utils::col2im_3d() assumes that the
                 // accumulator is initialized by zeroes
                 for (size_t i = 0; i < src_step; i++)
@@ -421,12 +436,12 @@ void gemm_bf16_convolution_bwd_data_t<diff_src_data_type>::
                      + (n * jcp.ngroups + g) * dst_step + od * m;
 
                 const acc_data_t zero = 0.0, one = 1.0;
-                mkldnn_gemm_bf16bf16f32("N", "T", &m, &N, &K, &one,
+                gemm_bf16bf16f32("N", "T", &m, &N, &K, &one,
                     _diff_dst, &M, _weights, &N, &zero,
                     jcp.im2col_sz ? _col: acc + od * m, &LDC);
 
                 if (jcp.im2col_sz) {
-                    if (jcp.id == 1)
+                    if (!is_problem_3d)
                         jit_gemm_convolution_utils::col2im(jcp, _col,
                             acc);
                     else
@@ -510,7 +525,6 @@ void gemm_bf16_convolution_bwd_weights_t<diff_wei_data_type>::
     auto diff_dst =
         reinterpret_cast<const diff_dst_data_t *>(this->input_memory(1));
     auto diff_weights = reinterpret_cast<diff_wei_data_t*>(this->memory(0));
-    auto diff_bias = reinterpret_cast<acc_data_t *>(this->memory(1));
 
     auto col = scratchpad().template get<src_data_t>(key_conv_gemm_col);
     auto wei_reduction = scratchpad().template get<acc_data_t>(
@@ -522,6 +536,13 @@ void gemm_bf16_convolution_bwd_weights_t<diff_wei_data_type>::
         ? scratchpad().template get<acc_data_t>(key_conv_int_dat_in_acc_dt)
         : (acc_data_t *)diff_weights;
 
+    float *diff_bias = nullptr;
+    if (pd()->desc()->diff_bias_desc.data_type == data_type::bf16) {
+        diff_bias = scratchpad().template get<float>(key_conv_bias_bf16_convert_wsp);
+    } else {
+        diff_bias = reinterpret_cast<float *>(this->memory(1));
+    }
+
     const int K = jcp.os * jcp.od;
     const size_t src_step = (size_t)jcp.ic * jcp.ih * jcp.iw * jcp.id;
     const size_t dst_step = (size_t)jcp.oc * K;
@@ -531,9 +552,7 @@ void gemm_bf16_convolution_bwd_weights_t<diff_wei_data_type>::
     const int N = jcp.oc;
     const int M = jcp.ic * jcp.ks;
     const int LDA = jcp.im2col_sz ? k : K;
-
-    parallel_nd(jcp.im2col_sz * jcp.nthr,
-            [&](ptrdiff_t i) { col[i] = (src_data_t)0; });
+    const bool is_problem_3d = pd()->ndims() == 5;
 
     parallel(jcp.nthr, [&](const int ithr, const int nthr) {
         int ithr_g, nthr_g, ithr_mb, nthr_mb;
@@ -553,6 +572,13 @@ void gemm_bf16_convolution_bwd_weights_t<diff_wei_data_type>::
             assert(IMPLICATION((g_end - g_start) > 1, need_reduction == 0));
 
             src_data_t *_col = col + (ptrdiff_t)ithr * jcp.im2col_sz;
+            if (is_problem_3d) {
+                // jit_gemm_convolution_utils::im2col_3d() requires external
+                // data initialization by zeroes
+                for (ptrdiff_t i = 0; i < jcp.im2col_sz; i++)
+                    _col[i] = (src_data_t)0;
+            }
+
             acc_data_t *weights_reduce_base = wei_reduction
                     + ithr_g * nthr_mb * weights_g_size;
             acc_data_t *weights_reduce = weights_reduce_base
@@ -569,16 +595,16 @@ void gemm_bf16_convolution_bwd_weights_t<diff_wei_data_type>::
                             + (mb * jcp.ngroups + g) * dst_step + od * k;
 
                     if (jcp.im2col_sz) {
-                        if (jcp.id == 1)
+                        if (!is_problem_3d)
                             jit_gemm_convolution_utils::im2col<src_data_t>(
-                                    jcp, _src, _col, 0, jcp.oh, 0, jcp.ow);
+                                    jcp, _src, _col, 0, jcp.os, 0, jcp.ic);
                         else
                             jit_gemm_convolution_utils::im2col_3d<src_data_t>(
                                 jcp, _src, _col, od);
                     }
 
                     const acc_data_t zero = 0.0, one = 1.0;
-                    mkldnn_gemm_bf16bf16f32(
+                    gemm_bf16bf16f32(
                         "T", "N", &M, &N, &k, &one,
                         jcp.im2col_sz ? _col : _src + od * k,
                         &LDA, _diff_dst, &K,
@@ -655,6 +681,11 @@ void gemm_bf16_convolution_bwd_weights_t<diff_wei_data_type>::
                 nd_iterator_step(g, jcp.ngroups, oc, jcp.oc);
             }
         });
+    }
+    if (pd()->desc()->diff_bias_desc.data_type == data_type::bf16) {
+        auto diff_bias_in = reinterpret_cast<mkldnn_bfloat16_t *>(this->memory(1));
+        bf16_cvt_utils::cvt_float_to_bfloat16(diff_bias_in, diff_bias,
+                                                jcp.oc * jcp.ngroups);
     }
 }
 

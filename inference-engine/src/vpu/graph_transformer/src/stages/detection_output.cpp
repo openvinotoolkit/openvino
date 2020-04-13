@@ -134,16 +134,16 @@ private:
         auto priors = inputEdge(2)->input();
         auto output = outputEdge(0)->output();
 
-        loc->serializeNewBuffer(serializer);
-        conf->serializeNewBuffer(serializer);
-        priors->serializeNewBuffer(serializer);
+        loc->serializeBuffer(serializer);
+        conf->serializeBuffer(serializer);
+        priors->serializeBuffer(serializer);
         if (numInputs() == 5) {
-            inputEdge(3)->input()->serializeNewBuffer(serializer);
-            inputEdge(4)->input()->serializeNewBuffer(serializer);
+            inputEdge(3)->input()->serializeBuffer(serializer);
+            inputEdge(4)->input()->serializeBuffer(serializer);
         }
-        output->serializeNewBuffer(serializer);
+        output->serializeBuffer(serializer);
 
-        tempBuffer(0)->serializeNewBuffer(serializer);
+        tempBuffer(0)->serializeBuffer(serializer);
     }
 };
 

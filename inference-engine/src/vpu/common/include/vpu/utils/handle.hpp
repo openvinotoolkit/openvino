@@ -30,8 +30,12 @@ class Handle;
 
 class EnableHandle {
 protected:
-    EnableHandle() { _lifeTimeFlag = std::make_shared<int>(); }
+    EnableHandle() { _lifeTimeFlag = std::make_shared<int>(1); }
+#ifdef NDEBUG
     ~EnableHandle() = default;
+#else
+    ~EnableHandle() { *_lifeTimeFlag = 0; }
+#endif
 
     EnableHandle(const EnableHandle&) = delete;
     EnableHandle& operator=(const EnableHandle&) = delete;

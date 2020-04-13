@@ -209,7 +209,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
         return layout{output_type,
                       input_layout.format,
                       tensor{input_layout.size.batch[0],
-                             weights_layout.size.batch[0],
+                             weights_layout.size.batch[0] * weights_layout.size.group[0],
                              input_layout.size.spatial[0],
                              input_layout.size.spatial[1] - winograd_filter_height + 1},
                       input_layout.data_padding};
@@ -217,7 +217,7 @@ layout convolution_inst::calc_output_layout(convolution_node const& node) {
 
     // get output feature map from weights. It should be the same as number of biases. Will be verifed in
     // convolution::create()
-    auto number_of_features = weights_layout.size.batch[0] * static_cast<int32_t>(split);
+    auto number_of_features = weights_layout.size.batch[0] * weights_layout.size.group[0];
 
     if (desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
@@ -442,21 +442,6 @@ convolution_inst::typed_primitive_inst(network_impl& network, convolution_node c
                               "input feature maps number",
                               filter_inst.size.feature[0],
                               "Weights/ifm mismatch");
-        if (filter_inst.format == format::bf_lyx_yx) {  // local convolution
-            auto local = filter_inst.size.local;
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Number of local x dimension",
-                                  local[0],
-                                  "output x dimension",
-                                  output_inst.size.spatial[0],
-                                  "Weights/output dims mismatch");
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Number of local y dimension",
-                                  local[1],
-                                  "output y dimension",
-                                  output_inst.size.spatial[1],
-                                  "Weights/output dims mismatch");
-        }
     }
 }
 }  // namespace cldnn

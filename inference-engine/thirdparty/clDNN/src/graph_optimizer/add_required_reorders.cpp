@@ -63,13 +63,11 @@ void add_required_reorders::run(program_impl& p) {
         if (usr->type()->does_an_implementation_exist(p.get_engine(), *usr))
             continue;
 
-        /*
-            First check if there are non data flow dependencies for the primitive
-            if so then choose the same output format as the data
-        */
         bool correct_layout_selected = false;
+        bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() ||
+                             usr->is_type<deformable_conv>() || usr->is_type<fully_connected>());
         for (auto& node : usr->get_dependencies()) {
-            if (!node->is_in_data_flow()) {
+            if (!node->is_in_data_flow() && !weights_data) {
                 /*
                     ToDo: Here we should handle also the situation where primitive usr has data inputs in different
                    formats
@@ -82,8 +80,10 @@ void add_required_reorders::run(program_impl& p) {
                     correct_layout_selected = true;
                     break;
                 } else {
-                    throw std::runtime_error("Internal Error: no layout format available for " + usr->id() + " comaptible with " +
-                                    node->id());
+                    throw std::runtime_error("Internal Error: no layout format available for " + usr->id() +
+                                             " (format: " + std::to_string(usr->get_output_layout().format.value) + " )"
+                                             "compatible with " + node->id() +
+                                             " (format: " + std::to_string(node->get_output_layout().format.value) + ")");
                 }
             }
         }

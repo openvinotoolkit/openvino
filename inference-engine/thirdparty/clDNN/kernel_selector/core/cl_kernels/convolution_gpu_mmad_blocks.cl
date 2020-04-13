@@ -128,7 +128,7 @@ KERNEL(convolution_MMAD_blocks)(
 #endif
 #if HAS_FUSED_OPS
             FUSED_OPS;
-            out[br * OUTPUT_BLOCK_WIDTH + bc] = FINAL_NAME;
+            out[br * OUTPUT_BLOCK_WIDTH + bc] = FUSED_OPS_RESULT;
 #else
             out[br * OUTPUT_BLOCK_WIDTH + bc] = TO_OUTPUT_TYPE(res);
 #endif

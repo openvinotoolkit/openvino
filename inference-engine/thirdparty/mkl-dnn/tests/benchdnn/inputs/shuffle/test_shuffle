@@ -1,4 +1,5 @@
 --dir=FWD_D
+--allow-unimpl=true
 
 # group_size = 4
 # (1, 68, 56, 56)
@@ -13,6 +14,9 @@
 
 --dt=s32 --fmt=nchw --axis=1 --group=4 1x68x56x56
 --dt=s32 --fmt=nhwc --axis=1 --group=4 1x68x56x56
+
+--dt=bf16 --fmt=nchw --axis=1 --group=4 1x68x56x56
+--dt=bf16 --fmt=nhwc --axis=1 --group=4 1x68x56x56
 
 # (1, 136, 56, 56)
 --dt=f32 --fmt=nchw --axis=1 --group=4 1x136x56x56
@@ -34,6 +38,11 @@
 --dt=s32 --fmt=nhwc --axis=1 --group=4 1x136x56x56
 --dt=s32 --fmt=nChw4c --axis=1 --group=4 1x136x56x56
 --dt=s32 --fmt=nChw8c --axis=1 --group=4 1x136x56x56
+
+--dt=bf16 --fmt=nchw --axis=1 --group=4 1x136x56x56
+--dt=bf16 --fmt=nhwc --axis=1 --group=4 1x136x56x56
+--dt=bf16 --fmt=nChw4c --axis=1 --group=4 1x136x56x56
+--dt=bf16 --fmt=nChw8c --axis=1 --group=4 1x136x56x56
 
 # (1, 272, 56, 56)
 --dt=f32 --fmt=nchw --axis=1 --group=4 1x272x56x56
@@ -60,6 +69,12 @@
 --dt=s32 --fmt=nChw8c --axis=1 --group=4 1x272x56x56
 --dt=s32 --fmt=nChw16c --axis=1 --group=4 1x272x56x56
 
+--dt=bf16 --fmt=nchw --axis=1 --group=4 1x272x56x56
+--dt=bf16 --fmt=nhwc --axis=1 --group=4 1x272x56x56
+--dt=bf16 --fmt=nChw4c --axis=1 --group=4 1x272x56x56
+--dt=bf16 --fmt=nChw8c --axis=1 --group=4 1x272x56x56
+--dt=bf16 --fmt=nChw16c --axis=1 --group=4 1x272x56x56
+
 # 3D (1, 272, 2, 56, 56)
 --dt=f32 --fmt=ncdhw --axis=1 --group=4 1x272x2x56x56
 --dt=f32 --fmt=ndhwc --axis=1 --group=4 1x272x2x56x56
@@ -84,6 +99,12 @@
 --dt=s32 --fmt=nCdhw4c --axis=1 --group=4 1x272x2x56x56
 --dt=s32 --fmt=nCdhw8c --axis=1 --group=4 1x272x2x56x56
 --dt=s32 --fmt=nCdhw16c --axis=1 --group=4 1x272x2x56x56
+
+--dt=bf16 --fmt=ncdhw --axis=1 --group=4 1x272x2x56x56
+--dt=bf16 --fmt=ndhwc --axis=1 --group=4 1x272x2x56x56
+--dt=bf16 --fmt=nCdhw4c --axis=1 --group=4 1x272x2x56x56
+--dt=bf16 --fmt=nCdhw8c --axis=1 --group=4 1x272x2x56x56
+--dt=bf16 --fmt=nCdhw16c --axis=1 --group=4 1x272x2x56x56
 
 --dir=BWD_D
 
@@ -111,3 +132,10 @@
 --dt=s32 --fmt=nChw8c --axis=1 --group=4 1x272x56x56
 --dt=s32 --fmt=nChw16c --axis=1 --group=4 1x272x56x56
 
+--dt=bf16 --fmt=nchw --axis=1 --group=4 1x272x56x56
+--dt=bf16 --fmt=nhwc --axis=1 --group=4 1x272x56x56
+--dt=bf16 --fmt=nChw4c --axis=1 --group=4 1x272x56x56
+--dt=bf16 --fmt=nChw8c --axis=1 --group=4 1x272x56x56
+--dt=bf16 --fmt=nChw16c --axis=1 --group=4 1x272x56x56
+
+--batch=test_shuffle_axis

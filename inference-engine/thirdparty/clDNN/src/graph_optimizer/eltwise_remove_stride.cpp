@@ -71,7 +71,7 @@ void eltwise_remove_stride::run(program_impl& p) {
                 node->get_output_layout().data_type != data_types::f32) {
                 if (node->get_output_layout().data_type != data_types::f16 ||
                     (node->get_output_layout().format != format::yxfb &&
-                     node->get_output_layout().format != format::bfyx_f16)) {
+                     node->get_output_layout().format != format::b_fs_yx_fsv16)) {
                     continue;
                 }
             }

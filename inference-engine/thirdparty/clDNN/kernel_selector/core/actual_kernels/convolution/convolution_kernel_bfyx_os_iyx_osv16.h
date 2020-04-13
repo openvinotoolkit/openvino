@@ -32,7 +32,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override;
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,
                  FusedOpType::QUANTIZE,

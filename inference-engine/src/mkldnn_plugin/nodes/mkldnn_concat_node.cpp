@@ -75,6 +75,13 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     if (isMixedPrecision)
         inputPrecision = Precision::FP32;
 
+    // Concat node supports int8 implementations only for NHWC and NDHWC layouts
+    if (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) {
+        int ndims = getChildEdgeAt(0)->getDims().ndims();
+        if (ndims != 2 && ndims != 4 && ndims != 5)
+            inputPrecision = Precision::FP32;
+    }
+
     // MKLDNN supports only equal precisions for inputs and output
     outputPrecision = inputPrecision;
 
@@ -94,7 +101,12 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(parentEdge->getDims(), inputDataType, memory::format::any));
+        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? parentEdge->getDims().ndims() == 2 ? memory::format::nc :
+                                                                                          parentEdge->getDims().ndims() == 4 ? memory::format::nhwc :
+                                                                                                                               memory::format::ndhwc
+                                                                                        : memory::format::any;
+
+        dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(parentEdge->getDims(), inputDataType, fmt));
         config.inConfs.push_back(dataConfig);
     }
 
@@ -104,31 +116,38 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
     if ((!isMixedPrecision && outputPrecision != Precision::U8 && outputPrecision != Precision::I8) || axis != 1 || hasEltwise) {
-        config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                MKLDNNMemoryDesc(dims, outputDataType, MKLDNNMemory::GetPlainFormat(dims)));
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, MKLDNNMemory::GetPlainFormat(dims));
-        if (dims.ndims() == 4) {
-            if (dims[1] % 8 == 0) {
-                config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                        MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nChw8c));
-                supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nChw8c);
+        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? dims.ndims() == 2 ? memory::format::nc :
+                                                                                          dims.ndims() == 4 ? memory::format::nhwc :
+                                                                                                              memory::format::ndhwc
+                                                                                        : MKLDNNMemory::GetPlainFormat(dims);
 
-                if (dims[1] % 16 == 0) {
+        config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(dims, outputDataType, fmt));
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, fmt);
+
+        if (inputPrecision != Precision::U8 && inputPrecision != Precision::I8) {
+            if (dims.ndims() == 4) {
+                if (dims[1] % 8 == 0) {
                     config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                            MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nChw16c));
-                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nChw16c);
+                            MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nChw8c));
+                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nChw8c);
+
+                    if (dims[1] % 16 == 0) {
+                        config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
+                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nChw16c));
+                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nChw16c);
+                    }
                 }
-            }
-        } else if (dims.ndims() == 5) {
-            if (dims[1] % 8 == 0) {
-                config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                        MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nCdhw8c));
-                supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nCdhw8c);
-
-                if (dims[1] % 16 == 0) {
+            } else if (dims.ndims() == 5) {
+                if (dims[1] % 8 == 0) {
                     config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                            MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nCdhw16c));
-                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nCdhw16c);
+                            MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nCdhw8c));
+                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nCdhw8c);
+
+                    if (dims[1] % 16 == 0) {
+                        config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
+                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nCdhw16c));
+                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nCdhw16c);
+                    }
                 }
             }
         }

@@ -30,7 +30,7 @@ primitive_type_id select::type_id() {
 layout select_inst::calc_output_layout(select_node const& node) {
     assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
            "Output data type forcing is not supported for select_node!");
-    return node.input().get_non_padded_output_layout();
+    return node.input(1).get_non_padded_output_layout();
 }
 
 std::string select_inst::to_string(select_node const& node) {
@@ -53,7 +53,7 @@ std::string select_inst::to_string(select_node const& node) {
 select_inst::typed_primitive_inst(network_impl& network, select_node const& node) : parent(network, node) {
     auto& deps = node.get_dependencies();
 
-    for (size_t i = 0; i < deps.size() - 1; i++) {
+    for (size_t i = 1; i < deps.size() - 1; i++) {
         auto batch1 = deps[i]->get_output_layout().size.batch[0];
         auto batch2 = deps[i + 1]->get_output_layout().size.batch[0];
         CLDNN_ERROR_NOT_EQUAL(node.id(), "Batch size input", batch1, "Batch size next input", batch2, "");
@@ -71,8 +71,33 @@ select_inst::typed_primitive_inst(network_impl& network, select_node const& node
         CLDNN_ERROR_NOT_EQUAL(node.id(), "Format input", format1, "Format next input", format2, "");
     }
 
-    auto data_type1 = deps[0]->get_output_layout().data_type;
-    auto data_type2 = deps[1]->get_output_layout().data_type;
+    // For mask added special validations (it can differ from inputs in size)
+    auto batch1 = deps[0]->get_output_layout().size.batch[0];
+    auto batch2 = deps[1]->get_output_layout().size.batch[0];
+    if (batch1 != batch2 && batch1 != 1)
+        CLDNN_ERROR_MESSAGE(node.id(), "Incorrect mask batch size with respect to inputs batch size");
+
+    auto feature1 = deps[0]->get_output_layout().size.feature[0];
+    auto feature2 = deps[1]->get_output_layout().size.feature[0];
+    if (feature1 != feature2 && batch1 != 1)
+        CLDNN_ERROR_MESSAGE(node.id(), "Incorrect mask feature size with respect to inputs feature size");
+
+    auto spatial01 = deps[0]->get_output_layout().size.spatial[0];
+    auto spatial02 = deps[1]->get_output_layout().size.spatial[0];
+    if (spatial01 != spatial02 && spatial01 != 1)
+        CLDNN_ERROR_MESSAGE(node.id(), "Incorrect mask spatial size with respect to inputs spatial size");
+
+    auto spatial11 = deps[0]->get_output_layout().size.spatial[1];
+    auto spatial12 = deps[1]->get_output_layout().size.spatial[1];
+    if (spatial11 != spatial12 && spatial11 != 1)
+        CLDNN_ERROR_MESSAGE(node.id(), "Incorrect mask spatial size with respect to inputs spatial size");
+
+    auto format1 = deps[0]->get_output_layout().format;
+    auto format2 = deps[1]->get_output_layout().format;
+    CLDNN_ERROR_NOT_EQUAL(node.id(), "Format input", format1, "Format next input", format2, "");
+
+    auto data_type1 = deps[1]->get_output_layout().data_type;
+    auto data_type2 = deps[2]->get_output_layout().data_type;
     CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(), "Data type input 1", data_type1, "Data type input 2", data_type2, "");
 }
 }  // namespace cldnn

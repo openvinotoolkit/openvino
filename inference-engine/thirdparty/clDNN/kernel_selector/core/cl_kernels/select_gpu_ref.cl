@@ -45,7 +45,7 @@ uint output_offset = OUTPUT_OFFSET +
                      d3*OUTPUT_PITCHES[2] +
                      d4*OUTPUT_PITCHES[3];
 
-const OUTPUT_TYPE res = select(INPUT_1, INPUT_0, MASK);
+const OUTPUT_TYPE res = select(INPUT_2, INPUT_1, MASK);
 
 output[output_offset] = res;
 }

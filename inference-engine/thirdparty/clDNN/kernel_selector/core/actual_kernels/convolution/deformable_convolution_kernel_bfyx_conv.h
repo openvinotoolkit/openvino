@@ -32,8 +32,8 @@ protected:
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
     ParamsKey GetSupportedKey() const override;
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return { WeightsLayout::o_i_yx_i16_o16 };
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
+        return WeightsLayout::os_is_yx_isv16_osv16;
     }
 };
 }  // namespace kernel_selector

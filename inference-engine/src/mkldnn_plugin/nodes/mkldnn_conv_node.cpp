@@ -18,7 +18,6 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <ie_layers_internal.hpp>
-#include "cpu_isa_traits.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -86,12 +85,7 @@ bool MKLDNNConvolutionNode::canBeExecutedInInt8() {
                 weightsDataType = memory::s8;
         }
 
-        // FIXME: int8 GEMM convolution shows bad accuracy for several cases
-        bool isBrokenGemmConv = convLayer->input()->getDims().size() == 5 && convLayer->_group != 1 &&
-                (convLayer->input()->getDims()[1] / convLayer->_group % 4 != 0 || convLayer->_out_depth / convLayer->_group % 8 != 0);
-
-        return (inputDataType == mkldnn_s8 || inputDataType == mkldnn_u8) && weightsDataType == mkldnn_s8 &&
-                !isBrokenGemmConv;
+        return (inputDataType == mkldnn_s8 || inputDataType == mkldnn_u8) && weightsDataType == mkldnn_s8;
     } else {
         return this->getCnnLayer()->precision == Precision::I8;
     }
@@ -336,6 +330,9 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
+        if (node->getType() == Split || node->getType() == Concatenation)
+            continue;
+
 #if defined (COMPILED_CPU_MKLDNN_ELTWISE_NODE)
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
@@ -348,6 +345,8 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
             } else {
                 ops.append_sum(1.0, mkldnn::memory::convert_to_c(precisionToDataType(eltwisePrecision)));
             }
+
+            continue;
         }
 #endif
 
@@ -423,43 +422,8 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
 
         auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
         if (quantizeNode) {
-            if (initWeights) {
-                MKLDNNDims weightsDims({static_cast<ptrdiff_t>(rnd_up(biasesDims[0], 16))});
-                MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)weightsDims[0]}, memory::f32, memory::x};
-
-                auto cropLowDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                cropLowDataMem->Create(weightsDataDesc, quantizeNode->getCropLowPtr());
-
-                auto cropHighDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                cropHighDataMem->Create(weightsDataDesc, quantizeNode->getCropHighPtr());
-
-                auto inputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                inputScaleDataMem->Create(weightsDataDesc, quantizeNode->getInputScalePtr());
-
-                auto inputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                inputShiftDataMem->Create(weightsDataDesc, quantizeNode->getInputShiftPtr());
-
-                auto outputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                outputScaleDataMem->Create(weightsDataDesc, quantizeNode->getOutputScalePtr());
-
-                auto outputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                outputShiftDataMem->Create(weightsDataDesc, quantizeNode->getOutputShiftPtr());
-
-                PostOpsIntBlobMemory.push_back(cropLowDataMem);
-                PostOpsIntBlobMemory.push_back(cropHighDataMem);
-                PostOpsIntBlobMemory.push_back(inputScaleDataMem);
-                PostOpsIntBlobMemory.push_back(inputShiftDataMem);
-                PostOpsIntBlobMemory.push_back(outputScaleDataMem);
-                PostOpsIntBlobMemory.push_back(outputShiftDataMem);
-
-                ops.append_quantization(quantizeNode->getAlgorithm(), quantizeNode->getCropLowPtr(), quantizeNode->getCropHighPtr(),
-                                                                      quantizeNode->getInputScalePtr(), quantizeNode->getInputShiftPtr(),
-                                                                      quantizeNode->getOutputScalePtr(), quantizeNode->getOutputShiftPtr());
-
-                blob_idx += 6;
-            } else {
-                ops.append_quantization(quantizeNode->getAlgorithm(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
-            }
+            quantizeNode->appendPostOps(ops);
+            continue;
         }
 
         auto* convolutionNode = dynamic_cast<MKLDNNConvolutionNode *>(node.get());
@@ -551,6 +515,8 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
 
             continue;
         }
+
+        THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
     attr.set_post_ops(ops);

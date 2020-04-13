@@ -173,7 +173,7 @@ TEST_P(concat_test_bf16, TestsConcat) {}
 
 using fmt = memory::format;
 
-INSTANTIATE_TEST_CASE_P(TestConcat_ZeroDim, concat_test_float, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(TestConcat_ZeroDim, concat_test_float, ::testing::Values(
     concat_test_params{engine::kind::cpu, 1, {fmt::nChw8c, fmt::nChw16c}, fmt::nchw,  {{4, 0, 5, 5}, {4, 5, 5, 5}}, {4, 5, 5, 5}},
     concat_test_params{engine::kind::cpu, 1, {fmt::nChw8c, fmt::nChw16c}, fmt::nchw,  {{4, 4, 5, 5}, {4, 0, 5, 5}}, {4, 4, 5, 5}},
     concat_test_params{engine::kind::cpu, 1, {fmt::nChw8c, fmt::nChw8c}, fmt::nChw8c, {{4, 0, 5, 5}, {4, 5, 5, 5}}, {4, 5, 5, 5}},
@@ -186,7 +186,7 @@ INSTANTIATE_TEST_CASE_P(TestConcat_ZeroDim, concat_test_float, ::testing::Values
     concat_test_params{engine::kind::cpu, 1, {fmt::nchw, fmt::nchw}, fmt::nchw,  {{2, 4, 0, 5}, {2, 2, 0, 5}}, {2, 6, 0, 5}}
 ));
 
-INSTANTIATE_TEST_CASE_P(TestConcat_EF, concat_test_float, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(TestConcat_EF, concat_test_float, ::testing::Values(
     concat_test_params{engine::kind::cpu, 1, {fmt::nChw8c, fmt::nChw16c}, fmt::nchw,  {{4, 2, 5, 5}, {4, 5, 5, 5}}, {4, 5, 5, 5}, true, mkldnn_invalid_arguments},
     concat_test_params{engine::kind::cpu, 2, {fmt::nChw8c, fmt::nChw16c}, fmt::nchw,  {{4, 2, 5, 5}, {4, 3, 5, 5}}, {4, 5, 5, 5}, true, mkldnn_invalid_arguments},
     concat_test_params{engine::kind::cpu, 5, {fmt::nChw8c, fmt::nChw16c}, fmt::nchw,  {{4, 4, 5, 5}, {4, 0, 5, 5}}, {4, 4, 5, 5}, true, mkldnn_invalid_arguments},
@@ -198,7 +198,7 @@ INSTANTIATE_TEST_CASE_P(TestConcat_EF, concat_test_float, ::testing::Values(
     concat_test_params{engine::kind::cpu, 1, {fmt::nchw, fmt::nchw}, fmt::nchw,  {{1, 4, 5, 5}, {1, 2, 5, 5}}, {1, 6, 6, 5}, true, mkldnn_invalid_arguments}
 ));
 
-INSTANTIATE_TEST_CASE_P(TestConcat_padded, concat_test_float, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(TestConcat_padded, concat_test_float, ::testing::Values(
     concat_test_params{engine::kind::cpu, 1, {fmt::nChw16c, fmt::nChw16c}, fmt::nChw16c, {{4, 25, 5, 5}, {4, 45, 5, 5}}, {4, 70,  5,  5}, true, mkldnn_unimplemented},
     concat_test_params{engine::kind::cpu, 1, {fmt::nChw16c, fmt::nChw16c}, fmt::nchw,    {{4, 25, 5, 5}, {4, 45, 5, 5}}, {4, 70,  5,  5}},
     concat_test_params{engine::kind::cpu, 1, {fmt::nChw8c,  fmt::nChw8c},  fmt::nchw,    {{4, 25, 5, 5}, {4, 45, 5, 5}}, {4, 70,  5,  5}},
@@ -219,7 +219,7 @@ INSTANTIATE_TEST_CASE_P(TestConcat_padded, concat_test_float, ::testing::Values(
     concat_test_params{engine::kind::cpu, 2, {fmt::nChw8c,  fmt::nChw16c}, fmt::nchw,    {{4, 25, 5, 5}, {4, 25, 5, 5}}, {4, 25, 10,  5}}
 ));
 
-INSTANTIATE_TEST_CASE_P(TestConcat3D, concat_test_float, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(TestConcat3D, concat_test_float, ::testing::Values(
     concat_test_params{engine::kind::cpu, 0,
     {memory::format::ncdhw, memory::format::ncdhw}, memory::format::ncdhw,
     {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {4, 8, 3, 4, 5}},
@@ -258,7 +258,7 @@ INSTANTIATE_TEST_CASE_P(TestConcat3D, concat_test_float, ::testing::Values(
     {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {2, 8, 3, 4, 10}}
 ));
 
-INSTANTIATE_TEST_CASE_P(TestConcat, concat_test_float, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(TestConcat, concat_test_float, ::testing::Values(
     concat_test_params{engine::kind::cpu, 1,
     {memory::format::nchw, memory::format::nchw}, memory::format::nchw,
     {{2, 8, 3, 4}, {2, 8, 3, 4}}, {2, 16, 3, 4}},
@@ -297,7 +297,7 @@ INSTANTIATE_TEST_CASE_P(TestConcat, concat_test_float, ::testing::Values(
     {{2, 8, 1, 1}, {2, 16, 1, 1}}, {2, 24, 1, 1}}
 ));
 
-INSTANTIATE_TEST_CASE_P(TestConcat, concat_test_s8, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(TestConcat, concat_test_s8, ::testing::Values(
     concat_test_params{engine::kind::cpu, 1,
     {memory::format::nhwc, memory::format::nhwc}, memory::format::nhwc,
     {{2, 8, 3, 4}, {2, 8, 3, 4}}, {2, 16, 3, 4}},
@@ -306,7 +306,7 @@ INSTANTIATE_TEST_CASE_P(TestConcat, concat_test_s8, ::testing::Values(
     {{2, 8, 3, 4}, {2, 8, 3, 4}}, {2, 16, 3, 4}}
     ));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestConcat_ZeroDim, concat_test_bf16,
         ::testing::Values(
                 concat_test_params{ engine::kind::cpu, 1,
@@ -341,7 +341,7 @@ INSTANTIATE_TEST_CASE_P(
                         { { 2, 4, 0, 5 }, { 2, 2, 0, 5 } }, { 2, 6, 0, 5 } }
 ));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestConcat_EF, concat_test_bf16,
         ::testing::Values(
                 concat_test_params{ engine::kind::cpu, 1,
@@ -382,7 +382,7 @@ INSTANTIATE_TEST_CASE_P(
                         true, mkldnn_invalid_arguments }
 ));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestConcat_padded, concat_test_bf16,
         ::testing::Values(
                 concat_test_params{ engine::kind::cpu, 1,
@@ -442,7 +442,7 @@ INSTANTIATE_TEST_CASE_P(
                         { 4, 25, 10, 5 } }
 ));
 
-INSTANTIATE_TEST_CASE_P(TestConcat3D, concat_test_bf16, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(TestConcat3D, concat_test_bf16, ::testing::Values(
     concat_test_params{engine::kind::cpu, 0,
     {memory::format::ncdhw, memory::format::ncdhw}, memory::format::ncdhw,
     {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {4, 8, 3, 4, 5}},
@@ -481,7 +481,7 @@ INSTANTIATE_TEST_CASE_P(TestConcat3D, concat_test_bf16, ::testing::Values(
     {{2, 8, 3, 4, 5}, {2, 8, 3, 4, 5}}, {2, 16, 3, 4, 5}}
 ));
 
-INSTANTIATE_TEST_CASE_P(TestConcat, concat_test_bf16, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(TestConcat, concat_test_bf16, ::testing::Values(
     concat_test_params{engine::kind::cpu, 1,
     {memory::format::nchw, memory::format::nchw}, memory::format::nchw,
     {{2, 8, 3, 4}, {2, 8, 3, 4}}, {2, 16, 3, 4}},

@@ -28,9 +28,8 @@ mkldnn_status_t ref_gemm(const char *transa, const char *transb, const int *M,
         const int *N, const int *K, const data_t *alpha, const data_t *A,
         const int *lda, const data_t *B, const int *ldb, const data_t *beta,
         data_t *C, const int *ldc, const data_t *bias);
-
 }
-}
-}
+} // namespace impl
+} // namespace mkldnn
 
 #endif // REF_GEMM_F32_HPP

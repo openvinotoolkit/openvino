@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,11 +47,7 @@ bool DeconvolutionKernelBase::Validate(const Params& p, const optional_params& o
     const deconvolution_params& params = static_cast<const deconvolution_params&>(p);
     const deconvolution_optional_params& optParams = static_cast<const deconvolution_optional_params&>(o);
 
-    bool bSupportedWeightsLayout = false;
-
-    for (WeightsLayout l : GetSupportedWeightLayouts(params)) {
-        bSupportedWeightsLayout |= params.weights.GetLayout() == l;
-    }
+    bool bSupportedWeightsLayout = params.weights.GetLayout() == GetPreferredWeightsLayout(params);
 
     const bool bWeightsOK = bSupportedWeightsLayout || optParams.allowStaticInputReordering;
 
@@ -102,7 +98,7 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernelBase::SetDefault(const 
     kd.lws0 = lws0;
     kd.lws1 = 1;
     kd.lws2 = 1;
-    kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return kd;
 }
 
@@ -118,7 +114,7 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const 
     KernelData kd = KernelData::Default<deconvolution_params>(params);
     deconvolution_params& newParams = *static_cast<deconvolution_params*>(kd.params.get());
 
-    bool succeed = UpdateWeightsParams(newParams, options, GetSupportedWeightLayouts(newParams), kd.weightsReorderParams);
+    bool succeed = UpdateWeightsParams(newParams, options, GetPreferredWeightsLayout(newParams), kd.weightsReorderParams);
 
     if (!succeed) {
         return {};
@@ -142,7 +138,7 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const 
     if (orgParams.fused_eltwise)
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = runInfo.efficiency;
 
     return {kd};
 }

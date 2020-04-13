@@ -61,7 +61,7 @@ private:
 
     void finalCheckImpl() const override {
         assertInputsOutputsTypes(this,
-             {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}, {DataType::FP16}},
+             {{DataType::FP16}, {DataType::FP16}},
              {{DataType::FP16}});
     }
 
@@ -71,30 +71,11 @@ private:
     void serializeDataImpl(BlobSerializer& serializer) const override {
         auto input = inputEdge(0)->input();
         auto weights = inputEdge(1)->input();
-        auto biases = inputEdge(2)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeOldBuffer(this, serializer);
-
-        if (output->desc().dimsOrder() == DimsOrder::NC) {
-            IE_ASSERT(output->desc().dim(Dim::N) == 1);
-
-            output->serializeOldBuffer(
-                this,
-                serializer,
-                DimsOrder::HWC,
-                {
-                    {Dim::W, {Dim::N}},
-                    {Dim::C, {Dim::C}}
-                });
-        } else {
-            output->serializeOldBuffer(this, serializer);
-        }
-
-        weights->serializeOldBuffer(this, serializer);
-
-        // TODO: remove this
-        biases->serializeOldBuffer(this, serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
+        weights->serializeBuffer(serializer);
     }
 };
 
@@ -123,42 +104,44 @@ void PassImpl::run(const Model& model) {
 
         model->disconnectStage(stage);
 
+        model->addNewStage<FullyConnectedStage>(
+            stage->name(),
+            StageType::FC,
+            stage->origLayer(),
+            {input, weights},
+            {output});
+
         if (biases->usage() != DataUsage::Fake) {
-            auto tempOutput = model->duplicateData(
+            auto biasesInput = model->duplicateData(
                 output,
-                "@temp");
+                "@pre-bias");
+
+            const auto outputProducerEdge = output->producerEdge();
+            model->replaceStageOutput(outputProducerEdge, biasesInput);
 
             _stageBuilder->addBiasStage(
                 model,
                 stage->name() + "@biases",
                 stage->origLayer(),
-                tempOutput, biases,
+                biasesInput, biases,
                 output);
-
-            output = tempOutput;
         }
 
         if (scales->usage() != DataUsage::Fake) {
-            auto tempOutput = model->duplicateData(
+            auto scalesInput = model->duplicateData(
                 output,
-                "@temp");
+                "@pre-scaled");
+
+            const auto outputProducerEdge = output->producerEdge();
+            model->replaceStageOutput(outputProducerEdge, scalesInput);
 
             _stageBuilder->addScaleStage(
                 model,
                 stage->name() + "@scales",
                 stage->origLayer(),
-                tempOutput, scales,
+                scalesInput, scales,
                 output);
-
-            output = tempOutput;
         }
-
-        model->addNewStage<FullyConnectedStage>(
-            stage->name(),
-            StageType::FC,
-            stage->origLayer(),
-            {input, weights, biases, scales},
-            {output});
 
         model->removeStage(stage);
     }
@@ -187,42 +170,44 @@ Stage StageBuilder::addSwFullyConnectedStage(
             input->desc().dim(Dim::C),
             output->desc().dim(Dim::C)}));
 
+    auto fcStage = model->addNewStage<FullyConnectedStage>(
+        name,
+        StageType::FC,
+        layer,
+        {input, fcWeights},
+        {output});
+
     if (biases->usage() != DataUsage::Fake) {
-        auto tempOutput = model->duplicateData(
+        auto biasesInput = model->duplicateData(
             output,
-            "@temp");
+            "@pre-bias");
+
+        const auto outputProducerEdge = output->producerEdge();
+        model->replaceStageOutput(outputProducerEdge, biasesInput);
 
         addBiasStage(
             model,
             name + "@biases",
             layer,
-            tempOutput, biases,
+            biasesInput, biases,
             output);
-
-        output = tempOutput;
     }
 
     if (scales->usage() != DataUsage::Fake) {
-        auto tempOutput = model->duplicateData(
+        auto scalesInput = model->duplicateData(
             output,
-            "@temp");
+            "@pre-scaled");
+
+        const auto outputProducerEdge = output->producerEdge();
+        model->replaceStageOutput(outputProducerEdge, scalesInput);
 
         addScaleStage(
             model,
             name + "@scales",
             layer,
-            tempOutput, scales,
+            scalesInput, scales,
             output);
-
-        output = tempOutput;
     }
-
-    auto fcStage = model->addNewStage<FullyConnectedStage>(
-        name,
-        StageType::FC,
-        layer,
-        {input, fcWeights, biases, scales},
-        {output});
 
     return fcStage;
 }

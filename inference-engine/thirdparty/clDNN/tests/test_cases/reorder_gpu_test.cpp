@@ -111,7 +111,6 @@ TEST(reorder_gpu_f32, basic)
     {
         EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
-
 }
 
 TEST(reorder_gpu_f32, basic_subtract) {
@@ -1649,6 +1648,249 @@ TEST(reorder_gpu_f32, bfwzyx_bfyx_chain)
     }
 }
 
+TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16)
+{
+    const auto& engine = get_test_engine();
+    const int32_t b_in = 2;
+    const int32_t f_in = 2;
+    const int32_t x_in = 2;
+    const int32_t y_in = 2;
+    const int32_t z_in = 2;
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx, { b_in,f_in,x_in,y_in,z_in } });
+    layout output_layout(data_types::f32, format::bs_fs_zyx_bsv16_fsv16,{ b_in,f_in,x_in,y_in,z_in });
+
+    tests::set_random_values<float>(input);
+
+    topology topology(
+            input_layout("input", input.get_layout()),
+            reorder("reorder", "input", output_layout));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    auto get_bsv16_fsv16_index = [] (int32_t b_size, int32_t f_size, int32_t z_size, int32_t y_size, int32_t x_size, int32_t b,
+                                     int32_t f_pad_before, int32_t f, int32_t f_pad_after,
+                                     int32_t z_pad_before, int32_t z, int32_t z_pad_after,
+                                     int32_t y_pad_before, int32_t y, int32_t y_pad_after,
+                                     int32_t x_pad_before, int32_t x, int32_t x_pad_after) {
+        const int32_t alignment = 16;
+        const int32_t fs = f / alignment;
+        const int32_t fsv = f % alignment;
+        const int32_t bs = b / alignment;
+        const int32_t bsv = b % alignment;
+        const int32_t x_pitch = alignment * alignment;
+        const int32_t y_pitch = x_pitch * (x_pad_before +  x_size + x_pad_after);
+        const int32_t z_pitch = y_pitch * (y_pad_before +  y_size + y_pad_after);
+        const int32_t total_f_size = f_pad_before + f + f_pad_after;
+        const int32_t fs_pitch = z_pitch * (z_pad_before +  z_size + z_pad_after);
+        const int32_t b_pitch = fs_pitch * ((total_f_size + alignment - 1) / alignment);
+
+        const int32_t fs_pad_before = f_pad_before / alignment;
+
+        const int32_t output_offset = (bs * b_pitch) + (bsv * alignment) +
+                                      (fs_pad_before + fs) * fs_pitch +
+                                      (z_pad_before + z) * z_pitch +
+                                      (y_pad_before + y) * y_pitch +
+                                      (x_pad_before + x) * x_pitch
+                                      + fsv;
+
+        return output_offset;
+    };
+
+    auto input_ptr = input.pointer<float>();
+    auto output_ptr = output.pointer<float>();
+    int32_t linear_index = 0;
+    for (int32_t b = 0; b < b_in; b++) {
+        for (int32_t f = 0; f < f_in; f++) {
+            for (int32_t z = 0; z < z_in; z++) {
+                for (int32_t y = 0; y < y_in; y++) {
+                    for (int32_t x = 0; x < x_in; x++) {
+                        int32_t bsv16_fsv16_index = get_bsv16_fsv16_index(b_in,f_in,z_in,y_in,x_in,b,
+                                                                          0,f,0,
+                                                                          0,z,0,
+                                                                          0,y,0,
+                                                                          0,x,0);
+                        EXPECT_FLOAT_EQ(input_ptr[linear_index++], output_ptr[bsv16_fsv16_index]);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
+{
+    const auto& engine = get_test_engine();
+    const int32_t b_in = 2;
+    const int32_t f_in = 2;
+    const int32_t x_in = 2;
+    const int32_t y_in = 2;
+    const int32_t z_in = 2;
+    const int32_t f_pad = 0;
+    const int32_t z_pad= 0;
+    const int32_t y_pad= 2;
+    const int32_t x_pad= 1;
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfzyx, { b_in,f_in,x_in,y_in,z_in } });
+    layout output_layout(data_types::f32, format::bs_fs_zyx_bsv16_fsv16,{ b_in,f_in,x_in,y_in,z_in });
+
+    tests::set_random_values<float>(input);
+
+    topology topology(
+            input_layout("input", input.get_layout()),
+            reorder("reorder", "input", output_layout.with_padding(padding({0, 0, x_pad, y_pad, 0}, 0.f))));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    auto get_bsv16_fsv16_index = [] (int32_t b_size, int32_t f_size, int32_t z_size, int32_t y_size, int32_t x_size, int32_t b,
+                                     int32_t f_pad_before, int32_t f, int32_t f_pad_after,
+                                     int32_t z_pad_before, int32_t z, int32_t z_pad_after,
+                                     int32_t y_pad_before, int32_t y, int32_t y_pad_after,
+                                     int32_t x_pad_before, int32_t x, int32_t x_pad_after) {
+        const int32_t alignment = 16;
+        const int32_t fs = f / alignment;
+        const int32_t fsv = f % alignment;
+        const int32_t bs = b / alignment;
+        const int32_t bsv = b % alignment;
+        const int32_t x_pitch = alignment * alignment;
+        const int32_t y_pitch = x_pitch * (x_pad_before +  x_size + x_pad_after);
+        const int32_t z_pitch = y_pitch * (y_pad_before +  y_size + y_pad_after);
+        const int32_t total_f_size = f_pad_before + f + f_pad_after;
+        const int32_t fs_pitch = z_pitch * (z_pad_before +  z_size + z_pad_after);
+        const int32_t b_pitch = fs_pitch * ((total_f_size + alignment - 1) / alignment);
+
+        const int32_t fs_pad_before = f_pad_before / alignment;
+
+        const int32_t output_offset = (bs * b_pitch) + (bsv * alignment) +
+                                      (fs_pad_before + fs) * fs_pitch +
+                                      (z_pad_before + z) * z_pitch +
+                                      (y_pad_before + y) * y_pitch +
+                                      (x_pad_before + x) * x_pitch
+                                      + fsv;
+
+        return output_offset;
+    };
+
+    auto input_ptr = input.pointer<float>();
+    auto output_ptr = output.pointer<float>();
+    int32_t linear_index = 0;
+    for (int32_t b = 0; b < b_in; b++) {
+        for (int32_t f = 0; f < f_in; f++) {
+            for (int32_t z = 0; z < z_in; z++) {
+                for (int32_t y = 0; y < y_in; y++) {
+                    for (int32_t x = 0; x < x_in; x++) {
+                        int32_t bsv16_fsv16_index = get_bsv16_fsv16_index(b_in,f_in,z_in,y_in,x_in,b,
+                                                                          f_pad,f,f_pad,
+                                                                          z_pad,z,z_pad,
+                                                                          y_pad,y,y_pad,
+                                                                          x_pad,x,x_pad);
+                        EXPECT_FLOAT_EQ(input_ptr[linear_index++], output_ptr[bsv16_fsv16_index]);
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_allowed)
+{
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 1, 8, 1, 1 } });
+
+    set_values(input, { 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f });
+
+    const std::string reorder_name = "reorder_prim";
+    topology topology(
+            input_layout("input", input.get_layout()),
+            activation("first_activation", "input", activation_func::abs),
+            reorder(reorder_name, "first_activation", format::bfyx, data_types::f32),
+            activation("second_activation", reorder_name, activation_func::abs));
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto executed_prims = network.get_executed_primitives();
+
+    EXPECT_TRUE(executed_prims.find(reorder_name) == executed_prims.end());
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "second_activation");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    float answers[16] = {
+            0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f,
+    };
+
+    auto output_ptr = output.pointer<float>();
+    for (size_t i = 0; i < output_ptr.size(); i++)
+    {
+        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_not_allowed)
+{
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 1, 8, 1, 1 } });
+    auto weights = memory::allocate(engine, { data_types::f32, format::oiyx, { 1, 8, 3, 3 } });
+
+    set_values(input, { 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f });
+
+    set_values(weights, std::vector<float>(weights.count(), 1));
+
+    const std::string reorder_name = "reorder";
+    const std::string reorder_primitive_name = "reorder:" + reorder_name;
+    topology topology(
+            input_layout("input", input.get_layout()),
+            data("weights", weights),
+            reorder(reorder_name, "input", format::bfyx, data_types::f32),
+            convolution("convolution", reorder_name, {"weights"}, {1,1,1,1}, {0,0,-1,-1}, {1,1,1,1}));
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto executed_prims = network.get_executed_primitive_ids();
+
+    EXPECT_FALSE(std::find(executed_prims.begin(), executed_prims.end(), reorder_primitive_name) != executed_prims.end());
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "convolution");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    float answers[1] = { 28.f };
+
+    auto output_ptr = output.pointer<float>();
+    for (int i = 0; i < 1; i++)
+    {
+        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
 TEST(reorder_gpu, any_format) {
     auto& engine = get_test_engine();
 
@@ -1682,14 +1924,11 @@ public:
 
     static void TearDownTestCase()
     {
-        for (auto generic_params : all_generic_params)
-        {
-            delete generic_params;
-        }
+        all_generic_params.clear();
         all_test_params.clear();
     }
 
-    static std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> generate_specific_test_params()
+    static std::vector<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>> generate_specific_test_params()
     {
         generic_test::generate_generic_test_params(all_generic_params);
 
@@ -1785,13 +2024,13 @@ public:
 
 private:
 
-    static std::vector<tests::test_params*> all_generic_params;
-    static std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> all_test_params;
+    static std::vector<std::shared_ptr<tests::test_params>> all_generic_params;
+    static std::vector<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>> all_test_params;
 
 };
 
-std::vector<tests::test_params*> reorder_test::all_generic_params = {};
-std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> reorder_test::all_test_params = {};
+std::vector<std::shared_ptr<tests::test_params>> reorder_test::all_generic_params = {};
+std::vector<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>> reorder_test::all_test_params = {};
 
 TEST_P(reorder_test, REORDER)
 {

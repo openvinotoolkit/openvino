@@ -105,7 +105,6 @@ IE_SUPPRESS_DEPRECATED_END
     setOption(_watchdogInterval, watchdogIntervals, config, VPU_MYRIAD_CONFIG_KEY(WATCHDOG));
     setOption(_deviceConnectTimeout, config, VPU_MYRIAD_CONFIG_KEY(DEVICE_CONNECT_TIMEOUT), parseSeconds);
     setOption(_powerConfig, powerConfigs, config, VPU_MYRIAD_CONFIG_KEY(POWER_MANAGEMENT));
-    setOption(_numExecutors, config, VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
 
 IE_SUPPRESS_DEPRECATED_START
     setOption(_forceReset, switches, config, VPU_CONFIG_KEY(FORCE_RESET));

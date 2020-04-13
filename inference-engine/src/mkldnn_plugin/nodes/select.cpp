@@ -84,10 +84,16 @@ public:
         switch (compare) {
             /* 64 bit data type */
             case getPrecisionMask(Precision::I32, Precision::I64):
-                execute_impl<int32_t , int32_t>(inputs, outputData);
+                execute_impl<int32_t, int64_t>(inputs, outputData);
                 break;
             case getPrecisionMask(Precision::U8, Precision::I64):
-                execute_impl<uint8_t , int32_t>(inputs, outputData);
+                execute_impl<uint8_t, int64_t>(inputs, outputData);
+                break;
+            case getPrecisionMask(Precision::I32, Precision::U64):
+                execute_impl<int32_t, uint64_t>(inputs, outputData);
+                break;
+            case getPrecisionMask(Precision::U8, Precision::U64):
+                execute_impl<uint8_t , uint64_t>(inputs, outputData);
                 break;
 
             /* 32 bit data type */

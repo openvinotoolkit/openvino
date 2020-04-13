@@ -146,17 +146,21 @@ def compare_graphs(graph: Graph, graph_ref: Graph, last_node: str, last_node_ref
             if in_node.id not in checked_nodes_ref and in_node.id not in q_ref:
                 q_ref.append(in_node.id)
 
-        out_nodes = node.out_nodes().values() if node.kind == 'op' else node.out_nodes()
+        out_nodes = node.out_nodes().values() if node.kind == 'op' else sorted_by_name(node.out_nodes())
         for out_node in out_nodes:
             if out_node.id not in checked_nodes and out_node.id not in q:
                 q.append(out_node.id)
 
-        out_nodes = node_ref.out_nodes().values() if node_ref.kind == 'op' else node_ref.out_nodes()
+        out_nodes = node_ref.out_nodes().values() if node_ref.kind == 'op' else sorted_by_name(node_ref.out_nodes())
         for out_node in out_nodes:
             if out_node.id not in checked_nodes_ref and out_node.id not in q_ref:
                 q_ref.append(out_node.id)
 
     return (False, stderr) if stderr else (True, [])
+
+
+def sorted_by_name(nodes_list):
+    return sorted(nodes_list, key=lambda x: x.soft_get('name', x.id))
 
 
 def values_are_equal(value, value_ref):

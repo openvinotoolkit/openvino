@@ -33,6 +33,18 @@ using namespace mkldnn::impl::memory_format;
 using namespace mkldnn::impl::memory_tracking::names;
 using namespace mkldnn::impl::utils;
 
+namespace {
+struct im_pos_t {
+    im_pos_t() : n{ 0 }, g{ 0 }, od{ 0 }, sp{ 0 }, ic{ 0 }, oc{ 0 } {}
+    int n, g, od, sp, ic, oc;
+    bool do_im2col(const im_pos_t &prev) const {
+        return true
+                && (n != prev.n || g != prev.g || od != prev.od || sp != prev.sp
+                           || ic != prev.ic);
+    }
+};
+} // namespace
+
 void gemm_convolution_fwd_t::execute_forward() const {
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto weights = reinterpret_cast<const data_t *>(this->input_memory(1));
@@ -47,158 +59,216 @@ void gemm_convolution_fwd_t::execute_forward() const {
     const memory_desc_wrapper src_d(pd()->src_pd());
     const memory_desc_wrapper dst_d(pd()->dst_pd());
 
-    const int M = jcp.os * jcp.od;
     const size_t src_step = (src_d.blk_off(1) - src_d.off_l(0)) / jcp.ngroups;
     const size_t dst_step = (dst_d.blk_off(1) - dst_d.off_l(0)) / jcp.ngroups;
-    const size_t weights_g_size = jcp.ic * jcp.oc * jcp.ks;
+    const size_t weights_oc_size = jcp.ic * jcp.ks;
+    const size_t weights_g_size = weights_oc_size * jcp.oc;
+    const bool is_problem_3d = pd()->ndims() == 5;
     src += src_d.off_l(0);
     dst += dst_d.off_l(0);
 
     assert(IMPLICATION(
-            jcp.id != 1, jcp.oh_block == jcp.oh && jcp.ow_block == jcp.ow));
-    assert(IMPLICATION(jcp.ow_block != jcp.ow, jcp.oh_block == 1));
+            is_problem_3d, jcp.os_block == jcp.os && jcp.ic_block == jcp.ic));
 
-    const int K = jcp.ic * jcp.ks;
-    const int N = jcp.oc;
-
-    if (jcp.im2col_sz && jcp.id != 1)
-        parallel_nd(jcp.im2col_sz * jcp.nthr,
-                [&](ptrdiff_t i) { col[i] = (data_t)0; });
-
-    const int nb_oh = div_up(jcp.oh, jcp.oh_block);
-    const int nb_ow = div_up(jcp.ow, jcp.ow_block);
-    const size_t work_amount = jcp.ngroups * MB * jcp.od * nb_oh * nb_ow;
-    parallel(jcp.nthr, work_amount, [&](const int ithr, const int nthr) {
+    parallel(jcp.nthr, [&](const int ithr, const int nthr) {
         data_t *_col = col + (ptrdiff_t)ithr * jcp.im2col_sz;
+        if (is_problem_3d) {
+            // jit_gemm_convolution_utils::im2col_3d() requires external
+            // data initialization by zeroes
+            for (ptrdiff_t i = 0; i < jcp.im2col_sz; i++)
+                _col[i] = (data_t)0;
+        }
 
-        int g{ 0 }, n{ 0 }, od{ 0 }, ohb{ 0 }, owb{ 0 };
-        size_t start = 0, end = 0;
+        auto inner_ker = [&](int spatial, const im_pos_t &curr, im_pos_t &prev,
+                                 im_pos_t &step, const im_pos_t &end) {
+            const data_t *_src
+                    = src + (curr.n * jcp.ngroups + curr.g) * src_step;
+            step.oc = nstl::min(
+                    jcp.oc_block, nstl::min(jcp.oc, end.oc) - curr.oc);
+            step.sp = nstl::min(jcp.os_block,
+                    nstl::min(jcp.os - curr.sp, end.sp - spatial));
+            step.ic = nstl::min(
+                    jcp.ic_block, nstl::min(jcp.ic, end.ic) - curr.ic);
+            bool do_im2col = curr.do_im2col(prev);
+            prev = curr;
 
-        balance211(work_amount, nthr, ithr, start, end);
-        nd_iterator_init(start, g, jcp.ngroups, n, MB, od, jcp.od, ohb,
-                nb_oh, owb, nb_ow);
-        for (size_t iwork = start; iwork < end; ++iwork) {
-            int oh = ohb * jcp.oh_block;
-            int ow = owb * jcp.ow_block;
-            const data_t *_src = src + (n * jcp.ngroups + g) * src_step;
-            const data_t *_weights = weights + g * weights_g_size;
-            data_t *_dst_im = dst + (n * jcp.ngroups + g) * dst_step;
-            const int h_step = nstl::min(jcp.oh_block, jcp.oh - oh);
-            const int w_step = nstl::min(jcp.ow_block, jcp.ow - ow);
-            if (jcp.im2col_sz) {
-                if (jcp.id == 1)
+            if (jcp.im2col_sz && do_im2col) {
+                if (!is_problem_3d)
                     jit_gemm_convolution_utils::im2col<float>(
-                            jcp, _src, _col, oh, h_step, ow, w_step);
+                            jcp, _src, _col, curr.sp, step.sp, curr.ic, step.ic);
                 else
-                    jit_gemm_convolution_utils::im2col_3d<float>(jcp, _src, _col, od);
+                    jit_gemm_convolution_utils::im2col_3d<float>(
+                            jcp, _src, _col, curr.od);
             }
-
             const data_t one = 1.0;
 
-            const int m = h_step * w_step;
+            const int M = jcp.os * jcp.od;
+            const int m = step.sp;
             const int LDA = jcp.im2col_sz ? m : M;
-            data_t *_dst = _dst_im + od * jcp.os + oh * jcp.ow + ow;
 
-            extended_sgemm("N", "N", &m, &N, &K, &one,
-                    jcp.im2col_sz ? _col : _src + od * m, &LDA, _weights, &K,
-                    &this->beta_, _dst, &M);
+            data_t *_dst = dst + (curr.n * jcp.ngroups + curr.g) * dst_step
+                    + curr.oc * M + curr.od * jcp.os + curr.sp;
+            const int K = step.ic * jcp.ks;
+            const int LDB = jcp.ic * jcp.ks;
+            const int N = step.oc;
 
-            data_t *d = _dst;
-            const auto &p = pd()->attr()->post_ops_;
-            bool need_bias = jcp.with_bias;
-            if (use_fast_relu) {
-                parallel_nd(jcp.oc, [&](const int oc) {
-                    data_t b = need_bias ? bias[g * jcp.oc + oc] : 0;
-                    data_t *d_ = d + oc * M;
-                    PRAGMA_OMP_SIMD()
-                    for (int oS = 0; oS < m; ++oS) {
-                        d_[oS] += b;
-                        if (d_[oS] < 0) d_[oS] *= fast_relu_ns;
-                    }
-                });
+            // TODO: what if this->beta_ != 0 && != 1 ?
+            const float beta = (curr.ic == 0) ? this->beta_ : one;
+            const float *_source = jcp.im2col_sz
+                    ? _col
+                    : _src + curr.ic * M + curr.od * jcp.os + curr.sp;
+            const data_t *_weights = weights + curr.g * weights_g_size
+                    + curr.oc * weights_oc_size + curr.ic * jcp.ks;
 
-                need_bias = false;
-            } else if (p.len_ > 0) {
-                int eltwise_inj_idx = 0;
-                int depthwise_inj_idx = 0;
+            extended_sgemm("N", "N", &m, &N, &K, &one, _source, &LDA, _weights,
+                    &LDB, &beta, _dst, &M);
+            if (curr.ic == jcp.ic - step.ic) {
+                // TODO: for "outer threading" we have parallel section within
+                // outermost "parallel". It is not good. Consider to use
+                // "parallel" here with number of threads passed as parameter
+                const int oc_start = curr.g * jcp.oc + curr.oc;
+                const auto &p = pd()->attr()->post_ops_;
+                bool need_bias = jcp.with_bias;
+                if (use_fast_relu) {
+                    parallel_nd(step.oc, [&](const int oc) {
+                        data_t b = need_bias ? bias[oc_start + oc] : 0;
+                        data_t *d_ = _dst + oc * M;
+                        PRAGMA_OMP_SIMD()
+                        for (int oS = 0; oS < m; ++oS) {
+                            d_[oS] += b;
+                            if (d_[oS] < 0) d_[oS] *= fast_relu_ns;
+                        }
+                    });
 
-                for (int i = 0; i < p.len_; i++) {
-                    auto& post_op = p.entry_[i];
-                    if (post_op.is_eltwise()) {
-                        parallel_nd(jcp.oc, [&](const int oc) {
-                            data_t b = need_bias ? bias[g * jcp.oc + oc] : 0;
-                            data_t *d_ = d + oc * M;
-                            PRAGMA_OMP_SIMD()
-                            for (int oS = 0; oS < m; ++oS) {
-                                d_[oS] += b;
-                                d_[oS] = eltwise_injectors[eltwise_inj_idx]->compute_scalar(d_[oS]);
-                            }
-                        });
+                    need_bias = false;
+                } else if (p.len_ > 0) {
+                    int eltwise_inj_idx = 0;
+                    int depthwise_inj_idx = 0;
 
-                        eltwise_inj_idx++;
-                        need_bias = false;
-                    } else if (post_op.is_depthwise()) {
-                        auto depthwise_weights = post_op.depthwise.weights_data;
-                        auto depthwise_bias = post_op.depthwise.biases_data;
+                    for (int i = 0; i < p.len_; i++) {
+                        auto& post_op = p.entry_[i];
+                        if (post_op.is_eltwise()) {
+                            parallel_nd(step.oc, [&](const int oc) {
+                                data_t b = need_bias ? bias[oc_start + oc] : 0;
+                                data_t *d_ = _dst + oc * M;
+                                PRAGMA_OMP_SIMD()
+                                for (int oS = 0; oS < m; ++oS) {
+                                    d_[oS] += b;
+                                    d_[oS] = eltwise_injectors[eltwise_inj_idx]->compute_scalar(d_[oS]);
+                                }
+                            });
 
-                        parallel_nd(jcp.oc, [&](const int oc) {
-                            data_t b = need_bias ? bias[g * jcp.oc + oc] : 0;
-                            data_t *d_ = d + oc * M;
-                            PRAGMA_OMP_SIMD()
-                            for (int oS = 0; oS < m; ++oS) {
-                                d_[oS] += b;
-                                d_[oS] = depthwise_injectors[depthwise_inj_idx]->compute_scalar(d_[oS],
-                                                                  depthwise_weights + g * jcp.oc + oc,
-                                                                  depthwise_bias + g * jcp.oc + oc);
-                            }
-                        });
+                            eltwise_inj_idx++;
+                            need_bias = false;
+                        } else if (post_op.is_depthwise()) {
+                            auto depthwise_weights = post_op.depthwise.weights_data;
+                            auto depthwise_bias = post_op.depthwise.biases_data;
 
-                        depthwise_inj_idx++;
-                        need_bias = false;
-                    } else if (post_op.is_quantization()) {
-                        auto pcl = post_op.quantization.crop_low_data;
-                        auto pch = post_op.quantization.crop_high_data;
-                        auto pisc = post_op.quantization.input_scale_data;
-                        auto pish = post_op.quantization.input_shift_data;
-                        auto posc = post_op.quantization.output_scale_data;
-                        auto posh = post_op.quantization.output_shift_data;
+                            parallel_nd(step.oc, [&](const int oc) {
+                                data_t b = need_bias ? bias[oc_start + oc] : 0;
+                                data_t *d_ = _dst + oc * M;
+                                PRAGMA_OMP_SIMD()
+                                for (int oS = 0; oS < m; ++oS) {
+                                    d_[oS] += b;
+                                    d_[oS] = depthwise_injectors[depthwise_inj_idx]->compute_scalar(d_[oS],
+                                                                                                    depthwise_weights + oc_start + oc,
+                                                                                                    depthwise_bias + oc_start + oc);
+                                }
+                            });
 
-                        parallel_nd(jcp.oc, [&](const int oc) {
-                            data_t b = need_bias ? bias[g * jcp.oc + oc] : 0;
-                            data_t *d_ = d + oc * M;
+                            depthwise_inj_idx++;
+                            need_bias = false;
+                        } else if (post_op.is_quantization()) {
+                            auto quant = post_op.quantization;
+                            auto pcl = quant.crop_low_data->shifts_;
+                            auto pch = quant.crop_high_data->shifts_;
+                            auto pisc = quant.input_scale_data->scales_;
+                            auto pish = quant.input_shift_data->shifts_;
+                            auto posc = quant.output_scale_data->scales_;
+                            auto posh = quant.output_shift_data->shifts_;
 
-                            int idx = g * jcp.oc + oc;
+                            parallel_nd(step.oc, [&](const int oc) {
+                                data_t b = need_bias ? bias[oc_start + oc] : 0;
+                                data_t *d_ = _dst + oc * M;
 
-                            PRAGMA_OMP_SIMD()
-                            for (int oS = 0; oS < m; ++oS) {
-                                d_[oS] += b;
+                                int cl_idx = quant.crop_low_data->count_ == 1 ? 0 : oc_start + oc;
+                                int ch_idx = quant.crop_high_data->count_ == 1 ? 0 : oc_start + oc;
+                                int isc_idx = quant.input_scale_data->count_ == 1 ? 0 : oc_start + oc;
+                                int ish_idx = quant.input_shift_data->count_ == 1 ? 0 : oc_start + oc;
+                                int osc_idx = quant.output_scale_data->count_ == 1 ? 0 : oc_start + oc;
+                                int osh_idx = quant.output_shift_data->count_ == 1 ? 0 : oc_start + oc;
 
-                                d_[oS] = nstl::min(pch[idx], nstl::max(pcl[idx], d_[oS]));
-                                d_[oS] = d_[oS] * pisc[idx] + pish[idx];
-                                d_[oS] = roundf(d_[oS]);
-                                d_[oS] = d_[oS] * posc[idx] + posh[idx];
-                            }
-                        });
+                                PRAGMA_OMP_SIMD()
+                                for (int oS = 0; oS < m; ++oS) {
+                                    d_[oS] += b;
 
-                        need_bias = false;
+                                    d_[oS] = nstl::min(pch[ch_idx], nstl::max(pcl[cl_idx], d_[oS]));
+                                    d_[oS] = d_[oS] * pisc[isc_idx] + pish[ish_idx];
+                                    d_[oS] = roundf(d_[oS]);
+                                    d_[oS] = d_[oS] * posc[osc_idx] + posh[osh_idx];
+                                }
+                            });
+
+                            need_bias = false;
+                        }
                     }
                 }
-            }
 
-            if (need_bias) {
-                parallel_nd(jcp.oc, [&](const int oc) {
-                    data_t b = bias[g * jcp.oc + oc];
-                    data_t *d_ = d + oc * M;
-                    PRAGMA_OMP_SIMD()
-                    for (int oS = 0; oS < m; ++oS) {
-                        d_[oS] += b;
-                    }
-                });
+                if (need_bias) {
+                    parallel_nd(step.oc, [&](const int oc) {
+                        data_t b = bias[oc_start + oc];
+                        data_t *d_ = _dst + oc * M;
+                        PRAGMA_OMP_SIMD()
+                        for (int oS = 0; oS < m; ++oS) {
+                            d_[oS] += b;
+                        }
+                    });
+                }
             }
+        };
+        im_pos_t start, end;
+        end.ic = jcp.ic;
 
-            nd_iterator_step(g, jcp.ngroups, n, MB, od, jcp.od, ohb, nb_oh,
-                    owb, nb_ow);
+        if (!is_problem_3d) {
+            const int sp_work = MB * jcp.ngroups * jcp.od * jcp.os;
+            balance2D(nthr, ithr, sp_work, start.sp, end.sp, jcp.oc, start.oc,
+                    end.oc, jcp.nthr_oc);
+        } else {
+            const int sp_work = MB * jcp.ngroups * jcp.od;
+            balance2D(nthr, ithr, sp_work, start.sp, end.sp, jcp.oc, start.oc,
+                    end.oc, jcp.nthr_oc);
+            start.sp *= jcp.os;
+            end.sp *= jcp.os;
         }
+
+        im_pos_t curr, prev, step;
+        prev.n = prev.g = prev.od = prev.sp = prev.ic = -1;
+        step.oc = jcp.oc_block;
+        step.sp = jcp.os_block;
+        step.ic = jcp.ic_block;
+
+        if (jcp.loop_order == gemm_loop_rlb)
+            for (curr.ic = 0; curr.ic < jcp.ic; curr.ic += step.ic)
+                for (int spatial = start.sp; spatial < end.sp;
+                        spatial += step.sp) {
+                    nd_iterator_init(spatial, curr.n, MB, curr.g,
+                            jcp.ngroups, curr.od, jcp.od, curr.sp, jcp.os);
+                    for (curr.oc = start.oc; curr.oc < end.oc;
+                            curr.oc += step.oc) {
+                        inner_ker(spatial, curr, prev, step, end);
+                    }
+                }
+        else if (jcp.loop_order == gemm_loop_lrb)
+            for (int spatial = start.sp; spatial < end.sp; spatial += step.sp) {
+                nd_iterator_init(spatial, curr.n, MB, curr.g, jcp.ngroups,
+                        curr.od, jcp.od, curr.sp, jcp.os);
+                for (curr.ic = 0; curr.ic < jcp.ic; curr.ic += step.ic)
+                    for (curr.oc = start.oc; curr.oc < end.oc;
+                            curr.oc += step.oc)
+                        inner_ker(spatial, curr, prev, step, end);
+            }
+        else
+            assert("Unknown loop order");
     });
 }
 
@@ -226,14 +296,8 @@ void gemm_convolution_bwd_data_t::execute_backward_data() const {
     const int LDC = jcp.im2col_sz ? m : M;
 
     const size_t work_amount = (size_t)jcp.ngroups * MB;
-
-    if (jcp.id > 1) {
-        for (size_t j = 0; j < work_amount; j++) {
-            int j_step = src_step * j;
-            const ptrdiff_t diff_src_sz = (ptrdiff_t)(src_step_to_clean);
-            parallel_nd(diff_src_sz, [&](ptrdiff_t i) { diff_src[j_step + i] = (data_t)0; });
-        }
-    }
+    const bool is_problem_3d = pd()->ndims() == 5;
+    const auto &p = pd()->attr()->post_ops_;
 
     parallel(jcp.nthr, work_amount, [&](const int ithr, const int nthr) {
         data_t *_col = col + (ptrdiff_t)ithr * jcp.im2col_sz;
@@ -244,7 +308,14 @@ void gemm_convolution_bwd_data_t::execute_backward_data() const {
         nd_iterator_init(start, g, jcp.ngroups, n, MB);
         for (size_t iwork = start; iwork < end; ++iwork) {
 
-            data_t *_diff_src = diff_src + (n * jcp.ngroups + g) * src_step;
+            data_t *_diff_src = diff_src + (n * jcp.ngroups + g)*src_step;
+            if (is_problem_3d && jcp.im2col_sz > 0) {
+                // jit_gemm_convolution_utils::col2im_3d() assumes that the
+                // accumulator is initialized by zeroes
+                for (size_t i = 0; i < src_step_to_clean; i++)
+                    _diff_src[i] = (data_t)0;
+            }
+
             const data_t *_weights = weights + g * weights_g_size;
             for (int od = 0; od < jcp.od; ++od) {
                 const data_t *_diff_dst = diff_dst + (n * jcp.ngroups + g)
@@ -256,12 +327,32 @@ void gemm_convolution_bwd_data_t::execute_backward_data() const {
                     jcp.im2col_sz ? _col:_diff_src + od * m, &LDC);
 
                 if (jcp.im2col_sz) {
-                    if (jcp.id == 1)
+                    if (!is_problem_3d)
                         jit_gemm_convolution_utils::col2im(jcp, _col,
                             _diff_src);
                     else
                         jit_gemm_convolution_utils::col2im_3d(jcp, _col,
                             _diff_src, od);
+                }
+            }
+            if (p.len_ > 0) {
+                int depthwise_inj_idx = 0;
+                for (int i = 0; i < p.len_; i++) {
+                    auto &post_op = p.entry_[i];
+                    if (post_op.is_depthwise()) {
+                        auto depthwise_weights = post_op.depthwise.weights_data;
+                        auto depthwise_bias = post_op.depthwise.biases_data;
+                        parallel_nd(jcp.ic, [&](const int ic) {
+                            for (int id = 0; id < jcp.id; ++id) {
+                                data_t *d_ = _diff_src + ic * jcp.id * jcp.is + id * jcp.is;
+                                for (int iS = 0; iS < jcp.is; ++iS) {
+                                    d_[iS] = depthwise_injectors[depthwise_inj_idx]->compute_scalar(d_[iS],
+                                            depthwise_weights + g * jcp.ic + ic, depthwise_bias + g * jcp.ic + ic);
+                                }
+                            }
+                        });
+                        depthwise_inj_idx++;
+                    }
                 }
             }
             nd_iterator_step(g, jcp.ngroups, n, MB);
@@ -289,9 +380,7 @@ void gemm_convolution_bwd_weights_t::execute_backward_weights() const {
     const int N = jcp.oc;
     const int M = jcp.ic * jcp.ks;
     const int LDA = jcp.im2col_sz ? k : K;
-
-    parallel_nd(jcp.im2col_sz * jcp.nthr,
-            [&](ptrdiff_t i) { col[i] = (data_t)0; });
+    const bool is_problem_3d = pd()->ndims() == 5;
 
     parallel(jcp.nthr, jcp.nthr, [&](const int ithr, const int nthr) {
         int ithr_g, nthr_g, ithr_mb, nthr_mb;
@@ -311,6 +400,13 @@ void gemm_convolution_bwd_weights_t::execute_backward_weights() const {
             assert(IMPLICATION((g_end - g_start) > 1, need_reduction == 0));
 
             data_t *_col = col + (ptrdiff_t)ithr * jcp.im2col_sz;
+            if (is_problem_3d) {
+                // jit_gemm_convolution_utils::im2col_3d() requires external
+                // data initialization by zeroes
+                for (ptrdiff_t i = 0; i < jcp.im2col_sz; i++)
+                    _col[i] = (data_t)0;
+            }
+
             data_t *weights_reduce_base = wei_reduction
                     + ithr_g * nthr_mb * weights_g_size;
             data_t *weights_reduce = weights_reduce_base
@@ -326,12 +422,12 @@ void gemm_convolution_bwd_weights_t::execute_backward_weights() const {
                             + (mb*jcp.ngroups+g)*dst_step + od * k;
 
                     if (jcp.im2col_sz) {
-                        if (jcp.id == 1)
+                        if (!is_problem_3d)
                             jit_gemm_convolution_utils::im2col<float>(
-                                    jcp, _src, _col, 0, jcp.oh, 0, jcp.ow);
+                                    jcp, _src, _col, 0, jcp.os, 0, jcp.ic);
                         else
-                            jit_gemm_convolution_utils::im2col_3d<float>(jcp, _src,
-                                _col, od);
+                            jit_gemm_convolution_utils::im2col_3d<float>(
+                                    jcp, _src, _col, od);
                     }
 
                     const data_t zero = 0.0, one = 1.0;

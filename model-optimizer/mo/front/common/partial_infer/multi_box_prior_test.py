@@ -51,8 +51,8 @@ class TestMultiBoxPriorInfer(unittest.TestCase):
         for i in range(0, len(exp_shape)):
             self.assertEqual(exp_shape[i], res_shape[i])
 
-        self.assertEqual(multi_box_prior_node.min_size, [60.0, 81.600000000000009])
+        self.assertEqual(multi_box_prior_node.min_size, [0.2, 0.272])
         self.assertEqual(multi_box_prior_node.max_size, '')
         self.assertEqual(multi_box_prior_node.aspect_ratio, [1.0, 2.0, 0.5, 3.0, 0.333333333333])
-        self.assertEqual(round(multi_box_prior_node.step, 1), 60.0)
+        self.assertEqual(round(multi_box_prior_node.step, 1), 0.2)
         self.assertEqual(round(multi_box_prior_node.offset, 1), 0.5)

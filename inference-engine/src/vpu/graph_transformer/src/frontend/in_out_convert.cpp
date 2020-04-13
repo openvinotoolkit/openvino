@@ -39,10 +39,10 @@ void FrontEnd::addDataTypeConvertStages(const Model& model) {
 
                     std::ostringstream postfix;
                     if (env.config.inputScale != 1.0f) {
-                        postfix << "@SCALE=" << std::to_string(env.config.inputScale);
+                        postfix << "@SCALE=" << InferenceEngine::CNNLayer::ie_serialize_float(env.config.inputScale);
                     }
                     if (env.config.inputBias != 0.0f) {
-                        postfix << "@BIAS=" << std::to_string(env.config.inputBias);
+                        postfix << "@BIAS=" << InferenceEngine::CNNLayer::ie_serialize_float(env.config.inputBias);
                     }
 
                     const auto scaledInput = model->duplicateData(

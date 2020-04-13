@@ -7,7 +7,6 @@
 #include <ie_plugin.hpp>
 #include <ie_util_internal.hpp>
 #include <description_buffer.hpp>
-#include <debug.h>
 #include <ie_layouts.h>
 #include <cassert>
 #include <map>

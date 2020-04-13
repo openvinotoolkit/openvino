@@ -25,6 +25,7 @@ configuration::configuration()
       meaningful_kernels_names(false),
       dump_custom_program(false),
       host_out_of_order(true),
+      use_unifed_shared_memory(false),
       compiler_options(""),
       single_kernel_name(""),
       log(""),

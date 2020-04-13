@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ fused_conv_bn_scale_kernel_base::DispatchData fused_conv_bn_scale_kernel_ref::Se
     const fused_conv_bn_scale_params& arg) const {
     DispatchData runInfo = fused_conv_bn_scale_kernel_base::SetDefault(arg);
 
-    runInfo.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    runInfo.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 
     runInfo.gws0 = arg.output.Batch().v;
     runInfo.gws1 = arg.output.Feature().v;

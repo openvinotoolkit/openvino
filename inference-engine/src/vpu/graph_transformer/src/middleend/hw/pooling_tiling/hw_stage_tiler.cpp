@@ -136,7 +136,7 @@ Data HWPoolStageTiler::createOutputTile(const HwPoolPlaneTilePtr& planeTile, con
         innerOffset.set(Dim::W, planeTile->widthInfo.outputJunkBefore);
         innerOffset.set(Dim::H, planeTile->heightInfo.outputJunkBefore);
 
-        _stageBuilder->addShrinkStage(
+        _stageBuilder->addCropStage(
             _model,
             _original->name() + tilePostfix + "@remove-junk",
             _original->origLayer(),

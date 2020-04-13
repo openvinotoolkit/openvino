@@ -23,6 +23,7 @@
 #include "cpu_memory.hpp"
 #include "jit_uni_eltwise.hpp"
 #include "jit_uni_depthwise.hpp"
+#include "jit_uni_quantization.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -45,6 +46,10 @@ struct jit_uni_x8s8s32x_conv_fwd_kernel: public jit_generator {
         for (auto inj : depthwise_injectors)
             delete inj;
         depthwise_injectors.clear();
+
+        for (auto inj : quantization_injectors)
+            delete inj;
+        quantization_injectors.clear();
     }
 
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_x8s8s32x_conv_fwd_kernel)
@@ -149,6 +154,7 @@ private:
 
     nstl::vector<jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<isa>*> depthwise_injectors;
+    nstl::vector<jit_uni_quantization_injector_f32<isa>*> quantization_injectors;
 
     Xbyak::Label l_table;
 };

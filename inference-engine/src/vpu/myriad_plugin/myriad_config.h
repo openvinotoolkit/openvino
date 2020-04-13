@@ -27,9 +27,6 @@ VPU_DECLARE_ENUM(PowerConfig,
 
 class MyriadConfig final : public ParsedConfig {
 public:
-    static constexpr int UNDEFINED_THROUGHPUT_STREAMS = -1;
-
-public:
     const std::string& pluginLogFilePath() const {
         return _pluginLogFilePath;
     }
@@ -58,10 +55,6 @@ public:
         return _deviceConnectTimeout;
     }
 
-    int numExecutors() const {
-        return _numExecutors;
-    }
-
     const std::string& deviceName() const {
         return _deviceName;
     }
@@ -80,7 +73,6 @@ private:
     ncDeviceProtocol_t _protocol = NC_ANY_PROTOCOL;
     std::chrono::milliseconds _watchdogInterval = std::chrono::milliseconds(1000);
     std::chrono::seconds _deviceConnectTimeout = std::chrono::seconds(15);
-    int _numExecutors = UNDEFINED_THROUGHPUT_STREAMS;
     std::string _deviceName;
 };
 

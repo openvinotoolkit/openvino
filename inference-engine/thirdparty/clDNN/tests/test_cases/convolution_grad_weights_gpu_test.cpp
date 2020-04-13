@@ -277,7 +277,7 @@ TEST(convolution_grad_weights_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_bfyx_stride2_p
     float lr = 0.001f;
     auto input = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
 
-    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
+    auto weights = memory::allocate(engine, { data_types::f32, format::oiyx,{ 1, 1, 2, 2 } });
     auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
 
     set_values(input, { 1.0f, 2.0f, 3.0f, 4.0f });
@@ -1081,13 +1081,14 @@ TEST(convolution_grad_weights_f32_fw_gpu, ngraph_2d_1item_2iterations) {
         convolution_grad_weights("conv_grad_weights", "input_grad", "input", { "weights" }, { 1,1,1,1 }, { 0,0,0,0 }, { 1,1,1,1 }, true)
     );
 
+    set_values(input,
+        { 0.671875f, 0.546875f, -0.5625f, -0.359375f, -0.09375f, 0.546875f, -0.546875f, 0.890625f, 0.828125f, -0.546875f, 1.f, -0.078125f, -0.890625f, 0.40625f, -0.359375f });
+
     build_options bo;
     bo.set_option(build_option::optimize_data(true));
     network network(engine, topology, bo);
 
     // set values for first iteration
-    set_values(input,
-        { 0.671875f, 0.546875f, -0.5625f, -0.359375f, -0.09375f, 0.546875f, -0.546875f, 0.890625f, 0.828125f, -0.546875f, 1.f, -0.078125f, -0.890625f, 0.40625f, -0.359375f });
     set_values(input_grad,
         {   1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,
             0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f });

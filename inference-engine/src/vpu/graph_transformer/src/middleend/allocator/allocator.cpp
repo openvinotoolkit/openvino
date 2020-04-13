@@ -335,7 +335,7 @@ void Allocator::selfCheck() {
     }
 }
 
-UsedMemory Allocator::usedMemory() const {
+UsedMemory Allocator::usedMemoryAmount() const {
     UsedMemory stats;
 
     stats.BSS = _ddrMemoryPool.memUsed;
@@ -345,6 +345,27 @@ UsedMemory Allocator::usedMemory() const {
     stats.output = _outputMemOffset;
 
     return stats;
+}
+
+std::size_t Allocator::freeDDRMemoryAmount() const {
+    const auto& pool = _memPools.at(MemoryType::DDR);
+    const auto offset = pool->curMemOffset;
+    VPU_THROW_UNLESS(offset <= DDR_MAX_SIZE, "Out of bound offset for next free data in DDR: size = {}, while offset = {}", DDR_MAX_SIZE, offset);
+
+    return DDR_MAX_SIZE - offset;
+}
+
+std::size_t Allocator::freeCMXMemoryAmount() const {
+    const auto& pool = _memPools.at(MemoryType::CMX);
+    const auto shavesCMX = _allocatorOfShaves.getLockedSHAVEs() * CMX_SLICE_SIZE;
+    const auto offset = pool->curMemOffset + shavesCMX;
+    VPU_THROW_UNLESS(offset <= _maxCmxSize, "Out of bound offset for next free data in CMX: size = {}, while offset = {}", _maxCmxSize, offset);
+
+    return _maxCmxSize - offset;
+}
+
+std::size_t Allocator::freeMemoryAmount(const MemoryType& type) const {
+    return type == MemoryType::CMX ? freeCMXMemoryAmount() : freeDDRMemoryAmount();
 }
 
 void Allocator::extractDatas(MemoryType memType, const DataSet& from, DataVector& out) const {
@@ -381,6 +402,11 @@ DataVector Allocator::getAllocatedDatas(MemoryType memType) const {
 }
 
 allocator::MemChunk* Allocator::allocateMem(MemoryType memType, int size, int inUse) {
+    VPU_THROW_UNLESS(size >= 0, "{} bytes to allocate have been requested, but only non-negative amount is supported", size);
+    if (size == 0) {
+        return nullptr;
+    }
+
     auto& memPool =  _memPools.at(memType);
 
     //
@@ -396,20 +422,8 @@ allocator::MemChunk* Allocator::allocateMem(MemoryType memType, int size, int in
     // Check free space
     //
 
-    int freeSpace = 0;
-    if (memType == MemoryType::CMX) {
-        auto shavesCMX = _allocatorOfShaves.getLockedSHAVEs() * CMX_SLICE_SIZE;
-
-        IE_ASSERT(memPool->curMemOffset + shavesCMX <= _maxCmxSize);
-
-        freeSpace = _maxCmxSize - (memPool->curMemOffset + shavesCMX);
-    } else {
-        IE_ASSERT(memPool->curMemOffset <= DDR_MAX_SIZE);
-
-        freeSpace = DDR_MAX_SIZE - memPool->curMemOffset;
-    }
-
-    if (size > freeSpace) {
+    const auto freeSpace = freeMemoryAmount(memType);
+    if (static_cast<std::size_t>(size) > freeSpace) {
         return nullptr;
     }
 

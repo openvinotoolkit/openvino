@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,8 @@ ParamsKey FullyConnected_fs_byx_fsv32::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
+    k.EnableSubGroup();
+    k.EnableSubGroupShort();
     return k;
 }
 
@@ -56,7 +58,7 @@ FullyConnected_fs_byx_fsv32::Parent::DispatchData FullyConnected_fs_byx_fsv32::S
     runInfo.lws1 = wgHeight;
     runInfo.lws2 = subGroupSize;
 
-    runInfo.effiency = FORCE_PRIORITY_5;
+    runInfo.efficiency = FORCE_PRIORITY_5;
 
     return std::move(runInfo);
 }
@@ -82,7 +84,7 @@ KernelsData FullyConnected_fs_byx_fsv32::GetKernelsData(const Params& params, co
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     options,
                                                     DataLayout::fs_b_yx_fsv32,
-                                                    {WeightsLayout::os_iyx_osv32},
+                                                    WeightsLayout::os_iyx_osv32__ai32,
                                                     FORCE_PRIORITY_5,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

@@ -32,7 +32,7 @@ namespace cpu {
 
 struct jit_sum_conf_t {
     int num_srcs;
-    int is_cpx;
+    cpu_isa_t isa;
     int is_bf16_dst;
     int typesize_in;
     int typesize_out;
@@ -111,18 +111,18 @@ struct jit_avx512_core_bf16_sum_kernel : public jit_generator {
 
     reg64_t reg_src[max_num_arrs] = {r8, r9, r10, r11, r12, r13, r14, r15};
 
-    static int max_vregs_available(bool is_cpx)
+    static int max_vregs_available(bool isa_bf16)
     {
         // one vector registers are reserved for vperm index and zero values
-        // additional 5 registers are reserved for bf16 emulation on non-cpx
-        return is_cpx ? 31 : 26;
+        // additional 5 registers are reserved for bf16 emulation
+        return isa_bf16 ? 31 : 26;
     }
 
     int acc_vreg_idx(int i_unroll, int i_acc)
     {
         // 2 accumulation registers per unroll iteration
         int idx = 2 * i_unroll + i_acc;
-        assert(idx < max_vregs_available(jsp.is_cpx));
+        assert(idx < max_vregs_available(isa_has_bf16(jsp.isa)));
         return idx;
     }
 
@@ -130,7 +130,7 @@ struct jit_avx512_core_bf16_sum_kernel : public jit_generator {
     {
         int scale_idx_start = 2 * jsp.loop_unroll; // reserved for acc registers
         int idx = scale_idx_start + i_acc_iter;
-        assert(idx < max_vregs_available(jsp.is_cpx));
+        assert(idx < max_vregs_available(isa_has_bf16(jsp.isa)));
         return idx;
     }
 
@@ -140,7 +140,7 @@ struct jit_avx512_core_bf16_sum_kernel : public jit_generator {
         int inp_idx_start = 2 * jsp.loop_unroll + utils::div_up(jsp.num_srcs, 2);
         int idx = inp_idx_start
                 + utils::rnd_up(jsp.num_srcs, 2) * i_unroll + i_inp;
-        assert(idx < max_vregs_available(jsp.is_cpx));
+        assert(idx < max_vregs_available(isa_has_bf16(jsp.isa)));
         return idx;
     }
 
@@ -152,7 +152,7 @@ struct jit_avx512_core_bf16_sum_kernel : public jit_generator {
                 + (2 + utils::rnd_up(jsp.num_srcs, 2)) * jsp.loop_unroll;
         int idx = tmp_idx_start
                 + num_acc_iters * i_unroll + i_acc_iter;
-        assert(idx < max_vregs_available(jsp.is_cpx));
+        assert(idx < max_vregs_available(isa_has_bf16(jsp.isa)));
         return idx;
     }
 

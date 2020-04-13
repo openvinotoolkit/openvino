@@ -4,12 +4,13 @@ from .cimport ie_api_impl_defs as C
 from .ie_api_impl_defs cimport Blob, TensorDesc, SizeVector, Precision
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp cimport bool
 from libcpp.pair cimport pair
 from libcpp.map cimport map
 from libcpp.memory cimport unique_ptr, shared_ptr
 from libc.stdlib cimport malloc, free
 from libc.stdint cimport int64_t, uint8_t
-from libc.string cimport memcpy, strcpy
+from libc.string cimport memcpy
 import os
 import numpy as np
 from copy import deepcopy
@@ -41,7 +42,7 @@ cdef c_map_to_dict(map[string, string] c_map):
         py_dict[v.first.decode()] = v.second.decode()
     return py_dict
 
-supported_precisions = ["FP32", "FP16", "I64", "I32", "I16", "I8", "U16", "U8"]
+supported_precisions = ["FP32", "FP16", "I64", "U64", "I32", "I16", "I8", "U16", "U8"]
 
 layout_int_to_str_map = {0: "ANY", 1: "NCHW", 2: "NHWC", 3: "NCDHW", 4: "NDHWC", 64: "OIHW", 95: "SCALAR", 96: "C",
                          128: "CHW", 192: "HW", 193: "NC", 194: "CN", 200: "BLOCKED"}
@@ -66,7 +67,7 @@ layout_str_to_enum = {'ANY': C.Layout.ANY,
 
 known_plugins = ['CPU', 'GPU', 'FPGA', 'MYRIAD', 'HETERO', 'HDDL', 'MULTI']
 
-ctypedef enum StatusCode:
+cpdef enum StatusCode:
     OK = 0
     GENERAL_ERROR = -1
     NOT_IMPLEMENTED = -2
@@ -80,6 +81,10 @@ ctypedef enum StatusCode:
     NOT_ALLOCATED = -10
     INFER_NOT_STARTED = -11
     NETWORK_NOT_READ = -12
+
+cpdef enum WaitMode:
+    RESULT_READY = -1
+    STATUS_ONLY = 0
 
 def get_version():
     return C.get_version().decode()
@@ -114,6 +119,44 @@ cdef class IECore:
             versions[device].major = ver.apiVersion.major
         return versions
 
+    ## Reads a network from the Intermediate Representation (IR) and creates an `IENetwork`.
+    #  @param model: A `.xml` file of the IR or string with IR.
+    #  @param weights: A `.bin` file of the IR. Depending on `init_from_buffer` value, can be a string path or
+    #                  bytes with file content.
+    #  @param init_from_buffer: Defines the way of how `model` and `weights` attributes are interpreted.
+    #                           If  `False`, attributes are interpreted as strings with paths to .xml and .bin files
+    #                           of IR. If `True`, they are  interpreted as Python `bytes` object with .xml and .bin files content.
+    #  @return An `IENetwork` object
+    #
+    #  Usage example:\n
+    #  ```python
+    #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
+    #  ```
+    cpdef IENetwork read_network(self, model: [str, bytes], weights: [str, bytes] = "", init_from_buffer: bool = False):
+        cdef char*xml_buffer
+        cdef uint8_t*bin_buffer
+        cdef string weights_
+        cdef string model_
+        cdef IENetwork net = IENetwork()
+        if init_from_buffer:
+            xml_buffer = <char*> malloc(len(model)+1)
+            bin_buffer = <uint8_t *> malloc(len(weights))
+            memcpy(xml_buffer, <char*> model, len(model))
+            memcpy(bin_buffer, <uint8_t *> weights, len(weights))
+            xml_buffer[len(model)] = b'\0'
+            net.impl = self.impl.readNetwork(xml_buffer, bin_buffer, len(weights))
+            free(xml_buffer)
+        else:
+            if not os.path.isfile(model):
+                raise Exception("Path to the model {} doesn't exists or it's a directory".format(model))
+            if not os.path.isfile(weights):
+                raise Exception("Path to the weights {} doesn't exists or it's a directory".format(weights))
+            model_ = model.encode()
+            weights_ = weights.encode()
+            net.impl =  self.impl.readNetwork(model_, weights_)
+        return net
+
     ## Loads a network that was read from the Intermediate Representation (IR) to the plugin with specified device name
     #    and creates an `ExecutableNetwork` object of the `IENetwork` class.
     #    You can create as many networks as you need and use them simultaneously (up to the limitation of the hardware
@@ -122,19 +165,22 @@ cdef class IECore:
     #  @param device_name: A device name of a target plugin
     #  @param config: A dictionary of plugin configuration keys and their values
     #  @param num_requests: A positive integer value of infer requests to be created. Number of infer requests is limited
-    #         by device capabilities.
+    #                       by device capabilities.
+    #                       Value `0` indicates that optimal number of infer requests will be created.
     #  @return An `ExecutableNetwork` object
     #
     #  Usage example:\n
     #  ```python
     #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
     #  ie = IECore()
-    #  exec_net = plugin.load_network(network=net, device_name="CPU", num_requsts=2)
+    #  exec_net = ie.load_network(network=net, device_name="CPU", num_requsts=2)
     #  ```
     cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config=None, int num_requests=1):
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
-
+        if num_requests < 0:
+            raise ValueError("Incorrect number of requests specified: {}. Expected positive integer number "
+                             "or zero for auto detection".format(num_requests))
         if config:
             c_config = dict_to_c_map(config)
         exec_net.ie_core_impl = self.impl
@@ -147,12 +193,13 @@ cdef class IECore:
     #  @param config: A dictionary of plugin configuration keys and their values
     #  @param num_requests: A positive integer value of infer requests to be created. Number of infer requests is limited
     #                       by device capabilities.
+    #                       Value `0` indicates that optimal number of infer requests will be created.
     #  @return An `ExecutableNetwork` object
     #  Usage example:\n
     #  ```python
     #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
     #  ie = IECore()
-    #  exec_net = plugin.load_network(network=net, device_name="MYRIAD", num_requsts=2)
+    #  exec_net = ie.load_network(network=net, device_name="MYRIAD", num_requsts=2)
     #  # export executable network
     #  exec_net.export(path_to_file_to_save)
     #  # import previously exported executable network
@@ -161,7 +208,9 @@ cdef class IECore:
     cpdef ExecutableNetwork import_network(self, str model_file, str device_name, config=None, int num_requests=1):
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
-
+        if num_requests < 0:
+            raise ValueError("Incorrect number of requests specified: {}. Expected positive integer number "
+                             "or zero for auto detection".format(num_requests))
         if config:
             c_config = dict_to_c_map(config)
         exec_net.ie_core_impl = self.impl
@@ -179,7 +228,7 @@ cdef class IECore:
     #  ```python
     #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
     #  ie = IECore()
-    #  layers_map = plugin.query_network(network=net, device_name="HETERO:GPU,CPU")
+    #  layers_map = ie.query_network(network=net, device_name="HETERO:GPU,CPU")
     #  ```
     def query_network(self, IENetwork network, str device_name, config=None):
         cdef map[string, string] c_config
@@ -189,6 +238,7 @@ cdef class IECore:
         return c_map_to_dict(res)
 
     ## Sets a configuration for a plugin
+    #  NOTE: When specifying a key value of a config, the "KEY_" prefix is omitted.
     #  @param config: a dictionary of configuration parameters as keys and their values
     #  @param device_name: a device name of a target plugin
     #  @return None
@@ -232,8 +282,6 @@ cdef class IECore:
     #  Usage example:\n
     #  ```python
     #  ie = IECore()
-    #  plugin = IEPlugin("GPU")
-    #  ie.register_plugin(plugin=plugin, device_name="MY_NEW_GPU")
     #  ie.unregister_plugin(device_name="GPU")
     #  ```
     def unregister_plugin(self, device_name: str):
@@ -268,6 +316,7 @@ cdef class IECore:
 
     ## Gets a configuration dedicated to device behavior. The method targets to extract information
     #  which can be set via set_config method.
+    #  NOTE: When specifying a key value of a config, the "KEY_" prefix is omitted.
     #  @param device_name: A name of a device to get a config value.
     #  @param config_name: A config name to request.
     #  @return A config value corresponding to a config key.
@@ -275,7 +324,7 @@ cdef class IECore:
     #  Usage example:\n
     #  ```python
     #  ie = IECore()
-    #  ie.get_config(metric_name="CPU_BIND_THREAD", device_name="CPU")
+    #  ie.get_config(device_name="CPU", config_name="CPU_BIND_THREAD")
     #  ```
     def get_config(self, device_name: str, config_name: str):
         return self.impl.getConfig(device_name.encode(), config_name.encode())
@@ -391,7 +440,7 @@ cdef class CDataPtr:
 ## This class represents a network instance loaded to plugin and ready for inference.
 cdef class ExecutableNetwork:
     ## There is no explicit class constructor. To make a valid instance of `ExecutableNetwork`,
-    #  use `load()` method of the `IEPlugin` class.
+    #  use `load_network()` method of the `IECore` class.
     def __init__(self):
         self._infer_requests = []
 
@@ -404,8 +453,8 @@ cdef class ExecutableNetwork:
     #  Usage example:\n
     #  ```python
     #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
-    #  plugin = IEPlugin(device="CPU")
-    #  exec_net = plugin.load(network=net, num_requests=2)
+    #  ie_core = IECore()
+    #  exec_net = ie_core.load_network(net, device, num_requests=2)
     #  res = exec_net.infer({'data': img})
     #  res
     #  {'prob': array([[[[2.83426580e-08]],
@@ -447,14 +496,12 @@ cdef class ExecutableNetwork:
             for i in range(deref(self.impl).infer_requests.size()):
                 infer_request = InferRequest()
                 infer_request.impl = &(deref(self.impl).infer_requests[i])
+                infer_request._inputs_list = list(self.inputs.keys())
+                infer_request._outputs_list = list(self.outputs.keys())
                 self._infer_requests.append(infer_request)
 
         if len(self._infer_requests) != deref(self.impl).infer_requests.size():
             raise Exception("Mismatch of infer requests number!")
-
-        for i in range(len(self._infer_requests)):
-            self._infer_requests[i]._inputs_list = list(self.inputs.keys())
-            self._infer_requests[i]._outputs_list = list(self.outputs.keys())
 
         return self._infer_requests
     ## A dictionary that maps input layer names to DataPtr objects
@@ -485,8 +532,8 @@ cdef class ExecutableNetwork:
     #  Usage example:\n
     #  ```python
     #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
-    #  plugin = IEPlugin(device="CPU")
-    #  exec_net = plugin.load(network=net, num_requsts=2)
+    #  ie_core = IECore()
+    #  exec_net = ie_core.load_network(net, device, num_requsts=2)
     #  exec_graph = exec_net.get_exec_graph_info()
     #  ```
     def get_exec_graph_info(self):
@@ -531,11 +578,29 @@ cdef class ExecutableNetwork:
     #  ```python
     #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
     #  ie = IECore()
-    #  exec_net = plugin.load_network(network=net, device_name="MYRIAD", num_requsts=2)
+    #  exec_net = ie.load_network(network=net, device_name="MYRIAD", num_requsts=2)
     #  exec_net.export(path_to_file_to_save)
     #  ```
     def export(self, model_file: str):
         deref(self.impl).exportNetwork(model_file.encode())
+
+    ## Waits when the result from any request becomes available. Blocks until specified timeout elapses or the result.
+    #  @param num_requests: Number of idle requests for which wait.
+    #                       If not specified, `num_requests` value is set to number of requests by default.
+    #  @param timeout: Time to wait in milliseconds or special (0, -1) cases described above.
+    #                  If not specified, `timeout` value is set to -1 by default.
+    #  @return Request status code: OK or RESULT_NOT_READY
+    cpdef wait(self, num_requests=None, timeout=None):
+        if num_requests is None:
+            num_requests = len(self.requests)
+        if timeout is None:
+            timeout = WaitMode.RESULT_READY
+        return deref(self.impl).wait(<int> num_requests, <int64_t> timeout)
+
+    ## Get idle request ID
+    #  @return Request index
+    cpdef get_idle_request_id(self):
+        return deref(self.impl).getIdleRequestId()
 
 ctypedef extern void (*cb_type)(void*, int) with gil
 
@@ -626,7 +691,8 @@ cdef class InferRequest:
     cpdef async_infer(self, inputs=None):
         if inputs is not None:
             self._fill_inputs(inputs)
-        self._py_callback_called.clear()
+        if self._py_callback_used:
+            self._py_callback_called.clear()
         deref(self.impl).infer_async()
 
     ## Waits for the result to become available. Blocks until specified timeout elapses or the result
@@ -643,14 +709,19 @@ cdef class InferRequest:
     #  Usage example: See `async_infer()` method of the the `InferRequest` class.
     cpdef wait(self, timeout=None):
         if self._py_callback_used:
-            while not self._py_callback_called.is_set():
+            # check request status to avoid blocking for idle requests
+            status = deref(self.impl).wait(WaitMode.STATUS_ONLY)
+            if status != StatusCode.RESULT_NOT_READY:
+                return status
+            if not self._py_callback_called.is_set():
                 if not self._py_callback_called.wait(timeout):
                     return StatusCode.REQUEST_BUSY
             return StatusCode.OK
-        else:
-            if timeout is None:
-                timeout = -1
-            return deref(self.impl).wait(<int64_t> timeout)
+
+        if timeout is None:
+            timeout = WaitMode.RESULT_READY
+
+        return deref(self.impl).wait(<int64_t> timeout)
 
     ## Queries performance measures per layer to get feedback of what is the most time consuming layer.
     #  NOTE: Performance counters data and format depends on the plugin
@@ -798,17 +869,17 @@ cdef class IENetLayer:
     def precision(self, precision: str):
         deref(self._ptr).precision = C.Precision.FromStr(precision.encode())
 
-    ## Layer affinity set by user or a default affinity set by the `IEPlugin.set_initial_affinity()` method.
+    ## Layer affinity set by user or a default affinity may be setted using `IECore.query_network() method`
+    #  which returns dictionary {layer_name : device}.
     #  The affinity attribute provides getter and setter interfaces, so the layer affinity can be modified directly.
     #  For example:\n
     #  ```python
     #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
-    #  plugin = IEPlugin(device="HETERO:FPGA,CPU")
-    #  plugin.set_config({"TARGET_FALLBACK": "HETERO:FPGA,CPU"})
-    #  plugin.set_initial_affinity(net)
-    #  for l in net.layers.values():
-    #      if l.type == "Convolution":
-    #      l.affinity = "CPU"
+    #  ie = IECore()
+    #  layers_map = ie.query_network(network=net, device_name="HETERO:GPU,CPU")
+    #  layers = net.layers
+    #  for layer, device in layers_map.items():
+    #      layers[layer].affinity = device
     #  ```
     @property
     def affinity(self):
@@ -958,36 +1029,33 @@ cdef class IENetwork:
     #       xml = f.read()
     #   net = IENetwork(model=xml, weights=bin, init_from_buffer=True)
     #   ```
-    #   Initializing `IENetwork` object from PyCapsule object containing smart pointer to nGraph function
-    #   ```
-    #   from openvino.inference_engine import IENetwork
-    #   from ngraph.impl.op import Parameter, Relu
-    #   from ngraph.impl import Function, Shape, Type
-    #
-    #   element_type = Type.f32
-    #   param = Parameter(element_type, Shape([1, 3, 22, 22]))
-    #   relu = Relu(param)
-    #   func = Function([relu], [param], 'test')
-    #   caps = Function.to_capsule(func)
-    #   cnnNetwork = IENetwork(caps)
-    #   ```
 
     def __cinit__(self, model: [str, bytes] = "", weights: [str, bytes] = "", init_from_buffer: bool = False):
+        # TODO: ucomment when ngraph python api will work
         # Try to create Inference Engine network from capsule
-        if model.__class__.__name__ == 'PyCapsule' and weights == '' and init_from_buffer is False:
-            self.impl = C.IENetwork(model)
-            return
-        cdef char*xml_buffer = <char*> malloc(len(model))
+        # if model.__class__.__name__ == 'PyCapsule' and weights == '' and init_from_buffer is False:
+        #     self.impl = C.IENetwork(model)
+        #     return
+        cdef char*xml_buffer = <char*> malloc(len(model)+1)
         cdef uint8_t*bin_buffer = <uint8_t *> malloc(len(weights))
         cdef string model_
         cdef string weights_
         if init_from_buffer:
-            strcpy(xml_buffer, model)
+            warnings.filterwarnings("always", category=DeprecationWarning)
+            warnings.warn("Reading network using constructor is deprecated. "
+                          "Please, use IECore.read_network() method instead",
+                          DeprecationWarning)
+            memcpy(xml_buffer, <char*> model, len(model))
             memcpy(bin_buffer, <uint8_t *> weights, len(weights))
+            xml_buffer[len(model)] = b'\0'
             self.impl = C.IENetwork()
             self.impl.load_from_buffer(xml_buffer, len(model), bin_buffer, len(weights))
         else:
             if model and weights:
+                warnings.filterwarnings("always", category=DeprecationWarning)
+                warnings.warn("Reading network using constructor is deprecated. "
+                          "Please, use IECore.read_network() method instead",
+                          DeprecationWarning)
                 if not os.path.isfile(model):
                     raise Exception("Path to the model {} doesn't exists or it's a directory".format(model))
                 if not os.path.isfile(weights):
@@ -1040,10 +1108,16 @@ cdef class IENetwork:
     #  ```
     @property
     def batch_size(self):
-        return self.impl.batch_size
-    ## Precision of the network
+        return self.impl.getBatch()
+    ## Deprecated: network precision does not make sence, use precision on egdes.
+    #  Precision of the network
     @property
     def precision(self):
+        warnings.filterwarnings("always", category=DeprecationWarning)
+        warnings.warn("Network precision is deprecated "
+                      "because it does not make sence, "
+                      "use precision on egdes.",
+                      DeprecationWarning)
         return self.impl.precision.decode()
 
     @batch_size.setter
@@ -1051,7 +1125,6 @@ cdef class IENetwork:
         if batch <= 0:
             raise AttributeError("Invalid batch size {}! Batch size should be positive integer value".format(batch))
         self.impl.setBatch(batch)
-        self.impl.batch_size = batch
 
     ## Return dictionary that maps network layer names in topological order to IENetLayer
     #  objects containing layer properties
@@ -1066,7 +1139,8 @@ cdef class IENetwork:
             layers[deref(l).name.decode()] = net_l
         return layers
 
-    ## Returns `LayersStatsMap` object containing dictionary that maps network layer names to calibration statistics
+    ## Deprecated: new Calibration Tool doesn't generate statistics
+    #  Returns `LayersStatsMap` object containing dictionary that maps network layer names to calibration statistics
     #  represented by `LayerStats`  objects.
     #
     #  Usage example:\n
@@ -1078,6 +1152,9 @@ cdef class IENetwork:
     #  ```
     @property
     def stats(self):
+        warnings.filterwarnings("always", category=DeprecationWarning)
+        warnings.warn("stats property of IENetwork is deprecated.",
+                          DeprecationWarning)
         cdef map[string, map[string, vector[float]]] c_stats_map = self.impl.getStats()
         py_stats_map = LayersStatsMap()
         py_stats_map.net_impl = self.impl
@@ -1171,18 +1248,25 @@ cdef class IENetwork:
                 c_shape.push_back(v)
             c_input_shapes[input.encode()] = c_shape
         self.impl.reshape(c_input_shapes)
-    ## Returns PyCapsule containing smart pointer to constant nGraph function representing tne network.
-    def get_function(self):
-        return self.impl.getFunction()
+
+    # TODO: ucomment when ngraph python api will work
+
+    # def get_function(self):
+    #     return self.impl.getFunction()
 
 ## This class is the main plugin interface and serves to initialize and configure the plugin.
 cdef class IEPlugin:
-    ## Class constructor
+    ## Deprecated: Use IECore instead
+    #  Class constructor
     #
     #  @param device: Target device name. Supported devices: CPU, GPU, FPGA, MYRIAD, HETERO, MULTI
     #  @param plugin_dirs: List of paths to plugin directories
     #  @return IEPlugin instance
     def __cinit__(self, device: str, plugin_dirs=None):
+        warnings.filterwarnings("always", category=DeprecationWarning)
+        warnings.warn("IEPlugin class is deprecated. "
+                      "Please use IECore class instead.",
+                      DeprecationWarning)
         plugin_base = device.split(':')[0]
         if plugin_base not in known_plugins:
             raise ValueError("Unknown plugin: {}, expected one of: {}"
@@ -1331,6 +1415,7 @@ cdef class BlobBuffer:
             'I16': 'h',  # signed short
             'I32': 'i',  # signed int
             'I64': 'q',  # signed long int
+            'U64': 'Q',  # signed long int
         }
 
         if name not in precision_to_format:

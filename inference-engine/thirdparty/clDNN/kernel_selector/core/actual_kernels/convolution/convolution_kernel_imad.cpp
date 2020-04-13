@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018-2019 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -147,6 +147,7 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf_scalar = {"", {"batch", "f", "(or+r)", "(oc+c)"}, "res", input_dt, 1 };
+        conf_scalar.SetLoopAxes({Tensor::DataChannelName::Y, Tensor::DataChannelName::X});
         mem_consts.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 
@@ -204,7 +205,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const con
     // This kernel is quite slow for 1x1 and KHx1 kernels
     // TODO: check if we need any optimized kernels in this layout
     // If yes, we need to implement some customization for these cases.
-    kd.effiency = FORCE_PRIORITY_2;
+    kd.efficiency = FORCE_PRIORITY_2;
 
     return kd;
 }  // SetDefault
@@ -221,7 +222,7 @@ bool ConvolutionKernel_imad::Validate(const Params& params, const optional_param
         // Strides must be equal
         return false;
     }
-    if (newParams.output.X().v != newParams.output.Y().v || newParams.output.X().v == 1) {
+    if (newParams.output.X().v != newParams.output.Y().v) {
         // W and H must be equal
         return false;
     }

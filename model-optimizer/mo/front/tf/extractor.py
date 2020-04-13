@@ -19,7 +19,6 @@ from mo.front.tf.extractors.fused_bn import tf_fused_bn_extractor
 from mo.front.tf.extractors.native_tf import native_tf_node_extractor
 from mo.front.tf.extractors.pack import tf_pack_ext
 from mo.front.tf.extractors.random_uniform import tf_random_uniform_ext
-from mo.front.tf.extractors.space_to_batch import tf_space_to_batch_ext, tf_batch_to_space_ext
 from mo.front.tf.extractors.utils import get_tf_node_port
 from mo.graph.graph import Node
 
@@ -64,8 +63,6 @@ tf_op_extractors = {
     'ConcatV2': node_pb_arg(tf_concat_ext),
     'Pack': node_pb_arg(tf_pack_ext),
     'RandomUniform': node_pb_arg(tf_random_uniform_ext),
-    'SpaceToBatchND': node_pb_arg(tf_space_to_batch_ext),
-    'BatchToSpaceND': node_pb_arg(tf_batch_to_space_ext),
 }
 
 

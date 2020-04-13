@@ -267,10 +267,6 @@ class NormalizeTI(BackReplacementPattern):
                 ti.add_input_port(new_real_input_port_id)
                 source.connect(ti.in_port(new_real_input_port_id))
 
-                identity = create_op_node_with_second_input(ti.graph, Split, np.array(0),
-                                                            {'name': 'identity/', 'num_splits': 1})
-                ti.in_port(new_real_input_port_id).get_connection().insert_node(identity)
-
                 ti.in_edge(new_real_input_port_id)['external_port_id'] = new_external_port_id
                 update_external_port_id(ti, 'in', external_port_id, new_external_port_id, record['internal_layer_id'])
 

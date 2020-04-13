@@ -1,0 +1,181 @@
+# Copyright (C) 2018-2020 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+cmake_policy(SET CMP0054 NEW)
+
+set(TARGET_NAME InferenceEngineUnitTests)
+
+#rpath enabled for unit tests only
+SET (CMAKE_SKIP_RPATH OFF)
+
+# collect sources
+
+file(GLOB
+        TEST_SRC
+        graph_tools/*.cpp
+        http_client/*.cpp
+        inference_engine_tests/*.cpp
+        inference_engine_tests/cpp_interfaces/*.cpp
+        inference_engine_tests/normalization/*.cpp
+        inference_engine_tests/transformations/*.cpp
+        inference_engine_tests/transformations/*.hpp
+        cnn_network/*.cpp
+        builders/*.cpp
+        # TODO: apeskov: Please fix issue CVS
+        # shape_infer/*.cpp
+        shape_infer/built-in/*.cpp
+        topology_verification_tests/*.cpp
+        stress_tests/*.cpp
+        cpp_api/*.cpp
+        )
+
+# disable deprecated warnings for NN Builder
+
+function(nn_builder_disable_warnings)
+    disable_deprecated_warnings()
+    file(GLOB NN_BUILDER_TESTS_SRC builders/*.cpp)
+    set_source_files_properties(${NN_BUILDER_TESTS_SRC} PROPERTIES COMPILE_FLAGS "${ie_c_cxx_deprecated}")
+endfunction()
+
+nn_builder_disable_warnings()
+
+if (ENABLE_GNA)
+    file(GLOB
+            GNA_TESTS
+            engines/gna/*cpp
+            engines/gna/layers/*cpp
+            )
+    list(APPEND TEST_SRC ${GNA_TESTS})
+    source_group("gna" FILES ${GNA_TESTS})
+
+    # TODO: fix GNA tests
+    if(OFF)
+        set(gna_stub "${CMAKE_CURRENT_SOURCE_DIR}/engines/gna/gna_api_stub.cpp")
+        list(REMOVE_ITEM TEST_SRC "${gna_stub}")
+        add_library(libGNAStubs SHARED "${gna_stub}")
+
+        find_package(libGNA)
+        if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
+            set(GNA_LIBRARY_VERSION_NUMBER 2)
+        else()
+            set(GNA_LIBRARY_VERSION_NUMBER 1)
+        endif()
+
+        target_include_directories(libGNAStubs PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/engines/gna/")
+        target_compile_definitions(libGNAStubs PUBLIC GNA_LIB_VER=${GNA_LIBRARY_VERSION_NUMBER})
+        target_link_libraries(libGNAStubs PUBLIC libGNA::API gmock gtest)
+        if(UNIX)
+            set_target_properties(libGNAStubs PROPERTIES CXX_VISIBILITY_PRESET default)
+        endif()
+    endif()
+
+    set (GNA_TEST_ENGINE GNAPlugin_test_static)
+endif()
+
+if (ENABLE_MKL_DNN)
+    if (GEMM STREQUAL "MKL")
+        add_definitions(-DUSE_MKL)
+    endif ()
+    file(GLOB
+            MKLDNN_TESTS
+            engines/mkldnn/*.cpp
+            engines/mkldnn/normalizer/*.cpp
+            engines/mkldnn/graph/layers/extensions/*.cpp
+            engines/mkldnn/graph/layers/internal/*.cpp
+            engines/mkldnn/graph/structure/*.cpp
+            engines/mkldnn/graph/*.cpp)
+    file(GLOB
+            MKLDNN_TESTS_INCLUDE engines/mkldnn/graph/*.hpp)
+    include_directories(
+            ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include
+            ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/common
+            ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu
+            engines/mkldnn/graph
+            ${CMAKE_BINARY_DIR}/include/)
+
+    source_group("mkldnn" FILES ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE})
+
+    foreach(obj_lib IN LISTS mkldnn_plugin_object_libraries)
+        list(APPEND mkldnn_object_files $<TARGET_OBJECTS:${obj_lib}>)
+    endforeach()
+    list(APPEND MKLDNN_TESTS ${mkldnn_object_files})
+endif ()
+
+if (ENABLE_MYRIAD)
+    include(${XLINK_DIR}/XLink.cmake)
+
+    file(GLOB
+            VPU_TESTS
+            engines/vpu/*cpp
+            engines/vpu/mvnc/*cpp
+            engines/vpu/myriad_tests/*cpp
+            engines/vpu/myriad_tests/helpers/*cpp
+            engines/vpu/myriad_tests/helpers/*h
+            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin/*.cpp
+            )
+    include_directories(
+            engines/vpu/myriad_tests/helpers
+            ${IE_MAIN_SOURCE_DIR}/src/vpu/myriad_plugin
+            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius
+            ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include/watchdog
+            ${XLINK_INCLUDE}
+            ${XLINK_PLATFORM_INCLUDE})
+
+
+    list(APPEND TEST_SRC ${VPU_TESTS})
+    source_group("vpu" FILES ${VPU_TESTS})
+endif()
+
+file(GLOB
+        TEST_INCLUDE
+        shape_infer/*.hpp)
+
+source_group("src" FILES ${TEST_SRC})
+source_group("include" FILES ${TEST_INCLUDE})
+
+# create target
+
+add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE} ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE} ${DLIA_TESTS})
+set_ie_threading_interface_for(${TARGET_NAME})
+
+target_include_directories(${TARGET_NAME} PRIVATE
+        ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin
+        ${IE_MAIN_SOURCE_DIR}/src/gna_plugin
+        "${CMAKE_CURRENT_SOURCE_DIR}")
+
+set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+
+## Mock macros doesn't use "override" specificator
+target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:Clang>: -Wno-error=inconsistent-missing-override >)
+target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:AppleClang>: -Wno-error=inconsistent-missing-override >)
+
+if (ENABLE_MYRIAD)
+    target_compile_definitions(${TARGET_NAME} PRIVATE __PC__)
+    target_link_libraries(${TARGET_NAME} PRIVATE mvnc vpu_graph_transformer_test_static)
+endif ()
+
+target_link_libraries(${TARGET_NAME} PRIVATE
+    # static libraries
+    unitTestUtils
+    helpers_s
+    ${GNA_TEST_ENGINE}
+
+    # dynamic libraries
+    inference_engine_lp_transformations
+    inference_engine_transformations
+    ${CMAKE_DL_LIBS}
+    )
+
+if(TARGET libGNAStubs)
+    target_link_libraries(${TARGET_NAME} PRIVATE libGNAStubs)
+endif()
+
+if (ENABLE_MKL_DNN)
+    target_link_libraries(${TARGET_NAME} PRIVATE mkldnn)
+endif ()
+
+add_test(NAME ${TARGET_NAME}
+        COMMAND ${TARGET_NAME})
+
+add_dependencies(${TARGET_NAME} mock_engine)

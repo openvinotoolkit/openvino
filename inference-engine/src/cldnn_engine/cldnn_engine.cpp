@@ -14,7 +14,6 @@
 #include <cctype>
 
 #include "ie_metric_helpers.hpp"
-#include <debug.h>
 #include <ie_data.h>
 #include <cpp/ie_cnn_network.h>
 #include <description_buffer.hpp>
@@ -89,14 +88,14 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
         auto input_precision = ii.second->getTensorDesc().getPrecision();
         if (input_precision != InferenceEngine::Precision::FP16 && input_precision != InferenceEngine::Precision::I16
             && input_precision != InferenceEngine::Precision::FP32 && input_precision != InferenceEngine::Precision::U8
-            && input_precision != InferenceEngine::Precision::I32) {
+            && input_precision != InferenceEngine::Precision::I32 && input_precision != InferenceEngine::Precision::BOOL) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                 << "Input image format " << input_precision << " is not supported yet...";
         }
     }
 };
 
-ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICore * /*core*/, InferenceEngine::ICNNNetwork &network,
+ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICore * /*core*/, const InferenceEngine::ICNNNetwork &network,
                                                                const std::map<std::string, std::string> &config) {
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs;
@@ -104,6 +103,13 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     check_inputs(_networkInputs);
 
     CLDNNPlugin::Config conf = _impl->m_config;
+    auto iter = device_map.find(conf.device_id);
+    auto device_info = iter != device_map.end() ?
+                       iter->second.get_info() :
+                       device_map.begin()->second.get_info();
+
+    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
+
     conf.UpdateFromMap(config);
 
     if (conf.enableDynamicBatch) {
@@ -127,7 +133,8 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
                context_config.queuePriority == current_config.queuePriority &&
                context_config.sources_dumps_dir == current_config.sources_dumps_dir &&
                context_config.tuningConfig.mode == current_config.tuningConfig.mode &&
-               context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path;
+               context_config.tuningConfig.cache_file_path == current_config.tuningConfig.cache_file_path &&
+               context_config.device_id == current_config.device_id;
     };
 
     if (!canReuseDefaultContext()) {
@@ -136,10 +143,14 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     context = m_defaultContext;
 
-    return std::make_shared<CLDNNExecNetwork>(network, context, conf);
+    auto clonedNetwork = cloneNet(network);
+    ConstTransformer transformator(clonedNetwork.get());
+    transformator.fullTrim();
+
+    return std::make_shared<CLDNNExecNetwork>(*clonedNetwork, context, conf);
 }
 
-ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICore * /*core*/, InferenceEngine::ICNNNetwork &network,
+ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICore * /*core*/, const InferenceEngine::ICNNNetwork &network,
                                                                 RemoteContext::Ptr context,
                                                                 const std::map<std::string, std::string> &config) {
     InferenceEngine::InputsDataMap _networkInputs;
@@ -152,13 +163,25 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     }
 
     CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
+    auto iter = device_map.find(conf.device_id);
+    auto device_info = iter != device_map.end() ?
+                       iter->second.get_info() :
+                       device_map.begin()->second.get_info();
+
+    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
+
     // TODO - change this when context config and network config will be separated
     conf.UpdateFromMap(config);
+
     if (conf.enableDynamicBatch) {
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<CLDNNExecNetwork>(network, casted, conf);
+    auto clonedNetwork = cloneNet(network);
+    ConstTransformer transformator(clonedNetwork.get());
+    transformator.fullTrim();
+
+    return std::make_shared<CLDNNExecNetwork>(*clonedNetwork, casted, conf);
 }
 
 RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
@@ -299,8 +322,6 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
         metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
         metrics.push_back(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-        metrics.push_back(METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS));
-        metrics.push_back(METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS));
         metrics.push_back(METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS));
         metrics.push_back(METRIC_KEY(RANGE_FOR_STREAMS));
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
@@ -327,10 +348,6 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
             capabilities.push_back(METRIC_VALUE(INT8));
 
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
-    } else if (name == METRIC_KEY(NUMBER_OF_WAITING_INFER_REQUESTS)) {
-        IE_SET_METRIC_RETURN(NUMBER_OF_WAITING_INFER_REQUESTS, CLDNNExecNetwork::GetWaitingCounter());
-    } else if (name == METRIC_KEY(NUMBER_OF_EXEC_INFER_REQUESTS)) {
-        IE_SET_METRIC_RETURN(NUMBER_OF_EXEC_INFER_REQUESTS, CLDNNExecNetwork::GetRunningCounter());
     } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 2, 1);
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, range);

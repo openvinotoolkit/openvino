@@ -30,8 +30,8 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {WeightsLayout::winograd_2x3_s1_weights};
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+        return WeightsLayout::winograd_2x3_s1_weights;
     }
 
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;

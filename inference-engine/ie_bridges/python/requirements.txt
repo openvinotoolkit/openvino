@@ -1,4 +1,2 @@
-opencv-python
 numpy
-cython
-progress
+cython>=0.29

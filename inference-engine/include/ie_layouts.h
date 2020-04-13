@@ -232,49 +232,7 @@ public:
      *
      * @param l memory layout
      */
-    void setLayout(Layout l) {
-        bool inconsistentLayout = true;
-        switch (l) {
-        case Layout::SCALAR:
-            inconsistentLayout = !dims.empty();
-            break;
-        case Layout::C:
-            inconsistentLayout = dims.size() != 1;
-            break;
-        case Layout::BLOCKED:
-        case Layout::ANY:
-            inconsistentLayout = false;
-            break;
-        case Layout::GOIDHW:
-            inconsistentLayout = dims.size() != 6;
-            break;
-        case Layout::NCDHW:
-        case Layout::NDHWC:
-        case Layout::OIDHW:
-        case Layout::GOIHW:
-            inconsistentLayout = dims.size() != 5;
-            break;
-        case Layout::OIHW:
-        case Layout::NCHW:
-        case Layout::NHWC:
-            inconsistentLayout = dims.size() != 4;
-            break;
-        case Layout::CHW:
-            inconsistentLayout = dims.size() != 3;
-            break;
-        case Layout::CN:
-        case Layout::NC:
-        case Layout::HW:
-            inconsistentLayout = dims.size() != 2;
-            break;
-        default:
-            break;
-        }
-        if (inconsistentLayout)
-            THROW_IE_EXCEPTION << "Size of dims(" << std::to_string(dims.size()) << ") and format(" << l
-                               << ") are inconsistent.";
-        layout = l;
-    }
+    void setLayout(Layout l);
 
     /**
      * @brief Returns the memory precision

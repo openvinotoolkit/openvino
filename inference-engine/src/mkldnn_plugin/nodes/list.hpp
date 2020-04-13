@@ -5,17 +5,29 @@
 #pragma once
 
 #include <ie_iextension.h>
+#include <ie_layers.h>
 
 #include <string>
 #include <map>
 #include <memory>
 #include <algorithm>
+
+// WA for xbyak.h
+#ifdef _WIN32
+# ifndef _WINSOCKAPI_
+#  define _WINSOCKAPI_
+# endif
+# ifndef _WINSOCK2API_
+#  define _WINSOCK2API_
+# endif
+#endif
 #include <cpu_isa_traits.hpp>
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
+IE_SUPPRESS_DEPRECATED_START
 using ext_factory = std::function<InferenceEngine::ILayerImplFactory*(const InferenceEngine::CNNLayer*)>;
 
 struct ExtensionsHolder {
@@ -64,8 +76,6 @@ public:
         versionInfo = &ExtensionDescription;
     }
 
-    void SetLogCallback(InferenceEngine::IErrorListener& /*listener*/) noexcept override {}
-
     void Unload() noexcept override {}
 
     void Release() noexcept override {
@@ -100,6 +110,8 @@ private:
     }
 };
 
+IE_SUPPRESS_DEPRECATED_END
+
 template<mkldnn::impl::cpu::cpu_isa_t T, typename Ext>
 class ExtRegisterBase {
 public:
@@ -107,10 +119,12 @@ public:
         if (!mkldnn::impl::cpu::mayiuse(cpu_id))
             return;
 
+        IE_SUPPRESS_DEPRECATED_START
         MKLDNNExtensions<T>::AddExt(type,
                               [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
                                   return new Ext(layer);
                               });
+        IE_SUPPRESS_DEPRECATED_END
     }
 };
 

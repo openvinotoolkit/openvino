@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ CommonDispatchData SoftmaxLossGradKernelBase::SetDefault(const softmax_loss_grad
     runInfo.lws1 = local[1];
     runInfo.lws2 = local[2];
 
-    runInfo.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    runInfo.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 
     runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
@@ -70,7 +70,7 @@ KernelsData SoftmaxLossGradKernelBase::GetCommonKernelsData(const Params& params
     FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
     kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = runInfo.efficiency;
 
     return {kd};
 }

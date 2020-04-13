@@ -33,6 +33,20 @@ std::string binary_convolution_params::to_string() const {
     return s.str();
 }
 
+std::string binary_convolution_params::to_cache_string_v2() const {
+    std::stringstream s;
+
+    s << weight_bias_params::to_cache_string_v2() << ";";
+    s << filterSize.x << "_" << filterSize.y << "_" << filterSize.z << ";";
+    s << stride.x << "_" << stride.y << "_" << stride.z << ";";
+    s << dilation.x << "_" << dilation.y << "_" << dilation.z << ";";
+    s << padding.x << "_" << padding.y << "_" << padding.z << ";";
+    s << split << ";";
+    s << groups;
+
+    return s.str();
+}
+
 ParamsKey binary_convolution_params::GetParamsKey() const {
     ParamsKey k = weight_bias_params::GetParamsKey();
 

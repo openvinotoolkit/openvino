@@ -299,7 +299,7 @@ void MyriadExecutor::closeDevices(std::vector<DevicePtr> &devicePool) {
 void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
                                    const std::vector<char> &graphFileContent,
                                    const std::pair<const char*, size_t> &graphHeaderDesc,
-                                   size_t numStages, const char* networkName, int executors) {
+                                   size_t numStages, const std::string & networkName, int executors) {
     VPU_PROFILE(allocateGraph);
     _numStages = numStages;
     graphDesc._name = networkName;
@@ -309,7 +309,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
 
     ncStatus_t status;
 
-    status = ncGraphCreate(networkName, &graphDesc._graphHandle);
+    status = ncGraphCreate(networkName.c_str(), &graphDesc._graphHandle);
     if (status != NC_OK) {
         THROW_IE_EXCEPTION << "Failed to init graph: " << ncStatusToStr(nullptr, status);
     }

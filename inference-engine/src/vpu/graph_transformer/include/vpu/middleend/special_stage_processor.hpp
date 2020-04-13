@@ -34,7 +34,7 @@ public:
             const Model& model,
             const Stage& stage);
 
-    void processShrink(
+    void processCrop(
             const Model& model,
             const Stage& stage);
 

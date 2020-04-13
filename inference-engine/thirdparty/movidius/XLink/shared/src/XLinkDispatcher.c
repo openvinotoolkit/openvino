@@ -29,10 +29,11 @@
 #endif
 
 #include "XLinkDispatcher.h"
+#include "XLinkMacros.h"
 #include "XLinkPrivateDefines.h"
 #include "XLinkPrivateFields.h"
 #include "XLink.h"
-#include "XLinkTool.h"
+#include "XLinkErrorUtils.h"
 
 #define MVLOG_UNIT_NAME xLink
 #include "XLinkLog.h"
@@ -137,7 +138,6 @@ static void* eventReader(void* ctx);
 static void* eventSchedulerRun(void* ctx);
 #endif
 
-static int isAvailableScheduler(xLinkSchedulerState_t* curr);
 static int isEventTypeRequest(xLinkEventPriv_t* event);
 static void postAndMarkEventServed(xLinkEventPriv_t *event);
 static int createUniqueID();
@@ -176,7 +176,7 @@ static XLinkError_t sendEvents(xLinkSchedulerState_t* curr);
 // ------------------------------------
 
 XLinkError_t DispatcherInitialize(DispatcherControlFunctions *controlFunc) {
-    ASSERT_X_LINK(controlFunc != NULL);
+    ASSERT_XLINK(controlFunc != NULL);
 
     if (!controlFunc->eventReceive ||
         !controlFunc->eventSend ||
@@ -202,9 +202,9 @@ XLinkError_t DispatcherInitialize(DispatcherControlFunctions *controlFunc) {
 
 XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle)
 {
-    ASSERT_X_LINK(deviceHandle);
+    ASSERT_XLINK(deviceHandle);
 #ifdef __PC__
-    ASSERT_X_LINK(deviceHandle->xLinkFD != NULL);
+    ASSERT_XLINK(deviceHandle->xLinkFD != NULL);
 #endif
 
     pthread_attr_t attr;
@@ -309,10 +309,10 @@ XLinkError_t DispatcherStart(xLinkDeviceHandle_t *deviceHandle)
 }
 
 int DispatcherClean(xLinkDeviceHandle_t *deviceHandle) {
-    XLINK_RET_IF_RC(deviceHandle == NULL, X_LINK_ERROR);
+    XLINK_RET_IF(deviceHandle == NULL);
 
     xLinkSchedulerState_t* curr = findCorrespondingScheduler(deviceHandle->xLinkFD);
-    XLINK_RET_IF_RC(curr == NULL, X_LINK_ERROR);
+    XLINK_RET_IF(curr == NULL);
 
     return dispatcherClean(curr);
 }
@@ -320,7 +320,7 @@ int DispatcherClean(xLinkDeviceHandle_t *deviceHandle) {
 xLinkEvent_t* DispatcherAddEvent(xLinkEventOrigin_t origin, xLinkEvent_t *event)
 {
     xLinkSchedulerState_t* curr = findCorrespondingScheduler(event->deviceHandle.xLinkFD);
-    XLINK_RET_IF_RC(curr == NULL, NULL);
+    XLINK_RET_ERR_IF(curr == NULL, NULL);
 
     if(curr->resetXLink) {
         return NULL;
@@ -364,7 +364,7 @@ xLinkEvent_t* DispatcherAddEvent(xLinkEventOrigin_t origin, xLinkEvent_t *event)
 int DispatcherWaitEventComplete(xLinkDeviceHandle_t *deviceHandle)
 {
     xLinkSchedulerState_t* curr = findCorrespondingScheduler(deviceHandle->xLinkFD);
-    ASSERT_X_LINK(curr != NULL);
+    ASSERT_XLINK(curr != NULL);
 
     sem_t* id = getAndRefSem(pthread_self(), curr, 0);
     if (id == NULL) {
@@ -422,7 +422,7 @@ char* TypeToStr(int type)
 int DispatcherUnblockEvent(eventId_t id, xLinkEventType_t type, streamId_t stream, void *xlinkFD)
 {
     xLinkSchedulerState_t* curr = findCorrespondingScheduler(xlinkFD);
-    ASSERT_X_LINK(curr != NULL);
+    ASSERT_XLINK(curr != NULL);
 
     mvLog(MVLOG_DEBUG,"unblock\n");
     xLinkEventPriv_t* blockedEvent;
@@ -473,7 +473,7 @@ int pthread_t_compare(pthread_t a, pthread_t b)
 
 static sem_t* createSem(xLinkSchedulerState_t* curr)
 {
-    ASSERT_X_LINK_R(curr != NULL, NULL);
+    XLINK_RET_ERR_IF(curr == NULL, NULL);
 
     sem_t* sem = getAndRefSem(pthread_self(), curr, 0);
     if (sem) {// it already exists, error
@@ -486,7 +486,7 @@ static sem_t* createSem(xLinkSchedulerState_t* curr)
         while (temp < curr->eventSemaphores + MAXIMUM_SEMAPHORES) {
             if (temp->refs < 0 || curr->semaphores == MAXIMUM_SEMAPHORES) {
                 if (curr->semaphores == MAXIMUM_SEMAPHORES && !temp->refs) {
-                    ASSERT_X_LINK_R(sem_destroy(&temp->sem) != -1, NULL);
+                    XLINK_RET_ERR_IF(sem_destroy(&temp->sem) == -1, NULL);
                     curr->semaphores --;
                     temp->refs = -1;
 #if (defined(_WIN32) || defined(_WIN64))
@@ -524,7 +524,7 @@ static sem_t* createSem(xLinkSchedulerState_t* curr)
 
 static sem_t* getAndRefSem(pthread_t threadId, xLinkSchedulerState_t *curr, int inc_ref)
 {
-    ASSERT_X_LINK_R(curr != NULL, NULL);
+    XLINK_RET_ERR_IF(curr == NULL, NULL);
 
     localSem_t* sem = curr->eventSemaphores;
     while (sem < curr->eventSemaphores + MAXIMUM_SEMAPHORES) {
@@ -538,7 +538,7 @@ static sem_t* getAndRefSem(pthread_t threadId, xLinkSchedulerState_t *curr, int 
 }
 
 static int unrefSem(sem_t* sem,  xLinkSchedulerState_t* curr) {
-    ASSERT_X_LINK(curr != NULL);
+    ASSERT_XLINK(curr != NULL);
     localSem_t* temp = curr->eventSemaphores;
     while (temp < curr->eventSemaphores + MAXIMUM_SEMAPHORES) {
         if (&temp->sem == sem) {
@@ -558,7 +558,7 @@ static void* eventReader(void* ctx)
 #endif
 {
     xLinkSchedulerState_t *curr = (xLinkSchedulerState_t*)ctx;
-    ASSERT_X_LINK_R(curr, NULL);
+    XLINK_RET_ERR_IF(curr == NULL, NULL);
 
     xLinkEvent_t event = { 0 };// to fix error C4700 in win
     event.header.id = -1;
@@ -581,10 +581,9 @@ static void* eventReader(void* ctx)
 
         DispatcherAddEvent(EVENT_REMOTE, &event);
 
-        if (event.header.type == XLINK_RESET_RESP
-            || event.header.type == XLINK_RESET_REQ) {
+        if (event.header.type == XLINK_RESET_REQ) {
             curr->resetXLink = 1;
-            mvLog(MVLOG_INFO,"eventReader thread stopped: reset");
+            mvLog(MVLOG_DEBUG,"Read XLINK_RESET_REQ, stopping eventReader thread.");
         }
     }
 
@@ -599,7 +598,7 @@ static void* eventSchedulerRun(void* ctx)
 {
     int schedulerId = *((int*) ctx);
     mvLog(MVLOG_DEBUG,"%s() schedulerId %d\n", __func__, schedulerId);
-    ASSERT_X_LINK_R(schedulerId < MAX_SCHEDULERS, NULL);
+    XLINK_RET_ERR_IF(schedulerId >= MAX_SCHEDULERS, NULL);
 
     xLinkSchedulerState_t* curr = &schedulerState[schedulerId];
     pthread_t readerThreadId;        /* Create thread for reader.
@@ -638,28 +637,22 @@ static void* eventSchedulerRun(void* ctx)
         perror("Setting name for event reader thread failed");
     }
 #endif
-#ifdef __PC__
-    sc = pthread_attr_destroy(&attr);
-    if (sc) {
-        mvLog(MVLOG_WARN, "Thread attr destroy failed");
-    }
-#endif
-
     mvLog(MVLOG_INFO,"Scheduler thread started");
 
-    XLINK_RET_IF_RC(sendEvents(curr), NULL);
+    XLinkError_t rc = sendEvents(curr);
+    if(rc) {
+        mvLog(MVLOG_ERROR, "sendEvents method finished with an error: %s", XLinkErrorToStr(rc));
+    }
 
     sc = pthread_join(readerThreadId, NULL);
     if (sc) {
         mvLog(MVLOG_ERROR, "Waiting for thread failed");
     }
 
-#ifndef __PC__
-    if (pthread_attr_destroy(&attr) != 0) {
-        mvLog(MVLOG_ERROR,"pthread_attr_destroy error");
-        return NULL;
+    sc = pthread_attr_destroy(&attr);
+    if (sc) {
+        mvLog(MVLOG_WARN, "Thread attr destroy failed");
     }
-#endif
 
     if (dispatcherReset(curr) != 0) {
         mvLog(MVLOG_WARN, "Failed to reset");
@@ -672,15 +665,6 @@ static void* eventSchedulerRun(void* ctx)
     }
 
     return NULL;
-}
-
-static int isAvailableScheduler(xLinkSchedulerState_t* curr)
-{
-    if (curr->schedulerId == -1) {
-        mvLog(MVLOG_WARN,"Scheduler has already been reset or cleaned");
-        return 0; // resetted already
-    }
-    return 1;
 }
 
 static int isEventTypeRequest(xLinkEventPriv_t* event)
@@ -760,9 +744,9 @@ static int dispatcherRequestServe(xLinkEventPriv_t * event, xLinkSchedulerState_
 
 static int dispatcherResponseServe(xLinkEventPriv_t * event, xLinkSchedulerState_t* curr)
 {
+    XLINK_RET_ERR_IF(curr == NULL, 1);
+    XLINK_RET_ERR_IF(isEventTypeRequest(event), 1);
     int i = 0;
-    XLINK_RET_IF_RC(curr == NULL, 1);
-    XLINK_RET_IF_RC(isEventTypeRequest(event), 1);
     for (i = 0; i < MAX_EVENTS; i++)
     {
         xLinkEventHeader_t *header = &curr->lQueue.q[i].packet.header;
@@ -814,7 +798,7 @@ static inline xLinkEventPriv_t* getNextElementWithState(xLinkEventPriv_t* base, 
 
 static xLinkEventPriv_t* searchForReadyEvent(xLinkSchedulerState_t* curr)
 {
-    ASSERT_X_LINK_R(curr != NULL, NULL);
+    XLINK_RET_ERR_IF(curr == NULL, NULL);
     xLinkEventPriv_t* ev = NULL;
 
     ev = getNextElementWithState(curr->lQueue.base, curr->lQueue.end, curr->lQueue.base, EVENT_READY);
@@ -870,7 +854,7 @@ static xLinkEvent_t* addNextQueueElemToProc(xLinkSchedulerState_t* curr,
 
 static xLinkEventPriv_t* dispatcherGetNextEvent(xLinkSchedulerState_t* curr)
 {
-    XLINK_RET_IF_RC(curr == NULL, NULL);
+    XLINK_RET_ERR_IF(curr == NULL, NULL);
 
     if (sem_wait(&curr->notifyDispatcherSem)) {
         mvLog(MVLOG_ERROR,"can't post semaphore\n");
@@ -897,9 +881,13 @@ static xLinkEventPriv_t* dispatcherGetNextEvent(xLinkSchedulerState_t* curr)
 
 static int dispatcherClean(xLinkSchedulerState_t* curr)
 {
-    XLINK_RET_IF_RC(pthread_mutex_lock(&clean_mutex), 1);
-    if(!isAvailableScheduler(curr)) {
-        XLINK_CHECK_CALL(pthread_mutex_unlock(&clean_mutex));
+    XLINK_RET_ERR_IF(pthread_mutex_lock(&clean_mutex), 1);
+    if (curr->schedulerId == -1) {
+        mvLog(MVLOG_WARN,"Scheduler has already been reset or cleaned");
+        if(pthread_mutex_unlock(&clean_mutex) != 0) {
+            mvLog(MVLOG_ERROR, "Failed to unlock clean_mutex");
+        }
+
         return 1;
     }
 
@@ -935,13 +923,15 @@ static int dispatcherClean(xLinkSchedulerState_t* curr)
     numSchedulers--;
 
     mvLog(MVLOG_INFO, "Clean Dispatcher Successfully...");
-    XLINK_CHECK_CALL(pthread_mutex_unlock(&clean_mutex));
+    if(pthread_mutex_unlock(&clean_mutex) != 0) {
+        mvLog(MVLOG_ERROR, "Failed to unlock clean_mutex after clearing dispatcher");
+    }
     return 0;
 }
 
 static int dispatcherReset(xLinkSchedulerState_t* curr)
 {
-    ASSERT_X_LINK(curr != NULL);
+    ASSERT_XLINK(curr != NULL);
 
     glControlFunc->closeDeviceFd(&curr->deviceHandle);
     if(dispatcherClean(curr)) {
@@ -1018,6 +1008,7 @@ static XLinkError_t sendEvents(xLinkSchedulerState_t* curr) {
 #ifdef __PC__
                 if (toSend->header.type == XLINK_RESET_REQ) {
                     curr->resetXLink = 1;
+                    mvLog(MVLOG_DEBUG,"Send XLINK_RESET_REQ, stopping sendEvents thread.");
                     if(toSend->deviceHandle.protocol == X_LINK_PCIE) {
                         toSend->header.type = XLINK_PING_REQ;
                         mvLog(MVLOG_DEBUG, "Request for reboot not sent, only ping event");

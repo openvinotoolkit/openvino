@@ -23,7 +23,7 @@ namespace details {
  * @tparam Key type, usually std::string
  */
 template <class Key>
-class CaselessLess : public std::binary_function<Key, Key, bool> {
+class CaselessLess  {
 public:
     bool operator()(const Key& a, const Key& b) const noexcept {
         return std::lexicographical_compare(std::begin(a), std::end(a), std::begin(b), std::end(b),
@@ -38,7 +38,7 @@ public:
  * @tparam Key
  */
 template <class Key>
-class CaselessEq : public std::binary_function<Key, Key, bool> {
+class CaselessEq {
 public:
     bool operator()(const Key& a, const Key& b) const noexcept {
         return a.size() == b.size() &&

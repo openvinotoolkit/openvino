@@ -167,7 +167,7 @@ public:
 
     /**
      * @brief Compares stored object with the given one
-     *
+     * @param pointer An pointer to compare with.
      * @return true if objects are equal, false otherwise
      */
     bool operator==(const T* pointer) const {
@@ -323,7 +323,7 @@ public:
      *
      * @param ptr Pointer to IAllocator object
      * @param handle Handle provided by allocator
-     * @param offsetInBytes Offset in originally locked region
+     * @param offset Offset in bytes in originally locked region
      */
     LockedMemory(IAllocator* ptr, void* handle, size_t offset): base(ptr, handle, LOCK_FOR_READ, offset) {}
 

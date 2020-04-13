@@ -130,7 +130,7 @@ KERNEL(gemm_ref)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE res = FINAL_NAME;
+    OUTPUT_TYPE res = FUSED_OPS_RESULT;
     output[dst_index] = res;
 #else
     output[dst_index] = dequantized;

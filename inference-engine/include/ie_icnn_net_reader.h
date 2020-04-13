@@ -20,12 +20,13 @@
 
 namespace InferenceEngine {
 /**
+ * @deprecated Use InferenceEngine::Core::ReadNetwork methods. This API will be removed in 2020.3
  * @brief This class is the main interface to build and parse a network from a given IR
  *
  * All methods here do not throw exceptions and return a StatusCode and ResponseDesc object.
  * Alternatively, to use methods that throw exceptions, refer to the CNNNetReader wrapper class.
  */
-class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core::ReadNetwork() method this API will be removed in 2020 R2")
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core::ReadNetwork methods. This API will be removed in 2020.3")
     ICNNNetReader : public details::IRelease {
 public:
     /**
@@ -81,13 +82,14 @@ public:
      * @brief Returns a pointer to the built network
      *
      * @param resp Response message
+     * @return A pointer to a network
      */
     virtual ICNNNetwork* getNetwork(ResponseDesc* resp) noexcept = 0;
 
     /**
      * @brief Retrieves the last building status
-     *
      * @param resp Response message
+     * @return `True` in case of parsing is successful, `false` otherwise.
      */
     virtual bool isParseSuccess(ResponseDesc* resp) noexcept = 0;
 

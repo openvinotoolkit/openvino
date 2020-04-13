@@ -77,8 +77,8 @@ protected:
     }
 };
 
-};  // namespace details
+}  // namespace details
 
-};  // namespace gpu
+}  // namespace gpu
 
-};  // namespace InferenceEngine
+}  // namespace InferenceEngine

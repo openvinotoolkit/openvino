@@ -91,18 +91,21 @@ public:
     /**
      * @brief The constructor creates a builder based on ICNNNetwork with custom Context
      *
+     * @param ieContext constant reference to Context object
      * @param network constant reference to ICNNNetwork object
      */
     Network(const Context& ieContext, const ICNNNetwork& network);
     /**
      * @brief The constructor creates a empty builder with network name and custom Context
      *
+     * @param ieContext constant reference to Context object
      * @param name Network name
      */
     Network(const Context& ieContext, const std::string& name);
     /**
      * @brief The constructor creates a builder based on INetwork with custom Context
      *
+     * @param ieContext constant reference to Context object
      * @param network constant reference to INetwork object
      */
     Network(const Context& ieContext, const INetwork& network);

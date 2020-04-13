@@ -41,7 +41,8 @@ void MKLDNNDepthwiseNode::getSupportedDescriptors() {
     if (parentOutDims != getChildEdgeAt(0)->getDims())
         THROW_IE_EXCEPTION << "Cannot create layer " << getName() << ": Incorrect dimensions!";
 
-    SizeVector weightDims = { (long unsigned int)parentOutDims[1] };
+    auto size = static_cast<size_t>(parentOutDims.ndims() == 1 ? parentOutDims[0] : parentOutDims[1]);
+    SizeVector weightDims = { size };
     MKLDNNDims blocked_weightDims(weightDims);
 
     auto * wLayer = dynamic_cast<InferenceEngine::WeightableLayer*>(getCnnLayer().get());
@@ -121,7 +122,7 @@ bool MKLDNNDepthwiseNode::created() const {
     return getType() == Depthwise;
 }
 
-void MKLDNNDepthwiseNode::initValues() {
+void MKLDNNDepthwiseNode::init() {
     GenericLayer* depthwiseLayer = getCnnLayer().get();
     if (depthwiseLayer == nullptr)
         THROW_IE_EXCEPTION << "Cannot get CNNLayer.";
@@ -150,8 +151,6 @@ void MKLDNNDepthwiseNode::initValues() {
     } else {
         THROW_IE_EXCEPTION << "Unsupported depthwise operation";
     }
-
-    initialized = true;
 }
 
 void MKLDNNDepthwiseNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,

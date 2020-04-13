@@ -51,7 +51,12 @@ public:
      * @param plg Plugin to use
      */
     explicit ExecutableNetwork(IExecutableNetwork::Ptr actual, InferenceEnginePluginPtr plg = {})
-        : actual(actual), plg(plg) {}
+        : actual(actual), plg(plg) {
+        //  plg can be null, but not the actual
+        if (actual == nullptr) {
+            THROW_IE_EXCEPTION << "ExecutableNetwork wrapper was not initialized.";
+        }
+    }
 
     /**
      * @copybrief IExecutableNetwork::GetOutputsInfo
@@ -84,6 +89,12 @@ public:
      * @param newActual actual pointed object
      */
     void reset(IExecutableNetwork::Ptr newActual) {
+        if (actual == nullptr) {
+            THROW_IE_EXCEPTION << "ExecutableNetwork wrapper was not initialized.";
+        }
+        if (newActual == nullptr) {
+            THROW_IE_EXCEPTION << "ExecutableNetwork wrapper used for reset was not initialized.";
+        }
         this->actual.swap(newActual);
     }
 
@@ -141,18 +152,22 @@ public:
     }
 
     /**
+     * @deprecated Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph.
      * @copybrief IExecutableNetwork::GetMappedTopology
      *
      * Wraps IExecutableNetwork::GetMappedTopology.
      * @param deployedTopology Map of PrimitiveInfo objects that represent the deployed topology
      */
+    IE_SUPPRESS_DEPRECATED_START
+    INFERENCE_ENGINE_DEPRECATED("Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph")
     void GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>>& deployedTopology) {
         CALL_STATUS_FNC(GetMappedTopology, deployedTopology);
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
-     * cast operator is used when this wrapper initialized by LoadNetwork
-     * @return
+     * @brief cast operator is used when this wrapper initialized by LoadNetwork
+     * @return A shared pointer to IExecutableNetwork interface. 
      */
     operator IExecutableNetwork::Ptr&() {
         return actual;
@@ -177,6 +192,9 @@ public:
      * @return A vector of Memory State objects
      */
     std::vector<MemoryState> QueryState() {
+        if (actual == nullptr) {
+            THROW_IE_EXCEPTION << "ExecutableNetwork wrapper was not initialized.";
+        }
         IMemoryState::Ptr pState = nullptr;
         auto res = OK;
         std::vector<MemoryState> controller;
@@ -204,7 +222,8 @@ public:
         CALL_STATUS_FNC(SetConfig, config);
     }
 
-    /** @copybrief IExecutableNetwork::GetConfig
+    /**
+     * @copybrief IExecutableNetwork::GetConfig
      *
      * Wraps IExecutableNetwork::GetConfig
      * @param name - config key, can be found in ie_plugin_config.hpp
@@ -232,6 +251,7 @@ public:
     /**
      * @brief Returns pointer to plugin-specific shared context
      * on remote accelerator device that was used to create this ExecutableNetwork
+     * @return A context
      */
     RemoteContext::Ptr GetContext() const {
         RemoteContext::Ptr pContext;

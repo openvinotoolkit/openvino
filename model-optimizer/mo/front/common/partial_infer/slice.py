@@ -101,6 +101,10 @@ def tf_strided_slice_infer(node):
                 # ignore this error
                 continue
 
+    for i, s in enumerate(slice_idx):
+        if s is None:
+            slice_idx[i] = slice(0, 1, 1)
+
     node['slices'] = np.array(slice_idx)
     for attr in ('shrink_axis_mask', 'new_axis_mask', 'ellipsis_mask', 'begin_mask', 'end_mask'):
         node[attr] = np.array(node[attr], dtype=np.int32)

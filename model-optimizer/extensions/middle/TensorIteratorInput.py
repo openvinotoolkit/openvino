@@ -238,8 +238,9 @@ class BackEdgeSimpleInputMatcher(MiddleReplacementPattern):
         cycle_input = match['BackEdge'].in_node(1)
 
         # We need to create new TensorItertorInput node only if this node doesn't exist already.
-        if len(init_input.in_nodes()) == 0 or\
-           (len(init_input.in_nodes()) == 1 and init_input.has_valid('value')):
+        if (len(init_input.in_nodes()) == 0 or \
+           (len(init_input.in_nodes()) == 1 and init_input.has_valid('value') and
+            init_input.in_node(0).soft_get('op') != 'TensorIteratorInput')):
 
             input_node = TensorIteratorInput(graph, dict(external_port_id=None,
                                                          internal_layer_id=None,

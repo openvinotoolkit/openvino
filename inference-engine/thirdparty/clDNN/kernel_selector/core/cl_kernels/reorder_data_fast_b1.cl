@@ -32,10 +32,10 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint w, uint z, uint y, uint x
     return GET_DATA_BS_FYX_BSV8_INDEX(INPUT0, b, f, y, x, SUB_GROUP_SIZE);
 #elif defined INPUT0_LAYOUT_BF8_XY16
     return GET_DATA_BF8_XY16_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_BFYX_F16
-    return GET_DATA_BFYX_F16_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_BFZYX_F16
-    return GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, z, y, x);
+#elif defined INPUT0_LAYOUT_B_FS_YX_FSV16
+    return GET_DATA_B_FS_YX_FSV16_INDEX(INPUT0, b, f, y, x);
+#elif defined INPUT0_LAYOUT_B_FS_ZYX_FSV16
+    return GET_DATA_B_FS_ZYX_FSV16_INDEX(INPUT0, b, f, z, y, x);
 #else
 #error reorder_data_fast_b1.cl: input format - not supported
 #endif
@@ -56,10 +56,10 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
     return GET_DATA_BS_FYX_BSV8_INDEX(OUTPUT, b, f, y, x, SUB_GROUP_SIZE);
 #elif defined OUTPUT_LAYOUT_BF8_XY16
     return GET_DATA_BF8_XY16_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_BFYX_F16
-    return GET_DATA_BFYX_F16_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_BFZYX_F16
-    return GET_DATA_BFZYX_F16_INDEX(OUTPUT, b, f, z, y, x);
+#elif defined OUTPUT_LAYOUT_B_FS_YX_FSV16
+    return GET_DATA_B_FS_YX_FSV16_INDEX(OUTPUT, b, f, y, x);
+#elif defined OUTPUT_LAYOUT_B_FS_ZYX_FSV16
+    return GET_DATA_B_FS_ZYX_FSV16_INDEX(OUTPUT, b, f, z, y, x);
 #else
 #error reorder_data_fast_b1.cl: output format - not supported
 #endif
@@ -176,7 +176,7 @@ KERNEL (reorder_data_fast_b1)(
     tmp_data_idx  = data_idx / OUTPUT_SIZE_Z;
     const uint z = data_idx - tmp_data_idx * OUTPUT_SIZE_Z;
     const uint w = 0;
-#elif defined OUTPUT_LAYOUT_BFZYX_F16
+#elif defined OUTPUT_LAYOUT_B_FS_ZYX_FSV16
     uint tmp_data_idx = data_idx / OUTPUT_BATCH_NUM;
     const uint b = data_idx - tmp_data_idx * OUTPUT_BATCH_NUM;
     data_idx = tmp_data_idx;
@@ -244,7 +244,7 @@ KERNEL (reorder_data_fast_b1)(
     const uint output_idx = data_idx;
 #else
     uint8 ov = RESHAPE_DIMS(OUTPUT, INPUT0, b, f, w, z, y, x);
-    const uint input_idx = FUNC_CALL(get_input_index)(ov[0],ov[1], ov[2], ov[3], ov[4],ov[5]);
+    const uint input_idx = FUNC_CALL(get_input_index)(ov[1], ov[2], ov[3], ov[4], ov[5],ov[6]);
     const uint output_idx  = FUNC_CALL(get_output_index)(b, f, w, z, y, x);
 #endif
 
@@ -254,7 +254,7 @@ KERNEL (reorder_data_fast_b1)(
 #elif defined MEAN_SUBTRACT_IN_BUFFER
     MEAN_SUBTRACT_TYPE res = TO_MEAN_TYPE(input[input_idx]);
     uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, f, w, z, y, x);
-    res -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[0], msv[1], msv[4], msv[5])];
+    res -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[1], msv[2], msv[5], msv[6])];
 #else
     CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);
 #endif

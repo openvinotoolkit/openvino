@@ -27,9 +27,10 @@ std::vector<size_t> GetImageSizes(const kernel_selector::WeightsTensor& dimensio
 bool CheckImageSize(const weight_bias_params& newParams, const WeightsLayout layout);
 bool UpdateWeightsParams(weight_bias_params& newParams,
                          const optional_params& options,
-                         std::vector<WeightsLayout> layouts,
+                         WeightsLayout layout,
                          WeightsReorderParams& weightsReorderParams,
-                         const ParamsKey& paramsKey = ParamsKey());
+                         const ParamsKey& paramsKey = ParamsKey(),
+                         size_t groups = 1);
 JitConstants GetTensorFriendlyWorkGroupsJit(const DataTensor& t);
 std::vector<size_t> GetTensorFriendlyWorkGroups(const DataTensor& t);
 std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info);

@@ -19,9 +19,11 @@ import logging as log
 import numpy as np
 
 from extensions.middle.pass_separator import PostMiddleStart
-from mo.front.extractor import add_attrs_props, update_ie_fields
-from mo.graph.graph import Node, Graph
+from mo.front.common.partial_infer.utils import int64_array
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.const import Const
+from mo.ops.convolution import Convolution
 from mo.ops.crop import Crop
 
 
@@ -74,74 +76,81 @@ class NasNet(MiddleReplacementPattern):
         """
         input = match['input']
 
-        pad_op = match['pad_op']
+        pad_node = match['pad_op']
+        pad_node_name = pad_node.soft_get('name', pad_node.id)
 
-        sslice = match['sslice']
-        sslice_out = match['sslice_out']
+        sslice_node = match['sslice']
         begin = []
         end = []
         stride = []
-        for s in sslice.slices:
+        for s in sslice_node.slices:
             begin.append(s.start)
             end.append(s.stop)
             stride.append(s.step)
 
-        if not np.array_equal(pad_op.pads, np.array([[0, 0], [0, 1], [0, 1], [0, 0]])):
-            log.error(" Pad values doesn't match!")
+        pads_begin = pad_node.in_port(1).data.get_value()
+        pads_end = pad_node.in_port(2).data.get_value()
+        if pads_begin is None or pads_end is None:
+            log.error('Pad values for node "{}" are not constants'.format(pad_node_name))
             return
 
-        if not np.array_equal(begin, np.array([0, 1, 1, 0])):
+        if not np.array_equal(pads_begin, int64_array([0, 0, 0, 0])):
+            log.error('Pad begin values doesn\'t match for node {}!'.format(pad_node_name))
+            return
+
+        if not np.array_equal(pads_end, int64_array([0, 1, 1, 0])):
+            log.error('Pad end values doesn\'t match for node {}!'.format(pad_node_name))
+            return
+
+        if not np.array_equal(begin, int64_array([0, 1, 1, 0])):
             log.error("StridedSlice has wrong begin")
             return
 
-        if not np.array_equal(sslice.end_mask, np.array([0, 0, 0, 0])) or not np.array_equal(sslice.begin_mask,
-                                                                                             np.array([0, 1, 1, 0])):
+        if not np.array_equal(sslice_node.end_mask, int64_array([0, 0, 0, 0])) or not np.array_equal(sslice_node.begin_mask,
+                                                                                                int64_array(
+                                                                                                    [0, 1, 1, 0])):
             log.error("StridedSlice has wrong masks")
             return
 
-        # Cut Smth-x->Pad->StrudedSlice-x->AvgPool
-        graph.remove_edge(input.id, pad_op.id)
-        graph.remove_edge(sslice.id, sslice_out.id)
-
         # Pad -> Conv
-        conv_node = graph.unique_id(pad_op.name + '/Conv_')
-        conv_weights_node = graph.unique_id(pad_op.name + '/ConvW_')
+        conv_name = graph.unique_id(pad_node.name + '/Conv_')
+        conv_weights_name = graph.unique_id(pad_node.name + '/ConvW_')
         conv_weights = np.ones((input.shape[3], 1, 1, 1))
-        conv_output = graph.unique_id(pad_op.name + '/ConvOut_')
-        output_shape = np.array([input.shape[0], input.shape[1] + 1, input.shape[2] + 1, input.shape[3]])
+        output_shape = int64_array([input.shape[0], input.shape[1] + 1, input.shape[2] + 1, input.shape[3]])
 
-        graph.add_node(conv_node,
-                       **add_attrs_props(
-                           dict(kind='op', type='Convolution', name=conv_node, op='Conv2D',
-                                stride=np.array([1, 1, 1, 1]), dilation=np.array([1, 1, 1, 1]),
-                                group=input.shape[3], bias_addable=True, bias_term=False,
-                                spatial_dims=np.array([1, 2]),
-                                kernel_spatial=np.array([1, 1]),
-                                pad=np.array([[0, 0], [0, 1], [0, 1], [0, 0]]), output_shape=output_shape,
-                                channel_dims=np.array([3]),
-                                output=input.shape[3],
-                                in_ports_count=3, out_ports_count=1)))
+        conv_node = Convolution(graph, dict(name=conv_name,
+                                            stride=int64_array([1, 1, 1, 1]),
+                                            dilation=int64_array([1, 1, 1, 1]),
+                                            group=input.shape[3],
+                                            bias_addable=True,
+                                            bias_term=False,
+                                            spatial_dims=int64_array([1, 2]),
+                                            kernel_spatial=int64_array([1, 1]),
+                                            pad=int64_array([[0, 0], [0, 1], [0, 1], [0, 0]]),
+                                            output_shape=output_shape,
+                                            batch_dims=int64_array([0]),
+                                            channel_dims=int64_array([3]),
+                                            output=input.shape[3],
+                                            input_feature_channel=1,
+                                            output_feature_channel=0,
+                                            )).create_node()
 
-        graph.add_node(conv_weights_node, **add_attrs_props(
-            dict(kind='data', name=conv_weights_node, value=np.array(conv_weights),
-                 shape=np.array(conv_weights.shape),
-                 data_type=input.data_type, infer=None,
-                 spatial_dims=np.array([0, 1]),
-                 input_channel_dim=2,
-                 output_channel_dim=3,
-                 dims_number=4, can_be_bias=True)))
-        graph.add_node(conv_output, **add_attrs_props(
-            dict(kind='data', name=conv_output, value=None, shape=output_shape, data_type=input.data_type)))
+        weights_const_node = Const(graph, dict(name=conv_weights_name, value=conv_weights,
+                                          shape=int64_array(conv_weights.shape))).create_node()
 
         # StridedSlice -> Crop
-        crop = Crop(graph, dict(name=sslice.name + '/Crop_', axis=np.array([1, 2]),
-                                dim=np.array([output_shape[1] - 1, output_shape[2] - 1]), offset=np.array([1, 1])))
-        crop.create_node_with_data([Node(graph, conv_output)], data_nodes=sslice_out)
+        crop_node = Crop(graph, dict(name=sslice_node.name + '/Crop_', axis=int64_array([1, 2]),
+                                dim=int64_array([output_shape[1] - 1, output_shape[2] - 1]), offset=int64_array([1, 1]))
+                    ).create_node()
 
-        # Connect : Conv->Crop->AvgPool
-        graph.add_edges_from([
-            (input.id, conv_node, {'in': 0}),
-            (conv_weights_node, conv_node, {'in': 1, 'bin': 'weights'}),
-            (conv_node, conv_output, {'out': 0}),
-        ])
-        update_ie_fields(graph.node[conv_node], graph.graph['ir_version'])
+        # Connect nodes
+        pad_node.in_port(0).get_connection().set_destination(conv_node.in_port(0))
+        weights_const_node.out_port(0).connect(conv_node.in_port(1))
+        conv_node.out_port(0).connect(crop_node.in_port(0))
+        sslice_node.out_port(0).get_connection().set_source(crop_node.out_port(0))
+
+        conv_node.in_port(1).bin = 'weights'
+
+        # Remove Pad and StridedSlice nodes from graph
+        graph.remove_node(pad_node.id)
+        graph.remove_node(sslice_node.id)

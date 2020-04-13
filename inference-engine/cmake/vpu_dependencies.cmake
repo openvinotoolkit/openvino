@@ -19,7 +19,7 @@ set(VPU_SUPPORTED_FIRMWARES usb-ma2450 usb-ma2x8x pcie-ma248x)
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 942_R10.15)
+set(FIRMWARE_PACKAGE_VERSION 1076)
 
 #
 # CMake variables to override default firmware files
@@ -96,12 +96,12 @@ add_custom_target(vpu_copy_firmware
 
 if(ANDROID)
     RESOLVE_DEPENDENCY(LIBUSB
-        ARCHIVE_ANDROID "libusb_33167_android.tgz"
+        ARCHIVE_ANDROID "libusb_39409_android.tgz"
         TARGET_PATH "${TEMP}/vpu/libusb")
     debug_message(STATUS "LIBUSB=" ${LIBUSB})
 
     set(LIBUSB_INCLUDE_DIR "${LIBUSB}/include")
-    set(LIBUSB_LIBRARY "${LIBUSB}/lib/libusb1.0.so")
+    set(LIBUSB_LIBRARY "${LIBUSB}/libs/${ANDROID_ABI}/libusb1.0.so")
 
-    log_rpath_from_dir(LIBUSB "${LIBUSB}/lib")
+    log_rpath_from_dir(LIBUSB "${LIBUSB}/libs/${ANDROID_ABI}")
 endif()

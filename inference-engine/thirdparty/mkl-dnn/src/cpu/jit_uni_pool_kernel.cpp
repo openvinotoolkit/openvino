@@ -46,8 +46,6 @@ status_t jit_uni_pool_kernel<isa>::init_conf(jit_pool_conf_t &jpp,
     const int simd_w = isa == avx512_common ? 16 : 8;
     const int ndims = src_d.ndims();
 
-    jpp.is_cpx = mayiuse(avx512_core_bf16);
-
     jpp.ndims = ndims;
     jpp.mb = src_d.dims()[0];
 
@@ -91,6 +89,10 @@ status_t jit_uni_pool_kernel<isa>::init_conf(jit_pool_conf_t &jpp,
     jpp.is_bf16 = (src_d.data_type() == data_type::bf16
                     && dst_d.data_type() == data_type::bf16);
 
+    jpp.isa = jpp.is_bf16 && mayiuse(avx512_core_bf16)
+            ? avx512_core_bf16
+            : isa;
+
     if (!IMPLICATION(jpp.is_bf16, mayiuse(avx512_core)))
         return status::unimplemented;
 
@@ -115,7 +117,7 @@ status_t jit_uni_pool_kernel<isa>::init_conf(jit_pool_conf_t &jpp,
             jpp.ur_w = isa == avx512_common ? 24 : 12;
     }
     if (jpp.is_bf16) {
-        jpp.ur_w = (!jpp.is_cpx)
+        jpp.ur_w = (!isa_has_bf16(jpp.isa))
                    ? jpp.ur_w - 4  // Free registers for AVX512 emulation
                    : jpp.ur_w - 1; // Free register for cvt from bf16 to f32
     }
@@ -197,7 +199,7 @@ inline void jit_uni_pool_kernel<isa>::avg_step(int ur_w, int pad_l,
                     load(ur_w + jj, aux_reg_input, input_offset);
                     uni_vaddps(vreg(ur_w+jj), vreg(ur_w+jj), vreg(jj));
                     if (jpp.is_bf16) {
-                        if (!jpp.is_cpx)
+                        if (!isa_has_bf16(jpp.isa))
                             bf16_emu_->r_vcvtneps2bf16(
                                     yreg(ur_w + jj), zreg(ur_w + jj));
                         else
@@ -242,7 +244,7 @@ inline void jit_uni_pool_kernel<isa>::avg_step(int ur_w, int pad_l,
             maybe_recalculate_divisor(jj, ur_w, pad_l, pad_r, pad_r_logic);
             uni_vdivps(vreg(jj), vreg(jj), vmm_tmp);
             if (jpp.is_bf16) {
-                if (!jpp.is_cpx)
+                if (!isa_has_bf16(jpp.isa))
                     bf16_emu_->r_vcvtneps2bf16(yreg(jj), zreg(jj));
                 else
                     vcvtneps2bf16(yreg(jj), vreg(jj));
@@ -363,7 +365,7 @@ inline void jit_uni_pool_kernel<isa>::max_step_fwd(int ur_w, int pad_l,
 
     for (int jj = 0; jj < ur_w; jj++) {
         if (jpp.is_bf16) {
-            if (!jpp.is_cpx)
+            if (!isa_has_bf16(jpp.isa))
                 bf16_emu_->r_vcvtneps2bf16(yreg(jj), zreg(jj));
             else
                 vcvtneps2bf16(yreg(jj), vreg(jj));
@@ -501,7 +503,7 @@ inline void jit_uni_pool_kernel<isa>::max_step_bwd(int ur_w, int pad_l,
                     vblendmps(vmm_tmp | k_store_mask | T_z, vreg(jj), vreg(jj));
                     vaddps(vreg(2*ur_w+jj), vreg(2*ur_w+jj), vmm_tmp);
                     if (jpp.is_bf16) {
-                        if (!jpp.is_cpx)
+                        if (!isa_has_bf16(jpp.isa))
                             bf16_emu_->r_vcvtneps2bf16(yreg(2*ur_w+jj), zreg(2*ur_w+jj));
                         else
                             vcvtneps2bf16(yreg(2*ur_w+jj), vreg(2*ur_w+jj));
@@ -624,7 +626,7 @@ void jit_uni_pool_kernel<isa>::generate() {
     xor_(rcx, rdi);
     xor_(rdi, rcx);
 #endif
-    if (!jpp.is_cpx && jpp.is_bf16)
+    if (!isa_has_bf16(jpp.isa) && jpp.is_bf16)
         bf16_emu_->init_vcvtneps2bf16();
 
     mov(reg_input, ptr[reg_param + GET_OFF(src)]);
@@ -643,7 +645,7 @@ void jit_uni_pool_kernel<isa>::generate() {
         vmovups(vmm_idx(), ptr[tmp_gpr]);
     }
 
-    if (jpp.is_backward)
+    if (jpp.is_backward && jpp.simple_alg)
         maybe_zero_diff_src();
 
     if (jpp.alg == pooling_max && (jpp.is_training || jpp.is_backward)) {

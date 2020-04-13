@@ -3,9 +3,8 @@
 //
 
 /**
- * @brief A header file for the CNNNetworkIterator class
- * 
- * @file 
+ * @brief A header file for the INetworkIterator class
+ * @file ie_inetwork_iterator.hpp
  */
 #pragma once
 #include <ie_network.hpp>

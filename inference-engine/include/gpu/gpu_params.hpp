@@ -32,23 +32,17 @@ namespace GPUContextParams {
 #define GPU_PARAM_VALUE(name) GPUContextParams::name
 
 /**
- * @def DECLARE_GPU_PARAM__VALUE(name)
+ * @def DECLARE_GPU_PARAM_VALUE(name)
  * @brief Shortcut for defining possible values for object parameter keys
  */
-#define DECLARE_GPU_PARAM__VALUE(name) static constexpr auto name = #name
-
-#ifndef DECLARE_PARAM_KEY_IMPL
-# define DECLARE_PARAM_KEY_IMPL(...)
-#endif
+#define DECLARE_GPU_PARAM_VALUE(name) static constexpr auto name = #name
 
 /**
  * @def DECLARE_GPU_PARAM_KEY(name, ...)
  * @brief Shortcut for defining object parameter keys
  */
 #define DECLARE_GPU_PARAM_KEY(name, ...)         \
-    static constexpr auto PARAM_##name = #name;    \
-    DECLARE_PARAM_KEY_IMPL(name, __VA_ARGS__)
-
+    static constexpr auto PARAM_##name = #name
 /**
 * @brief Shared device context type: can be either pure OpenCL (OCL)
 * or shared video decoder (VA_SHARED) context
@@ -57,11 +51,11 @@ DECLARE_GPU_PARAM_KEY(CONTEXT_TYPE, std::string);
 /**
 * @brief Pure OpenCL device context
 */
-DECLARE_GPU_PARAM__VALUE(OCL);
+DECLARE_GPU_PARAM_VALUE(OCL);
 /**
 * @brief Shared context (video decoder or D3D)
 */
-DECLARE_GPU_PARAM__VALUE(VA_SHARED);
+DECLARE_GPU_PARAM_VALUE(VA_SHARED);
 
 /**
 * @brief This key identifies OpenCL context handle
@@ -83,19 +77,19 @@ DECLARE_GPU_PARAM_KEY(SHARED_MEM_TYPE, std::string);
 /**
 * @brief Shared OpenCL buffer blob
 */
-DECLARE_GPU_PARAM__VALUE(OCL_BUFFER);
+DECLARE_GPU_PARAM_VALUE(OCL_BUFFER);
 /**
 * @brief Shared OpenCL 2D image blob
 */
-DECLARE_GPU_PARAM__VALUE(OCL_IMAGE2D);
+DECLARE_GPU_PARAM_VALUE(OCL_IMAGE2D);
 /**
 * @brief Shared video decoder surface or D3D 2D texture blob
 */
-DECLARE_GPU_PARAM__VALUE(VA_SURFACE);
+DECLARE_GPU_PARAM_VALUE(VA_SURFACE);
 /**
 * @brief Shared D3D buffer blob
 */
-DECLARE_GPU_PARAM__VALUE(DX_BUFFER);
+DECLARE_GPU_PARAM_VALUE(DX_BUFFER);
 
 /**
 * @brief This key identifies OpenCL memory handle

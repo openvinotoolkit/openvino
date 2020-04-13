@@ -21,12 +21,16 @@
 #include "mkldnn_thread.hpp"
 #include "type_helpers.hpp"
 
+#include "bfloat16_utils.hpp"
 #include "ref_lrn.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
 
+using namespace bf16_cvt_utils;
+
+typedef float acc_data_t;
 static inline float fast_negative_powf(float omega, float beta) {
     float Y;
 /*
@@ -78,20 +82,23 @@ void ref_lrn_fwd_t<data_type>::execute_forward() const {
     };
 
     auto ker = [=](data_t *d, int mb, int oc, int oh, int ow) {
-        const float alpha = static_cast<float>(pd()->desc()->lrn_alpha);
-        const float beta = static_cast<float>(pd()->desc()->lrn_beta);
-        const float k = static_cast<float>(pd()->desc()->lrn_k);
+        const acc_data_t alpha = static_cast<acc_data_t>(pd()->desc()->lrn_alpha);
+        const acc_data_t beta = static_cast<acc_data_t>(pd()->desc()->lrn_beta);
+        const acc_data_t k = static_cast<acc_data_t>(pd()->desc()->lrn_k);
 
         const int size = pd()->desc()->local_size;
         const int half_size = (size - 1) / 2;
 
-        float sum = 0;
+        acc_data_t sum = 0;
         if (across_channels) {
             const int c_st = nstl::max(oc - half_size + 0, 0);
             const int c_en = nstl::min(oc + half_size + 1, C);
 
             for (int c = c_st; c < c_en; ++c) {
-                const float s = src[data_off(mb, c, oh, ow)];
+                acc_data_t s = (data_type == data_type::bf16)
+                        ? cvt_bfloat16_to_float(static_cast<mkldnn_bfloat16_t>(
+                                  src[data_off(mb, c, oh, ow)]))
+                        : src[data_off(mb, c, oh, ow)];
                 sum += s * s;
             }
         } else {
@@ -101,7 +108,11 @@ void ref_lrn_fwd_t<data_type>::execute_forward() const {
             int w_en = nstl::min(ow + half_size + 1, W);
             for (int h = h_st; h < h_en; ++h) {
                 for (int w = w_st; w < w_en; ++w) {
-                    const float s = src[data_off(mb, oc, h, w)];
+                    acc_data_t s = (data_type == data_type::bf16)
+                            ? cvt_bfloat16_to_float(
+                                      static_cast<mkldnn_bfloat16_t>(
+                                              src[data_off(mb, oc, h, w)]))
+                            : src[data_off(mb, oc, h, w)];
                     sum += s * s;
                 }
             }
@@ -109,9 +120,20 @@ void ref_lrn_fwd_t<data_type>::execute_forward() const {
         const int summands = across_channels ? size : size * size;
         sum = k + alpha * sum / summands;
         size_t off = data_off(mb, oc, oh, ow);
-        if (ws)
-            ws[off] = static_cast<data_t>(sum);
-        d[0] = static_cast<data_t>(src[off] * fast_negative_powf(sum, beta));
+        if (ws) {
+            if (data_type == data_type::bf16)
+                ws[off] = cvt_float_to_bfloat16(sum);
+            else
+                ws[off] = static_cast<data_t>(sum);
+        }
+
+        if (data_type == data_type::bf16) {
+            const acc_data_t s = cvt_bfloat16_to_float(
+                    static_cast<mkldnn_bfloat16_t>(src[off]));
+            d[0] = cvt_float_to_bfloat16(s * fast_negative_powf(sum, beta));
+        } else
+            d[0] = static_cast<data_t>(
+                    src[off] * fast_negative_powf(sum, beta));
     };
 
     const int MB = pd()->MB();
@@ -161,9 +183,9 @@ void ref_lrn_bwd_t<data_type>::execute_backward() const {
     const size_t stride_mb = data_d.blocking_desc().strides[0][0];
     constexpr int blksize = fmt == nChw16c ? 16 : 8;
 
-    const float alpha = static_cast<float>(pd()->desc()->lrn_alpha);
-    const float beta = static_cast<float>(pd()->desc()->lrn_beta);
-    const float k = static_cast<float>(pd()->desc()->lrn_k);
+    const acc_data_t alpha = static_cast<acc_data_t>(pd()->desc()->lrn_alpha);
+    const acc_data_t beta = static_cast<acc_data_t>(pd()->desc()->lrn_beta);
+    const acc_data_t k = static_cast<acc_data_t>(pd()->desc()->lrn_k);
     const int kernel_size = pd()->desc()->local_size;
     const int half_ksize = (kernel_size - 1) / 2;
 
@@ -182,28 +204,47 @@ void ref_lrn_bwd_t<data_type>::execute_backward() const {
         const int c_st = nstl::max(oc - half_ksize + 0, 0);
         const int c_en = nstl::min(oc + half_ksize + 1, C);
 
-        float A = 0, B = 0, omega_mid = 0;
+        acc_data_t A = 0, B = 0, omega_mid = 0;
         for (int c = c_st; c < c_en; c++) {
-            float sum = 0.0;
+            acc_data_t sum = 0.0;
             const int i_st = nstl::max(c - half_ksize, 0);
             const int i_en = nstl::min(c + kernel_size - half_ksize, C);
 
             for (int i = i_st; i < i_en; ++i) {
-                const float value = src[data_off(mb, i, oh, ow)];
+                acc_data_t value = (data_type == data_type::bf16)
+                        ? cvt_bfloat16_to_float(static_cast<mkldnn_bfloat16_t>(
+                                          src[data_off(mb, i, oh, ow)]))
+                        : src[data_off(mb, i, oh, ow)];
                 sum += value * value;
             }
-            const float omega = static_cast<float>(k + sum * alpha / kernel_size);
-            if (c == oc) omega_mid = omega;
-            float t = src[data_off(mb, c, oh, ow)]
-                   * fast_negative_powf(omega, beta);
-            B += 1.0f / omega * t * diff_dst[data_off(mb, c, oh, ow)];
+            const acc_data_t omega
+                    = static_cast<acc_data_t>(k + sum * alpha / kernel_size);
+            if (c == oc)
+                omega_mid = omega;
+            acc_data_t sv = (data_type == data_type::bf16)
+                    ? cvt_bfloat16_to_float(static_cast<mkldnn_bfloat16_t>(
+                                      src[data_off(mb, c, oh, ow)]))
+                    : src[data_off(mb, c, oh, ow)];
+            acc_data_t t = sv * fast_negative_powf(omega, beta);
+            acc_data_t ddv = (data_type == data_type::bf16)
+                    ? cvt_bfloat16_to_float(static_cast<mkldnn_bfloat16_t>(
+                                      diff_dst[data_off(mb, c, oh, ow)]))
+                    : diff_dst[data_off(mb, c, oh, ow)];
+            B += 1.0f / omega * t * ddv;
         }
 
         const size_t off = data_off(mb, oc, oh, ow);
-        A = fast_negative_powf(omega_mid, beta) * diff_dst[off];
-        B *= src[off];
+        A = fast_negative_powf(omega_mid, beta) * ((data_type == data_type::bf16)
+                ? cvt_bfloat16_to_float(
+                          static_cast<mkldnn_bfloat16_t>(diff_dst[off]))
+                : diff_dst[off]);
+        B *= (data_type == data_type::bf16)
+                ? cvt_bfloat16_to_float(static_cast<mkldnn_bfloat16_t>(src[off]))
+                : src[off];
         B *= (2.0f * alpha * beta) / kernel_size;
-        *d = static_cast<data_t>(A - B); // final cast down to data_t
+        *d = (data_type == data_type::bf16)
+                ? cvt_float_to_bfloat16(A - B)
+                : static_cast<data_t>(A - B); // final cast down to data_t
     };
 
     if (fmt == nChw16c || fmt == nChw8c) {
@@ -241,6 +282,27 @@ template void ref_lrn_bwd_t<data_type::f32>::execute_backward<memory_format::nCh
 template void ref_lrn_bwd_t<data_type::f32>::execute_backward<memory_format::nchw>() const;
 template void ref_lrn_bwd_t<data_type::f32>::execute_backward<memory_format::nhwc>() const;
 template void ref_lrn_bwd_t<data_type::f32>::execute_backward<memory_format::any>() const;
+
+template void
+ref_lrn_fwd_t<data_type::bf16>::execute_forward<memory_format::nChw16c>() const;
+template void
+ref_lrn_fwd_t<data_type::bf16>::execute_forward<memory_format::nChw8c>() const;
+template void
+ref_lrn_fwd_t<data_type::bf16>::execute_forward<memory_format::nchw>() const;
+template void
+ref_lrn_fwd_t<data_type::bf16>::execute_forward<memory_format::nhwc>() const;
+template void
+ref_lrn_fwd_t<data_type::bf16>::execute_forward<memory_format::any>() const;
+template void
+ref_lrn_bwd_t<data_type::bf16>::execute_backward<memory_format::nChw16c>() const;
+template void
+ref_lrn_bwd_t<data_type::bf16>::execute_backward<memory_format::nChw8c>() const;
+template void
+ref_lrn_bwd_t<data_type::bf16>::execute_backward<memory_format::nchw>() const;
+template void
+ref_lrn_bwd_t<data_type::bf16>::execute_backward<memory_format::nhwc>() const;
+template void
+ref_lrn_bwd_t<data_type::bf16>::execute_backward<memory_format::any>() const;
 
 }
 }

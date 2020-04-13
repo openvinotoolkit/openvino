@@ -31,7 +31,7 @@ public:
                 StageSHAVEsRequirements reqs);
     void freeSHAVEs();
 
-    int getLockedSHAVEs() { return _lockedSHAVEs; }
+    int getLockedSHAVEs() const { return _lockedSHAVEs; }
 
     void selfCheck();
 

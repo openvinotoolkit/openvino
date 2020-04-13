@@ -14,6 +14,7 @@
  limitations under the License.
 """
 
+import logging as log
 from mo.utils.graph import Node
 from mo.utils import class_registration
 
@@ -40,7 +41,10 @@ class Extender(object):
 
     @staticmethod
     def attr_to_list(node: Node, attribute: str):
-        if not isinstance(node[attribute], list):
+        if not node.has_valid(attribute):
+            log.warning('Attribute {} missed in node {} with type {}!'.format(attribute, node.soft_get('name'),
+                                                                              node.soft_get('type')))
+        elif not isinstance(node[attribute], list):
             node[attribute] = [node[attribute]]
 
     @staticmethod

@@ -20,13 +20,16 @@
 namespace InferenceEngine {
 
 /**
+ * @deprecated Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph.
  * @brief Structure with information about Primitive
  */
-struct PrimitiveInfo {
+struct INFERENCE_ENGINE_DEPRECATED("Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph") PrimitiveInfo {
     /**
      * @brief A shared pointer to PrimitiveInfo object
      */
+    IE_SUPPRESS_DEPRECATED_START
     using Ptr = std::shared_ptr<PrimitiveInfo>;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Some internal id, could be used as a name
@@ -43,6 +46,8 @@ struct PrimitiveInfo {
      */
     int iPreAllocatedMemory;
 
+    IE_SUPPRESS_DEPRECATED_START
+
     /**
      * @brief Vector of TensorInfo objects that are related to input tensors
      */
@@ -52,6 +57,8 @@ struct PrimitiveInfo {
      * @brief Vector of TensorInfo object that are related to outputs tensors
      */
     std::vector<TensorInfo::Ptr> outputs;
+
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Any other important textual information user might find interesting about this kernel

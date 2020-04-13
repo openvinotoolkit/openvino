@@ -18,7 +18,7 @@ import numpy as np
 
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.pad import Pad
+from mo.ops.pad import AttributedPad
 
 
 class PadFrontExtractor(FrontExtractorOp):
@@ -35,10 +35,9 @@ class PadFrontExtractor(FrontExtractorOp):
 
         # MO Pad op and ONNX Pad op have different format for pads values
         # MO Pad has Dx2 where D is the total number of dimensions
-        # ONNX Pad pads flat layout, so
-        # need to reshape and transpose
+        # ONNX Pad pads flat layout, so need to reshape and transpose
 
         pads = np.transpose(pads.reshape([2, -1]))
 
-        Pad.update_node_stat(node, {'mode': mode, 'pads': pads, 'fill_value': value})
+        AttributedPad.update_node_stat(node, {'mode': mode, 'pads': pads, 'fill_value': value})
         return cls.enabled

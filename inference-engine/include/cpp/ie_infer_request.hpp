@@ -89,7 +89,7 @@ public:
     /**
      * @brief Sets input/output data to infer
      *
-     * @note: Memory allocation does not happen
+     * @note Memory allocation does not happen
      * @param name Name of input or output blob.
      * @param data Reference to input or output blob. The type of a blob must match the network input precision and
      * size.
@@ -99,9 +99,11 @@ public:
     }
 
     /**
-     * @copybrief  IInferRequest::GetBlob
+     * @copybrief IInferRequest::GetBlob
      *
      * Wraps IInferRequest::GetBlob
+     * @param name A name of Blob to get
+     * @return A shared pointer to a Blob with a name @p name. If a blob is not found, an exception is thrown.
      */
     Blob::Ptr GetBlob(const std::string& name) {
         Blob::Ptr data;
@@ -114,10 +116,10 @@ public:
     }
 
     /**
-     * @brief Sets pre-process for input data
-     * @note: Will return an error in case if data blob is output
+     * @brief Sets blob with a pre-process information
+     * @note Returns an error in case if data blob is output
      * @param name Name of input blob.
-     * @param data - a reference to input. The type of Blob must correspond to the network input precision and size.
+     * @param data A reference to input. The type of Blob must correspond to the network input precision and size.
      * @param info Preprocess info for blob.
      */
     void SetBlob(const std::string &name, const Blob::Ptr &data, const PreProcessInfo& info) {
@@ -137,6 +139,7 @@ public:
 
     /**
      * @copybrief IInferRequest::Infer
+     * @note blocks all methods of InferRequest while request is ongoing (running or waiting in queue)
      *
      * Wraps IInferRequest::Infer
      */
@@ -148,6 +151,7 @@ public:
      * @copybrief IInferRequest::GetPerformanceCounts
      *
      * Wraps IInferRequest::GetPerformanceCounts
+     * @return Map of layer names to profiling information for that layer
      */
     std::map<std::string, InferenceEngineProfileInfo> GetPerformanceCounts() const {
         std::map<std::string, InferenceEngineProfileInfo> perfMap;
@@ -158,8 +162,8 @@ public:
     /**
      * @brief Sets input data to infer
      *
-     * @note: Memory allocation doesn't happen
-     * @param inputs - a reference to a map of input blobs accessed by input names.
+     * @note Memory allocation doesn't happen
+     * @param inputs A reference to a map of input blobs accessed by input names.
      *        The type of Blob must correspond to the network input precision and size.
      */
     void SetInput(const BlobMap& inputs) {
@@ -171,7 +175,7 @@ public:
     /**
      * @brief Sets data that will contain result of the inference
      *
-     * @note: Memory allocation doesn't happen
+     * @note Memory allocation doesn't happen
      * @param results - a reference to a map of result blobs accessed by output names.
      *        The type of Blob must correspond to the network output precision and size.
      */
@@ -192,15 +196,20 @@ public:
 
     /**
      * constructs InferRequest from the initialized shared_pointer
-     * @param request Initialized shared pointer
-     * @param plg Plugin to use
+     * @param request Initialized shared pointer to IInferRequest interface
+     * @param plg Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is destroyed.
      */
-    explicit InferRequest(IInferRequest::Ptr request, InferenceEnginePluginPtr plg = {}): actual(request), plg(plg) {}
+    explicit InferRequest(IInferRequest::Ptr request, InferenceEnginePluginPtr plg = {}): actual(request), plg(plg) {
+        //  plg can be null, but not the actual
+        if (actual == nullptr) {
+            THROW_IE_EXCEPTION << "InferRequest wrapper was not initialized.";
+        }
+    }
 
     /**
      * @brief Start inference of specified input(s) in asynchronous mode
      *
-     * @note: It returns immediately. Inference starts also immediately.
+     * @note It returns immediately. Inference starts also immediately.
      */
     void StartAsync() {
         CALL_STATUS_FNC_NO_ARGS(StartAsync);
@@ -210,9 +219,18 @@ public:
      * @copybrief IInferRequest::Wait
      *
      * Wraps IInferRequest::Wait
+     * @param millis_timeout Maximum duration in milliseconds to block for
+     * @note There are special cases when millis_timeout is equal some value of the WaitMode enum:
+     * * STATUS_ONLY - immediately returns inference status (IInferRequest::RequestStatus). It does not block or
+     * interrupt current thread
+     * * RESULT_READY - waits until inference result becomes available
+     * @return A status code of operation
      */
     StatusCode Wait(int64_t millis_timeout) {
         ResponseDesc resp;
+        if (actual == nullptr) {
+            THROW_IE_EXCEPTION << "InferRequest wrapper was not initialized.";
+        }
         auto res = actual->Wait(millis_timeout, &resp);
         if (res != OK && res != RESULT_NOT_READY && res != INFER_NOT_STARTED) {
             InferenceEngine::details::extract_exception(res, resp.msg);
@@ -236,6 +254,7 @@ public:
 
     /**
      * @brief  IInferRequest pointer to be used directly in CreateInferRequest functions
+     * @return A shared pointer to underlying IInferRequest interface
      */
     operator IInferRequest::Ptr&() {
         return actual;
@@ -243,7 +262,6 @@ public:
 
     /**
      * @brief Checks if current InferRequest object is not initialized
-     *
      * @return true if current InferRequest object is not initialized, false - otherwise
      */
     bool operator!() const noexcept {
@@ -252,7 +270,6 @@ public:
 
     /**
      * @brief Checks if current InferRequest object is initialized
-     *
      * @return true if current InferRequest object is initialized, false - otherwise
      */
     explicit operator bool() const noexcept {

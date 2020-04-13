@@ -45,7 +45,15 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
     const uint output_f_size = OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM + OUTPUT_PAD_AFTER_FEATURE_NUM;
     const uint output_x_size = OUTPUT_PAD_BEFORE_SIZE_X + OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X;
     const uint linear_id_xy = OUTPUT_PAD_BEFORE_SIZE_X + out_x + output_x_size * (out_y + OUTPUT_PAD_BEFORE_SIZE_Y);
-    uint global_id = (((uint)get_global_id(0) / WORK_ITEMS_PER_SINGLE_BATCHES_ELEMENTS) + (linear_id_xy * FILTER_ARRAY_NUM + split_idx) * (output_f_size / OFM_PER_WORK_ITEM)) * WORK_ITEMS_PER_SINGLE_BATCHES_ELEMENTS;
+    const uint of = (uint)get_global_id(0) / WORK_ITEMS_PER_SINGLE_BATCHES_ELEMENTS;
+#if GROUPED
+    const uint g = of / (FILTER_OFM_NUM / OFM_PER_WORK_ITEM);
+    const uint f = of % (FILTER_OFM_NUM / OFM_PER_WORK_ITEM);
+#else
+    const uint g = split_idx;
+    const uint f = of;
+#endif
+    const uint global_id = (f + linear_id_xy * (output_f_size / OFM_PER_WORK_ITEM)) * WORK_ITEMS_PER_SINGLE_BATCHES_ELEMENTS;
 
     const uint sub_group_id = get_local_id(0);
 
@@ -57,9 +65,9 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
 
     const uint out_batch_id = chunk_size * sub_group_id + LOCAL_WORK_GROUP_SIZE * BATCHES_PER_WORK_ITEM * ((uint)get_group_id(0) % LOCAL_WORK_GROUPS_PER_SINGLE_BATCHES_ELEMENTS);
 
-    const uint out_id = (global_id / WORK_ITEMS_PER_SINGLE_BATCHES_ELEMENTS) * OFM_PER_WORK_ITEM * OUTPUT_FEATURE_PITCH + OUTPUT_PAD_BEFORE_FEATURE_NUM * OUTPUT_FEATURE_PITCH + OUTPUT_PAD_BEFORE_BATCH_NUM + out_batch_id;
+    const uint out_id = (g*FILTER_OFM_NUM + (global_id / WORK_ITEMS_PER_SINGLE_BATCHES_ELEMENTS) * OFM_PER_WORK_ITEM) * OUTPUT_FEATURE_PITCH + OUTPUT_PAD_BEFORE_FEATURE_NUM * OUTPUT_FEATURE_PITCH + OUTPUT_PAD_BEFORE_BATCH_NUM + out_batch_id;
 
-    const uint ofm_offset = ((global_id * OFM_PER_WORK_ITEM) / WORK_ITEMS_PER_SINGLE_BATCHES_ELEMENTS) % output_f_size;
+    const uint ofm_offset = g*FILTER_GROUPS_PITCH + ((global_id * OFM_PER_WORK_ITEM) / WORK_ITEMS_PER_SINGLE_BATCHES_ELEMENTS) % output_f_size;
 
     // Each component of vector element contains computation for separate output feature.
     half16 _data[BATCHES_PER_WORK_ITEM];
@@ -86,7 +94,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
                 if(!zero)
                 {
                     uint input_idx = input_offset_x*INPUT0_X_PITCH + input_offset_y*INPUT0_Y_PITCH;
-                    input_idx += INPUT0_OFFSET + split_idx * FILTER_IFM_NUM * INPUT0_FEATURE_PITCH;
+                    input_idx += INPUT0_OFFSET + g * FILTER_IFM_NUM * INPUT0_FEATURE_PITCH;
                     input_idx += out_batch_id;
 
                     //sub_group_id used as offset to make each workitem load different filter, and then shuffle it

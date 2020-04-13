@@ -16,8 +16,8 @@
 #include <cmath>
 
 #include "mkldnn_thread.hpp"
-#include "utils.hpp"
 #include "gemm_utils_f32.hpp"
+#include "utils.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -36,9 +36,8 @@ namespace gemm_utils {
 // nthrs - total available number of threads
 // nthrs_m/nthrs_n/nthrs_k - number of threads to use in each dimension
 // BM/BN/BK - blocking values
-void calc_nthr_nocopy_avx(int m, int n, int k,
-        int nthrs, int *nthrs_m, int *nthrs_n, int *nthrs_k, int *BM, int *BN,
-        int *BK) {
+void calc_nthr_nocopy_avx(int m, int n, int k, int nthrs, int *nthrs_m,
+        int *nthrs_n, int *nthrs_k, int *BM, int *BN, int *BK) {
 
     int nthr, nthr_m, nthr_n, nthr_k;
     int MB, NB, KB;
@@ -62,10 +61,8 @@ void calc_nthr_nocopy_avx(int m, int n, int k,
     }
     nthr /= nthr_k;
 
-    if (nthr_m == 1)
-        nthr_n = nthr;
-    if (nthr_n == 1)
-        nthr_m = nthr;
+    if (nthr_m == 1) nthr_n = nthr;
+    if (nthr_n == 1) nthr_m = nthr;
 
     // Simple partition reduction
     while (nthr_m * nthr_n > nthr)
@@ -111,12 +108,9 @@ void calc_nthr_nocopy_avx(int m, int n, int k,
     KB = (k + nthr_k - 1) / nthr_k + BK_SMALL_NOCOPY_AVX - 1;
     KB -= KB % BK_SMALL_NOCOPY_AVX;
 
-    if (MB * nthr_m > m)
-        nthr_m = (m + MB - 1) / MB;
-    if (NB * nthr_n > n)
-        nthr_n = (n + NB - 1) / NB;
-    if (KB * nthr_k > k)
-        nthr_k = (k + KB - 1) / KB;
+    if (MB * nthr_m > m) nthr_m = (m + MB - 1) / MB;
+    if (NB * nthr_n > n) nthr_n = (n + NB - 1) / NB;
+    if (KB * nthr_k > k) nthr_k = (k + KB - 1) / KB;
 
     *nthrs_m = nthr_m;
     *nthrs_n = nthr_n;
@@ -147,9 +141,8 @@ void calc_nthr_nocopy_avx(int m, int n, int k,
 // nthrs - total available number of threads
 // nthrs_m/nthrs_n/nthrs_k - number of threads to use in each dimension
 // BM/BN/BK - blocking values
-void calc_nthr_nocopy_avx512_common(int m,
-        int n, int k, int nthrs, int *nthrs_m, int *nthrs_n, int *nthrs_k,
-        int *BM, int *BN, int *BK) {
+void calc_nthr_nocopy_avx512_common(int m, int n, int k, int nthrs,
+        int *nthrs_m, int *nthrs_n, int *nthrs_k, int *BM, int *BN, int *BK) {
 
     int nthr, nthr_m, nthr_n, nthr_k = 1;
     int MB, NB, KB;
@@ -165,13 +158,11 @@ void calc_nthr_nocopy_avx512_common(int m,
     //  - if threading allows having barriers (e.g. OMP)
     //  - if there is not enough parallelism along M or N
     if (mkldnn_thr_syncable()) {
-        if (n <= 2 * BN_NOCOPY_AVX512_COMMON &&
-                m <= 2 * BM_NOCOPY_AVX512_COMMON * nthr) {
+        if (n <= 2 * BN_NOCOPY_AVX512_COMMON
+                && m <= 2 * BM_NOCOPY_AVX512_COMMON * nthr && k > m && k > n) {
             nthr_k = k / BK_NOCOPY_AVX512_COMMON;
-            if (nthr_k > nthr / 4)
-                nthr_k = nthr / 4;
-            if (nthr_k < 1)
-                nthr_k = 1;
+            if (nthr_k > nthr / 4) nthr_k = nthr / 4;
+            if (nthr_k < 1) nthr_k = 1;
 
             while ((nthr_k > 1) && (nthr % nthr_k)) {
                 nthr_k--;
@@ -184,10 +175,8 @@ void calc_nthr_nocopy_avx512_common(int m,
     nthr_m = (m + BM_NOCOPY_AVX512_COMMON - 1) / BM_NOCOPY_AVX512_COMMON;
     nthr_n = (n + BN_NOCOPY_AVX512_COMMON - 1) / BN_NOCOPY_AVX512_COMMON;
 
-    if (nthr_m < 1)
-        nthr_m = 1;
-    if (nthr_n < 1)
-        nthr_n = 1;
+    if (nthr_m < 1) nthr_m = 1;
+    if (nthr_n < 1) nthr_n = 1;
 
     nthr_m_gt_n = nthr_m > nthr_n ? 1 : 0;
     ratio_float = (float)nthr_m / nthr_n;
@@ -203,10 +192,8 @@ void calc_nthr_nocopy_avx512_common(int m,
         nthr_n /= 2;
     }
 
-    if (nthr_m < 1)
-        nthr_m = 1;
-    if (nthr_n < 1)
-        nthr_n = 1;
+    if (nthr_m < 1) nthr_m = 1;
+    if (nthr_n < 1) nthr_n = 1;
 
     // Simple partition reduction
     counter = 0;
@@ -287,12 +274,9 @@ void calc_nthr_nocopy_avx512_common(int m,
     KB = (k + nthr_k - 1) / nthr_k + BK_SMALL_NOCOPY_AVX512_COMMON - 1;
     KB -= KB % BK_SMALL_NOCOPY_AVX512_COMMON;
 
-    if (MB * nthr_m > m)
-        nthr_m = (m + MB - 1) / MB;
-    if (NB * nthr_n > n)
-        nthr_n = (n + NB - 1) / NB;
-    if (KB * nthr_k > k)
-        nthr_k = (k + KB - 1) / KB;
+    if (MB * nthr_m > m) nthr_m = (m + MB - 1) / MB;
+    if (NB * nthr_n > n) nthr_n = (n + NB - 1) / NB;
+    if (KB * nthr_k > k) nthr_k = (k + KB - 1) / KB;
 
     *nthrs_m = nthr_m;
     *nthrs_n = nthr_n;
@@ -313,15 +297,13 @@ void calc_nthr_nocopy_avx512_common(int m,
 // Partition n values as equally as possible among nthr threads
 // and set the offset (t_offset) and number of values (t_block) for ithr
 // Assumption: 0 <= ithr < nthr
-void partition_unit_diff(int ithr, int nthr, int n, int *t_offset,
-        int *t_block) {
+void partition_unit_diff(
+        int ithr, int nthr, int n, int *t_offset, int *t_block) {
 
     int band = n / nthr;
-    if (band == 0)
-        band = 1;
+    if (band == 0) band = 1;
     int tail = n - band * nthr;
-    if (tail < 0)
-        tail = 0;
+    if (tail < 0) tail = 0;
 
     if (ithr < tail) {
         band++;
@@ -337,17 +319,14 @@ void partition_unit_diff(int ithr, int nthr, int n, int *t_offset,
         *t_block = 0;
     }
 
-    if (*t_offset + *t_block > n) {
-        *t_block = n - *t_offset;
-    }
+    if (*t_offset + *t_block > n) { *t_block = n - *t_offset; }
 }
 
 // Sum the m*n values from p_src into p_dst, assuming the two-dimensional
 // arrays have leading dimensions ld_src and ld_dst, respectively
-template<typename data_t>
-void sum_two_matrices(int m, int n,
-        data_t * __restrict p_src, dim_t ld_src,
-        data_t * __restrict p_dst, dim_t ld_dst) {
+template <typename data_t>
+void sum_two_matrices(int m, int n, data_t *__restrict p_src, dim_t ld_src,
+        data_t *__restrict p_dst, dim_t ld_dst) {
 
     int i, j;
     for (j = 0; j < n; j++) {
@@ -357,16 +336,12 @@ void sum_two_matrices(int m, int n,
     }
 }
 
-template
-void sum_two_matrices<float>(int m, int n,
-        float * __restrict p_src, dim_t ld_src,
-        float * __restrict p_dst, dim_t ld_dst);
+template void sum_two_matrices<float>(int m, int n, float *__restrict p_src,
+        dim_t ld_src, float *__restrict p_dst, dim_t ld_dst);
 
-template
-void sum_two_matrices<double>(int m, int n,
-        double * __restrict p_src, dim_t ld_src,
-        double * __restrict p_dst, dim_t ld_dst);
-}
-}
-}
-}
+template void sum_two_matrices<double>(int m, int n, double *__restrict p_src,
+        dim_t ld_src, double *__restrict p_dst, dim_t ld_dst);
+} // namespace gemm_utils
+} // namespace cpu
+} // namespace impl
+} // namespace mkldnn

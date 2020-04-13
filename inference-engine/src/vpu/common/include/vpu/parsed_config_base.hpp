@@ -110,6 +110,14 @@ protected:
         return std::stoi(src);
     }
 
+    static int parsePositiveInt(const std::string& src) {
+        const auto val = std::stoi(src);
+        if (val < 0) {
+            throw std::invalid_argument("Zero/negative value");
+        }
+        return val;
+    }
+
     static float parseFloat(const std::string& src) {
         return std::stof(src);
     }

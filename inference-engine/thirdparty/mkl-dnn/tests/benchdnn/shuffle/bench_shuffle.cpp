@@ -48,6 +48,7 @@ void reset_parameters() {
     axis = 1;
     group = 1;
     pattern = NULL;
+    allow_unimpl = false;
 }
 
 void check_correctness() {
@@ -93,6 +94,10 @@ int bench(int argc, char **argv, bool main_bench) {
             verbose = atoi(argv[arg] + 2);
         else if (!strncmp("--verbose=", argv[arg], 10))
             verbose = atoi(argv[arg] + 10);
+        else if (!strncmp("--allow-unimpl=", argv[arg], 15))
+            allow_unimpl = str2bool(argv[arg] + 15);
+        else if (!strcmp("--reset", argv[arg]))
+            reset_parameters();
         else {
             if (!strncmp("--", argv[arg], 2)) {
                 fprintf(stderr, "driver: unknown option: `%s`, exiting...\n",

@@ -64,8 +64,9 @@ struct _jit_avx512_core_bf16_1x1_convolution_fwd_t : public cpu_primitive_t {
                 && this->desc()->src_desc.data_type == data_type::bf16
                 && this->desc()->dst_desc.data_type == dst_type
                 && this->desc()->weights_desc.data_type == data_type::bf16
-                && IMPLICATION(this->with_bias(),
-                            data_type::f32 == this->desc()->bias_desc.data_type);
+                && IMPLICATION(this->with_bias(), utils::one_of(
+                        this->desc()->bias_desc.data_type, data_type::f32,
+                        data_type::bf16));
 
             if (!ok) return status::unimplemented;
 
@@ -75,7 +76,7 @@ struct _jit_avx512_core_bf16_1x1_convolution_fwd_t : public cpu_primitive_t {
 
             status_t status = jit_avx512_core_bf16_1x1_conv_kernel::init_conf(jcp_,
                     *conv_d, *src_d, *this->weights_pd_.desc(),
-                    *this->dst_pd_.desc(), *this->attr(),
+                    *this->dst_pd_.desc(), *this->bias_pd_.desc(), *this->attr(),
                     mkldnn_get_max_threads(), rtus_.reduce_src_);
             if (status != status::success) return status;
 
@@ -83,22 +84,17 @@ struct _jit_avx512_core_bf16_1x1_convolution_fwd_t : public cpu_primitive_t {
                     && this->desc()->alg_kind == alg_kind::convolution_auto)
                 CHECK(this->set_alg_kind(alg_kind::convolution_direct));
 
-            init_scratchpad();
+            auto scratchpad = scratchpad_registry().registrar();
+            jit_avx512_core_bf16_1x1_conv_kernel::init_scratchpad(scratchpad,
+                    jcp_);
+
+            rtus_prepare_space_info(this, scratchpad);
 
             return status::success;
         }
 
         jit_1x1_conv_conf_t jcp_;
         reduce_to_unit_stride_t rtus_;
-
-        private:
-            void init_scratchpad() {
-                using namespace mkldnn::impl::memory_tracking::names;
-                auto scratchpad = scratchpad_registry().registrar();
-                if (jcp_.with_bias && jcp_.oc != jcp_.oc_without_padding)
-                    scratchpad.book(key_conv_padded_bias, sizeof(float) * jcp_.oc);
-                rtus_prepare_space_info(this, scratchpad);
-            }
 
         protected:
             virtual status_t set_default_params() override {
@@ -149,7 +145,7 @@ struct _jit_avx512_core_bf16_1x1_convolution_fwd_t : public cpu_primitive_t {
     void execute_forward() const;
     void execute_forward_thr(const int ithr, const int nthr,
             const src_data_t *src, const wei_data_t *weights,
-            const float *bias, dst_data_t *dst,
+            const char *bias, dst_data_t *dst,
             const memory_tracking::grantor_t &scratchpad) const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 
@@ -200,7 +196,8 @@ struct _jit_avx512_core_bf16_1x1_convolution_bwd_data_t : public cpu_primitive_t
             status_t status = jit_avx512_core_bf16_1x1_conv_kernel::init_conf(jcp_,
                             *conv_d, *diff_src_d,
                             *this->weights_pd_.desc(),
-                            *this->diff_dst_pd_.desc(), *this->attr(),
+                            *this->diff_dst_pd_.desc(), *this->bias_pd_.desc(),
+                            *this->attr(),
                             mkldnn_get_max_threads(), rtus_.reduce_src_);
             if (status != status::success) return status;
 
@@ -208,7 +205,8 @@ struct _jit_avx512_core_bf16_1x1_convolution_bwd_data_t : public cpu_primitive_t
                     && this->desc()->alg_kind == alg_kind::convolution_auto)
                 CHECK(this->set_alg_kind(alg_kind::convolution_direct));
 
-            init_scratchpad();
+            auto scratchpad = scratchpad_registry().registrar();
+            rtus_prepare_space_info(this, scratchpad);
 
             return status::success;
         }
@@ -216,12 +214,6 @@ struct _jit_avx512_core_bf16_1x1_convolution_bwd_data_t : public cpu_primitive_t
         // TODO (Roma): structs conf header cleanup
         jit_1x1_conv_conf_t jcp_;
         reduce_to_unit_stride_t rtus_;
-
-    private:
-        void init_scratchpad() {
-            auto scratchpad = scratchpad_registry().registrar();
-            rtus_prepare_space_info(this, scratchpad);
-        }
 
     protected:
         virtual status_t set_default_params() override {
@@ -316,17 +308,17 @@ struct _jit_avx512_core_bf16_1x1_convolution_bwd_weights_t : public cpu_primitiv
                 && this->desc()->src_desc.data_type == data_type::bf16
                 && this->desc()->diff_weights_desc.data_type == diff_weights_type
                 && this->desc()->diff_dst_desc.data_type == data_type::bf16
-                && IMPLICATION(this->with_bias(),
-                        data_type::f32 == desc()->diff_bias_desc.data_type);
+                && IMPLICATION(this->with_bias(), utils::one_of(
+                    this->desc()->diff_bias_desc.data_type, data_type::f32,
+                        data_type::bf16));
             if (!ok) return status::unimplemented;
 
             const convolution_desc_t *conv_d = this->desc();
             const memory_desc_t *src_d = this->src_pd_.desc();
             rtus_prepare(this, conv_d, src_d, this->diff_dst_pd_.desc());
-
             status_t status = jit_avx512_core_bf16_1x1_conv_kernel::init_conf(
                     jcp_, *conv_d, *src_d, *this->diff_weights_pd_.desc(),
-                    *this->diff_dst_pd_.desc(), *this->attr(),
+                    *this->diff_dst_pd_.desc(), *this->diff_bias_pd_.desc(), *this->attr(),
                     mkldnn_get_max_threads(), rtus_.reduce_src_);
             if (status != status::success) return status;
 

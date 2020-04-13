@@ -219,7 +219,8 @@ struct gemm_convolution_bwd_data_t: public cpu_primitive_t {
                         this->desc()->diff_dst_desc.data_type)
                 && this->diff_src_pd_.desc()->format == src_format()
                 && this->diff_dst_pd_.desc()->format == src_format()
-                && this->weights_pd_.desc()->format == wei_format();
+                && this->weights_pd_.desc()->format == wei_format()
+                && this->is_supported_post_ops();
             if (!ok) return status::unimplemented;
 
             auto scratchpad = scratchpad_registry().registrar();
@@ -257,12 +258,41 @@ struct gemm_convolution_bwd_data_t: public cpu_primitive_t {
                 CHECK(this->set_alg_kind(alg_kind::convolution_direct));
             return status::success;
         }
+
+        virtual bool is_supported_post_ops() const {
+            const auto &p = this->attr()->post_ops_;
+            if (p.len_ > 1)
+                return false;
+
+            auto all_post_ops_supported = [&]() {
+                bool ok = true;
+
+                for (int i = 0; i < p.len_; i++) {
+                    ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::depthwise);
+                }
+                return ok;
+            };
+
+            return all_post_ops_supported();
+        }
     };
 
     gemm_convolution_bwd_data_t(const pd_t *apd, const input_vector &inputs,
               const output_vector &outputs)
-        : cpu_primitive_t(apd, inputs, outputs, true) {}
-    ~gemm_convolution_bwd_data_t() {}
+        : cpu_primitive_t(apd, inputs, outputs, true) {
+        const auto &post_ops = pd()->attr()->post_ops_;
+        for (int i = 0; i < post_ops.len_; i++) {
+            auto &post_op = post_ops.entry_[i];
+            if (post_op.is_depthwise()) {
+                depthwise_injectors.push_back(new ref_depthwise_scalar_fwd_t(post_op.depthwise.alg));
+            }
+        }
+    }
+    ~gemm_convolution_bwd_data_t() {
+        for (auto inj : depthwise_injectors)
+            delete inj;
+        depthwise_injectors.clear();
+    }
 
     typedef typename prec_traits<data_type::f32>::type data_t;
 
@@ -278,6 +308,8 @@ struct gemm_convolution_bwd_data_t: public cpu_primitive_t {
     }
 
 private:
+    nstl::vector<ref_depthwise_scalar_fwd_t*> depthwise_injectors;
+
     void execute_backward_data() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 };

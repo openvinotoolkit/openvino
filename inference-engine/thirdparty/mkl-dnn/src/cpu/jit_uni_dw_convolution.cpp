@@ -36,7 +36,6 @@ void _jit_uni_dw_convolution_fwd_t<isa, src_type, dst_type>::execute_forward()
         const {
     auto src = reinterpret_cast<const data_t *>(this->input_memory(0));
     auto weights = reinterpret_cast<const data_t *>(this->input_memory(1));
-    auto bias = reinterpret_cast<const f32_data_t *>(this->input_memory(2));
     auto dst = reinterpret_cast<dst_data_t *>(this->memory());
 
     const memory_desc_wrapper src_d(pd()->src_pd());
@@ -46,22 +45,35 @@ void _jit_uni_dw_convolution_fwd_t<isa, src_type, dst_type>::execute_forward()
 
     const auto &jcp = pd()->jcp_;
 
-    if (pd()->wants_padded_bias()) {
-        auto padded_bias = this->scratchpad().template get<f32_data_t>(
-                key_conv_padded_bias);
-        utils::array_copy(padded_bias, bias, jcp.oc_without_padding);
-        utils::array_set(padded_bias + jcp.oc_without_padding, 0.f,
+    f32_data_t *bias = nullptr;
+    if (pd()->desc()->bias_desc.data_type == data_type::bf16) {
+        auto bias_in = reinterpret_cast<const bf16_data_t *>(this->input_memory(2));
+        bias = scratchpad().template get<float>(key_conv_bias_bf16_convert_wsp);
+        bf16_cvt_utils::cvt_bfloat16_to_float(bias, bias_in, jcp.oc_without_padding);
+        utils::array_set(bias + jcp.oc_without_padding, 0.f,
                 jcp.oc - jcp.oc_without_padding);
-        bias = padded_bias;
+    } else {
+        auto bias_in = reinterpret_cast<const f32_data_t *>(this->input_memory(2));
+        if (pd()->wants_padded_bias()) {
+            auto padded_bias = this->scratchpad().template get<f32_data_t>(
+                    key_conv_padded_bias);
+            utils::array_copy(padded_bias, bias_in, jcp.oc_without_padding);
+            utils::array_set(padded_bias + jcp.oc_without_padding, 0.f,
+                    jcp.oc - jcp.oc_without_padding);
+            bias = padded_bias;
+        } else
+            bias = const_cast<float*> (bias_in);
     }
 
+    int dil_d = jcp.dilate_d + 1;
     int dil_h = jcp.dilate_h + 1;
     int dil_w = jcp.dilate_w + 1;
+    int str_d = jcp.stride_d;
     int str_h = jcp.stride_h;
     int str_w = jcp.stride_w;
 
-    auto kernel_params = [&](int ur_w_step, int ow, int oh, int ih, int kh,
-            int kh_padding, int ch, int ch_num, int n) {
+    auto kernel_params = [&](int ur_w_step, int ow, int oh, int od, int ih, int id, int kh, int kd,
+            int kh_padding, int kd_padding, int ch, int ch_num, int n) {
         auto par_conv = jit_conv_call_s();
 
         const int i_l_overflow = nstl::max(0, (jcp.l_pad - ow * str_w));
@@ -75,12 +87,17 @@ void _jit_uni_dw_convolution_fwd_t<isa, src_type, dst_type>::execute_forward()
         const int kw_padding = jcp.kw - div_up(i_l_overflow, dil_w)
             - div_up(i_r_overflow, dil_w);
 
-        par_conv.src = &src[src_d.blk_off(n, ch, ih, iw)];
-        par_conv.dst = &dst[dst_d.blk_off(n, ch, oh, ow)];
+        size_t src_off = (jcp.ndims == 5) ? src_d.blk_off(n, ch, id, ih, iw) : src_d.blk_off(n, ch, ih, iw);
+        size_t dst_off = (jcp.ndims == 5) ? dst_d.blk_off(n, ch, od, oh, ow) : dst_d.blk_off(n, ch, oh, ow);
+        size_t wei_off = (jcp.ndims == 5) ? weights_d.blk_off(ch, 0, 0, kd, kh, kw) : weights_d.blk_off(ch, 0, 0, kh, kw);
 
-        par_conv.filt = &weights[weights_d.blk_off(ch, 0, 0, kh, kw)];
+        par_conv.src = &src[src_off];
+        par_conv.dst = &dst[dst_off];
+        par_conv.filt = &weights[wei_off];
+
         if (bias) par_conv.bias = &bias[bias_d.blk_off(ch*jcp.ch_block)];
 
+        par_conv.kd_padding = (size_t)nstl::max(0, kd_padding);
         par_conv.kh_padding = (size_t)nstl::max(0, kh_padding);
         par_conv.kw_padding = (size_t)nstl::max(0, kw_padding);
 
@@ -94,14 +111,24 @@ void _jit_uni_dw_convolution_fwd_t<isa, src_type, dst_type>::execute_forward()
 
     int MB = pd()->MB();
     const int chb_work = utils::div_up(jcp.nb_ch, jcp.nb_ch_blocking);
-    parallel_nd(MB, chb_work, jcp.oh,
-            [&](int n, int chb, int oh) {
+    parallel_nd(MB, chb_work, jcp.od, jcp.oh,
+            [&](int n, int chb, int od, int oh) {
         int ch = chb * jcp.nb_ch_blocking;
         int ch_num = jcp.nb_ch_blocking;
+
+        const int i_front_overflow = nstl::max(0, (int)(jcp.f_pad - od*str_d));
+        const int i_back_overflow = nstl::max(jcp.id,
+            (int)(od*str_d + (jcp.kd - 1)*dil_d - jcp.f_pad + 1)) - jcp.id;
 
         const int i_t_overflow = nstl::max(0, (int)(jcp.t_pad - oh*str_h));
         const int i_b_overflow = nstl::max(jcp.ih,
             (int)(oh*str_h + (jcp.kh - 1)*dil_h - jcp.t_pad + 1)) - jcp.ih;
+
+        const int id = nstl::max((int)(od*str_d - jcp.f_pad
+            + div_up(i_front_overflow, dil_d)*dil_d), 0);
+        const int kd = div_up(i_front_overflow, dil_d);
+        const int kd_padding = jcp.kd - div_up(i_front_overflow, dil_d)
+            - div_up(i_back_overflow, dil_d);
 
         const int ih = nstl::max((int)(oh*str_h - jcp.t_pad
             + div_up(i_t_overflow, dil_h)*dil_h), 0);
@@ -114,8 +141,8 @@ void _jit_uni_dw_convolution_fwd_t<isa, src_type, dst_type>::execute_forward()
         int l_border = nstl::min(div_up(jcp.l_pad, str_w), jcp.ow);
         int ur_w_step = 1;
         for (; ow < l_border; ow++) {
-            jit_conv_call_s par_conv = kernel_params(ur_w_step, ow, oh, ih,
-                                        kh, kh_padding, ch, ch_num, n);
+            jit_conv_call_s par_conv = kernel_params(ur_w_step, ow, oh, od, ih, id,
+                                        kh, kd, kh_padding, kd_padding, ch, ch_num, n);
 
             kernel_->jit_ker(&par_conv);
         }
@@ -124,8 +151,8 @@ void _jit_uni_dw_convolution_fwd_t<isa, src_type, dst_type>::execute_forward()
         ur_w_step = (jcp.iw - (jcp.kw - 1)*dil_w + jcp.l_pad - 1)
             / jcp.stride_w - ow + 1;
         if (ur_w_step > 0) {
-            jit_conv_call_s par_conv = kernel_params(ur_w_step, ow, oh, ih,
-                                        kh, kh_padding, ch, ch_num, n);
+            jit_conv_call_s par_conv = kernel_params(ur_w_step, ow, oh, od, ih, id,
+                                        kh, kd, kh_padding, kd_padding, ch, ch_num, n);
 
             kernel_->jit_ker(&par_conv);
 
@@ -135,8 +162,8 @@ void _jit_uni_dw_convolution_fwd_t<isa, src_type, dst_type>::execute_forward()
         // right border
         ur_w_step = 1;
         for (; ow < jcp.ow; ow++) {
-            jit_conv_call_s par_conv = kernel_params(ur_w_step, ow, oh, ih,
-                                        kh, kh_padding, ch, ch_num, n);
+            jit_conv_call_s par_conv = kernel_params(ur_w_step, ow, oh, od, ih, id,
+                                        kh, kd, kh_padding, kd_padding, ch, ch_num, n);
 
             kernel_->jit_ker(&par_conv);
         }
@@ -194,10 +221,13 @@ void _jit_uni_dw_convolution_bwd_data_t<isa, diff_dst_type,
         par_conv.ur_str_w = ur_str_w;
 
         par_conv.ch_blocks = nstl::min(ch + ch_num, jcp.nb_ch) - ch;
+        par_conv.ic_off = ch * jcp.ch_block * sizeof(float);
 
         return par_conv;
     };
 
+    const int aux_w
+            = nstl::min(jcp.iw, jcp.iw - jcp.kw + jcp.r_pad + jcp.stride_w);
     int MB = pd()->MB();
     const int chb_work = utils::div_up(jcp.nb_ch, jcp.nb_ch_blocking);
     parallel_nd(MB, chb_work, jcp.ih,
@@ -228,8 +258,7 @@ void _jit_uni_dw_convolution_bwd_data_t<isa, diff_dst_type,
             }
 
             // main loop
-            ur_str_w = nstl::min((jcp.iw - jcp.kw + jcp.r_pad - iw)
-                 / jcp.stride_w, jcp.iw);
+            ur_str_w = (aux_w - iw) / jcp.stride_w;
             if (ur_str_w > 0) {
                 jit_conv_call_s par_conv = kernel_params(ur_str_w, iw, oh,
                                              ih, i_t_overflow, i_b_overflow,
@@ -270,7 +299,6 @@ void _jit_uni_dw_convolution_bwd_weights_t<isa, src_type,
             = reinterpret_cast<const diff_dst_data_t *>(this->input_memory(1));
     auto diff_weights
             = reinterpret_cast<diff_weights_data_t *>(this->memory(0));
-    auto diff_bias = reinterpret_cast<f32_data_t *>(this->memory(1));
 
     auto diff_wei_reduction_buf
             = scratchpad().template get<f32_data_t>(key_conv_wei_reduction);
@@ -278,6 +306,13 @@ void _jit_uni_dw_convolution_bwd_weights_t<isa, src_type,
             = scratchpad().template get<f32_data_t>(key_conv_bia_reduction);
 
     const auto &jcp = pd()->jcp_;
+
+    float *diff_bias = nullptr;
+    if (jcp.bia_dt == data_type::bf16) {
+        diff_bias = scratchpad().template get<float>(key_conv_bias_bf16_convert_wsp);
+    } else {
+        diff_bias = reinterpret_cast<f32_data_t *>(this->memory(1));
+    }
 
     const size_t wei_size = jcp.ngroups * jcp.kh * jcp.kw;
     const size_t bias_size = jcp.with_bias ? jcp.ngroups : 0;
@@ -358,8 +393,8 @@ void _jit_uni_dw_convolution_bwd_weights_t<isa, src_type,
                     const int h_work = nstl::min(h_block_size, jcp.oh - oh);
                     auto kh_t_padding = nstl::max(0, jcp.t_pad - oh);
                     auto kh_b_padding
-                            = (oh * jcp.stride_h + jcp.kh - 1 > jcp.ih)
-                            ? jcp.b_pad - (h_work - 1)
+                            = (oh * jcp.stride_h + jcp.kh > jcp.ih + jcp.t_pad)
+                            ? nstl::max(jcp.b_pad - (h_work - 1), 0)
                             : 0;
 
                     set_kernel_params(&conv_params, mb, g, oh, h_work,
@@ -374,6 +409,11 @@ void _jit_uni_dw_convolution_bwd_weights_t<isa, src_type,
             }
         }
     });
+
+    if (jcp.bia_dt == data_type::bf16) {
+        auto diff_bias_in = reinterpret_cast<mkldnn_bfloat16_t *>(this->memory(1));
+        bf16_cvt_utils::cvt_float_to_bfloat16(diff_bias_in, diff_bias, jcp.ngroups);
+    }
 }
 
 /* TODO: Performing a Parallel Reduction could potentially improve performance;
@@ -383,7 +423,6 @@ template <>
 void _jit_uni_dw_convolution_bwd_weights_t<avx512_core,
         data_type::bf16>::execute_reduction() const {
 
-    auto diff_bias = reinterpret_cast<f32_data_t *>(this->memory(1));
     auto diff_wei_reduction_buf
             = scratchpad().template get<f32_data_t>(key_conv_wei_reduction);
     auto diff_bia_reduction_buf
@@ -398,6 +437,13 @@ void _jit_uni_dw_convolution_bwd_weights_t<avx512_core,
     const size_t bias_size = jcp.with_bias ? jcp.ngroups : 0;
 
     const int ch_block = jcp.ch_block;
+
+    float *diff_bias = nullptr;
+    if (jcp.bia_dt == data_type::bf16) {
+        diff_bias = scratchpad().template get<float>(key_conv_bias_bf16_convert_wsp);
+    } else {
+        diff_bias = reinterpret_cast<f32_data_t *>(this->memory(1));
+    }
 
     /* Apply single-threaded 'mb' reduction */
     if (jcp.with_bias && jcp.nthr_mb > 1) {
@@ -416,7 +462,10 @@ void _jit_uni_dw_convolution_bwd_weights_t<avx512_core,
             }
         }
     }
-
+    if (jcp.bia_dt == data_type::bf16) {
+        auto diff_bias_in = reinterpret_cast<bf16_data_t *>(this->memory(1));
+        bf16_cvt_utils::cvt_float_to_bfloat16(diff_bias_in, diff_bias, jcp.ngroups);
+    }
     /* Apply single-threaded 'mb' reduction */
     if (jcp.nthr_mb > 1) {
         for (int thr_mb = 2; thr_mb < jcp.nthr_mb; ++thr_mb) {
@@ -488,7 +537,6 @@ template <cpu_isa_t isa, data_type_t src_type, data_type_t diff_weights_type>
 void _jit_uni_dw_convolution_bwd_weights_t<isa, src_type,
         diff_weights_type>::execute_reduction() const {
 
-    auto diff_bias = reinterpret_cast<f32_data_t *>(this->memory(1));
     auto diff_wei_reduction_buf
             = scratchpad().template get<f32_data_t>(key_conv_wei_reduction);
     auto diff_bia_reduction_buf
@@ -504,6 +552,13 @@ void _jit_uni_dw_convolution_bwd_weights_t<isa, src_type,
 
     assert(diff_weights_type == data_type::f32
             && jcp.dwei_dt == data_type::f32);
+
+    float *diff_bias = nullptr;
+    if (jcp.bia_dt == data_type::bf16) {
+        diff_bias = scratchpad().template get<float>(key_conv_bias_bf16_convert_wsp);
+    } else {
+        diff_bias = reinterpret_cast<f32_data_t *>(this->memory(1));
+    }
 
     /* Apply single-threaded 'mb' reduction */
     for (int thr_mb = 1; thr_mb < jcp.nthr_mb; ++thr_mb) {
@@ -525,6 +580,12 @@ void _jit_uni_dw_convolution_bwd_weights_t<isa, src_type,
         acc_ker_->accumulate(&diff_weights[0],
                 &diff_wei_reduction_buf[mb_accum_offset], wei_size);
     }
+
+    if (jcp.bia_dt == data_type::bf16) {
+        auto diff_bias_in = reinterpret_cast<bf16_data_t *>(this->memory(1));
+        bf16_cvt_utils::cvt_float_to_bfloat16(diff_bias_in, diff_bias, jcp.ngroups);
+    }
+
 }
 
 template struct _jit_uni_dw_convolution_bwd_weights_t<avx512_core,

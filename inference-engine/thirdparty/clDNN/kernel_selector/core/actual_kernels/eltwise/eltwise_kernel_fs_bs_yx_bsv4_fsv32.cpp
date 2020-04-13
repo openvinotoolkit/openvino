@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018-2019 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ EltwiseKernelBase::DispatchData EltwiseKernel_fs_bs_yx_bsv4_fsv32::SetDefault(co
     kd.lws1 = 1;
     kd.lws2 = 8;
 
-    kd.effiency = FORCE_PRIORITY_3;
+    kd.efficiency = FORCE_PRIORITY_3;
     return kd;
 }
 

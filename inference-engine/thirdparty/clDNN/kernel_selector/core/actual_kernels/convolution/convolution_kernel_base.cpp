@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,11 +30,7 @@ bool ConvolutionKernelBase::Validate(const Params& p, const optional_params& o) 
     const convolution_params& params = static_cast<const convolution_params&>(p);
     const convolution_optional_params& optParams = static_cast<const convolution_optional_params&>(o);
 
-    bool bSupportedWeightsLayout = false;
-
-    for (WeightsLayout l : GetSupportedWeightLayouts(params)) {
-        bSupportedWeightsLayout |= params.weights.GetLayout() == l;
-    }
+    bool bSupportedWeightsLayout = params.weights.GetLayout() == GetPreferredWeightsLayout(params);
 
     const bool bWeightsOK = bSupportedWeightsLayout || optParams.allowStaticInputReordering;
 
@@ -79,9 +75,9 @@ JitConstants ConvolutionKernelBase::GetJitConstants(const convolution_params& pa
         if (!params.activations_zero_points.empty()) {
             mem_consts.AddConstants({MakeJitConstant("ACTIVATIONS_ZERO_POINTS", params.activations_zero_points[0])});
         }
-        if (params.has_compensation) {
+        if (params.HasCompensation()) {
             mem_consts.AddConstants({MakeJitConstant("COMPENSATION_TERM", 1)});
-            mem_consts.AddConstants({MakeJitConstant("COMPENSATION", params.compenstaion[0])});
+            mem_consts.AddConstants({MakeJitConstant("COMPENSATION", params.compensation[0])});
         }
     }
     if (params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS || params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
@@ -203,7 +199,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
     kd.gemmStyle.subBlockDimK = 1;
     kd.gemmStyle.subBlockDimM = 0;
     kd.gemmStyle.subBlockDimN = 0;
-    kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return kd;
 }
 
@@ -230,9 +226,10 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
 
     bool succeed = UpdateWeightsParams(newParams,
                                        options,
-                                       GetSupportedWeightLayouts(newParams),
+                                       GetPreferredWeightsLayout(newParams),
                                        kd.weightsReorderParams,
-                                       GetSupportedKey());
+                                       GetSupportedKey(),
+                                       newParams.groups);
 
     if (!succeed) {
         return {};
@@ -263,7 +260,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
         kernel.arguments.push_back({ArgumentDescriptor::Types::WEIGHTS_ZERO_POINTS, 1});
     if (!newParams.activations_zero_points.empty())
         kernel.arguments.push_back({ArgumentDescriptor::Types::ACTIVATIONS_ZERO_POINTS, 1});
-    if (!newParams.compenstaion.empty())
+    if (!newParams.compensation.empty())
         kernel.arguments.push_back({ArgumentDescriptor::Types::COMPENSATION, 1});
 
     uint32_t fused_deps_total = 0;
@@ -275,7 +272,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
     }
     kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = runInfo.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};

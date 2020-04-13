@@ -17,11 +17,25 @@
 import os
 import cv2
 import numpy as np
-
 from glob import glob
 
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
+
+
+def get_blob_shape(layer, batch_size: int):
+    shape = layer.shape.copy()
+    layout = layer.layout
+
+    try:
+        batch_index = layout.index('N')
+    except ValueError:
+        batch_index = 1 if layout == 'C' else -1
+
+    if batch_index != -1 and shape[batch_index] != batch_size:
+        shape[batch_index] = batch_size
+
+    return shape
 
 
 def is_image(blob):
@@ -37,10 +51,18 @@ def is_image_info(blob):
     channels = blob.shape[1]
     return channels >= 2
 
+def set_inputs(paths_to_input, batch_size, input_info, requests):
+  requests_input_data = get_inputs(paths_to_input, batch_size, input_info, requests)
+  for i in range(len(requests)):
+    inputs = requests[i].inputs
+    for k, v in requests_input_data[i].items():
+        if k not in inputs.keys():
+            raise Exception("No input with name {} found!".format(k))
+        inputs[k][:] = v
 
-def get_inputs(path_to_input, batch_size, input_info, requests):
+def get_inputs(paths_to_input, batch_size, input_info, requests):
     input_image_sizes = {}
-    for key in input_info.keys():
+    for key in sorted(input_info.keys()):
         if is_image(input_info[key]):
             input_image_sizes[key] = (input_info[key].shape[2], input_info[key].shape[3])
         logger.info("Network input '{}' precision {}, dimensions ({}): {}".format(key,
@@ -55,10 +77,10 @@ def get_inputs(path_to_input, batch_size, input_info, requests):
     image_files = list()
     binary_files = list()
 
-    if path_to_input:
-        image_files = get_files_by_extensions(path_to_input, IMAGE_EXTENSIONS)
+    if paths_to_input:
+        image_files = get_files_by_extensions(paths_to_input, IMAGE_EXTENSIONS)
         image_files.sort()
-        binary_files = get_files_by_extensions(path_to_input, BINARY_EXTENSIONS)
+        binary_files = get_files_by_extensions(paths_to_input, BINARY_EXTENSIONS)
         binary_files.sort()
 
     if (len(image_files) == 0) and (len(binary_files) == 0):
@@ -94,19 +116,19 @@ def get_inputs(path_to_input, batch_size, input_info, requests):
     for request_id in range(0, len(requests)):
         logger.info("Infer Request {} filling".format(request_id))
         input_data = {}
-        keys = list(input_info.keys())
+        keys = list(sorted(input_info.keys()))
         for key in keys:
             if is_image(input_info[key]):
                 # input is image
                 if len(image_files) > 0:
                     input_data[key] = fill_blob_with_image(image_files, request_id, batch_size, keys.index(key),
-                                                           len(keys), input_info[key].shape)
+                                                           len(keys), input_info[key])
                     continue
 
             # input is binary
             if len(binary_files):
                 input_data[key] = fill_blob_with_binary(binary_files, request_id, batch_size, keys.index(key),
-                                                        len(keys), input_info[key].shape)
+                                                        len(keys), input_info[key])
                 continue
 
             # most likely input is image info
@@ -114,37 +136,38 @@ def get_inputs(path_to_input, batch_size, input_info, requests):
                 image_size = input_image_sizes[list(input_image_sizes.keys()).pop()]
                 logger.info("Fill input '" + key + "' with image size " + str(image_size[0]) + "x" +
                             str(image_size[1]))
-                input_data[key] = fill_blob_with_image_info(image_size, input_info[key].shape)
+                input_data[key] = fill_blob_with_image_info(image_size, input_info[key])
                 continue
 
             # fill with random data
             logger.info("Fill input '{}' with random values ({} is expected)".format(key, "image" if is_image(
                 input_info[key]) else "some binary data"))
-            input_data[key] = fill_blob_with_random(input_info[key].precision, input_info[key].shape)
+            input_data[key] = fill_blob_with_random(input_info[key])
 
         requests_input_data.append(input_data)
 
     return requests_input_data
 
 
-def get_files_by_extensions(path_to_input, extensions):
+def get_files_by_extensions(paths_to_input, extensions):
     get_extension = lambda file_path: file_path.split(".")[-1].upper()
 
     input_files = list()
-    if os.path.isfile(path_to_input):
-        files = [os.path.normpath(path_to_input)]
-    else:
-        path = os.path.join(path_to_input, '*')
-        files = glob(path, recursive=True)
-    for file in files:
-        file_extension = get_extension(file)
-        if file_extension in extensions:
+    for path_to_input in paths_to_input:
+        if os.path.isfile(path_to_input):
+            files = [os.path.normpath(path_to_input)]
+        else:
+            path = os.path.join(path_to_input, '*')
+            files = glob(path, recursive=True)
+        for file in files:
+            file_extension = get_extension(file)
+            if file_extension in extensions:
                 input_files.append(file)
 
     return input_files
 
-
-def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_size, shape):
+def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_size, layer):
+    shape = layer.shape
     images = np.ndarray(shape)
     image_index = request_id * batch_size * input_size + input_id
     for b in range(batch_size):
@@ -167,30 +190,43 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
         image_index += input_size
     return images
 
+def get_dtype(precision):
+    format_map = {
+      'FP32' : np.float32,
+      'I32'  : np.int32,
+      'FP16' : np.float16,
+      'I16'  : np.int16,
+      'U16'  : np.uint16,
+      'I8'   : np.int8,
+      'U8'   : np.uint8,
+    }
+    if precision in format_map.keys():
+        return format_map[precision]
+    raise Exception("Can't find data type for precision: " + precision)
 
-def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_size, shape):
-    binaries = np.ndarray(shape)
+def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_size, layer):
+    binaries = np.ndarray(layer.shape)
+    shape = get_blob_shape(layer, 1) # get blob shape for batch 1
     binary_index = request_id * batch_size * input_size + input_id
+    dtype = get_dtype(layer.precision)
     for b in range(batch_size):
         binary_index %= len(binary_paths)
         binary_filename = binary_paths[binary_index]
+        logger.info("Prepare binary file " + binary_filename)
 
         binary_file_size = os.path.getsize(binary_filename)
-        input_size = np.prod(shape) / batch_size
-        if input_size != binary_file_size:
+        blob_size = dtype().nbytes * int(np.prod(shape))
+        if blob_size != binary_file_size:
             raise Exception(
-                "File {} contains {} bytes but network expects {}".format(binary_filename, binary_file_size, input_size))
-
-        with open(binary_filename, 'r') as f:
-            binary_data = f.read()
-
-        binaries[b] = binary_data
+                "File {} contains {} bytes but network expects {}".format(binary_filename, binary_file_size, blob_size))
+        binaries[b] = np.reshape(np.fromfile(binary_filename, dtype), shape)
         binary_index += input_size
 
     return binaries
 
 
-def fill_blob_with_image_info(image_size, shape):
+def fill_blob_with_image_info(image_size, layer):
+    shape = layer.shape
     im_info = np.ndarray(shape)
     for b in range(shape[0]):
         for i in range(shape[1]):
@@ -198,21 +234,5 @@ def fill_blob_with_image_info(image_size, shape):
 
     return im_info
 
-
-def fill_blob_with_random(precision, shape):
-    if precision == "FP32":
-        return np.random.rand(*shape).astype(np.float32)
-    elif precision == "FP16":
-        return np.random.rand(*shape).astype(np.float16)
-    elif precision == "I32":
-        return np.random.rand(*shape).astype(np.int32)
-    elif precision == "U8":
-        return np.random.rand(*shape).astype(np.uint8)
-    elif precision == "I8":
-        return np.random.rand(*shape).astype(np.int8)
-    elif precision == "U16":
-        return np.random.rand(*shape).astype(np.uint16)
-    elif precision == "I16":
-        return np.random.rand(*shape).astype(np.int16)
-    else:
-        raise Exception("Input precision is not supported: " + precision)
+def fill_blob_with_random(layer):
+    return np.random.rand(*layer.shape).astype(get_dtype(layer.precision))

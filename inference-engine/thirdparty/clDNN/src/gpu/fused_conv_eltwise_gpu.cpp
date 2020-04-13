@@ -79,12 +79,11 @@ public:
         const auto& dilation = primitive->conv.dilation;
         const auto& input_offset = primitive->conv.input_offset;
 
-        const auto depthwise_separable_opt = arg.get_depthwise_sep_opt();
-        const auto actual_split = depthwise_separable_opt ? (decltype(split))1 : split;
+        const auto actual_split = split;
 
         const auto transposed = arg.get_transposed();
 
-        assert(arg.get_output_layout().size.feature[0] / primitive->split() == weights_layout.size.batch[0]);
+        assert(arg.get_output_layout().size.feature[0] == weights_layout.size.batch[0] * weights_layout.size.group[0]);
 
         // conv params
         auto fused_params =
@@ -110,7 +109,6 @@ public:
             convert_activation_func_params(&primitive->conv, fused_params.conv.activations);
         }
 
-        fused_params.conv.depthwise_separable_opt = depthwise_separable_opt;
         fused_params.conv.transposed = transposed;
 
         fused_params.non_conv_scale = primitive->non_conv_scale;
@@ -176,9 +174,10 @@ public:
 
         const auto& tuning_config = arg.get_program().get_options().get<build_option_type::tuning_config>();
 
-        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache) {
+        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache ||
+            tuning_config->config.mode == tuning_mode::tuning_retune_and_cache) {
             conv_optional_params.tuningParams.runner =
-                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), true);
+                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true);
         }
 
         kernel_selector::KernelsData best_kernels = kernel_selector.GetBestKernels(fused_params, conv_optional_params);
@@ -215,13 +214,13 @@ attach_fused_conv_eltwise_gpu::attach_fused_conv_eltwise_gpu() {
                                                 fused_conv_eltwise_gpu::create);
     implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx),
                                                 fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_f16),
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16),
                                                 fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_f16),
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16),
                                                 fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx_b16f16),
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
                                                 fused_conv_eltwise_gpu::create);
-    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx_b16f16),
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
                                                 fused_conv_eltwise_gpu::create);
     // MMAD
     implementation_map<fused_conv_eltwise>::add(

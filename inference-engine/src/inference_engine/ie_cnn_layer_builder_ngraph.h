@@ -16,6 +16,7 @@
 #include <ngraph/op/constant.hpp>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include "blob_factory.hpp"
 #include "ie_ngraph_utils.hpp"
@@ -28,18 +29,15 @@ class INodeConverter {
 public:
     virtual CNNLayer::Ptr createLayer(const std::shared_ptr<ngraph::Node>& layer) const = 0;
     virtual bool canCreate(const std::shared_ptr<ngraph::Node>& node) const = 0;
-
-    template <class T>
-    static std::string asString(const T& value) {
-        return std::to_string(value);
-    }
-
-    template <class T>
-    static std::string asString(const std::vector<T>& value);
 };
 
+template <class T>
+std::string asString(const T& value) {
+    return std::to_string(value);
+}
+
 template <typename T>
-std::string INodeConverter::asString(const std::vector<T>& value) {
+std::string asString(const std::vector<T>& value) {
     std::string result;
     for (const auto& item : value) {
         if (!result.empty()) result += ",";
@@ -47,6 +45,12 @@ std::string INodeConverter::asString(const std::vector<T>& value) {
     }
     return result;
 }
+
+template <>
+std::string asString<double>(const double& value);
+
+template <>
+std::string asString<float>(const float& value);
 
 template <class NGT>
 class NodeConverter : public INodeConverter {
@@ -61,6 +65,32 @@ public:
     }
 
 private:
+    class ConstAllocatorWrapper : public IAllocator {
+    public:
+        explicit ConstAllocatorWrapper(std::shared_ptr<ngraph::op::Constant> constOp): _constOp(std::move(constOp)) {}
+
+        void Release() noexcept override {
+            delete this;
+        }
+
+        void* lock(void* handle, LockOp) noexcept override {
+            return handle;
+        }
+
+        void unlock(void*) noexcept override {}  // NOLINT
+
+        void* alloc(size_t) noexcept override {
+            return const_cast<void*>(_constOp->get_data_ptr());
+        }
+
+        bool free(void*) noexcept override {  // NOLINT
+            return true;
+        }
+
+    private:
+        std::shared_ptr<ngraph::op::Constant> _constOp;
+    };
+
     Blob::Ptr shareWeights(const std::shared_ptr<ngraph::op::Constant>& constLayer) const {
         if (!constLayer) THROW_IE_EXCEPTION << "Cannot share weights! Constant operation is empty!";
         auto dataPrecision = details::ngraph::convertPrecision(constLayer->get_element_type());
@@ -71,7 +101,11 @@ private:
         }
 
         TensorDesc td(dataPrecision, {shapeSize}, Layout::C);
-        return make_blob_with_precision(td, const_cast<void *>(constLayer->get_data_ptr()));
+
+        auto blob = make_blob_with_precision(td, std::make_shared<ConstAllocatorWrapper>(constLayer));
+        blob->allocate();
+
+        return blob;
     }
 };
 

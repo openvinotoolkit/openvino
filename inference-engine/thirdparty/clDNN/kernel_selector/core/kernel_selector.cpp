@@ -130,19 +130,17 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
 
     auto allImplementations = GetAllImplementations(params, options, kType);
 
-    std::string hash = std::to_string(create_hash(params.to_string()));
     std::tuple<std::string, int> cachedKernelConfig;
     if (options.tuningParams.mode == TuningMode::TUNING_DISABLED) {  // Try to load kernel/config from offline cache
 #if ENABLE_OFFLINE_TUNING_CACHE
-        cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache, hash);
+        cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache, params);
 #else
         return GetNaiveBestKernel(params, options, kType);
 #endif
-    } else {  // Try to load kernel/config from on-line cache
+    } else if (UseCached(options.tuningParams.mode)) {  // Try to load kernel/config from on-line cache
         cachedKernelConfig = autoTuner.LoadKernelOnline(options.tuningParams.mode,
                                                         options.tuningParams.cacheFilePath,
-                                                        params.engineInfo.computeUnitsCount,
-                                                        hash);
+                                                        params);
     }
     bool hashFoundInCache = !std::get<0>(cachedKernelConfig).empty();
 
@@ -168,9 +166,14 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
         }
     }
 
+    // Cache is not valid, remove it if performing update tasks.
+    if (hashFoundInCache && PerformUpdates(options.tuningParams.mode)) {
+        autoTuner.RemoveKernel(options.tuningParams.cacheFilePath, params);
+    }
+
     if (hashFoundInCache ||  // Cache is not valid - hash exists in cache but kernelsData was empty or kernel
                              // doesn't support the required key.
-        (options.tuningParams.mode != TuningMode::TUNING_TUNE_AND_CACHE) ||  // On-line tuning is not allowed.
+        !PerformTuning(options.tuningParams.mode) ||  // On-line tuning is not allowed.
         !options.tuningParams.runner) {  // Runner is invalid - can't run on-line tuning
         // Fall back to the default path.
         return GetNaiveBestKernel(params, options, kType);
@@ -227,10 +230,12 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
         kernelsData[0].kernelName = kernelName;
         kernelsData[0].kernels[0].layerID = params.layerID;
         autoTuner.StoreKernel(options.tuningParams.cacheFilePath,
-                                hash,
+                                params,
                                 kernelName,
-                                kernelsData[0].autoTuneIndex,
-                                params.engineInfo.computeUnitsCount);
+                                kernelsData[0].autoTuneIndex);
+    } else {
+        // Tuning failed, fall back to naive path
+        return GetNaiveBestKernel(params, options, kType);
     }
 
     return kernelsData;

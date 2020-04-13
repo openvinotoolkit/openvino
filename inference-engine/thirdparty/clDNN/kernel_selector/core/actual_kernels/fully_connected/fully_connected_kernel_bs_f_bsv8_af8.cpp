@@ -94,7 +94,7 @@ KernelsData FullyConnected_bs_f_bsv8_af8::GetKernelsData(const Params& params, c
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     optParams,
                                                     DataLayout::bs_f_bsv8__af8,
-                                                    {WeightsLayout::os_i_osv8__ai8},
+                                                    WeightsLayout::os_i_osv8__ai8,
                                                     FORCE_PRIORITY_4,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

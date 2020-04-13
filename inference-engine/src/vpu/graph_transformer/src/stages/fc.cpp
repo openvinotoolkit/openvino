@@ -47,12 +47,6 @@ void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _l
         tryHW = false;
     }
 
-    if (input->desc().dim(Dim::C) == 71 &&
-        input->desc().dim(Dim::H, 1) == 1 &&
-        input->desc().dim(Dim::W, 1) == 88) {
-        tryHW = false;
-    }
-
     if (output->desc().totalDimSize() == 1) {
         tryHW = false;
     }

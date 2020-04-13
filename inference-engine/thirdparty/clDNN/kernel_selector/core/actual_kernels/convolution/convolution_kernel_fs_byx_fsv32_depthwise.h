@@ -32,8 +32,8 @@ public:
                                            int autoTuneIndex = -1) const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {WeightsLayout::os_iyx_osv32};
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+        return WeightsLayout::gs_oiyx_gsv32;
     }
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {

@@ -32,8 +32,8 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const fused_conv_eltwise_params&) const override {
-        return {WeightsLayout::yxio};
+    WeightsLayout GetPreferreddWeightsLayout(const fused_conv_eltwise_params &) const override {
+        return WeightsLayout::yxio;
     }
     std::string GetKernelName(const fused_conv_eltwise_params&) const override;
     bool Validate(const Params& p, const optional_params& o) const override;

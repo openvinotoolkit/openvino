@@ -4,11 +4,13 @@
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <algorithm>
 #include <vector>
 #include <string>
 #include <unordered_set>
 #include <memory>
 #include <set>
+#include <vpu/compile_env.hpp>
 
 #include <details/caseless.hpp>
 
@@ -107,11 +109,11 @@ private:
         auto input2 = inputEdge(2)->input();
         auto output = outputEdge(0)->output();
 
-        input0->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
-        input1->serializeNewBuffer(serializer);
-        input2->serializeNewBuffer(serializer);
-        tempBuffer(0)->serializeNewBuffer(serializer);
+        input0->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
+        input1->serializeBuffer(serializer);
+        input2->serializeBuffer(serializer);
+        tempBuffer(0)->serializeBuffer(serializer);
     }
 };
 
@@ -166,9 +168,20 @@ void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, c
     // Allocate slightly larger buffer than needed for handling remnant in distribution among SHAVEs
     int buffer_size = (inputs[0]->desc().dim(Dim::H) + 16) * inputs[0]->desc().dim(Dim::W) * number_of_anchors * 5 * sizeof(float);
 
+    struct SortItem {
+        int  index;
+        float score;
+    };
+    const int num_proposals = number_of_anchors * inputs[0]->desc().dim(Dim::H) * inputs[0]->desc().dim(Dim::W);
+    const int pre_nms_topn = std::min(num_proposals, stage->attrs().get<int>("pre_nms_topn"));
+    const int required_cmx_size_per_shave = std::max(2 * (1 + pre_nms_topn) * sizeof(SortItem),
+                                                     (1 + pre_nms_topn) * sizeof(SortItem) + number_of_anchors * sizeof(float));
+    const auto& env = CompileEnv::get();
+    const int required_cmx_buffer_size = env.resources.numSHAVEs * required_cmx_size_per_shave;
+
     model->addTempBuffer(
         stage,
-        DataDesc({buffer_size}));
+        DataDesc({buffer_size + required_cmx_buffer_size}));
 }
 
 }  // namespace vpu

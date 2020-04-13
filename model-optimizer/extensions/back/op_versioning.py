@@ -76,7 +76,7 @@ class OpVersioning(BackReplacementPattern):
         "LogicalNot",
         "LogicalOr",
         "LogicalXor",
-        "MVN",
+        #"MVN",  # not really included into opset1
         "MatMul",
         "MaxPool",
         "Maximum",
@@ -96,7 +96,7 @@ class OpVersioning(BackReplacementPattern):
         "PriorBox",
         "PriorBoxClustered",
         "Proposal",
-        "ROIPooling",
+        #"ROIPooling",  # not really included into opset1
         "Range",
         "ReLU",
         "ReduceLogicalAnd",
@@ -107,7 +107,7 @@ class OpVersioning(BackReplacementPattern):
         "ReduceProd",
         "ReduceSum",
         "RegionYolo",
-        "ReorgYolo",
+        #"ReorgYolo",  # not really included into opset1
         "Reshape",
         "Result",
         "ReverseSequence",
@@ -148,6 +148,13 @@ class OpVersioning(BackReplacementPattern):
         "ExperimentalDetectronPriorGridGenerator",
     ]))
 
+    # Several ops were added to opset1 by mistake, now they are marked as blonging to opset2
+    opset_2_legacy_ops = set(map(lambda s: s.lower(), [
+        "MVN",
+        "ReorgYolo",
+        "ROIPooling",
+    ]))
+
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes():
             node_type = node.soft_get('type').lower()
@@ -162,6 +169,8 @@ class OpVersioning(BackReplacementPattern):
                     node['version'] = 'opset1'
                 elif node_type in self.opset_1_experimental_ops:
                     node['version'] = 'experimental'
+                elif node_type in self.opset_2_legacy_ops:
+                    node['version'] = 'opset2'
                 else:
                     node['version'] = 'extension'
                     log.error('Please set `version` attribute for node {} with type={}'

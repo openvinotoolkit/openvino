@@ -34,6 +34,7 @@ public:
         U16 = 60,          /**< 16bit unsigned integer value */
         I32 = 70,          /**< 32bit signed integer value */
         I64 = 72,          /**< 64bit signed integer value */
+        U64 = 73,          /**< 64bit unsigned integer value */
         BIN = 71,          /**< 1bit integer value */
         BOOL = 41,         /**< 8bit bool type */
         CUSTOM = 80        /**< custom precision has it's own name and size of elements */
@@ -108,6 +109,7 @@ public:
                 CASE(I16, int16_t);
                 CASE(I32, int32_t);
                 CASE(I64, int64_t);
+                CASE(U64, uint64_t);
                 CASE(U16, uint16_t);
                 CASE(U8, uint8_t);
                 CASE(I8, int8_t);
@@ -160,6 +162,11 @@ public:
     operator Precision::ePrecision() const noexcept {
         return precisionInfo.value;
     }
+
+    /**
+     * @brief Gets the precision value of type ePrecision.
+     * @return The preccision value.
+     */
     constexpr uint8_t getPrecVal() const noexcept {
         return precisionInfo.value;
     }
@@ -173,9 +180,10 @@ public:
     static Precision FromStr(const std::string& str) {
         static std::unordered_map<std::string, ePrecision> names = {
 #define PRECISION_NAME(s) {#s, s}
-            PRECISION_NAME(Q78),  PRECISION_NAME(U8),    PRECISION_NAME(I8),  PRECISION_NAME(I16),
-            PRECISION_NAME(I32),  PRECISION_NAME(I64),   PRECISION_NAME(U16), PRECISION_NAME(FP32),
-            PRECISION_NAME(FP16), PRECISION_NAME(MIXED), PRECISION_NAME(BIN), PRECISION_NAME(BOOL),
+            PRECISION_NAME(Q78),  PRECISION_NAME(U8),    PRECISION_NAME(I8),    PRECISION_NAME(I16),
+            PRECISION_NAME(I32),  PRECISION_NAME(I64),   PRECISION_NAME(U64),   PRECISION_NAME(U16),
+            PRECISION_NAME(FP32), PRECISION_NAME(FP16),  PRECISION_NAME(MIXED), PRECISION_NAME(BIN),
+            PRECISION_NAME(BOOL),
 #undef PRECISION_NAME
         };
         auto i = names.find(str);
@@ -184,7 +192,6 @@ public:
 
     /**
      * @brief Returns size of single element of that precision in bits
-     *
      * @returns Number of bytes per element
      */
     size_t size() const {
@@ -194,11 +201,18 @@ public:
         return precisionInfo.bitsSize >> 3;
     }
 
-    /** @brief Checks if it is a floating point */
+    /**
+     * @brief Checks if it is a floating point value
+     * @return True if precision is float point, `false` otherwise
+     */
     bool is_float() const noexcept {
         return precisionInfo.isFloat;
     }
 
+    /**
+     * @brief Checks if it is a signed value
+     * @return True if precision is signed, `false` otherwise
+     */
     bool isSigned() const noexcept {
         return (precisionInfo.value == Precision::UNSPECIFIED) || (precisionInfo.value == Precision::MIXED) ||
                (precisionInfo.value == Precision::FP32) || (precisionInfo.value == Precision::FP16) ||
@@ -210,9 +224,10 @@ public:
 
 protected:
     /**
-     * @brief Returns PrecisionInfo by its name
-     *
+     * @brief Creates PrecisionInfo by @p precision with a specified name
+     * @tparam precision A precision to create PrecisionInfo for
      * @param name Name of precision
+     * @return A PrecisionInfo object
      */
     template <Precision::ePrecision precision>
     static PrecisionInfo makePrecisionInfo(const char* name);
@@ -248,6 +263,7 @@ protected:
             CASE(I16);
             CASE(I32);
             CASE(I64);
+            CASE(U64);
             CASE(U16);
             CASE(U8);
             CASE(I8);
@@ -309,6 +325,10 @@ struct PrecisionTrait<Precision::I32> {
 template <>
 struct PrecisionTrait<Precision::I64> {
     using value_type = int64_t;
+};
+template <>
+struct PrecisionTrait<Precision::U64> {
+    using value_type = uint64_t;
 };
 template <>
 struct PrecisionTrait<Precision::BIN> {

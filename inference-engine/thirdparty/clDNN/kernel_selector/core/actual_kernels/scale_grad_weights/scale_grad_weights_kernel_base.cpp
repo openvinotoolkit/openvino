@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ ScaleGradWeightsKernelBase::DispatchData ScaleGradWeightsKernelBase::SetDefault(
     kd.lws0 = params.inputs[0].Batch().v;
     kd.lws1 = 1;
     kd.lws2 = 1;
-    kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return kd;
 }
 
@@ -72,7 +72,7 @@ KernelsData ScaleGradWeightsKernelBase::GetKernelsData(const Params& params, con
     }
     kernel.arguments.push_back({ArgumentDescriptor::Types::LEARNING_RATE, 0});
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = runInfo.efficiency;
 
     return {kd};
 }

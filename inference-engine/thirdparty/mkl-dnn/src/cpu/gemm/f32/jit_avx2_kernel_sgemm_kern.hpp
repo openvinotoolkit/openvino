@@ -26,8 +26,7 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 
-class jit_avx2_kernel_sgemm_kern : public jit_generator
-{
+class jit_avx2_kernel_sgemm_kern : public jit_generator {
 
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_avx2_kernel_sgemm_kern);
     const int elt_size_ = 4;
@@ -55,8 +54,8 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
 
     int addr_off_ = mayiuse(avx512_core) ? 128 : 32;
     int PREFETCHSIZEB_ = mayiuse(avx512_core) ? (-128 + 16 * 8) : 64;
-    int PREFETCHSIZEA_ = mayiuse(avx512_core) ? (-128 + 16 * 2) :
-                                                (PREFETCHSIZEB_ * 2 + 16);
+    int PREFETCHSIZEA_ = mayiuse(avx512_core) ? (-128 + 16 * 2)
+                                              : (PREFETCHSIZEB_ * 2 + 16);
     int off_ = 0, offb_ = 0;
 
     int next_acc(int idx, int um, int un);
@@ -73,22 +72,23 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
     template <typename T_reg, typename T_desta, typename T_srca>
     void loadA_betweenFMAs(int um, int un, int k_idx, int n_idx, int m_idx,
             void (Xbyak::CodeGenerator::*aload)(
-                                   const T_desta &, const T_srca &)) {
-        int next_zmm_a = mayiuse(avx512_core) ?
-                unroll_m_reg_ :
-                std::max(1, um / nelt_per_vecreg_);
+                    const T_desta &, const T_srca &)) {
+        int next_zmm_a = mayiuse(avx512_core)
+                ? unroll_m_reg_
+                : std::max(1, um / nelt_per_vecreg_);
         if (!(mayiuse(avx512_core) || (um <= 8) || ((um == 16) && (un == 4)))) {
             if (n_idx == un - 1) {
-                (this->*aload)(
-                        T_reg(zmm_a_idx_ + m_idx
-                                + (k_idx % (nb_zmm_a_ / unroll_m_reg_))
-                                        * next_zmm_a),
+                (this->*aload)(T_reg(zmm_a_idx_ + m_idx
+                                       + (k_idx % (nb_zmm_a_ / unroll_m_reg_))
+                                               * next_zmm_a),
                         ptr[AO_
                                 + elt_size_
                                         * (m_idx * nelt_per_vecreg_
-                                                  + um * (k_idx +
-                                                      nb_zmm_a_ / unroll_m_reg_)
-                                                  - addr_off_)]);
+                                                + um
+                                                        * (k_idx
+                                                                + nb_zmm_a_
+                                                                        / unroll_m_reg_)
+                                                - addr_off_)]);
             }
         }
     }
@@ -96,24 +96,25 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
     template <typename T_reg, typename T_desta, typename T_srca>
     void loadA_after(int um, int un, int k_idx,
             void (Xbyak::CodeGenerator::*aload)(
-                             const T_desta &, const T_srca &)) {
+                    const T_desta &, const T_srca &)) {
 
         int i;
-        int next_zmm_a = mayiuse(avx512_core) ?
-                unroll_m_reg_ :
-                std::max(1, um / nelt_per_vecreg_);
+        int next_zmm_a = mayiuse(avx512_core)
+                ? unroll_m_reg_
+                : std::max(1, um / nelt_per_vecreg_);
         if (mayiuse(avx512_core) || (um <= 8) || ((um == 16) && (un == 4))) {
             for (i = 0; i < std::max(um / nelt_per_vecreg_, 1); i++) {
-                (this->*aload)(
-                        T_reg(zmm_a_idx_ + i
-                                + (k_idx % (nb_zmm_a_ / unroll_m_reg_))
-                                        * next_zmm_a),
+                (this->*aload)(T_reg(zmm_a_idx_ + i
+                                       + (k_idx % (nb_zmm_a_ / unroll_m_reg_))
+                                               * next_zmm_a),
                         ptr[AO_
                                 + elt_size_
                                         * (i * nelt_per_vecreg_
-                                                  + um * (k_idx +
-                                                      nb_zmm_a_ / unroll_m_reg_)
-                                                  - addr_off_)]);
+                                                + um
+                                                        * (k_idx
+                                                                + nb_zmm_a_
+                                                                        / unroll_m_reg_)
+                                                - addr_off_)]);
             }
         }
     }
@@ -122,28 +123,25 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
             typename T_destb, typename T_srcb>
     void k_loop_body(int cfetch, int um, int un,
             void (Xbyak::CodeGenerator::*aload)(
-                             const T_desta &, const T_srca &),
+                    const T_desta &, const T_srca &),
             void (Xbyak::CodeGenerator::*bload)(
-                             const T_destb &, const T_srcb &)) {
+                    const T_destb &, const T_srcb &)) {
 
         Xbyak::Label K_loop_body_label;
         int i, j, p, b_idx;
         int addb_off = ((!mayiuse(avx512_core)) && (nb_zmm_b_ == 2)) ? 1 : 0;
 
-        int next_zmm_a = mayiuse(avx512_core) ?
-                unroll_m_reg_ :
-                std::max(1, um / nelt_per_vecreg_);
+        int next_zmm_a = mayiuse(avx512_core)
+                ? unroll_m_reg_
+                : std::max(1, um / nelt_per_vecreg_);
 
         off_ = 0, offb_ = 0;
 
-        if (mayiuse(avx512_core))
-            L_aligned(K_loop_body_label);
+        if (mayiuse(avx512_core)) L_aligned(K_loop_body_label);
 
-        if (cfetch)
-            prefetchC_beforeKloop(um);
+        if (cfetch) prefetchC_beforeKloop(um);
 
-        if (!mayiuse(avx512_core))
-            L_aligned(K_loop_body_label);
+        if (!mayiuse(avx512_core)) L_aligned(K_loop_body_label);
 
         for (p = 0; p < unroll_k_; p++) {
             if (mayiuse(avx512_core)) {
@@ -170,9 +168,9 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
                     vfmadd231ps(T_reg(zmm_acc_idx_ + i * unroll_n_ + j),
                             T_reg(zmm_b_idx_ + b_idx),
                             T_reg(i
-                                        + (p % (nb_zmm_a_ / unroll_m_reg_))
-                                                * next_zmm_a
-                                        + zmm_a_idx_));
+                                    + (p % (nb_zmm_a_ / unroll_m_reg_))
+                                            * next_zmm_a
+                                    + zmm_a_idx_));
 
                     loadA_betweenFMAs<T_reg, T_desta, T_srca>(
                             um, un, p, j, i, aload);
@@ -186,28 +184,25 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
                 if (!mayiuse(avx512_core) && (um == unroll_m_)
                         && (un == unroll_n_) && (j == un - 1)
                         && (p == unroll_k_ - 1)) {
-                    (this->*bload)(
-                            T_reg(zmm_b_idx_ + b_idx),
+                    (this->*bload)(T_reg(zmm_b_idx_ + b_idx),
                             ptr[BO_
                                     + elt_size_
                                             * (un * p - addr_off_
-                                                      + std::min(nb_zmm_b_, un)
-                                                      + j + addb_off)
+                                                    + std::min(nb_zmm_b_, un)
+                                                    + j + addb_off)
                                     - un * unroll_k_ * elt_size_]);
                 } else {
-                    (this->*bload)(
-                            T_reg(zmm_b_idx_ + b_idx),
+                    (this->*bload)(T_reg(zmm_b_idx_ + b_idx),
                             ptr[BO_
                                     + elt_size_
                                             * (un * p - addr_off_
-                                                      + std::min(nb_zmm_b_, un)
-                                                      + j + addb_off)]);
+                                                    + std::min(nb_zmm_b_, un)
+                                                    + j + addb_off)]);
                 }
 
                 prefetchA_afterBload(um, un, p, j);
 
-                if (cfetch)
-                    prefetchC_afterBload(um, un, p, j);
+                if (cfetch) prefetchC_afterBload(um, un, p, j);
 
                 if (mayiuse(avx512_core)) {
                     if ((um == unroll_m_) && (p == unroll_k_ - 1)
@@ -222,7 +217,7 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
                         if (((p % (nb_zmm_a_ / unroll_m_reg_) == 0)
                                     && (j % 6 == 0))
                                 || ((p % (nb_zmm_a_ / unroll_m_reg_) == 1)
-                                           && (j == 3))) {
+                                        && (j == 3))) {
                             off_ += 16;
                         }
                     }
@@ -249,9 +244,9 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
             typename T_destb, typename T_srcb>
     void k_loop_remainder(int um, int un,
             void (Xbyak::CodeGenerator::*aload)(
-                                  const T_desta &, const T_srca &),
+                    const T_desta &, const T_srca &),
             void (Xbyak::CodeGenerator::*bload)(
-                                  const T_destb &, const T_srcb &)) {
+                    const T_destb &, const T_srcb &)) {
 
         Xbyak::Label K_loop_remainder_label;
         int i, j, off_ = 0;
@@ -277,21 +272,21 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
                     }
                 } else {
                     if ((um > nelt_per_vecreg_) && (j == un - 1)) {
-                        (this->*aload)(
-                                T_reg(zmm_a_idx_ + i),
+                        (this->*aload)(T_reg(zmm_a_idx_ + i),
                                 ptr[AO_
-                                        + elt_size_ * (um - addr_off_
-                                                              + nelt_per_vecreg_
-                                                                      * i)]);
+                                        + elt_size_
+                                                * (um - addr_off_
+                                                        + nelt_per_vecreg_
+                                                                * i)]);
                     }
                 }
             }
 
-            (this->*bload)(
-                    T_reg(zmm_b_idx_ + (j % nb_zmm_b_)),
+            (this->*bload)(T_reg(zmm_b_idx_ + (j % nb_zmm_b_)),
                     ptr[BO_
-                            - elt_size_ * (addr_off_ - std::min(nb_zmm_b_, un)
-                                                  - j)]);
+                            - elt_size_
+                                    * (addr_off_ - std::min(nb_zmm_b_, un)
+                                            - j)]);
         }
 
         if (mayiuse(avx512_core) && (un < 2))
@@ -306,11 +301,11 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
 
         if (mayiuse(avx512_core) || (um <= nelt_per_vecreg_)) {
             for (i = 0; i < std::max(um / nelt_per_vecreg_, 1); i++) {
-                (this->*aload)(
-                        T_reg(zmm_a_idx_ + i),
+                (this->*aload)(T_reg(zmm_a_idx_ + i),
                         ptr[AO_
-                                + elt_size_ * (um - addr_off_
-                                                      + nelt_per_vecreg_ * i)]);
+                                + elt_size_
+                                        * (um - addr_off_
+                                                + nelt_per_vecreg_ * i)]);
             }
         }
 
@@ -328,18 +323,19 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
 
     template <typename T_reg, typename T_desta, typename T_srca,
             typename T_destb, typename T_srcb>
-    void loop(int um, int un, void (Xbyak::CodeGenerator::*aload)(
-                                      const T_desta &, const T_srca &),
+    void loop(int um, int un,
+            void (Xbyak::CodeGenerator::*aload)(
+                    const T_desta &, const T_srca &),
             void (Xbyak::CodeGenerator::*bload)(
-                      const T_destb &, const T_srcb &)) {
+                    const T_destb &, const T_srcb &)) {
 
         int i, j, k, acc_idx;
         Xbyak::Label end_K_loop_label, end_main_K_loop_label;
         Xbyak::Label K_loop_with_prefetch_label, K_loop_with_prefetch_rem_label;
 
-        Xbyak::Reg64 A_reg = (mayiuse(avx512_core)) ?
-                AO_ :
-                ((um == unroll_m_) && (un == unroll_n_)) ? A_ : AO_;
+        Xbyak::Reg64 A_reg = (mayiuse(avx512_core))
+                ? AO_
+                : ((um == unroll_m_) && (un == unroll_n_)) ? A_ : AO_;
 
         if (mayiuse(avx512_core) || (unroll_m_ != um) || (unroll_n_ != un))
             mov(AO_, A_);
@@ -400,8 +396,7 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
                             T_reg(zmm_acc_idx_ + acc_idx));
                     acc_idx++;
                 }
-                (this->*aload)(
-                        T_reg(j),
+                (this->*aload)(T_reg(j),
                         ptr[A_reg
                                 + (um * k - addr_off_ + i - nelt_per_vecreg_)
                                         * elt_size_]);
@@ -430,7 +425,7 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
             if (un > 1) {
                 if ((um == unroll_m_)
                         || ((um <= nelt_per_vecreg_) && (un == unroll_n_)
-                                   && (um > 1))) {
+                                && (um > 1))) {
                     acc_idx = next_acc(acc_idx, um, un);
                     vxorps(T_reg(zmm_acc_idx_ + acc_idx),
                             T_reg(zmm_acc_idx_ + acc_idx),
@@ -459,7 +454,7 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
                 if (un == unroll_n_) {
                     if ((um == unroll_m_)
                             || ((um <= nelt_per_vecreg_) && (un == unroll_n_)
-                                       && (um > 1))) {
+                                    && (um > 1))) {
                         acc_idx = next_acc(acc_idx, um, un);
                         vxorps(T_reg(zmm_acc_idx_ + acc_idx),
                                 T_reg(zmm_acc_idx_ + acc_idx),
@@ -469,7 +464,7 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
                     prefetcht0(ptr[CO2_ + elt_size_ * ((um - 1) % 16)]);
                     if ((um == unroll_m_)
                             || ((um <= nelt_per_vecreg_) && (un == unroll_n_)
-                                       && (um > 1))) {
+                                    && (um > 1))) {
                         acc_idx = next_acc(acc_idx, um, un);
                         vxorps(T_reg(zmm_acc_idx_ + acc_idx),
                                 T_reg(zmm_acc_idx_ + acc_idx),
@@ -481,16 +476,15 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
 
             } else {
                 prefetcht0(ptr[CO1_ + ((um - 1) % 16) * elt_size_]);
-                if (um == unroll_m_)
-                    prefetcht0(ptr[CO1_ + 23 * elt_size_]);
+                if (um == unroll_m_) prefetcht0(ptr[CO1_ + 23 * elt_size_]);
             }
 
             for (i = zmm_acc_idx_ + acc_idx;
-                    i <= std::min(15, zmm_acc_idx_
-                                         + (std::max(1, um / nelt_per_vecreg_)
-                                                   - 1)
-                                                 * unroll_n_
-                                         + un - 1);
+                    i <= std::min(15,
+                            zmm_acc_idx_
+                                    + (std::max(1, um / nelt_per_vecreg_) - 1)
+                                            * unroll_n_
+                                    + un - 1);
                     i++)
                 vxorps(T_reg(i), T_reg(i), T_reg(i));
         }
@@ -502,8 +496,9 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
         sar(LL_, unroll_k_bin_);
         jle(end_main_K_loop_label, T_NEAR);
 
-        if (mayiuse(avx512_core) || (!mayiuse(avx512_core) && (un == unroll_n_)
-                                            && (um == unroll_m_))) {
+        if (mayiuse(avx512_core)
+                || (!mayiuse(avx512_core) && (un == unroll_n_)
+                        && (um == unroll_m_))) {
             sub(LL_, second_fetch_);
             jle(K_loop_with_prefetch_label, T_NEAR);
         }
@@ -511,8 +506,9 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
         k_loop_body<T_reg, T_desta, T_srca, T_destb, T_srcb>(
                 0, um, un, aload, bload);
 
-        if (mayiuse(avx512_core) || (!mayiuse(avx512_core) && (un == unroll_n_)
-                                            && (um == unroll_m_))) {
+        if (mayiuse(avx512_core)
+                || (!mayiuse(avx512_core) && (un == unroll_n_)
+                        && (um == unroll_m_))) {
             L_aligned(K_loop_with_prefetch_label);
         }
 
@@ -522,8 +518,9 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
             jle(K_loop_with_prefetch_rem_label, T_NEAR);
         }
 
-        if (mayiuse(avx512_core) || (!mayiuse(avx512_core) && (un == unroll_n_)
-                                            && (um == unroll_m_))) {
+        if (mayiuse(avx512_core)
+                || (!mayiuse(avx512_core) && (un == unroll_n_)
+                        && (um == unroll_m_))) {
             k_loop_body<T_reg, T_desta, T_srca, T_destb, T_srcb>(
                     1, um, un, aload, bload);
         }
@@ -558,11 +555,11 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
     template <typename vec_reg_t, typename T_src>
     void update(int um, int un, int sepload, bool is_beta_zero,
             void (Xbyak::CodeGenerator::*load)(const Xbyak::Xmm &,
-                        const Xbyak::Operand &, const Xbyak::Operand &),
+                    const Xbyak::Operand &, const Xbyak::Operand &),
             void (Xbyak::CodeGenerator::*store)(
-                        const Xbyak::Address &, const Xbyak::Xmm &),
+                    const Xbyak::Address &, const Xbyak::Xmm &),
             void (Xbyak::CodeGenerator::*sload)(
-                        const Xbyak::Xmm &, const T_src &)) {
+                    const Xbyak::Xmm &, const T_src &)) {
 
         int i, j, offAA = 16;
         Xbyak::Reg64 reg_C;
@@ -582,9 +579,7 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
 
             if (mayiuse(avx512_core)) {
                 reg_C = (j == 0) ? CO1_ : CO2_;
-                if (j >= 2) {
-                    add(CO2_, LDC_);
-                }
+                if (j >= 2) { add(CO2_, LDC_); }
             } else
                 reg_C = (j < 2) ? CO1_ : CO2_;
 
@@ -595,13 +590,13 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
                         if (!mayiuse(avx512_core) && (j % 2 == 1)) {
                             (this->*sload)(vec_reg_t(i),
                                     ptr[reg_C + LDC_
-                                                   + elt_size_ * i
-                                                           * nelt_per_vecreg_]);
+                                            + elt_size_ * i
+                                                    * nelt_per_vecreg_]);
                         } else {
                             (this->*sload)(vec_reg_t(i),
                                     ptr[reg_C
-                                                   + elt_size_ * i
-                                                           * nelt_per_vecreg_]);
+                                            + elt_size_ * i
+                                                    * nelt_per_vecreg_]);
                         }
                         (this->*load)(
                                 vec_reg_t(zmm_acc_idx_ + j + i * unroll_n_),
@@ -666,8 +661,7 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
             }
         }
 
-        if (mayiuse(avx512_core))
-            lea(CO1_, ptr[CO2_ + LDC_]);
+        if (mayiuse(avx512_core)) lea(CO1_, ptr[CO2_ + LDC_]);
 
         if (!mayiuse(avx512_core)) {
             if ((um >= nelt_per_vecreg_) && (un < unroll_n_)) {
@@ -680,8 +674,8 @@ class jit_avx2_kernel_sgemm_kern : public jit_generator
 public:
     jit_avx2_kernel_sgemm_kern(bool beta_zero);
 };
-}
-}
-}
+} // namespace cpu
+} // namespace impl
+} // namespace mkldnn
 
 #endif // JIT_AVX2_KERNEL_SGEMM_KERN_HPP

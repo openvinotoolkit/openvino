@@ -315,7 +315,7 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
             switch (odt) {
             case bf16:
                 if (idt == f32) {
-                    if (is_cpx_) {
+                    if (mayiuse(avx512_core_bf16)) {
                         vcvtneps2bf16(xmm, xmm);
                     } else {
                         bf16_emu_->r_vcvtneps2bf16(
@@ -671,8 +671,7 @@ struct jit_uni_reorder_kernel_f32: public kernel_t, public jit_generator {
         itype_sz = data_type_size(prb_.itype);
         otype_sz = data_type_size(prb_.otype);
         stype_sz = sizeof(float);
-        is_cpx_ = mayiuse(avx512_core_bf16);
-        if (prb_.otype == data_type::bf16 && !is_cpx_) {
+        if (prb_.otype == data_type::bf16 && !mayiuse(avx512_core_bf16)) {
             bf16_emu_ = new bf16_emulation_t(this, vcvt_bf16_one, vcvt_bf16_eve,
                     vcvt_bf16_sel, reg_bf16_scratch, vcvt_bf16_tmp, vcvt_bf16_tmp);
             bf16_emu_->init_vcvtneps2bf16();
@@ -727,7 +726,6 @@ private:
     Xmm xmm_tmp = xmm12;
 
     /* bf16 support */
-    bool is_cpx_;
     bf16_emulation_t *bf16_emu_;
     Reg64 reg_bf16_scratch = reg_tmp;
     Zmm vcvt_bf16_one = Zmm(16);
@@ -778,26 +776,55 @@ kernel_t *kernel_t::create(const kernel_t::desc_t &desc) {
 }
 
 static void prb_block_for_cache(tr::prb_t &prb) {
-    if (prb.nodes[0].is % 64 == 0 && prb.nodes[0].n > 16) {
-        /** an attempt to use caches more efficient and
-         * address the 4K-aliasing issue */
-        /* TODO: improve the logic around here */
-        int j = 1;
-        for (; j < prb.ndims && prb.nodes[j].is != 1; ++j);
-        if (j == prb.ndims) return;
+    /* If strides for 0th and 1st nodes are cache friendly
+     * then one can altogether do away with blocking ! */
+    const bool cache_blocking_needed = false
+        || (prb.nodes[0].is % 64 == 0 && prb.nodes[0].n > 16)
+        || (prb.ndims > 1 && prb.nodes[1].is % 64 == 0
+                && prb.nodes[1].n > 16);
+    if (!cache_blocking_needed)
+        return;
 
-        /* it makes sense to re-prioritize sequential read over
-         * sequential write if the former would not trash the
-         * cache, i.e. is == 1 and os % 2^smth != 0. Smth is
-         * set to 2 at the moment */
-        const int move_to = prb.nodes[j].os % 4 != 0 ? 0 : 1;
-        if (j == move_to) return;
+    int unit_input_stride_idx = -1;
+    for (auto idx = 0; idx < prb.ndims; ++idx) {
+        if (prb.nodes[idx].is == 1)
+            unit_input_stride_idx = idx;
+    }
 
-        if (prb.nodes[j].n > 16 && prb.nodes[j].n % 16 == 0)
-            prb_node_split(prb, j, 16);
+    /* Re-prioritize the sequential read over sequential write:
+     *                             /-> [n0:is0:1][16n1:1:osk]...
+     * [n0:is0:1]...[nk:1:osk] -->     or
+     *                             \-> [16n1:1:osk][n0:is0:1]... */
+    if (unit_input_stride_idx != -1) {
+        const auto output_stride = prb.nodes[unit_input_stride_idx].os;
+        const auto num_elems = prb.nodes[unit_input_stride_idx].n;
 
-        prb_node_move(prb, j, move_to);
-        DEBUG({ printf("cache: "); prb_dump(prb); });
+        const bool split_needed = (num_elems > 16) && (num_elems % 16 == 0);
+        const int move_location = (output_stride % 4 != 0) ? 0 : 1;
+        if (split_needed)
+            prb_node_split(prb, unit_input_stride_idx, 16);
+
+        /* Because of cache-unfriendly nature of unit-output stride node, let
+         * us move unit-input stride node on or near front! */
+        prb_node_move(prb, unit_input_stride_idx, move_location);
+    }
+
+    /* Potentially, split the node with os=1 in two and pull in the node with
+     * is=1 between them for better cache reuse:
+     * [n0:is0:1][n1:1:os1] --> [16n0:is0:1][n1:1:os1][n0/16:is0*16:16] */
+    if (prb.ndims >= 2 && prb.nodes[0].os == 1 && prb.nodes[1].is == 1) {
+        const auto input_stride = prb.nodes[0].is;
+        const auto num_elems = prb.nodes[0].n;
+
+        const bool split_needed = true
+                && (num_elems > 16)
+                && (num_elems % 16 == 0)
+                && (input_stride >= 256)
+                && (input_stride % 64 == 0);
+        if (split_needed) {
+            prb_node_split(prb, 0, 16);
+            prb_node_move(prb, 1, 2);
+        }
     }
 }
 
@@ -907,14 +934,19 @@ struct jit_uni_reorder_t : public cpu_primitive_t {
 
             status_t prb_init_status = prb_init(prb, *imd, *omd, attr);
             if (prb_init_status != success) return prb_init_status;
-
             DEBUG({ printf("init : "); prb_dump(prb); });
+
+            // Sort the prb array in increasing sizes of the output stride
             prb_normalize(prb);
             DEBUG({ printf("norm : "); prb_dump(prb); });
+
+            /* Combine the variables, which appear together on both
+             * sides of the reorder */
             prb_simplify(prb);
             DEBUG({ printf("smpl : "); prb_dump(prb); });
 
             prb_block_for_cache(prb);
+            DEBUG({ printf("cache: "); prb_dump(prb); });
 
             int ndims_ker_max;
             prb_thread_kernel_balance(prb, ndims_ker_max);

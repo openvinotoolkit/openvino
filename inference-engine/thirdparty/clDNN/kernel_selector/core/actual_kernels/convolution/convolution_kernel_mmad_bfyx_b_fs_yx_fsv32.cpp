@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@
 
 namespace kernel_selector {
 
-ParamsKey ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::GetSupportedKey() const {
+ParamsKey ConvolutionKernel_mmad_bfyx_b_fs_yx_fsv32::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
@@ -48,7 +48,7 @@ ParamsKey ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::GetSupportedKey() const {
     return k;
 }
 
-bool ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::Validate(const Params &p, const optional_params &o) const {
+bool ConvolutionKernel_mmad_bfyx_b_fs_yx_fsv32::Validate(const Params &p, const optional_params &o) const {
     if (!Parent::Validate(p, o)) {
         return false;
     }
@@ -62,14 +62,14 @@ bool ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::Validate(const Params &p, const 
         return false;
 
     if ((params.quantization == QuantizationType::ASYMMETRIC_DATA || params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)
-        && !params.has_compensation) {
+        && !params.HasCompensation()) {
         return false;
     }
 
     return true;
 }
 
-ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::GetAutoTuneOptions(const Params &p,
+ConvolutionKernel_mmad_bfyx_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_mmad_bfyx_b_fs_yx_fsv32::GetAutoTuneOptions(const Params &p,
                                                                                                                         int autoTuneIndex) const {
     if ((autoTuneIndex >= 0) && (autoTuneIndex < static_cast<int>(autoTuneOptions.size()))) {
         return autoTuneOptions[autoTuneIndex];
@@ -115,7 +115,7 @@ ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_MMAD
     return option;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::SetDefault(const convolution_params &cp,
+ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_bfyx_b_fs_yx_fsv32::SetDefault(const convolution_params &cp,
                                                                                           int autoTuneIndex) const {
     DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
 
@@ -124,7 +124,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::S
     runInfo.cldnnStyle.blockHeight = tuneOptions.blockHeight;
     runInfo.cldnnStyle.prefetch = tuneOptions.prefetch;
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    runInfo.efficiency = FORCE_PRIORITY_3;
 
     runInfo.gws0 = Align(cp.output.Feature().v, 32) / 2;
     runInfo.gws1 = CeilDiv(cp.output.X().v, runInfo.cldnnStyle.blockWidth) * cp.output.Y().v;
@@ -137,7 +137,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::S
     return runInfo;
 }
 
-JitConstants ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::GetJitConstants(const convolution_params &params,
+JitConstants ConvolutionKernel_mmad_bfyx_b_fs_yx_fsv32::GetJitConstants(const convolution_params &params,
                                                                         const DispatchData &runInfo) const {
     auto jit = Parent::GetJitConstants(params, runInfo);
 
@@ -168,7 +168,7 @@ JitConstants ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::GetJitConstants(const co
     return jit;
 }
 
-KernelsData ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::GetKernelsData(const Params &params, const optional_params &options) const {
+KernelsData ConvolutionKernel_mmad_bfyx_b_fs_yx_fsv32::GetKernelsData(const Params &params, const optional_params &options) const {
     KernelsData kd = GetTunedKernelsDataByIndex(params, options);
     if (!kd.empty()) {
         kd[0].estimatedTime = FORCE_PRIORITY_2;
@@ -177,7 +177,7 @@ KernelsData ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::GetKernelsData(const Para
     return kd;
 }
 
-KernelsData ConvolutionKernel_MMAD_bfyx_b_fs_yx_fsv32::GetKernelsDataForAutoTune(const Params &params,
+KernelsData ConvolutionKernel_mmad_bfyx_b_fs_yx_fsv32::GetKernelsDataForAutoTune(const Params &params,
                                                                                  const optional_params &options) const {
     if (!Validate(params, options)) {
         return {};

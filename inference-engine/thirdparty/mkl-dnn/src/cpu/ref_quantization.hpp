@@ -50,9 +50,12 @@ struct ref_quantization_fwd_t: public cpu_primitive_t {
                 && IMPLICATION(utils::one_of(desc()->alg_kind, mkldnn_quantization_quantize_dequantize, mkldnn_quantization_quantize),
                         utils::everyone_is(mkldnn_f32, desc()->crop_low_desc.data_type, desc()->crop_high_desc.data_type,
                                                        desc()->input_scale_desc.data_type, desc()->input_shift_desc.data_type,
-                                                       desc()->output_scale_desc.data_type, desc()->output_shift_desc.data_type))
+                                                       desc()->output_scale_desc.data_type, desc()->output_shift_desc.data_type)
+                        && desc()->src_desc.ndims > 0 && desc()->src_desc.ndims <= 5)
                 && IMPLICATION(desc()->alg_kind == mkldnn_binarization_depthwise,
-                               utils::everyone_is(mkldnn_f32, desc()->thresholds_desc.data_type, desc()->output_mask_desc.data_type))
+                               utils::everyone_is(mkldnn_f32, desc()->thresholds_desc.data_type, desc()->output_mask_desc.data_type)
+                               && desc()->src_desc.ndims > 1 && desc()->src_desc.ndims <= 5)
+                && desc()->src_desc.ndims == desc()->dst_desc.ndims
                 && utils::everyone_is(dst_type, desc()->dst_desc.data_type)
                 && utils::one_of(axis(), 0, 1)
                 && attr()->has_default_values();

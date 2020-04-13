@@ -117,20 +117,47 @@ class ConvolutionReshaper(BackReplacementPattern):
         conv.infer(conv)
 
 
-class ConvolutionWithGroupsResolver(BackReplacementPattern):
+class V7ConvolutionWithGroupsResolver(BackReplacementPattern):
+    """
+    Normalizes grouped convolution weights shape to fit special weights format [G*O I X Y]
+    """
+    enabled = False
+
+    @staticmethod
+    def pattern():
+        return dict(
+            nodes=[
+                ('node', dict(type='Convolution', group=lambda g: g is not None and g != 1))
+            ],
+            edges=[]
+        )
+
+    def replace_pattern(self, graph: Graph, match: dict):
+        node = match['node']
+
+        group = node.group
+        assert group > 1
+
+        weights_shape = node.in_port(1).data.get_shape()
+        assert weights_shape is not None
+        assert weights_shape[0] % group == 0
+
+        if weights_shape[0] == node.output:
+            # weights are already is in [G*O I X Y] format
+            return
+
+        new_shape = int64_array([node.output, -1, *weights_shape[2:]])
+        reshape = create_op_node_with_second_input(graph, Reshape, int64_array(new_shape),
+                                                   {'override_output_shape': True})
+        node.in_port(1).get_connection().insert_node(reshape)
+
+
+class V10ConvolutionWithGroupsResolver(BackReplacementPattern):
     """
     Normalizes grouped convolution weights shape to fit special weights format
         V10 IR:                 [G O I X Y]
-        lower IR versions:      [G*O I X Y]
     """
-    enabled = True
-    force_clean_up = True
-
-    def run_before(self):
-        return [ReshapeMutation]
-
-    def run_after(self):
-        return [ConvolutionReshaper, ApplyReverseChannels]
+    enabled = False
 
     @staticmethod
     def pattern():
@@ -152,21 +179,40 @@ class ConvolutionWithGroupsResolver(BackReplacementPattern):
         assert weights_shape[0] % group == 0
         I = node.in_port(0).data.get_shape()[1]
 
-        if graph.graph['cmd_params'].generate_experimental_IR_V10:
-            new_shape = int64_array([group, node.output / group, I / group, *weights_shape[2:]])
+        new_shape = int64_array([group, node.output / group, I / group, *weights_shape[2:]])
 
-            assert np.prod(weights_shape) == np.prod(new_shape), \
-                'Initial weights shape {}, grouped weights shape {}'.format(weights_shape, new_shape)
+        assert np.prod(weights_shape) == np.prod(new_shape), \
+            'Initial weights shape {}, grouped weights shape {}'.format(weights_shape, new_shape)
 
-            del node['group']
-            node['type'] = 'GroupConvolution'
-        else:
-            new_shape = int64_array([node.output, -1, *weights_shape[2:]])
+        del node['group']
+        node['type'] = 'GroupConvolution'
 
         reshape = create_op_node_with_second_input(graph, Reshape, int64_array(new_shape),
                                                    {'override_output_shape': True})
 
         node.in_port(1).get_connection().insert_node(reshape)
+
+
+class ConvolutionWithGroupsResolver(BackReplacementPattern):
+    """
+    Normalizes grouped convolution weights shape to fit special weights format
+        V10 IR:                 [G O I X Y]
+        lower IR versions:      [G*O I X Y]
+    """
+    enabled = True
+    force_clean_up = True
+
+    def run_before(self):
+        return [ReshapeMutation]
+
+    def run_after(self):
+        return [ConvolutionReshaper, ApplyReverseChannels]
+
+    def find_and_replace_pattern(self, graph: Graph):
+        V7ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
+        PullReshapeThroughFQ().find_and_replace_pattern(graph)
+        if graph.graph['cmd_params'].generate_experimental_IR_V10:
+            V10ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
 
 
 class PullReshapeThroughFQ(BackReplacementPattern):
@@ -177,11 +223,7 @@ class PullReshapeThroughFQ(BackReplacementPattern):
     After:
         ... -> Reshape -> FQ (with aligned limits) -> Convolution -> ...
     """
-    enabled = True
-    force_clean_up = True
-
-    def run_after(self):
-        return [ConvolutionWithGroupsResolver]
+    enabled = False
 
     @staticmethod
     def pattern():
@@ -191,7 +233,7 @@ class PullReshapeThroughFQ(BackReplacementPattern):
                 ('FQed', dict()),
                 ('reshape', dict(type='Reshape')),
                 ('reshaped', dict()),
-                ('node', dict(type=lambda t: t in ['Convolution'])),  # add 'GroupConvolution' for V10 when IE ready
+                ('node', dict(type=lambda t: t in ['Convolution', 'GroupConvolution'])),
             ],
             edges=[
                 ('FQ', 'FQed'),
@@ -259,6 +301,8 @@ class DeconvolutionNormalizer(BackReplacementPattern):
         node = match['node']
 
         if 2 in node.in_ports() and not node.in_port(2).disconnected():
+            # Third input represents output shape. Cutting its value according to scheme:
+            # [N, C, spatial_dim_0, ..., spatial_dim_n] -> [spatial_dim_0, ..., spatial_dim_n]
             in_rank = node.in_port(0).data.get_shape().size
 
             shape_src = node.in_port(2).get_source()
@@ -282,6 +326,16 @@ class DeconvolutionNormalizer(BackReplacementPattern):
 
             ss_0.out_port(0).connect(node.in_port(2))
 
+            # Specification: *padding amount* is deduced from relation of input and output spatial shapes
+            del node['pad']
+
+        elif node.has_valid('original_output_spatial_shape'):
+            # node had fixed output spatial shape set in original framework, so we restore it here
+            const = Const(graph, {'value': int64_array(node.original_output_spatial_shape)}).create_node()
+            node.add_input_port(2, skip_if_exist=True)
+            const.out_port(0).connect(node.in_port(2))
+
+            # Specification: *padding amount* is deduced from relation of input and output spatial shapes
             del node['pad']
 
         group = node.soft_get('group', 1)

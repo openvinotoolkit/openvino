@@ -1,5 +1,5 @@
 ﻿/*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 #include "test_utils/float16.h"
 #include <api/data.hpp>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <iomanip>
@@ -36,6 +37,7 @@
 #include <type_traits>
 #include <fstream>
 #include <tuple>
+#include <api/crop.hpp>
 #include <api/reorder.hpp>
 #include <src/include/to_string_utils.h>
 
@@ -954,10 +956,8 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_split2) {
     //  data is similar as in basic_convolution3D
     const auto& engine = get_test_engine();
     auto input = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 1, 2, 4, 4, 4 } });
-    auto weights_1 = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 1, 1, 2, 2, 2 } });
-    auto weights_2 = memory::allocate(engine, { data_types::f32, format::bfzyx,{ 1, 1, 2, 2, 2 } });
-    auto biases_1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1, 1 } });
-    auto biases_2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1, 1 } });
+    auto weights_1 = memory::allocate(engine, { data_types::f32, format::goizyx, tensor(cldnn::group(2), cldnn::batch(1), cldnn::feature(1), cldnn::spatial(2, 2, 2))});
+    auto biases_1 = memory::allocate(engine, { data_types::f32, format::bfyx, tensor(feature(2)) });
 
     set_values(input, {
         1.0f,  0.0f,  1.0f,  0.0f,
@@ -999,17 +999,13 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_split2) {
         0.0f,  0.0f,
         2.0f,  1.0f,
         0.0f,  0.0f,
-    });
-
-    set_values(weights_2, {
         0.0f,  1.0f,
         0.0f,  0.0f,
         2.0f,  1.0f,
         0.0f,  0.0f,
     });
 
-    set_values(biases_1, { 1.0f });
-    set_values(biases_2, { 2.0f });
+    set_values(biases_1, { 1.0f, 2.0f });
 
     VVVVF<float> output_vec = {
         {
@@ -1052,9 +1048,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_split2) {
         input_layout("input", input.get_layout()),
         data("weights_1", weights_1),
         data("biases_1", biases_1),
-        data("weights_2", weights_2),
-        data("biases_2", biases_2),
-        convolution("conv", "input", { "weights_1",  "weights_2" }, { "biases_1",  "biases_2" }));
+        convolution("conv", "input", { "weights_1" }, { "biases_1" }, 2, tensor(1), tensor(0), tensor(1), tensor{1, 2, 3, 3, 3}, data_types::f32));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -2640,10 +2634,8 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_split2) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 1, 2, 4, 4 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32,{ 1,{ 2, 2 }, 2 } });
-    auto weights1 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases1 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-    auto weights2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto weights1 = memory::allocate(engine, { data_types::f32, format::goiyx, tensor(group(2), batch(1), feature(1), spatial(2,2))});
+    auto biases1 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
 
     set_values(input, {
         -0.5f,  0.5f,  1.0f,  1.5f,  0.5f,  2.3f,  2.0f, -0.4f,
@@ -2651,22 +2643,19 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_split2) {
         0.5f,  0.5f,  0.5f,  1.5f, -1.0f,  2.3f,  1.0f, -0.4f,
         0.5f,  2.0f,  2.0f, -4.0f,  1.5f,  1.0f, -0.5f,  3.0f
     });
-    set_values(weights1, { -2.0f, 0.5f, 3.5f, 1.5f });
-    set_values(biases1, { 2.0f });
-    set_values(weights2, { -1.2f, 1.5f, 0.5f, -0.5f });
-    set_values(biases2, { -1.0f });
+    set_values(weights1, { -2.0f, 0.5f, 3.5f, 1.5f, -1.2f, 1.5f, 0.5f, -0.5f });
+    set_values(biases1, { 2.0f, -1.0f });
 
     topology topology(
         input_layout("input", input.get_layout()),
         data("weights1", weights1),
         data("biases1", biases1),
-        data("weights2", weights2),
-        data("biases2", biases2),
         convolution(
             "conv",
             "input",
-            { "weights1", "weights2" },
-            { "biases1", "biases2" },
+            { "weights1" },
+            { "biases1" },
+            2,
             { 0,0,2,2 },
             { 0,0,0,0 },
             { 1,1,1,1 })
@@ -2743,10 +2732,8 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2) {
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb, { 2, 2, 4, 4 } });
     //auto output = memory::allocate({ memory::format::yxfb_f32,{ 2,{ 2, 2 }, 2 } });
-    auto weights1 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases1 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
-    auto weights2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 2, 2 } });
-    auto biases2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto weights1 = memory::allocate(engine, { data_types::f32, format::goiyx, tensor(group(2), batch(1), feature(1), spatial(2,2)) });
+    auto biases1 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
 
     set_values(input, {
        -0.5f, -0.5f,  0.5f,  0.5f,  1.0f,  1.0f,  1.5f,  1.5f,  0.5f,  0.5f,  2.3f,  2.3f,  2.0f,  2.0f, -0.4f, -0.4f,
@@ -2754,22 +2741,19 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2) {
         0.5f,  0.5f,  0.5f,  0.5f,  0.5f,  0.5f,  1.5f,  1.5f, -1.0f, -1.0f,  2.3f,  2.3f,  1.0f,  1.0f, -0.4f, -0.4f,
         0.5f,  0.5f,  2.0f,  2.0f,  2.0f,  2.0f, -4.0f, -4.0f,  1.5f,  1.5f,  1.0f,  1.0f, -0.5f, -0.5f,  3.0f,  3.0f,
     });
-    set_values(weights1, { -2.0f, 0.5f, 3.5f, 1.5f });
-    set_values(biases1, { 2.0f });
-    set_values(weights2, { -1.2f, 1.5f, 0.5f, -0.5f });
-    set_values(biases2, { -1.0f });
+    set_values(weights1, { -2.0f, 0.5f, 3.5f, 1.5f, -1.2f, 1.5f, 0.5f, -0.5f });
+    set_values(biases1, { 2.0f, -1.0f });
 
     topology topology(
         input_layout("input", input.get_layout()),
         data("weights1", weights1),
         data("biases1", biases1),
-        data("weights2", weights2),
-        data("biases2", biases2),
         convolution(
             "conv",
             "input",
-            { "weights1", "weights2" },
-            { "biases1", "biases2" },
+            { "weights1" },
+            { "biases1" },
+            2,
             { 1,1,2,2 },
             { 0,0,0,0 },
             { 1,1,1,1 })
@@ -2809,7 +2793,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2) {
     engine engine;
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 2, 4, 4 } });
-    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 2, 2 } });
+    auto weights = memory::allocate(engine, { data_types::f32, format::goiyx ,tensor(group(2), batch(1), feature(1), spatial(2,2)) });
     auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
 
     set_values(input, {
@@ -2866,7 +2850,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x1_nopad_group2_bfyx) 
     engine engine;
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 2, 4, 4 } });
-    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 2, 2 } });
+    auto weights = memory::allocate(engine, { data_types::f32, format::goiyx ,tensor(group(2), batch(1), feature(1), spatial(2,2)) });
     auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
 
     set_values(input, {
@@ -2924,7 +2908,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group2) {
     engine engine;
 
     auto input = memory::allocate(engine, { data_types::f32, format::yxfb,{ 2, 2, 4, 4 } });
-    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 2, 1, 2, 2 } });
+    auto weights = memory::allocate(engine, { data_types::f32, format::goiyx ,tensor(group(2), batch(1), feature(1), spatial(2,2)) });
     auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 2, 1, 1 } });
 
     set_values(input, {
@@ -3010,51 +2994,43 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
         -0.5f, -0.5f,  3.0f,  3.0f, -0.5f, -0.5f,  3.0f,  3.0f, -0.5f, -0.5f,  3.0f,  3.0f, -0.5f, -0.5f,  3.0f,  3.0f, -0.5f, -0.5f,  3.0f,  3.0f, -0.5f, -0.5f,  3.0f,  3.0f, -0.5f, -0.5f,  3.0f,  3.0f, -0.5f, -0.5f,  3.0f,  3.0f,
     });
 
-    topology topology(input_layout("input", input.get_layout()));
+    auto weights1 = memory::allocate(engine, { data_types::f32, format::goiyx ,tensor(group(16), batch(1), feature(1), spatial(2,2)) });
+    auto biases1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 16, 1, 1 } });
 
-    std::vector<primitive_id> weights_vec;
-    std::vector<primitive_id> bias_vec;
+    set_values(weights1, { -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f });
 
-    for (uint32_t i = 0; i < 8; i++)
-    {
-        auto weights1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
-        auto biases1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-        auto weights2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
-        auto biases2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    set_values(biases1, { 2.0f, -1.0f,
+                          2.0f, -1.0f,
+                          2.0f, -1.0f,
+                          2.0f, -1.0f,
+                          2.0f, -1.0f,
+                          2.0f, -1.0f,
+                          2.0f, -1.0f,
+                          2.0f, -1.0f });
 
-        set_values(weights1, { -2.0f, 0.5f, 3.5f, 1.5f });
-        set_values(biases1, { 2.0f });
-        set_values(weights2, { -1.2f, 1.5f, 0.5f, -0.5f });
-        set_values(biases2, { -1.0f });
+    primitive_id weights_id = "weights1";
+    primitive_id bias_id = "biases1";
 
-        primitive_id weights_id = "weights_" + std::to_string(i);
-        primitive_id weights2_id = "weights2_" + std::to_string(i);
-        primitive_id bias_id = "biases_" + std::to_string(i);
-        primitive_id bias2_id = "biases2_" + std::to_string(i);
-
-        weights_vec.push_back(weights_id);
-        weights_vec.push_back(weights2_id);
-        bias_vec.push_back(bias_id);
-        bias_vec.push_back(bias2_id);
-
-        topology.add(
-            data(weights_id, weights1),
-            data(bias_id, biases1),
-            data(weights2_id, weights2),
-            data(bias2_id, biases2)
-        );
-
-    }
-
-    topology.add(
+    topology topology(
+        input_layout("input", input.get_layout()),
+        data(weights_id, weights1),
+        data(bias_id, biases1),
         convolution(
-            "conv",
-            "input",
-            weights_vec,
-            bias_vec,
-            { 1,1,2,2 },
-            { 0,0,0,0 },
-            { 1,1,1,1 })
+                "conv",
+                "input",
+                { weights_id },
+                { bias_id },
+                16,  // number of groups
+                { 1,1,2,2 },
+                { 0,0,0,0 },
+                { 1,1,1,1 })
     );
 
     network network(engine, topology);
@@ -3107,48 +3083,40 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_split2_depthw
         0.5f, 1.5f, 2.3f, -0.4f, 2.0f, -4.0f, 1.0f, 3.0f, 0.5f, 1.5f, 2.3f, -0.4f, 2.0f, -4.0f, 1.0f, 3.0f,
     });
 
-    topology topology(input_layout("input", input.get_layout()));
+    auto weights1 = memory::allocate(engine, { data_types::f32, format::goiyx ,tensor(group(16), batch(1), feature(1), spatial(2,2)) });
+    auto biases1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 16, 1, 1 } });
 
-    std::vector<primitive_id> weights_vec;
-    std::vector<primitive_id> bias_vec;
+    set_values(weights1, { -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f,
+                           -2.0f, 0.5f, 3.5f, 1.5f,  -1.2f, 1.5f, 0.5f, -0.5f });
 
-    for (uint32_t i = 0; i < 8; i++)
-    {
-        auto weights1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
-        auto biases1 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-        auto weights2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 2, 2 } });
-        auto biases2 = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
+    set_values(biases1, { 2.0f, -1.0f,
+                          2.0f, -1.0f,
+                          2.0f, -1.0f,
+                          2.0f, -1.0f,
+                          2.0f, -1.0f,
+                          2.0f, -1.0f,
+                          2.0f, -1.0f,
+                          2.0f, -1.0f });
 
-        set_values(weights1, { -2.0f, 0.5f, 3.5f, 1.5f });
-        set_values(biases1, { 2.0f });
-        set_values(weights2, { -1.2f, 1.5f, 0.5f, -0.5f });
-        set_values(biases2, { -1.0f });
+    primitive_id weights_id = "weights1";
+    primitive_id bias_id = "biases1";
 
-        primitive_id weights_id = "weights_" + std::to_string(i);
-        primitive_id weights2_id = "weights2_" + std::to_string(i);
-        primitive_id bias_id = "biases_" + std::to_string(i);
-        primitive_id bias2_id = "biases2_" + std::to_string(i);
-
-        weights_vec.push_back(weights_id);
-        weights_vec.push_back(weights2_id);
-        bias_vec.push_back(bias_id);
-        bias_vec.push_back(bias2_id);
-
-        topology.add(
+    topology topology(
+            input_layout("input", input.get_layout()),
             data(weights_id, weights1),
             data(bias_id, biases1),
-            data(weights2_id, weights2),
-            data(bias2_id, biases2)
-        );
-
-    }
-
-    topology.add(
-        convolution(
+            convolution(
             "conv",
             "input",
-            weights_vec,
-            bias_vec,
+            { weights_id },
+            { bias_id },
+            16,  // number of groups
             { 1,1,2,2 },
             { 0,0,0,0 },
             { 1,1,1,1 })
@@ -3211,7 +3179,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16) {
 
     topology topology(input_layout("input", input.get_layout()));
 
-    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 16, 1, 2, 2 } });
+    auto weights = memory::allocate(engine, { data_types::f32, format::goiyx ,tensor(group(16), batch(1), feature(1), spatial(2,2)) });
     auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 16, 1, 1 } });
 
     set_values(weights,
@@ -3305,7 +3273,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16_bfyx)
 
     topology topology(input_layout("input", input.get_layout()));
 
-    auto weights = memory::allocate(engine, { data_types::f32, format::bfyx,{ 16, 1, 2, 2 } });
+    auto weights = memory::allocate(engine, { data_types::f32, format::goiyx ,tensor(group(16), batch(1), feature(1), spatial(2,2)) });
     auto biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 16, 1, 1 } });
 
     set_values(weights,
@@ -3376,7 +3344,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz2x2_wstr2x2_in4x4x2x2_nopad_group16_bfyx)
     }
 }
 
-TEST(convolution_f32_fw_gpu, basic_wsiz1x1_wstr2x2_in1x1x4x1_nopad_split2) {
+/*TEST(convolution_f32_fw_gpu, basic_wsiz1x1_wstr2x2_in1x1x4x1_nopad_split2) {
     //  Filter : 1x1
     //  Stride : 2x2
     //  Input  : 1x1x4
@@ -3629,7 +3597,7 @@ TEST(convolution_f32_fw_gpu, basic_wsiz1x1_wstr2x2_in1x1x4x1_filter_1x3x2x1x1_no
     EXPECT_FLOAT_EQ(6.0f, get_value<float>(output_ptr, 4));
     EXPECT_FLOAT_EQ(-2.0f, get_value<float>(output_ptr, 5));
 
-}
+}*/
 
 TEST(convolution_gpu, trivial_convolution_relu) {
 
@@ -4922,360 +4890,6 @@ TEST_F(ConvQuantizedTest_i8_to_float, DISABLED_basic) {
     do_test();
 }
 
-TEST(convolution_f32_fw_gpu, local_basic) {
-    //  Filter : 3x3x2x2 - local sizes
-    //  Stride : 1x1
-    //  Input  : 4x4
-    //  Output : 3x3
-    //
-    //  Input:
-    //  1  1  1  1
-    //  1  1  1  1
-    //  2  2  2  2
-    //  2  2  2  2
-    //
-    //
-    //  Filter:
-    //  0 0  1 1  2 2
-    //  0 0  1 1  2 2
-    //
-    //  3 3  4 4  5 5
-    //  3 3  4 4  5 5
-    //
-    //  6 6  7 7  8 8
-    //  6 6  7 7  8 8
-    //
-    //  Output:
-    //  0  4  8
-    // 18 24 30
-    // 48 56 64
-    //
-
-    const auto& engine = get_test_engine();
-    tensor local_size = tensor(1,1,2,2,3,3);
-    auto input_f = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 4 } });
-    auto weights_f = memory::allocate(engine, { data_types::f32, format::bf_lyx_yx, local_size });
-    cldnn::memory biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-
-    std::vector<float> weights_values_f = {
-        0.0, 0.0, 0.0, 0.0,
-        1.0, 1.0, 1.0, 1.0,
-        2.0, 2.0, 2.0, 2.0,
-
-        3.0, 3.0, 3.0, 3.0,
-        4.0, 4.0, 4.0, 4.0,
-        5.0, 5.0, 5.0, 5.0,
-
-        6.0, 6.0, 6.0, 6.0,
-        7.0, 7.0, 7.0, 7.0,
-        8.0, 8.0, 8.0, 8.0,
-    };
-    set_values<float>(input_f, { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 });
-    set_values<float>(weights_f, weights_values_f);
-    set_values(biases, { 0.0f });
-    std::vector<float> output_vec =
-    {
-        0.0f, 4.0f, 8.0f,
-        18.0f, 24.0f, 30.0f,
-        48.0f, 56.0f, 64.0f
-    };
-
-    topology topology_f(
-        input_layout("input_f", input_f.get_layout()),
-        data("weights_f", weights_f),
-        data("biases", biases),
-        convolution("conv_f", "input_f", { "weights_f" }, { "biases" }, { 0, 0, 1, 1 }));
-
-    build_options opts;
-    opts.set_option(build_option::optimize_data(true));
-    network network_f(engine, topology_f, opts);
-    network_f.set_input_data("input_f", input_f);
-
-    auto outputs_f = network_f.execute();
-    EXPECT_EQ(outputs_f.begin()->first, "conv_f");
-
-    auto output_memory_f = outputs_f.at("conv_f").get_memory();
-    auto output_ptr_f = output_memory_f.pointer<float>();
-    unsigned int cntr = 0;
-    for (auto fl : output_ptr_f)
-        EXPECT_FLOAT_EQ(fl, output_vec[cntr++]);
-}
-
-TEST(convolution_f32_fw_gpu, local_multi_out_features) {
-    //  Filter : 3x1x3x3x2x2 - local sizes
-    //  Stride : 1x1
-    //  Input  : 4x4
-    //  Output : 3x3x3
-    //
-    //  Input:
-    //  1  1  1  1
-    //  1  1  1  1
-    //  2  2  2  2
-    //  2  2  2  2
-    //
-    //
-    //  Filter:
-    //  0 0  1 1  2 2  --- 1 ofm
-    //  0 0  1 1  2 2
-    //
-    //  3 3  4 4  5 5
-    //  3 3  4 4  5 5
-    //
-    //  6 6  7 7  8 8
-    //  6 6  7 7  8 8
-    //
-    //  0 0  0 0  0 0  --- 2 ofm
-    //  0 0  0 0  0 0
-    //
-    //  0 0  0 0  0 0
-    //  0 0  0 0  0 0
-    //
-    //  0 0  0 0  0 0
-    //  0 0  0 0  0 0
-    //
-    //  0 0  2 2  4 4 --- 3 ofm
-    //  0 0  2 2  4 4
-    //
-    //  6 6  8 8  1 1
-    //  6 6  8 8  1 1
-    //
-    //  3 3  5 5  7 7
-    //  3 3  5 5  7 7
-    //
-
-    //
-    //  Output:
-    //  0  4  8
-    // 18 24 30
-    // 48 56 64
-    //
-    //  0  0  0
-    //  0  0  0
-    //  0  0  0
-    //
-    //  0  8 16
-    // 36 48  6
-    // 24 40 56
-    //
-
-    const auto& engine = get_test_engine();
-    tensor local_size = tensor(3,1,2,2,3,3);
-    auto input_f = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 4, 4 } });
-    auto weights_f = memory::allocate(engine, { data_types::f32, format::bf_lyx_yx, local_size });
-    cldnn::memory biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 3, 1, 1 } });
-
-    std::vector<float> weights_values_f = {
-        0.0, 0.0, 0.0, 0.0,
-        1.0, 1.0, 1.0, 1.0,
-        2.0, 2.0, 2.0, 2.0,
-
-        3.0, 3.0, 3.0, 3.0,
-        4.0, 4.0, 4.0, 4.0,
-        5.0, 5.0, 5.0, 5.0,
-
-        6.0, 6.0, 6.0, 6.0,
-        7.0, 7.0, 7.0, 7.0,
-        8.0, 8.0, 8.0, 8.0,
-
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0,
-
-        0.0, 0.0, 0.0, 0.0,
-        2.0, 2.0, 2.0, 2.0,
-        4.0, 4.0, 4.0, 4.0,
-
-        6.0, 6.0, 6.0, 6.0,
-        8.0, 8.0, 8.0, 8.0,
-        1.0, 1.0, 1.0, 1.0,
-
-        3.0, 3.0, 3.0, 3.0,
-        5.0, 5.0, 5.0, 5.0,
-        7.0, 7.0, 7.0, 7.0,
-    };
-    set_values<float>(input_f, { 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 });
-    set_values<float>(weights_f, weights_values_f);
-    set_values(biases, { 0.0f, 0.0f, 0.0f });
-    std::vector<float> output_vec =
-    {
-        0.0f,  4.0f,  8.0f,
-        18.0f, 24.0f, 30.0f,
-        48.0f, 56.0f, 64.0f,
-
-        0.0f,  0.0f, 0.0f,
-        0.0f,  0.0f, 0.0f,
-        0.0f,  0.0f, 0.0f,
-
-        0.0f,  8.0f, 16.0f,
-        36.0f, 48.0f,  6.0f,
-        24.0f, 40.0f, 56.0f,
-    };
-
-    topology topology_f(
-        input_layout("input_f", input_f.get_layout()),
-        data("weights_f", weights_f),
-        data("biases", biases),
-        convolution("conv_f", "input_f", { "weights_f" }, { "biases" }, { 0, 0, 1, 1 }));
-
-    build_options opts;
-    opts.set_option(build_option::optimize_data(true));
-    network network_f(engine, topology_f, opts);
-    network_f.set_input_data("input_f", input_f);
-
-    auto outputs_f = network_f.execute();
-    EXPECT_EQ(outputs_f.begin()->first, "conv_f");
-
-    auto output_memory_f = outputs_f.at("conv_f").get_memory();
-    auto output_ptr_f = output_memory_f.pointer<float>();
-    unsigned int cntr = 0;
-    for (auto fl : output_ptr_f)
-    {
-        EXPECT_FLOAT_EQ(fl, output_vec[cntr++]);
-    }
-}
-
-TEST(convolution_f32_fw_gpu, local_multi_input_features) {
-    //  Filter : 1x3x3x3x2x2 - local sizes
-    //  Stride : 1x1
-    //  Input  : 3x4x4
-    //  Output : 3x3
-    //
-    //  Input:
-    //  0  0  0  0
-    //  0  0  0  0
-    //  0  0  0  0
-    //  0  0  0  0
-    //
-    //  1  1  1  1
-    //  1  1  1  1
-    //  1  1  1  1
-    //  1  1  1  1
-    //
-    //  2  2  2  2
-    //  2  2  2  2
-    //  2  2  2  2
-    //  2  2  2  2
-    //
-    //
-    //  Filter:
-    //  0 0  1 1  2 2  <-- IFM 0
-    //  0 0  1 1  2 2
-    //
-    //  3 3  4 4  5 5
-    //  3 3  4 4  5 5
-    //
-    //  6 6  7 7  8 8
-    //  6 6  7 7  8 8
-    //
-    //  0 0  1 1  2 2 <-- IFM 1
-    //  0 0  1 1  2 2
-    //
-    //  3 3  4 4  5 5
-    //  3 3  4 4  5 5
-    //
-    //  6 6  7 7  8 8
-    //  6 6  7 7  8 8
-    //
-    //  0 0  1 1  2 2 <-- IFM 2
-    //  0 0  1 1  2 2
-    //
-    //  3 3  4 4  5 5
-    //  3 3  4 4  5 5
-    //
-    //  6 6  7 7  8 8
-    //  6 6  7 7  8 8
-    //
-    //  Output:
-    //  0 12 24
-    // 36 48 60
-    // 72 84 96
-    //
-
-    const auto& engine = get_test_engine();
-    tensor local_size = tensor(1,3,2,2,3,3);
-    auto input_f = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 3, 4, 4 } });
-    auto weights_f = memory::allocate(engine, { data_types::f32, format::bf_lyx_yx, local_size });
-    cldnn::memory biases = memory::allocate(engine, { data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
-
-    std::vector<float> weights_values_f = {
-        0.0, 0.0, 0.0, 0.0,
-        1.0, 1.0, 1.0, 1.0,
-        2.0, 2.0, 2.0, 2.0,
-
-        3.0, 3.0, 3.0, 3.0,
-        4.0, 4.0, 4.0, 4.0,
-        5.0, 5.0, 5.0, 5.0,
-
-        6.0, 6.0, 6.0, 6.0,
-        7.0, 7.0, 7.0, 7.0,
-        8.0, 8.0, 8.0, 8.0,
-
-        0.0, 0.0, 0.0, 0.0,
-        1.0, 1.0, 1.0, 1.0,
-        2.0, 2.0, 2.0, 2.0,
-
-        3.0, 3.0, 3.0, 3.0,
-        4.0, 4.0, 4.0, 4.0,
-        5.0, 5.0, 5.0, 5.0,
-
-        6.0, 6.0, 6.0, 6.0,
-        7.0, 7.0, 7.0, 7.0,
-        8.0, 8.0, 8.0, 8.0,
-
-        0.0, 0.0, 0.0, 0.0,
-        1.0, 1.0, 1.0, 1.0,
-        2.0, 2.0, 2.0, 2.0,
-
-        3.0, 3.0, 3.0, 3.0,
-        4.0, 4.0, 4.0, 4.0,
-        5.0, 5.0, 5.0, 5.0,
-
-        6.0, 6.0, 6.0, 6.0,
-        7.0, 7.0, 7.0, 7.0,
-        8.0, 8.0, 8.0, 8.0,
-    };
-    set_values<float>(input_f, {
-        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-        2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 });
-    set_values<float>(weights_f, weights_values_f);
-    set_values(biases, { 0.0f });
-    std::vector<float> output_vec =
-    {
-         0.0f, 12.0f, 24.0f,
-        36.0f, 48.0f, 60.0f,
-        72.0f, 84.0f, 96.0f
-    };
-
-    topology topology_f(
-        input_layout("input_f", input_f.get_layout()),
-        data("weights_f", weights_f),
-        data("biases", biases),
-        convolution("conv_f", "input_f", { "weights_f" }, { "biases" }, { 0, 0, 1, 1 }));
-
-    build_options opts;
-    opts.set_option(build_option::optimize_data(true));
-    network network_f(engine, topology_f, opts);
-    network_f.set_input_data("input_f", input_f);
-
-    auto outputs_f = network_f.execute();
-    EXPECT_EQ(outputs_f.begin()->first, "conv_f");
-
-    auto output_memory_f = outputs_f.at("conv_f").get_memory();
-    auto output_ptr_f = output_memory_f.pointer<float>();
-    unsigned int cntr = 0;
-    for (auto fl : output_ptr_f)
-        EXPECT_FLOAT_EQ(fl, output_vec[cntr++]);
-}
-
 TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
 {
 #define USE_OLD_WEIGHTS_FORMAT 0
@@ -5485,6 +5099,14 @@ using TestParamType_convolution_gpu = ::testing::tuple<int,   // 0 - Filter size
                                                        int,   // 3 - Output padding
                                                        bool>; // 4 - With bias
 
+using TestParamType_convolution_gpu_block_layout = ::testing::tuple<int,   // 0 -Batch size
+        int,   // 1 - Input features
+        int,   // 2 - Output features
+        int,   // 3 - Filter size
+        int,   // 4 - Stride
+        int,   // 5 - Output padding
+        bool>; // 6 - With bias
+
 
 using TestParamType_convolution_depthwise_gpu = ::testing::tuple<int,   // 0 - Input XY size
         int,   // 1 - Kernel sizeY
@@ -5511,6 +5133,23 @@ struct convolution_gpu : public ::testing::TestWithParam<TestParamType_convoluti
 
 struct convolution_gpu_fs_byx_fsv32 : public convolution_gpu {};
 
+struct convolution_gpu_block_layout : public ::testing::TestWithParam<TestParamType_convolution_gpu_block_layout>
+{
+    static std::string
+    PrintToStringParamName(testing::TestParamInfo<TestParamType_convolution_gpu_block_layout> param_info)
+    {
+        // construct a readable name
+        return std::to_string(testing::get<0>(param_info.param))
+               + "x_in" + std::to_string(testing::get<1>(param_info.param))
+               + "x_out" + std::to_string(testing::get<2>(param_info.param))
+               + "_k" + std::to_string(testing::get<3>(param_info.param))
+               + "x" + std::to_string(testing::get<3>(param_info.param))
+               + "_stride" + std::to_string(testing::get<4>(param_info.param))
+               + "_pad" + std::to_string(testing::get<5>(param_info.param))
+               + (testing::get<6>(param_info.param) ? "_bias" : "");
+    }
+};
+
 struct convolution_depthwise_gpu : public ::testing::TestWithParam<TestParamType_convolution_depthwise_gpu>
 {
     static std::string
@@ -5528,6 +5167,23 @@ struct convolution_depthwise_gpu : public ::testing::TestWithParam<TestParamType
     }
 };
 
+struct convolution_depthwise_gpu_fsv16 : public ::testing::TestWithParam<TestParamType_convolution_depthwise_gpu>
+{
+    static std::string
+    PrintToStringParamName(testing::TestParamInfo<TestParamType_convolution_depthwise_gpu> param_info)
+    {
+        // construct a readable name
+        return "in" + std::to_string(testing::get<0>(param_info.param))
+            + "x" + std::to_string(testing::get<0>(param_info.param))
+            + "_k" + std::to_string(testing::get<1>(param_info.param))
+            + 'x' + std::to_string(testing::get<2>(param_info.param))
+            + "_f" + std::to_string(testing::get<3>(param_info.param))
+            + "_stride" + std::to_string(testing::get<4>(param_info.param))
+            + "_pad" + std::to_string(testing::get<5>(param_info.param))
+            + (testing::get<6>(param_info.param) ? "_bias" : "");
+    }
+};
+
 TEST_P(convolution_gpu, b_fs_yx_fsv4)
 {
     const int in_B = 2;
@@ -5540,7 +5196,7 @@ TEST_P(convolution_gpu, b_fs_yx_fsv4)
     int W_X = testing::get<0>(GetParam());
     int W_Y = W_X;
 
-    // Convoluiton offset
+    // Convolution offset
     int offSet = -(W_X / 2);
 
     // Features
@@ -5587,7 +5243,7 @@ TEST_P(convolution_gpu, b_fs_yx_fsv4)
 
     if (with_bias)
     {
-        // Bias, Callibraiton, Quantization
+        // Bias, Calibration, Quantization
         std::vector<float> vB(_OuD), vC(_OuD), vQ(_OuD);
         float x = 0.1f;
         std::generate(vB.begin(), vB.end(), [x]() mutable {
@@ -5708,7 +5364,7 @@ TEST_P(convolution_gpu, b_fs_yx_fsv4_i8_to_u8)
     int W_X = testing::get<0>(GetParam());
     int W_Y = W_X;
 
-    // Convoluiton offset
+    // Convolution offset
     int offSet = -(W_X / 2);
 
     // Features
@@ -5753,7 +5409,7 @@ TEST_P(convolution_gpu, b_fs_yx_fsv4_i8_to_u8)
     topology_ref.add(data("weights_gold", weights_gold));
     topology_imad.add(data("weights_imad", weights_imad));
 
-    // Bias, Callibraiton, Quantization
+    // Bias, Calibration, Quantization
 
     std::vector<float> vQ(_OuD);
     float x = 0.3f;
@@ -5931,7 +5587,7 @@ TEST_P(convolution_gpu, b_fs_yx_fsv4_i8_to_fp32)
     topology_ref.add(data("weights_gold", weights_gold));
     topology_imad.add(data("weights_imad", weights_imad));
 
-    // Bias, Callibraiton, Quantization
+    // Bias, Calibration, Quantization
 
     std::vector<float> vQ(_OuD);
     float x = 0.3f;
@@ -6158,7 +5814,8 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
             {
                 reference_result[bi][ofi] = reference_convolve(
                     input_data[bi], weights_data[ofi],
-                    stride, stride, biases_data[ofi],
+                    stride, stride,
+                    biases_data[ofi],
                     1, 1,                               // dilation
                     -input_offset, -input_offset,       // input padding
                     output_padding, output_padding);
@@ -6233,7 +5890,1051 @@ TEST_P(convolution_gpu_fs_byx_fsv32, fs_byx_fsv32)
                 }
 }
 
-INSTANTIATE_TEST_CASE_P(convolution_depthwise_gpu,
+using TestParamType_convolution_gpu_with_crop = ::testing::tuple<int,   // 0 - Filter size
+    int,   // 1 - Input size
+    int,   // 2 - Input/output features
+    int,   // 3 - Stride
+    int,   // 4 - Output padding
+    bool>; // 5 - With bias
+
+struct convolution_gpu_fs_byx_fsv32_crop : public ::testing::TestWithParam<TestParamType_convolution_gpu_with_crop>
+{
+    static std::string
+        PrintToStringParamName(testing::TestParamInfo<TestParamType_convolution_gpu_with_crop> param_info)
+    {
+        // construct a readable name
+        return std::to_string(testing::get<0>(param_info.param))
+            + 'x' + std::to_string(testing::get<1>(param_info.param))
+            + "_f" + std::to_string(testing::get<2>(param_info.param))
+            + "_stride" + std::to_string(testing::get<3>(param_info.param))
+            + "_pad" + std::to_string(testing::get<4>(param_info.param))
+            + (testing::get<5>(param_info.param) ? "_bias" : "");
+    }
+};
+
+INSTANTIATE_TEST_CASE_P(convolution_gpu_with_crop,
+    convolution_gpu_fs_byx_fsv32_crop,
+    ::testing::Values(
+        TestParamType_convolution_gpu_with_crop(1, 14, 24, 1, 0, true)
+    ),
+    convolution_gpu_fs_byx_fsv32_crop::PrintToStringParamName);
+
+TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
+{
+    const auto& engine = get_test_engine();
+
+    if (!engine.get_info().supports_fp16)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+
+    const int batch_num = 4;
+    const int filter_xy = testing::get<0>(GetParam());
+    const int input_xy = testing::get<1>(GetParam());
+    const int input_f = testing::get<2>(GetParam());
+    const int output_f = input_f;
+    const int stride = testing::get<3>(GetParam());
+    const int output_padding = testing::get<4>(GetParam());
+    const bool with_bias = testing::get<5>(GetParam());
+
+    const int input_offset = -(filter_xy / 2);
+    const int output_xy = 1 + (input_xy + 2 * (-input_offset) - filter_xy) / stride + 2 * output_padding;
+
+    auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
+    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = memory::allocate(engine, { data_types::f16, format::bfyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    // ref input
+    auto half_input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data = VVVVF<FLOAT16>(batch_num);
+
+    // concatenated cldnn input tensor
+    for (auto bi = 0; bi < batch_num; ++bi)
+    {
+        for (auto ifi = 0; ifi < input_f; ++ifi)
+        {
+            auto fdata = half_input_data[bi][ifi];
+            input_data[bi].emplace_back(std::move(fdata));
+        }
+        for (auto ifi = 0; ifi < input_f; ++ifi)
+        {
+            auto fdata = half_input_data[bi][ifi];
+            input_data[bi].emplace_back(std::move(fdata));
+        }
+    }
+
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_size = tensor(batch_num, input_f * 2, input_xy, input_xy);
+    auto input_mem = memory::allocate(engine, { data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    topology topology(
+        input_layout("input", input_mem.get_layout()),
+        data("weights_fsv", weights_mem));
+
+    auto crop_batch_num = batch_num;
+    auto crop_feature_num = input_f;
+    auto crop_x_size = input_xy;
+    auto crop_y_size = input_xy;
+
+    auto left_crop = crop("left_crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, 0, 0, 0 });
+    auto right_crop = crop("right_crop", "input", { crop_batch_num, crop_feature_num, crop_x_size, crop_y_size }, { 0, input_f, 0, 0 });
+    topology.add(left_crop);
+    topology.add(right_crop);
+
+    // Will be used to store reference values calculated in branches depending on bias
+    auto half_ref_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+
+    // reference convolution and concat
+    if (with_bias)
+    {
+        // Generate bias data
+        auto biases_size = tensor(1, output_f, 1, 1);
+        auto biases_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_mem = memory::allocate(engine, { data_types::f16, format::bfyx, biases_size });
+        set_values(biases_mem, biases_data);
+
+        // Calculate reference values with bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                half_ref_result[bi][ofi] = reference_convolve(
+                    half_input_data[bi], weights_data[ofi],
+                    stride, stride,
+                    biases_data[ofi],
+                    1, 1,                               // dilation
+                    -input_offset, -input_offset,       // input padding
+                    output_padding, output_padding);
+            }
+        }
+
+        topology.add(data("biases_fsv", biases_mem));
+
+        auto conv_fsv = convolution("conv_fsv", "right_crop", { "weights_fsv" }, { "biases_fsv" },
+            { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset });
+        conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        topology.add(conv_fsv);
+    }
+    else
+    {
+        // Calculate reference values without bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                half_ref_result[bi][ofi] = reference_convolve(
+                    half_input_data[bi], weights_data[ofi],
+                    stride, stride,
+                    0,                                  // bias
+                    1, 1,                               // dilation
+                    -input_offset, -input_offset,       // input padding
+                    output_padding, output_padding);
+            }
+        }
+
+        auto conv_fsv = convolution("conv_fsv", "right_crop", { "weights_fsv" },
+            { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset });
+        conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+        topology.add(conv_fsv);
+    }
+
+
+    topology.add(reorder("reorder", "conv_fsv", { data_types::f16, format::bfyx, input_size }));
+    topology.add(concatenation("concat", { "left_crop", "reorder" }, concatenation::concatenation_axis::along_f));
+
+    auto ref_result = VVVVF<FLOAT16>(batch_num);
+    // concatenate half ref input and ref conv output, by features
+    for (auto bi = 0; bi < batch_num; ++bi)
+    {
+        for (auto ifi = 0; ifi < input_f; ++ifi)
+        {
+            auto fdata = half_input_data[bi][ifi];
+            ref_result[bi].emplace_back(std::move(fdata));
+        }
+        for (auto ifi = 0; ifi < input_f; ++ifi)
+        {
+            auto fdata = half_ref_result[bi][ifi];
+            ref_result[bi].emplace_back(std::move(fdata));
+        }
+    }
+
+    build_options options;
+    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "convolution_gpu_bfyx_to_fs_byx_fsv32" };
+    options.set_option(build_option::force_implementations({ {"conv_fsv", conv_impl} }));
+    options.set_option(build_option::optimize_data(true));
+    network network(engine, topology, options);
+
+    network.set_input_data("input", input_mem);
+
+    network.execute();
+
+    auto out_mem = network.get_output("concat").get_memory();
+    auto out_ptr = out_mem.pointer<FLOAT16>();
+
+    ASSERT_EQ(out_mem.get_layout().format, format::bfyx);
+
+    for (int bi = 0; bi < batch_num; ++bi)
+        for (int fi = 0; fi < output_f * 2; ++fi)
+            for (int yi = 0; yi < output_xy; ++yi)
+                for (int xi = 0; xi < output_xy; ++xi)
+                {
+                    auto val_ref = ref_result[bi][fi][yi][xi];
+                    auto val = out_ptr[bi * output_xy * output_xy * output_f * 2 +
+                        fi * output_xy * output_xy +
+                        yi * output_xy +
+                        xi];
+                    auto equal = are_equal(val_ref, val, 1e-2f);
+                    EXPECT_TRUE(equal);
+                    if (!equal)
+                    {
+                        std::cout << "At b = " << bi << ", fi = " << fi << ", xi = " << xi << ", yi = " << yi << std::endl;
+                    }
+                }
+}
+
+
+INSTANTIATE_TEST_CASE_P(convolution_gpu_block,
+                        convolution_gpu_block_layout,
+                        ::testing::Values(
+                                TestParamType_convolution_gpu_block_layout(16, 64, 64, 1, 1, 0, false),
+                                TestParamType_convolution_gpu_block_layout(16, 16, 16, 3, 1, 0, false),
+                                TestParamType_convolution_gpu_block_layout(32, 16, 16, 3, 1, 0, false),
+                                TestParamType_convolution_gpu_block_layout(16, 32, 16, 3, 1, 0, false),
+                                TestParamType_convolution_gpu_block_layout(16, 16, 32, 3, 1, 0, false),
+                                TestParamType_convolution_gpu_block_layout(32, 16, 32, 3, 1, 0, false),
+                                TestParamType_convolution_gpu_block_layout(16, 32, 32, 3, 1, 0, false),
+                                TestParamType_convolution_gpu_block_layout(16, 64, 16, 3, 1, 0, false),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 16, 3, 1, 0, false),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 32, 3, 1, 0, false),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 32, 1, 1, 0, false),
+                                TestParamType_convolution_gpu_block_layout(32, 64, 64, 1, 1, 0, false),
+                                TestParamType_convolution_gpu_block_layout(16, 64, 64, 1, 1, 0, true),
+                                TestParamType_convolution_gpu_block_layout(16, 16, 16, 3, 1, 0, true),
+                                TestParamType_convolution_gpu_block_layout(32, 16, 16, 3, 1, 0, true),
+                                TestParamType_convolution_gpu_block_layout(16, 32, 16, 3, 1, 0, true),
+                                TestParamType_convolution_gpu_block_layout(16, 16, 32, 3, 1, 0, true),
+                                TestParamType_convolution_gpu_block_layout(32, 16, 32, 3, 1, 0, true),
+                                TestParamType_convolution_gpu_block_layout(16, 32, 32, 3, 1, 0, true),
+                                TestParamType_convolution_gpu_block_layout(16, 64, 16, 3, 1, 0, true),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 16, 3, 1, 0, true),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 32, 3, 1, 0, true),
+                                TestParamType_convolution_gpu_block_layout(64, 64, 64, 3, 1, 0, true)),
+                        convolution_gpu_block_layout::PrintToStringParamName);
+
+TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp32)
+{
+    const auto& engine = get_test_engine();
+
+    const int batch_num = testing::get<0>(GetParam());
+    const int input_xy = 5;
+    const int input_f = testing::get<1>(GetParam());
+    const int output_f = testing::get<2>(GetParam());
+    const int filter_xy = testing::get<3>(GetParam());
+    const int stride = testing::get<4>(GetParam());
+    const int output_padding = testing::get<5>(GetParam());
+    const bool with_bias = testing::get<6>(GetParam());
+    const int input_offset = -(filter_xy / 2);
+
+    auto input_size = tensor(batch_num, input_f, input_xy, input_xy, 1);
+    auto input_data = generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = memory::allocate(engine, { data_types::f32, format::bfzyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy, 1);
+    auto weights_data = generate_random_4d<float>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+
+    auto weights_mem = memory::allocate(engine, { data_types::f32, format::bfzyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    // Will be used to store reference values calculated in branches depending on bias
+    auto reference_result = VVVVF<float>(batch_num, VVVF<float>(output_f));
+
+    topology topology(
+            input_layout("input", input_mem.get_layout()),
+            data("weights", weights_mem));
+
+    // Reorder input to bs_fs_yx_bsv16_fsv16
+    topology.add(reorder("input_bsv16_fsv16", "input", { data_types::f32, format::bs_fs_zyx_bsv16_fsv16, input_size }));
+
+    if (with_bias)
+    {
+        // Generate bias data
+        auto biases_size = tensor(1, output_f, 1, 1, 1);
+        auto biases_data = generate_random_1d<float>(output_f, -1, 1);
+        auto biases_mem = memory::allocate(engine, { data_types::f32, format::bfzyx, biases_size });
+        set_values(biases_mem, biases_data);
+
+        // Calculate reference values with bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                reference_result[bi][ofi] = reference_convolve(
+                        input_data[bi], weights_data[ofi],
+                        stride, stride, biases_data[ofi],
+                        1, 1,                               // dilation
+                        -input_offset, -input_offset,       // input padding
+                        output_padding, output_padding);
+            }
+        }
+
+        topology.add(data("biases", biases_mem));
+
+        auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", "input_bsv16_fsv16", { "weights" }, { "biases" },
+                                    { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset, 0 });
+        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+
+        topology.add(conv_bsv16_fsv16);
+    }
+    else
+    {
+        // Calculate reference values without bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                reference_result[bi][ofi] = reference_convolve(
+                        input_data[bi], weights_data[ofi],
+                        stride, stride,
+                        0,                                  // bias
+                        1, 1,                               // dilation
+                        -input_offset, -input_offset,       // input padding
+                        output_padding, output_padding);
+            }
+        }
+
+        auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", "input_bsv16_fsv16", { "weights" },
+                                    { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset, 0 });
+        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+
+        topology.add(conv_bsv16_fsv16);
+    }
+
+    topology.add(reorder("reorder_bfzyx", "conv_bsv16_fsv16", format::bfzyx, data_types::f32));
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(build_option::outputs({"conv_bsv16_fsv16", "reorder_bfzyx"}));
+    network network(engine, topology, options);
+
+    network.set_input_data("input", input_mem);
+
+    network.execute();
+
+    auto out_mem = network.get_output("conv_bsv16_fsv16").get_memory();
+    auto out_ptr = out_mem.pointer<float>();
+
+    auto out_mem_bfyx = network.get_output("reorder_bfzyx").get_memory();
+    auto out_ptr_bfyx = out_mem_bfyx.pointer<float>();
+
+    ASSERT_EQ(out_mem.get_layout().format, format::bs_fs_zyx_bsv16_fsv16);
+
+    auto flatten_ref = flatten_4d(format::bfyx, reference_result);
+
+    for (size_t i = 0; i < out_ptr_bfyx.size(); i++) {
+        auto equal = are_equal(flatten_ref[i], out_ptr_bfyx[i], 1e-2f);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp16)
+{
+    const auto& engine = get_test_engine();
+
+    if (!engine.get_info().supports_fp16)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+
+    const int batch_num = testing::get<0>(GetParam());
+    const int input_xy = 5;
+    const int input_f = testing::get<1>(GetParam());
+    const int output_f = testing::get<2>(GetParam());
+    const int filter_xy = testing::get<3>(GetParam());
+    const int stride = testing::get<4>(GetParam());
+    const int output_padding = testing::get<5>(GetParam());
+    const bool with_bias = testing::get<6>(GetParam());
+    const int input_offset = -(filter_xy / 2);
+
+    if (batch_num % 32 != 0)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (for fp16 batch should be multiple of 32)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+
+    auto input_size = tensor(batch_num, input_f, input_xy, input_xy, 1);
+    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, 0, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+
+    auto input_mem = memory::allocate(engine, { data_types::f16, format::bfzyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy, 1);
+    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, 0, 1);
+
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+
+    auto weights_mem = memory::allocate(engine, { data_types::f16, format::bfzyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    // Will be used to store reference values calculated in branches depending on bias
+    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+
+    topology topology(
+            input_layout("input", input_mem.get_layout()),
+            data("weights", weights_mem));
+
+    // Reorder input to bs_fs_zyx_bsv16_fsv16
+    topology.add(reorder("input_bsv16_fsv16", "input", { data_types::f16, format::bs_fs_zyx_bsv16_fsv16, input_size }));
+
+    if (with_bias)
+    {
+        // Generate bias data
+        auto biases_size = tensor(1, output_f, 1, 1, 1);
+        auto biases_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_mem = memory::allocate(engine, { data_types::f16, format::bfzyx, biases_size });
+        set_values(biases_mem, biases_data);
+
+        // Calculate reference values with bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                reference_result[bi][ofi] = reference_convolve(
+                        input_data[bi], weights_data[ofi],
+                        stride, stride, biases_data[ofi],
+                        1, 1,                               // dilation
+                        -input_offset, -input_offset,       // input padding
+                        output_padding, output_padding);
+            }
+        }
+
+        topology.add(data("biases", biases_mem));
+
+        auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", "input_bsv16_fsv16", { "weights" }, { "biases" },
+                                        { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset, 0 });
+        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+
+        topology.add(conv_bsv16_fsv16);
+    }
+    else
+    {
+        // Calculate reference values without bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                reference_result[bi][ofi] = reference_convolve(
+                        input_data[bi], weights_data[ofi],
+                        stride, stride,
+                        0,                                  // bias
+                        1, 1,                               // dilation
+                        -input_offset, -input_offset,       // input padding
+                        output_padding, output_padding);
+            }
+        }
+
+        auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", "input_bsv16_fsv16", { "weights" },
+                                        { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset, 0 });
+        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+
+        topology.add(conv_bsv16_fsv16);
+    }
+
+    topology.add(reorder("reorder_bfzyx", "conv_bsv16_fsv16", format::bfzyx, data_types::f16));
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(build_option::outputs({"conv_bsv16_fsv16", "reorder_bfzyx"}));
+    network network(engine, topology, options);
+
+    network.set_input_data("input", input_mem);
+
+    network.execute();
+
+    auto out_mem = network.get_output("conv_bsv16_fsv16").get_memory();
+    auto out_ptr = out_mem.pointer<FLOAT16>();
+
+    auto out_mem_bfyx = network.get_output("reorder_bfzyx").get_memory();
+    auto out_ptr_bfyx = out_mem_bfyx.pointer<FLOAT16>();
+
+    ASSERT_EQ(out_mem.get_layout().format, format::bs_fs_zyx_bsv16_fsv16);
+
+    auto flatten_ref = flatten_4d(format::bfyx, reference_result);
+
+    for (size_t i = 0; i < out_ptr_bfyx.size(); i++) {
+        auto equal = are_equal(flatten_ref[i], out_ptr_bfyx[i], 1);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp32_fused_ops)
+{
+    const auto& engine = get_test_engine();
+
+    const int batch_num = testing::get<0>(GetParam());
+    const int input_xy = 5;
+    const int input_f = testing::get<1>(GetParam());
+    const int output_f = testing::get<2>(GetParam());
+    const int filter_xy = testing::get<3>(GetParam());
+    const int stride = testing::get<4>(GetParam());
+    const int output_padding = testing::get<5>(GetParam());
+    const bool with_bias = testing::get<6>(GetParam());
+    const int input_offset = -(filter_xy / 2);
+
+    auto input_size = tensor(batch_num, input_f, input_xy, input_xy, 1);
+    auto input_data = generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = memory::allocate(engine, { data_types::f32, format::bfzyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy, 1);
+    auto weights_data = generate_random_4d<float>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+
+    auto weights_mem = memory::allocate(engine, { data_types::f32, format::bfzyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    // Will be used to store reference values calculated in branches depending on bias
+    auto reference_result = VVVVF<float>(batch_num, VVVF<float>(output_f));
+
+    topology topology(
+            input_layout("input", input_mem.get_layout()),
+            data("weights", weights_mem));
+
+    // Reorder input to bs_fs_yx_bsv16_fsv16
+    topology.add(reorder("input_bsv16_fsv16", "input", { data_types::f32, format::bs_fs_zyx_bsv16_fsv16, input_size }));
+
+    if (with_bias)
+    {
+        // Generate bias data
+        auto biases_size = tensor(1, output_f, 1, 1, 1);
+        auto biases_data = generate_random_1d<float>(output_f, -1, 1);
+        auto biases_mem = memory::allocate(engine, { data_types::f32, format::bfzyx, biases_size });
+        set_values(biases_mem, biases_data);
+
+        // Calculate reference values with bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                reference_result[bi][ofi] = reference_convolve(
+                        input_data[bi], weights_data[ofi],
+                        stride, stride, biases_data[ofi],
+                        1, 1,                               // dilation
+                        -input_offset, -input_offset,       // input padding
+                        output_padding, output_padding);
+            }
+        }
+
+        topology.add(data("biases", biases_mem));
+
+        auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", "input_bsv16_fsv16", { "weights" }, { "biases" },
+                                       { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset, 0 });
+        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+
+        topology.add(conv_bsv16_fsv16);
+    }
+    else
+    {
+        // Calculate reference values without bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                reference_result[bi][ofi] = reference_convolve(
+                        input_data[bi], weights_data[ofi],
+                        stride, stride,
+                        0,                                  // bias
+                        1, 1,                               // dilation
+                        -input_offset, -input_offset,       // input padding
+                        output_padding, output_padding);
+            }
+        }
+
+        auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", "input_bsv16_fsv16", { "weights" },
+                                       { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset, 0 });
+        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+
+        topology.add(conv_bsv16_fsv16);
+    }
+
+    const float scalar = 5.5f;
+    auto scale_mem = memory::allocate(engine, { data_types::f32, format::bfzyx, {1, 1, 1, 1, 1} });
+    set_values(scale_mem, {scalar});
+
+    topology.add(data("scalar", scale_mem));
+    topology.add(scale("scale", "conv_bsv16_fsv16", "scalar"));
+
+    topology.add(reorder("reorder_bfzyx", "scale", format::bfzyx, data_types::f32));
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(build_option::outputs({"conv_bsv16_fsv16", "reorder_bfzyx"}));
+    network network(engine, topology, options);
+
+    network.set_input_data("input", input_mem);
+
+    network.execute();
+
+    auto out_mem = network.get_output("conv_bsv16_fsv16").get_memory();
+    auto out_ptr = out_mem.pointer<float>();
+
+    auto out_mem_bfyx = network.get_output("reorder_bfzyx").get_memory();
+    auto out_ptr_bfyx = out_mem_bfyx.pointer<float>();
+
+    ASSERT_EQ(out_mem.get_layout().format, format::bs_fs_zyx_bsv16_fsv16);
+
+    auto flatten_ref = flatten_4d(format::bfyx, reference_result);
+
+    for (size_t i = 0; i < out_ptr_bfyx.size(); i++) {
+        auto equal = are_equal(flatten_ref[i] * scalar, out_ptr_bfyx[i], 1e-2f);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32)
+{
+    const auto& engine = get_test_engine();
+
+    const int batch_num = testing::get<0>(GetParam());
+    const int input_xy = 5;
+    const int input_f = testing::get<1>(GetParam());
+    const int output_f = testing::get<2>(GetParam());
+    const int filter_xy = testing::get<3>(GetParam());
+    const int stride = testing::get<4>(GetParam());
+    const int output_padding = testing::get<5>(GetParam());
+    const bool with_bias = testing::get<6>(GetParam());
+    const int input_offset = -(filter_xy / 2);
+
+    if (batch_num <= 16)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (for bs_fs_yx_bsv16_fsv16 batch should be greater than 16)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+
+    auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
+    auto input_data = generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = memory::allocate(engine, { data_types::f32, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
+    auto weights_data = generate_random_4d<float>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+
+    auto weights_mem = memory::allocate(engine, { data_types::f32, format::bfyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    // Will be used to store reference values calculated in branches depending on bias
+    auto reference_result = VVVVF<float>(batch_num, VVVF<float>(output_f));
+
+    topology topology(
+            input_layout("input", input_mem.get_layout()),
+            data("weights", weights_mem));
+
+    // Reorder input to bs_fs_yx_bsv16_fsv16
+    topology.add(reorder("input_bsv16_fsv16", "input", { data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_size }));
+
+    if (with_bias)
+    {
+        // Generate bias data
+        auto biases_size = tensor(1, output_f, 1, 1);
+        auto biases_data = generate_random_1d<float>(output_f, -1, 1);
+        auto biases_mem = memory::allocate(engine, { data_types::f32, format::bfyx, biases_size });
+        set_values(biases_mem, biases_data);
+
+        // Calculate reference values with bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                reference_result[bi][ofi] = reference_convolve(
+                        input_data[bi], weights_data[ofi],
+                        stride, stride, biases_data[ofi],
+                        1, 1,                               // dilation
+                        -input_offset, -input_offset,       // input padding
+                        output_padding, output_padding);
+            }
+        }
+
+        topology.add(data("biases", biases_mem));
+
+        auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", "input_bsv16_fsv16", { "weights" }, { "biases" },
+                                       { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset });
+        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+
+        topology.add(conv_bsv16_fsv16);
+    }
+    else
+    {
+        // Calculate reference values without bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                reference_result[bi][ofi] = reference_convolve(
+                        input_data[bi], weights_data[ofi],
+                        stride, stride,
+                        0,                                  // bias
+                        1, 1,                               // dilation
+                        -input_offset, -input_offset,       // input padding
+                        output_padding, output_padding);
+            }
+        }
+
+        auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", "input_bsv16_fsv16", { "weights" },
+                                       { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset });
+        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+
+        topology.add(conv_bsv16_fsv16);
+    }
+
+    topology.add(reorder("reorder_bfyx", "conv_bsv16_fsv16", format::bfyx, data_types::f32));
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(build_option::outputs({"conv_bsv16_fsv16", "reorder_bfyx"}));
+    implementation_desc conv_impl = { format::bs_fs_yx_bsv16_fsv16, "" };
+    options.set_option(build_option::force_implementations({{"conv_bsv16_fsv16", conv_impl}}));
+    network network(engine, topology, options);
+
+    network.set_input_data("input", input_mem);
+
+    network.execute();
+
+    auto out_mem = network.get_output("conv_bsv16_fsv16").get_memory();
+    auto out_ptr = out_mem.pointer<float>();
+
+    auto out_mem_bfyx = network.get_output("reorder_bfyx").get_memory();
+    auto out_ptr_bfyx = out_mem_bfyx.pointer<float>();
+
+    ASSERT_EQ(out_mem.get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+    auto flatten_ref = flatten_4d(format::bfyx, reference_result);
+
+    for (size_t i = 0; i < out_ptr_bfyx.size(); i++) {
+        auto equal = are_equal(flatten_ref[i], out_ptr_bfyx[i], 1e-2f);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp16)
+{
+    const auto& engine = get_test_engine();
+
+    if (!engine.get_info().supports_fp16)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+
+    const int batch_num = testing::get<0>(GetParam());
+    const int input_xy = 5;
+    const int input_f = testing::get<1>(GetParam());
+    const int output_f = testing::get<2>(GetParam());
+    const int filter_xy = testing::get<3>(GetParam());
+    const int stride = testing::get<4>(GetParam());
+    const int output_padding = testing::get<5>(GetParam());
+    const bool with_bias = testing::get<6>(GetParam());
+    const int input_offset = -(filter_xy / 2);
+
+    if (batch_num % 32 != 0)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (for fp16 batch should be multiple of 32)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+
+    auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
+    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, 0, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+
+    auto input_mem = memory::allocate(engine, { data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
+    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, filter_xy, filter_xy, 0, 1);
+
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+
+    auto weights_mem = memory::allocate(engine, { data_types::f16, format::bfyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    // Will be used to store reference values calculated in branches depending on bias
+    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+
+    topology topology(
+            input_layout("input", input_mem.get_layout()),
+            data("weights", weights_mem));
+
+    // Reorder input to bs_fs_yx_bsv16_fsv16
+    topology.add(reorder("input_bsv16_fsv16", "input", { data_types::f16, format::bs_fs_yx_bsv16_fsv16, input_size }));
+
+    if (with_bias)
+    {
+        // Generate bias data
+        auto biases_size = tensor(1, output_f, 1, 1);
+        auto biases_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_mem = memory::allocate(engine, { data_types::f16, format::bfyx, biases_size });
+        set_values(biases_mem, biases_data);
+
+        // Calculate reference values with bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                reference_result[bi][ofi] = reference_convolve(
+                        input_data[bi], weights_data[ofi],
+                        stride, stride, biases_data[ofi],
+                        1, 1,                               // dilation
+                        -input_offset, -input_offset,       // input padding
+                        output_padding, output_padding);
+            }
+        }
+
+        topology.add(data("biases", biases_mem));
+
+        auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", "input_bsv16_fsv16", { "weights" }, { "biases" },
+                                       { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset });
+        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding, 0 }, 0.f);
+
+        topology.add(conv_bsv16_fsv16);
+    }
+    else
+    {
+        // Calculate reference values without bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                reference_result[bi][ofi] = reference_convolve(
+                        input_data[bi], weights_data[ofi],
+                        stride, stride,
+                        0,                                  // bias
+                        1, 1,                               // dilation
+                        -input_offset, -input_offset,       // input padding
+                        output_padding, output_padding);
+            }
+        }
+
+        auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", "input_bsv16_fsv16", { "weights" },
+                                       { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset });
+        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+
+        topology.add(conv_bsv16_fsv16);
+    }
+
+    topology.add(reorder("reorder_bfyx", "conv_bsv16_fsv16", format::bfyx, data_types::f16));
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(build_option::outputs({"conv_bsv16_fsv16", "reorder_bfyx"}));
+    implementation_desc conv_impl = { format::bs_fs_yx_bsv16_fsv16, "" };
+    options.set_option(build_option::force_implementations({{"conv_bsv16_fsv16", conv_impl}}));
+    network network(engine, topology, options);
+
+    network.set_input_data("input", input_mem);
+
+    network.execute();
+
+    auto out_mem = network.get_output("conv_bsv16_fsv16").get_memory();
+    auto out_ptr = out_mem.pointer<FLOAT16>();
+
+    auto out_mem_bfyx = network.get_output("reorder_bfyx").get_memory();
+    auto out_ptr_bfyx = out_mem_bfyx.pointer<FLOAT16>();
+
+    ASSERT_EQ(out_mem.get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+    auto flatten_ref = flatten_4d(format::bfyx, reference_result);
+
+    for (size_t i = 0; i < out_ptr_bfyx.size(); i++) {
+        auto equal = are_equal(flatten_ref[i], out_ptr_bfyx[i], 1);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32_fused_ops)
+{
+    const auto& engine = get_test_engine();
+
+    if (!engine.get_info().supports_fp16)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+
+    const int batch_num = testing::get<0>(GetParam()) * 2;
+    const int input_xy = 5;
+    const int input_f = testing::get<1>(GetParam());
+    const int output_f = testing::get<2>(GetParam());
+    const int filter_xy = testing::get<3>(GetParam());
+    const int stride = testing::get<4>(GetParam());
+    const int output_padding = testing::get<5>(GetParam());
+    const bool with_bias = testing::get<6>(GetParam());
+    const int input_offset = -(filter_xy / 2);
+
+    auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
+    auto input_data = generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = memory::allocate(engine, { data_types::f32, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy, 1);
+    auto weights_data = generate_random_4d<float>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+
+    auto weights_mem = memory::allocate(engine, { data_types::f32, format::bfyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    // Will be used to store reference values calculated in branches depending on bias
+    auto reference_result = VVVVF<float>(batch_num, VVVF<float>(output_f));
+
+    topology topology(
+            input_layout("input", input_mem.get_layout()),
+            data("weights", weights_mem));
+
+    // Reorder input to bs_fs_yx_bsv16_fsv16
+    topology.add(reorder("input_bsv16_fsv16", "input", { data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_size }));
+
+    if (with_bias)
+    {
+        // Generate bias data
+        auto biases_size = tensor(1, output_f, 1, 1, 1);
+        auto biases_data = generate_random_1d<float>(output_f, -1, 1);
+        auto biases_mem = memory::allocate(engine, { data_types::f32, format::bfyx, biases_size });
+        set_values(biases_mem, biases_data);
+
+        // Calculate reference values with bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                reference_result[bi][ofi] = reference_convolve(
+                        input_data[bi], weights_data[ofi],
+                        stride, stride, biases_data[ofi],
+                        1, 1,                               // dilation
+                        -input_offset, -input_offset,       // input padding
+                        output_padding, output_padding);
+            }
+        }
+
+        topology.add(data("biases", biases_mem));
+
+        auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", "input_bsv16_fsv16", { "weights" }, { "biases" },
+                                       { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset });
+        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+
+        topology.add(conv_bsv16_fsv16);
+    }
+    else
+    {
+        // Calculate reference values without bias
+        for (auto bi = 0; bi < batch_num; ++bi)
+        {
+            for (auto ofi = 0; ofi < output_f; ++ofi)
+            {
+                reference_result[bi][ofi] = reference_convolve(
+                        input_data[bi], weights_data[ofi],
+                        stride, stride,
+                        0,                                  // bias
+                        1, 1,                               // dilation
+                        -input_offset, -input_offset,       // input padding
+                        output_padding, output_padding);
+            }
+        }
+
+        auto conv_bsv16_fsv16 = convolution("conv_bsv16_fsv16", "input_bsv16_fsv16", { "weights" },
+                                       { 1, 1, stride, stride }, { 0, 0, input_offset, input_offset });
+        conv_bsv16_fsv16.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+
+        topology.add(conv_bsv16_fsv16);
+    }
+
+    const float scalar = 5.5f;
+    auto scale_mem = memory::allocate(engine, { data_types::f32, format::bfyx, {1, 1, 1, 1} });
+    set_values(scale_mem, {scalar});
+
+    topology.add(data("scalar", scale_mem));
+    topology.add(scale("scale", "conv_bsv16_fsv16", "scalar"));
+
+    topology.add(reorder("reorder_bfyx", "scale", format::bfyx, data_types::f32));
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    options.set_option(build_option::outputs({"conv_bsv16_fsv16", "reorder_bfyx"}));
+    implementation_desc conv_impl = { format::bs_fs_yx_bsv16_fsv16, "" };
+    options.set_option(build_option::force_implementations({{"conv_bsv16_fsv16", conv_impl}}));
+    network network(engine, topology, options);
+
+    network.set_input_data("input", input_mem);
+
+    network.execute();
+
+    auto out_mem = network.get_output("conv_bsv16_fsv16").get_memory();
+    auto out_ptr = out_mem.pointer<float>();
+
+    auto out_mem_bfyx = network.get_output("reorder_bfyx").get_memory();
+    auto out_ptr_bfyx = out_mem_bfyx.pointer<float>();
+
+    ASSERT_EQ(out_mem.get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+    auto flatten_ref = flatten_4d(format::bfyx, reference_result);
+
+    for (size_t i = 0; i < out_ptr_bfyx.size(); i++) {
+        auto equal = are_equal(flatten_ref[i] * scalar, out_ptr_bfyx[i], 1e-2f);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+INSTANTIATE_TEST_CASE_P(convolution_depthwise_gpu_fs_b_yx_fsv32,
                         convolution_depthwise_gpu,
                         ::testing::Values(
                                 // Input size, Filter size Y, Filter size X, groups, Stride, Output padding, With bias
@@ -6280,6 +6981,7 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
         return;
     }
 
+
     const int batch_num = 2;
     const int input_xy = testing::get<0>(GetParam());
     const int groups = testing::get<3>(GetParam());
@@ -6301,10 +7003,10 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
     auto input_mem = memory::allocate(engine, { data_types::f16, format::bfyx, input_size });
     set_values(input_mem, input_data_bfyx);
 
-    auto weights_size = tensor(output_f, 1, filter_x, filter_y);
+    auto weights_size = tensor(group(groups), batch(1), feature(1), spatial(filter_x, filter_y));
     auto weights_data = generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
-    auto weights_mem = memory::allocate(engine, { data_types::f16, format::bfyx, weights_size });
+    auto weights_mem = memory::allocate(engine, { data_types::f16, format::goiyx, weights_size });
     set_values(weights_mem, weights_data_bfyx);
 
     // Will be used to store reference values calculated in branches depending on bias
@@ -6375,6 +7077,293 @@ TEST_P(convolution_depthwise_gpu, depthwise_conv_fs_b_yx_fsv32)
                 }
 }
 
+INSTANTIATE_TEST_CASE_P(convolution_depthwise_gpu_b_fs_yx_fsv16,
+                        convolution_depthwise_gpu_fsv16,
+                        ::testing::Values(
+                            // Input size, Filter size Y, Filter size X, groups, Stride, Output padding, With bias
+                            // Stride testing
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 32, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 32, 2, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 32, 3, 0, false),
+                            // Different Features testing
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 16, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 20, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 25, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 33, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 35, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 45, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 65, 1, 0, false),
+                            // Different filter's sizes testing
+                            TestParamType_convolution_depthwise_gpu(15, 1, 1, 16, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 2, 2, 16, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 3, 3, 16, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 4, 4, 16, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 5, 5, 16, 2, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 8, 8, 16, 2, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 1, 9, 16, 2, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 17, 8, 16, 2, 0, false),
+                            // Input FeatureMap testing
+                            TestParamType_convolution_depthwise_gpu(20, 3, 3, 50, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(30, 3, 3, 50, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(55, 3, 3, 50, 1, 0, false),
+                            // Output padding testing + strides
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 32, 1, 1, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 32, 2, 2, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 32, 3, 3, false)
+                        ),
+                        convolution_depthwise_gpu_fsv16::PrintToStringParamName);
+
+TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
+{
+    const auto& engine = get_test_engine();
+
+    if (!engine.get_info().supports_fp16)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+
+    const int batch_num = 2;
+    const int input_xy = testing::get<0>(GetParam());
+    const int groups = testing::get<3>(GetParam());
+    const int input_f = groups;
+    const int output_f = groups;
+    const int filter_y = testing::get<1>(GetParam());
+    const int filter_x = testing::get<2>(GetParam());
+    const int stride = testing::get<4>(GetParam());
+    const int output_padding = testing::get<5>(GetParam());
+    const int input_offset_y = -(filter_y / 2);
+    const int input_offset_x = -(filter_x / 2);
+    const int f_group_size = 16;
+    const int f_group_num_in_batch = (output_f % f_group_size) ? (output_f / f_group_size + 1) : (output_f / f_group_size);
+
+    const int output_y = 1 + (input_xy + 2 * (-input_offset_y) - filter_y) / stride + 2 * output_padding;
+    const int output_x = 1 + (input_xy + 2 * (-input_offset_x) - filter_x) / stride + 2 * output_padding;
+
+    auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
+    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = memory::allocate(engine, { data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
+    auto weights_data = generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = memory::allocate(engine, { data_types::f16, format::goiyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    // Will be used to store reference values calculated in branches depending on bias
+    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+
+    topology topology(
+        input_layout("input", input_mem.get_layout()),
+        data("weights_fsv", weights_mem));
+
+    // Reorder input to b_fs_yx_fsv16
+    topology.add(reorder("input_fsv", "input", { data_types::f16, format::b_fs_yx_fsv16, input_size }));
+
+    // Calculate reference values without bias
+    for (auto bi = 0; bi < batch_num; ++bi)
+    {
+        for (auto ofi = 0; ofi < output_f; ++ofi)
+        {
+            reference_result[bi][ofi] = reference_convolve(
+                input_data[bi], weights_data[ofi],  // input, weights
+                stride, stride,                     // strides
+                0,                                  // bias
+                1, 1,                               // dilation
+                -input_offset_y, -input_offset_x,   // input padding
+                output_padding, output_padding,     // output_padding
+                ofi, ofi + 1,                       // f_begin, f_end
+                true);                              // depthwise
+        }
+    }
+
+    auto conv_fsv = convolution("conv_fsv", "input_fsv", { "weights_fsv" }, groups,
+                                { 1, 1, stride, stride }, { 0, 0, input_offset_x, input_offset_y });
+    conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+
+    topology.add(conv_fsv);
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
+    options.set_option(build_option::force_implementations({ {"conv_fsv", conv_impl} }));
+    network network(engine, topology, options);
+
+    network.set_input_data("input", input_mem);
+
+    network.execute();
+
+    auto out_mem = network.get_output("conv_fsv").get_memory();
+    auto out_ptr = out_mem.pointer<FLOAT16>();
+
+    ASSERT_EQ(out_mem.get_layout().format, format::b_fs_yx_fsv16);
+
+    for (int bi = 0; bi < batch_num; ++bi)
+        for (int fi = 0; fi < output_f; ++fi)
+            for (int yi = 0; yi < output_y; ++yi)
+                for (int xi = 0; xi < output_x; ++xi)
+                {
+                    auto val_ref = reference_result[bi][fi][yi][xi];
+
+                    auto val = out_ptr[bi * f_group_num_in_batch * f_group_size * output_y * output_x  +
+                        (fi / f_group_size) * output_y * output_x * f_group_size +
+                        yi * output_x * f_group_size +
+                        xi * f_group_size +
+                        fi % f_group_size];
+                    auto equal = are_equal(val_ref, val, 1e-2f);
+                    EXPECT_TRUE(equal);
+                    if (!equal)
+                    {
+                        std::cout << "At b = " << bi << ", fi = " << fi << ", yi = " << yi << ", xi = " << xi << std::endl;
+                    }
+                }
+}
+
+struct convolution_depthwise_gpu_bfyx : public convolution_depthwise_gpu {};
+
+TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
+{
+    const auto& engine = get_test_engine();
+
+    if (!engine.get_info().supports_fp16)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+
+    const int batch_num = 2;
+    const int input_xy = testing::get<0>(GetParam());
+    const int groups = testing::get<3>(GetParam());
+    const int input_f = groups;
+    const int output_f = groups;
+    const int filter_y = testing::get<1>(GetParam());
+    const int filter_x = testing::get<2>(GetParam());
+    const int stride = testing::get<4>(GetParam());
+    const int output_padding = testing::get<5>(GetParam());
+    const int input_offset_y = -(filter_y / 2);
+    const int input_offset_x = -(filter_x / 2);
+    const int f_group_size = 1;
+    const int f_group_num_in_batch = (output_f % f_group_size) ? (output_f / f_group_size + 1) : (output_f / f_group_size);
+
+    const int output_y = 1 + (input_xy + 2 * (-input_offset_y) - filter_y) / stride + 2 * output_padding;
+    const int output_x = 1 + (input_xy + 2 * (-input_offset_x) - filter_x) / stride + 2 * output_padding;
+
+    auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
+    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = memory::allocate(engine, { data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(group(output_f), batch(1), feature(1), spatial(filter_x, filter_y));
+    auto weights_data = generate_random_4d<FLOAT16>(output_f, 1, filter_y, filter_x, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = memory::allocate(engine, { data_types::f16, format::goiyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    // Will be used to store reference values calculated in branches depending on bias
+    auto reference_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+
+    topology topology(
+        input_layout("input", input_mem.get_layout()),
+        data("weights", weights_mem));
+
+    // Calculate reference values without bias
+    for (auto bi = 0; bi < batch_num; ++bi)
+    {
+        for (auto ofi = 0; ofi < output_f; ++ofi)
+        {
+            reference_result[bi][ofi] = reference_convolve(
+                input_data[bi], weights_data[ofi],  // input, weights
+                stride, stride,                     // strides
+                0,                                  // bias
+                1, 1,                               // dilation
+                -input_offset_y, -input_offset_x,   // input padding
+                output_padding, output_padding,     // output_padding
+                ofi, ofi + 1,                       // f_begin, f_end
+                true);                              // depthwise
+        }
+    }
+
+    auto conv_fsv = convolution("conv", "input", { "weights" }, groups,
+                                { 1, 1, stride, stride }, { 0, 0, input_offset_x, input_offset_y });
+    conv_fsv.output_padding = padding({ 0, 0, output_padding, output_padding }, 0.f);
+
+    topology.add(conv_fsv);
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    implementation_desc conv_impl = { format::bfyx, "" };
+    options.set_option(build_option::force_implementations({ {"conv", conv_impl} }));
+    network network(engine, topology, options);
+
+    network.set_input_data("input", input_mem);
+
+    network.execute();
+
+    auto out_mem = network.get_output("conv").get_memory();
+    auto out_ptr = out_mem.pointer<FLOAT16>();
+
+    ASSERT_EQ(out_mem.get_layout().format, format::bfyx);
+
+    for (int bi = 0; bi < batch_num; ++bi)
+        for (int fi = 0; fi < output_f; ++fi)
+            for (int yi = 0; yi < output_y; ++yi)
+                for (int xi = 0; xi < output_x; ++xi)
+                {
+                    auto val_ref = reference_result[bi][fi][yi][xi];
+
+                    auto val = out_ptr[bi * f_group_num_in_batch * f_group_size * output_y * output_x  +
+                        (fi / f_group_size) * output_y * output_x * f_group_size +
+                        yi * output_x * f_group_size +
+                        xi * f_group_size +
+                        fi % f_group_size];
+                    auto equal = are_equal(val_ref, val, 1e-2f);
+                    ASSERT_TRUE(equal) << "At b = " << bi << ", fi = " << fi << ", yi = " << yi << ", xi = " << xi << std::endl;
+                }
+}
+
+
+INSTANTIATE_TEST_CASE_P(convolution_depthwise_gpu_bfyx,
+                        convolution_depthwise_gpu_bfyx,
+                        ::testing::Values(
+                            // Input size, Filter size Y, Filter size X, groups, Stride, Output padding, With bias
+                            // Stride testing
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 32, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 32, 2, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 32, 3, 0, false),
+                            // Different Features testing
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 16, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 20, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 25, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 33, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 35, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 45, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 65, 1, 0, false),
+                            // Different filter's sizes testing
+                            TestParamType_convolution_depthwise_gpu(15, 1, 1, 16, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 2, 2, 16, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 3, 3, 16, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 4, 4, 16, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 5, 5, 16, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 5, 5, 16, 2, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 8, 8, 16, 2, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 1, 9, 16, 2, 0, false),
+                            TestParamType_convolution_depthwise_gpu(15, 17, 8, 16, 2, 0, false),
+                            // Input FeatureMap testing
+                            TestParamType_convolution_depthwise_gpu(20, 3, 3, 50, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(30, 3, 3, 50, 1, 0, false),
+                            TestParamType_convolution_depthwise_gpu(55, 3, 3, 50, 1, 0, false),
+                            // Output padding testing + strides
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 32, 1, 1, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 32, 2, 2, false),
+                            TestParamType_convolution_depthwise_gpu(5, 3, 3, 32, 3, 3, false)
+                        ),
+                        convolution_depthwise_gpu::PrintToStringParamName);
+
 template <typename InputT, typename WeightsT, typename OutputT>
 class convolution_test_base : public testing::Test {
 public:
@@ -6394,6 +7383,7 @@ public:
                 "conv",
                 "input",
                 { "weights" },
+                static_cast<uint32_t>(groups()),
                 tensor(batch(0), feature(0), spatial(_stride_x, _stride_y)),
                 tensor(batch(0), feature(0), spatial(_offset_x, _offset_y)),
                 tensor(batch(0), feature(0), spatial(_dilation_x, _dilation_y)));
@@ -6409,6 +7399,7 @@ public:
                 "input",
                 { "weights" },
                 { "bias" },
+                static_cast<uint32_t>(groups()),
                 tensor(batch(0), feature(0), spatial(_stride_x, _stride_y)),
                 tensor(batch(0), feature(0), spatial(_offset_x, _offset_y)),
                 tensor(batch(0), feature(0), spatial(_dilation_x, _dilation_y)));
@@ -6514,8 +7505,10 @@ protected:
     size_t input_x() const { return _input[0][0][0].size(); }
     size_t input_y() const { return _input[0][0].size(); }
     size_t output_features() const { return _weights.size(); }
+    size_t weights_input_features() const { return _weights[0].size(); }
     size_t filter_x() const { return _weights[0][0][0].size(); }
     size_t filter_y() const { return _weights[0][0].size(); }
+    size_t groups() const { return input_features() / weights_input_features(); }
 
     bool has_bias() { return _bias.size() > 0; }
 
@@ -6531,12 +7524,27 @@ protected:
     data_types weights_type() const { return type_to_data_type<WeightsT>::value; }
     tensor weights_size() const {
         return tensor(TensorValue(output_features()),
-                      TensorValue(input_features()),
+                      TensorValue(weights_input_features()),
                       TensorValue(filter_x()),
                       TensorValue(filter_y()));
     }
 
     data_types output_type() const { return type_to_data_type<OutputT>::value; }
+};
+
+struct convolution_random_test_all_params {
+    static constexpr size_t spatials = 2;
+    size_t batch;
+    size_t input_features;
+    size_t output_features;
+    std::array<size_t, spatials> input_xy;
+    std::array<size_t, spatials> filter_xy;
+    std::array<int, spatials> stride_xy;
+    std::array<int, spatials> offset_xy;
+    std::array<int, spatials> dilation_xy;
+    bool with_bias;
+    size_t groups;
+    format::type input_format;
 };
 
 using convolution_random_test_params = std::tuple<
@@ -6552,13 +7560,62 @@ using convolution_random_test_params = std::tuple<
     format::type                // input format
 >;
 
+static convolution_random_test_all_params convert_random_test_params(const convolution_random_test_params& params) {
+    convolution_random_test_all_params all_params;
+    std::forward_as_tuple(
+        all_params.batch,
+        all_params.input_features,
+        all_params.output_features,
+        std::forward_as_tuple(all_params.input_xy[0], all_params.input_xy[1]),
+        std::forward_as_tuple(all_params.filter_xy[0], all_params.filter_xy[1]),
+        std::forward_as_tuple(all_params.stride_xy[0], all_params.stride_xy[1]),
+        std::forward_as_tuple(all_params.offset_xy[0], all_params.offset_xy[1]),
+        std::forward_as_tuple(all_params.dilation_xy[0], all_params.dilation_xy[1]),
+        all_params.with_bias,
+        all_params.input_format) = params;
+    all_params.groups = 1;
+    return all_params;
+}
+
+using convolution_random_test_depthwise_params = std::tuple<
+    size_t,                     // batch
+    size_t,                     // input/output features
+    std::tuple<size_t, size_t>, // input x, y
+    std::tuple<size_t, size_t>, // filter x, y
+    std::tuple<int, int>,       // stride x, y
+    std::tuple<int, int>,       // offset x, y
+    std::tuple<int, int>,       // dilation x, y
+    bool,                       // with bias
+    format::type                // input format
+>;
+
+static convolution_random_test_all_params convert_random_test_params(const convolution_random_test_depthwise_params& params) {
+    convolution_random_test_all_params all_params;
+    std::forward_as_tuple(
+        all_params.batch,
+        all_params.input_features,
+        std::forward_as_tuple(all_params.input_xy[0], all_params.input_xy[1]),
+        std::forward_as_tuple(all_params.filter_xy[0], all_params.filter_xy[1]),
+        std::forward_as_tuple(all_params.stride_xy[0], all_params.stride_xy[1]),
+        std::forward_as_tuple(all_params.offset_xy[0], all_params.offset_xy[1]),
+        std::forward_as_tuple(all_params.dilation_xy[0], all_params.dilation_xy[1]),
+        all_params.with_bias,
+        all_params.input_format) = params;
+    all_params.groups = all_params.input_features;
+    all_params.output_features = all_params.input_features;
+    return all_params;
+}
+
 template <typename InputT, typename WeightsT, typename OutputT>
 class convolution_random_test_base : public convolution_test_base<InputT, WeightsT, OutputT> {
 public:
     virtual VVVVF<OutputT> calculate_reference() {
         VVVVF<OutputT> expected = VVVVF<OutputT>(this->batch_num(), VVVF<OutputT>(this->output_features()));
+        bool depthwise = this->groups() == this->input_features();
         for (size_t bi = 0; bi < this->batch_num(); ++bi)
         for (size_t fi = 0; fi < this->output_features(); ++fi) {
+            size_t f_begin = depthwise ? fi : 0;
+            size_t f_end = (depthwise ? fi : 0) + this->weights_input_features();
             auto bias = this->has_bias() ? this->_bias[fi] : static_cast<OutputT>(0);
             expected[bi][fi] = reference_convolve<InputT, OutputT, WeightsT>(
                 this->_input[bi],
@@ -6568,73 +7625,78 @@ public:
                 static_cast<float>(bias),
                 this->_dilation_y,
                 this->_dilation_x,
-                this->_offset_y,
-                this->_offset_x);
+                -this->_offset_y,
+                -this->_offset_x,
+                0,
+                0,
+                f_begin,
+                f_end,
+                depthwise);
         }
         return expected;
     }
 
-    virtual void param_set_up(const convolution_random_test_params& params) {
-        size_t b, in_f, out_f, in_x, in_y, f_x, f_y;
-        int s_x, s_y, o_x, o_y, d_x, d_y;
-        format::type in_format;
-        bool w_bias;
+    virtual void param_set_up(const convolution_random_test_all_params& params) {
+        auto wei_in_f = params.input_features / params.groups;
 
-        std::forward_as_tuple(
-            b,
-            in_f,
-            out_f,
-            std::forward_as_tuple(in_x, in_y),
-            std::forward_as_tuple(f_x, f_y),
-            std::forward_as_tuple(s_x, s_y),
-            std::forward_as_tuple(o_x, o_y),
-            std::forward_as_tuple(d_x, d_y),
-            w_bias,
-            in_format) = params;
+        auto input_data = generate_random_4d<InputT>(
+            params.batch, params.input_features, params.input_xy[1], params.input_xy[0], -256, 256);
+        auto weights_data = generate_random_4d<WeightsT>(
+            params.output_features, wei_in_f, params.filter_xy[1], params.filter_xy[0], -256, 256);
+        auto bias_data = params.with_bias ? generate_random_1d<OutputT>(params.output_features, -256, 256) : VF<OutputT>();
 
-        auto input_data = generate_random_4d<InputT>(b, in_f, in_y, in_x, -256, 256);
-        auto weights_data = generate_random_4d<WeightsT>(out_f, in_f, f_y, f_x, -256, 256);
-        auto bias_data = w_bias ? generate_random_1d<OutputT>(out_f, -256, 256) : VF<OutputT>();
-
-        this->set_input(in_format, std::move(input_data));
+        this->set_input(params.input_format, std::move(input_data));
         this->set_weights(std::move(weights_data));
         this->set_bias(std::move(bias_data));
-        this->set_strides(s_x, s_y);
-        this->set_offsets(o_x, o_y);
-        this->set_dilation(d_x, d_y);
+        this->set_strides(params.stride_xy[0], params.stride_xy[1]);
+        this->set_offsets(params.offset_xy[0], params.offset_xy[1]);
+        this->set_dilation(params.dilation_xy[0], params.dilation_xy[1]);
     }
 
-    void run_random(const convolution_random_test_params& params) {
+    void run_random(const convolution_random_test_all_params& params) {
         param_set_up(params);
 
         VVVVF<OutputT> expected = calculate_reference();
         ASSERT_NO_FATAL_FAILURE(this->run_expect(expected));
     }
-
-    // construct a readable name in format as follows:
-    // <out format>_i<input>_w<weights>_s<stride>_ofs<offset>_d<dilation>_<bias>
-    static std::string PrintToStringParamName(testing::TestParamInfo<convolution_random_test_params> param_info) {
-        int Batch = (int)testing::get<0>(param_info.param);
-        int iF = (int)testing::get<1>(param_info.param);
-        int oF = (int)testing::get<2>(param_info.param);
-        auto iSize = testing::get<3>(param_info.param);
-        auto fSize = testing::get<4>(param_info.param);
-        auto Stride = testing::get<5>(param_info.param);
-        auto Offset = testing::get<6>(param_info.param);
-        auto Dilation = testing::get<7>(param_info.param);
-        bool Bias = testing::get<8>(param_info.param);
-        format::type iType = testing::get<9>(param_info.param);  // input format
-
-        return fmt_to_str(iType) + "_i" + std::to_string(Batch) + 'x' + std::to_string(iF) + 'x' +
-               std::to_string(std::get<0>(iSize)) + 'x' + std::to_string(std::get<1>(iSize)) + "_w" +
-               std::to_string(oF) + 'x' + std::to_string(iF) + 'x' + std::to_string(std::get<0>(fSize)) + 'x' +
-               std::to_string(std::get<1>(fSize)) + "_s" + std::to_string(std::get<0>(Stride)) + 'x' +
-               std::to_string(std::get<1>(Stride)) + "_ofs" + std::to_string(std::get<0>(Offset)) + 'x' +
-               std::to_string(std::get<1>(Offset)) + "_d" + std::to_string(std::get<0>(Dilation)) + 'x' +
-               std::to_string(std::get<1>(Dilation)) + (Bias ? "_bias" : "");
-    }
-
 };
+
+// construct a readable name in format as follows:
+// <out format>_i<input>_w<weights>_s<stride>_ofs<offset>_d<dilation>_g<groups>_<bias>
+static std::string to_string_convolution_all_params(const convolution_random_test_all_params& params) {
+    int Batch = (int)params.batch;
+    int iF = (int)params.input_features;
+    int oF = (int)params.output_features;
+    auto& iSize = params.input_xy;
+    auto& fSize = params.filter_xy;
+    auto& Stride = params.stride_xy;
+    auto& Offset = params.offset_xy;
+    auto& Dilation = params.dilation_xy;
+    auto groups = params.groups;
+    bool Bias = params.with_bias;
+    format::type iType = params.input_format;  // input format
+    // Wrapper for negative walues as ex. "-1" will generate invalid gtest param string
+    auto to_string_neg = [](int val) {
+        if (val >= 0)
+            return std::to_string(val);
+        else
+            return "m" + std::to_string(-val);
+    };
+
+    return fmt_to_str(iType) +
+        "_i" + std::to_string(Batch) + 'x' + std::to_string(iF) + 'x' + std::to_string(iSize[0]) + 'x' + std::to_string(iSize[1]) +
+        "_w" + std::to_string(oF) + 'x' + std::to_string(iF) + 'x' + std::to_string(fSize[0]) + 'x' + std::to_string(fSize[1]) +
+        "_s" + std::to_string(Stride[0]) + 'x' + std::to_string(Stride[1]) +
+        "_ofs" + to_string_neg(Offset[0]) + 'x' + to_string_neg(Offset[1]) +
+        "_d" + std::to_string(Dilation[0]) + 'x' + std::to_string(Dilation[1]) +
+        "_g" + std::to_string(groups) +
+        (Bias ? "_bias" : "");
+}
+
+template <typename T>
+std::string to_string_convolution_random_params(testing::TestParamInfo<T> param_info) {
+    return to_string_convolution_all_params(convert_random_test_params(param_info.param));
+}
 
 template <typename InputT, typename WeightsT, typename OutputT>
 class convolution_random_test : public convolution_random_test_base<InputT, WeightsT, OutputT>
@@ -6645,11 +7707,11 @@ using convolution_random_test_s8s8f32 = convolution_random_test<int8_t, int8_t, 
 using convolution_random_test_u8s8f32 = convolution_random_test<uint8_t, int8_t, float>;
 
 TEST_P(convolution_random_test_s8s8f32, random) {
-    ASSERT_NO_FATAL_FAILURE(run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(run_random(convert_random_test_params(GetParam())));
 }
 
 TEST_P(convolution_random_test_u8s8f32, random) {
-    ASSERT_NO_FATAL_FAILURE(run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(run_random(convert_random_test_params(GetParam())));
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -6667,7 +7729,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(false, true),                                                      // bias
         testing::Values(format::b_fs_yx_fsv4)                                              // input format
     ),
-    convolution_random_test_s8s8f32::PrintToStringParamName);
+    to_string_convolution_random_params<convolution_random_test_params>);
 
 INSTANTIATE_TEST_CASE_P(
     b_fs_yx_fsv4,
@@ -6684,7 +7746,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(false, true),                                                      // bias
         testing::Values(format::b_fs_yx_fsv4)                                              // input format
     ),
-    convolution_random_test_u8s8f32::PrintToStringParamName);
+    to_string_convolution_random_params<convolution_random_test_params>);
 
 INSTANTIATE_TEST_CASE_P(
     b_fs_yx_fsv4_1x1_lwg_opt,
@@ -6701,7 +7763,64 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(false),                           // bias
         testing::Values(format::b_fs_yx_fsv4)             // input format
     ),
-    convolution_random_test_s8s8f32::PrintToStringParamName);
+    to_string_convolution_random_params<convolution_random_test_params>);
+
+template <typename InputT, typename WeightsT, typename OutputT>
+class convolution_random_dw_test : public convolution_random_test_base<InputT, WeightsT, OutputT>
+                                 , public testing::WithParamInterface<convolution_random_test_depthwise_params> {};
+
+using convolution_random_test_dw_s8s8f32 = convolution_random_dw_test<int8_t, int8_t, float>;
+using convolution_random_test_dw_u8s8f32 = convolution_random_dw_test<uint8_t, int8_t, float>;
+
+TEST_P(convolution_random_test_dw_s8s8f32, random) {
+    ASSERT_NO_FATAL_FAILURE(run_random(convert_random_test_params(GetParam())));
+}
+
+TEST_P(convolution_random_test_dw_u8s8f32, random) {
+    ASSERT_NO_FATAL_FAILURE(run_random(convert_random_test_params(GetParam())));
+}
+
+INSTANTIATE_TEST_CASE_P(
+    b_fs_yx_fsv4,
+    convolution_random_test_dw_s8s8f32,
+    testing::Combine(
+        testing::Values(1, 2),                                                             // batch
+        testing::Values(3, 32),                                                            // input/output features
+        testing::Values(std::pair<size_t, size_t>(7, 7), std::pair<size_t, size_t>(8, 8)), // input x, y
+        testing::Values(std::pair<size_t, size_t>(1, 1), std::pair<size_t, size_t>(3, 3)), // filter x, y
+        testing::Values(std::pair<int, int>(1, 1), std::pair<int, int>(2, 2)),             // strides x, y
+        testing::Values(std::pair<int, int>(0, 0), std::pair<int, int>(-1, -1)),           // offsets x, y
+        testing::Values(std::pair<int, int>(1, 1)),                                        // dilation x, y
+        testing::Values(false, true),                                                      // bias
+        testing::Values(format::b_fs_yx_fsv4)                                              // input format
+    ),
+    to_string_convolution_random_params<convolution_random_test_depthwise_params>);
+
+INSTANTIATE_TEST_CASE_P(
+    b_fs_yx_fsv4,
+    convolution_random_test_dw_u8s8f32,
+    testing::Combine(
+        testing::Values(1, 2),                                                             // batch
+        testing::Values(3, 32),                                                            // input/output features
+        testing::Values(std::pair<size_t, size_t>(7, 7), std::pair<size_t, size_t>(8, 8)), // input x, y
+        testing::Values(std::pair<size_t, size_t>(1, 1), std::pair<size_t, size_t>(3, 3)), // filter x, y
+        testing::Values(std::pair<int, int>(1, 1), std::pair<int, int>(2, 2)),             // strides x, y
+        testing::Values(std::pair<int, int>(0, 0), std::pair<int, int>(-1, -1)),           // offsets x, y
+        testing::Values(std::pair<int, int>(1, 1)),                                        // dilation x, y
+        testing::Values(false, true),                                                      // bias
+        testing::Values(format::b_fs_yx_fsv4)                                              // input format
+    ),
+    to_string_convolution_random_params<convolution_random_test_depthwise_params>);
+
+INSTANTIATE_TEST_CASE_P(
+    special_cases,
+    convolution_random_test_dw_u8s8f32,
+    testing::Values(
+        convolution_random_test_depthwise_params(
+            1, 32, std::pair<size_t, size_t>(28, 28), std::pair<size_t, size_t>(3, 3),
+            std::pair<int, int>(1, 1), std::pair<int, int>(-1, -1), std::pair<int, int>(1, 1), true, format::b_fs_yx_fsv4)
+    ),
+    to_string_convolution_random_params<convolution_random_test_depthwise_params>);
 
 template <typename InputT, typename WeightsT, typename OutputT>
 class convolution_scale_random_test : public convolution_random_test<InputT, WeightsT, OutputT> {
@@ -6742,7 +7861,7 @@ public:
         return expected;
     }
 
-    void param_set_up(const convolution_random_test_params& params) override {
+    void param_set_up(const convolution_random_test_all_params& params) override {
         parent::param_set_up(params);
 
         _scale = generate_random_1d<OutputT>(this->output_features(), -1, 1);
@@ -6757,11 +7876,11 @@ using convolution_scale_random_test_s8s8f32 = convolution_scale_random_test<int8
 using convolution_scale_random_test_u8s8f32 = convolution_scale_random_test<uint8_t, int8_t, float>;
 
 TEST_P(convolution_scale_random_test_s8s8f32, random) {
-    ASSERT_NO_FATAL_FAILURE(run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(run_random(convert_random_test_params(GetParam())));
 }
 
 TEST_P(convolution_scale_random_test_u8s8f32, random) {
-    ASSERT_NO_FATAL_FAILURE(run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(run_random(convert_random_test_params(GetParam())));
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -6779,7 +7898,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(false, true),                                                      // bias
         testing::Values(format::b_fs_yx_fsv4)                                              // input format
     ),
-    convolution_scale_random_test_s8s8f32::PrintToStringParamName);
+    to_string_convolution_random_params<convolution_random_test_params>);
 
 INSTANTIATE_TEST_CASE_P(
     b_fs_yx_fsv4,
@@ -6796,7 +7915,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(false, true),                                                      // bias
         testing::Values(format::b_fs_yx_fsv4)                                              // input format
     ),
-    convolution_scale_random_test_u8s8f32::PrintToStringParamName);
+    to_string_convolution_random_params<convolution_random_test_params>);
 
 template <typename InputT, typename WeightsT, typename OutputT>
 class convolution_asymm_weights_data_random_test : public convolution_random_test<InputT, WeightsT, OutputT> {
@@ -6888,7 +8007,7 @@ class convolution_asymm_weights_data_random_test : public convolution_random_tes
         return expected;
     }
 
-    void param_set_up(const convolution_random_test_params& params) override {
+    void param_set_up(const convolution_random_test_all_params& params) override {
         parent::param_set_up(params);
 
         _data_zp = generate_random_1d<InputT>(this->input_features(), -128, 128);
@@ -6904,11 +8023,11 @@ using convolution_asymm_random_test_s8s8f32 = convolution_asymm_weights_data_ran
 using convolution_asymm_random_test_u8s8f32 = convolution_asymm_weights_data_random_test<uint8_t, int8_t, float>;
 
 TEST_P(convolution_asymm_random_test_s8s8f32, random) {
-    ASSERT_NO_FATAL_FAILURE(run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(run_random(convert_random_test_params(GetParam())));
 }
 
 TEST_P(convolution_asymm_random_test_u8s8f32, random) {
-    ASSERT_NO_FATAL_FAILURE(run_random(GetParam()));
+    ASSERT_NO_FATAL_FAILURE(run_random(convert_random_test_params(GetParam())));
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -6926,7 +8045,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(false, true),                                                      // bias
         testing::Values(format::bfyx, format::b_fs_yx_fsv32)                               // input format
     ),
-    convolution_asymm_random_test_s8s8f32::PrintToStringParamName);
+    to_string_convolution_random_params<convolution_random_test_params>);
 
 INSTANTIATE_TEST_CASE_P(
     basic_asymm,
@@ -6943,7 +8062,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(false, true),                                                      // bias
         testing::Values(format::bfyx, format::b_fs_yx_fsv32)                               // input format
     ),
-    convolution_asymm_random_test_u8s8f32::PrintToStringParamName);
+    to_string_convolution_random_params<convolution_random_test_params>);
 
 class convolution_test : public tests::generic_test
 {
@@ -6952,11 +8071,7 @@ public:
 
     static void TearDownTestCase()
     {
-        for (auto generic_params : all_generic_params)
-        {
-            delete generic_params;
-        }
-
+        all_generic_params.clear();
         all_layer_params.clear();
         all_test_params.clear();
     }
@@ -6995,7 +8110,7 @@ public:
         return all_layer_params;
     }
 
-    static std::vector<std::tuple<tests::test_params*, std::shared_ptr<cldnn::primitive>>> generate_all_test_params()
+    static std::vector<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>> generate_all_test_params()
     {
         generate_specific_test_params();
 
@@ -7026,7 +8141,7 @@ public:
                         {
                             for (auto output_features : output_features_sizes)
                             {
-                                test_params* params = new test_params(data_type, input_format, input_size.batch[0], input_size.feature[0], tensor(1, 1, input_size.spatial[0], input_size.spatial[1]), network_build_options);
+                                std::shared_ptr<tests::test_params> params = std::make_shared<test_params>(data_type, input_format, input_size.batch[0], input_size.feature[0], tensor(1, 1, input_size.spatial[0], input_size.spatial[1]), network_build_options);
                                 int input_features = params->input_layouts[0].size.feature[0];
                                 params->input_layouts.push_back(cldnn::layout(params->data_type, weights_format, cldnn::tensor(output_features, input_features, kernel_size.spatial[0], kernel_size.spatial[1]))); // weights
                                 params->input_layouts.push_back(cldnn::layout(params->data_type, params->fmt, cldnn::tensor(1, 1, output_features, 1))); // biases
@@ -7041,7 +8156,7 @@ public:
         // Create all the combinations for the test.
         for (const auto& layer_param : all_layer_params)
         {
-            for (tests::test_params* test_param : all_generic_params)
+            for (auto test_param : all_generic_params)
             {
                 all_test_params.push_back(std::make_tuple(test_param, layer_param));
             }
@@ -7241,14 +8356,14 @@ public:
 
 private:
 
-    static std::vector<tests::test_params*> all_generic_params;
+    static std::vector<std::shared_ptr<tests::test_params>> all_generic_params;
     static std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
-    static std::vector<std::tuple<tests::test_params*, std::shared_ptr<cldnn::primitive>>> all_test_params;
+    static std::vector<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>> all_test_params;
 };
 
-std::vector<tests::test_params*> convolution_test::all_generic_params = {};
+std::vector<std::shared_ptr<tests::test_params>> convolution_test::all_generic_params = {};
 std::vector<std::shared_ptr<cldnn::primitive>> convolution_test::all_layer_params = {};
-std::vector<std::tuple<tests::test_params*, std::shared_ptr<cldnn::primitive>>> convolution_test::all_test_params = {};
+std::vector<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>> convolution_test::all_test_params = {};
 
 TEST_P(convolution_test, CONVOLUTION)
 {

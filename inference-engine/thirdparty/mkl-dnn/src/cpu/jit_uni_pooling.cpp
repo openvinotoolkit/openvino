@@ -230,6 +230,8 @@ void jit_uni_pooling_bwd_t<isa, d_type>::execute_backward_3d() const {
     };
 
     if (jpp.simple_alg) {
+        const int neg_back_pad = -(jpp.od - 1) * jpp.stride_d - jpp.kd
+            + jpp.f_pad + jpp.id;
 
         parallel_nd(mb, jpp.nb_c, jpp.od,
             [&](int n, int b_c, int od) {
@@ -244,6 +246,22 @@ void jit_uni_pooling_bwd_t<isa, d_type>::execute_backward_3d() const {
                 ker(n, b_c, od, oh, id, d_t_overflow, d_b_overflow,
                         (oh == 0) ? zero_s : 0, 0);
             }
+
+            // zero-out untouched portion of diff_src when back_pad is negative
+            if (neg_back_pad > 0 && od == jpp.od - 1) {
+                auto blk_start_ptr = &diff_src[diff_src_d.blk_off(n, b_c,
+                    jpp.id - neg_back_pad, 0, 0)];
+                auto blk_size = neg_back_pad * jpp.ih * jpp.iw;
+
+                for (auto blk_idx = 0; blk_idx < blk_size; ++blk_idx) {
+                    auto blk_ptr = blk_start_ptr + blk_idx * jpp.c_block;
+
+                    PRAGMA_OMP_SIMD()
+                    for (auto ch_idx = 0; ch_idx < jpp.c_block; ++ch_idx)
+                        blk_ptr[ch_idx] = static_cast<data_t>(0.f);
+                }
+            }
+
         });
     } else {
         ptrdiff_t nelems = (ptrdiff_t)mb * (ptrdiff_t)jpp.c

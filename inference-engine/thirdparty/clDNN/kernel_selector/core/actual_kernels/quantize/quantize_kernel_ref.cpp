@@ -28,21 +28,8 @@ ParamsKey QuantizeKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::BINARY);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::yxfb);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfyx_f16);
-    k.EnableInputLayout(DataLayout::bfzyx_f16);
-    k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::yxfb);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfyx_f16);
-    k.EnableOutputLayout(DataLayout::bfzyx_f16);
-    k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_32fp);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -84,8 +71,8 @@ bool QuantizeKernelRef::Validate(const Params& p, const optional_params&) const 
         (params.output.GetLayout() != DataLayout::b_fs_yx_32fp ||
         (params.inputs[0].GetLayout() != DataLayout::bfyx &&
          params.inputs[0].GetLayout() != DataLayout::bfzyx &&
-         params.inputs[0].GetLayout() != DataLayout::bfzyx_f16 &&
-         params.inputs[0].GetLayout() != DataLayout::bfyx_f16 &&
+         params.inputs[0].GetLayout() != DataLayout::b_fs_zyx_fsv16 &&
+         params.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16 &&
          params.inputs[0].GetLayout() != DataLayout::fs_b_yx_fsv32)))
         return false;
     return true;

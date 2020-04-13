@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 set(TARGET_NAME "XLink")
 
 include(XLink.cmake)

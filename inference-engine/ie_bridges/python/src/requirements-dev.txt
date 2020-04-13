@@ -1,0 +1,6 @@
+opencv-python
+numpy
+cython>=0.29
+pytest==4.0.1
+attrs==19.1.0
+pytest-html==1.19.0

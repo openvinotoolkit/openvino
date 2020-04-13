@@ -14,12 +14,15 @@
  limitations under the License.
 """
 from argparse import Namespace
-from copy import deepcopy
 
 import networkx as nx
+from copy import deepcopy
 
+from mo.front.common.partial_infer.utils import int64_array
+from mo.front.extractor import extract_port_from_string
 from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import all_edges_in_nodes
+from mo.ops.const import Const
 from mo.utils.error import Error
 
 
@@ -255,3 +258,63 @@ class FakeNode:
 
     def __getitem__(self, item):
         return getattr(self, item)
+
+
+# regular units
+regular_op = lambda name, kwargs: {name: {'kind': 'op', 'type': 'NoType', **kwargs}}
+
+valued_data = lambda name, value: {name: {'kind': 'data', 'value': value,
+                                          'shape': int64_array(value.shape) if value is not None else None}}
+shaped_data = lambda name, shape: {name: {'kind': 'data', 'value': None,
+                                          'shape': int64_array(shape) if shape is not None else None}}
+empty_data = lambda name: valued_data(name, None)
+
+result = lambda name=None: {name if name is not None else 'output': {'kind': 'op', 'type': 'Result', 'op': 'Result'}}
+
+regular_op_with_shaped_data = lambda name, shape, kwargs: {**regular_op(name, kwargs),
+                                                           **shaped_data(name + '_d', shape)}
+regular_op_with_empty_data = lambda name, kwargs: {**regular_op(name, kwargs), **empty_data(name + '_d')}
+
+# constants
+const = lambda name, value: {name: {'kind': 'op', 'value': value, 'shape': int64_array(value.shape),
+                                    'type': 'Const', 'infer': Const.infer}}
+fake_const = lambda name, shape: {name: {'kind': 'op', 'value': None, 'infer': Const.infer,
+                                         'shape': int64_array(shape) if shape is not None else None}}
+shaped_const_with_data = lambda name, shape: {**fake_const(name, shape), **shaped_data(name + '_d', shape)}
+
+valued_const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
+
+const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
+
+
+def get_name_and_port(tensor_name):
+    node_name, in_port, out_port = extract_port_from_string(tensor_name)
+
+    assert in_port is None or out_port is None
+
+    if in_port is not None:
+        return node_name, in_port
+    elif out_port is not None:
+        return node_name, out_port
+    else:
+        return node_name, 0
+
+
+def connect(first_tensor_name, second_tensor_name, skip_data=False):
+    # ports could be skipped -- then zero in/out ports would be used
+    # first_tensor_name = first_op_name:out_port
+    # second_tensor_name = in_port:second_op_name
+
+    first_op_name, out_port = get_name_and_port(first_tensor_name)
+    second_op_name, in_port = get_name_and_port(second_tensor_name)
+
+    if skip_data:
+        return [(first_op_name + '_d', second_op_name, {'in': in_port})]
+    return [
+        (first_op_name, first_op_name + '_d', {'out': out_port}),
+        (first_op_name + '_d', second_op_name, {'in': in_port}),
+    ]
+
+
+def connect_data(first_tensor_name, second_tensor_name):
+    return connect(first_tensor_name, second_tensor_name, skip_data=True)

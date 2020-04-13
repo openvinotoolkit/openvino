@@ -34,10 +34,8 @@ protected:
     bool Validate(const Params& p, const optional_params& o) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
     ConvolutionKernelBase::DispatchData SetDefault(const convolution_params& arg, int) const override;
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {
-            WeightsLayout::os_is_y_x8_osv8_isv4_swizzled_by_4,
-        };
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+        return WeightsLayout::os_is_y_x8_osv8_isv4_swizzled_by_4;
     }
 };
 }  // namespace kernel_selector

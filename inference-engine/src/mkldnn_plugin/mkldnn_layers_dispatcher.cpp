@@ -5,7 +5,6 @@
 #include "mkldnn_layers_dispatcher.hpp"
 #include <details/ie_exception.hpp>
 #include "nodes/list.hpp"
-#include <cpu_isa_traits.hpp>
 #include <memory>
 
 using namespace InferenceEngine;

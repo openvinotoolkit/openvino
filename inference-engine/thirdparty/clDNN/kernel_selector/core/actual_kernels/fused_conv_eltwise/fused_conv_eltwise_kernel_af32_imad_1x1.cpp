@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -106,7 +106,7 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_af32_imad
     const size_t tile_length = GetTileLength(arg.output.X().v, of_maps_total, arg.engineInfo.computeUnitsCount * 4);
     runInfo.cldnnStyle.blockWidth = tile_length;
 
-    runInfo.effiency = FORCE_PRIORITY_1;
+    runInfo.efficiency = FORCE_PRIORITY_1;
 
     runInfo.gws0 = arg.output.X().v * arg.output.Y().v / tile_length;
     runInfo.gws1 = of_maps_total / 4;  // TILE_DEPTH==4

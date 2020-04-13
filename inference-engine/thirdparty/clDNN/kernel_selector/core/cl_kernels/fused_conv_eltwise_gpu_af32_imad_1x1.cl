@@ -139,7 +139,7 @@ KERNEL(fused_conv_eltwise_gpu_af32_imad_1x1)(
 
         #if HAS_FUSED_OPS
             FUSED_OPS;
-            result[i][j] = FINAL_NAME;
+            result[i][j] = FUSED_OPS_RESULT;
         #else
             result[i][j] = TO_OUTPUT_TYPE(res);
         #endif

@@ -69,10 +69,10 @@ std::string events_list_to_string(std::vector<cldnn::event_impl::ptr> events) {
 namespace cldnn {
 namespace gpu {
 
-gpu_queue::gpu_queue(uint32_t id, cl::CommandQueue queue, std::shared_ptr<gpu_toolkit> context)
+gpu_queue::gpu_queue(uint32_t id, queue_type queue, std::shared_ptr<gpu_toolkit> context)
     : id(id), _context(context), _command_queue(queue), _events_pool(new events_pool()) {}
 
-event_impl::ptr gpu_queue::enqueue_kernel(cl::Kernel const& kern,
+event_impl::ptr gpu_queue::enqueue_kernel(kernels_cache::kernel_type const& kern,
                                           cl::NDRange const& global,
                                           cl::NDRange const& local,
                                           std::vector<event_impl::ptr> const& deps) {

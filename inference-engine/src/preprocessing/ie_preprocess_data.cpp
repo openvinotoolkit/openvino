@@ -3,12 +3,12 @@
 //
 
 #include "ie_preprocess_gapi.hpp"
-#include "cpu_detector.hpp"
+#include "ie_system_conf.h"
 #include "blob_transform.hpp"
 #include "ie_preprocess_data.hpp"
 
 #ifdef HAVE_SSE
-# include "ie_preprocess_data_sse42.hpp"
+# include "cpu_x86_sse42/ie_preprocess_data_sse42.hpp"
 #endif
 
 #include "debug.h"

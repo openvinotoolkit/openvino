@@ -13,6 +13,7 @@
 #include <unordered_set>
 #include <utility>
 
+#include "ie_api.h"
 #include "ie_icnn_network.hpp"
 #include "ie_locked_memory.hpp"
 
@@ -20,9 +21,13 @@ namespace InferenceEngine {
 namespace details {
 
 /**
+ * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
  * @brief This class enables range loops for CNNNetwork objects
  */
-class CNNNetworkIterator {
+class INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3")
+CNNNetworkIterator {
+    IE_SUPPRESS_DEPRECATED_START
+
     std::unordered_set<CNNLayer*> visited;
     std::list<CNNLayerPtr> nextLayersTovisit;
     InferenceEngine::CNNLayerPtr currentLayer;
@@ -47,7 +52,7 @@ public:
      * @param network Network to iterate. Make sure the network object is not destroyed before iterator goes out of
      * scope.
      */
-    explicit CNNNetworkIterator(ICNNNetwork* network) {
+    explicit CNNNetworkIterator(const ICNNNetwork* network) {
         InputsDataMap inputs;
         network->getInputsInfo(inputs);
         if (!inputs.empty()) {
@@ -147,6 +152,8 @@ private:
 
         return nextLayersTovisit.empty() ? nullptr : nextLayersTovisit.front();
     }
+
+    IE_SUPPRESS_DEPRECATED_END
 };
 }  // namespace details
 }  // namespace InferenceEngine

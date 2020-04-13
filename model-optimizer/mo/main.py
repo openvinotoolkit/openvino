@@ -23,6 +23,7 @@ import traceback
 from collections import OrderedDict
 
 import numpy as np
+from mo.pipeline.unified import unified_pipeline
 
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, RemoveOutputOps, \
     NormalizeTI
@@ -218,32 +219,22 @@ def prepare_ir(argv: argparse.Namespace):
 
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
-    graph = None
     if is_tf:
-        import mo.pipeline.tf as mo_tf
         from mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        graph = mo_tf.driver(argv)
     elif is_caffe:
-        import mo.pipeline.caffe as mo_caffe
         from mo.front.caffe.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        graph = mo_caffe.driver(argv)
     elif is_mxnet:
-        import mo.pipeline.mx as mo_mxnet
         from mo.front.mxnet.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        graph = mo_mxnet.driver(argv)
     elif is_kaldi:
-        import mo.pipeline.kaldi as mo_kaldi
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        graph = mo_kaldi.driver(argv)
     elif is_onnx:
-        import mo.pipeline.onnx as mo_onnx
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-        graph = mo_onnx.driver(argv)
+    graph = unified_pipeline(argv)
     return graph
 
 
@@ -289,6 +280,8 @@ def driver(argv: argparse.Namespace):
     try:
         import resource
         mem_usage = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024)
+        if sys.platform == 'darwin':
+            mem_usage = round(mem_usage / 1024)
         print('[ SUCCESS ] Memory consumed: {} MB. '.format(mem_usage))
     except ImportError:
         pass

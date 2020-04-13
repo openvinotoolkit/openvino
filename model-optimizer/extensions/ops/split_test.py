@@ -20,7 +20,7 @@ import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from extensions.ops.split import AttributedSplit
+from extensions.ops.split import AttributedSplit, AttributedVariadicSplit
 from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 
@@ -119,3 +119,85 @@ class TestSplitOp(unittest.TestCase):
         # check
         (flag, resp) = compare_graphs(graph, graph_ref, 'split_input_data')
         self.assertTrue(flag, resp)
+
+
+class TestAttributedVariadicSplitOp(unittest.TestCase):
+    nodes = {
+        'input': {'kind': 'op'},
+        'split_input_data': {'kind': 'data', 'shape': None, 'value': None},
+        'split_op': {'kind': 'op', 'axis': None, 'split_lengths': None, 'op': 'AttributedVariadicSplit'},
+        'split_output_0_data': {'kind': 'data', 'shape': None, 'value': None},
+        'output_0': {'kind': 'op'},
+        'split_output_1_data': {'kind': 'data', 'shape': None, 'value': None},
+        'output_1': {'kind': 'op'},
+        'split_output_2_data': {'kind': 'data', 'shape': None, 'value': None},
+        'output_2': {'kind': 'op'},
+    }
+    edges = [
+        ('input', 'split_input_data'),
+        ('split_input_data', 'split_op'),
+        ('split_op', 'split_output_0_data'),
+        ('split_output_0_data', 'output_0'),
+        ('split_op', 'split_output_1_data'),
+        ('split_output_1_data', 'output_1'),
+        ('split_op', 'split_output_2_data'),
+        ('split_output_2_data', 'output_2'),
+    ]
+
+    def test_splitv_zero(self):
+        graph = build_graph(self.nodes, self.edges,
+                            {
+                                'split_input_data': {'shape': int64_array([2, 12, 25, 30])},
+                                'split_op': {'axis': np.array(2), 'split_lengths': np.array([2, 13, 10, 0]),
+                                             'out_ports_count': 4},
+                            }
+                            )
+        node = Node(graph, 'split_op')
+        for p in range(len(node.out_edges()), node.out_ports_count):
+            node.add_output_port(p)
+
+        AttributedVariadicSplit.infer(node)
+
+        self.assertTrue(len(node.out_edges()) == 3)
+        self.assertTrue(np.all(node.split_lengths == np.array([2, 13, 10])))
+
+    def test_splitv_zero_not_last(self):
+        graph = build_graph(self.nodes, self.edges,
+                            {
+                                'split_input_data': {'shape': int64_array([2, 12, 25, 30])},
+                                'split_op': {'axis': np.array(2), 'split_lengths': np.array([2, 13, 0, 10]),
+                                             'out_ports_count': 4},
+                            }
+                            )
+        node = Node(graph, 'split_op')
+
+        # extractor should do it
+        for p in range(len(node.out_edges()), node.out_ports_count):
+            node.add_output_port(p)
+        node.out_port(2).get_connection().set_source(node.out_port(3))
+
+        AttributedVariadicSplit.infer(node)
+
+        self.assertTrue(node.out_port(3).disconnected())
+        self.assertTrue(np.all(node.split_lengths == np.array([2, 13, 10])))
+
+    def test_splitv_2_zero_not_last(self):
+        graph = build_graph(self.nodes, self.edges,
+                            {
+                                'split_input_data': {'shape': int64_array([2, 12, 25, 30])},
+                                'split_op': {'axis': np.array(2), 'split_lengths': np.array([2, 13, 0, 0, 10]),
+                                             'out_ports_count': 5},
+                            }
+                            )
+        node = Node(graph, 'split_op')
+
+        # extractor should do it
+        for p in range(len(node.out_edges()), node.out_ports_count):
+            node.add_output_port(p)
+        node.out_port(2).get_connection().set_source(node.out_port(4))
+
+        AttributedVariadicSplit.infer(node)
+
+        self.assertTrue(node.out_port(4).disconnected())
+        self.assertTrue(node.out_port(3).disconnected())
+        self.assertTrue(np.all(node.split_lengths == np.array([2, 13, 10])))

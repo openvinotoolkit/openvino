@@ -20,29 +20,77 @@
 #include <map>
 #include <string>
 #include "kernel_selector_common.h"
+#include "kernel_selector_params.h"
 #include "document.h"
 #include <memory>
 #include <tuple>
 
 namespace kernel_selector {
 
+class TuningCache {
+public:
+    using Entry = std::tuple<std::string, int>;
+
+    // Reads tuning cache from file.
+    // Additionally the constructor may modify the internal representation to update the format to newest version,
+    // which may necessitate saving afterwards.
+    // This class is not thread-safe and all concurrent modifications should be synchronized by owner.
+    // cacheFilePath - Path to cache file
+    // createMode    - Flag to enable creation if cache file does not exist.
+    // If file doesn't exist and createMode is false this constructor will throw.
+    explicit TuningCache(const std::string& cacheFilePath, bool createMode = false);
+
+    // Constructs empty tuning cache.
+    TuningCache();
+
+    // Returns cached kernel for specified params. If "update" moves it to newest version if found, which may require saving afterwards.
+    Entry LoadKernel(const Params& params, bool update = true);
+    // Overrides the compute units count in params.
+    Entry LoadKernel(const Params& params, uint32_t computeUnitsCount, bool update = true);
+    // Stores kernel for specified params.
+    void StoreKernel(const Params& params, const std::string& implementationName, int tuneIndex);
+    // Overrides the compute units count in params.
+    void StoreKernel(const Params& params, uint32_t computeUnitsCount, const std::string& implementationName, int tuneIndex);
+    // Removes the cached kernel for specified params if it exists, for all cache versions.
+    void RemoveKernel(const Params& params);
+    // Saves the internal cache to specified file.
+    void Save(const std::string& cacheFilePath);
+
+    bool NeedsSave() const { return needsSave; }
+
+private:
+    Entry LoadKernel_v1(const Params& params, uint32_t computeUnitsCount);
+    Entry LoadKernel_v2(const Params& params, uint32_t computeUnitsCount);
+
+    bool RemoveKernel_v1(const Params& params, uint32_t computeUnitsCount);
+    bool RemoveKernel_v2(const Params& params, uint32_t computeUnitsCount);
+
+
+    rapidjson::Document cache;
+    bool needsSave;
+
+    static constexpr const char* version1Marker = "version_1";
+    static constexpr const char* version2Marker = "version_2";
+};
+
 class AutoTuner {
 public:
     AutoTuner() = default;
     std::tuple<std::string, int> LoadKernelOnline(const TuningMode tuningMode,
-                                                  const std::string& tuningFilePath,
-                                                  const uint32_t computeUnitsCount,
-                                                  const std::string& hash);
-    void StoreKernel(const std::string& tuningFilePath,
-                     const std::string& hash,
+                                                  const std::string& cacheFilePath,
+                                                  const Params& params);
+    void StoreKernel(const std::string& cacheFilePath,
+                     const Params& params,
                      std::string implementationName,
-                     const int tuneIndex,
-                     const uint32_t computeUnitsCount);
-    std::tuple<std::string, int> LoadKernelOffline(std::shared_ptr<rapidjson::Document> cache, const std::string& hash);
+                     const int tuneIndex);
+    void RemoveKernel(const std::string& cacheFilePath,
+                      const Params& params);
+    std::tuple<std::string, int> LoadKernelOffline(std::shared_ptr<TuningCache> cache,
+                                                   const Params& params);
 
 private:
-    std::shared_ptr<rapidjson::Document>
-        onlineCache;   // Tuning file name -> kernel/config per hash (hash -> [implementation name, tuning index])
+    std::string lastCachePath;
+    std::shared_ptr<TuningCache> onlineCache;
     std::mutex mutex;  // Mutex to synchronize cache updates
 
     /*

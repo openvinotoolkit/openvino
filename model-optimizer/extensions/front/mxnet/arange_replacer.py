@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from extensions.front.mxnet.MXRepeatReplacer import MXRepeatReplacer
 from extensions.ops.mxrepeat import MXRepeat
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Graph
@@ -24,13 +24,17 @@ class ArangeReplacer(FrontReplacementOp):
     op = 'Range'
     enabled = True
 
+    def run_before(self):
+        # replacement inserts MXRepeat operation, so we should execute its decomposition later
+        return [MXRepeatReplacer]
+
     def replace_sub_graph(self, graph: Graph, match: dict):
         node = match['op']
         if not node.has_valid('start') or not node.has_valid('stop') or not node.has_valid('step'):
             return
 
         start_value = Const(graph, dict(value=node.start,
-                                         symbol_dict={'name': node.id + '/const_start'})).create_node()
+                                        symbol_dict={'name': node.id + '/const_start'})).create_node()
         limit_value = Const(graph, dict(value=node.stop,
                                         symbol_dict={'name': node.id + '/const_limit'})).create_node()
         delta_value = Const(graph, dict(value=node.step,

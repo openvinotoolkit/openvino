@@ -29,13 +29,8 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {
-            WeightsLayout::yxio,
-            WeightsLayout::iyxo,
-            WeightsLayout::oyxi,
-            WeightsLayout::oiyx,
-        };
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &params) const override {
+        return (params.groups > 1) ? WeightsLayout::gyxio: WeightsLayout::yxio;
     }
 };
 }  // namespace kernel_selector

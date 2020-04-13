@@ -15,7 +15,8 @@
 """
 import numpy as np
 
-from extensions.ops.elementwise import Add, Mul, Div, Pow, Less, Equal, Greater, LogicalAnd, LogicalOr, LogicalXor
+from extensions.ops.elementwise import Add, Sub, Mul, Div, Pow, Less, Equal, Greater, \
+    LogicalAnd, LogicalOr, LogicalXor
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.graph.graph import Node
@@ -34,6 +35,17 @@ class AddFrontExtractor(FrontExtractorOp):
         return cls.enabled
 
 
+class SubFrontExtractor(FrontExtractorOp):
+    op = 'Sub'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node: Node):
+        axis = onnx_attr(node, 'axis', 'i', default=None)
+        Sub.update_node_stat(node, {'axis': axis})
+        return cls.enabled
+
+
 class MulFrontExtractor(FrontExtractorOp):
     op = 'Mul'
     enabled = True
@@ -49,11 +61,11 @@ class DivFrontExtractor(FrontExtractorOp):
     op = 'Div'
     enabled = True
 
-    @staticmethod
-    def extract(node: Node):
+    @classmethod
+    def extract(cls, node: Node):
         axis = onnx_attr(node, 'axis', 'i', default=None)
         Div.update_node_stat(node, {'axis': axis})
-        return __class__.enabled
+        return cls.enabled
 
 
 class SumFrontExtractor(FrontExtractorOp):

@@ -34,6 +34,12 @@ For asynchronous mode, the primary metric is throughput in frames per second (FP
 The infer requests are executed asynchronously. Callback is used to wait for previous execution to complete. The application measures all infer requests executions and reports the throughput metric based on batch size and total execution duration.
 
 ## Running
+
+Before running the Benchmark tool, install the requirements:
+```sh
+pip install -r  requirements.txt
+```
+
 Notice that the benchmark_app usually produces optimal performance for any device out of the box.
 
 **So in most cases you don't need to play the app options explicitly and the plain device name is enough**, e.g.:
@@ -59,17 +65,19 @@ usage: benchmark_app.py [-h] [-i PATH_TO_INPUT] -m PATH_TO_MODEL
 
 Options:
   -h, --help            Show this help message and exit.
-  -i PATH_TO_INPUT, --path_to_input PATH_TO_INPUT
+  -i PATHS_TO_INPUT [PATHS_TO_INPUT ...], --paths_to_input PATHS_TO_INPUT [PATHS_TO_INPUT ...]
                         Optional. Path to a folder with images and/or binaries
                         or to specific image or binary file.
   -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
                         Required. Path to an .xml file with a trained model.
   -d TARGET_DEVICE, --target_device TARGET_DEVICE
-                        Optional. Specify a target device to infer on: CPU,
-                        GPU, FPGA, HDDL or MYRIAD.
-                        Use "-d HETERO:<comma separated devices list>" format to specify HETERO plugin.
-                        Use "-d MULTI:<comma separated devices list>" format to specify MULTI plugin.
-                        The application looks for a suitable plugin for the specified device.
+                        Optional. Specify a target device to infer on (the
+                        list of available devices is shown below). Default
+                        value is CPU. Use '-d HETERO:<comma separated devices
+                        list>' format to specify HETERO plugin. Use '-d
+                        MULTI:<comma separated devices list>' format to
+                        specify MULTI plugin. The application looks for a
+                        suitable plugin for the specified device.
   -l PATH_TO_EXTENSION, --path_to_extension PATH_TO_EXTENSION
                         Optional. Required for CPU custom layers. Absolute
                         path to a shared library with the kernels

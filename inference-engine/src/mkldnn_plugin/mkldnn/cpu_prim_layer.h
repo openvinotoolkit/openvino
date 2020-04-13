@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "inference_engine.hpp"
 #include "prim_layer.h"
 #include "mkldnn.hpp"
 #include <memory>

@@ -114,7 +114,7 @@ KERNEL(binary_convolution_ref)(const __global INPUT0_TYPE* input,
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    res = FINAL_NAME;
+    res = FUSED_OPS_RESULT;
 #endif
 
     output[output_index] = res;

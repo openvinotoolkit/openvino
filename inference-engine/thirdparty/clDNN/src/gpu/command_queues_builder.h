@@ -28,11 +28,11 @@ public:
     void set_priority_mode(priority_mode_types priority, bool extension_support);
     void set_profiling(bool flag) { _profiling = flag; }
     void set_out_of_order(bool flag) { _out_of_order = flag; }
-    cl::CommandQueue& queue() { return _queue; }
-    cl::CommandQueue queue() const { return _queue; }
+    queue_type& queue() { return _queue; }
+    queue_type queue() const { return _queue; }
 
 private:
-    cl::CommandQueue _queue;
+    queue_type _queue;
     cl::Context _context;
     cl::Device _device;
     cl_platform_id _platform_id;

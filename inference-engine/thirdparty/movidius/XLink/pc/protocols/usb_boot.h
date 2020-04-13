@@ -13,8 +13,11 @@ extern int usb_loglevel;
 #define AUTO_UNBOOTED_PID           -1
 
 #define DEFAULT_OPENVID             0x03E7
-#define DEFAULT_OPENPID             0xf63b      // Once opened in VSC mode, VID/PID change
-
+#ifdef ALTERNATE_PID
+    #define DEFAULT_OPENPID             0xf63c      // Once opened in VSC mode, VID/PID change
+#else
+    #define DEFAULT_OPENPID             0xf63b     // Once opened in VSC mode, VID/PID change
+#endif
 #define DEFAULT_UNBOOTVID           0x03E7
 #define DEFAULT_UNBOOTPID_2485      0x2485
 #define DEFAULT_UNBOOTPID_2150      0x2150

@@ -20,8 +20,4 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR hetero_plugin.cpp)
 
-target_include_directories(${TARGET_NAME} PRIVATE
-    "${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src"
-)
-
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine ade pugixml)

@@ -16,6 +16,7 @@
 import sys
 
 from extensions.front.user_data_repack import UserDataRepack
+from extensions.load.loader import LoadFinish
 from mo.graph.graph import Graph
 from mo.utils import class_registration
 from mo.utils.error import Error
@@ -103,7 +104,7 @@ class AnalyzeAction(object):
         Returns list of replacer classes which this replacer must be run after.
         :return: list of classes
         """
-        return []
+        return [LoadFinish]
 
     @classmethod
     def class_type(cls):

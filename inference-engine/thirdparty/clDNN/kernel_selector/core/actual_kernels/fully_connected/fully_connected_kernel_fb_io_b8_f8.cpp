@@ -100,7 +100,7 @@ KernelsData FullyConnected_fb_io_b8_f8::GetKernelsData(const Params& params, con
 
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd =
-            GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, {WeightsLayout::io}, estimated_time, static_cast<int>(i));
+            GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, WeightsLayout::io, estimated_time, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

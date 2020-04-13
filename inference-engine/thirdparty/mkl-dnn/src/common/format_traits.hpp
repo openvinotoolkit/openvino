@@ -123,6 +123,7 @@ DECL_TRAITS(io, wei, _, 2, 0);
 /* wei: 3D */
 DECL_TRAITS(oiw, wei, _, 3, 1);
 DECL_TRAITS(wio, wei, _, 3, 1);
+DECL_TRAITS(owi, wei, _, 3, 1);
 DECL_TRAITS(Owi4o, wei, _4o, 3, 1);
 DECL_TRAITS(OIw4i4o, wei, _4i4o, 3, 1);
 DECL_TRAITS(Owi8o, wei, _8o, 3, 1);
@@ -144,6 +145,7 @@ DECL_TRAITS(OIw4i16o4i_s8s8, wei, _4i16o4i_s8s8, 3, 1);
 DECL_TRAITS(oihw, wei, _, 4, 2);
 DECL_TRAITS(ihwo, wei, _, 4, 2);
 DECL_TRAITS(hwio, wei, _, 4, 2);
+DECL_TRAITS(ohwi, wei, _, 4, 2);
 DECL_TRAITS(iohw, wei, _, 4, 2);
 DECL_TRAITS(hwio_s8s8, wei, _, 4, 2);
 DECL_TRAITS(oIhw8i, wei, _8i, 4, 2);
@@ -172,6 +174,7 @@ DECL_TRAITS(Ohwi16o, wei, _16o, 4, 2);
 
 /* wei: 5D */
 DECL_TRAITS(dhwio, wei, _, 5, 3);
+DECL_TRAITS(odhwi, wei, _, 5, 3);
 DECL_TRAITS(oidhw, wei, _, 5, 3);
 DECL_TRAITS(dhwio_s8s8, wei, _, 5, 3);
 DECL_TRAITS(OIdhw4i4o, wei, _4i4o, 5, 3);

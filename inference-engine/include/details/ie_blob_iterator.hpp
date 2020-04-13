@@ -8,6 +8,8 @@
  * @file ie_blob_iterator.hpp
  */
 
+#pragma once
+
 #include <utility>
 
 #include "ie_locked_memory.hpp"

@@ -28,6 +28,8 @@
 #include "utils.hpp"
 #include "primitive_iterator.hpp"
 
+#include "memory_tracking.hpp"
+
 namespace mkldnn {
 namespace impl {
 namespace cpu {
@@ -144,21 +146,22 @@ struct ref_deconvolution_fwd_t: public cpu_primitive_t {
                 &(this->attr_), nullptr);
             while (++it != it.end()) {
                 conv_pd_ = *it;
-                conv_supports_bias_ = static_cast<cpu_convolution_bwd_data_pd_t *>
-                    (conv_pd_)->support_bias();
+                conv_supports_bias_
+                        = static_cast<cpu_convolution_bwd_data_pd_t *>(conv_pd_)
+                                  ->support_bias();
                 bool bias_supported = true
                         && desc()->accum_data_type == data_type::f32
                         && utils::one_of(desc()->dst_desc.data_type,
                                            data_type::f32, data_type::bf16);
-                auto wei_fmt = format_normalize(conv_pd_->weights_pd()->desc()->format);
+                auto wei_fmt = format_normalize(
+                        conv_pd_->weights_pd()->desc()->format);
                 auto src_fmt = conv_pd_->diff_dst_pd()->desc()->format;
 
-                bool ok = true
-                        && (wei_fmt == blocked)
-                        && IMPLICATION(
-                                desc()->src_desc.data_type == data_type::bf16,
-                                utils::one_of(src_fmt,
-                                    nCw16c, nChw16c, nCdhw16c))
+                bool ok = true && (wei_fmt == blocked)
+                        && IMPLICATION(desc()->src_desc.data_type
+                                           == data_type::bf16,
+                                   utils::one_of(src_fmt, nCw16c, nChw16c,
+                                               nCdhw16c, ncw, nchw, ncdhw))
                         && IMPLICATION(with_bias(),
                                    conv_supports_bias_ || bias_supported);
                 if (ok)
@@ -194,12 +197,34 @@ struct ref_deconvolution_fwd_t: public cpu_primitive_t {
                     CHECK(dst_pd_.set_format(conv_pd_->diff_src_pd()->desc()->format));
                 if (bias_pd_.desc()->format == memory_format::any)
                     CHECK(bias_pd_.set_format(memory_format::x));
+
+                init_scratchpad();
                 return status::success;
             }
             else return status::unimplemented;
         }
         primitive_desc_t *conv_pd_;
         bool conv_supports_bias_;
+
+        void init_scratchpad() {
+            using namespace memory_format;
+            using namespace mkldnn::impl::memory_tracking::names;
+
+            memory_tracking::registrar_t scratchpad
+                    = scratchpad_registry().registrar();
+            if (desc()->dst_desc.data_type == data_type::bf16
+                    && utils::one_of(dst_pd_.desc()->format, ncw, nchw, ncdhw)
+                    && with_bias()) {
+                const int SP = OW() * OH() * OD();
+                const int num_thr
+                        = mkldnn_in_parallel() ? 1 : mkldnn_get_max_threads();
+                scratchpad.book(key_deconv_dst_bf16_convert_wsp,
+                        sizeof(float) * SP * num_thr);
+            }
+            if (with_bias() && desc()->bias_desc.data_type == data_type::bf16) {
+                scratchpad.book(key_conv_bias_bf16_convert_wsp, sizeof(float) * OC());
+            }
+        }
     };
 
     ref_deconvolution_fwd_t(const pd_t *apd, const input_vector &inputs,
@@ -215,31 +240,34 @@ struct ref_deconvolution_fwd_t: public cpu_primitive_t {
             (conv_p_)->execute(e);
             if (pd()->with_bias() && !pd()->conv_supports_bias_) {
                 auto dst_t = pd()->desc()->dst_desc.data_type;
-
-                if (dst_t == data_type::bf16) {
-                    compute_fwd_bias_nCdhwXc_bf16<16>();
-                } else {
-                    switch (pd()->dst_pd()->desc()->format) {
-                    /* XXX: current implementation only provides funcitonality. This
-                     * needs to be cleaned and optimized. */
-                    case memory_format::ncw:
-                    case memory_format::nchw:
-                    case memory_format::ncdhw:
+                switch (pd()->dst_pd()->desc()->format) {
+                /* XXX: current implementation only provides funcitonality. This
+                 * needs to be cleaned and optimized. */
+                case memory_format::ncw:
+                case memory_format::nchw:
+                case memory_format::ncdhw:
+                    if (dst_t == data_type::bf16)
+                        compute_fwd_bias_ncdhw_bf16();
+                    else
                         compute_fwd_bias_ncdhw();
-                        break;
-                    case memory_format::nChw8c:
-                    case memory_format::nCdhw8c:
-                        compute_fwd_bias_nCdhwXc<8>();
-                        break;
-                    case memory_format::nCw16c:
-                    case memory_format::nChw16c:
-                    case memory_format::nCdhw16c:
+                    break;
+                case memory_format::nChw8c:
+                case memory_format::nCdhw8c:
+                    assert(dst_t == data_type::f32);
+                    compute_fwd_bias_nCdhwXc<8>();
+                    break;
+                case memory_format::nCw16c:
+                case memory_format::nChw16c:
+                case memory_format::nCdhw16c:
+                    if (dst_t == data_type::bf16)
+                        compute_fwd_bias_nCdhwXc_bf16<16>();
+                    else
                         compute_fwd_bias_nCdhwXc<16>();
-                        break;
-                    default:
-                        compute_fwd_bias();
-                        break;
-                    }
+                    break;
+                default:
+                    assert(dst_t == data_type::f32);
+                    compute_fwd_bias();
+                    break;
                 }
             }
             break;
@@ -254,9 +282,11 @@ private:
     typedef typename prec_traits<data_type::bf16>::type bf16_data_t;
     void compute_fwd_bias() const;
     void compute_fwd_bias_ncdhw() const;
+    void compute_fwd_bias_ncdhw_bf16() const;
     template <int blksize> void compute_fwd_bias_nCdhwXc() const;
     template <int blksize> void compute_fwd_bias_nCdhwXc_bf16() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
+
     primitive_t *conv_p_;
 };
 
@@ -394,13 +424,12 @@ struct ref_deconvolution_bwd_weights_t: public cpu_primitive_t {
                 conv_pd_ = *it;
                 auto wei_fmt = conv_pd_->diff_weights_pd()->desc()->format;
                 auto diff_dst_fmt = conv_pd_->src_pd()->desc()->format;
-                bool ok = true
-                        && format_normalize(wei_fmt) == blocked
+                bool ok = true && format_normalize(wei_fmt) == blocked
                         && !is_format_double_blocked(wei_fmt)
-                        && IMPLICATION(
-                                desc()->src_desc.data_type == data_type::bf16,
-                                utils::one_of(diff_dst_fmt,
-                                    nCw16c, nChw16c, nCdhw16c));
+                        && IMPLICATION(desc()->src_desc.data_type
+                                           == data_type::bf16,
+                                   utils::one_of(diff_dst_fmt, nCw16c, nChw16c,
+                                               nCdhw16c, ncw, nchw, ncdhw));
                 if (ok)
                     return success;
                 delete conv_pd_;
@@ -429,8 +458,8 @@ struct ref_deconvolution_bwd_weights_t: public cpu_primitive_t {
                         alg_kind::deconvolution_winograd)
                 && this->attr()->has_default_values()
                 && IMPLICATION(this->with_bias(),
-                        (this->desc()->diff_bias_desc.data_type
-                                == data_type::f32)
+                        (utils::one_of(this->desc()->diff_bias_desc.data_type,
+                                        data_type::f32, data_type::bf16))
                         && utils::one_of(this->desc()->diff_dst_desc.data_type,
                             data_type::f32, data_type::bf16));
             if (ok) {
@@ -449,11 +478,35 @@ struct ref_deconvolution_bwd_weights_t: public cpu_primitive_t {
                     CHECK(diff_dst_pd_.set_format(conv_pd_->src_pd()->desc()->format));
                 if (diff_bias_pd_.desc()->format == memory_format::any)
                     CHECK(diff_bias_pd_.set_format(memory_format::x));
+
+                init_scratchpad();
                 return status::success;
             }
             else return status::unimplemented;
         }
         primitive_desc_t *conv_pd_;
+
+        void init_scratchpad() {
+            using namespace memory_format;
+            using namespace mkldnn::impl::memory_tracking::names;
+            memory_tracking::registrar_t scratchpad
+                    = scratchpad_registry().registrar();
+            if (desc()->diff_dst_desc.data_type == data_type::bf16
+                    && utils::one_of(
+                               diff_dst_pd_.desc()->format, ncw, nchw, ncdhw)
+                    && with_bias()) {
+                const int SP = OW() * OH() * OD();
+                const int num_thr
+                        = mkldnn_in_parallel() ? 1 : mkldnn_get_max_threads();
+                memory_tracking::registrar_t scratchpad
+                        = scratchpad_registry().registrar();
+                scratchpad.book(key_deconv_dst_bf16_convert_wsp,
+                        sizeof(float) * SP * num_thr);
+            }
+            if (with_bias() && desc()->diff_bias_desc.data_type == data_type::bf16) {
+                scratchpad.book(key_conv_bias_bf16_convert_wsp, sizeof(float) * OC());
+            }
+        }
     };
 
     ref_deconvolution_bwd_weights_t(const pd_t *apd, const input_vector &inputs,
@@ -470,29 +523,33 @@ struct ref_deconvolution_bwd_weights_t: public cpu_primitive_t {
             (conv_p_)->execute(e);
             if (pd()->with_bias()) {
                 auto dst_t = pd()->desc()->diff_dst_desc.data_type;
-                if (dst_t == data_type::bf16) {
-                    compute_bwd_bias_nCdhwXc_bf16<16>();
-                } else {
-                    switch (pd()->diff_dst_pd()->desc()->format) {
-                    /* XXX: current implementation only provides funcitonality. This
-                     * needs to be cleaned and optimized. */
-                    case memory_format::ncw:
-                    case memory_format::nchw:
-                    case memory_format::ncdhw:
+                switch (pd()->diff_dst_pd()->desc()->format) {
+                /* XXX: current implementation only provides funcitonality. This
+                 * needs to be cleaned and optimized. */
+                case memory_format::ncw:
+                case memory_format::nchw:
+                case memory_format::ncdhw:
+                    if (dst_t == data_type::bf16)
+                        compute_bwd_bias_ncdhw_bf16();
+                    else
                         compute_bwd_bias_ncdhw();
-                        break;
-                    case memory_format::nChw8c:
-                        compute_bwd_bias_nCdhwXc<8>();
-                        break;
-                    case memory_format::nCw16c:
-                    case memory_format::nChw16c:
-                    case memory_format::nCdhw16c:
+                    break;
+                case memory_format::nChw8c:
+                    assert(dst_t == data_type::f32);
+                    compute_bwd_bias_nCdhwXc<8>();
+                    break;
+                case memory_format::nCw16c:
+                case memory_format::nChw16c:
+                case memory_format::nCdhw16c:
+                    if (dst_t == data_type::bf16)
+                        compute_bwd_bias_nCdhwXc_bf16<16>();
+                    else
                         compute_bwd_bias_nCdhwXc<16>();
-                        break;
-                    default:
-                        compute_bwd_bias();
-                        break;
-                    }
+                    break;
+                default:
+                    assert(dst_t == data_type::f32);
+                    compute_bwd_bias();
+                    break;
                 }
             }
             break;
@@ -509,6 +566,7 @@ private:
     primitive_t *conv_p_;
     void compute_bwd_bias() const;
     void compute_bwd_bias_ncdhw() const;
+    void compute_bwd_bias_ncdhw_bf16() const;
     template <int blksize> void compute_bwd_bias_nCdhwXc() const;
     template <int blksize> void compute_bwd_bias_nCdhwXc_bf16() const;
 };

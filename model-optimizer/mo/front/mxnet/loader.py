@@ -97,7 +97,7 @@ def symbol_attrs(symbol_node):
     return {'symbol_dict': symbol_node}
 
 
-def symbol2nx(model_nodes, model_params, input_names: str = ''):
+def symbol2nx(graph, model_nodes, model_params, input_names: str = ''):
     if not input_names:
         input_names = ('data',)
     else:
@@ -106,7 +106,6 @@ def symbol2nx(model_nodes, model_params, input_names: str = ''):
     rnn_states = init_rnn_states(model_nodes)
     names_rnn_states = list(rnn_states.keys())
 
-    graph = Graph()
     # as mxnet contain input layers as index of layer, for correct set up edges, we need provide index of layer with name of  graph node
     index_node_keys = {}
     for i, node in enumerate(model_nodes):

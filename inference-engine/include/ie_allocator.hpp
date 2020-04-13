@@ -18,9 +18,13 @@ namespace InferenceEngine {
 /**
  * @brief Allocator handle mapping type
  */
-enum LockOp { LOCK_FOR_READ = 0, LOCK_FOR_WRITE };
+enum LockOp {
+    LOCK_FOR_READ = 0,  //!< A flag to lock data for read
+    LOCK_FOR_WRITE  //!< A flag to lock data for write
+};
 
 /**
+ * @interface IAllocator
  * @brief Allocator concept to be used for memory management and is used as part of the Blob.
  */
 class IAllocator : public details::IRelease {
@@ -29,10 +33,10 @@ public:
      * @brief Maps handle to heap memory accessible by any memory manipulation routines.
      *
      * @param handle Handle to the allocated memory to be locked
-     * @param LockOp Operation to lock memory for
+     * @param op Operation to lock memory for
      * @return Generic pointer to memory
      */
-    virtual void* lock(void* handle, LockOp = LOCK_FOR_WRITE) noexcept = 0;
+    virtual void* lock(void* handle, LockOp op = LOCK_FOR_WRITE) noexcept = 0;
     /**
      * @brief Unmaps memory by handle with multiple sequential mappings of the same handle.
      *
@@ -50,9 +54,9 @@ public:
      */
     virtual void* alloc(size_t size) noexcept = 0;
     /**
-     * @brief Releases handle and all associated memory resources which invalidates the handle.
-     *
-     * @return false if handle cannot be released, otherwise - true.
+     * @brief Releases the handle and all associated memory resources which invalidates the handle.
+     * @param handle The handle to free
+     * @return `false` if handle cannot be released, otherwise - `true`.
      */
     virtual bool free(void* handle) noexcept = 0;
 

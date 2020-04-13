@@ -41,6 +41,7 @@ struct ref_lrn_fwd_t: public cpu_primitive_t {
         virtual status_t init() override {
             using namespace prop_kind;
             using namespace alg_kind;
+            using namespace data_type;
             assert(engine()->kind() == engine_kind::cpu);
             bool ok = true
                 && utils::one_of(desc()->prop_kind, forward_training,
@@ -48,6 +49,7 @@ struct ref_lrn_fwd_t: public cpu_primitive_t {
                 && utils::one_of(desc()->alg_kind, lrn_across_channels,
                         lrn_within_channel)
                 && utils::everyone_is(data_type, desc()->data_desc.data_type)
+                && IMPLICATION(data_type == bf16, mayiuse(avx512_core))
                 && attr()->has_default_values();
             if (!ok) return status::unimplemented;
 
@@ -93,12 +95,15 @@ struct ref_lrn_bwd_t: public cpu_primitive_t {
         virtual status_t init() override {
             using namespace prop_kind;
             using namespace alg_kind;
+            using namespace data_type;
             assert(engine()->kind() == engine_kind::cpu);
             bool ok = true
                 && utils::one_of(desc()->prop_kind, backward_data)
                 && utils::one_of(desc()->alg_kind, lrn_across_channels
                         /*, lrn_within_channel */) // not supported yet
                 && utils::everyone_is(data_type, desc()->data_desc.data_type)
+                && IMPLICATION(data_type == bf16,
+                                    mayiuse(cpu_isa_t::avx512_core))
                 && attr()->has_default_values();
             if (!ok) return status::unimplemented;
 

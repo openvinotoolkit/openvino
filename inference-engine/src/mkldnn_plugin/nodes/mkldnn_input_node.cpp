@@ -100,31 +100,56 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
     if (!constBlob)
         return;
     auto dstBlob = getChildEdgeAt(0)->getBlob();
-    if (precision == InferenceEngine::Precision::U8 || precision == InferenceEngine::Precision::I8) {
-        const uint8_t *srcData = constBlob->cbuffer().as<uint8_t *>();
-        uint8_t *dstData = dstBlob->buffer();
-        if (constBlob->size() != dstBlob->size()) {
-            THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
-        }
-        for (size_t i = 0; i < constBlob->size(); i++) {
-            // srcData without offset() because constBlob should be planar
-            dstData[dstBlob->getTensorDesc().offset(i)] = srcData[i];
-        }
-    } else {
-        const float *srcData = constBlob->cbuffer().as<float *>();
-        float *dstData = dstBlob->buffer();
-        if (constBlob->size() != dstBlob->size()) {
-            THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
-        }
 
-        if (constBlob->getTensorDesc() == dstBlob->getTensorDesc()) {
-            ie_memcpy(dstData, dstBlob->byteSize(), srcData, constBlob->byteSize());
-        } else {
-            // By elements
-            for (size_t i = 0; i < constBlob->size(); i++) {
-                // srcData without offset() because constBlob should be planar
-                dstData[dstBlob->getTensorDesc().offset(i)] = srcData[i];
+    if (constBlob->size() != dstBlob->size()) {
+        THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
+    }
+
+    if (constBlob->getTensorDesc() == dstBlob->getTensorDesc()) {
+        const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
+        int8_t *dstData = dstBlob->buffer();
+
+        ie_memcpy(dstData, dstBlob->byteSize(), srcData, constBlob->byteSize());
+    } else {
+        switch (precision.size()) {
+            case 1: {
+                const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
+                int8_t *dstData = dstBlob->buffer();
+
+                for (size_t i = 0; i < constBlob->size(); i++)
+                    dstData[dstBlob->getTensorDesc().offset(i)] = srcData[i];
+
+                break;
             }
+            case 2: {
+                const int16_t *srcData = constBlob->cbuffer().as<int16_t *>();
+                int16_t *dstData = dstBlob->buffer();
+
+                for (size_t i = 0; i < constBlob->size(); i++)
+                    dstData[dstBlob->getTensorDesc().offset(i)] = srcData[i];
+
+                break;
+            }
+            case 4: {
+                const int32_t *srcData = constBlob->cbuffer().as<int32_t *>();
+                int32_t *dstData = dstBlob->buffer();
+
+                for (size_t i = 0; i < constBlob->size(); i++)
+                    dstData[dstBlob->getTensorDesc().offset(i)] = srcData[i];
+
+                break;
+            }
+            case 8: {
+                const int64_t *srcData = constBlob->cbuffer().as<int64_t *>();
+                int64_t *dstData = dstBlob->buffer();
+
+                for (size_t i = 0; i < constBlob->size(); i++)
+                    dstData[dstBlob->getTensorDesc().offset(i)] = srcData[i];
+
+                break;
+            }
+            default:
+                THROW_IE_EXCEPTION << "Unsupported precision for node " << getName();
         }
     }
 }

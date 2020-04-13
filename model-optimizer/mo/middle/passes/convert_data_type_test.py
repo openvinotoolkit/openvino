@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.middle.passes.convert_data_type import convert_blobs
+from mo.middle.passes.convert_data_type import convert_blobs, SUPPORTED_DATA_TYPES
 from mo.utils.error import Error
 from mo.utils.unittest.graph import build_graph
 
@@ -75,3 +75,15 @@ class TestConvertBlob(unittest.TestCase):
 
         with self.assertRaisesRegex(Error, '.*results in rounding.*'):
             convert_blobs(graph, "I32")
+
+
+class TestUI8(unittest.TestCase):
+    def test_supported_data_types_uint8_once(self):
+        i = 0
+        for data_type_str, values in SUPPORTED_DATA_TYPES.items():
+            np_dt, precision, element_type = values
+            if np_dt == np.uint8:
+                i += 1
+
+        self.assertEqual(i, 1, 'uint8 data type should be mentioned in SUPPORTED_DATA_TYPES only once, {} entries '
+                               'found'.format(i))

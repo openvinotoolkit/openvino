@@ -12,15 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# ====================================== Helper constant variables =====================================
-
-# Order of scan for special capabilities files (.inc files with capabilities description).
-set(CLDNN__CAPS_SCAN_ORDER
-    "private"
-    "internal"
-    "public"
-  )
-
 # =================================== Name / Output settings from parent ===============================
 
 set(CLDNN_BUILD__PROJ             "${CLDNN_BUILD__PROJ__clDNN}")
@@ -89,25 +80,6 @@ file(GLOB __CLDNN_Headers__include
     "${__CLDNN_Directory__include}/*.hpp"
   )
 
-# Special handling of capabilities files.
-set(__CLDNN_Directory__caps            "${CMAKE_CURRENT_SOURCE_DIR}/caps")
-set(__CLDNN_Label__caps                "caps")
-foreach(__CLDNN_CapsScanDir ${CLDNN__CAPS_SCAN_ORDER})
-  string(REPLACE ";" "\;" __CLDNN_CapsScanDir "${__CLDNN_CapsScanDir}") # [WA#1] Must escape ; again if occurred in item.
-  file(GLOB __CLDNN_Sources__caps "${__CLDNN_Directory__caps}/${__CLDNN_CapsScanDir}/*.inc")
-  list(LENGTH __CLDNN_Sources__caps __CLDNN_CapsScanDirFileCount)
-  if(__CLDNN_CapsScanDirFileCount GREATER 0)
-    set(__CLDNN_IncDirectory__caps "${__CLDNN_Directory__caps}/${__CLDNN_CapsScanDir}")
-    message(STATUS "[clDNN] Selected capabilities: ${__CLDNN_CapsScanDir}")
-    break()
-  endif()
-endforeach()
-if(NOT (__CLDNN_CapsScanDirFileCount GREATER 0))
-  message(FATAL_ERROR "[clDNN] Cannot locate any capabilities files in \"${__CLDNN_Directory__caps}\" subdirectories.")
-endif()
-unset(__CLDNN_CapsScanDir)
-unset(__CLDNN_CapsScanDirFileCount)
-
 set(__CLDNN_Directory__gpu             "${CMAKE_CURRENT_SOURCE_DIR}/gpu")
 set(__CLDNN_Label__gpu                 "gpu")
 file(GLOB __CLDNN_Sources__gpu
@@ -146,7 +118,6 @@ set(__CLDNN_AllSources
     ${__CLDNN_Headers__api}
     ${__CLDNN_Sources__graph_opt}
     ${__CLDNN_Headers__include}
-    ${__CLDNN_Sources__caps}
     ${__CLDNN_Headers__api_extension}
     ${__CLDNN_Sources__main}
     ${__CLDNN_Sources__gpu}
@@ -163,7 +134,6 @@ source_group("${__CLDNN_Label__api}"                  FILES ${__CLDNN_Headers__a
 source_group("${__CLDNN_Label__api_extension}"        FILES ${__CLDNN_Headers__api_extension})
 source_group("${__CLDNN_Label__include}"              FILES ${__CLDNN_Headers__include})
 source_group("${__CLDNN_Label__graph_opt}"            FILES ${__CLDNN_Sources__graph_opt})
-source_group("${__CLDNN_Label__caps}"                 FILES ${__CLDNN_Sources__caps})
 source_group("${__CLDNN_Label__main}"                 FILES ${__CLDNN_Sources__main})
 source_group("${__CLDNN_Label__gpu}"                  FILES ${__CLDNN_Sources__gpu})
 source_group("${__CLDNN_Label__cache}"                FILES ${__CLDNN_Sources__cache})
@@ -176,7 +146,6 @@ include_directories(
     "${CLDNN__MAIN_DIR}"
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${__CLDNN_Directory__include}"
-    "${__CLDNN_IncDirectory__caps}"
     "${__CLDNN_Directory__ks_core}"
     "${__CLDNN_Directory__ks_core}/common"
     "${__CLDNN_Directory__ks_actual_kernels}"

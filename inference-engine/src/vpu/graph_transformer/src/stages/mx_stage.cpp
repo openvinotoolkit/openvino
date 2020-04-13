@@ -46,7 +46,7 @@ void MyriadXHwStage::propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo)
         auto biases = inputEdge(2)->input();
         auto scales = inputEdge(3)->input();
 
-        IE_ASSERT(weights->usage() == DataUsage::Const);
+        IE_ASSERT(weights->usage() == DataUsage::Const || weights->usage() == DataUsage::Intermediate);
         IE_ASSERT(biases->usage() == DataUsage::Const || biases->usage() == DataUsage::Fake);
         IE_ASSERT(scales->usage() == DataUsage::Const || scales->usage() == DataUsage::Fake);
     }
@@ -75,7 +75,7 @@ void MyriadXHwStage::getDataStridesRequirementsImpl(StageDataInfo<StridesRequire
         auto biases = inputEdge(2)->input();
         auto scales = inputEdge(3)->input();
 
-        IE_ASSERT(weights->usage() == DataUsage::Const);
+        IE_ASSERT(weights->usage() == DataUsage::Const || weights->usage() == DataUsage::Intermediate);
         IE_ASSERT(biases->usage() == DataUsage::Const || biases->usage() == DataUsage::Fake);
         IE_ASSERT(scales->usage() == DataUsage::Const || scales->usage() == DataUsage::Fake);
     }
@@ -98,17 +98,21 @@ void MyriadXHwStage::getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchI
 }
 
 void MyriadXHwStage::finalCheckImpl() const {
-    auto input = inputEdge(0)->input();
-    auto weights = inputEdge(1)->input();
-    auto biases = inputEdge(2)->input();
-    auto scales = inputEdge(3)->input();
-    auto output = outputEdge(0)->output();
+    const auto input = inputEdge(0)->input();
+    const auto output = outputEdge(0)->output();
 
     IE_ASSERT(input->memoryOffset() % 16 == 0);
-    IE_ASSERT(weights->memoryOffset() % 16 == 0);
-    IE_ASSERT(biases->memoryOffset() % 16 == 0);
-    IE_ASSERT(scales->memoryOffset() % 16 == 0);
     IE_ASSERT(output->memoryOffset() % 16 == 0);
+
+    if (attrs().get<HwOpType>("hwOpType") != HwOpType::POOL) {
+        const auto weights = inputEdge(1)->input();
+        const auto biases = inputEdge(2)->input();
+        const auto scales = inputEdge(3)->input();
+
+        IE_ASSERT(weights->memoryOffset() % 16 == 0);
+        IE_ASSERT(biases->memoryOffset() % 16 == 0);
+        IE_ASSERT(scales->memoryOffset() % 16 == 0);
+    }
 }
 
 void MyriadXHwStage::serializeParamsImpl(BlobSerializer& serializer) const {
@@ -191,7 +195,7 @@ void MyriadXHwStage::serializeDataImpl(BlobSerializer& serializer) const {
         if (inEdge->input()->usage() == DataUsage::Fake)
             continue;
 
-        inEdge->input()->serializeNewBuffer(serializer);
+        inEdge->input()->serializeBuffer(serializer);
 
         ++numBuffers;
     }
@@ -203,7 +207,7 @@ void MyriadXHwStage::serializeDataImpl(BlobSerializer& serializer) const {
         if (outEdge->output()->usage() == DataUsage::Fake)
             continue;
 
-        outEdge->output()->serializeNewBuffer(serializer);
+        outEdge->output()->serializeBuffer(serializer);
 
         ++numBuffers;
     }

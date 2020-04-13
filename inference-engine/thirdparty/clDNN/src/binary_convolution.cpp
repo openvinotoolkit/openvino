@@ -49,7 +49,7 @@ layout binary_convolution_inst::calc_output_layout(binary_convolution_node const
                            (conv_groups > 1 && conv_groups == output_size.feature[0]));
 
         if ((layout.data_type == data_types::f16 || layout.data_type == data_types::f32) && next_is_dw) {
-            layout.format = cldnn::format::bfyx_f16;
+            layout.format = cldnn::format::b_fs_yx_fsv16;
         }
     }
 

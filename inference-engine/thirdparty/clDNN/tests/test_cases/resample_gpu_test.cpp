@@ -222,8 +222,8 @@ TEST(resample_gpu, basic_in1x1x2x2_interp_f16) {
 
     topology topology;
     topology.add(input_layout("input", input.get_layout()));
-    topology.add(reorder("input_to_bfyx_f16", "input", format::bfyx_f16, data_types::f32));
-    topology.add(resample("resample", "input_to_bfyx_f16", output_size, 0, 0, 0, resample_type::bilinear));
+    topology.add(reorder("input_to_b_fs_yx_fsv16", "input", format::b_fs_yx_fsv16, data_types::f32));
+    topology.add(resample("resample", "input_to_b_fs_yx_fsv16", output_size, 0, 0, 0, resample_type::bilinear));
     topology.add(reorder("res_to_bfyx", "resample", format::bfyx, data_types::f32));
 
     set_values(input, {
@@ -240,7 +240,7 @@ TEST(resample_gpu, basic_in1x1x2x2_interp_f16) {
     auto outputs = net.execute();
 
     auto resample_out = outputs.at("resample").get_memory();
-    ASSERT_EQ(resample_out.get_layout().format, format::bfyx_f16);
+    ASSERT_EQ(resample_out.get_layout().format, format::b_fs_yx_fsv16);
 
     auto output = outputs.at("res_to_bfyx").get_memory();
     auto output_ptr = output.pointer<float>();
@@ -422,6 +422,57 @@ TEST(resample_gpu, nearest_asymmetric) {
     }
 }
 
+TEST(resample_gpu, nearest_asymmetric_i8) {
+    //  Input  : 1x1x2x2
+    //  Output : 1x1x5x4
+    //  Sample Type: Nearest
+
+    //  Input:
+    //  f0: b0:  1    2
+    //  f0: b0:  3    4
+    //
+
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::i8, format::bfyx, { 1, 1, 2, 2 } });
+
+    auto output_size = tensor(batch(1), feature(1), spatial(5, 4));
+
+    topology topology;
+    uint32_t num_filter = 1u;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(resample("upsampling", "input", output_size, num_filter, resample_type::nearest));
+
+    set_values<int8_t>(input, {
+            1, 2,
+            3, 4,
+    });
+
+    cldnn::network net{ engine, topology };
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("upsampling").get_memory();
+    auto output_ptr = output.pointer<int8_t>();
+
+    EXPECT_EQ(output.get_layout().get_linear_size(), (size_t)20);
+
+    int8_t answers[20] = {
+            1, 1, 1, 2, 2,
+            1, 1, 1, 2, 2,
+            3, 3, 3, 4, 4,
+            3, 3, 3, 4, 4,
+    };
+
+    for (int k = 0; k < 4; ++k) { //Y
+        for (int l = 0; l < 5; ++l) { //X
+            auto linear_id = l + k * 5;
+            EXPECT_EQ(answers[linear_id], output_ptr[linear_id]);
+        }
+    }
+}
+
 TEST(resample_gpu, bilinear_asymmetric) {
     //  Input  : 1x1x2x2
     //  Output : 1x1x5x4
@@ -459,10 +510,10 @@ TEST(resample_gpu, bilinear_asymmetric) {
     EXPECT_EQ(output.get_layout().get_linear_size(), (size_t)24);
 
     float answers[24] = {
-        1.f, 1.0833f, 1.41666f, 1.74999f, 2.f, 2.f,
-        1.33333f, 1.41666f, 1.75000f, 2.08333f, 2.33333f, 2.33333f,
-        2.33333f, 2.41666f, 2.75f, 3.08333f, 3.33333f, 3.33333f,
-        3.0f, 3.08333f, 3.41666f, 3.74999f, 3.99999f, 4.f,
+        1.f, 1.f, 1.33333f, 1.66667f, 2.f, 2.f,
+        1.5f, 1.5f, 1.83333f, 2.16667f, 2.5f, 2.5f,
+        2.5f, 2.5f, 2.83333f, 3.16667f, 3.5f, 3.5f,
+        3.f, 3.f, 3.33333f, 3.66667f, 4.f, 4.f,
     };
 
     for (int k = 0; k < 4; ++k) { //Y

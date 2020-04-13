@@ -51,6 +51,8 @@ elseif(WIN32 AND NOT MINGW)
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
         # 1478, 1786: deprecated functions
         append(CMAKE_TEST_CCXX_NOWARN_FLAGS "/Qdiag-disable:1478 /Qdiag-disable:1786")
+        # 2415: unused variable
+        append(CMAKE_TEST_CCXX_NOWARN_FLAGS "/Qdiag-disable:2415")
     else()
         # c4244: conversion with possible loss of data
         # c4996: unsafe / deprecated functions

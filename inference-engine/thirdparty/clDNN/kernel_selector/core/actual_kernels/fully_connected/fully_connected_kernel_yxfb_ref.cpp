@@ -50,12 +50,7 @@ KernelsData FullyConnected_yxfb_ref::GetKernelsData(const Params& params, const 
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     options,
                                                     DataLayout::yxfb,
-                                                    {WeightsLayout::io,
-                                                     WeightsLayout::oi,
-                                                     WeightsLayout::oiyx,
-                                                     WeightsLayout::oyxi,
-                                                     WeightsLayout::iyxo,
-                                                     WeightsLayout::yxio},
+                                                    WeightsLayout::oiyx,
                                                     DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

@@ -126,6 +126,7 @@ void ncsp_batch_normalization_fwd_t<data_type>::execute_forward() const {
                 SP_N_nthr = N_nthr * S_nthr;
             }
             size_t C_off = it * C_blks_per_iter;
+            const auto S_chunk = nstl::max(int(0), S_e - S_s);
             // On the last iteration the access pattern to ws_reduce
             // might change (due to re-balance on C). Since sync is not always
             // possible (in case of TBB) use different parts of ws for each
@@ -142,11 +143,11 @@ void ncsp_batch_normalization_fwd_t<data_type>::execute_forward() const {
                         const acc_data_t *_src;
                         size_t soff = off + n * C * SP;
                         if (data_type == data_type::bf16) {
-                            // convert src from b16 to f32
+                            // convert src from bf16 to f32
                             acc_data_t *tmp_src = tmp_data_ + ithr * SP_cl_align;
-                            bf16_cvt_utils::cvt_bfloat16_to_float(tmp_src,
-                                    (mkldnn_bfloat16_t *)src + soff,
-                                    nstl::max(0, S_e - S_s));
+                            bf16_cvt_utils::cvt_bfloat16_to_float(tmp_src + S_s,
+                                    (mkldnn_bfloat16_t *)src + soff + S_s,
+                                    S_chunk);
                             _src = tmp_src;
                         } else {
                             _src = reinterpret_cast<const acc_data_t *>(src + soff);
@@ -179,11 +180,11 @@ void ncsp_batch_normalization_fwd_t<data_type>::execute_forward() const {
                         const acc_data_t *_src;
                         size_t soff = off * SP + n * C * SP;
                         if (data_type == data_type::bf16) {
-                            // convert src from b16 to f32
+                            // convert src from bf16 to f32
                             acc_data_t *tmp_src = tmp_data_ + ithr * SP_cl_align;
-                            bf16_cvt_utils::cvt_bfloat16_to_float(tmp_src,
-                                    (mkldnn_bfloat16_t *)src + soff,
-                                    nstl::max(0, S_e - S_s));
+                            bf16_cvt_utils::cvt_bfloat16_to_float(tmp_src + S_s,
+                                    (mkldnn_bfloat16_t *)src + soff + S_s,
+                                    S_chunk);
                             _src = tmp_src;
                         } else {
                             _src = reinterpret_cast<const acc_data_t *>(src + soff);
@@ -224,11 +225,11 @@ void ncsp_batch_normalization_fwd_t<data_type>::execute_forward() const {
                     if (data_type == data_type::bf16) {
                         // store dst to f32 buffer
                         _dst = tmp_data_ + ithr * SP_cl_align;
-                        // convert src from b16 to f32
+                        // convert src from bf16 to f32
                         acc_data_t *tmp_src = tmp_data_ + (nthr + ithr) * SP_cl_align;
-                        bf16_cvt_utils::cvt_bfloat16_to_float(tmp_src,
-                                (mkldnn_bfloat16_t *)src + s_off,
-                                nstl::max(0, S_e - S_s));
+                        bf16_cvt_utils::cvt_bfloat16_to_float(tmp_src + S_s,
+                                (mkldnn_bfloat16_t *)src + s_off + S_s,
+                                S_chunk);
                         _src = tmp_src;
                     } else {
                         _dst = reinterpret_cast<acc_data_t *>(dst + s_off);
@@ -253,10 +254,10 @@ void ncsp_batch_normalization_fwd_t<data_type>::execute_forward() const {
                         _dst[sp] = maybe_post_op(bn_res);
                     }
                     if (data_type == data_type::bf16) {
-                        // convert dst from f32 to b16
+                        // convert dst from f32 to bf16
                         bf16_cvt_utils::cvt_float_to_bfloat16(
-                                (mkldnn_bfloat16_t *)dst + s_off, _dst,
-                                nstl::max(0, S_e - S_s));
+                                (mkldnn_bfloat16_t *)dst + s_off + S_s, _dst + S_s,
+                                S_chunk);
                     }
                 }
             }
@@ -340,6 +341,7 @@ void ncsp_batch_normalization_bwd_t<data_type>::execute_backward() const {
                 SP_N_nthr = N_nthr * S_nthr;
             }
             size_t C_off = it * C_blks_per_iter;
+            const auto S_chunk = nstl::max(int(0), S_e - S_s);
             // On the last iteration the access pattern to ws_reduce
             // might change (due to re-balance on C). Since sync is not always
             // possible (in case of TBB) use different parts of ws for each
@@ -357,17 +359,17 @@ void ncsp_batch_normalization_bwd_t<data_type>::execute_backward() const {
                     const acc_data_t *_src;
                     size_t s_off = off * SP + n * C * SP;
                     if (data_type == data_type::bf16) {
-                        // convert diff_dst from b16 to f32
+                        // convert diff_dst from bf16 to f32
                         acc_data_t *tmp_diff_dst = tmp_data_ + ithr * SP_cl_align;
-                        bf16_cvt_utils::cvt_bfloat16_to_float(tmp_diff_dst,
-                                (mkldnn_bfloat16_t *)diff_dst + s_off,
-                                nstl::max(0, S_e - S_s));
+                        bf16_cvt_utils::cvt_bfloat16_to_float(tmp_diff_dst + S_s,
+                                (mkldnn_bfloat16_t *)diff_dst + s_off + S_s,
+                                S_chunk);
                         _diff_dst = tmp_diff_dst;
-                        // convert src from b16 to f32
+                        // convert src from bf16 to f32
                         acc_data_t *tmp_src = tmp_data_ + (nthr + ithr) * SP_cl_align;
-                        bf16_cvt_utils::cvt_bfloat16_to_float(tmp_src,
-                                (mkldnn_bfloat16_t *)src + s_off,
-                                nstl::max(0, S_e - S_s));
+                        bf16_cvt_utils::cvt_bfloat16_to_float(tmp_src + S_s,
+                                (mkldnn_bfloat16_t *)src + s_off + S_s,
+                                S_chunk);
                         _src = tmp_src;
                     } else {
                         _diff_dst = reinterpret_cast<const acc_data_t *>(diff_dst + s_off);
@@ -425,18 +427,18 @@ void ncsp_batch_normalization_bwd_t<data_type>::execute_backward() const {
                     if (data_type == data_type::bf16) {
                         // store diff_src to f32 buffer
                         _diff_src = tmp_data_ + ithr * SP_cl_align;
-                        // convert diff_dst from b16 to f32
+                        // convert diff_dst from bf16 to f32
                         acc_data_t *tmp_diff_dst = tmp_data_ + ithr * SP_cl_align;
-                        bf16_cvt_utils::cvt_bfloat16_to_float(tmp_diff_dst,
-                                (mkldnn_bfloat16_t *)diff_dst + s_off,
-                                nstl::max(0, S_e - S_s));
+                        bf16_cvt_utils::cvt_bfloat16_to_float(tmp_diff_dst + S_s,
+                                (mkldnn_bfloat16_t *)diff_dst + s_off + S_s,
+                                S_chunk);
                         _diff_dst = tmp_diff_dst;
                         if (calculate_diff_stats) {
-                            // convert src from b16 to f32
+                            // convert src from bf16 to f32
                             acc_data_t *tmp_src = tmp_data_ + (2 * nthr + ithr) * SP_cl_align;
-                            bf16_cvt_utils::cvt_bfloat16_to_float(tmp_src,
-                                    (mkldnn_bfloat16_t *)src + s_off,
-                                    nstl::max(0, S_e - S_s));
+                            bf16_cvt_utils::cvt_bfloat16_to_float(tmp_src + S_s,
+                                    (mkldnn_bfloat16_t *)src + s_off + S_s,
+                                    S_chunk);
                             _src = tmp_src;
                         } else
                             _src = nullptr; // to avoid compiler warning w/ gcc483
@@ -465,10 +467,10 @@ void ncsp_batch_normalization_bwd_t<data_type>::execute_backward() const {
                         _diff_src[sp] = v_diff_src;
                     }
                     if (data_type == data_type::bf16) {
-                        // convert diff_src from f32 to b16
+                        // convert diff_src from f32 to bf16
                         bf16_cvt_utils::cvt_float_to_bfloat16(
-                                (mkldnn_bfloat16_t *)diff_src + s_off,
-                                _diff_src, nstl::max(0, S_e - S_s));
+                                (mkldnn_bfloat16_t *)diff_src + s_off + S_s,
+                                _diff_src + S_s, S_chunk);
                     }
                 }
             }

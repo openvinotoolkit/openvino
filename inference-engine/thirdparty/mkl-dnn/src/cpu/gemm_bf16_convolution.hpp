@@ -223,7 +223,7 @@ private:
         Xbyak::Zmm bf16_emu_reserv_1 = Xbyak::Zmm(27);
         Xbyak::Zmm bf16_emu_reserv_2 = Xbyak::Zmm(28);
         Xbyak::Zmm bf16_emu_reserv_3 = Xbyak::Zmm(29);
-        Xbyak::Reg64 bf16_emu_reserv_4 = r11;
+        Xbyak::Reg64 bf16_emu_reserv_4 = r15;
         Xbyak::Zmm bf16_emu_reserv_5 = Xbyak::Zmm(30);
         Xbyak::Zmm bf16_emu_reserv_6 = Xbyak::Zmm(31);
 
@@ -236,7 +236,6 @@ private:
         int max_data_reg_idx_, max_unroll_, compute_reg_step_;
         int data_reg_base_idx_;
         size_t vlen_;
-        bool is_cpx_;
         bf16_emulation_t *bf16_emu_;
         jit_uni_eltwise_injector_f32<avx512_common> *eltwise_injector_;
 

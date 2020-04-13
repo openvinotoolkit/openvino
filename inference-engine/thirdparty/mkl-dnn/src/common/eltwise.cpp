@@ -39,7 +39,7 @@ status_t eltwise_desc_init(eltwise_desc_t *eltwise_desc, prop_kind_t prop_kind,
         && one_of(alg_kind, eltwise_relu, eltwise_tanh, eltwise_elu,
                   eltwise_square, eltwise_abs, eltwise_sqrt, eltwise_linear,
                   eltwise_bounded_relu, eltwise_soft_relu, eltwise_logistic,
-                  eltwise_clamp, eltwise_exp, eltwise_not)
+                  eltwise_exp, eltwise_gelu, eltwise_clamp, eltwise_not, eltwise_swish)
         && IMPLICATION(prop_kind == backward_data, diff_data_desc != nullptr);
     if (!args_ok) return invalid_arguments;
 

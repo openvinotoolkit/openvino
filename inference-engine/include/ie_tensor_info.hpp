@@ -14,17 +14,22 @@
 #include <memory>
 #include <string>
 
+#include <ie_api.h>
+
 namespace InferenceEngine {
 
 /**
+ * @deprecated Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph.
  * @struct TensorInfo
  * @brief This structure describes tensor information
  */
-struct TensorInfo {
+struct INFERENCE_ENGINE_DEPRECATED("Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph") TensorInfo {
     /**
      * @brief A shared pointer to the TensorInfo object
      */
+    IE_SUPPRESS_DEPRECATED_START
     using Ptr = std::shared_ptr<TensorInfo>;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief A map of extra info:

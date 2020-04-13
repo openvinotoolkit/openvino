@@ -17,7 +17,6 @@
 
 #include <ngraph/opsets/opset.hpp>
 #include "cpp_interfaces/base/ie_plugin_base.hpp"
-#include "details/caseless.hpp"
 #include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_pointer.hpp"
 #include "file_utils.h"
@@ -52,10 +51,6 @@ IInferencePluginAPI* getInferencePluginAPIInterface(InferencePlugin plugin) {
 }
 
 }  // namespace
-
-IInferencePlugin::~IInferencePlugin() {}
-
-IInferencePluginAPI::~IInferencePluginAPI() {}
 
 IE_SUPPRESS_DEPRECATED_END
 
@@ -120,7 +115,7 @@ class Core::Impl : public ICore {
     ITaskExecutor::Ptr _taskExecutor = nullptr;
 
     IE_SUPPRESS_DEPRECATED_START
-    mutable std::map<std::string, InferencePlugin, details::CaselessLess<std::string>> plugins;
+    mutable std::map<std::string, InferencePlugin> plugins;
     IE_SUPPRESS_DEPRECATED_END
 
     struct PluginDescriptor {
@@ -129,8 +124,7 @@ class Core::Impl : public ICore {
         std::vector<FileUtils::FilePath> listOfExtentions;
     };
 
-    std::map<std::string, PluginDescriptor, details::CaselessLess<std::string>> pluginRegistry;
-    IErrorListener* listener = nullptr;
+    std::map<std::string, PluginDescriptor> pluginRegistry;
     std::unordered_set<std::string> opsetNames;
     std::vector<IExtensionPtr> extensions;
 
@@ -267,8 +261,6 @@ public:
                         // currently, extensions cannot be loaded using wide path
                         cppPlugin.AddExtension(make_so_pointer<IExtension>(FileUtils::fromFilePath(extensionLocation)));
                     }
-
-                    if (listener) plugin->SetLogCallback(*listener);
                 }
 
                 plugins[deviceName] = cppPlugin;
@@ -338,12 +330,18 @@ public:
 
     void SetConfigForPlugins(const std::map<std::string, std::string>& config, const std::string& deviceName) {
         // set config for plugins in registry
+        bool configIsSet = false;
         for (auto& desc : pluginRegistry) {
             if (deviceName.empty() || deviceName == desc.first) {
                 for (auto&& conf : config) {
                     desc.second.defaultConfig[conf.first] = conf.second;
                 }
+                configIsSet = true;
             }
+        }
+
+        if (!configIsSet && !deviceName.empty()) {
+            THROW_IE_EXCEPTION << "Device with \"" << deviceName << "\" name is not registered in the InferenceEngine";
         }
 
         // set config for already created plugins
@@ -356,22 +354,8 @@ public:
         }
     }
 
-    void SetErrorListener(IErrorListener* list) {
-        listener = list;
-
-        // set for already created plugins
-        for (auto& plugin : plugins) {
-            IE_SUPPRESS_DEPRECATED_START
-            GetPluginByName(plugin.first)->SetLogCallback(*listener);
-            IE_SUPPRESS_DEPRECATED_END
-        }
-    }
-
     void addExtension(const IExtensionPtr& extension) {
-        std::map<std::string, ngraph::OpSet> opsets;
-        try {
-            opsets = extension->getOpSets();
-        } catch (...) {}
+        std::map<std::string, ngraph::OpSet> opsets = extension->getOpSets();
         for (const auto& it : opsets) {
             if (opsetNames.find(it.first) != opsetNames.end())
                 THROW_IE_EXCEPTION << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
@@ -387,6 +371,7 @@ public:
 
 Core::Impl::Impl() {
     opsetNames.insert("opset1");
+    opsetNames.insert("opset2");
 }
 
 Core::Impl::~Impl() {}
@@ -434,9 +419,10 @@ std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) 
     return versions;
 }
 
-void Core::SetLogCallback(IErrorListener& listener) const {
-    _impl->SetErrorListener(&listener);
+IE_SUPPRESS_DEPRECATED_START
+void Core::SetLogCallback(IErrorListener&) const {
 }
+IE_SUPPRESS_DEPRECATED_END
 
 namespace {
 template <typename T>
@@ -475,12 +461,10 @@ CNNNetwork Core::ReadNetwork(const std::string& modelPath, const std::string& bi
     ResponseDesc desc;
     StatusCode rt = cnnReader->ReadNetwork(modelPath.c_str(), &desc);
     if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
-#if defined(ENABLE_NGRAPH)
     auto cnnNetReaderImpl = std::dynamic_pointer_cast<details::CNNNetReaderImpl>(cnnReader);
     if (cnnNetReaderImpl && cnnReader->getVersion(&desc) >= 10) {
         cnnNetReaderImpl->addExtensions(_impl->getExtensions());
     }
-#endif
     std::string bPath = binPath;
     if (bPath.empty()) {
         bPath = modelPath;
@@ -511,12 +495,10 @@ CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights
     ResponseDesc desc;
     StatusCode rt = cnnReader->ReadNetwork(model.data(), model.length(), &desc);
     if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
-#if defined(ENABLE_NGRAPH)
     auto cnnNetReaderImpl = std::dynamic_pointer_cast<details::CNNNetReaderImpl>(cnnReader);
     if (cnnNetReaderImpl && cnnReader->getVersion(&desc) >= 10) {
         cnnNetReaderImpl->addExtensions(_impl->getExtensions());
     }
-#endif
     TBlob<uint8_t>::Ptr weights_ptr;
     if (weights) {
         uint8_t* ptr = weights->cbuffer().as<uint8_t*>();
@@ -528,7 +510,7 @@ CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights
     return CNNNetwork(cnnReader);
 }
 
-ExecutableNetwork Core::LoadNetwork(CNNNetwork network, const std::string& deviceName,
+ExecutableNetwork Core::LoadNetwork(const CNNNetwork network, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) {
     IE_PROFILING_AUTO_SCOPE(Core::LoadNetwork)
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
@@ -541,10 +523,14 @@ void Core::AddExtension(const IExtensionPtr& extension) {
     _impl->addExtension(extension);
 }
 
-ExecutableNetwork Core::LoadNetwork(CNNNetwork network, RemoteContext::Ptr context,
+ExecutableNetwork Core::LoadNetwork(const CNNNetwork network, RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
     IE_PROFILING_AUTO_SCOPE(Core::LoadNetwork)
     std::map<std::string, std::string> config_ = config;
+
+    if (context == nullptr) {
+        THROW_IE_EXCEPTION << "Remote context is null";
+    }
 
     std::string deviceName_ = context->getDeviceName();
     DeviceIDParser device(deviceName_);
@@ -666,12 +652,33 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel, const std::str
 
 IE_SUPPRESS_DEPRECATED_END
 
-QueryNetworkResult Core::QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
-                                      const std::map<std::string, std::string>& config) const {
-    if (deviceName.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION << "MULTI device does not support QueryNetwork";
+ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
+                                      const RemoteContext::Ptr& context,
+                                      const std::map<std::string, std::string>& config) {
+    IE_PROFILING_AUTO_SCOPE(Core::ImportNetwork)
+
+    if (context == nullptr) {
+        THROW_IE_EXCEPTION << "Remote context is null";
     }
 
+    std::string deviceName_ = context->getDeviceName();
+    DeviceIDParser device(deviceName_);
+    std::string deviceName = device.getDeviceName();
+
+    auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+
+    IE_SUPPRESS_DEPRECATED_START
+    auto pluginAPIInterface = getInferencePluginAPIInterface(_impl->GetCPPPluginByName(parsed._deviceName));
+
+    if (pluginAPIInterface == nullptr) {
+        THROW_IE_EXCEPTION << deviceName << " does not implement the ImportNetwork method";
+    }
+    IE_SUPPRESS_DEPRECATED_END
+    return pluginAPIInterface->ImportNetwork(networkModel, context, parsed._config);
+}
+
+QueryNetworkResult Core::QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
+                                      const std::map<std::string, std::string>& config) const {
     QueryNetworkResult res;
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
     IE_SUPPRESS_DEPRECATED_START

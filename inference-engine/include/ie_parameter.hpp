@@ -3,9 +3,8 @@
 //
 
 /**
- * @brief A header file for the CNNNetworkIterator class
- *
- * @file ie_cnn_network_iterator.hpp
+ * @brief A header file for the Parameter class
+ * @file ie_parameter.hpp
  */
 #pragma once
 

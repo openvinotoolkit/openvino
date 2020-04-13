@@ -56,6 +56,7 @@ private:
     struct GenericLayerParams {
         struct LayerPortData {
             size_t portId;
+            // Precision and dimensions are needed only for GenericIE op
             ngraph::element::Type_t precision;
             SizeVector dims;
         };
@@ -63,7 +64,6 @@ private:
         std::string version;
         std::string name;
         std::string type;
-        ngraph::element::Type_t precision;
         std::vector<LayerPortData> inputPorts;
         std::vector<LayerPortData> outputPorts;
 
@@ -130,32 +130,11 @@ private:
             return result;
         }
 
-        void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, int numInputs, int numOutputs) {
-            if (numInputs >= 0 && params.inputPorts.size() != numInputs) {
+        void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, int numInputs) {
+            if (numInputs >= 0 && inputs.size() != numInputs) {
                 THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
-                                   << " has incorrect number of input ports!";
+                                   << " has incorrect number of inputs!";
             }
-            for (size_t i = 0; i < params.inputPorts.size(); i++) {
-                for (const auto& dim : params.inputPorts[i].dims) {
-                    if (!dim)
-                        THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
-                                           << " has incorrect dimensions in the input port" << i << "!";
-                }
-            }
-            if (numOutputs >= 0 && params.outputPorts.size() != numOutputs) {
-                THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
-                                   << " has incorrect number of output ports!";
-            }
-            for (size_t i = 0; i < params.outputPorts.size(); i++) {
-                for (const auto& dim : params.outputPorts[i].dims) {
-                    if (!dim)
-                        THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
-                                           << " has incorrect dimensions in the output port" << i << "!";
-                }
-            }
-            if (inputs.size() != params.inputPorts.size())
-                THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
-                    << " has incorrect number of inputs!";
         }
 
     public:

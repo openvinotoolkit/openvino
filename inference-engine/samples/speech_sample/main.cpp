@@ -26,9 +26,6 @@
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
 
-#ifndef ALIGN
-#define ALIGN(memSize, pad)   ((static_cast<int>((memSize) + pad - 1) / pad) * pad)
-#endif
 #define MAX_SCORE_DIFFERENCE 0.0001f
 #define MAX_VAL_2B_FEAT 16384
 
@@ -56,6 +53,13 @@ struct InferRequestStruct {
     int frameIndex;
     uint32_t numFramesThisBatch;
 };
+
+void CheckNumberOfInputs(size_t numInputs, size_t numInputArkFiles) {
+    if (numInputs != numInputArkFiles) {
+        throw std::logic_error("Number of network inputs (" + std::to_string(numInputs) + ")"
+                               " is not equal to number of ark files (" + std::to_string(numInputArkFiles) + ")");
+    }
+}
 
 void GetKaldiArkInfo(const char *fileName,
                      uint32_t numArrayToFindSize,
@@ -301,6 +305,7 @@ float getGnaFrequencyMHz() {
     const uint8_t cannon_lake_model = 102;
     const uint8_t gemini_lake_model = 122;
     const uint8_t ice_lake_model = 126;
+    const uint8_t next_model = 140;
 
     native_cpuid(&eax, &ebx, &ecx, &edx);
     family = (eax >> 8) & 0xF;
@@ -318,6 +323,7 @@ float getGnaFrequencyMHz() {
         switch (model) {
             case cannon_lake_model:
             case ice_lake_model:
+            case next_model:
                 return 400;
             case gemini_lake_model:
                 return 200;
@@ -552,6 +558,7 @@ int main(int argc, char *argv[]) {
         if (!FLAGS_m.empty()) {
             /** Read network model **/
             network = ie.ReadNetwork(FLAGS_m);
+            CheckNumberOfInputs(network.getInputsInfo().size(), numInputArkFiles);
             // -------------------------------------------------------------------------------------------------
 
             // --------------------------- 3. Set batch size ---------------------------------------------------
@@ -561,6 +568,9 @@ int main(int argc, char *argv[]) {
                        << slog::endl;
         }
 
+        // -----------------------------------------------------------------------------------------------------
+
+        // --------------------------- 4. Set parameters and scale factors -------------------------------------
         /** Setting parameter for per layer metrics **/
         std::map<std::string, std::string> gnaPluginConfig;
         std::map<std::string, std::string> genericPluginConfig;
@@ -617,7 +627,7 @@ int main(int argc, char *argv[]) {
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 4. Write model to file --------------------------------------------------
+        // --------------------------- 5. Write model to file --------------------------------------------------
         // Embedded GNA model dumping (for Intel(R) Speech Enabling Developer Kit)
         if (!FLAGS_we.empty()) {
             gnaPluginConfig[GNAConfigParams::KEY_GNA_FIRMWARE_MODEL_IMAGE] = FLAGS_we;
@@ -625,7 +635,7 @@ int main(int argc, char *argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 5. Loading model to the device ------------------------------------------
+        // --------------------------- 6. Loading model to the device ------------------------------------------
 
         if (useGna) {
             genericPluginConfig.insert(std::begin(gnaPluginConfig), std::end(gnaPluginConfig));
@@ -644,7 +654,7 @@ int main(int argc, char *argv[]) {
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
         slog::info << "Model loading time " << loadTime.count() << " ms" << slog::endl;
 
-        // --------------------------- 6. Exporting gna model using InferenceEngine AOT API---------------------
+        // --------------------------- 7. Exporting gna model using InferenceEngine AOT API---------------------
         if (!FLAGS_wg.empty()) {
             slog::info << "Writing GNA Model to file " << FLAGS_wg << slog::endl;
             t0 = Time::now();
@@ -668,16 +678,12 @@ int main(int argc, char *argv[]) {
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 7. Prepare input blobs --------------------------------------------------
+        // --------------------------- 8. Prepare input blobs --------------------------------------------------
         /** Taking information about all topology inputs **/
         ConstInputsDataMap cInputInfo = executableNet.GetInputsInfo();
-        /** Stores all input blobs data **/
-        if (cInputInfo.size() != numInputArkFiles) {
-            throw std::logic_error("Number of network inputs("
-                + std::to_string(cInputInfo.size()) + ") is not equal to number of ark files("
-                + std::to_string(numInputArkFiles) + ")");
-        }
+        CheckNumberOfInputs(cInputInfo.size(), numInputArkFiles);
 
+        /** Stores all input blobs data **/
         std::vector<Blob::Ptr> ptrInputBlobs;
         for (auto& input : cInputInfo) {
             ptrInputBlobs.push_back(inferRequests.begin()->inferRequest.GetBlob(input.first));
@@ -687,16 +693,15 @@ int main(int argc, char *argv[]) {
         if (!FLAGS_m.empty()) {
             inputInfo = network.getInputsInfo();
         }
-        /** configure input precision if model loaded from IR **/
+        /** Configure input precision if model is loaded from IR **/
         for (auto &item : inputInfo) {
             Precision inputPrecision = Precision::FP32;  // specify Precision::I16 to provide quantized inputs
             item.second->setPrecision(inputPrecision);
-            item.second->getInputData()->setLayout(Layout::NC);  // row major layout
         }
 
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 8. Prepare output blobs -------------------------------------------------
+        // --------------------------- 9. Prepare output blobs -------------------------------------------------
         ConstOutputsDataMap cOutputInfo(executableNet.GetOutputsInfo());
         OutputsDataMap outputInfo;
         if (!FLAGS_m.empty()) {
@@ -713,11 +718,10 @@ int main(int argc, char *argv[]) {
 
             Precision outputPrecision = Precision::FP32;  // specify Precision::I32 to retrieve quantized outputs
             outData->setPrecision(outputPrecision);
-            outData->setLayout(Layout::NC);  // row major layout
         }
         // -----------------------------------------------------------------------------------------------------
 
-        // --------------------------- 9. Do inference ---------------------------------------------------------
+        // --------------------------- 10. Do inference --------------------------------------------------------
         std::vector<std::vector<uint8_t>> ptrUtterances;
         std::vector<uint8_t> ptrScores;
         std::vector<uint8_t> ptrReferenceScores;
@@ -848,15 +852,15 @@ int main(int argc, char *argv[]) {
                                                            "but by fact we were not able to cast output to MemoryBlob");
                                 }
                                 // locked memory holder should be alive all time while access to its buffer happens
-                                auto lmoHolder = moutput->rmap();
+                                auto moutputHolder = moutput->rmap();
                                 auto byteSize = inferRequest.numFramesThisBatch * numScoresPerFrame * sizeof(float);
                                 std::memcpy(outputFrame,
-                                            lmoHolder.as<const void *>(),
+                                            moutputHolder.as<const void *>(),
                                             byteSize);
                             }
 
                             if (!FLAGS_r.empty()) {
-                                Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(cOutputInfo.begin()->first);
+                                Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(cOutputInfo.rbegin()->first);
                                 MemoryBlob::CPtr moutput = as<MemoryBlob>(outputBlob);
                                 if (!moutput) {
                                     throw std::logic_error("We expect output to be inherited from MemoryBlob, "
@@ -874,9 +878,9 @@ int main(int argc, char *argv[]) {
                                 UpdateScoreError(&frameError, &totalError);
                             }
                             if (FLAGS_pc) {
-                                // retrive new counters
+                                // retrieve new counters
                                 getPerformanceCounters(inferRequest.inferRequest, callPerfMap);
-                                // summarize retrived counters with all previous
+                                // summarize retrieved counters with all previous
                                 sumPerformanceCounters(callPerfMap, utterancePerfMap);
                             }
                         }

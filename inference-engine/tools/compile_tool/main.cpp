@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm>
+#include <chrono>
 #include <unordered_map>
 #include <map>
 #include <vector>
@@ -17,7 +18,6 @@
 #include <vpu/private_plugin_config.hpp>
 #include <vpu/utils/string.hpp>
 #include "samples/common.hpp"
-#include <dlia/dlia_config.hpp>
 
 static constexpr char help_message[] = "Optional. Print the usage message.";
 static constexpr char model_message[] = "Required. Path to the XML model.";
@@ -156,7 +156,7 @@ static std::map<std::string, std::string> configure(const std::string &configFil
     }
 
     if (!FLAGS_DLA_ARCH_NAME.empty()) {
-        config[DLIA_CONFIG_KEY(ARCH_NAME)] = FLAGS_DLA_ARCH_NAME;
+        config["DLIA_ARCH_NAME"] = FLAGS_DLA_ARCH_NAME;
     }
 
     return config;
@@ -324,7 +324,10 @@ std::string getFileNameFromPath(const std::string& path,
     }
 }
 
+using TimeDiff = std::chrono::milliseconds;
+
 int main(int argc, char *argv[]) {
+    TimeDiff loadNetworkTimeElapsed {0};
     try {
         std::cout << "Inference Engine: " << InferenceEngine::GetInferenceEngineVersion() << std::endl;
 
@@ -339,7 +342,9 @@ int main(int argc, char *argv[]) {
         setDefaultIOPrecisions(network, FLAGS_d);
         processPrecisions(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
 
+        auto timeBeforeLoadNetwork = std::chrono::steady_clock::now();
         auto executableNetwork = ie.LoadNetwork(network, FLAGS_d, configure(FLAGS_c, FLAGS_m));
+        loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(std::chrono::steady_clock::now() - timeBeforeLoadNetwork);
 
         std::string outputName = FLAGS_o;
         if (outputName.empty()) {
@@ -355,6 +360,6 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    std::cout << "Done" << std::endl;
+    std::cout << "Done. LoadNetwork time elapsed: " << loadNetworkTimeElapsed.count() << " ms" << std::endl;
     return EXIT_SUCCESS;
 }

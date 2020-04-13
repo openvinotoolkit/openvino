@@ -58,7 +58,7 @@ KERNEL (fully_connected_gpu_xb_bx)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE res = FINAL_NAME;
+    OUTPUT_TYPE res = FUSED_OPS_RESULT;
 
     output[x] = res;
 #else

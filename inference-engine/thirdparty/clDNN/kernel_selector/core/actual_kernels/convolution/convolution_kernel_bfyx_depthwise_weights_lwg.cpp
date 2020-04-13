@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ ParamsKey ConvolutionKernel_bfyx_depthwise_weights_lwg::GetSupportedKey() const 
     k.EnableSubGroupShort();
     k.EnableDepthwiseSeparableOpt();
     k.EnableDilation();
+    k.EnableGroupedConvolution();
     return k;
 }
 
@@ -46,10 +47,9 @@ bool ConvolutionKernel_bfyx_depthwise_weights_lwg::Validate(const Params& p, con
     }
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
-    if (!cp.depthwise_separable_opt)
-        return false;
-    if ((cp.filterSize.x > 4) || (cp.filterSize.y > 4) ||
-        ((cp.inputs[0].Feature().v != cp.split) && (cp.inputs[0].Feature().v != cp.groups))) {
+
+    if ((cp.filterSize.x > 5) || (cp.filterSize.y > 5) || (cp.groups == 1) ||
+        (cp.weights.IFM().v != 1) || (cp.weights.OFM().v != 1)) {
         return false;
     }
 
@@ -71,7 +71,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_depthwise_weights_lwg
     runInfo.lws1 = 1;
     runInfo.lws2 = 1;
 
-    runInfo.effiency = FORCE_PRIORITY_6;
+    runInfo.efficiency = FORCE_PRIORITY_2;
 
     return runInfo;
 }

@@ -32,15 +32,31 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::i_yxs_os_yxsv2_osv16:
         case WeightsLayout::iy_xs_os_xsv2_osv16__ao32:
         case WeightsLayout::os_is_yx_osv32_isv32p:
-        case WeightsLayout::o_i_yx_i16_o16:
-        case WeightsLayout::oiyx_o16:
-        case WeightsLayout::o_i_zyx_i16_o16:
-        case WeightsLayout::i_o_zyx_o16_i16:
-        case WeightsLayout::o_i_zyx_i8_o16_i2:
-        case WeightsLayout::ozyxi_o16:
+        case WeightsLayout::os_is_yx_isv16_osv16:
+        case WeightsLayout::os_is_zyx_isv16_osv16:
+        case WeightsLayout::is_os_zyx_osv16_isv16:
+        case WeightsLayout::is_os_yx_osv16_isv16:
+        case WeightsLayout::os_is_yx_isv8_osv16_isv2:
+        case WeightsLayout::os_is_zyx_isv8_osv16_isv2:
+        case WeightsLayout::os_zyxi_osv16:
+        case WeightsLayout::g_os_iyx_osv16:
+        case WeightsLayout::g_os_iyx_osv32:
+        case WeightsLayout::gs_oiyx_gsv16:
+        case WeightsLayout::gs_oizyx_gsv16:
+        case WeightsLayout::gs_oiyx_gsv32:
+        case WeightsLayout::g_os_iyx_osv16_rotate_180:
+        case WeightsLayout::gi_yxs_os_yxsv2_osv16:
+        case WeightsLayout::g_is_os_zyx_osv16_isv16:
+        case WeightsLayout::g_is_os_yx_osv16_isv16:
+        case WeightsLayout::g_os_is_zyx_isv8_osv16_isv2:
+        case WeightsLayout::g_os_is_yx_isv8_osv16_isv2:
+        case WeightsLayout::g_os_is_zyx_isv16_osv16:
+        case WeightsLayout::giy_xs_os_xsv2_osv16__ao32:
+        case WeightsLayout::g_os_is_yx_isv16_osv16:
             return 16;
         case WeightsLayout::os_i_osv8__ai8:
         case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:
+        case WeightsLayout::giy_xs_os_xsv2_osv8__ao32:
             return 8;
         default:
             return 1;
@@ -134,7 +150,7 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_weig
 
     std::vector<size_t> global(3);
 
-    global = {out.OFM().v, out.IFM().v, out.X().v * out.Y().v * out.Z().v};
+    global = {out.G().v * out.OFM().v, out.IFM().v, out.X().v * out.Y().v * out.Z().v};
     auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];
@@ -172,6 +188,12 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
                 break;
             }
         }
+    }
+
+    if (params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 && params.inputs[0].Feature().v % 16 == 0) {
+        kd.lws0 = 1;
+        kd.lws1 = 16;
+        kd.lws2 = 1;
     }
 
     return kd;

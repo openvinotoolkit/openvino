@@ -33,12 +33,10 @@ IE_SUPPRESS_DEPRECATED_START
         KEY_LOG_LEVEL,
         KEY_VPU_PRINT_RECEIVE_TENSOR_TIME,
         KEY_VPU_CUSTOM_LAYERS,
-        KEY_VPU_IR_WITH_SCALES_DIRECTORY,
         KEY_VPU_IGNORE_IR_STATISTIC,
         KEY_VPU_MYRIAD_FORCE_RESET,
         KEY_VPU_MYRIAD_PLATFORM,
         KEY_EXCLUSIVE_ASYNC_REQUESTS,
-        KEY_LOG_LEVEL,
         KEY_PERF_COUNT,
         KEY_CONFIG_FILE,
         KEY_DEVICE_ID
@@ -96,15 +94,15 @@ float MyriadMetrics::DevicesThermal(const DevicePtr& device) const {
     return MyriadExecutor::GetThermal(device);
 }
 
-const std::vector<std::string>& MyriadMetrics::SupportedMetrics() const {
+const std::unordered_set<std::string>& MyriadMetrics::SupportedMetrics() const {
     return _supportedMetrics;
 }
 
-const std::vector<std::string>& MyriadMetrics::SupportedConfigKeys() const {
+const std::unordered_set<std::string>& MyriadMetrics::SupportedConfigKeys() const {
     return _supportedConfigKeys;
 }
 
-const std::vector<std::string>& MyriadMetrics::OptimizationCapabilities() const {
+const std::unordered_set<std::string>& MyriadMetrics::OptimizationCapabilities() const {
     return _optimizationCapabilities;
 }
 

@@ -30,7 +30,6 @@
 #include "runtime/pwl.h"
 #include "gna_graph_tools.hpp"
 #include "frontend/model_quantizer.hpp"
-#include "optimizer/gna_pass_manager.hpp"
 #include "layers/layers_builder.hpp"
 #include "layers/gna_concat_layer.hpp"
 #include "layers/gna_crop_layer.hpp"
@@ -91,12 +90,15 @@ void GNAGraphCompiler::fillConcatConnections(InferenceEngine::CNNLayerPtr layer)
     std::string& id = layer->name;
 
     for (size_t i = 0; i < layer->insData.size(); ++i) {
+        auto ptrConcatLayerInput = CNNNetPrevLayerSkipCertain(layer, i, [](CNNLayerPtr lp) {
+            LayerInfo info(lp);
+            return info.isNonFunctional();
+        });
         auto dataInput = layer->insData[i].lock();
         if (!dataInput) {
             THROW_GNA_EXCEPTION << "Input layer pointer for concat is unexpectedly absent";
         }
 
-        auto ptrConcatLayerInput = dataInput->getCreatorLayer().lock();
         if (!ptrConcatLayerInput) {
             THROW_GNA_EXCEPTION << "Input layer for concat is unexpectedly absent";
         }
@@ -119,51 +121,48 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
     size_t split_size = 0;
     std::string& id = layer->name;
     IE_ASSERT(!layer->insData.empty());
+
     auto dataInput = layer->insData.begin()->lock();
     if (!dataInput) {
-        THROW_GNA_EXCEPTION << "Input layer pointer for split/slice is unexpectedly absent";
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Input layer pointer is unexpectedly absent";
     }
     auto ptrSplitLayerInput = dataInput->getCreatorLayer().lock();
     if (!ptrSplitLayerInput) {
-        THROW_GNA_EXCEPTION << "Input layer for split/slice is unexpectedly absent";
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Input layer for is unexpectedly absent";
     }
 
-    LayerInfo ptrSplitLayerInputLayerInfo(ptrSplitLayerInput);
     for (size_t i = 0; i < layer->outData.size(); ++i) {
         size_t padding = 0;
         size_t output_layer_size = 0;
-        auto& dataOutput = layer->outData[i];
 
-        if (!dataOutput || !dataInput) {
-            THROW_GNA_EXCEPTION << "Output layer pointer for split/slice is unexpectedly absent";
-        }
 
-        for (auto&& ptrSplitLayerOutputPair : dataOutput->getInputTo()) {
-            auto& ptrSplitLayerOutput = ptrSplitLayerOutputPair.second;
-            if (!ptrSplitLayerOutput) {
-                THROW_GNA_EXCEPTION << "Output layer for split/slice is unexpectedly absent";
+        for (int j = 0; j != layer->outData[i]->getInputTo().size(); j++) {
+            auto outFunctionalLayer = CNNNetGetNextLayerSkipCertain(layer, i, j,  [](CNNLayerPtr l) {
+                return LayerInfo(l).isNonFunctional();
+            });
+
+            if (!outFunctionalLayer.first) {
+                THROW_GNA_LAYER_EXCEPTION(layer) << " outData["<< i << "]" << " connected by " << j <<" connection doesnt connect to functional layer";
             }
 
-            padding = std::max(padding, LayerInfo(ptrSplitLayerOutput).paddingSize())
+            auto dataOutput = outFunctionalLayer.first->insData[outFunctionalLayer.second].lock();
+
+            padding = std::max(padding, LayerInfo(outFunctionalLayer.first).paddingSize())
                                                         * dataOutput->getPrecision().size();
             output_layer_size =
                     InferenceEngine::details::product(begin(dataOutput->getDims()),
                                                      end(dataOutput->getDims())) * dataOutput->getPrecision().size();
 
-            auto insDatas = CNNLayerFindInsDataIdxes(dataOutput, ptrSplitLayerOutput);
-            if (insDatas.size() != 1) {
-                THROW_GNA_EXCEPTION << "unsupported layer connection: " << layer->name << " to " << ptrSplitLayerOutput->name;
-            }
-
-            if (ptrSplitLayerOutput->type == "AffineFilter") {
-                size_t aligned64_offset = ptrSplitLayerOutput->GetParamAsInt("offset");
+            if (LayerInfo(outFunctionalLayer.first).isAffineFilter()) {
+                size_t aligned64_offset = outFunctionalLayer.first->GetParamAsInt("offset");
                 layerInfoItem.splitOutputLayers.emplace_back(
-                    ptrSplitLayerOutput,
-                    insDatas[0],
+                    outFunctionalLayer.first,
+                    outFunctionalLayer.second,
                     aligned64_offset * dataOutput->getPrecision().size(),
                     output_layer_size);
             } else {
-                layerInfoItem.splitOutputLayers.emplace_back(ptrSplitLayerOutput, insDatas[0], split_size, output_layer_size);
+                layerInfoItem.splitOutputLayers.emplace_back(
+                    outFunctionalLayer.first, outFunctionalLayer.second, split_size, output_layer_size);
             }
         }
 
@@ -219,14 +218,14 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     }
 
     uint32_t num_feature_map_rows = w_dim_in / convolution._stride_x;
-    uint32_t num_feature_map_columns = c_dim_in * convolution._stride_x / num_feature_maps;
+    uint32_t num_feature_map_columns = c_dim_in * convolution._stride_x;
 
     uint32_t num_columns_in = c_dim_in;
     uint32_t num_rows_out = w_dim_out;
 
     // padding of convolution kernel to be multiply of 8
-    uint32_t num_conv_kernel_padding = ALIGN(convolution._kernel_x * num_feature_map_columns * num_feature_maps, 8)
-        - convolution._kernel_x * num_feature_map_columns * num_feature_maps;
+    uint32_t num_conv_kernel_padding = ALIGN(convolution._kernel_x * num_feature_map_columns, 8)
+        - convolution._kernel_x * num_feature_map_columns;
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
     void* ptr_weights = nullptr;
@@ -238,7 +237,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     auto& currentComponent = dnnComponents.addComponent(layer->name, "convolution");
 
     // have to pad input to let last kernel meets it's corresponding input
-    auto num_inputs = num_feature_maps * num_feature_map_columns * num_feature_map_rows + num_conv_kernel_padding;
+    auto num_inputs = num_feature_map_columns * num_feature_map_rows + num_conv_kernel_padding;
     auto num_input_padding = ALIGN(num_inputs, 8) - num_inputs;
     auto num_filter_rows = convolution._kernel_x / convolution._stride_x;
     dnn->InitConvolutional1DComponent(currentComponent,
@@ -252,21 +251,16 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         biasPrecision.size(),
         convolution._out_depth,
         num_filter_rows,
-        num_feature_maps * num_feature_map_columns * num_filter_rows + num_conv_kernel_padding,
-
-        num_feature_maps,  // interesting - why this is so in gna_example
+        num_feature_map_columns * num_filter_rows + num_conv_kernel_padding,
+        1,
         num_feature_map_rows,
         num_feature_map_columns,
-
         quantized == nullptr ? 1 : quantized->_weights_quant.scale,
         quantized == nullptr ? 1 : quantized->_dst_quant.scale,
         ptr_inputs,
         ptr_outputs,
         ptr_weights,
         ptr_biases);
-
-    // update num_feature_maps for next convolutional layer
-    num_feature_maps = convolution._out_depth;  // = number of filters
 
     size_t num_data_bytes_out =
         InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
@@ -494,7 +488,7 @@ void GNAGraphCompiler::CopyPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_padding_out = ALIGN(num_rows_out, 8) - num_rows_out;
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
-    auto orientation = (num_cnn_rows_out > 0) ? kDnnNonInterleavedOrientation : kDnnInterleavedOrientation;
+    auto orientation = kDnnInterleavedOrientation;
 
     auto& currentComponent = dnnComponents.addComponent(layer->name, "copy");
 
@@ -558,16 +552,20 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
     size_t idx = 0;
     for (auto && inputLayer : concatLayerInfo.concatInputLayers) {
         auto concatLayerInput = concat_connection.find(concatLayer->name)->second.getConcat();
+        CNNLayerPtr concatParent;
         int it = 0;
 
         for (; it != concatLayerInput->insData.size(); it++) {
-            auto parent = CNNNetPrevLayer(concatLayerInput, it);
-            if (parent->name.find(inputLayer.name) != std::string::npos) {
+            concatParent = CNNNetPrevLayerSkipCertain(concatLayerInput, it, [](CNNLayerPtr l) {
+                return LayerInfo(l).isNonFunctional();
+            });
+            if (concatParent->name.find(inputLayer.name) != std::string::npos) {
                 break;
             }
         }
         IE_ASSERT(it != concatLayerInput->insData.size());
-        auto layerInfo = LayerInfo(concatLayerInput->insData[it].lock()->getCreatorLayer().lock());
+        auto layerInfo = LayerInfo(concatParent);
+        // auto layerInfo = LayerInfo(concatLayerInput->insData[it].lock()->getCreatorLayer().lock());
         if (layerInfo.isInput()) {
             if (concatLayerInfo.input_allocated) {
                 // for concat input allocated only once, so lets mark this specific input layer also as allocated
@@ -584,7 +582,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
             concatLayerInfo.input_allocated = true;
         } else  if (layerInfo.isMemory()) {
-            connectInput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size, inputLayer.offset, idx);
+            connectInput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size, -static_cast<int>(inputLayer.offset), idx);
 
             concatLayerInfo.input_allocated = true;
         }
@@ -714,12 +712,12 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
                 std::swap(inputs4Bytes, inputs2Bytes);
                 biasesLayerIdx = 0;
             }
-            IE_ASSERT(inputs2Bytes->getPrecision().size() == 2);
-            IE_ASSERT(inputs4Bytes->getPrecision().size() == 4);
+            GNA_LAYER_ASSERT(layer, inputs2Bytes->getPrecision().size() == 2);
+            GNA_LAYER_ASSERT(layer, inputs4Bytes->getPrecision().size() == 4);
         } else {
             // for mul both inputs should be 2 bytes precision
-            IE_ASSERT(inputs2Bytes->getPrecision().size() == 2);
-            IE_ASSERT(inputs4Bytes->getPrecision().size() == 2);
+            GNA_LAYER_ASSERT(layer, inputs2Bytes->getPrecision().size() == 2);
+            GNA_LAYER_ASSERT(layer, inputs4Bytes->getPrecision().size() == 2);
         }
     }
 
@@ -823,6 +821,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
                 << layer->name << ", cannot be connected to its parent: " << prevLayer->name
                 << " due to precision mismatch";
         }
+        gnalog() << "Connection " << prevLayer->name << " to " << layer->name << " is using BIAS as input" << std::endl;
         useBiasConnection = true;
     }
 
@@ -1176,7 +1175,7 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     float output_pwl_scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
     float input_pwl_scale_factor = quantized != nullptr ? quantized->_src_quant.scale : 1.0f;
 
-    auto orientation = (num_cnn_rows_out > 0) ? kDnnNonInterleavedOrientation : kDnnInterleavedOrientation;
+    auto orientation = kDnnInterleavedOrientation;
 
     if (inputs->getDims().size() == 4) {
         uint32_t w_dim_in = FROM_IR_DIM(inputs, 1);
@@ -1202,7 +1201,14 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         {"relu", kActRelu},
         {"leakyrelu", kActLeakyRelu},
         {"clamp", kActKaldiLstmClipping},
-        {"identity", kActIdentity}
+        {"exp", kActExp},
+        {"log", kActLog},
+        {"sign", kActSign},
+        {"abs", kActAbs},
+        {"neglog", kActNegLog},
+        {"neghalflog", kActNegHalfLog},
+        {"identity", kActIdentity},
+        {"softsign", kActSoftSign}
     };
 
     auto it = supportedActivations.find(type);
@@ -1231,6 +1237,14 @@ case name:\
         GET_ACTIVATION_NAME(kActLeakyRelu);
         GET_ACTIVATION_NAME(kActKaldiLstmClipping);
         GET_ACTIVATION_NAME(kActIdentity);
+        GET_ACTIVATION_NAME(kActSoftSign);
+        GET_ACTIVATION_NAME(kActCustom);
+        GET_ACTIVATION_NAME(kActExp);
+        GET_ACTIVATION_NAME(kActLog);
+        GET_ACTIVATION_NAME(kActSign);
+        GET_ACTIVATION_NAME(kActAbs);
+        GET_ACTIVATION_NAME(kActNegLog);
+        GET_ACTIVATION_NAME(kActNegHalfLog);
     default: break;
     }
 #endif
@@ -1255,8 +1269,11 @@ case name:\
             case kActKaldiLstmClipping:
             case kActIdentity:ptr_pwl_segments.resize(IDENTITY_NUM_SEGMENTS);
                 break;
+            case kActSoftSign:ptr_pwl_segments.resize(SOFTSIGN_NUM_SEGMENTS);
+                break;
             case kActCustom:
-            default:THROW_GNA_EXCEPTION << "Activation function type not yet supported " << activation_type;
+            default:
+                THROW_GNA_EXCEPTION << "Activation function type not yet supported " << activation_type;
             }
             PwlDesign16(activation_type,
                 &*ptr_pwl_segments.begin(),
@@ -1338,7 +1355,19 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"Split"}, SKIP},  // skip information about which part of prev layer need to consume handle during layer creation
         {{"Slice"}, SKIP},
         {{"link"}, SKIP},
-        {{"clamp", "sigmoid", "relu", "tanh", "identity"}, CREATE(PWLPrimitive)},
+        {{"clamp",
+          "sigmoid",
+          "relu",
+          "tanh",
+          "identity",
+          "softsign",
+          "exp",
+          "log",
+          "sign",
+          "abs",
+          "neglog",
+          "neghalflog"},
+          CREATE(PWLPrimitive)},
         {{"Convolution"}, CREATE(ConvolutionPrimitive)},
         {{"Permute"}, CREATE(PermutePrimitive)},  // permute of certain form (2D transpose) can be assimilated in followed FC layer
         {{"Pooling"}, CREATE(PoolingPrimitive)},
@@ -1363,13 +1392,24 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
     gnalog() << "Connecting output " << layer->name << " ...\n";
     // in case of Memory Layer it's input allocated in meminput layer
     if (layer->outData.size() == 1) {
-        for (auto &&outLayer : layer->outData.front()->getInputTo()) {
-            auto& nextLayer = outLayer.second;
+        for (int j = 0; j != layer->outData.front()->getInputTo().size(); j++) {
+            auto isNonFunctional = [](CNNLayerPtr l) {
+                return LayerInfo(l).isNonFunctional();
+            };
+
+            if (!CNNNetHasNextLayerSkipCertain(layer, 0, j, isNonFunctional)) {
+                continue;
+            }
+            auto nextLayer = CNNNetGetNextLayerSkipCertain(layer, 0, j, isNonFunctional);
+
+            if (!nextLayer.first) {
+                gnalog() << "for layer: " << layer->name << "outData[0] has non functional connection at " << j;
+            }
+
             auto nextMemoryLayerIt =
                     std::find_if(begin(memory_connection), end(memory_connection),
                                  [&](MemoryConnection::value_type &comp) {
-                                     return comp.second.getOutput()->name
-                                            == nextLayer->name;
+                                     return comp.second.getOutput()->name == nextLayer.first->name;
                                  });
             if (nextMemoryLayerIt != memory_connection.end()) {
                 auto &nextMemoryLayer = nextMemoryLayerIt->second;
@@ -1433,7 +1473,14 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
         }
 
         if (concat) {
-            auto& name = concatFather->name;
+            // concat father might be non functional - in that case lets skip it
+            auto concatFatherActual =
+                LayerInfo(concatFather).isNonFunctional() ?
+                CNNNetPrevLayerSkipCertain(concatFather, 0, [](CNNLayerPtr l) {
+                return LayerInfo(l).isNonFunctional();
+            }) : concatFather;
+
+            auto& name = concatFatherActual->name;
             // we look for this concat layer pointer in extra concat map
             auto concatLayerInfo = concat_connection.find(concat->name);
 
@@ -1505,7 +1552,11 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
 
 GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer, void *ptr, size_t num_data_bytes_in, int32_t offset, int idx) {
     // selecting particular input layers
-    auto prevLayer = CNNNetPrevLayer(layer, idx);
+    // auto prevLayer = CNNNetPrevLayer(layer, idx);
+    auto prevLayer = CNNNetPrevLayerSkipCertain(layer, idx, [](CNNLayerPtr l) {
+        return LayerInfo(l).isNonFunctional();
+    });
+
 
     gnalog() << "Connecting input " << layer->name << " to " << prevLayer->name << " ...\n";
 
@@ -1519,7 +1570,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                                    num_data_bytes_in,
                                    64);
             } else {
-                gnamem->push_value(&inputDesc->get_ptr_inputs_global(prevLayer->name).front(),
+                gnamem->push_value(&inputDesc->getPtrInputsGlobal(prevLayer->name).front(),
                                    static_cast<uint8_t>(0),
                                    num_data_bytes_in,
                                    64);
@@ -1536,9 +1587,9 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         }
 
         if (offset >= 0) {
-            gnamem->bind_ptr(ptr, &inputDesc->get_ptr_inputs_global(prevLayer->name).front(), offset);
+            gnamem->bind_ptr(ptr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), offset);
         } else {
-            gnamem->bind_ptr(&inputDesc->get_ptr_inputs_global(prevLayer->name).front(), ptr, -offset);
+            gnamem->bind_ptr(&inputDesc->getPtrInputsGlobal(prevLayer->name).front(), ptr, -offset);
         }
 
         return prevLayer;
@@ -1555,7 +1606,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     }
 
     LayerInfo layerInfoObj(prevLayer);
-    LayerInfo thisLayerInfoObj(layer);
+
     // connecting to split/slice splitiing layers
     if (layerInfoObj.isSplit() || layerInfoObj.isSlice()) {
         auto& splittingLayer = prevLayer;
@@ -1574,14 +1625,13 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                                    });
 
             if (it != splitLayerInfoItem.splitOutputLayers.end()) {
-                gnalog()  << "Connecting split/slice input \n";
+                gnalog()  << "Connecting " << splitName << " input \n";
                 auto res = connectInput(splittingLayer, ptr, splitLayerInfoItem.reserved_size, it->offset, 0);
                 gnalog()  << "Connected \n";
                 return res;
             }
         }
-        THROW_GNA_EXCEPTION << "Split/Slice layer: " << splitName
-                            << " is not included in extra map. Something wrong happened";
+        THROW_GNA_EXCEPTION << prevLayer->type << " layer: " << splitName << " is not included in extra map";
     } else if (layerInfoObj.isConcat()) {
         auto concatLayerInfo = concat_connection.find(
                 prevLayer->name);
@@ -1620,13 +1670,18 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         if (memoryLayer.reserved_size == 0) {
             auto memorySize = InferenceEngine::details::product(memoryLayer.getDims()) * memoryLayer.elementSizeBytes();
 
-            if (num_data_bytes_in < memorySize) {
-                THROW_GNA_EXCEPTION << "Memory layer : " << layer->name <<" invalid allocation request of "
-                                    << num_data_bytes_in << " is less then tensor size of" << memorySize;
+            // negative offset used for  indicate that memory layer should be bound to given buffer
+            if (offset >= 0) {
+                memorySize = std::max(memorySize, num_data_bytes_in);
+                gnamem->reserve_ptr(&memoryLayer.gna_ptr, ALIGN64(memorySize), 64);
+                gnamem->bind_ptr(ptr, &memoryLayer.gna_ptr, offset);
+            } else {
+                if (num_data_bytes_in > memorySize) {
+                    THROW_GNA_LAYER_EXCEPTION(layer) <<" invalid allocation request of "
+                                                     << num_data_bytes_in << " is more then state tensor size of: " << memorySize;
+                }
+                gnamem->bind_ptr(&memoryLayer.gna_ptr, ptr, -offset);
             }
-
-            gnamem->reserve_ptr(&memoryLayer.gna_ptr, ALIGN64(num_data_bytes_in), 64);
-            gnamem->bind_ptr(ptr, &memoryLayer.gna_ptr, offset);
 
             memoryLayer.reserved_size = ALIGN64(memorySize);
         } else {
@@ -1639,7 +1694,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
     // several layers are to be skipped right now
     if (LayerInfo(prevLayer).isNonFunctional()) {
-        gnalog()  << "Skipping reshape layer: " << prevLayer->name << "\n";
+        gnalog()  << "Skipping non functional layer: " << prevLayer->name << "\n";
         return connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0);
     }
 

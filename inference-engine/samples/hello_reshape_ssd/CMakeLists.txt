@@ -16,3 +16,6 @@ ie_add_sample(NAME hello_reshape_ssd
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
               HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/reshape_ssd_extension.hpp"
               OPENCV_DEPENDENCIES imgcodecs)
+
+find_package(ngraph)
+target_link_libraries(hello_reshape_ssd PRIVATE ${NGRAPH_LIBRARIES})

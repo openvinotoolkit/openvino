@@ -69,8 +69,37 @@ struct softmax_fwd_pd_t: public primitive_desc_t {
 
     inline int MB() const { return desc_.data_desc.dims[0]; }
     inline int C() const { return desc_.data_desc.dims[1]; }
-    inline int H() const { return desc_.data_desc.dims[2]; }
-    inline int W() const { return desc_.data_desc.dims[3]; }
+    inline int D() const { return ndims() >= 5 ? desc_.data_desc.dims[ndims() - 3] : 1; }
+    inline int H() const { return ndims() >= 4 ? desc_.data_desc.dims[ndims() - 2] : 1; }
+    inline int W() const { return ndims() >= 3 ? desc_.data_desc.dims[ndims() - 1] : 1; }
+
+    dim_t outer_size() const {
+        return utils::array_product(desc_.data_desc.dims, axis());
+    }
+    dim_t axis_size() const { return desc_.data_desc.dims[axis()]; }
+    dim_t inner_size() const {
+        return utils::array_product(desc_.data_desc.dims + axis() + 1,
+                ndims() - 1 - axis());
+    }
+
+    dim_t outer_stride() const {
+        const memory_desc_wrapper data_d(desc_.data_desc);
+        return axis() > 0
+            ? (dim_t)data_d.blocking_desc().strides[0][axis() - 1]
+            : 1;
+    }
+
+    int axis() const { return desc_.softmax_axis; }
+    int ndims() const { return desc_.data_desc.ndims; }
+
+    bool is_fwd() const {
+        return utils::one_of(desc_.prop_kind, prop_kind::forward_training,
+                prop_kind::forward_inference);
+    }
+
+    bool has_zero_dim_memory() const {
+        return memory_desc_wrapper(desc_.data_desc).has_zero_dim();
+    }
 
 protected:
     softmax_desc_t desc_;
@@ -120,8 +149,37 @@ struct softmax_bwd_pd_t: public primitive_desc_t {
 
     inline int MB() const { return desc_.data_desc.dims[0]; }
     inline int C() const { return desc_.data_desc.dims[1]; }
-    inline int H() const { return desc_.data_desc.dims[2]; }
-    inline int W() const { return desc_.data_desc.dims[3]; }
+    inline int D() const { return ndims() >= 5 ? desc_.data_desc.dims[ndims() - 3] : 1; }
+    inline int H() const { return ndims() >= 4 ? desc_.data_desc.dims[ndims() - 2] : 1; }
+    inline int W() const { return ndims() >= 3 ? desc_.data_desc.dims[ndims() - 1] : 1; }
+
+    dim_t outer_size() const {
+        return utils::array_product(desc_.data_desc.dims, axis());
+    }
+    dim_t axis_size() const { return desc_.data_desc.dims[axis()]; }
+    dim_t inner_size() const {
+        return utils::array_product(desc_.data_desc.dims + axis() + 1,
+                ndims() - 1 - axis());
+    }
+
+    dim_t outer_stride() const {
+        const memory_desc_wrapper data_d(desc_.data_desc);
+        return axis() > 0
+            ? (dim_t)data_d.blocking_desc().strides[0][axis() - 1]
+            : 1;
+    }
+
+    int axis() const { return desc_.softmax_axis; }
+    int ndims() const { return desc_.data_desc.ndims; }
+
+    bool is_fwd() const {
+        return utils::one_of(desc_.prop_kind, prop_kind::forward_training,
+                prop_kind::forward_inference);
+    }
+
+    bool has_zero_dim_memory() const {
+        return memory_desc_wrapper(desc_.data_desc).has_zero_dim();
+    }
 
 protected:
     softmax_desc_t desc_;

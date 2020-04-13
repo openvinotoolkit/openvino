@@ -53,14 +53,14 @@ FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(cons
     return dispatchData;
 }
 
-KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params& params,
-                                                           const optional_params& options,
+KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
+                                                           const optional_params &options,
                                                            DataLayout dl,
-                                                           std::vector<WeightsLayout> wl,
+                                                           WeightsLayout wl,
                                                            float estimated_time,
                                                            const std::string exeMode,
                                                            int autoTuneIndex) const {
-    if (!Validate(params, options) || wl.empty()) {
+    if (!Validate(params, options)) {
         return KernelsData();
     }
 
@@ -139,10 +139,10 @@ std::string FullyConnectedKernelBase::GetAutoTuneOptions(int autoTuneIndex) cons
     return DEFAULT;
 }
 
-KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params& params,
-                                                                 const optional_params& options,
+KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params &params,
+                                                                 const optional_params &options,
                                                                  DataLayout dl,
-                                                                 std::vector<WeightsLayout> wl,
+                                                                 WeightsLayout wl,
                                                                  float estimated_time,
                                                                  const int autoTuneIndex) const {
     return GetCommonKernelsData(params,

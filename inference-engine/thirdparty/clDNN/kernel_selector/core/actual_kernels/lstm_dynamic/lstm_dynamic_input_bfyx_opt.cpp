@@ -98,7 +98,7 @@ KernelsData LSTM_DynamicInputKernelBfyxOpt::GetKernelsData(const Params& params,
 
     bool succeed = UpdateWeightsParams(dlstm_params,
         options,
-        { WeightsLayout::dlstm_dir_io },
+        WeightsLayout::dlstm_dir_io,
         kd.weightsReorderParams,
         GetSupportedKey());
 

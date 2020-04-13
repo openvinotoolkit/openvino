@@ -5,7 +5,7 @@
 /**
  * @brief A header file that provides a set of convenience utility functions and the main include file for all other .h
  * files.
- * 
+ *
  * @file inference_engine.hpp
  */
 #pragma once
@@ -44,7 +44,7 @@ namespace InferenceEngine {
  */
 template <class T>
 INFERENCE_ENGINE_DEPRECATED(
-    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020 R2")
+    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.3")
 inline void TopResults(unsigned int n, TBlob<T>& input, std::vector<unsigned>& output) {
     SizeVector dims = input.getTensorDesc().getDims();
     size_t input_rank = dims.size();
@@ -89,7 +89,7 @@ inline void TopResults(unsigned int n, TBlob<T>& input, std::vector<unsigned>& o
  * @param output Vector of indexes for the top n places
  */
 INFERENCE_ENGINE_DEPRECATED(
-    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020 R2")
+    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.3")
 inline void TopResults(unsigned int n, Blob& input, std::vector<unsigned>& output) {
     IE_SUPPRESS_DEPRECATED_START
     switch (input.getTensorDesc().getPrecision()) {
@@ -101,6 +101,8 @@ inline void TopResults(unsigned int n, Blob& input, std::vector<unsigned>& outpu
         TBLOB_TOP_RESULT(I8);
         TBLOB_TOP_RESULT(U16);
         TBLOB_TOP_RESULT(I32);
+        TBLOB_TOP_RESULT(U64);
+        TBLOB_TOP_RESULT(I64);
     default:
         THROW_IE_EXCEPTION << "cannot locate blob for precision: " << input.getTensorDesc().getPrecision();
     }
@@ -122,7 +124,7 @@ inline void TopResults(unsigned int n, Blob& input, std::vector<unsigned>& outpu
  */
 template <typename data_t>
 INFERENCE_ENGINE_DEPRECATED(
-    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020 R2")
+    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.3")
 void copyFromRGB8(uint8_t* RGB8, size_t RGB8_size, InferenceEngine::TBlob<data_t>* blob) {
     SizeVector dims = blob->getTensorDesc().getDims();
     if (4 != dims.size())
@@ -170,7 +172,7 @@ void copyFromRGB8(uint8_t* RGB8, size_t RGB8_size, InferenceEngine::TBlob<data_t
  * @param input Blob to contain the split image (to 3 channels)
  */
 INFERENCE_ENGINE_DEPRECATED(
-    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020 R2")
+    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.3")
 inline void ConvertImageToInput(unsigned char* imgBufRGB8, size_t lengthbytesSize, Blob& input) {
     IE_SUPPRESS_DEPRECATED_START
     TBlob<float>* float_input = dynamic_cast<TBlob<float>*>(&input);
@@ -193,7 +195,7 @@ inline void ConvertImageToInput(unsigned char* imgBufRGB8, size_t lengthbytesSiz
  */
 template <typename T>
 INFERENCE_ENGINE_DEPRECATED(
-    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020 R2")
+    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.3")
 void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
     if (!dst) {
         return;

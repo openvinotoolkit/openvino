@@ -58,7 +58,7 @@ protected:
     static size_t UniqeID() { return counter++; }  // TODO: use interlocked
     virtual Datatype GetUnitType(const base_params& params) const;
 
-    bool IsFusedPrimitiveSupported(const base_params::fused_operation_desc& fused_op) const;
+    bool IsFusedPrimitiveSupported(const fused_operation_desc& fused_op) const;
     JitConstants MakeBaseParamsJitConstants(const base_params& params) const;
     virtual std::vector<FusedOpType> GetSupportedFusedOps() const;
     virtual JitConstants MakeFusedOpsJitConstants(const base_params &params, const std::vector<FusedOpsConfiguration> &conf) const;

@@ -79,8 +79,8 @@ private:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeOldBuffer(this, serializer);
-        output->serializeOldBuffer(this, serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
     }
 };
 

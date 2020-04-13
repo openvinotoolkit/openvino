@@ -18,7 +18,7 @@ import numpy as np
 
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.pad import Pad
+from mo.ops.pad import AttributedPad
 
 
 class PadFrontExtractor(FrontExtractorOp):
@@ -38,5 +38,5 @@ class PadFrontExtractor(FrontExtractorOp):
             'fill_value': value,
         }
 
-        Pad.update_node_stat(node, node_attrs)
+        AttributedPad.update_node_stat(node, node_attrs)
         return cls.enabled

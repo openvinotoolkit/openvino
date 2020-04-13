@@ -48,10 +48,14 @@ struct rnn_postgemm_dispatcher {
     rnn_postgemm_dispatcher(const rnn_utils::rnn_conf_t &rnn, const rnn_pd_t *pd): pd_(pd){
         rnn_postgemm_ = nullptr;
         rnn_postgemm_part2_ = nullptr;
+
+        bool jit_path = utils::one_of(pd->desc()->prop_kind,
+                prop_kind::forward_inference, prop_kind::forward_training);
+
         switch (pd->cell_kind()) {
         case alg_kind::vanilla_lstm:
             postgemm_func = &class_name::lstm_postgemm;
-            if (pd->desc()->prop_kind == prop_kind::forward_inference) {
+            if (jit_path) {
                 if (mayiuse(avx512_core))
                     rnn_postgemm_ =
                         new jit_uni_lstm_cell_postgemm_fwd<avx512_core, src_type>(
@@ -72,20 +76,19 @@ struct rnn_postgemm_dispatcher {
             break;
         case alg_kind::vanilla_rnn:
 	    // jitted path
-	    if (pd->desc()->prop_kind == prop_kind::forward_inference) {
-                if (mayiuse(avx512_core))
-                    rnn_postgemm_ =
-                        new jit_uni_rnn_cell_postgemm_fwd<avx512_core, src_type>(
-                            rnn, pd);
-                else if (mayiuse(avx2))
-                    rnn_postgemm_ =
-                        new jit_uni_rnn_cell_postgemm_fwd<avx2, src_type>(
-                            rnn, pd);
-                else if (mayiuse(sse42))
-                    rnn_postgemm_ =
-                        new jit_uni_rnn_cell_postgemm_fwd<sse42, src_type>(
-                            rnn, pd);
-            }
+        if (jit_path) {
+            if (mayiuse(avx512_core))
+                rnn_postgemm_ = new jit_uni_rnn_cell_postgemm_fwd<avx512_core,
+                        src_type>(rnn, pd);
+            else if (mayiuse(avx2))
+                rnn_postgemm_
+                        = new jit_uni_rnn_cell_postgemm_fwd<avx2, src_type>(
+                                rnn, pd);
+            else if (mayiuse(sse42))
+                rnn_postgemm_
+                        = new jit_uni_rnn_cell_postgemm_fwd<sse42, src_type>(
+                                rnn, pd);
+        }
             if (rnn_postgemm_)
                 rnn_postgemm_->init();
             else {
@@ -107,30 +110,28 @@ struct rnn_postgemm_dispatcher {
             break;
         case alg_kind::vanilla_gru:
 	    // jitted path
-	    if (pd->desc()->prop_kind == prop_kind::forward_inference) {
-                if (mayiuse(avx512_core)) {
-                    rnn_postgemm_ =
-                        new jit_uni_gru_cell_postgemm_part1_fwd<avx512_core, src_type>(
-                            rnn, pd);
-                    rnn_postgemm_part2_ =
-                        new jit_uni_gru_cell_postgemm_part2_fwd<avx512_core, src_type>(
-                            rnn, pd);
-                } else if (mayiuse(avx2)) {
-                    rnn_postgemm_ =
-                        new jit_uni_gru_cell_postgemm_part1_fwd<avx2, src_type>(
-                            rnn, pd);
-                    rnn_postgemm_part2_ =
-                        new jit_uni_gru_cell_postgemm_part2_fwd<avx2, src_type>(
-                            rnn, pd);
-                } else if (mayiuse(sse42)) {
-                    rnn_postgemm_ =
-                        new jit_uni_gru_cell_postgemm_part1_fwd<sse42, src_type>(
-                            rnn, pd);
-                    rnn_postgemm_part2_ =
-                        new jit_uni_gru_cell_postgemm_part2_fwd<sse42, src_type>(
-                            rnn, pd);
-                }
+        if (jit_path) {
+            if (mayiuse(avx512_core)) {
+                rnn_postgemm_
+                        = new jit_uni_gru_cell_postgemm_part1_fwd<avx512_core,
+                                src_type>(rnn, pd);
+                rnn_postgemm_part2_
+                        = new jit_uni_gru_cell_postgemm_part2_fwd<avx512_core,
+                                src_type>(rnn, pd);
+            } else if (mayiuse(avx2)) {
+                rnn_postgemm_ = new jit_uni_gru_cell_postgemm_part1_fwd<avx2,
+                        src_type>(rnn, pd);
+                rnn_postgemm_part2_
+                        = new jit_uni_gru_cell_postgemm_part2_fwd<avx2,
+                                src_type>(rnn, pd);
+            } else if (mayiuse(sse42)) {
+                rnn_postgemm_ = new jit_uni_gru_cell_postgemm_part1_fwd<sse42,
+                        src_type>(rnn, pd);
+                rnn_postgemm_part2_
+                        = new jit_uni_gru_cell_postgemm_part2_fwd<sse42,
+                                src_type>(rnn, pd);
             }
+        }
             if (rnn_postgemm_ && rnn_postgemm_part2_) {
                 rnn_postgemm_->init();
                 rnn_postgemm_part2_->init();
@@ -142,7 +143,7 @@ struct rnn_postgemm_dispatcher {
         case alg_kind::gru_linear_before_reset:
             postgemm_func = &class_name::gru_lbr_postgemm;
 	    // jitted path
-	    if (pd->desc()->prop_kind == prop_kind::forward_inference) {
+            if (jit_path) {
                 if (mayiuse(avx512_core))
                     rnn_postgemm_ =
                         new jit_uni_gru_lbr_cell_postgemm_fwd<avx512_core, src_type>(

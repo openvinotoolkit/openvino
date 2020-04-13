@@ -31,14 +31,6 @@
 
 namespace conv {
 
-inline bool is_conv_3d(const prb_t *p) {
-    return p->id > 1;
-}
-
-inline bool is_conv_1d(const prb_t *p) {
-    return !is_conv_3d(p) && p->ih == 1 && p->kh == 1;
-}
-
 double get_trust_nz_level(const prb_t *p, data_kind_t kind,
         bool final_compare) {
     if (!final_compare)
@@ -423,7 +415,7 @@ inline int init_pd(const prb_t *p, mkldnn_convolution_desc_t &cd,
         mkldnn_primitive_desc_t &cpd, res_t *r) {
     mkldnn_memory_desc_t src_d, wei_d, bia_d, dst_d;
 
-    int ndims = is_conv_3d(p) ? 5 : is_conv_1d(p) ? 3 : 4;
+    int ndims = is_problem_3d(p) ? 5 : is_problem_1d(p) ? 3 : 4;
     mkldnn_dims_t src_1d_dims = {p->mb, p->ic, p->iw};
     mkldnn_dims_t src_2d_dims = {p->mb, p->ic, p->ih, p->iw};
     mkldnn_dims_t src_3d_dims = {p->mb, p->ic, p->id, p->ih, p->iw};
@@ -439,23 +431,29 @@ inline int init_pd(const prb_t *p, mkldnn_convolution_desc_t &cd,
     mkldnn_dims_t dst_3d_dims = {p->mb, p->oc, p->od, p->oh, p->ow};
 
     DNN_SAFE(mkldnn_memory_desc_init(&src_d, ndims,
-        is_conv_3d(p) ? src_3d_dims : is_conv_1d(p) ? src_1d_dims : src_2d_dims,
-        p->cfg[SRC].dt, mkldnn_any), WARN);
+                     is_problem_3d(p)
+                             ? src_3d_dims
+                             : is_problem_1d(p) ? src_1d_dims : src_2d_dims,
+                     p->cfg[SRC].dt, mkldnn_any),
+            WARN);
 
     DNN_SAFE(mkldnn_memory_desc_init(&wei_d, ndims + p->has_groups,
-        is_conv_3d(p)
-        ? &wei_3d_dims[!p->has_groups]
-        : is_conv_1d(p)
-        ? &wei_1d_dims[!p->has_groups]
-        : &wei_2d_dims[!p->has_groups],
-        p->cfg[WEI].dt, mkldnn_any), WARN);
+                     is_problem_3d(p)
+                             ? &wei_3d_dims[!p->has_groups]
+                             : is_problem_1d(p) ? &wei_1d_dims[!p->has_groups]
+                                                : &wei_2d_dims[!p->has_groups],
+                     p->cfg[WEI].dt, mkldnn_any),
+            WARN);
 
     DNN_SAFE(mkldnn_memory_desc_init(&bia_d, 1, bia_dims, p->cfg[BIA].dt,
         mkldnn_any), WARN);
 
     DNN_SAFE(mkldnn_memory_desc_init(&dst_d, ndims,
-        is_conv_3d(p) ? dst_3d_dims : is_conv_1d(p) ? dst_1d_dims : dst_2d_dims,
-        p->cfg[DST].dt, mkldnn_any), WARN);
+                     is_problem_3d(p)
+                             ? dst_3d_dims
+                             : is_problem_1d(p) ? dst_1d_dims : dst_2d_dims,
+                     p->cfg[DST].dt, mkldnn_any),
+            WARN);
 
     ptrdiff_t strides_nd[] = {p->sd, p->sh, p->sw};
     ptrdiff_t dilates_nd[] = {p->dd, p->dh, p->dw};

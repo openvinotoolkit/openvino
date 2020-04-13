@@ -14,10 +14,7 @@
  limitations under the License.
 """
 
-import numpy as np
-
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
@@ -26,22 +23,16 @@ class MXRepeat(Op):
     enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
+        assert 'axis' in attrs, 'MXRepeat operation should have `axis` parameter set during creation'
+        assert 'repeats' in attrs, 'MXRepeat operation should have `repeats` parameter set during creation'
+
         super().__init__(graph, {
-            'kind': 'op',
+            'op': self.op,
             'type': None,
-            'op': __class__.op,
+
+            # operation should be resolved on the front phase, partial inference is not needed
+            'infer': None,
+
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': MXRepeat.infer
         }, attrs)
-
-    def supported_attrs(self):
-        return ['axis', 'repeats']
-
-    @staticmethod
-    def infer(node: Node):
-        shape = np.copy(node.in_node().shape)
-        node.axis = get_canonical_axis_index(shape, node.axis)
-        rep = node.repeats
-        shape[node.axis] = shape[node.axis] * rep
-        node.out_node().shape = shape

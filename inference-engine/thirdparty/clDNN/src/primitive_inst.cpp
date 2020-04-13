@@ -21,6 +21,7 @@
 #include "generic_layer_inst.h"
 #include "input_layout_inst.h"
 #include "max_unpooling_inst.h"
+#include "arg_max_min_inst.h"
 #include "apply_adam_inst.h"
 #include "fused_conv_eltwise_inst.h"
 
@@ -33,6 +34,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <algorithm>
 
 namespace cldnn {
 
@@ -141,7 +143,10 @@ primitive_inst::primitive_inst(network_impl& network, program_node const& node, 
             }
         }
 
-        if (user_count == 1 && mutable_data_count == 1) {
+        // TODO: Remove WA for arg_max_min node.
+        // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
+        // but kernels always write both outputs to the same memory object which leads to wrong result.
+        if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>()) {
             for (auto& user : node.get_users())
                 if (user->is_type<mutable_data>())
                     _output = user->as<mutable_data>().get_attached_memory_ptr();
@@ -154,21 +159,33 @@ primitive_inst::primitive_inst(network_impl& network, program_node const& node, 
 memory_impl::ptr primitive_inst::allocate_output() {
     auto layout = _node.get_output_layout();
     auto net_id = get_network_id();
+    auto& engine = get_network().get_engine();
 
+    // For outputs, cpu prim we want to have lockable alloc type
+    // Also if the successor of a node is an cpu, then memory needs to be lockable.
+    auto use_lockable_memory = _node.is_output() || _node.get_selected_impl()->is_cpu()
+                               || std::any_of(_node.get_users().begin(), _node.get_users().end(),
+                                              [](const program_node* n) {return n->get_selected_impl()->is_cpu() || n->can_be_optimized(); })
+                               || engine.supports_allocation(allocation_type::usm_device) == false;
+    allocation_type alloc_type = use_lockable_memory ?
+                                 engine.get_lockable_preffered_memory_allocation_type(layout.format.is_image_2d())
+                                                     : allocation_type::usm_device;
     if (!_network.is_internal() && (_node.can_be_optimized() || _node.is_type<generic_layer>())) {
-        return get_network().get_engine().allocate_memory(layout,
-                                                          _node.id(),
-                                                          net_id,
-                                                          _node.get_memory_dependencies(),
-                                                          false);
+        return engine.allocate_memory(layout,
+                                      _node.id(),
+                                      net_id,
+                                      _node.get_memory_dependencies(),
+                                      alloc_type,
+                                      false);
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
-        return get_network().get_engine().allocate_memory(layout, net_id);
+        return engine.allocate_memory(layout, alloc_type, net_id);
     }
-    return get_network().get_engine().allocate_memory(layout,
-                                                      _node.id(),
-                                                      net_id,
-                                                      _node.get_memory_dependencies(),
-                                                      true);
+    return engine.allocate_memory(layout,
+                                  _node.id(),
+                                  net_id,
+                                  _node.get_memory_dependencies(),
+                                  alloc_type,
+                                  true);
 }
 
 std::vector<std::shared_ptr<primitive_inst>> primitive_inst::build_exec_deps(

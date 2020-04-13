@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <set>
 #include <cstdlib>
 
 #include <samples/common.hpp>
@@ -84,23 +85,30 @@ int main(int argc, char *argv[]) {
         std::vector<std::string> availableDevices = ie.GetAvailableDevices();
 
         // --------------------------- 3. Query and print supported metrics and config keys--------------------
+        std::set<std::string> printedDevices;
 
         std::cout << "Available devices: " << std::endl;
         for (auto && device : availableDevices) {
-            std::cout << "\tDevice: " << device << std::endl;
+            std::string deviceFamilyName = device.substr(0, device.find_first_of('.'));
+            if (printedDevices.find(deviceFamilyName) == printedDevices.end())
+                printedDevices.insert(deviceFamilyName);
+            else
+                continue;
+
+            std::cout << "\tDevice: " << deviceFamilyName << std::endl;
 
             std::cout << "\tMetrics: " << std::endl;
-            std::vector<std::string> supportedMetrics = ie.GetMetric(device, METRIC_KEY(SUPPORTED_METRICS));
+            std::vector<std::string> supportedMetrics = ie.GetMetric(deviceFamilyName, METRIC_KEY(SUPPORTED_METRICS));
             for (auto && metricName : supportedMetrics) {
                 std::cout << "\t\t" << metricName << " : " << std::flush;
                 printParameterValue(ie.GetMetric(device, metricName));
             }
 
             std::cout << "\tDefault values for device configuration keys: " << std::endl;
-            std::vector<std::string> supportedConfigKeys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            std::vector<std::string> supportedConfigKeys = ie.GetMetric(deviceFamilyName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
             for (auto && configKey : supportedConfigKeys) {
                 std::cout << "\t\t" << configKey << " : " << std::flush;
-                printParameterValue(ie.GetConfig(device, configKey));
+                printParameterValue(ie.GetConfig(deviceFamilyName, configKey));
             }
 
             std::cout << std::endl;

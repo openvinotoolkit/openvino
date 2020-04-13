@@ -3,9 +3,9 @@
 //
 
 /**
- * @brief a header file for the Inference Engine Network interface
+ * @brief A header file for the Inference Engine Network interface
  * 
- * @file
+ * @file ie_network.hpp
  */
 #pragma once
 

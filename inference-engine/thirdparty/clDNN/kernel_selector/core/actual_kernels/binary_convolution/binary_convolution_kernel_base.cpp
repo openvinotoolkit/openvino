@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,11 +31,7 @@ bool BinaryConvolutionKernelBase::Validate(const Params& p, const optional_param
     const binary_convolution_params& params = static_cast<const binary_convolution_params&>(p);
     const binary_convolution_optional_params& optParams = static_cast<const binary_convolution_optional_params&>(o);
 
-    bool bSupportedWeightsLayout = false;
-
-    for (WeightsLayout l : GetSupportedWeightLayouts(params)) {
-        bSupportedWeightsLayout |= params.weights.GetLayout() == l;
-    }
+    bool bSupportedWeightsLayout = params.weights.GetLayout() == GetPreferredWeightLayout(params);
 
     const bool bWeightsOK = bSupportedWeightsLayout || optParams.allowStaticInputReordering;
 
@@ -115,7 +111,7 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelBase::SetDefaul
     kd.gemmStyle.subBlockDimK = 1;
     kd.gemmStyle.subBlockDimM = 0;
     kd.gemmStyle.subBlockDimN = 0;
-    kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return kd;
 }
 
@@ -142,7 +138,7 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
 
     bool succeed = UpdateWeightsParams(newParams,
                                        options,
-                                       GetSupportedWeightLayouts(newParams),
+                                       GetPreferredWeightLayout(newParams),
                                        kd.weightsReorderParams,
                                        GetSupportedKey());
 
@@ -177,7 +173,7 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
                      fused_deps_total);
     kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = runInfo.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};

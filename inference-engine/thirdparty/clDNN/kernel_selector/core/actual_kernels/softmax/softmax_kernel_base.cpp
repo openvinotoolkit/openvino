@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -79,7 +79,7 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = runInfo.efficiency;
 
     return {kd};
 }

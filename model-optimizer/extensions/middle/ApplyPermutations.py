@@ -127,7 +127,7 @@ class ApplyPermutation(MiddleReplacementPattern):
             return
         for node in graph.get_op_nodes():
             input_permutations = [(in_port, edge_attrs['input_permutation']) for in_port, edge_attrs in
-                                  node.in_edges().items() if 'input_permutation' in edge_attrs]
+                                  node.in_edges().items() if edge_attrs.get('input_permutation') is not None]
             for in_port, input_perm in input_permutations:
                 permutation, port_info = input_perm
                 direction, port = port_info.split(':')

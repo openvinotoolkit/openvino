@@ -195,7 +195,8 @@ struct jit_avx512_common_1x1_convolution_bwd_data_t : public cpu_primitive_t {
                 && !this->has_zero_dim_memory()
                 && this->desc()->diff_dst_desc.data_type == diff_dst_type
                 && this->desc()->weights_desc.data_type == wei_type
-                && this->desc()->diff_src_desc.data_type == diff_src_type;
+                && this->desc()->diff_src_desc.data_type == diff_src_type
+                && this->is_supported_post_ops();
             if (!ok) return status::unimplemented;
 
             const convolution_desc_t *conv_d = this->desc();
@@ -250,6 +251,23 @@ struct jit_avx512_common_1x1_convolution_bwd_data_t : public cpu_primitive_t {
                 CHECK(this->set_alg_kind(alg_kind::convolution_direct));
 
             return status::success;
+        }
+
+        virtual bool is_supported_post_ops() const {
+            const auto &p = this->attr()->post_ops_;
+            if (p.len_ > 1)
+                return false;
+
+            auto all_post_ops_supported = [&]() {
+                bool ok = true;
+
+                for (int i = 0; i < p.len_; i++) {
+                    ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::depthwise);
+                }
+                return ok;
+            };
+
+            return all_post_ops_supported();
         }
     };
 

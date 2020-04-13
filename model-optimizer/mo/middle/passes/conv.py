@@ -32,7 +32,6 @@ def pad_op_transform(graph: Graph, match: dict):
     op = match['op']
     pad_op = match['pad_op']
     input_data = pad_op.in_node(0)
-    pads = pad_op.in_node(1).value if len(pad_op.in_nodes()) == 2 else pad_op.pads
 
     if pad_op.mode != 'constant':
         log.info('The pad node "{}" with pad mode "{}" cannot be fused.'.format(pad_op.soft_get('name'), pad_op.mode))
@@ -43,13 +42,16 @@ def pad_op_transform(graph: Graph, match: dict):
         return
 
     input_tensor_dims = len(match['pad_output'].shape)
-    if np.any(pads[get_features_dim(op.graph.graph['layout'], input_tensor_dims)] != 0) or \
-            np.any(pads[get_batch_dim(op.graph.graph['layout'], input_tensor_dims)] != 0):
-        log.info('The pad node "{}" with padding over feature/batch dimension cannot be fused.'.format(
-            pad_op.soft_get('name')))
-        return
+    for in_port in [1, 2]:
+        pads = pad_op.in_port(in_port).data.get_value()
+        if pads[get_features_dim(op.graph.graph['layout'], input_tensor_dims)] != 0 or \
+                pads[get_batch_dim(op.graph.graph['layout'], input_tensor_dims)] != 0:
+            log.info('The pad node "{}" with padding over feature/batch dimension cannot be fused.'.format(
+                pad_op.soft_get('name')))
+            return
 
-    op.pad += pads
+    op.pad += np.concatenate([pad_op.in_port(1).data.get_value().reshape([-1, 1]),
+                              pad_op.in_port(2).data.get_value().reshape([-1, 1])], axis=1)
     op.pad_spatial_shape = op.pad[op.spatial_dims]
     op['auto_pad'] = None
     if op.type == 'Pooling':

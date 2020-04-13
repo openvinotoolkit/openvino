@@ -28,12 +28,10 @@ namespace vpu {
 // Resources
 //
 
-// TODO: get rid of `cmxLimit`.
-
 struct Resources final {
     int numCMXSlices = 0;
     int numSHAVEs = 0;
-    int cmxLimit = 0;
+    int numExecutors = 0;
 };
 
 void printTo(std::ostream& os, const Resources& res);
@@ -98,6 +96,8 @@ public:
             const std::string& name,
             const DataDesc& desc,
             const DataContent::Ptr& content);
+
+    Data addConstData(const std::string& name, const DataDesc& descriptor, const std::function<void(const ie::Blob::Ptr&)>& generator = {});
 
     Data addNewData(
             const std::string& name,
@@ -295,15 +295,6 @@ public:
     //
 
     inline Allocator& getAllocator() { return _allocator; }
-
-    template<class Functor>
-    void setOnNewStageCallback(Functor&& functor) {
-        onNewStageCallback = std::forward<Functor>(functor);
-    }
-
-    void unsetOnNewStageCallback() {
-        setOnNewStageCallback(nullptr);
-    }
 
 private:
     Stage addNewStageImpl(

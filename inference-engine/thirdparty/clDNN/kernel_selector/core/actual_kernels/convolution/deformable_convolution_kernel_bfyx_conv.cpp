@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,6 +41,8 @@ ParamsKey DeformableConvolutionKernel_bfyx_conv::GetSupportedKey() const {
     k.EnableLocalConvolution();
     k.EnableGroupedConvolution();
     k.EnableDeformableMode();
+    k.EnableSubGroup();
+    k.EnableSubGroupShort();
     return k;
 }
 
@@ -63,7 +65,7 @@ DeformableConvolutionKernel_bfyx_conv::DispatchData DeformableConvolutionKernel_
     kd.lws1 = 16;
     kd.lws2 = 1;
 
-    kd.effiency = FORCE_PRIORITY_2;
+    kd.efficiency = FORCE_PRIORITY_2;
 
     return kd;
 }

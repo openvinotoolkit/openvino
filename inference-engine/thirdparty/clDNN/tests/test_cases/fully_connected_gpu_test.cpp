@@ -25,6 +25,7 @@
 #include <api/network.hpp>
 #include <api/engine.hpp>
 #include "test_utils/test_utils.h"
+#include <src/include/to_string_utils.h>
 #include <api/data.hpp>
 #include "instrumentation.h"
 
@@ -1048,6 +1049,15 @@ struct quantization_t {
     int levels;
 };
 
+using fully_connected_quantized_test_params = std::tuple<
+        size_t,  // batch_num
+        size_t,  // input_f
+        size_t,  // input_x
+        size_t,  // input_y
+        size_t,  // output_f
+        format::type  // format
+>;
+
 template <typename InputT, typename OutputT>
 class fully_connected_quantized_test : public ::testing::Test {
 private:
@@ -1068,6 +1078,16 @@ private:
     bool has_bias() { return _bias.size() > 0; }
 
 public:
+    static std::string PrintToStringParamName(testing::TestParamInfo<fully_connected_quantized_test_params> param_info) {
+        // construct a readable name
+        return std::to_string(param_info.index) + "_in_" + std::to_string(testing::get<0>(param_info.param))
+               + "x" + std::to_string(testing::get<1>(param_info.param))
+               + "x" + std::to_string(testing::get<2>(param_info.param))
+               + "x" + std::to_string(testing::get<3>(param_info.param))
+               + "_of_" + std::to_string(testing::get<4>(param_info.param))
+               + "_" + fmt_to_str(testing::get<5>(param_info.param));
+    }
+
     void set_input(VVVVF<InputT> _data) {
         _input = std::move(_data);
     }
@@ -1157,7 +1177,7 @@ public:
         auto out_ptr = out_mem.pointer<OutputT>();
 
         for (size_t bi = 0; bi < batch_num(); ++bi) {
-            for (size_t fi = 0; fi < output_f(); ++fi) {            
+            for (size_t fi = 0; fi < output_f(); ++fi) {
                 EXPECT_NEAR(out_ptr[bi * output_f() + fi], expected[bi][fi], 1) << "at b = " << bi << ", fi = " << fi;
             }
         }
@@ -1227,15 +1247,6 @@ VVF<OutputT> ref_fully_connected(
     }
     return output;
 }
-
-using fully_connected_quantized_test_params = std::tuple<
-    size_t,  // batch_num
-    size_t,  // input_f
-    size_t,  // input_x
-    size_t,  // input_y
-    size_t,  // output_f
-    format::type  // format
->;
 
 namespace {
     template<typename T>
@@ -1325,8 +1336,9 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
     ),
+    fully_connected_i8_i8_test::PrintToStringParamName
 );
 
 INSTANTIATE_TEST_CASE_P(
@@ -1338,8 +1350,9 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
     ),
+    fully_connected_i8_u8_test::PrintToStringParamName
 );
 
 INSTANTIATE_TEST_CASE_P(
@@ -1351,8 +1364,9 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
     ),
+    fully_connected_i8_f32_test::PrintToStringParamName
 );
 
 INSTANTIATE_TEST_CASE_P(
@@ -1364,8 +1378,9 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
     ),
+    fully_connected_u8_i8_test::PrintToStringParamName
 );
 
 INSTANTIATE_TEST_CASE_P(
@@ -1377,8 +1392,9 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
     ),
+    fully_connected_u8_u8_test::PrintToStringParamName
 );
 
 INSTANTIATE_TEST_CASE_P(
@@ -1390,6 +1406,7 @@ INSTANTIATE_TEST_CASE_P(
         testing::Values(1, 3),
         testing::Values(1, 3),
         testing::Values(3, 32),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32)
+        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::b_fs_yx_fsv32, format::byxf_af32)
     ),
+    fully_connected_u8_f32_test::PrintToStringParamName
 );

@@ -137,7 +137,6 @@ struct jit_avx512_core_cvt_ps_to_bf16_t : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_avx512_core_cvt_ps_to_bf16)
 
     jit_avx512_core_cvt_ps_to_bf16_t(void) : simd_w_(16), is_dynamic_size_(true) {
-        is_cpx_ = mayiuse(avx512_core_bf16);
         bf16_emu_ = new bf16_emulation_t(this, one, even,
                 selector, scratch, fp32_tmp, fp32_tmp);
 
@@ -149,7 +148,6 @@ struct jit_avx512_core_cvt_ps_to_bf16_t : public jit_generator {
         : size_(size), simd_w_(16), is_dynamic_size_(false) {
         tail_mask_ = (1 << (size % simd_w_)) - 1;
 
-        is_cpx_ = (mayiuse(avx512_core_bf16)) ? true : false;
         bf16_emu_ = new bf16_emulation_t(this, one, even,
                 selector, scratch, fp32_tmp, fp32_tmp);
 
@@ -165,7 +163,7 @@ struct jit_avx512_core_cvt_ps_to_bf16_t : public jit_generator {
         auto cvt = [&](size_t idx, Xbyak::Opmask ktail_mask) {
             vmovups(fp32_inp | ktail_mask | T_z,
                     ptr[reg_inp + sizeof(float) * (idx)]);
-            if (!is_cpx_)
+            if (!mayiuse(avx512_core_bf16))
                 bf16_emu_->r_vcvtneps2bf16(bf16_out, fp32_inp);
             else
                 vcvtneps2bf16(bf16_out, fp32_inp);
@@ -179,7 +177,7 @@ struct jit_avx512_core_cvt_ps_to_bf16_t : public jit_generator {
         if (is_dynamic_size_)
             mov(reg_size, ptr[abi_param1 + GET_OFF(size)]);
 
-        if (!is_cpx_)
+        if (!mayiuse(avx512_core_bf16))
             bf16_emu_->init_vcvtneps2bf16();
 
         mov(reg32_tail, 0xffff);
@@ -257,7 +255,6 @@ private:
     int simd_w_;
 
     bf16_emulation_t *bf16_emu_;
-    bool is_cpx_;
     bool is_dynamic_size_;
 
     Xbyak::Opmask ktail_mask = k2;
@@ -412,7 +409,6 @@ struct jit_avx512_core_add_cvt_ps_to_bf16_t : public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_avx512_core_add_cvt_ps_to_bf16)
 
     jit_avx512_core_add_cvt_ps_to_bf16_t() : simd_w_(16) {
-        is_cpx_ = mayiuse(avx512_core_bf16);
         bf16_emu_ = new bf16_emulation_t(this, one, even,
                 selector, scratch, fp32_tmp, fp32_tmp);
 
@@ -428,7 +424,7 @@ struct jit_avx512_core_add_cvt_ps_to_bf16_t : public jit_generator {
         auto add_cvt = [&](size_t idx, Xbyak::Opmask ktail_mask) {
             vmovups(fp32_inp | ktail_mask | T_z, ptr[reg_inp + sizeof(float) * (idx)]);
             vaddps(fp32_inp | ktail_mask | T_z, fp32_inp, ptr[reg_add + sizeof(float) * (idx)]);
-            if (!is_cpx_)
+            if (!mayiuse(avx512_core_bf16))
                 bf16_emu_->r_vcvtneps2bf16(bf16_out, fp32_inp);
             else
                 vcvtneps2bf16(bf16_out, fp32_inp);
@@ -443,7 +439,7 @@ struct jit_avx512_core_add_cvt_ps_to_bf16_t : public jit_generator {
         mov(reg_out, ptr[abi_param1 + GET_OFF(out)]);
         mov(reg_size, ptr[abi_param1 + GET_OFF(size)]);
 
-        if (!is_cpx_)
+        if (!mayiuse(avx512_core_bf16))
             bf16_emu_->init_vcvtneps2bf16();
 
         mov(reg32_tail, 0xffff);
@@ -488,7 +484,6 @@ private:
     int simd_w_;
 
     bf16_emulation_t *bf16_emu_;
-    bool is_cpx_;
 
     Xbyak::Opmask ktail_mask = k2;
     Xbyak::Zmm fp32_inp = Xbyak::Zmm(0);

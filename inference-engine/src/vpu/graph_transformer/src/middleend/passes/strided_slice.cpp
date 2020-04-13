@@ -11,10 +11,6 @@
 #include <vector>
 
 #include <vpu/compile_env.hpp>
-#include <vpu/stages/stub_stage.hpp>
-#include <vpu/stages/mx_stage.hpp>
-#include <vpu/middleend/hw/tiling.hpp>
-#include <vpu/middleend/hw/utility.hpp>
 
 namespace vpu {
 
@@ -199,13 +195,13 @@ void PassImpl::run(const Model& model) {
                 roiDesc.setDim(dim, m_params.end_dms[dim] - m_params.begin_dms[dim]);
             }
             auto roiData = model->duplicateData(input, "@roi", roiDesc);
-            auto shrinkStage = _stageBuilder->addShrinkStage(
+            auto cropStage = _stageBuilder->addCropStage(
                 model,
                 stage->name() + "@roi-selection",
                 stage->origLayer(),
                 input,
                 roiData);
-            shrinkStage->attrs().set("offset", m_params.begin_dms);
+            cropStage->attrs().set("offset", m_params.begin_dms);
             input = roiData;
         }
 

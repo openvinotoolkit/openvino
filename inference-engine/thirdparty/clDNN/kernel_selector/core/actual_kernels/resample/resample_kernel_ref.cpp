@@ -19,8 +19,12 @@ namespace kernel_selector {
 
 ParamsKey ResampleKernelRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
@@ -37,5 +41,23 @@ ParamsKey ResampleKernelRef::GetSupportedKey() const {
 
 KernelsData ResampleKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
+}
+
+JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) const {
+    JitConstants jit = ResampleKernelBase::GetJitConstants(params);
+
+    if (!params.fused_ops.empty()) {
+        std::vector<std::string> idx_order;
+        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+            idx_order = {"batch", "OF_ID", "oy", "ox"};
+        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+            idx_order = {"batch", "OF_ID", "oz", "oy", "ox"};
+        }
+
+        FusedOpsConfiguration conf = {"", idx_order, "interp_val", params.inputs[0].GetDType(), 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
+    return jit;
 }
 }  // namespace kernel_selector

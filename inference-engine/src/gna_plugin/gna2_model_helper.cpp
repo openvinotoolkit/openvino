@@ -4,7 +4,7 @@
 
 #if GNA_LIB_VER == 2
 
-#ifdef _WIN32
+#if defined __INTEL_COMPILER || defined _MSC_VER
 #include <malloc.h>
 #else
 #include <mm_malloc.h>

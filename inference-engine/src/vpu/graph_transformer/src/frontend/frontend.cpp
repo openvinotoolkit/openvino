@@ -26,77 +26,78 @@ namespace vpu {
 FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
     : _stageBuilder(std::move(stageBuilder))
     , parsers{{
-        {"Convolution",                              LAYER_PARSER(parseConvolution)},
-        {"Pooling",                                  LAYER_PARSER(parsePooling)},
-        {"ReLU",                                     LAYER_PARSER(parseReLU)},
-        {"Clamp",                                    LAYER_PARSER(parseClamp)},
-        {"FullyConnected",                           LAYER_PARSER(parseFullyConnected)},
-        {"SoftMax",                                  LAYER_PARSER(parseSoftMax)},
-        {"GRN",                                      LAYER_PARSER(parseGRN)},
-        {"MVN",                                      LAYER_PARSER(parseMVN)},
-        {"Norm",                                     LAYER_PARSER(parseNorm)},
-        {"Concat",                                   LAYER_PARSER(parseConcat)},
-        {"Eltwise",                                  LAYER_PARSER(parseEltwise)},
+        {"Convolution",                                        LAYER_PARSER(parseConvolution)},
+        {"Pooling",                                            LAYER_PARSER(parsePooling)},
+        {"ReLU",                                               LAYER_PARSER(parseReLU)},
+        {"Clamp",                                              LAYER_PARSER(parseClamp)},
+        {"FullyConnected",                                     LAYER_PARSER(parseFullyConnected)},
+        {"SoftMax",                                            LAYER_PARSER(parseSoftMax)},
+        {"GRN",                                                LAYER_PARSER(parseGRN)},
+        {"MVN",                                                LAYER_PARSER(parseMVN)},
+        {"Norm",                                               LAYER_PARSER(parseNorm)},
+        {"Concat",                                             LAYER_PARSER(parseConcat)},
+        {"Eltwise",                                            LAYER_PARSER(parseEltwise)},
         // Slice is represented as Split in VPU model
-        {"Split",                                    LAYER_PARSER(parseSplit)},
-        {"Slice",                                    LAYER_PARSER(parseSplit)},
-        {"Sigmoid",                                  LAYER_PARSER(parseSigmoid)},
-        {"TanH",                                     LAYER_PARSER(parseTanH)},
-        {"PReLU",                                    LAYER_PARSER(parsePReLU)},
-        {"Bias",                                     LAYER_PARSER(parseBias)},
-        {"BatchNormalization",                       LAYER_PARSER(parseBatchNorm)},
-        {"ScaleShift",                               LAYER_PARSER(parseScale)},
-        {"Deconvolution",                            LAYER_PARSER(parseDeconvolution)},
-        {"Power",                                    LAYER_PARSER(parsePower)},
-        {"Copy",                                     LAYER_PARSER(parseCopy)},
-        {"ELU",                                      LAYER_PARSER(parseELU)},
+        {"Split",                                              LAYER_PARSER(parseSplit)},
+        {"Slice",                                              LAYER_PARSER(parseSplit)},
+        {"Sigmoid",                                            LAYER_PARSER(parseSigmoid)},
+        {"TanH",                                               LAYER_PARSER(parseTanH)},
+        {"PReLU",                                              LAYER_PARSER(parsePReLU)},
+        {"Bias",                                               LAYER_PARSER(parseBias)},
+        {"BatchNormalization",                                 LAYER_PARSER(parseBatchNorm)},
+        {"ScaleShift",                                         LAYER_PARSER(parseScale)},
+        {"Deconvolution",                                      LAYER_PARSER(parseDeconvolution)},
+        {"Power",                                              LAYER_PARSER(parsePower)},
+        {"Copy",                                               LAYER_PARSER(parseCopy)},
+        {"ELU",                                                LAYER_PARSER(parseELU)},
         // Flatten, Squeeze and Unsqueeze are represented as Reshape in VPU model
-        {"Reshape",                                  LAYER_PARSER(parseReshape)},
-        {"Flatten",                                  LAYER_PARSER(parseReshape)},
-        {"Squeeze",                                  LAYER_PARSER(parseReshape)},
-        {"Unsqueeze",                                LAYER_PARSER(parseReshape)},
-        {"Crop",                                     LAYER_PARSER(parseCrop)},
-        {"Tile",                                     LAYER_PARSER(parseTile)},
-        {"Normalize",                                LAYER_PARSER(parseNormalize)},
-        {"PriorBox",                                 LAYER_PARSER(parsePriorBox)},
-        {"PriorBoxClustered",                        LAYER_PARSER(parsePriorBoxClustered)},
-        {"Permute",                                  LAYER_PARSER(parsePermute)},
-        {"DetectionOutput",                          LAYER_PARSER(parseDetectionOutput)},
-        {"RegionYolo",                               LAYER_PARSER(parseRegionYolo)},
-        {"ReorgYolo",                                LAYER_PARSER(parseReorgYolo)},
-        {"CTCGreedyDecoder",                         LAYER_PARSER(parseCTCDecoder)},
-        {"Proposal",                                 LAYER_PARSER(parseProposal)},
-        {"ROIPooling",                               LAYER_PARSER(parseROIPooling)},
-        {"PSROIPooling",                             LAYER_PARSER(parsePSROIPooling)},
-        {"Interp",                                   LAYER_PARSER(parseInterp)},
-        {"Custom",                                   LAYER_PARSER(parseCustom)},
-        {"MTCNN",                                    LAYER_PARSER(parseMTCNN)},
-        {"LSTMCell",                                 LAYER_PARSER(parseLSTMCell)},
-        {"Pad",                                      LAYER_PARSER(parsePad)},
-        {"Resample",                                 LAYER_PARSER(parseResample)},
-        {"ArgMax",                                   LAYER_PARSER(parseArgMax)},
-        {"LSTMSequence",                             LAYER_PARSER(parseRNN)},
-        {"GEMM",                                     LAYER_PARSER(parseGEMM)},
-        {"Log",                                      LAYER_PARSER(parseLog)},
-        {"Exp",                                      LAYER_PARSER(parseExp)},
-        {"ReverseSequence",                          LAYER_PARSER(parseReverseSequence)},
-        {"Gather",                                   LAYER_PARSER(parseGather)},
-        {"ReduceAnd",                                LAYER_PARSER(parseReduce)},
-        {"Floor",                                    LAYER_PARSER(parseFloor)},
-        {"TopK",                                     LAYER_PARSER(parseTopK)},
-        {"ReduceMin",                                LAYER_PARSER(parseReduce)},
-        {"StridedSlice",                             LAYER_PARSER(parseStridedSlice)},
-        {"Select",                                   LAYER_PARSER(parseSelect)},
-        {"Erf",                                      LAYER_PARSER(parseErf)},
-        {"ExperimentalDetectronDetectionOutput",     LAYER_PARSER(parseExpDetectionOutput)},
-        {"NonMaxSuppression",                        LAYER_PARSER(parseNonMaxSuppression)},
-        {"ExperimentalDetectronROIFeatureExtractor", LAYER_PARSER(parseROIFeatureExtractor)},
-        {"Convert",                                  LAYER_PARSER(parseConvert)},
-        {"ReduceMax",                                LAYER_PARSER(parseReduce)},
-        {"ReduceSum",                                LAYER_PARSER(parseReduce)},
-        {"ReduceMean",                               LAYER_PARSER(parseReduce)},
-        {"TensorIterator",                           LAYER_PARSER(parseTensorIterator)},
-        {"OneHot",                                   LAYER_PARSER(parseOneHot)},
+        {"Reshape",                                            LAYER_PARSER(parseReshape)},
+        {"Flatten",                                            LAYER_PARSER(parseReshape)},
+        {"Squeeze",                                            LAYER_PARSER(parseReshape)},
+        {"Unsqueeze",                                          LAYER_PARSER(parseReshape)},
+        {"Crop",                                               LAYER_PARSER(parseCrop)},
+        {"Tile",                                               LAYER_PARSER(parseTile)},
+        {"Normalize",                                          LAYER_PARSER(parseNormalize)},
+        {"PriorBox",                                           LAYER_PARSER(parsePriorBox)},
+        {"PriorBoxClustered",                                  LAYER_PARSER(parsePriorBoxClustered)},
+        {"Permute",                                            LAYER_PARSER(parsePermute)},
+        {"DetectionOutput",                                    LAYER_PARSER(parseDetectionOutput)},
+        {"RegionYolo",                                         LAYER_PARSER(parseRegionYolo)},
+        {"ReorgYolo",                                          LAYER_PARSER(parseReorgYolo)},
+        {"CTCGreedyDecoder",                                   LAYER_PARSER(parseCTCDecoder)},
+        {"Proposal",                                           LAYER_PARSER(parseProposal)},
+        {"ROIPooling",                                         LAYER_PARSER(parseROIPooling)},
+        {"PSROIPooling",                                       LAYER_PARSER(parsePSROIPooling)},
+        {"Interp",                                             LAYER_PARSER(parseInterp)},
+        {"Custom",                                             LAYER_PARSER(parseCustom)},
+        {"MTCNN",                                              LAYER_PARSER(parseMTCNN)},
+        {"LSTMCell",                                           LAYER_PARSER(parseLSTMCell)},
+        {"Pad",                                                LAYER_PARSER(parsePad)},
+        {"Resample",                                           LAYER_PARSER(parseResample)},
+        {"LSTMSequence",                                       LAYER_PARSER(parseRNN)},
+        {"GEMM",                                               LAYER_PARSER(parseGEMM)},
+        {"Log",                                                LAYER_PARSER(parseLog)},
+        {"Exp",                                                LAYER_PARSER(parseExp)},
+        {"ReverseSequence",                                    LAYER_PARSER(parseReverseSequence)},
+        {"Gather",                                             LAYER_PARSER(parseGather)},
+        {"ReduceAnd",                                          LAYER_PARSER(parseReduce)},
+        {"Floor",                                              LAYER_PARSER(parseFloor)},
+        {"TopK",                                               LAYER_PARSER(parseTopK)},
+        {"ReduceMin",                                          LAYER_PARSER(parseReduce)},
+        {"StridedSlice",                                       LAYER_PARSER(parseStridedSlice)},
+        {"Select",                                             LAYER_PARSER(parseSelect)},
+        {"Erf",                                                LAYER_PARSER(parseErf)},
+        {"ExperimentalDetectronDetectionOutput",               LAYER_PARSER(parseExpDetectionOutput)},
+        {"NonMaxSuppression",                                  LAYER_PARSER(parseNonMaxSuppression)},
+        {"ExperimentalDetectronROIFeatureExtractor",           LAYER_PARSER(parseROIFeatureExtractor)},
+        {"Convert",                                            LAYER_PARSER(parseConvert)},
+        {"ReduceMax",                                          LAYER_PARSER(parseReduce)},
+        {"ReduceSum",                                          LAYER_PARSER(parseReduce)},
+        {"ReduceMean",                                         LAYER_PARSER(parseReduce)},
+        {"TensorIterator",                                     LAYER_PARSER(parseTensorIterator)},
+        {"OneHot",                                             LAYER_PARSER(parseOneHot)},
+        {"ExperimentalDetectronPriorGridGenerator",            LAYER_PARSER(parseExpPriorGridGenerator)},
+        {"ExperimentalDetectronGenerateProposalsSingleImage",  LAYER_PARSER(parseExpGenerateProposals)},
     }} {}
 
 ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
@@ -193,7 +194,7 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
     const auto& type = isCustomLayer ? "Custom" : layer->type;
     if (parsers.count(type) == 0) {
         if (onUnsupported) {
-            onUnsupported(model, layer, inputs, outputs, formatString("Unsupported layer type : %v", type));
+            onUnsupported(model, layer, inputs, outputs, formatString("unsupported layer type \"%v\"", type));
         }
         return;
     }
@@ -203,6 +204,8 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
         if (onSupported) {
             onSupported(layer);
         }
+    } catch (const details::UnsupportedLayerException&) {
+        throw;
     } catch (const std::exception& error) {
         if (onUnsupported) {
             onUnsupported(model, layer, inputs, outputs, error.what());
@@ -213,7 +216,7 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
 void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                                                  const std::string& extraMessage) {
     const auto& env = CompileEnv::get();
-    VPU_THROW_UNLESS(env.config.ignoreUnknownLayers, "Failed to compile layer %v : %v", layer->name, extraMessage);
+    VPU_THROW_UNSUPPORTED_UNLESS(env.config.ignoreUnknownLayers, "Failed to compile layer \"%v\": %v", layer->name, extraMessage);
     _stageBuilder->addNoneStage(model, layer->name, layer, inputs, outputs);
 }
 
@@ -265,9 +268,8 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
 
     if (!env.config.ignoreIRStatistic) {
         ie::ICNNNetworkStats* stats = nullptr;
-        IE_ASSERT(network.getStats(&stats, nullptr) == ie::StatusCode::OK);
-
-        if (!stats->isEmpty()) {
+        // V10 IRs doesn't contain stats
+        if (network.getStats(&stats, nullptr) == InferenceEngine::OK && !stats->isEmpty()) {
             env.log->trace("Use node statistics from the IR");
             model->setNodesStats(stats->getNodesStats());
         }
@@ -281,23 +283,29 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
         env.log->trace("Update IE Network");
         VPU_LOGGER_SECTION(env.log);
 
+        IE_SUPPRESS_DEPRECATED_START
         // If we have NGraph network, but CNN compatibility is enabled, enforce conversion
         if (network.getFunction() && env.config.forceDeprecatedCnnConversion)
             network.addLayer(nullptr);
-
-        ie::NetPass::ConvertPrecision(network, ie::Precision::BOOL, ie::Precision::I32);
+        IE_SUPPRESS_DEPRECATED_END
 
         detectNetworkBatch(network, model);
 
+        ie::NetPass::ConvertPrecision(network, ie::Precision::I64, ie::Precision::I32);
+        ie::NetPass::ConvertPrecision(network, ie::Precision::U64, ie::Precision::I32);
+        ie::NetPass::ConvertPrecision(network, ie::Precision::BOOL, ie::Precision::I32);
+
+        IE_SUPPRESS_DEPRECATED_START
         // force conversion to CNNNetwork
         if (network.getFunction())
             network.addLayer(nullptr);
-
-        unrollLoops(network);
+        IE_SUPPRESS_DEPRECATED_END
 
         moveConstInputsToBlobs(network);
 
         removeConstLayers(network);
+
+        unrollLoops(network);
     }
 
     //
@@ -403,6 +411,14 @@ void FrontEnd::getInputAndOutputData(
             if (dataDesc.type() == DataType::FP32) {
                 // To infer the same FP32 models on different devices (CPU, GPU, VPU and so on)
                 dataDesc.setType(DataType::FP16);
+            }
+
+            // Skip adding data if it not utilized
+            const bool isNetworkOutput = _ieParsedNetwork.networkOutputs.count(layerOutput->getName()) > 0;
+            const auto isLeaf = layerOutput->getInputTo().empty();
+            if (!isNetworkOutput && isLeaf) {
+                outputs[i] = nullptr;
+                continue;
             }
 
             outputs[i] = model->addNewData(

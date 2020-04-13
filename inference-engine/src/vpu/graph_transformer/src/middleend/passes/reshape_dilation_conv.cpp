@@ -108,7 +108,7 @@ void PassImpl::run(const Model& model) {
         }
 
         const bool Use_pixel_alignment = true;
-        int pixel_stride_alignment = STRIDE_ALIGNMENT
+        int pixel_stride_alignment = HW_STRIDE_ALIGNMENT
                 / input->desc().elemSize();
         int InputExtended_width = input->desc().dim(Dim::W);
         int InputExtended_height = input->desc().dim(Dim::H);
@@ -405,7 +405,7 @@ void PassImpl::run(const Model& model) {
             newStage->attrs().set<float>("scaleFactor", scaleFactor);
 
             if (Sub_outputdata_expand) {
-                _stageBuilder->addShrinkStage(model,
+                _stageBuilder->addCropStage(model,
                         stage->name() + "@SubConvOutputData",
                         stage->origLayer(), Sub_outputdata,
                         V_Sub_outputdata[Sub_output_XInd * Sub_output_dilationY_dimenion + Sub_output_YInd]);
@@ -485,8 +485,8 @@ void PassImpl::run(const Model& model) {
                     stage->origLayer(), permute_outputdata,
                     Reinterpret_outputdata);
 
-            auto ShrinkToOutputDataStage = _stageBuilder->addShrinkStage(model,
-                    stage->name() + "@shrink-to-OutputData", stage->origLayer(),
+            auto CropToOutputDataStage = _stageBuilder->addCropStage(model,
+                    stage->name() + "@crop-to-OutputData", stage->origLayer(),
                     Reinterpret_outputdata, output);
 
         } else {

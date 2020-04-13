@@ -4,7 +4,7 @@
 
 /**
  * @brief A header file for the main Inference Engine exception
- * 
+ *
  * @file ie_exception.hpp
  */
 #pragma once
@@ -36,6 +36,9 @@
 #else
 #include <cassert>
 
+/**
+ * @private
+ */
 class NullStream {
 public:
     template <class T>
@@ -87,20 +90,15 @@ public:
      * @brief A constructor. Creates an InferenceEngineException object from a specific file and line
      * @param filename File where exception has been thrown
      * @param line Line of the exception emitter
+     * @param message Exception message
      */
-    InferenceEngineException(const std::string& filename, const int line): _file(filename), _line(line) {}
+    InferenceEngineException(const std::string& filename, const int line, const std::string& message = "") noexcept;
 
     /**
      * @brief noexcept required for copy ctor
      * @details The C++ Standard, [except.throw], paragraph 3 [ISO/IEC 14882-2014]
      */
-    InferenceEngineException(const InferenceEngineException& that) noexcept {
-        errorDesc = that.errorDesc;
-        status_code = that.status_code;
-        _file = that._file;
-        _line = that._line;
-        exception_stream = that.exception_stream;
-    }
+    InferenceEngineException(const InferenceEngineException& that) noexcept;
 
     /**
      * @brief A stream output operator to be used within exception

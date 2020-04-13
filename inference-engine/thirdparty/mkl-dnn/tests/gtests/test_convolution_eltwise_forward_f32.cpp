@@ -35,7 +35,7 @@ TEST_P(convolution_test, TestConvolutionEltwise)
 #define CONCAT_WITH_UNDERSCORE_(a,b) a ## _ ## b
 #define CONCAT_WITH_UNDERSCORE(a,b) CONCAT_WITH_UNDERSCORE_(a,b)
 
-#define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_CASE_P( \
+#define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_SUITE_P( \
         str, convolution_test, ::testing::Values(__VA_ARGS__))
 
 #define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
@@ -54,7 +54,8 @@ TEST_P(convolution_test, TestConvolutionEltwise)
     EXPAND_ARGS(PARAMS_CONV(eltwise_linear, __VA_ARGS__)), \
     EXPAND_ARGS(PARAMS_CONV(eltwise_bounded_relu, __VA_ARGS__)), \
     EXPAND_ARGS(PARAMS_CONV(eltwise_soft_relu, __VA_ARGS__)), \
-    EXPAND_ARGS(PARAMS_CONV(eltwise_logistic, __VA_ARGS__))
+    EXPAND_ARGS(PARAMS_CONV(eltwise_logistic, __VA_ARGS__)), \
+    EXPAND_ARGS(PARAMS_CONV(eltwise_swish, __VA_ARGS__))
 
 #define ELTWISE_ALPHA 0.5f
 #define ELTWISE_BETA 1.5f

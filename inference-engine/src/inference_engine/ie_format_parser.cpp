@@ -38,6 +38,8 @@ void LayerParseParameters::addInputPort(const LayerPortData& port) {
                       port);
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 inline void ParseSegment(LayerParseParameters& prms, const pugi::xml_node& blob) {
     uint64_t size = GetUInt64Attr(blob, "size", 0);
     uint64_t start = GetUInt64Attr(blob, "offset", 0);
@@ -111,6 +113,8 @@ void FormatParser::ParseGenericParams(pugi::xml_node& node, LayerParseParameters
         }
     }
 }
+
+IE_SUPPRESS_DEPRECATED_END
 
 static inline std::string gen_id(int layer_id, int port_id) {
     return (std::to_string(layer_id) + '.' + std::to_string(port_id));
@@ -192,6 +196,8 @@ FormatParser::FormatParser(size_t version): _version(version) {
                 std::make_shared<LayerCreator<ShuffleChannelsLayer>>("ShuffleChannels"),
                 std::make_shared<LayerCreator<DepthToSpaceLayer>>("DepthToSpace"),
                 std::make_shared<LayerCreator<SpaceToDepthLayer>>("SpaceToDepth"),
+                std::make_shared<LayerCreator<SpaceToBatchLayer>>("SpaceToBatch"),
+                std::make_shared<LayerCreator<BatchToSpaceLayer>>("BatchToSpace"),
                 std::make_shared<LayerCreator<SparseFillEmptyRowsLayer>>("SparseFillEmptyRows"),
                 std::make_shared<LayerCreator<SparseSegmentReduceLayer>>("SparseSegmentMean"),
                 std::make_shared<LayerCreator<SparseSegmentReduceLayer>>("SparseSegmentSqrtN"),
@@ -261,7 +267,9 @@ FormatParser::FormatParser(size_t version): _version(version) {
                 std::make_shared<LayerCreator<TopKLayer>>("TopK"),
                 std::make_shared<LayerCreator<UniqueLayer>>("Unique"),
                 std::make_shared<LayerCreator<NonMaxSuppressionLayer>>("NonMaxSuppression"),
-                std::make_shared<LayerCreator<ScatterLayer>>("ScatterUpdate")};
+                std::make_shared<LayerCreator<ScatterLayer>>("ScatterUpdate"),
+                std::make_shared<LayerCreator<ExperimentalDetectronPriorGridGeneratorLayer>>("ExperimentalDetectronPriorGridGenerator"),
+                std::make_shared<LayerCreator<ExperimentalDetectronGenerateProposalsSingleImageLayer>>("ExperimentalDetectronGenerateProposalsSingleImage")};
     creators.emplace_back(_version < 6 ? std::make_shared<LayerCreator<QuantizeLayer>>("Quantize")
                                        : std::make_shared<LayerCreator<QuantizeLayer>>("FakeQuantize"));
 }
@@ -294,6 +302,8 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
             inputLayers.push_back(layer);
         }
 
+        IE_SUPPRESS_DEPRECATED_START
+
         if (identifyNetworkPrecision) {
             if (!_network->getPrecision()) {
                 _network->setPrecision(lprms.prms.precision);
@@ -303,6 +313,8 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
                 identifyNetworkPrecision = false;
             }
         }
+
+        IE_SUPPRESS_DEPRECATED_END
 
         for (int i = 0; i < lprms.outputPorts.size(); i++) {
             const auto& outPort = lprms.outputPorts[i];
@@ -460,7 +472,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
 template <typename BlobType>
 inline Blob::Ptr GetTypedBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, const WeightSegment& segment) {
     if (segment.getEnd() > weights->size())
-        THROW_IE_EXCEPTION << "segment exceeds given buffer limits. Please, validate weights file";
+        THROW_IE_EXCEPTION << "segment size(" << segment.getEnd() << ") exceeds given buffer limits(" << weights->size() <<"). Please, validate weights file";
 
     size_t noOfElement = segment.size / sizeof(BlobType);
     // RanC: TODO: IR does not provide me with weight slayout.
@@ -500,7 +512,6 @@ Blob::Ptr FormatParser::GetBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, c
 }
 
 void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
-
     for (auto& kvp : _network->allLayers()) {
         auto fit = layersParseInfo.find(kvp.second->name);
         // todo: may check that earlier - while parsing...

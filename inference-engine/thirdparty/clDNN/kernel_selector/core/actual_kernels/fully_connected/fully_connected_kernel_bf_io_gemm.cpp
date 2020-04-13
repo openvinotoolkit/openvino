@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,8 @@ ParamsKey FullyConnected_bf_io_GEMM::GetSupportedKey() const {
     k.EnableBiasPerOutput();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
-    k.EnableTensorOffset();
+    // bfyx -> bf layout transformation works incorrectly when tensor has paddings, so offset support is disabled for now.
+    // k.EnableTensorOffset();
     k.EnableTensorPitches();
     return k;
 }
@@ -54,7 +55,7 @@ FullyConnected_bf_io_GEMM::DispatchData FullyConnected_bf_io_GEMM::SetDefault(co
     runInfo.lws1 = local[1];
     runInfo.lws2 = 1;
 
-    runInfo.effiency = FORCE_PRIORITY_6;
+    runInfo.efficiency = FORCE_PRIORITY_6;
 
     return runInfo;
 }
@@ -88,7 +89,7 @@ KernelsData FullyConnected_bf_io_GEMM::GetKernelsData(const Params& params, cons
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     options,
                                                     DataLayout::bf,
-                                                    {WeightsLayout::oiyx},
+                                                    WeightsLayout::oiyx,
                                                     FORCE_PRIORITY_6,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

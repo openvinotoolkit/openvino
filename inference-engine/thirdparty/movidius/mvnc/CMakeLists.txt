@@ -72,3 +72,4 @@ if(NOT WIN32)
             ${CMAKE_DL_LIBS}
             ${LIBUSB_LIBRARY})
 endif()
+

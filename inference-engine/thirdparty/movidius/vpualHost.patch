@@ -1,0 +1,80 @@
+diff --git a/host/source/FLIC/NNFlicPlg/NNFlicPlg.cpp b/host/source/FLIC/NNFlicPlg/NNFlicPlg.cpp
+index 8c61ec1..9808319 100644
+--- a/host/source/FLIC/NNFlicPlg/NNFlicPlg.cpp
++++ b/host/source/FLIC/NNFlicPlg/NNFlicPlg.cpp
+@@ -187,7 +187,7 @@ uint32_t* NNFlicPlg::GetBlobVersion()
+ 
+     //Dispatch Command
+     VpualDispatch (&cmd, &rep);
+-    uint32_t* tempBlob;
++    uint32_t* tempBlob = nullptr;
+ 
+     rep.deserialize(tempBlob, sizeof(* tempBlob));
+ 
+diff --git a/host/source/FLIC/top/include/MemAllocator.h b/host/source/FLIC/top/include/MemAllocator.h
+index 8402e18..be81be9 100644
+--- a/host/source/FLIC/top/include/MemAllocator.h
++++ b/host/source/FLIC/top/include/MemAllocator.h
+@@ -52,9 +52,9 @@ class HeapAllocator : public IAllocator {
+ //Stock objects
+ // extern uint8_t       RgnBuff[];
+ // extern uint8_t       RgnBuffCMX[];
+-extern RgnAllocator  RgnAlloc;
+-extern RgnAllocator  RgnAllocCMX;
+-extern HeapAllocator HeapAlloc;
++//extern RgnAllocator  RgnAlloc;
++//extern RgnAllocator  RgnAllocCMX;
++//extern HeapAllocator HeapAlloc;
+ 
+ // TODO Default pool size:
+ #define DEF_POOL_SZ (8*800*480*3/2)
+diff --git a/host/source/FLIC/top/source/Allocator.cpp b/host/source/FLIC/top/source/Allocator.cpp
+index 3672b0b..ecd4b2d 100644
+--- a/host/source/FLIC/top/source/Allocator.cpp
++++ b/host/source/FLIC/top/source/Allocator.cpp
+@@ -66,6 +66,6 @@ HeapAllocator::HeapAllocator(uint32_t alignment) : IAllocator("HeapAllocator") {
+ 
+ // uint8_t       RgnBuff[DEF_POOL_SZ] ALIGNED(32) SECTION(DEF_POOL_SECT);
+ // uint8_t       RgnBuffCMX[CMX_POOL_SZ] ALIGNED(32) SECTION(CMX_POOL_SECT);
+-RgnAllocator  RgnAlloc;
+-RgnAllocator  RgnAllocCMX;
+-HeapAllocator HeapAlloc;
++//RgnAllocator  RgnAlloc;
++//RgnAllocator  RgnAllocCMX;
++//HeapAllocator HeapAlloc;
+diff --git a/host/source/SIPP/include/sipp_messages.h b/host/source/SIPP/include/sipp_messages.h
+index 1581564..bd847c8 100644
+--- a/host/source/SIPP/include/sipp_messages.h
++++ b/host/source/SIPP/include/sipp_messages.h
+@@ -46,7 +46,7 @@ public:
+ 
+     // Move constructors.
+     SippPipeline(SippPipeline&&) noexcept {}
+-    SippPipeline& operator=(SippPipeline&&) noexcept {}
++    //SippPipeline& operator=(SippPipeline&&) noexcept {}
+ 
+     uint32_t getPipelineId() const {return pipelineID;}
+ };
+@@ -94,7 +94,7 @@ public:
+ 
+     // Move Constructors.
+     SippFilter(SippFilter&&) noexcept {}
+-    SippFilter& operator=(SippFilter&&) noexcept {}
++    //SippFilter& operator=(SippFilter&&) noexcept {}
+ 
+     uint32_t getFilterId() const {return filterID;}
+     int getFilter() const {return filter;}
+diff --git a/host/source/XLink/pc/XLinkPlatform.c b/host/source/XLink/pc/XLinkPlatform.c
+index ea54b1f..a6bae87 100644
+--- a/host/source/XLink/pc/XLinkPlatform.c
++++ b/host/source/XLink/pc/XLinkPlatform.c
+@@ -313,6 +313,9 @@ static int vsc_usb_open(const char* devPathRead __attribute__((unused)),
+         return -1;
+     }
+     libusb_unref_device(dev);
++
++    libusb_detach_kernel_driver(h, 0);
++
+     libusb_rc = libusb_claim_interface(h, 0);
+     if(libusb_rc < 0)
+     {

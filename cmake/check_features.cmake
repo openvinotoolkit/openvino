@@ -3,13 +3,7 @@
 #
 
 if (VERBOSE_BUILD)
-    set(CMAKE_VERBOSE_MAKEFILE  ON)
-endif()
-
-# FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
-#        this must be addressed in a proper way
-if(CMAKE_CROSSCOMPILING OR NOT (LINUX OR WIN32))
-    set(ENABLE_LTO OFF)
+    set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "" FORCE)
 endif()
 
 #64 bits platform
@@ -21,35 +15,21 @@ else()
     SET(ARCH_64 OFF)
 endif()
 
-# 32 bits
-if(NOT ARCH_64)
-    if(UNIX)
-        set(ENABLE_CLDNN OFF)
-    endif()
-    set(ENABLE_MKL_DNN OFF)
-endif()
-
-# Apple specific
-if (APPLE)
-    set(ENABLE_CLDNN OFF)
-endif()
-
-# ARM specific
-if (ARM OR AARCH64)
-    # disable all base plugins but Myriad
-    set(ENABLE_CLDNN OFF)
-    set(ENABLE_MKL_DNN OFF)
-endif()
-
-#minGW specific - under wine no support for downloading file and applying them using git
-if (WIN32)
-    if (MINGW)
-        SET(ENABLE_CLDNN OFF) # dont have mingw dll for linking
-    endif()
-endif()
-
 if (NOT ENABLE_MKL_DNN)
     set(ENABLE_MKL OFF)
+endif()
+
+if(ENABLE_AVX512F)
+    if ((CMAKE_CXX_COMPILER_ID MATCHES MSVC) AND (MSVC_VERSION VERSION_LESS 1920))
+        # 1920 version of MSVC 2019. In MSVC 2017 AVX512F not work
+        set(ENABLE_AVX512F OFF CACHE BOOL "" FORCE)
+    endif()
+    if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
+        set(ENABLE_AVX512F OFF CACHE BOOL "" FORCE)
+    endif()
+    if ((CMAKE_CXX_COMPILER_ID STREQUAL GNU) AND (NOT (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9)))
+        set(ENABLE_AVX512F OFF CACHE BOOL "" FORCE)
+    endif()
 endif()
 
 print_enabled_features()

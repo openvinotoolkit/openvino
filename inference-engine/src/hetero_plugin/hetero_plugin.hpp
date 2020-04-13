@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "inference_engine.hpp"
+
 #include "description_buffer.hpp"
 #include "ie_icore.hpp"
 #include "ie_error.hpp"
@@ -21,11 +21,17 @@ namespace HeteroPlugin {
 
 class Engine : public InferenceEngine::InferencePluginInternal {
 public:
-    IE_SUPPRESS_DEPRECATED_START
-    using Plugins = std::unordered_map<std::string, InferenceEngine::InferencePlugin>;
-    IE_SUPPRESS_DEPRECATED_END
-
     using Configs = std::map<std::string, std::string>;
+
+    struct PluginEntry {
+        IE_SUPPRESS_DEPRECATED_START
+        InferenceEngine::InferencePlugin _ref;
+        IE_SUPPRESS_DEPRECATED_END
+        Configs                          _config;
+    };
+
+    using Plugins = std::unordered_map<std::string, PluginEntry >;
+
     using Devices = std::vector<std::string>;
 
     Engine();
@@ -33,14 +39,12 @@ public:
     void GetVersion(const InferenceEngine::Version *&versionInfo) noexcept;
 
     InferenceEngine::ExecutableNetworkInternal::Ptr
-    LoadExeNetworkImpl(const InferenceEngine::ICore * core, InferenceEngine::ICNNNetwork &network, const Configs &config) override;
+    LoadExeNetworkImpl(const InferenceEngine::ICore * core, const InferenceEngine::ICNNNetwork &network, const Configs &config) override;
     void SetConfig(const Configs &config) override;
 
     void SetAffinity(InferenceEngine::ICNNNetwork& network, const Configs &config);
 
     void AddExtension(InferenceEngine::IExtensionPtr extension)override;
-
-    void SetLogCallback(InferenceEngine::IErrorListener &listener) override;
 
     void QueryNetwork(const InferenceEngine::ICNNNetwork &network,
                       const Configs& config, InferenceEngine::QueryNetworkResult &res) const override;
@@ -53,9 +57,9 @@ public:
 
     IE_SUPPRESS_DEPRECATED_START
 
-    InferenceEngine::InferencePlugin GetDevicePlugin(const std::string& device) const;
+    PluginEntry GetDevicePlugin(const std::string& device) const;
 
-    static Configs GetSupportedConfig(const Configs& config, const InferenceEngine::InferencePlugin& plugin);
+    static Configs GetSupportedConfig(const Configs& globalConfig, const Configs& localConfig, const InferenceEngine::InferencePlugin& plugin);
 
     IE_SUPPRESS_DEPRECATED_END
 
@@ -67,7 +71,6 @@ public:
 
     Plugins                                     _plugins;
     std::vector<InferenceEngine::IExtensionPtr> _extensions;
-    InferenceEngine::IErrorListener*            _errorListener = nullptr;
 };
 
 struct HeteroLayerColorer {

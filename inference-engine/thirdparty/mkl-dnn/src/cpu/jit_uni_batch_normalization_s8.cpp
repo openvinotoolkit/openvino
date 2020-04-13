@@ -49,9 +49,8 @@ struct jit_bnorm_t: public jit_generator {
 
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_bnorm_t)
 
-    using Vmm = typename utils::conditional<isa == avx2, Ymm, Zmm>::type;
+    using Vmm = typename cpu_isa_traits<isa>::Vmm;
     const AddressFrame &vmmword = (isa == avx2) ? yword : zword;
-
     const int vlen = cpu_isa_traits<isa>::vlen;
 
     const batch_normalization_pd_t *bdesc_;
@@ -71,8 +70,8 @@ struct jit_bnorm_t: public jit_generator {
     Reg64 reg_src = r12;
     Reg64 reg_dst = r13;
     Reg64 reg_var = r14;
-    Reg64 reg_coff_s8 = r15;
-    Reg64 reg_coff_f32 = rax;
+    Reg64 reg_coff_1byte = r15;
+    Reg64 reg_coff_4byte = rax;
 
     // channel tail processing
     Opmask ktail_mask = Opmask(1); // f32 mask for channel math
@@ -86,7 +85,6 @@ struct jit_bnorm_t: public jit_generator {
     bool with_relu_;
     size_t simd_w_;
     size_t c_in_xmm_;
-    size_t unroll_regs_;
     size_t chan_data_offt_;
     size_t num_c16_blocks_;
     size_t c_tail_;
@@ -96,9 +94,8 @@ struct jit_bnorm_t: public jit_generator {
         c_in_xmm_ = 16;
         num_c16_blocks_ = bdesc_->C() / c_in_xmm_;
         c_tail_ = bdesc_->C() % c_in_xmm_;
-        unroll_regs_ = isa == avx512_core ? 4 : 2;
         with_relu_ = (bdesc_->with_relu_post_op() || bdesc_->fuse_bn_relu())
-            && bdesc_->is_fwd();
+                && bdesc_->is_fwd();
     }
 
     void load_common_params() {
@@ -166,70 +163,35 @@ struct jit_bnorm_t: public jit_generator {
     }
 
     Address mean_ptr(size_t offt = 0) {
-        return vmmword[reg_mean + reg_coff_f32 + offt];
+        return vmmword[reg_mean + reg_coff_4byte + offt];
     }
 
     Address var_ptr(size_t offt = 0) {
-        return vmmword[reg_var + reg_coff_f32 + offt];
+        return vmmword[reg_var + reg_coff_4byte + offt];
     }
 
     Address scale_ptr(size_t offt = 0) {
-        return vmmword[reg_scale_shift + reg_coff_f32 + offt
-            + 0 * chan_data_offt_];
+        return vmmword[reg_scale_shift + reg_coff_4byte + offt
+                + 0 * chan_data_offt_];
     }
 
     Address shift_ptr(size_t offt = 0) {
-        return vmmword[reg_scale_shift + reg_coff_f32 + offt
-            + 1 * chan_data_offt_];
+        return vmmword[reg_scale_shift + reg_coff_4byte + offt
+                + 1 * chan_data_offt_];
     }
 
     Address src_ptr(size_t offt = 0) {
-        return vmmword[reg_src + reg_coff_s8 + offt];
+        return vmmword[reg_src + reg_soff + offt];
     }
 
     Address dst_ptr(size_t offt = 0) {
-        return vmmword[reg_dst + reg_coff_s8 + offt];
+        return vmmword[reg_dst + reg_soff + offt];
     }
 
-    template <typename body_t, typename tail_t>
-    void channel_loop(body_t body, tail_t tail) {
-        size_t num_loops = num_c16_blocks_ / unroll_regs_;
-        size_t loop_tail = num_c16_blocks_ - num_loops * unroll_regs_;
-
-        mov(reg_coff_s8, reg_soff);
-        xor_(reg_coff_f32, reg_coff_f32);
-        if (num_loops) {
-            xor_(reg_tmp, reg_tmp);
-            add(reg_tmp, c_in_xmm_ * unroll_regs_);
-
-            Label c_loop;
-            L(c_loop); {
-
-                body(unroll_regs_);
-
-                add(reg_coff_s8, c_in_xmm_ * unroll_regs_);
-                add(reg_coff_f32, sizeof(float) * c_in_xmm_ * unroll_regs_);
-                add(reg_tmp, c_in_xmm_ * unroll_regs_);
-                cmp(reg_tmp, reg_coff_max);
-                jle(c_loop);
-            }
-        }
-
-        if (loop_tail)
-            body(loop_tail);
-
-        if (c_tail_) {
-            add(reg_coff_s8, c_in_xmm_ * loop_tail);
-            add(reg_coff_f32, sizeof(float) * c_in_xmm_ * loop_tail);
-
-            tail();
-        }
-    }
-
-    // fills vscale and vshift with values so that algorithm performs
-    // vdst = vscale * vsrc + vbeta next;
+    // Precomputes vscale and vshift for following
+    // `vdst = vscale * vsrc + vshift`
     void compute_vscaleshift(const Vmm &vscale, const Vmm &vshift,
-            const Vmm &vmean, const Vmm &vsqrtvar, size_t offt,
+            const Vmm &vmean, const Vmm &vsqrtvar, size_t offt = 0,
             bool need_tail = false) {
         if (need_tail) {
             uni_vmovups_tail(vmean, mean_ptr(offt));
@@ -258,187 +220,174 @@ struct jit_bnorm_t: public jit_generator {
         }
     };
 
+    void working_cycle_avx512(bool need_tail = false) {
+        Label c_loop;
+        L(c_loop);
+        {
+
+            Xmm x = Xmm(0);
+            Vmm v = Vmm(0);
+            Vmm vscale = Vmm(1);
+            Vmm vshift = Vmm(2);
+            Vmm vmean = Vmm(3);
+            Vmm vsqrtvar = Vmm(4);
+
+            // compute single vscale and vshift vectors...
+            compute_vscaleshift(vscale, vshift, vmean, vsqrtvar, 0, need_tail);
+
+            // ... then process all spatial loop with it and move to the
+            // next channel chunk
+            mov(reg_soff, reg_coff_1byte);
+            Label mb_sp_loop;
+            L(mb_sp_loop);
+            {
+
+                if (need_tail) {
+                    for (size_t tl = 0; tl < c_tail_; tl++)
+                        vpinsrb(x, x, src_ptr(tl), tl);
+                    vpmovsxbd(v, x);
+                } else
+                    vpmovsxbd(v, src_ptr());
+
+                vcvtdq2ps(v, v);
+
+                uni_vfmadd213ps(v, vscale, vshift);
+                if (with_relu_)
+                    uni_vmaxps(v, v, vzero);
+
+                vcvtps2dq(v, v);
+                if (need_tail) {
+                    vpmovsdb(x, v);
+                    for (size_t tl = 0; tl < c_tail_; tl++)
+                        vpextrb(dst_ptr(tl), x, tl);
+                } else
+                    vpmovsdb(dst_ptr(), v);
+
+                add(reg_soff, reg_coff_max);
+                cmp(reg_soff, reg_soff_max);
+                jl(mb_sp_loop);
+            }
+
+            // reg_tmp checks c_in_xmm_ channels ahead for further tail process
+            add(reg_tmp, sizeof(data_t) * c_in_xmm_);
+            add(reg_coff_1byte, sizeof(data_t) * c_in_xmm_);
+            add(reg_coff_4byte, sizeof(float) * c_in_xmm_);
+            cmp(reg_tmp, reg_coff_max);
+            jle(c_loop);
+        }
+    }
+
     void forward_avx512() {
-        xor_(reg_soff, reg_soff);
-        Label mb_sp_loop;
-        L(mb_sp_loop); {
+        xor_(reg_coff_1byte, reg_coff_1byte);
+        xor_(reg_coff_4byte, reg_coff_4byte);
+        mov(reg_tmp, sizeof(data_t) * c_in_xmm_);
 
-            channel_loop([=](size_t unroll) {
-                        // Works with 16c times @unroll blocks simultaneously.
-                        // Each block up converts 16c, performs math and down
-                        // converts.
-                        for (size_t i = 0; i < unroll; i++) {
-                            Vmm v = Vmm(i + 0*unroll);
-                            Vmm vscale = Vmm(i + 1*unroll);
-                            Vmm vshift = Vmm(i + 2*unroll);
-                            Vmm vmean = Vmm(i + 3*unroll);
-                            Vmm vsqrtvar = Vmm(i + 4*unroll);
+        if (num_c16_blocks_)
+            working_cycle_avx512();
+        if (c_tail_)
+            working_cycle_avx512(true);
+    }
 
-                            compute_vscaleshift(vscale, vshift, vmean, vsqrtvar,
-                                i * c_in_xmm_ * sizeof(float));
+    void working_cycle_avx2(bool need_tail = false) {
+        Label c_loop;
+        L(c_loop);
+        {
 
-                            vpmovsxbd(v, src_ptr(i * c_in_xmm_));
-                            vcvtdq2ps(v, v);
+            Xmm x0 = Xmm(0);
+            Vmm v0 = Vmm(0);
+            Xmm x1 = Xmm(1);
+            Vmm v1 = Vmm(1);
+            Vmm vscale0 = Vmm(2);
+            Vmm vshift0 = Vmm(3);
+            Vmm vmean0 = Vmm(4);
+            Vmm vsqrtvar0 = Vmm(5);
+            Vmm vscale1 = Vmm(6);
+            Vmm vshift1 = Vmm(7);
+            Vmm vmean1 = Vmm(8);
+            Vmm vsqrtvar1 = Vmm(9);
 
-                            uni_vfmadd213ps(v, vscale, vshift);
-                            if (with_relu_)
-                                uni_vmaxps(v, v, vzero);
+            // compute couple vscale and vshift vectors each of 8 channels...
+            compute_vscaleshift(vscale0, vshift0, vmean0, vsqrtvar0, 0,
+                    (c_tail_ < simd_w_ && need_tail) ? true : false);
+            if (!need_tail || c_tail_ > simd_w_) {
+                compute_vscaleshift(vscale1, vshift1, vmean1, vsqrtvar1,
+                        simd_w_ * sizeof(float), need_tail);
+            }
 
-                            vcvtps2dq(v, v);
-                            vpmovsdb(dst_ptr(i * c_in_xmm_), v);
+            // ... then process all spatial loop with it and move to the
+            // next channel chunk
+            mov(reg_soff, reg_coff_1byte);
+            Label mb_sp_loop;
+            L(mb_sp_loop);
+            {
+
+                if (need_tail) {
+                    for (size_t tl = 0; tl < c_tail_; tl++) {
+                        if (tl < simd_w_) {
+                            vpinsrb(x0, x0, src_ptr(tl), tl);
+                        } else {
+                            vpinsrb(x1, x1, src_ptr(tl), tl - simd_w_);
                         }
-                    },
-                    [=]() {
-                        // There is no way to get performance as one has to
-                        // work with bytes via xmm. vzeroupper kills the perf.
-                        Xmm x = Xmm(0);
-                        Vmm v = Vmm(0);
-                        Vmm vscale = Vmm(1);
-                        Vmm vshift = Vmm(2);
-                        Vmm vmean = Vmm(3);
-                        Vmm vsqrtvar = Vmm(4);
+                    }
+                    vpmovsxbd(v0, x0);
+                    vpmovsxbd(v1, x1);
+                } else {
+                    vpmovsxbd(v0, src_ptr());
+                    vpmovsxbd(v1, src_ptr(simd_w_));
+                }
+                vcvtdq2ps(v0, v0);
+                vcvtdq2ps(v1, v1);
 
-                        for (size_t tl = 0; tl < c_tail_; tl++)
-                            vpinsrb(x, x, src_ptr(tl), tl);
+                uni_vfmadd213ps(v0, vscale0, vshift0);
+                uni_vfmadd213ps(v1, vscale1, vshift1);
+                if (with_relu_) {
+                    uni_vmaxps(v0, v0, vzero);
+                    uni_vmaxps(v1, v1, vzero);
+                }
 
-                        compute_vscaleshift(vscale, vshift, vmean, vsqrtvar, 0,
-                                true);
+                vcvtps2dq(v0, v0); // BA
+                vcvtps2dq(v1, v1); // DC
+                vpackssdw(v0, v0, v1); // BA + DC -> DBCA
+                vpermq(v0, v0, 0xD8); // DBCA -> DCBA
+                vperm2i128(v1, v0, v0, 0x1); // DCBA -> BADC
+                vpacksswb(v0, v0, v1); // DCBA + BADC -> badcDCBA
 
-                        vpmovsxbd(v, x);
-                        vcvtdq2ps(v, v);
+                if (need_tail) {
+                    for (size_t tl = 0; tl < c_tail_; tl++) {
+                        vpextrb(dst_ptr(tl), x0, tl);
+                    }
+                } else {
+                    // due to vpacksswb produces 32 integers in ymm, and top
+                    // half of them are garbage, do 128-b masked store
+                    vmaskmovps(dst_ptr(), vbody_mask, v0);
+                }
 
-                        uni_vfmadd213ps(v, vscale, vshift);
-                        if (with_relu_)
-                            uni_vmaxps(v, v, vzero);
+                add(reg_soff, reg_coff_max);
+                cmp(reg_soff, reg_soff_max);
+                jl(mb_sp_loop);
+            }
 
-                        vcvtps2dq(v, v);
-                        vpmovsdb(x, v);
-
-                        for (size_t tl = 0; tl < c_tail_; tl++)
-                            vpextrb(dst_ptr(tl), x, tl);
-                    });
-
-            add(reg_soff, reg_coff_max);
-            cmp(reg_soff, reg_soff_max);
-            jl(mb_sp_loop);
+            // reg_tmp checks c_in_xmm_ channels ahead for further tail process
+            add(reg_tmp, sizeof(data_t) * c_in_xmm_);
+            add(reg_coff_1byte, sizeof(data_t) * c_in_xmm_);
+            add(reg_coff_4byte, sizeof(float) * c_in_xmm_);
+            cmp(reg_tmp, reg_coff_max);
+            jle(c_loop);
         }
     }
 
     void forward_avx2() {
-        xor_(reg_soff, reg_soff);
-        Label mb_sp_loop;
-        L(mb_sp_loop); {
+        xor_(reg_coff_1byte, reg_coff_1byte);
+        xor_(reg_coff_4byte, reg_coff_4byte);
+        mov(reg_tmp, sizeof(data_t) * c_in_xmm_);
 
-            channel_loop([=](size_t unroll) {
-                        // Load 32 channels (two C16_blocks) in ymm, then
-                        // split the work in half, each half splits in two
-                        // regs with 8 channels per. When down converting,
-                        // put the result in a temp register for the 1st
-                        // iteration, combine the result at 2nd iteration
-                        // and store ymm with 32 channels.
-                        // If 16 channels, do just one half and store the
-                        // result with mask.
-                        Vmm v0 = Vmm(0);
-                        Vmm v1 = Vmm(1);
-                        Vmm vscale0 = Vmm(2);
-                        Vmm vshift0 = Vmm(3);
-                        Vmm vmean0 = Vmm(4);
-                        Vmm vsqrtvar0 = Vmm(5);
-                        Vmm vscale1 = Vmm(6);
-                        Vmm vshift1 = Vmm(7);
-                        Vmm vmean1 = Vmm(8);
-                        Vmm vsqrtvar1 = Vmm(9);
-                        Vmm tmp = Vmm(10);
-
-                        for (size_t i = 0; i < unroll; i++) {
-                            compute_vscaleshift(vscale0, vshift0, vmean0,
-                                    vsqrtvar0, i * c_in_xmm_ * sizeof(float));
-                            compute_vscaleshift(vscale1, vshift1, vmean1,
-                                    vsqrtvar1, i * c_in_xmm_ * sizeof(float)
-                                    + simd_w_ * sizeof(float));
-
-                            vpmovsxbd(v0, src_ptr(i*c_in_xmm_));
-                            vpmovsxbd(v1, src_ptr(i*c_in_xmm_ + simd_w_));
-                            vcvtdq2ps(v0, v0);
-                            vcvtdq2ps(v1, v1);
-
-                            uni_vfmadd213ps(v0, vscale0, vshift0);
-                            uni_vfmadd213ps(v1, vscale1, vshift1);
-                            if (with_relu_) {
-                                uni_vmaxps(v0, v0, vzero);
-                                uni_vmaxps(v1, v1, vzero);
-                            }
-
-                            vcvtps2dq(v0, v0); // BA
-                            vcvtps2dq(v1, v1); // DC
-                            vpackssdw(v0, v0, v1); // BA + DC -> DBCA
-                            vpermq(v0, v0, 0xD8); // DBCA -> DCBA
-                            vperm2i128(v1, v0, v0, 0x1); // DCBA -> BADC
-                            vpacksswb(v0, v0, v1); // DCBA + BADC -> badcDCBA
-                            if (i == 0 && unroll != 1)
-                                uni_vmovups(tmp, v0);
-                            else if (i == 1) {
-                                // badcDCBA + fehgHGFE -> HGFEDCBA
-                                vperm2i128(v0, v0, tmp, 0x2);
-                            }
-                        }
-
-                        if (unroll == 1)
-                            vmaskmovps(dst_ptr(), vbody_mask, v0);
-                        else
-                            uni_vmovups(dst_ptr(), v0);
-                    },
-                    [=]() {
-                        // handle first 8 channels. If tail is bigger,
-                        // handle second part separately. There is no way
-                        // to get performance as one has to work with bytes
-                        // via xmm. vzeroupper kills all the perf.
-                        Xmm x0 = Xmm(0);
-                        Vmm v0 = Vmm(0);
-                        Vmm vscale0 = Vmm(1);
-                        Vmm vshift0 = Vmm(2);
-                        Vmm vmean0 = Vmm(3);
-                        Vmm vsqrtvar0 = Vmm(4);
-
-                        size_t tail = nstl::min(c_tail_, simd_w_);
-                        size_t num_iters = c_tail_ > simd_w_ ? 2 : 1;
-
-                        for (size_t i = 0; i < num_iters; i++) {
-                            if (i > 0)
-                                tail = c_tail_ - simd_w_;
-
-                            for (size_t tl = 0; tl < tail; tl++)
-                                vpinsrb(x0, x0, src_ptr(8*i + tl), tl);
-
-                            if (tail == simd_w_)
-                                compute_vscaleshift(vscale0, vshift0, vmean0,
-                                        vsqrtvar0, 32*i);
-                            else
-                                compute_vscaleshift(vscale0, vshift0, vmean0,
-                                        vsqrtvar0, 32*i, true);
-
-                            vpmovsxbd(v0, x0);
-                            vcvtdq2ps(v0, v0);
-                            uni_vfmadd213ps(v0, vscale0, vshift0);
-                            if (with_relu_)
-                                uni_vmaxps(v0, v0, vzero);
-                            vcvtps2dq(v0, v0);
-                            vpackssdw(v0, v0, vzero);
-                            vpermq(v0, v0, 0xD8);
-                            vpacksswb(v0, v0, vzero);
-
-                            for (size_t tl = 0; tl < tail; tl++)
-                                vpextrb(dst_ptr(8*i + tl), x0, tl);
-                        }
-                    });
-
-            add(reg_soff, reg_coff_max);
-            cmp(reg_soff, reg_soff_max);
-            jl(mb_sp_loop);
-        }
+        if (num_c16_blocks_)
+            working_cycle_avx2();
+        if (c_tail_)
+            working_cycle_avx2(true);
     }
 
-    jit_bnorm_t(const batch_normalization_pd_t *bdesc): bdesc_(bdesc) {
+    jit_bnorm_t(const batch_normalization_pd_t *bdesc) : bdesc_(bdesc) {
         static_assert(isa == avx2 || isa == avx512_core, "unsupported isa");
 
         simd_w_ = cpu_isa_traits<isa>::vlen / sizeof(float);
@@ -468,6 +417,8 @@ struct uni_bnorm_driver_t: public c_compatible {
         : bdesc_(bdesc), ker_(bdesc_) {}
     ~uni_bnorm_driver_t() {}
 
+    // TODO: for problems where thread pieces don't fit L2 cache, add spatial
+    // re-balance using less pieces.
     void exec(int ithr, int nthr, const data_t *src, data_t *dst,
             const float *scale_shift, const float *mean, const float *var) {
         dim_t N = bdesc_->MB();
@@ -486,8 +437,7 @@ struct uni_bnorm_driver_t: public c_compatible {
         p.mean = mean;
         p.var = var;
 
-        /* Naive balancing: allows unrolling and handle tails nicely */
-        dim_t work_amount{N*SP}, start{0}, end{0};
+        dim_t work_amount{ N * SP }, start{ 0 }, end{ 0 };
         balance211(work_amount, nthr, ithr, start, end);
 
         p.coff_max = C;

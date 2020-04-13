@@ -17,6 +17,8 @@
 #include <vpu/middleend/allocator/allocator.hpp>
 #include <vpu/compile_env.hpp>
 
+#include <stack>
+
 namespace vpu {
 
 void printTo(std::ostream&, const std::list<Stage>::iterator&) {
@@ -27,12 +29,39 @@ namespace {
 class PassImpl final : public Pass {
 public:
     void run(const Model& model) override;
+private:
+    void markModelWithLoops(const Model& model) const;
+    static const char s_loopAttribute[];
 };
+
+const char PassImpl::s_loopAttribute[] = "loop";
+
+void PassImpl::markModelWithLoops(const vpu::Model &model) const {
+    std::stack<Stage> loops;
+    for (const auto& stage : model->getStages()) {
+        VPU_THROW_UNLESS(stage->type() != StageType::LoopEnd || !loops.empty(), R"(Incorrect graph: there is a "LoopEnd" ("{}") without paired "LoopStart")",
+            stage->name());
+
+        if (stage->type() == StageType::LoopStart) {
+            loops.push(stage);
+        }
+
+        if (!loops.empty()) {
+            stage->attrs().set<Stage>(s_loopAttribute, loops.top());
+        }
+
+        if (stage->type() == StageType::LoopEnd) {
+            loops.pop();
+        }
+    }
+
+    VPU_THROW_UNLESS(loops.empty(), R"(Incorrect graph: there is a "LoopStart" ("{}") without paired "LoopEnd")", loops.top()->name());
+}
 
 void PassImpl::run(const Model& model) {
     VPU_PROFILE(injectSw);
 
-    const int nMaxStagesForInjectSw = 30000;
+    const int nMaxStagesForInjectSw = 10000;
     const auto& env = CompileEnv::get();
 
     //
@@ -49,7 +78,6 @@ void PassImpl::run(const Model& model) {
 
     StageVector hwStages;
     std::list<Stage> swStages;
-
     hwStages.reserve(checked_cast<size_t>(model->numStages()));
     for (const auto& stage : model->getStages()) {
         if (stage->category() == StageCategory::HW) {
@@ -61,6 +89,8 @@ void PassImpl::run(const Model& model) {
             }
         }
     }
+
+    markModelWithLoops(model);
 
     //
     // Try to merge HW and SW stages
@@ -80,6 +110,13 @@ void PassImpl::run(const Model& model) {
             auto swInd = swStage->index();
             IE_ASSERT(swInd >= 0);
             IE_ASSERT(swInd != hwInd);
+
+            const auto hwLoop = hwStage->attrs().getOrDefault<Stage>(s_loopAttribute, nullptr);
+            const auto swLoop = swStage->attrs().getOrDefault<Stage>(s_loopAttribute, nullptr);
+            if (hwLoop != swLoop) {
+                // to be injected both stages must belong to the same loop or don't belong to any
+                continue;
+            }
 
             //
             // Check execution order
@@ -118,8 +155,6 @@ void PassImpl::run(const Model& model) {
                     }
                 }
             }
-
-            isOK = isOK && hwStage->attrs().getOrDefault<Stage>("loop", nullptr) == swStage->attrs().getOrDefault<Stage>("loop", nullptr);
 
             if (isOK) {
                 swCandidates.push_back(swStage);

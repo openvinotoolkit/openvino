@@ -1,6 +1,11 @@
 # Compile Tool
 
-The Compile tool is a C++ application that enables you to dump a loaded executable network blob. 
+
+The Compile tool is a C++ application that enables you to dump a loaded 
+executable network blob. The tool is delivered as an executable file that can be
+run on both Linux\* and Windows\*. The tool is located in the `<INSTALLROOT>/deployment_tools/inference_engine/lib/intel64/` directory on 
+Linux and `<INSTALL_DIR\deployment_tools\inference_engine\bin\intel64\Release>`
+on Windows. 
 
 The workflow of the Compile tool is as follows:
 1. Upon the start, the tool application reads command-line parameters and loads a network to the 
@@ -67,8 +72,8 @@ To do that, specify the architecture name of the DLA bitstream using the paramet
 
 ### Export
 
-You can save a blob file from your application by calling the 
-> `InferenceEngine::ExecutableNetwork::Export()` method:
+To save a blob file from your application, call the `InferenceEngine::ExecutableNetwork::Export()` 
+method:
 
 ```cpp
 InferenceEngine::ExecutableNetwork executableNetwork = core.LoadNetwork(network, "MYRIAD", {});
@@ -78,7 +83,7 @@ executableNetwork.Export(file);
 
 ### Import
 
-You can import a blob with the network into your application. To do this, call the 
+To import a blob with the network into your application, call the 
 `InferenceEngine::Core::ImportNetwork` method:
 
 Example:

@@ -43,6 +43,9 @@ enum class build_option_type {
     /// @brief Enable implicit reordering for user inputs (default: false).
     optimize_data,
 
+    /// @brief Enable implicit static input reordering for user inputs (default: false).
+    allow_static_input_reorder,
+
     /// @brief Enable running detection output layer always on gpu, regardless performance
     detection_output_gpu,
 
@@ -81,7 +84,15 @@ enum class tuning_mode {
     tuning_use_cache,
 
     /// @brief Tuning using the cached data if exist, tune and update cache otherwise.
-    tuning_tune_and_cache
+    tuning_tune_and_cache,
+
+    /// @brief Tuning using the cached data and update tasks.
+    /// @details Performs updating tasks like removal of invalid caches, promoting to new format, etc.
+    /// No tuning for non-existing data.
+    tuning_use_and_update,
+
+    /// @brief Retune the cache data even if it exists.
+    tuning_retune_and_cache
 };
 
 /// @brief Tuning configuration.
@@ -115,6 +126,9 @@ struct build_option {
 
     /// @brief Enable implicit reordering for user inputs (default: false).
     static std::shared_ptr<const build_option> optimize_data(bool enable = false);
+
+    /// @brief Enable implicit reordering for static user inputs (default: false).
+    static std::shared_ptr<const build_option> allow_static_input_reorder(bool enable = false);
 
     /// @brief Enable running detection output layer always on GPU, regardless performance (default: false).
     static std::shared_ptr<const build_option> detection_output_gpu(bool enable = false);
@@ -304,6 +318,11 @@ struct build_option_traits<build_option_type::optimize_data> {
     static std::shared_ptr<const build_option> make_default() { return build_option::optimize_data(); }
 };
 template <>
+struct build_option_traits<build_option_type::allow_static_input_reorder> {
+    typedef build_option_bool<build_option_type::allow_static_input_reorder> object_type;
+    static std::shared_ptr<const build_option> make_default() { return build_option::allow_static_input_reorder(); }
+};
+template <>
 struct build_option_traits<build_option_type::detection_output_gpu> {
     typedef build_option_bool<build_option_type::detection_output_gpu> object_type;
     static std::shared_ptr<const build_option> make_default() { return build_option::detection_output_gpu(); }
@@ -359,6 +378,10 @@ inline std::shared_ptr<const build_option> build_option::fusing(bool enable) {
 
 inline std::shared_ptr<const build_option> build_option::optimize_data(bool enable) {
     return std::make_shared<build_option_bool<build_option_type::optimize_data>>(enable);
+}
+
+inline std::shared_ptr<const build_option> build_option::allow_static_input_reorder(bool enable) {
+    return std::make_shared<build_option_bool<build_option_type::allow_static_input_reorder>>(enable);
 }
 
 inline std::shared_ptr<const build_option> build_option::detection_output_gpu(bool enable) {

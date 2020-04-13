@@ -14,7 +14,9 @@
 
 
 #include "mvn_kernel_ref.h"
+
 #include <string>
+#include <vector>
 
 namespace kernel_selector {
 ParamsKey MVNKernelRef::GetSupportedKey() const {
@@ -25,18 +27,10 @@ ParamsKey MVNKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::yxfb);
-    k.EnableInputLayout(DataLayout::byxf);
-    k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::yxfb);
-    k.EnableOutputLayout(DataLayout::byxf);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
-    k.EnableInputLayout(DataLayout::bfzyx_f16);
-    k.EnableOutputLayout(DataLayout::bfzyx_f16);
-    k.EnableInputLayout(DataLayout::bfzyx_b16f16);
-    k.EnableOutputLayout(DataLayout::bfzyx_b16f16);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableDifferentTypes();
@@ -45,6 +39,25 @@ ParamsKey MVNKernelRef::GetSupportedKey() const {
     k.EnableMVNMode(MVNMode::WITHIN_CHANNELS);
     k.EnableMVNNormalizeVariance();
     return k;
+}
+
+JitConstants MVNKernelRef::GetJitConstants(const mvn_params& params, DispatchData kd) const {
+    auto jits = Parent::GetJitConstants(params, kd);
+
+    auto activation_dt = GetActivationType(params);
+    jits.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
+
+    if (!params.fused_ops.empty()) {
+        std::vector<std::string> idx_order;
+        if (params.inputs[0].GetDims().size() <= 4) {
+            idx_order = { "b", "f", "y", "x" };
+        } else if (params.inputs[0].GetDims().size() == 5) {
+            idx_order = { "b", "f", "z", "y", "x" };
+        }
+        auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt);
+        jits.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+    return jits;
 }
 
 std::string MVNKernelRef::GetKernelName(const mvn_params& params) const {

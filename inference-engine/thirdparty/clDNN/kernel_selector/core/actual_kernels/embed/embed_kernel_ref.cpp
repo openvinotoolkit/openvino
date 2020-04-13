@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,15 +74,11 @@ KernelsData EmbedKernelRef::GetKernelsData(const Params& params, const optional_
 
     const embed_params& orgParams = static_cast<const embed_params&>(params);
 
-    const std::vector<WeightsLayout> weightsLayouts = {
-        WeightsLayout::oiyx,
-    };
-
     DispatchData runInfo = SetDefault(orgParams);
     KernelData kd = KernelData::Default<embed_params>(params);
     embed_params& newParams = *static_cast<embed_params*>(kd.params.get());
 
-    bool succeed = UpdateWeightsParams(newParams, options, weightsLayouts, kd.weightsReorderParams);
+    bool succeed = UpdateWeightsParams(newParams, options, WeightsLayout::oiyx, kd.weightsReorderParams);
 
     if (!succeed) {
         return {};
@@ -104,7 +100,7 @@ KernelsData EmbedKernelRef::GetKernelsData(const Params& params, const optional_
                      true,
                      !newParams.bias.empty());
 
-    kd.estimatedTime = runInfo.effiency;
+    kd.estimatedTime = runInfo.efficiency;
 
     return {kd};
 }

@@ -9,3 +9,9 @@
 --cfg=bf16bf16f32 --dir=FWD_B --batch=deconv_2d
 --cfg=f32bf16bf16 --dir=BWD_D --batch=deconv_2d
 --cfg=bf16f32bf16 --dir=BWD_WB --batch=deconv_2d
+
+# Test Deconv w/bias through GeMM
+--reset --mb=2 --allow-unimpl=true
+--cfg=bf16bf16bf16
+--dir=FWD_B g16_ic32ih4iw8_oc64oh3ow8_kh3kw3sh1sw1ph0pw0n"test_gemm_fwd_b"
+--dir=BWD_WB g16_ic32ih4iw8_oc64oh3ow8_kh3kw3sh1sw1ph0pw0n"test_gemm_bwd_wb"

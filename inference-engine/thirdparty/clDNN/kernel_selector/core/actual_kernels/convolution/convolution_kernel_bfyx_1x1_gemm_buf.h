@@ -31,10 +31,8 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {
-            WeightsLayout::image_2d_weights_c1_b_fyx,
-        };
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+        return WeightsLayout::image_2d_weights_c1_b_fyx;
     }
     bool Validate(const Params& p, const optional_params& o) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;

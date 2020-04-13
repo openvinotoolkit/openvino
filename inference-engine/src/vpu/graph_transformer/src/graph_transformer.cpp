@@ -52,9 +52,11 @@ namespace vpu {
 
 namespace  {
 
-thread_local CompileEnv *g_compileEnv = nullptr;
+thread_local CompileEnv* g_compileEnv = nullptr;
 
 }  // namespace
+
+CompileEnv::CompileEnv(Platform platform) : platform(platform) {}
 
 const CompileEnv& CompileEnv::get() {
     IE_ASSERT(g_compileEnv != nullptr);
@@ -69,13 +71,8 @@ const CompileEnv* CompileEnv::getOrNull() {
     return g_compileEnv;
 }
 
-void CompileEnv::init(
-        Platform platform,
-        const CompilationConfig& config,
-        const Logger::Ptr& log) {
-    g_compileEnv = new CompileEnv();
-
-    g_compileEnv->platform = platform;
+void CompileEnv::init(Platform platform, const CompilationConfig& config, const Logger::Ptr& log) {
+    g_compileEnv = new CompileEnv(platform);
     g_compileEnv->config = config;
     g_compileEnv->log = log;
 
@@ -83,55 +80,40 @@ void CompileEnv::init(
     g_compileEnv->profile.setLogger(log);
 #endif
 
-    // Ignore hardware optimization config for MYRIAD2
-    if (g_compileEnv->platform == Platform::MYRIAD_2) {
+    if (platform == Platform::MYRIAD_2) {
         g_compileEnv->config.hwOptimization = false;
     }
 
-    if (g_compileEnv->config.numSHAVEs > g_compileEnv->config.numCMXSlices) {
-        VPU_THROW_EXCEPTION
-                << "Invalid config value for VPU_NUMBER_OF_SHAVES. "
-                << "It is expected that the number of shaves is less than number of CMX slices";
-    }
+    VPU_THROW_UNLESS(g_compileEnv->config.numSHAVEs <= g_compileEnv->config.numCMXSlices,
+        R"(Value of configuration option ("{}") must be not greater than value of configuration option ("{}"), but {} > {} are provided)",
+        VPU_CONFIG_KEY(NUMBER_OF_SHAVES), VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES), config.numSHAVEs, config.numCMXSlices);
 
-    if ((g_compileEnv->config.numSHAVEs == -1) && (g_compileEnv->config.numCMXSlices == -1)) {
-        if (g_compileEnv->platform == Platform::MYRIAD_2) {
-            g_compileEnv->resources.numCMXSlices = 12;
-            g_compileEnv->resources.numSHAVEs = 12;
-            g_compileEnv->resources.cmxLimit = 0;
-        } else {
-            if (g_compileEnv->config.hwOptimization) {
-                g_compileEnv->resources.numCMXSlices = 9;
-                g_compileEnv->resources.numSHAVEs = 7;
-                g_compileEnv->resources.cmxLimit = (g_compileEnv->resources.numCMXSlices / 2) * CMX_SLICE_SIZE + CMX_SLICE_SIZE / 2;
-            } else {
-                g_compileEnv->resources.numCMXSlices = 16;
-                g_compileEnv->resources.numSHAVEs = 16;
-                g_compileEnv->resources.cmxLimit = 0;
-            }
-        }
-    } else {
-        if (g_compileEnv->platform == Platform::MYRIAD_2) {
-            if ((g_compileEnv->config.numSHAVEs > 12) || (g_compileEnv->config.numSHAVEs < 1)) {
-                VPU_THROW_EXCEPTION
-                    << "Number of SHAVES should be in the range of 1 .. 12";
-            }
+    const auto numExecutors = config.numExecutors != -1 ? config.numExecutors : DefaultAllocation::numStreams(platform, config);
+    VPU_THROW_UNLESS(numExecutors >= 1 && numExecutors <= DeviceResources::numStreams(),
+        R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
+        VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS), 1, DeviceResources::numStreams(), numExecutors);
 
-            g_compileEnv->resources.numCMXSlices = g_compileEnv->config.numCMXSlices;
-            g_compileEnv->resources.numSHAVEs = g_compileEnv->config.numSHAVEs;
-            g_compileEnv->resources.cmxLimit = 0;
-        } else {
-            if ((g_compileEnv->config.numSHAVEs > 16) || (g_compileEnv->config.numSHAVEs < 1)) {
-                VPU_THROW_EXCEPTION
-                    << "Number of SHAVES should be in the range of 1 .. 16";
-            }
+    const auto numSlices  = config.numCMXSlices != -1 ? config.numCMXSlices : DefaultAllocation::numSlices(platform, numExecutors);
+    VPU_THROW_UNLESS(numSlices >= 1 && numSlices <= DeviceResources::numSlices(platform),
+        R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
+        VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES), 1, DeviceResources::numSlices(platform), numSlices);
 
-            g_compileEnv->resources.numCMXSlices = g_compileEnv->config.numCMXSlices;
-            g_compileEnv->resources.numSHAVEs = g_compileEnv->config.numSHAVEs;
-            g_compileEnv->resources.cmxLimit = (g_compileEnv->resources.numCMXSlices / 2) * CMX_SLICE_SIZE + CMX_SLICE_SIZE / 2;
-        }
-    }
+    const auto numShaves = config.numSHAVEs != -1 ? config.numSHAVEs : DefaultAllocation::numShaves(platform, numExecutors, numSlices);
+    VPU_THROW_UNLESS(numShaves >= 1 && numShaves <= DeviceResources::numShaves(platform),
+        R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
+        VPU_CONFIG_KEY(NUMBER_OF_SHAVES), 1, DeviceResources::numShaves(platform), numShaves);
 
+    const auto numAllocatedShaves = numShaves * numExecutors;
+    VPU_THROW_UNLESS(numAllocatedShaves >= 1 && numAllocatedShaves <= DeviceResources::numShaves(platform),
+        R"(Cannot allocate "{}" shaves: only {} is available)", numAllocatedShaves, DeviceResources::numShaves(platform));
+
+    const auto numAllocatedSlices = numSlices * numExecutors;
+    VPU_THROW_UNLESS(numAllocatedSlices >= 1 && numAllocatedSlices <= DeviceResources::numSlices(platform),
+        R"(Cannot allocate "{}" slices: only {} is available)", numAllocatedSlices, DeviceResources::numSlices(platform));
+
+    g_compileEnv->resources.numSHAVEs = numShaves;
+    g_compileEnv->resources.numCMXSlices = numSlices;
+    g_compileEnv->resources.numExecutors = numExecutors;
     g_compileEnv->initialized = true;
 }
 
@@ -273,6 +255,48 @@ std::set<std::string> getSupportedLayers(
     auto clonedNetworkImpl = ie::cloneNet(network);
 
     return frontEnd->checkSupportedLayers(*clonedNetworkImpl);
+}
+
+int DeviceResources::numShaves(const Platform& platform) {
+    return platform == Platform::MYRIAD_2 ? 12 : 16;
+}
+
+int DeviceResources::numSlices(const Platform& platform) {
+    return platform == Platform::MYRIAD_2 ? 12 : 19;
+}
+
+int DeviceResources::numStreams() {
+    return 3;
+}
+
+int DefaultAllocation::numStreams(const Platform& platform, const CompilationConfig& configuration) {
+    return platform == Platform::MYRIAD_X && configuration.hwOptimization ? 2 : 1;
+}
+
+int DefaultAllocation::numSlices(const Platform& platform, int numStreams) {
+    const auto capabilities = DeviceResources::numSlices(platform);
+    return capabilities / numStreams;
+}
+
+int DefaultAllocation::numShaves(const Platform& platform, int numStreams, int numSlices) {
+    const auto numAvailableShaves = DeviceResources::numShaves(platform);
+    if (numStreams == 1) {
+        return numAvailableShaves;
+    }
+
+    const auto numAllocatedSlices = numStreams * numSlices;
+    VPU_THROW_UNLESS(numAllocatedSlices >= numAvailableShaves,
+        R"(Number of allocated slices in default mode must be not less than number of available shaves, but {} < {} are provided)", numAllocatedSlices,
+        numAvailableShaves);
+
+    // each shave must have corresponding slice
+    // there are cases when number of available slices more than available shaves (e.g. Myriad-X: 19 slices and 16 shaves)
+    // allocated shaves and slices must be in a continuous range (e.g. allocated slices 0-8 and shaves 0-6)
+    // conditions above lead to unused shaves during allocation in some cases
+    // e.g. slices: 0-8 and 9-17, shaves: 0-6 and 9-15, shaves 7 and 8 are unused
+    const auto numUnusedShaves = numAllocatedSlices - numAvailableShaves;
+    const auto numShavesForAllocation = numAvailableShaves - numUnusedShaves;
+    return numShavesForAllocation / numStreams;
 }
 
 }  // namespace vpu

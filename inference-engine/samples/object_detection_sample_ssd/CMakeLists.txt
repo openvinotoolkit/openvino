@@ -6,3 +6,6 @@ ie_add_sample(NAME object_detection_sample_ssd
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
               HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/object_detection_sample_ssd.h"
               DEPENDENCIES format_reader)
+
+find_package(ngraph REQUIRED)
+target_link_libraries(object_detection_sample_ssd PRIVATE ngraph::ngraph)

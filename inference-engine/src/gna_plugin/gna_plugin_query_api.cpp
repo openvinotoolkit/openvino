@@ -105,6 +105,7 @@ std::map<std::string, std::string> GNAPlugin::supportedConfigKeysWithDefaults() 
     std::map<std::string, std::string>  options = {
         {GNA_CONFIG_KEY(SCALE_FACTOR), "1.0"},
         {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), ""},
+        {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), ""},
         {GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_AUTO},
         {GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(NO)},
         {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)},

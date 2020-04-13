@@ -26,7 +26,7 @@ bool SelectKernelBase::Validate(const Params& p, const optional_params& o) const
 
     const select_params& params = static_cast<const select_params&>(p);
 
-    if (params.inputs[0].GetDType() != params.inputs[1].GetDType()) {
+    if (params.inputs[1].GetDType() != params.inputs[2].GetDType()) {
         return false;
     }
 
@@ -57,13 +57,13 @@ JitConstants SelectKernelBase::GetJitConstantsCommon(const select_params& params
     // i8, i8, u8
     // u8, u8, i8
     // u8, u8, u8
-    if ((params.inputs[2].GetDType() == Datatype::INT8 || params.inputs[2].GetDType() == Datatype::UINT8) &&
-        (params.inputs[0].GetDType() == Datatype::INT8 || params.inputs[0].GetDType() == Datatype::UINT8)) {
-        jit.AddConstant(MakeJitConstant("MASK", "INPUT_2"));
+    if ((params.inputs[0].GetDType() == Datatype::INT8 || params.inputs[0].GetDType() == Datatype::UINT8) &&
+        (params.inputs[1].GetDType() == Datatype::INT8 || params.inputs[1].GetDType() == Datatype::UINT8)) {
+        jit.AddConstant(MakeJitConstant("MASK", "INPUT_0"));
     } else {
         // x, x, f32
         // x, x, f16
-        if (params.inputs[2].GetDType() == Datatype::F32 || params.inputs[2].GetDType() == Datatype::F16) {
+        if (params.inputs[0].GetDType() == Datatype::F32 || params.inputs[0].GetDType() == Datatype::F16) {
             absType = "fabs";
         // f32, f32, i8
         // f32, f32, u8
@@ -74,10 +74,10 @@ JitConstants SelectKernelBase::GetJitConstantsCommon(const select_params& params
         }
 
         // f32, f32, x
-        if (params.inputs[0].GetDType() == Datatype::F32) {
+        if (params.inputs[1].GetDType() == Datatype::F32) {
             destType = "int";
         // f16, f16, x
-        } else if (params.inputs[0].GetDType() == Datatype::F16) {
+        } else if (params.inputs[1].GetDType() == Datatype::F16) {
             destType = "short";
         // i8, i8, f32
         // i8, i8, f16
@@ -87,7 +87,7 @@ JitConstants SelectKernelBase::GetJitConstantsCommon(const select_params& params
             destType = "char";
         }
 
-        jit.AddConstant(MakeJitConstant("MASK", "convert_" + destType + "_rtp(" + absType + "(INPUT_2))"));
+        jit.AddConstant(MakeJitConstant("MASK", "convert_" + destType + "_rtp(" + absType + "(INPUT_0))"));
     }
 
     return jit;

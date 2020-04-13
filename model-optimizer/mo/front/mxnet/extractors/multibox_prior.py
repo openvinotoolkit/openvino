@@ -19,7 +19,7 @@ from mo.utils.error import Error
 
 
 def multi_box_prior_ext(attr):
-    min_size = attr.tuple("sizes", float, (1, 1))
+    min_size = list(attr.tuple("sizes", float, (1, 1)))
     offset_y, offset_x = attr.tuple("offsets", float, (0.5, 0.5))
     clip = 0 if not attr.bool("clip", False) else 1
     aspect_ratio = attr.tuple("ratios", float, None)

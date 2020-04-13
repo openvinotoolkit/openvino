@@ -15,9 +15,9 @@
 
 #include "details/ie_exception.hpp"
 #include "details/ie_no_release.hpp"
+#include "details/ie_irelease.hpp"
 #include "details/os/os_filesystem.hpp"
 #include "ie_common.h"
-#include "ie_plugin.hpp"
 #include "ie_so_loader.h"
 
 namespace InferenceEngine {
@@ -81,6 +81,8 @@ class SOCreatorTrait {};
 
 /**
  * @brief This class instantiate object using shared library
+ * @tparam T An type of object SOPointer can hold
+ * @tparam Loader A loader used to load a library
  */
 template <class T, class Loader = SharedObjectLoader>
 class SOPointer {
@@ -105,6 +107,10 @@ public:
           _pointedObj(details::shared_from_irelease(
               SymbolLoader<Loader>(_so_loader).template instantiateSymbol<T>(SOCreatorTrait<T>::name))) {}
 
+    /**
+     * @brief The main constructor
+     * @param name Name of a shared library file
+     */
     explicit SOPointer(const char * name)
         : _so_loader(new Loader(name)),
           _pointedObj(details::shared_from_irelease(
@@ -112,9 +118,9 @@ public:
 
     /**
      * @brief Constructs an object with existing reference
-     * @param _pointedObj_ Existing reference to wrap
+     * @param pointedObj Existing reference to wrap
      */
-    explicit SOPointer(T* _pointedObj_): _so_loader(), _pointedObj(_pointedObj_) {
+    explicit SOPointer(T* pointedObj): _so_loader(), _pointedObj(pointedObj) {
         if (_pointedObj == nullptr) {
             THROW_IE_EXCEPTION << "Cannot create SOPointer<T, Loader> from nullptr";
         }
@@ -188,7 +194,9 @@ protected:
 
 /**
  * @brief Creates a special shared_pointer wrapper for the given type from a specific shared module
+ * @tparam T An type of object SOPointer can hold
  * @param name Name of the shared library file
+ * @return A created object
  */
 template <class T>
 inline std::shared_ptr<T> make_so_pointer(const file_name_t& name) = delete;

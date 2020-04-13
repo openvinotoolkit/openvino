@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -195,7 +195,7 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_imad::Set
 
     kd.cldnnStyle = {0, 0, 0, 0, 0};
     kd.gemmStyle = {0, 0, 0, 0, 0, 0};
-    kd.effiency = FORCE_PRIORITY_2;
+    kd.efficiency = FORCE_PRIORITY_2;
 
     return kd;
 }  // SetDefault

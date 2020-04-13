@@ -67,8 +67,8 @@ protected:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
     }
 };
 

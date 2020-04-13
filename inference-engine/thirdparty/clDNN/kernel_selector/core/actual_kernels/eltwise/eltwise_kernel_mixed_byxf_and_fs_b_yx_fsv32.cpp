@@ -56,6 +56,8 @@ ParamsKey EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
+    k.EnableSubGroup();
+    k.EnableSubGroupShort();
     return k;
 }
 

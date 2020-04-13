@@ -22,7 +22,6 @@
 #include <nodes/mkldnn_input_node.h>
 #include <nodes/mkldnn_reorder_node.h>
 
-#include <debug.h>
 #include <graph_tools.hpp>
 #include <ie_algorithm.hpp>
 #include <blob_factory.hpp>
@@ -30,16 +29,11 @@
 #include <details/ie_cnn_network_tools.h>
 #include <ie_memcpy.h>
 
-#include <data_stats.h>
 #include "cnn_network_int8_normalizer.hpp"
-#include "low_precision_transformations/transformer.hpp"
 
 #include "precision_utils.h"
 #include <ie_plugin_config.hpp>
-
-#define XBYAK_NO_OP_NAMES
-#define XBYAK_UNDEF_JNL
-#include "../../thirdparty/mkl-dnn/src/cpu/xbyak/xbyak_util.h"
+#include "low_precision_transformations/transformer.hpp"
 
 #include "utils/blob_dump.h"
 
@@ -66,7 +60,6 @@
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
-using namespace MKLDNNPlugin::cpu;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
@@ -334,12 +327,14 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
 }
 
 void MKLDNNGraph::InitGraph() {
-    SortTopologically();
     MKLDNNGraphOptimizer optimizer;
+
+    SortTopologically();
+    InitNodes();
     optimizer.ApplyCommonGraphOptimizations(*this);
     SortTopologically();
 
-    InitNodes();
+    InitDescriptors();
 
     for (auto &node : graphNodes) {
         node->initOptimalPrimitiveDescriptor();
@@ -408,6 +403,12 @@ void MKLDNNGraph::InitGraph() {
 
 void MKLDNNGraph::InitNodes() {
     for (auto &node : graphNodes) {
+        node->init();
+    }
+}
+
+void MKLDNNGraph::InitDescriptors() {
+    for (auto &node : graphNodes) {
 #if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
         if (node->getType() == Input && _meanImages.find(node->getName()) != _meanImages.end()) {
             auto *inputNode = dynamic_cast<MKLDNNInputNode *>(node.get());
@@ -439,13 +440,26 @@ void MKLDNNGraph::InitEdges() {
         return inArgs + "_" + outArgs;
     };
     size_t numberOfEdges = graphEdges.size();
+
+    std::unordered_set<std::string> uniqueLayerNames;
+    for (auto node : graphNodes) {
+        uniqueLayerNames.insert(node->getCnnLayer()->name);
+    }
+
     for (auto i = 0; i < numberOfEdges; i++) {
         if (graphEdges[i]->needReorder()) {
 #if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
             auto &edge = graphEdges[i];
-            std::string layerName = edge->getParent()->getName() + "_" +
-                                    reorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
-                                    edge->getChild()->getName();
+            std::string basicLayerName = edge->getParent()->getName() + "_" +
+                                         reorderArgs(edge->getInputDesc(), edge->getOutputDesc()) + "_" +
+                                         edge->getChild()->getName();
+            std::string layerName = basicLayerName;
+            int idx = 0;
+            while (uniqueLayerNames.find(layerName) != uniqueLayerNames.end()) {
+                idx++;
+                layerName = basicLayerName + "_" + std::to_string(idx);
+            }
+            uniqueLayerNames.insert(layerName);
             CNNLayerPtr layer(new CNNLayer({layerName,
                                             "Reorder",
                                             edge->getInputDesc().getPrecision()}));
@@ -670,7 +684,7 @@ void MKLDNNGraph::Allocate() {
 }
 
 void MKLDNNGraph::CreatePrimitives() { IE_PROFILING_AUTO_SCOPE(MKLDNNGraph::CreatePrimitives)
-    bool weights_caching = config.throughputStreams != 1;
+    bool weights_caching = config.streamExecutorConfig._streams != 1;
     for (auto& node : graphNodes) {
         // disable caching if graph was created only once
         node->enableWeightCaching(weights_caching);

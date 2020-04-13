@@ -25,14 +25,13 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 
-mkldnn_status_t simple_gemm_s8s8s32(
-        const char *transA, const char *transB, const char *offsetC,
-        const int *m, const int *n, const int *k,
+mkldnn_status_t simple_gemm_s8s8s32(const char *transA, const char *transB,
+        const char *offsetC, const int *m, const int *n, const int *k,
         const float *alpha, const int8_t *a, const int *lda, const int8_t *oa,
-        const int8_t *b, const int *ldb, const int8_t *ob,
-        const float *beta, int32_t *c, const int *ldc, const int32_t *oc);
+        const int8_t *b, const int *ldb, const int8_t *ob, const float *beta,
+        int32_t *c, const int *ldc, const int32_t *oc);
 }
-}
-}
+} // namespace impl
+} // namespace mkldnn
 
 #endif // SIMPLE_GEMM_S8S8S32_HPP

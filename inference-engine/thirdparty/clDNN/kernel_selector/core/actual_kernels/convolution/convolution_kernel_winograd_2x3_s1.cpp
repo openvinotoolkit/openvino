@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -94,7 +94,7 @@ ConvolutionKernel_Winograd_2x3_s1::Parent::DispatchData ConvolutionKernel_Winogr
     runInfo.lws1 = 1;
     runInfo.lws2 = 1;
 
-    runInfo.effiency = FORCE_PRIORITY_4;
+    runInfo.efficiency = FORCE_PRIORITY_4;
 
     return runInfo;
 }

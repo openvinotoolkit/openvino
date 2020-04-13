@@ -80,12 +80,20 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
 {
     const uint oc  = (uint)get_global_id(0) * OUTPUT_BLOCK_WIDTH;  // oc = Output Column
     const uint or  = (uint)get_global_id(1) * OUTPUT_BLOCK_HEIGHT; // or = Output Row
-    const uint fm  = get_global_id(2);                    // fm = Feature Map = od = Output Depth
+    const uint fm  = get_global_id(2);                             // fm = Feature Map = od = Output Depth
     const uint lid = get_sub_group_local_id();
 
+#if GROUPED
+    uint batch_idx = fm / (FEATURES_THREADS_PER_BATCH * FILTER_GROUPS_NUM);
+    uint feature_idx = (fm % (FEATURES_THREADS_PER_BATCH * FILTER_GROUPS_NUM) % FEATURES_THREADS_PER_BATCH);
+    uint fmg = feature_idx / SUB_GROUP_SIZE;
+    const uint g = (fm % (FEATURES_THREADS_PER_BATCH * FILTER_GROUPS_NUM)) / FEATURES_THREADS_PER_BATCH;
+#else
     uint batch_idx = fm / FEATURES_THREADS_PER_BATCH;
     uint feature_idx = fm % FEATURES_THREADS_PER_BATCH;
     uint fmg = feature_idx / SUB_GROUP_SIZE;
+    const uint g = split_idx;
+#endif
 
     UNIT_TYPE in[IN_BLOCK_ARRAY_SIZE];
     UNIT_TYPE out[OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT];
@@ -93,11 +101,15 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     uint in_addr;
     uint weight_addr = fmg * FILTER_IFM_NUM * FILTER_SIZE_X * FILTER_SIZE_Y * SUB_GROUP_SIZE + lid;
 
+#if GROUPED
+    weight_addr += g * FILTER_GROUPS_PITCH;
+#endif
+
     for(int i = 0; i < (OUTPUT_BLOCK_WIDTH * OUTPUT_BLOCK_HEIGHT); i++) {
         out[i] = UNIT_VAL_ZERO;
     }
 
-    uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
+    uint in_split_offset = g * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
     in_addr = batch_idx * INPUT0_BATCH_PITCH;
     in_addr += in_split_offset + INPUT0_OFFSET_WITH_PADDING + (or * STRIDE_SIZE_Y * INPUT0_Y_PITCH) + (oc * STRIDE_SIZE_X + lid) * INPUT0_X_PITCH;
 
@@ -189,7 +201,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
         weight_addr -= PREFETCH * SUB_GROUP_SIZE;
     }
 
-    uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
+    uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
     uint out_addr = OUTPUT_OFFSET;
     out_addr += batch_idx * OUTPUT_BATCH_PITCH;
     out_addr += out_split_offset + feature_idx * OUTPUT_FEATURE_PITCH; // out_addr indices into start of 16 feature maps.
@@ -199,9 +211,12 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
     for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
         for(uint c = 0; c < OUTPUT_BLOCK_WIDTH; c++) {
 #if BIAS_PER_OUTPUT
-            const unsigned bias_index = feature_idx*OUTPUT_SIZE_X*OUTPUT_SIZE_Y + or*OUTPUT_SIZE_X + oc;
+            unsigned bias_index = feature_idx*OUTPUT_SIZE_X*OUTPUT_SIZE_Y + or*OUTPUT_SIZE_X + oc;
 #else
-            const unsigned bias_index = feature_idx;
+            unsigned bias_index = feature_idx;
+#endif
+#if GROUPED
+            bias_index += g * FILTER_OFM_NUM;
 #endif
             out[r * OUTPUT_BLOCK_WIDTH + c] += bias[bias_index];
         }
@@ -214,7 +229,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
 #if HAS_FUSED_OPS
             UNIT_TYPE dst = out[r * OUTPUT_BLOCK_WIDTH + c];
             FUSED_OPS;
-            out[r * OUTPUT_BLOCK_WIDTH + c] = FINAL_NAME;
+            out[r * OUTPUT_BLOCK_WIDTH + c] = FUSED_OPS_RESULT;
 #else
             out[r * OUTPUT_BLOCK_WIDTH + c] = ACTIVATION(out[r * OUTPUT_BLOCK_WIDTH + c], ACTIVATION_PARAMS);
 #endif
@@ -227,7 +242,7 @@ KERNEL(convolution_gpu_bfyx_os_iyx_osv16)(
 //--------------------------------------------------------------------
 
 #ifdef LEFTOVERS
-    if (feature_idx < OUTPUT_FEATURE_NUM)
+    if (feature_idx < FILTER_OFM_NUM)
 #endif
     for(uint r = 0; r < OUTPUT_BLOCK_HEIGHT; r++) {
         if(!(or + r >= OUTPUT_SIZE_Y))

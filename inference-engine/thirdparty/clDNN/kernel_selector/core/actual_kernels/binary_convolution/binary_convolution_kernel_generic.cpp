@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelGeneric::SetDef
     kd.lws1 = 1;
     kd.lws2 = 1;
 
-    kd.effiency = FORCE_PRIORITY_2;
+    kd.efficiency = FORCE_PRIORITY_2;
 
     return kd;
 }
@@ -123,6 +123,7 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
     std::string channel_pack_fused_ops = "";
     std::string prepare_data = "";
     for (auto& fused_dep : params.fused_ops) {
+        auto fused_dep_codegen = FusedOpsCodeGenerator(fused_dep);
         auto get_aligned_load2 = [&](std::string ptr, std::string byte_offset) -> std::string {
             if (fused_dep.tensors[0].GetDType() == Datatype::F32)
                 return "(intel_sub_group_block_read2((const __global uint*)(" + ptr + ") + (" + byte_offset + ")))";
@@ -130,26 +131,26 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
                 return "(intel_sub_group_block_read_us2((const __global ushort*)(" + ptr + ") + (" + byte_offset +
                        ")))";
         };
-        std::string data_type = fused_dep.GetInputTypeName(0, 1);
-        std::string vec_data_type = fused_dep.GetInputTypeName(0, 2);
+        std::string data_type = fused_dep_codegen.GetInputTypeName(0, 1);
+        std::string vec_data_type = fused_dep_codegen.GetInputTypeName(0, 2);
         std::string sc = "sc" + std::to_string(op_id);
         std::string sh = "sh" + std::to_string(op_id);
         switch (fused_dep.GetType()) {
             case KernelType::SCALE: {
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
                 if (fused_dep.tensors.size() == 1) {
-                    std::string var_name = fused_dep.GetInputVarName(0);
+                    std::string var_name = fused_dep_codegen.GetInputVarName(0);
                     prepare_data += vec_data_type + " " + var_name + " = " + cast_type +
-                                    get_aligned_load2(fused_dep.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
+                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
                     eltwise_fused_ops += data_type + " " + sc + " = (i < 16) ? " + var_name + ".s0" + " : " + var_name + ".s1;";
                     eltwise_fused_ops += "res = res*" + sc +";";
                 } else {
-                    std::string var0_name = fused_dep.GetInputVarName(0);
-                    std::string var1_name = fused_dep.GetInputVarName(1);
+                    std::string var0_name = fused_dep_codegen.GetInputVarName(0);
+                    std::string var1_name = fused_dep_codegen.GetInputVarName(1);
                     prepare_data += vec_data_type + " " + var0_name + " = " + cast_type +
-                                    get_aligned_load2(fused_dep.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
+                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
                     prepare_data += vec_data_type + " " + var1_name + " = " + cast_type +
-                                    get_aligned_load2(fused_dep.GetInputPtrName(1), "f_block*OC_BLOCK_SIZE") + ";";
+                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(1), "f_block*OC_BLOCK_SIZE") + ";";
                     eltwise_fused_ops +=
                         data_type + " " + sc + " = (i < 16) ? " + var0_name + ".s0" + " : " + var0_name + ".s1;";
                     eltwise_fused_ops +=
@@ -159,25 +160,25 @@ JitConstants BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants(cons
                 break;
             }
             case KernelType::QUANTIZE: {
-                std::string var_name_in = fused_dep.GetInputVarName(0);
-                std::string var_name_out = fused_dep.GetInputVarName(3);
+                std::string var_name_in = fused_dep_codegen.GetInputVarName(0);
+                std::string var_name_out = fused_dep_codegen.GetInputVarName(3);
                 std::string cast_type_vec = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float2" : "as_half2";
                 std::string cast_type = (fused_dep.tensors[0].GetDType() == Datatype::F32) ? "as_float" : "as_half";
 
                 if (fused_dep.tensors[0].Feature().v == params.output.Feature().v) {
                     prepare_data += vec_data_type + " " + var_name_in + " = " + cast_type_vec +
-                                    get_aligned_load2(fused_dep.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
+                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(0), "f_block*OC_BLOCK_SIZE") + ";";
                 } else {
                     prepare_data += data_type + " " + var_name_in + " = " + cast_type +
-                                 + "(" + fused_dep.GetInputPtrName(0) + "[0]);";
+                                 + "(" + fused_dep_codegen.GetInputPtrName(0) + "[0]);";
                 }
 
                 if (fused_dep.tensors[2].Feature().v == params.output.Feature().v) {
                     prepare_data += vec_data_type + " " + var_name_out + " = " + cast_type_vec +
-                                    get_aligned_load2(fused_dep.GetInputPtrName(3), "f_block*OC_BLOCK_SIZE") + ";";
+                                    get_aligned_load2(fused_dep_codegen.GetInputPtrName(3), "f_block*OC_BLOCK_SIZE") + ";";
                 } else {
                     prepare_data += data_type + " " + var_name_out + " = " + cast_type +
-                                    "(" + fused_dep.GetInputPtrName(3)+"[0]);";
+                                    "(" + fused_dep_codegen.GetInputPtrName(3)+"[0]);";
                 }
 
                 std::string var_in_s0 = fused_dep.tensors[0].Feature().v == params.output.Feature().v ? var_name_in + ".s0" : var_name_in;

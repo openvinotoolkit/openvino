@@ -64,33 +64,8 @@ protected:
         auto input = inputEdge(0)->input();
         auto output = outputEdge(0)->output();
 
-        if (input->desc().dimsOrder() == DimsOrder::NC) {
-            if (!input->checkStrides(StridesRequirement().add(0, DimStride::Compact)) ||
-                !output->checkStrides(StridesRequirement().add(0, DimStride::Compact))) {
-                input->serializeOldBuffer(
-                    this,
-                    serializer,
-                    DimsOrder::CHW,
-                    {
-                        {Dim::C, {Dim::N}},
-                        {Dim::H, {Dim::C}},
-                    });
-
-                output->serializeOldBuffer(
-                    this,
-                    serializer,
-                    DimsOrder::CHW,
-                    {
-                        {Dim::C, {Dim::N}},
-                        {Dim::H, {Dim::C}},
-                    });
-
-                return;
-            }
-        }
-
-        input->serializeNewBuffer(serializer);
-        output->serializeNewBuffer(serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
     }
 };
 

@@ -10,7 +10,7 @@
 namespace vpu {
 namespace MyriadPlugin {
 
-class MyriadAsyncInferRequest : virtual public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+class MyriadAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
     MyriadAsyncInferRequest(MyriadInferRequest::Ptr request,
                                 const InferenceEngine::ITaskExecutor::Ptr &taskExecutorStart,

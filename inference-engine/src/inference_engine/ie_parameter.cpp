@@ -5,8 +5,6 @@
 #include <ie_parameter.hpp>
 #include <memory>
 
-#if defined(ENABLE_NGRAPH)
-
 #include <ngraph/variant.hpp>
 
 namespace ngraph {
@@ -43,11 +41,3 @@ InferenceEngine::Parameter::Parameter(std::shared_ptr<ngraph::Variant>& var) {
 std::shared_ptr<ngraph::Variant> InferenceEngine::Parameter::asVariant() const {
     return std::make_shared<ngraph::VariantWrapper<InferenceEngine::Parameter>>(*this);
 }
-#else
-InferenceEngine::Parameter::Parameter(const std::shared_ptr<ngraph::Variant>& var) {}
-InferenceEngine::Parameter::Parameter(std::shared_ptr<ngraph::Variant>& var) {}
-
-std::shared_ptr<ngraph::Variant> InferenceEngine::Parameter::asVariant() const {
-    return nullptr;
-}
-#endif
