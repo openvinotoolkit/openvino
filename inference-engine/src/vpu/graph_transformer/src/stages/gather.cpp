@@ -63,7 +63,7 @@ protected:
     }
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
-        return StageSHAVEsRequirements::OnlyOne;
+        return StageSHAVEsRequirements::NotNeeded;
     }
 
     void initialCheckImpl() const override {

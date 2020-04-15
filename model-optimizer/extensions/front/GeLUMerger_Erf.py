@@ -16,6 +16,7 @@
 
 import logging as log
 from math import sqrt, fabs
+
 from extensions.ops.gelu import GeLUOP
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph

@@ -4,76 +4,19 @@
 
 #include <vpu/frontend/frontend.hpp>
 
-#include <cmath>
-
-#include <vector>
-#include <memory>
+#include <vpu/utils/ie_helpers.hpp>
+#include <vpu/utils/numeric.hpp>
+#include <vpu/utils/profiling.hpp>
+#include <vpu/model/data_contents/batch_norm_contents.hpp>
 
 #include <precision_utils.h>
 #include <ie_parallel.hpp>
 
-#include <vpu/utils/ie_helpers.hpp>
-#include <vpu/utils/numeric.hpp>
-#include <vpu/utils/profiling.hpp>
+#include <cmath>
+#include <vector>
+#include <memory>
 
 namespace vpu {
-
-namespace {
-
-class BatchNormalizationWeightsContent final : public CalculatedDataContent {
-public:
-    BatchNormalizationWeightsContent(
-            const DataContent::Ptr& origContent,
-            float epsilon) :
-            CalculatedDataContent({origContent}), _epsilon(epsilon) {
-    }
-
-protected:
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override {
-        VPU_PROFILE(BatchNormalizationWeightsContent);
-
-        auto srcPtr = baseContents[0]->get<fp16_t>();
-        auto dstPtr = static_cast<fp16_t*>(tempBuf);
-
-        ie::parallel_for(desc().totalDimSize(), [this, srcPtr, dstPtr](int i) {
-            float val = ie::PrecisionUtils::f16tof32(srcPtr[i]) + _epsilon;
-            val = 1.0f / std::sqrt(val);
-            dstPtr[i] = ie::PrecisionUtils::f32tof16(val);
-        });
-    }
-
-private:
-    float _epsilon;
-};
-
-class BatchNormalizationBiasesContent final : public CalculatedDataContent {
-public:
-    BatchNormalizationBiasesContent(
-            const DataContent::Ptr& origContent,
-            const DataContent::Ptr& weightsContent) :
-            CalculatedDataContent({origContent, weightsContent}) {
-    }
-
-protected:
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override {
-        VPU_PROFILE(BatchNormalizationBiasesContent);
-
-        auto origPtr = baseContents[0]->get<fp16_t>();
-        auto weightsPtr = baseContents[1]->get<fp16_t>();
-
-        auto dstPtr = static_cast<fp16_t*>(tempBuf);
-
-        ie::parallel_for(desc().totalDimSize(), [origPtr, weightsPtr, dstPtr](int i) {
-            // TODO : need to be extracted from IE layer.
-            float beta = 0.0f;
-
-            auto wVal = ie::PrecisionUtils::f16tof32(weightsPtr[i]);
-            dstPtr[i] = ie::PrecisionUtils::f32tof16(beta - wVal * ie::PrecisionUtils::f16tof32(origPtr[i]));
-        });
-    }
-};
-
-}  // namespace
 
 void FrontEnd::parseBatchNorm(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     IE_ASSERT(inputs.size() == 1);

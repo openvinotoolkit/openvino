@@ -301,12 +301,15 @@ fused_conv_eltwise_inst::typed_primitive_inst(network_impl& network, fused_conv_
                                   "expected size of batch",
                                   1,
                                   "Biases isn't 1D vector.");
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Bias feature[0]",
-                                  bias_inst.size.feature[0],
-                                  "expected feature map number",
-                                  output_size.feature[0] / split,
-                                  "Bias/fm mismatch");
+
+            if (node.get_output_layout().format != format::image_2d_rgba) {
+                CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                      "Bias feature[0]",
+                                      bias_inst.size.feature[0],
+                                      "expected feature map number",
+                                      output_size.feature[0] / split,
+                                      "Bias/fm mismatch");
+            }
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias spatial[1]",
                                   bias_inst.size.spatial[1],

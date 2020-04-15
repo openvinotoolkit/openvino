@@ -19,8 +19,8 @@ import unittest
 import networkx as nx
 
 from extensions.front.instance_normalization import InstanceNormalization
-from mo.utils.unittest.graph import build_graph
 from mo.middle.pattern_match import node_match
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
     'input': {'kind': 'op', 'op': 'AnyOp'},

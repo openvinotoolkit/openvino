@@ -4,6 +4,8 @@
 
 cmake_policy(SET CMP0054 NEW)
 
+include(models)
+
 #we have number of dependencies stored on ftp
 include(dependency_solver)
 
@@ -12,6 +14,23 @@ if (CMAKE_CROSSCOMPILING)
 endif()
 
 include(ExternalProject)
+
+if (ENABLE_SAME_BRANCH_FOR_MODELS)
+    branchName(MODELS_BRANCH)
+else()
+    set(MODELS_BRANCH "master")
+endif()
+
+
+if (ENABLE_DATA)
+    add_models_repo(${ENABLE_DATA} "data:inference-engine/open-source-data.git")
+    set(MODELS_PATH "${TEMP}/data/src/data")
+    set(DATA_PATH "${MODELS_PATH}")
+endif()
+
+message(STATUS "MODELS_PATH=" ${MODELS_PATH})
+
+fetch_models_and_validation_set()
 
 include(linux_name)
 if(COMMAND get_linux_name)

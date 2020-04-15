@@ -20,6 +20,7 @@
 #include "api/memory.hpp"
 #include <api/input_layout.hpp>
 #include "api/deconvolution.hpp"
+#include "api/crop.hpp"
 #include <api/data.hpp>
 #include <api/topology.hpp>
 #include <api/network.hpp>
@@ -1546,6 +1547,89 @@ TEST(deconvolution_f32_fw_gpu, basic3D_wsiz2x2x2_in1x1x2x2x2_stride2_pad1) {
         EXPECT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
     }
 
+}
+
+TEST(deconvolution_f16_gpu, basic_k9x9_s2x2_pad4x4) {
+    //  Filter : 1x32x9x9
+    //  Input  : 1x32x16x16
+    //  Stride : 2x2
+    //  Pad    : 4x4
+
+    //const auto& engine = get_test_engine();
+    engine engine;
+
+    VVVVF<FLOAT16> input_rnd = generate_random_4d<FLOAT16>(1, 32, 16, 16, -2, 2);
+    VF<FLOAT16> input_rnd_vec = flatten_4d<FLOAT16>(format::bfyx, input_rnd);
+    VVVVF<FLOAT16> filter_rnd = generate_random_4d<FLOAT16>(1, 32, 9, 9, -1, 1);
+    VF<FLOAT16> filter_rnd_vec = flatten_4d<FLOAT16>(format::bfyx, filter_rnd);
+    VF<FLOAT16> bias_rnd = generate_random_1d<FLOAT16>(1, -1, 1);
+    VF<float> filter_rnd_f32_vec, bias_f32_rnd;
+
+    for (unsigned int i = 0; i < filter_rnd_vec.size(); i++)
+        filter_rnd_f32_vec.push_back(float(filter_rnd_vec[i]));
+
+    for (unsigned int i = 0; i < bias_rnd.size(); i++)
+        bias_f32_rnd.push_back(float(bias_rnd[i]));
+
+    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 32, 16, 16 } });
+    auto weights = memory::allocate(engine, { data_types::f16, format::oiyx, { 1, 32, 9, 9 } });
+    auto biases = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 1, 1, 1 } });
+    auto weights_f32 = memory::allocate(engine, { data_types::f32, format::oiyx, { 1, 32, 9, 9 } });
+    auto biases_f32 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+
+    set_values(input, input_rnd_vec);
+    set_values(weights, filter_rnd_vec);
+    set_values(biases, bias_rnd);
+    set_values(weights_f32, filter_rnd_f32_vec);
+    set_values(biases_f32, bias_f32_rnd);
+
+    topology topology_ref(
+        input_layout("input", input.get_layout()),
+        data("weights", weights),
+        data("biases", biases),
+        deconvolution("deconv", "input", { "weights" }, { "biases" }, { 1, 1, 2, 2 }, { 0, 0, -4, -4 }, tensor{ 1, 1, 32, 32 })
+    );
+
+    network network_ref(engine, topology_ref);
+    network_ref.set_input_data("input", input);
+
+    auto outputs_ref = network_ref.execute();
+    EXPECT_EQ(outputs_ref.size(), size_t(1));
+    EXPECT_EQ(outputs_ref.begin()->first, "deconv");
+    auto output_ref_prim = outputs_ref.begin()->second.get_memory();
+    auto output_ref_ptr = output_ref_prim.pointer<FLOAT16>();
+
+    std::vector<FLOAT16> output_vec_ref;
+    for (unsigned int i = 0; i < output_ref_prim.get_layout().count(); i++)
+    {
+        output_vec_ref.push_back(output_ref_ptr[i]);
+    }
+
+    topology topology_act(
+        input_layout("input_act", input.get_layout()),
+        data("weights_f32", weights_f32),
+        data("biases_f32", biases_f32),
+        deconvolution("deconv_act", "input_act", { "weights_f32" }, { "biases_f32" }, { 1, 1, 2, 2 }, { 0, 0, -4, -4 }),
+        reorder("out", "deconv_act", format::bfyx, data_types::f16)
+    );
+
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::optimize_data(true));
+    network network_act(engine, topology_act, options);
+    network_act.set_input_data("input_act", input);
+
+    auto outputs_act = network_act.execute();
+    EXPECT_EQ(outputs_act.size(), size_t(1));
+    EXPECT_EQ(outputs_act.begin()->first, "out");
+    auto output_act_prim = outputs_act.begin()->second.get_memory();
+    auto output_act_ptr = output_act_prim.pointer<FLOAT16>();
+
+    std::vector<float> output_vec;
+    for (unsigned int i = 0; i < output_act_prim.get_layout().count(); i++)
+    {
+        float x = float_round(output_act_ptr[i]), y = float_round(output_vec_ref[i]);
+        EXPECT_NEAR(x, y, 1e-0f);
+    }
 }
 
 TEST(deconvolution_f32_fw_gpu, basic_wsiz2x2_in2x2x1x2_b_fs_yx_fsv16_stride2_pad1) {

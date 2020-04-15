@@ -63,6 +63,9 @@ public:
         inputs[MockNotEmptyICNNNetwork::INPUT_BLOB_NAME] = inputInfo;
     };
     void addLayer(const CNNLayerPtr& layer) noexcept override {}
+    std::shared_ptr<ngraph::Function> getFunction() noexcept override {
+        return nullptr;
+    }
     std::shared_ptr<const ngraph::Function> getFunction() const noexcept override {
         return nullptr;
     }

@@ -4,6 +4,11 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
+#include <vpu/stages/stub_stage.hpp>
+#include <vpu/middleend/sw/utility.hpp>
+#include <vpu/compile_env.hpp>
+#include <vpu/model/data_contents/deconvolution_contents.hpp>
+
 #include <tuple>
 #include <vector>
 #include <algorithm>
@@ -15,10 +20,6 @@
 #include <set>
 #include <unordered_map>
 #include <memory>
-
-#include <vpu/stages/stub_stage.hpp>
-#include <vpu/middleend/sw/utility.hpp>
-#include <vpu/compile_env.hpp>
 
 namespace vpu {
 
@@ -90,25 +91,6 @@ private:
         output->serializeBuffer(serializer);
     }
 };
-
-
-class DeconvolutionToConvolutionContent final : public CalculatedDataContent {
-public:
-    DeconvolutionToConvolutionContent(
-            const DataContent::Ptr& origContent) :
-            CalculatedDataContent({origContent}) {
-    }
-
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const {
-        VPU_PROFILE(DeconvolutionToConvolutionContent);
-
-        IE_ASSERT(baseContents.size() == 1);
-        IE_ASSERT(desc().type() == DataType::FP16);
-
-        deconv_to_conv(baseContents[0]->get<fp16_t>(), static_cast<fp16_t*>(tempBuf), desc());
-    }
-};
-
 
 class PassImpl final : public Pass {
 public:
@@ -192,7 +174,7 @@ void PassImpl::run(const Model& model) {
 
         auto newOutput = model->duplicateData(output, "@upsampleData", newDesc);
         auto newWeights = model->duplicateData(weights, "@upsampleData", weights->desc(),
-                     std::make_shared<DeconvolutionToConvolutionContent>(weights->content()));
+                     std::make_shared<DeconvolutionToConvolutionContent>(weights->content(), weights->desc()));
 
         auto upsampleStage = model->addNewStage<UpsamplingStage>(
                 stage->origLayerName() + "@Upsample",

@@ -15,13 +15,14 @@
 """
 
 import numpy as np
+
 from extensions.ops.split import VariadicSplit
-from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.front.common.partial_infer.utils import int64_array
 from mo.back.replacement import BackReplacementPattern
+from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
-from mo.ops.reshape import Reshape
 from mo.ops.const import Const
+from mo.ops.reshape import Reshape
 
 
 class LSTMCellNormalizer(BackReplacementPattern):

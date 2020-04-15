@@ -117,6 +117,7 @@ std::string toString(DataLayout l) {
         case kernel_selector::DataLayout::bs_fs_yx_bsv16_fsv16:  return "BS_FS_YX_BSV16_FSV16";
         case kernel_selector::DataLayout::bs_fs_zyx_bsv16_fsv16: return "BS_FS_ZYX_BSV16_FSV16";
         case kernel_selector::DataLayout::nv12:                  return "NV12";
+        case kernel_selector::DataLayout::image_2d_rgba:         return "IMAGE_2D_RGBA";
         default:
             return "";
     }
@@ -296,7 +297,7 @@ std::string toString(MVNMode mode) {
 }
 
 std::string toString(WeightsLayout layout) {
-    switch (layout) {
+   switch (layout) {
         case WeightsLayout::oi:                                          return "OI";
         case WeightsLayout::io:                                          return "IO";
         case WeightsLayout::oiyx:                                        return "OIYX";
@@ -304,6 +305,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::iyxo:                                        return "IYXO";
         case WeightsLayout::yxio:                                        return "YXIO";
         case WeightsLayout::os_is_yx_isv16_osv16:                        return "OS_IS_YX_ISV16_OSV16";
+        case WeightsLayout::os_is_yx_osv16_isv16:                        return "OS_IS_YX_OSV16_ISV16";
         case WeightsLayout::os_iyx_osv16:                                return "OS_IYX_OSV16";
         case WeightsLayout::os_iyx_osv32:                                return "OS_IYX_OSV32";
         case WeightsLayout::os_iyx_osv32__ai32:                          return "OS_IYX_OSV32__AI32";
@@ -362,7 +364,10 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::giy_xs_os_xsv2_osv16__ao32:                  return "GIY_XS_OS_XSV2_OSV16__AO32";
         case WeightsLayout::giy_xs_os_xsv2_osv8__ao32:                   return "GIY_XS_OS_XSV2_OSV8__AO32";
         case WeightsLayout::gs_oi_yxs_gsv4_yxsv4:                        return "GS_OI_YXS_GSV4_YXSV4";
+        case WeightsLayout::gs_oi_yxs_gsv16_yxsv4:                       return "GS_OI_YXS_GSV16_YXSV4";
+        case WeightsLayout::gs_oi_yxs_gsv32_yxsv4:                       return "GS_OI_YXS_GSV32_YXSV4";
         case WeightsLayout::g_os_is_yx_isv16_osv16:                      return "G_OS_IS_YX_ISV16_OSV16";
+        case WeightsLayout::g_os_is_yx_osv16_isv4:                       return "G_OS_IS_YX_OSV16_ISV4";
         default: throw std::invalid_argument("Failed to convert WeightsLayout " + std::to_string(layout) + " to string");
     }
 }

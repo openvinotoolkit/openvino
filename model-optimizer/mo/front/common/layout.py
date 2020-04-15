@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import logging as log
-
 import numpy as np
 
 from mo.utils.error import Error

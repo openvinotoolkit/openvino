@@ -15,10 +15,10 @@
 """
 
 import logging as log
-from mo.utils.graph import Node
-from mo.utils import class_registration
 
 from mo.front.common.partial_infer.utils import int64_array
+from mo.utils import class_registration
+from mo.utils.graph import Node
 
 
 class Extender(object):

@@ -22,6 +22,7 @@
 #include "gna_graph_compiler.hpp"
 #include "gna_plugin_policy.hpp"
 #include "gna_plugin_log.hpp"
+#include "gna_plugin_config.hpp"
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -32,6 +33,7 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
  protected:
     std::string _pluginName = "GNA";
 
+    Config config;
     std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnn;
     std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
     std::shared_ptr<GNAPluginNS::gna_memory_type> gnamem;
@@ -63,20 +65,12 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
     // index matches iterating order of cnnnetwork outputs info
     std::vector<GNAPluginNS::OutputDesc> outputsDesc = std::vector<OutputDesc>();
 
-    // precision of GNA hardware model
-    InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
-
     intel_dnn_number_type_t output_type = kDnnInt;
 
     GNAPluginNS::Policy policy;
-    std::string dumpXNNPath;
-    std::string dumpXNNGeneration;
-#if GNA_LIB_VER == 1
-    intel_gna_proc_t gna_proc_type = static_cast<intel_gna_proc_t>(GNA_SOFTWARE & GNA_HARDWARE);
-#else
-    Gna2AccelerationMode pluginGna2AccMode = Gna2AccelerationModeSoftware;
-Gna2DeviceVersion pluginGna2DeviceConsistent = Gna2DeviceVersion1_0;
-void createRequestConfigsForGnaModels();
+
+#if GNA_LIB_VER == 2
+    void createRequestConfigsForGnaModels();
 #endif
 
     std::shared_ptr<GNADeviceHelper> gnadevice;
@@ -104,15 +98,12 @@ void createRequestConfigsForGnaModels();
     void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap);
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
 
-    std::vector<std::string> supportedConfigKeys() const;
-    std::map<std::string, std::string> supportedConfigKeysWithDefaults() const;
-
     void SetConfig(const std::map<std::string, std::string> &config) override;
     void LoadNetwork(InferenceEngine::IExecutableNetwork::Ptr &executableNetwork,
                      const InferenceEngine::ICNNNetwork &network,
-                     const std::map<std::string, std::string> &config) override { THROW_GNA_EXCEPTION << "Not implemented"; }
+                     const std::map<std::string, std::string> &config_map) override { THROW_GNA_EXCEPTION << "Not implemented"; }
     InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::ICNNNetwork &network,
-                                  const std::map<std::string, std::string> &config,
+                                  const std::map<std::string, std::string> &config_map,
                                   InferenceEngine::RemoteContext::Ptr context) override { THROW_GNA_EXCEPTION << "Not implemented"; }
     void Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &result);
     void SetCore(InferenceEngine::ICore*) noexcept override {}
@@ -221,5 +212,8 @@ void createRequestConfigsForGnaModels();
                     const GNASplitLayer& splitInfo,
                     size_t precision_size,
                     int idx = 0);
+
+    void UpdateFieldsFromConfig();
 };
+
 }  // namespace GNAPluginNS

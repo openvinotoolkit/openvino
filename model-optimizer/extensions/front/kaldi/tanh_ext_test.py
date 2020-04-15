@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
-from mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from extensions.front.kaldi.tanh_component_ext import TanhFrontExtractor
 from extensions.ops.activation_ops import Tanh
+from mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from mo.ops.op import Op
 
 

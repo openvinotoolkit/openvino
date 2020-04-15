@@ -14,9 +14,9 @@
  limitations under the License.
 """
 from argparse import Namespace
+from copy import deepcopy
 
 import networkx as nx
-from copy import deepcopy
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import extract_port_from_string

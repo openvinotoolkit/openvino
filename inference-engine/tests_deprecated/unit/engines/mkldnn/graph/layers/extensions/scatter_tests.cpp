@@ -187,7 +187,13 @@ protected:
     }
 };
 
-TEST_P(MKLDNNCPUExtScatterTFTests, TestsScatter) {}
+// Disabled these tests as they need to adjust with new specs:
+// - new Scatter Update layer: like TF scatter_update
+// - new Scatter Elements Update: like ONNX Scatter Elements
+// See merge requests:
+// DLDT #6005: Specification for the ScatterElementsUpdate layer
+// DLDT #6091: Specification for ScatterUpdate operation
+TEST_P(MKLDNNCPUExtScatterTFTests, DISABLED_TestsScatter) {}
 
 INSTANTIATE_TEST_CASE_P(
         TestsScatter, MKLDNNCPUExtScatterTFTests,

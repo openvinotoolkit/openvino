@@ -25,7 +25,7 @@ VPU_DECLARE_ENUM(LayoutPreference,
 InferenceEngine::Layout deviceLayout(InferenceEngine::Layout const& layout,
                                      LayoutPreference const& layoutPreference);
 
-ie::Blob::Ptr getBlobFP16(const ie::Blob::Ptr& in);
+ie::Blob::Ptr convertBlobFP32toFP16(const ie::Blob::CPtr& in);
 
 ie::Blob::Ptr copyBlob(const ie::Blob::Ptr& original);
 ie::Blob::Ptr copyBlob(const ie::Blob::Ptr& in, ie::Layout outLayout, void* ptr = nullptr);

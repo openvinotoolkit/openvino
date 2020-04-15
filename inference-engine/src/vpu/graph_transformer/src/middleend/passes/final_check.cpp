@@ -41,7 +41,7 @@ void PassImpl::run(const Model& model) {
         });
 
         if (memoryType == MemoryType::CMX) {
-            IE_ASSERT(topParent->location() == DataLocation::CMX);
+            IE_ASSERT(topParent->dataLocation().location == Location::CMX);
         }
 
         //

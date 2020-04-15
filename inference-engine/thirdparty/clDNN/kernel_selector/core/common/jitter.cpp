@@ -431,10 +431,14 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     } else if (_tensor.LogicalSize() == _tensor.Feature().v) {
         // We support broadcast only if corresponding dimension is equal to 1.
         // Otherwise, dimensions should be equal and using "f" should be safe.
-        if (_tensor.PitchesDifferFromLogicalDims()) {
+        if (_tensor.PitchesDifferFromLogicalDims() && _tensor.SimpleLayout()) {
             std::string f_pitch = std::to_string(_tensor.Feature().pitch);
             definitions.push_back({ safe_index_func_name, "(" + offset + " + (f) * " + f_pitch + ")" });
             definitions.push_back({ index_func_name, "(" + offset + " + (f) * " + f_pitch + ")" });
+        } else if (_tensor.PitchesDifferFromLogicalDims()) {
+            // TODO This should be solved differently, by setting the macro arguments to zero
+            definitions.push_back({ safe_index_func_name, safe_index_func_val });
+            definitions.push_back({ index_func_name, index_func_val });
         } else {
             definitions.push_back({ safe_index_func_name, "f" });
             definitions.push_back({ index_func_name, "f" });

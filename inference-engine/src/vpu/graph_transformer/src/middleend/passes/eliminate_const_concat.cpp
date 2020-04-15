@@ -4,12 +4,13 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
-#include <vector>
-#include <memory>
+#include <vpu/middleend/sw/utility.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
 
 #include <blob_factory.hpp>
 
-#include <vpu/middleend/sw/utility.hpp>
+#include <vector>
+#include <memory>
 
 namespace vpu {
 

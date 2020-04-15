@@ -159,11 +159,12 @@ public:
                 THROW_IE_EXCEPTION << "Interp supports only 4d blobs!";
 
             auto src_precision = inData->getTensorDesc().getPrecision();
-            if (src_precision != Precision::FP32 && src_precision != Precision::U8)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input data tensor precision. Only U8 or FP32 are supported!";
+            if (src_precision != Precision::FP32 && src_precision != Precision::U8 && src_precision != Precision::BF16)
+                THROW_IE_EXCEPTION << layer->name << " Incorrect input data tensor precision. Only U8 or FP32 or BF16 are supported!";
 
-            if (layer->outData[0]->getTensorDesc().getPrecision() != Precision::FP32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect output data tensor precision. Only FP32 is supported!";
+            auto dst_precision = layer->outData[0]->getTensorDesc().getPrecision();
+            if (dst_precision != Precision::FP32 && dst_precision != Precision::BF16)
+                THROW_IE_EXCEPTION << layer->name << " Incorrect output data tensor precision. Only FP32 or BF16 are supported!";
 
             // We don't read other parameters since they are needed only for dst reshape in caffe
             pad_beg = layer->GetParamAsInt("pad_beg");
@@ -197,14 +198,16 @@ public:
                 if (mayiuse(avx512_common)) {
                     blk_layout = ConfLayout::BLK16;
                     interp_kernel.reset(new jit_uni_interp_kernel_f32<avx512_common>());
+                    addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
                 } else if (mayiuse(avx2)) {
                     blk_layout = ConfLayout::BLK8;
                     interp_kernel.reset(new jit_uni_interp_kernel_f32<avx2>());
+                    addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
                 } else {
                     blk_layout = ConfLayout::BLK8;
                     interp_kernel.reset(new jit_uni_interp_kernel_f32<sse42>());
+                    addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
                 }
-                addConfig(layer, { DataConfigurator(blk_layout) }, { DataConfigurator(blk_layout) });
             }
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
@@ -258,8 +261,10 @@ public:
         case Precision::FP32:
         {
             const float* src_data = inputs[0]->cbuffer().as<const float *>() + inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-            size_t IC = inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[1] *
-                        inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[4];
+            size_t IC = (inputs[0]->getTensorDesc().getLayout() == Layout::BLOCKED)
+                ? inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[1] *
+                inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[4]
+                : IC = inputs[0]->getTensorDesc().getDims()[1];
             interpolate(IN, IC, src_data,
                 -pad_beg, -pad_beg, IH_pad, IW_pad, IH, IW, dst_data, 0, 0, OH, OW, OH, OW);
         }
@@ -312,10 +317,12 @@ private:
         }
 
         int block_size = 1;
-        if (mayiuse(avx512_common)) {
-            block_size = 16;
-        } else {
-            block_size = 8;
+        if (interp_kernel) {
+            if (mayiuse(avx512_common)) {
+                block_size = 16;
+            } else {
+                block_size = 8;
+            }
         }
 
         // Align channel number to block size to deal with channels padding in IE with multiple blobs
@@ -358,14 +365,21 @@ private:
 
                         float *pdst = pdst_h + w * block_size;
 
-                        arg.src00 = psrc00;
-                        arg.src01 = psrc01;
-                        arg.src10 = psrc10;
-                        arg.src11 = psrc11;
-                        arg.dst = pdst;
-                        arg.w_lambda0 = static_cast<float*>(&w_lambda0);
-                        arg.w_lambda1 = static_cast<float*>(&w_lambda1);
-                        (*interp_kernel)(&arg);
+                        if (interp_kernel) {
+                            arg.src00 = psrc00;
+                            arg.src01 = psrc01;
+                            arg.src10 = psrc10;
+                            arg.src11 = psrc11;
+                            arg.dst = pdst;
+                            arg.w_lambda0 = static_cast<float*>(&w_lambda0);
+                            arg.w_lambda1 = static_cast<float*>(&w_lambda1);
+                            (*interp_kernel)(&arg);
+                        } else {
+                            for (int c = 0; c < block_size; ++c) {
+                                pdst[c] = h_lambda1 * (w_lambda1 * psrc00[c] + w_lambda0 * psrc01[c]) +
+                                    h_lambda0 * (w_lambda1 * psrc10[c] + w_lambda0 * psrc11[c]);
+                            }
+                        }
                     }
         });
     }

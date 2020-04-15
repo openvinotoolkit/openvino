@@ -1,6 +1,6 @@
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
 
-// Define if runtime supports it. MX runtime is compatible, KMB is in WIP state
+// Define if runtime supports it. MX runtime is compatible
 #define USE_MANUAL_DMA 1
 
 #if defined (USE_MANUAL_DMA)

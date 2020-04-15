@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
+#include <ngraph/opsets/opset3.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -53,5 +54,16 @@ std::shared_ptr<ngraph::Node> makeSpaceToBatch(const ngraph::Output<Node> &in,
                                                const std::vector<size_t> &blockShape,
                                                const std::vector<size_t> &padsBegin,
                                                const std::vector<size_t> &padsEnd);
+
+std::shared_ptr<ngraph::Node> makeStridedSlice(const ngraph::Output<Node> &in,
+                                               const std::vector<int64_t> &begin,
+                                               const std::vector<int64_t> &end,
+                                               const std::vector<int64_t> &stride,
+                                               const element::Type &type,
+                                               const std::vector<int64_t> &begin_mask,
+                                               const std::vector<int64_t> &end_mask,
+                                               const std::vector<int64_t> &new_axis_mask = std::vector<int64_t>{},
+                                               const std::vector<int64_t> &shrink_mask = std::vector<int64_t>{},
+                                               const std::vector<int64_t> &ellipsis_mask = std::vector<int64_t>{});
 }  // namespace builder
 }  // namespace ngraph

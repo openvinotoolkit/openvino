@@ -91,6 +91,17 @@ bool MKLDNNConvolutionNode::canBeExecutedInInt8() {
     }
 }
 
+InferenceEngine::Precision MKLDNNConvolutionNode::fusedEltwisePrecision(MKLDNNEltwiseNode *eltwiseNode, int findex) {
+    InferenceEngine::Precision eltwisePrecision;
+    auto parent0 = eltwiseNode->getCnnLayer()->insData[0].lock()->getCreatorLayer().lock();
+    auto parent1 = eltwiseNode->getCnnLayer()->insData[1].lock()->getCreatorLayer().lock();
+
+    auto fusedParent = findex != 0 ? fusedWith[findex - 1].get()->getCnnLayer() : this->getCnnLayer();
+    eltwisePrecision = fusedParent == parent0 ? eltwiseNode->getCnnLayer()->insData[1].lock()->getPrecision() :
+        eltwiseNode->getCnnLayer()->insData[0].lock()->getPrecision();
+    return eltwisePrecision;
+}
+
 void MKLDNNConvolutionNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
@@ -116,17 +127,11 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
 
         // We need to make sure that convolution output and second input of fused Eltwise operation
         // have equal precision sizes since they use the same physical memory. In case precisions are different we upscale to FP32.
-        if (outputDataType != memory::f32 && isFusedWith(Eltwise)) {
+        if (outputDataType != memory::f32 && outputDataType != memory::bf16 && isFusedWith(Eltwise)) {
             for (int i = 0; i < fusedWith.size(); i++) {
                 auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
                 if (eltwiseNode) {
-                    auto parent0 = eltwiseNode->getCnnLayer()->insData[0].lock()->getCreatorLayer().lock();
-                    auto parent1 = eltwiseNode->getCnnLayer()->insData[1].lock()->getCreatorLayer().lock();
-
-                    auto fusedParent = i != 0 ? fusedWith[i-1].get()->getCnnLayer() : this->getCnnLayer();
-                    eltwisePrecision = fusedParent == parent0 ? eltwiseNode->getCnnLayer()->insData[1].lock()->getPrecision() :
-                                                                eltwiseNode->getCnnLayer()->insData[0].lock()->getPrecision();
-
+                    eltwisePrecision = fusedEltwisePrecision(eltwiseNode, i);
                     if (MKLDNNExtensionUtils::DataTypeToIEPrecision(outputDataType).size() != eltwisePrecision.size()) {
                         eltwisePrecision = Precision::FP32;
                         outputDataType = memory::f32;
@@ -274,10 +279,29 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 getParentEdgeAt(0)->getDims().ndims() == 5 ? memory::ndhwc : memory::nhwc);
         createDescriptor({in_candidate}, {out_candidate});
     } else {
-        // If the weights aren't quantized, the only precision we support is FP32
-        inputDataType = memory::f32;
-        outputDataType = memory::f32;
+        inputDataType = convLayer->input()->getPrecision() == Precision::BF16 ? memory::bf16 : memory::f32;
+        outputDataType = convLayer->outData[0]->getPrecision() == Precision::BF16 ? memory::bf16 : memory::f32;
         eltwisePrecision = Precision::FP32;
+        for (int i = 0; i < fusedWith.size(); i++) {
+            auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
+            if (eltwiseNode) {
+                eltwisePrecision = fusedEltwisePrecision(eltwiseNode, i);
+                // TODO(amalyshe): there might be situation when convolution can be executed in BF16,
+                // output is required in FP32 but eltwise inplace tensor would be in BF16
+                // currently we forcedly change output to the BF16 that will add reoreder after the node
+                // Another situation can be when we mark output as FP32 and Eltwise asPrecison (which stand
+                // for input of inplace tensor precision) to FP32. This will add reorder for that in-place tensor
+                // bofore the fused convolution. This behaviour might be more correct regarding expected markup
+                // of the graph but performance of first and second approaches might be different. Need to verify
+                outputDataType = eltwisePrecision == Precision::BF16 ? memory::bf16 : memory::f32;
+            }
+        }
+        // correction for cases of FP32 input - we do not have FP32 convolution supported BF16 output
+        if (inputDataType == memory::f32
+            && (outputDataType == memory::bf16 || eltwisePrecision == Precision::BF16)) {
+            outputDataType = memory::f32;
+            eltwisePrecision = Precision::FP32;
+        }
 
         Layout layout = convLayer->input()->getLayout();
 
@@ -628,6 +652,9 @@ void MKLDNNConvolutionNode::createDescriptor(const std::vector<InferenceEngine::
 
     mkldnn::memory::data_type wdt = precisionToDataType(inDesc.getPrecision());
     mkldnn::memory::data_type bdt = precisionToDataType(inDesc.getPrecision());
+    if (inDesc.getPrecision() == Precision::BF16) {
+        bdt = mkldnn::memory::data_type::f32;
+    }
 
     if (inDesc.getPrecision() == Precision::U8 || inDesc.getPrecision() == Precision::I8) {
         wdt = memory::s8;
@@ -739,7 +766,8 @@ void MKLDNNConvolutionNode::initDescriptor(const InferenceEngine::LayerConfig& c
     // Works only for FP32 convolutions for now.
     bool isStridedBlobsSupported = true;
     for (auto &insData : getCnnLayer()->insData) {
-        if (insData.lock()->getPrecision() != InferenceEngine::Precision::FP32) {
+        if (insData.lock()->getPrecision() != InferenceEngine::Precision::FP32
+            && insData.lock()->getPrecision() != InferenceEngine::Precision::BF16) {
             isStridedBlobsSupported = false;
             break;
         }

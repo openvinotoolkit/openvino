@@ -66,8 +66,11 @@ public:
      * @param reader Pointer to the ICNNNetReader object
      */
     IE_SUPPRESS_DEPRECATED_START
-    explicit CNNNetwork(std::shared_ptr<ICNNNetReader> reader): reader(reader), actual(reader->getNetwork(nullptr)) {
-        if (actual == nullptr) {
+    explicit CNNNetwork(CNNNetReaderPtr reader_): reader(reader_) {
+        if (reader == nullptr) {
+            THROW_IE_EXCEPTION << "ICNNNetReader was not initialized.";
+        }
+        if ((actual = reader->getNetwork(nullptr)) == nullptr) {
             THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         }
     }
@@ -161,6 +164,15 @@ public:
     }
 
     /**
+     * @brief An overloaded operator cast to get pointer on current network
+     *
+     * @return A shared pointer of the current network
+     */
+    operator std::shared_ptr<ICNNNetwork>() {
+        return network;
+    }
+
+    /**
      * @brief An overloaded operator & to get current network
      *
      * @return An instance of the current network
@@ -176,6 +188,15 @@ public:
      */
     operator const ICNNNetwork&() const {
         return *actual;
+    }
+
+    /**
+     * @brief Returns constant nGraph function
+     *
+     * @return constant nGraph function
+     */
+    std::shared_ptr<ngraph::Function> getFunction() noexcept {
+        return actual->getFunction();
     }
 
     /**
@@ -297,7 +318,7 @@ protected:
      * @brief Reader extra reference, might be nullptr
      */
     IE_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<ICNNNetReader> reader;
+    CNNNetReaderPtr reader;
     IE_SUPPRESS_DEPRECATED_END
     /**
      * @brief Network extra interface, might be nullptr

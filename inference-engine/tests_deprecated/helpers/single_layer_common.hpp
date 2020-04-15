@@ -127,6 +127,7 @@ class BufferWrapper {
     InferenceEngine::Precision precision;
     InferenceEngine::ie_fp16 *fp16_ptr;
     float *fp32_ptr;
+    int32_t *i32_ptr;
 public:
     explicit BufferWrapper(const InferenceEngine::Blob::Ptr &blob);
 

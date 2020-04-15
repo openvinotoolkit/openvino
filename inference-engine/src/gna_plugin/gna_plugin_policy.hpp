@@ -37,8 +37,9 @@ class Policy {
     enum class ConcatAlignment {
         DISABLED,
         DISABLED_FOR_FP32,
-        ENABLED
-    } ConcatAlignmentPolicy = ConcatAlignment::ENABLED;
+        ENABLED,
+        FAST
+    } ConcatAlignmentPolicy = ConcatAlignment::FAST;
 };
 
 inline std::ostream& operator<<(std::ostream& os, Policy::ScaleShift policy) {
@@ -50,5 +51,17 @@ inline std::ostream& operator<<(std::ostream& os, Policy::ScaleShift policy) {
     }
     return os;
 }
+
+inline std::ostream& operator<<(std::ostream& os, Policy::ConcatAlignment policy) {
+    switch (policy) {
+        case Policy::ConcatAlignment::DISABLED   : os << "DISABLED";    break;
+        case Policy::ConcatAlignment::DISABLED_FOR_FP32   : os << "DISABLED_FOR_FP32";    break;
+        case Policy::ConcatAlignment::ENABLED   : os << "ENABLED";    break;
+        case Policy::ConcatAlignment::FAST   : os << "FAST";    break;
+        default    : os.setstate(std::ios_base::failbit);
+    }
+    return os;
+}
+
 
 }  // namespace GNAPluginNS

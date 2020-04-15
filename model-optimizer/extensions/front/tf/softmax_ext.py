@@ -15,10 +15,10 @@
 """
 
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.softmax import Softmax
+from mo.ops.softmax import LogSoftmax, Softmax
 
 
-class SoftmaxFrontExtractor(FrontExtractorOp):
+class SoftmaxExtractor(FrontExtractorOp):
     op = 'Softmax'
     enabled = True
 
@@ -29,4 +29,18 @@ class SoftmaxFrontExtractor(FrontExtractorOp):
         if 'axis' in node.pb.attr:
             axis = node.pb.attr['axis'].i
         Softmax.update_node_stat(node, {'axis': axis})
+        return cls.enabled
+
+
+class LogSoftmaxExtractor(FrontExtractorOp):
+    op = 'LogSoftmax'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        # the default value for the TF LogSoftmax is -1
+        axis = -1
+        if 'axis' in node.pb.attr:
+            axis = node.pb.attr['axis'].i
+        LogSoftmax.update_node_stat(node, {'axis': axis})
         return cls.enabled

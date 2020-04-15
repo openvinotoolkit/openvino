@@ -14,13 +14,13 @@
  limitations under the License.
 """
 
+from extensions.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
 from extensions.middle.TF_lstm_cell_to_generic import TensorFlowLSTMtoGeneric
 from extensions.middle.TensorIteratorMerge import TensorIteratorMerge
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import find_isomorphisms
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
-from extensions.middle.ONNXRNNSequenceNormalize import ONNXRNNSequenceNormalize
 
 
 class TensorIteratorLSTM(MiddleReplacementPattern):

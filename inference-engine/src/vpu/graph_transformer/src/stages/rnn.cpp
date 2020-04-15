@@ -4,12 +4,13 @@
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <vpu/utils/numeric.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
 #include <vector>
 #include <string>
 #include <memory>
 #include <set>
-
-#include <vpu/utils/numeric.hpp>
 
 namespace vpu {
 

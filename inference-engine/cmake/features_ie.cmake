@@ -78,7 +78,9 @@ ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performan
 
 ie_dependent_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for mvnc api" OFF "ENABLE_TESTS;ENABLE_MYRIAD" OFF)
 
-ie_dependent_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON "NOT MINGW" OFF)
+ie_dependent_option (ENABLE_DATA "fetch models from open-source-data repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
+
+ie_dependent_option (ENABLE_SAME_BRANCH_FOR_MODELS "uses same branch for models and for inference engine, if not enabled models are taken from master" OFF "ENABLE_TESTS" OFF)
 
 ie_dependent_option (ENABLE_BEH_TESTS "tests oriented to check inference engine API corecteness" ON "ENABLE_TESTS" OFF)
 

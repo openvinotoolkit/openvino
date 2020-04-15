@@ -122,11 +122,11 @@ static Blob::Ptr prepare_plain_data(Blob::Ptr blob) {
             break;
         }
         case Precision::I16:
-        case Precision::U16: {
-            auto *pln_blob_ptr = pln_blob->buffer().as<int16_t*>();
+        case Precision::U16:
+        case Precision::BF16: {
+            auto *pln_blob_ptr = pln_blob->buffer().as<int16_t *>();
             auto *blob_ptr = blob->buffer().as<int16_t *>();
-            for (size_t i = 0; i < data_size; i++)
-                pln_blob_ptr[i] = blob_ptr[blob_wrp.off_l(i)];
+            for (size_t i = 0; i < data_size; i++) pln_blob_ptr[i] = blob_ptr[blob_wrp.off_l(i)];
             break;
         }
         case Precision::I8:
@@ -187,7 +187,8 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) {
            << dims.size() << "D "
            << "shape: ";
     for (size_t d : dims) stream << d << " ";
-    stream << "(" << _blob->size() << ")" <<std::endl;
+    stream << "(" << _blob->size() << ")" <<
+    " by address 0x" << std::hex << _blob->buffer().as<long long>() << std::dec <<std::endl;
 
     // Dump data
     MKLDNNMemoryDesc mdesc(_blob->getTensorDesc());
@@ -200,6 +201,17 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) {
             auto *blob_ptr = _blob->buffer().as<float*>();
             for (size_t i = 0; i < data_size; i++)
                 stream << blob_ptr[blob_wrp.off_l(i)] << std::endl;
+            break;
+        }
+        case Precision::BF16:
+        {
+            auto *blob_ptr = _blob->buffer().as<int16_t *>();
+            for (size_t i = 0; i < data_size; i++) {
+                int i16n = blob_ptr[blob_wrp.off_l(i)];
+                i16n = i16n << 16;
+                float fn = *(reinterpret_cast<float *>(&i16n));
+                stream << fn << std::endl;
+            }
             break;
         }
         case Precision::I32: {

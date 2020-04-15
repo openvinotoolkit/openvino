@@ -18,34 +18,33 @@ from datetime import datetime
 from statistics import median
 from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
 
-from .utils.constants import CPU_DEVICE_NAME, MULTI_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, BIN_EXTENSION
+from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, BIN_EXTENSION
 from .utils.logging import logger
-from .utils.utils import get_duration_seconds, parse_nstreams_value_per_device, parse_devices
+from .utils.utils import get_duration_seconds
 from .utils.inputs_filling import get_blob_shape
-
+from .utils.statistics_report import StatisticsReport
 
 class Benchmark:
-    def __init__(self, device: str, number_infer_requests, number_iterations, duration_seconds, api_type):
+    def __init__(self, device: str, number_infer_requests: int = None, number_iterations: int = None,
+                 duration_seconds: int = None, api_type: str = 'async'):
         self.device = device
         self.ie = IECore()
         self.nireq = number_infer_requests
         self.niter = number_iterations
         self.duration_seconds = get_duration_seconds(duration_seconds, self.niter, self.device)
         self.api_type = api_type
-        self.device_number_streams = {}
 
     def __del__(self):
         del self.ie
 
     def add_extension(self, path_to_extension: str=None, path_to_cldnn_config: str=None):
-        if GPU_DEVICE_NAME in self.device:
-            if path_to_cldnn_config:
-                self.ie.set_config({'CONFIG_FILE': path_to_cldnn_config}, GPU_DEVICE_NAME)
-                logger.info('GPU extensions is loaded {}'.format(path_to_cldnn_config))
-        if CPU_DEVICE_NAME in self.device or MYRIAD_DEVICE_NAME in self.device:
-            if path_to_extension:
-                self.ie.add_extension(extension_path=path_to_extension, device_name=CPU_DEVICE_NAME)
-                logger.info('CPU extensions is loaded {}'.format(path_to_extension))
+        if path_to_cldnn_config:
+            self.ie.set_config({'CONFIG_FILE': path_to_cldnn_config}, GPU_DEVICE_NAME)
+            logger.info('GPU extensions is loaded {}'.format(path_to_cldnn_config))
+
+        if path_to_extension:
+            self.ie.add_extension(extension_path=path_to_extension, device_name=CPU_DEVICE_NAME)
+            logger.info('CPU extensions is loaded {}'.format(path_to_extension))
 
     def get_version_info(self) -> str:
         logger.info('InferenceEngine:\n{: <9}{:.<24} {}'.format('', 'API version', get_version()))
@@ -67,57 +66,13 @@ class Benchmark:
             logger.info('Resizing network to batch = {}'.format(batch_size))
             ie_network.reshape(new_shapes)
 
-    def set_config(self, number_streams: int, api_type: str = 'async',
-                   number_threads: int = None, infer_threads_pinning: int = None):
-        devices = parse_devices(self.device)
-        self.device_number_streams = parse_nstreams_value_per_device(devices, number_streams)
-        for device_name in  self.device_number_streams.keys():
-            key = device_name + "_THROUGHPUT_STREAMS"
-            supported_config_keys = self.ie.get_metric(device_name, 'SUPPORTED_CONFIG_KEYS')
-            if key not in supported_config_keys:
-                raise Exception("Device " + device_name + " doesn't support config key '" + key + "'! " +
-                                "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>");
-
-        for device in devices:
-            if device == CPU_DEVICE_NAME:  # CPU supports few special performance-oriented keys
-                # limit threading for CPU portion of inference
-                if number_threads:
-                    self.ie.set_config({'CPU_THREADS_NUM': str(number_threads)}, device)
-
-                if MULTI_DEVICE_NAME in self.device and GPU_DEVICE_NAME in self.device:
-                    self.ie.set_config({'CPU_BIND_THREAD': 'NO'}, CPU_DEVICE_NAME)
-                else:
-                    # pin threads for CPU portion of inference
-                    self.ie.set_config({'CPU_BIND_THREAD': infer_threads_pinning}, device)
-
-                # for CPU execution, more throughput-oriented execution via streams
-                # for pure CPU execution, more throughput-oriented execution via streams
-                if api_type == 'async':
-                    cpu_throughput = {'CPU_THROUGHPUT_STREAMS': 'CPU_THROUGHPUT_AUTO'}
-                    if device in self.device_number_streams.keys():
-                        cpu_throughput['CPU_THROUGHPUT_STREAMS'] = str(self.device_number_streams.get(device))
-                    self.ie.set_config(cpu_throughput, device)
-                    self.device_number_streams[device] = self.ie.get_config(device, 'CPU_THROUGHPUT_STREAMS')
-
-            elif device == GPU_DEVICE_NAME:
-                if api_type == 'async':
-                    gpu_throughput = {'GPU_THROUGHPUT_STREAMS': 'GPU_THROUGHPUT_AUTO'}
-                    if device in self.device_number_streams.keys():
-                        gpu_throughput['GPU_THROUGHPUT_STREAMS'] = str(self.device_number_streams.get(device))
-                    self.ie.set_config(gpu_throughput, device)
-                    self.device_number_streams[device] = self.ie.get_config(device, 'GPU_THROUGHPUT_STREAMS')
-
-                if MULTI_DEVICE_NAME in self.device and CPU_DEVICE_NAME in self.device:
-                    # multi-device execution with the CPU+GPU performs best with GPU trottling hint,
-                    # which releases another CPU thread (that is otherwise used by the GPU driver for active polling)
-                    self.ie.set_config({'CLDNN_PLUGIN_THROTTLE': '1'}, device)
-
-            elif device == MYRIAD_DEVICE_NAME:
-                self.ie.set_config({'LOG_LEVEL': 'LOG_INFO'}, MYRIAD_DEVICE_NAME)
+    def set_config(self, config = {}):
+        for device in config.keys():
+            self.ie.set_config(config[device], device)
 
     def read_network(self, path_to_model: str):
         xml_filename = os.path.abspath(path_to_model)
-        head, tail = os.path.splitext(xml_filename)
+        head, _ = os.path.splitext(xml_filename)
         bin_filename = os.path.abspath(head + BIN_EXTENSION)
 
         ie_network = self.ie.read_network(xml_filename, bin_filename)
@@ -129,15 +84,14 @@ class Benchmark:
 
         return ie_network
 
-    def load_network(self, ie_network: IENetwork, perf_counts: bool):
-        config = {'PERF_COUNT': ('YES' if perf_counts else 'NO')}
-
+    def load_network(self, ie_network: IENetwork, config = {}):
         exe_network = self.ie.load_network(ie_network,
                                            self.device,
                                            config=config,
                                            num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
         # Number of requests
         self.nireq = len(exe_network.requests)
+
         return exe_network
 
     def infer(self, exe_network, batch_size, progress_bar=None):

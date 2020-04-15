@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
-from mo.graph.graph import Node
 from extensions.ops.instance_normalization import InstanceNormalization
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from mo.graph.graph import Node
 
 
 class InstanceNormFrontExtractor(FrontExtractorOp):

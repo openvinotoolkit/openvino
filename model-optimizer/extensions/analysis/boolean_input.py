@@ -14,9 +14,10 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from mo.graph.graph import Graph
 from mo.utils.model_analysis import AnalyzeAction
-import numpy as np
 
 
 class TrainingPhaseAnalysis(AnalyzeAction):

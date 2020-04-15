@@ -4,20 +4,20 @@
 
 #include <vpu/model/model.hpp>
 
+#include <vpu/compile_env.hpp>
+#include <vpu/utils/auto_scope.hpp>
+#include <vpu/utils/profiling.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
+#include <details/caseless.hpp>
+#include "blob_factory.hpp"
+
 #include <cctype>
 #include <memory>
 #include <string>
 #include <set>
 #include <exception>
 #include <algorithm>
-
-#include <details/caseless.hpp>
-
-#include <vpu/compile_env.hpp>
-#include <vpu/utils/auto_scope.hpp>
-#include <vpu/utils/profiling.hpp>
-
-#include "blob_factory.hpp"
 
 namespace vpu {
 
@@ -96,6 +96,11 @@ Data ModelObj::addConstData(
         const DataContent::Ptr& content) {
     IE_ASSERT(content != nullptr);
 
+    VPU_THROW_UNLESS(desc.totalDimSize() * desc.elemSize() == content->byteSize(),
+        "duplicateData error: while duplicating {} Const data got different "
+        "newDesc and content byte sizes ({} and {} respectively)",
+        name, desc.totalDimSize() * desc.elemSize(), content->byteSize());
+
     std::shared_ptr<DataNode> data(new DataNode);
 
     data->_name = name;
@@ -104,7 +109,6 @@ Data ModelObj::addConstData(
     data->_model = this;
 
     data->_content = content;
-    content->_desc = desc;
 
     data->_ptrPosInModel = _dataPtrList.emplace(_dataPtrList.end(), data);
     _dataList.push_back(data);
@@ -120,7 +124,7 @@ Data ModelObj::addConstData(const std::string& name, const DataDesc& descriptor,
     if (generator) {
         generator(ieBlob);
     }
-    return addConstData(name, descriptor, ieBlobContent(ieBlob));
+    return addConstData(name, descriptor, ieBlobContent(ieBlob, descriptor.type()));
 }
 
 Data ModelObj::addNewData(
@@ -183,10 +187,15 @@ Data ModelObj::duplicateData(
     newData->_model = this;
 
     if (newDataUsage == DataUsage::Const) {
-        newData->_content = newContent != nullptr ? newContent : origData->content();
-        if (newContent != nullptr) {
-            newContent->_desc = newData->_desc;
-        }
+        const auto& content = newContent != nullptr ? newContent : origData->content();
+        const auto& desc = newDesc != DataDesc() ? newDesc : origData->desc();
+
+        VPU_THROW_UNLESS(desc.totalDimSize() * desc.elemSize() == content->byteSize(),
+            "duplicateData error: while duplicating {} Const data got different "
+            "desc and content byte sizes ({} and {} respectively)",
+            origData->name(), desc.totalDimSize() * desc.elemSize(), content->byteSize());
+
+        newData->_content = content;
     }
 
     newData->attrs().copyFrom(origData->attrs());

@@ -248,7 +248,7 @@ REG_SHAPE_INFER_FOR_TYPE(GatherTreeShapeProp, GatherTree);
 REG_SHAPE_INFER_FOR_TYPE(TopKShapeProp, TopK);
 REG_SHAPE_INFER_FOR_TYPE(UniqueShapeProp, Unique);
 REG_SHAPE_INFER_FOR_TYPE(NMSShapeProp, NonMaxSuppression);
-REG_SHAPE_INFER_FOR_TYPE(ScatterShapeProp, Scatter);
+REG_SHAPE_INFER_FOR_TYPE(ScatterUpdateShapeProp, ScatterUpdate);
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine

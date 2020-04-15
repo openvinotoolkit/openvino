@@ -17,7 +17,7 @@ import numpy as np
 
 from mo.front.common.extractors.utils import layout_attrs
 from mo.front.extractor import FrontExtractorOp
-from mo.front.kaldi.loader.utils import read_token_value, collect_until_whitespace, collect_until_token, \
+from mo.front.kaldi.loader.utils import read_token_value, collect_until_token, \
     read_binary_integer32_token, find_next_tag, read_placeholder
 from mo.ops.pooling import Pooling
 from mo.utils.error import Error

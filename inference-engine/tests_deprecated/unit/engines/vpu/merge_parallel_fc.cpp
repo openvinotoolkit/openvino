@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <initializer_list>
-#include <vpu/stages/stub_stage.hpp>
-
 #include "graph_transformer_tests.hpp"
+
+#include <vpu/stages/stub_stage.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
+#include <initializer_list>
 
 using namespace vpu;
 

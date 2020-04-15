@@ -6,6 +6,7 @@
 #include "vpu/stage_builder.hpp"
 #include "vpu/utils/numeric.hpp"
 #include "precision_utils.h"
+#include "vpu/model/data_contents/ie_blob_content.hpp"
 
 #include <memory>
 #include <set>

@@ -155,6 +155,8 @@ kernel_selector::data_layout to_data_layout(format f) {
             return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv16;
         case format::nv12:
             return kernel_selector::data_layout::nv12;
+        case format::image_2d_rgba:
+            return kernel_selector::data_layout::image_2d_rgba;
         default:
             throw std::invalid_argument("Format f (" +  std::to_string((int32_t)f.value) + ") is not a proper data layout");
     }
@@ -206,6 +208,8 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::b_fs_yx_fsv4;
         case kernel_selector::data_layout::nv12:
             return cldnn::format::nv12;
+        case kernel_selector::data_layout::image_2d_rgba:
+            return cldnn::format::image_2d_rgba;
         default:
             throw std::invalid_argument("Unable to convert data layout " + std::to_string(l) + " to tensor format");
     }
@@ -225,6 +229,8 @@ kernel_selector::weights_layout to_weights_layout(format f) {
             return kernel_selector::weights_layout::yxio;
         case format::os_iyx_osv16:
             return kernel_selector::weights_layout::os_iyx_osv16;
+        case format::os_is_yx_osv16_isv16:
+            return kernel_selector::weights_layout::os_is_yx_osv16_isv16;
         case format::os_iyx_osv32:
             return kernel_selector::weights_layout::os_iyx_osv32;
         case format::os_iyx_osv64:
@@ -314,6 +320,8 @@ kernel_selector::weights_layout to_weights_layout(format f) {
             return kernel_selector::weights_layout::g_os_is_yx_isv8_osv16_isv2;
         case format::g_os_is_zyx_isv16_osv16:
             return kernel_selector::weights_layout::g_os_is_zyx_isv16_osv16;
+        case format::g_os_is_yx_osv16_isv4:
+            return kernel_selector::weights_layout::g_os_is_yx_osv16_isv4;
         default:
             throw std::invalid_argument("Unable to convert tensor layout " + fmt_to_str(f) + " to weights layout");
     }
@@ -335,6 +343,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::yxfb;
         case kernel_selector::weights_layout::os_iyx_osv16:
             return cldnn::format::os_iyx_osv16;
+        case kernel_selector::weights_layout::os_is_yx_osv16_isv16:
+            return cldnn::format::os_is_yx_osv16_isv16;
         case kernel_selector::weights_layout::os_iyx_osv32:
             return cldnn::format::os_iyx_osv32;
         case kernel_selector::weights_layout::os_iyx_osv64:
@@ -417,6 +427,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::g_os_is_yx_isv8_osv16_isv2;
         case kernel_selector::weights_layout::g_os_is_zyx_isv16_osv16:
             return cldnn::format::g_os_is_zyx_isv16_osv16;
+        case kernel_selector::weights_layout::os_is_yx_osv16_isv4:
+            return cldnn::format::g_os_is_yx_osv16_isv4;
         default:
             return cldnn::format::bfyx;
     }
@@ -455,7 +467,6 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
     kernel_selector::n_dims vec(kernel_selector::DataTensor::ChannelsCount(ks_layout));
 
     size_t pitch = 1;
-
     auto new_vals = vals;
 
     if (ks_layout == kernel_selector::Tensor::byxf_af32) {
@@ -633,6 +644,7 @@ void set_params(const program_node& node, kernel_selector::params& params) {
 
     params.engineInfo.bSubGroupSupport = context->extension_supported("cl_intel_subgroups");
     params.engineInfo.bSubGroupShortSupport = context->extension_supported("cl_intel_subgroups_short");
+    params.engineInfo.bSubGroupCharSupport = context->extension_supported("cl_intel_subgroups_char");
     params.engineInfo.bFP16Support = context->extension_supported("cl_khr_fp16");
     params.engineInfo.bFP64Support = context->extension_supported("cl_khr_fp64");
     params.engineInfo.bIMADSupport = device_info.supports_imad != 0;

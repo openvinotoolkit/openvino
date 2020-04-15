@@ -15,9 +15,10 @@
 """
 
 import logging as log
+
 import numpy as np
 
-from mo.front.common.layout import get_batch_dim, get_features_dim, get_height_dim, get_width_dim, shape_for_layout
+from mo.front.common.layout import get_batch_dim, get_features_dim, shape_for_layout
 from mo.graph.graph import Node
 
 

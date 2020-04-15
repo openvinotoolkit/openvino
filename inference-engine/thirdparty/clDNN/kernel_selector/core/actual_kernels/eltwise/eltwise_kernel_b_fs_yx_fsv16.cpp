@@ -156,7 +156,7 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         // Allow the same input sizes OR per-channel operation
         if ((ewParams.inputs[i].LogicalSize() != output.LogicalSize()) &&
-            (ewParams.inputs[i].LogicalSize() != output.Feature().v) &&
+            (ewParams.inputs[i].LogicalSize() != output.Feature().v || ewParams.inputs[i].Feature().v != output.Feature().v) &&
             (ewParams.inputs[i].LogicalSize() != 1))
             return false;
     }

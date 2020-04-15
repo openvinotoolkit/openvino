@@ -61,6 +61,7 @@ enum DataLayout {
     b_fs_yx_32fp,           // bfyx with blocks of 16 packed binary input channels
     bfwzyx,                 // batch, feature, 4D spatial
     nv12,                   // media nv12 layout
+    image_2d_rgba,          // image2d RGBA
     DataLayoutCount         // NUMBER OF ELEMENTS IN ENUM
 };
 
@@ -89,6 +90,7 @@ enum WeightsLayout {
     os_i_osv8__ai8,  // TODO can we drop the alignment form layout name?
     os_i_osv16__ai8,
     os_i_osv16,
+    os_is_yx_osv16_isv16,           // wieghts for int8 blocked conv
     i_yxs_os_yxsv2_osv16,
     iy_xs_os_xsv2_osv16__ao32,
     iy_xs_os_xsv2_osv8__ao32,
@@ -138,8 +140,12 @@ enum WeightsLayout {
     g_os_is_zyx_isv16_osv16,
     giy_xs_os_xsv2_osv16__ao32,
     giy_xs_os_xsv2_osv8__ao32,
-    gs_oi_yxs_gsv4_yxsv4,                // grouped weights for depthwise IMAD convolution
     g_os_is_yx_isv16_osv16,
+    gs_oi_yxs_gsv4_yxsv4,                // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv4 format)
+    gs_oi_yxs_gsv16_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv16 format)
+    gs_oi_yxs_gsv32_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv32 format)
+
+    g_os_is_yx_osv16_isv4,
     WeightsLayoutCount                   // NUMBER OF ELEMENTS IN ENUM
 };
 
@@ -225,6 +231,7 @@ inline bool GroupedLayout(WeightsLayout l) {
         case WeightsLayout::giy_xs_os_xsv2_osv16__ao32:
         case WeightsLayout::giy_xs_os_xsv2_osv8__ao32:
         case WeightsLayout::gs_oi_yxs_gsv4_yxsv4:
+        case WeightsLayout::g_os_is_yx_osv16_isv4:
             return true;
         default:
             return false;

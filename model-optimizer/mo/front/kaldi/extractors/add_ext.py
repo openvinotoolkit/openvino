@@ -13,8 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from mo.front.extractor import FrontExtractorOp
 from extensions.ops.elementwise import Add
+from mo.front.extractor import FrontExtractorOp
 
 
 class AddFrontExtractor(FrontExtractorOp):

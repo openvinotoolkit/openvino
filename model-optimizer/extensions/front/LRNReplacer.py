@@ -16,9 +16,9 @@
 
 import numpy as np
 
+from extensions.ops.elementwise import Mul
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Graph
-from extensions.ops.elementwise import Mul
 from mo.ops.const import Const
 
 

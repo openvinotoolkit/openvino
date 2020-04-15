@@ -386,6 +386,7 @@ void ParamsKey::EnableLookUpTableIndicesFormat(Datatype a) {
 }
 
 void ParamsKey::EnableFusedConvEltwiseRWOutOpt() { key.restrict.val.dedicated.fused_conv_eltw.rw_out_opt = 1; }
+void ParamsKey::EnableFusedConvEltwDepthToSpaceFusing() { key.restrict.val.dedicated.fused_conv_eltw.depth_to_space_fused = 1; }
 
 
 void ParamsKey::EnableQuantization(QuantizationType q) {
@@ -464,6 +465,10 @@ ParamsKey Params::GetParamsKey() const {
 
     if (engineInfo.bSubGroupShortSupport) {
         k.EnableSubGroupShort();
+    }
+
+    if (engineInfo.bSubGroupCharSupport) {
+        k.EnableSubGroupChar();
     }
 
     return k;

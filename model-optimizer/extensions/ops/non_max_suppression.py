@@ -13,8 +13,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 import logging as log
+
+import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph

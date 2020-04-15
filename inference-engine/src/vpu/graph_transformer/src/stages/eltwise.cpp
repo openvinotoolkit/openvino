@@ -195,10 +195,10 @@ private:
         auto input2 = inputEdge(2)->input();
         auto output = outputEdge(0)->output();
 
-        input0->serializeBuffer(serializer, output->desc().dimsOrder());
+        input0->serializeBuffer(serializer);
         output->serializeBuffer(serializer);
-        input1->serializeBuffer(serializer, output->desc().dimsOrder());
-        input2->serializeBuffer(serializer, output->desc().dimsOrder());
+        input1->serializeBuffer(serializer);
+        input2->serializeBuffer(serializer);
     }
 };
 

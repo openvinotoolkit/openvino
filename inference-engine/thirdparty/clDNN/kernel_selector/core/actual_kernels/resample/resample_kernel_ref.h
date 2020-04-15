@@ -31,5 +31,8 @@ public:
                  FusedOpType::SCALE,
                  FusedOpType::ACTIVATION };
     }
+
+protected:
+    DispatchData SetDefault(const resample_params& arg) const override;
 };
 }  // namespace kernel_selector

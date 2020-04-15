@@ -16,7 +16,7 @@
 import logging as log
 
 from mo.graph.graph import Graph
-from mo.utils.model_analysis import AnalyzeAction, graph_contains_scope, AnalysisResults
+from mo.utils.model_analysis import AnalyzeAction, graph_contains_scope
 from mo.utils.utils import files_by_pattern, get_mo_root_dir
 
 

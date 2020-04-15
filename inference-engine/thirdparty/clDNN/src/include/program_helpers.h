@@ -112,7 +112,27 @@ struct program_helpers {
                               const layout& target_layout,
                               size_t begin_offset,
                               size_t end_offset);
-    static layout get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split);
+
     static std::pair<bool, bool> are_layouts_identical(layout const& l1, layout const& l2);
+
+    // helper functions for deconvolution optimizations
+    static void reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
+                                              const int channels,
+                                              const int kernel_width,
+                                              const int kernel_height,
+                                              const int scale_factor,
+                                              std::vector<std::vector<std::vector<float> > >& subpixel_weights);
+    template <typename T>
+    static void set_weights_values(T* mem, std::vector<std::vector<std::vector<float> > > args) {
+        for (uint32_t x = 0; x < static_cast<uint32_t>(args.size()); ++x) {
+            for (uint32_t y = 0; y < static_cast<uint32_t>(args[x].size()); ++y) {
+                for (uint32_t z = 0; z < static_cast<uint32_t>(args[x][y].size()); ++z) {
+                    *mem = static_cast<T>(args[x][y][z]);
+                    mem++;
+                }
+            }
+        }
+    }
+    static layout get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split);
 };
 }  // namespace cldnn

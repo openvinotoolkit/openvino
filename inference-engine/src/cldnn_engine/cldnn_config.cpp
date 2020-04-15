@@ -269,5 +269,6 @@ void Config::adjustKeyMapValues() {
 
     key_config_map[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(throughput_streams);
     key_config_map[PluginConfigParams::KEY_DEVICE_ID] = device_id;
+    key_config_map[PluginConfigParams::KEY_CONFIG_FILE] = "";
 }
 }  // namespace CLDNNPlugin

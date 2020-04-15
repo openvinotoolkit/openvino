@@ -117,6 +117,7 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision p
         USE_FACTORY(I64);
         USE_FACTORY(U64);
         USE_FACTORY(BIN);
+        USE_FACTORY(BF16);
         USE_FACTORY(BOOL);
     default:
         THROW_IE_EXCEPTION << "cannot locate blob for precision: " << precision;

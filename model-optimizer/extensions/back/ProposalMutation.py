@@ -14,6 +14,7 @@
  limitations under the License.
 """
 import logging as log
+
 import numpy as np
 
 from extensions.back.ReshapeMutation import ReshapeMutation

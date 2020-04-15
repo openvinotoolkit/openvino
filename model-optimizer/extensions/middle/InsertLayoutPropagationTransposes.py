@@ -16,8 +16,8 @@
 
 from extensions.middle.pass_separator import PostMiddleStart
 from extensions.ops.transpose import Transpose
-from mo.middle.replacement import MiddleReplacementPattern
 from mo.graph.graph import Graph, Node
+from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.op import PermuteAttrs
 

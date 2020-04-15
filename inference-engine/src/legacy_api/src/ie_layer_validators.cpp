@@ -2447,7 +2447,9 @@ void PriorBoxClusteredValidator::checkShapes(const CNNLayer* layer, const std::v
 PriorBoxClusteredValidator::PriorBoxClusteredValidator(const std::string& _type): LayerValidator(_type) {}
 
 void ProposalValidator::parseParams(CNNLayer* layer) {
-    layer->params["num_outputs"] = std::to_string(layer->outData.size());
+    if (layer->params.find("num_outputs") == layer->params.end()) {
+        layer->params["num_outputs"] = std::to_string(layer->outData.size());
+    }
 }
 
 void ProposalValidator::checkParams(const CNNLayer* layer) {
@@ -3074,52 +3076,55 @@ void NMSValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& 
         THROW_IE_EXCEPTION << layer->name << " 'score_threshold' should be scalar";
 }
 
-ScatterValidator::ScatterValidator(const std::string& _type): LayerValidator(_type) {}
+ScatterUpdateValidator::ScatterUpdateValidator(const std::string& _type): LayerValidator(_type) {}
 
-void ScatterValidator::parseParams(CNNLayer* layer) {
-    auto casted = dynamic_cast<ScatterLayer*>(layer);
+void ScatterUpdateValidator::parseParams(CNNLayer* layer) {
+    auto casted = dynamic_cast<ScatterUpdateLayer*>(layer);
     if (!casted) {
-        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of ScatterLayer class";
+        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of ScatterUpdateLayer class";
     }
-
-    casted->axis = casted->GetParamAsInt("axis", 0);
 }
 
-void ScatterValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
-    auto casted = dynamic_cast<const ScatterLayer*>(layer);
+void ScatterUpdateValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
+    auto casted = dynamic_cast<const ScatterUpdateLayer*>(layer);
     if (!casted) {
-        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of ScatterLayer class";
+        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of ScatterUpdateLayer class";
     }
 
     size_t numInputs = inShapes.size();
-    if (numInputs != 3)
-        THROW_IE_EXCEPTION << layer->name << " Scatter can take only 3 inputs, but actually it has: " << numInputs;
+    if (numInputs != 4)
+        THROW_IE_EXCEPTION << layer->name << " Scatter can take only 4 inputs, but actually it has: " << numInputs;
 
-    if (!(-static_cast<int>(inShapes[0].size()) <= casted->axis && casted->axis < static_cast<int>(inShapes[0].size())))
-        THROW_IE_EXCEPTION << layer->name << " Incorrect input parameters dimensions and axis number!";
+    static constexpr int DATA = 0;
+    static constexpr int INDICES = 1;
+    static constexpr int UPDATES = 2;
+    static constexpr int AXIS = 3;
 
-    if (inShapes[0].size() == 0 || (inShapes[0].size() == 1 && inShapes[0][0] == 1))
-        THROW_IE_EXCEPTION << layer->name << " 'Data' tensor rank should be >= 1";
+    if (inShapes[DATA].size() < 1)
+        THROW_IE_EXCEPTION << layer->name << " 'Data' tensor rank must be >= 1";
 
-    if (inShapes[1].size() == 0 || (inShapes[1].size() == 1 && inShapes[1][0] == 1))
-        THROW_IE_EXCEPTION << layer->name << " 'Indexes' tensor rank should be >= 1";
+    if (inShapes[INDICES].size() < 1)
+        THROW_IE_EXCEPTION << layer->name << " 'Indices' tensor rank must be >= 1";
 
-    if (inShapes[1].size() == 0 || (inShapes[1].size() == 1 && inShapes[1][0] == 1))
-        THROW_IE_EXCEPTION << layer->name << " 'Updates' tensor rank should be >= 1";
+    if (inShapes[UPDATES].size() < 1)
+        THROW_IE_EXCEPTION << layer->name << " 'Updates' tensor rank must be >= 1";
 
-    if (inShapes[1] != inShapes[2])
+    if (!(inShapes[AXIS].size() == 1 && inShapes[AXIS][0] == 1))
+        THROW_IE_EXCEPTION << layer->name << " 'Axis' tensor must be 1D array of 1 element";
+
+    if (inShapes[UPDATES].size() != inShapes[INDICES].size() + inShapes[DATA].size() - 1)
         THROW_IE_EXCEPTION << layer->name << " Incorrect number of 'indexes' and 'updates' tensors dimension";
 
-    const size_t SCATTER_DATA = 0;
-    const size_t SCATTER_INDEXES = 1;
-    const size_t SCATTER_UPDATES = 2;
-
-    Precision inIdxPrecision = layer->insData[SCATTER_INDEXES].lock()->getTensorDesc().getPrecision();
+    Precision inIdxPrecision = layer->insData[INDICES].lock()->getTensorDesc().getPrecision();
     if (inIdxPrecision != Precision::FP32 && inIdxPrecision != Precision::I32)
-        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Indexes' precision. Only FP32 or I32 are supported!";
+        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Indices' precision. Only FP32 or I32 are supported!";
 
-    if (layer->insData[SCATTER_DATA].lock()->getTensorDesc().getPrecision() !=
-        layer->insData[SCATTER_UPDATES].lock()->getTensorDesc().getPrecision())
+    Precision inAxisPrecision = layer->insData[AXIS].lock()->getTensorDesc().getPrecision();
+    if (inAxisPrecision != Precision::FP32 && inAxisPrecision != Precision::I32)
+        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Axis' precision. Only FP32 or I32 are supported!";
+
+    if (layer->insData[DATA].lock()->getTensorDesc().getPrecision() !=
+        layer->insData[UPDATES].lock()->getTensorDesc().getPrecision())
         THROW_IE_EXCEPTION << layer->name << " Precision should be equal for input tensors 'Data' and 'Updates'";
 }
 
@@ -3248,7 +3253,7 @@ LayerValidators::LayerValidators() {
     REG_LAYER_VALIDATOR_FOR_TYPE(TopKValidator, TopK);
     REG_LAYER_VALIDATOR_FOR_TYPE(UniqueValidator, Unique);
     REG_LAYER_VALIDATOR_FOR_TYPE(NMSValidator, NonMaxSuppression);
-    REG_LAYER_VALIDATOR_FOR_TYPE(ScatterValidator, ScatterUpdate);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ScatterUpdateValidator, ScatterUpdate);
 }
 
 }  // namespace InferenceEngine

@@ -5,6 +5,7 @@
 #include <vpu/stages/stub_stage.hpp>
 
 #include "graph_transformer_tests.hpp"
+#include "vpu/model/data_contents/ie_blob_content.hpp"
 
 using namespace vpu;
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include "fused_conv_eltwise_kernel_yxfb_yxio_b16.h"
 #include "fused_conv_eltwise_kernel_imad.h"
 #include "fused_conv_eltwise_kernel_af32_imad_1x1.h"
+#include "fused_conv_eltwise_kernel_bfyx_iyxo.h"
 
 namespace kernel_selector {
 fused_conv_eltwise_kernel_selector::fused_conv_eltwise_kernel_selector() {
@@ -33,6 +34,7 @@ fused_conv_eltwise_kernel_selector::fused_conv_eltwise_kernel_selector() {
     Attach<fused_conv_eltwise_kernel_mmad_32x32sg_224x128wg_slm_int8>();
     Attach<fused_conv_eltwise_kernel_imad>();
     Attach<fused_conv_eltwise_kernel_af32_imad_1x1>();
+    Attach<fused_conv_eltwise_kernel_bfyx_iyxo>();
 }
 
 KernelsData fused_conv_eltwise_kernel_selector::GetBestKernels(const Params& params,

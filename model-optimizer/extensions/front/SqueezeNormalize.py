@@ -17,8 +17,8 @@
 import logging as log
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph
 from mo.front.common.replacement import FrontReplacementPattern
+from mo.graph.graph import Graph
 from mo.ops.const import Const
 from mo.utils.error import Error
 

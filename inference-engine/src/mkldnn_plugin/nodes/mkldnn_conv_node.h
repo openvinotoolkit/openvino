@@ -12,6 +12,8 @@
 
 namespace MKLDNNPlugin {
 
+class MKLDNNEltwiseNode;
+
 class MKLDNNConvolutionNode : public MKLDNNNode {
 public:
     MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
@@ -50,6 +52,7 @@ public:
 
 protected:
     void addScaleToPrimitiveAttr(mkldnn::primitive_attr attr) const;
+    InferenceEngine::Precision fusedEltwisePrecision(MKLDNNEltwiseNode *eltwiseNode, int findex);
 
 private:
     mkldnn::memory::data_type precisionToDataType(InferenceEngine::Precision prec);

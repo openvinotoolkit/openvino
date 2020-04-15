@@ -2704,7 +2704,7 @@ void Program::CreatePoolingPrimitive(cldnn::topology& topology, InferenceEngine:
         } else {
             size = (cldnn::tensor) cldnn::spatial(TensorValue(poolLayer->_kernel[X_AXIS]), TensorValue(poolLayer->_kernel[Y_AXIS]));
             stride = (cldnn::tensor) cldnn::spatial(TensorValue(poolLayer->_stride[X_AXIS]), TensorValue(poolLayer->_stride[Y_AXIS]));
-            input_offset = { 0, 0, -TensorValue(allPads.begin[X_AXIS]), -TensorValue(allPads.begin[Y_AXIS]) };
+            input_offset = { 0, 0, -TensorValue(allPads.begin[X_AXIS]), -TensorValue(allPads.begin[Y_AXIS]), 0 };
         }
 
         auto dt = DataTypeFromPrecision(poolLayer->outData[0]->getPrecision());

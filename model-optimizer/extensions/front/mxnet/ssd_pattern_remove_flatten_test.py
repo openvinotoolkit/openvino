@@ -17,8 +17,8 @@
 import unittest
 
 from extensions.front.mxnet.ssd_pattern_remove_flatten import SsdPatternRemoveFlatten
-from mo.utils.unittest.graph import build_graph
 from mo.graph.graph import Node
+from mo.utils.unittest.graph import build_graph
 
 
 class TestSsdPatternRemoveFlatten(unittest.TestCase):

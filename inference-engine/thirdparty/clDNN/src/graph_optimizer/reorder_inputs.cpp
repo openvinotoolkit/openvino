@@ -22,6 +22,7 @@
 #include "layout_optimizer.h"
 #include "program_impl.h"
 #include "program_helpers.h"
+#include "mvn_inst.h"
 #include <vector>
 #include <memory>
 #include <list>
@@ -344,7 +345,7 @@ void insert_reorders(program_impl& p, const std::map<program_node*, format::type
             continue;
 
         auto fmt = fmt_map.at(node);
-        if (fmt == format::any)
+        if (fmt == format::any || format::is_image(fmt))
             continue;
 
         insert_reorders_in_dir<direction_e::forwards>(p, fmt_map, rf, node);
@@ -358,7 +359,7 @@ void insert_reorders(program_impl& p, const std::map<program_node*, format::type
             continue;
 
         auto fmt = fmt_map.at(node);
-        if (fmt == format::any)
+        if (fmt == format::any || format::is_image(fmt))
             continue;
 
         insert_reorders_in_dir<direction_e::backwards>(p, fmt_map, rf, node);
@@ -371,6 +372,70 @@ void reorder_inputs::run(program_impl& p, layout_optimizer& lo, reorder_factory&
     auto fmt_map = get_preferred_formats(p, lo);
     propagate_formats(p, fmt_map, lo);
     minimize_local_reorders(p, fmt_map, lo);
+
+    // WA START ============================================================================================================
+    if (lo.get_optimization_attributes().b_fs_yx_fsv16_network) {
+        // This is a temprorary work-around for known bad case until byxf_af32 handling will be corrected in layout_optimizer.
+        //
+        // Find pattern:
+        //    mvn(int8, b_fs_yx_fsv16, [x,16,1280,720]) -> conv(int8, byxf_af32, [x,3,1280,720]) -> mvn(*, bfyx) ->
+        // Replace with:
+        //    mvn(b_fs_yx_fsv16) -> conv(b_fs_yx_fsv16) -> mvn(b_fs_yx_fsv16) ->
+        //
+        // Generally for such convolution b_fs_yx_fsv16 will always perform better than byxf_af32,
+        // but to avoid unvalidated int8 b_fs_yx_fsv16 networks and potential regressions this WA is needed.
+        // Additionally reorder from af32 -> bfyx will take ~9 times longer than actual convolution.
+        for (auto& node_ptr : p.get_processing_order()) {
+            if (!node_ptr->is_in_data_flow() || !node_ptr->is_type<convolution>() || fmt_map.at(node_ptr) != format::byxf_af32)
+                continue;
+
+            auto& conv_node = node_ptr->as<convolution>();
+
+            bool input_path =
+                conv_node.input().get_output_layout().data_type == data_types::i8 &&
+                conv_node.input().is_type<mvn>() &&
+                fmt_map.at(&conv_node.input()) == format::b_fs_yx_fsv16;
+            bool output_path =
+                conv_node.get_users().size() == 1 &&
+                conv_node.get_users().front()->is_type<mvn>() &&
+                fmt_map.at(conv_node.get_users().front()) == format::bfyx &&
+                conv_node.get_users().front()->get_users().size() == 1 &&
+                !conv_node.get_users().front()->as<mvn>().get_primitive()->across_channels;
+
+            if (!input_path || !output_path)
+                continue;
+
+            auto in_lay = conv_node.input().get_output_layout();
+            auto out_lay = conv_node.get_output_layout();
+            auto wei_lay = conv_node.weights().get_output_layout();
+            bool correct_layouts =
+                // weights
+                wei_lay.data_type == data_types::i8 &&
+                wei_lay.size.spatial[0] == 3 && wei_lay.size.spatial[1] == 3 &&
+                // input/output
+                in_lay.data_type == data_types::i8 && out_lay.data_type == data_types::i8 &&
+                in_lay.size.feature[0] == 16 && out_lay.size.feature[0] == 3 &&
+                in_lay.size.spatial[0] == 1280 && out_lay.size.spatial[0] == 1280 &&
+                in_lay.size.spatial[1] == 720 && out_lay.size.spatial[1] == 720;
+
+            if (!correct_layouts)
+                continue;
+
+            bool correct_conv =
+                conv_node.get_groups() == 1 && conv_node.get_split() == 1 && conv_node.get_deformable_groups() == 1 &&
+                !conv_node.get_depthwise_sep_opt() && !conv_node.get_transposed() &&
+                !conv_node.activations_zero_points_term() && !conv_node.weights_zero_points_term() && !conv_node.compensation_term() &&
+                conv_node.get_primitive()->dilation == tensor(1);
+
+            if (!correct_conv)
+                continue;
+
+            fmt_map.at(node_ptr) = format::b_fs_yx_fsv16;
+            fmt_map.at(conv_node.get_users().front()) = format::b_fs_yx_fsv16;
+        }
+    }
+    // WA END ==============================================================================================================
+
     insert_reorders(p, fmt_map, rf);
 
     for (auto n : p.get_processing_order()) {

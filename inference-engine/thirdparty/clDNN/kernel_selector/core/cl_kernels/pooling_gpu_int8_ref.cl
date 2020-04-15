@@ -87,7 +87,7 @@ KERNEL(pooling_gpu_int8_ref)(
 #elif OUTPUT_LAYOUT_B_FS_YX_FSV16
     const uint x = get_global_id(1);
     const uint y = get_global_id(2);
-    const uint bf = get_global_id(0);
+    const uint bf = (uint)get_global_id(0);
     const uint f = bf / INPUT0_BATCH_NUM;
     const uint b = bf % INPUT0_BATCH_NUM;
     const uint z = 0;

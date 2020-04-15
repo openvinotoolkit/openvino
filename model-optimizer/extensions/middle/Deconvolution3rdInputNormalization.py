@@ -14,14 +14,12 @@
  limitations under the License.
 """
 
-import numpy as np
-
 from extensions.ops.gather import Gather
 from mo.front.common.partial_infer.utils import int64_array
+from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.op import PermuteAttrs
 from mo.ops.const import Const
-from mo.graph.graph import Graph, rename_nodes
+from mo.ops.op import PermuteAttrs
 
 
 class Deconvolution3rdInputNormalization(MiddleReplacementPattern):

@@ -4,6 +4,7 @@
 
 #include "vpu/stages/iteration_rule.hpp"
 #include "vpu/middleend/pass_manager.hpp"
+#include "vpu/model/data_contents/replicated_data_content.hpp"
 
 #include <utility>
 #include <string>

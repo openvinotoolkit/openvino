@@ -14,11 +14,11 @@
  limitations under the License.
 """
 
+from extensions.ops.MatMul import FullyConnected
 from mo.front.caffe.extractors.utils import embed_input
 from mo.front.extractor import FrontExtractorOp
 from mo.front.kaldi.loader.utils import collect_until_token
 from mo.front.kaldi.utils import read_binary_matrix
-from extensions.ops.MatMul import FullyConnected
 
 
 class LinearComponentFrontExtractor(FrontExtractorOp):

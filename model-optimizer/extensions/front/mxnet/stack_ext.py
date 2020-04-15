@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
+from extensions.ops.pack import PackOp
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from extensions.ops.pack import PackOp
 
 
 class StackFrontExtractor(FrontExtractorOp):

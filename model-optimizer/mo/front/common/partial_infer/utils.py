@@ -15,10 +15,9 @@
 """
 
 import logging as log
+from typing import Iterable
 
 import numpy as np
-
-from typing import Iterable
 
 
 def int64_array(l: Iterable):
@@ -55,8 +54,16 @@ def copy_or_none(x):
 
 
 def convert_tf_padding_to_str(padding):
-    mapping = {b'SAME': 'same_upper', b'VALID': 'valid'}
-    return mapping[padding.s]
+    mapping = {'SAME': 'same_upper', 'VALID': 'valid'}
+    return mapping[padding]
+
+
+def convert_deconv_tf_padding_to_str(padding):
+    # according to the formulas for calculating "auto_pad" values of the
+    # ConvBackpropData layer in the Operation Specification,
+    # the "same_lower" value matches to the "same" value for conv_transpose layer in TensorFlow
+    mapping = {'SAME': 'same_lower', 'VALID': 'valid'}
+    return mapping[padding]
 
 
 # TODO eliminate this dependency and pass necessary function as an argument
@@ -69,10 +76,7 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
         normalized_stride = 1 / stride
 
     if auto_pad in ['same_lower', 'same_upper']:
-        if auto_pad == 'same_upper':
-            output = np.int64(np.ceil(input / normalized_stride))
-        else:
-            output = np.int64(np.floor(input / normalized_stride))
+        output = np.int64(np.ceil(input / normalized_stride))
         residual = input % stride
         mask = residual == 0
         full_pad = window.copy()

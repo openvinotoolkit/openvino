@@ -1,7 +1,3 @@
-// Copyright (C) 2018-2020 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
-
 #ifndef IE_PREPROCESS_GAPI_KERNELS_SIMD_IMPL_H
 #define IE_PREPROCESS_GAPI_KERNELS_SIMD_IMPL_H
 

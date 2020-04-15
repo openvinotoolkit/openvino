@@ -18,11 +18,11 @@ import unittest
 
 import numpy as np
 
+from extensions.ops.split import AttributedSplit, AttributedVariadicSplit
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from extensions.ops.split import AttributedSplit, AttributedVariadicSplit
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 
 class TestSplitOp(unittest.TestCase):
