@@ -18,9 +18,7 @@ import logging as log
 
 from extensions.ops.sparse_weighted_sum import ExperimentalSparseWeightedSum
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Node, Graph
-from mo.ops.op import Op
-from mo.ops.shape import Shape
+from mo.graph.graph import Graph
 
 
 class ExperimentalSparseWeightedSumFrontReplacer(FrontReplacementSubgraph):

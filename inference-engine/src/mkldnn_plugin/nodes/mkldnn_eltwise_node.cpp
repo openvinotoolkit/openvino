@@ -511,6 +511,11 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
                 inputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(in_prec);
             }
 
+            if (inputDT == memory::bf16 || outputDT == memory::bf16) {
+                inputDT = memory::f32;
+                outputDT = memory::f32;
+            }
+
             auto impl_desc = initDesc(inputDT, outputDT, format);
 
             if (impl_desc.getImplementationType() != impl_desc_type::undef) {

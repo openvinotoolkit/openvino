@@ -17,9 +17,7 @@ import unittest
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from mo.ops.op import PermuteAttrs
 from mo.ops.squeeze import Squeeze
 from mo.utils.unittest.graph import build_graph
 

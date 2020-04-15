@@ -26,6 +26,7 @@
 #include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 #include <api/data.hpp>
+#include <api/depth_to_space.hpp>
 
 #include <api_extension/fused_conv_eltwise.hpp>
 
@@ -74,6 +75,77 @@ TEST(fused_conv_eltwise, basic_0)
     EXPECT_EQ(out_layout.size.feature[0], 1);
     EXPECT_EQ(out_layout.size.spatial[0], 4);
     EXPECT_EQ(out_layout.size.spatial[1], 5);
+}
+
+TEST(fused_conv_eltwise, basic_image2d)
+{
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 4, 128, 2 } });
+    auto input2 = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 3, 256, 4 } });
+    auto weights = memory::allocate(engine, { data_types::f16, format::bfyx, { 12, 4, 1, 1 } });
+
+    auto input_data1 = generate_random_4d<FLOAT16>(1, 4, 2, 128, -1, 1);
+    auto input_data1_bfyx = flatten_4d(format::bfyx, input_data1);
+    set_values(input, input_data1_bfyx);
+
+    auto input_data2 = generate_random_4d<FLOAT16>(1, 3, 4, 256, -1, 1);
+    auto input_data2_bfyx = flatten_4d(format::bfyx, input_data2);
+    set_values(input2, input_data2_bfyx);
+
+    auto weights_data= generate_random_4d<FLOAT16>(12, 4, 1, 1, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    set_values(weights, weights_data_bfyx);
+
+    topology topology_act(
+        input_layout("input", input.get_layout()),
+        input_layout("input2", input2.get_layout()),
+        data("weights", weights),
+        convolution("conv", "input", { "weights" }),
+        depth_to_space("depth_to_space", "conv", 2),
+        eltwise("eltwise", "input2", "depth_to_space", eltwise_mode::sum)
+    );
+
+    build_options opt_act;
+    opt_act.set_option(build_option::optimize_data(true));
+    network network_act(engine, topology_act, opt_act);
+    network_act.set_input_data("input", input);
+    network_act.set_input_data("input2", input2);
+
+    auto outputs_act = network_act.execute();
+    EXPECT_EQ(outputs_act.size(), size_t(1));
+    EXPECT_EQ(outputs_act.begin()->first, "eltwise");
+
+    auto output_act = outputs_act.begin()->second.get_memory();
+    auto&& out_act_layout = output_act.get_layout();
+    auto out_act_ptr = output_act.pointer<uint8_t>();
+
+    topology topology_ref(
+        input_layout("input", input.get_layout()),
+        input_layout("input2", input2.get_layout()),
+        data("weights", weights),
+        convolution("conv", "input", { "weights" }),
+        depth_to_space("depth_to_space", "conv", 2),
+        eltwise("eltwise", "input2", "depth_to_space", eltwise_mode::sum),
+        reorder("out", "eltwise", format::image_2d_rgba, data_types::u8));
+
+    build_options opt_ref;
+    opt_ref.set_option(build_option::optimize_data(false));
+    network network_ref(engine, topology_ref, opt_ref);
+    network_ref.set_input_data("input", input);
+    network_ref.set_input_data("input2", input2);
+
+    auto outputs_ref = network_ref.execute();
+    EXPECT_EQ(outputs_ref.size(), size_t(1));
+    EXPECT_EQ(outputs_ref.begin()->first, "out");
+
+    auto output_ref = outputs_ref.begin()->second.get_memory();
+    auto&& out_ref_layout = output_ref.get_layout();
+    auto out_ref_ptr = output_ref.pointer<uint8_t>();
+
+    for (int i = 0;i < 3 * 256 * 4;i++) {
+        EXPECT_EQ(out_act_ptr[i], out_ref_ptr[i]);
+    }
 }
 
 TEST(fused_conv_eltwise, dont_fuse_if_conv_elt_are_outputs)

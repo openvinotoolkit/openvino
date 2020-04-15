@@ -420,6 +420,8 @@ struct layout {
         } else if (this->format == cldnn::format::os_is_yx_osv32_isv32p) {
             sizes[0] = align_to(sizes[0], 32);
             sizes[1] = align_to(sizes[1], 32);
+        } else if (this->format == cldnn::format::image_2d_rgba) {
+            sizes[1] = 4;
         }
         size_t total = std::accumulate(
             sizes.begin(),

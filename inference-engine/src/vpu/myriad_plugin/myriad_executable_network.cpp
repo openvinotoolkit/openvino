@@ -95,10 +95,12 @@ ExecutableNetwork::ExecutableNetwork(
 void ExecutableNetwork::Import(std::istream& strm,
                                std::vector<DevicePtr> &devicePool,
                                const MyriadConfig& config) {
-    std::ostringstream blobContentStream;
-    blobContentStream << strm.rdbuf();
-    const std::string& blobContentString = blobContentStream.str();
-    std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(_graphBlob));
+    auto currentPos = strm.tellg();
+    strm.seekg(0, strm.end);
+    auto blobSize = strm.tellg() - currentPos;
+    _graphBlob.resize(static_cast<size_t>(blobSize));
+    strm.seekg(currentPos, strm.beg);
+    strm.read(&_graphBlob[0], blobSize);
 
     if (!_device->isBooted()) {
         return;

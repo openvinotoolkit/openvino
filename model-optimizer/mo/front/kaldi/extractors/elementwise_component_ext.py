@@ -14,8 +14,8 @@
  limitations under the License.
 """
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.eltwise_ninputs_in_1 import EltwiseNin1
 from mo.front.kaldi.utils import read_token_value
+from mo.ops.eltwise_ninputs_in_1 import EltwiseNin1
 
 
 class ElementwiseProductComponentFrontExtractor(FrontExtractorOp):

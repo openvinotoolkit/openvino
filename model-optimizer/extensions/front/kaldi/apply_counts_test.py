@@ -17,6 +17,7 @@
 import unittest
 
 import numpy as np
+
 from extensions.front.kaldi.apply_counts import apply_biases_to_last_layer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph

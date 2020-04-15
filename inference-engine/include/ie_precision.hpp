@@ -26,7 +26,8 @@ public:
         UNSPECIFIED = 255, /**< Unspecified value. Used by default */
         MIXED = 0,         /**< Mixed value. Can be received from network. No applicable for tensors */
         FP32 = 10,         /**< 32bit floating point value */
-        FP16 = 11,         /**< 16bit floating point value */
+        FP16 = 11,         /**< 16bit floating point value, 5 bit for exponent, 10 bit for mantisa */
+        BF16 = 12,         /**< 16bit floating point value, 8 bit for exponent, 7 bit for mantisa*/
         Q78 = 20,          /**< 16bit specific signed fixed point precision */
         I16 = 30,          /**< 16bit signed integer value */
         U8 = 40,           /**< 8bit unsigned integer value */
@@ -106,6 +107,7 @@ public:
             switch (precisionInfo.value) {
                 CASE(FP32, float);
                 CASE2(FP16, int16_t, uint16_t);
+                CASE2(BF16, int16_t, uint16_t);
                 CASE(I16, int16_t);
                 CASE(I32, int32_t);
                 CASE(I64, int64_t);
@@ -181,9 +183,9 @@ public:
         static std::unordered_map<std::string, ePrecision> names = {
 #define PRECISION_NAME(s) {#s, s}
             PRECISION_NAME(Q78),  PRECISION_NAME(U8),    PRECISION_NAME(I8),    PRECISION_NAME(I16),
-            PRECISION_NAME(I32),  PRECISION_NAME(I64),   PRECISION_NAME(U64),   PRECISION_NAME(U16),
+            PRECISION_NAME(I32),  PRECISION_NAME(I64),   PRECISION_NAME(U64),    PRECISION_NAME(U16),
             PRECISION_NAME(FP32), PRECISION_NAME(FP16),  PRECISION_NAME(MIXED), PRECISION_NAME(BIN),
-            PRECISION_NAME(BOOL),
+            PRECISION_NAME(BOOL), PRECISION_NAME(BF16),
 #undef PRECISION_NAME
         };
         auto i = names.find(str);
@@ -260,6 +262,7 @@ protected:
         switch (v) {
             CASE(FP32);
             CASE(FP16);
+            CASE(BF16);
             CASE(I16);
             CASE(I32);
             CASE(I64);
@@ -295,6 +298,10 @@ struct PrecisionTrait<Precision::FP16> {
     using value_type = int16_t;
 };
 template <>
+struct PrecisionTrait<Precision::BF16> {
+    using value_type = int16_t;
+};
+template<>
 struct PrecisionTrait<Precision::Q78> {
     using value_type = uint16_t;
 };

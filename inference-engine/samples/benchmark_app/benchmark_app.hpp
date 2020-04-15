@@ -48,6 +48,9 @@ static const char infer_num_streams_message[] = "Optional. Number of streams to 
                                                 "usually provides a reasonable performance, it still may be non - optimal for some cases, especially for "
                                                 "very small networks. See sample's README for more details.";
 
+/// @brief message for enforcing of BF16 execution where it is possible
+static const char enforce_bf16_message[] = "Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.";
+
 /// @brief message for user library argument
 static const char custom_cpu_library_message[] = "Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.";
 
@@ -84,6 +87,15 @@ static const char progress_message[] = "Optional. Show progress bar (can affect 
 
 // @brief message for performance counters option
 static const char pc_message[] = "Optional. Report performance counters.";
+
+#ifdef USE_OPENCV
+// @brief message for load config option
+static const char load_config_message[] = "Optional. Path to XML/YAML/JSON file to load custom IE parameters."
+                                          " Please note, command line parameters have higher priority then parameters from configuration file.";
+
+// @brief message for dump config option
+static const char dump_config_message[] = "Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.";
+#endif
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -130,6 +142,9 @@ DEFINE_uint32(nthreads, 0, infer_num_threads_message);
 /// @brief Number of streams to use for inference on the CPU (also affects Hetero cases)
 DEFINE_string(nstreams, "", infer_num_streams_message);
 
+/// @brief Enforces bf16 execution with bfloat16 precision on systems having this capability
+DEFINE_bool(enforcebf16, false, enforce_bf16_message);
+
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)
 DEFINE_uint32(b, 0, batch_size_message);
@@ -154,6 +169,14 @@ DEFINE_bool(progress, false, progress_message);
 
 /// @brief Define flag for showing performance counters <br>
 DEFINE_bool(pc, false, pc_message);
+
+#ifdef USE_OPENCV
+/// @brief Define flag for loading configuration file <br>
+DEFINE_string(load_config, "", load_config_message);
+
+/// @brief Define flag for dumping configuration file <br>
+DEFINE_string(dump_config, "", dump_config_message);
+#endif
 
 /**
 * @brief This function show a help message
@@ -180,10 +203,15 @@ static void showUsage() {
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;
-    std::cout << "    -pin \"YES\"/\"NO\"           " << infer_threads_pinning_message << std::endl;
+    std::cout << "    -enforcebf16              " << enforce_bf16_message << std::endl;
+    std::cout << "    -pin \"YES\"/\"NO\"/\"NUMA\"    " << infer_threads_pinning_message << std::endl;
     std::cout << std::endl << "  Statistics dumping options:" << std::endl;
     std::cout << "    -report_type \"<type>\"     " << report_type_message << std::endl;
     std::cout << "    -report_folder            " << report_folder_message << std::endl;
     std::cout << "    -exec_graph_path          " << exec_graph_path_message << std::endl;
     std::cout << "    -pc                       " << pc_message << std::endl;
+#ifdef USE_OPENCV
+    std::cout << "    -dump_config              " << dump_config_message << std::endl;
+    std::cout << "    -load_config              " << load_config_message << std::endl;
+#endif
 }

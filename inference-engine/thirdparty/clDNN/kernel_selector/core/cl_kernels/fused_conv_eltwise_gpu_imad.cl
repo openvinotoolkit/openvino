@@ -36,13 +36,9 @@
 // Input reading operation is always blocked.
 #define BLOCK_LOAD_INPUTS
 
-// for now kernel stride is square
-#define K_WSTRIDE K_STRIDE
-#define K_HSTRIDE K_STRIDE
-
 // need KERNEL width for first output + STRIDE more for each additional.
-#define IN_BLOCK_WIDTH  (K_WIDTH  + K_WSTRIDE * (OUT_BLOCK_WIDTH  - 1))
-#define IN_BLOCK_HEIGHT (K_HEIGHT + K_HSTRIDE * (OUT_BLOCK_HEIGHT - 1))
+#define IN_BLOCK_WIDTH  ((FILTER_SIZE_X - 1) * DILATION_SIZE_X + STRIDE_SIZE_X * (OUT_BLOCK_WIDTH  - 1) + 1)
+#define IN_BLOCK_HEIGHT ((FILTER_SIZE_Y - 1) * DILATION_SIZE_Y + STRIDE_SIZE_Y * (OUT_BLOCK_HEIGHT - 1) + 1)
 
 // for imad we are packing 4 8bit activations per 32 bit SIMD lane
 // if we later add 4bit, then PACK would be 8.
@@ -51,13 +47,22 @@
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT0_TYPE_4(x) AS_TYPE_N(INPUT0_TYPE, 4, x)
+#define AS_FILTER_TYPE_4(x) AS_TYPE_N(FILTER_TYPE, 4, x)
+
+#define CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
+#define ALIGN(a, b) ((a % b == 0) ? a : a - a % b + b)
 
 // int8 conv_input and weights data is packed to int32 "batches",
 // int/uint pointers here instead of INPUT0_TYPE/FILTER_TYPE for convenience
 __attribute__((intel_reqd_sub_group_size(SIMD_SIZE)))
+__attribute__((reqd_work_group_size(1, 1, SIMD_SIZE)))
 KERNEL (fused_convolution_eltwise_gpu_imad)(
+#if INPUT0_LAYOUT_B_FS_YX_FSV16
+    const __global INPUT0_TYPE* conv_input,
+#else
     const __global PACKED_TYPE   *conv_input,
-    __global OUTPUT_TYPE         *output,
+#endif
+    __global OUTPUT_TYPE         *restrict output,
     const __global int           *weights,
 #if BIAS_TERM
     const __global BIAS_TYPE     *biases,
@@ -69,48 +74,64 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
 {
     const uint oc = (uint)get_global_id(0) * OUT_BLOCK_WIDTH;  // oc = Output Column
     const uint or = (uint)get_global_id(1) * OUT_BLOCK_HEIGHT; // or = Output Row
-    const uint fm = get_global_id(2);                    // fm = Feature Map = od = Output Depth, SIMD is across this dimension, WG is 1x1x16
+    const uint fm = get_global_id(2);                          // fm = Feature Map = od = Output Depth, SIMD is across this dimension, WG is 1x1x16
     const uint fmg = get_group_id(2);
     const uint lid = get_local_id(2);
-    const uint batch = fm / _OD;
-    const uint f = fm % _OD;
+    const uint batch = fm / (ALIGN(FILTER_OFM_NUM, SIMD_SIZE) * FILTER_GROUPS_NUM);
+#if GROUPED
+    const uint g = (fm / ALIGN(FILTER_OFM_NUM, SIMD_SIZE) % FILTER_GROUPS_NUM);
+    const uint ofmg = fmg % CEIL_DIV(FILTER_OFM_NUM, SIMD_SIZE);
+#else
+    const uint g = 0;
+    const uint ofmg = (fmg % (_OD  / SIMD_SIZE));
+#endif
+    const uint f = fm % ALIGN(FILTER_OFM_NUM, SIMD_SIZE) + g * FILTER_OFM_NUM;
+    const uint sglid = get_sub_group_local_id();
+
+    const int input_x = oc * STRIDE_SIZE_X - PADDING_SIZE_X;
+    const int input_y = or * STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
     PACKED_TYPE in[IN_BLOCK_HEIGHT];
     ACCUMULATOR_TYPE out[OUT_BLOCK_WIDTH * OUT_BLOCK_HEIGHT] = { 0 };  // this is the 32 bit signed accumulator that must be converted to 8 bits before final write.
 
-    #define NUM_FILTERS (K_HEIGHT * K_WIDTH)
+    #define NUM_FILTERS (FILTER_SIZE_Y * FILTER_SIZE_X)
     int w[NUM_FILTERS];
-
     int in_addr;
 
 #ifdef BLOCK_LOAD_WEIGHTS
-    int weight_addr = (fmg % ((_OD + SIMD_SIZE - 1) / SIMD_SIZE)) * ((_ID * K_HEIGHT * K_WIDTH * SIMD_SIZE) / PACK);
+    int weight_addr = (ofmg * CEIL_DIV(FILTER_IFM_NUM, PACK) * FILTER_SIZE_Y * FILTER_SIZE_X * SIMD_SIZE) + (g * FILTER_GROUPS_PITCH / 4);
 #else
-    int weight_addr = (fmg % ((_OD + SIMD_SIZE - 1) / SIMD_SIZE)) * ((_ID * K_HEIGHT * K_WIDTH * SIMD_SIZE) / PACK) + lid;
+    int weight_addr = (ofmg * CEIL_DIV(FILTER_IFM_NUM, PACK) * FILTER_SIZE_Y * FILTER_SIZE_X * SIMD_SIZE) + (g * FILTER_GROUPS_PITCH / 4) + sglid;
 #endif
-
-    uint input_size = (_ID * (_IH + IHPAD) * (_IW + IWPAD)) / PACK; // dividing by PACK to get right number of 32bit entities.
+    uint input_size = (_ID * (INPUT0_SIZE_Y + IHPAD) * (INPUT0_SIZE_X + IWPAD)) / PACK; // dividing by PACK to get right number of 32bit entities.
 
     // For imad we do 4X less input feature map iterations since we are packing 4 of them in each uchar4.
-    // _ID provided by host is multiple of packing factor.
     __attribute__((opencl_unroll_hint(1)))
-    for(int kd = 0; kd < (_ID / PACK); kd++)
+    for(int kd = 0; kd < CEIL_DIV(FILTER_IFM_NUM, PACK); kd++)
     {
-
-#ifdef BLOCK_LOAD_INPUTS
-        in_addr = INPUT0_OFFSET + kd*INPUT0_FEATURE_PITCH + (or * K_STRIDE - PADDING_SIZE_Y)*INPUT0_Y_PITCH + (oc * K_STRIDE - PADDING_SIZE_X);
+#if INPUT0_LAYOUT_B_FS_YX_FSV16
+        in_addr = INPUT0_GET_INDEX(batch, (kd + g * CEIL_DIV(FILTER_IFM_NUM, PACK)) * PACK, input_y, input_x + sglid);
 #else
-        in_addr = INPUT0_OFFSET + kd*INPUT0_FEATURE_PITCH + (or * K_STRIDE - PADDING_SIZE_Y)*INPUT0_Y_PITCH + (oc * K_STRIDE - PADDING_SIZE_X) + lid;
-#endif
+    #ifdef BLOCK_LOAD_INPUTS
+        in_addr = INPUT0_OFFSET + (kd + g * CEIL_DIV(FILTER_IFM_NUM, PACK)) * INPUT0_FEATURE_PITCH + input_y * INPUT0_Y_PITCH + input_x;
+    #else
+        in_addr = INPUT0_OFFSET + (kd + g * CEIL_DIV(FILTER_IFM_NUM, PACK)) * INPUT0_FEATURE_PITCH + input_y * INPUT0_Y_PITCH + input_x + sglid;
+    #endif
         in_addr += batch * input_size;  // adjust for batching
-
-        for(uint reg = 0; reg < IN_BLOCK_HEIGHT; reg++) {
-#ifdef BLOCK_LOAD_INPUTS
-            in[reg] = AS_PACKED_TYPE(intel_sub_group_block_read(&conv_input[in_addr]));
-#else
-            in[reg] = AS_PACKED_TYPE(conv_input[in_addr]);// read SIMD_SIZE elements wide
 #endif
-            in_addr += (_IW + IWPAD);  // move to next row down
+        for(uint reg = 0; reg < IN_BLOCK_HEIGHT; reg++) {
+#if INPUT0_LAYOUT_B_FS_YX_FSV16
+            in[reg] = *(__global PACKED_TYPE*)(conv_input + in_addr);
+            in_addr += (INPUT0_SIZE_X + IWPAD) * 16;
+#else
+    #ifdef BLOCK_LOAD_INPUTS
+            in[reg] = AS_PACKED_TYPE(intel_sub_group_block_read(&conv_input[in_addr]));
+    #else
+            in[reg] = AS_PACKED_TYPE(conv_input[in_addr]);// read SIMD_SIZE elements wide
+    #endif
+            // TODO This will cause errors for byxf_af32 format on input
+            in_addr += (INPUT0_SIZE_X + IWPAD);  // move to next row down
+#endif
         }
 
 #ifdef BLOCK_LOAD_WEIGHTS
@@ -126,17 +147,19 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
 
         int wi = 0;
         // This loop is temporarily not unrolled because the unroll causes TeamCity hangs.
-        //__attribute__((opencl_unroll_hint(K_HEIGHT)))
-        for (int kr = 0; kr < K_HEIGHT; ++kr) // kr = Kernel Row
+        //__attribute__((opencl_unroll_hint(FILTER_SIZE_Y)))
+        for (int kr = 0; kr < FILTER_SIZE_Y; ++kr) // kr = Kernel Row
         {
-            __attribute__((opencl_unroll_hint(K_WIDTH)))
-            for (int kc = 0; kc < K_WIDTH; ++kc) // kc = Kernel Column
+            __attribute__((opencl_unroll_hint(FILTER_SIZE_X)))
+            for (int kc = 0; kc < FILTER_SIZE_X; ++kc) // kc = Kernel Column
             {
+                __attribute__((opencl_unroll_hint))
                 for (int br = 0; br < OUT_BLOCK_HEIGHT; br++) {
+                    __attribute__((opencl_unroll_hint))
                     for (int bc = 0; bc < OUT_BLOCK_WIDTH; bc++) {
-                        PACKED_TYPE input = sub_group_broadcast(in[br * K_HSTRIDE + kr], bc * K_WSTRIDE + kc);
+                        PACKED_TYPE input = sub_group_broadcast(in[br * STRIDE_SIZE_Y + kr * DILATION_SIZE_Y], bc * STRIDE_SIZE_X + kc * DILATION_SIZE_X);
 
-                        out[br * OUT_BLOCK_WIDTH + bc] = TO_ACCUMULATOR_TYPE(IMAD(out[br * OUT_BLOCK_WIDTH + bc], AS_INPUT0_TYPE_4(input), as_char4(w[wi])));
+                        out[br * OUT_BLOCK_WIDTH + bc] = TO_ACCUMULATOR_TYPE(IMAD(out[br * OUT_BLOCK_WIDTH + bc], AS_INPUT0_TYPE_4(input), AS_FILTER_TYPE_4(w[wi])));
                     }
                 }
                 wi++;
@@ -148,7 +171,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
     // to calculate out_idx and eltw_idx. Calculate offsets with GET_DATA_B_FS_YX_FSV4_INDEX before
     // entering the loop, and have a simple expressions for indexes inside the loop.
     const uint output_idx_offset = GET_DATA_B_FS_YX_FSV4_INDEX(OUTPUT, batch, f, or, oc);
-    const uint output_row_size_bytes = (_OW + OWPAD) * PACK;
+    const uint output_row_size_bytes = (OUTPUT_SIZE_X + OWPAD) * PACK;
 
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
     FUSED_OPS_PRELOAD;
@@ -156,14 +179,14 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
 
     for (int r = 0; r < OUT_BLOCK_HEIGHT; r++)
     {
-        #if NEED_TO_VERIFY_OUTPUT_RANGES == 1
+        #if OUTPUT_SIZE_Y % OUT_BLOCK_HEIGHT != 0
         const bool zero_r = or + r >= OUTPUT_SIZE_Y;
         if(!zero_r)
         #endif
         {
         for (int c = 0; c < OUT_BLOCK_WIDTH; c++)
         {
-            #if NEED_TO_VERIFY_OUTPUT_RANGES == 1
+            #if OUTPUT_SIZE_X % OUT_BLOCK_WIDTH != 0
             const bool zero_c = oc + c >= OUTPUT_SIZE_X;
             if(!zero_c)
             #endif
@@ -172,6 +195,8 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                 uint out_idx = OUTPUT_GET_INDEX(batch, f, or + r, oc + c);
             #elif OUTPUT_LAYOUT_B_FS_YX_FSV4 == 1
                 uint out_idx = output_idx_offset + r * output_row_size_bytes + (c*PACK);
+            #elif OUTPUT_LAYOUT_B_FS_YX_FSV16 == 1
+                uint out_idx = OUTPUT_GET_INDEX(batch, f, or + r, oc + c);
             #else
                 #error "Incorrect output layout"
             #endif
@@ -188,16 +213,21 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                 ACTIVATION_TYPE res = TO_ACTIVATION_TYPE(dotProd);
 #endif
 
+                OUTPUT_TYPE final_result;
 #if HAS_FUSED_OPS
     #if FUSED_OPS_CAN_USE_PRELOAD
                 FUSED_OPS_CALC;
     #else
                 FUSED_OPS;
     #endif
-                output[out_idx] = FUSED_OPS_RESULT;
+                final_result = FUSED_OPS_RESULT;
 #else
-                output[out_idx] = TO_OUTPUT_TYPE(res);
+                final_result = TO_OUTPUT_TYPE(res);
 #endif
+#if FILTER_OFM_NUM % SIMD_SIZE != 0
+                if (fmg % CEIL_DIV(FILTER_OFM_NUM, SIMD_SIZE) != CEIL_DIV(FILTER_OFM_NUM, SIMD_SIZE) - 1 || sglid < FILTER_OFM_NUM % SIMD_SIZE)
+#endif
+                    output[out_idx] = final_result;
             }// if(!zero_c)
         } // for (int c = 0; c < OUT_BLOCK_WIDTH; c++)
         }// if(!zero_r)
@@ -209,12 +239,13 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
 #endif
 
 #undef BLOCK_LOAD_INPUTS
-#undef K_WSTRIDE
-#undef K_HSTRIDE
 #undef IN_BLOCK_WIDTH
 #undef IN_BLOCK_HEIGHT
 #undef PACK
 #undef AS_TYPE_N_
 #undef AS_TYPE_N
 #undef AS_INPUT0_TYPE_4
+#undef AS_FILTER_TYPE_4
 #undef NUM_FILTERS
+#undef CEIL_DIV
+#undef ALIGN

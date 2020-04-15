@@ -20,7 +20,7 @@ from generator import generator, generate
 
 from extensions.back.ReduceToPooling import ReduceReplacer, ReduceMerge
 from mo.front.common.partial_infer.utils import int64_array
-from mo.middle.passes.eliminate import shape_inference, eliminate_dead_nodes
+from mo.middle.passes.eliminate import shape_inference
 from mo.middle.passes.eliminate_test import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 

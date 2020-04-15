@@ -487,6 +487,7 @@ std::size_t FillXmlDoc(const InferenceEngine::ICNNNetwork& network, pugi::xml_do
         if (dumpWeights && !node->blobs.empty()) {
             auto blobsNode = layer.append_child("blobs");
             for (const auto& dataIt : node->blobs) {
+                if (!dataIt.second) continue;
                 size_t dataSize = dataIt.second->byteSize();
                 pugi::xml_node data = blobsNode.append_child(dataIt.first.c_str());
                 data.append_attribute("offset").set_value(dataOffset);
@@ -546,11 +547,12 @@ void SerializeBlobs(std::ostream& stream, const InferenceEngine::ICNNNetwork& ne
     for (auto&& node : ordered) {
         if (!node->blobs.empty()) {
             for (const auto& dataIt : node->blobs) {
+                if (!dataIt.second) continue;
                 const char* dataPtr = dataIt.second->buffer().as<char*>();
                 size_t dataSize = dataIt.second->byteSize();
                 stream.write(dataPtr, dataSize);
                 if (!stream.good()) {
-                    THROW_IE_EXCEPTION << "Error during writing blob waights";
+                    THROW_IE_EXCEPTION << "Error during writing blob weights";
                 }
             }
         }

@@ -1000,7 +1000,9 @@ void CNNNetworkInt8Normalizer::QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr
                 }
                 prev = *it;
             }
-            symQuant = *(intervals.begin());
+            if (!intervals.empty()) {
+                symQuant = *(intervals.begin());
+            }
             std::set<double> divs;
             prev = 0.f;
             for (auto it = individualsG.begin(); it != individualsG.end(); it++) {

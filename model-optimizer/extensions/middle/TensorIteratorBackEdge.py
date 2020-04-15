@@ -47,7 +47,6 @@ class BackEdgesMatching(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['is_cyclic']]
 
     def run_after(self):
-        from extensions.middle.TensorIteratorCondition import SimpleConditionMatcher
         return [DynamicDecoderConditionMatcher]
 
     def run_before(self):

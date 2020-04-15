@@ -21,9 +21,9 @@ import numpy as np
 
 from extensions.front.caffe.priorbox_clustered_ext import PriorBoxClusteredFrontExtractor
 from extensions.ops.priorbox_clustered import PriorBoxClusteredOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.ops.op import Op
 
 
 class FakePriorBoxClusteredProtoLayer:

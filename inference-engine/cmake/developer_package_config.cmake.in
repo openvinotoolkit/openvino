@@ -11,7 +11,11 @@ file(TO_CMAKE_PATH "${CMAKE_CURRENT_LIST_DIR}" cache_path)
 
 set(ie_options "@IE_OPTIONS@;CMAKE_BUILD_TYPE;CMAKE_SKIP_RPATH")
 
-load_cache("${cache_path}" READ_WITH_PREFIX "" ${ie_options})
+foreach(option IN LISTS ie_options)
+    if(NOT DEFINED "${option}")
+        load_cache("${cache_path}" READ_WITH_PREFIX "" ${option})
+     endif()
+endforeach()
 
 message(STATUS "The following CMake options are exported from Inference Engine Developer package")
 message("")

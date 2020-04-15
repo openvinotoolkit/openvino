@@ -20,6 +20,7 @@ from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, DEVICE_NIRE
 from .inputs_filling import is_image
 from .logging import logger
 
+import json
 
 def static_vars(**kwargs):
     def decorate(func):
@@ -122,6 +123,8 @@ def get_nireq(target_device):
 
 
 def parse_devices(device_string):
+    if device_string in ['MULTI', 'HETERO']:
+        return list()
     devices = device_string
     if ':' in devices:
         devices = devices.partition(':')[2]
@@ -139,14 +142,14 @@ def parse_nstreams_value_per_device(devices, values_string):
         device_value_vec = device_value_string.split(':')
         if len(device_value_vec) == 2:
             device_name = device_value_vec[0]
-            nstreams = int(device_value_vec[1])
+            nstreams = device_value_vec[1]
             if device_name in devices:
                 result[device_name] = nstreams
             else:
                 raise Exception("Can't set nstreams value " + str(nstreams) +
                                 " for device '" + device_name + "'! Incorrect device name!");
         elif len(device_value_vec) == 1:
-            nstreams = int(device_value_vec[0])
+            nstreams = device_value_vec[0]
             for device in devices:
                 result[device] = nstreams
         elif not device_value_vec:
@@ -239,3 +242,11 @@ def get_command_line_arguments(argv):
 def show_available_devices():
     ie = IECore()
     print("\nAvailable target devices:  ", ("  ".join(ie.available_devices)))
+
+def dump_config(filename, config):
+    with open(filename, 'w') as f:
+        json.dump(config, f, indent=4)
+
+def load_config(filename, config):
+    with open(filename) as f:
+        config.update(json.load(f))

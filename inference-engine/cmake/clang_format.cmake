@@ -35,10 +35,6 @@ function(add_clang_format_target TARGET_NAME)
     set(multiValueArgs "FOR_TARGETS" "FOR_SOURCES" "EXCLUDE_PATTERNS")
     cmake_parse_arguments(CLANG_FORMAT "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    if(CLANG_FORMAT_ALL)
-        set(all ALL)
-    endif()
-
     foreach(target IN LISTS CLANG_FORMAT_FOR_TARGETS)
         get_target_property(target_sources "${target}" SOURCES)
         list(APPEND CLANG_FORMAT_FOR_SOURCES ${target_sources})
@@ -95,7 +91,6 @@ function(add_clang_format_target TARGET_NAME)
         "All clang-format output files")
 
     add_custom_target(${TARGET_NAME}
-        ${all}
         DEPENDS ${all_output_files}
         COMMENT "[clang-format] ${TARGET_NAME}")
 

@@ -3,6 +3,8 @@
 //
 
 #include "graph_transformer_tests.hpp"
+#include <vpu/model/data_contents/replicated_data_content.hpp>
+
 #include <precision_utils.h>
 
 using namespace vpu;
@@ -19,8 +21,8 @@ TEST_F(VPU_EliminateConstConcatTest, EliminateCase_1D) {
 
     const auto model = CreateModel();
 
-    const auto constData1 = model->addConstData("const1", dataDesc1, replicateContent(1.0f, dataDesc1.totalDimSize()));
-    const auto constData2 = model->addConstData("const2", dataDesc2, replicateContent(2.0f, dataDesc2.totalDimSize()));
+    const auto constData1 = model->addConstData("const1", dataDesc1, replicateContent(1.0f, dataDesc1.totalDimSize(), dataDesc1));
+    const auto constData2 = model->addConstData("const2", dataDesc2, replicateContent(2.0f, dataDesc2.totalDimSize(), dataDesc2));
 
     const auto concatData = model->addNewData("concat", dataDescConcat);
 
@@ -74,8 +76,8 @@ TEST_F(VPU_EliminateConstConcatTest, EliminateCase_2D) {
 
     const auto model = CreateModel();
 
-    const auto constData1 = model->addConstData("const1", dataDesc1, replicateContent(1.0f, dataDesc1.totalDimSize()));
-    const auto constData2 = model->addConstData("const2", dataDesc2, replicateContent(2.0f, dataDesc2.totalDimSize()));
+    const auto constData1 = model->addConstData("const1", dataDesc1, replicateContent(1.0f, dataDesc1.totalDimSize(), dataDesc1));
+    const auto constData2 = model->addConstData("const2", dataDesc2, replicateContent(2.0f, dataDesc2.totalDimSize(), dataDesc2));
 
     const auto concatData = model->addNewData("concat", dataDescConcat);
 

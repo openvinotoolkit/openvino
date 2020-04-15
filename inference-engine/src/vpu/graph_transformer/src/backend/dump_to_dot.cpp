@@ -129,15 +129,15 @@ void BackEnd::dumpModelToDot(
             } else if (data->usage() == DataUsage::Temp) {
                 dataColor = "cyan";
             } else if (data->usage() == DataUsage::Intermediate) {
-                if (data->location() == DataLocation::BSS) {
+                if (data->dataLocation().location == Location::BSS) {
                     dataColor = "cyan";
-                } else if (data->location() == DataLocation::CMX) {
+                } else if (data->dataLocation().location == Location::CMX) {
                     dataColor = "magenta";
-                } else if (data->location() == DataLocation::Blob) {
+                } else if (data->dataLocation().location == Location::Blob) {
                     dataColor = "aquamarine";
-                } else if (data->location() == DataLocation::Input) {
+                } else if (data->dataLocation().location == Location::Input) {
                     dataColor = "green";
-                } else if (data->location() == DataLocation::Output) {
+                } else if (data->dataLocation().location == Location::Output) {
                     dataColor = "deepskyblue";
                 }
             }
@@ -179,8 +179,8 @@ void BackEnd::dumpModelToDot(
                     }
                 }
                 lbl.appendPair("memReqs", data->memReqs());
-                lbl.appendPair("location", data->location());
-                lbl.appendPair("memoryOffset", data->memoryOffset());
+                lbl.appendPair("location", data->dataLocation().location);
+                lbl.appendPair("memoryOffset", data->dataLocation().offset);
                 if (!data->attrs().empty()) {
                     lbl.appendPair("extraAttrs", data->attrs());
                 }

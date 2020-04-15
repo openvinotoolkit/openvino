@@ -20,8 +20,8 @@ import numpy as np
 from extensions.back.TileNormalizer import TileMultipleAxisReplacer, Tile3DReshaper
 from mo.front.common.partial_infer.utils import int64_array
 from mo.ops.tile import Tile
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 
 class TileMultipleAxisReplacerTest(unittest.TestCase):

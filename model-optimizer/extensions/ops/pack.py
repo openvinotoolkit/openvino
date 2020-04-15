@@ -14,10 +14,7 @@
  limitations under the License.
 """
 
-import numpy as np
-import networkx as nx
-
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 

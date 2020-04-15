@@ -18,8 +18,8 @@ import unittest
 import numpy as np
 
 from extensions.middle.TensorIteratorInput import SmartInputMatcher, SimpleInputMatcher, BackEdgeSimpleInputMatcher
-from mo.utils.unittest.graph import build_graph_with_attrs
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph_with_attrs
 
 
 class SmartInputMatcherTests(unittest.TestCase):

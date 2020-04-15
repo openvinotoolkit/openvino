@@ -108,6 +108,80 @@ TEST(concat_gpu, mixed_input_types) {
     }
 }
 
+TEST(concat_gpu, mixed_input_types_5d) {
+    const auto& engine = get_test_engine();
+
+    auto input0 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
+    auto input1 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
+    auto input2 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
+    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 1, 1, 1, 4, 3 } });
+
+    set_values(input0, { half_t(1.0f), half_t(2.0f), half_t(3.0f),
+                         half_t(4.0f), half_t(2.0f), half_t(2.0f),
+                         half_t(3.0f), half_t(4.0f), half_t(3.0f),
+                         half_t(3.0f), half_t(3.0f), half_t(5.0f) });
+    set_values(input1, { half_t(11), half_t(12), half_t(13),
+                         half_t(14), half_t(12), half_t(12),
+                         half_t(13), half_t(14), half_t(13),
+                         half_t(13), half_t(13), half_t(15) });
+    set_values(input2, { half_t(21), half_t(22), half_t(23),
+                         half_t(24), half_t(22), half_t(22),
+                         half_t(23), half_t(24), half_t(23),
+                         half_t(23), half_t(23), half_t(25) });
+    set_values(input3, { half_t(31.f), half_t(32.f), half_t(33.f),
+                         half_t(34.f), half_t(32.f), half_t(32.f),
+                         half_t(33.f), half_t(34.f), half_t(33.f),
+                         half_t(33.f), half_t(33.f), half_t(35.f) });
+
+    VF<float> output_vec = {
+            1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f,
+            11.0f, 12.0f, 13.0f, 14.0f, 12.0f, 12.0f, 13.0f, 14.0f, 13.0f, 13.0f, 13.0f, 15.0f,
+            21.0f, 22.0f, 23.0f, 24.0f, 22.0f, 22.0f, 23.0f, 24.0f, 23.0f, 23.0f, 23.0f, 25.0f,
+            31.0f, 32.0f, 33.0f, 34.0f, 32.0f, 32.0f, 33.0f, 34.0f, 33.0f, 33.0f, 33.0f, 35.0f };
+
+    topology topology(
+            input_layout("input0", input0.get_layout()),
+            input_layout("input1", input1.get_layout()),
+            input_layout("input2", input2.get_layout()),
+            input_layout("input3", input3.get_layout()),
+            concatenation("concat",
+                          { "input0", "input1", "input2", "input3" },
+                          concatenation::concatenation_axis::along_f,
+                          data_types::f32,
+                          padding{ { 0,0,0,0 }, 0 })
+    );
+
+    network network(engine, topology);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    network.set_input_data("input3", input3);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "concat");
+
+    auto output_memory = outputs.at("concat").get_memory();
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+
+    int z_size = output_layout.size.spatial[2];
+    int y_size = output_layout.size.spatial[1];
+    int x_size = output_layout.size.spatial[0];
+    int f_size = output_layout.size.feature[0];
+    int b_size = output_layout.size.batch[0];
+    EXPECT_EQ(output_layout.format, format::bfzyx);
+    EXPECT_EQ(z_size, 3);
+    EXPECT_EQ(y_size, 4);
+    EXPECT_EQ(x_size, 1);
+    EXPECT_EQ(f_size, 4);
+    EXPECT_EQ(b_size, 1);
+
+    for (size_t x = 0; x < output_layout.count(); ++x) {
+        EXPECT_EQ(output_vec[x], output_ptr[x]);
+    }
+}
+
 using TestParamType_concat = ::testing::tuple<size_t,   // 0 - Input Batch size
         std::vector<size_t>,                            // 1 - Inputs Features Sizes
         size_t,                                         // 2 - Input Y Size

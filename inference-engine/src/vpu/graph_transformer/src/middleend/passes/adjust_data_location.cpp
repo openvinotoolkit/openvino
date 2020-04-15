@@ -358,9 +358,9 @@ void PassImpl::copyHwMisalignedInput(const Model& model) {
 
         auto inputEdge = stage->inputEdge(0);
         auto input = inputEdge->input();
-        IE_ASSERT(input->location() != DataLocation::None);
+        IE_ASSERT(input->dataLocation().location != Location::None);
 
-        if (input->memoryOffset() % 16 != 0) {
+        if (input->dataLocation().offset % 16 != 0) {
             env.log->trace("HW Stage [%s] input [%s]", stage->name(), input->name());
 
             auto newInput = model->duplicateData(

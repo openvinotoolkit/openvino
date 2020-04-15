@@ -15,6 +15,7 @@
 """
 
 import logging as log
+
 import numpy as np
 
 from mo.front.common.replacement import FrontReplacementSubgraph

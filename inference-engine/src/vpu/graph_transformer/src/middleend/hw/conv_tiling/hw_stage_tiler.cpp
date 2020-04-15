@@ -4,6 +4,16 @@
 
 #include <vpu/middleend/hw/conv_tiling/hw_stage_tiler.hpp>
 
+#include <vpu/stages/stub_stage.hpp>
+#include <vpu/stages/mx_stage.hpp>
+#include <vpu/middleend/hw/tiling.hpp>
+#include <vpu/middleend/hw/utility.hpp>
+#include <vpu/utils/attributes_map.hpp>
+#include <vpu/model/data_contents/hw_weights_content.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+#include <vpu/model/data_contents/replicated_data_content.hpp>
+#include <vpu/model/data_contents/scaled_content.hpp>
+
 #include <precision_utils.h>
 #include <memory>
 #include <list>
@@ -12,12 +22,6 @@
 #include <algorithm>
 #include <unordered_map>
 #include <set>
-
-#include <vpu/stages/stub_stage.hpp>
-#include <vpu/stages/mx_stage.hpp>
-#include <vpu/middleend/hw/tiling.hpp>
-#include <vpu/middleend/hw/utility.hpp>
-#include <vpu/utils/attributes_map.hpp>
 
 namespace vpu {
 
@@ -149,7 +153,7 @@ Data HWConvStageTiler::createScales(const HwConvTilingPtr& tiling, const HWConvS
                 hwScales = _model->addConstData(
                     _original->name() + "@scales",
                     DataDesc({maxExtendedOutputDimC}),
-                    replicateContent(stageOptions.reluScale, maxExtendedOutputDimC));
+                    replicateContent(stageOptions.reluScale, maxExtendedOutputDimC, DataDesc{maxExtendedOutputDimC}));
             } else {
                 hwScales = _model->addFakeData();
             }
@@ -363,6 +367,7 @@ Data HWConvStageTiler::createConstTileWeights(const HwConvChannelTilePtr& channe
         const auto content = std::make_shared<HwWeightsContent>(
             io.origWeights->content(),
             io.origWeights->desc(),
+            descriptor,
             channelTile->numInputChannels,
             channelTile->channelStartIndex);
 

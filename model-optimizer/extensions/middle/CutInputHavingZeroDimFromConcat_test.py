@@ -14,14 +14,14 @@
  limitations under the License.
 """
 
+import unittest
+
 import numpy as np
 
-import unittest
 from extensions.middle.CutInputHavingZeroDimFromConcat import CutInputHavingZeroDimFromConcat
 from mo.front.common.partial_infer.utils import int64_array
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-
+from mo.utils.unittest.graph import build_graph
 
 node_attrs_for_the_case_when_there_are_no_zero_shape_constants = {
     'const0': {

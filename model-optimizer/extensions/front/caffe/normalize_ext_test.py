@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 from extensions.front.caffe.normalize_ext import NormalizeFrontExtractor
 from extensions.ops.normalize import NormalizeOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.ops.op import Op
 
 
 class FakeNormalizeProtoLayer:

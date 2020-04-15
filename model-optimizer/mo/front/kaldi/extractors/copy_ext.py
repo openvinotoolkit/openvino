@@ -16,8 +16,8 @@
 
 import numpy as np
 
-from extensions.ops.transpose import Transpose
 from extensions.ops.gather import Gather
+from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.kaldi.loader.utils import read_binary_integer32_token, read_blob

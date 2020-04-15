@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 #include <algorithm>
+#include <map>
 
 #if defined __INTEL_COMPILER || defined _MSC_VER
 #include <malloc.h>
@@ -28,6 +29,7 @@
 #include "gna2_model_debug_log.hpp"
 #else
 #include <gna-api-types-xnn.h>
+#include <map>
 
 #endif
 
@@ -373,6 +375,13 @@ float GNAPluginNS::backend::AMIntelDNN::OutputScaleFactor(intel_dnn_component_t 
     return comp.output_scale_factor;
 }
 
+struct InputEndPoint {
+    int idx = 0;
+    size_t size = 0;
+    size_t num_bytes_per_output = 1;
+    InputEndPoint() = default;
+    InputEndPoint(int nidx, size_t sz, size_t esize) : idx(nidx), size(sz), num_bytes_per_output(esize) {}
+};
 
 void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) {
     auto & components = component;
@@ -414,11 +423,21 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
         return ptra >= ptrb  && ptra < reinterpret_cast<char*>(ptrb) + bsize;
     };
 
+    auto startPtr = [](void* ptr, size_t size) {
+        return reinterpret_cast<int8_t*>(ptr);
+    };
+    auto endPtr = [](void* ptr, size_t size) {
+        return reinterpret_cast<int8_t*>(ptr) + size;
+    };
+    auto sizeofTensor = [](void* ptr, size_t size) {
+        return size;
+    };
+
     std::fstream graph(filename, std::ios::out);
     graph << "strict digraph {";
     std::set<void*> weights;
     std::set<void*> biases;
-    std::set<void*> outputs;
+    std::map<void*, InputEndPoint> outputs;
     std::set<std::string> layersNames;
 
     auto generate_layer_name = [&](int k) {
@@ -565,11 +584,25 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
             }
         }
         if (!inputConnected) {
-            // drawing tmp connection
-            outputs.insert(components[k].ptr_inputs);
-            auto tidx = std::distance(outputs.begin(), outputs.find(components[k].ptr_inputs));
-            graph << tidx << " -> " << l
-                  << " [label=\"FROM_TMP\", fontcolor=darkgreen,color=orange, style=dashed];";
+            // searching for TMP connection
+            size_t tidx = -1;
+            for (auto && en : outputs) {
+                if (intersected(en.first, en.second.size, INPUTS(k))) {
+                    tidx = en.second.idx;
+                    auto  updated_ptr  = std::min(startPtr(en.first, en.second.size), startPtr(INPUTS(k)));
+                    auto  updated_size = std::max(endPtr(en.first, en.second.size), endPtr(INPUTS(k))) - updated_ptr;
+                    outputs.erase(en.first);
+                    outputs[updated_ptr] = InputEndPoint(tidx, updated_size, components[k].num_bytes_per_input);
+                    break;
+                }
+            }
+
+            if (tidx == -1) {
+                outputs[components[k].ptr_inputs] = InputEndPoint(outputs.size(), sizeofTensor(INPUTS(k)), components[k].num_bytes_per_input);
+            }
+            tidx = outputs[components[k].ptr_inputs].idx;
+            graph << "parameter_" << tidx << " -> " << l
+                  << " [fontcolor=darkgreen,color=orange, style=dashed];";
         }
     }
 
@@ -578,11 +611,23 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
 
         int tidx = 0;
         for (auto tmpOutPtrs : outputs) {
-            if (components[k].ptr_outputs == tmpOutPtrs) {
+            if (components[k].ptr_outputs == tmpOutPtrs.first) {
                 graph << l << " -> " << tidx << " [label=\"TO_TMP\", fontcolor=darkgreen,color=orange, style=dashed];";
             }
             tidx++;
         }
+    }
+
+    // writing inputs info
+    for (auto && en : outputs) {
+        std::string l = "parameter_" + std::to_string(en.second.idx);
+        graph <<  l << " [shape=box, style=filled, fillcolor=\"#85C1E9\"";
+        graph << ", label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n"
+                 "  <TR><TD  colspan=\"2\">" <<  l << "</TD></TR>\n";
+        graph << "  <TR><TD> dims</TD><TD>" << 1 << "x" << en.second.size / en.second.num_bytes_per_output << "</TD></TR>\n";
+        graph << "  <TR><TD> obit</TD><TD>" << en.second.num_bytes_per_output << "</TD></TR>\n";
+        graph << "  <TR><TD> ptr</TD><TD>" <<  en.first << "</TD></TR>\n";
+        graph << "</TABLE>>];\n";
     }
 
     graph << "}";

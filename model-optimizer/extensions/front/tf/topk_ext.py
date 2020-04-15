@@ -14,8 +14,8 @@
  limitations under the License.
 """
 
-from mo.front.extractor import FrontExtractorOp
 from extensions.ops.topk import TopK
+from mo.front.extractor import FrontExtractorOp
 
 
 class TopKExtractor(FrontExtractorOp):

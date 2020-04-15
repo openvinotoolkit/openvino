@@ -15,7 +15,9 @@
 """
 
 import unittest
+
 import numpy as np
+
 from extensions.middle.L2NormToNorm import L2NormToNorm
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph_with_attrs

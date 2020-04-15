@@ -34,6 +34,7 @@
 #include "layers/gna_concat_layer.hpp"
 #include "layers/gna_crop_layer.hpp"
 #include "round_float_define.hpp"
+#include "gna_plugin_policy.hpp"
 
 using namespace InferenceEngine;
 using namespace std;
@@ -56,6 +57,10 @@ void GNAGraphCompiler::setInputDescPtr(std::shared_ptr<GNAPluginNS::InputDesc> i
 
 void GNAGraphCompiler::setGNAFlagsPtr(std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlagsPtr) {
     this->gnaFlags = std::move(gnaFlagsPtr);
+}
+
+void GNAGraphCompiler::setPolicy(GNAPluginNS::Policy policyToSet) {
+    this->policy = policyToSet;
 }
 
 intel_dnn_component_t * GNAGraphCompiler::find_first_unused_input(InferenceEngine::CNNLayerPtr current) {
@@ -987,12 +992,56 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     auto outputs = *layer->outData.begin();
     auto inputs = layer->insData.begin()->lock();
 
-    // auto offset = filterLayer->GetParamAsInt("output_offset");
-
     uint32_t num_columns_in = FROM_IR_DIM(inputs, 2);
     uint32_t num_rows_out = FROM_IR_DIM(outputs, 1);
     uint32_t num_rows_in = filterLayer->_weights->size() / num_rows_out;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
+
+    auto numRowsPadded = filterLayer->GetParamAsInt("num_rows_padded");
+    // number of rows we handled by inserting copy layer
+    uint32_t num_rows_copied = 0;
+    // in case of left alignment succeed, but due to number of elements not multiple of 8 we need to insert align_filter
+    // we are improving it by inserting copy layer of size that covers most of elements - remained max of 32x31 affine filter
+    if (policy.ConcatAlignmentPolicy == Policy::ConcatAlignment::FAST &&  0 == numRowsPadded && ALIGN(num_rows_in, 32) > 32) {
+        // can we use copy at all
+        num_rows_copied = ALIGN(num_rows_in, 32) - 32;
+
+        auto orientation = kDnnInterleavedOrientation;
+
+        auto& copyComponent = dnnComponents.addComponent(layer->name + "_synthetic_copy", "copy");
+
+        dnn->InitCopyComponent(copyComponent,
+                               orientation,
+                               num_rows_copied,
+                               num_columns_in,
+                               num_rows_copied,
+                               num_columns_in,
+                               inputs->getPrecision().size(),
+                               inputs->getPrecision().size(),
+                               quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+                               num_rows_copied,
+                               num_columns_in,
+                               ptr_inputs,
+                               ptr_outputs);
+
+
+        size_t num_data_bytes_in = num_rows_copied * num_rows_copied * num_columns_in
+            * inputs->getPrecision().size();
+        // need to reserve full tensor so using original size with assumption of identity activation attached to filter lateron
+        size_t num_data_bytes_out = num_rows_out * num_columns_in * inputs->getPrecision().size();
+
+        connectInput(layer, ptr_inputs, num_data_bytes_in);
+        auto isNonFunctional = [](CNNLayerPtr l) {
+            return LayerInfo(l).isNonFunctional();
+        };
+        auto identity = CNNNetGetNextLayerSkipCertain(layer, 0, 0, isNonFunctional);
+        connectOutput(identity.first, ptr_outputs, num_data_bytes_out);
+
+        num_rows_in  -= num_rows_copied;
+        num_rows_out -= num_rows_copied;
+    }
+    filterLayer->params["rows_copied_offset"] = std::to_string(num_rows_copied * inputs->getPrecision().size());
+
 
     auto biasPrecision = filterLayer->_biases ? filterLayer->_biases->getTensorDesc().getPrecision() : outputs->getPrecision();
     auto& currentComponent = dnnComponents.addComponent(layer->name, "affine");
@@ -1013,35 +1062,36 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
         ptr_biases,
         false);
 
-    size_t num_data_bytes_out =
-        InferenceEngine::details::product(
-            begin(outputs->getDims()), end(outputs->getDims())) * 4;
-
+    size_t num_data_bytes_out = num_rows_out * num_columns_in * outputs->getPrecision().size();
     size_t num_data_bytes_in = num_columns_in *
         ALIGN(num_rows_in, 8) * inputs->getPrecision().size();
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
+    connectInput(layer, ptr_inputs, num_data_bytes_in, num_rows_copied * inputs->getPrecision().size(), 0);
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
-    if (num_padding == 0) {
-        gnamem->readonly().push_ptr(ptr_weights,
-            filterLayer->_weights->cbuffer().as<const void*>(),
-            filterLayer->_weights->byteSize(),
-            64);
-    } else {
+    {
+        auto weightsElementSize = filterLayer->_weights->getTensorDesc().getPrecision().size();
         auto elementsIn = (num_rows_in + num_padding) * num_columns_in;
         auto paddedWeights = elementsIn * num_rows_out;
-        auto paddedWeightsSize = paddedWeights * filterLayer->precision.size();
+        auto paddedWeightsSize = paddedWeights * weightsElementSize;
+
+        // TODO: this can be improved to not generate unneeded weights at all
+
+        size_t weights_stride =  (num_rows_in + num_rows_copied) * weightsElementSize;
+        size_t weights_offset = weights_stride * num_rows_copied +  num_rows_copied * weightsElementSize;
 
         gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
-            size_t offset = 0;
-            for (int i = 0; i < num_rows_out && size >= offset; i++) {
-                ie_memcpy(reinterpret_cast<uint8_t*>(data) + offset, size - offset,
-                    filterLayer->_weights->cbuffer().as<const uint8_t*>() + num_rows_in * i * filterLayer->precision.size(),
-                    num_rows_in* filterLayer->precision.size());
-                offset += (num_rows_in + num_padding) * filterLayer->precision.size();
+            size_t roffset = weights_offset;
+            size_t woffset = 0;
+            for (int i = 0; i < num_rows_out && size >= woffset; i++) {
+                ie_memcpy(reinterpret_cast<uint8_t*>(data) + woffset,
+                          size - woffset,
+                          filterLayer->_weights->cbuffer().as<const uint8_t*>() + roffset,
+                          num_rows_in * weightsElementSize);
+                roffset += weights_stride;
+                woffset += elementsIn * weightsElementSize;
             }
-            }, 64);
+         }, 64);
     }
 
     if (filterLayer->_biases) {
@@ -1189,11 +1239,18 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         num_rows = FROM_IR_DIM(inputs, 1);
     }
 
-    size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
-        * outputs->getPrecision().size();
+    // TODO: solve this by layer level transformations
+    auto concatAlignFilter = CNNNetPrevLayer(layer, 0);
+    if (LayerInfo(concatAlignFilter).isConcatAlignFilter()) {
+        auto rowsCopiedOffset = concatAlignFilter->GetParamAsInt("rows_copied_offset");
+        if (rowsCopiedOffset != 0) {
+            num_rows -= rowsCopiedOffset / outputs->getPrecision().size();
+            layer->params["output_offset"] = std::to_string(rowsCopiedOffset);
+        }
+    }
 
-    size_t num_data_bytes_in = InferenceEngine::details::product(begin(inputs->getDims()), end(inputs->getDims()))
-        * inputs->getPrecision().size();
+    size_t num_data_bytes_out = num_columns * num_rows * outputs->getPrecision().size();
+    size_t num_data_bytes_in = num_columns * num_rows * inputs->getPrecision().size();
 
     static InferenceEngine::details::caseless_unordered_map<std::string, DnnActivationType> supportedActivations = {
         {"sigmoid", kActSigmoid},
@@ -1626,7 +1683,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
 
             if (it != splitLayerInfoItem.splitOutputLayers.end()) {
                 gnalog()  << "Connecting " << splitName << " input \n";
-                auto res = connectInput(splittingLayer, ptr, splitLayerInfoItem.reserved_size, it->offset, 0);
+                auto res = connectInput(splittingLayer, ptr, splitLayerInfoItem.reserved_size, it->offset + offset, 0);
                 gnalog()  << "Connected \n";
                 return res;
             }

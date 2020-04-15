@@ -1,4 +1,5 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,6 +108,9 @@ TEST_P(ActivationLayerTest, CompareWithRefs) {
                                      outElementsCount,
                                      thr);
     fnPtr.reset();
+    if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
+        PluginCache::get().reset();
+    }
 }
 
 }  // namespace LayerTestsDefinitions

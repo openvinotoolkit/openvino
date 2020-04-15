@@ -48,6 +48,12 @@ public:
     using Ptr = std::shared_ptr<ICNNNetwork>;
 
     /**
+     * @brief Returns nGraph function
+     * @return nGraph function
+     */
+    virtual std::shared_ptr<ngraph::Function> getFunction() noexcept = 0;
+
+    /**
      * @brief Returns constant nGraph function
      * @return constant nGraph function
      */

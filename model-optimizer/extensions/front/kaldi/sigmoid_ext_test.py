@@ -15,8 +15,8 @@
 """
 
 from extensions.front.kaldi.sigmoid_ext import SigmoidFrontExtractor
-from mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from extensions.ops.activation_ops import Sigmoid
+from mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
 from mo.ops.op import Op
 
 

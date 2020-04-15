@@ -15,9 +15,9 @@
 """
 
 from collections import deque
+from copy import deepcopy
 
 import numpy as np
-from copy import deepcopy
 
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.graph.graph import Node, Graph, add_opoutput

@@ -25,9 +25,9 @@ from mo.front.extractor import spatial_attr_getter, add_input_ops, attr_getter, 
     add_output_ops
 from mo.graph.graph import Node
 from mo.utils.error import Error
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import build_graph, build_graph_with_edge_attrs, build_graph_with_attrs
-from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 
 class FakePythonParam:

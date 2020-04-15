@@ -675,6 +675,10 @@ void InsertCopyLayerPass::run() {
 
 void InsertConcatAligningFilterPass::run() {
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+
+    if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED) {
+        return;
+    }
     // aligning specific not required in fp32 mode
     if (getPassManager()->getPolicy().ConcatAlignmentPolicy == Policy::ConcatAlignment::DISABLED_FOR_FP32 && !quantized) {
         return;
@@ -740,6 +744,10 @@ void InsertConcatAligningFilterPass::run() {
                 // encodes offset to beginning of split layer input
                 concatAligningFilter->params["output_offset"] =
                         std::to_string((aligned64_offset / bytesPerConcatElement) * (quantized ? bytesPerConcatElement : 4));
+
+                // for padded rows we cannot use copy layer - TBD how to implement
+                concatAligningFilter->params["num_rows_padded"] = std::to_string(num_rows_padded);
+
                 // encodes original output size
                 concatAligningFilter->params["original_num_rows"] = std::to_string(num_rows_in);
 
@@ -1084,7 +1092,7 @@ int PassManager::run(int index) {
         saveGraphToDot(*network.get(), out, [](const CNNLayerPtr layer,
                                                ordered_properties &printed_properties,
                                                ordered_properties &node_properties) {});
-        network->serialize(name + ".xml", "", nullptr);
+        network->serialize(name + ".xml", name + ".bin", nullptr);
     };
 #else
     auto dumpNetworkAfterPass = [] (std::shared_ptr<Pass> ) {};

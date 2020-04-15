@@ -16,7 +16,6 @@
 
 import logging as log
 
-import networkx as nx
 import numpy as np
 
 from mo.front.extractor import attr_getter

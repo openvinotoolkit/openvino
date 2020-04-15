@@ -18,11 +18,11 @@ import logging as log
 
 import numpy as np
 
-from mo.ops.const import Const
 from extensions.ops.elementwise import Mul, Add
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import get_value_in_port, \
     get_tensor_in_port
+from mo.ops.const import Const
 
 
 def _fuse_linear_sequence(graph: Graph, start_node: Node):

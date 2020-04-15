@@ -83,18 +83,6 @@ void deconv_to_conv(const T* src, T* dst, const DataDesc& desc) {
 }
 
 //
-// DefaultSwWeightsContent
-//
-
-class DefaultSwWeightsContent final : public CalculatedDataContent {
-public:
-    explicit DefaultSwWeightsContent(const DataContent::Ptr& origContent);
-
-protected:
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override;
-};
-
-//
 // getOneOfSingleNextStage
 //
 

@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
-from mo.front.extractor import FrontExtractorOp
 from extensions.ops.TensorArrayGather import TensorArrayGather
-from mo.front.tf.extractors.utils import tf_int_list, tf_tensor_shape
+from mo.front.extractor import FrontExtractorOp
+from mo.front.tf.extractors.utils import tf_tensor_shape
 from mo.graph.graph import Node
 
 

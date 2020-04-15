@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 from extensions.front.caffe.argmax_ext import ArgMaxFrontExtractor
 from extensions.ops.argmax import ArgMaxOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.ops.op import Op
 
 
 class FakeArgMaxProtoLayer:

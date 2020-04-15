@@ -77,7 +77,7 @@ def permute_masks(node: Node, permutation: PermuteAttrs.Permutation, attr: str):
     if not node.has_valid(attr):
         return None
 
-    node[attr] = permute_array_with_ellipsis(node, node[attr], attr in ['begin_mask', 'end_mask'])
+    node[attr] = permute_array_with_ellipsis(node, node[attr], 0)
     return node[attr]
 
 
@@ -115,17 +115,33 @@ class StridedSlice(Op):
                                                            ('begin_mask', 'input:0', permute_masks),
                                                            ('end_mask', 'input:0', permute_masks),
                                                            ])
-            for i in range(1, len(node.in_nodes())):
-                if node.in_node(i).value is not None and len(node.in_node(0).shape) > 3:
-                    node.in_node(i).value = permute_array_with_ellipsis(node, node.in_node(i).value, 0)
+            # extend inputs according to ellipsis mask
+            in_shape = node.in_port(0).get_source().data.get_shape()
+            assert in_shape is not None, \
+                'Input shape is unknown for 0 input of node {}'.format(node.name)
+            input_rank = len(in_shape)
+            if input_rank > 3:
+                for i_port in node.in_ports().values():
+                    if i_port.idx == 0 or i_port.disconnected():
+                        continue
+                    old_value = i_port.data.get_value()
+                    # additional check for non-const input
+                    # error will be return in shape inference if non-const will be added
+                    # it is paranoid check for case if shape inference will be changed
+                    assert old_value is not None, \
+                        '{} input of {} node is not constant: \'value\' attribute for edge ' + \
+                        'contains None'.format(i_port.idx, node.name)
+                    # insert 0 for begin and end and 1 for stride
+                    new_value = permute_array_with_ellipsis(node, old_value, int(i_port.idx == 3))
+                    # set_value additionally set_shape and propagate value to Const node
+                    i_port.data.set_value(new_value)
 
             # extend masks before removing ellipsis
             if np.any(node.ellipsis_mask):
                 for attr in ["new_axis_mask", "shrink_axis_mask", "begin_mask", "end_mask"]:
                     node[attr] = int64_array(extend_mask_according_ellipsis(node.ellipsis_mask, node.shrink_axis_mask,
                                                                             len(node.out_port(0).data.get_shape()),
-                                                                            list(node[attr]),
-                                                                            attr in ["begin_mask", "end_mask"]))
+                                                                            list(node[attr]), 0))
 
             # due to permutation from nhwc to nchw we will extend all masks and inputs
             idx = np.nonzero(node.ellipsis_mask)

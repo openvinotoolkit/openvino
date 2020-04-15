@@ -15,6 +15,7 @@
 """
 
 from math import log
+
 import numpy as np
 
 from extensions.ops.detectionoutput_onnx import ExperimentalDetectronDetectionOutput

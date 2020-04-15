@@ -17,7 +17,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph, Node, rename_node, rename_nodes
+from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.crop import Crop

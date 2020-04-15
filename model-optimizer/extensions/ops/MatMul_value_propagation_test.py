@@ -24,7 +24,6 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
-
 graph_nodes_attrs = {
     'A': {'type': 'Const', 'op': 'Const', 'kind': 'op', 'shape': None, 'value': None},
     'A_data': {'kind': 'data', 'shape': None, 'value': None},

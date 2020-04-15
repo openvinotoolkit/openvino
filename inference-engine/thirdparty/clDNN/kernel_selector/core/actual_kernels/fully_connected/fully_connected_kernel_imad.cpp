@@ -25,14 +25,20 @@ ParamsKey FullyConnectedKernelIMAD::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F32);
+
     k.EnableInputWeightsType(WeightsType::INT8);
+
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+
+    k.EnableOutputLayout(DataLayout::bf);
+
     k.EnableDifferentInputWeightsTypes();
     k.EnableDifferentTypes();
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableOutputLayout(DataLayout::bf);
     k.EnableBiasPerOutput();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
@@ -101,11 +107,14 @@ JitConstants FullyConnectedKernelIMAD::GetJitConstants(const fully_connected_par
 }
 
 KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const optional_params& options) const {
+    auto fc_params = static_cast<const fully_connected_params&>(params);
+    auto& input = fc_params.inputs[0];
+
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     options,
-                                                    DataLayout::b_fs_yx_fsv4,
+                                                    input.GetLayout(),
                                                     WeightsLayout::os_is_yx_osv16_isv4,
                                                     FORCE_PRIORITY_1,
                                                     static_cast<int>(i));

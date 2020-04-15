@@ -18,7 +18,6 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Node, Graph
-from mo.ops.const import Const
 from mo.ops.eltwise import Eltwise
 from mo.ops.eltwise_n import EltwiseN
 from mo.utils.error import Error

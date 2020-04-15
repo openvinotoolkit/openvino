@@ -237,7 +237,6 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     auto convert_to_serial = [getOffsetFromBase](const GNAModelSerial::RuntimeEndPoint& ep) {
         ModelHeader::EndPoint out;
         out.elements_count = ep.elements_count;
-        out.element_size = ep.element_size;
         out.descriptor_offset = offsetFromBase(ep.descriptor_ptr);
         out.scaleFactor = ep.scaleFactor;
         return out;

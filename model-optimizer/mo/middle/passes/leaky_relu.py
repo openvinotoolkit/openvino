@@ -16,8 +16,6 @@
 
 import logging as log
 
-import numpy as np
-
 from extensions.ops.activation_ops import LeakyReLU
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import apply_pattern

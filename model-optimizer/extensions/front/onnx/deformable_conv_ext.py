@@ -19,8 +19,6 @@ import numpy as np
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_autopad
 from mo.ops.deformable_convolution import DeformableConvolution
-from mo.utils.error import Error
-from mo.front.common.partial_infer.utils import int64_array
 
 
 class DeformableConvExtractor(FrontExtractorOp):

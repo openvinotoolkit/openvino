@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,6 +51,12 @@ void ExecGraphUniqueNodeNames::SetUp() {
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
     fnPtr = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
+}
+
+void ExecGraphUniqueNodeNames::TearDown() {
+    if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
+        PluginCache::get().reset();
+    }
 }
 
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {

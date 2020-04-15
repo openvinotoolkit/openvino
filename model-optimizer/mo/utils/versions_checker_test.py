@@ -16,9 +16,10 @@
 
 import unittest
 import unittest.mock as mock
-
 from unittest.mock import mock_open
+
 from mo.utils.versions_checker import get_module_version_list_from_file, parse_versions_list
+
 
 class TestingVersionsChecker(unittest.TestCase):
     @mock.patch('builtins.open', new_callable=mock_open, create=True)

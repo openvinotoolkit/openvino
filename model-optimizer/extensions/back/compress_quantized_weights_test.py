@@ -15,14 +15,15 @@
 """
 
 import unittest
-import numpy as np
 from argparse import Namespace
+
+import numpy as np
 
 from extensions.back.compress_quantized_weights import CompressQuantizeWeights
 from extensions.ops.fakequantize import FakeQuantize
-from mo.ops.const import Const
 from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.graph.graph import Node
+from mo.ops.const import Const
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph
 

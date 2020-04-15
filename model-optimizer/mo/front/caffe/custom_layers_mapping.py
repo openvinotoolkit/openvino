@@ -15,6 +15,7 @@
 """
 import logging as log
 from builtins import AttributeError
+
 from defusedxml import ElementTree
 
 from mo.front.caffe.collect_attributes import collect_attributes

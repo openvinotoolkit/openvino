@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 #include <cpp/ie_cnn_network.h>
-#include <cnn_network_ngraph_impl.hpp>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -635,11 +634,11 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
     auto ngraph_function = std::make_shared<ngraph::Function>(ngraph::ResultVector{output},
                            ngraph::ParameterVector{inp});
 
-    InferenceEngine::details::CNNNetworkNGraphImpl cnn(ngraph_function);
-    auto icnn = cnn.getCNNNetwork();
+    CNNNetwork cnn(ngraph_function);
+    cnn.begin();
     std::map<std::string, InferenceEngine::SizeVector> inShape;
     inShape["test"] = {1, 3, 4, 5};
-    icnn->reshape(inShape, nullptr);
+    cnn.reshape(inShape);
 }
 
 TEST_F(NGraphReshapeTests, genericNodeWithDynShape) {

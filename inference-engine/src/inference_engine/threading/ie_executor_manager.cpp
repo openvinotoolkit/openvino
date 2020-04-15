@@ -12,6 +12,7 @@
 namespace InferenceEngine {
 
 ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(std::string id) {
+    std::lock_guard<std::mutex> guard(taskExecutorMutex);
     auto foundEntry = executors.find(id);
     if (foundEntry == executors.end()) {
         auto newExec = std::make_shared<CPUStreamsExecutor>(IStreamsExecutor::Config{id});
@@ -22,6 +23,7 @@ ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(std::string id) {
 }
 
 IStreamsExecutor::Ptr ExecutorManagerImpl::getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) {
+    std::lock_guard<std::mutex> guard(streamExecutorMutex);
     for (const auto& it : cpuStreamsExecutors) {
         const auto& executor = it.second;
         if (executor.use_count() != 1)
@@ -52,6 +54,8 @@ size_t ExecutorManagerImpl::getIdleCPUStreamsExecutorsNumber() {
 }
 
 void ExecutorManagerImpl::clear(const std::string& id) {
+    std::lock_guard<std::mutex> stream_guard(streamExecutorMutex);
+    std::lock_guard<std::mutex> task_guard(taskExecutorMutex);
     if (id.empty()) {
         executors.clear();
         cpuStreamsExecutors.clear();
@@ -66,7 +70,46 @@ void ExecutorManagerImpl::clear(const std::string& id) {
     }
 }
 
+std::mutex ExecutorManager::_mutex;
 ExecutorManager* ExecutorManager::_instance = nullptr;
+
+ExecutorManager* ExecutorManager::getInstance() {
+    /*
+     * 1) We do not use singleton implementation via STATIC LOCAL object like
+     *
+     *   getInstance() {
+     *       static ExecutorManager _instance;
+     *       return &instance;
+     *   }
+     *
+     * Because of problem with destruction order on program exit.
+     * Some IE classes like MKLDNN::Engine use this singleton in destructor.
+     * But they has no direct dependency from c++ runtime point of view and
+     * it's possible that _instance local static variable  will be destroyed
+     * before MKLDNN::~Engine call. Any further manipulation with destroyed
+     * object will lead to exception or crashes.
+     *
+     * 2) We do not use singleton implementation via STATIC object like:
+     *
+     *   ExecutorManager ExecutorManager::_instance;
+     *   getInstance() {
+     *       return &instance;
+     *   }
+     *
+     * Because of problem with double destruction. In some test cases we use
+     * double link with IE module via static and dynamic version. Both modules
+     * have static object with same export name and it leads to double construction
+     * and double destruction of that object. For some c++ compilers (ex gcc 5.4)
+     * it lead to crash with "double free".
+     *
+     * That's why we use manual allocation of singleton instance on heap.
+     */
+    std::lock_guard<std::mutex> guard(_mutex);
+    if (_instance == nullptr) {
+        _instance = new ExecutorManager();
+    }
+    return _instance;
+}
 
 ITaskExecutor::Ptr ExecutorManager::getExecutor(std::string id) {
     return _impl.getExecutor(id);
