@@ -14,11 +14,13 @@
  limitations under the License.
 """
 import io
-import numpy as np
-import os
 import logging as log
+import os
 
-from mo.front.kaldi.loader.utils import read_placeholder, read_binary_integer32_token, read_blob, read_token_value, find_next_tag
+import numpy as np
+
+from mo.front.kaldi.loader.utils import read_placeholder, read_binary_integer32_token, read_blob, read_token_value, \
+    find_next_tag
 from mo.utils.error import Error
 
 

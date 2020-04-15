@@ -217,6 +217,7 @@ public:
                         uint32_t stride : 1;
                         // fused conv eltw
                         uint32_t rw_out_opt : 1;
+                        uint32_t depth_to_space_fused : 1;
                     } fused_conv_eltw;
                     struct quantize_t {
                         uint32_t packed_binary_output : 1;
@@ -231,6 +232,7 @@ public:
             struct val_t {
                 uint32_t subgroup : 1;
                 uint32_t subgroupShort : 1;
+                uint32_t subgroupChar : 1;
             } val;
             uint32_t raw;
         } machineInfo;
@@ -293,6 +295,7 @@ public:
     void EnableGradient() { key.restrict.val.gradient = 1; }
     void EnableSubGroup() { key.machineInfo.val.subgroup = 1; }
     void EnableSubGroupShort() { key.machineInfo.val.subgroupShort = 1; }
+    void EnableSubGroupChar() { key.machineInfo.val.subgroupChar = 1; }
     void EnableNonBiasTerm() { key.restrict.val.nonBias = 1; }
     void EnableBiasPerFeature() { key.restrict.val.biasPerFeatureMap = 1; }
     void EnableBiasPerOutput() { key.restrict.val.biasPerOutput = 1; }
@@ -330,6 +333,7 @@ public:
     void EnableFusedConvEltwInt8Quantization() { key.restrict.val.dedicated.fused_conv_eltw.quantization = 1; }
     void EnableFusedConvEltwOutputCalibration() { key.restrict.val.dedicated.fused_conv_eltw.calibration = 1; }
     void EnableFusedConvEltwEltwiseStride();
+    void EnableFusedConvEltwDepthToSpaceFusing();
 
     void EnableQuantizePackedBinaryOutput() { key.restrict.val.dedicated.quantize.packed_binary_output = 1; }
     void EnableQuantizeScaleShiftOpt() { key.restrict.val.dedicated.quantize.scale_shift_opt = 1; }
@@ -375,6 +379,7 @@ private:
 struct EngineInfo {
     bool bSubGroupSupport = false;
     bool bSubGroupShortSupport = false;
+    bool bSubGroupCharSupport = false;
     bool bFP16Support = false;
     bool bFP64Support = false;
     bool bImageSupport = false;
@@ -468,6 +473,9 @@ struct FusedOpsConfiguration {
     IndexType index_type;
     // Defines outer loops channels where fused op is called.
     std::vector<Tensor::DataChannelName> loop_axes;
+    // If allow_for_partial_preload is false, then it's required that all fused_ops can be preloaded.
+    // If allow_for_partial_preload is true, then not preloaded fused_ops will be loaded in FUSED_OPS_CALC.
+    bool allow_for_partial_preload;
 
     FusedOpsConfiguration(std::string suffix,
                           std::vector<std::string> bfzyx_idx_order,
@@ -478,7 +486,8 @@ struct FusedOpsConfiguration {
                           BoundaryCheck boundary_check = BoundaryCheck::ENABLED,
                           IndexType index_type = IndexType::TENSOR_COORD,
                           Tensor::DataChannelName vec_axis = Tensor::DataChannelName::COUNT,
-                          std::vector<Tensor::DataChannelName> loop_axes = {})
+                          std::vector<Tensor::DataChannelName> loop_axes = {},
+                          bool allow_for_partial_preload = false)
       : suffix(suffix)
       , bfzyx_idx_order(bfzyx_idx_order)
       , input_var_name(input_var_name)
@@ -488,14 +497,18 @@ struct FusedOpsConfiguration {
       , load_type(load_type)
       , boundary_check(boundary_check)
       , index_type(index_type)
-      , loop_axes(loop_axes) { }
+      , loop_axes(loop_axes)
+      , allow_for_partial_preload(allow_for_partial_preload) { }
 
     FusedOpsConfiguration& SetVectorSize(size_t val) { vec_size = val; return *this; }
     FusedOpsConfiguration& SetLoadType(LoadType val) { load_type = val; return *this; }
     FusedOpsConfiguration& SetBoundaryCheck(BoundaryCheck val) { boundary_check = val; return *this; }
     FusedOpsConfiguration& SetIndexType(IndexType val) { index_type = val; return *this; }
     FusedOpsConfiguration& SetVectorAxis(Tensor::DataChannelName val) { vec_axis = val; return *this; }
-    FusedOpsConfiguration& SetLoopAxes(std::vector<Tensor::DataChannelName> val) { loop_axes = std::move(val); return *this; }
+    FusedOpsConfiguration& SetLoopAxes(std::vector<Tensor::DataChannelName> val, bool partial_preload = false) {
+        loop_axes = std::move(val);
+        allow_for_partial_preload = partial_preload;
+        return *this; }
 };
 
 // Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program_impl::fuse_nodes

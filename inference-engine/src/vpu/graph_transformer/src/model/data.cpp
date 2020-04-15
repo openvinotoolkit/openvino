@@ -4,6 +4,16 @@
 
 #include <vpu/model/data.hpp>
 
+#include <vpu/model/edges.hpp>
+#include <vpu/model/stage.hpp>
+#include <vpu/backend/backend.hpp>
+#include <vpu/utils/ie_helpers.hpp>
+#include <vpu/utils/numeric.hpp>
+#include <vpu/compile_env.hpp>
+
+#include <precision_utils.h>
+#include <ie_parallel.hpp>
+
 #include <array>
 #include <algorithm>
 #include <queue>
@@ -15,274 +25,7 @@
 #include <set>
 #include <utility>
 
-#include <precision_utils.h>
-#include <ie_parallel.hpp>
-
-#include <vpu/model/edges.hpp>
-#include <vpu/model/stage.hpp>
-#include <vpu/backend/backend.hpp>
-#include <vpu/utils/ie_helpers.hpp>
-#include <vpu/utils/numeric.hpp>
-#include <vpu/compile_env.hpp>
-
 namespace vpu {
-
-//
-// DataContent
-//
-
-DataContent::~DataContent() = default;
-
-const void* CalculatedDataContent::getRaw() const {
-    if (_temp.empty()) {
-        _temp.resize(getTempBufSize(_baseContents));
-        fillTempBuf(_baseContents, _temp.data());
-        _baseContents.clear();
-    }
-    return _temp.data();
-}
-
-size_t CalculatedDataContent::getTempBufSize(const SmallVector<DataContent::Ptr, 2>&) const {
-    return checked_cast<size_t>(desc().totalDimSize()) *
-           checked_cast<size_t>(desc().elemSize());
-}
-
-namespace {
-
-class IeBlobContent final : public DataContent {
-public:
-    IeBlobContent(const ie::Blob::Ptr& blob, int repeat) : _blob(blob), _repeat(repeat) {}
-
-protected:
-    const void* getRaw() const override {
-        if (desc().type() == DataType::FP16) {
-            if (_blobFp16 == nullptr) {
-                _blobFp16 = getBlobFP16(_blob);
-                _blob.reset();
-            }
-
-            if (_repeat == 1) {
-                return _blobFp16->cbuffer();
-            } else {
-                if (_tempFp16.empty()) {
-                    VPU_PROFILE(IeBlobContent);
-
-                    IE_ASSERT(desc().totalDimSize() % _repeat == 0);
-
-                    auto origNumElems = desc().totalDimSize() / _repeat;
-                    IE_ASSERT(checked_cast<size_t>(origNumElems) <= _blobFp16->size());
-
-                    auto origPtr = _blobFp16->cbuffer().as<const fp16_t*>();
-                    IE_ASSERT(origPtr != nullptr);
-
-                    _tempFp16.resize(checked_cast<size_t>(desc().totalDimSize()));
-
-                    ie::parallel_for(_repeat, [this, origPtr, origNumElems](int i) {
-                        std::copy_n(origPtr, origNumElems, _tempFp16.data() + i * origNumElems);
-                    });
-                }
-
-                return _tempFp16.data();
-            }
-        } else if (desc().type() == DataType::S32) {
-            if (_repeat == 1) {
-                return _blob->cbuffer();
-            } else {
-                if (_tempS32.empty()) {
-                    VPU_PROFILE(IeBlobContent);
-
-                    IE_ASSERT(desc().totalDimSize() % _repeat == 0);
-
-                    auto origNumElems = desc().totalDimSize() / _repeat;
-                    IE_ASSERT(checked_cast<size_t>(origNumElems) <= _blob->size());
-
-                    auto origPtr = _blob->cbuffer().as<const int32_t*>();
-                    IE_ASSERT(origPtr != nullptr);
-
-                    _tempS32.resize(checked_cast<size_t>(desc().totalDimSize()));
-
-                    ie::parallel_for(_repeat, [this, origPtr, origNumElems](int i) {
-                        std::copy_n(origPtr, origNumElems, _tempS32.data() + i * origNumElems);
-                    });
-                }
-
-                return _tempS32.data();
-            }
-        } else {
-            VPU_THROW_EXCEPTION << "Unsupported data type " << desc().type();
-        }
-    }
-
-private:
-    mutable ie::Blob::Ptr _blob;
-    int _repeat = 0;
-
-    mutable ie::Blob::Ptr _blobFp16;
-    mutable std::vector<fp16_t> _tempFp16;
-    mutable std::vector<int32_t> _tempS32;
-};
-
-}  // namespace
-
-DataContent::Ptr ieBlobContent(const ie::Blob::Ptr& blob, int repeat) {
-    return std::make_shared<IeBlobContent>(blob, repeat);
-}
-
-namespace {
-
-class ReplicatedContent final : public CalculatedDataContent {
-public:
-    ReplicatedContent(float val, int count) : _factor{val}, _count(count) {}
-
-    ReplicatedContent(DataContent::Ptr origContent, int count) :
-        CalculatedDataContent({std::move(origContent)}), _count(count) {
-    }
-
-protected:
-    size_t getTempBufSize(const SmallVector<DataContent::Ptr, 2>& baseContents) const override {
-        if (baseContents.empty()) {
-            return checked_cast<size_t>(_count) * sizeof(fp16_t);
-        } else {
-            IE_ASSERT(baseContents.size() == 1);
-            IE_ASSERT(desc().totalDimSize() % _count == 0);
-
-            return checked_cast<size_t>(desc().totalDimSize()) * sizeof(fp16_t);
-        }
-    }
-
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override {
-        VPU_PROFILE(ReplicatedContent);
-
-        auto dstPtr = static_cast<fp16_t*>(tempBuf);
-
-        if (baseContents.empty()) {
-            std::fill_n(dstPtr, _count, ie::PrecisionUtils::f32tof16(_factor));
-        } else {
-            IE_ASSERT(baseContents.size() == 1);
-            IE_ASSERT(desc().totalDimSize() % _count == 0);
-
-            auto origCount = desc().totalDimSize() / _count;
-            auto origPtr = baseContents[0]->get<fp16_t>();
-            IE_ASSERT(origPtr != nullptr);
-
-            ie::parallel_for(_count, [origPtr, origCount, dstPtr](int i) {
-                std::copy_n(origPtr, origCount, dstPtr + i * origCount);
-            });
-        }
-    }
-
-private:
-    float _factor = 1.0f;
-    int _count = 0;
-};
-
-}  // namespace
-
-DataContent::Ptr replicateContent(float val, int count) {
-    return std::make_shared<ReplicatedContent>(val, count);
-}
-
-DataContent::Ptr replicateContent(const DataContent::Ptr& origContent, int count) {
-    return std::make_shared<ReplicatedContent>(origContent, count);
-}
-
-namespace {
-
-class ScaledContent final : public CalculatedDataContent {
-public:
-    ScaledContent(const DataContent::Ptr& origContent, float scale) :
-        CalculatedDataContent({origContent}), _factor(scale) {
-    }
-
-protected:
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override {
-        VPU_PROFILE(ScaledContent);
-
-        IE_ASSERT(baseContents.size() == 1);
-
-        auto totalSize = desc().totalDimSize();
-
-        auto origDesc = baseContents[0]->desc();
-        IE_ASSERT(origDesc.type() == DataType::FP16);
-        IE_ASSERT(origDesc.totalDimSize() == totalSize);
-
-        auto srcPtr = baseContents[0]->get<fp16_t>();
-        IE_ASSERT(srcPtr != nullptr);
-
-        auto dstPtr = static_cast<fp16_t*>(tempBuf);
-
-        ie::parallel_for(totalSize, [this, srcPtr, dstPtr](int i) {
-            dstPtr[i] = ie::PrecisionUtils::f32tof16(ie::PrecisionUtils::f16tof32(srcPtr[i]) * _factor);
-        });
-    }
-
-private:
-    float _factor = 1.0f;
-};
-
-}  // namespace
-
-DataContent::Ptr scaleContent(const DataContent::Ptr& origContent, float scale) {
-    return std::make_shared<ScaledContent>(origContent, scale);
-}
-
-namespace {
-
-class ScaledChannelContent final : public CalculatedDataContent {
-public:
-    ScaledChannelContent(
-            const DataContent::Ptr& origContent,
-            const DataContent::Ptr& scaleContent) :
-            CalculatedDataContent({origContent, scaleContent}) {
-    }
-
-protected:
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override {
-        VPU_PROFILE(ScaledChannelContent);
-
-        IE_ASSERT(baseContents.size() == 2);
-
-        auto totalSize = desc().totalDimSize();
-
-        IE_ASSERT(desc().numDims() == 4 && desc().dimsOrder() == DimsOrder::NCHW);
-        auto numN = desc().dim(Dim::N);
-        auto numC = desc().dim(Dim::C);
-        auto numH = desc().dim(Dim::H);
-        auto numW = desc().dim(Dim::W);
-
-        auto origDesc = baseContents[0]->desc();
-        IE_ASSERT(origDesc.type() == DataType::FP16);
-        IE_ASSERT(origDesc.totalDimSize() == totalSize);
-        IE_ASSERT(baseContents[1]->desc().totalDimSize() == numN);
-
-        auto srcPtr = baseContents[0]->get<fp16_t>();
-        IE_ASSERT(srcPtr != nullptr);
-
-        auto scale = baseContents[1]->get<fp16_t>();
-        IE_ASSERT(scale != nullptr);
-
-        auto dstPtr = static_cast<fp16_t*>(tempBuf);
-
-        for (int n = 0; n < numN; n++) {
-            for (int c = 0; c < numC; c++) {
-               for (int h = 0; h < numH; h++) {
-                   for (int w = 0; w < numW; w++) {
-                       dstPtr[n * numC * numH * numW + c * numH * numW + h * numW + w] =
-                               srcPtr[n * numC * numH * numW + c * numH * numW + h * numW + w] * scale[n];
-                   }
-               }
-            }
-        }
-    }
-};
-
-}  // namespace
-
-DataContent::Ptr scaledChannelContent(
-        const DataContent::Ptr& origContent,
-        const DataContent::Ptr& scaleContent) {
-    return std::make_shared<ScaledChannelContent>(origContent, scaleContent);
-}
 
 //
 // DataNode
@@ -380,8 +123,7 @@ void DataNode::updateRequiredStrides(const StridesRequirement& newReqs) {
 }
 
 void DataNode::clearAllocation() {
-    _location = DataLocation::None;
-    _memoryOffset = 0;
+    _dataLocation = defaultDataLocation;
     attrs().erase("ioBufferOffset");
 }
 
@@ -393,69 +135,64 @@ void DataNode::setMemReqs(MemoryType mem) {
     _memReqs = mem;
 }
 
-void DataNode::setIOInfo(DataLocation location, int ioBufferOffset) {
-    IE_ASSERT(_usage == DataUsage::Input || _usage == DataUsage::Output);
+void DataNode::setIOInfo(Location location, int ioBufferOffset) {
+    VPU_INTERNAL_CHECK(_usage == DataUsage::Input || _usage == DataUsage::Output,
+        "Data {} failed: setIOInfo called for non IO data, actual usage is {}",
+        name(), usage());
 
     if (_usage == DataUsage::Input) {
-        IE_ASSERT(location == DataLocation::Input);
+        VPU_INTERNAL_CHECK(location == Location::Input,
+            "Input data {} failed: setIOInfo called with non input location, actual location is {}",
+            name(), location);
     } else if (_usage == DataUsage::Output) {
-        IE_ASSERT(location == DataLocation::Output);
+        VPU_INTERNAL_CHECK(location == Location::Output,
+            "Output data {} failed: setIOInfo called with non output location, actual location is {}",
+            name(), location);
     }
 
-    _location = location;
-    _memoryOffset = 0;
+    _dataLocation = {location, 0};
     attrs().set<int>("ioBufferOffset", ioBufferOffset);
 }
 
-void DataNode::setAllocationInfo(DataLocation location, int memoryOffset) {
-    IE_ASSERT(_usage == DataUsage::Const || _usage == DataUsage::Intermediate || _usage == DataUsage::Temp);
+void DataNode::setDataAllocationInfo(const DataLocation& dataLocation) {
+    VPU_INTERNAL_CHECK(_usage == DataUsage::Const || _usage == DataUsage::Intermediate || _usage == DataUsage::Temp,
+        "Data {} failed: setDataAllocationInfo called for data with incorrect usage, actual usage: {} "
+        "valid usages: {}, {}, {}", name(), usage(), DataUsage::Const, DataUsage::Intermediate, DataUsage::Temp);
 
     if (_usage == DataUsage::Const) {
-        IE_ASSERT(location == DataLocation::Blob);
+        VPU_INTERNAL_CHECK(dataLocation.location == Location::Blob,
+            "Const data {} failed: setDataAllocationInfo called with non blob location, actual location is {}",
+            name(), dataLocation.location);
     } else if (_usage == DataUsage::Temp) {
-        IE_ASSERT(location == DataLocation::BSS);
+        VPU_INTERNAL_CHECK(dataLocation.location == Location::BSS,
+            "Temp data {} failed: setDataAllocationInfo called with non bss location, actual location is {}",
+            name(), dataLocation.location);
     }
 
-    _location = location;
-    _memoryOffset = memoryOffset;
+    _dataLocation = dataLocation;
+}
+
+void DataNode::setShapeAllocationInfo(const ShapeLocation& shapeLocation) {
+    _shapeLocation = shapeLocation;
 }
 
 void DataNode::serializeBuffer(
-        BlobSerializer& serializer,
-        DimsOrder newOrder) {
-    if (newOrder.numDims() == 0) {
-        serializeBufferImpl(serializer, _desc, this->strides());
-    } else {
-        IE_ASSERT(newOrder.numDims() >= _desc.dimsOrder().numDims());
+        BlobSerializer& serializer) {
+    serializeDescImpl(serializer, _desc, this->strides());
 
-        auto newDims = _desc.dims();
-        auto newStrides = this->strides();
-        auto newPerm = newOrder.toPermutation();
+    serializer.append(checked_cast<uint32_t>(_dataLocation.location));
 
-        auto origOrder = _desc.dimsOrder();
-        auto origPerm = origOrder.toPermutation();
+    if (_dataLocation.location == Location::Input || _dataLocation.location == Location::Output) {
+        auto topParent = getTopParentData();
 
-        size_t origPermInd = 0;
-        for (size_t i = 0; i < newPerm.size(); i++) {
-            auto d = newPerm[i];
+        auto ioIdx = topParent->attrs().get<int>("ioIdx");
+        serializer.append(checked_cast<uint32_t>(ioIdx));
 
-            if (origPermInd < origPerm.size() && origPerm[origPermInd] == d) {
-                ++origPermInd;
-                continue;
-            }
-
-            newDims.set(d, 1);
-            if (i == 0) {
-                newStrides.set(d, _desc.elemSize());
-            } else {
-                newStrides.set(d, newStrides[newPerm[i - 1]] * newDims[newPerm[i - 1]]);
-            }
-        }
-        IE_ASSERT(origPermInd == origPerm.size());
-
-        DataDesc newDesc(_desc.type(), newOrder, newDims);
-        serializeBufferImpl(serializer, newDesc, newStrides);
+        auto parentByteSize = topParent->totalByteSize();
+        serializer.append(checked_cast<uint32_t>(parentByteSize));
     }
+
+    serializer.append(checked_cast<uint32_t>(_dataLocation.offset));
 }
 
 void DataNode::serializeIOInfo(BlobSerializer& serializer) const {
@@ -485,8 +222,6 @@ void DataNode::serializeDescImpl(
         const DimValues& storedStrides) const {
     IE_ASSERT(storedDesc.numDims() <= MAX_DIMS_32);
 
-    const auto& storedDims = storedDesc.dims();
-
     auto storedDimsOrder = storedDesc.dimsOrder();
 
     auto storedPerm = storedDimsOrder.toPermutation();
@@ -496,33 +231,13 @@ void DataNode::serializeDescImpl(
     serializer.append(checked_cast<uint32_t>(storedDimsOrder.code()));
 
     serializer.append(checked_cast<uint32_t>(storedPerm.size()));
-    for (auto d : storedPerm) {
-        serializer.append(checked_cast<uint32_t>(storedDims[d]));
-    }
-    for (auto d : storedPerm) {
-        serializer.append(checked_cast<uint32_t>(storedStrides[d]));
-    }
-}
 
-void DataNode::serializeBufferImpl(
-        BlobSerializer& serializer,
-        const DataDesc& storedDesc,
-        const DimValues& storedStrides) const {
-    serializeDescImpl(serializer, storedDesc, storedStrides);
+    const auto& shape = shapeLocation();
 
-    serializer.append(checked_cast<uint32_t>(_location));
-
-    if (_location == DataLocation::Input || _location == DataLocation::Output) {
-        auto topParent = getTopParentData();
-
-        auto ioIdx = topParent->attrs().get<int>("ioIdx");
-        serializer.append(checked_cast<uint32_t>(ioIdx));
-
-        auto parentByteSize = topParent->totalByteSize();
-        serializer.append(checked_cast<uint32_t>(parentByteSize));
-    }
-
-    serializer.append(checked_cast<uint32_t>(_memoryOffset));
+    serializer.append(checked_cast<uint32_t>(shape.dimsLocation));
+    serializer.append(checked_cast<uint32_t>(shape.dimsOffset));
+    serializer.append(checked_cast<uint32_t>(shape.stridesLocation));
+    serializer.append(checked_cast<uint32_t>(shape.stridesOffset));
 }
 
 void printTo(std::ostream& os, const Data& data) {

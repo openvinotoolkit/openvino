@@ -21,8 +21,8 @@ from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import find_pattern_matches
-from mo.ops.result import Result
 from mo.ops.reshape import Reshape
+from mo.ops.result import Result
 
 
 class SsdPatternDetectionOutputReplacer(FrontReplacementSubgraph):

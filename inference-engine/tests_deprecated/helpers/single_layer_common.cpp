@@ -66,20 +66,29 @@ BufferWrapper::BufferWrapper(const Blob::Ptr& blob, Precision _precision) : prec
         fp16_ptr = blob->buffer().as<ie_fp16*>();
     } else if (precision == Precision::FP32) {
         fp32_ptr = blob->buffer().as<float*>();
+    } else if (precision == Precision::I32) {
+        i32_ptr = blob->buffer().as<int32_t*>();
     } else {
         THROW_IE_EXCEPTION << "Unsupported precision for compare: " << precision;
     }
 }
 
 float BufferWrapper::operator[](size_t index) {
-    if (precision == Precision::FP16) return PrecisionUtils::f16tof32(fp16_ptr[index]);
+    if (precision == Precision::FP16) {
+        return PrecisionUtils::f16tof32(fp16_ptr[index]);
+    } else if (precision == Precision::I32) {
+        return i32_ptr[index];
+    }
     return fp32_ptr[index];
 }
 
 void BufferWrapper::insert(size_t index, float value) {
     if (precision == Precision::FP16) {
         fp16_ptr[index] = PrecisionUtils::f32tof16(value);
-    } else {
+    } else if (precision == Precision::I32) {
+        i32_ptr[index] = value;
+    }
+    else {
         fp32_ptr[index] = value;
     }
 }

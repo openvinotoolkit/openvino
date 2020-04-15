@@ -15,7 +15,6 @@
 """
 
 from mo.front.common.partial_infer.multi_box_prior import multi_box_prior_infer_mxnet
-from mo.utils.error import Error
 
 
 def multi_box_prior_ext(attr):

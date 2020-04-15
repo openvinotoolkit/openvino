@@ -17,8 +17,8 @@ import unittest
 
 from extensions.middle.sparse_reshape import SparseReshapeMiddleReplacer
 from mo.front.common.partial_infer.utils import int64_array
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 
 class SparseReshapeMiddleReplacerTests(unittest.TestCase):

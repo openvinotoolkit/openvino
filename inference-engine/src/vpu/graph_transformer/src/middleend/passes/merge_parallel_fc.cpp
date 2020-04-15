@@ -2,61 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <vpu/middleend/pass_manager.hpp>
+#include <vpu/stages/stub_stage.hpp>
+#include <vpu/model/data_contents/merge_fc_content.hpp>
+
+#include <ie_parallel.hpp>
+
 #include <memory>
 #include <utility>
 #include <vector>
 
-#include <ie_parallel.hpp>
-
-#include <vpu/middleend/pass_manager.hpp>
-#include <vpu/stages/stub_stage.hpp>
-
 namespace vpu {
 
 namespace {
-
-class MergeFullyConnectedContentsByChannels final : public CalculatedDataContent {
-public:
-    explicit MergeFullyConnectedContentsByChannels(const SmallVector<DataContent::Ptr, 2>& contents) :
-        CalculatedDataContent(contents) {}
-
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& contents, void* temp) const override {
-        IE_ASSERT(!contents.empty());
-        // vpu::DataNode has content and vpu::DataDesc with dimensions' vector
-        // content has dimensions's vector as well
-        // they can be different so we extract channels number from contents
-        const auto dstC = std::accumulate(contents.begin(), contents.end(), 0, [](int reduction, const DataContent::Ptr& content) {
-            return reduction + content->desc().dims()[Dim::C];});
-
-        for (std::size_t i = 0, dstChannelsOffset = 0; i < contents.size(); ++i) {
-            const auto& content = contents[i];
-            const auto& srcDesc = content->desc();
-
-            const auto& srcDims = srcDesc.dims();
-            const auto& elemSize = srcDesc.elemSize();
-
-            const auto N = srcDims.get(Dim::N, 1);
-            const auto H = srcDims.get(Dim::H, 1);
-            const auto W = srcDims.get(Dim::W, 1) * elemSize;
-
-            const auto& srcC = srcDims[Dim::C];
-
-            const auto src = content->get<uint8_t>();
-                  auto dst = static_cast<uint8_t*>(temp);
-
-            InferenceEngine::parallel_for4d(N, srcC, H, W, [dstChannelsOffset, N, H, W, src, dst, srcC, dstC](int n, int c, int h, int w) {
-                const auto& srcc = c;
-                const auto& dstc = dstChannelsOffset + c;
-
-                const auto& srcOffset = n * H * W * srcC + srcc * H * W + h * W + w;
-                const auto& dstOffset = n * H * W * dstC + dstc * H * W + h * W + w;
-                dst[dstOffset] = src[srcOffset];
-            });
-
-            dstChannelsOffset += srcC;
-        }
-    }
-};
 
 DataDesc mergeDescriptors(const DataVector& dataObjects) {
     const auto& targetDim = Dim::C;
@@ -72,13 +30,17 @@ Data mergeConstDataObjects(const Model& model, const DataVector& dataObjects) {
         return model->addFakeData();
     }
 
-    std::vector<DataContent::Ptr> contents;
+    std::vector<DataContent::CPtr> contents;
+    std::vector<DataDesc> descs;
     for (const auto& data : dataObjects) {
         contents.push_back(data->content());
+        descs.push_back(data->desc());
     }
 
-    auto content = std::make_shared<MergeFullyConnectedContentsByChannels>(contents);
-    return model->duplicateData(dataObjects.front(), "@merge-parallel-fc", mergeDescriptors(dataObjects), content);
+    auto mergedDesc = mergeDescriptors(dataObjects);
+
+    auto content = std::make_shared<MergeFullyConnectedContentsByChannels>(contents, descs, mergedDesc);
+    return model->duplicateData(dataObjects.front(), "@merge-parallel-fc", mergedDesc, content);
 }
 
 Data mergeOutputs(const Model& model, const DataVector& dataObjects) {

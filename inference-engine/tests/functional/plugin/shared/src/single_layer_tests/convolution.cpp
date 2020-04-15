@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,6 +50,8 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
 void ConvolutionLayerTest::SetUp() {
     convSpecificParams convParams;
     std::vector<size_t> inputShape;
+    auto inputPrecision = InferenceEngine::Precision::UNSPECIFIED;
+    auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(convParams, inputPrecision, netPrecision, inputShape, targetDevice) = this->GetParam();
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
@@ -64,10 +66,14 @@ void ConvolutionLayerTest::SetUp() {
             ngraph::builder::makeConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
                                              padEnd, dilation, padType, convOutChannels));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
-    fnPtr = std::make_shared<ngraph::Function>(results, params, "convolution");
+    function = std::make_shared<ngraph::Function>(results, params, "convolution");
 }
 
 TEST_P(ConvolutionLayerTest, CompareWithRefs) {
-    inferAndValidate();
+    Run();
+
+    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+        PluginCache::get().reset();
+    }
 }
 }  // namespace LayerTestsDefinitions

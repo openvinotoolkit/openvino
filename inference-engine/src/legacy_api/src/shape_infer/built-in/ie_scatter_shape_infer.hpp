@@ -15,19 +15,19 @@ namespace InferenceEngine {
 namespace ShapeInfer {
 
 /**
- *@brief Implementation of Shape inference for Scatter layer
+ *@brief Implementation of Shape inference for ScatterUpdate layer
  */
-class ScatterShapeProp : public BuiltInShapeInferImpl {
+class ScatterUpdateShapeProp : public BuiltInShapeInferImpl {
 public:
-    explicit ScatterShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
+    explicit ScatterUpdateShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
 
     void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
                          const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
         LayerParams lp {};
-        ScatterLayer scatterLayer(lp);
-        scatterLayer.params = params;
-        scatterLayer.type = _type;
-        validate(&scatterLayer, inBlobs, params, blobs);
+        ScatterUpdateLayer scatterUpdateLayer(lp);
+        scatterUpdateLayer.params = params;
+        scatterUpdateLayer.type = _type;
+        validate(&scatterUpdateLayer, inBlobs, params, blobs);
 
         outShapes = {inShapes[0]};
     }

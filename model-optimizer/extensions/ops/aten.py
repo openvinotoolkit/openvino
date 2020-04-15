@@ -14,8 +14,7 @@
  limitations under the License.
 """
 
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 

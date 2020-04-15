@@ -969,9 +969,9 @@ public:
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
-class ScatterValidator : public LayerValidator {
+class ScatterUpdateValidator : public LayerValidator {
 public:
-    explicit ScatterValidator(const std::string& _type);
+    explicit ScatterUpdateValidator(const std::string& _type);
 
     void parseParams(CNNLayer* layer) override;
 

@@ -17,8 +17,8 @@
 import unittest
 
 from extensions.middle.TensorIteratorBackEdge import BackEdgesMatching
-from mo.utils.unittest.graph import build_graph_with_attrs
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph_with_attrs
 
 
 class BackEdgesMatchingTests(unittest.TestCase):

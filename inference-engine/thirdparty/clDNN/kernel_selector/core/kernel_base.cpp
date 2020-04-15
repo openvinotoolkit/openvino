@@ -82,11 +82,10 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
     for (auto& c : conf) {
         std::string fused_ops;
         std::string fused_ops_preload;
-        std::string fused_ops_calc_only;
+        std::string fused_ops_calc;
         std::string in_name = c.input_var_name;
         Datatype in_type = c.input_dt;
-
-        bool can_use_preload = true;
+        bool can_all_use_preload = true;
 
         for (size_t i = 0; i < params.fused_ops.size(); i++) {
             auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
@@ -97,20 +96,26 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             in_name = out_var;
             in_type = out_type;
 
-            can_use_preload &= fused_dep_codegen.CanPreloadData(c);
+            bool can_use_preload = fused_dep_codegen.CanPreloadData(c);
+            can_all_use_preload &= can_use_preload;
 
             fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
             fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
-            fused_ops_preload += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
-            fused_ops_calc_only += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
+            if (can_use_preload)
+                fused_ops_preload += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
+            if (c.allow_for_partial_preload && !can_use_preload)
+                fused_ops_calc += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
+            fused_ops_calc += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
         }
 
         jit.AddConstant(MakeJitConstant("FUSED_OPS" + c.suffix, fused_ops));
         jit.AddConstant(MakeJitConstant("FUSED_OPS_PRELOAD" + c.suffix, fused_ops_preload));
-        jit.AddConstant(MakeJitConstant("FUSED_OPS_CALC" + c.suffix, fused_ops_calc_only));
+        jit.AddConstant(MakeJitConstant("FUSED_OPS_CALC" + c.suffix, fused_ops_calc));
         jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT" + c.suffix, in_name));
 
-        jit.AddConstant(MakeJitConstant("FUSED_OPS_CAN_USE_PRELOAD" + c.suffix, can_use_preload));
+        bool can_any_use_preload = !fused_ops_preload.empty();
+        jit.AddConstant(MakeJitConstant("FUSED_OPS_CAN_USE_PRELOAD" + c.suffix,
+            can_all_use_preload || (c.allow_for_partial_preload && can_any_use_preload)));
     }
 
     jit.Merge(MakeFusedOpsDeclsJitConstants(params, conf));

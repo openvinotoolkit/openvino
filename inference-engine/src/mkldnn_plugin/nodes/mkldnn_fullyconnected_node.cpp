@@ -78,7 +78,8 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         }
         auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->insData[1].lock()->getPrecision());
 
-        if (inputDataType != memory::u8 || weightsDataType != memory::s8) {
+        // TODO(amalyse) what are the cases when we have non i8 weights and have to overide the precisions?
+        if ((inputDataType != memory::u8 || weightsDataType != memory::s8) && inputDataType != memory::bf16) {
             inputDataType = memory::f32;
             outputDataType = memory::f32;
         }
@@ -355,6 +356,9 @@ void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<InferenceEngin
     TensorDesc inDesc = inputDesc[0], outDesc = outputDesc[0];
     mkldnn::memory::data_type wdt = MKLDNNExtensionUtils::IEPrecisionToDataType(inDesc.getPrecision());
     mkldnn::memory::data_type bdt = MKLDNNExtensionUtils::IEPrecisionToDataType(inDesc.getPrecision());
+    if (inDesc.getPrecision() == Precision::BF16) {
+        bdt = mkldnn::memory::data_type::f32;
+    }
 
     if (inDesc.getPrecision() == Precision::U8 || inDesc.getPrecision() == Precision::I8) {
         wdt = memory::s8;

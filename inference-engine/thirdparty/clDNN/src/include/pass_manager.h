@@ -176,6 +176,7 @@ public:
 private:
     void run(program_impl& p) override;
     void fuse_conv_eltwise(program_impl& p, program_node* node);
+    void fuse_conv_depth_to_space(program_impl& p, program_node* node);
     layout_optimizer& _lo;
     bool b_fs_yx_fsv16_opt;
 };
@@ -289,13 +290,15 @@ private:
 
 class remove_redundant_reorders : public base_pass {
 public:
-    explicit remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing = false, bool update_implementations = false);
+    explicit remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing = false, bool update_implementations = false,
+        bool remove_output_reorders = false);
     void run(program_impl& p) override;
 
 private:
     layout_optimizer& lo;
     bool enable_reorder_fusing;
     bool update_implementations;
+    bool remove_output_reorders;
 };
 
 class reorder_inputs : public base_pass {

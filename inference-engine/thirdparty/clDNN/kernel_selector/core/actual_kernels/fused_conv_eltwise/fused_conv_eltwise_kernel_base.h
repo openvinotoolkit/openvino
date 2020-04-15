@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,6 +64,7 @@ struct fused_conv_eltwise_params : public weight_bias_params {
 
     float non_conv_scale = 1.0f;
     bool second_input_in_output = false;
+    bool depth_to_space_already_fused = false;
 
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;

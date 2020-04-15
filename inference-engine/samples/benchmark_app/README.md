@@ -92,14 +92,17 @@ Options:
                               Please note that although the automatic selection usually provides a reasonable performance, 
                               it still may be non-optimal for some cases, especially for very small networks.
     -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
-    -pin "YES"/"NUMA"/"NO"    Optional. Enable threads->cores ("YES", default), threads->(NUMA)nodes ("NUMA") or completely disable ("NO") 
-                              CPU threads pinning for CPU-involved inference.
+    -enforcebf16              Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.
+    -pin "YES"/"NO"/"NUMA"    Optional. Enable threads->cores ("YES", default), threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU threads pinning for CPU-involved inference.
+
 
   Statistics dumping options:
     -report_type "<type>"     Optional. Enable collecting statistics report. "no_counters" report contains configuration options specified, resulting FPS and latency. "average_counters" report extends "no_counters" report and additionally includes average PM counters values for each layer from the network. "detailed_counters" report extends "average_counters" report and additionally includes per-layer PM counters and latency for each executed infer request.
     -report_folder            Optional. Path to a folder where statistics report is stored.
     -exec_graph_path          Optional. Path to a file where to store executable graph information serialized.
     -pc                       Optional. Report performance counters.
+    -dump_config              Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.
+    -load_config              Optional. Path to XML/YAML/JSON file to load custom IE parameters. Please note, command line parameters have higher priority then parameters from configuration file.
 ```
 
 Running the application with the empty list of options yields the usage message given above and an error message.

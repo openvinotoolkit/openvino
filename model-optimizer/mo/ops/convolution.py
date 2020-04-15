@@ -44,12 +44,21 @@ class Convolution(Op):
 
     def backend_attrs(self):
         if self.ir_version == 10:
+            def pad_attribute_helper(node: Node, pad_type: str='begin'):
+                assert pad_type in ['begin', 'end']
+                if not node.has_valid('pad'):
+                    return None
+                pad = get_backend_pad(node.pad, node.spatial_dims, 0 if pad_type == 'begin' else 1)
+                if node.has_valid('auto_pad'):
+                    pad = [0 for _ in pad]
+                return ','.join(map(str, pad))
+
             return [
                 'auto_pad',
                 ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
                 ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
-                ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0))) if node.has_valid('pad') else None),
-                ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1))) if node.has_valid('pad') else None),
+                ('pads_begin', lambda node: pad_attribute_helper(node, 'begin')),
+                ('pads_end', lambda node: pad_attribute_helper(node, 'end')),
                 ('output_padding', lambda node: ','.join(map(str, node.output_padding[node.spatial_dims])) \
                     if node.has_valid('output_padding') else None),
 

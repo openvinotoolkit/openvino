@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 from extensions.front.caffe.accum_ext import AccumFrontExtractor
 from extensions.ops.accum import AccumOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.ops.op import Op
 
 
 class FakeAccumProtoLayer:

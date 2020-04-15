@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import numpy as np
-
 from extensions.ops.sparse_to_dense import SparseToDense
 from mo.front.extractor import FrontExtractorOp
 

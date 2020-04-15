@@ -71,7 +71,8 @@ class GnaPluginTestEnvironment {
         fillOutputValues,
         matchAffineWeightsTranspose,
         matchAffineWeights,
-        saveAffineWeights
+        matchAffineWeightsSize,
+        saveAffineWeights,
     };
     enum {
         kUnset = -1,
@@ -113,6 +114,8 @@ class GnaPluginTestEnvironment {
     std::pair<int, int> transposedArgsForSaving;
     std::vector<uint16_t>* transposedData;
     std::vector<DnnActivationType> pwlsToMatchWith;
+    size_t matched_weight_size = 0;
+    size_t nCopyLayersToMatch = -1;
 };
 
 class GNATestBase {
@@ -162,6 +165,14 @@ class GNATestConfigurability : public GNATestBase{
         _env.config[keyName] = ss.str();
         return *dynamic_cast<T*>(this);
     }
+    T & onCPU() {
+        _env.config[GNA_CONFIG_KEY(DEVICE_MODE)] = GNA_CONFIG_VALUE(SW_FP32);
+        return *dynamic_cast<T*>(this);
+    }
+    T & withPolicy(GNAPluginNS::Policy::ConcatAlignment concatAlignmentPolicy) {
+        _env.policy.ConcatAlignmentPolicy = concatAlignmentPolicy;
+        return *dynamic_cast<T*>(this);
+    }
     T & withGNADeviceMode(std::string value) {
         _env.config[GNA_CONFIG_KEY(DEVICE_MODE)] = value;
         return *dynamic_cast<T*>(this);
@@ -207,10 +218,6 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
     }
 
     GNAPropagateMatcher & returns() {
-        return *this;
-    }
-
-    GNAPropagateMatcher & And() {
         return *this;
     }
 
@@ -267,7 +274,6 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         _env.expected_output.push_back(expect);
         return *this;
     }
-
 
     GNAPropagateMatcher & once() {
         return times(1);
@@ -356,7 +362,6 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
         return *this;
     }
 
-
     GNAPropagateMatcher & affine_weights_transpozed(std::pair<int, int> &&transpozedArgs) {
         getMatcher().type = GnaPluginTestEnvironment::saveAffineWeights;
         _env.transposedArgsForSaving = std::move(transpozedArgs);
@@ -417,11 +422,6 @@ class GNAPropagateMatcher : public GNATestConfigurability<GNAPropagateMatcher> {
 
     GNAPropagateMatcher & to(std::vector<uint16_t> & sourceWeights) {
         _env.transposedData = &sourceWeights;
-        return *this;
-    }
-
-    GNAPropagateMatcher & onCPU() {
-        _env.config[GNA_CONFIG_KEY(DEVICE_MODE)] = GNA_CONFIG_VALUE(SW_FP32);
         return *this;
     }
 
@@ -513,6 +513,26 @@ class GNAQueryStateMatcher : public GNADumpXNNMatcher {
     void match();
 };
 
+/**
+ * @brief weights matcher has specific weights matching methods
+ */
+class GNAWeightsMatcher : public GNAPropagateMatcher {
+ public:
+    using base = GNAPropagateMatcher;
+    using base::base;
+
+    GNAWeightsMatcher & size() {
+        getMatcher().type = GnaPluginTestEnvironment::matchAffineWeightsSize;
+        return *this;
+    }
+    GNAWeightsMatcher & equals_to(size_t weights_size) {
+        if (getMatcher().type == GnaPluginTestEnvironment::matchAffineWeightsSize) {
+            _env.matched_weight_size = weights_size;
+        }
+        return *this;
+    }
+};
+
 
 
 /**
@@ -581,6 +601,16 @@ class GNATest : public U, public GNATestConfigurability<GNATest<U>>  {
         _env.model = _model;
         return *this;
     }
+    GNATest & afterLoadingModel(std::shared_ptr<ngraph::Function> ngraph_model) {
+        _env.ngraph_model = ngraph_model;
+        return *this;
+    }
+
+    GNAWeightsMatcher & affine_weights() {
+        returnedMatchers.push_back(std::make_shared<GNAWeightsMatcher>(_env));
+        _env = GnaPluginTestEnvironment();
+        return dynamic_cast<GNAWeightsMatcher&>(*returnedMatchers.back());
+    }
 
     GNAQueryStateMatcher & queryState() {
         returnedMatchers.push_back(std::make_shared<GNAQueryStateMatcher>(_env));
@@ -597,10 +627,12 @@ class GNATest : public U, public GNATestConfigurability<GNATest<U>>  {
         _env = GnaPluginTestEnvironment();
         return dynamic_cast<GNAPropagateMatcher&>(*returnedMatchers.back());
     }
+
     GNATest & importedFrom(std::string fileName) {
         _env.importedModelFileName = fileName;
         return *this;
     }
+
     GNATest & onInferModel(std::string _model = "",
                            std::function<void (InferenceEngine::CNNNetwork &)> _cb = [](InferenceEngine::CNNNetwork & net){}) {
         _env.model = _model;

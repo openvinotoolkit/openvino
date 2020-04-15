@@ -4,6 +4,8 @@
 
 add_subdirectory(preprocessing)
 
+add_subdirectory(ir_readers)
+
 add_subdirectory(legacy_api)
 
 if(ENABLE_MKL_DNN)

@@ -1,0 +1,3 @@
+#!groovy
+
+dldtPipelineEntrypoint(this)

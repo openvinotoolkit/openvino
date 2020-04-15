@@ -15,6 +15,7 @@
 """
 
 import logging as log
+from typing import Optional
 
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
@@ -24,7 +25,6 @@ from mo.graph.graph import Graph, Node
 from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
-from typing import Optional
 
 
 def get_concat_after_split(split: Node) -> Optional[Node]:

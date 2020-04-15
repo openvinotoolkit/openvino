@@ -26,7 +26,6 @@ from mo.graph.graph import Graph
 from mo.graph.graph import Node
 from mo.ops.reshape import Reshape
 
-
 input_fpn_heads = ('486', '454', '422', '390')
 
 

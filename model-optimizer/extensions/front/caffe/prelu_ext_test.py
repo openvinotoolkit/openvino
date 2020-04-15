@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 from extensions.front.caffe.prelu_ext import PreluFrontExtractor
 from extensions.ops.prelu import PreluOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.ops.op import Op
 
 
 class FakePReLUProtoLayer:

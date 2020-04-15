@@ -15,7 +15,6 @@
 """
 
 import unittest
-
 from unittest.mock import patch
 
 from extensions.front.caffe.elu import ELUFrontExtractor

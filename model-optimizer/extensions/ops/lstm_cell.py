@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.partial_infer.utils import mark_input_bins
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op

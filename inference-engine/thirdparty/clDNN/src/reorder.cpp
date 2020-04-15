@@ -48,12 +48,14 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
         if (ofmt != ifmt)
             return layout(odt, ofmt, data_size, op);
 
-        CLDNN_ERROR_MESSAGE(node.id(), "Reordering between winograd weights and data formats is unsupported");
+        CLDNN_ERROR_MESSAGE(node.id(), "No image_nv12 to image_nv12 reorder is supported");
     } else if (ofmt.is_winograd() && ifmt.is_winograd()) {
         if (ofmt == ifmt)
             return layout(odt, ofmt, input_layout.size, op);
 
         CLDNN_ERROR_MESSAGE(node.id(), "Reordering between winograd weights and data formats is unsupported");
+    } else if (ifmt == format::image_2d_rgba) {
+        return layout(data_types::f16, format::bfyx, input_layout.size, op);
     }
 
     // transformation of data from standard to winograd

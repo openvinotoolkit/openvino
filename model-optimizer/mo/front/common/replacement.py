@@ -15,8 +15,6 @@
 """
 import logging as log
 
-import networkx as nx
-
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Node, merge_edge_props, Graph
 from mo.middle.pattern_match import apply_pattern

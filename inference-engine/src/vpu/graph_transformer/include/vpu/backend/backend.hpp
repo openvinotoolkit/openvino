@@ -4,16 +4,17 @@
 
 #pragma once
 
-#include <memory>
+#include <vpu/graph_transformer.hpp>
+
+#include <vpu/model/model.hpp>
+#include <vpu/backend/blob_format.hpp>
+#include <ie_layers.h>
+
 #include <string>
+#include <memory>
 #include <set>
 #include <vector>
 #include <utility>
-
-#include <ie_layers.h>
-
-#include <vpu/graph_transformer.hpp>
-#include <vpu/model/model.hpp>
 
 namespace vpu {
 
@@ -37,6 +38,23 @@ private:
             std::vector<char>& blob,
             std::pair<char*, size_t>& blobHeader,
             int& numActiveStages);
+
+    int serializeIOInfoSection(
+            const Model& model,
+            DataUsage dataUsage,
+            BlobSerializer& blobSerializer);
+
+    void serializeConstData(
+            const Model& model,
+            const mv_blob_header& blobHdr,
+            std::vector<char>& blob);
+
+    void serializeConstShapes(
+            const Model& model,
+            const mv_blob_header& blobHdr,
+            std::vector<char>& blob);
+
+    ElfN_Ehdr createElfHeader();
 
     void getMetaData(
             const Model& model,

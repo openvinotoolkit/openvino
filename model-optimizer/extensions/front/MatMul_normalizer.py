@@ -14,6 +14,7 @@
  limitations under the License.
 """
 import math
+
 import numpy as np
 
 from extensions.ops.MatMul import MatMul

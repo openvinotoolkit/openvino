@@ -14,13 +14,10 @@
  limitations under the License.
 """
 
-import logging as log
-import networkx as nx
 import numpy as np
 
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.graph.graph import Node, Graph
-from mo.ops.op import Op, PermuteAttrs
+from mo.ops.op import Op
 
 
 class ExpOp(Op):

@@ -18,8 +18,8 @@ import logging as log
 
 import numpy as np
 
-from mo.back.replacement import BackReplacementPattern
 from extensions.back.OptimizeTransposeReshapeSequence import set_reshape_new_output_shape
+from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
 

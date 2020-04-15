@@ -14,8 +14,8 @@
  limitations under the License.
 """
 from extensions.ops.select import Select
-from mo.graph.graph import Graph
 from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.graph.graph import Graph
 
 
 class SwitchMergeOptimization(FrontReplacementSubgraph):

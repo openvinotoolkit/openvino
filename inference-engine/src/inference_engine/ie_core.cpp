@@ -16,13 +16,12 @@
 #include <vector>
 
 #include <ngraph/opsets/opset.hpp>
+#include "cpp/ie_cnn_net_reader.h"
 #include "cpp_interfaces/base/ie_plugin_base.hpp"
 #include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_pointer.hpp"
 #include "file_utils.h"
-#include "ie_cnn_net_reader_impl.h"
 #include "ie_icore.hpp"
-#include "ie_ir_reader.hpp"
 #include "ie_plugin.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_profiling.hpp"
@@ -38,6 +37,27 @@ IE_SUPPRESS_DEPRECATED_START
 
 namespace {
 
+std::once_flag flag;
+std::shared_ptr<InferenceEngine::details::SharedObjectLoader> cnnReaderLoader;
+
+std::shared_ptr<InferenceEngine::details::SharedObjectLoader>
+createCnnReaderLoader() {
+    std::call_once(flag, [&] () {
+        FileUtils::FilePath libraryName = FileUtils::toFilePath(std::string("inference_engine_ir_readers") + std::string(IE_BUILD_POSTFIX));
+        FileUtils::FilePath irReadersLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
+
+        if (!FileUtils::fileExist(irReadersLibraryPath)) {
+            THROW_IE_EXCEPTION << "Please, make sure that Inference Engine IR readers library "
+                << FileUtils::fromFilePath(::FileUtils::makeSharedLibraryName({}, libraryName)) << " is in "
+                << getIELibraryPath();
+        }
+        cnnReaderLoader = std::shared_ptr<InferenceEngine::details::SharedObjectLoader>(
+            new InferenceEngine::details::SharedObjectLoader(irReadersLibraryPath.c_str()));
+    });
+
+    return cnnReaderLoader;
+}
+
 IInferencePluginAPI* getInferencePluginAPIInterface(IInferencePlugin* iplugin) {
     return dynamic_cast<IInferencePluginAPI*>(iplugin);
 }
@@ -51,6 +71,11 @@ IInferencePluginAPI* getInferencePluginAPIInterface(InferencePlugin plugin) {
 }
 
 }  // namespace
+
+CNNNetReaderPtr CreateCNNNetReaderPtr() noexcept {
+    auto loader = createCnnReaderLoader();
+    return CNNNetReaderPtr(loader);
+}
 
 IE_SUPPRESS_DEPRECATED_END
 
@@ -112,6 +137,7 @@ std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList
 }
 
 class Core::Impl : public ICore {
+    // Fields are ordered by deletion order
     ITaskExecutor::Ptr _taskExecutor = nullptr;
 
     IE_SUPPRESS_DEPRECATED_START
@@ -124,9 +150,10 @@ class Core::Impl : public ICore {
         std::vector<FileUtils::FilePath> listOfExtentions;
     };
 
-    std::map<std::string, PluginDescriptor> pluginRegistry;
     std::unordered_set<std::string> opsetNames;
     std::vector<IExtensionPtr> extensions;
+
+    std::map<std::string, PluginDescriptor> pluginRegistry;
 
 public:
     Impl();
@@ -395,12 +422,18 @@ std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) 
 
     {
         // for compatibility with samples / demo
-        if (deviceName.find("HETERO:") == 0) {
-            deviceNames = DeviceIDParser::getHeteroDevices(deviceName.substr(7));
+        if (deviceName.find("HETERO") == 0) {
+            auto pos = deviceName.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = DeviceIDParser::getHeteroDevices(deviceName.substr(pos + 1));
+            }
             deviceNames.push_back("HETERO");
         } else if (deviceName.find("MULTI") == 0) {
+            auto pos = deviceName.find_first_of(":");
+            if (pos != std::string::npos) {
+                deviceNames = DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
+            }
             deviceNames.push_back("MULTI");
-            deviceNames = DeviceIDParser::getMultiDevices(deviceName.substr(6));
         } else {
             deviceNames.push_back(deviceName);
         }
@@ -457,13 +490,12 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
 CNNNetwork Core::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
     IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
     IE_SUPPRESS_DEPRECATED_START
-    auto cnnReader = std::shared_ptr<ICNNNetReader>(CreateCNNNetReader());
     ResponseDesc desc;
+    CNNNetReaderPtr cnnReader(createCnnReaderLoader());
     StatusCode rt = cnnReader->ReadNetwork(modelPath.c_str(), &desc);
     if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
-    auto cnnNetReaderImpl = std::dynamic_pointer_cast<details::CNNNetReaderImpl>(cnnReader);
-    if (cnnNetReaderImpl && cnnReader->getVersion(&desc) >= 10) {
-        cnnNetReaderImpl->addExtensions(_impl->getExtensions());
+    if (cnnReader->getVersion(&desc) >= 10) {
+        cnnReader->addExtensions(_impl->getExtensions());
     }
     std::string bPath = binPath;
     if (bPath.empty()) {
@@ -491,13 +523,12 @@ CNNNetwork Core::ReadNetwork(const std::string& modelPath, const std::string& bi
 CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights) const {
     IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
     IE_SUPPRESS_DEPRECATED_START
-    auto cnnReader = std::shared_ptr<ICNNNetReader>(CreateCNNNetReader());
     ResponseDesc desc;
+    CNNNetReaderPtr cnnReader(createCnnReaderLoader());
     StatusCode rt = cnnReader->ReadNetwork(model.data(), model.length(), &desc);
     if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
-    auto cnnNetReaderImpl = std::dynamic_pointer_cast<details::CNNNetReaderImpl>(cnnReader);
-    if (cnnNetReaderImpl && cnnReader->getVersion(&desc) >= 10) {
-        cnnNetReaderImpl->addExtensions(_impl->getExtensions());
+    if (cnnReader->getVersion(&desc) >= 10) {
+        cnnReader->addExtensions(_impl->getExtensions());
     }
     TBlob<uint8_t>::Ptr weights_ptr;
     if (weights) {
@@ -507,6 +538,7 @@ CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights
     rt = cnnReader->SetWeights(weights_ptr, &desc);
     if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
     IE_SUPPRESS_DEPRECATED_END
+
     return CNNNetwork(cnnReader);
 }
 
@@ -694,11 +726,6 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
             THROW_IE_EXCEPTION << "SetConfig is supported only for HETERO itself (without devices). "
                                   "You can configure the devices with SetConfig before creating the HETERO on top.";
         }
-
-        if (config.find("TARGET_FALLBACK") != config.end()) {
-            THROW_IE_EXCEPTION << "Please, specify TARGET_FALLBACK to the LoadNetwork directly, "
-                                  "as you will need to pass the same TARGET_FALLBACK anyway.";
-        }
     }
 
     // MULTI case
@@ -706,11 +733,6 @@ void Core::SetConfig(const std::map<std::string, std::string>& config, const std
         if (deviceName.find("MULTI:") == 0) {
             THROW_IE_EXCEPTION << "SetConfig is supported only for MULTI itself (without devices). "
                                   "You can configure the devices with SetConfig before creating the MULTI on top.";
-        }
-
-        if (config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES) != config.end()) {
-            THROW_IE_EXCEPTION << "Please, specify DEVICE_PRIORITIES to the LoadNetwork directly, "
-                                  "as you will need to pass the same DEVICE_PRIORITIES anyway.";
         }
     }
 

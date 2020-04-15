@@ -15,13 +15,12 @@
 """
 
 import unittest
-from unittest.mock import patch
 
 from extensions.front.caffe.proposal_python_ext import ProposalPythonFrontExtractor
 from extensions.ops.proposal import ProposalOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode, FakeAttr
-from mo.ops.op import Op
 
 
 class FakeProposalPythonProtoLayer:

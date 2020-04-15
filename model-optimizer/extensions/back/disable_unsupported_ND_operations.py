@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error

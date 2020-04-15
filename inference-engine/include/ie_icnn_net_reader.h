@@ -11,8 +11,10 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "details/ie_no_copy.hpp"
+#include "details/ie_so_pointer.hpp"
 #include "ie_api.h"
 #include "ie_blob.h"
 #include "ie_common.h"
@@ -118,14 +120,45 @@ public:
      * @return IR version number: 1 or 2
      */
     virtual int getVersion(ResponseDesc* resp) noexcept = 0;
+
+    virtual void addExtensions(const std::vector<InferenceEngine::IExtensionPtr>& ext) = 0;
+
+    /**
+     * @brief A virtual destructor.
+     */
+    ~ICNNNetReader() override = default;
 };
+
+IE_SUPPRESS_DEPRECATED_START
+
+namespace details {
+
+/**
+ * @brief This class defines the name of the fabric for creating an IHeteroInferencePlugin object in DLL
+ */
+template<>
+class SOCreatorTrait<ICNNNetReader> {
+public:
+    /**
+     * @brief A name of the fabric for creating IInferencePlugin object in DLL
+     */
+    static constexpr auto name = "CreateICNNNetReader";
+};
+
+}  // namespace details
+
+/**
+ * @brief A C++ helper to work with objects created by the IR readers plugin.
+ * Implements different interfaces.
+ */
+using CNNNetReaderPtr = InferenceEngine::details::SOPointer<ICNNNetReader, InferenceEngine::details::SharedObjectLoader>;
 
 /**
  * @brief Creates a CNNNetReader instance
- *
  * @return An object that implements the ICNNNetReader interface
  */
-IE_SUPPRESS_DEPRECATED_START
-INFERENCE_ENGINE_API(ICNNNetReader*) CreateCNNNetReader() noexcept;
+INFERENCE_ENGINE_API_CPP(CNNNetReaderPtr) CreateCNNNetReaderPtr() noexcept;
+
 IE_SUPPRESS_DEPRECATED_END
+
 }  // namespace InferenceEngine

@@ -17,9 +17,9 @@ import logging as log
 
 import numpy as np
 
+from extensions.middle.ApplyNHWCtoNCHWpermutation import ApplyNHWCtoNCHWpermutation
 from extensions.middle.InsertLayoutPropagationTransposes import is_input_data_in_correct_layout, \
     is_output_data_in_correct_layout
-from extensions.middle.ApplyNHWCtoNCHWpermutation import ApplyNHWCtoNCHWpermutation
 from extensions.middle.pass_separator import PostMiddleStart
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node

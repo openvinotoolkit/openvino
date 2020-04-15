@@ -3316,6 +3316,7 @@ static std::vector<data_types> types = {data_types::f32, data_types::f16};
 static std::vector<std::vector<tensor>> inputs = {
         {{1, 2, 3, 4}, {1, 2, 3, 4}},
         {{1, 16, 8, 2}, {1, 16, 8, 2}},
+        {{1, 128, 16, 8}, {1, 1, 16, 8}},
         {{1, 32, 2, 2}, {1, 32, 2, 2}},
         {{8, 32, 4, 5}, {8, 32, 4, 5}},
         {{1, 2, 3, 4}, {1, 2, 1, 1}},

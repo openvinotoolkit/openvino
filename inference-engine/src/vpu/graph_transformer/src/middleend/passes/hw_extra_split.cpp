@@ -4,9 +4,6 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
-#include <precision_utils.h>
-#include <ie_parallel.hpp>
-
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>
 #include <vpu/stages/mx_stage.hpp>
@@ -14,6 +11,10 @@
 #include <vpu/middleend/hw/utility.hpp>
 #include <vpu/middleend/hw/conv_tiling/hw_convolution_tiler.hpp>
 #include <vpu/middleend/hw/conv_tiling/hw_stage_tiler.hpp>
+#include <vpu/model/data_contents/hw_const_data_content.hpp>
+
+#include <precision_utils.h>
+#include <ie_parallel.hpp>
 
 #include <utility>
 #include <memory>
@@ -28,35 +29,6 @@
 namespace vpu {
 
 namespace {
-
-struct Slice {
-    int start;
-    size_t size;
-
-    Slice(int start, size_t size) :
-        start(start),
-        size(size) {}
-};
-
-struct DataSlice {
-    Data data;
-    Slice slice;
-
-    DataSlice(Data data, Slice slice) :
-        data(std::move(data)),
-        slice(slice) {}
-};
-
-using DataSlices = std::vector<DataSlice>;
-
-struct ConvTileSlice {
-    HwConvTileInfo tile;
-    Slice slice;
-
-    ConvTileSlice(HwConvTileInfo tile, Slice slice) :
-        tile(tile),
-        slice(slice) {}
-};
 
 class PassImpl final : public Pass {
 public:
@@ -133,7 +105,7 @@ private:
             if (infoData1 != infoData2)
                 return infoData1 < infoData2;
 
-            const auto size = data1->content()->desc().totalDimSize();
+            const auto size = data1->content()->byteSize() / sizeof(fp16_t);
 
             const auto content1 = data1->content()->get<fp16_t>();
             const auto content2 = data2->content()->get<fp16_t>();
@@ -142,98 +114,6 @@ private:
         }
     };
     std::map<Data, DataSlices, LexicographicalCompareByData> _splitConstData;
-};
-
-class HwConstData final : public CalculatedDataContent {
-public:
-    HwConstData(
-        const DataContent::Ptr& origContent,
-        const DataDesc& origDesc,
-        const std::map<Dim, Slice> dimSlices) :
-            CalculatedDataContent({origContent}),
-            _origDesc(origDesc),
-            _dimSlices(dimSlices) {}
-
-protected:
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* outBuf) const override {
-        VPU_PROFILE(HwConstData);
-
-        VPU_THROW_UNLESS(
-            desc().type() == DataType::FP16,
-            "Constant data has %v data type while only %v is supported",
-            desc().type(), DataType::FP16);
-
-        VPU_THROW_UNLESS(baseContents.size() == 1,
-            "Missing source buffer for constant data");
-
-        const auto srcData = baseContents[0]->get<fp16_t>();
-        auto dstData = static_cast<fp16_t*>(outBuf);
-
-        VPU_THROW_UNLESS(srcData != nullptr,
-            "Source buffer for constant data has null address");
-
-        auto getDimSlice = [this](const Dim dim) {
-            auto it = _dimSlices.find(dim);
-            if (it != _dimSlices.end()) {
-                return it->second;
-            }
-
-            const int startInd = 0;
-            const size_t size = _origDesc.dim(dim);
-
-            return Slice(startInd, size);
-        };
-
-        if (_origDesc.numDims() == 4) {
-            Slice slice = getDimSlice(Dim::N);
-
-            int startOC = slice.start;
-            size_t numOC = slice.size;
-
-            const auto IC = _origDesc.dim(Dim::C);
-            const auto K = _origDesc.dim(Dim::H);
-            const auto V = _origDesc.dim(Dim::W);
-
-            const auto kernelStride     = V;
-            const auto inChannelStride  = K * kernelStride;
-            const auto outerStride      = IC * inChannelStride;
-
-            ie::parallel_for(numOC, [=](int oc) {
-                const auto ocSlice = oc;
-                oc += startOC;
-
-                const auto ocInner = oc % V;
-                const auto ocOuter = oc / V;
-                const auto ocSliceInner = ocSlice % V;
-                const auto ocSliceOuter = ocSlice / V;
-
-                const auto ocSrc = ocInner + ocOuter * outerStride;
-                const auto ocDst = ocSliceInner + ocSliceOuter * outerStride;
-
-                for (int ic = 0; ic < IC; ++ic)
-                    for (int k = 0; k < K; ++k) {
-                        const auto srcInd = ocSrc +
-                                            k * kernelStride +
-                                            ic * inChannelStride;
-                        const auto dstInd = ocDst +
-                                            k * kernelStride +
-                                            ic * inChannelStride;
-
-                        dstData[dstInd] = srcData[srcInd];
-                    }
-            });
-        } else if (_origDesc.numDims() == 1) {
-            Slice slice = getDimSlice(Dim::C);
-
-            std::copy(srcData + slice.start, srcData + slice.start + slice.size, dstData);
-        } else {
-            THROW_IE_EXCEPTION << "Invalid number of dimensions " << _origDesc.numDims();
-        }
-    }
-
-private:
-    DataDesc _origDesc;
-    std::map<Dim, Slice> _dimSlices;
 };
 
 void PassImpl::run(const Model& model) {
@@ -444,6 +324,7 @@ Data PassImpl::splitWeights(
     const auto content = std::make_shared<HwConstData>(
         weights->content(),
         weights->desc(),
+        weightsDesc,
         dimSlices);
 
     weightsDesc.setDim(Dim::N, alignVal(numChannels, 8) / vectorSize);
@@ -474,6 +355,7 @@ Data PassImpl::splitBiases(
     const auto biasesContent = std::make_shared<HwConstData>(
         biases->content(),
         biases->desc(),
+        newBiasesDesc,
         dimSlices);
     const auto newBiases = model->duplicateData(biases, postfix, newBiasesDesc, biasesContent);
 
@@ -502,6 +384,7 @@ Data PassImpl::splitScales(
     const auto scalesContent = std::make_shared<HwConstData>(
         scales->content(),
         scales->desc(),
+        newScalesDesc,
         dimSlices);
     const auto newScales = model->duplicateData(scales, postfix, newScalesDesc, scalesContent);
 

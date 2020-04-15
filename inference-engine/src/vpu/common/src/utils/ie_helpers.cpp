@@ -40,15 +40,12 @@ InferenceEngine::Layout deviceLayout(InferenceEngine::Layout const& layout,
     return layout;
 }
 
-ie::Blob::Ptr getBlobFP16(const ie::Blob::Ptr& in) {
-    IE_PROFILING_AUTO_SCOPE(getBlobFP16);
+ie::Blob::Ptr convertBlobFP32toFP16(const ie::Blob::CPtr& in) {
+    IE_PROFILING_AUTO_SCOPE(convertBlobFP32toFP16);
 
     auto inDesc = in->getTensorDesc();
 
     auto precision = inDesc.getPrecision();
-
-    if (precision == ie::Precision::FP16)
-        return in;
 
     if (precision != ie::Precision::FP32) {
         VPU_THROW_EXCEPTION << "Unsupported precision " << precision.name();

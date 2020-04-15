@@ -39,7 +39,7 @@ void ngraph::pass::PullTransposeThroughFQUp::pull_transpose_through_fq() {
 
         auto input_shape = fq->input(0).get_source_output().get_shape();
 
-        std::vector<std::shared_ptr<ngraph::Node> > fq_inputs;
+        ngraph::OutputVector fq_inputs;
         for (size_t i = 0; i < fq->inputs().size(); ++i) {
             std::shared_ptr<ngraph::Node> fq_input;
             fq_input = fq->input(i).get_source_output().get_node_shared_ptr();
@@ -52,11 +52,11 @@ void ngraph::pass::PullTransposeThroughFQUp::pull_transpose_through_fq() {
                 fq_input = std::make_shared<ngraph::opset1::Unsqueeze>(fq_input,
                                                                        opset1::Constant::create(element::i64, Shape{unsqueeze_axes.size()}, unsqueeze_axes));
             }
-            fq_input = transpose->copy_with_new_args({fq_input, const_order});
+            fq_input = transpose->copy_with_new_inputs({fq_input, const_order});
             fq_inputs.push_back(fq_input);
         }
 
-        auto new_fq = fq->copy_with_new_args(fq_inputs);
+        auto new_fq = fq->copy_with_new_inputs(fq_inputs);
         new_fq->set_friendly_name(fq->get_friendly_name());
         ngraph::replace_node(transpose, new_fq);
 

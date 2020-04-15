@@ -38,6 +38,7 @@
 #include "reshape_inst.h"
 #include "activation_inst.h"
 #include "scale_inst.h"
+#include "depth_to_space_inst.h"
 #include "convolution_inst.h"
 #include "concatenation_inst.h"
 #include "crop_inst.h"
@@ -55,6 +56,7 @@
 #include "proposal_inst.h"
 #include "reorder_inst.h"
 #include "split_inst.h"
+#include "mvn_inst.h"
 #include "to_string_utils.h"
 #include "gpu/memory_gpu.h"
 
@@ -466,6 +468,9 @@ void program_impl::post_optimize_graph(bool is_internal) {
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
     }
+
+    if (options.get<build_option_type::optimize_data>()->enabled())
+        apply_opt_pass<remove_redundant_reorders>(lo, false, true, true);  // pass to remove output reorders while all others graph optimizations were done
 }
 
 // mark if the node is constant assuming that all dependencies are marked properly
@@ -1116,7 +1121,12 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::prior_box::type_id() &&
             prim.type() != cldnn::resample::type_id() &&
             prim.type() != cldnn::crop::type_id() &&
-            prim.type() != cldnn::scale::type_id())
+            prim.type() != cldnn::scale::type_id() &&
+            prim.type() != cldnn::depth_to_space::type_id() &&
+            (prim.type() != cldnn::mvn::type_id()
+             || (prim.as<mvn>().input().get_output_layout().data_type != data_types::u8 &&
+                 prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
+             || prim.as<mvn>().get_primitive()->across_channels))
             can_use_fsv16 = false;
 
         // WA to keep bfyx_f16 layout disabled for some topologies where it leads to regressions.

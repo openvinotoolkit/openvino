@@ -16,6 +16,7 @@
 
 import numpy as np
 
+from mo.front.common.layout import shape_for_layout, get_height_dim, get_batch_dim, get_features_dim, get_width_dim
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -51,13 +52,25 @@ class DepthToSpaceOp(Op):
         if in_shape.size != 4:
             raise Error('TensorFlow DepthToSpace operation is supported for 4D \'NHWC\' input layout only. '
                         'Current input shape is \'{}\''.format(in_shape))
-        N, H, W, C = in_shape
+
+        layout = node.graph.graph['layout']
+
+        N = in_shape[get_batch_dim(layout, 4)]
+        H = in_shape[get_height_dim(layout, 4)]
+        W = in_shape[get_width_dim(layout, 4)]
+        C = in_shape[get_features_dim(layout, 4)]
+
         block_size = node['block_size']
         if C % (block_size ** 2):
             raise Error('Feature dimensions of input tensor of DepthToSpace operation have to be divisible by square '
                         'of DepthToSpace \'block_size\' parameter. Input tensor shape = {}. Feature dimension = {}. '
                         'block_size = {}'.format(in_shape, C, block_size))
-        out_shape = [N, int(H * block_size), int(W * block_size), int(C / (block_size ** 2))]
-        if np.prod(in_shape) != np.prod(out_shape):
-            return
+
+        out_shape = shape_for_layout(layout,
+                                     batch=N,
+                                     features=int(C / (block_size ** 2)),
+                                     height=int(H * block_size),
+                                     width=int(W * block_size))
+
+        assert np.prod(in_shape) == np.prod(out_shape)
         node.out_node().shape = int64_array(out_shape)

@@ -65,7 +65,7 @@ void BlobReader::parse(const std::vector<char>& blob) {
         // Truncate zeros
         inputName = inputName.c_str();
 
-        auto dataType = static_cast<DataType>(readFromBlob<uint32_t>(blob, inputInfoSecOffset));
+        auto dataType = readFromBlob<DataType>(blob, inputInfoSecOffset);
         auto orderCode = readFromBlob<uint32_t>(blob, inputInfoSecOffset);
 
         auto numDims = readFromBlob<uint32_t>(blob, inputInfoSecOffset);
@@ -74,13 +74,20 @@ void BlobReader::parse(const std::vector<char>& blob) {
         auto perm = dimsOrder.toPermutation();
         IE_ASSERT(perm.size() == numDims);
 
-        DimValues vpuDims;
-        for (int i = 0; i < perm.size(); ++i) {
-            vpuDims.set(perm[i], readFromBlob<uint32_t>(blob, inputInfoSecOffset));
-        }
+        auto dimsLocation = readFromBlob<Location>(blob, inputInfoSecOffset);
+        VPU_THROW_UNLESS(dimsLocation == Location::Blob,
+            "BlobReader error while parsing {} input data: only Blob location for input shape is supported, but {} was given",
+            inputName, dimsLocation);
+        auto dimsOffset = _blobHeader.const_data_section_offset + readFromBlob<uint32_t>(blob, inputInfoSecOffset);
 
-        // Skip strides
-        inputInfoSecOffset += perm.size() * sizeof(uint32_t);
+        // Skip strides' location and offset
+        inputInfoSecOffset += 2 * sizeof(uint32_t);
+
+        DimValues vpuDims;
+
+        for (int i = 0; i < perm.size(); ++i) {
+            vpuDims.set(perm[i], readFromBlob<uint32_t>(blob, dimsOffset));
+        }
 
         ie::TensorDesc ieDesc = DataDesc(dataType, dimsOrder, vpuDims).toTensorDesc();
         ie::Data inputData(inputName, ieDesc);
@@ -108,7 +115,7 @@ void BlobReader::parse(const std::vector<char>& blob) {
         // Truncate zeros
         outputName = outputName.c_str();
 
-        auto dataType = static_cast<DataType>(readFromBlob<uint32_t>(blob, outputInfoSecOffset));
+        auto dataType = readFromBlob<DataType>(blob, outputInfoSecOffset);
         auto orderCode = readFromBlob<uint32_t>(blob, outputInfoSecOffset);
 
         auto numDims = readFromBlob<uint32_t>(blob, outputInfoSecOffset);
@@ -117,13 +124,20 @@ void BlobReader::parse(const std::vector<char>& blob) {
         auto perm = dimsOrder.toPermutation();
         IE_ASSERT(perm.size() == numDims);
 
-        DimValues vpuDims;
-        for (int i = 0; i < perm.size(); ++i) {
-            vpuDims.set(perm[i], readFromBlob<uint32_t>(blob, outputInfoSecOffset));
-        }
+        auto dimsLocation = readFromBlob<Location>(blob, outputInfoSecOffset);
+        VPU_THROW_UNLESS(dimsLocation == Location::Blob,
+            "BlobReader error while parsing {} output data: only Blob location for output shape is supported, but {} was given",
+            outputName, dimsLocation);
+        auto dimsOffset = _blobHeader.const_data_section_offset + readFromBlob<uint32_t>(blob, outputInfoSecOffset);
 
-        // Skip strides
-        outputInfoSecOffset += perm.size() * sizeof(uint32_t);
+        // Skip strides' location and offset
+        outputInfoSecOffset += 2 * sizeof(uint32_t);
+
+        DimValues vpuDims;
+
+        for (int i = 0; i < perm.size(); ++i) {
+            vpuDims.set(perm[i], readFromBlob<uint32_t>(blob, dimsOffset));
+        }
 
         ie::TensorDesc ieDesc = DataDesc(dataType, dimsOrder, vpuDims).toTensorDesc();
         ie::Data outputData(outputName, ieDesc);

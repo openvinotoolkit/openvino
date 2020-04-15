@@ -36,18 +36,13 @@ class mvn_gpu_test : public ::testing::TestWithParam<cldnn::format>
 };
 
 template <typename T>
-void mvn_compute_mean_accross_channels_bfyx(cldnn::memory &output, bool normalize_variance)
-{
-    using namespace tests;
+void mvn_compute_mean_accross_channels(cldnn::memory &output, bool normalize_variance) {
+    auto output_size = output.get_layout().size;
 
-    const auto output_desc = generic_test::get_linear_memory_desc(output.get_layout());
-
-    auto output_sizes = output.get_layout().size.sizes();
-
-    uint32_t batch_size = output_sizes[0];
-    uint32_t feature_size = output_sizes[1];
-    uint32_t y_size = output_sizes[3];
-    uint32_t x_size = output_sizes[2];
+    uint32_t batch_size = output_size.batch[0];
+    uint32_t feature_size = output_size.feature[0];
+    uint32_t y_size = output_size.spatial[1];
+    uint32_t x_size = output_size.spatial[0];
 
     auto buff = output.pointer<T>();
 
@@ -63,7 +58,8 @@ void mvn_compute_mean_accross_channels_bfyx(cldnn::memory &output, bool normaliz
             {
                 for (uint32_t x = 0; x < x_size; ++x)
                 {
-                    size_t data_index = generic_test::get_linear_index(output.get_layout(), b, f, y, x, output_desc);
+                    auto index_tensor = tensor(batch(b), feature(f), spatial(x, y, 0, 0));
+                    size_t data_index = output.get_layout().get_linear_offset(index_tensor);
                     float data = static_cast<float>(buff[data_index]);
                     sum += data;
                     if (normalize_variance)
@@ -73,30 +69,25 @@ void mvn_compute_mean_accross_channels_bfyx(cldnn::memory &output, bool normaliz
         }
         sum /= feature_size * y_size * x_size;
         T result_sum = static_cast<T>(sum);
-        EXPECT_NEAR(result_sum, 0.f, err_margin);
+        EXPECT_NEAR(result_sum, 0.f, err_margin) << "at b=" << b;
 
         if (normalize_variance)
         {
             variance /= feature_size * y_size * x_size;
             T result_variance = static_cast<T>(variance);
-            EXPECT_NEAR(result_variance, 1.f, err_margin);
+            EXPECT_NEAR(result_variance, 1.f, err_margin) << " at b=" << b;
         }
     }
 }
 
 template <typename T>
-void mvn_compute_mean_within_channels_bfyx(cldnn::memory &output, bool normalize_variance)
-{
-    using namespace tests;
+void mvn_compute_mean_within_channels(cldnn::memory &output, bool normalize_variance) {
+    auto output_size = output.get_layout().size;
 
-    const auto output_desc = generic_test::get_linear_memory_desc(output.get_layout());
-
-    auto output_sizes = output.get_layout().size.sizes();
-
-    uint32_t batch_size = output_sizes[0];
-    uint32_t feature_size = output_sizes[1];
-    uint32_t y_size = output_sizes[3];
-    uint32_t x_size = output_sizes[2];
+    uint32_t batch_size = output_size.batch[0];
+    uint32_t feature_size = output_size.feature[0];
+    uint32_t y_size = output_size.spatial[1];
+    uint32_t x_size = output_size.spatial[0];
 
     auto buff = output.pointer<T>();
 
@@ -112,7 +103,8 @@ void mvn_compute_mean_within_channels_bfyx(cldnn::memory &output, bool normalize
             {
                 for (uint32_t x = 0; x < x_size; ++x)
                 {
-                    size_t data_index = generic_test::get_linear_index(output.get_layout(), b, f, y, x, output_desc);
+                    auto index_tensor = tensor(batch(b), feature(f), spatial(x, y, 0, 0));
+                    size_t data_index = output.get_layout().get_linear_offset(index_tensor);
                     float data = static_cast<float>(buff[data_index]);
                     sum += data;
                     if (normalize_variance)
@@ -121,13 +113,13 @@ void mvn_compute_mean_within_channels_bfyx(cldnn::memory &output, bool normalize
             }
             sum /= y_size * x_size;
             T result_sum = static_cast<T>(sum);
-            EXPECT_NEAR(result_sum, 0.f, err_margin);
+            EXPECT_NEAR(result_sum, 0.f, err_margin) << "at b=" << b << ", f=" << f;
 
             if (normalize_variance)
             {
                 variance /= y_size * x_size;
                 T result_variance = static_cast<T>(variance);
-                EXPECT_NEAR(result_variance, 1.f, err_margin);
+                EXPECT_NEAR(result_variance, 1.f, err_margin) << " at b=" << b << ", f=" << f;
             }
         }
     }
@@ -158,7 +150,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx)
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_accross_channels_bfyx<float>(output, false);
+    mvn_compute_mean_accross_channels<float>(output, false);
 }
 
 TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_fp16)
@@ -186,7 +178,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_fp16)
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_accross_channels_bfyx<FLOAT16>(output, false);
+    mvn_compute_mean_accross_channels<FLOAT16>(output, false);
 }
 
 TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_normalize_variance)
@@ -214,7 +206,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_normalize_variance)
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_accross_channels_bfyx<float>(output, true);
+    mvn_compute_mean_accross_channels<float>(output, true);
 }
 
 TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_normalize_variance_fp16)
@@ -242,7 +234,7 @@ TEST(mvn_gpu_test, mvn_test_across_channels_bfyx_normalize_variance_fp16)
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_accross_channels_bfyx<FLOAT16>(output, true);
+    mvn_compute_mean_accross_channels<FLOAT16>(output, true);
 }
 
 TEST(mvn_gpu_test, mvn_test_within_channels_bfyx)
@@ -270,7 +262,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_bfyx)
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_within_channels_bfyx<float>(output, false);
+    mvn_compute_mean_within_channels<float>(output, false);
 }
 
 TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_fp16)
@@ -298,7 +290,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_fp16)
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_within_channels_bfyx<FLOAT16>(output, false);
+    mvn_compute_mean_within_channels<FLOAT16>(output, false);
 }
 
 TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_normalize_variance)
@@ -326,7 +318,7 @@ TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_normalize_variance)
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_within_channels_bfyx<float>(output, true);
+    mvn_compute_mean_within_channels<float>(output, true);
 }
 
 TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_normalize_variance_fp16)
@@ -354,5 +346,147 @@ TEST(mvn_gpu_test, mvn_test_within_channels_bfyx_normalize_variance_fp16)
     EXPECT_EQ(outputs.begin()->first, "mvn");
 
     auto output = outputs.begin()->second.get_memory();
-    mvn_compute_mean_within_channels_bfyx<FLOAT16>(output, true);
+    mvn_compute_mean_within_channels<FLOAT16>(output, true);
 }
+
+struct mvn_basic_test_params {
+    format::type input_format;
+    data_types input_type;
+    tensor input_size;
+    bool across_channels;
+    bool normalize_variance;
+    padding output_pad;
+};
+
+struct mvn_random_test : ::testing::TestWithParam<mvn_basic_test_params> {
+    template <typename T>
+    void fill_data(memory& mem, const tests::VVVVF<T>& data) {
+        auto size = mem.get_layout().size;
+        auto ptr = mem.pointer<T>();
+        for (size_t bi = 0; bi < static_cast<size_t>(size.batch[0]); ++bi) {
+            for (size_t fi = 0; fi < static_cast<size_t>(size.feature[0]); ++fi) {
+                for (size_t yi = 0; yi < static_cast<size_t>(size.spatial[1]); ++yi) {
+                    for (size_t xi = 0; xi < static_cast<size_t>(size.spatial[0]); ++xi) {
+                        auto tensor_addr = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem.get_layout().get_linear_offset(tensor_addr);
+                        ptr[offset] = data[bi][fi][xi][yi];
+                    }
+                }
+            }
+        }
+    }
+
+    template <typename T>
+    void fill_random_data(memory& mem, int min, int max, int k = 8) {
+        auto size = mem.get_layout().size;
+        auto input_data = tests::generate_random_4d<T>(size.batch[0], size.feature[0], size.spatial[0], size.spatial[1], min, max, k);
+        fill_data(mem, input_data);
+    }
+
+    void check_result(memory& output, bool across_channels, bool normalize_variance) {
+        if (output.get_layout().data_type == data_types::f32) {
+            if (across_channels) {
+                mvn_compute_mean_accross_channels<float>(output, normalize_variance);
+            } else {
+                mvn_compute_mean_within_channels<float>(output, normalize_variance);
+            }
+        } else if (output.get_layout().data_type == data_types::f16) {
+            if (across_channels) {
+                mvn_compute_mean_accross_channels<FLOAT16>(output, normalize_variance);
+            } else {
+                mvn_compute_mean_within_channels<FLOAT16>(output, normalize_variance);
+            }
+        }
+    }
+
+    void execute(const mvn_basic_test_params& params, const engine& eng) {
+        auto& size = params.input_size;
+        auto& output_pad = params.output_pad;
+
+        auto input = memory::allocate(eng, { params.input_type, params.input_format, size });
+
+        switch (params.input_type) {
+        case data_types::f32:
+            fill_random_data<float>(input, -127, 127);
+            break;
+        case data_types::f16:
+            fill_random_data<FLOAT16>(input, -127, 127);
+            break;
+        case data_types::i8:
+            fill_random_data<int8_t>(input, -127, 127);
+            break;
+        case data_types::u8:
+            fill_random_data<uint8_t>(input, -127, 127);
+            break;
+        default:
+            break;
+        }
+
+        topology topo;
+        topo.add(input_layout("input", input.get_layout()));
+        auto prim = mvn("mvn", "input", params.across_channels, params.normalize_variance);
+        prim.output_padding = output_pad;
+        topo.add(prim);
+
+        network net(eng, topo);
+
+        net.set_input_data("input", input);
+
+        auto outputs = net.execute();
+        EXPECT_EQ(outputs.size(), size_t(1));
+        EXPECT_EQ(outputs.begin()->first, "mvn");
+
+        auto output = outputs.begin()->second.get_memory();
+        check_result(output, params.across_channels, params.normalize_variance);
+    }
+};
+
+TEST_P(mvn_random_test, random) {
+    auto eng = tests::get_test_engine();
+    this->execute(GetParam(), eng);
+}
+
+struct mvn_test_case_generator : std::vector<mvn_basic_test_params> {
+    mvn_test_case_generator& add(mvn_basic_test_params params) {
+        push_back(params);
+        return *this;
+    }
+
+    mvn_test_case_generator& smoke_tests(format::type fmt, data_types in_dt) {
+        push_back(mvn_basic_test_params{ fmt, in_dt, {7, 10, 17, 13}, false, false, padding() });
+        push_back(mvn_basic_test_params{ fmt, in_dt, {7, 10, 17, 13}, false, true, padding() });
+        push_back(mvn_basic_test_params{ fmt, in_dt, {7, 10, 17, 13}, true, false, padding() });
+        push_back(mvn_basic_test_params{ fmt, in_dt, {7, 10, 17, 13}, true, true, padding() });
+        return *this;
+    }
+
+    mvn_test_case_generator& extended_tests(format::type fmt, data_types in_dt) {
+        push_back(mvn_basic_test_params{ fmt, in_dt, {2, 17, 67, 71}, false, false, padding() });
+        push_back(mvn_basic_test_params{ fmt, in_dt, {2, 17, 67, 71}, false, true, padding() });
+        push_back(mvn_basic_test_params{ fmt, in_dt, {2, 17, 67, 71}, true, false, padding() });
+        push_back(mvn_basic_test_params{ fmt, in_dt, {2, 17, 67, 71}, true, true, padding() });
+        // output padding
+        push_back(mvn_basic_test_params{ fmt, in_dt, {2, 17, 67, 71}, false, false, padding({0, 0, 1, 1}) });
+        push_back(mvn_basic_test_params{ fmt, in_dt, {2, 17, 67, 71}, false, true, padding({0, 0, 1, 1}) });
+        push_back(mvn_basic_test_params{ fmt, in_dt, {2, 17, 67, 71}, true, false, padding({0, 0, 1, 1}) });
+        push_back(mvn_basic_test_params{ fmt, in_dt, {2, 17, 67, 71}, true, true, padding({0, 0, 1, 1}) });
+
+        return *this;
+    }
+};
+
+INSTANTIATE_TEST_CASE_P(smoke,
+                        mvn_random_test,
+                        testing::ValuesIn(
+                            mvn_test_case_generator()
+                            .smoke_tests(format::b_fs_yx_fsv16, data_types::i8)
+                            .smoke_tests(format::b_fs_yx_fsv16, data_types::u8)
+                        ), );
+
+INSTANTIATE_TEST_CASE_P(extended,
+                        mvn_random_test,
+                        testing::ValuesIn(
+                            mvn_test_case_generator()
+                            .extended_tests(format::b_fs_yx_fsv16, data_types::i8)
+                            .extended_tests(format::b_fs_yx_fsv16, data_types::u8)
+                        ), );

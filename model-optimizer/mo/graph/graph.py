@@ -15,9 +15,8 @@
 """
 import collections
 import logging as log
-from typing import List
-
 from copy import deepcopy
+from typing import List
 
 import networkx as nx
 import numpy as np

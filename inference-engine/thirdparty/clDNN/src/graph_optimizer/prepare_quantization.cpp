@@ -434,9 +434,6 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p) {
         auto node_itr = itr++;
         auto& node = (*node_itr);
 
-        if (node->is_output())
-            continue;
-
         // Detects if given eltwise node performs zero point subtraction
         auto is_zero_point_node = [](eltwise_node& node) -> bool {
             auto prim = node.get_primitive();
@@ -660,7 +657,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p) {
             // Remove sub operations from the graph and set correct users for zero points and inputs
             if (asymmetric_data) {
                 if (!new_a_zp || !new_input)
-                    CLDNN_ERROR_MESSAGE(convolution_node.id(), "Unexpected nullptr in asymmetric quantization for activations optimization");
+                    CLDNN_ERROR_MESSAGE(new_conv_node.id(), "Unexpected nullptr in asymmetric quantization for activations optimization");
 
                 auto& zp_users = new_a_zp->users;
                 auto& in_users = new_input->users;
@@ -682,7 +679,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p) {
 
             if (asymmetric_weights) {
                 if (!new_w_zp || !new_weights)
-                    CLDNN_ERROR_MESSAGE(convolution_node.id(), "Unexpected nullptr in asymmetric quantization for weights optimization");
+                    CLDNN_ERROR_MESSAGE(new_conv_node.id(), "Unexpected nullptr in asymmetric quantization for weights optimization");
 
                 auto& zp_users = new_w_zp->users;
                 auto& wei_users = new_weights->users;

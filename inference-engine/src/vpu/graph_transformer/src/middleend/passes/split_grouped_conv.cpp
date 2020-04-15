@@ -4,13 +4,14 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
-#include <vector>
-#include <set>
-#include <memory>
+#include <vpu/utils/numeric.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
 
 #include <precision_utils.h>
 
-#include <vpu/utils/numeric.hpp>
+#include <vector>
+#include <set>
+#include <memory>
 
 namespace vpu {
 

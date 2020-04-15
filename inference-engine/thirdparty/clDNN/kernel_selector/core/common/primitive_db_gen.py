@@ -61,13 +61,17 @@ class OpenCL2CHeaders(object):
         res = '{{"{}",\n(std::string) R"__krnl(\n'.format(kernel_name)
         content = self.append_file_content(filename, filename)
         max_lines = 200
+        max_characters = 16350
+        characters = 1  # Newline character above
 
         for i, line in enumerate(content.split('\n')):
-            if i % max_lines == 0:
+            if (i + 1) % max_lines == 0 or characters + len(line) + 1 > max_characters:
                 res += ')__krnl"\n + R"__krnl('
+                characters = 0
             res += line + '\n'
+            characters += len(line) + 1
 
-        res += ')__krnl"}},\n\n'.format(kernel_name, self.append_file_content(filename, filename))
+        res += ')__krnl"}},\n\n'.format(kernel_name)
 
         return res
 

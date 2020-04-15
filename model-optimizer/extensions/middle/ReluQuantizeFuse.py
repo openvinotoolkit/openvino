@@ -16,6 +16,7 @@
 
 import logging as log
 from typing import Dict
+
 import numpy as np
 
 from extensions.middle.BinarizeWeightsM1P1 import BinarizeWeightsM1P1

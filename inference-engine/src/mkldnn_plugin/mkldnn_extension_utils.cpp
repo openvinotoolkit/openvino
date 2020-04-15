@@ -17,6 +17,8 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
         return 4;
     case mkldnn::memory::data_type::s16:
         return 2;
+    case mkldnn::memory::data_type::bf16:
+        return 2;
     case mkldnn::memory::data_type::s8:
         return 1;
     case mkldnn::memory::data_type::u8:
@@ -39,6 +41,8 @@ memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::P
             return memory::s32;
         case InferenceEngine::Precision::I16:
             return memory::s16;
+        case InferenceEngine::Precision::BF16:
+            return memory::bf16;
         case InferenceEngine::Precision::I8:
             return memory::s8;
         case InferenceEngine::Precision::U8:
@@ -61,6 +65,8 @@ InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::d
             return InferenceEngine::Precision::I32;
         case memory::s16:
             return InferenceEngine::Precision::I16;
+        case memory::bf16:
+            return InferenceEngine::Precision::BF16;
         case memory::s8:
             return InferenceEngine::Precision::I8;
         case memory::u8:

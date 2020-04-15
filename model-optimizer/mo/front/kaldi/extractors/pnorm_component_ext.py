@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
+from extensions.ops.pnorm import PNormOp
 from mo.front.extractor import FrontExtractorOp
 from mo.front.kaldi.loader.utils import collect_until_token, read_binary_integer32_token, read_binary_float_token
-from extensions.ops.pnorm import PNormOp
 from mo.utils.error import Error
 
 

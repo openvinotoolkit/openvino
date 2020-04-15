@@ -49,7 +49,37 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #endif
 )
 {
-#if defined(SAMPLE_TYPE_NEAREST)
+#if defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
+    typedef MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) in_pack_t;
+    typedef MAKE_VECTOR_TYPE(OUTPUT_TYPE, PACK_SIZE) out_pack_t;
+
+    const int ox = get_global_id(0);
+    const int oy = get_global_id(1) % OUTPUT_SIZE_Y;
+    const int oz = get_global_id(1) / OUTPUT_SIZE_Y;
+    const int feature = (get_global_id(2) * PACK_SIZE) % OUTPUT_FEATURE_NUM;
+    const int batch = (get_global_id(2) * PACK_SIZE) / OUTPUT_FEATURE_NUM;
+    const int ix = floor(ox * X_RATIO);
+    const int iy = floor(oy * Y_RATIO);
+    const int iz = floor(oz * Z_RATIO);
+
+    uint input_idx = FUNC_CALL(get_input_index)(batch, feature, iz, iy, ix);
+    uint output_idx = FUNC_CALL(get_output_index)(batch, feature, oz, oy, ox);
+
+    in_pack_t interp_val_pack = ((const __global in_pack_t*)(input + input_idx))[0];
+    out_pack_t res;
+    unroll_for (uint pi = 0; pi < PACK_SIZE; ++pi) {
+        INPUT0_TYPE interp_val = interp_val_pack[pi];
+    #if HAS_FUSED_OPS
+        #define OF_ID (feature + pi)
+        FUSED_OPS;
+        res[pi] = FUSED_OPS_RESULT;
+    #else
+        res[pi] = ACTIVATION(interp_val, ACTIVATION_PARAMS);
+    #endif
+    }
+    ((__global out_pack_t*)(output + output_idx))[0] = res;
+
+#elif defined(SAMPLE_TYPE_NEAREST)
     const int ox = get_global_id(0);
 #if OUTPUT_DIMS <= 4
     const int oy = get_global_id(1);
@@ -79,29 +109,29 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     const int oy = get_global_id(1);
     const int feature = 0;
     const int batch = get_global_id(2);
-    const INPUT0_TYPE ix = TO_INPUT0_TYPE(X_RATIO) * ox;
-    const INPUT0_TYPE iy = TO_INPUT0_TYPE(Y_RATIO) * oy;
+    const float ix = X_RATIO * ox;
+    const float iy = Y_RATIO * oy;
 
 #ifdef LEFTOVERS
     if (ox >= OUTPUT_SIZE_X)
         return;
 #endif
 
-    const int top_y_index    = (int)(floor(iy));
-    const int bottom_y_index = (int)(min(ceil(iy), TO_INPUT0_TYPE(INPUT0_SIZE_Y) - 1));
-    const int left_x_index   = (int)(floor(ix));
-    const int right_x_index  = (int)(min(ceil(ix), TO_INPUT0_TYPE(INPUT0_SIZE_X) - 1));
+    const int top_y_index = (int)(floor(iy));
+    const int bottom_y_index = (int)(min(TO_INPUT0_TYPE(ceil(iy)), TO_INPUT0_TYPE(INPUT0_SIZE_Y) - 1));
+    const int left_x_index = (int)(floor(ix));
+    const int right_x_index = (int)(min(TO_INPUT0_TYPE(ceil(ix)), TO_INPUT0_TYPE(INPUT0_SIZE_X) - 1));
 
-    const INPUT0_TYPE dx = ix - left_x_index;
-    const INPUT0_TYPE dy = iy - top_y_index;
+    const INPUT0_TYPE dx = TO_INPUT0_TYPE(ix - left_x_index);
+    const INPUT0_TYPE dy = TO_INPUT0_TYPE(iy - top_y_index);
 
-    unroll_for (int in_f = 0; in_f < OUTPUT_FEATURE_NUM; in_f++) {
-        INPUT0_TYPE top_left     = input[INPUT0_GET_INDEX(batch, in_f, top_y_index, left_x_index)];
-        INPUT0_TYPE top_right    = input[INPUT0_GET_INDEX(batch, in_f, top_y_index, right_x_index)];
-        INPUT0_TYPE bottom_left  = input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, left_x_index)];
+    unroll_for(int in_f = 0; in_f < OUTPUT_FEATURE_NUM; in_f++) {
+        INPUT0_TYPE top_left = input[INPUT0_GET_INDEX(batch, in_f, top_y_index, left_x_index)];
+        INPUT0_TYPE top_right = input[INPUT0_GET_INDEX(batch, in_f, top_y_index, right_x_index)];
+        INPUT0_TYPE bottom_left = input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, left_x_index)];
         INPUT0_TYPE bottom_right = input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, right_x_index)];
 
-        INPUT0_TYPE top    = top_left + (top_right - top_left) * dx;
+        INPUT0_TYPE top = top_left + (top_right - top_left) * dx;
         INPUT0_TYPE bottom = bottom_left + (bottom_right - bottom_left) * dx;
 
         INPUT0_TYPE interp_val = top + (bottom - top) * dy;

@@ -1,4 +1,5 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,9 +34,9 @@ TEST_P(PluginSpecificConversion, GeluConversionTest) {
         // Parameter->Activation->Output
         ASSERT_EQ(net.layerCount(), 3);
     } else if (device == "GPU") {
-        // Parameter--->ScaleShift-------------->Eltwise-->Result
+        // Parameter--->ScaleShift-------------->Eltwise
         //          `-->ScaleShift->ScaleShift-`
-        ASSERT_EQ(net.layerCount(), 6);
+        ASSERT_EQ(net.layerCount(), 5);
     }
 }
 

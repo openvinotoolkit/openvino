@@ -22,10 +22,8 @@ from extensions.ops.range import Range
 from extensions.ops.rank import Rank
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.ops.const import Const
-from mo.ops.unsqueeze import Unsqueeze
 
 
 class GlobalPoolingToReduce(FrontReplacementPattern):

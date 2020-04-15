@@ -2290,23 +2290,20 @@ public:
 
 /**
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
- * @brief This class represents a standard Scatter layer
+ * @brief This class represents a standard ScatterUpdate layer
  */
-class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ScatterLayer): public CNNLayer {
+class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ScatterUpdateLayer): public CNNLayer {
 public:
     /**
-     * @brief The axis in Dictionary to scatter Indexes from
-     */
-    int axis = 0;
-    /**
-     * @brief Creates a new ScatterLayer instance.
+     * @brief Creates a new ScatterUpdateLayer instance.
      */
     using CNNLayer::CNNLayer;
 
-    ~ScatterLayer() override;
+    ~ScatterUpdateLayer() override;
 };
 
 /**
+ * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
  * @brief This class represents an onnx ExperimentalDetectronPriorGridGenerator Layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ExperimentalDetectronPriorGridGeneratorLayer): public CNNLayer {
@@ -2338,6 +2335,23 @@ public:
     using CNNLayer::CNNLayer;
 
     virtual ~ExperimentalDetectronPriorGridGeneratorLayer();
+};
+
+/**
+ * @brief This class represents a standard ExperimentalDetectronTopKROIs layer
+ */
+class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ExperimentalDetectronTopKROIs): public CNNLayer {
+public:
+    /**
+     * @brief The maximum number of output rois
+     */
+    int max_rois = 0;
+    /**
+     * @brief Creates a new ExperimentalDetectronTopKROIs instance.
+     */
+    using CNNLayer::CNNLayer;
+
+    virtual ~ExperimentalDetectronTopKROIs();
 };
 
 /**

@@ -15,9 +15,9 @@
 """
 
 import numpy as np
+
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-from mo.utils.error import Error
 
 
 class Exit(Op):

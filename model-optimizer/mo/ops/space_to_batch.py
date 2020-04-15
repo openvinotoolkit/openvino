@@ -14,10 +14,11 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
-import numpy as np
 
 
 class SpaceToBatch(Op):

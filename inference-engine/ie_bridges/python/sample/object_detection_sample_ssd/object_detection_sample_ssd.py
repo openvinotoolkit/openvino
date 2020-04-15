@@ -29,15 +29,18 @@ def build_argparser():
     args = parser.add_argument_group("Options")
     args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
     args.add_argument("-m", "--model", help="Required. Path to an .xml file with a trained model.",
-        required=True, type=str)
+                      required=True, type=str)
     args.add_argument("-i", "--input", help="Required. Path to image file.",
-        required=True, type=str, nargs="+")
+                      required=True, type=str, nargs="+")
     args.add_argument("-l", "--cpu_extension",
-        help="Optional. Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.",
-        type=str, default=None)
+                      help="Optional. Required for CPU custom layers. "
+                           "Absolute path to a shared library with the kernels implementations.",
+                      type=str, default=None)
     args.add_argument("-d", "--device",
-        help="Optional. Specify the target device to infer on; CPU, GPU, FPGA or MYRIAD is acceptable. Sample will look for a suitable plugin for device specified (CPU by default)",
-        default="CPU", type=str)
+                      help="Optional. Specify the target device to infer on; "
+                           "CPU, GPU, FPGA or MYRIAD is acceptable. "
+                           "Sample will look for a suitable plugin for device specified (CPU by default)",
+                      default="CPU", type=str)
     args.add_argument("--labels", help="Optional. Labels mapping file", default=None, type=str)
     args.add_argument("-nt", "--number_top", help="Optional. Number of top results", default=10, type=int)
 
@@ -59,9 +62,10 @@ def main():
     # ------------- 2. Load Plugin for inference engine and extensions library if specified --------------
     log.info("Device info:")
     versions = ie.get_versions(args.device)
-    print("{}{}".format(" "*8, args.device))
-    print("{}MKLDNNPlugin version ......... {}.{}".format(" "*8, versions[args.device].major, versions[args.device].minor))
-    print("{}Build ........... {}".format(" "*8, versions[args.device].build_number))
+    print("{}{}".format(" " * 8, args.device))
+    print("{}MKLDNNPlugin version ......... {}.{}".format(" " * 8, versions[args.device].major,
+                                                          versions[args.device].minor))
+    print("{}Build ........... {}".format(" " * 8, versions[args.device].build_number))
 
     if args.cpu_extension and "CPU" in args.device:
         ie.add_extension(args.cpu_extension, "CPU")
@@ -79,8 +83,15 @@ def main():
     # -----------------------------------------------------------------------------------------------------
 
     # --------------------------- 3. Read and preprocess input --------------------------------------------
-    input_blob = next(iter(net.inputs))
-    n, c, h, w = net.inputs[input_blob].shape
+
+    print("inputs number: " + str(len(net.inputs.keys())))
+
+    for input_key in net.inputs:
+        print("input shape: " + str(net.inputs[input_key].shape))
+        print("input key: " + input_key)
+        if len(net.inputs[input_key].layout) == 4:
+            n, c, h, w = net.inputs[input_key].shape
+
     images = np.ndarray(shape=(n, c, h, w))
     images_hw = []
     for i in range(n):
@@ -94,13 +105,14 @@ def main():
             log.warning("Image {} is resized from {} to {}".format(args.input[i], image.shape[:-1], (h, w)))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
+
     # -----------------------------------------------------------------------------------------------------
 
     # --------------------------- 4. Configure input & output ---------------------------------------------
     # --------------------------- Prepare input blobs -----------------------------------------------------
     log.info("Preparing input blobs")
-    assert (len(net.inputs.keys()) == 1 or len(net.inputs.keys()) == 2), "Sample supports topologies only with 1 or 2 inputs"
-    input_blob = next(iter(net.inputs))
+    assert (len(net.inputs.keys()) == 1 or len(
+        net.inputs.keys()) == 2), "Sample supports topologies only with 1 or 2 inputs"
     out_blob = next(iter(net.outputs))
     input_name, input_info_name = "", ""
 
@@ -112,8 +124,20 @@ def main():
         elif len(net.inputs[input_key].layout) == 2:
             input_info_name = input_key
             net.inputs[input_key].precision = 'FP32'
-            if net.inputs[input_key].shape[1] != 3 and net.inputs[input_key].shape[1] != 6 or net.inputs[input_key].shape[0] != 1:
+            if net.inputs[input_key].shape[1] != 3 and net.inputs[input_key].shape[1] != 6 or \
+                net.inputs[input_key].shape[0] != 1:
                 log.error('Invalid input info. Should be 3 or 6 values length.')
+
+    data = {}
+    data[input_name] = images
+
+    if input_info_name != "":
+        infos = np.ndarray(shape=(n, c), dtype=float)
+        for i in range(n):
+            infos[i, 0] = h
+            infos[i, 1] = w
+            infos[i, 2] = 1.0
+        data[input_info_name] = infos
 
     # --------------------------- Prepare output blobs ----------------------------------------------------
     log.info('Preparing output blobs')
@@ -141,7 +165,7 @@ def main():
     log.info("Loading model to the device")
     exec_net = ie.load_network(network=net, device_name=args.device)
     log.info("Creating infer request and starting inference")
-    res = exec_net.infer(inputs={input_blob: images})
+    res = exec_net.infer(inputs=data)
     # -----------------------------------------------------------------------------------------------------
 
     # --------------------------- Read and postprocess output ---------------------------------------------
@@ -159,8 +183,8 @@ def main():
             ymin = np.int(ih * proposal[4])
             xmax = np.int(iw * proposal[5])
             ymax = np.int(ih * proposal[6])
-            print("[{},{}] element, prob = {:.6}    ({},{})-({},{}) batch id : {}"\
-                .format(number, label, confidence, xmin, ymin, xmax, ymax, imid), end="")
+            print("[{},{}] element, prob = {:.6}    ({},{})-({},{}) batch id : {}" \
+                  .format(number, label, confidence, xmin, ymin, xmax, ymax, imid), end="")
             if proposal[2] > 0.5:
                 print(" WILL BE PRINTED!")
                 if not imid in boxes.keys():
@@ -181,7 +205,8 @@ def main():
     # -----------------------------------------------------------------------------------------------------
 
     log.info("Execution successful\n")
-    log.info("This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool")
+    log.info(
+        "This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool")
 
 
 if __name__ == '__main__':

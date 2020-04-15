@@ -4,14 +4,15 @@
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <vpu/compile_env.hpp>
+#include <vpu/utils/ie_helpers.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
 #include <memory>
 #include <algorithm>
 #include <set>
 #include <map>
 #include <string>
-
-#include <vpu/compile_env.hpp>
-#include <vpu/utils/ie_helpers.hpp>
 
 namespace vpu {
 
@@ -113,7 +114,7 @@ void FrontEnd::parseInputAndOutputData(const Model& model) {
         const auto vpuData = model->addConstData(
             ieData->getName(),
             descriptor,
-            ieBlobContent(ieBlob));
+            ieBlobContent(ieBlob, descriptor.type()));
 
         // User might ask to return the output from Const layer.
         if (const auto vpuOutData = getVpuData(ieData)) {

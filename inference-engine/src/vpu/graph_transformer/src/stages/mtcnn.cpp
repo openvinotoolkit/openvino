@@ -4,18 +4,19 @@
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <vpu/graph_transformer.hpp>
+#include <vpu/compile_env.hpp>
+#include <vpu/utils/file_system.hpp>
+#include <vpu/model/data_contents/mtcnn_blob_content.hpp>
+
+#include <cpp/ie_cnn_net_reader.h>
+
 #include <vector>
 #include <fstream>
 #include <string>
 #include <utility>
 #include <memory>
 #include <set>
-
-#include <cpp/ie_cnn_net_reader.h>
-
-#include <vpu/graph_transformer.hpp>
-#include <vpu/compile_env.hpp>
-#include <vpu/utils/file_system.hpp>
 
 namespace vpu {
 
@@ -92,21 +93,6 @@ private:
         IE_ASSERT(inputEdge(1)->input()->desc().dimsOrder() == DimsOrder::C);
         input1->serializeBuffer(serializer);
     }
-};
-
-class MTCNNBlobContent final : public DataContent {
-public:
-    explicit MTCNNBlobContent(std::vector<char>&& blob) : _blob(std::forward<std::vector<char>>(blob)) {
-        IE_ASSERT(!_blob.empty());
-    }
-
-    const void* getRaw() const override {
-        IE_ASSERT(desc().totalDimSize() * desc().elemSize() == _blob.size());
-        return _blob.data();
-    }
-
-private:
-    std::vector<char> _blob;
 };
 
 std::pair<int, int> getResolution(const std::string& str) {
@@ -264,7 +250,7 @@ void FrontEnd::parseMTCNN(const Model& model, const ie::CNNLayerPtr& layer, cons
     auto innerGraphsDesc = DataDesc({mergedBlob.size()});
     innerGraphsDesc.setType(DataType::U8);
 
-    auto innerGraphs = model->addConstData(layer->name + "@innerGraphs", innerGraphsDesc, std::make_shared<MTCNNBlobContent>(std::move(mergedBlob)));
+    auto innerGraphs = model->addConstData(layer->name + "@innerGraphs", innerGraphsDesc, std::make_shared<MTCNNBlobContent>(mergedBlob));
 
     auto stage = model->addNewStage<MTCNNStage>(layer->name, StageType::MTCNN, layer, {input, innerGraphs}, {output});
     stage->attrs().set("pyramid", pyramid);

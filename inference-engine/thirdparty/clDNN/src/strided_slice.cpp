@@ -77,8 +77,11 @@ layout strided_slice_inst::calc_output_layout(strided_slice_node const& node) {
     std::vector<int32_t> output_shape;
     if (std::find(desc->new_axis_mask.begin(), desc->new_axis_mask.end(), 1) == desc->new_axis_mask.end()) {
         for (size_t i = 0; i < dims_num; ++i) {
-            int32_t outputDimSize = (end[i] - begin[i]) / strides[i];
-            if ((end[i] - begin[i]) % strides[i] != 0)
+            int32_t b = begin[i] < 0 ? input_layout.size.sizes(input_format)[i] - 1 : begin[i];
+            int32_t e = end[i] < 0 ? input_layout.size.sizes(input_format)[i] - 1 : end[i];
+            int32_t s = strides[i];
+            int32_t outputDimSize = std::abs((e - b) / s);
+            if ((e - b) % s != 0)
                 outputDimSize++;
             output_shape.push_back(outputDimSize);
         }

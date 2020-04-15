@@ -15,23 +15,6 @@
 namespace vpu {
 
 //
-// DefaultSwWeightsContent
-//
-
-DefaultSwWeightsContent::DefaultSwWeightsContent(const DataContent::Ptr& origContent) :
-        CalculatedDataContent({origContent}) {
-}
-
-void DefaultSwWeightsContent::fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const {
-    VPU_PROFILE(DefaultSwWeightsContent);
-
-    IE_ASSERT(desc().type() == DataType::FP16);
-    IE_ASSERT(baseContents.size() == 1);
-
-    kchw_to_hwck(baseContents[0]->get<fp16_t>(), static_cast<fp16_t*>(tempBuf), desc());
-}
-
-//
 // getOneOfSingleNextStage
 //
 

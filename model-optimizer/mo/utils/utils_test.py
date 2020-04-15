@@ -15,8 +15,9 @@
 """
 
 import unittest
-import networkx as nx
+
 import numpy as np
+
 from mo.utils.utils import match_shapes
 
 

@@ -6,6 +6,7 @@
 
 #include <cpp/ie_cnn_network.h>
 
+#include <ie_icnn_network.hpp>
 #include <cnn_network_impl.hpp>
 #include <file_utils.h>
 #include <deque>
@@ -48,6 +49,15 @@ INFERENCE_ENGINE_API_CPP(InferenceEngine::details::CNNNetworkImplPtr)
 cloneNet(const std::vector<InferenceEngine::CNNLayerPtr>& layers, const ICNNNetworkStats* networkStats);
 
 IE_SUPPRESS_DEPRECATED_END
+
+/**
+ * @brief Clones the whole network without conversion to CNNNetworkImpl. All layers and data objects will be cloned
+ * @note Blobs inside layers are reused
+ * @param network A network to clone
+ * @return A cloned object
+ */
+INFERENCE_ENGINE_API_CPP(std::shared_ptr<InferenceEngine::ICNNNetwork>)
+cloneNetwork(const InferenceEngine::ICNNNetwork& network);
 
 /**
  * @brief Clones the whole network. All layers and data objects will be cloned

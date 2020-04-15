@@ -19,8 +19,8 @@ import unittest
 import numpy as np
 
 from extensions.middle.ReluQuantizeFuse import ReluQuantizeFuse, ReluFakeQuantizeMark
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes = {
     # input

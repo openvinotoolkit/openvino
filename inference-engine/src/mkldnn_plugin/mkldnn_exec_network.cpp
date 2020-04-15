@@ -10,6 +10,7 @@
 #include "mkldnn_async_infer_request.h"
 #include "mkldnn_infer_request.h"
 #include "mkldnn_memory_state.h"
+#include "bf16transformer.h"
 #include <ie_util_internal.hpp>
 #include <graph_tools.hpp>
 #include <cnn_network_int8_normalizer.hpp>
@@ -100,6 +101,19 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                     LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
                     "ScaleShift"));
             transformer.transform(*_clonedNetwork);
+            if (with_cpu_x86_bfloat16()) {
+                BF16Transformer bf16Transformer;
+                CNNNetwork cnnetwork(_clonedNetwork);
+                if (cfg.enforceBF16 == true) {
+                    bf16Transformer.convertToBFloat16(cnnetwork);
+                } else {
+                    bf16Transformer.optimizeToFloat(cnnetwork);
+                }
+            } else {
+                BF16Transformer bf16Transformer;
+                CNNNetwork cnnetwork(_clonedNetwork);
+                bf16Transformer.convertToFloat(cnnetwork);
+            }
         }
     }
 

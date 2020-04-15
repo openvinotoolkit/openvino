@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
+import logging as log
 from collections import deque
 from re import match, compile
 
-import logging as log
 import networkx as nx
 
 from mo.graph.graph import Node, Graph

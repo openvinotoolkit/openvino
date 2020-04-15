@@ -20,6 +20,7 @@
 #include <ie_input_info.hpp>
 #include <ie_icnn_network.hpp>
 
+#include "test_model_repo.hpp"
 #include "test_model_path.hpp"
 #include <tests_file_utils.hpp>
 #include <chrono>
@@ -41,29 +42,19 @@ inline std::string to_string_c_locale(T value) {
 class TestsCommon : public ::testing::Test {
 public:
     IE_SUPPRESS_DEPRECATED_START
-    static InferenceEngine::CNNLayer::Ptr createLayer(const std::string& type);
+
+    static InferenceEngine::CNNLayer::Ptr createLayer(const std::string &type);
+
     IE_SUPPRESS_DEPRECATED_END
 
 protected:
     void SetUp() override;
+
     void TearDown() override;
 
 public:
     inline std::string get_mock_engine_name() {
         return make_plugin_name("mock_engine");
-    }
-
-    static std::string get_data_path(){
-        const char* data_path = std::getenv("DATA_PATH");
-
-        if (data_path == NULL){
-            if(DATA_PATH != NULL){
-                data_path = DATA_PATH;
-            } else{
-                ::testing::AssertionFailure()<<"DATA_PATH not defined";
-            }
-        }
-        return std::string(data_path);
     }
 
     static std::string make_so_name(const std::string & input) {

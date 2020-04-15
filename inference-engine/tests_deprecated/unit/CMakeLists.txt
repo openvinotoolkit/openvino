@@ -157,15 +157,16 @@ endif ()
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     # static libraries
+    inference_engine_s # need to have this explicitly for USE_STATIC_IE
     unitTestUtils
-    helpers_s
+    ieTestHelpers_s
     ${GNA_TEST_ENGINE}
 
     # dynamic libraries
     inference_engine_lp_transformations
+    inference_engine_ir_readers
     inference_engine_transformations
-    ${CMAKE_DL_LIBS}
-    )
+    ${CMAKE_DL_LIBS})
 
 if(TARGET libGNAStubs)
     target_link_libraries(${TARGET_NAME} PRIVATE libGNAStubs)
@@ -174,6 +175,11 @@ endif()
 if (ENABLE_MKL_DNN)
     target_link_libraries(${TARGET_NAME} PRIVATE mkldnn)
 endif ()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
+endif()
 
 add_test(NAME ${TARGET_NAME}
         COMMAND ${TARGET_NAME})

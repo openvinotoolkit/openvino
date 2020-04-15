@@ -15,13 +15,13 @@
 """
 
 import logging as log
+from typing import List
 
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
-from typing import List
 
 
 def node_has_one_consumer(node: Node) -> bool:

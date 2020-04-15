@@ -14,13 +14,9 @@
  limitations under the License.
 """
 
-import numpy as np
-
 from extensions.ops.parameter import Parameter
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.const import Const
-from mo.ops.pad import Pad
 
 
 class NullFrontExtractor(FrontExtractorOp):

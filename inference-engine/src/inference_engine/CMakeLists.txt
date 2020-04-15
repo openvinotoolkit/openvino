@@ -17,6 +17,8 @@ set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
 
 set(IE_BASE_SOURCE_FILES
+      ${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/generic_ie.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/blob_factory.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_data.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_layouts.cpp
@@ -94,7 +96,6 @@ file(GLOB_RECURSE plugin_api_src "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.hpp"
                                  "${IE_MAIN_SOURCE_DIR}/src/plugin_api/*.h")
 
 add_cpplint_target(${TARGET_NAME}_plugin_api_cpplint FOR_SOURCES ${plugin_api_src})
-add_clang_format_target(${TARGET_NAME}_plugin_api_clang_format FOR_SOURCES ${plugin_api_src})
 
 # Create common base object library
 
@@ -103,6 +104,7 @@ add_library(${TARGET_NAME}_common_obj OBJECT
 
 target_compile_definitions(${TARGET_NAME}_common_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 target_include_directories(${TARGET_NAME}_common_obj PRIVATE
+    $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_common_obj SYSTEM PRIVATE
@@ -121,6 +123,7 @@ target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:n
                                                              $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                      $<TARGET_PROPERTY:${TARGET_NAME}_ir_readers,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(ENABLE_PROFILING_ITT AND INTEL_ITT_LIBS)
@@ -146,7 +149,6 @@ if(WIN32)
 endif()
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
-add_clang_format_target(${TARGET_NAME}_clang_format FOR_TARGETS ${TARGET_NAME}_obj)
 
 # Create shared library file from object library
 
@@ -196,7 +198,6 @@ target_include_directories(${TARGET_NAME}_nn_builder PRIVATE "${CMAKE_CURRENT_SO
     "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
 
 add_cpplint_target(${TARGET_NAME}_nn_builder_cpplint FOR_TARGETS ${TARGET_NAME}_nn_builder)
-add_clang_format_target(${TARGET_NAME}_nn_builder_clang_format FOR_TARGETS ${TARGET_NAME}_nn_builder)
 
 # Static library used for unit tests which are always built
 
@@ -272,6 +273,10 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     install(FILES "${TBB}/LICENSE"
             DESTINATION ${IE_CPACK_IE_DIR}/external/tbb
             COMPONENT tbb)
+    install(FILES "${TBB}/cmake/TBBConfig.cmake"
+                  "${TBB}/cmake/TBBConfigVersion.cmake"
+            DESTINATION ${IE_CPACK_IE_DIR}/external/tbb/cmake
+            COMPONENT tbb)
 endif()
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
@@ -279,8 +284,8 @@ ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 install(DIRECTORY "${IE_MAIN_SOURCE_DIR}/include" DESTINATION ${IE_CPACK_IE_DIR}
         COMPONENT core)
 install(TARGETS ${TARGET_NAME} ${TARGET_NAME}_nn_builder
-        RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
 install(FILES "${OpenVINO_BINARY_DIR}/share/ie_parallel.cmake"
               "${OpenVINO_BINARY_DIR}/share/InferenceEngineConfig.cmake"

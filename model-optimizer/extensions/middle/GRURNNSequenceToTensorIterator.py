@@ -20,7 +20,6 @@ from mo.graph.graph import Graph, add_opoutput
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.op import Op
-from mo.ops.reshape import Reshape
 from mo.ops.squeeze import Squeeze
 from mo.ops.unsqueeze import Unsqueeze
 

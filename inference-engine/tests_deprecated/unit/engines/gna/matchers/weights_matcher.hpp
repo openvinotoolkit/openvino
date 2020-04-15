@@ -104,7 +104,7 @@ class WeightsMatcher : public ::testing::MatcherInterface<const intel_nnet_type_
             auto affine = (intel_affine_func_t*)foo->pLayers[i].pLayerStruct;
 
             auto affineWeightsSize = foo->pLayers[i].nOutputRows *
-                foo->pLayers[i].nLayerKind == INTEL_AFFINE_DIAGONAL ? 1 : foo->pLayers[i].nInputRows;
+                (foo->pLayers[i].nLayerKind == INTEL_AFFINE_DIAGONAL ? 1 : foo->pLayers[i].nInputRows);
 
             if (affineWeightsSize != std::get<0>(transpozedData)->size()) {
                 error << "gna-xnn layer(" << i << ") weights size mismatch: expected "
@@ -133,6 +133,49 @@ class WeightsMatcher : public ::testing::MatcherInterface<const intel_nnet_type_
             *os << "weights of affine layers are not transpozed, error at: ";
         }
         *os << (int)iterator << ", actual=" << actual<<", expected=" << (&std::get<0>(transpozedData)->front())[iterator];
+    }
+};
+
+class WeightsSizeMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
+    enum HowMatch{
+        eNone,
+        eEqAffine,
+    } eMatchKind;
+
+    mutable std::stringstream error;
+    mutable int actual;
+    size_t expected_weights_size;
+ public:
+    explicit WeightsSizeMatcher(const size_t data_len) :
+        eMatchKind(eEqAffine),
+        expected_weights_size(data_len){
+    }
+    bool MatchAndExplain(const intel_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
+        if (foo == nullptr)
+            return false;
+
+        size_t sizeTotal = 0;
+        std::stringstream ss;
+        for(int i = 0; i < foo->nLayers; i++) {
+            if (foo->pLayers[i].nLayerKind != INTEL_AFFINE && eMatchKind == eEqAffine) continue;
+
+            auto affineWeightsSize = foo->pLayers[i].nOutputRows *
+                (foo->pLayers[i].nLayerKind == INTEL_AFFINE_DIAGONAL ? 1 : foo->pLayers[i].nInputRows);
+
+            sizeTotal += affineWeightsSize;
+            ss << "[" << i << "]: " << affineWeightsSize << ", ";
+
+        }
+
+        if (eMatchKind == eEqAffine &&  sizeTotal != expected_weights_size) {
+            error << "gna-affine layers " << ss.str() << " have diff total weights size : " << sizeTotal
+                  << ", while expected to have: " << expected_weights_size << "\n";
+            return false;
+        }
+        return true;
+    };
+    void DescribeTo(::std::ostream *os) const override {
+        *os << error.str() << std::endl;
     }
 };
 
@@ -180,5 +223,9 @@ void HasWeightsEq(std::unique_ptr<NNetComponentMatcher>& components,  std::vecto
 
 void SaveWeights(std::unique_ptr<NNetComponentMatcher>& components,  std::vector<uint16_t>* data, std::pair<int, int> dims) {
     components->add(new WeightsSaver(make_tuple(data, dims.first, dims.second)));
+}
+
+void HasWeightsSizeEq(std::unique_ptr<NNetComponentMatcher>& components,  size_t weights_size) {
+    components->add(new WeightsSizeMatcher(weights_size));
 }
 

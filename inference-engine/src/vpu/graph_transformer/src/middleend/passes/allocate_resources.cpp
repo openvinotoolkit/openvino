@@ -184,6 +184,15 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
         }
     }
 
+    //
+    // Allocate shape for all datas
+    //
+
+    for (auto data : model->datas()) {
+        const auto shapeLocation = allocator.allocateConstShape(data);
+        data->setShapeAllocationInfo(shapeLocation);
+    }
+
     return AllocationResult();
 }
 

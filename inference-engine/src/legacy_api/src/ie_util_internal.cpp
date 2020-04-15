@@ -77,9 +77,10 @@ CNNLayerPtr layerCloneImpl<TensorIterator>(const CNNLayer* source) {
 CNNLayerPtr clonelayer(const CNNLayer& source) {
     using fptr = CNNLayerPtr (*)(const CNNLayer*);
     // Most derived layers must go first in this list
-    static const fptr cloners[] = {&layerCloneImpl<ExperimentalDetectronGenerateProposalsSingleImageLayer>,
+    static const fptr cloners[] = {&layerCloneImpl<ExperimentalDetectronTopKROIs>,
+                                   &layerCloneImpl<ExperimentalDetectronGenerateProposalsSingleImageLayer>,
                                    &layerCloneImpl<ExperimentalDetectronPriorGridGeneratorLayer>,
-                                   &layerCloneImpl<ScatterLayer>,
+                                   &layerCloneImpl<ScatterUpdateLayer>,
                                    &layerCloneImpl<NonMaxSuppressionLayer>,
                                    &layerCloneImpl<SelectLayer>,
                                    &layerCloneImpl<BatchNormalizationLayer>,
@@ -145,6 +146,35 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
     return nullptr;  // Silence "control may reach end of non-void function" warning
 }
 
+std::shared_ptr<ICNNNetwork> cloneNetwork(const ICNNNetwork& network) {
+    if (auto func = network.getFunction()) {
+        CNNNetwork net(func);
+
+        InputsDataMap originInputs;
+        OutputsDataMap originOutputs;
+        network.getInputsInfo(originInputs);
+        network.getOutputsInfo(originOutputs);
+        InputsDataMap clonedInputs = net.getInputsInfo();
+        OutputsDataMap clonedOutputs = net.getOutputsInfo();
+
+        for (const auto& outputInfo : originOutputs) {
+            if (clonedOutputs.find(outputInfo.first) == clonedOutputs.end())
+                THROW_IE_EXCEPTION << "Cannot clone network! Cloned network doesn't contain all outputs";
+            clonedOutputs[outputInfo.first]->setPrecision(outputInfo.second->getPrecision());
+            clonedOutputs[outputInfo.first]->setLayout(outputInfo.second->getLayout());
+        }
+        for (const auto& inputInfo : originInputs) {
+            if (clonedInputs.find(inputInfo.first) == clonedInputs.end())
+                THROW_IE_EXCEPTION << "Cannot clone network! Cloned network doesn't contain all inputs";
+            clonedInputs[inputInfo.first]->setPrecision(inputInfo.second->getPrecision());
+            clonedInputs[inputInfo.first]->setLayout(inputInfo.second->getLayout());
+            clonedInputs[inputInfo.first]->getPreProcess() = inputInfo.second->getPreProcess();
+        }
+        return net;
+    }
+
+    return cloneNet(network);
+}
 details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& network) {
     std::vector<CNNLayerPtr> layers;
     details::CNNNetworkIterator i(&network);

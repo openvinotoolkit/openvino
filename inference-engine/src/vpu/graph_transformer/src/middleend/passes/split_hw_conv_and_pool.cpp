@@ -4,13 +4,14 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
+#include <vpu/compile_env.hpp>
+#include <vpu/middleend/hw/utility.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
 #include <vector>
 #include <set>
 #include <memory>
 #include <array>
-
-#include <vpu/compile_env.hpp>
-#include <vpu/middleend/hw/utility.hpp>
 
 namespace vpu {
 

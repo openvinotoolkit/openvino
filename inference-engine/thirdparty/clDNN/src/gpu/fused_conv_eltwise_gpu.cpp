@@ -83,7 +83,8 @@ public:
 
         const auto transposed = arg.get_transposed();
 
-        assert(arg.get_output_layout().size.feature[0] == weights_layout.size.batch[0] * weights_layout.size.group[0]);
+        if (arg.get_fused_primitives().empty() || !(arg.get_fused_primitives().begin()->node->is_type<depth_to_space>()))
+            assert(arg.get_output_layout().size.feature[0] == weights_layout.size.batch[0] * weights_layout.size.group[0]);
 
         // conv params
         auto fused_params =
@@ -113,6 +114,7 @@ public:
 
         fused_params.non_conv_scale = primitive->non_conv_scale;
         fused_params.second_input_in_output = primitive->second_input_in_output;
+        fused_params.depth_to_space_already_fused = primitive->depth_to_space_already_fused;
 
         conv_params.local_convolution = weights_size.local[0] > 1 || weights_size.local[1] > 1;
         conv_params.split = split;
@@ -237,6 +239,8 @@ attach_fused_conv_eltwise_gpu::attach_fused_conv_eltwise_gpu() {
                                                 fused_conv_eltwise_gpu::create);
     implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf_af32),
                                                 fused_conv_eltwise_gpu::create);
+    implementation_map<fused_conv_eltwise>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::image_2d_rgba),
+        fused_conv_eltwise_gpu::create);
 }
 
 }  // namespace detail

@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Graph
 from mo.ops.op import Op

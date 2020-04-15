@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import numpy as np
-
 from extensions.ops.sparse_fill_empty_rows import SparseFillEmptyRows
 from mo.front.extractor import FrontExtractorOp
 

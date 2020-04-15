@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-from mo.utils.ir_reader.extender import Extender
-from mo.utils.graph import Node
-
 from mo.front.common.partial_infer.utils import int64_array
+from mo.utils.graph import Node
+from mo.utils.ir_reader.extender import Extender
 
 
 class StridedSlice_extender(Extender):

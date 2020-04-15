@@ -22,6 +22,7 @@
 #include <graph_tools.hpp>
 #include <debug.h>
 #include <gna/gna_config.hpp>
+#include "gna_plugin_config.hpp"
 #include <ie_util_internal.hpp>
 #include "gna_plugin.hpp"
 #include "optimizer/gna_pass_manager.hpp"
@@ -302,6 +303,7 @@ void GNAPlugin::ImportFrames(
 
 GNAPlugin::GNAPlugin() {
     Init();
+    UpdateFieldsFromConfig();
 }
 
 GNAPlugin::GNAPlugin(const std::map<std::string, std::string>& configMap) {
@@ -321,13 +323,13 @@ void GNAPlugin::Init() {
 
 void GNAPlugin::InitGNADevice() {
 #if GNA_LIB_VER == 1
-    gnadevice = std::make_shared<GNADeviceHelper>(gna_proc_type,
+    gnadevice = std::make_shared<GNADeviceHelper>(config.gna_proc_type,
                                         gnaFlags->gna_lib_async_threads_num,
                                         gnaFlags->gna_openmp_multithreading,
                                         gnaFlags->performance_counting);
 #else
-    gnadevice = std::make_shared<GNADeviceHelper>(pluginGna2AccMode,
-                pluginGna2DeviceConsistent,
+    gnadevice = std::make_shared<GNADeviceHelper>(config.pluginGna2AccMode,
+                                                  config.pluginGna2DeviceConsistent,
                 gnaFlags->gna_lib_async_threads_num,
                 gnaFlags->gna_openmp_multithreading,
                 gnaFlags->performance_counting);
@@ -387,7 +389,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         run_passes(newNet, true);
         run_passes(newNet, false);
     } else {
-        switch (gnaPrecision) {
+        switch (config.gnaPrecision) {
             case Precision::I16:
                 ModelQuantizer<QuantI16> q16;
                 newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
@@ -420,6 +422,9 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
 #endif
 
     auto sortedNet = CNNNetSortTopologicallyEx(*newNet, make_fuzed_order);
+
+    // passing policy to compiler
+    graphCompiler.setPolicy(policy);
 
     if (sortedNet.empty()) {
         THROW_GNA_EXCEPTION << "Sorted network is empty";
@@ -534,9 +539,32 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
 
             gnalog() << "[UFS] from : "<< outPort.first <<" reached: " << layer->name << "\n";
 
+            // probing gna_primitives
             if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
                 initOutput(portId, irLayerAvatar->second, layer);
                 stopSearching = true;
+            }
+
+            // probing concatInfo
+            if (!stopSearching && LayerInfo(layer).isConcat()) {
+                auto concatConnection  = graphCompiler.concat_connection.find(layer->name);
+                if (concatConnection != graphCompiler.concat_connection.end()) {
+                    //initOutput(portId, irLayerAvatar->second, layer);
+
+                    auto &desc = outputsDesc[portId];
+                    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+
+                    desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
+                    // TODO: what is orientation for concat
+                    desc.orientation = kDnnInterleavedOrientation;
+                    desc.num_bytes_per_element = layer->outData.front()->getPrecision().size();
+                    desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+                    desc.num_elements = concatConnection->second.reserved_size / desc.num_bytes_per_element;
+
+                    // binding ptr for first infer request - then others will be setup during relocation
+                    gnamem->bind_ptr(&desc.ptrs.front(), &concatConnection->second.gna_ptr);
+                    stopSearching = true;
+                }
             }
         }, true, [&stopSearching](InferenceEngine::CNNLayer* from) {
             return make_upstream_order(!stopSearching ? from : nullptr);
@@ -722,20 +750,20 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
 void GNAPlugin::DumpXNNToFile() const {
     // TODO: output  precision as well as pointer might be incorrect, LSTM for sure
     // gna looks automatically set layer 0 as output and adjust it's pointer / precision/ size respectively
-    if (dumpXNNPath.empty()) {
+    if (config.dumpXNNPath.empty()) {
         return;
     }
 
-    if (dumpXNNGeneration != "GNA1" &&
-        dumpXNNGeneration != "GNA3" &&
-        !dumpXNNGeneration.empty()) {
-        THROW_GNA_EXCEPTION << "Wrong GNA generation for embedded model dump: " << dumpXNNGeneration;
+    if (config.dumpXNNGeneration != "GNA1" &&
+        config.dumpXNNGeneration != "GNA3" &&
+        !config.dumpXNNGeneration.empty()) {
+        THROW_GNA_EXCEPTION << "Wrong GNA generation for embedded model dump: " << config.dumpXNNGeneration;
     }
 
     if (!gnadevice) {
         THROW_GNA_EXCEPTION << "Cannot generate XNNDump for float network";
     }
-    std::ofstream dumpStream(dumpXNNPath, std::ios::out | std::ios::binary);
+    std::ofstream dumpStream(config.dumpXNNPath, std::ios::out | std::ios::binary);
 #if GNA_LIB_VER == 1
     auto dump = gnadevice->dumpXnn(&std::get<0>(nnets.front())->obj, ptr_active_indices, num_active_indices);
     dump.header.rw_region_size = gnamem->getRWBytes();
@@ -745,7 +773,7 @@ void GNAPlugin::DumpXNNToFile() const {
     dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.model_size);
 #else
     auto const modelId = gnadevice->createModel(std::get<0>(gnaModels.front())->obj);
-    if (dumpXNNGeneration != "GNA3") {
+    if (config.dumpXNNGeneration != "GNA3") {
         auto dump = gnadevice->dumpXnn(modelId);
         dump.header.RwRegionSize = gnamem->getRWBytes();
         dump.header.InputScalingFactor = inputsDesc->inputScaleFactors.front();
@@ -1204,228 +1232,14 @@ void GNAPlugin::GetPerformanceCounts(std::map<std::string, InferenceEngine::Infe
 
 void GNAPlugin::AddExtension(InferenceEngine::IExtensionPtr extension) {}
 
-void GNAPlugin::SetConfig(const std::map<std::string, std::string> &config) {
-    Init();
-    auto supportedConfigOptions = supportedConfigKeys();
+void GNAPlugin::SetConfig(const std::map<std::string, std::string> &config_map) {
+    config.UpdateFromMap(config_map);
+    UpdateFieldsFromConfig();
+}
 
-    for (auto& item : config) {
-        auto keys = std::find_if(supportedConfigOptions.begin(), supportedConfigOptions.end(), [&item](const std::string& supportedConfigOption) {
-            return item.first == supportedConfigOption ||
-                   item.first.find(GNA_CONFIG_KEY(SCALE_FACTOR)) == 0;
-        });
-        if (keys == supportedConfigOptions.end()) {
-            THROW_GNA_EXCEPTION << as_status << NOT_FOUND << "Incorrect GNA Plugin config. Key " << item.first << " not supported";
-        }
-    }
-
-    // holds actual value of a found key
-    std::string key;
-    std::string value;
-    auto if_set = [&](const std::string& keyInput, const std::function<void()> & handler) {
-        auto keyInMap = config.find(keyInput);
-        if (keyInMap != config.end()) {
-            value = keyInMap->second;
-            handler();
-        }
-    };
-
-    auto if_start = [&](const std::string& keyInput, const std::function<void()> & handler) {
-        for (auto && c : config) {
-            if (c.first.find(keyInput) == 0) {
-                if (c.first.size() > keyInput.size() + 1) {
-                    key = c.first.substr(keyInput.size() + 1);
-                    value = c.second;
-                    handler();
-                }
-            }
-        }
-    };
-
-    auto fp32eq = [](float p1, float p2) -> bool {
-        return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-    };
-
-    auto & log = gnalog();
-
-    if_start(GNA_CONFIG_KEY(SCALE_FACTOR), [&, this] {
-        uint64_t scaleForInput = std::stoul(key, NULL, 10);
-        if (scaleForInput > 10) {
-            THROW_GNA_EXCEPTION << "input scale factor with index(" << key << ") unsupported";
-        }
-        auto scaleFactor = std::stod(value);
-        if (fp32eq(scaleFactor, 0.0f)) {
-            THROW_GNA_EXCEPTION << "input scale factor of 0.0f not supported";
-        }
-        // not appeared scale factors are to be 1.0f
-        if (inputsDesc->inputScaleFactors.size() <= scaleForInput) {
-            inputsDesc->inputScaleFactors.resize(scaleForInput + 1, 1.f);
-        }
-        inputsDesc->inputScaleFactors[scaleForInput] = InferenceEngine::CNNLayer::ie_parse_float(value);
-    });
-
-    if (inputsDesc->inputScaleFactors.empty()) {
-        if_set(GNA_CONFIG_KEY(SCALE_FACTOR), [&] {
-            auto scaleFactor = InferenceEngine::CNNLayer::ie_parse_float(value);
-            if (fp32eq(scaleFactor, 0.0f)) {
-                THROW_GNA_EXCEPTION << "input scale factor of 0.0f not supported";
-            }
-            inputsDesc->inputScaleFactors.push_back(scaleFactor);
-        });
-    }
-
-    if (inputsDesc->inputScaleFactors.empty()) {
-        inputsDesc->inputScaleFactors.push_back(1.f);
-    }
-
-    if_set(GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), [&] {
-        dumpXNNPath = value;
-    });
-
-    if_set(GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), [&] {
-        dumpXNNGeneration = value;
-    });
-
-    if_set(GNA_CONFIG_KEY(DEVICE_MODE), [&] {
-#if GNA_LIB_VER == 1
-        static caseless_unordered_map <std::string, uint32_t> supported_values = {
-                {GNAConfigParams::GNA_AUTO, GNA_AUTO},
-                {GNAConfigParams::GNA_HW, GNA_HARDWARE},
-                {GNAConfigParams::GNA_SW, GNA_SOFTWARE},
-                {GNAConfigParams::GNA_SW_EXACT, GNA_SOFTWARE & GNA_HARDWARE}
-        };
-        static std::vector <std::string> supported_values_on_gna2 = {
-            GNAConfigParams::GNA_GEN,
-            GNAConfigParams::GNA_GEN_EXACT,
-            GNAConfigParams::GNA_SSE,
-            GNAConfigParams::GNA_SSE_EXACT,
-            GNAConfigParams::GNA_AVX1,
-            GNAConfigParams::GNA_AVX1_EXACT,
-            GNAConfigParams::GNA_AVX2,
-            GNAConfigParams::GNA_AVX2_EXACT
-        };
-#else
-        static caseless_unordered_map <std::string, std::pair<Gna2AccelerationMode, Gna2DeviceVersion> > supported_values = {
-            {GNAConfigParams::GNA_AUTO, {Gna2AccelerationModeAuto, Gna2DeviceVersionSoftwareEmulation}},
-            {GNAConfigParams::GNA_HW, {Gna2AccelerationModeHardware, Gna2DeviceVersionSoftwareEmulation}},
-            {GNAConfigParams::GNA_SW, {Gna2AccelerationModeSoftware, Gna2DeviceVersionSoftwareEmulation}},
-            {GNAConfigParams::GNA_SW_EXACT, {Gna2AccelerationModeSoftware, Gna2DeviceVersion1_0}},
-            {GNAConfigParams::GNA_GEN, {Gna2AccelerationModeGeneric, Gna2DeviceVersionSoftwareEmulation}},
-            {GNAConfigParams::GNA_GEN_EXACT, {Gna2AccelerationModeGeneric, Gna2DeviceVersion1_0}},
-            {GNAConfigParams::GNA_SSE, {Gna2AccelerationModeSse4x2, Gna2DeviceVersionSoftwareEmulation}},
-            {GNAConfigParams::GNA_SSE_EXACT, {Gna2AccelerationModeSse4x2, Gna2DeviceVersion1_0}},
-            {GNAConfigParams::GNA_AVX1, {Gna2AccelerationModeAvx1, Gna2DeviceVersionSoftwareEmulation}},
-            {GNAConfigParams::GNA_AVX1_EXACT, {Gna2AccelerationModeAvx1, Gna2DeviceVersion1_0}},
-            {GNAConfigParams::GNA_AVX2, {Gna2AccelerationModeAvx2, Gna2DeviceVersionSoftwareEmulation}},
-            {GNAConfigParams::GNA_AVX2_EXACT, {Gna2AccelerationModeAvx2, Gna2DeviceVersion1_0}},
-        };
-#endif
-        auto procType = supported_values.find(value);
-        if (procType == supported_values.end()) {
-            if (value == GNA_CONFIG_VALUE(SW_FP32)) {
-                gnaFlags->sw_fp32 = true;
-            } else {
-#if GNA_LIB_VER == 1
-                auto is_gna2_mode = std::find(
-                        supported_values_on_gna2.begin(),
-                        supported_values_on_gna2.end(),
-                        value);
-                if (is_gna2_mode != supported_values_on_gna2.end()) {
-                    THROW_GNA_EXCEPTION << "This GNA device mode require GNA2 library: " << value;
-                }
-#endif
-                THROW_GNA_EXCEPTION << "GNA device mode unsupported: " << value;
-            }
-        } else {
-#if GNA_LIB_VER == 1
-            gna_proc_type = static_cast<intel_gna_proc_t>(procType->second);
-#else
-            pluginGna2AccMode = procType->second.first;
-            pluginGna2DeviceConsistent = procType->second.second;
-#endif
-        }
-    });
-
-    if_set(GNA_CONFIG_KEY(COMPACT_MODE), [&] {
-        if (value == PluginConfigParams::YES) {
-            gnaFlags->compact_mode = true;
-        } else if (value == PluginConfigParams::NO) {
-            gnaFlags->compact_mode = false;
-        } else {
-            log << "GNA compact mode should be YES/NO, but not" << value;
-            THROW_GNA_EXCEPTION << "GNA compact mode should be YES/NO, but not" << value;
-        }
-    });
-
-    if_set(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), [&] {
-        if (value == PluginConfigParams::YES) {
-            gnaFlags->exclusive_async_requests  = true;
-        } else if (value == PluginConfigParams::NO) {
-            gnaFlags->exclusive_async_requests  = false;
-        } else {
-            log << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
-            THROW_GNA_EXCEPTION << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
-        }
-    });
-
-    if_set(GNA_CONFIG_KEY(PRECISION), [&] {
-        auto precision = Precision::FromStr(value);
-        if (precision != Precision::I8 && precision != Precision::I16) {
-            log << "Unsupported precision of GNA hardware, should be Int16 or Int8, but was: " << value;
-            THROW_GNA_EXCEPTION << "Unsupported precision of GNA hardware, should be Int16 or Int8, but was: " << value;
-        }
-        gnaPrecision = precision;
-    });
-
-    if_set(GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN), [&] {
-        if (value == PluginConfigParams::YES) {
-            gnaFlags->uniformPwlDesign = true;
-        } else if (value == PluginConfigParams::NO) {
-            gnaFlags->uniformPwlDesign = false;
-        } else {
-            log << "GNA pwl uniform algorithm parameter "
-                << "should be equal to YES/NO, but not" << value;
-            THROW_GNA_EXCEPTION << "GNA pwl uniform algorithm parameter "
-                                << "should be equal to YES/NO, but not" << value;
-        }
-    });
-
-    if_set(CONFIG_KEY(PERF_COUNT), [&] {
-        if (value == PluginConfigParams::YES) {
-            gnaFlags->performance_counting = true;
-        } else if (value == PluginConfigParams::NO) {
-            gnaFlags->performance_counting = false;
-        } else {
-            log << "GNA performance counter enabling parameter "
-                << "should be equal to YES/NO, but not" << value;
-            THROW_GNA_EXCEPTION << "GNA performance counter enabling parameter "
-                                << "should be equal to YES/NO, but not" << value;
-        }
-    });
-
-    if_set(GNA_CONFIG_KEY(LIB_N_THREADS), [&] {
-        uint64_t lib_threads = std::stoul(value, NULL, 10);
-        if (lib_threads == 0 || lib_threads > std::numeric_limits<uint8_t>::max()/2-1) {
-            log << "Unsupported accelerator lib number of threads: " << value << ", should be greateer than 0 and less than 127";
-            THROW_GNA_EXCEPTION << "Unsupported accelerator lib number of threads: " << value
-                                << ", should be greateer than 0 and less than 127";
-        }
-        gnaFlags->gna_lib_async_threads_num = lib_threads;
-    });
-
-    if_set(CONFIG_KEY(SINGLE_THREAD), [&] {
-        if (value == PluginConfigParams::YES) {
-            gnaFlags->gna_openmp_multithreading  = false;
-        } else if (value == PluginConfigParams::NO) {
-            gnaFlags->gna_openmp_multithreading  = true;
-        } else {
-            log << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
-            THROW_GNA_EXCEPTION << "EXCLUSIVE_ASYNC_REQUESTS should be YES/NO, but not" << value;
-        }
-    });
-
-    if (gnaFlags->sw_fp32 && gnaFlags->gna_lib_async_threads_num > 1) {
-        THROW_GNA_EXCEPTION << "GNA plugin not support async mode on GNA_SW_FP32!";
-    }
+void GNAPlugin::UpdateFieldsFromConfig() {
+    inputsDesc->inputScaleFactors = config.inputScaleFactors;
+    *gnaFlags = config.gnaFlags;
 }
 
 void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,

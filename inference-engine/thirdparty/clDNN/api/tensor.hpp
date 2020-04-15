@@ -121,12 +121,14 @@ struct format {
         b_fs_yx_32fp,                           ///< format for data for binary convolutions
         winograd_2x3_s1_data,                   ///< format used for input for winograd convolution, F(2,3) -- filter 3x3 with stride 1
         nv12,                                   ///< format for media nv12 input
+        image_2d_rgba,                          ///< format for image2d RGBA, always allocates memory for 4 feature maps (even when only 3 are used)
 
         // Weights formats
         oiyx,                                         ///< the most common format for 2D weights
         yxio,                                         ///< format used 2D weights
         oizyx,                                        ///< the most common format for 3D convolution
         os_iyx_osv16,                                 ///< format used only for convolution weights:
+        os_is_yx_osv16_isv16,                               ///< format used for convolution i8 weights
         os_zyxi_osv16,                                ///< format used for weights for 3D convolution
         os_is_yx_isv16_osv16,                         ///< format used for blocked convolution
         os_is_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D convolution
@@ -183,6 +185,7 @@ struct format {
         gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
         gs_oiyx_gsv32,                                ///< format used for weights for 2D convolution
         g_is_os_zyx_osv16_isv16,                      ///< format used for grouped weights for blocked 3D deconvolution
+        g_os_is_yx_osv16_isv4,
         g_is_os_yx_osv16_isv16,
         g_os_is_zyx_isv8_osv16_isv2,
         g_os_is_yx_isv8_osv16_isv2,
@@ -228,6 +231,7 @@ struct format {
                 { bs_fs_zyx_bsv16_fsv16, { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{0, 16 }, {1, 16}}}},
                 { bs_fs_yx_bsv16_fsv16,  { 1, 1, 3, 0, 0, "bfyx",   "bfxy?",  {{0, 16 }, {1, 16}}}},
                 { nv12,                  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
+                { image_2d_rgba,         { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
 
                 { oiyx,                                        { 1, 1, 2, 0, 0, "bfyx",   "bfxy",       {}}},
                 { yxio,                                        { 1, 1, 2, 0, 0, "yxfb",   "bfxy?",      {}}},
@@ -262,6 +266,7 @@ struct format {
                 { os_is_zyx_isv8_osv16_isv2,                   { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{1, 8}, {0, 16}, {1, 2}}}},
                 { os_zyxi_osv16,                               { 1, 1, 3, 0, 0, "bzyxf",  "bfxyz",      {{0, 16}}}},
                 { os_is_yx_isv8_osv16_isv2,                    { 1, 1, 2, 0, 0, "bfzyx",  "bfxyz",      {{1, 8}, {0, 16}, {1, 2}}}},
+                { os_is_yx_osv16_isv16,                        { 1, 1, 2, 0, 0, "bfyx",   "bfxy",       {{1, 16}, {0, 16}}}},
 
                 { goiyx,                                       { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {}}},
                 { goizyx,                                      { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {}}},
@@ -274,7 +279,8 @@ struct format {
                 { g_is_os_yx_osv16_isv16,                      { 1, 1, 2, 0, 1, "gfbyx",  "bfxy????g",  {{0, 16}, {1, 16}}}},
                 { g_os_is_zyx_isv8_osv16_isv2,                 { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{1, 8}, {0, 16}, {1, 2}}}},
                 { g_os_is_yx_isv8_osv16_isv2,                  { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{1, 8}, {0, 16}, {1, 2}}}},
-                { g_os_is_zyx_isv16_osv16,                     { 1, 1, 3, 0, 1, "bfzyx",  "bfxyz???g",  {{0, 16}, {1, 16}}}},
+                { g_os_is_zyx_isv16_osv16,                     { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{0, 16}, {1, 16}}}},
+                { g_os_is_yx_osv16_isv4,                       { 1, 1, 2, 0, 1, "gbfxy",  "bfxy????g",  {{0, 16}, {1, 4}}}},
         };
         return traits.at(fmt);
     }
@@ -311,7 +317,8 @@ struct format {
                 fmt == image_2d_weights_c1_b_fyx ||
                 fmt == image_2d_weights_winograd_6x3_s1_fbxyb ||
                 fmt == image_2d_weights_winograd_6x3_s1_xfbyb ||
-                fmt == nv12);
+                fmt == nv12 ||
+                fmt == image_2d_rgba);
     }
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }

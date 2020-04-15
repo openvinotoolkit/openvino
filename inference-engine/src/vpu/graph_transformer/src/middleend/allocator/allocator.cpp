@@ -65,7 +65,7 @@ void updateChildDataAllocation(const Data& data, int offsetLimitation) {
         auto parent = edge->parent();
         auto child = edge->child();
 
-        auto memoryOffset = parent->memoryOffset();
+        auto memoryOffset = parent->dataLocation().offset;
 
         if (edge->mode() == SharedDataMode::ROI) {
             auto parentStrides = parent->strides();
@@ -86,7 +86,7 @@ void updateChildDataAllocation(const Data& data, int offsetLimitation) {
             IE_ASSERT(false) << "Unsupported enum value";
         }
 
-        child->setAllocationInfo(parent->location(), memoryOffset);
+        child->setDataAllocationInfo({parent->dataLocation().location, memoryOffset});
 
         updateChildDataAllocation(child, offsetLimitation);
     }
@@ -127,7 +127,7 @@ bool Allocator::allocateData(const Data& data) {
 
             auto finalByteSize = data->totalByteSize() * _modelBatchSize;
 
-            data->setIOInfo(DataLocation::Input, alignVal(_inputMemOffset, DATA_ALIGNMENT));
+            data->setIOInfo(Location::Input, alignVal(_inputMemOffset, DATA_ALIGNMENT));
             _inputMemOffset = alignVal(_inputMemOffset, DATA_ALIGNMENT) + finalByteSize;
 
             updateChildDataAllocation(data, DDR_MAX_SIZE);
@@ -153,7 +153,7 @@ bool Allocator::allocateData(const Data& data) {
                 finalByteSize = data->totalByteSize() * _modelBatchSize;
             }
 
-            data->setIOInfo(DataLocation::Output, alignVal(_outputMemOffset, DATA_ALIGNMENT));
+            data->setIOInfo(Location::Output, alignVal(_outputMemOffset, DATA_ALIGNMENT));
             _outputMemOffset = alignVal(_outputMemOffset, DATA_ALIGNMENT) + finalByteSize;
 
             updateChildDataAllocation(data, DDR_MAX_SIZE);
@@ -176,7 +176,7 @@ bool Allocator::allocateData(const Data& data) {
 
             auto finalByteSize = calcAllocationSize(data);
 
-            data->setAllocationInfo(DataLocation::Blob, _blobMemOffset);
+            data->setDataAllocationInfo({Location::Blob, _blobMemOffset});
             _blobMemOffset += finalByteSize;
 
             updateChildDataAllocation(data, DDR_MAX_SIZE);
@@ -257,15 +257,32 @@ bool Allocator::allocateData(const Data& data) {
     // Update data allocation info
     //
 
-    data->setAllocationInfo(chunk->memType == MemoryType::CMX ? DataLocation::CMX : DataLocation::BSS, chunk->pointer);
+    data->setDataAllocationInfo({chunk->memType == MemoryType::CMX ? Location::CMX : Location::BSS, chunk->pointer});
 
-    auto offsetLimitation = (data->location() == DataLocation::CMX) ? _maxCmxSize : DDR_MAX_SIZE;
+    auto offsetLimitation = (data->dataLocation().location == Location::CMX) ? _maxCmxSize : DDR_MAX_SIZE;
     updateChildDataAllocation(data, offsetLimitation);
 
     _memChunksPerData.emplace(data, chunk);
     _allocatedIntermData.emplace(data);
 
     return chunk->memType == memoryType;
+}
+
+ShapeLocation Allocator::allocateConstShape(Data& data) {
+    ShapeLocation shapeLocation;
+
+    shapeLocation.dimsLocation = Location::Blob;
+    shapeLocation.stridesLocation = Location::Blob;
+
+    const auto dimsByteSize = data->desc().dimsByteSize();
+
+    shapeLocation.dimsOffset = _blobMemOffset;
+    _blobMemOffset += dimsByteSize;
+
+    shapeLocation.stridesOffset = _blobMemOffset;
+    _blobMemOffset += dimsByteSize;
+
+    return shapeLocation;
 }
 
 void Allocator::freeData(const Data& data, DeallocationMode mode) {
@@ -313,7 +330,7 @@ void Allocator::freeData(const Data& data, DeallocationMode mode) {
 
             _memChunksPerData[data] = ddrChunk;
 
-            data->setAllocationInfo(DataLocation::BSS, ddrChunk->pointer);
+            data->setDataAllocationInfo({Location::BSS, ddrChunk->pointer});
             updateChildDataAllocation(data, DDR_MAX_SIZE);
 
             break;

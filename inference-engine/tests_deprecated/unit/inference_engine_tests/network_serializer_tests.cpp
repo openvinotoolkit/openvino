@@ -95,8 +95,7 @@ static const auto model = R"_(
 )_";
 
 TEST(NetworkSerializerTest, TopoSortResultUnique) {
-
-    auto reader = std::shared_ptr<InferenceEngine::ICNNNetReader>(InferenceEngine::CreateCNNNetReader());
+    auto reader = InferenceEngine::CreateCNNNetReaderPtr();
 
     InferenceEngine::ResponseDesc resp;
 

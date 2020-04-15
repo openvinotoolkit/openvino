@@ -54,6 +54,6 @@ if(ENABLE_MYRIAD)
     add_perfcheck_target(myriad_perfcheck myriadPlugin)
 
     install(TARGETS myriad_perfcheck
-            RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
+            RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
             COMPONENT myriad)
 endif()

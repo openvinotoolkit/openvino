@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "ie_api.h"
+#include "ie_blob.h"
 
 namespace ngraph {
 
@@ -325,6 +326,7 @@ private:
 };
 
 #ifdef __clang__
+extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<int>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<bool>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<float>);

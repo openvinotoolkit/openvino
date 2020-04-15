@@ -18,8 +18,6 @@
 #                axis - dimension number for tensors concatenation
 import copy
 
-import networkx as nx
-
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 

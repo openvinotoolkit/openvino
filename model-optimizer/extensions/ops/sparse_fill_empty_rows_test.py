@@ -23,7 +23,6 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
-
 nodes_attributes = {'input_indices': {'shape': None, 'value': None, 'kind': 'data'},
                     'input_values': {'shape': None, 'value': None, 'kind': 'data'},
                     'dense_shape': {'shape': None, 'value': None, 'kind': 'data'},

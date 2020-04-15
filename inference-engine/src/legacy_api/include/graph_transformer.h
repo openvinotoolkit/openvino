@@ -24,6 +24,7 @@ namespace InferenceEngine {
  */
 class INFERENCE_ENGINE_API_CLASS(ConstTransformer) {
 public:
+    explicit ConstTransformer(ICNNNetwork* _network);
     explicit ConstTransformer(details::CNNNetworkImpl* _network);
     explicit ConstTransformer(std::vector<DataPtr> &_inputs, std::vector<DataPtr> &_outputs);
 

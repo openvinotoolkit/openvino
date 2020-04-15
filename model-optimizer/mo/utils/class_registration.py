@@ -14,10 +14,10 @@
  limitations under the License.
 """
 import logging as log
-
-import networkx as nx
 import os
 from enum import Enum
+
+import networkx as nx
 
 from mo.graph.graph import Graph
 from mo.middle.passes.eliminate import shape_inference

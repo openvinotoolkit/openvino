@@ -15,11 +15,12 @@
 """
 
 import hashlib
-from defusedxml.minidom import parseString
 from xml.etree.ElementTree import Element, SubElement, tostring
 
+from defusedxml.minidom import parseString
+
 from mo.graph.graph import *
-from mo.middle.passes.convert_data_type import data_type_str_to_precision, np_data_type_to_precision
+from mo.middle.passes.convert_data_type import np_data_type_to_precision
 from mo.utils.unsupported_ops import UnsupportedOps
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version

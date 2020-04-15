@@ -79,13 +79,13 @@ TEST_F(VPU_AdjustDataLocationTest, FlushCMX_TwoSpecialConsumers) {
 
     pipeline.run(model);
 
-    ASSERT_EQ(data1->location(), DataLocation::CMX);
+    ASSERT_EQ(data1->dataLocation().location, Location::CMX);
     ASSERT_EQ(data1->numConsumers(), 1);
 
     auto data1Consumer = data1->singleConsumer();
     auto data1ConsumerOutput = data1Consumer->output(0);
     ASSERT_EQ(data1Consumer->type(), StageType::Copy);
-    ASSERT_EQ(data1ConsumerOutput->location(), DataLocation::BSS);
+    ASSERT_EQ(data1ConsumerOutput->dataLocation().location, Location::BSS);
     ASSERT_EQ(data1ConsumerOutput->numChildDatas(), 4);
     ASSERT_TRUE(contains(data1ConsumerOutput->childDataEdges(), [data2](const SharedAllocation& e) { return e->child() == data2; }));
     ASSERT_TRUE(contains(data1ConsumerOutput->childDataEdges(), [data3](const SharedAllocation& e) { return e->child() == data3; }));
@@ -152,13 +152,13 @@ TEST_F(VPU_AdjustDataLocationTest, SpillWithBranch) {
     pipeline.run(model);
 
     auto hw1Output = hw1->output(0);
-    ASSERT_EQ(hw1Output->location(), DataLocation::CMX);
+    ASSERT_EQ(hw1Output->dataLocation().location, Location::CMX);
 
     auto copyStage = hw1Output->singleConsumer();
     ASSERT_EQ(copyStage->type(), StageType::Copy);
 
     auto copyStageOutput = copyStage->output(0);
-    ASSERT_EQ(copyStageOutput->location(), DataLocation::BSS);
+    ASSERT_EQ(copyStageOutput->dataLocation().location, Location::BSS);
 
     ASSERT_EQ(copyStageOutput->numConsumers(), 2);
     for (const auto& copyStageOutputConsumer : copyStageOutput->consumers()) {

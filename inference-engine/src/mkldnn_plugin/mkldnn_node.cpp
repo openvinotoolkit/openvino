@@ -662,6 +662,8 @@ InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeV
         internalBlob = InferenceEngine::make_shared_blob<int8_t>(desc);
     } else if (blb->getTensorDesc().getPrecision() == Precision::I32) {
         internalBlob = InferenceEngine::make_shared_blob<int32_t>(desc);
+    } else if (blb->getTensorDesc().getPrecision() == Precision::BF16) {
+        internalBlob = InferenceEngine::make_shared_blob<int16_t>(desc);
     } else {
         internalBlob = InferenceEngine::make_shared_blob<float>(desc);
     }

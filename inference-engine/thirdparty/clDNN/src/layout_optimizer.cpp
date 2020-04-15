@@ -28,6 +28,8 @@
 #include "eltwise_inst.h"
 #include "pooling_inst.h"
 #include "permute_inst.h"
+#include "quantize_inst.h"
+#include "mvn_inst.h"
 #include <vector>
 #include <memory>
 #include <utility>
@@ -121,6 +123,11 @@ bool layout_optimizer::is_format_supported(program_node& node, format::type fmt)
     if (node.is_type<fully_connected>() && fmt == format::byxf)
         return false;
 
+    if (node.is_type<mvn>() && fmt == format::b_fs_yx_fsv16 &&
+        node.get_dependency(0).get_output_layout().data_type != data_types::i8 &&
+        node.get_dependency(0).get_output_layout().data_type != data_types::u8)
+        return false;
+
     if (node.is_type<input_layout>())
         return node.get_output_layout().format == fmt;
 
@@ -190,7 +197,10 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         fmt_prev == format::bfyx &&
         ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
         (fmt_next == format::b_fs_yx_fsv32 && prev_output_layout.size.feature[0] == 3) ||
-        (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] == 3) ||
+        (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 &&
+        prev_output_layout.size.feature[0] == 3 &&
+        (next_output_layout.data_type != data_types::i8 && next_output_layout.data_type != data_types::u8)) ||
+         (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] == 3) ||
         (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.size.feature[0] % 16 == 0 && prev_output_layout.size.feature[0] == 3)))
         return true;
 
@@ -219,7 +229,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
         return true;
 
     if (prev.is_type<quantize>() &&
-        (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::b_fs_zyx_fsv32))
+        (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::b_fs_zyx_fsv32 || fmt_next == format::b_fs_yx_fsv16))
         return true;
 
     return false;
@@ -332,7 +342,24 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
                                                      const layout &weights_layout,
                                                      std::shared_ptr<const convolution> conv,
                                                      bool weak_restrictions) {
-    // A set of rules that define when b_fs_yx_fsv16 mem format can be used
+    // A set of rules that define when b_fs_yx_fsv16 mem format can be used for int8 case
+    bool i8_dt_case = (input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8) &&
+        weights_layout.data_type == data_types::i8 &&
+        (conv->activations_zero_points.empty() && conv->weights_zero_points.empty());  // only symmetric
+    if (i8_dt_case) {
+        auto ks_x = weights_layout.size.spatial[0];
+        auto ks_y = weights_layout.size.spatial[1];
+        if (input_layout.size.spatial[2] == 1 &&
+            input_layout.size.batch[0] < 16 &&
+            ((ks_x == 7 && ks_y == 7) || (ks_x == 3 && ks_y == 3) || (ks_x == 1 && ks_y == 1) || (ks_x == 5 && ks_y == 5)) &&
+            weights_layout.size.batch[0] >= 16 &&
+            ((conv->groups == 1 && conv->split() == 1) ||
+             conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]) ||
+             conv->split() == static_cast<int32_t>(input_layout.size.feature[0])) &&
+            conv->dilation == tensor{ 1 })
+            return true;
+    }
+    // A set of rules that define when b_fs_yx_fsv16 mem format can be used for fp16/fp32 case
     auto feature_block_size = 16;
     auto correct_data_type = input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32;
     correct_data_type &= weights_layout.data_type == input_layout.data_type;
@@ -530,7 +557,7 @@ format layout_optimizer::imad_case(convolution_node const& node) const {
     if (dims_count == 5 && is_grouped) {
         return format::bfzyx;
     } else if (dims_count == 4 && is_grouped && !is_dw) {
-        return format::bfyx;
+        return format::b_fs_yx_fsv4;
     }
 
     bool asymmetric_quantization = node.activations_zero_points_term() || node.weights_zero_points_term();
@@ -567,7 +594,12 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
 
     if ((input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8)) {
-        expected_format = imad_case(node);
+        if ((_optimization_attributes.b_fs_yx_fsv16_network &&
+            convolution_b_fs_yx_fsv16_opt(input_layout, output_or_weights_layout, prim))) {
+            expected_format = cldnn::format::b_fs_yx_fsv16;
+        } else {
+            expected_format = imad_case(node);
+        }
         expected_tensor = current_layout.size;
     } else if (_optimization_attributes.b_fs_zyx_fsv16_network &&
             convolution_b_fs_zyx_fsv16_opt(input_layout,

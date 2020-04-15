@@ -1244,7 +1244,67 @@ static void calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid::Buffer
 
         auto dst = out.OutLine<T>(l);
 
-    #ifdef HAVE_SSE
+        #ifdef HAVE_AVX512
+        if (with_cpu_x86_avx512f()) {
+            if (std::is_same<T, uchar>::value) {
+                avx512::calcRowArea_8U(reinterpret_cast<uchar*>(dst),
+                                       reinterpret_cast<const uchar**>(src),
+                                       inSz, outSz,
+                                       static_cast<Q0_16>(ymapper.alpha),
+                                       reinterpret_cast<const MapperUnit8U&>(ymap),
+                                       xmaxdf[0],
+                                       reinterpret_cast<const short*>(xindex),
+                                       reinterpret_cast<const Q0_16*>(xalpha),
+                                       reinterpret_cast<Q8_8*>(vbuf));
+                continue;  // next l = 0, ..., lpi-1
+            }
+
+            if (std::is_same<T, float>::value) {
+                avx512::calcRowArea_32F(reinterpret_cast<float*>(dst),
+                                        reinterpret_cast<const float**>(src),
+                                        inSz, outSz,
+                                        static_cast<float>(ymapper.alpha),
+                                        reinterpret_cast<const MapperUnit32F&>(ymap),
+                                        xmaxdf[0],
+                                        reinterpret_cast<const int*>(xindex),
+                                        reinterpret_cast<const float*>(xalpha),
+                                        reinterpret_cast<float*>(vbuf));
+                continue;
+            }
+        }
+        #endif  // HAVE_AVX512
+
+        #ifdef HAVE_AVX2
+        if (with_cpu_x86_avx2()) {
+            if (std::is_same<T, uchar>::value) {
+                avx::calcRowArea_8U(reinterpret_cast<uchar*>(dst),
+                                    reinterpret_cast<const uchar**>(src),
+                                    inSz, outSz,
+                                    static_cast<Q0_16>(ymapper.alpha),
+                                    reinterpret_cast<const MapperUnit8U&>(ymap),
+                                    xmaxdf[0],
+                                    reinterpret_cast<const short*>(xindex),
+                                    reinterpret_cast<const Q0_16*>(xalpha),
+                                    reinterpret_cast<Q8_8*>(vbuf));
+                continue;  // next l = 0, ..., lpi-1
+            }
+
+            if (std::is_same<T, float>::value) {
+                avx::calcRowArea_32F(reinterpret_cast<float*>(dst),
+                                     reinterpret_cast<const float**>(src),
+                                     inSz, outSz,
+                                     static_cast<float>(ymapper.alpha),
+                                     reinterpret_cast<const MapperUnit32F&>(ymap),
+                                     xmaxdf[0],
+                                     reinterpret_cast<const int*>(xindex),
+                                     reinterpret_cast<const float*>(xalpha),
+                                     reinterpret_cast<float*>(vbuf));
+                continue;
+            }
+        }
+        #endif  // HAVE_AVX2
+
+        #ifdef HAVE_SSE
         if (with_cpu_x86_sse42()) {
             if (std::is_same<T, uchar>::value) {
                 calcRowArea_8U(reinterpret_cast<uchar*>(dst),
@@ -1272,7 +1332,7 @@ static void calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid::Buffer
                 continue;
             }
         }
-    #endif  // HAVE_SSE
+        #endif  // HAVE_SSE
 
         // vertical pass
         int y_1st = ymap.index0;

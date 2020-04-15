@@ -73,7 +73,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_dw)(
                     in = input[input_idx];
 #if ASYMMETRIC_DATA_QUANTIZATION
                 else
-                    in = activations_zp[k];
+                    in = activations_zp[g*FILTER_IFM_NUM + k];
 #endif
 
                 uint filter_idx = filter_offset + k*FILTER_IFM_PITCH + j*FILTER_Y_PITCH + i*FILTER_X_PITCH;

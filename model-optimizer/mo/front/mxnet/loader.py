@@ -14,15 +14,15 @@
  limitations under the License.
 """
 
-import os
 import json
-
-import numpy as np
-import mxnet as mx
 import logging as log
+import os
 
-from mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, init_rnn_states
+import mxnet as mx
+import numpy as np
+
 from mo.front.mxnet.extractor import common_mxnet_fields
+from mo.front.mxnet.extractors.utils import get_mxnet_node_edges, load_params, init_rnn_states
 from mo.front.mxnet.nd_to_params import build_params_file
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error

@@ -21,18 +21,26 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
     std::shared_ptr<GNAPlugin> plg;
 
  public:
-    GNAExecutableNetwork(const std::string &aotFileName, const std::map<std::string, std::string> &config) :
-        plg(std::make_shared<GNAPlugin>(config)) {
+    GNAExecutableNetwork(const std::string &aotFileName, std::shared_ptr<GNAPlugin> plg)
+        : plg(plg) {
         plg->ImportNetwork(aotFileName);
         _networkInputs  = plg->GetInputs();
         _networkOutputs = plg->GetOutputs();
     }
 
-    GNAExecutableNetwork(InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config)
-        : plg(std::make_shared<GNAPlugin>(config)) {
+    GNAExecutableNetwork(InferenceEngine::ICNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
+        : plg(plg) {
         InferenceEngine::NetPass::ConvertPrecision(network, InferenceEngine::Precision::I64, InferenceEngine::Precision::I32);
         InferenceEngine::NetPass::ConvertPrecision(network, InferenceEngine::Precision::U64, InferenceEngine::Precision::I32);
         plg->LoadNetwork(network);
+    }
+
+    GNAExecutableNetwork(const std::string &aotFileName, const std::map<std::string, std::string> &config)
+        : GNAExecutableNetwork(aotFileName, std::make_shared<GNAPlugin>(config)) {
+    }
+
+    GNAExecutableNetwork(InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config)
+        : GNAExecutableNetwork(network, std::make_shared<GNAPlugin>(config)) {
     }
 
     InferenceEngine::AsyncInferRequestInternal::Ptr
@@ -58,5 +66,18 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
     void ExportImpl(std::ostream&) override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
+
+    void GetConfig(const std::string &name,
+                   InferenceEngine::Parameter &result,
+                   InferenceEngine::ResponseDesc* /*resp*/) const override {
+        result = plg->GetConfig(name, {});
+    }
+
+    void GetMetric(const std::string& name,
+                   InferenceEngine::Parameter& result,
+                   InferenceEngine::ResponseDesc* /* resp */) const override {
+        result = plg->GetMetric(name, {});
+    }
 };
+
 }  // namespace GNAPluginNS

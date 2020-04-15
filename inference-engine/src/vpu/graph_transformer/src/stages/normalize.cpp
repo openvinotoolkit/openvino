@@ -4,6 +4,8 @@
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
 #include <vector>
 #include <map>
 #include <unordered_set>

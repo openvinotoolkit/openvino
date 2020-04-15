@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<attributes>
+<!--[ WARNING ] Use of attribute "processes" from config isn't implemented yet. It will be ignored.-->
+    <processes>
+        <value>1</value>
+    </processes>
+    <threads>
+        <value>1</value>
+    </threads>
+    <iterations>
+        <value>30</value>
+    </iterations>
+    <devices>
+        <value>CPU</value>
+<!--        <value>GPU</value>-->
+    </devices>
+    <models>
+        <value>caffe/FP32/alexnet/alexnet.xml</value>
+    </models>
+</attributes>

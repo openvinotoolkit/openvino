@@ -92,6 +92,14 @@ attach_mvn_gpu::attach_mvn_gpu() {
                                  mvn_gpu::create);
     implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16),
                                  mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv16),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv16),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16),
+                                 mvn_gpu::create);
+    implementation_map<mvn>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16),
+                                 mvn_gpu::create);
 }
 
 }  // namespace detail

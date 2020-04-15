@@ -4,167 +4,21 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
+#include <vpu/middleend/sw/utility.hpp>
+#include <vpu/utils/numeric.hpp>
+#include <vpu/model/data_contents/deconvolution_contents.hpp>
+
+#include <ie_parallel.hpp>
+
 #include <vector>
 #include <string>
 #include <memory>
 #include <unordered_set>
 #include <set>
 
-#include <ie_parallel.hpp>
-
-#include <vpu/middleend/sw/utility.hpp>
-#include <vpu/utils/numeric.hpp>
-
 namespace vpu {
 
 namespace {
-
-void depthDeconvolutionRelayoutCHW(
-        const fp16_t* src, int src_size,
-        fp16_t* dst, int dst_size,
-        int KX, int KY,
-        int channels) {
-    ie::parallel_for3d(channels, KY, KX, [=](int c, int ky, int kx) {
-        int iidx = c * KX * KY + ky * KX + kx;
-        IE_ASSERT(iidx >= 0 && iidx < src_size);
-
-        int inv_kx = KX - kx - 1;
-        int inv_ky = KY - ky - 1;
-        int oidx = c * KX * KY + inv_ky * KX + inv_kx;
-        IE_ASSERT(oidx >= 0 && oidx < dst_size);
-
-        dst[oidx] = src[iidx];
-    });
-}
-
-class DepthDeconvolutionCHWWeightsContent final : public CalculatedDataContent {
-public:
-    DepthDeconvolutionCHWWeightsContent(
-            const DataContent::Ptr& origContent,
-            int KX, int KY, int channels) :
-            CalculatedDataContent({origContent}),
-            _KX(KX), _KY(KY), _channels(channels) {
-    }
-
-protected:
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override {
-        VPU_PROFILE(DepthDeconvolutionCHWWeightsContent);
-        depthDeconvolutionRelayoutCHW(
-            baseContents[0]->get<fp16_t>(), desc().totalDimSize(),
-            static_cast<fp16_t*>(tempBuf), desc().totalDimSize(),
-            _KX, _KY, _channels);
-    }
-
-private:
-    int _KX;
-    int _KY;
-    int _channels;
-};
-
-void depthDeconvolutionRelayoutHWC(
-        const fp16_t* src, int src_size,
-        fp16_t* dst, int dst_size,
-        int KX, int KY,
-        int channels) {
-    ie::parallel_for3d(channels, KY, KX, [=](int c, int ky, int kx) {
-        int iidx = c * KX * KY + ky * KX + kx;
-        IE_ASSERT(iidx < src_size);
-
-        int inv_kx = KX - kx - 1;
-        int inv_ky = KY - ky - 1;
-        int oidx = inv_ky * KX * channels + inv_kx * channels + c;
-        IE_ASSERT(oidx < dst_size);
-
-        dst[oidx] = src[iidx];
-    });
-}
-
-class DepthDeconvolutionHWCWeightsContent final : public CalculatedDataContent {
-public:
-    DepthDeconvolutionHWCWeightsContent(
-            const DataContent::Ptr& origContent,
-            int KX, int KY, int channels) :
-            CalculatedDataContent({origContent}),
-            _KX(KX), _KY(KY), _channels(channels) {
-    }
-
-protected:
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override {
-        VPU_PROFILE(DepthDeconvolutionHWCWeightsContent);
-        depthDeconvolutionRelayoutHWC(
-            baseContents[0]->get<fp16_t>(), desc().totalDimSize(),
-            static_cast<fp16_t*>(tempBuf), desc().totalDimSize(),
-            _KX, _KY, _channels);
-    }
-
-private:
-    int _KX;
-    int _KY;
-    int _channels;
-};
-
-void deconvolutionRelayout(
-    const fp16_t* src, int src_size,
-    fp16_t* dst, int dst_size,
-    int KX, int KY,
-    int IC, int OC) {
-    ie::parallel_for4d(OC, IC, KY, KX, [=](int oc, int ic, int ky, int kx) {
-        int iidx = ic * OC * KY * KX
-                 + oc * KY * KX
-                 + ky * KX
-                 + kx;
-        IE_ASSERT(iidx >= 0 && iidx < src_size);
-
-        int inv_kx = KX - kx - 1;
-        int inv_ky = KY - ky - 1;
-        int oidx = oc * IC * KY * KX
-                 + ic * KY * KX
-                 + inv_ky * KX
-                 + inv_kx;
-        IE_ASSERT(oidx >=  0 && oidx < dst_size);
-
-        dst[oidx] = src[iidx];
-    });
-}
-
-class DeconvolutionWeightsContent final : public CalculatedDataContent {
-public:
-    DeconvolutionWeightsContent(
-            const DataContent::Ptr& origContent,
-            int KX, int KY,
-            int IC, int OC) :
-            CalculatedDataContent({origContent}),
-            _KX(KX), _KY(KY),
-            _IC(IC), _OC(OC) {
-    }
-
-protected:
-    size_t getTempBufSize(const SmallVector<DataContent::Ptr, 2>&) const override {
-        return 2 * desc().totalDimSize() * sizeof(fp16_t);
-    }
-
-
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override {
-        VPU_PROFILE(DeconvolutionWeightsContent);
-
-        auto dstPtr = static_cast<fp16_t*>(tempBuf);
-        auto dstPtr2 = dstPtr + desc().totalDimSize();
-
-        deconvolutionRelayout(
-            baseContents[0]->get<fp16_t>(), desc().totalDimSize(),
-            dstPtr2, desc().totalDimSize(),
-            _KX, _KY,
-            _IC, _OC);
-
-        kchw_to_hwkc(dstPtr2, dstPtr, desc());
-    }
-
-private:
-    int _KX;
-    int _KY;
-    int _IC;
-    int _OC;
-};
 
 class DeconvStage final : public StageNode {
 public:
@@ -287,6 +141,7 @@ private:
                     newWeightsDesc,
                     std::make_shared<DeconvolutionWeightsContent>(
                         weights->content(),
+                        newWeightsDesc,
                         kernelSizeX, kernelSizeY,
                         input->desc().dim(Dim::C),
                         output->desc().dim(Dim::C)));

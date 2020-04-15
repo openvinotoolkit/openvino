@@ -20,8 +20,8 @@ import numpy as np
 
 from mo.graph.graph import Node
 from mo.middle.passes.conv import convert_muladd_to_scaleshift, convert_add_or_mul_to_scaleshift
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
     'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},

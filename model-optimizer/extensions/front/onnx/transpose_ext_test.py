@@ -22,8 +22,8 @@ import onnx
 from generator import generator, generate
 
 from extensions.front.onnx.transpose_ext import TransposeFrontExtractor
-from mo.ops.op import Op
 from extensions.ops.transpose import Transpose
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import PB
 
 

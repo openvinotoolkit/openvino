@@ -20,7 +20,6 @@ from __future__ import unicode_literals
 
 import logging as log
 
-import networkx as nx
 import onnx
 
 from mo.graph.graph import fill_graph_with_nodes, Graph

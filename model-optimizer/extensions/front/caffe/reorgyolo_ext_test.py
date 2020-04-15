@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 from extensions.front.caffe.reorgyolo_ext import ReorgYoloFrontExtractor
 from extensions.ops.reorgyolo import ReorgYoloOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.ops.op import Op
 
 
 class FakeReorgYoloProtoLayer:

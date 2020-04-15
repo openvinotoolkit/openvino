@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<attributes>
+    <models>
+<model path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="create_exenetwork" device="CPU" vmsize="757218" vmpeak="901683" vmrss="73920" vmhwm="107866" />
+<model path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="create_exenetwork" device="GPU" vmsize="747815" vmpeak="860978" vmrss="401808" vmhwm="435358" />
+<model path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="infer_request_inference" device="CPU" vmsize="1001189" vmpeak="1001189" vmrss="116080" vmhwm="116080" />
+<model path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="infer_request_inference" device="GPU" vmsize="788752" vmpeak="860842" vmrss="435283" vmhwm="435283" />
+<model path="public/mtcnn-r/FP32/mtcnn-r.xml" test="create_exenetwork" device="CPU" vmsize="754806" vmpeak="803184" vmrss="15206" vmhwm="26532" />
+<model path="public/mtcnn-r/FP32/mtcnn-r.xml" test="create_exenetwork" device="GPU" vmsize="554650" vmpeak="644666" vmrss="207592" vmhwm="217720" />
+<model path="public/mtcnn-r/FP32/mtcnn-r.xml" test="infer_request_inference" device="CPU" vmsize="959257" vmpeak="959257" vmrss="26690" vmhwm="26690" />
+<model path="public/mtcnn-r/FP32/mtcnn-r.xml" test="infer_request_inference" device="GPU" vmsize="572576" vmpeak="644666" vmrss="215230" vmhwm="215230" />
+<model path="public/ssd300/FP32/ssd300.xml" test="create_exenetwork" device="CPU" vmsize="755224" vmpeak="1146142" vmrss="22246" vmhwm="370770" />
+<model path="public/ssd300/FP32/ssd300.xml" test="create_exenetwork" device="GPU" vmsize="747709" vmpeak="1031694" vmrss="401746" vmhwm="749962" />
+<model path="public/ssd300/FP32/ssd300.xml" test="infer_request_inference" device="CPU" vmsize="1343474" vmpeak="1415563" vmrss="314204" vmhwm="371131" />
+<model path="public/ssd300/FP32/ssd300.xml" test="infer_request_inference" device="GPU" vmsize="1088700" vmpeak="1160790" vmrss="739626" vmhwm="748008" />
+<model path="public/vgg16/FP32/vgg16.xml" test="create_exenetwork" device="CPU" vmsize="754050" vmpeak="2548532" vmrss="15593" vmhwm="1808765" />
+<model path="public/vgg16/FP32/vgg16.xml" test="create_exenetwork" device="GPU" vmsize="648912" vmpeak="3289101" vmrss="299327" vmhwm="3003457" />
+<model path="public/vgg16/FP32/vgg16.xml" test="infer_request_inference" device="CPU" vmsize="2257006" vmpeak="2548532" vmrss="1243448" vmhwm="1809143" />
+<model path="public/vgg16/FP32/vgg16.xml" test="infer_request_inference" device="GPU" vmsize="2413290" vmpeak="3289101" vmrss="2059780" vmhwm="3006845" />
+    </models>
+</attributes>

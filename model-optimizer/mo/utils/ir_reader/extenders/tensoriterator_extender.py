@@ -14,9 +14,8 @@
  limitations under the License.
 """
 
-from mo.utils.ir_reader.extender import Extender
 from mo.utils.graph import Node
-
+from mo.utils.ir_reader.extender import Extender
 from mo.utils.ir_reader.layer_to_class import copy_graph_with_ops
 
 

@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
+from extensions.ops.DetectionOutput import DetectionOutput
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 
-from extensions.ops.DetectionOutput import DetectionOutput
 
 class MultiBoxDetectionOutputExtractor(FrontExtractorOp):
     op = '_contrib_MultiBoxDetection'

@@ -19,8 +19,8 @@ import unittest
 import numpy as np
 
 from mo.middle.passes.fusing.fuse_linear_seq import fuse_mul_add_sequence
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
     'placeholder_1': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},

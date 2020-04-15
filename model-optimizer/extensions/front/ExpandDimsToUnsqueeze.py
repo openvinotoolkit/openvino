@@ -15,10 +15,11 @@
 """
 
 import logging as log
+
 import numpy as np
 
-from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.replacement import FrontReplacementPattern
 from mo.graph.graph import Graph
 from mo.ops.const import Const
 from mo.ops.unsqueeze import Unsqueeze

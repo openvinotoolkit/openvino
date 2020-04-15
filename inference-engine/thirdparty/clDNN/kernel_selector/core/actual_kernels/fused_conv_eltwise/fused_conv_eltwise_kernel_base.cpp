@@ -90,6 +90,10 @@ ParamsKey fused_conv_eltwise_params::GetParamsKey() const {
         k.EnableFusedConvEltwiseRWOutOpt();
     }
 
+    if (depth_to_space_already_fused) {
+        k.EnableFusedConvEltwDepthToSpaceFusing();
+    }
+
     return k;
 }
 
@@ -370,7 +374,11 @@ KernelsData fused_conv_eltwise_kernel_base::GetKernelsDataForAutoTune(const Para
 }
 
 static DataTensor GetConvolutionBFYXPaddedTensor(const fused_conv_eltwise_params& cp) {
-    DataTensor t = cp.inputs[0];
+    DataTensor t;
+    if (cp.inputs.size() > 1 && (cp.inputs[0].X().v <= cp.inputs[1].X().v))
+        t = cp.inputs[1];
+    else
+        t = cp.inputs[0];
     std::vector<Tensor::Pad> pad{{0, 0}, {0, 0}, {0, 0}, {0, 0}, { 0, 0 } };
 
     auto& conv = cp.conv;

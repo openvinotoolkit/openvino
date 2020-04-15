@@ -12,6 +12,7 @@
 #include <watchdogPrivate.hpp>
 #include <algorithm>
 #include <memory>
+#include <string>
 #include <ncCommPrivate.h>
 #include <mvnc.h>
 #include <ncPrivateTypes.h>
@@ -22,6 +23,10 @@
 #include "XLink.h"
 #include "XLinkPrivateDefines.h"
 #include "XLinkErrorUtils.h"
+
+#if defined(_WIN32)
+#include "win_synchapi.h"
+#endif // defined(_WIN32)
 
 namespace {
 
@@ -34,7 +39,7 @@ using namespace Watchdog;
  */
 class XLinkDevice : public IDevice {
     _devicePrivate_t privateDevice;
-    using time_point = std::chrono::high_resolution_clock::time_point;
+    using time_point = std::chrono::steady_clock::time_point;
     time_point lastPongTime = time_point::min();
     time_point lastPingTime = time_point::min();
     enum : int { deviceHangTimeout = 12000};
@@ -162,13 +167,6 @@ struct wd_context_opaque {
 };
 
 class WatchdogImpl {
-    enum : uint8_t {
-        STATE_IDLE = 0,
-        INITIATE_THREAD_STOP = 1,
-        THREAD_EXITED = 2,
-        WAKE_UP_THREAD = 3,
-    };
-
     using wd_context_as_tuple = std::tuple<std::shared_ptr<IDevice>, bool*, void*>;
 
     using Devices = std::list<wd_context_as_tuple>;
@@ -176,35 +174,82 @@ class WatchdogImpl {
     std::mutex devicesListAcc;
     std::atomic<int> generation = {0};
     std::atomic_bool threadRunning;
-    volatile std::uint8_t notificationReason = STATE_IDLE;
-    std::condition_variable wakeUpPingThread;
 
+    pthread_mutex_t routineLock;
+    pthread_cond_t  wakeUpPingThread;
     std::thread poolThread;
 
-    WatchdogImpl() = default;
     WatchdogImpl(const WatchdogImpl&) = delete;
     WatchdogImpl(WatchdogImpl&&) = delete;
     WatchdogImpl& operator = (const WatchdogImpl&) = delete;
     WatchdogImpl& operator = (WatchdogImpl&&) = delete;
- public:
+
+private:
+
+    WatchdogImpl() {
+        int rc = pthread_mutex_init(&routineLock, NULL);
+        if (rc != 0) {
+            throw std::runtime_error("failed to initialize \"routineLock\" mutex. rc: " + std::to_string(rc));
+        }
+
+#if !(defined(__APPLE__) || defined(_WIN32))
+        pthread_condattr_t attr;
+        rc = pthread_condattr_init(&attr);
+        if (rc != 0) {
+            throw std::runtime_error("failed to initialize condition variable attribute. rc: " + std::to_string(rc));
+        }
+
+        rc = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+        if (rc != 0) {
+            throw std::runtime_error("failed to set condition variable clock. rc: " + std::to_string(rc));
+        }
+#endif // !(defined(__APPLE__) || defined(_WIN32))
+
+        rc = pthread_cond_init(&wakeUpPingThread, NULL);
+        if (rc != 0) {
+            throw std::runtime_error("failed to initialize \"wakeUpPingThread\" condition variable. rc: " + std::to_string(rc));
+        }
+    }
+
+public:
 
     static WatchdogImpl &instance() {
         static WatchdogImpl watchdog;
         return watchdog;
     }
 
+
     ~WatchdogImpl() {
         mvLog(MVLOG_INFO, "watchdog terminated\n");
+        try
         {
-            auto __lock = lock();
+            lockRoutineMutex();
             for (auto &item : watchedDevices) {
                 *std::get<1>(item) = true;
                 mvLog(MVLOG_WARN, "[%p] device, stop watching due to watchdog termination\n", std::get<2>(item));
             }
-            notificationReason = THREAD_EXITED;
+            unlockRoutineMutex();
+        } catch (const std::exception & ex) {
+            mvLog(MVLOG_ERROR, "error %s", ex.what());
+        } catch (...) {
+            mvLog(MVLOG_ERROR, "unknown error");
         }
 
-        wakeUpPingThread.notify_one();
+        threadRunning = false;
+        int rc = pthread_cond_broadcast(&wakeUpPingThread);
+        if (rc != 0) {
+            mvLog(MVLOG_WARN, "failed to unblock threads blocked on the \"wakeUpPingThread\". rc=%d", rc);
+        }
+
+        rc = pthread_mutex_destroy(&routineLock);
+        if (rc != 0) {
+            mvLog(MVLOG_WARN, "failed to destroy the \"routineLock\". rc=%d", rc);
+        }
+
+        rc = pthread_cond_destroy(&wakeUpPingThread);
+        if (rc != 0) {
+            mvLog(MVLOG_WARN, "failed to destroy the \"wakeUpPingThread\". rc=%d", rc);
+        }
 
         if (poolThread.joinable()) {
             poolThread.join();
@@ -213,7 +258,7 @@ class WatchdogImpl {
 
 public:
     void *register_device(std::shared_ptr<IDevice> device) {
-        auto __locker = lock();
+        lockRoutineMutex();
         std::unique_ptr<wd_context_opaque> ctx (new wd_context_opaque);
 
         // rare case of exact pointer address collision
@@ -240,8 +285,10 @@ public:
             });
         } else {
             // wake up thread
-            notificationReason = WAKE_UP_THREAD;
-            wakeUpPingThread.notify_one();
+            int rc = pthread_cond_broadcast(&wakeUpPingThread);
+            if (rc != 0) {
+                mvLog(MVLOG_WARN, "failed to unblock threads blocked on the \"wakeUpPingThread\". rc=%d", rc);
+            }
         }
 
         ctx->handleCached = device->getHandle();
@@ -249,6 +296,7 @@ public:
 
         ctx->actual = std::get<0>(watchedDevices.back()).get();
 
+        unlockRoutineMutex();
         return ctx.release();
     }
 
@@ -262,11 +310,12 @@ public:
         if (ptr == nullptr) {
             return false;
         }
-        auto __locker = lock();
+        lockRoutineMutex();
 
         // thread already removed
         if (ptr->destroyed) {
             delete ptr;
+            unlockRoutineMutex();
             return true;
         }
 
@@ -282,16 +331,28 @@ public:
         }
 
         // wake up thread since we might select removed device as nex to be ping, and there is no more devices available
-        notificationReason = WAKE_UP_THREAD;
-        __locker.unlock();
-        wakeUpPingThread.notify_one();
+        unlockRoutineMutex();
+        int rc = pthread_cond_broadcast(&wakeUpPingThread);
+        if (rc != 0) {
+            mvLog(MVLOG_WARN, "failed to unblock threads blocked on the \"wakeUpPingThread\". rc=%d", rc);
+        }
 
         return bFound;
     }
 
  private:
-    std::unique_lock<std::mutex> lock() {
-        return std::unique_lock<std::mutex>(devicesListAcc);
+    void lockRoutineMutex() {
+        int rc = pthread_mutex_lock(&routineLock);
+        if (rc != 0) {
+            throw std::runtime_error("failed to lock \"routineLock\" mutex. rc: " + std::to_string(rc));
+        }
+    }
+
+    void unlockRoutineMutex() {
+        int rc = pthread_mutex_unlock(&routineLock);
+        if (rc != 0) {
+            throw std::runtime_error("failed to unlock \"routineLock\" mutex. rc: " + std::to_string(rc));
+        }
     }
 
     void watchdog_routine() noexcept {
@@ -299,14 +360,16 @@ public:
             mvLog(MVLOG_INFO, "thread started\n");
 
             milliseconds sleepInterval;
-            auto __locker = lock();
+            struct timespec timeToWait = {0, 0};
+            lockRoutineMutex();
+
             do {
                 for (auto deviceIt = watchedDevices.begin(); deviceIt != watchedDevices.end(); ) {
                     auto &device = std::get<0>(*deviceIt);
-                    auto isReady = device->dueIn(high_resolution_clock::now()).count() == 0;
+                    auto isReady = device->dueIn(steady_clock::now()).count() == 0;
                     if (isReady) {
                         auto now = high_resolution_clock::now();
-                        device->keepAlive(high_resolution_clock::now());
+                        device->keepAlive(steady_clock::now());
                         mvLog(MVLOG_DEBUG, "ping completed in %ld ms\n", duration_cast<std::chrono::milliseconds>(high_resolution_clock ::now()-now).count());
                     }
                     if (device->isTimeout()) {
@@ -319,7 +382,7 @@ public:
                         ++deviceIt;
                     }
                 }
-                auto currentTime = high_resolution_clock::now();
+                auto currentTime = steady_clock::now();
                 auto minInterval = std::min_element(watchedDevices.begin(),
                                                     watchedDevices.end(),
                                                     [&currentTime] (const Devices::value_type & device1, const Devices::value_type & device2) {
@@ -336,26 +399,39 @@ public:
                 sleepInterval = std::get<0>(*minInterval)->dueIn(currentTime);
                 mvLog(MVLOG_DEBUG, "sleep interval = %ld ms\n", sleepInterval.count());
 
-                notificationReason = STATE_IDLE;
+                auto sec = std::chrono::duration_cast<std::chrono::seconds>(sleepInterval);
 
-                wakeUpPingThread.wait_until(__locker, currentTime + sleepInterval, [this, currentTime]() {
-                    mvLog(MVLOG_DEBUG,
-                          "waiting for %ld ms\n",
-                          duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - currentTime).count());
-                    return notificationReason != STATE_IDLE;
-                });
+#if (defined(__APPLE__) || defined(_WIN32))
+                timeToWait.tv_sec = sec.count();
+                timeToWait.tv_nsec =
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(sleepInterval).count() -
+                    std::chrono::nanoseconds(sec).count();
+#else
+                clock_gettime(CLOCK_MONOTONIC, &timeToWait);
+                timeToWait.tv_sec += sec.count();
+                timeToWait.tv_nsec +=
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(sleepInterval).count() -
+                    std::chrono::nanoseconds(sec).count();
+#endif // (defined(__APPLE__) || defined(_WIN32))
+
+#if defined(__APPLE__)
+                pthread_cond_timedwait_relative_np(&wakeUpPingThread, &routineLock, &timeToWait);
+#else
+                pthread_cond_timedwait(&wakeUpPingThread, &routineLock, &timeToWait);
+#endif // defined(__APPLE__)
+
 
                 mvLog(MVLOG_DEBUG, "waiting completed in  %ld ms\n",
-                      duration_cast<std::chrono::milliseconds>(high_resolution_clock ::now() - currentTime).count());
-            } while (notificationReason != THREAD_EXITED);
-
+                      duration_cast<std::chrono::milliseconds>(steady_clock::now() - currentTime).count());
+            } while (threadRunning);
         } catch (const std::exception & ex) {
-            mvLog(MVLOG_ERROR, "error %s\n", ex.what());
+            mvLog(MVLOG_ERROR, "error %s", ex.what());
         } catch (...) {
-            mvLog(MVLOG_ERROR, "error\n");
+            mvLog(MVLOG_ERROR, "unknown error");
         }
+
+        unlockRoutineMutex();
         mvLog(MVLOG_INFO, "thread ended\n");
-        threadRunning = false;
     }
 };
 
@@ -440,25 +516,33 @@ WD_API wd_error_t watchdog_register_device(wd_context * ctx, devicePrivate_t *de
 }
 
 WD_API wd_error_t watchdog_unregister_device(wd_context *ctx) {
-    if (ctx == nullptr || ctx->opaque == nullptr) {
-        return WD_NOTINITIALIZED;
-    } else {
-        if (ctx->opaque != WD_OPAQUE_MAGIC) {
-            auto watchee = reinterpret_cast<wd_context_opaque*>(ctx->opaque);
-            // NOTE: magic field used to pass preallocated watchee - since this function only used by plugin, this is not a backdoor
-            if (watchee->magic == WD_OPAQUE_MAGIC) {
-                if (!WatchdogImpl::instance().remove_device(ctx->opaque)) {
-                    mvLog(MVLOG_WARN, "cannot remove device\n");
-                    return WD_FAIL;
+    try {
+        if (ctx == nullptr || ctx->opaque == nullptr) {
+            return WD_NOTINITIALIZED;
+        } else {
+            if (ctx->opaque != WD_OPAQUE_MAGIC) {
+                auto watchee = reinterpret_cast<wd_context_opaque *>(ctx->opaque);
+                // NOTE: magic field used to pass preallocated watchee - since this function only used by plugin, this is not a backdoor
+                if (watchee->magic == WD_OPAQUE_MAGIC) {
+                    if (!WatchdogImpl::instance().remove_device(ctx->opaque)) {
+                        mvLog(MVLOG_WARN, "cannot remove device\n");
+                        return WD_FAIL;
+                    }
                 }
             }
         }
+
+        if (ctx != nullptr) {
+            // opaque pointer deleted
+            ctx->opaque = nullptr;
+        }
+
+        return WD_ERRNO;
+    } catch (const std::exception & ex) {
+        mvLog(MVLOG_ERROR, "error %s", ex.what());
+    } catch (...) {
+        mvLog(MVLOG_ERROR, "unknown error");
     }
 
-    if (ctx != nullptr) {
-        // opaque pointer deleted
-        ctx->opaque = nullptr;
-    }
-
-    return WD_ERRNO;
+    return WD_FAIL;
 }

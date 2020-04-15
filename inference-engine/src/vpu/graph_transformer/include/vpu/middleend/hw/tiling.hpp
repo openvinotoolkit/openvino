@@ -175,6 +175,39 @@ struct HwConvTileInfo final {
     double cost = std::numeric_limits<double>::max();
 };
 
+//
+// Structs for split
+//
+
+struct Slice {
+    int start;
+    size_t size;
+
+    Slice(int start, size_t size) :
+            start(start),
+            size(size) {}
+};
+
+struct DataSlice {
+    Data data;
+    Slice slice;
+
+    DataSlice(Data data, Slice slice) :
+            data(std::move(data)),
+            slice(slice) {}
+};
+
+using DataSlices = std::vector<DataSlice>;
+
+struct ConvTileSlice {
+    HwConvTileInfo tile;
+    Slice slice;
+
+    ConvTileSlice(HwConvTileInfo tile, Slice slice) :
+            tile(tile),
+            slice(slice) {}
+};
+
 void printTo(std::ostream& os, const HwConvTileInfo& convTiles);
 void printTo(DotLabel& lbl, const HwConvTileInfo& convTiles);
 

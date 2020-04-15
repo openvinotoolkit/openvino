@@ -13,9 +13,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.split import Split
 from extensions.ops.elementwise import Sub
 from extensions.ops.rank import Rank
+from extensions.ops.split import Split
 from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern

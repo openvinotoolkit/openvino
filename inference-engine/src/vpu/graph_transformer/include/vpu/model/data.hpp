@@ -4,20 +4,21 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
-#include <functional>
-#include <vector>
+#include <vpu/model/base.hpp>
+#include <vpu/model/edges.hpp>
+#include <vpu/model/data_desc.hpp>
+#include <vpu/model/data_contents/data_content.hpp>
+#include <vpu/backend/blob_serializer.hpp>
+#include <vpu/utils/enums.hpp>
+#include <vpu/utils/func_ref.hpp>
 
 #include <ie_data.h>
 #include <ie_blob.h>
 
-#include <vpu/model/base.hpp>
-#include <vpu/model/edges.hpp>
-#include <vpu/model/data_desc.hpp>
-#include <vpu/backend/blob_serializer.hpp>
-#include <vpu/utils/enums.hpp>
-#include <vpu/utils/func_ref.hpp>
+#include <memory>
+#include <string>
+#include <functional>
+#include <vector>
 
 namespace vpu {
 
@@ -46,15 +47,15 @@ VPU_DECLARE_ENUM(DataUsage,
 )
 
 //
-// DataLocation
+// Location
 //
 
 //
-// Describes where Data object is located.
+// Describes where particular data or shape is located.
 //
 
 // Must be synchronized with MvTensor
-VPU_DECLARE_ENUM(DataLocation,
+VPU_DECLARE_ENUM(Location,
     None = 0,
     Input = 1,
     Output = 2,
@@ -67,75 +68,25 @@ VPU_DECLARE_ENUM(MemoryType,
     DDR,
     CMX)
 
-//
-// DataContent
-//
-
-//
-// Content of the Const Data object.
-//
-
-class DataContent {
-public:
-    using Ptr = std::shared_ptr<DataContent>;
-
-    virtual ~DataContent();
-
-    // TYPED pointer
-    template <typename T>
-    const T* get() const {
-        return static_cast<const T*>(getRaw());
-    }
-
-    const DataDesc& desc() const {
-        return _desc;
-    }
-
-private:
-    // RAW pointer
-    virtual const void* getRaw() const = 0;
-
-private:
-    DataDesc _desc;
-
-    friend ModelObj;
+struct DataLocation final {
+    Location location;
+    int offset;
 };
 
-//
-// Data content that is calculated on the fly, using lazy calculation:
-//
-//   * It performs calculation on the first call and stores it in internal buffer.
-//   * Next access will return the pointer to calculated buffer.
-//
-class CalculatedDataContent : public DataContent {
-public:
-    CalculatedDataContent() = default;
-    explicit CalculatedDataContent(const SmallVector<DataContent::Ptr, 2>& baseContents) : _baseContents(baseContents) {}
-
-private:
-    const void* getRaw() const override;
-
-    virtual size_t getTempBufSize(const SmallVector<DataContent::Ptr, 2>& baseContents) const;
-    virtual void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const = 0;
-
-private:
-    mutable SmallVector<DataContent::Ptr, 2> _baseContents;
-    mutable std::vector<uint8_t> _temp;
+static constexpr DataLocation defaultDataLocation = {
+    Location::None, 0
 };
 
-DataContent::Ptr ieBlobContent(
-        const ie::Blob::Ptr& blob,
-        int repeat = 1);
+struct ShapeLocation final {
+    Location dimsLocation;
+    int dimsOffset;
+    Location stridesLocation;
+    int stridesOffset;
+};
 
-DataContent::Ptr replicateContent(float val, int count);
-DataContent::Ptr replicateContent(const DataContent::Ptr& origContent, int count);
-
-DataContent::Ptr scaleContent(const DataContent::Ptr& origContent, float scale);
-
-// The function scales the major dimension of 4D origContent
-DataContent::Ptr scaledChannelContent(
-        const DataContent::Ptr& origContent,
-        const DataContent::Ptr& scaleContent);
+static constexpr ShapeLocation defaultShapeLocation = {
+        Location::None, 0, Location::None, 0
+};
 
 //
 // DataNode
@@ -189,8 +140,8 @@ class DataNode final :
     //
 
     VPU_MODEL_ATTRIBUTE(MemoryType, memReqs, MemoryType::DDR)
-    VPU_MODEL_ATTRIBUTE(DataLocation, location, DataLocation::None)
-    VPU_MODEL_ATTRIBUTE(int, memoryOffset, 0)
+    VPU_MODEL_ATTRIBUTE(DataLocation, dataLocation, defaultDataLocation)
+    VPU_MODEL_ATTRIBUTE(ShapeLocation, shapeLocation, defaultShapeLocation)
 
     //
     // Edges wrappers
@@ -282,29 +233,23 @@ public:
 
     void setMemReqs(MemoryType mem);
 
-    void setIOInfo(DataLocation location, int ioBufferOffset);
+    void setIOInfo(Location location, int ioBufferOffset);
 
-    void setAllocationInfo(DataLocation location, int memoryOffset);
+    void setDataAllocationInfo(const DataLocation& dataLocation);
+
+    void setShapeAllocationInfo(const ShapeLocation& shapeLocation);
 
     //
     // Backend utilities
     //
 
     // Serialize as-is for new MvTensor kernels that can work with ND data.
-    // If `newOrder` is not empty, it will be used instead of original and missing dimensions will be set to 1.
-    void serializeBuffer(
-            BlobSerializer& serializer,
-            DimsOrder newOrder = DimsOrder());
+    void serializeBuffer(BlobSerializer& serializer);
 
     void serializeIOInfo(BlobSerializer& serializer) const;
 
 private:
     void serializeDescImpl(
-            BlobSerializer& serializer,
-            const DataDesc& storedDesc,
-            const DimValues& storedStrides) const;
-
-    void serializeBufferImpl(
             BlobSerializer& serializer,
             const DataDesc& storedDesc,
             const DimValues& storedStrides) const;

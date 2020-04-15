@@ -16,11 +16,8 @@
 
 import logging as log
 
-import numpy as np
-
-from extensions.ops.bucketize import Bucketize
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph
 from mo.ops.const import Const
 
 

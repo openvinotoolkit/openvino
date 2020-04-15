@@ -118,7 +118,6 @@ function(addIeTarget)
     if (ARG_ADD_CPPLINT)
         # code style
         add_cpplint_target(${ARG_NAME}_cpplint FOR_TARGETS ${ARG_NAME})
-        add_clang_format_target(${ARG_NAME}_clang_format FOR_TARGETS ${ARG_NAME})
     endif()
     if (ARG_DEVELOPER_PACKAGE)
         # developer package

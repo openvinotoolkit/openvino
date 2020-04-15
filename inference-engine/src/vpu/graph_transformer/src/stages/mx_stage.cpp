@@ -101,17 +101,17 @@ void MyriadXHwStage::finalCheckImpl() const {
     const auto input = inputEdge(0)->input();
     const auto output = outputEdge(0)->output();
 
-    IE_ASSERT(input->memoryOffset() % 16 == 0);
-    IE_ASSERT(output->memoryOffset() % 16 == 0);
+    IE_ASSERT(input->dataLocation().offset % 16 == 0);
+    IE_ASSERT(output->dataLocation().offset % 16 == 0);
 
     if (attrs().get<HwOpType>("hwOpType") != HwOpType::POOL) {
         const auto weights = inputEdge(1)->input();
         const auto biases = inputEdge(2)->input();
         const auto scales = inputEdge(3)->input();
 
-        IE_ASSERT(weights->memoryOffset() % 16 == 0);
-        IE_ASSERT(biases->memoryOffset() % 16 == 0);
-        IE_ASSERT(scales->memoryOffset() % 16 == 0);
+        IE_ASSERT(weights->dataLocation().offset % 16 == 0);
+        IE_ASSERT(biases->dataLocation().offset % 16 == 0);
+        IE_ASSERT(scales->dataLocation().offset % 16 == 0);
     }
 }
 

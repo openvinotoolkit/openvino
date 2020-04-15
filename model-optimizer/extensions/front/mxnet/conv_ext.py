@@ -19,7 +19,7 @@ import numpy as np
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.ops.convolution import Convolution
-from mo.front.common.extractors.utils import layout_attrs
+
 
 class ConvFrontExtractor(FrontExtractorOp):
     op = 'Convolution'

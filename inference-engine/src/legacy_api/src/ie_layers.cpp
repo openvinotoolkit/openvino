@@ -67,6 +67,7 @@ ReduceLayer::~ReduceLayer() {}
 TopKLayer::~TopKLayer() {}
 UniqueLayer::~UniqueLayer() {}
 NonMaxSuppressionLayer::~NonMaxSuppressionLayer() {}
-ScatterLayer::~ScatterLayer() {}
+ScatterUpdateLayer::~ScatterUpdateLayer() {}
 ExperimentalDetectronPriorGridGeneratorLayer::~ExperimentalDetectronPriorGridGeneratorLayer() {}
 ExperimentalDetectronGenerateProposalsSingleImageLayer::~ExperimentalDetectronGenerateProposalsSingleImageLayer() {}
+ExperimentalDetectronTopKROIs::~ExperimentalDetectronTopKROIs() {}

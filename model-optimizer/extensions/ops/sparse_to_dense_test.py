@@ -23,7 +23,6 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
-
 # graph 1
 nodes_attributes = {
     'input_indices': {'kind': 'op', 'op': 'Parameter', 'shape': int64_array([5, 2])},

@@ -4,99 +4,21 @@
 
 #include <vpu/frontend/frontend.hpp>
 
-#include <vector>
-#include <memory>
-#include <string>
+#include <vpu/middleend/sw/utility.hpp>
+#include <vpu/utils/ie_helpers.hpp>
+#include <vpu/compile_env.hpp>
+#include <vpu/model/data_contents/mean_contents.hpp>
 
 #include <details/caseless.hpp>
 #include <cpp/ie_cnn_network.h>
 #include <precision_utils.h>
 #include <ie_parallel.hpp>
 
-#include <vpu/middleend/sw/utility.hpp>
-#include <vpu/utils/ie_helpers.hpp>
-#include <vpu/compile_env.hpp>
+#include <vector>
+#include <memory>
+#include <string>
 
 namespace vpu {
-
-namespace {
-
-class MeanImageContent final : public CalculatedDataContent {
-public:
-    explicit MeanImageContent(const ie::PreProcessInfo& info) : _info(info) {
-    }
-
-protected:
-    size_t getTempBufSize(const SmallVector<DataContent::Ptr, 2>&) const override {
-        size_t countElem = checked_cast<size_t>(desc().dim(Dim::W) * desc().dim(Dim::H) * desc().dim(Dim::C));
-        if (desc().dimsOrder() == DimsOrder::NHWC || desc().dimsOrder() == DimsOrder::HWC) {
-            countElem *= 2;
-        }
-
-        return countElem * sizeof(fp16_t);
-    }
-
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>&, void* tempBuf) const override {
-        VPU_PROFILE(MeanImageContent);
-
-        const size_t numOfChannel = _info.getNumberOfChannels();
-
-        const size_t imagePixels = checked_cast<size_t>(desc().dim(Dim::W) * desc().dim(Dim::H));
-        const size_t countElem = checked_cast<size_t>(desc().dim(Dim::W) * desc().dim(Dim::H) * desc().dim(Dim::C));
-
-        const auto dstPtr = static_cast<fp16_t*>(tempBuf);
-
-        auto dstPtr2 = dstPtr;
-        if (desc().dimsOrder() == DimsOrder::NHWC || desc().dimsOrder() == DimsOrder::HWC) {
-            dstPtr2 += countElem;
-        }
-
-        ie::parallel_for(numOfChannel, [=](size_t i) {
-            const auto meanDataBlob = _info[i]->meanData;
-
-            ie::PrecisionUtils::f32tof16Arrays(
-                dstPtr2 + i * imagePixels,
-                meanDataBlob->buffer().as<const float*>(),
-                imagePixels,
-                -1.0f);
-        });
-
-        if (desc().dimsOrder() == DimsOrder::NHWC || desc().dimsOrder() == DimsOrder::HWC) {
-            kchw_to_hwck(dstPtr2, dstPtr, desc());
-        }
-    }
-
-private:
-    ie::PreProcessInfo _info;
-};
-
-class MeanValueContent final : public CalculatedDataContent {
-public:
-    explicit MeanValueContent(const ie::PreProcessInfo& info) : _info(info) {
-    }
-
-protected:
-    size_t getTempBufSize(const SmallVector<DataContent::Ptr, 2>&) const override {
-        return _info.getNumberOfChannels() * sizeof(fp16_t);
-    }
-
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>&, void* tempBuf) const override {
-        VPU_PROFILE(MeanValueContent);
-
-        IE_ASSERT(checked_cast<size_t>(desc().totalDimSize()) == _info.getNumberOfChannels());
-
-        const auto dstPtr = static_cast<fp16_t*>(tempBuf);
-
-        ie::parallel_for(_info.getNumberOfChannels(), [dstPtr, this](size_t i) {
-            dstPtr[i] = ie::PrecisionUtils::f32tof16(-_info[i]->meanValue);
-        });
-    }
-
-private:
-    ie::PreProcessInfo _info;
-};
-
-}  // namespace
 
 void FrontEnd::addPreProcessStages(const Model& model) {
     VPU_PROFILE(addPreProcessStages);
@@ -131,7 +53,7 @@ void FrontEnd::addPreProcessStages(const Model& model) {
             const auto meanImage = model->addConstData(
                 input->name() + "@mean-image",
                 input->desc(),
-                std::make_shared<MeanImageContent>(preProcess));
+                std::make_shared<MeanImageContent>(preProcess, input->desc()));
 
             const auto newInput = model->duplicateData(
                 input,

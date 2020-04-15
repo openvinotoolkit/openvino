@@ -19,9 +19,9 @@ import logging as log
 # Concat infer : N - number of inputs to concat
 #                axis - dimension number for tensors concatenation
 import numpy as np
-from mo.front.common.partial_infer.utils import int64_array
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
+from mo.front.common.partial_infer.utils import int64_array
 from mo.ops.op import PermuteAttrs
 
 

@@ -13,7 +13,6 @@
 #include <details/caseless.hpp>
 #include <details/ie_cnn_network_iterator.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <cnn_network_ngraph_impl.hpp>
 #include <graph_tools.hpp>
 
 #include <ngraph/function.hpp>
@@ -39,7 +38,7 @@ void FrontEnd::detectNetworkBatch(
     auto checkForDeprecatedCnn = [&network, &env]() {
         return !network.getFunction()
                && !env.config.forceDeprecatedCnnConversion
-               && dynamic_cast<const ie::details::CNNNetworkNGraphImpl*>(&network);
+               && !dynamic_cast<const ie::details::CNNNetworkImpl*>(&network);
     };
     VPU_THROW_UNLESS(!checkForDeprecatedCnn(), "Unexpected CNNNetwork format: it was converted to deprecated format prior plugin's call");
 

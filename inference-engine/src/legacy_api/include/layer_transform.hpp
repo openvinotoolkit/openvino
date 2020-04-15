@@ -33,8 +33,8 @@ using AllLayers =
                ReshapeLayer*, TileLayer*, ScaleShiftLayer*, PReLULayer*, PowerLayer*, BatchNormalizationLayer*,
                ClampLayer*, TensorIterator*, LSTMCell*, GRUCell*, RNNCell*, RNNSequenceLayer*, QuantizeLayer*,
                BinaryConvolutionLayer*, WeightableLayer*, OneHotLayer*, MathLayer*, ReduceLayer*, UniqueLayer*,
-               NonMaxSuppressionLayer*, ScatterLayer*, ExperimentalDetectronPriorGridGeneratorLayer*,
-               ExperimentalDetectronGenerateProposalsSingleImageLayer*, CNNLayer*>;
+               NonMaxSuppressionLayer*, ScatterUpdateLayer*, ExperimentalDetectronPriorGridGeneratorLayer*,
+               ExperimentalDetectronGenerateProposalsSingleImageLayer*, ExperimentalDetectronTopKROIs*, CNNLayer*>;
 
 template <class Visitor, std::size_t I = 0, typename... Tp>
 inline typename std::enable_if<I == sizeof...(Tp), void>::type visitActualLayer(std::tuple<Tp...>&& t,

@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
+from mo.utils.graph import Node
 from mo.utils.ir_reader.extender import Extender
 from mo.utils.ir_reader.extenders.priorbox_extender import PriorBox_extender
-from mo.utils.graph import Node
 
 
 class PriorBoxClustered_extender(Extender):

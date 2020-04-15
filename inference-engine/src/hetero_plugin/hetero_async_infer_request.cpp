@@ -48,7 +48,7 @@ HeteroAsyncInferRequest::HeteroAsyncInferRequest(const HeteroInferRequest::Ptr& 
 
 void HeteroAsyncInferRequest::StartAsync_ThreadUnsafe() {
     _heteroInferRequest->updateInOutIfNeeded();
-    RunFirstStage();
+    RunFirstStage(_pipeline.begin(), _pipeline.end());
 }
 
 StatusCode HeteroAsyncInferRequest::Wait(int64_t millis_timeout) {

@@ -13,10 +13,11 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
+
 from extensions.ops.RNN import rnn_infer
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
-import numpy as np
 
 
 class GRU(Op):

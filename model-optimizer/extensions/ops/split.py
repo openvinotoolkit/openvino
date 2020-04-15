@@ -15,6 +15,7 @@
 """
 
 import logging as log
+
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array

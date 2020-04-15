@@ -15,12 +15,12 @@
 """
 
 import logging as log
-
 import math
+
 import numpy as np
 
-from extensions.middle.FuseReshapesSequence import FuseReshapesSequence
 from extensions.back.FuseTransposesSequence import FuseTransposesSequence
+from extensions.middle.FuseReshapesSequence import FuseReshapesSequence
 from extensions.middle.RemoveRedundantReshapes import RemoveRedundantReshapes
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array

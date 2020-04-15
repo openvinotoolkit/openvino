@@ -4,6 +4,11 @@
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <vpu/frontend/custom_layer.hpp>
+#include <vpu/utils/simple_math.hpp>
+#include <vpu/model/data_contents/kernel_binary_content.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
 #include <vector>
 #include <memory>
 #include <string>
@@ -13,30 +18,11 @@
 #include <algorithm>
 #include <tuple>
 
-#include <vpu/frontend/custom_layer.hpp>
-#include <vpu/utils/simple_math.hpp>
-
-
 namespace vpu {
 
 static void calcSizesFromParams(const DataDesc &desc, const SmallVector<std::string> &bufferSizeRules, SmallVector<int, 3> &sizes);
 
 namespace {
-
-class KernelBinaryContent final : public DataContent {
-public:
-    explicit KernelBinaryContent(const std::string& blob) : _blob(blob) {
-        IE_ASSERT(!_blob.empty());
-    }
-
-    const void* getRaw() const override {
-        IE_ASSERT(desc().totalDimSize() * desc().elemSize() == _blob.length());
-        return _blob.data();
-    }
-
-private:
-    std::string _blob;
-};
 
 class CustomStage final : public StageNode {
 public:

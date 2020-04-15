@@ -15,9 +15,9 @@
 """
 
 
+from extensions.ops.elementwise import Add, Maximum, Mul
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
-from extensions.ops.elementwise import Add, Maximum, Mul
 
 
 class EltwiseNReplacement(FrontReplacementOp):

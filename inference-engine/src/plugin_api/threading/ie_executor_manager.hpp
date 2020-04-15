@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <vector>
 #include <utility>
+#include <mutex>
 
 #include "threading/ie_itask_executor.hpp"
 #include "threading/ie_istreams_executor.hpp"
@@ -40,6 +41,8 @@ public:
 private:
     std::unordered_map<std::string, ITaskExecutor::Ptr> executors;
     std::vector<std::pair<IStreamsExecutor::Config, IStreamsExecutor::Ptr> > cpuStreamsExecutors;
+    std::mutex streamExecutorMutex;
+    std::mutex taskExecutorMutex;
 };
 
 /**
@@ -59,13 +62,7 @@ public:
      * @brief      Returns a global instance of ExecutorManager
      * @return     The instance.
      */
-    static ExecutorManager* getInstance() {
-        if (!_instance) {
-            _instance = new ExecutorManager();
-        }
-
-        return _instance;
-    }
+    static ExecutorManager* getInstance();
 
     /**
      * @brief A deleted copy constructor
@@ -92,9 +89,6 @@ public:
      */
     size_t getExecutorsNumber();
 
-    /**
-     * @cond
-     */
     size_t getIdleCPUStreamsExecutorsNumber();
 
     void clear(const std::string& id = {});
@@ -106,7 +100,9 @@ private:
     ExecutorManager() {}
 
     ExecutorManagerImpl _impl;
-    static ExecutorManager* _instance;
+
+    static std::mutex _mutex;
+    static ExecutorManager *_instance;
 };
 
 }  // namespace InferenceEngine

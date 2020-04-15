@@ -5,6 +5,7 @@
 #include <vpu/middleend/pass_manager.hpp>
 #include <vpu/middleend/sw/utility.hpp>
 #include <vpu/model/data.hpp>
+#include <vpu/model/data_contents/ie_blob_content.hpp>
 
 #include <precision_utils.h>
 

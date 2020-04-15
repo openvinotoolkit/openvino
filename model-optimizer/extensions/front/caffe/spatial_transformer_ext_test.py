@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 from extensions.front.caffe.spatial_transformer_ext import SpatialTransformFrontExtractor
 from extensions.ops.spatial_transformer import SpatialTransformOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.ops.op import Op
 
 
 class FakeSpatialTransformProtoLayer:

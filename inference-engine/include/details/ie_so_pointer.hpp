@@ -58,6 +58,7 @@ public:
         IE_SUPPRESS_DEPRECATED_END
     }
 
+private:
     /**
      * @brief Loads function from the library and returns a pointer to it
      * @param functionName Name of function to load
@@ -127,6 +128,15 @@ public:
     }
 
     /**
+     * @brief Constructs an object with existing loader
+     * @param so_loader Existing pointer to a library loader
+     */
+    explicit SOPointer(std::shared_ptr<Loader> so_loader)
+        : _so_loader(so_loader),
+          _pointedObj(details::shared_from_irelease(
+              SymbolLoader<Loader>(_so_loader).template instantiateSymbol<T>(SOCreatorTrait<T>::name))) {}
+
+    /**
      * @brief The copy-like constructor, can create So Pointer that dereferenced into child type if T is derived of U
      * @param that copied SOPointer object
      */
@@ -183,6 +193,7 @@ protected:
      * @brief Gets a smart pointer to the DLL
      */
     std::shared_ptr<Loader> _so_loader;
+
     /**
      * @brief Gets a smart pointer to the custom object
      */

@@ -15,6 +15,10 @@
 #include <core/common/kernel_selector_utils.h>
 #include "resample_kernel_ref.h"
 
+#include <algorithm>
+#include <vector>
+#include <string>
+
 namespace kernel_selector {
 
 ParamsKey ResampleKernelRef::GetSupportedKey() const {
@@ -43,8 +47,65 @@ KernelsData ResampleKernelRef::GetKernelsData(const Params& params, const option
     return GetCommonKernelsData(params, options);
 }
 
+static size_t packing_factor(const resample_params& params) {
+    // TODO Add support for only input packing
+    bool in_out_8bit = (params.inputs[0].GetDType() == Datatype::UINT8 || params.inputs[0].GetDType() == Datatype::INT8) &&
+                       (params.output.GetDType() == Datatype::UINT8 || params.output.GetDType() == Datatype::INT8);
+
+    if (!in_out_8bit)
+        return 1;
+
+    auto get_layout_packing_factor = [](const DataLayout& layout) -> size_t {
+        switch (layout) {
+        case DataLayout::b_fs_yx_fsv16:
+            return 16;
+        case DataLayout::b_fs_yx_fsv4:
+            return 4;
+        case DataLayout::byxf_af32:
+            return 16;
+        default:
+            break;
+        }
+        return 1;
+    };
+
+    size_t input_factor = get_layout_packing_factor(params.inputs[0].GetLayout());
+    size_t output_factor = get_layout_packing_factor(params.output.GetLayout());
+
+    return std::min(input_factor, output_factor);
+}
+
+static bool use_packing(const resample_params& params) {
+    if (params.resampleType != ResampleType::NEAREST_NEIGHBOR)
+        return false;
+
+    auto pack = packing_factor(params);
+    if (pack == 1)
+        return false;
+
+    if (params.inputs[0].Feature().v % pack != 0 || params.output.Feature().v % pack != 0 ||
+        params.inputs[0].Feature().pad.before % pack != 0 || params.output.Feature().pad.before % pack != 0)
+        return false;
+
+    auto packed_work_items = params.output.X().v * params.output.Y().v * params.output.Z().v
+        * CeilDiv(params.output.Feature().v, pack) * params.output.Batch().v;
+    // TODO Loosen this requirement to minimum EUs needed to saturate cache bandwidth
+    constexpr size_t max_work_items_per_eu = 32 * 7;
+    auto minimum_work_items = params.engineInfo.computeUnitsCount * max_work_items_per_eu;
+
+    if (packed_work_items < minimum_work_items)
+        return false;
+
+    return true;
+}
+
 JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) const {
     JitConstants jit = ResampleKernelBase::GetJitConstants(params);
+
+    if (use_packing(params)) {
+        jit.AddConstant(MakeJitConstant("PACK_SIZE", packing_factor(params)));
+        jit.AddConstant(MakeJitConstant("FEATURE_PACKED_MODE", "1"));
+    }
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
@@ -59,5 +120,28 @@ JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) c
     }
 
     return jit;
+}
+
+ResampleKernelBase::DispatchData ResampleKernelRef::SetDefault(const resample_params& arg) const {
+    auto dispatch = Parent::SetDefault(arg);
+
+    if (use_packing(arg)) {
+        auto pack = packing_factor(arg);
+        std::vector<size_t> global;
+        std::vector<size_t> local;
+
+        global = { arg.output.X().v, arg.output.Y().v * arg.output.Z().v, CeilDiv(arg.output.Feature().v, pack) * arg.output.Batch().v };
+        local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
+
+        dispatch.gws0 = global[0];
+        dispatch.gws1 = global[1];
+        dispatch.gws2 = global[2];
+
+        dispatch.lws0 = local[0];
+        dispatch.lws1 = local[1];
+        dispatch.lws2 = local[2];
+    }
+
+    return dispatch;
 }
 }  // namespace kernel_selector

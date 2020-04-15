@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Node
 from mo.middle.passes.eliminate import mark_output_reachable_nodes, mark_const_producer_nodes
 from mo.utils.unittest.graph import build_graph
 

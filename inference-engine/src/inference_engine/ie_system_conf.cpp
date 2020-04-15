@@ -71,6 +71,13 @@ bool with_cpu_x86_avx512_core() {
 #endif
 }
 
+bool with_cpu_x86_bfloat16() {
+#ifdef ENABLE_MKL_DNN
+    return cpu.has(Xbyak::util::Cpu::tAVX512_BF16);
+#else
+    return false;
+#endif
+}
 
 bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
     for (auto&& var : {

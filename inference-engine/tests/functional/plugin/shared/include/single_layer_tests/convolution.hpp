@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,12 +26,11 @@ typedef std::tuple<
         InferenceEngine::Precision,
         InferenceEngine::Precision,
         InferenceEngine::SizeVector,
-        std::string> convLayerTestParamsSet;
+        LayerTestsUtils::TargetDevice> convLayerTestParamsSet;
 namespace LayerTestsDefinitions {
 
 
-class ConvolutionLayerTest
-        : public LayerTestsUtils::LayerTestsCommonClass<convLayerTestParamsSet> {
+class ConvolutionLayerTest : public testing::WithParamInterface<convLayerTestParamsSet>, public LayerTestsUtils::FuncTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<convLayerTestParamsSet> obj);
 

@@ -523,3 +523,165 @@ TEST(resample_gpu, bilinear_asymmetric) {
         }
     }
 }
+
+struct resample_random_test_params {
+    data_types input_type;
+    tensor input_size;
+    tensor output_size;
+    uint32_t num_filter;
+    resample_type operation_type;
+    format::type in_format;
+    format::type out_format;
+};
+
+struct resample_random_test : testing::TestWithParam<resample_random_test_params>{
+    template <typename T>
+    void fill_random_typed(memory& mem, int min, int max) {
+        auto size = mem.get_layout().size;
+        size_t b = size.batch[0];
+        size_t f = size.feature[0];
+        size_t x = size.spatial[0];
+        size_t y = size.spatial[1];
+
+        auto data = generate_random_4d<T>(b, f, y, x, min, max);
+        auto ptr = mem.pointer<T>();
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem.get_layout().get_linear_offset(coords);
+                        ptr[offset] = data[bi][fi][yi][xi];
+                    }
+                }
+            }
+        }
+    }
+
+    void fill_random(memory& mem) {
+        auto dt = mem.get_layout().data_type;
+        switch (dt) {
+        case data_types::f32:
+            fill_random_typed<float>(mem, -127, 127);
+            break;
+        case data_types::f16:
+            fill_random_typed<FLOAT16>(mem, -127, 127);
+            break;
+        case data_types::i8:
+            fill_random_typed<int8_t>(mem, -127, 127);
+            break;
+        case data_types::u8:
+            fill_random_typed<uint8_t>(mem, 0, 255);
+            break;
+        default:
+            break;
+        }
+    }
+
+    template <typename T>
+    void compare_nearest_typed(const memory& input, const memory& output) {
+        auto output_lay = output.get_layout();
+        size_t b = output_lay.size.batch[0];
+        size_t f = output_lay.size.feature[0];
+        size_t x = output_lay.size.spatial[0];
+        size_t y = output_lay.size.spatial[1];
+        float x_ratio = static_cast<float>(input.get_layout().size.spatial[0]) / static_cast<float>(x);
+        float y_ratio = static_cast<float>(input.get_layout().size.spatial[1]) / static_cast<float>(y);
+
+        auto in_ptr = input.pointer<T>();
+        auto out_ptr = output.pointer<T>();
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto in_xi = static_cast<size_t>(floor(x_ratio * xi));
+                        auto in_yi = static_cast<size_t>(floor(y_ratio * yi));
+                        auto in_coords = tensor(batch(bi), feature(fi), spatial(in_xi, in_yi, 0, 0));
+                        auto in_offset = input.get_layout().get_linear_offset(in_coords);
+                        auto in_val = in_ptr[in_offset];
+                        auto out_coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto out_offset = output.get_layout().get_linear_offset(out_coords);
+                        auto out_val = out_ptr[out_offset];
+                        EXPECT_EQ(in_val, out_val) << " at bi=" << bi << ", fi=" << fi << ", xi=" << xi << ", yi=" << yi;
+                    }
+                }
+            }
+        }
+    }
+
+    void compare(const memory& input, const memory& output, resample_type operation) {
+        auto dt = output.get_layout().data_type;
+        if (operation == resample_type::nearest) {
+            if (dt == data_types::f32) {
+                compare_nearest_typed<float>(input, output);
+            } else if (dt == data_types::f16) {
+                compare_nearest_typed<FLOAT16>(input, output);
+            } else if (dt == data_types::i8) {
+                compare_nearest_typed<int8_t>(input, output);
+            } else if (dt == data_types::u8) {
+                compare_nearest_typed<uint8_t>(input, output);
+            } else {
+                FAIL() << "Not supported data type: " << static_cast<size_t>(dt);
+            }
+        } else {
+            FAIL() << "Not supported resample_type: " << static_cast<int32_t>(operation);
+        }
+    }
+
+    void execute(const resample_random_test_params& params) {
+        auto eng = get_test_engine();
+
+        auto in_layout = layout(params.input_type, params.in_format, params.input_size);
+
+        auto topo = topology(
+            input_layout("in", in_layout),
+            resample("resample", "in", params.output_size, params.num_filter, params.operation_type)
+        );
+
+        auto build_opts = build_options(
+            build_option::force_implementations({ {"resample", {params.out_format, ""}} })
+        );
+        auto net = network(eng, topo, build_opts);
+
+        auto in_mem = memory::allocate(eng, in_layout);
+        fill_random(in_mem);
+        net.set_input_data("in", in_mem);
+
+        auto result = net.execute();
+        auto output = result.at("resample").get_memory();
+
+        compare(in_mem, output, params.operation_type);
+    }
+};
+
+TEST_P(resample_random_test, random) {
+    execute(GetParam());
+}
+
+struct resample_random_test_param_generator : std::vector<resample_random_test_params> {
+    resample_random_test_param_generator& add(resample_random_test_params params) {
+        push_back(params);
+        return *this;
+    }
+
+    resample_random_test_param_generator& smoke_params(data_types type, format::type input_format, format::type output_format) {
+        push_back(resample_random_test_params{ type, {1, 17, 5, 9}, {1, 17, 15, 18}, 1, resample_type::nearest, input_format, output_format });
+        push_back(resample_random_test_params{ type, {2, 17, 5, 9}, {2, 17, 15, 18}, 1, resample_type::nearest, input_format, output_format });
+        push_back(resample_random_test_params{ type, {1, 7, 10, 17}, {1, 7, 21, 35}, 1, resample_type::nearest, input_format, output_format });
+        push_back(resample_random_test_params{ type, {2, 7, 10, 17}, {2, 7, 21, 35}, 1, resample_type::nearest, input_format, output_format });
+        return *this;
+    }
+
+};
+
+INSTANTIATE_TEST_CASE_P(smoke,
+                        resample_random_test,
+                        testing::ValuesIn(
+                            resample_random_test_param_generator()
+                            .smoke_params(data_types::i8, format::byxf_af32, format::byxf_af32)
+                            .smoke_params(data_types::u8, format::byxf_af32, format::byxf_af32)
+                            .smoke_params(data_types::i8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
+                            .smoke_params(data_types::u8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
+                            .smoke_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .smoke_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                        ), );

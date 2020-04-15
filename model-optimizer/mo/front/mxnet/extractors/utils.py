@@ -16,9 +16,9 @@
 
 import mxnet as mx
 
+from extensions.ops.elementwise import Elementwise
 from mo.graph.graph import Node, Graph
 from mo.ops.const import Const
-from extensions.ops.elementwise import Elementwise
 from mo.utils.error import Error
 from mo.utils.str_to import StrTo
 from mo.utils.utils import refer_to_faq_msg

@@ -14,10 +14,7 @@
  limitations under the License.
 """
 
-import numpy as np
-
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 

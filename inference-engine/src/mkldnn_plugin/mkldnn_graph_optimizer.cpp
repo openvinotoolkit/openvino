@@ -701,6 +701,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
         return activationNode &&
             (activationNode->getAlgorithm() == eltwise_relu ||
             (conv->getCnnLayer()->precision == Precision::FP32 &&
+             conv->getCnnLayer()->insData[0].lock()->getPrecision() != Precision::BF16 &&
              isOneOf(activationNode->getAlgorithm(), {eltwise_elu, eltwise_logistic, eltwise_bounded_relu, eltwise_clamp, eltwise_swish})));
     };
 
@@ -774,6 +775,7 @@ void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &gra
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
         return node->getType() == FullyConnected &&
+               node->getCnnLayer()->insData[0].lock()->getPrecision() != Precision::BF16 &&
                node->getChildEdges().size() == 1;
     };
 
@@ -845,7 +847,9 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDepthwise(MKLDNNGraph &graph) {
         bool isSutableConv = (node->getType() == Convolution) &&
                              node->getCnnLayer()->precision == Precision::FP32;
         bool isSutableBinConv = node->getType() == BinaryConvolution;
-        return (isSutableConv || isSutableBinConv) && node->getChildEdges().size() == 1;
+        return (isSutableConv || isSutableBinConv) && node->getChildEdges().size() == 1 &&
+               !(node->getCnnLayer()->insData[0].lock()->getPrecision() == Precision::BF16 &&
+                 node->getCnnLayer()->outData[0]->getPrecision() == Precision::FP32);
     };
 
     auto isSutableChildNode = [](MKLDNNNodePtr node) {
@@ -1118,7 +1122,9 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph)
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
         return node->getType() == Convolution &&
                node->getChildEdges().size() == 1 &&
-               node->getCnnLayer()->precision == Precision::FP32;
+               node->getCnnLayer()->precision == Precision::FP32 &&
+             !(node->getCnnLayer()->insData[0].lock()->getPrecision() == Precision::BF16 &&
+               node->getCnnLayer()->outData[0]->getPrecision() == Precision::FP32);
     };
 
     auto isSutableChildNode = [&](MKLDNNNodePtr node) {

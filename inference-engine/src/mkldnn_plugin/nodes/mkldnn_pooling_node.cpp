@@ -41,13 +41,17 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
     outputPrecision = getCnnLayer()->outData[0]->getPrecision();
     // Dirty WA to support stat based quantization approach
-    if (this->getCnnLayer()->precision != Precision::I8) {
+    if (this->getCnnLayer()->precision != Precision::I8
+        && inputPrecision != Precision::BF16) {
         if (type == PoolingLayer::MAX) {
             // MKLDNN supports only equal precisions for input and output
             outputPrecision = inputPrecision;
         } else if (type == PoolingLayer::AVG) {
             outputPrecision = Precision::FP32;
         }
+    }
+    if (inputPrecision == Precision::BF16) {
+        outputPrecision = inputPrecision;
     }
 
     if (!fusedWith.empty()) {
@@ -84,6 +88,10 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format::ndhwc : memory::format::nhwc};
         MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format::ndhwc : memory::format::nhwc};
         createDescriptor({ in_candidate }, { out_candidate });
+    } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && (inputDataType == memory::bf16 || outputDataType == memory::bf16)) {
+        MKLDNNMemoryDesc in_candidate{ parentDims, memory::bf16, parentDims.ndims() == 5 ? memory::format::nCdhw16c : memory::format::nChw16c};
+        MKLDNNMemoryDesc out_candidate{ childDims, memory::bf16, parentDims.ndims() == 5 ? memory::format::nCdhw16c : memory::format::nChw16c};
+        createDescriptor({ in_candidate }, { out_candidate });
     } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && parentDims[1] == 1) {
         inputDataType = memory::f32;
         outputDataType = memory::f32;
@@ -92,8 +100,10 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
         MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format::ncdhw : memory::format::nchw};
         createDescriptor({ in_candidate }, { out_candidate });
     } else {
-        inputDataType = memory::f32;
-        outputDataType = memory::f32;
+        if (inputDataType != memory::bf16) {
+            inputDataType = memory::f32;
+            outputDataType = memory::f32;
+        }
         // It doesn't support any format
         for (auto format : getAvailableFormatsForDims(parentDims)) {
             MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, format};

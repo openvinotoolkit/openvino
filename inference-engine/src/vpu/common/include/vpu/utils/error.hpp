@@ -36,19 +36,19 @@ void throwFormat(const char* fileName, int lineNumber, const char* messageFormat
 }  // namespace details
 
 #define VPU_THROW_FORMAT(...)                                                         \
-    vpu::details::throwFormat<details::VPUException>(__FILE__, __LINE__, __VA_ARGS__)
+    vpu::details::throwFormat<vpu::details::VPUException>(__FILE__, __LINE__, __VA_ARGS__)
 
 #define VPU_THROW_UNLESS(condition, ...)                                                       \
     do {                                                                                       \
         if (!(condition)) {                                                                    \
-            vpu::details::throwFormat<details::VPUException>(__FILE__, __LINE__, __VA_ARGS__); \
+            vpu::details::throwFormat<vpu::details::VPUException>(__FILE__, __LINE__, __VA_ARGS__); \
         }                                                                                      \
     } while (false)
 
 #define VPU_THROW_UNSUPPORTED_UNLESS(condition, ...)                                                        \
     do {                                                                                                    \
         if (!(condition)) {                                                                                 \
-            vpu::details::throwFormat<details::UnsupportedLayerException>(__FILE__, __LINE__, __VA_ARGS__); \
+            vpu::details::throwFormat<vpu::details::UnsupportedLayerException>(__FILE__, __LINE__, __VA_ARGS__); \
         }                                                                                                   \
     } while (false)
 

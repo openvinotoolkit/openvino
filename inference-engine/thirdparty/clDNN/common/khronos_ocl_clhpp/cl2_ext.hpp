@@ -520,7 +520,7 @@ typedef CL_API_ENTRY cl_mem(CL_API_CALL * PFN_clCreateFromMediaSurfaceINTEL)(
                 return detail::errHandler(CL_INVALID_ARG_VALUE, fname);
             }
 
-            static PFN_clGetDeviceIDsFromMediaAdapterINTEL pfn_clGetDeviceIDsFromMediaAdapterINTEL = NULL;
+            PFN_clGetDeviceIDsFromMediaAdapterINTEL pfn_clGetDeviceIDsFromMediaAdapterINTEL = NULL;
             if (!pfn_clGetDeviceIDsFromMediaAdapterINTEL) {
                 pfn_clGetDeviceIDsFromMediaAdapterINTEL =
                     reinterpret_cast<PFN_clGetDeviceIDsFromMediaAdapterINTEL>
@@ -540,44 +540,46 @@ typedef CL_API_ENTRY cl_mem(CL_API_CALL * PFN_clCreateFromMediaSurfaceINTEL)(
                 0,
                 NULL,
                 &n);
-            if (err != CL_SUCCESS) {
+            if (err != CL_SUCCESS && err != CL_DEVICE_NOT_FOUND) {
                 return detail::errHandler(err, fname);
             }
 
-            vector<cl_device_id> ids(n);
-            err = pfn_clGetDeviceIDsFromMediaAdapterINTEL(
-                object_,
-                media_adapter_type,
-                media_adapter,
-                media_adapter_set,
-                n,
-                ids.data(),
-                NULL);
-            if (err != CL_SUCCESS) {
-                return detail::errHandler(err, fname);
-            }
-
-            // Cannot trivially assign because we need to capture intermediates
-            // with safe construction
-            // We must retain things we obtain from the API to avoid releasing
-            // API-owned objects.
-            if (devices) {
-                devices->resize(ids.size());
-
-                // Assign to param, constructing with retain behaviour
-                // to correctly capture each underlying CL object
-                for (size_type i = 0; i < ids.size(); i++) {
-                    (*devices)[i] = Device(ids[i], true);
+            if (err != CL_DEVICE_NOT_FOUND)
+            {
+                vector<cl_device_id> ids(n);
+                err = pfn_clGetDeviceIDsFromMediaAdapterINTEL(
+                    object_,
+                    media_adapter_type,
+                    media_adapter,
+                    media_adapter_set,
+                    n,
+                    ids.data(),
+                    NULL);
+                if (err != CL_SUCCESS) {
+                    return detail::errHandler(err, fname);
                 }
-            }
 
-            // set up acquire/release extensions
-            SharedSurfLock::Init(object_);
-            ImageVA::Init(object_);
+                // Cannot trivially assign because we need to capture intermediates
+                // with safe construction
+                // We must retain things we obtain from the API to avoid releasing
+                // API-owned objects.
+                if (devices) {
+                    devices->resize(ids.size());
+
+                    // Assign to param, constructing with retain behaviour
+                    // to correctly capture each underlying CL object
+                    for (size_type i = 0; i < ids.size(); i++) {
+                        (*devices)[i] = Device(ids[i], true);
+                    }
+                }
+
+                // set up acquire/release extensions
+                SharedSurfLock::Init(object_);
+                ImageVA::Init(object_);
 #ifdef WIN32
-            BufferDX::Init(object_);
+                BufferDX::Init(object_);
 #endif
-
+            }
             return CL_SUCCESS;
         }
     };

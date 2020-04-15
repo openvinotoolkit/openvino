@@ -515,12 +515,21 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             int p1_pnum = p.get_processing_order().get_processing_number(parents[fused_idx]);
             int p2_pnum = p.get_processing_order().get_processing_number(parents[peer_idx]);
 
-            if (p1_pnum < p2_pnum && can_fuse_parents[peer_idx]) {
+            auto p1_dt = parents[fused_idx]->get_output_layout().data_type;
+            auto p2_dt = parents[peer_idx]->get_output_layout().data_type;
+
+            if (can_fuse_parents[peer_idx] &&
+               ((p1_pnum < p2_pnum && p1_dt == p2_dt) || (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)))) {
+                // Swap in 2 cases:
+                // 1. Both branches have same data type. Select branch with lower processing number
+                // 2. Peer node has fp32 output type, but fused node - int8. In that case we have to fuse to the branch
+                // with fp32 out type to avoid fp32 blobs in the quantized graph.
                 std::swap(fused_idx, peer_idx);
             }
 
             auto fused_node = parents[fused_idx];
             auto peer_node = parents[peer_idx];
+
             if (parent1->is_type<convolution>() && !conv_supports_fusings(parent1->as<convolution>()))
                 return;
 
@@ -558,6 +567,33 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
         p.get_processing_order().calc_processing_order(p);
 }
 
+void prepare_conv_eltw_fusing::fuse_conv_depth_to_space(program_impl& p, program_node* node) {
+    // make sure this convolution have only 1 user and it's depth_to_space
+    // make sure convolution is not an output
+    if (node->get_users().size() != 1 || node->is_output())
+        return;
+
+    if (!node->get_users().front()->is_type<depth_to_space>())
+        return;
+
+    convolution_node* conv_node = static_cast<convolution_node*>(node);
+
+    depth_to_space_node* d_t_s_node = static_cast<depth_to_space_node*>(node->users.front());
+    if (d_t_s_node->get_users().empty())
+        return;
+    if (!d_t_s_node->get_users().front()->is_type<eltwise>())
+        return;
+
+    for (auto& dep : d_t_s_node->get_dependencies()) {
+        format fmt = dep->get_output_layout().format;
+        data_types dep_dt = dep->get_output_layout().data_type;
+        if ((fmt != format::bfyx || dep_dt != data_types::f16))
+            return;
+    }
+
+    p.fuse_nodes(*conv_node, *d_t_s_node);
+}
+
 void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* node) {
     // make sure this convolution have only 1 user and it's eltwise
     // make sure convolution is not an output
@@ -569,6 +605,10 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
 
     convolution_node* conv_node = static_cast<convolution_node*>(node);
     convolution& conv = const_cast<convolution&>(*conv_node->get_primitive());
+
+    bool if_already_depth_to_space_fused = false;
+    if (!conv_node->get_fused_primitives().empty())
+        if_already_depth_to_space_fused = conv_node->get_fused_primitives().begin()->node->is_type<depth_to_space>();
 
     // TODO: find a better way to check for available kernels
     // currently works only for these formats
@@ -583,7 +623,8 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
             (fmt != format::byxf_af32 || dep_dt != data_types::i8) &&
             (fmt != format::byxf_af32 || dep_dt != data_types::u8) &&
             (fmt != format::bfyx || dep_dt != data_types::f32) && (fmt != format::bfyx || dep_dt != data_types::u8) &&
-            (fmt != format::bfyx || dep_dt != data_types::i8) && (fmt != format::yxfb || dep_dt != data_types::f16))
+            (fmt != format::bfyx || dep_dt != data_types::i8) && (fmt != format::yxfb || dep_dt != data_types::f16) &&
+            (fmt != format::bfyx || dep_dt != data_types::f16 || !if_already_depth_to_space_fused))
             return;
     }
 
@@ -597,7 +638,7 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
         if (filter_size.spatial[0] == 1 && filter_size.spatial[1] == 1) {
             if (conv.stride.spatial[0] != 1 || conv.stride.spatial[1] != 1)
                 return;
-        } else {
+        } else if (!if_already_depth_to_space_fused) {
             return;
         }
     }
@@ -614,7 +655,7 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
 
     // make sure eltwise have only 2 inputs
     // make sure eltwise is not an output
-    if (eltw_node->inputs_count() != 2 || eltw_node->is_output())
+    if (!if_already_depth_to_space_fused && (eltw_node->inputs_count() != 2 || eltw_node->is_output()))
         return;
 
     // only single ADD operation is currently supported
@@ -636,6 +677,13 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
 
     // we check if input to fuse is convolution that we're right now processing
     if (eltw_node->input(eltw_fused_input_idx).id() != conv.id)
+        return;
+
+    auto fused_output_layout_size = eltw_node->input(eltw_second_input_idx).get_output_layout().size;
+    auto conv_output_layout_size = conv_node->get_output_layout().size;
+
+    if (fused_output_layout_size.spatial[0] * fused_output_layout_size.spatial[1] * fused_output_layout_size.feature[0] * fused_output_layout_size.batch[0]
+        != conv_output_layout_size.spatial[0] * conv_output_layout_size.spatial[1] * conv_output_layout_size.feature[0] * conv_output_layout_size.batch[0])
         return;
 
     // get strides for other than our conv input
@@ -694,6 +742,8 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     // Copy output data type from eltwise
     fused_conv_eltw->output_data_type = eltw_node->get_output_layout().data_type;
 
+    fused_conv_eltw->depth_to_space_already_fused = if_already_depth_to_space_fused;
+
     auto& new_node = p.get_or_create(fused_conv_eltw);
 
     for (size_t i = 0; i < eltw_node->get_fused_activations_funcs().size(); i++)
@@ -733,9 +783,30 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
 
     new_node.dependencies = updated_deps;
 
+    if (if_already_depth_to_space_fused) {
+        new_node.add_fused_primitives(conv_node->get_fused_primitives());
+    }
+
     // Extract convolution node - will replace its usage in fused with input
     p.extract_and_remove(*conv_node);
-    new_node.recalc_output_layout();
+
+    // To change convolution's output to image type, make sure that it is the last primitive in the topology,
+    // or only reorder is afterwards and it is network's output
+    auto reorder_user = (new_node.get_users().size() == 1);
+    if (reorder_user)
+        reorder_user &= ((new_node.get_users().front()->is_type<reorder>()) && (new_node.get_users().front()->is_output()));
+    if (if_already_depth_to_space_fused && (new_node.get_users().size() == 0 || reorder_user)) {
+        cldnn::layout new_layout = { data_types::u8, format::image_2d_rgba, fused_output_layout_size };
+        new_node.set_output_layout(new_layout);
+        // Remove output reorder if present
+        if (reorder_user) {
+            auto& reorder_node = new_node.get_users().front();
+            reorder_node->remove_dependency(1);
+            p.extract_and_remove(*reorder_node);
+        }
+    } else {
+        new_node.recalc_output_layout();
+    }
 
     p.add_optimized_primitive_info(conv_id, {new_node.id()});
     p.add_optimized_primitive_info(eltw_id, {new_node.id()});
@@ -762,6 +833,8 @@ void prepare_conv_eltw_fusing::run(program_impl& p) {
             break;
 
         auto& node = (*node_itr);
+
+        fuse_conv_depth_to_space(p, node);
 
         fuse_conv_eltwise(p, node);
     }

@@ -14,8 +14,8 @@
  limitations under the License.
 """
 
-from mo.front.common.partial_infer.utils import mark_input_bins
 from mo.front.common.partial_infer.elemental import copy_shape_infer
+from mo.front.common.partial_infer.utils import mark_input_bins
 from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 from mo.utils.utils import convert_param_type

@@ -1151,35 +1151,6 @@ TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
     EXPECT_FLOAT_EQ(out_ptr[1], -0.02f);
 }
 
-TEST(reorder_gpu_opt, basic_do_not_remove_redundant_due_it_is_output)
-{
-    engine eng;
-
-    memory in = memory::allocate(eng, { data_types::f32, format::yxfb, tensor{ 1, 2, 2, 1 } });
-    memory weights = memory::allocate(eng, { data_types::f32, format::bfyx, tensor{ 1, 2, 2, 1 } });
-    topology tpl{
-        input_layout("in", in.get_layout()),
-        convolution("conv", "in", { "weights" }),
-        data("weights", weights),
-        reorder("r1", "conv", format::bfyx, data_types::f32) //reoder is output - do not optimize
-    };
-
-    build_options opts;
-    opts.set_option(build_option::optimize_data(true));
-
-    network net(eng, tpl, opts);
-    net.set_input_data("in", in);
-    auto outputs = net.execute();
-    auto executed_primitives = net.get_executed_primitives();
-
-    //all pirmitives in this test needs to be executed
-    EXPECT_TRUE(executed_primitives.count("conv") == 1);
-    EXPECT_TRUE(executed_primitives.count("in") == 1);
-    EXPECT_TRUE(executed_primitives.count("r1") == 1);
-    ASSERT_TRUE(outputs.count("r1") == 1);
-    EXPECT_TRUE(outputs.at("r1").get_memory().get_layout().format == format::bfyx);
-}
-
 TEST(reorder_gpu_opt, basic_remove_redundant_output_due_to_implicit_reorders)
 {
     engine eng;
@@ -1913,6 +1884,98 @@ TEST(reorder_gpu, any_format) {
     for (size_t i = 0; i < data.size(); ++i) {
         EXPECT_EQ(output[i], data[i]) << "i = " << i;
     }
+}
+
+TEST(reorder_image2d_rgba_to_bfyx_gpu, basic)
+{
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::u8, format::image_2d_rgba, { 1, 3, 2, 2 } });
+    layout output_layout(data_types::f16, format::bfyx, { 1, 3, 2, 2 });
+
+    set_values<unsigned char>(input, {
+        1, 0, 5, 7,
+        2, 111, 123, 8,
+        124, 125, 50, 9,
+        251, 252, 253, 210
+        });
+
+    topology topology(
+        input_layout("input", input.get_layout()),
+        reorder("reorder", "input", output_layout));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    float answers[12] = {
+        1.0f,  2.0f,
+        124.0f,  251.0f,
+
+        0.0f,  111.0f,
+        125.0f,  252.0f,
+
+        5.0f,  123.0f,
+        50.0f, 253.0f,
+    };
+
+    auto output_ptr = output.pointer<FLOAT16>();
+    for (int i = 0; i < 12; i++)
+    {
+        EXPECT_NEAR(FLOAT16(answers[i] / 255.f), output_ptr[i], 1e-3f);
+    }
+
+}
+
+TEST(reorder_bfyx_to_image2d_rgba_gpu, basic)
+{
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 3, 2, 2 } });
+    layout output_layout(data_types::u8, format::image_2d_rgba, { 1, 3, 2, 2 });
+
+    set_values<FLOAT16>(input, {
+        FLOAT16(1.0f / 255.f),  FLOAT16(2.0f / 255.f),
+        FLOAT16(124.0f / 255.f),  FLOAT16(251.0f / 255.f),
+
+        FLOAT16(0.0f / 255.f),  FLOAT16(111.0f / 255.f),
+        FLOAT16(125.0f / 255.f),  FLOAT16(252.0f / 255.f),
+
+        FLOAT16(5.0f / 255.f),  FLOAT16(123.0f / 255.f),
+        FLOAT16(50.0f / 255.f), FLOAT16(253.0f / 255.f),
+        });
+
+    topology topology(
+        input_layout("input", input.get_layout()),
+        reorder("reorder", "input", output_layout));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    unsigned char answers[16] = {
+        1, 0, 5, 0,
+        2, 111, 123, 0,
+        124, 125, 50, 0,
+        251, 252, 253, 0
+    };
+
+    auto output_ptr = output.pointer<unsigned char>();
+    for (int i = 0; i < 16; i++)
+    {
+        EXPECT_EQ(answers[i], output_ptr[i]);
+    }
+
 }
 
 using namespace cldnn;

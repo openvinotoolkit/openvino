@@ -177,6 +177,7 @@ struct fused_conv_eltwise : public primitive_base<fused_conv_eltwise> {
 
     /// @brief Is optimization that output contains data from second input ON ?
     bool second_input_in_output = false;
+    bool depth_to_space_already_fused = false;
 
 protected:
     const primitive_id_arr conv_weights;

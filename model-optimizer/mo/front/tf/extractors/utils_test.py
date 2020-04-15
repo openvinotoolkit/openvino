@@ -14,8 +14,9 @@
  limitations under the License.
 """
 
-import numpy as np
 import unittest
+
+import numpy as np
 
 from mo.front.tf.extractors.utils import collect_tf_attrs, tf_tensor_content
 from mo.utils.unittest.extractors import PB

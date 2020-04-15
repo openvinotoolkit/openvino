@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from extensions.ops.proposal import ProposalOp
 from mo.front.caffe.extractor import register_caffe_python_extractor
 from mo.graph.graph import Graph

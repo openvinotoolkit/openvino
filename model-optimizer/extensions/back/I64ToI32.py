@@ -15,6 +15,7 @@
 """
 
 import logging as log
+
 import numpy as np
 
 from extensions.back.ForceStrictPrecision import ForceStrictPrecision

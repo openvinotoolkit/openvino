@@ -40,7 +40,7 @@ public:
     /**
      * @brief A default constructor
      */
-    CNNNetReader(): actual(shared_from_irelease(InferenceEngine::CreateCNNNetReader())) {
+    CNNNetReader(): actual(InferenceEngine::CreateCNNNetReaderPtr()) {
         if (actual == nullptr) {
             THROW_IE_EXCEPTION << "CNNNetReader was not initialized.";
         }
@@ -182,7 +182,7 @@ public:
     }
 
 private:
-    std::shared_ptr<ICNNNetReader> actual;
+    CNNNetReaderPtr actual;
     std::shared_ptr<CNNNetwork> network;
 };
 IE_SUPPRESS_DEPRECATED_END

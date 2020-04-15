@@ -108,6 +108,7 @@ TEST(MKLDNNDumpTests, SerU8AsTxt) {
 
     std::string deser_header, ref_header = "U8 4D shape: 2 3 4 5 (120)";
     std::getline(buff, deser_header);
+    deser_header = deser_header.substr(0, ref_header.length());
     ASSERT_EQ(deser_header, ref_header);
 
     auto num_line = std::count(std::istreambuf_iterator<char>(buff),
@@ -129,6 +130,7 @@ TEST(MKLDNNDumpTests, SerAsTxt) {
 
     std::string deser_header, ref_header = "FP32 2D shape: 2 3 (6)";
     std::getline(buff, deser_header);
+    deser_header = deser_header.substr(0, ref_header.length());
     ASSERT_EQ(deser_header, ref_header);
 
     auto num_line = std::count(std::istreambuf_iterator<char>(buff),

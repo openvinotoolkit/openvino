@@ -14,8 +14,9 @@
  limitations under the License.
 """
 
-import numpy as np
 import logging as log
+
+import numpy as np
 
 from mo.graph.graph import Graph
 from mo.ops.op import Op

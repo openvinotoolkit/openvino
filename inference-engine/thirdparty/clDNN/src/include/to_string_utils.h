@@ -111,6 +111,8 @@ inline std::string fmt_to_str(format fmt) {
             return "b_fs_zyx_fsv16";
         case format::bs_fs_zyx_bsv16_fsv16:
             return "bs_fs_zyx_bsv16_fsv16";
+        case format::image_2d_rgba:
+            return "image_2d_rgba";
 
         case format::oiyx:
             return "oiyx";
@@ -134,6 +136,8 @@ inline std::string fmt_to_str(format fmt) {
             return "image_2d_weights_winograd_6x3_s1_xfbyb";
         case format::os_iyx_osv16:
             return "os_iyx_osv16";
+        case format::os_is_yx_osv16_isv16:
+            return "os_is_yx_osv16_isv16";
         case format::os_iyx_osv32:
             return "os_iyx_osv32";
         case format::os_iyx_osv64:
@@ -197,6 +201,8 @@ inline std::string fmt_to_str(format fmt) {
             return "g_os_is_yx_isv8_osv16_isv2";
         case format::g_os_is_zyx_isv16_osv16:
             return "g_os_is_zyx_isv16_osv16";
+        case format::g_os_is_yx_osv16_isv4:
+            return "g_os_is_yx_osv16_isv4";
         default:
             return "unknown (" + std::to_string(fmt.value) + ")";
     }

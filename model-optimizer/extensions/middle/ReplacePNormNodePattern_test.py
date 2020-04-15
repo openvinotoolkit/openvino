@@ -16,8 +16,8 @@
 import unittest
 
 from extensions.middle.ReplacePNorm import ReplacePNormNodePattern
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 
 class ReplacePNormNodePatternTests(unittest.TestCase):
