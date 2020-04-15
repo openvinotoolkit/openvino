@@ -15,13 +15,9 @@
 """
 import unittest
 
-import numpy as np
-
-from extensions.middle.UselessStridedSlice import UselessStridedSliceEraser
 from extensions.middle.wights_permute_normalizer import WeightsPermuteNormalizer
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
-from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 nodes_attributes = {
     'placeholder': {'type': 'Placeholder', 'kind': 'op', 'op': 'Placeholder'},

@@ -144,6 +144,7 @@ VPU_DECLARE_ENUM(StageType,
     Exp = 101,
     Floor = 102,
     TopK = 104,
+    ScatterUpdate = 103,
     ReduceMin = 105,
     ExpDetectionOutput = 106,  // ExperimentalDetectronDetectionOutput
     NonMaxSuppression = 107,
@@ -160,7 +161,10 @@ VPU_DECLARE_ENUM(StageType,
     LoopStart = 119,
     LoopEnd = 120,
     ExpPriorGridGenerator = 121,
+    NonZero = 122,
+    ROIAlign = 123,
     ExpGenerateProposals = 124,
+    ExpTopKROIs = 125,
 )
 
 //

@@ -7,6 +7,7 @@
 #include "tests_common.hpp"
 
 #include <convert_function_to_cnn_network.hpp>
+#include <cpp/ie_cnn_network.h>
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -30,7 +31,7 @@ TEST_F(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
                                                ngraph::ParameterVector{param1, param2});
     }
 
-    InferenceEngine::details::CNNNetworkNGraphImpl nGraphImpl(f);
+    InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
         auto net = InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
         FAIL();
@@ -59,7 +60,7 @@ TEST_F(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
                                                ngraph::ParameterVector{param1, param2});
     }
 
-    InferenceEngine::details::CNNNetworkNGraphImpl nGraphImpl(f);
+    InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
         auto net = InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
     } catch (InferenceEngine::details::InferenceEngineException &err) {

@@ -13,12 +13,13 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import unittest
+
 import numpy as np
 
-import unittest
 from extensions.back.CutMemory import CutMemory
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 
 class CutMemoryTest(unittest.TestCase):

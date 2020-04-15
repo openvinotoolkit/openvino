@@ -58,7 +58,8 @@ public:
         params.shrink_axis_mask = arg.get_primitive()->shrink_axis_mask;
         pad_vector_to_size(params.shrink_axis_mask, dims_num, 0);
 
-        std::vector<size_t> logical_dims = params.output.LogicalDims();
+        std::vector<size_t> logical_dims = params.inputs[0].LogicalDims();
+        std::reverse(logical_dims.begin(), logical_dims.end());  // get dims in bfyx order
         std::vector<int32_t> out_shape;
         for (const auto& dim : logical_dims)
             out_shape.push_back(static_cast<int32_t>(dim));
@@ -67,6 +68,16 @@ public:
         // If the ith bit of end_mask is not set, end[i] is ignored and the fullest possible range in that dimension is used
         // instead.
         vector_assign_if_not_mask(params.striding_params[1], out_shape, params.end_mask);
+
+        for (size_t dim = 0; dim < params.striding_params[2].size(); dim++) {
+            auto begin = params.striding_params[0][dim] < 0 ? out_shape[dim] + params.striding_params[0][dim] : params.striding_params[0][dim];
+            auto end = params.striding_params[1][dim] < 0 ? out_shape[dim] + params.striding_params[1][dim] : params.striding_params[1][dim];
+            auto stride = params.striding_params[2][dim];
+            if (stride < 0 && (end > begin)) {
+                std::swap(params.striding_params[0][dim], params.striding_params[1][dim]);
+                params.striding_params[0][dim] = params.striding_params[0][dim] - 1;
+            }
+        }
 
         auto& kernel_selector = kernel_selector::strided_slice_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(params, op_params);

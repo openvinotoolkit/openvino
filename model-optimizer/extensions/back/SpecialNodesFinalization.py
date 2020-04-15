@@ -20,10 +20,8 @@ from copy import copy
 import numpy as np
 
 from extensions.back.pass_separator import BackFinish
-from extensions.ops.split import Split
 from extensions.ops.tensor_iterator import TensorIterator, get_internal_node_by_layer_id
 from mo.back.replacement import BackReplacementPattern
-from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.ops.const import Const
 from mo.utils.error import Error

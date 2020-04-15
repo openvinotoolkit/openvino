@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-from mo.utils.ir_reader.extender import Extender
-from mo.utils.graph import Node
-
 from mo.front.common.partial_infer.multi_box_prior import multi_box_prior_infer_mxnet
+from mo.utils.graph import Node
+from mo.utils.ir_reader.extender import Extender
 
 
 class PriorBox_extender(Extender):

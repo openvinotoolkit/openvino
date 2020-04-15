@@ -31,21 +31,26 @@ public:
             if (layer->outData.size() != 1 && layer->outData.size() != 2)
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of output edges!";
 
-            if (layer->insData[TOPK_DATA].lock()->getTensorDesc().getPrecision() != Precision::FP32 ||
+            // DataConfigurator::addConfig will automatically change BF16 datatype to FP32
+            // it can be changed back by explicit modification like confs.back().outConfs[i].desc.setPrecision(Precision::BF16);
+            // if current layer supports BF16 naturally. usually they are not and nothing special is not required
+            if ((layer->insData[TOPK_DATA].lock()->getTensorDesc().getPrecision() != Precision::FP32 &&
+                layer->insData[TOPK_DATA].lock()->getTensorDesc().getPrecision() != Precision::BF16) ||
                 layer->insData[TOPK_K].lock()->getTensorDesc().getPrecision() != Precision::I32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input data/index values precision.";
+                THROW_IE_EXCEPTION << layer->name << " TopKImpl - Incorrect input data/index values precision.";
 
             if (layer->insData[TOPK_K].lock()->getTensorDesc().getDims().size() > 1)
-                THROW_IE_EXCEPTION << layer->name << " Index vector should be 1 dimension";
+                THROW_IE_EXCEPTION << layer->name << " TopKImpl - Index vector should be 1 dimension";
 
             SizeVector dst_dims = layer->outData[0]->getTensorDesc().getDims();
             SizeVector src_data_dims = layer->insData[TOPK_DATA].lock()->getTensorDesc().getDims();
             if (src_data_dims.size() != dst_dims.size())
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input/output tensor dimension sizes";
+                THROW_IE_EXCEPTION << layer->name << " TopKImpl - Incorrect input/output tensor dimension sizes";
 
             if (layer->outData.size() == 2) {
-                if (layer->outData[TOPK_VALUE]->getTensorDesc().getPrecision() != Precision::FP32)
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect output data tensor precision. Only FP32 is supported!";
+                if (layer->outData[TOPK_VALUE]->getTensorDesc().getPrecision() != Precision::FP32 &&
+                    layer->outData[TOPK_VALUE]->getTensorDesc().getPrecision() != Precision::BF16)
+                    THROW_IE_EXCEPTION << layer->name << " TopKImpl - Incorrect output data tensor precision. Floating point datatypes are supported!";
 
                 SizeVector dst_idx_dims = layer->outData[TOPK_INDEX]->getTensorDesc().getDims();
                 if (dst_dims.size() != dst_idx_dims.size())

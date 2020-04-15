@@ -3,6 +3,10 @@
 //
 
 #include <vpu/middleend/pass_manager.hpp>
+#include <vpu/middleend/sw/utility.hpp>
+#include <vpu/model/data_contents/conv_weights_contents.hpp>
+#include <vpu/model/data_contents/default_sw_weights_content.hpp>
+
 #include <limits>
 
 #include <vector>
@@ -11,52 +15,11 @@
 #include <unordered_set>
 #include <set>
 
-#include <vpu/middleend/sw/utility.hpp>
-
 #define REFERENCE_CONVOLUTION 0
 
 namespace vpu {
 
 namespace {
-
-class ConvIm2ColWeightsContent final : public CalculatedDataContent {
-public:
-    explicit ConvIm2ColWeightsContent(const DataContent::Ptr& origContent) :
-            CalculatedDataContent({origContent}) {
-    }
-
-protected:
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override {
-        VPU_PROFILE(ConvIm2ColWeightsContent);
-        kchw_to_khwc(baseContents[0]->get<fp16_t>(), static_cast<fp16_t*>(tempBuf), desc());
-    }
-};
-
-class Conv3x3WeightsContent final : public CalculatedDataContent {
-public:
-    explicit Conv3x3WeightsContent(const DataContent::Ptr& origContent) :
-            CalculatedDataContent({origContent}) {
-    }
-
-protected:
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override {
-        VPU_PROFILE(Conv3x3WeightsContent);
-        kchw_to_hwkc(baseContents[0]->get<fp16_t>(), static_cast<fp16_t*>(tempBuf), desc());
-    }
-};
-
-class ConvCHWWeightsContent final : public CalculatedDataContent {
-public:
-    explicit ConvCHWWeightsContent(const DataContent::Ptr& origContent) :
-            CalculatedDataContent({origContent}) {
-    }
-
-protected:
-    void fillTempBuf(const SmallVector<DataContent::Ptr, 2>& baseContents, void* tempBuf) const override {
-        VPU_PROFILE(ConvCHWWeightsContent);
-        kchw_to_hwkc(baseContents[0]->get<fp16_t>(), static_cast<fp16_t*>(tempBuf), desc());
-    }
-};
 
 class ConvStage final : public StageNode {
 public:
@@ -124,7 +87,7 @@ private:
                     weights,
                     "@SW",
                     newWeightsDesc,
-                    std::make_shared<DefaultSwWeightsContent>(weights->content()));
+                    std::make_shared<DefaultSwWeightsContent>(weights->content(), newWeightsDesc));
 
                 weights->attrs().set<Data>("swWeights", swWeights);
             }
@@ -149,7 +112,7 @@ private:
                         weights,
                         "@SW",
                         newWeightsDesc,
-                        std::make_shared<DefaultSwWeightsContent>(weights->content()));
+                        std::make_shared<DefaultSwWeightsContent>(weights->content(), newWeightsDesc));
                 } else if (isConv1x1) {
                     swWeights = model()->duplicateData(
                         weights,
@@ -161,13 +124,13 @@ private:
                         weights,
                         "@SW",
                         newWeightsDesc,
-                        std::make_shared<Conv3x3WeightsContent>(weights->content()));
+                        std::make_shared<Conv3x3WeightsContent>(weights->content(), newWeightsDesc));
                 } else {
                     swWeights = model()->duplicateData(
                         weights,
                         "@SW",
                         newWeightsDesc,
-                        std::make_shared<ConvIm2ColWeightsContent>(weights->content()));
+                        std::make_shared<ConvIm2ColWeightsContent>(weights->content(), newWeightsDesc));
 
                     double im2ColBufSizeF = static_cast<double>(kernelSizeX) * kernelSizeY *
                         output->desc().dim(Dim::W) * output->desc().dim(Dim::H) * input->desc().dim(Dim::C)
@@ -215,7 +178,7 @@ private:
                         weights,
                         "@SW",
                         newWeightsDesc,
-                        std::make_shared<ConvCHWWeightsContent>(weights->content()));
+                        std::make_shared<ConvCHWWeightsContent>(weights->content(), newWeightsDesc));
                 }
 
                 weights->attrs().set<Data>("swWeights", swWeights);

@@ -47,6 +47,8 @@ function(add_common_target TARGET_NAME STATIC_IE)
 
         ie_developer_export_targets(${TARGET_NAME})
     endif()
+
+    target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} inference_engine_transformations)
 endfunction()
 
 add_common_target("vpu_common_lib" FALSE)

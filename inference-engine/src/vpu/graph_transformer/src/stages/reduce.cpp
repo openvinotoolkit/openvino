@@ -4,6 +4,8 @@
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <vpu/model/data_contents/ie_blob_content.hpp>
+
 #include <algorithm>
 #include <memory>
 #include <set>
@@ -91,7 +93,7 @@ private:
             input1,
             "",
             DataDesc(),
-            ieBlobContent(newIndicesBlob));
+            ieBlobContent(newIndicesBlob, DataType::S32));
 
         model()->replaceStageInput(inputEdge(1), newList);
     }

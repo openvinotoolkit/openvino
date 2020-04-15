@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import numpy as np
-
 from extensions.ops.sparse_segment_mean import SparseSegmentMean
 from mo.front.extractor import FrontExtractorOp
 

@@ -25,8 +25,10 @@
 
 using namespace cldnn;
 
-remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations)
-    : base_pass("remove_redundant_reorders"), lo(lo_ref), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations) {}
+remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations,
+    bool remove_output_reorders)
+    : base_pass("remove_redundant_reorders"), lo(lo_ref), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations),
+    remove_output_reorders(remove_output_reorders) {}
 
 void remove_redundant_reorders::run(program_impl& p) {
     auto update_implementation = [&](program_node& node) {
@@ -159,9 +161,13 @@ void remove_redundant_reorders::run(program_impl& p) {
 
         auto& r_node = node->as<reorder>();
 
+        bool no_output_optimization = remove_output_reorders ?
+            r_node.is_output() && (r_node.get_dependency(0).is_output() || r_node.get_dependency(0).is_type<input_layout>() ||
+                r_node.get_dependency(0).can_be_optimized()) : r_node.is_output();
+
         if (r_node.has_mean() ||
             !r_node.get_primitive()->subtract_per_feature.empty() ||
-            r_node.is_output() ||
+            no_output_optimization ||
             !r_node.get_fused_activations_funcs().empty())
             continue;
 
@@ -170,7 +176,7 @@ void remove_redundant_reorders::run(program_impl& p) {
 
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
         // but pads need to be handled correctly.
-        if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx &&
+        if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx && !r_node.is_output() &&
             i_layout.size.spatial[0] == 1 && i_layout.size.spatial[1] == 1 &&
             o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0) {
             r_node.can_be_optimized(true);

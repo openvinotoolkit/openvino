@@ -14,8 +14,6 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import apply_pattern
 

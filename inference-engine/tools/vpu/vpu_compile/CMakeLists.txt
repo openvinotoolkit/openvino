@@ -49,5 +49,5 @@ add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 # install
 
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT myriad)

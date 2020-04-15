@@ -184,7 +184,7 @@ std::set<std::string> getSupportedLayers(
 //
 
 const uint32_t BLOB_MAGIC_NUMBER  = 9709;
-const uint32_t BLOB_VERSION_MAJOR = 5;
+const uint32_t BLOB_VERSION_MAJOR = 6;
 const uint32_t BLOB_VERSION_MINOR = 0;
 
 }  // namespace vpu

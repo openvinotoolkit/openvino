@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME helpers)
+set(TARGET_NAME ieTestHelpers)
 
 file(GLOB HELPERS_SRC
        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -15,13 +15,13 @@ file (GLOB HELPERS_INCLUDES
 
 ## Enable Models multiple search pathes
 message("configuring file: ${CMAKE_CURRENT_BINARY_DIR}/test_model_repo.h")
-configure_file(test_model_repo.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/test_model_repo.hpp @ONLY)
 
 function(add_helpers target_name)
     add_library(${target_name} STATIC ${HELPERS_SRC})
 
     target_include_directories(${target_name} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
                                                      "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
+                                                     $<TARGET_PROPERTY:inference_engine_ir_readers,INTERFACE_INCLUDE_DIRECTORIES>
                                                      $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                      $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
                                                      "${IE_MAIN_SOURCE_DIR}/src/vpu/"
@@ -30,9 +30,6 @@ function(add_helpers target_name)
     # TODO: eliminate dependency on samples
     target_include_directories(${target_name} PUBLIC
         "${IE_MAIN_SOURCE_DIR}/samples/common/os/windows")
-
-    target_compile_definitions(${target_name} PUBLIC ${ARGV}
-        MODELS_PATH=\"${MODELS_PATH}\" DATA_PATH=\"${VALIDATION_SET}\")
 
     set_property(TARGET ${target_name} PROPERTY COMPILE_PDB_NAME ${target_name})
 

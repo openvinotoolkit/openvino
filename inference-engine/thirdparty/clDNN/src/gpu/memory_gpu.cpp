@@ -104,6 +104,15 @@ gpu_image2d::gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const la
             _height = layout.size.spatial[0] * layout.size.feature[0] * layout.size.spatial[1];
             order = CL_RGBA;
             break;
+        case format::image_2d_rgba:
+            _width = layout.size.spatial[0];
+            _height = layout.size.spatial[1];
+            order = CL_RGBA;
+            if (layout.size.feature[0] != 3 && layout.size.feature[0] != 4) {
+                CLDNN_ERROR_MESSAGE("2D image allocation", "invalid number of channels in image_2d_rgba input image (should be 3 or 4)!");
+            }
+            type = CL_UNORM_INT8;
+            break;
         case format::nv12:
             _width = layout.size.spatial[1];
             _height = layout.size.spatial[0];
@@ -189,7 +198,7 @@ gpu_media_buffer::gpu_media_buffer(const refcounted_obj_ptr<engine_impl>& engine
     const shared_mem_params* params,
     uint32_t net_id)
     : gpu_image2d(engine, new_layout,
-        cl::ImageVA(engine->get_context()->context(), CL_MEM_READ_ONLY,
+        cl::ImageVA(engine->get_context()->context(), CL_MEM_READ_WRITE,
                     params->surface, params->plane),
         net_id),
     device(params->user_device),

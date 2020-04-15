@@ -216,6 +216,9 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
 
     if (NeedPaddedInput()) {
         kd.reorderInput = CovolutionUpdateInputParams(newParams);
+
+        if (kd.reorderInput && !options.allowInputReordering)
+            return {};
     }
     DispatchData runInfo = SetDefault(newParams, autoTuneIndex);
 

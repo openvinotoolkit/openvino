@@ -23,6 +23,8 @@ bool get_single_value(const std::shared_ptr<op::Constant>& const_node, float& va
         return util::normalize_single_value(const_node->get_vector<float16>(), value);
     case element::Type_t::f32:
         return util::normalize_single_value(const_node->get_vector<float>(), value);
+    case element::Type_t::bf16:
+        return util::normalize_single_value(const_node->get_vector<bfloat16>(), value);
     case element::Type_t::f64:
         return util::normalize_single_value(const_node->get_vector<double>(), value);
     case element::Type_t::i8:

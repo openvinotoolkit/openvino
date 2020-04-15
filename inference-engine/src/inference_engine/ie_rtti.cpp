@@ -13,6 +13,7 @@
 #include <ie_parameter.hpp>
 #include <ie_iextension.h>
 #include <ie_extension.h>
+
 #include <ngraph/opsets/opset.hpp>
 
 using namespace InferenceEngine;
@@ -83,6 +84,7 @@ template struct InferenceEngine::Parameter::RealData<std::vector<std::string>>;
 template struct InferenceEngine::Parameter::RealData<std::vector<unsigned long>>;
 template struct InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
 template struct InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>;
+template struct InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>;
 #endif  // __clang__
 //
 // ie_blob.h

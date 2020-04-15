@@ -4,10 +4,15 @@
 
 #include <vpu/frontend/frontend.hpp>
 
+#include <vpu/stages/post_op_stage.hpp>
+#include <vpu/utils/ie_helpers.hpp>
+#include <vpu/utils/profiling.hpp>
+#include <vpu/model/data_contents/prelu_blob_content.hpp>
+
+#include <ie_parallel.hpp>
+
 #include <vector>
 #include <memory>
-
-#include <vpu/stages/post_op_stage.hpp>
 
 namespace vpu {
 
@@ -47,7 +52,8 @@ void FrontEnd::parsePReLU(const Model& model, const ie::CNNLayerPtr& layer, cons
     auto weights = model->addConstData(
         layer->name + "@weights",
         DataDesc({output->desc().dim(Dim::C)}),
-        ieBlobContent(weightsBlob, channelShared ? output->desc().dim(Dim::C) : 1));
+        std::make_shared<PReLUBlobContent>(weightsBlob, DataDesc({output->desc().dim(Dim::C)}),
+                                           channelShared ? output->desc().dim(Dim::C) : 1));
 
     model->addNewStage<PReluStage>(layer->name, StageType::PRelu, layer, {inputs[0], weights}, outputs);
 }

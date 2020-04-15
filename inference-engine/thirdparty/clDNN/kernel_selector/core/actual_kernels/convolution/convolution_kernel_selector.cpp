@@ -21,6 +21,7 @@
 #include "convolution_kernel_bfyx_direct_10_12_16.h"
 #include "convolution_kernel_bfyx_os_iyx_osv16.h"
 #include "convolution_kernel_bfyx_os_iyx_osv16_2_sg.h"
+#include "convolution_kernel_bfyx_iyxo.h"
 #include "convolution_kernel_yxfb_ref.h"
 #include "convolution_kernel_yxfb_yxio_b16.h"
 #include "convolution_kernel_yxfb_yxio_b8.h"
@@ -69,11 +70,20 @@
 #include "convolution_kernel_mmad_b_fs_yx_fsv32_dw.h"
 #include "convolution_kernel_mmad_bfyx_b_fs_yx_fsv32.h"
 #include "convolution_kernel_bfyx_to_bs_fs_yx_bsv16_fsv16.h"
+#include "convolution_kernel_b_fs_yx_fsv16_imad_1x1.h"
+#include "convolution_kernel_b_fs_yx_fsv16_imad_3x3.h"
+#include "convolution_kernel_b_fs_yx_fsv16_imad_3x3_ks.h"
+#include "convolution_kernel_b_fs_yx_fsv_16_32_imad_dw.hpp"
 
 namespace kernel_selector {
 convolution_kernel_selector::convolution_kernel_selector() {
     Attach<ConvolutionKernel_Ref>();
     Attach<DeformableConvolutionKernel_bfyx_Ref>();
+
+    // b_fs_yx_fsv16 int8
+    Attach<Convolution_kernel_b_fs_yx_fsv16_imad_1x1>();
+    Attach<Convolution_kernel_b_fs_yx_fsv16_imad_3x3>();
+    Attach<Convolution_kernel_b_fs_yx_fsv16_imad_3x3_ks>();
 
     // b_fs_yx_fsv16 and b_fs_zyx_fsv16
     Attach<ConvolutionKernel_b_fs_yx_fsv16_depthwise>();
@@ -97,6 +107,7 @@ convolution_kernel_selector::convolution_kernel_selector() {
     Attach<ConvolutionKernel_bfyx_GEMMLike>();
     Attach<ConvolutionKernel_bfyx_Direct_10_10_12>();
     Attach<ConvolutionKernel_bfyx_os_iyx_osv16>();
+    Attach<ConvolutionKernel_bfyx_iyxo>();
     Attach<ConvolutionKernel_bfyx_1x1>();
     Attach<ConvolutionKernel_bfyx_1x1_gemm_buf>();
     Attach<ConvolutionKernel_bfyx_depthwise_weights_lwg>();
@@ -145,6 +156,7 @@ convolution_kernel_selector::convolution_kernel_selector() {
     Attach<ConvolutionKernel_mmad_b_fs_yx_fsv32>();
     Attach<ConvolutionKernel_mmad_b_fs_yx_fsv32_dw>();
     Attach<ConvolutionKernel_mmad_bfyx_b_fs_yx_fsv32>();
+    Attach<ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw>();
 }
 
 KernelsData convolution_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {

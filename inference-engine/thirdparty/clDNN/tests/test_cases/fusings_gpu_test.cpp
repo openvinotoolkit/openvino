@@ -87,7 +87,8 @@ template<typename T>
 class BaseFusingTest : public ::testing::TestWithParam<T> {
 public:
     cldnn::engine engine;
-    cldnn::topology topology;
+    cldnn::topology topology_fused;
+    cldnn::topology topology_non_fused;
     cldnn::build_options bo_fused;
     cldnn::build_options bo_not_fused;
 
@@ -110,7 +111,13 @@ public:
             size_t count = 0;
             for (auto& pi : net.get_primitives_info()) {
                 if (pi.type_id == "reorder") {
-                    count++;
+                    auto exec_prims = net.get_executed_primitives();
+                    auto it = std::find_if(exec_prims.begin(), exec_prims.end(), [&](const std::pair<primitive_id, event>& e) -> bool {
+                        return e.first == pi.original_id;
+                    });
+                    // We count executed reorders only
+                    if (it != exec_prims.end())
+                        count++;
                 }
             }
             return count;
@@ -238,6 +245,12 @@ public:
     layout get_single_element_layout(T& p) {
         return layout{ p.default_type, p.default_format, tensor{1, 1, 1, 1} };
     }
+
+    template <class... Args>
+    void create_topologies(Args const&... args) {
+        topology_fused.add(args...);
+        topology_non_fused.add(args...);
+    }
 };
 
 class WeightsPrimitiveFusingTest : public ::BaseFusingTest<bc_test_params> {
@@ -245,8 +258,8 @@ public:
 
     void execute(bc_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology, bo_not_fused);
-        network network_fused(this->engine, this->topology, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -269,8 +282,8 @@ public:
 
     void execute(resample_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology, bo_not_fused);
-        network network_fused(this->engine, this->topology, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -293,8 +306,8 @@ public:
         auto input0_prim = get_mem(get_input_layout(p, 0));
         auto input1_prim = get_mem(get_input_layout(p, 1));
 
-        network network_not_fused(this->engine, this->topology, bo_not_fused);
-        network network_fused(this->engine, this->topology, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
         network_fused.set_input_data("input0", input0_prim);
         network_not_fused.set_input_data("input0", input0_prim);
         network_fused.set_input_data("input1", input1_prim);
@@ -357,6 +370,7 @@ public:
 #define CASE_CONV_U8S8_4 {1, 17, 4, 5}, {1, 17, 4, 5}, {1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 17, data_types::u8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
 #define CASE_CONV_U8S8_5 {1, 16, 5, 5}, {1, 32, 5, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_U8S8_6 {1, 17, 4, 5}, {1, 17, 4, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 17, data_types::u8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
+#define CASE_CONV_U8S8_7 {1, 64, 7, 7}, {1, 32, 7, 7}, {1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 
 #define CASE_CONV_S8S8_1 {1, 15, 4, 5}, {1, 30, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_S8S8_2 {1, 15, 5, 5}, {1, 30, 3, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
@@ -364,6 +378,7 @@ public:
 #define CASE_CONV_S8S8_4 {1, 17, 4, 5}, {1, 17, 4, 5}, {1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 17, data_types::i8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
 #define CASE_CONV_S8S8_5 {1, 16, 5, 5}, {1, 32, 5, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_S8S8_6 {1, 17, 4, 5}, {1, 17, 4, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 17, data_types::i8, format::bfyx, data_types::i8, format::goiyx, data_types::f32, format::bfyx
+#define CASE_CONV_S8S8_7  {1, 64, 7, 7}, {1, 32, 7, 7}, {1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 1, data_types::i8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 
 #define CASE_CONV3D_U8S8_1 {1, 15, 5, 4, 5}, {1, 30, 3, 2, 3}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_CONV3D_U8S8_2 {1, 15, 5, 5, 5}, {1, 30, 3, 3, 3}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
@@ -406,7 +421,7 @@ public:
 class conv_fp32_activation : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_fp32_activation, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
@@ -433,7 +448,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_activation, ::testing::ValuesIn(s
 class conv_fp32_scale : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_fp32_scale, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
@@ -464,7 +479,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale,
 class conv_fp32_prelu_eltwise : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_fp32_prelu_eltwise, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("slope_data", get_mem(get_per_channel_layout(p))),
@@ -481,7 +496,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic) {
 
 TEST_P(conv_fp32_prelu_eltwise, vector_ops) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("slope_data", get_mem(get_per_channel_layout(p))),
@@ -502,7 +517,7 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops) {
 TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types) {
     auto p = GetParam();
     auto slope_type = p.default_type == data_types::f32 ? data_types::f16 : data_types::f32;
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("slope_data", get_mem(layout{ slope_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} })),
@@ -537,7 +552,7 @@ class conv_fp32_eltwise_b_fs_zyx_fsv16 : public WeightsPrimitiveFusingTest {};
 
 TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, vector_ops) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("eltwise_data", get_mem(get_output_layout(p))),
@@ -556,7 +571,7 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, vector_ops) {
 class conv_fp32_swish : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_fp32_swish, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
@@ -587,11 +602,11 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, splitted_vector_ops) {
 
     std::vector<std::string> weights_idx;
     for (size_t w = 0; w < p.groups; w++) {
-        topology.add(data("weights" + std::to_string(w), get_mem(get_weights_layout(p, p.groups))));
+        create_topologies(data("weights" + std::to_string(w), get_mem(get_weights_layout(p, p.groups))));
         weights_idx.push_back(("weights" + std::to_string(w)));
     }
 
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("eltwise_data", get_mem(get_output_layout(p))),
                  convolution("conv_prim", "input", weights_idx, {}, 1, p.stride, p.pad, p.dilation),
                  eltwise("eltwise", "conv_prim", "eltwise_data", eltwise_mode::sum),
@@ -626,7 +641,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_eltwise_b_fs_zyx_fsv16,
 class conv_fp32_quantize_u8 : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_fp32_quantize_u8, DISABLED_basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -650,7 +665,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_quantize_u8,
 class conv_fp32_scale_quantize_i8 : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_fp32_scale_quantize_i8, DISABLED_basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -678,7 +693,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_quantize_i8,
 class conv_fp32_scale_activation_quantize_i8 : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_fp32_scale_activation_quantize_i8, DISABLED_basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -705,7 +720,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8,
 class conv_fp32_scale_activation_quantize_i8_eltwise_fp32 : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_fp32_scale_activation_quantize_i8_eltwise_fp32, DISABLED_basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -733,7 +748,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_eltw
 class conv_fp32_scale_activation_quantize_i8_activation : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_fp32_scale_activation_quantize_i8_activation, DISABLED_basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -762,7 +777,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_acti
 class conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8 : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_fp32_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, DISABLED_basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -800,7 +815,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_eltw
 class conv_bin_activation : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_bin_activation, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p), -127, 127)),
                  binary_convolution("bin_conv_prim", "input", {"weights"}, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
                  activation("activation", "bin_conv_prim", activation_func::relu),
@@ -819,7 +834,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_bin_activation,
 class conv_bin_scale_activation : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_bin_scale_activation, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p), -127, 127)),
                  data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
                  binary_convolution("bin_conv_prim", "input", {"weights"}, p.stride, p.pad, p.dilation, p.out_shape, p.groups),
@@ -841,7 +856,7 @@ class conv_bin_quantize_bin : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_bin_quantize_bin, channel_wise_quantize) {
     auto p = GetParam();
     auto in_thresh = get_mem(get_per_channel_layout(p), min_random, max_random);
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p), -127, 127)),
                  data("in_lo", in_thresh),
                  data("in_hi", in_thresh),
@@ -858,7 +873,7 @@ TEST_P(conv_bin_quantize_bin, channel_wise_quantize) {
 TEST_P(conv_bin_quantize_bin, blob_wise_quantize) {
     auto p = GetParam();
     auto in_thresh = get_mem(get_single_element_layout(p), min_random, max_random);
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p), -127, 127)),
                  data("in_lo", in_thresh),
                  data("in_hi", in_thresh),
@@ -885,7 +900,7 @@ TEST_P(conv_bin_scale_conv_dw, dw_kernel_3x3_stride2) {
     auto dw_weights_layout = layout{p.default_type, format::goiyx, dw_tensor};
 
     auto dw_stride = tensor{1, 1, 2, 2};
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p), -127, 127)),
                  data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
                  data("scale_data", get_mem(get_per_channel_layout(p), 1e-1f)),
@@ -904,7 +919,7 @@ TEST_P(conv_bin_scale_conv_dw, dw_kernel_3x3_stride1) {
     auto dw_weights_layout = layout{p.default_type, format::goiyx, dw_tensor};
 
     auto dw_stride = tensor{1, 1, 1, 1};
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p), -127, 127)),
                  data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
                  data("scale_data", get_mem(get_per_channel_layout(p), 1e-1f)),
@@ -931,7 +946,7 @@ TEST_P(conv_bin_scale_conv_dw_prelu, dw_kernel_3x3_stride2) {
 
     auto dw_stride = tensor{1, 1, 2, 2};
     auto in_thresh = get_mem(get_per_channel_layout(p), min_random, max_random);
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p), -127, 127)),
                  data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
                  data("scale_data", get_mem(get_per_channel_layout(p), 1e-1f)),
@@ -953,7 +968,7 @@ TEST_P(conv_bin_scale_conv_dw_prelu, dw_kernel_3x3_stride1) {
 
     auto dw_stride = tensor{1, 1, 1, 1};
     auto in_thresh = get_mem(get_per_channel_layout(p), min_random, max_random);
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p), -127, 127)),
                  data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
                  data("scale_data", get_mem(get_per_channel_layout(p), 1e-1f)),
@@ -981,7 +996,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_bin_scale_conv_dw_prelu,
 class conv_int8_scale : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_int8_scale, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
@@ -1018,7 +1033,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale,
 class conv_int8_scale_shift_swish : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_int8_scale_shift_swish, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
@@ -1060,7 +1075,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_shift_swish,
 class conv_int8_byxf_af32 : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_int8_byxf_af32, per_channel_coeffs) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
@@ -1078,7 +1093,7 @@ TEST_P(conv_int8_byxf_af32, per_channel_coeffs) {
 
 TEST_P(conv_int8_byxf_af32, per_element_coeffs) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("eltwise_data", get_mem(get_output_layout(p))),
@@ -1111,7 +1126,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_byxf_af32,
 class conv_int8_prelu_eltwise : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_int8_prelu_eltwise, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("slope_data", get_mem(get_per_channel_layout(p))),
@@ -1126,16 +1141,43 @@ TEST_P(conv_int8_prelu_eltwise, basic) {
     execute(p);
 }
 
+TEST_P(conv_int8_prelu_eltwise, fsv16) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("slope_data", get_mem(get_per_channel_layout(p))),
+                 data("eltwise_data", get_mem(get_output_layout(p))),
+                 convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+                 activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+                 eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+                 reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    if (p.default_format.dimension() == 4) {
+        implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
+        bo_fused.set_option(build_option::force_implementations({ {"conv_prim", conv_impl} }));
+    } else {
+        // TODO Add 5D int8 optimized convolution implementations
+        return;
+    }
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
 INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_prelu_eltwise,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 4},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 4},
                                 bc_test_params{CASE_CONV_U8S8_3, 2, 4},
                                 bc_test_params{CASE_CONV_U8S8_4, 2, 4},
+                                bc_test_params{CASE_CONV_U8S8_7, 2, 4},
                                 bc_test_params{CASE_CONV_S8S8_1, 2, 4},
                                 bc_test_params{CASE_CONV_S8S8_2, 2, 4},
                                 bc_test_params{CASE_CONV_S8S8_3, 2, 4},
                                 bc_test_params{CASE_CONV_S8S8_4, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_7, 2, 4},
 
                                 bc_test_params{CASE_CONV3D_U8S8_1, 2, 4},
                                 bc_test_params{CASE_CONV3D_U8S8_2, 2, 4},
@@ -1150,7 +1192,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_prelu_eltwise,
 class conv_int8_quantize_u8 : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_int8_quantize_u8, per_channel) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1168,7 +1210,7 @@ TEST_P(conv_int8_quantize_u8, per_channel) {
 
 TEST_P(conv_int8_quantize_u8, per_tensor) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_single_element_layout(p), -10)),
@@ -1208,7 +1250,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_quantize_u8,
 class conv_int8_scale_quantize_i8 : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_int8_scale_quantize_i8, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1252,7 +1294,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_quantize_i8,
 class conv_int8_scale_activation_quantize_i8 : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_int8_scale_activation_quantize_i8, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1295,7 +1337,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8,
 class conv_int8_scale_activation_quantize_i8_eltwise_fp32 : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1339,7 +1381,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_eltw
 class conv_int8_scale_activation_quantize_i8_activation : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_int8_scale_activation_quantize_i8_activation, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1384,7 +1426,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_acti
 class conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8 : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_int8_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1433,7 +1475,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_activation_quantize_i8_eltw
 class conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec : public WeightsPrimitiveFusingTest {};
 TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_ops) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1465,7 +1507,7 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
 
 TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_ops_mixed_types) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1509,7 +1551,7 @@ TEST_P(conv_int8_asymmetric_weights, basic) {
     auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
     auto weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) :
                                            get_weights_layout(p);
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(weights_layout)),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("w_zp", get_mem(get_weights_zp_layout(p), 1, 127)),
@@ -1520,16 +1562,17 @@ TEST_P(conv_int8_asymmetric_weights, basic) {
     tolerance = 1.f;
 
     auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology, bo_not_fused);
-    network network_fused(this->engine, this->topology, bo_fused);
+    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+    network network_fused(this->engine, this->topology_fused, bo_fused);
     network_fused.set_input_data("input", input_prim);
     network_not_fused.set_input_data("input", input_prim);
 
     ASSERT_FALSE(network_fused.get_primitives_info().empty());
     ASSERT_FALSE(network_not_fused.get_primitives_info().empty());
 
+    // Search for both conv_prim and reorder_bfyx, as in case of fused topology convolution will be merged with the last reorder
     auto find_conv = [](primitive_info& p) -> bool {
-        if (p.original_id == "conv_prim")
+        if (p.original_id == "conv_prim" || p.original_id == "reorder_bfyx")
             return true;
         return false;
     };
@@ -1575,7 +1618,7 @@ TEST_P(conv_int8_asymmetric_data, basic) {
     auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
     auto weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) :
                           get_weights_layout(p);
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(weights_layout)),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("a_zp", get_mem(get_activations_zp_layout(p), 1, 127)),
@@ -1586,16 +1629,17 @@ TEST_P(conv_int8_asymmetric_data, basic) {
     tolerance = 1.f;
 
     auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology, bo_not_fused);
-    network network_fused(this->engine, this->topology, bo_fused);
+    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+    network network_fused(this->engine, this->topology_fused, bo_fused);
     network_fused.set_input_data("input", input_prim);
     network_not_fused.set_input_data("input", input_prim);
 
     ASSERT_FALSE(network_fused.get_primitives_info().empty());
     ASSERT_FALSE(network_not_fused.get_primitives_info().empty());
 
+    // Search for both conv_prim and reorder_bfyx, as in case of fused topology convolution will be merged with the last reorder
     auto find_conv = [](primitive_info& p) -> bool {
-        if (p.original_id == "conv_prim")
+        if (p.original_id == "conv_prim" || p.original_id == "reorder_bfyx")
             return true;
         return false;
     };
@@ -1641,7 +1685,7 @@ TEST_P(conv_int8_asymmetric_data_and_weights, basic) {
     auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
     auto weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) :
                           get_weights_layout(p);
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(weights_layout)),
                  data("bias", get_mem(get_bias_layout(p))),
                  data("a_zp", get_mem(get_activations_zp_layout(p), 1, 127)),
@@ -1654,16 +1698,17 @@ TEST_P(conv_int8_asymmetric_data_and_weights, basic) {
     tolerance = 1.f;
 
     auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology, bo_not_fused);
-    network network_fused(this->engine, this->topology, bo_fused);
+    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+    network network_fused(this->engine, this->topology_fused, bo_fused);
     network_fused.set_input_data("input", input_prim);
     network_not_fused.set_input_data("input", input_prim);
 
     ASSERT_FALSE(network_fused.get_primitives_info().empty());
     ASSERT_FALSE(network_not_fused.get_primitives_info().empty());
 
+    // Search for both conv_prim and reorder_bfyx, as in case of fused topology convolution will be merged with the last reorder
     auto find_conv = [](primitive_info& p) -> bool {
-        if (p.original_id == "conv_prim")
+        if (p.original_id == "conv_prim" || p.original_id == "reorder_bfyx")
             return true;
         return false;
     };
@@ -1709,7 +1754,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_asymmetric_data_and_weights,
 class fc_fp32_activation : public WeightsPrimitiveFusingTest {};
 TEST_P(fc_fp32_activation, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
                 data("weights", get_mem(get_weights_layout(p))),
                 data("bias", get_mem(get_bias_layout(p))),
                 fully_connected("fc_prim", "input", "weights", "bias"),
@@ -1730,7 +1775,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_fp32_activation, ::testing::ValuesIn(std
 class fc_int8_scale : public WeightsPrimitiveFusingTest {};
 TEST_P(fc_int8_scale, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count())),
@@ -1753,7 +1798,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_int8_scale,
 class fc_int8_quantize_u8 : public WeightsPrimitiveFusingTest {};
 TEST_P(fc_int8_quantize_u8, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1779,7 +1824,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu_fc, fc_int8_quantize_u8,
 class fc_int8_scale_quantize_i8 : public WeightsPrimitiveFusingTest {};
 TEST_P(fc_int8_scale_quantize_i8, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1808,7 +1853,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_int8_scale_quantize_i8,
 class fc_int8_scale_activation_quantize_i8 : public WeightsPrimitiveFusingTest {};
 TEST_P(fc_int8_scale_activation_quantize_i8, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1837,7 +1882,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_int8_scale_activation_quantize_i8,
 class gemm_int8_3in_quantize_i8 : public GemmFusingTest {};
 TEST_P(gemm_int8_3in_quantize_i8, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input0", get_input_layout(p, 0)),
+    create_topologies(input_layout("input0", get_input_layout(p, 0)),
         input_layout("input1", get_input_layout(p, 1)),
         input_layout("input2", get_input_layout(p, 2)),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -1863,7 +1908,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_int8_3in_quantize_i8,
 class gemm_int8_2in_quantize_u8 : public GemmFusingTest {};
 TEST_P(gemm_int8_2in_quantize_u8, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input0", get_input_layout(p, 0)),
+    create_topologies(input_layout("input0", get_input_layout(p, 0)),
         input_layout("input1", get_input_layout(p, 1)),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
@@ -1888,7 +1933,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_int8_2in_quantize_u8,
 class gemm_int8_2in_act_scale_quantize_i8 : public GemmFusingTest {};
 TEST_P(gemm_int8_2in_act_scale_quantize_i8, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input0", get_input_layout(p, 0)),
+    create_topologies(input_layout("input0", get_input_layout(p, 0)),
         input_layout("input1", get_input_layout(p, 1)),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
@@ -1939,7 +1984,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_int8_2in_act_scale_quantize_i8,
 class resample_quantize : public ResamplePrimitiveFusingTest {};
 TEST_P(resample_quantize, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
         data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
@@ -1980,7 +2025,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_quantize,
 class resample_scale_activation : public ResamplePrimitiveFusingTest {};
 TEST_P(resample_scale_activation, basic) {
     auto p = GetParam();
-    topology.add(input_layout("input", get_input_layout(p)),
+    create_topologies(input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
         resample("resample_prim", "input", p.out_shape, p.in_shape.feature[0], p.type),
         scale("scale", "resample_prim", "scale_data"),
@@ -2041,16 +2086,24 @@ struct mvn_test_params {
 #define CASE_MVN_3D_F16_2   {2, 16, 8, 8, 8}, data_types::f16, format::bfzyx, true, true, data_types::f16, format::bfzyx
 #define CASE_MVN_I8_1       {1, 16, 8, 8},    data_types::i8, format::bfyx, false, true, data_types::f32, format::bfyx
 #define CASE_MVN_I8_2       {2, 16, 8, 8},    data_types::i8, format::bfyx, true, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_3       {1, 16, 8, 8},    data_types::i8, format::b_fs_yx_fsv16, false, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_4       {2, 16, 8, 8},    data_types::i8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
 #define CASE_MVN_3D_I8_1    {1, 16, 8, 8, 8}, data_types::i8, format::bfzyx, false, true, data_types::f32, format::bfzyx
 #define CASE_MVN_3D_I8_2    {2, 16, 8, 8, 8}, data_types::i8, format::bfzyx, true, true, data_types::f32, format::bfzyx
+#define CASE_MVN_U8_1       {1, 16, 8, 8},    data_types::u8, format::bfyx, false, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_2       {2, 16, 8, 8},    data_types::u8, format::bfyx, true, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_3       {1, 16, 8, 8},    data_types::u8, format::b_fs_yx_fsv16, false, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_4       {2, 16, 8, 8},    data_types::u8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
+#define CASE_MVN_3D_U8_1    {1, 16, 8, 8, 8}, data_types::u8, format::bfzyx, false, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_U8_2    {2, 16, 8, 8, 8}, data_types::u8, format::bfzyx, true, true, data_types::f32, format::bfzyx
 
 class MVNFusingTest : public ::BaseFusingTest<mvn_test_params> {
 public:
     void execute(mvn_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
-        network network_not_fused(this->engine, this->topology, bo_not_fused);
-        network network_fused(this->engine, this->topology, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
 
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
@@ -2070,7 +2123,7 @@ public:
 class mvn_activation : public MVNFusingTest {};
 TEST_P(mvn_activation, basic) {
     auto p = GetParam();
-    topology.add(
+    create_topologies(
         input_layout("input", get_input_layout(p)),
         mvn("mvn", "input", false, p.normalize_variance),
         activation("act", "mvn", activation_func::hyperbolic_tan),
@@ -2093,14 +2146,22 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_activation,
                         mvn_test_params{ CASE_MVN_3D_F16_2, 2, 3 },
                         mvn_test_params{ CASE_MVN_I8_1, 2, 3 },
                         mvn_test_params{ CASE_MVN_I8_2, 2, 3 },
+                        mvn_test_params{ CASE_MVN_I8_3, 2, 3 },
+                        mvn_test_params{ CASE_MVN_I8_4, 2, 3 },
                         mvn_test_params{ CASE_MVN_3D_I8_1, 2, 3 },
                         mvn_test_params{ CASE_MVN_3D_I8_2, 2, 3 },
+                        mvn_test_params{ CASE_MVN_U8_1, 2, 3 },
+                        mvn_test_params{ CASE_MVN_U8_2, 2, 3 },
+                        mvn_test_params{ CASE_MVN_U8_3, 2, 3 },
+                        mvn_test_params{ CASE_MVN_U8_4, 2, 3 },
+                        mvn_test_params{ CASE_MVN_3D_U8_1, 2, 3 },
+                        mvn_test_params{ CASE_MVN_3D_U8_2, 2, 3 },
 }), );
 
 class mvn_scale_quantize_i8 : public MVNFusingTest {};
 TEST_P(mvn_scale_quantize_i8, basic) {
     auto p = GetParam();
-    topology.add(
+    create_topologies(
         input_layout("input", get_input_layout(p)),
         mvn("mvn", "input", false, p.normalize_variance),
         data("scale_data", get_mem(get_per_channel_layout(p))),
@@ -2130,14 +2191,22 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_quantize_i8,
         // mvn_test_params{ CASE_MVN_3D_F16_2, 2, 4 },
         mvn_test_params{ CASE_MVN_I8_1, 2, 4 },
         mvn_test_params{ CASE_MVN_I8_2, 2, 4 },
+        mvn_test_params{ CASE_MVN_I8_3, 2, 4 },
+        mvn_test_params{ CASE_MVN_I8_4, 2, 4 },
         mvn_test_params{ CASE_MVN_3D_I8_1, 2, 4 },
         mvn_test_params{ CASE_MVN_3D_I8_2, 2, 4 },
+        mvn_test_params{ CASE_MVN_U8_1, 2, 4 },
+        mvn_test_params{ CASE_MVN_U8_2, 2, 4 },
+        mvn_test_params{ CASE_MVN_U8_3, 2, 4 },
+        mvn_test_params{ CASE_MVN_U8_4, 2, 4 },
+        mvn_test_params{ CASE_MVN_3D_U8_1, 2, 4 },
+        mvn_test_params{ CASE_MVN_3D_U8_2, 2, 4 },
 }), );
 
 class mvn_scale_activation_quantize_i8_eltwise_fp32_quantize_i8 : public MVNFusingTest {};
 TEST_P(mvn_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, basic) {
     auto p = GetParam();
-    topology.add(
+    create_topologies(
         input_layout("input", get_input_layout(p)),
         mvn("mvn", "input", false, p.normalize_variance),
         data("scale_data", get_mem(get_per_channel_layout(p))),
@@ -2175,8 +2244,16 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_activation_quantize_i8_eltwise_fp
         // mvn_test_params{ CASE_MVN_3D_F16_2, 2, 7 },
         mvn_test_params{ CASE_MVN_I8_1, 2, 7 },
         mvn_test_params{ CASE_MVN_I8_2, 2, 7 },
+        mvn_test_params{ CASE_MVN_I8_3, 2, 7 },
+        mvn_test_params{ CASE_MVN_I8_4, 2, 7 },
         mvn_test_params{ CASE_MVN_3D_I8_1, 2, 7 },
         mvn_test_params{ CASE_MVN_3D_I8_2, 2, 7 },
+        mvn_test_params{ CASE_MVN_U8_1, 2, 7 },
+        mvn_test_params{ CASE_MVN_U8_2, 2, 7 },
+        mvn_test_params{ CASE_MVN_U8_3, 2, 7 },
+        mvn_test_params{ CASE_MVN_U8_4, 2, 7 },
+        mvn_test_params{ CASE_MVN_3D_U8_1, 2, 7 },
+        mvn_test_params{ CASE_MVN_3D_U8_2, 2, 7 },
 }), );
 
 
@@ -2216,8 +2293,8 @@ public:
     void execute(pooling_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
-        network network_not_fused(this->engine, this->topology, bo_not_fused);
-        network network_fused(this->engine, this->topology, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
 
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
@@ -2237,7 +2314,7 @@ public:
 class pooling_activation : public PoolingFusingTest {};
 TEST_P(pooling_activation, basic) {
     auto p = GetParam();
-    topology.add(
+    create_topologies(
         input_layout("input", get_input_layout(p)),
         pooling("pooling", "input", p.mode, p.kernel_size, p.stride, p.offset),
         activation("act", "pooling", activation_func::relu),
@@ -2265,7 +2342,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, pooling_activation,
 class pooling_scale : public PoolingFusingTest {};
 TEST_P(pooling_scale, basic) {
     auto p = GetParam();
-    topology.add(
+    create_topologies(
         input_layout("input", get_input_layout(p)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel_size.count())),
         pooling("pooling", "input", p.mode, p.kernel_size, p.stride, p.offset),

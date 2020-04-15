@@ -4,12 +4,13 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
+#include <vpu/middleend/sw/utility.hpp>
+#include <vpu/model/data_contents/default_sw_weights_content.hpp>
+
 #include <vector>
 #include <memory>
 #include <string>
 #include <set>
-
-#include <vpu/middleend/sw/utility.hpp>
 
 namespace vpu {
 
@@ -46,7 +47,7 @@ private:
                 weights,
                 "@SW",
                 weights->desc(),
-                std::make_shared<DefaultSwWeightsContent>(weights->content()));
+                std::make_shared<DefaultSwWeightsContent>(weights->content(), weights->desc()));
 
             weights->attrs().set<Data>("swWeights", swWeights);
         }

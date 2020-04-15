@@ -8,7 +8,7 @@
 #include <utility>
 
 #include <ie_metric_helpers.hpp>
-#include <cnn_network_ngraph_impl.hpp>
+#include <cpp/ie_cnn_network.h>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 
@@ -16,6 +16,8 @@
 #include <vpu/parsed_config.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
+#include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
+#include <generic_ie.hpp>
 
 #include "myriad_plugin.h"
 
@@ -33,12 +35,10 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
-
-    if (auto networkNGraph = dynamic_cast<const CNNNetworkNGraphImpl*>(&network)) {
-        clonedNetwork = networkNGraph->cloneNGraphImpl();
-    } else {
-        clonedNetwork = cloneNet(network);
+    std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    if (auto func = clonedNetwork->getFunction()) {
+        ngraph::op::GenericIE::DisableReshape noReshape(func);
+        ngraph::pass::DynamicToStaticShape().run_on_function(func);
     }
 
     return std::make_shared<ExecutableNetwork>(*clonedNetwork, _devicePool, parsedConfigCopy);
@@ -75,6 +75,12 @@ void Engine::QueryNetwork(
 
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
+
+    const auto deviceName = parsedConfigCopy.deviceName();
+    if (!deviceName.empty()) {
+        const auto deviceIDs = GetMetric(METRIC_KEY(AVAILABLE_DEVICES), {}).as<std::vector<std::string>>();
+        VPU_THROW_UNLESS(!(std::find(deviceIDs.begin(), deviceIDs.end(), deviceName) == deviceIDs.end()), "Myriad device: {} not found.", deviceName);
+    }
 
     const auto log = std::make_shared<Logger>(
         "GraphCompiler",

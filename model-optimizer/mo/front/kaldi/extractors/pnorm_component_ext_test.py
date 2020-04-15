@@ -17,8 +17,8 @@
 import numpy as np
 
 from extensions.ops.pnorm import PNormOp
-from mo.front.kaldi.extractors.pnorm_component_ext import PNormComponentFrontExtractor
 from mo.front.kaldi.extractors.common_ext_test import KaldiFrontExtractorTest
+from mo.front.kaldi.extractors.pnorm_component_ext import PNormComponentFrontExtractor
 from mo.front.kaldi.loader.utils_test import TestKaldiUtilsLoading
 from mo.ops.op import Op
 

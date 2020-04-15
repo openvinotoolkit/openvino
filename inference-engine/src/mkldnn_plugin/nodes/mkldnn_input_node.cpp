@@ -48,8 +48,9 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     memory::format outFormat = mkldnn::memory::format_undef;
     if (getType() == Input || getType() == MemoryInput) {
         precision = getCnnLayer()->outData[0]->getPrecision();
-        if (precision == InferenceEngine::Precision::U16 || isMeanImage)
+        if (precision == InferenceEngine::Precision::U16 || isMeanImage) {
             precision = InferenceEngine::Precision::FP32;
+        }
         auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;

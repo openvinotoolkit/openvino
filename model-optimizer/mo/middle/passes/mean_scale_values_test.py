@@ -20,8 +20,8 @@ from argparse import Namespace
 import numpy as np
 
 from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
-from mo.utils.unittest.graph import build_graph
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'value': None, 'kind': 'op'},
                     'node_2': {'type': 'Identity', 'value': None, 'kind': 'op'},

@@ -13,11 +13,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 
 from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph, Node
-from mo.middle.pattern_match import for_each_sub_graph_recursively
+from mo.graph.graph import Graph
 
 
 class ShapeOfToShape(BackReplacementPattern):

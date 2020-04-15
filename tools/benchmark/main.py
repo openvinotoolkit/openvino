@@ -4,15 +4,14 @@ from datetime import datetime
 
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
-from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME
+from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, BIN_EXTENSION
 from openvino.tools.benchmark.utils.inputs_filling import set_inputs
 from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
 from openvino.tools.benchmark.utils.utils import next_step, config_network_inputs, get_number_iterations, \
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
-    get_command_line_arguments
+    get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, load_config, dump_config
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
-
 
 def main():
     # ------------------------------ 1. Parsing and validating input arguments -------------------------------------
@@ -27,20 +26,42 @@ def run(args):
                             "Although the automatic selection usually provides a reasonable performance, "
                             "but it still may be non-optimal for some cases, for more information look at README. ")
 
+        command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
           statistics = StatisticsReport(StatisticsReport.Config(args.report_type, args.report_folder))
-          statistics.add_parameters(StatisticsReport.Category.COMMAND_LINE_PARAMETERS, get_command_line_arguments(sys.argv))
+          statistics.add_parameters(StatisticsReport.Category.COMMAND_LINE_PARAMETERS, command_line_arguments)
 
+        def is_flag_set_in_command_line(flag):
+            return any(x.strip('-') == flag for x, y in command_line_arguments)
+
+        device_name = args.target_device
+
+        devices = parse_devices(device_name)
+        device_number_streams = parse_nstreams_value_per_device(devices, args.number_streams)
+
+        config = {}
+        if args.load_config:
+            load_config(args.load_config, config)
 
         # ------------------------------ 2. Loading Inference Engine ---------------------------------------------------
         next_step(step_id=2)
 
-        device_name = args.target_device.upper()
-
         benchmark = Benchmark(args.target_device, args.number_infer_requests,
                               args.number_iterations, args.time, args.api_type)
 
-        benchmark.add_extension(args.path_to_extension, args.path_to_cldnn_config)
+        ## CPU (MKLDNN) extensions
+        if CPU_DEVICE_NAME in device_name and args.path_to_extension:
+            benchmark.add_extension(path_to_extension=args.path_to_extension)
+
+        ## GPU (clDNN) Extensions
+        if GPU_DEVICE_NAME in device_name and args.path_to_cldnn_config:
+            if GPU_DEVICE_NAME not in config.keys():
+                config[GPU_DEVICE_NAME] = {}
+            config[GPU_DEVICE_NAME]['CONFIG_FILE'] = args.path_to_cldnn_config
+
+        if GPU_DEVICE_NAME in config.keys() and 'CONFIG_FILE' in config[GPU_DEVICE_NAME].keys():
+            cldnn_config = config[GPU_DEVICE_NAME]['CONFIG_FILE']
+            benchmark.add_extension(path_to_cldnn_config=cldnn_config)
 
         version = benchmark.get_version_info()
 
@@ -74,17 +95,89 @@ def run(args):
 
         # --------------------- 6. Setting device configuration --------------------------------------------------------
         next_step()
-        benchmark.set_config(args.number_streams, args.api_type, args.number_threads,
-                             args.infer_threads_pinning)
+
+        perf_counts = False
+        for device in devices:
+            if device not in config.keys():
+                config[device] = {}
+            ## Set performance counter
+            if is_flag_set_in_command_line('pc'):
+                ## set to user defined value
+                config[device]['PERF_COUNT'] = 'YES' if args.perf_counts else 'NO'
+            elif 'PERF_COUNT' in config[device].keys() and config[device]['PERF_COUNT'] == 'YES':
+                logger.warn("Performance counters for {} device is turned on. ".format(device) +
+                            "To print results use -pc option.")
+            elif args.report_type in [ averageCntReport, detailedCntReport ]:
+                logger.warn("Turn on performance counters for {} device ".format(device) +
+                            "since report type is {}.".format(args.report_type))
+                config[device]['PERF_COUNT'] = 'YES'
+            elif args.exec_graph_path is not None:
+                logger.warn("Turn on performance counters for {} device ".format(device) +
+                            "due to execution graph dumping.")
+                config[device]['PERF_COUNT'] = 'YES'
+            else:
+                ## set to default value
+                config[device]['PERF_COUNT'] = 'YES' if args.perf_counts else 'NO'
+            perf_counts = True if config[device]['PERF_COUNT'] == 'YES' else perf_counts
+
+            def set_throughput_streams():
+                key = device + "_THROUGHPUT_STREAMS"
+                if device in device_number_streams.keys():
+                    ## set to user defined value
+                    supported_config_keys = benchmark.ie.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                    if key not in supported_config_keys:
+                        raise Exception("Device {} doesn't support config key '{}'! ".format(device, key) +
+                                        "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
+                    config[device][key] = device_number_streams[device]
+                elif key not in config[device].keys() and args.api_type == "async":
+                    logger.warn("-nstreams default value is determined automatically for {} device. ".format(device) +
+                                "Although the automatic selection usually provides a reasonable performance,"
+                                "but it still may be non-optimal for some cases, for more information look at README.")
+                    config[device][key] = device + "_THROUGHPUT_AUTO"
+                if key in config[device].keys():
+                    device_number_streams[device] = config[device][key]
+
+            if device == CPU_DEVICE_NAME: # CPU supports few special performance-oriented keys
+                # limit threading for CPU portion of inference
+                if args.number_threads and is_flag_set_in_command_line("nthreads"):
+                    config[device]['CPU_THREADS_NUM'] = str(args.number_threads)
+
+                if is_flag_set_in_command_line("enforcebf16") or is_flag_set_in_command_line("enforce_bfloat16"):
+                    config[device]['ENFORCE_BF16'] = 'YES' if args.enforce_bfloat16 else 'NO'
+
+                if is_flag_set_in_command_line('pin'):
+                    ## set to user defined value
+                    config[device]['CPU_BIND_THREAD'] = args.infer_threads_pinning
+                elif 'CPU_BIND_THREAD' not in config[device].keys():
+                    if MULTI_DEVICE_NAME in device_name and GPU_DEVICE_NAME in device_name:
+                        logger.warn("Turn off threads pinning for {}".format(device) +
+                                    "device since multi-scenario with GPU device is used.")
+                        config[device]['CPU_BIND_THREAD'] = 'NO'
+                    else:
+                        ## set to default value
+                        config[device]['CPU_BIND_THREAD'] = args.infer_threads_pinning
+
+                ## for CPU execution, more throughput-oriented execution via streams
+                set_throughput_streams()
+            elif device == GPU_DEVICE_NAME:
+                ## for GPU execution, more throughput-oriented execution via streams
+                set_throughput_streams()
+
+                if MULTI_DEVICE_NAME in device_name and CPU_DEVICE_NAME in device_name:
+                    logger.warn("Turn on GPU trottling. Multi-device execution with the CPU + GPU performs best with GPU trottling hint, " +
+                                "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)")
+                    config[device]['CLDNN_PLUGIN_THROTTLE'] = '1'
+            elif device == MYRIAD_DEVICE_NAME:
+                config[device]['LOG_LEVEL'] = 'LOG_INFO'
+        perf_counts = perf_counts
+
+        benchmark.set_config(config)
 
         # --------------------- 7. Loading the model to the device -----------------------------------------------------
         next_step()
 
         start_time = datetime.utcnow()
-        perf_counts = True if args.perf_counts or \
-                              args.report_type in [ averageCntReport, detailedCntReport ] or \
-                              args.exec_graph_path else False
-        exe_network = benchmark.load_network(ie_network, perf_counts)
+        exe_network = benchmark.load_network(ie_network)
         duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
         logger.info("Load network took {} ms".format(duration_ms))
         if statistics:
@@ -92,6 +185,10 @@ def run(args):
                                       [
                                           ('load network time (ms)', duration_ms)
                                       ])
+        ## Update number of streams
+        for device in device_number_streams.keys():
+            key = device + '_THROUGHPUT_STREAMS'
+            device_number_streams[device] = benchmark.ie.get_config(device, key)
 
         # --------------------- 8. Setting optimal runtime parameters --------------------------------------------------
         next_step()
@@ -117,14 +214,14 @@ def run(args):
                                           ('topology', ie_network.name),
                                           ('target device', device_name),
                                           ('API', args.api_type),
-                                          ('precision', str(ie_network.precision)),
+                                          ('precision', "UNSPECIFIED"),
                                           ('batch size', str(batch_size)),
                                           ('number of iterations', str(benchmark.niter) if benchmark.niter else "0"),
                                           ('number of parallel infer requests', str(benchmark.nireq)),
                                           ('duration (ms)', str(get_duration_in_milliseconds(benchmark.duration_seconds))),
                                        ])
 
-            for nstreams in benchmark.device_number_streams.items():
+            for nstreams in device_number_streams.items():
                 statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
                                          [
                                             ("number of {} streams".format(nstreams[0]), str(nstreams[1])),
@@ -145,6 +242,10 @@ def run(args):
 
         # ------------------------------------ 11. Dumping statistics report -------------------------------------------
         next_step()
+
+        if args.dump_config:
+            dump_config(args.dump_config, config)
+            logger.info("Inference Engine configuration settings were dumped to {}".format(args.dump_config))
 
         if args.exec_graph_path:
             dump_exec_graph(exe_network, args.exec_graph_path)

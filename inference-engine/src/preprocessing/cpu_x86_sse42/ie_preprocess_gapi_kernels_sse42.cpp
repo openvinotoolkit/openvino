@@ -851,139 +851,17 @@ void calcRowLinear_32F(float *dst[],
 }
 
 //------------------------------------------------------------------------------
-namespace calcRowArea {
-// vertical pass
-template<typename T, typename A, typename I, typename W>
-static inline void downy(const T *src[], int inWidth, const MapperUnit<A, I>& ymap, A yalpha,
-                         W vbuf[]) {
-    int y_1st = ymap.index0;
-    int ylast = ymap.index1 - 1;
-
-    // yratio > 1, so at least 2 rows
-    GAPI_DbgAssert(y_1st < ylast);
-
-    // 1st and last rows
-    {
-        int w = 0;
-
-    #if CV_SIMD128
-        if (std::is_same<T, uint8_t>::value) {
-            for (; w <= inWidth - 8; w += 8) {
-                v_uint16x8 vsrc0 = v_load_expand(reinterpret_cast<const uint8_t*>(& src[0][w]));
-                v_uint16x8 vsrc1 = v_load_expand(reinterpret_cast<const uint8_t*>(& src[ylast - y_1st][w]));
-                v_uint16x8 vres = v_mulhi(vsrc0 << 8, static_cast<Q0_16>(ymap.alpha0)) +
-                                  v_mulhi(vsrc1 << 8, static_cast<Q0_16>(ymap.alpha1));
-                v_store(reinterpret_cast<Q8_8*>(& vbuf[w]), vres);
-            }
-        }
-    #endif
-
-        for (; w < inWidth; w++) {
-            vbuf[w] = mulas(ymap.alpha0, src[0][w])
-                    + mulas(ymap.alpha1, src[ylast - y_1st][w]);
-        }
-    }
-
-    // inner rows (if any)
-    for (int i = 1; i < ylast - y_1st; i++) {
-        int w = 0;
-
-    #if CV_SIMD128
-        if (std::is_same<T, uint8_t>::value) {
-            for (; w <= inWidth - 8; w += 8) {
-                v_uint16x8 vsrc = v_load_expand(reinterpret_cast<const uint8_t*>(& src[i][w]));
-                v_uint16x8 vres = v_load(reinterpret_cast<Q8_8*>(& vbuf[w]));
-                vres = vres + v_mulhi(vsrc << 8, static_cast<Q0_16>(yalpha));
-                v_store(reinterpret_cast<Q8_8*>(& vbuf[w]), vres);
-            }
-        }
-    #endif
-
-        for (; w < inWidth; w++) {
-            vbuf[w] += mulas(yalpha, src[i][w]);
-        }
-    }
-}
-
-// horizontal pass
-template<typename T, typename A, typename I, typename W>
-static inline void downx(T dst[], int outWidth, int xmaxdf, const I xindex[], const A xalpha[],
-                         const W vbuf[]) {
-#define HSUM(xmaxdf) \
-    for (int x = 0; x < outWidth; x++) { \
-        int      index =  xindex[x]; \
-        const A *alpha = &xalpha[x * xmaxdf]; \
-\
-        W sum = 0; \
-        for (int i = 0; i < xmaxdf; i++) { \
-            sum += mulaw(alpha[i], vbuf[index + i]); \
-        } \
-\
-        dst[x] = convert_cast<T>(sum); \
-    }
-
-    if (2 == xmaxdf) {
-        HSUM(2);
-    } else if (3 == xmaxdf) {
-        HSUM(3);
-    } else if (4 == xmaxdf) {
-        HSUM(4);
-    } else if (5 == xmaxdf) {
-        HSUM(5);
-    } else if (6 == xmaxdf) {
-        HSUM(6);
-    } else if (7 == xmaxdf) {
-        HSUM(7);
-    } else if (8 == xmaxdf) {
-        HSUM(8);
-    } else {
-        HSUM(xmaxdf);
-    }
-#undef HSUM
-}
-}  // namespace calcRowArea
-
-template<typename T, typename A, typename I, typename W>
-static void calcRowArea_impl_sse4(T dst[], const T *src[], const Size& inSz, const Size& outSz,
-    A yalpha, const MapperUnit<A, I>& ymap, int xmaxdf, const I xindex[], const A xalpha[],
-    W vbuf[]) {
-    bool xRatioEq1 = inSz.width  == outSz.width;
-    bool yRatioEq1 = inSz.height == outSz.height;
-
-    if (!yRatioEq1 && !xRatioEq1) {
-        calcRowArea::downy(src, inSz.width, ymap, yalpha, vbuf);
-        calcRowArea::downx(dst, outSz.width, xmaxdf, xindex, xalpha, vbuf);
-
-    } else if (!yRatioEq1) {
-        GAPI_DbgAssert(xRatioEq1);
-        calcRowArea::downy(src, inSz.width, ymap, yalpha, vbuf);
-        for (int x = 0; x < outSz.width; x++) {
-            dst[x] = convert_cast<T>(vbuf[x]);
-        }
-
-    } else if (!xRatioEq1) {
-        GAPI_DbgAssert(yRatioEq1);
-        for (int w = 0; w < inSz.width; w++) {
-            vbuf[w] = convert_cast<W>(src[0][w]);
-        }
-        calcRowArea::downx(dst, outSz.width, xmaxdf, xindex, xalpha, vbuf);
-
-    } else {
-        GAPI_DbgAssert(xRatioEq1 && yRatioEq1);
-        memcpy(dst, src[0], outSz.width * sizeof(T));
-    }
-}
 
 void calcRowArea_8U(uchar dst[], const uchar *src[], const Size& inSz, const Size& outSz,
     Q0_16 yalpha, const MapperUnit8U &ymap, int xmaxdf, const short xindex[], const Q0_16 xalpha[],
     Q8_8 vbuf[]) {
-    calcRowArea_impl_sse4(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
+    calcRowArea_impl(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
 }
 
 void calcRowArea_32F(float dst[], const float *src[], const Size& inSz, const Size& outSz,
     float yalpha, const MapperUnit32F& ymap, int xmaxdf, const int xindex[], const float xalpha[],
     float vbuf[]) {
-    calcRowArea_impl_sse4(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
+    calcRowArea_impl(dst, src, inSz, outSz, yalpha, ymap, xmaxdf, xindex, xalpha, vbuf);
 }
 
 //------------------------------------------------------------------------------

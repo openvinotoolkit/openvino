@@ -16,11 +16,10 @@
 
 import unittest
 
-import networkx as nx
-
+from mo.graph.graph import Graph
 from mo.utils.error import Error
 from mo.utils.graph import bfs_search, is_connected_component, sub_graph_between_nodes
-from mo.graph.graph import Graph
+
 
 class TestGraphUtils(unittest.TestCase):
     def test_simple_dfs(self):

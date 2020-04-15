@@ -14,10 +14,10 @@
  limitations under the License.
 """
 import io
-
-import numpy as np
 import os
 import struct
+
+import numpy as np
 
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg

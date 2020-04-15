@@ -14,10 +14,9 @@
  limitations under the License.
 """
 
-from mo.utils.ir_reader.extender import Extender
-from mo.graph.graph import Node
-
 from mo.front.common.partial_infer.utils import int64_array
+from mo.graph.graph import Node
+from mo.utils.ir_reader.extender import Extender
 
 
 class AvgPool_extender(Extender):

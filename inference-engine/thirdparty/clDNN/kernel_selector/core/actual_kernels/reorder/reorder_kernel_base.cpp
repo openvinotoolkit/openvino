@@ -53,6 +53,7 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::g_os_is_zyx_isv16_osv16:
         case WeightsLayout::giy_xs_os_xsv2_osv16__ao32:
         case WeightsLayout::g_os_is_yx_isv16_osv16:
+        case WeightsLayout::os_is_yx_osv16_isv16:
             return 16;
         case WeightsLayout::os_i_osv8__ai8:
         case WeightsLayout::iy_xs_os_xsv2_osv8__ao32:
@@ -167,7 +168,18 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_weig
 ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_params& params) const {
     DispatchData kd;
 
-    auto global = GetTensorFriendlyWorkGroups(params.inputs[0]);
+    auto& input = params.inputs[0];
+    DataTensor input_tensor = input;
+    // Image formats reorders use read_image and write_image functions that operate on 4 channels at once, and support only single batch,
+    // make sure that reorder size is equal to spatials sizes only
+    if (params.inputs[0].GetLayout() == DataLayout::image_2d_rgba || params.output.GetLayout() == DataLayout::image_2d_rgba) {
+        std::vector<size_t> input_sizes(4, 1);
+        input_sizes[0] = input.X().v;
+        input_sizes[1] = input.Y().v;
+        input_tensor = DataTensor(input_sizes, input.GetDType(), DataLayout::image_2d_rgba);
+    }
+
+    auto global = GetTensorFriendlyWorkGroups(input_tensor);
     auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     kd.gws0 = global[0];

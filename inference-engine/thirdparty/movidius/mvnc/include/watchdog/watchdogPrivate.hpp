@@ -13,7 +13,7 @@ namespace Watchdog {
  */
 class IDevice {
  public:
-    using time_point = std::chrono::high_resolution_clock::time_point;
+    using time_point = std::chrono::steady_clock::time_point;
 
     virtual ~IDevice() = default;
 

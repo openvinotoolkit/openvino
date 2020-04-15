@@ -14,13 +14,12 @@
  limitations under the License.
 """
 import io
-
-import numpy as np
+import logging as log
 import struct
 from io import IOBase
 
 import networkx as nx
-import logging as log
+import numpy as np
 
 from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_next_component, get_name_from_path, \
     find_end_of_component, end_of_nnet_tag, read_binary_integer32_token, get_parameters, read_token_value, \

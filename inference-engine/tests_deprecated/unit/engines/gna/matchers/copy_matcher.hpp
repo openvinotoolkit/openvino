@@ -7,19 +7,36 @@
 class CopyLayerMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
     bool matchInserted;
     const int matchQuantity;
+    mutable int actualNumberOfCopyLayers;
  public:
     CopyLayerMatcher(bool matchInserted, int matchQuantity) : matchInserted(matchInserted), matchQuantity(matchQuantity) {}
     bool MatchAndExplain(const intel_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
         if (foo == nullptr)
             return false;
+        actualNumberOfCopyLayers = 0;
+
         for(int i = 0; i < foo->nLayers; i++) {
             if (foo->pLayers[i].nLayerKind != INTEL_COPY) continue;
-            return matchInserted;
+
+            if (!matchInserted) {
+                return false;
+            }
+            actualNumberOfCopyLayers ++;
         }
-        return !matchInserted;
+        if (matchQuantity == -1) {
+            if (actualNumberOfCopyLayers > 0) {
+                return true;
+            }
+            return false;
+        }
+        if (actualNumberOfCopyLayers != matchQuantity) {
+            return false;
+        }
+        return true;
     };
     void DescribeTo(::std::ostream *os) const override {
-        *os << "should "<< (matchInserted ? "" : "not ") << "have Copy primitive as part of nnet structure";
+        *os << "should "<< (matchInserted ? "" : "not ") << "have " << (matchInserted ? std::to_string(matchQuantity) : "" )
+            << " Copy primitives as part of nnet structure" << (matchInserted ? std::string(" but was only: ") + std::to_string(actualNumberOfCopyLayers) + " copy layers" : "" );
     }
 };
 

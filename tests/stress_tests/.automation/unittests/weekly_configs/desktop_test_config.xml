@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<attributes>
+    <processes>
+        <value>1</value>
+        <value>2</value>
+    </processes>
+    <threads>
+        <value>1</value>
+        <value>2</value>
+    </threads>
+    <iterations>
+        <value>1000</value>
+    </iterations>
+    <devices>
+        <value>CPU</value>
+        <value>GPU</value>
+    </devices>
+    <models>
+        <value>caffe/FP32/alexnet/alexnet.xml</value>
+        <value>tf/1.14.0/FP32/inception_v3/inception_v3.xml</value>
+        <value>tf/1.14.0/FP32/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco.xml</value>
+    </models>
+</attributes>

@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 from extensions.front.caffe.regionyolo_ext import RegionYoloFrontExtractor
 from extensions.ops.regionyolo import RegionYoloOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.ops.op import Op
 
 
 class FakeRegionYoloProtoLayer:

@@ -15,8 +15,9 @@
 """
 
 
-from defusedxml.minidom import parseString
 from xml.etree.ElementTree import Element, SubElement, tostring
+
+from defusedxml.minidom import parseString
 
 from mo.graph.graph import Node, Graph
 

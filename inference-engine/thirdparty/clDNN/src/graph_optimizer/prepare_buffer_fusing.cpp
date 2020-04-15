@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 
 #include "api/eltwise.hpp"
 #include "api/pooling.hpp"
+#include "fused_conv_eltwise_inst.h"
 #include "primitive_inst.h"
 #include "activation_inst.h"
 #include "concatenation_inst.h"
@@ -25,6 +26,7 @@
 #include "eltwise_inst.h"
 #include "reshape_inst.h"
 #include "scale_inst.h"
+#include "depth_to_space_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -159,6 +161,35 @@ void prepare_buffer_fusing::run(program_impl& p) {
                         return;
 
                     lower_padd_in_axis += input->get_output_layout().size.raw[concat_axis];
+                }
+
+                // check if it is worth doing concat in place, in case the following primitive is convolution
+                // with different input padding than concatenation's input users' convolutions,
+                // it is likely that convolution's implementation will be a reference one, due to mismatched padding
+                // and performance gain by doing in place concat is nullified by slower convolution implementation
+                // this should be handled by more advanced tuning mechanism on the topology level
+                auto& users = node.get_users();
+                if (users.size() == 1) {
+                    auto& user = users.front();
+                    if (node.get_output_layout().format == format::bfyx && user->type() == convolution::type_id()) {
+                        auto out_input_offsets = user->as<convolution>().get_primitive()->input_offset;
+
+                        std::vector<tensor> in_input_offsets;
+                        for (auto& in_user : nodes_list.first) {
+                            if (in_user->type() == convolution::type_id())
+                                in_input_offsets.push_back(in_user->as<convolution>().get_primitive()->input_offset);
+                        }
+
+                        for (auto& in_input_offset : in_input_offsets) {
+                            if (in_input_offset.spatial[0] != out_input_offsets.spatial[0] &&
+                                in_input_offset.spatial[1] != out_input_offsets.spatial[1])
+                                return;
+                        }
+                    } else if (user->type() == fused_conv_eltwise::type_id()) {
+                        if (!user->as<fused_conv_eltwise>().get_fused_primitives().empty() &&
+                            user->as<fused_conv_eltwise>().get_fused_primitives().begin()->node->is_type<depth_to_space>())
+                            return;
+                    }
                 }
 
                 // apply concatenation in place optimization

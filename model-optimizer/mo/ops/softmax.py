@@ -21,7 +21,7 @@ from mo.ops.op import Op, PermuteAttrs
 
 class Softmax(Op):
     op = 'SoftMax'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
@@ -44,3 +44,18 @@ class Softmax(Op):
         copy_shape_infer(node)
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
 
+
+class LogSoftmax(Op):
+    op = 'LogSoftmax'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'infer': None,
+            'kind': 'op',
+            'axis': 1,
+            'type': None,  # the operation will be replaced with a Log(Softmax(x)) sub-graph
+            'op': __class__.op,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+        }, attrs)

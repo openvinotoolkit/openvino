@@ -19,9 +19,9 @@ import numpy as np
 
 from extensions.front.caffe.bn import BNToScaleShift
 from mo.graph.graph import Node
+from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.extractors import FakeParam
 from mo.utils.unittest.graph import build_graph_with_edge_attrs, build_graph_with_attrs
-from mo.utils.ir_engine.compare_graphs import compare_graphs
 
 
 class FakeBNProtoLayer:

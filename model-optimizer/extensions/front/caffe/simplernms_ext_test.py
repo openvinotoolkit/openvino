@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 from extensions.front.caffe.simplernms_ext import SimplerNMSFrontExtractor
 from extensions.ops.simplernms import SimplerNMSOp
+from mo.ops.op import Op
 from mo.utils.unittest.extractors import FakeMultiParam
 from mo.utils.unittest.graph import FakeNode
-from mo.ops.op import Op
 
 
 class FakeSimplerNMSProtoLayer:

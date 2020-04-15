@@ -5,6 +5,7 @@
 #include "vpu/frontend/frontend.hpp"
 #include "vpu/utils/profiling.hpp"
 #include "vpu/compile_env.hpp"
+#include "vpu/model/data_contents/ie_blob_content.hpp"
 
 #include "net_pass.h"
 
@@ -98,6 +99,10 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
         {"OneHot",                                             LAYER_PARSER(parseOneHot)},
         {"ExperimentalDetectronPriorGridGenerator",            LAYER_PARSER(parseExpPriorGridGenerator)},
         {"ExperimentalDetectronGenerateProposalsSingleImage",  LAYER_PARSER(parseExpGenerateProposals)},
+        {"ScatterUpdate",                                      LAYER_PARSER(parseScatterUpdate)},
+        {"ExperimentalDetectronTopKROIs",                      LAYER_PARSER(parseExpTopKROIs)},
+        {"StaticShapeNonZero",                                 LAYER_PARSER(parseNonZero)},
+        {"ROIAlign",                                           LAYER_PARSER(parseROIAlign)},
     }} {}
 
 ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {

@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 from mo.ops.pooling import Pooling
-from mo.front.common.partial_infer.utils import int64_array
 
 
 class AdaptiveAvgPooling(Op):

@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "bf16transformer.h"
 
 using namespace mkldnn::impl::cpu;
 using namespace mkldnn::impl::utils;
@@ -333,9 +334,22 @@ public:
                 THROW_IE_EXCEPTION << "Normalize supports from 2D to 4D blobs!";
             }
 
-            weights = std::dynamic_pointer_cast<TBlob<float>>(layer->blobs.at("weights"));
-            if (!weights)
-                THROW_IE_EXCEPTION << layer->name << " weights is empty!";
+            MemoryBlob::Ptr tweights = as<MemoryBlob>(layer->blobs.at("weights"));
+            if (!tweights) {
+                THROW_IE_EXCEPTION << layer->name << "Weights are not initialized or cannot be casted to MemoryBlob for layer Normalize with name '"
+                    << layer->name << "'";
+            }
+
+            if (tweights->getTensorDesc().getPrecision() == Precision::FP32) {
+                weights = tweights;
+            } else if (tweights->getTensorDesc().getPrecision() == Precision::BF16) {
+                MKLDNNPlugin::BF16Transformer transformer;
+                weights = transformer.convertBF16ToFloat(tweights);
+            } else {
+                // Unknown non supported data type, return an error
+                THROW_IE_EXCEPTION << layer->name << "Weights for layer Normalize wiht name '" << layer->name <<
+                    "' has unsupported data type " << tweights->getTensorDesc().getPrecision();
+            }
             across_spatial = layer->GetParamAsBool("across_spatial", false);
             channel_shared = layer->GetParamAsBool("channel_shared", false);
             eps = layer->GetParamAsFloat("eps");
@@ -514,7 +528,7 @@ private:
     std::shared_ptr<jit_uni_normalize_across_spatial_kernel> normalize_across_spatial_kernel;
     std::shared_ptr<jit_uni_sqr_sum_kernel> sqr_sum_kernel;
 
-    TBlob<float>::Ptr weights;
+    MemoryBlob::Ptr weights;
     bool across_spatial = true;
     bool channel_shared = true;
     float eps = 1e-10f;

@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
+from extensions.ops.identity import IdentityOp
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
-from extensions.ops.identity import IdentityOp
 from mo.utils.error import Error
 
 

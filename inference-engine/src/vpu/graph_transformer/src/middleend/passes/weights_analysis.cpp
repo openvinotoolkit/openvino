@@ -4,6 +4,14 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 
+#include <vpu/utils/numeric.hpp>
+#include <vpu/compile_env.hpp>
+#include <vpu/model/data_contents/replicated_data_content.hpp>
+#include <vpu/model/data_contents/scaled_content.hpp>
+
+#include <details/caseless.hpp>
+#include <precision_utils.h>
+
 #include <cmath>
 
 #include <sstream>
@@ -17,13 +25,6 @@
 #include <memory>
 #include <list>
 #include <set>
-
-#include <precision_utils.h>
-
-#include <vpu/utils/numeric.hpp>
-#include <vpu/compile_env.hpp>
-
-#include <details/caseless.hpp>
 
 namespace vpu {
 
@@ -198,7 +199,9 @@ void addScaleInput(const Model& model, const Stage& stage, float scale) {
     IE_ASSERT(stage->output(0)->desc().dims().has(Dim::C));
     const auto outputChannels = stage->output(0)->desc().dims()[Dim::C];
 
-    auto scaleInput = model->addConstData(stage->name() + "@scales", DataDesc{{outputChannels}}, replicateContent(1.0f / scale, outputChannels));
+    auto scaleInput = model->addConstData(stage->name() + "@scales",
+                                          DataDesc{{outputChannels}},
+                                          replicateContent(1.0f / scale, outputChannels, DataDesc{outputChannels}));
     model->replaceStageInput(stage->inputEdge(SCALES_IDX), scaleInput);
 }
 

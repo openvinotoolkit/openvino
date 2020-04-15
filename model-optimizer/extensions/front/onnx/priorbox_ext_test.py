@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
-import onnx
 import unittest
 
 import numpy as np
+import onnx
 
 from extensions.front.onnx.priorbox_ext import PriorBoxFrontExtractor
 from extensions.ops.priorbox import PriorBoxOp

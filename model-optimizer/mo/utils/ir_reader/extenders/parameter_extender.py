@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
-from mo.utils.ir_reader.extender import Extender
-from mo.utils.graph import Node
-
 from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
+from mo.utils.graph import Node
+from mo.utils.ir_reader.extender import Extender
+
 
 class Parameter_extender(Extender):
     op = 'Parameter'

@@ -152,12 +152,6 @@ TEST_F(CNNNGraphImplTests, TestSetBatch) {
 
     ASSERT_EQ(2, cnnNet.getBatchSize());
     ASSERT_EQ(2, cnnNet.getCNNNetwork()->getBatchSize());
-
-    auto cnnNet2 = cnnNet.cloneNGraphImpl();
-
-    ASSERT_EQ(2, cnnNet2->getBatchSize());
-    ASSERT_EQ(2, cnnNet2->getCNNNetwork()->getBatchSize());
-    ASSERT_NE(cnnRefNet, cnnNet2->getCNNNetwork());
 }
 
 TEST_F(CNNNGraphImplTests, TestSaveAffinity) {

@@ -16,8 +16,6 @@
 
 import logging as log
 
-import networkx as nx
-
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error

@@ -128,7 +128,8 @@ void MKLDNNMemory::SetData(const MKLDNNMemory& memory, bool ftz) const {
     mkldnn::reorder reorderPrim(memory.GetPrimitive(), GetPrimitive());
     mkldnn::stream(stream::kind::eager).submit({reorderPrim});
 
-    if (ftz && memory.GetDataType() == mkldnn::memory::f32 && GetFormat() != mkldnn::memory::wino_fmt) {
+    if (ftz && memory.GetDataType() == mkldnn::memory::f32 && GetFormat() != mkldnn::memory::wino_fmt &&
+        GetDataType() != mkldnn::memory::bf16) {
         // Internal blobs haven't strides yet.
         auto *memData = static_cast<float *>(GetData());
         memData += prim->get_primitive_desc().desc().data.layout_desc.blocking.offset_padding;
@@ -539,6 +540,9 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             break;
         case mkldnn_bin:
             precision = Precision::BIN;
+            break;
+        case mkldnn_bf16:
+            precision = Precision::BF16;
             break;
         default:
             THROW_IE_EXCEPTION << "Cannot cast to TensorDesc. Unsupported precision!";
@@ -983,6 +987,9 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
             break;
         case Precision::BOOL:
             data_type = mkldnn::memory::data_type::u8;
+            break;
+        case Precision::BF16:
+            data_type = mkldnn::memory::data_type::bf16;
             break;
         default:
             THROW_IE_EXCEPTION << "Cannot create MKLDNNMemoryDesc from TensorDesc. Unsupported precision!";

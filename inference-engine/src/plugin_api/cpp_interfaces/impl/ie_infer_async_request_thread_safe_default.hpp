@@ -40,6 +40,21 @@ namespace InferenceEngine {
  * @snippet example_async_infer_request.cpp async_infer_request:define_pipeline
  */
 class AsyncInferRequestThreadSafeDefault : public AsyncInferRequestThreadSafeInternal {
+    using AtomicCallback = std::atomic<IInferRequest::CompletionCallback>;
+    using Futures = std::vector<std::shared_future<void>>;
+    using Promise = std::shared_ptr<std::promise<void>>;
+    enum Stage_e : std::uint8_t { executor, task };
+    struct DisableCallbackGuard{
+        explicit DisableCallbackGuard(AtomicCallback& callback)
+            : _callbackRef(callback), _callback(callback.exchange(nullptr)) {}
+        ~DisableCallbackGuard() {
+            _callbackRef = _callback;
+        }
+        AtomicCallback& _callbackRef;
+        IInferRequest::CompletionCallback _callback;
+    };
+    InferRequestInternal::Ptr _syncRequest;
+
 public:
     /**
      * @brief A shared pointer to AsyncInferRequestThreadSafeDefault
@@ -47,7 +62,7 @@ public:
     using Ptr = std::shared_ptr<AsyncInferRequestThreadSafeDefault>;
 
     /**
-     * @brief      Wraps a InferRequestInternal::Ptr implementation and constructs a 
+     * @brief      Wraps a InferRequestInternal::Ptr implementation and constructs a
      * AsyncInferRequestThreadSafeDefault::_pipeline where `taskExecutor` is used to run InferRequestInternal::Infer
      * asynchronously.
      *
@@ -58,12 +73,11 @@ public:
     AsyncInferRequestThreadSafeDefault(const InferRequestInternal::Ptr& request,
                                        const ITaskExecutor::Ptr& taskExecutor,
                                        const ITaskExecutor::Ptr& callbackExecutor)
-        : _requestExecutor {taskExecutor},
+        : _syncRequest {request},
+          _requestExecutor {taskExecutor},
           _callbackExecutor {callbackExecutor},
-          _syncRequest {request} {
-        _pipeline = {
-            { _requestExecutor, [this] { _syncRequest->Infer(); } }
-        };
+          _pipeline {{taskExecutor, [this] {_syncRequest->Infer();}}},
+          _syncPipeline{{std::make_shared<ImmediateExecutor>(), [this] {_syncRequest->Infer();}}} {
     }
 
     /**
@@ -140,9 +154,12 @@ protected:
      * @brief Creates and run the first stage task. If destructor was not called add a new std::future to the
      * AsyncInferRequestThreadSafeDefault::_futures list that would be used to wait
      * AsyncInferRequestThreadSafeDefault::_pipeline finish
+     * @param[in]  itBeginStage Iterator to begin of pipeline
+     * @param[in]  itEndStage End pipeline iterator
+     * @param[in]  callbackExecutor Final or error stage executor
      */
-    void RunFirstStage() {
-        _itStage = _pipeline.begin();
+    void RunFirstStage(const Pipeline::iterator itBeginStage, const Pipeline::iterator itEndStage,
+                       const ITaskExecutor::Ptr callbackExecutor = {}) {
         _promise = {};
         bool stop = [&] {
             std::lock_guard<std::mutex> lock(_mutex);
@@ -165,9 +182,9 @@ protected:
 
         if (!stop) {
             try {
-                auto& firstStageExecutor = std::get<Stage_e::executor>(*_itStage);
+                auto& firstStageExecutor = std::get<Stage_e::executor>(*itBeginStage);
                 IE_ASSERT(nullptr != firstStageExecutor);
-                firstStageExecutor->run(MakeNextStageTask());
+                firstStageExecutor->run(MakeNextStageTask(itBeginStage, itEndStage, std::move(callbackExecutor)));
             } catch (...) {
                 _promise.set_exception(std::current_exception());
                 throw;
@@ -199,31 +216,34 @@ protected:
      * @brief Implements Infer() using StartAsync() and Wait()
      */
     void InferUsingAsync() {
-        struct CallbackStorage {
-            explicit CallbackStorage(AtomicCallback& callback)
-                : _callbackRef(callback), _callback(callback.exchange(nullptr)) {}
-            ~CallbackStorage() {
-                _callbackRef = _callback;
-            }
-            AtomicCallback& _callbackRef;
-            IInferRequest::CompletionCallback _callback;
-        } storage {_callback};
+        DisableCallbackGuard disableCallbackGuard{_callback};
         StartAsync_ThreadUnsafe();
         Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
     }
 
-    ITaskExecutor::Ptr _requestExecutor;  //!< Used to run inference CPU tasks
-    ITaskExecutor::Ptr _callbackExecutor;  //!< Used to run post inference callback
+    /**
+     * @brief Implements Infer() using synchronous pipeline and Wait()
+     */
+    void InferUsingSync() {
+        DisableCallbackGuard disableCallbackGuard{_callback};
+        _syncRequest->checkBlobs();
+        RunFirstStage(_syncPipeline.begin(), _syncPipeline.end(), _syncCallbackExecutor);
+        Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+    }
+
+    ITaskExecutor::Ptr _requestExecutor;  //!< Used to run inference CPU tasks.
+    ITaskExecutor::Ptr _callbackExecutor;  //!< Used to run post inference callback in asynchronous pipline
+    ITaskExecutor::Ptr _syncCallbackExecutor;  //!< Used to run post inference callback in synchronous pipline
     Pipeline _pipeline;  //!< Pipeline variable that should be filled by inherited class.
+    Pipeline _syncPipeline;  //!< Synchronous pipeline variable that should be filled by inherited class.
 
     void StartAsync_ThreadUnsafe() override {
         _syncRequest->checkBlobs();
-        RunFirstStage();
+        RunFirstStage(_pipeline.begin(), _pipeline.end(), _callbackExecutor);
     }
 
     void Infer_ThreadUnsafe() override {
-        _syncRequest->checkBlobs();
-        _syncRequest->InferImpl();
+        InferUsingSync();
     }
 
     void GetPerformanceCounts_ThreadUnsafe(std::map<std::string, InferenceEngineProfileInfo>& perfMap) const override {
@@ -264,38 +284,35 @@ protected:
     }
 
 private:
-    using AtomicCallback = std::atomic<IInferRequest::CompletionCallback>;
-    using Futures = std::vector<std::shared_future<void>>;
-    using Promise = std::shared_ptr<std::promise<void>>;
-    enum Stage_e : std::uint8_t { executor, task };
-
     /**
      * @brief Create a task with next pipeline stage.
-     *        Each call to MakeNextStageTask() generates `InferenceEngine::Task` objects for each stage.
-     *        When stage task is called it increments
-     *        `_stage` counter, call `_pipeline` task for this stage and generates next stage task using
-     * MakeNextStageTask() and pass it to executor. On last stage or if the exception is raised from `_pipeline` task
+     * Each call to MakeNextStageTask() generates @ref Task objects for each stage.
+     * On last stage or if the exception is raised from `_pipeline` task
      * the last stage task is called or passed to callback executor if it is presented. The last stage task call the
      * callback, if it is presented, capture the `_promise` member and use it to forward completion or exception to the
      * one of `_futures` member
+     * @param[in]  itStage Iterator to next stage of pipeline
+     * @param[in]  itEndStage End pipeline iterator
+     * @param[in]  callbackExecutor Executor that will run final stage with callback call
      * @return A next stage task
      */
-    Task MakeNextStageTask() {
-        return [this]() mutable {
+    Task MakeNextStageTask(const Pipeline::iterator itStage, const Pipeline::iterator itEndStage,
+                           const ITaskExecutor::Ptr callbackExecutor) {
+        return std::bind([this, itStage, itEndStage](ITaskExecutor::Ptr& callbackExecutor) mutable {
             StatusCode requestStatus = StatusCode::OK;
             std::exception_ptr localCurrentException = nullptr;
-            auto& thisStage = *_itStage;
-            auto copyItStage = ++_itStage;
+            auto& thisStage = *itStage;
+            auto itNextStage = itStage + 1;
 
             try {
                 auto& stageTask = std::get<Stage_e::task>(thisStage);
                 IE_ASSERT(nullptr != stageTask);
                 stageTask();
-                if (_pipeline.end() != _itStage) {
-                    auto nextStage = *_itStage;
+               if (itEndStage != itNextStage) {
+                    auto& nextStage = *itNextStage;
                     auto& nextStageExecutor = std::get<Stage_e::executor>(nextStage);
                     IE_ASSERT(nullptr != nextStageExecutor);
-                    nextStageExecutor->run(MakeNextStageTask());
+                    nextStageExecutor->run(MakeNextStageTask(itNextStage, itEndStage, std::move(callbackExecutor)));
                 }
             } catch (InferenceEngine::details::InferenceEngineException& ie_ex) {
                 requestStatus = ie_ex.hasStatus() ? ie_ex.getStatus() : StatusCode::GENERAL_ERROR;
@@ -305,7 +322,7 @@ private:
                 localCurrentException = std::current_exception();
             }
 
-            if ((_pipeline.end() == copyItStage) || (nullptr != localCurrentException)) {
+            if ((itEndStage == itNextStage) || (nullptr != localCurrentException)) {
                 auto lastStageTask = [this, requestStatus, localCurrentException]() mutable {
                     auto promise = std::move(_promise);
                     auto callback = _callback.load();
@@ -327,20 +344,18 @@ private:
                     }
                 };
 
-                if (nullptr == _callbackExecutor) {
+                if (nullptr == callbackExecutor) {
                     lastStageTask();
                 } else {
-                    _callbackExecutor->run(std::move(lastStageTask));
+                    callbackExecutor->run(std::move(lastStageTask));
                 }
             }
-        };
+        }, std::move(callbackExecutor));
     }
 
-    InferRequestInternal::Ptr _syncRequest;
     void* _userData = nullptr;
     AtomicCallback _callback = {nullptr};
     IInferRequest::Ptr _publicInterface;
-    Pipeline::iterator _itStage;
     std::promise<void> _promise;
     mutable std::mutex _mutex;
     Futures _futures;

@@ -19,7 +19,6 @@ import re
 from mo.utils.error import Error
 from mo.utils.simple_proto_parser import SimpleProtoParser
 
-
 # The list of rules how to map the value from the pipeline.config file to the dictionary with attributes.
 # The rule is either a string or a tuple with two elements. In the first case the rule string is used as a key to
 # search in the parsed pipeline.config file attributes dictionary and a key to save found value. In the second case the

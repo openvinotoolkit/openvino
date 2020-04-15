@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2019 Intel Corporationconvert2OutputVector
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,11 +12,13 @@
 #include <vector>
 #include <memory>
 
+#include <ngraph/runtime/interpreter/int_backend_visibility.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/runtime/backend_manager.hpp>
-#include <ngraph/component_manager.hpp>
 #include <ngraph/runtime/backend.hpp>
 #include <ngraph/runtime/tensor.hpp>
+
+extern "C" INTERPRETER_BACKEND_API void ngraph_register_interpreter_backend();
 
 namespace ngraph {
 namespace helpers {
@@ -111,6 +113,7 @@ inferFnWithInterp(const std::shared_ptr<ngraph::Function> &fn,
     ngraph::runtime::Backend::set_backend_shared_library_search_directory("");
 
     ngraph_register_interpreter_backend();
+
     auto backend = ngraph::runtime::Backend::create("INTERPRETER");
 
     std::vector<std::shared_ptr<ngraph::runtime::Tensor>> inTensors;
@@ -138,5 +141,8 @@ inferFnWithInterp(const std::shared_ptr<ngraph::Function> &fn,
     }
     return outData;
 }
+
+std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function>& function, const std::vector<std::vector<std::uint8_t>>& inputs);
+
 }  // namespace helpers
 }  // namespace ngraph

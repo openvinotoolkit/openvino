@@ -17,8 +17,6 @@
 import numpy as np
 
 from mo.front.extractor import FrontExtractorOp
-from mo.ops.op import Op
-
 from mo.front.onnx.extractors.utils import onnx_attr
 
 

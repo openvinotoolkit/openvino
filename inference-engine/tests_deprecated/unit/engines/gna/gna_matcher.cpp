@@ -324,6 +324,9 @@ void GNAPropagateMatcher :: match() {
                     case GnaPluginTestEnvironment::matchAffineWeights:
                         HasWeightsEq(combined, _env.transposedData);
                         break;
+                    case GnaPluginTestEnvironment::matchAffineWeightsSize:
+                        HasWeightsSizeEq(combined, _env.matched_weight_size);
+                        break;
                     case GnaPluginTestEnvironment::saveAffineWeights:
                         SaveWeights(combined, _env.transposedData, _env.transposedArgsForSaving);
                         break;

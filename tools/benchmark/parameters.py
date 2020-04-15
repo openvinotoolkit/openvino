@@ -4,7 +4,6 @@ from fnmatch import fnmatch
 from openvino.tools.benchmark.utils.constants import XML_EXTENSION_PATTERN
 from openvino.tools.benchmark.utils.utils import show_available_devices
 
-
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
@@ -77,18 +76,19 @@ def parse_args():
                            'Default value is determined automatically for a device. Please note that although the automatic selection '
                            'usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small networks. '
                            'See samples README for more details.')
-
+    args.add_argument('-enforcebf16', '--enforce_bfloat16', type=str2bool, required=False, default=False, nargs='?', const=True,
+                      help='Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.')
     args.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
                       help='Number of threads to use for inference on the CPU '
                            '(including HETERO and MULTI cases).')
     args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False, default='YES', choices=['YES', 'NO', 'NUMA'],
                       help='Optional. Enable  threads->cores (\'YES\' is default value), threads->(NUMA)nodes (\'NUMA\') or completely  disable (\'NO\')' 
                            'CPU threads pinning for CPU-involved inference.')
-    args.add_argument('--exec_graph_path', type=str, required=False,
+    args.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')
     args.add_argument('-pc', '--perf_counts', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Report performance counters.', )
-    args.add_argument('--report_type', type=str, required=False,
+    args.add_argument('-report_type', '--report_type', type=str, required=False,
                       choices=['no_counters', 'average_counters', 'detailed_counters'],
                       help="Optional. Enable collecting statistics report. \"no_counters\" report contains "
                            "configuration options specified, resulting FPS and latency. \"average_counters\" "
@@ -96,8 +96,13 @@ def parse_args():
                            "counters values for each layer from the network. \"detailed_counters\" report "
                            "extends \"average_counters\" report and additionally includes per-layer PM "
                            "counters and latency for each executed infer request.")
-    args.add_argument('--report_folder', type=str, required=False, default='',
+    args.add_argument('-report_folder', '--report_folder', type=str, required=False, default='',
                       help="Optional. Path to a folder where statistics report is stored.")
+    args.add_argument('-dump_config', type=str, required=False, default='',
+                      help="Optional. Path to JSON file to dump IE parameters, which were set by application.")
+    args.add_argument('-load_config', type=str, required=False, default='',
+                      help="Optional. Path to JSON file to load custom IE parameters."
+                           " Please note, command line parameters have higher priority then parameters from configuration file.")
     parsed_args = parser.parse_args()
 
     validate_args(parsed_args)

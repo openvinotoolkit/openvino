@@ -17,7 +17,6 @@
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Graph
 from mo.ops.op import Op
-from mo.front.common.partial_infer.utils import mark_input_bins
 
 
 class StopGradientOp(Op):

@@ -20,8 +20,8 @@ import numpy as np
 import onnx
 
 from extensions.front.onnx.affine_ext import AffineFrontExtractor
-from mo.utils.unittest.graph import build_graph
 from mo.graph.graph import Node
+from mo.utils.unittest.graph import build_graph
 
 
 class AffineONNXExtractorTest(unittest.TestCase):

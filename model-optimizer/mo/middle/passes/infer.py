@@ -15,6 +15,7 @@
 """
 
 import logging as log
+
 import networkx as nx
 import numpy as np
 

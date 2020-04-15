@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
+from extensions.ops.activation_ops import Elu
 from mo.front.caffe.collect_attributes import collect_attributes
 from mo.front.extractor import FrontExtractorOp
-from extensions.ops.activation_ops import Elu
 
 
 class ELUFrontExtractor(FrontExtractorOp):

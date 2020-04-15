@@ -567,6 +567,8 @@ public:
 
     int totalDimSize() const;
 
+    int dimsByteSize() const { return numDims() * static_cast<int>(sizeof(int32_t)); }
+
     //
     // DimsOrder
     //

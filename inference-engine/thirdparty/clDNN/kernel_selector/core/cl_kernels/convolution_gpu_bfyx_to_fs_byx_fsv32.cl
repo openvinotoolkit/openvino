@@ -99,8 +99,7 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
         out[out_i] = UNIT_VAL_ZERO;
     }
 
-    uint input_offset = INPUT0_OFFSET_WITH_PADDING;
-    input_offset += oc * STRIDE_SIZE_X + INPUT0_PADDING_OFFSET_SIZE_X;
+    uint input_offset = oc * STRIDE_SIZE_X + INPUT0_PADDING_OFFSET_SIZE_X;
     input_offset += (or * STRIDE_SIZE_Y + INPUT0_PADDING_OFFSET_SIZE_Y) * INPUT0_SIZE_X_WITH_PADDING;
     input_offset += b * INPUT0_BATCH_PITCH;
 
