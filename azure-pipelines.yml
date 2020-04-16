@@ -18,7 +18,7 @@ jobs:
         export MO_ROOT=`pwd`
         env
         python3 -m xmlrunner discover -p *_test.py --output=../mo-ut-logs
-    displayName: 'MO unit tests'
+    displayName: 'MO UT'
 
 #IE_Lin
 - job: IE_Lin
@@ -44,7 +44,7 @@ jobs:
 #        curl -Ls https://github.com/ninja-build/ninja/releases/download/v1.8.2/ninja-linux.zip -o ninja-linux.zip
 #        unzip ninja-linux.zip
 #        sudo cp -v ninja /usr/local/bin/
-    displayName: 'Install dependency package'
+    displayName: 'Install dependencies'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
@@ -55,11 +55,11 @@ jobs:
     inputs:
         workingDirectory: dldt-build-release
         cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_MODELS=OFF -DENABLE_VALIDATION_SET=OFF -DENABLE_TESTS=ON -DENABLE_PERFORMANCE_TESTS=ON -DENABLE_INTEGRATION_TESTS=ON
-  - script: make -j 2
+  - script: make -j2
 #        cmakeArgs: .. -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_MODELS=OFF -DENABLE_VALIDATION_SET=OFF -DENABLE_TESTS=ON -DENABLE_PERFORMANCE_TESTS=ON -DENABLE_INTEGRATION_TESTS=ON
 #  - script: ninja
     workingDirectory: dldt-build-release
-    displayName: 'Build IE with ninja (CPU only)'
+    displayName: 'Build IE'
   - script: |
         ../bin/intel64/Release/InferenceEngineUnitTests
     workingDirectory: dldt-build-release
@@ -114,7 +114,8 @@ jobs:
   - script: |
         brew install ninja
         brew install cython
-    displayName: 'Install ninja and cython'
+        brew install automake
+    displayName: 'Install dependencies'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
@@ -125,34 +126,34 @@ jobs:
         export PATH="/usr/local/opt/cython/bin:$PATH"
         cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=10.12 -DCMAKE_POLICY_DEFAULT_CMP0068=NEW -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_MODELS=OFF -DENABLE_VALIDATION_SET=OFF -DENABLE_TESTS=ON -DENABLE_PERFORMANCE_TESTS=ON -DENABLE_INTEGRATION_TESTS=ON
     workingDirectory: dldt-build-release
-    displayName: 'Cmake'
+    displayName: 'CMake'
   - script: make -j2
     workingDirectory: dldt-build-release
     displayName: 'Build IE'
   - script: |
         ../bin/intel64/Release/InferenceEngineUnitTests
     workingDirectory: dldt-build-release
-    displayName: 'IE unit tests'
+    displayName: 'IE UT old'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/ieUnitTests
     workingDirectory: dldt-build-release
-    displayName: 'IE unit tests (new)'
+    displayName: 'IE UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/cpuUnitTests
     workingDirectory: dldt-build-release
-    displayName: 'CPU tests'
+    displayName: 'CPU UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/vpuUnitTests
     workingDirectory: dldt-build-release
-    displayName: 'VPU tests'
+    displayName: 'VPU UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/ieFuncTests
     workingDirectory: dldt-build-release
-    displayName: 'IE functional tests'
+    displayName: 'IE FuncTests'
     continueOnError: true
 
 #IE_Win
@@ -183,42 +184,42 @@ jobs:
         cmakeArgs: -G"Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=ON -DENABLE_MODELS=OFF -DENABLE_VALIDATION_SET=OFF -DENABLE_TESTS=ON -DENABLE_PERFORMANCE_TESTS=ON -DENABLE_INTEGRATION_TESTS=ON -DENABLE_VPU=OFF $(Build.Repository.LocalPath)
   - script: cmake --build . --config Release -j2
     workingDirectory: C:\c-dldt-build-release
-    displayName: 'Build IE with VS2017 (CPU only)'
+    displayName: 'Build IE VS2017'
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\InferenceEngineUnitTests
     workingDirectory: dldt-build-release
-    displayName: 'IE unit tests'
+    displayName: 'IE UT old'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\ieUnitTests
     workingDirectory: dldt-build-release
-    displayName: 'IE unit tests (new)'
+    displayName: 'IE UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\cpuUnitTests
     workingDirectory: dldt-build-release
-    displayName: 'CPU tests'
+    displayName: 'CPU UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\gnaUnitTests
     workingDirectory: dldt-build-release
-    displayName: 'GNA tests'
+    displayName: 'GNA UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\vpuUnitTests
     workingDirectory: dldt-build-release
-    displayName: 'VPU tests'
+    displayName: 'VPU UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\ieFuncTests
     workingDirectory: dldt-build-release
-    displayName: 'IE functional tests'
+    displayName: 'IE FuncTests'
     continueOnError: true
 
 #IE_Win_self
