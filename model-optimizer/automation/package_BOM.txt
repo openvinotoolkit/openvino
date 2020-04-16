@@ -692,10 +692,6 @@ install_prerequisites/install_prerequisites_onnx.bat
 install_prerequisites/install_prerequisites_onnx.sh
 install_prerequisites/install_prerequisites_tf.bat
 install_prerequisites/install_prerequisites_tf.sh
-install_prerequisites/protobuf-3.6.1-py3.4-win-amd64.egg
-install_prerequisites/protobuf-3.6.1-py3.5-win-amd64.egg
-install_prerequisites/protobuf-3.6.1-py3.6-win-amd64.egg
-install_prerequisites/protobuf-3.6.1-py3.7-win-amd64.egg
 mo.py
 mo/__init__.py
 mo/back/__init__.py
