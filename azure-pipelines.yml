@@ -115,6 +115,7 @@ jobs:
         gcc --version
         env
         xcrun --sdk macosx --show-sdk-version
+        sysctl -a | grep machdep.cpu
     displayName: 'System properties'
   - script: |
         brew install ninja
