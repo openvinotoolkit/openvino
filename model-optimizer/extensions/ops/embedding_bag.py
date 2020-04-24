@@ -14,29 +14,54 @@
  limitations under the License.
 """
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
+import numpy as np
 
-class EmbeddingBag(Op):
-    '''
-     This is nn.EmbeddingBag from Pytorch. It is a simple lookup table that stores embeddings of a fixed dictionary and
-     size and computes sums or means of "bags" of embeddings, without instantiating the intermediate embeddings.
-     Inputs:
-      0: Weights (num_embeddings, embedding_dim) - the lookup table
-      1: Indices (N,) - indices to get from lookup table
-      2: Offsets (B,) - index in indices tensor on which each bag starts
-     Output:
-      0: Embeddings (B, embedding_dim)
-    '''
-    op = 'EmbeddingBag'
-    enabled = False
+
+class EmbeddingBagOffsetsSum(Op):
+    op = 'EmbeddingBagOffsetsSum'
+    enabled = True
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'op': self.op,
-            'type': None,
+            'type': self.op,
+
+            'infer': self.infer,
+
+            'in_ports_count': 5,
+            'out_ports_count': 1,
+        }, attrs)
+
+    @staticmethod
+    def infer(node: Node):
+        name = node.soft_get('name', node.id)
+
+        connected_in_ports = {idx: port for idx, port in node.in_ports().items() if not port.disconnected()}
+        assert len(connected_in_ports) >= 3 and 0 in connected_in_ports and 1 in connected_in_ports and \
+               2 in connected_in_ports, "EmbeddingBag should have at least 3 connected input port, but it doesn't " \
+                                        "for node: `{}`. Ports: {}".format(name, connected_in_ports)
+
+        weights = node.in_port(0).data.get_value()
+        assert weights is not None and len(weights.shape) >= 2
+        input_shape = node.in_port(1).data.get_shape()
+        assert input_shape is not None
+        offsets_shape = node.in_port(2).data.get_shape()
+        assert offsets_shape is not None and len(offsets_shape) == 1
+
+        node.out_port(0).data.set_shape(np.concatenate((input_shape[0], weights.shape[1:]), dtype=np.int64))
+
+
+class EmbeddingBagPackedSum(Op):
+    op = 'EmbeddingBagPackedSum'
+    enabled = True
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'op': self.op,
+            'type': self.op,
 
             'infer': self.infer,
 
@@ -44,23 +69,52 @@ class EmbeddingBag(Op):
             'out_ports_count': 1,
         }, attrs)
 
-    def supported_attrs(self):
-        return ['mode', 'scale_grad_by_freq']
+    @staticmethod
+    def infer(node: Node):
+        name = node.soft_get('name', node.id)
+
+        connected_in_ports = {idx: port for idx, port in node.in_ports().items() if not port.disconnected()}
+        assert len(connected_in_ports) >= 2 and 0 in connected_in_ports and 1 in connected_in_ports, \
+            "EmbeddingBagPackedSum should have at least 2 connected input port, but it doesn't for node: `{}`. " \
+            "Ports: {}".format(name, connected_in_ports)
+
+        weights = node.in_port(0).data.get_value()
+        assert weights is not None and len(weights.shape) >= 2
+        input_shape = node.in_port(1).data.get_shape()
+        assert input_shape is not None
+
+        node.out_port(0).data.set_shape(np.concatenate((input_shape[0], weights.shape[1:]), dtype=np.int64))
+
+
+class EmbeddingSegmentsSum(Op):
+    op = 'EmbeddingSegmentsSum'
+    enabled = True
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'op': self.op,
+            'type': self.op,
+
+            'infer': self.infer,
+
+            'in_ports_count': 6,
+            'out_ports_count': 1,
+        }, attrs)
 
     @staticmethod
     def infer(node: Node):
         name = node.soft_get('name', node.id)
 
         connected_in_ports = {idx: port for idx, port in node.in_ports().items() if not port.disconnected()}
-        assert len(connected_in_ports) == 3 and 0 in connected_in_ports and 1 in connected_in_ports and \
-               2 in connected_in_ports, "EmbeddingBag should have 3 connected input port, but it doesn't for " \
-                                        "node: `{}`. Ports: {}".format(name, connected_in_ports)
+        assert len(connected_in_ports) >= 4 and 0 in connected_in_ports and 1 in connected_in_ports and \
+               2 in connected_in_ports and 3 in connected_in_ports, \
+            "EmbeddingSegmentsSum should have at least 4 connected input port, but it doesn't for node: `{}`. " \
+            "Ports: {}".format(name, connected_in_ports)
 
         weights = node.in_port(0).data.get_value()
-        assert weights is not None and len(weights.shape) == 2
-        input_shape = node.in_port(1).data.get_shape()
-        assert input_shape is not None
-        offsets_shape = node.in_port(2).data.get_shape()
-        assert offsets_shape is not None and len(offsets_shape) == 1
+        assert weights is not None and len(weights.shape) >= 2
+        num_segments = node.in_port(2).data.get_value()
+        assert num_segments is not None, "EmbeddingSegmentsSum should have a constant num_segments provided, but it " \
+                                         "doesn't for node: `{}`.".format(name)
 
-        node.out_port(0).data.set_shape(int64_array([offsets_shape[0], weights.shape[1]]))
+        node.out_port(0).data.set_shape(np.concatenate((num_segments, weights.shape[1:]), dtype=np.int64))

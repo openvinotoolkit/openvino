@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from extensions.ops.embedding_bag import EmbeddingBag
+from extensions.ops.embedding_bag import EmbeddingBagOffsetsSum, EmbeddingBagPackedSum
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.graph.graph import Graph, rename_node
 
@@ -27,11 +27,21 @@ class AtenToEmbeddingBag(FrontReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(op='ATen', operator='embedding_bag'):
+            assert node.has_valid('mode') and node.mode == 0, 'ATen::embedding_bag has unsupported mode, only "sum" ' \
+                                                              'mode is supported for node {}.'.format(node.id)
             node_name = node.name
             rename_node(node, node_name + '/Old')
-            embedding_bag = EmbeddingBag(graph, {'name': node_name, 'mode': node.mode,
-                                                 'scale_grad_by_freq': node.scale_grad_by_freq}).create_node()
+            indices_shape = node.in_port(1).data.get_shape()
+            if len(indices_shape) == 2:
+                embedding_bag = EmbeddingBagPackedSum(graph, {'name': node_name}).create_node()
+                per_sample_weights_port_id = 2
+            else:
+                embedding_bag = EmbeddingBagOffsetsSum(graph, {'name': node_name}).create_node()
+                per_sample_weights_port_id = 3
+                node.in_port(2).get_connection().set_destination(embedding_bag.in_port(2))
             node.in_port(0).get_connection().set_destination(embedding_bag.in_port(0))
             node.in_port(1).get_connection().set_destination(embedding_bag.in_port(1))
-            node.in_port(2).get_connection().set_destination(embedding_bag.in_port(2))
             node.out_port(0).get_connection().set_source(embedding_bag.out_port(0))
+            if len(node.in_ports()) == 4 and not node.in_port(3).disconnected():
+                node.in_port(3).get_connection().set_destination(embedding_bag.in_port(per_sample_weights_port_id))
+
