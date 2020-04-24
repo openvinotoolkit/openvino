@@ -522,6 +522,18 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         // gets output layer pointer in original topology not in cloned
         auto outLayer = outPort.second->getCreatorLayer().lock();
 
+        // Memory layers are not dnnComponents hence we need to make switch with identity layer
+        if (outLayer->type == "Memory") {
+            // traverse memory connection to find corresponding output_memory
+            for (auto && memConnection : graphCompiler.memory_connection) {
+                if (memConnection.second.getInput()->name == outLayer->name) {
+                    // if connection is found, replace memory input layer with memory output layer
+                    outLayer = memConnection.second.getOutput();
+                    break;
+                }
+            }
+        }
+
         // searching for outData represented in GNA blob
         // using ufs - upper first search
         gnalog() << "[UFS] searching for : "<< outPort.first << " representation in GNA\n";
