@@ -26,5 +26,6 @@ class TopKExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         axis = onnx_attr(node, 'axis', 'i', default=-1)
-        TopK.update_node_stat(node, {'axis': axis, 'sort': 'value'})
+        k = onnx_attr(node, 'k', 'i', default=-1)
+        TopK.update_node_stat(node, {'axis': axis, 'k': k, 'sort': 'value'})
         return cls.enabled
