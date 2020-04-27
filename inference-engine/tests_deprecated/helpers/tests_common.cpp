@@ -173,7 +173,8 @@ static std::vector<std::shared_ptr<BaseTestCreator>>& getCreators() {
             std::make_shared<LayerTestCreator<InferenceEngine::ReduceLayer>>("ReduceSumSquare"),
             std::make_shared<LayerTestCreator<InferenceEngine::TopKLayer>>("TopK"),
             std::make_shared<LayerTestCreator<InferenceEngine::NonMaxSuppressionLayer>>("NonMaxSuppression"),
-            std::make_shared<LayerTestCreator<InferenceEngine::ScatterUpdateLayer>>("ScatterUpdate")
+            std::make_shared<LayerTestCreator<InferenceEngine::ScatterUpdateLayer>>("ScatterUpdate"),
+            std::make_shared<LayerTestCreator<InferenceEngine::ScatterElementsUpdateLayer>>("ScatterElementsUpdate")
     };
     return creators;
 }

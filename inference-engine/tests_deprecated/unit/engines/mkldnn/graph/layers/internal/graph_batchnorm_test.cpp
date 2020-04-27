@@ -11,12 +11,13 @@
 #include "single_layer_common.hpp"
 #include <mkldnn_extension_utils.h>
 #include <cnn_network_impl.hpp>
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
 #include "tests_common.hpp"
+#include "ie_system_conf.h"
 
 using namespace ::testing;
-using namespace std;
+using namespace MKLDNNPlugin;
 using namespace mkldnn;
 
 struct batchnorm4D_test_params {
@@ -148,10 +149,7 @@ protected:
             batchnorm4D_test_params p = ::testing::WithParamInterface<batchnorm4D_test_params>::GetParam();
             std::string model = getModel(p);
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
-            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::FP32, 
+            InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, 
                 {p.in.c * 2 * sizeof(float)}, InferenceEngine::C });
             weights->allocate();
             fill_data(weights->buffer(), weights->size() / sizeof(float));
@@ -164,10 +162,12 @@ protected:
 
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
 
-            net_reader.SetWeights(weights_ptr);
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             auto& nodes = graph.getNodes();
             for (int i = 0; i < nodes.size(); i++) {
@@ -197,7 +197,7 @@ protected:
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in1", src));
 
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
@@ -223,14 +223,15 @@ protected:
 
 TEST_P(MKLDNNGraphBatchNormTests, TestsBatchNorm) {}
 
+const size_t expect_num_impl = InferenceEngine::with_cpu_x86_avx2() ? 5 : 4;
 
 INSTANTIATE_TEST_CASE_P(
         TestsBatchNorm, MKLDNNGraphBatchNormTests,
         ::testing::Values(
-                batchnorm4D_test_params{{1, 32, 128, 256}, 1e-6, 5, MKLDNNPlugin::impl_desc_type::jit},
-                batchnorm4D_test_params{{3, 3, 128, 256}, 1e-6, 5, MKLDNNPlugin::impl_desc_type::jit},
-                batchnorm4D_test_params{{1, 32, 128, 256}, 1e-6, 5, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                batchnorm4D_test_params{{3, 3, 128, 256}, 1e-6, 5, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}));
+                batchnorm4D_test_params{{1, 32, 128, 256}, 1e-6, expect_num_impl, jit},
+                batchnorm4D_test_params{{3, 3,  128, 256}, 1e-6, expect_num_impl, jit},
+                batchnorm4D_test_params{{1, 32, 128, 256}, 1e-6, expect_num_impl, ref, {ref_any}},
+                batchnorm4D_test_params{{3, 3,  128, 256}, 1e-6, expect_num_impl, ref, {ref_any}}));
 
 class MKLDNNGraphDynBatchBatchNormTests: public MKLDNNGraphBatchNormTests {
 protected:
@@ -244,9 +245,6 @@ protected:
             if (MB < 2)
                 MB = 2;
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
             InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, 
                 {p.in.c * 4 * sizeof(float)}, InferenceEngine::C });
             weights->allocate();
@@ -258,8 +256,11 @@ protected:
                 }
             }
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-            net_reader.SetWeights(weights_ptr);
-            InferenceEngine::CNNNetwork network = net_reader.getNetwork();
+            
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
+            
             auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
             ASSERT_NE(nullptr, implNet) << "Failed to cast ICNNNetwork to CNNNetworkImpl";
             InferenceEngine::ResponseDesc resp;
@@ -268,7 +269,7 @@ protected:
 
             MKLDNNGraphTestClass graph;
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             InferenceEngine::SizeVector dims_src = {MB, p.in.c, p.in.h, p.in.w};
             InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src, InferenceEngine::NCHW});
@@ -283,7 +284,7 @@ protected:
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in1", src));
 
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();

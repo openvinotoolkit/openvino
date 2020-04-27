@@ -34,7 +34,8 @@ public:
 };
 
 /**
- * @brief The SOCreatorTrait class specialization for IExtension case, defines the name of the fabric method for
+ * @deprecated Implement IExtension interface
+ * @brief The SOCreatorTrait class specialization for IShapeInferExtension case, defines the name of the fabric method for
  * creating IExtension object in DLL
  */
 template <>
@@ -205,7 +206,9 @@ public:
      *
      * @param name Full or relative path to extension library
      */
+    IE_SUPPRESS_DEPRECATED_START_WIN
     explicit ShapeInferExtension(const file_name_t& name): actual(name) {}
+    IE_SUPPRESS_DEPRECATED_END_WIN
 
     /**
      * @brief Gets the extension version information

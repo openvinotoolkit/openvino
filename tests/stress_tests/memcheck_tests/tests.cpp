@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "tests_utils.h"
 #include "../common/tests_utils.h"
 #include "../common/managers/thread_manager.h"

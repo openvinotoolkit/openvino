@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 
 #include <cnn_network_int8_normalizer.hpp>
 #include "tests_common.hpp"
@@ -130,10 +130,9 @@ protected:
             conv_conv_eltwise_params p = ::testing::WithParamInterface<conv_conv_eltwise_params>::GetParam();
             std::string model = getModel(p);
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
-            auto network = net_reader.getNetwork();
+            InferenceEngine::Core ie;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = ie.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
             int maxSign = 0x7F;
             int maxUnsign = 0xFF;

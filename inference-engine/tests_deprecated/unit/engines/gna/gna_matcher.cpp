@@ -77,14 +77,12 @@ void GNAPropagateMatcher :: match() {
         OutputsDataMap  outputsInfo;
 
         auto loadNetworkFromIR = [&] () -> InferenceEngine::CNNNetwork {
-            CNNNetReader net_reader;
-
-            net_reader.ReadNetwork(_env.model.data(), _env.model.length());
+            Core net_reader;
             auto weights_fake = make_shared_blob<uint8_t>(TensorDesc(Precision::U8,
-                    SizeVector({std::numeric_limits<uint32_t>::max()}), Layout::C), make_shared<NullAllocator>());
-            net_reader.SetWeights(weights_fake);
+                    SizeVector({std::numeric_limits<uint32_t>::max()/2}), Layout::C));
+            weights_fake->allocate();
 
-            auto net_original = net_reader.getNetwork();
+            auto net_original = net_reader.ReadNetwork(_env.model, weights_fake);
             size_t weightsSize = 0;
             std::vector<std::string> dataBlobs = {
                     "weights",
@@ -120,7 +118,10 @@ void GNAPropagateMatcher :: match() {
             } else {
                 fillWeights(weights);
             }
-            net_reader.SetWeights(weights);
+
+            auto net = net_reader.ReadNetwork(_env.model, weights);
+            sortedLayers = details::CNNNetSortTopologically(net);
+            sortedLayers.insert(sortedLayers.end(), tiBodies.begin(), tiBodies.end());
 
             for (auto &pattern : _env.weightsByLayerFillPattern) {
                 for (auto &layer : sortedLayers) {
@@ -134,7 +135,8 @@ void GNAPropagateMatcher :: match() {
                     }
                 }
             }
-            return net_reader.getNetwork();
+
+            return net;
         };
 
         auto loadCNNNetwork = [&] (CNNNetwork net_original) {
@@ -429,15 +431,15 @@ void GNAPluginCreationMatcher :: match() {
 void GNAPluginAOTMatcher :: match() {
     // matching gna_propagate forward call.
     MockICNNNetwork net;
-    CNNNetReader net_reader;
-    ASSERT_NO_THROW_IE_EXCEPTION(net_reader.ReadNetwork(_env.model.data(), _env.model.length()));
-
+    
     size_t weightsSize = 440*3;
-
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {weightsSize}, Layout::C });
     weights->allocate();
     fillWeights(weights);
-    net_reader.SetWeights(weights);
+
+    InferenceEngine::Core core;
+    InferenceEngine::CNNNetwork network;
+    ASSERT_NO_THROW_IE_EXCEPTION(network = core.ReadNetwork(_env.model, weights));
 
     GNAPlugin plugin(_env.config);
 
@@ -449,7 +451,6 @@ void GNAPluginAOTMatcher :: match() {
     output.allocate();
 
     if (_env.cb) {
-        auto network = net_reader.getNetwork();
         _env.cb(network);
     }
 
@@ -459,7 +460,7 @@ void GNAPluginAOTMatcher :: match() {
     EXPECT_CALL(mockApi, GNAAlloc(_,_,_)).WillOnce(DoAll(SetArgPointee<2>(10000), Return(&data.front())));
     EXPECT_CALL(mockApi, GNADeviceOpenSetThreads(_, _)).WillOnce(Return(1));
 #endif
-    plugin.LoadNetwork(net_reader.getNetwork());
+    plugin.LoadNetwork(network);
     plugin.Export(_env.exportedModelFileName);
 }
 
@@ -471,22 +472,21 @@ void GNADumpXNNMatcher::load(GNAPlugin & plugin) {
 
     auto loadNetworkFromIR = [&]() {
         MockICNNNetwork net;
-        CNNNetReader net_reader;
-        ASSERT_NO_THROW_IE_EXCEPTION(net_reader.ReadNetwork(_env.model.data(), _env.model.length()));
 
         size_t weightsSize = 440 * 3;
-
         auto weights = make_shared_blob<uint8_t>({ Precision::U8, {weightsSize}, Layout::C });
         weights->allocate();
         fillWeights(weights);
-        net_reader.SetWeights(weights);
+
+        InferenceEngine::Core core;
+        InferenceEngine::CNNNetwork network;
+        ASSERT_NO_THROW_IE_EXCEPTION(network = core.ReadNetwork(_env.model, weights));
 
         if (_env.cb) {
-            auto network = net_reader.getNetwork();
             _env.cb(network);
         }
 
-        plugin.LoadNetwork(net_reader.getNetwork());
+        plugin.LoadNetwork(network);
     };
 
     auto loadNetworkFromAOT = [&]() {
@@ -539,7 +539,6 @@ void GNADumpXNNMatcher::match() {
 }
 
 void GNAQueryStateMatcher :: match() {
-
    //  TODO : avoid copy pastes
     GNACppApi mockApi;
     std::vector<uint8_t> data(10000);
@@ -547,22 +546,21 @@ void GNAQueryStateMatcher :: match() {
     std::shared_ptr<IExecutableNetworkInternal> executer;
     auto loadNetworkFromIR = [&]() {
         MockICNNNetwork net;
-        CNNNetReader net_reader;
-        ASSERT_NO_THROW_IE_EXCEPTION(net_reader.ReadNetwork(_env.model.data(), _env.model.length()));
 
         size_t weightsSize = 440 * 3;
-
         auto weights = make_shared_blob<uint8_t>({ Precision::U8, {weightsSize}, Layout::C });
         weights->allocate();
         fillWeights(weights);
-        net_reader.SetWeights(weights);
+        
+        InferenceEngine::Core core;
+        InferenceEngine::CNNNetwork network;
+        ASSERT_NO_THROW_IE_EXCEPTION(network = core.ReadNetwork(_env.model, weights));
 
         if (_env.cb) {
-            auto network = net_reader.getNetwork();
             _env.cb(network);
         }
 
-        executer.reset(new GNAExecutableNetwork(net_reader.getNetwork(), _env.config));
+        executer.reset(new GNAExecutableNetwork(network, _env.config));
     };
 
     auto loadNetworkFromAOT = [&]() {

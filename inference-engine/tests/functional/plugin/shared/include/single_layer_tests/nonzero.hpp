@@ -20,14 +20,12 @@ namespace LayerTestsDefinitions {
 using ConfigMap = typename std::map<std::string, std::string>;
 
 using NonZeroLayerTestParamsSet = typename std::tuple<
-        InferenceEngine::SizeVector,          // Input shapes
-        InferenceEngine::Precision,           // Input precision
-        InferenceEngine::Precision,           // Network precision
-        std::string,                          // Device name
-        ConfigMap>;                           // Config map
+    InferenceEngine::SizeVector,          // Input shapes
+    InferenceEngine::Precision,           // Input precision
+    LayerTestsUtils::TargetDevice>;       // Device name
 
-class NonZeroLayerTest
-        : public LayerTestsUtils::LayerTestsCommonClass<NonZeroLayerTestParamsSet> {
+class NonZeroLayerTest : public testing::WithParamInterface<NonZeroLayerTestParamsSet>,
+                         public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<NonZeroLayerTestParamsSet> obj);
 

@@ -17,7 +17,6 @@
 #include <gmock/gmock.h>
 #include <string>
 #include "ie_plugin_dispatcher.hpp"
-#include "ie_plugin_ptr.hpp"
 #include <fstream>
 
 #include "unit_test_utils/mocks/mock_plugin_dispatcher.hpp"

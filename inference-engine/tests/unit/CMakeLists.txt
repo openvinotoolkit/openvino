@@ -22,4 +22,3 @@ endif ()
 if(NGRAPH_ONNX_IMPORT_ENABLE)
     add_subdirectory(frontends/onnx_import)
 endif()
-

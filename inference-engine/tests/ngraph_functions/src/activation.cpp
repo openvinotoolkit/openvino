@@ -37,6 +37,8 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
             return std::make_shared<ngraph::op::Sign>(in);
         case ngraph::helpers::ActivationTypes::Abs:
             return std::make_shared<ngraph::op::Abs>(in);
+        case ngraph::helpers::ActivationTypes::Gelu:
+            return std::make_shared<ngraph::op::Gelu>(in);
         default:
             throw std::runtime_error("Can't create layer for this activation type");
     }

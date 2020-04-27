@@ -24,9 +24,9 @@ from mo.ops.op import PermuteAttrs
 
 class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
     """
-    The transformation inserts Transpose layers before/after Reshape layers that change the interpretation of data, for
-    example, from 3D to 4D or from 4D to 3D. These Transpose layers basically convert layout from N(D)HWC to NC(D)HW and
-    in the reverse order.
+    The transformation inserts Transpose layers before/after operations that change the interpretation of data, for
+    example, Reshape from 3D to 4D or from 4D to 3D. These Transpose layers basically convert layout from N(D)HWC to
+    NC(D)HW and in the reverse order.
     """
     enabled = True
     force_clean_up = True  # need to run clean up after the transformation to update shapes
@@ -37,6 +37,36 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
 
     def run_before(self):
         return []
+
+    @staticmethod
+    def is_nchw_to_nhwc_transpose_needed(node: Node):
+        """
+        The function checks that it is necessary to insert Transpose from NCHW to NHWC before the node.
+        The transpose is needed when all the following conditions are met:
+         1. The node is marked as 'reinterp_shape' attribute
+         2. The node is *not* marked as getting input in correct layout (implicitly imply that the input is on port 0)
+         3. The input shape rank is not less than 4
+        :param node: node to check
+        :return: result of the check
+        """
+        return node.has_and_set('reinterp_shape') and \
+               not is_input_data_in_correct_layout(node, 0) and \
+               len(node.in_port(0).data.get_shape()) >= 4
+
+    @staticmethod
+    def is_nhwc_to_nchw_transpose_needed(node: Node):
+        """
+        The function checks that it is necessary to insert Transpose from NHWC to NCHW after the node.
+        The transpose is needed when all the following conditions are met:
+         1. The node is marked as 'reinterp_shape' attribute
+         2. The node is *not* marked as generating output in correct layout (implicitly imply that the output port is 0)
+         3. The output shape rank is not less than 4
+        :param node: node to check
+        :return: result of the check
+        """
+        return node.has_and_set('reinterp_shape') and \
+               not is_output_data_in_correct_layout(node, 0) and \
+               len(node.out_port(0).data.get_shape()) >= 4
 
     def find_and_replace_pattern(self, graph: Graph):
         if graph.graph['layout'] != 'NHWC':
@@ -49,7 +79,7 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
             assert 0 in reinterp_shape_node.in_nodes(), 'Node {} does not have 0 input. \n{}'.format(
                 reinterp_shape_node_id, graph.dump_graph_for_graphviz())
             input_shape = reinterp_shape_node.in_node(0).shape
-            if not is_input_data_in_correct_layout(reinterp_shape_node, 0) and len(input_shape) >= 4:
+            if self.is_nchw_to_nhwc_transpose_needed(reinterp_shape_node):
                 order_const = Const(graph, {'value': PermuteAttrs().get_nchw_to_nhwc_permutation(len(input_shape)).perm
                                             }).create_node()
                 permute_node = Transpose(graph,
@@ -76,7 +106,7 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
             assert 0 in reinterp_shape_node.out_nodes(), 'Node {} does not have 0 output. \n{}'.format(
                 reinterp_shape_node_id, graph.dump_graph_for_graphviz())
             output_shape = reinterp_shape_node.out_node(0).shape
-            if not is_output_data_in_correct_layout(reinterp_shape_node, 0) and len(output_shape) >= 4:
+            if self.is_nhwc_to_nchw_transpose_needed(reinterp_shape_node):
                 order_const = Const(graph, {
                     'value': PermuteAttrs().get_nhwc_to_nchw_permutation(len(output_shape)).perm}).create_node()
                 permute_node = Transpose(graph, {'name': reinterp_shape_node.id + '/Transpose'}).create_node()

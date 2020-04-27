@@ -26,7 +26,7 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
     InferenceEngine::Precision inputPrecision, netPrecision;
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     std::string targetDevice;
-    std::tie(inputPrecision, netPrecision, inputShapes, targetDevice) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -38,8 +38,8 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
 
 void ExecGraphUniqueNodeNames::SetUp() {
     std::vector<size_t> inputShape;
-    InferenceEngine::Precision inputPrecision, netPrecision;
-    std::tie(inputPrecision, netPrecision, inputShape, targetDevice) = this->GetParam();
+    InferenceEngine::Precision netPrecision;
+    std::tie(netPrecision, inputShape, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 

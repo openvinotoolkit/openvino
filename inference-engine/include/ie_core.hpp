@@ -14,12 +14,34 @@
 #include <string>
 #include <vector>
 
-#include "cpp/ie_plugin_cpp.hpp"
+#include <cpp/ie_executable_network.hpp>
 #include "details/os/os_filesystem.hpp"
 #include "ie_extension.h"
 #include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
+
+/**
+ * @brief Responce structure encapsulating information about supported layer
+ */
+struct QueryNetworkResult {
+    /**
+     * @brief A map of supported layers:
+     * - key - a layer name
+     * - value - a device name on which layer is assigned
+     */
+    std::map<std::string, std::string> supportedLayersMap;
+
+    /**
+     * @brief A status code
+     */
+    StatusCode rc = OK;
+
+    /**
+     * @brief Response mssage
+     */
+    ResponseDesc resp;
+};
 
 /**
  * @brief This class represents Inference Engine Core entity.
@@ -97,7 +119,7 @@ public:
      * Users can create as many networks as they need and use
      *        them simultaneously (up to the limitation of the hardware resources)
      *
-     * @param network CNNNetwork object acquired from CNNNetReader
+     * @param network CNNNetwork object acquired from Core::ReadNetwork
      * @param deviceName Name of device to load network to
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
@@ -115,7 +137,7 @@ public:
 
     /**
      * @brief Creates an executable network from a network object within a specified remote context.
-     * @param network CNNNetwork object acquired from CNNNetReader
+     * @param network CNNNetwork object acquired from Core::ReadNetwork
      * @param context Pointer to RemoteContext object
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
@@ -231,7 +253,7 @@ public:
      * prefix to identify library full name
      *
      * @param deviceName A device name to register plugin for. If device name is not specified, then it's taken from
-     * plugin using InferenceEnginePluginPtr::GetName function
+     * plugin itself.
      */
     void RegisterPlugin(const std::string& pluginName, const std::string& deviceName);
 

@@ -14,6 +14,7 @@
 
 #include "include/include_all.cl"
 #include "include/unit_type.cl"
+#include "include/mmad.cl"
 
 #define GET_SRC(data, id) AS_TYPE(MAKE_VECTOR_TYPE(UNIT_TYPE, X_BLOCK_SIZE),                             \
                             intel_sub_group_shuffle(                                                     \

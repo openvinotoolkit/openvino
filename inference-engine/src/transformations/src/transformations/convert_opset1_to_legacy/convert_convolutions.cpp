@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include <ngraph_ops/convolution_ie.hpp>
 #include <ngraph_ops/deconvolution_ie.hpp>
@@ -37,6 +38,7 @@ void ngraph::pass::ConvertConvolutions::convert_convolution() {
                                                                    conv->output(0).get_shape(),
                                                                    1 /* groups */,
                                                                    conv->get_auto_pad());
+        ngraph::copy_runtime_info(conv, conv_ie);
         conv_ie->set_friendly_name(conv->get_friendly_name());
         ngraph::replace_node(conv, conv_ie);
         return true;
@@ -86,7 +88,9 @@ void ngraph::pass::ConvertConvolutions::convert_group_convolution() {
                                                                    gconv->output(0).get_shape(),
                                                                    group,
                                                                    gconv->get_auto_pad());
+        conv_ie->get_rt_info() = gconv->get_rt_info();
         conv_ie->set_friendly_name(gconv->get_friendly_name());
+        ngraph::copy_runtime_info(gconv, conv_ie);
         ngraph::replace_node(gconv, conv_ie);
         return true;
     };
@@ -130,6 +134,7 @@ void ngraph::pass::ConvertConvolutions::convert_convolution_backprop_data() {
                                                                        1 /* groups */,
                                                                        deconv->get_auto_pad());
         deconv_ie->set_friendly_name(deconv->get_friendly_name());
+        ngraph::copy_runtime_info(deconv, deconv_ie);
         ngraph::replace_node(deconv, deconv_ie);
         return true;
     };
@@ -187,6 +192,7 @@ void ngraph::pass::ConvertConvolutions::convert_group_convolution_backprop_data(
                                                                      group,
                                                                      gconv->get_auto_pad());
         conv_ie->set_friendly_name(gconv->get_friendly_name());
+        ngraph::copy_runtime_info(gconv, conv_ie);
         ngraph::replace_node(gconv, conv_ie);
         return true;
     };

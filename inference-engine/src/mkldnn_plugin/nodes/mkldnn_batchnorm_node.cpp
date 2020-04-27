@@ -37,7 +37,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
     if (bnLayer->_weights == nullptr || bnLayer->_biases == nullptr) {
         THROW_IE_EXCEPTION << "Weights/biases are empty for layer: " << bnLayer->name
                            << " used in MKLDNN node: " << getName() << "\n"
-                           << "Use ReadWeights and SetWeights methods of InferenceEngine::CNNNetReader"
+                           << "Use the second argumemt of InferenceEngine::Core::ReadNetwork"
                            << " to load them from .bin part of the IR";
     }
 

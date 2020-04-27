@@ -4,18 +4,12 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include "ngraph/node.hpp"
 
-#include <vector>
 #include <memory>
 
-namespace ngraph {
-namespace pass {
+namespace vpu {
 
-class DynamicToStaticShapeNonZero : public GraphRewrite {
-public:
-    DynamicToStaticShapeNonZero();
-};
+void dynamicToStaticShapeNonZero(std::shared_ptr<ngraph::Node> nonZero);
 
-}  // namespace pass
-}  // namespace ngraph
+}  // namespace vpu

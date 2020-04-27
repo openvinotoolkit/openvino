@@ -4,8 +4,7 @@
 
 #include "vpu/ngraph/operations/static_shape_nonzero.hpp"
 
-namespace ngraph {
-namespace op {
+namespace ngraph { namespace vpu { namespace op {
 
 constexpr NodeTypeInfo StaticShapeNonZero::type_info;
 
@@ -45,4 +44,5 @@ bool StaticShapeNonZero::visit_attributes(ngraph::AttributeVisitor& visitor) {
 }
 
 }  // namespace op
+}  // namespace vpu
 }  // namespace ngraph

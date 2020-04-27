@@ -113,8 +113,8 @@ void PassImpl::run(const Model& model) {
 
         model->disconnectStage(stage);
 
-        const bool isOverlapByX = (input->desc().dim(Dim::W) + padLeft + padRight) == kernelSizeX;
-        const bool isOverlapByY = (input->desc().dim(Dim::H) + padTop + padBottom) == kernelSizeY;
+        const bool isOverlapByX = kernelSizeX - padLeft >= input->desc().dim(Dim::W);
+        const bool isOverlapByY = kernelSizeY - padTop >= input->desc().dim(Dim::H);
         const bool isOverlapByKernel = isOverlapByX && isOverlapByY;
         const bool paddingsNotExist = padLeft == 0 && padRight == 0 && padTop == 0 && padBottom == 0;
         const bool isGlobalPoolingOutputFormat =

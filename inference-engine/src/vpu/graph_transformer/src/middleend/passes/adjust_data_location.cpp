@@ -252,7 +252,7 @@ void PassImpl::adjustModelForMemReqs(const Model& model) {
 
         for (const auto& cmxData : allCmxDatas) {
             IE_ASSERT(cmxData->usage() == DataUsage::Intermediate);
-            IE_ASSERT(cmxData->parentDataEdge() == nullptr);
+            IE_ASSERT(cmxData->parentDataToDataEdge() == nullptr);
 
             auto cmxDataProducer = cmxData->producer();
             IE_ASSERT(cmxDataProducer != nullptr);
@@ -313,7 +313,7 @@ void PassImpl::adjustModelForMemReqs(const Model& model) {
             model->replaceStageInput(cmxConsumerEdge, ddrCopy);
 
             env.log->trace("Update child datas");
-            for (const auto& childDataEdge : cmxData->childDataEdges()) {
+            for (const auto& childDataEdge : cmxData->childDataToDataEdges()) {
                 VPU_LOGGER_SECTION(env.log);
 
                 auto order = childDataEdge->order();
@@ -447,7 +447,7 @@ void PassImpl::packDataInCmx(const Model& model) {
         env.log->trace("Try use CMX for Data [%s]", curCandidate->name());
         VPU_LOGGER_SECTION(env.log);
 
-        IE_ASSERT(curCandidate->parentDataEdge() == nullptr);
+        IE_ASSERT(curCandidate->parentDataToDataEdge() == nullptr);
         IE_ASSERT(curCandidate->usage() == DataUsage::Intermediate);
 
         auto curMemoryType = curCandidate->memReqs();

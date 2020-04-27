@@ -86,10 +86,12 @@ public:
         float mn = (std::numeric_limits<float>::max)();
         float mx = (std::numeric_limits<float>::min)();
 
+        IE_SUPPRESS_DEPRECATED_START_WIN
         for (int i = 0; i < statCount; i++) {
             _minOutputs.push_back(mn);
             _maxOutputs.push_back(mx);
         }
+        IE_SUPPRESS_DEPRECATED_END_WIN
     }
 
 public:

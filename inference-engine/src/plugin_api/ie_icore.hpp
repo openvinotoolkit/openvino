@@ -13,8 +13,8 @@
 #include <memory>
 #include <string>
 
+#include <ie_plugin_ptr.hpp>
 #include "threading/ie_itask_executor.hpp"
-#include "ie_plugin_ptr.hpp"
 
 namespace InferenceEngine {
 
@@ -37,6 +37,23 @@ public:
      * @return Reference to plugin
      */
     virtual InferenceEnginePluginPtr GetPluginByName(const std::string& deviceName) const = 0;
+
+    /**
+     * @brief Reads IR xml and bin (with the same name) files
+     * @param model string with IR
+     * @param weights shared pointer to constant blob with weights
+     * @return CNNNetwork
+     */
+    virtual CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const = 0;
+
+    /**
+     * @brief Reads IR xml and bin files
+     * @param modelPath path to IR file
+     * @param binPath path to bin file, if path is empty, will try to read bin file with the same name as xml and
+     * if bin file with the same name was not found, will load IR without weights.
+     * @return CNNNetwork
+     */
+    virtual CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const = 0;
 
     /**
      * @brief Default virtual destructor

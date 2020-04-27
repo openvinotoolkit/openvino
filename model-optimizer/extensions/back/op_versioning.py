@@ -148,7 +148,7 @@ class OpVersioning(BackReplacementPattern):
         "ExperimentalDetectronPriorGridGenerator",
     ]))
 
-    # Several ops were added to opset1 by mistake, now they are marked as blonging to opset2
+    # Several ops were added to opset1 by mistake, now they are marked as belonging to opset2
     opset_2_legacy_ops = set(map(lambda s: s.lower(), [
         "MVN",
         "ReorgYolo",
@@ -160,9 +160,10 @@ class OpVersioning(BackReplacementPattern):
             node_type = node.soft_get('type').lower()
             name = node.soft_get('name', node.id)
 
-            if node.soft_get('version', None) == 'opset1' and node_type not in self.opset_1_types:
-                raise Error('Node {} has `version` attribute set to `opset1`, but it is a reserved word, '
-                            'please use another'.format(name))
+            if node.soft_get('version', None) == 'opset1' and node_type not in self.opset_1_types \
+                                and node_type not in self.opset_2_legacy_ops:
+                raise Error('Node {} has `version` attribute set to `{}`, but it is a reserved word, '
+                            'please use another'.format(name, node.version))
 
             if not node.has_valid('version'):
                 if node_type in self.opset_1_types:

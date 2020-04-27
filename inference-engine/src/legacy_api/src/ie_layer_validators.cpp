@@ -721,7 +721,7 @@ void ScaleShiftValidator::parseParams(CNNLayer* layer) {
     if (!casted) {
         THROW_IE_EXCEPTION << "Layer is not instance of ScaleShiftLayer class";
     }
-    if (!casted->params.empty()) {
+    if (casted->params.count("broadcast")) {
         casted->_broadcast = casted->GetParamAsUInt("broadcast", 2);
     }
 }
@@ -771,13 +771,11 @@ void ReshapeValidator::parseParams(CNNLayer* layer) {
         THROW_IE_EXCEPTION << "Layer is not instance of ReshapeLayer class";
     }
     casted->shape.clear();
-    if (!casted->params.empty()) {
-        if (casted->type == "Flatten") {
-            casted->num_axes = casted->GetParamAsInt("end_axis", -1);
-            casted->axis = casted->GetParamAsInt("axis", 0);
-        } else {
-            casted->shape = casted->GetParamAsInts("dim", {});
-        }
+    if (casted->type == "Flatten" && casted->params.count("end_axis") && casted->params.count("axis")) {
+        casted->num_axes = casted->GetParamAsInt("end_axis", -1);
+        casted->axis = casted->GetParamAsInt("axis", 0);
+    } else if (casted->params.count("dim")) {
+        casted->shape = casted->GetParamAsInts("dim", {});
     }
 }
 
@@ -885,7 +883,7 @@ void ReLUValidator::parseParams(CNNLayer* layer) {
     if (!casted) {
         THROW_IE_EXCEPTION << "Layer is not instance of ReLULayer class";
     }
-    if (!casted->params.empty()) {
+    if (casted->params.count("negative_slope")) {
         casted->negative_slope = casted->GetParamAsFloat("negative_slope");
     }
 }
@@ -895,7 +893,7 @@ void ReLUValidator::checkParams(const CNNLayer* layer) {
     if (!casted) {
         THROW_IE_EXCEPTION << "Layer is not instance of ReLULayer class";
     }
-    if (!casted->params.empty()) {
+    if (casted->params.count("negative_slope")) {
         float negative_slope = casted->GetParamAsFloat("negative_slope");
     }
 }
@@ -2682,40 +2680,34 @@ void NormalizeValidator::checkParams(const CNNLayer* layer) {
 SelectValidator::SelectValidator(const std::string& _type): LayerValidator(_type) {}
 
 void SelectValidator::checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const {
-    enum { condition, then_, else_, numOfInputs };
-    auto casted = dynamic_cast<const SelectLayer*>(layer);
-    if (!casted) {
-        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of SelectLayer class";
-    }
+    enum { CONDITION, THEN, ELSE, numOfInputs };
 
     size_t numInputs = inShapes.size();
-    if (numOfInputs != numInputs) THROW_IE_EXCEPTION << " Select can take 3 inputs, but actually it has: " << numInputs;
+    if (numOfInputs != numInputs) THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' take 3 inputs, but actually it has: " << numInputs;
 
-    if (inShapes[then_] != inShapes[else_]) {
-        THROW_IE_EXCEPTION << " Positive input shape should be the same as negative input shape";
-    }
+    size_t new_rank = inShapes[ELSE].size();
+    new_rank = std::max(new_rank, inShapes[THEN].size());
 
-    if (inShapes[condition].size() > inShapes[then_].size()) {
-        THROW_IE_EXCEPTION << " Condition input dimensions count (" << inShapes[condition].size()
-                           << ") should be less or equel then"
-                           << " posititve input dimension count (" << inShapes[then_].size() << ")";
-    }
+    if (inShapes[CONDITION].size() > new_rank)
+        THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' has 'Mask' input's rank more than broadcasted 'Then' and 'Else' inputs' ranks";
 
-    if (inShapes[condition].size() > inShapes[else_].size()) {
-        THROW_IE_EXCEPTION << " Condition input dimensions count (" << inShapes[condition].size()
-                           << ") should be less or equel then"
-                           << " negative input dimension count (" << inShapes[else_].size() << ")";
-    }
+    for (size_t i = 0; i < new_rank; i++) {
+        auto in1 = i < (new_rank - inShapes[THEN].size()) ? 1 : inShapes[THEN][i - (new_rank - inShapes[THEN].size())];
+        auto in2 = i < (new_rank - inShapes[ELSE].size()) ? 1 : inShapes[ELSE][i - (new_rank - inShapes[ELSE].size())];
 
-    for (std::size_t i = 0; i < inShapes[condition].size(); ++i) {
-        const auto& cond_dim = inShapes[condition][inShapes[condition].size() - 1 - i];
-        const auto& then_dim = inShapes[then_][inShapes[then_].size() - 1 - i];
+        size_t tmp = 0;
+        if (in1 == in2 || in1 == 1 || in2 == 1)
+            tmp = std::max(in1, in2);
+        else
+            THROW_IE_EXCEPTION << "Select layer with name '" << layer->name << "' has incompatible 'Then' and 'Else' inputs' shapes";
 
-        if (cond_dim != then_dim && cond_dim != 1) {
-            THROW_IE_EXCEPTION << " Condition input dimension " << (inShapes[condition].size() - 1 - i) << " ("
-                               << cond_dim << ") should be less or equel then posititve and negative"
-                               << " input dimension " << (inShapes[then_].size() - 1 - i) << " (" << then_dim << ")";
-        }
+        auto in0 = i < (new_rank - inShapes[CONDITION].size()) ? 1 : inShapes[CONDITION][i - (new_rank - inShapes[CONDITION].size())];
+
+        if (tmp == in0 || in0 == 1)
+            tmp = std::max(tmp, in0);
+        else
+            THROW_IE_EXCEPTION << "Select layer with name '" << layer->name
+                                                        << "' has incompatible 'Mask' input's shapes and broadcasted 'Then' and 'Else' inputs' shapes";
     }
 }
 
@@ -3128,6 +3120,61 @@ void ScatterUpdateValidator::checkShapes(const CNNLayer* layer, const vector<Siz
         THROW_IE_EXCEPTION << layer->name << " Precision should be equal for input tensors 'Data' and 'Updates'";
 }
 
+ScatterElementsUpdateValidator::ScatterElementsUpdateValidator(const std::string& _type): LayerValidator(_type) {}
+
+void ScatterElementsUpdateValidator::parseParams(CNNLayer* layer) {
+    auto casted = dynamic_cast<ScatterElementsUpdateLayer*>(layer);
+    if (!casted) {
+        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of ScatterElementsUpdateLayer class";
+    }
+}
+
+void ScatterElementsUpdateValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>& inShapes) const {
+    auto casted = dynamic_cast<const ScatterElementsUpdateLayer*>(layer);
+    if (!casted) {
+        THROW_IE_EXCEPTION << layer->name << " Layer is not instance of ScatterElementsUpdateLayer class";
+    }
+
+    size_t numInputs = inShapes.size();
+    if (numInputs != 4)
+        THROW_IE_EXCEPTION << layer->name << " Scatter can take only 4 inputs, but actually it has: " << numInputs;
+
+    static constexpr int DATA = 0;
+    static constexpr int INDICES = 1;
+    static constexpr int UPDATES = 2;
+    static constexpr int AXIS = 3;
+
+    if (inShapes[DATA].size() < 1)
+        THROW_IE_EXCEPTION << layer->name << " 'Data' tensor rank must be >= 1";
+
+    if (inShapes[INDICES].size() < 1)
+        THROW_IE_EXCEPTION << layer->name << " 'Indices' tensor rank must be >= 1";
+
+    if (inShapes[UPDATES].size() < 1)
+        THROW_IE_EXCEPTION << layer->name << " 'Updates' tensor rank must be >= 1";
+
+    if (!(inShapes[AXIS].size() == 1 && inShapes[AXIS][0] == 1))
+        THROW_IE_EXCEPTION << layer->name << " 'Axis' tensor must be 1D array of 1 element";
+
+    if (inShapes[INDICES].size() != inShapes[DATA].size())
+        THROW_IE_EXCEPTION << layer->name << " Incorrect number of 'indexes' tensors dimension";
+
+    if (inShapes[UPDATES].size() != inShapes[DATA].size())
+        THROW_IE_EXCEPTION << layer->name << " Incorrect number of 'updates' tensors dimension";
+
+    Precision inIdxPrecision = layer->insData[INDICES].lock()->getTensorDesc().getPrecision();
+    if (inIdxPrecision != Precision::FP32 && inIdxPrecision != Precision::I32)
+        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Indices' precision. Only FP32 or I32 are supported!";
+
+    Precision inAxisPrecision = layer->insData[AXIS].lock()->getTensorDesc().getPrecision();
+    if (inAxisPrecision != Precision::FP32 && inAxisPrecision != Precision::I32)
+        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Axis' precision. Only FP32 or I32 are supported!";
+
+    if (layer->insData[DATA].lock()->getTensorDesc().getPrecision() !=
+        layer->insData[UPDATES].lock()->getTensorDesc().getPrecision())
+        THROW_IE_EXCEPTION << layer->name << " Precision should be equal for input tensors 'Data' and 'Updates'";
+}
+
 #define REG_LAYER_VALIDATOR_FOR_TYPE(__validator, __type) _validators[#__type] = std::make_shared<__validator>(#__type)
 
 LayerValidators::LayerValidators() {
@@ -3254,6 +3301,7 @@ LayerValidators::LayerValidators() {
     REG_LAYER_VALIDATOR_FOR_TYPE(UniqueValidator, Unique);
     REG_LAYER_VALIDATOR_FOR_TYPE(NMSValidator, NonMaxSuppression);
     REG_LAYER_VALIDATOR_FOR_TYPE(ScatterUpdateValidator, ScatterUpdate);
+    REG_LAYER_VALIDATOR_FOR_TYPE(ScatterElementsUpdateValidator, ScatterElementsUpdate);
 }
 
 }  // namespace InferenceEngine

@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 
 #include <ngraph_ops/tile_ie.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertTileToIETile::convert_tile() {
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -64,6 +65,8 @@ void ngraph::pass::ConvertTileToIETile::convert_tile() {
             friendly_name += ":";
         }
 
+        NodeVector new_ops;
+
         auto tiles_it = tiles.rbegin();
         while (tiles_it != tiles.rend()) {
             int64_t tile_dim = *tiles_it;
@@ -73,12 +76,15 @@ void ngraph::pass::ConvertTileToIETile::convert_tile() {
                 friendly_name += "_" + std::to_string(cur_dim_id);
 
                 last_node = std::dynamic_pointer_cast<ngraph::Node>(ie_tile);
+                new_ops.push_back(last_node);
             }
             --cur_dim_id;
             ++tiles_it;
         }
 
-        ngraph::replace_node(m.get_match_root(), last_node);
+        last_node->set_friendly_name(tile->get_friendly_name());
+        ngraph::copy_runtime_info(tile, new_ops);
+        ngraph::replace_node(tile, last_node);
         return true;
     };
 

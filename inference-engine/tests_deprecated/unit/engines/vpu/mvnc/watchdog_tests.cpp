@@ -81,8 +81,11 @@ TEST_F(MVNCWatchdogTests, DISABLED_removeDeviceIfXLINKSessionNotIninitialized) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 }
 
-
+#if defined(__APPLE__) && !defined(NDEBUG)
+TEST_F(MVNCWatchdogTests, DISABLED_canNotBeRegisteredTwice) {
+#else
 TEST_F(MVNCWatchdogTests, canNotBeRegisteredTwice) {
+#endif
 
     d.wd_interval = 10;
 
@@ -110,7 +113,11 @@ TEST_F(MVNCWatchdogTests, canUnRegisterIfInterval0) {
     ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx));
 }
 
+#if defined(__APPLE__) && !defined(NDEBUG)
+TEST_F(MVNCWatchdogTests, DISABLED_failUnRegisterTwice) {
+#else
 TEST_F(MVNCWatchdogTests, failUnRegisterTwice) {
+#endif
 
     d.wd_interval = 10;
 

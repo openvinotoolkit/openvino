@@ -913,18 +913,25 @@ inline uint FUNC(get_g_os_is_yx_osv16_isv4)(uint g, uint o, uint i, uint y, uint
 }
 
 #define GET_FILTER_OS_IS_YX_OSV16_ISV4_INDEX(prefix, o, i, y, x) \
-    FUNC_CALL(get_os_is_yx_osv16_isv4)(                          \
+    FUNC_CALL(get_os_is_yx_osv_isv4)(                            \
         o, i, y, x,                                              \
         CAT(prefix, _IFM_PITCH),                                 \
         CAT(prefix, _OFM_PITCH),                                 \
-        CAT(prefix, _SIZE_X))
+        CAT(prefix, _SIZE_X), 16)
 
-inline uint FUNC(get_os_is_yx_osv16_isv4)(uint o, uint i, uint y, uint x,
-                                          uint i_size,
-                                          uint o_size,
-                                          uint x_size)
+#define GET_FILTER_OS_IS_YX_OSV32_ISV4_INDEX(prefix, o, i, y, x) \
+    FUNC_CALL(get_os_is_yx_osv_isv4)(                            \
+        o, i, y, x,                                              \
+        CAT(prefix, _IFM_PITCH),                                 \
+        CAT(prefix, _OFM_PITCH),                                 \
+        CAT(prefix, _SIZE_X), 32)
+
+inline uint FUNC(get_os_is_yx_osv_isv4)(uint o, uint i, uint y, uint x,
+                                        uint i_size,
+                                        uint o_size,
+                                        uint x_size,
+                                        uint otd)
 {
-    const uint otd = 16;
     uint out_depth_tile = o / otd;
     uint od             = o - out_depth_tile * otd;
 
@@ -976,6 +983,7 @@ inline uint FUNC(get_os_is_yx_osv32_isv4_swizzled_by_2)(uint o, uint i, uint y, 
 
     return idx;
 }
+
 #define GET_DATA_FS_B_YX_FSV32_INDEX(prefix, b, f, y, x) \
     FUNC_CALL(get_fs_b_yx_fsv32_index)(                  \
         b, f, y, x,                                      \

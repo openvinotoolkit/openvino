@@ -68,7 +68,7 @@
 #include "convolution_kernel_mmad_bfyx_to_b_fs_yx_fsv4.h"
 #include "convolution_kernel_mmad_b_fs_yx_fsv32.h"
 #include "convolution_kernel_mmad_b_fs_yx_fsv32_dw.h"
-#include "convolution_kernel_mmad_bfyx_b_fs_yx_fsv32.h"
+#include "convolution_kernel_mmad_bfyx_to_b_fs_yx_fsv32.h"
 #include "convolution_kernel_bfyx_to_bs_fs_yx_bsv16_fsv16.h"
 #include "convolution_kernel_b_fs_yx_fsv16_imad_1x1.h"
 #include "convolution_kernel_b_fs_yx_fsv16_imad_3x3.h"
@@ -155,7 +155,7 @@ convolution_kernel_selector::convolution_kernel_selector() {
     // b_fs_yx_fsv32 kernels
     Attach<ConvolutionKernel_mmad_b_fs_yx_fsv32>();
     Attach<ConvolutionKernel_mmad_b_fs_yx_fsv32_dw>();
-    Attach<ConvolutionKernel_mmad_bfyx_b_fs_yx_fsv32>();
+    Attach<ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32>();
     Attach<ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw>();
 }
 

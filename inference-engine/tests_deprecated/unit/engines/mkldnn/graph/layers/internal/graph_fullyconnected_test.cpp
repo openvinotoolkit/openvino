@@ -13,7 +13,7 @@
 #include <cnn_network_impl.hpp>
 #include "tests_common.hpp"
 
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
 
 using namespace ::testing;
@@ -156,9 +156,6 @@ protected:
             fc_test_params p = ::testing::WithParamInterface<fc_test_params>::GetParam();
             std::string model = getModel(p);
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
             size_t weights_size = p.out_c;
             for (int i = 1; i < p.in_dims.size(); i++) {
                 weights_size *= p.in_dims[i];
@@ -170,10 +167,12 @@ protected:
             fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
 
-            net_reader.SetWeights(weights_ptr);
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
             auto& nodes = graph.getNodes();
             for (int i = 0; i < nodes.size(); i++) {
                 if (nodes[i]->getType() == MKLDNNPlugin::FullyConnected) {
@@ -210,7 +209,7 @@ protected:
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in1", src));
 
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
@@ -260,9 +259,6 @@ class MKLDNNGraphDynBatchFullyConnectedTests: public MKLDNNGraphFullyConnectedTe
             if (MB < 2)
                 MB = 2;
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
             size_t weights_size = p.out_c;
             for (int i = 1; i < p.in_dims.size(); i++) {
                 weights_size *= p.in_dims[i];
@@ -272,8 +268,11 @@ class MKLDNNGraphDynBatchFullyConnectedTests: public MKLDNNGraphFullyConnectedTe
             weights->allocate();
             fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-            net_reader.SetWeights(weights_ptr);
-            InferenceEngine::CNNNetwork network = net_reader.getNetwork();
+
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
+
             auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
             ASSERT_NE(nullptr, implNet) << "Failed to cast ICNNNetwork to CNNNetworkImpl";
             InferenceEngine::ResponseDesc resp;
@@ -282,7 +281,7 @@ class MKLDNNGraphDynBatchFullyConnectedTests: public MKLDNNGraphFullyConnectedTe
 
             MKLDNNGraphTestClass graph;
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             InferenceEngine::SizeVector dims_src = p.in_dims;
             InferenceEngine::Layout layout = InferenceEngine::ANY;
@@ -308,7 +307,7 @@ class MKLDNNGraphDynBatchFullyConnectedTests: public MKLDNNGraphFullyConnectedTe
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in1", src));
 
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();

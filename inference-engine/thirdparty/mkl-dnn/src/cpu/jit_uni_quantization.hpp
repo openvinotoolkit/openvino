@@ -55,9 +55,9 @@ struct jit_uni_quantization_injector_f32 {
     void init_input_scale_shift_ptrs(const Xbyak::Operand& ch_off);
     void init_output_scale_shift_ptrs(const Xbyak::Operand& ch_off);
 
-    void compute_crop(int start_idx, int end_idx, int offset, bool is_scalar = false);
-    void compute_input_scale_shift(int start_idx, int end_idx, int offset, bool do_rounding, bool is_scalar = false);
-    void compute_output_scale_shift(int start_idx, int end_idx, int offset, bool is_scalar = false);
+    void compute_crop(int start_idx, int end_idx, int offset, bool is_scalar = false, bool is_broadcast = false);
+    void compute_input_scale_shift(int start_idx, int end_idx, int offset, bool do_rounding, bool is_scalar = false, bool is_broadcast = false);
+    void compute_output_scale_shift(int start_idx, int end_idx, int offset, bool is_scalar = false, bool is_broadcast = false);
 
 private:
     jit_generator* h;

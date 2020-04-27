@@ -7,7 +7,9 @@
 #include <gmock/gmock-spec-builders.h>
 
 #include <memory>
+#include <tests_utils.hpp>
 #include <details/ie_so_pointer.hpp>
+#include <details/ie_irelease.hpp>
 
 using namespace InferenceEngine::details;
 using namespace ::testing;
@@ -68,4 +70,33 @@ TEST_F(SoPointerTests, assignObjThenLoader) {
     }
 
     soPointer1 = soPointer2;
+}
+
+namespace InferenceEngine {
+
+namespace details {
+
+template<>
+class SOCreatorTrait<InferenceEngine::details::IRelease> {
+public:
+    static constexpr auto name = "CreateIRelease";
+};
+
+}  // namespace details
+
+}  // namespace InferenceEngine
+
+TEST_F(SoPointerTests, UnknownPlugin) {
+    ASSERT_THROW(SOPointer<InferenceEngine::details::IRelease>("UnknownPlugin"), InferenceEngineException);
+}
+
+TEST_F(SoPointerTests, UnknownPluginExceptionStr) {
+    try {
+        SOPointer<InferenceEngine::details::IRelease>("UnknownPlugin");
+    }
+    catch (InferenceEngineException &e) {
+        ASSERT_STR_CONTAINS(e.what(), "Cannot load library 'UnknownPlugin':");
+        ASSERT_STR_DOES_NOT_CONTAIN(e.what(), "path:");
+        ASSERT_STR_DOES_NOT_CONTAIN(e.what(), "from CWD:");
+    }
 }

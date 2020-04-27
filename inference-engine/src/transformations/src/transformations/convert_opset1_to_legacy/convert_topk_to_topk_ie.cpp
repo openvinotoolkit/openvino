@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset1.hpp>
 
 #include <ngraph_ops/topk_ie.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertTopKToTopKIE::convert_topk_to_topk_ie() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -57,7 +58,8 @@ void ngraph::pass::ConvertTopKToTopKIE::convert_topk_to_topk_ie() {
         auto new_topk = std::make_shared<ngraph::op::TopKIE>(topk->input(0).get_source_output(), unsqueezed_k, topk->get_axis(), mode,
                                                              sort_type, topk->output(0).get_shape());
         new_topk->set_friendly_name(topk->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), new_topk);
+        ngraph::copy_runtime_info(topk, {unsqueezed_k, new_topk});
+        ngraph::replace_node(topk, new_topk);
         return true;
     };
 

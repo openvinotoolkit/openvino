@@ -188,6 +188,10 @@ public:
         return *this;
     }
 
+    operator std::shared_ptr<Loader>() const noexcept {
+        return _so_loader;
+    }
+
 protected:
     /**
      * @brief Gets a smart pointer to the DLL

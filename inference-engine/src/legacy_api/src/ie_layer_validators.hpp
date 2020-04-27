@@ -978,5 +978,14 @@ public:
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
+class ScatterElementsUpdateValidator : public LayerValidator {
+public:
+    explicit ScatterElementsUpdateValidator(const std::string& _type);
+
+    void parseParams(CNNLayer* layer) override;
+
+    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
+};
+
 }  // namespace details
 }  // namespace InferenceEngine

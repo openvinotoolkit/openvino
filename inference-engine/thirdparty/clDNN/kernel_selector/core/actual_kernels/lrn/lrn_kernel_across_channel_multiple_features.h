@@ -15,19 +15,26 @@
 
 #pragma once
 
+#include <vector>
 #include "lrn_kernel_base.h"
 
 namespace kernel_selector {
 class LRNKernelAcrossChannelMultipleFeatures : public LRNKernelBase {
 public:
-    LRNKernelAcrossChannelMultipleFeatures() : LRNKernelBase("lrn_gpu_across_channel_multiple_features") {}
+    using Parent = LRNKernelBase;
+    LRNKernelAcrossChannelMultipleFeatures() : Parent("lrn_gpu_across_channel_multiple_features") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 private:
-    bool Validate(const Params& p, const optional_params& o) const override;
-    JitConstants GetJitConstants(const lrn_params& params, DispatchData kd) const override;
-    CommonDispatchData SetDefault(const lrn_params& params) const override;
+    DispatchData SetDefault(const lrn_params& params) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
+    bool Validate(const Params& params, const optional_params& options) const override;
+    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& kd) const override;
 };
 }  // namespace kernel_selector

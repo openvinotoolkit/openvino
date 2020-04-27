@@ -14,6 +14,7 @@
 
 #include "include/include_all.cl"
 #include "include/unit_type.cl"
+#include "include/mmad.cl"
 
 #define FEATURE_SLICE_SIZE 16
 

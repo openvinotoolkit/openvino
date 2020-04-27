@@ -14,7 +14,9 @@ enable_testing()
 add_subdirectory(ngraph_functions)
 add_subdirectory(unit)
 
-add_subdirectory(ie_test_utils)
+if(ENABLE_FUNCTIONAL_TESTS)
+    add_subdirectory(ie_test_utils)
+endif()
 
 if (ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)

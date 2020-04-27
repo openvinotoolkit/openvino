@@ -33,5 +33,24 @@ public:
     }
 };
 
+/**
+ *@brief Implementation of Shape inference for ScatterElementsUpdate layer
+ */
+class ScatterElementsUpdateShapeProp : public BuiltInShapeInferImpl {
+public:
+    explicit ScatterElementsUpdateShapeProp(const std::string& type): BuiltInShapeInferImpl(type) {}
+
+    void inferShapesImpl(const std::vector<Blob::CPtr>& inBlobs, const std::map<std::string, std::string>& params,
+                         const std::map<std::string, Blob::Ptr>& blobs, std::vector<SizeVector>& outShapes) override {
+        LayerParams lp {};
+        ScatterElementsUpdateLayer scatterElementsUpdateLayer(lp);
+        scatterElementsUpdateLayer.params = params;
+        scatterElementsUpdateLayer.type = _type;
+        validate(&scatterElementsUpdateLayer, inBlobs, params, blobs);
+
+        outShapes = {inShapes[0]};
+    }
+};
+
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine

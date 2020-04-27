@@ -17,17 +17,15 @@
 
 namespace LayerTestsDefinitions {
     std::string ReshapeLayerTest::getTestCaseName(testing::TestParamInfo<reshapeParams> obj) {
-    InferenceEngine::Precision inputPrecision, netPrecision;
+    InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes, outFormShapes;
     std::string targetDevice;
     std::map<std::string, std::string> config;
     bool specialZero;
-    std::tie(specialZero, inputPrecision, netPrecision, inputShapes, outFormShapes,
-            targetDevice, config) = obj.param;
+    std::tie(specialZero, netPrecision, inputShapes, outFormShapes, targetDevice, config) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "specialZero=" << specialZero << "_";
-    result << "inPRC=" << inputPrecision.name() << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     return result.str();
@@ -36,8 +34,8 @@ namespace LayerTestsDefinitions {
 void ReshapeLayerTest::SetUp() {
     InferenceEngine::SizeVector inputShapes, outFormShapes;
     bool specialZero;
-    std::tie(specialZero, inputPrecision, netPrecision, inputShapes, outFormShapes,
-            targetDevice, config) = this->GetParam();
+    InferenceEngine::Precision netPrecision;
+    std::tie(specialZero, netPrecision, inputShapes, outFormShapes, targetDevice, configuration) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes});
     auto paramIn = ngraph::helpers::convert2OutputVector(
@@ -47,10 +45,14 @@ void ReshapeLayerTest::SetUp() {
     auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(
             std::make_shared<ngraph::opset1::Reshape>(paramIn[0], constNode, specialZero));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape)};
-    fnPtr = std::make_shared<ngraph::Function>(results, paramsIn, "Reshape");
+    function = std::make_shared<ngraph::Function>(results, paramsIn, "Reshape");
 }
 
 TEST_P(ReshapeLayerTest, CompareWithRefsDynamicBath) {
-    inferAndValidate();
+    Run();
+
+    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+        PluginCache::get().reset();
+    }
 }
 }  // namespace LayerTestsDefinitions

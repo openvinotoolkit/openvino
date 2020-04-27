@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
         if (device_name.find("CPU") != std::string::npos) {
             inPlaceExtension = std::make_shared<InPlaceExtension>();
             // register sample's custom kernel (CustomReLU)
-            ie.AddExtension(inPlaceExtension, "CPU");
+            ie.AddExtension(inPlaceExtension);
         }
         // -----------------------------------------------------------------------------------------------------
 

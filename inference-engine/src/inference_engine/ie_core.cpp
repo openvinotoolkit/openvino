@@ -17,6 +17,7 @@
 
 #include <ngraph/opsets/opset.hpp>
 #include "cpp/ie_cnn_net_reader.h"
+#include "cpp/ie_plugin_cpp.hpp"
 #include "cpp_interfaces/base/ie_plugin_base.hpp"
 #include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_pointer.hpp"
@@ -38,10 +39,9 @@ IE_SUPPRESS_DEPRECATED_START
 namespace {
 
 std::once_flag flag;
-std::shared_ptr<InferenceEngine::details::SharedObjectLoader> cnnReaderLoader;
+InferenceEngine::details::SharedObjectLoader::Ptr cnnReaderLoader;
 
-std::shared_ptr<InferenceEngine::details::SharedObjectLoader>
-createCnnReaderLoader() {
+InferenceEngine::details::SharedObjectLoader::Ptr createCnnReaderLoader() {
     std::call_once(flag, [&] () {
         FileUtils::FilePath libraryName = FileUtils::toFilePath(std::string("inference_engine_ir_readers") + std::string(IE_BUILD_POSTFIX));
         FileUtils::FilePath irReadersLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
@@ -150,6 +150,19 @@ class Core::Impl : public ICore {
         std::vector<FileUtils::FilePath> listOfExtentions;
     };
 
+    /**
+     * Hold original blob in order to avoid situations when original blob is allocated on stack
+     */
+    class WeightsHolderBlob : public TBlob<uint8_t> {
+        Blob::CPtr originBlob;
+
+    public:
+        explicit WeightsHolderBlob(const Blob::CPtr& weights) :
+            TBlob<uint8_t>(weights->getTensorDesc(),
+                           weights->cbuffer().as<uint8_t*>()),
+            originBlob(weights) { }
+    };
+
     std::unordered_set<std::string> opsetNames;
     std::vector<IExtensionPtr> extensions;
 
@@ -235,6 +248,60 @@ public:
         return _taskExecutor;
     }
 
+    CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
+        IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
+        IE_SUPPRESS_DEPRECATED_START
+        ResponseDesc desc;
+        CNNNetReaderPtr cnnReader(createCnnReaderLoader());
+        StatusCode rt = cnnReader->ReadNetwork(modelPath.c_str(), &desc);
+        if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
+        if (cnnReader->getVersion(&desc) >= 10) {
+            cnnReader->addExtensions(getExtensions());
+        }
+        std::string bPath = binPath;
+        if (bPath.empty()) {
+            bPath = modelPath;
+            auto pos = bPath.rfind('.');
+            if (pos != std::string::npos) bPath = bPath.substr(0, pos);
+            bPath += ".bin";
+
+            if (!FileUtils::fileExist(bPath)) bPath.clear();
+        }
+
+        if (!bPath.empty()) {
+            rt = cnnReader->ReadWeights(bPath.c_str(), &desc);
+            if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
+        } else {
+            TBlob<uint8_t>::Ptr weights_ptr;
+            rt = cnnReader->SetWeights(weights_ptr, &desc);
+            if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
+        }
+        IE_SUPPRESS_DEPRECATED_END
+
+        return CNNNetwork(cnnReader);
+    }
+
+    CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const override {
+        IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
+        IE_SUPPRESS_DEPRECATED_START
+        ResponseDesc desc;
+        CNNNetReaderPtr cnnReader(createCnnReaderLoader());
+        StatusCode rt = cnnReader->ReadNetwork(model.data(), model.length(), &desc);
+        if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
+        if (cnnReader->getVersion(&desc) >= 10) {
+            cnnReader->addExtensions(getExtensions());
+        }
+        TBlob<uint8_t>::Ptr weights_ptr;
+        if (weights) {
+            weights_ptr = std::make_shared<WeightsHolderBlob>(weights);
+        }
+        rt = cnnReader->SetWeights(weights_ptr, &desc);
+        if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
+        IE_SUPPRESS_DEPRECATED_END
+
+        return CNNNetwork(cnnReader);
+    }
+
     IE_SUPPRESS_DEPRECATED_START
 
     /**
@@ -275,6 +342,11 @@ public:
                     // Set Inference Engine class reference to plugins
                     ICore* mutableCore = const_cast<ICore*>(static_cast<const ICore*>(this));
                     iplugin_api_ptr->SetCore(mutableCore);
+                }
+
+                // Add registered extensions to new plugin
+                for (const auto& ext : extensions) {
+                    plugin->AddExtension(ext, nullptr);
                 }
 
                 InferencePlugin cppPlugin(plugin);
@@ -388,10 +460,18 @@ public:
                 THROW_IE_EXCEPTION << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
             opsetNames.insert(it.first);
         }
+
+        for (auto& plugin : plugins) {
+            IE_SUPPRESS_DEPRECATED_START
+            try {
+                plugin.second.AddExtension(extension);
+            } catch (...) {}
+            IE_SUPPRESS_DEPRECATED_END
+        }
         extensions.emplace_back(extension);
     }
 
-    const std::vector<IExtensionPtr>& getExtensions() {
+    const std::vector<IExtensionPtr>& getExtensions() const {
         return extensions;
     }
 };
@@ -399,6 +479,7 @@ public:
 Core::Impl::Impl() {
     opsetNames.insert("opset1");
     opsetNames.insert("opset2");
+    opsetNames.insert("opset3");
 }
 
 Core::Impl::~Impl() {}
@@ -488,58 +569,11 @@ Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::ma
 }  //  namespace
 
 CNNNetwork Core::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
-    IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
-    IE_SUPPRESS_DEPRECATED_START
-    ResponseDesc desc;
-    CNNNetReaderPtr cnnReader(createCnnReaderLoader());
-    StatusCode rt = cnnReader->ReadNetwork(modelPath.c_str(), &desc);
-    if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
-    if (cnnReader->getVersion(&desc) >= 10) {
-        cnnReader->addExtensions(_impl->getExtensions());
-    }
-    std::string bPath = binPath;
-    if (bPath.empty()) {
-        bPath = modelPath;
-        auto pos = bPath.rfind('.');
-        if (pos != std::string::npos) bPath = bPath.substr(0, pos);
-        bPath += ".bin";
-
-        if (!FileUtils::fileExist(bPath)) bPath.clear();
-    }
-
-    if (!bPath.empty()) {
-        rt = cnnReader->ReadWeights(bPath.c_str(), &desc);
-        if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
-    } else {
-        TBlob<uint8_t>::Ptr weights_ptr;
-        rt = cnnReader->SetWeights(weights_ptr, &desc);
-        if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    return CNNNetwork(cnnReader);
+    return _impl->ReadNetwork(modelPath, binPath);
 }
 
 CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights) const {
-    IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
-    IE_SUPPRESS_DEPRECATED_START
-    ResponseDesc desc;
-    CNNNetReaderPtr cnnReader(createCnnReaderLoader());
-    StatusCode rt = cnnReader->ReadNetwork(model.data(), model.length(), &desc);
-    if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
-    if (cnnReader->getVersion(&desc) >= 10) {
-        cnnReader->addExtensions(_impl->getExtensions());
-    }
-    TBlob<uint8_t>::Ptr weights_ptr;
-    if (weights) {
-        uint8_t* ptr = weights->cbuffer().as<uint8_t*>();
-        weights_ptr = make_shared_blob<uint8_t>(weights->getTensorDesc(), ptr);
-    }
-    rt = cnnReader->SetWeights(weights_ptr, &desc);
-    if (rt != OK) THROW_IE_EXCEPTION << desc.msg;
-    IE_SUPPRESS_DEPRECATED_END
-
-    return CNNNetwork(cnnReader);
+    return _impl->ReadNetwork(model, weights);
 }
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork network, const std::string& deviceName,

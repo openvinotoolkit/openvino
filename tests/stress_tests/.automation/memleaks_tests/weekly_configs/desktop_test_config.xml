@@ -8,7 +8,7 @@
         <value>1</value>
     </threads>
     <iterations>
-        <value>10000</value>
+        <value>5000</value>
     </iterations>
     <devices>
         <value>CPU</value>

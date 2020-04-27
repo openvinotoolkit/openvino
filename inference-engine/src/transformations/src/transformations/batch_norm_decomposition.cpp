@@ -8,7 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
-
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::BatchNormDecomposition::batch_norm_decomposition() {
     Shape shape{2, 2, 1, 1};
@@ -43,19 +43,12 @@ void ngraph::pass::BatchNormDecomposition::batch_norm_decomposition() {
         //  scale = 1. / np.sqrt(variance + eps)
         //  shift = (mean * (-1)) * scale
         auto input_type = m_input->get_element_type();
-        auto scale = make_shared<ngraph::opset1::Divide>(
-                opset1::Constant::create(input_type, Shape{}, {1}),
-                make_shared<opset1::Power>(
-                        make_shared<opset1::Add>(
-                                m_var,
-                                opset1::Constant::create(input_type, Shape{}, {m_bn->get_eps_value()})),
-                        opset1::Constant::create(input_type, Shape{}, {0.5})));
+        auto scale_add = make_shared<opset1::Add>(m_var, opset1::Constant::create(input_type, Shape{}, {m_bn->get_eps_value()}));
+        auto scale_power = make_shared<opset1::Power>(scale_add, opset1::Constant::create(input_type, Shape{}, {0.5}));
+        auto scale = make_shared<ngraph::opset1::Divide>(opset1::Constant::create(input_type, Shape{}, {1}), scale_power);
 
-        auto shift = make_shared<opset1::Multiply>(
-                scale,
-                make_shared<opset1::Multiply>(
-                        m_mean,
-                        opset1::Constant::create(m_input->get_element_type(), Shape{}, {-1})));
+        auto shift_mul = make_shared<opset1::Multiply>(m_mean, opset1::Constant::create(m_input->get_element_type(), Shape{}, {-1}));
+        auto shift = make_shared<opset1::Multiply>(scale, shift_mul);
 
         // Expand Scale, Shift, Gamma and Beta to be aligned with layout
         size_t dims_to_add = m_input->get_shape().size() - 2;
@@ -76,18 +69,17 @@ void ngraph::pass::BatchNormDecomposition::batch_norm_decomposition() {
         auto shift_aligned = make_shared<opset1::Reshape>(shift, opset1::Constant::create(element::i64, Shape{shift_shape.size()}, shift_shape), true);
 
         // Connect: Mul(input, scale)->Add(mul, shift)->Mul(add, gamma)->Add(mul, beta)
-        auto result = make_shared<opset1::Add>(
-                make_shared<opset1::Multiply>(
-                        make_shared<opset1::Add>(
-                                make_shared<opset1::Multiply>(
-                                        m_input,
-                                        scale_aligned),
-                                shift_aligned),
-                        gamma_aligned),
-                beta_aligned);
+        auto mul1 = std::make_shared<opset1::Multiply>(m_input, scale_aligned);
+        auto add1 = std::make_shared<opset1::Add>(mul1, shift_aligned);
+        auto mul2 = std::make_shared<opset1::Multiply>(add1, gamma_aligned);
+        auto add2 = std::make_shared<opset1::Add>(mul2, beta_aligned);
 
-        result->set_friendly_name(m_bn->get_friendly_name());
-        replace_node(m_bn, result);
+        add2->set_friendly_name(m_bn->get_friendly_name());
+
+        copy_runtime_info(m_bn, {mul1, add1, mul2, add2,
+                                 gamma_aligned, beta_aligned, scale_aligned, shift_aligned,
+                                 scale_add, scale_power, scale, shift_mul, shift});
+        replace_node(m_bn, add2);
 
         return true;
     };

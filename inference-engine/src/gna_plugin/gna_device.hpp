@@ -142,7 +142,9 @@ public:
 #else
 
     DumpResult dumpXnn(const uint32_t modelId);
-    void dumpXnnNoMmu(const uint32_t modelId, std::ostream & outStream);
+    void dumpXnnForDeviceVersion(const uint32_t modelId,
+        std::ostream & outStream,
+        Gna2DeviceVersion targetDeviceVersion);
 #endif
     void free(void * ptr);
 

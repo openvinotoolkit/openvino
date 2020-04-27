@@ -8,8 +8,6 @@
 #include <random>
 #include <chrono>
 
-#include <cpp/ie_cnn_net_reader.h>
-
 #include <gmock/gmock-spec-builders.h>
 
 #include "unit_test_utils/mocks/mock_allocator.hpp"

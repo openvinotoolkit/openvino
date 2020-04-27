@@ -17,11 +17,11 @@ VPU_DECLARE_ENUM(ROIAlignMode,
     Max = 1
 )
 
-static const std::string s_mode = "mode";
-static const std::string s_pooled_w = "pooled_w";
-static const std::string s_pooled_h = "pooled_h";
-static const std::string s_sampling_ratio = "sampling_ratio";
-static const std::string s_spatial_scale = "spatial_scale";
+static const char s_mode[] = "mode";
+static const char s_pooled_w[] = "pooled_w";
+static const char s_pooled_h[] = "pooled_h";
+static const char s_sampling_ratio[] = "sampling_ratio";
+static const char s_spatial_scale[] = "spatial_scale";
 
 namespace {
 
