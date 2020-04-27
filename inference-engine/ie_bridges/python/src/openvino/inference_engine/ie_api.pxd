@@ -1,17 +1,24 @@
 from .cimport ie_api_impl_defs as C
 from .ie_api_impl_defs cimport Blob, TensorDesc
 
+from pathlib import Path
+
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp cimport bool
 from libcpp.memory cimport unique_ptr, shared_ptr
+
+cdef class IEBlob:
+    cdef Blob.Ptr _ptr
+    cdef public object _array_data
+    cdef public object _initial_shape
 
 cdef class BlobBuffer:
     cdef Blob.Ptr ptr
     cdef char*format
     cdef vector[Py_ssize_t] shape
     cdef vector[Py_ssize_t] strides
-    cdef reset(self, Blob.Ptr &)
+    cdef reset(self, Blob.Ptr &, vector[size_t] representation_shape = ?)
     cdef char*_get_blob_format(self, const TensorDesc & desc)
 
     cdef public:
@@ -28,7 +35,7 @@ cdef class InferRequest:
     cpdef get_perf_counts(self)
     cdef void user_callback(self, int status) with gil
     cdef public:
-        _inputs_list, _outputs_list, _py_callback, _py_data, _py_callback_used, _py_callback_called
+        _inputs_list, _outputs_list, _py_callback, _py_data, _py_callback_used, _py_callback_called, _user_blobs
 
 cdef class IENetwork:
     cdef C.IENetwork impl
@@ -55,7 +62,7 @@ cdef class LayersStatsMap(dict):
 
 cdef class IECore:
     cdef C.IECore impl
-    cpdef IENetwork read_network(self, model : [str, bytes], weights : [str, bytes] = ?, bool init_from_buffer = ?)
+    cpdef IENetwork read_network(self, model : [str, bytes, Path], weights : [str, bytes, Path] = ?, bool init_from_buffer = ?)
     cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config = ?, int num_requests = ?)
     cpdef ExecutableNetwork import_network(self, str model_file, str device_name, config = ?, int num_requests = ?)
 
@@ -68,3 +75,6 @@ cdef class CDataPtr:
 
 cdef class IENetLayer:
     cdef C.CNNLayerPtr _ptr
+
+cdef class IETensorDesc:
+    cdef C.TensorDesc impl

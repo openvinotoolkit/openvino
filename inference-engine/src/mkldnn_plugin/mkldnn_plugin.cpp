@@ -16,6 +16,7 @@
 #include <generic_ie.hpp>
 
 #include "convert_function_to_cnn_network.hpp"
+#include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -68,7 +69,8 @@ Engine::LoadExeNetworkImpl(const ICore * /*core*/, const InferenceEngine::ICNNNe
             input_precision != InferenceEngine::Precision::U16 &&
             input_precision != InferenceEngine::Precision::I16 &&
             input_precision != InferenceEngine::Precision::I8 &&
-            input_precision != InferenceEngine::Precision::U8) {
+            input_precision != InferenceEngine::Precision::U8 &&
+            input_precision != InferenceEngine::Precision::BOOL) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                                << "Input image format " << input_precision << " is not supported yet...";
         }
@@ -84,25 +86,23 @@ Engine::LoadExeNetworkImpl(const ICore * /*core*/, const InferenceEngine::ICNNNe
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
+    std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
 
-    if (network.getFunction()) {
+    if (clonedNetwork->getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
                 std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
                 std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node);
         };
-        CNNNetwork net(network.getFunction());
-        auto nGraphFunc = net.getFunction();
+        auto nGraphFunc = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
+        ngraph::pass::CommonOptimizations().run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
-        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
-    } else {
-        clonedNetwork = cloneNet(network);
+        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }
 
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);

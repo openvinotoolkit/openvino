@@ -23,11 +23,11 @@ using stridedSliceParamsTuple = typename std::tuple<
         std::vector<int64_t>,              // New axis mask
         std::vector<int64_t>,              // Shrink axis mask
         std::vector<int64_t>,              // Ellipsis axis mask
-        InferenceEngine::Precision,        // Input precision
         InferenceEngine::Precision,        // Network precision
         std::string>;                      // Device name>;
 
-class StridedSliceLayerTest : public LayerTestsUtils::LayerTestsCommonClass<stridedSliceParamsTuple> {
+class StridedSliceLayerTest : public testing::WithParamInterface<stridedSliceParamsTuple>,
+                              public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<stridedSliceParamsTuple> &obj);
 

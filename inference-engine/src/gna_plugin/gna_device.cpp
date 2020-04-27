@@ -171,14 +171,18 @@ GNADeviceHelper::DumpResult GNADeviceHelper::dumpXnn(const uint32_t modelId) {
 
 #if GNA_LIB_VER == 2
 
-void GNADeviceHelper::dumpXnnNoMmu(const uint32_t modelId, std::ostream & outStream) {
+void GNADeviceHelper::dumpXnnForDeviceVersion(
+    const uint32_t modelId,
+    std::ostream & outStream,
+    const Gna2DeviceVersion targetDeviceVersion) {
+
     Gna2ModelSueCreekHeader sueHeader;
     auto ptr = ExportSueLegacyUsingGnaApi2(modelId, &sueHeader);
     gnaUserFree(ptr);
 
     ExportGnaDescriptorPartiallyFilled(sueHeader.NumberOfLayers, outStream);
 
-    ExportLdForNoMmu(modelId, outStream);
+    ExportLdForDeviceVersion(modelId, outStream, targetDeviceVersion);
     if (dumpXNNROPtr == nullptr) {
         THROW_GNA_EXCEPTION << "Bad RO pointer (nullptr)";
     }

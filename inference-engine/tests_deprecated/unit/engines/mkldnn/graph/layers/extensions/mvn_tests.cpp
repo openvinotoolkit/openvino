@@ -12,7 +12,7 @@
 #include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 #include "ir_gen_helper.hpp"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 
 #include <nodes/base.hpp>
 #include <cpu_isa_traits.hpp>
@@ -260,8 +260,9 @@ protected:
             mvn_test_params p = ::testing::WithParamInterface<mvn_test_params>::GetParam();
             std::string model = getModel(p);
 
-            CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
             MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
             auto defaultExtensions = std::make_shared<InferenceEngine::Extensions::Cpu::MKLDNNExtensions<mkldnn::impl::cpu::cpu_isa_t::isa_any>>();
@@ -270,7 +271,7 @@ protected:
 
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(network, extMgr);
 
             auto& nodes = graph.getNodes();
             nodes = graph.getNodes();
@@ -312,7 +313,7 @@ protected:
             srcs.insert(std::pair<std::string, Blob::Ptr>("in1", src));
 
             OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             BlobMap outputBlobs;
 
             std::pair<std::string, DataPtr> item = *out.begin();
@@ -528,11 +529,12 @@ protected:
             mvn_test_params p = ::testing::WithParamInterface<mvn_test_params>::GetParam();
             std::string model = getModel(p);
 
-            CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             auto& nodes = graph.getNodes();
             nodes = graph.getNodes();
@@ -580,7 +582,7 @@ protected:
             srcs.insert(std::pair<std::string, Blob::Ptr>("in1", src));
 
             OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             BlobMap outputBlobs;
 
             std::pair<std::string, DataPtr> item = *out.begin();

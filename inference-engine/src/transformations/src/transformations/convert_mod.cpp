@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertMod::convert_mod() {
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -19,9 +20,27 @@ void ngraph::pass::ConvertMod::convert_mod() {
         if (!mod) {
             return false;
         }
-        auto last_node = mod->decompose_op()[0];
-        last_node->set_friendly_name(mod->get_friendly_name());
-        ngraph::replace_node(mod, last_node);
+
+        const auto dividend = std::make_shared<opset1::Abs>(mod->input_value(0));
+        const auto dividend_sign = std::make_shared<opset1::Sign>(mod->input_value(0));
+        const auto dividend_et = dividend->get_element_type();
+        const auto divisor = std::make_shared<opset1::Abs>(mod->input_value(1));
+
+        // truncated(a / b)
+        auto div = std::make_shared<opset1::Divide>(dividend, divisor);
+        auto convert_to_i64 = std::make_shared<opset1::Convert>(div, ngraph::element::i64);
+        auto convert = std::make_shared<opset1::Convert>(convert_to_i64, dividend_et);
+        // truncated(a / b) * b
+        auto multiplication = std::make_shared<opset1::Multiply>(convert, divisor);
+        // a mod b = a - truncated(a / b) * b
+        auto sub = std::make_shared<opset1::Subtract>(dividend, multiplication);
+
+        // apply sign of dividend
+        auto mul = std::make_shared<opset1::Multiply>(dividend_sign, sub);
+
+        mul->set_friendly_name(mod->get_friendly_name());
+        ngraph::copy_runtime_info(mod, {dividend, dividend_sign, divisor, div, convert_to_i64, convert, multiplication, sub, mul});
+        ngraph::replace_node(mod, mul);
         return true;
     };
 

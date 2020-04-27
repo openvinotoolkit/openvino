@@ -14,20 +14,20 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 
 namespace LayerTestsDefinitions {
-    typedef std::tuple<
-            bool,                               // SpecialZero
-            InferenceEngine::Precision,         // Input precision
-            InferenceEngine::Precision,         // Network precision
-            std::vector<size_t>,                // Input shapes
-            std::vector<size_t>,                // OutForm Shapes
-            std::string,                        // Device name
-            std::map<std::string, std::string>  // Config
-            > reshapeParams;
+typedef std::tuple<
+        bool,                               // SpecialZero
+        InferenceEngine::Precision,         // Network precision
+        std::vector<size_t>,                // Input shapes
+        std::vector<size_t>,                // OutForm Shapes
+        std::string,                        // Device name
+        std::map<std::string, std::string>  // Config
+> reshapeParams;
 
-class ReshapeLayerTest
-        : public LayerTestsUtils::LayerTestsCommonClass<reshapeParams> {
+class ReshapeLayerTest : public testing::WithParamInterface<reshapeParams>,
+                         public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<reshapeParams> obj);
+
 protected:
     void SetUp() override;
 };

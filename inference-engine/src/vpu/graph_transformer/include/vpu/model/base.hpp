@@ -99,11 +99,17 @@ VPU_DEFINE_SHARED_PTR_TYPES(StageInput, Edge)
 VPU_DEFINE_HANDLE_TYPES(StageOutput, Edge)
 VPU_DEFINE_SHARED_PTR_TYPES(StageOutput, Edge)
 
+VPU_DEFINE_HANDLE_TYPES(StageDependency, Edge)
+VPU_DEFINE_SHARED_PTR_TYPES(StageDependency, Edge)
+
 VPU_DEFINE_HANDLE_TYPES(StageTempBuffer, Edge)
 VPU_DEFINE_SHARED_PTR_TYPES(StageTempBuffer, Edge)
 
-VPU_DEFINE_HANDLE_TYPES(SharedAllocation, Edge)
-VPU_DEFINE_SHARED_PTR_TYPES(SharedAllocation, Edge)
+VPU_DEFINE_HANDLE_TYPES(DataToDataAllocation, Edge)
+VPU_DEFINE_SHARED_PTR_TYPES(DataToDataAllocation, Edge)
+
+VPU_DEFINE_HANDLE_TYPES(DataToShapeAllocation, Edge)
+VPU_DEFINE_SHARED_PTR_TYPES(DataToShapeAllocation, Edge)
 
 VPU_DEFINE_HANDLE_TYPES(Injection, Edge)
 VPU_DEFINE_SHARED_PTR_TYPES(Injection, Edge)

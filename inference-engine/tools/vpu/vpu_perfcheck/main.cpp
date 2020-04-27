@@ -309,7 +309,7 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
 int process(const std::string& modelFileName, const std::string& inputsDir,
             std::string& file_config_cl, int nBatch, int num_networks) {
     InferenceEngine::ResponseDesc resp;
-
+    InferenceEngine::Core ie;
     niter /= nBatch;
     num_requests = num_requests * num_networks;
 
@@ -326,21 +326,14 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
     }
 #endif
 
-    InferenceEngine::PluginDispatcher disp;
-    InferenceEngine::InferenceEnginePluginPtr plugin(
-        disp.getPluginByName(std::string("myriadPlugin") + IE_BUILD_POSTFIX));
-
+#ifdef USE_KMB_PLUGIN
+    std::string deivceName = "KMB";
+#else
+    std::string deviceName = "MYRIAD";
+#endif
+    const auto pluginVersion = ie.GetVersions(deviceName);
     std::cout << "InferenceEngine: " << std::endl;
-
-    const InferenceEngine::Version *pluginVersion = nullptr;
-    plugin->GetVersion(pluginVersion);
     std::cout << pluginVersion << std::endl << std::endl;
-
-    InferenceEngine::CNNNetReader netReader;
-    netReader.ReadNetwork(modelFileName);
-
-    std::string binFileName = fileNameNoExt(modelFileName) + ".bin";
-    netReader.ReadWeights(binFileName);
 
     std::ifstream file(file_config_cl);
     if (!file.is_open()) {
@@ -360,7 +353,7 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
         return 1;
     }
 
-    InferenceEngine::CNNNetwork cnnNetwork = netReader.getNetwork();
+    InferenceEngine::CNNNetwork cnnNetwork = ie.ReadNetwork(modelFileName);
 
     if (nBatch != 1) {
         std::cout << "Setting batch to : "<< nBatch << "\n";
@@ -397,7 +390,7 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
         else
             printf("Load network... \n");
         fflush(stdout);
-        IECALL(plugin->LoadNetwork(exeNetwork[n], cnnNetwork, networkConfig, &resp));
+        exeNetwork[n] = ie.LoadNetwork(cnnNetwork, deviceName, networkConfig);
     }
 
     std::vector<InferenceEngine::IInferRequest::Ptr> request(num_requests);

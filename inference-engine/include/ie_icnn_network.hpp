@@ -75,6 +75,10 @@ public:
      *
      * For single and multiple outputs networks.
      *
+     * This method need to be called to find output names for using them later
+     * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
+     *
+     *
      * @param out Reference to the OutputsDataMap object
      */
     virtual void getOutputsInfo(OutputsDataMap& out) const noexcept = 0;
@@ -84,8 +88,8 @@ public:
      * object.
      *
      * For single and multiple inputs networks.
-     * This method must be called to find out input names for using them later during filling of a map
-     * of blobs passed later to InferenceEngine::IInferencePlugin::Infer()
+     * This method need to be called to find out input names for using them later
+     * when calling InferenceEngine::InferRequest::SetBlob
      *
      * @param inputs Reference to InputsDataMap object.
      */

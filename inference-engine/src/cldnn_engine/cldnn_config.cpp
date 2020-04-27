@@ -258,14 +258,11 @@ void Config::adjustKeyMapValues() {
         default: break;
         }
         key_config_map[PluginConfigParams::KEY_TUNING_MODE] = tm;
-        if (!tuningConfig.cache_file_path.empty())
-            key_config_map[PluginConfigParams::KEY_TUNING_FILE] = tuningConfig.cache_file_path;
+        key_config_map[PluginConfigParams::KEY_TUNING_FILE] = tuningConfig.cache_file_path;
     }
 
-    if (!graph_dumps_dir.empty())
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_GRAPH_DUMPS_DIR] = graph_dumps_dir;
-    if (!sources_dumps_dir.empty())
-        key_config_map[CLDNNConfigParams::KEY_CLDNN_SOURCES_DUMPS_DIR] = sources_dumps_dir;
+    key_config_map[CLDNNConfigParams::KEY_CLDNN_GRAPH_DUMPS_DIR] = graph_dumps_dir;
+    key_config_map[CLDNNConfigParams::KEY_CLDNN_SOURCES_DUMPS_DIR] = sources_dumps_dir;
 
     key_config_map[PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS] = std::to_string(throughput_streams);
     key_config_map[PluginConfigParams::KEY_DEVICE_ID] = device_id;

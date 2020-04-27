@@ -100,9 +100,11 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
         {"ExperimentalDetectronPriorGridGenerator",            LAYER_PARSER(parseExpPriorGridGenerator)},
         {"ExperimentalDetectronGenerateProposalsSingleImage",  LAYER_PARSER(parseExpGenerateProposals)},
         {"ScatterUpdate",                                      LAYER_PARSER(parseScatterUpdate)},
+        {"ScatterElementsUpdate",                              LAYER_PARSER(parseScatterElementsUpdate)},
         {"ExperimentalDetectronTopKROIs",                      LAYER_PARSER(parseExpTopKROIs)},
         {"StaticShapeNonZero",                                 LAYER_PARSER(parseNonZero)},
         {"ROIAlign",                                           LAYER_PARSER(parseROIAlign)},
+        {"DynamicShapeResolver",                               LAYER_PARSER(parseDSR)},
     }} {}
 
 ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {

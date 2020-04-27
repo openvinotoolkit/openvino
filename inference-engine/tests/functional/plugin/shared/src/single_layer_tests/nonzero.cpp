@@ -20,33 +20,37 @@ namespace LayerTestsDefinitions {
 
 std::string NonZeroLayerTest::getTestCaseName(testing::TestParamInfo<NonZeroLayerTestParamsSet> obj) {
     std::vector<size_t> inputShape;
-    InferenceEngine::Precision inputPrecision, netPrecision;
+    InferenceEngine::Precision inputPrecision;
     std::string targetDevice;
-    ConfigMap config;
-    std::tie(inputShape, inputPrecision, netPrecision, targetDevice, config) = obj.param;
+    std::tie(inputShape, inputPrecision, targetDevice) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
     result << "inPRC=" << inputPrecision.name() << "_";
-    result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
 void NonZeroLayerTest::SetUp() {
-    std::vector<size_t> inputShape;
-    std::tie(inputShape, inputPrecision, netPrecision, targetDevice, config) = this->GetParam();
+    SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
+    auto inputShape     = std::vector<std::size_t>{};
+    auto inputPrecision = InferenceEngine::Precision::UNSPECIFIED;
+    std::tie(inputShape, inputPrecision, targetDevice) = GetParam();
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto paramNode = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(inputShape));
+    const auto& precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
+    const auto& paramNode = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
 
     auto nonZeroOp = std::make_shared<ngraph::opset3::NonZero>(paramNode->output(0));
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(nonZeroOp)};
-    fnPtr = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{paramNode}, "non_zero");
+    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{paramNode}, "non_zero");
 }
 
-TEST_P(NonZeroLayerTest, CompareWithRefs) {
-    inferAndValidate();
+TEST_P(NonZeroLayerTest, CompareWithReference) {
+    Run();
+
+    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+        PluginCache::get().reset();
+    }
 }
 }  // namespace LayerTestsDefinitions

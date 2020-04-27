@@ -5,7 +5,6 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <cpp/ie_cnn_net_reader.h>
 #include "gna_matcher.hpp"
 
 using namespace std;

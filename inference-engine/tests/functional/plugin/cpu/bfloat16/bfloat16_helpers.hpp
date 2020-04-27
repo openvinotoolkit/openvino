@@ -163,7 +163,7 @@ typedef std::tuple<
  *
  * In 3rd stage do not forget bfloat16 preffix!
  */
-class BasicBF16Test : public LayerTestsUtils::LayerTestsCommonClass<basicParams> {
+class BasicBF16Test : public LayerTestsUtils::LayerTestsCommonDeprecated<basicParams> {
 protected:
     virtual std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) = 0;
 

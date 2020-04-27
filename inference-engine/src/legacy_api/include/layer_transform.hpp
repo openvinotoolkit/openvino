@@ -33,7 +33,7 @@ using AllLayers =
                ReshapeLayer*, TileLayer*, ScaleShiftLayer*, PReLULayer*, PowerLayer*, BatchNormalizationLayer*,
                ClampLayer*, TensorIterator*, LSTMCell*, GRUCell*, RNNCell*, RNNSequenceLayer*, QuantizeLayer*,
                BinaryConvolutionLayer*, WeightableLayer*, OneHotLayer*, MathLayer*, ReduceLayer*, UniqueLayer*,
-               NonMaxSuppressionLayer*, ScatterUpdateLayer*, ExperimentalDetectronPriorGridGeneratorLayer*,
+               NonMaxSuppressionLayer*, ScatterUpdateLayer*, ScatterElementsUpdateLayer*, ExperimentalDetectronPriorGridGeneratorLayer*,
                ExperimentalDetectronGenerateProposalsSingleImageLayer*, ExperimentalDetectronTopKROIs*, CNNLayer*>;
 
 template <class Visitor, std::size_t I = 0, typename... Tp>

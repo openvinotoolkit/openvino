@@ -25,22 +25,26 @@ ParamsKey LRNKernelWithinChannelByxfOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::byxf);
     k.EnableOutputLayout(DataLayout::byxf);
-    k.EnableTensorOffset();
-    k.EnableTensorPitches();
-    k.EnableBatching();
     k.EnableLRNMode(LRNMode::WITHIN_CHANNEL);
     k.EnableLRNKernelDividerMode(KernelDividerMode::DYNAMIC);
     k.EnableLRNKernelDividerMode(KernelDividerMode::FIXED);
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableBatching();
+    k.EnableDifferentTypes();
     return k;
 }
 
 JitConstants LRNKernelWithinChannelByxfOpt::GetJitConstants(
     const lrn_params& params,
-    LRNKernelWithinChannelByxfOpt::Parent::DispatchData kd) const {
+    const LRNKernelBase::DispatchData& kd) const {
     const uint32_t round_norm_size = (params.localSize / 2) * 2 + 1;
     uint32_t numElement = round_norm_size * round_norm_size;
+    const auto& input_dt = params.inputs[0].GetDType();
 
     if (params.normMode == LRNMode::ACROSS_CHANNEL) {
         numElement = round_norm_size;
@@ -55,6 +59,11 @@ JitConstants LRNKernelWithinChannelByxfOpt::GetJitConstants(
         MakeJitConstant("GWS_FEATURE", 1),
         MakeJitConstant("GWS_YX", 0),
     });
+
+    if (!params.fused_ops.empty()) {
+        FusedOpsConfiguration conf = {"", {"b", "f + i", "y", "x"}, "lrn_result", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
 
     return jit;
 }

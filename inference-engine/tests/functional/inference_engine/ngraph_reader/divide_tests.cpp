@@ -8,7 +8,7 @@
 
 TEST_F(NGraphReaderTests, ReadDivideNetwork) {
     std::string model = R"V0G0N(
-<net name="Multiply" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,64,112,112"/>

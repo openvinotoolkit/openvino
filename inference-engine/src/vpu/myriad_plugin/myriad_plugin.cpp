@@ -16,8 +16,9 @@
 #include <vpu/parsed_config.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
-#include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
-#include <generic_ie.hpp>
+
+#include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
+#include "generic_ie.hpp"
 
 #include "myriad_plugin.h"
 
@@ -35,10 +36,10 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
-    if (auto func = clonedNetwork->getFunction()) {
-        ngraph::op::GenericIE::DisableReshape noReshape(func);
-        ngraph::pass::DynamicToStaticShape().run_on_function(func);
+    auto clonedNetwork = cloneNetwork(network);
+    if (auto function = clonedNetwork->getFunction()) {
+        ngraph::op::GenericIE::DisableReshape noReshape(function);
+        vpu::DynamicToStaticShape().transform(*function);
     }
 
     return std::make_shared<ExecutableNetwork>(*clonedNetwork, _devicePool, parsedConfigCopy);

@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include <single_layer_common.hpp>
 
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 #include <net_pass.h>
 
 using namespace ::testing;
@@ -216,13 +216,12 @@ protected:
     }
 
     void testBody(bool isLSTM = false) const {
-        CNNNetReader reader;
+        InferenceEngine::Core core;
 
         // This model contains layers with float attributes.
         // Conversion from string may be affected by locale.
         std::string model = isLSTM ? _model_LSTM : getModel();
-        reader.ReadNetwork(model.data(), model.length());
-        auto net = reader.getNetwork();
+        auto net = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
 
         if (!isLSTM) {
             auto power_layer = dynamic_pointer_cast<PowerLayer>(net.getLayerByName("power"));

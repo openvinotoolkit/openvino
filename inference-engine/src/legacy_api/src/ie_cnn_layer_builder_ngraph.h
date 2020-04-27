@@ -9,7 +9,6 @@
 #include <ie_layers.h>
 
 #include <details/caseless.hpp>
-#include <ie_network.hpp>
 #include <map>
 #include <memory>
 #include <ngraph/node.hpp>

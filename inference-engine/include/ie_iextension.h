@@ -281,6 +281,9 @@ public:
     INFERENCE_ENGINE_DEPRECATED("Use IExtension::getImplementation to get a concrete implementation")
     virtual StatusCode getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer,
                                      ResponseDesc* resp) noexcept {
+        (void)factory;
+        (void)cnnLayer;
+        (void)resp;
         return NOT_IMPLEMENTED;
     }
     IE_SUPPRESS_DEPRECATED_END
@@ -296,6 +299,9 @@ public:
      */
     INFERENCE_ENGINE_DEPRECATED("Use IExtension::getImplTypes to get implementation types for a particular node")
     virtual StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
+        (void)types;
+        (void)size;
+        (void)resp;
         return NOT_IMPLEMENTED;
     }
 
@@ -322,6 +328,7 @@ public:
      * @return vector of strings
      */
     virtual std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) {
+        (void)node;
         return {};
     }
 
@@ -332,6 +339,8 @@ public:
      * @return shared pointer to implementation
      */
     virtual ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) {
+        (void)node;
+        (void)implType;
         return nullptr;
     }
 };

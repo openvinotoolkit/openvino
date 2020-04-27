@@ -23,13 +23,12 @@ namespace LayerTestsDefinitions {
 std::string ConcatLayerTest::getTestCaseName(const testing::TestParamInfo<concatParamsTuple> &obj) {
     size_t axis;
     std::vector<std::vector<size_t>> inputShapes;
-    InferenceEngine::Precision netPrecision, inputPrecision;
+    InferenceEngine::Precision netPrecision;
     std::string targetName;
-    std::tie(axis, inputShapes, inputPrecision, netPrecision, targetName) = obj.param;
+    std::tie(axis, inputShapes, netPrecision, targetName) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "axis=" << axis << "_";
-    result << "inPRC=" << inputPrecision.name() << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetName << "_";
     return result.str();
@@ -38,18 +37,23 @@ std::string ConcatLayerTest::getTestCaseName(const testing::TestParamInfo<concat
 void ConcatLayerTest::SetUp() {
     size_t axis;
     std::vector<std::vector<size_t>> inputShape;
-    std::tie(axis, inputShape, inputPrecision, netPrecision, targetDevice) = this->GetParam();
+    InferenceEngine::Precision netPrecision;
+    std::tie(axis, inputShape, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, inputShape);
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto concat = std::make_shared<ngraph::opset1::Concat>(paramOuts, axis);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
-    fnPtr = std::make_shared<ngraph::Function>(results, params, "concat");
+    function = std::make_shared<ngraph::Function>(results, params, "concat");
 }
 
 
 TEST_P(ConcatLayerTest, CompareWithRefs) {
-    inferAndValidate();
+    Run();
+
+    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+        PluginCache::get().reset();
+    }
 };
 }  // namespace LayerTestsDefinitions

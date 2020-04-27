@@ -27,7 +27,7 @@ std::string SoftMaxLayerTest::getTestCaseName(testing::TestParamInfo<softMaxLaye
     size_t axis;
     std::string targetDevice;
     std::map<std::string, std::string> config;
-    std::tie(netPrecision, inputPrecision, inputLayout, inputShape, axis, targetDevice, config) = obj.param;
+    std::tie(netPrecision, inputLayout, inputShape, axis, targetDevice, config) = obj.param;
 
     std::ostringstream result;
     result << "netPRC=" << netPrecision.name() << "_";
@@ -42,10 +42,11 @@ std::string SoftMaxLayerTest::getTestCaseName(testing::TestParamInfo<softMaxLaye
 
 void SoftMaxLayerTest::SetUp() {
     InferenceEngine::SizeVector inputShape;
+    InferenceEngine::Precision netPrecision;
     size_t axis;
-    std::tie(netPrecision, inputPrecision, inputLayout, inputShape, axis, targetDevice, config) = GetParam();
-    outputPrecision = inputPrecision;
-    outputLayout = inputLayout;
+
+    std::tie(netPrecision, inLayout, inputShape, axis, targetDevice, configuration) = GetParam();
+    outLayout = inLayout;
 
     const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -58,11 +59,15 @@ void SoftMaxLayerTest::SetUp() {
 
     const ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(softMax)};
 
-    fnPtr = std::make_shared<ngraph::Function>(results, params, "softMax");
+    function = std::make_shared<ngraph::Function>(results, params, "softMax");
 }
 
 TEST_P(SoftMaxLayerTest, CompareWithRefs) {
-    inferAndValidate();
+    Run();
+
+    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+        PluginCache::get().reset();
+    }
 }
 
 }  // namespace LayerTestsDefinitions

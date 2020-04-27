@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadMaximumNetwork) {
     std::string model = R"V0G0N(
-<net name="Multiply" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,64,112,112"/>
@@ -73,7 +73,7 @@ TEST_F(NGraphReaderTests, ReadMaximumNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>

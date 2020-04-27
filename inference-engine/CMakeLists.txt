@@ -60,7 +60,7 @@ function(ie_developer_export)
             APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
 
     # Custom target to build only Inference Engine Developer Package targets
-    add_custom_target(ie_dev_targets ALL DEPENDS ${IEDeveloperPackageTargets})
+    add_custom_target(ie_dev_targets ALL DEPENDS ${IEDeveloperPackageTargets} gflags)
 endfunction()
 
 add_subdirectory(thirdparty)
@@ -74,9 +74,24 @@ endif()
 
 add_subdirectory(tools)
 
+function(ie_build_samples)
+    # samples should be build with the same flags as from OpenVINO package,
+    # so unset all flags
+    foreach(var CMAKE_CXX_FLAGS CMAKE_C_FLAGS CMAKE_CXX_STANDARD
+                CMAKE_EXE_LINKER_FLAGS CMAKE_POLICY_DEFAULT_CMP0063
+                CMAKE_CXX_VISIBILITY_PRESET CMAKE_C_VISIBILITY_PRESET
+                CMAKE_VISIBILITY_INLINES_HIDDEN CMAKE_POSITION_INDEPENDENT_CODE
+                THREADS_PREFER_PTHREAD_FLAG X86_64 X86 ARM AARCH64 LINUX
+                MINGW64 CMAKE_BUILD_TYPE CMAKE_MACOSX_RPATH)
+        unset(${var})
+    endforeach()
+
+    add_subdirectory(samples)
+endfunction()
+
 # gflags and format_reader targets are kept inside of samples directory and
 # they must be built even if samples build is disabled (required for tests and tools).
-add_subdirectory(samples)
+ie_build_samples()
 
 file(GLOB_RECURSE SAMPLES_SOURCES samples/*.cpp samples/*.hpp samples/*.h)
 add_cpplint_target(sample_cpplint
@@ -109,7 +124,7 @@ if(UNIX)
             PATTERN *.bat EXCLUDE
             PATTERN speech_libs_and_demos EXCLUDE)
 elseif(WIN32)
-    install(DIRECTORY samples
+    install(DIRECTORY samples/
             DESTINATION ${IE_CPACK_IE_DIR}/samples/cpp
             COMPONENT cpp_samples
             USE_SOURCE_PERMISSIONS

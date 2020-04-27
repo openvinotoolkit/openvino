@@ -18,11 +18,11 @@ using batchToSpaceParamsTuple = typename std::tuple<
         std::vector<size_t>,               // crops begin
         std::vector<size_t>,               // crops end
         std::vector<size_t>,               // Input shapes
-        InferenceEngine::Precision,        // Input precision
         InferenceEngine::Precision,        // Network precision
         std::string>;                      // Device name>;
 
-class BatchToSpaceLayerTest : public LayerTestsUtils::LayerTestsCommonClass<batchToSpaceParamsTuple> {
+class BatchToSpaceLayerTest : public testing::WithParamInterface<batchToSpaceParamsTuple>,
+                              public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<batchToSpaceParamsTuple> &obj);
 

@@ -20,7 +20,7 @@ typedef std::tuple<
         InferenceEngine::SizeVector,
         std::string> basicParams;
 
-class ExecGraphUniqueNodeNames : public LayerTestsUtils::LayerTestsCommonClass<LayerTestsUtils::basicParams> {
+class ExecGraphUniqueNodeNames : public LayerTestsUtils::LayerTestsCommonDeprecated<LayerTestsUtils::basicParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj);
 

@@ -18,23 +18,24 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-        ngraph::helpers::PoolingTypes,
-        InferenceEngine::SizeVector,
-        InferenceEngine::SizeVector,
-        InferenceEngine::SizeVector,
-        InferenceEngine::SizeVector,
-        ngraph::op::RoundingType,
-        ngraph::op::PadType,
-        bool> poolSpecificParams;
+        ngraph::helpers::PoolingTypes,  // Pooling type, max or avg
+        std::vector<size_t>,            // Kernel size
+        std::vector<size_t>,            // Stride
+        std::vector<size_t>,            // Pad begin
+        std::vector<size_t>,            // Pad end
+        ngraph::op::RoundingType,       // Rounding type
+        ngraph::op::PadType,            // Pad type
+        bool                            // Exclude pad
+> poolSpecificParams;
 typedef std::tuple<
         poolSpecificParams,
-        InferenceEngine::Precision,
-        InferenceEngine::Precision,
-        InferenceEngine::SizeVector,
-        std::string> poolLayerTestParamsSet;
+        InferenceEngine::Precision,     // Net precision
+        std::vector<size_t>,            // Input shape
+        std::string                     // Device name
+> poolLayerTestParamsSet;
 
-class PoolingLayerTest
-        : public LayerTestsUtils::LayerTestsCommonClass<poolLayerTestParamsSet> {
+class PoolingLayerTest : public testing::WithParamInterface<poolLayerTestParamsSet>,
+                         public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<poolLayerTestParamsSet> obj);
 

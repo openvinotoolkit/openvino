@@ -12,7 +12,6 @@
 #include <memory>
 #include <map>
 
-#include <cpp/ie_cnn_net_reader.h>
 #include <cpp/ie_cnn_network.h>
 #include <ie_util_internal.hpp>
 #include <ie_parameter.hpp>
@@ -449,11 +448,8 @@ TEST_F(CNNNGraphImplTests, ReadFromCNNNetReader) {
     </edges>
 </net>
 )V0G0N";
-    CNNNetReader reader;
-    reader.ReadNetwork(model.data(), model.length());
-    ASSERT_TRUE(reader.isParseSuccess());
-    reader.SetWeights(nullptr);
-    CNNNetwork network = reader.getNetwork();
+    InferenceEngine::Core core;
+    CNNNetwork network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
     network.begin();
     ASSERT_EQ(2, network.layerCount());
 }

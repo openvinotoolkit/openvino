@@ -7,7 +7,6 @@
 #include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
 #include <ie_iinfer_request.hpp>
 #include <ie_parameter.hpp>
-#include <ie_primitive_info.hpp>
 #include <map>
 #include <memory>
 #include <string>

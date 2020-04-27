@@ -174,38 +174,12 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
 
-# Create NN Builder
-
-file(GLOB NN_BUILDER_LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/builders/*.cpp)
-
-# disable deprecated warnings for NN Builder
-
-function(nn_builder_disable_warnings)
-    disable_deprecated_warnings()
-    set_source_files_properties(${NN_BUILDER_LIBRARY_SRC} PROPERTIES COMPILE_FLAGS "${ie_c_cxx_deprecated}")
-endfunction()
-
-nn_builder_disable_warnings()
-
-add_library(${TARGET_NAME}_nn_builder SHARED ${NN_BUILDER_LIBRARY_SRC})
-
-target_compile_definitions(${TARGET_NAME}_nn_builder PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
-
-target_link_libraries(${TARGET_NAME}_nn_builder PUBLIC ${TARGET_NAME})
-
-target_include_directories(${TARGET_NAME}_nn_builder PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-    "${IE_MAIN_SOURCE_DIR}/src/legacy_api/src")
-
-add_cpplint_target(${TARGET_NAME}_nn_builder_cpplint FOR_TARGETS ${TARGET_NAME}_nn_builder)
-
 # Static library used for unit tests which are always built
 
 add_library(${TARGET_NAME}_s STATIC
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>
             $<TARGET_OBJECTS:${TARGET_NAME}_common_obj>
             $<TARGET_OBJECTS:${TARGET_NAME}_legacy_obj>
-            ${NN_BUILDER_LIBRARY_SRC}
             ${IE_STATIC_DEPENDENT_FILES})
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
@@ -232,7 +206,7 @@ endif()
 
 # export targets
 
-export(TARGETS ${TARGET_NAME} ${TARGET_NAME}_nn_builder NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
+export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
 
 configure_file(
     "${IE_MAIN_SOURCE_DIR}/cmake/config.cmake.in"
@@ -249,7 +223,7 @@ configure_file(
 add_library(xbyak INTERFACE)
 target_include_directories(xbyak INTERFACE ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/xbyak)
 
-ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api ${TARGET_NAME}_nn_builder xbyak)
+ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api xbyak)
 
 # install
 
@@ -283,7 +257,7 @@ ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 
 install(DIRECTORY "${IE_MAIN_SOURCE_DIR}/include" DESTINATION ${IE_CPACK_IE_DIR}
         COMPONENT core)
-install(TARGETS ${TARGET_NAME} ${TARGET_NAME}_nn_builder
+install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
@@ -293,5 +267,5 @@ install(FILES "${OpenVINO_BINARY_DIR}/share/ie_parallel.cmake"
         DESTINATION ${IE_CPACK_IE_DIR}/share
         COMPONENT core)
 install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT core)

@@ -91,7 +91,8 @@ enum ActivationTypes {
     Exp,
     Log,
     Sign,
-    Abs
+    Abs,
+    Gelu
 };
 
 ngraph::OutputVector convert2OutputVector(const std::vector<std::shared_ptr<ngraph::Node>> &nodes);
@@ -142,7 +143,24 @@ inferFnWithInterp(const std::shared_ptr<ngraph::Function> &fn,
     return outData;
 }
 
-std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function>& function, const std::vector<std::vector<std::uint8_t>>& inputs);
+std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function,
+                                                           const std::vector<std::vector<std::uint8_t>> &inputs);
+
+//
+// This function compares two nGraph functions and requires them to have exactly one output
+// Check nodes types
+// Check number of inputs
+// Check shapes of each Node
+//
+void CompareFunctions(const Function& actual, const Function& expected);
+
+
+std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function,
+                                       const std::vector<std::vector<std::uint8_t>> &inputs);
+
+std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Function> &function);
+
+std::shared_ptr<ngraph::Node> getNodeSharedPtr(const ngraph::NodeTypeInfo &type_info, const ngraph::OutputVector &outputVector);
 
 }  // namespace helpers
 }  // namespace ngraph

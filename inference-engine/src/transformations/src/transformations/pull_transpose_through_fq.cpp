@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::PullTransposeThroughFQUp::pull_transpose_through_fq() {
     auto data1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -39,6 +40,7 @@ void ngraph::pass::PullTransposeThroughFQUp::pull_transpose_through_fq() {
 
         auto input_shape = fq->input(0).get_source_output().get_shape();
 
+        ngraph::NodeVector new_ops;
         ngraph::OutputVector fq_inputs;
         for (size_t i = 0; i < fq->inputs().size(); ++i) {
             std::shared_ptr<ngraph::Node> fq_input;
@@ -51,13 +53,17 @@ void ngraph::pass::PullTransposeThroughFQUp::pull_transpose_through_fq() {
             if (!unsqueeze_axes.empty()) {
                 fq_input = std::make_shared<ngraph::opset1::Unsqueeze>(fq_input,
                                                                        opset1::Constant::create(element::i64, Shape{unsqueeze_axes.size()}, unsqueeze_axes));
+                new_ops.push_back(fq_input);
             }
             fq_input = transpose->copy_with_new_inputs({fq_input, const_order});
+            ngraph::copy_runtime_info(transpose, fq_input);
             fq_inputs.push_back(fq_input);
         }
 
         auto new_fq = fq->copy_with_new_inputs(fq_inputs);
+        new_ops.push_back(new_fq);
         new_fq->set_friendly_name(fq->get_friendly_name());
+        ngraph::copy_runtime_info({fq, transpose}, new_ops);
         ngraph::replace_node(transpose, new_fq);
 
         return true;

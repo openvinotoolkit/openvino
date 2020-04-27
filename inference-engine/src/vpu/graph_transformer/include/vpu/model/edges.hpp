@@ -9,11 +9,11 @@
 namespace vpu {
 
 //
-// StageInputEdge
+// Data -> Stage edges.
 //
 
 //
-// Data -> Stage edge.
+// StageInputEdge
 //
 
 class StageInputEdge final :
@@ -32,6 +32,28 @@ private:
     Model _model;
     StageInputPtrList::iterator _ptrPosInModel;
     StageInputListNode _posInData;
+
+    friend ModelObj;
+    friend DataNode;
+};
+
+//
+// StageDependencyEdge defines that some data should be calculated before the stage starts
+// but this data is not an input for the stage, e.g. this data is used as a shape for stage output.
+//
+
+class StageDependencyEdge final :
+        public EnableHandle,
+        public EnableCustomAttributes {
+VPU_MODEL_ATTRIBUTE(Data, data, nullptr)
+VPU_MODEL_ATTRIBUTE(Stage, dependentStage, nullptr)
+
+private:
+    StageDependencyEdge() : _posInData(this) {}
+
+private:
+    StageDependencyPtrList::iterator _ptrPosInModel;
+    StageDependencyListNode _posInData;
 
     friend ModelObj;
     friend DataNode;
@@ -82,7 +104,7 @@ private:
 };
 
 //
-// SharedAllocationEdge
+// DataToDataAllocationEdge
 //
 
 //
@@ -126,7 +148,7 @@ VPU_DECLARE_ENUM(SharedConnectionMode,
     SINGLE_STAGE,
     SUBGRAPH)
 
-class SharedAllocationEdge final :
+class DataToDataAllocationEdge final :
         public EnableHandle,
         public EnableCustomAttributes {
     VPU_MODEL_ATTRIBUTE(Data, parent, nullptr)
@@ -137,12 +159,37 @@ class SharedAllocationEdge final :
     VPU_MODEL_ATTRIBUTE(SharedConnectionMode, connectionMode, SharedConnectionMode::SINGLE_STAGE);
 
 private:
-    SharedAllocationEdge() : _posInData(this) {}
+    DataToDataAllocationEdge() : _posInData(this) {}
 
 private:
     Model _model;
-    SharedAllocationPtrList::iterator _ptrPosInModel;
-    SharedAllocationListNode _posInData;
+    DataToDataAllocationPtrList::iterator _ptrPosInModel;
+    DataToDataAllocationListNode _posInData;
+
+    friend ModelObj;
+    friend DataNode;
+};
+
+//
+// DataToShapeAllocationEdge
+//
+
+//
+// Data <-> Shape of data edge - used to share data memory of one DataNode as shape for another DataNode
+//
+
+class DataToShapeAllocationEdge final :
+        public EnableHandle,
+        public EnableCustomAttributes {
+    VPU_MODEL_ATTRIBUTE(Data, parent, nullptr)
+    VPU_MODEL_ATTRIBUTE(Data, child, nullptr)
+
+private:
+    DataToShapeAllocationEdge() : _posInData(this) {}
+
+private:
+    DataToShapeAllocationPtrList::iterator _ptrPosInModel;
+    DataToShapeAllocationListNode _posInData;
 
     friend ModelObj;
     friend DataNode;

@@ -34,6 +34,20 @@ std::shared_ptr<ngraph::Node> makeConvolution(const ngraph::Output<Node> &in,
                                               const std::vector<float> &filterWeights = {},
                                               const std::vector<float> &biasesWeights = {});
 
+std::shared_ptr<ngraph::Node> makeGroupConvolution(const ngraph::Output<Node> &in,
+                                                   const element::Type &type,
+                                                   const std::vector<size_t> &filterSize,
+                                                   const std::vector<size_t> &strides,
+                                                   const std::vector<ptrdiff_t> &padsBegin,
+                                                   const std::vector<ptrdiff_t> &padsEnd,
+                                                   const std::vector<size_t> &dilations,
+                                                   const op::PadType &autoPad,
+                                                   size_t numOutChannels,
+                                                   size_t numGroups,
+                                                   bool addBiases = false,
+                                                   const std::vector<float> &filterWeights = {},
+                                                   const std::vector<float> &biasesWeights = {});
+
 std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
                                         const element::Type &type,
                                         size_t numSplits,
@@ -65,5 +79,18 @@ std::shared_ptr<ngraph::Node> makeStridedSlice(const ngraph::Output<Node> &in,
                                                const std::vector<int64_t> &new_axis_mask = std::vector<int64_t>{},
                                                const std::vector<int64_t> &shrink_mask = std::vector<int64_t>{},
                                                const std::vector<int64_t> &ellipsis_mask = std::vector<int64_t>{});
+
+std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
+                                      bool acrossChannels,
+                                      bool normalizeVariance,
+                                      double eps);
+
+std::shared_ptr<ngraph::Node> makeSqueeze(const ngraph::Output<Node> &in,
+                                          const element::Type &type,
+                                          const std::vector<size_t> &squeeze_indices);
+
+std::shared_ptr<ngraph::Node> makeUnsqueeze(const ngraph::Output<Node> &in,
+                                            const element::Type &type,
+                                            const std::vector<size_t> &squeeze_indices);
 }  // namespace builder
 }  // namespace ngraph

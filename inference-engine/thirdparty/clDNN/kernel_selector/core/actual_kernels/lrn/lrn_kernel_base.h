@@ -61,7 +61,7 @@ public:
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;
-    virtual JitConstants GetJitConstants(const lrn_params& params, DispatchData kd) const;
+    virtual JitConstants GetJitConstants(const lrn_params& params, const DispatchData& kd) const;
     virtual DispatchData SetDefault(const lrn_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
 };

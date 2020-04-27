@@ -192,7 +192,7 @@ DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
 /**
  * @brief The name for setting CPU affinity per thread option.
  *
- * It is passed to IInferencePlugin::SetConfig(), this option should be used with values:
+ * It is passed to Core::SetConfig(), this option should be used with values:
  * PluginConfigParams::YES (pinning threads to cores, best for static benchmarks),
  * PluginConfigParams::NUMA (pinning therads to NUMA nodes, best for real-life, contented cases)
  * this is TBB-specific knob, and the only pinning option (beyond 'NO', below) on the Windows*
@@ -206,7 +206,7 @@ DECLARE_CONFIG_VALUE(NUMA);
 /**
  * @brief Optimize CPU execution to maximize throughput.
  *
- * It is passed to IInferencePlugin::SetConfig(), this option should be used with values:
+ * It is passed to Core::SetConfig(), this option should be used with values:
  * - KEY_CPU_THROUGHPUT_NUMA creates as many streams as needed to accomodate NUMA and avoid associated penalties
  * - KEY_CPU_THROUGHPUT_AUTO creates bare minimum of streams to improve the performance,
  *   this is the most portable option if you have no insights into how many cores you target machine will have
@@ -220,7 +220,7 @@ DECLARE_CONFIG_KEY(CPU_THROUGHPUT_STREAMS);
 /**
  * @brief Optimize GPU plugin execution to maximize throughput.
  *
- * It is passed to IInferencePlugin::SetConfig(), this option should be used with values:
+ * It is passed to Core::SetConfig(), this option should be used with values:
  * - KEY_GPU_THROUGHPUT_AUTO creates bare minimum of streams that might improve performance in some cases,
  *   this option allows to enable throttle hint for opencl queue thus reduce CPU load without significant performance
  * drop
@@ -232,7 +232,7 @@ DECLARE_CONFIG_KEY(GPU_THROUGHPUT_STREAMS);
 /**
  * @brief The name for setting performance counters option.
  *
- * It is passed to IInferencePlugin::SetConfig(), this option should be used with values:
+ * It is passed to Core::SetConfig(), this option should be used with values:
  * PluginConfigParams::YES or PluginConfigParams::NO
  */
 DECLARE_CONFIG_KEY(PERF_COUNT);
@@ -260,7 +260,7 @@ DECLARE_CONFIG_KEY(DUMP_QUANTIZED_GRAPH_AS_IR);
 /**
  * @brief The key controls threading inside Inference Engine.
  *
- * It is passed to IInferencePlugin::SetConfig(), this option should be used with values:
+ * It is passed to Core::SetConfig(), this option should be used with values:
  * PluginConfigParams::YES or PluginConfigParams::NO
  */
 DECLARE_CONFIG_KEY(SINGLE_THREAD);

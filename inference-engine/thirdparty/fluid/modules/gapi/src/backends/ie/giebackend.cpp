@@ -175,10 +175,8 @@ struct IEUnit {
     explicit IEUnit(const cv::gapi::ie::detail::ParamDesc &pp)
         : params(pp) {
 
-        IE::CNNNetReader reader;
-        reader.ReadNetwork(params.model_path);
-        reader.ReadWeights(params.weights_path);
-        net = reader.getNetwork();
+        IE::Core ie;
+        net = ie.ReadNetwork(params.model_path, params.weights_path);
         inputs = net.getInputsInfo();
         outputs = net.getOutputsInfo();
 

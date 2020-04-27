@@ -12,7 +12,7 @@
 #include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 #include "ir_gen_helper.hpp"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 #include "common_test_utils/common_layers_params.hpp"
 
 using namespace ::testing;
@@ -270,9 +270,6 @@ protected:
             deconv_concat_params p = ::testing::WithParamInterface<deconv_concat_params>::GetParam();
             std::string model = getModel(p);
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
             size_t blob_size = p.deconv.out_c * (p.in[1] / p.deconv.group);
             for (int i = 0 ; i < p.deconv.kernel.size(); i++) {
                 blob_size *= p.deconv.kernel[i];
@@ -301,9 +298,11 @@ protected:
                 memcpy(model_blob_ptr, blb->buffer().as<uint8_t*>(), blb->byteSize());
                 model_blob_ptr += blb->byteSize();
             }
-            net_reader.SetWeights(model_blob);
 
-            auto network = net_reader.getNetwork();
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, model_blob));
+
             MKLDNNGraphTestClass graph;
             graph.CreateGraph(network);
 

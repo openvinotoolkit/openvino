@@ -14,8 +14,8 @@
 #include <string>
 
 #include "details/ie_exception_conversion.hpp"
+#include "details/ie_so_loader.h"
 #include "ie_iinfer_request.hpp"
-#include "ie_plugin_ptr.hpp"
 
 namespace InferenceEngine {
 
@@ -63,7 +63,7 @@ public:
  */
 class InferRequest {
     IInferRequest::Ptr actual;
-    InferenceEnginePluginPtr plg;
+    InferenceEngine::details::SharedObjectLoader::Ptr plg;
     std::shared_ptr<details::ICompletionCallbackWrapper> callback;
 
     static void callWrapper(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) {
@@ -78,6 +78,20 @@ public:
      * @brief Default constructor
      */
     InferRequest() = default;
+
+    /**
+     * constructs InferRequest from the initialized shared_pointer
+     * @param request Initialized shared pointer to IInferRequest interface
+     * @param plg Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is destroyed.
+     */
+    explicit InferRequest(IInferRequest::Ptr request,
+                          InferenceEngine::details::SharedObjectLoader::Ptr splg = {}):
+                          actual(request), plg(splg) {
+        //  plg can be null, but not the actual
+        if (actual == nullptr) {
+            THROW_IE_EXCEPTION << "InferRequest wrapper was not initialized.";
+        }
+    }
 
     /**
      * @brief Destructor
@@ -192,18 +206,6 @@ public:
      */
     void SetBatch(const int batch) {
         CALL_STATUS_FNC(SetBatch, batch);
-    }
-
-    /**
-     * constructs InferRequest from the initialized shared_pointer
-     * @param request Initialized shared pointer to IInferRequest interface
-     * @param plg Plugin to use. This is required to ensure that InferRequest can work properly even if plugin object is destroyed.
-     */
-    explicit InferRequest(IInferRequest::Ptr request, InferenceEnginePluginPtr plg = {}): actual(request), plg(plg) {
-        //  plg can be null, but not the actual
-        if (actual == nullptr) {
-            THROW_IE_EXCEPTION << "InferRequest wrapper was not initialized.";
-        }
     }
 
     /**

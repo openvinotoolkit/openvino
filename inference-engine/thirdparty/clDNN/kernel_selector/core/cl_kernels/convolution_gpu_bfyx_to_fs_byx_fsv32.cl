@@ -63,7 +63,8 @@
 #define CAN_USE_BLOCK_READ                                          \
     (STRIDE_SIZE_X * OUTPUT_BLOCK_WIDTH * UNIT_TYPE_SIZE) % 4 == 0  \
     && (INPUT0_SIZE_X_WITH_PADDING * UNIT_TYPE_SIZE) % 4 == 0       \
-    && (INPUT0_PADDING_OFFSET_SIZE_X * UNIT_TYPE_SIZE) % 4 == 0
+    && (INPUT0_PADDING_OFFSET_SIZE_X * UNIT_TYPE_SIZE) % 4 == 0     \
+    && (INPUT0_PAD_BEFORE_FEATURE_NUM * UNIT_TYPE_SIZE) % 4 == 0
 
 #define ALIGNED_IFM_NUM (((FILTER_IFM_NUM + FSV - 1) / FSV) * FSV)
 
@@ -101,6 +102,7 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
 
     uint input_offset = oc * STRIDE_SIZE_X + INPUT0_PADDING_OFFSET_SIZE_X;
     input_offset += (or * STRIDE_SIZE_Y + INPUT0_PADDING_OFFSET_SIZE_Y) * INPUT0_SIZE_X_WITH_PADDING;
+    input_offset += INPUT0_PAD_BEFORE_FEATURE_NUM * INPUT0_FEATURE_PITCH;
     input_offset += b * INPUT0_BATCH_PITCH;
 
     uint weight_offset = 0;

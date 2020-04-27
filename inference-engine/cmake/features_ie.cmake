@@ -106,7 +106,7 @@ ie_option (ENABLE_CPP_CCT "enables C++ version of Cross Check Tool" OFF)
 
 ie_option (ENABLE_C "enables ie c bridge build" ON)
 
-ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" OFF "OFF;UNIX;NOT APPLE;NOT ANDROID" OFF)
+ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" OFF "UNIX;NOT APPLE;NOT ANDROID" OFF)
 ie_dependent_option(ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 
 ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" OFF)

@@ -24,12 +24,12 @@ std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<
     InferenceEngine::SizeVector inputShape;
     std::vector<int64_t> begin, end, stride;
     std::vector<int64_t> begin_mask, new_axis_mask, end_mask, shrink_mask, ellipsis_mask;
-    InferenceEngine::Precision inPrc, netPrc;
+    InferenceEngine::Precision netPrc;
     std::string targetName;
-    std::tie(inputShape, begin, end, stride, begin_mask, end_mask, new_axis_mask, shrink_mask, ellipsis_mask, inPrc, netPrc, targetName) = obj.param;
+    std::tie(inputShape, begin, end, stride, begin_mask, end_mask, new_axis_mask, shrink_mask, ellipsis_mask, netPrc,
+             targetName) = obj.param;
     std::ostringstream result;
     result << "inShape=" << CommonTestUtils::vec2str(inputShape) << "_";
-    result << "inPRC=" << inPrc.name() << "_";
     result << "netPRC=" << netPrc.name() << "_";
     result << "begin=" << CommonTestUtils::vec2str(begin) << "_";
     result << "end=" << CommonTestUtils::vec2str(end) << "_";
@@ -47,19 +47,26 @@ void StridedSliceLayerTest::SetUp() {
     InferenceEngine::SizeVector inputShape;
     std::vector<int64_t> begin, end, stride;
     std::vector<int64_t> begin_mask, end_mask, new_axis_mask, shrink_mask, ellipsis_mask;
+    InferenceEngine::Precision netPrecision;
     std::tie(inputShape, begin, end, stride, begin_mask, end_mask, new_axis_mask, shrink_mask, ellipsis_mask,
-             inputPrecision, netPrecision, targetDevice) = this->GetParam();
+             netPrecision, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto ss = ngraph::builder::makeStridedSlice(paramOuts[0], begin, end, stride, ngPrc, begin_mask, end_mask, new_axis_mask, shrink_mask, ellipsis_mask);
+    auto paramOuts = ngraph::helpers::convert2OutputVector(
+            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto ss = ngraph::builder::makeStridedSlice(paramOuts[0], begin, end, stride, ngPrc, begin_mask, end_mask,
+                                                new_axis_mask, shrink_mask, ellipsis_mask);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ss)};
-    fnPtr = std::make_shared<ngraph::Function>(results, params, "StridedSlice");
+    function = std::make_shared<ngraph::Function>(results, params, "StridedSlice");
 }
 
 TEST_P(StridedSliceLayerTest, CompareWithRefs) {
-    inferAndValidate();
+    Run();
+
+    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+        PluginCache::get().reset();
+    }
 }
 
 }  // namespace LayerTestsDefinitions

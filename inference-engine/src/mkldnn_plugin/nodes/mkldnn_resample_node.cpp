@@ -148,6 +148,9 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
 
         this->postamble();
 
+        for (auto& inj : eltwise_injectors)
+            inj->prepare_table();
+
         ker_ = (decltype(ker_)) this->getCode();
     }
 
@@ -587,16 +590,16 @@ void MKLDNNResampleNode::NearestNeighbor_PLN(const float *in_ptr_, float *out_pt
                                           float fx, float fy, float fz, int OD, int OH, int OW) {
     std::vector<int> index_buffer(OD * OH * OW);
     for (int oz = 0; oz < OD; oz++) {
-        float iz = oz * fz + fz / 2.0f - 0.5f;
-        int iz_offset = static_cast<int>(round(iz)) * IH * IW;
+        float iz = oz * fz;
+        int iz_offset = static_cast<int>(std::floor(iz)) * IH * IW;
         int oz_offset = oz * OH * OW;
         for (int oy = 0; oy < OH; oy++) {
-            float iy = oy * fy + fy / 2.0f - 0.5f;
-            int iy_offset = static_cast<int>(round(iy)) * IW + iz_offset;
+            float iy = oy * fy;
+            int iy_offset = static_cast<int>(std::floor(iy)) * IW + iz_offset;
             int oy_offset = oy * OW + oz_offset;
             for (int ox = 0; ox < OW; ox++) {
-                float ix = ox * fx + fx / 2.0f - 0.5f;
-                int ix_index = static_cast<int>(round(ix)) + iy_offset;
+                float ix = ox * fx;
+                int ix_index = static_cast<int>(std::floor(ix)) + iy_offset;
                 index_buffer[oy_offset + ox] = ix_index;
             }
         }
@@ -642,16 +645,16 @@ void MKLDNNResampleNode::NearestNeighbor_BLK(const in_data_t *in_ptr_, out_data_
     std::vector<int> index_h(OH);
     std::vector<int> index_w(OW);
     for (int oz = 0; oz < OD; oz++) {
-        float iz = oz * fz + fz / 2.0f - 0.5f;
-        index_d[oz] = static_cast<int>(round(iz));
+        float iz = oz * fz;
+        index_d[oz] = static_cast<int>(std::floor(iz));
     }
     for (int oy = 0; oy < OH; oy++) {
-        float iy = oy * fy + fy / 2.0f - 0.5f;
-        index_h[oy] = static_cast<int>(round(iy));
+        float iy = oy * fy;
+        index_h[oy] = static_cast<int>(std::floor(iy));
     }
     for (int ox = 0; ox < OW; ox++) {
-        float ix = ox * fx + fx / 2.0f - 0.5f;
-        index_w[ox] = static_cast<int>(round(ix));
+        float ix = ox * fx;
+        index_w[ox] = static_cast<int>(std::floor(ix));
     }
 
     Layout layout = getParentEdgeAt(0)->getDesc().getLayout();

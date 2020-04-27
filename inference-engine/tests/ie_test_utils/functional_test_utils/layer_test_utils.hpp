@@ -29,14 +29,13 @@
 
 namespace LayerTestsUtils {
 typedef std::tuple<
-        InferenceEngine::Precision,  // Input Precision
         InferenceEngine::Precision,  // Network Precision
         InferenceEngine::SizeVector, // Input Shape
         std::string                  // Target Device
 > basicParams;
 
 template<typename paramType>
-class LayerTestsCommonClass : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<paramType> {
+class LayerTestsCommonDeprecated : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<paramType> {
 public:
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inputPrecision;
@@ -47,7 +46,7 @@ public:
     std::shared_ptr<ngraph::Function> fnPtr;
     std::map<std::string, std::string> config;
 
-    LayerTestsCommonClass() {
+    LayerTestsCommonDeprecated() {
         netPrecision = InferenceEngine::Precision::UNSPECIFIED;
         inputPrecision = InferenceEngine::Precision::UNSPECIFIED;
         outputPrecision = InferenceEngine::Precision::UNSPECIFIED;
@@ -58,7 +57,7 @@ public:
     void inline inferAndValidate() {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-        // Create CNNNetwork from ngrpah::Function
+        // Create CNNNetwork from ngraph::Function
         InferenceEngine::CNNNetwork cnnNet(fnPtr);
         // Set target input/output Precisions for the network
         setNetInOutPrecision(cnnNet, inputPrecision, outputPrecision);
@@ -94,11 +93,11 @@ public:
             const auto defLayout = InferenceEngine::TensorDesc::getLayoutByDims(inBlobs[i]->getTensorDesc().getDims());
 
             if (precision == InferenceEngine::Precision::FP32 && layout == defLayout) {
-                inRawData.push_back(inBlobs[i]->cbuffer().template as<const float*>());
+                inRawData.push_back(inBlobs[i]->cbuffer().template as<const float *>());
             } else {
                 auto castedBlob = FuncTestUtils::copyBlobWithCast<InferenceEngine::Precision::FP32>(inBlobs[i]);
                 castedBlob = FuncTestUtils::convertBlobLayout(castedBlob, defLayout);
-                inRawData.push_back(castedBlob->cbuffer().template as<const float*>());
+                inRawData.push_back(castedBlob->cbuffer().template as<const float *>());
                 castedBlobs.push_back(castedBlob);
             }
         }
@@ -115,20 +114,20 @@ public:
             auto currentBlob = req.GetBlob(output.first);
 
             outElementsCount.push_back(
-                std::accumulate(
-                    std::begin(output.second->getDims()), std::end(output.second->getDims()),
-                    size_t {1}, std::multiplies<size_t>()));
+                    std::accumulate(
+                            std::begin(output.second->getDims()), std::end(output.second->getDims()),
+                            size_t{1}, std::multiplies<size_t>()));
 
             const auto precision = currentBlob->getTensorDesc().getPrecision();
             const auto layout = currentBlob->getTensorDesc().getLayout();
             const auto defLayout = InferenceEngine::TensorDesc::getLayoutByDims(currentBlob->getTensorDesc().getDims());
 
             if (precision == InferenceEngine::Precision::FP32 && layout == defLayout) {
-                outBlobsRawData.push_back(currentBlob->cbuffer().template as<float*>());
+                outBlobsRawData.push_back(currentBlob->cbuffer().template as<float *>());
             } else {
                 auto castedBlob = FuncTestUtils::copyBlobWithCast<InferenceEngine::Precision::FP32>(currentBlob);
                 castedBlob = FuncTestUtils::convertBlobLayout(castedBlob, defLayout);
-                outBlobsRawData.push_back(castedBlob->cbuffer().template as<float*>());
+                outBlobsRawData.push_back(castedBlob->cbuffer().template as<float *>());
                 castedBlobs.push_back(castedBlob);
             }
         }
@@ -150,7 +149,7 @@ public:
 
 protected:
     static void setNetInOutPrecision(InferenceEngine::CNNNetwork &cnnNet, InferenceEngine::Precision inPrc,
-                              InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED) {
+                                     InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED) {
         if (inPrc != InferenceEngine::Precision::UNSPECIFIED) {
             for (const auto &inputItem : cnnNet.getInputsInfo()) {
                 inputItem.second->setPrecision(inPrc);
@@ -163,15 +162,15 @@ protected:
         }
     }
 
-    static void setNetInOutLayout(InferenceEngine::CNNNetwork& cnnNet, InferenceEngine::Layout inputLayout,
+    static void setNetInOutLayout(InferenceEngine::CNNNetwork &cnnNet, InferenceEngine::Layout inputLayout,
                                   InferenceEngine::Layout outputLayout = InferenceEngine::Layout::ANY) {
         if (inputLayout != InferenceEngine::Layout::ANY) {
-            for (const auto& inputItem : cnnNet.getInputsInfo()) {
+            for (const auto &inputItem : cnnNet.getInputsInfo()) {
                 inputItem.second->setLayout(inputLayout);
             }
         }
         if (outputLayout != InferenceEngine::Layout::ANY) {
-            for (const auto& output : cnnNet.getOutputsInfo()) {
+            for (const auto &output : cnnNet.getOutputsInfo()) {
                 output.second->setLayout(outputLayout);
             }
         }
@@ -219,21 +218,32 @@ inline std::vector<std::shared_ptr<ngraph::Node>> findTargetNodes(std::shared_pt
 
 using TargetDevice = std::string;
 
-class FuncTestsCommon : public CommonTestUtils::TestsCommon {
+enum RefMode {
+    INTERPRETER,
+    CONSTANT_FOLDING
+};
+
+class LayerTestsCommon : public CommonTestUtils::TestsCommon {
 public:
-    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const;
+    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
+
     virtual void Run();
-    virtual void Compare(const std::vector<std::uint8_t>& expected, const InferenceEngine::Blob::Ptr& actual);
+
+    virtual void Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual);
+
+    virtual void SetRefMode(RefMode mode);
 
 protected:
-     FuncTestsCommon();
-    ~FuncTestsCommon() override;
+    LayerTestsCommon();
+
+    ~LayerTestsCommon() override;
 
     template<class T>
-    void Compare(const T* expected, const T* actual, std::size_t size, T threshold) {
+    void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
+        std::cout << std::endl;
         for (std::size_t i = 0; i < size; ++i) {
-            const auto& ref = expected[i];
-            const auto& res = actual[i];
+            const auto &ref = expected[i];
+            const auto &res = actual[i];
 
             const auto absoluteDifference = std::abs(res - ref);
             if (absoluteDifference <= threshold) {
@@ -242,27 +252,44 @@ protected:
 
             const auto max = std::max(std::abs(res), std::abs(ref));
             ASSERT_TRUE(max != 0 && ((absoluteDifference / max) <= threshold))
-                << "Relative comparison of values expected: " << ref << " and actual: " << res << " at index " << i << " with threshold " << threshold
-                << " failed";
+                                        << "Relative comparison of values expected: " << ref << " and actual: " << res
+                                        << " at index " << i << " with threshold " << threshold
+                                        << " failed";
         }
+    }
+
+    RefMode GetRefMode() {
+        return refMode;
     }
 
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
     std::map<std::string, std::string> configuration;
+    // Non default values of layouts/precisions will be set to CNNNetwork
+    InferenceEngine::Layout inLayout = InferenceEngine::Layout::ANY;
+    InferenceEngine::Layout outLayout = InferenceEngine::Layout::ANY;
+    InferenceEngine::Precision inPrc = InferenceEngine::Precision::UNSPECIFIED;
+    InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED;
+    InferenceEngine::ExecutableNetwork executableNetwork;
 
 private:
-    void Configure() const;
+    void ConfigurePlugin() const;
+
+    void ConfigureNetwork() const;
+
     void LoadNetwork();
+
     void Infer();
+
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
+
     void Validate();
 
-    InferenceEngine::Core* core = nullptr;
+    InferenceEngine::Core *core = nullptr;
     InferenceEngine::CNNNetwork cnnNetwork;
-    InferenceEngine::ExecutableNetwork executableNetwork;
     InferenceEngine::InferRequest inferRequest;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
+    RefMode refMode = RefMode::INTERPRETER;
 };
 
 }  // namespace LayerTestsUtils

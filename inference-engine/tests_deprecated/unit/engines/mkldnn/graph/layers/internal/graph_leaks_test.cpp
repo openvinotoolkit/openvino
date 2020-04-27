@@ -7,7 +7,7 @@
 #include <gmock/gmock-spec-builders.h>
 #include "mkldnn_graph.h"
 #include "mkldnn_exec_network.h"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 
 #include "test_graph.hpp"
 
@@ -43,18 +43,18 @@ public:
 
 class MKLDNNGraphLeaksTests: public ::testing::Test {
 protected:
-    void addOutputToEachNode(InferenceEngine::CNNNetReader& net_reader, std::vector<std::string>& new_outputs,
+    void addOutputToEachNode(InferenceEngine::CNNNetwork& network, std::vector<std::string>& new_outputs,
                              InferenceEngine::CNNLayerPtr cnnLayer) {
-        auto outputs = net_reader.getNetwork().getOutputsInfo();
+        auto outputs = network.getOutputsInfo();
         if (outputs.find(cnnLayer->name) != outputs.end())
             return;
 
-        net_reader.getNetwork().addOutput(cnnLayer->name);
+        network.addOutput(cnnLayer->name);
         new_outputs.push_back(cnnLayer->name);
 
         for (const auto &layer : cnnLayer->outData) {
             for (const auto &data : layer->getInputTo()) {
-                addOutputToEachNode(net_reader, new_outputs, data.second);
+                addOutputToEachNode(network, new_outputs, data.second);
             }
         }
     }
@@ -72,7 +72,6 @@ protected:
 
 TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
     try {
-        InferenceEngine::CNNNetReader net_reader;
         std::string model = "<net name=\"LeNet\" version=\"2\" batch=\"1\">\n"
                 "    <layers>\n"
                 "        <layer name=\"data\" type=\"Input\" precision=\"FP32\" id=\"0\">\n"
@@ -243,39 +242,39 @@ TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
                 "</net>";
 
         size_t weights_size = 1724320;
-        net_reader.ReadNetwork(model.c_str(), model.size());
 
         InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::C });
         weights->allocate();
         fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
         InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
 
-        net_reader.SetWeights(weights_ptr);
+        InferenceEngine::Core core;
+        InferenceEngine::CNNNetwork network;
+        ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
-        auto outputs = net_reader.getNetwork().getOutputsInfo();
+        auto outputs = network.getOutputsInfo();
         std::vector<std::string> new_outputs;
 
-        for (auto input : net_reader.getNetwork().getInputsInfo()) {
+        for (auto input : network.getInputsInfo()) {
             for (const auto &layer : input.second->getInputData()->getInputTo()) {
-                addOutputToEachNode(net_reader, new_outputs, layer.second);
+                addOutputToEachNode(network, new_outputs, layer.second);
             }
         }
 
-        ASSERT_NE(1, net_reader.getNetwork().getOutputsInfo().size());
+        ASSERT_NE(1, network.getOutputsInfo().size());
 
         std::shared_ptr<MKLDNNTestEngine> score_engine(new MKLDNNTestEngine());
         InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
-        ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, net_reader.getNetwork(), {}));
+        ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, {}));
 
         size_t modified_outputs_size = score_engine->getGraph(exeNetwork1).GetOutputNodes().size();
 
-        InferenceEngine::CNNNetReader net_reader2;
-        net_reader2.ReadNetwork(model.c_str(), model.size());
-        net_reader2.SetWeights(weights_ptr);
-        ASSERT_EQ(1, net_reader2.getNetwork().getOutputsInfo().size());
+        InferenceEngine::CNNNetwork network2;
+        ASSERT_NO_THROW(network2 = core.ReadNetwork(model, weights_ptr));
+        ASSERT_EQ(1, network2.getOutputsInfo().size());
 
         InferenceEngine::IExecutableNetwork::Ptr exeNetwork2;
-        ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork2, net_reader2.getNetwork(), {}));
+        ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork2, network2, {}));
 
         size_t original_outputs_size = score_engine->getGraph(exeNetwork2).GetOutputNodes().size();
 

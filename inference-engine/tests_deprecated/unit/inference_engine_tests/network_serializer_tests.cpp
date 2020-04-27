@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include <cpp/ie_cnn_network.h>
 #include <network_serializer.h>
-
+#include <ie_core.hpp>
 
 static const auto model = R"_(
 <?xml version="1.0" encoding="UTF-8"?>
@@ -95,14 +95,8 @@ static const auto model = R"_(
 )_";
 
 TEST(NetworkSerializerTest, TopoSortResultUnique) {
-    auto reader = InferenceEngine::CreateCNNNetReaderPtr();
-
-    InferenceEngine::ResponseDesc resp;
-
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, reader->ReadNetwork(model, std::strlen(model), &resp)) << resp.msg;
-
-    auto network = InferenceEngine::CNNNetwork(reader);
-
+    InferenceEngine::Core ie;
+    auto network = ie.ReadNetwork(model, InferenceEngine::Blob::CPtr());
     auto sorted = InferenceEngine::Serialization::TopologicalSort(network);
 
     std::vector<std::string> actualLayerNames;
