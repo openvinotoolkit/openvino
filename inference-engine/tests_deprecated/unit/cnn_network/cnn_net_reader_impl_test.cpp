@@ -4,10 +4,10 @@
 
 #include <gtest/gtest.h>
 #include <parsers.h>
-#include <cpp/ie_cnn_net_reader.h>
 #include <ie_cnn_net_reader_impl.h>
 #include <gmock/gmock-more-actions.h>
 #include "cnn_network_impl.hpp"
+#include <ie_core.hpp>
 #include <thread>
 
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
@@ -2290,10 +2290,9 @@ TEST_F(CNNNetReaderImplTest, ReadInThreads) {
     std::vector<std::thread> threads;
     for (int i = 0; i < 20; i++) {
         threads.push_back(std::thread([i, model]{
-                    CNNNetReader networkReader;
+                    InferenceEngine::Core core;
                     /** Read network model **/
-                    networkReader.ReadNetwork(model.data(), model.length());
-                    CNNNetwork network = networkReader.getNetwork();
+                    CNNNetwork network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
                     // -----------------------------------------------------------------------------------------------------
 
                     // --------------------------- 3. Configure input & output ---------------------------------------------

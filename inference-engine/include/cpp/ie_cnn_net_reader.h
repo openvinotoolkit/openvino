@@ -17,7 +17,7 @@
 #include "details/ie_exception_conversion.hpp"
 #include "details/os/os_filesystem.hpp"
 #include "ie_blob.h"
-#include "ie_cnn_network.h"
+#include "cpp/ie_cnn_network.h"
 #include "ie_common.h"
 #include "ie_icnn_net_reader.h"
 

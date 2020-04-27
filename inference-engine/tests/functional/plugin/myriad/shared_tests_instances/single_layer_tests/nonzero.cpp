@@ -28,17 +28,11 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::U8,
 };
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP16
-};
-
 // Enable this when #-29056 is ready
 INSTANTIATE_TEST_CASE_P(DISABLED_nonzero, NonZeroLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(inputPrecisions),
-                ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-                ::testing::Values(ConfigMap({{VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO)}}))),
+                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
          NonZeroLayerTest::getTestCaseName);
 }  // namespace

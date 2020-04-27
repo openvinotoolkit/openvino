@@ -11,7 +11,7 @@
 #include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 #include "ir_gen_helper.hpp"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 
 #include <nodes/base.hpp>
 #include <cpu_isa_traits.hpp>
@@ -76,13 +76,13 @@ void ref_resample(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TB
                 for (size_t oz = 0; oz < OD; oz++) {
                     for (size_t oy = 0; oy < OH; oy++) {
                         for (size_t ox = 0; ox < OW; ox++) {
-                            float ix = ox * fx + fx / 2.0f - 0.5f;
-                            float iy = oy * fy + fy / 2.0f - 0.5f;
-                            float iz = oz * fz + fz / 2.0f - 0.5f;
+                            float ix = ox * fx;
+                            float iy = oy * fy;
+                            float iz = oz * fz;
 
-                            size_t ix_r = static_cast<size_t>(round(ix));
-                            size_t iy_r = static_cast<size_t>(round(iy));
-                            size_t iz_r = static_cast<size_t>(round(iz));
+                            size_t ix_r = static_cast<size_t>(std::floor(ix));
+                            size_t iy_r = static_cast<size_t>(std::floor(iy));
+                            size_t iz_r = static_cast<size_t>(std::floor(iz));
 
                             out_ptr[oz * OH * OW + oy * OW + ox] = in_ptr[iz_r * IH * IW + iy_r * IW + ix_r];
                         }
@@ -257,16 +257,17 @@ protected:
             resample_test_params p = ::testing::WithParamInterface<resample_test_params>::GetParam();
             std::string model = getModel(p);
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
             MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
             auto defaultExtensions = std::make_shared<InferenceEngine::Extensions::Cpu::MKLDNNExtensions<mkldnn::impl::cpu::cpu_isa_t::isa_any>>();
             extMgr->AddExtension(defaultExtensions);
             extMgr->AddExtension(make_FakeExtensions());
 
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
+
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork(), extMgr);
+            graph.CreateGraph(network, extMgr);
 
             auto& nodes = graph.getNodes();
             nodes = graph.getNodes();
@@ -304,7 +305,7 @@ protected:
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in1", src));
 
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();

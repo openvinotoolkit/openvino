@@ -258,6 +258,7 @@ extensions/front/onnx/gru_ext.py
 extensions/front/onnx/hard_sigmoid_ext.py
 extensions/front/onnx/image_scaler_ext.py
 extensions/front/onnx/instance_normalization_ext.py
+extensions/front/onnx/logsoftmaxONNX_to_logsoftmax.py
 extensions/front/onnx/lp_normalization_ext.py
 extensions/front/onnx/lrn_ext.py
 extensions/front/onnx/lstm_ext.py
@@ -305,6 +306,7 @@ extensions/front/onnx/topkrois_ext.py
 extensions/front/onnx/transpose_ext.py
 extensions/front/onnx/unsqueeze_ext.py
 extensions/front/onnx/upsample_ext.py
+extensions/front/onnx/where_ext.py
 extensions/front/output_cut.py
 extensions/front/override_batch.py
 extensions/front/Pack.py
@@ -515,6 +517,7 @@ extensions/middle/L2NormToNorm.py
 extensions/middle/LayoutChangeForConstantShapePaths.py
 extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
+extensions/middle/MarkSubgraphsWithCorrectLayout.py
 extensions/middle/MinimumMiddleReplacer.py
 extensions/middle/MulAddToSS.py
 extensions/middle/MulFakeQuantizeFuse.py

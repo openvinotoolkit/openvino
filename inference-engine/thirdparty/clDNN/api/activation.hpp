@@ -67,7 +67,8 @@ enum class activation_func {
     sign,                 // val > 0: 1; val < 0: -1; val == 0: 0
     softplus,             // ln(exp(val) + 1)
     softsign,             // (val/(1+|val|))
-    swish                 // (val*sigmoid(val))
+    swish,                // (val*sigmoid(val))
+    gelu                  // (0.5*val*(1 + erf(val / sqrt(2)))
 };
 
 /// @brief activation gradient functions

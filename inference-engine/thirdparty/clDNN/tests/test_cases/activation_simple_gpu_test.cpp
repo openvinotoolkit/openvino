@@ -699,7 +699,8 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
         activation_func::tan,
         activation_func::negative,
         activation_func::abs,
-        activation_func::swish
+        activation_func::swish,
+        activation_func::gelu
     };
 
     activation_additional_params params = { 0.5f, 2.5f };
@@ -815,6 +816,10 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
                     break;
                 case activation_func::swish:
                     EXPECT_FLOAT_EQ((float)input_ptr[i] / (1.f + std::exp((float)(-input_ptr[i]))), output_ptr[i]);
+                    break;
+                case activation_func::gelu:
+                    EXPECT_NEAR(0.5f * (float)input_ptr[i] * (1.f + std::erf((float)(input_ptr[i]) / std::sqrt(2.0f))),
+                                output_ptr[i], 1e-5f);
                     break;
                 default:
                     break;

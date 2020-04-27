@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "tests_pipelines.h"
 
 #include <string>
@@ -6,7 +10,7 @@
 
 #include <inference_engine.hpp>
 
-#define REPORTING_THRESHOLD 1.1
+#define REPORTING_THRESHOLD 1.3
 
 using namespace InferenceEngine;
 
@@ -48,7 +52,9 @@ test_create_exenetwork(const std::string &model_name, const std::string &model_p
     vmsize_before_test = (long) getVmSizeInKB();
     vmrss_before_test = (long) getVmRSSInKB();
 
-    create_exenetwork(model_path, target_device)();
+    Core ie;
+    CNNNetwork cnnNetwork = ie.ReadNetwork(model_path);
+    ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
 
     getAlignedVmValues(test_cur_vmsize, test_cur_vmpeak, test_cur_vmrss, test_cur_vmhwm,
                        vmsize_before_test, vmrss_before_test);

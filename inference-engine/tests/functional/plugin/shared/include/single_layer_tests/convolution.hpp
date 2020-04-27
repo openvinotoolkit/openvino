@@ -14,23 +14,25 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 typedef std::tuple<
-        InferenceEngine::SizeVector,
-        InferenceEngine::SizeVector,
-        std::vector<ptrdiff_t>,
-        std::vector<ptrdiff_t>,
-        InferenceEngine::SizeVector,
-        size_t,
-        ngraph::op::PadType> convSpecificParams;
+        InferenceEngine::SizeVector,    // Kernel size
+        InferenceEngine::SizeVector,    // Strides
+        std::vector<ptrdiff_t>,         // Pad begin
+        std::vector<ptrdiff_t>,         // Pad end
+        InferenceEngine::SizeVector,    // Dilation
+        size_t,                         // Num out channels
+        ngraph::op::PadType             // Padding type
+> convSpecificParams;
 typedef std::tuple<
         convSpecificParams,
-        InferenceEngine::Precision,
-        InferenceEngine::Precision,
-        InferenceEngine::SizeVector,
-        LayerTestsUtils::TargetDevice> convLayerTestParamsSet;
+        InferenceEngine::Precision,     // Net precision
+        InferenceEngine::SizeVector,    // Input shapes
+        LayerTestsUtils::TargetDevice   // Device name
+> convLayerTestParamsSet;
 namespace LayerTestsDefinitions {
 
 
-class ConvolutionLayerTest : public testing::WithParamInterface<convLayerTestParamsSet>, public LayerTestsUtils::FuncTestsCommon {
+class ConvolutionLayerTest : public testing::WithParamInterface<convLayerTestParamsSet>,
+                             public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<convLayerTestParamsSet> obj);
 

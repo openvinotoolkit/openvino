@@ -8,7 +8,7 @@
 
 TEST_F(NGraphReaderTests, DISABLED_ReadIncorrectNetwork) {
     std::string model = R"V0G0N(
-<net name="Activation" version="10">
+<net name="Network" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
             <data element_type="f32" shape="1,3,22,22"/>
@@ -80,7 +80,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadIncorrectNetwork) {
 
 TEST_F(NGraphReaderTests, ConvertNGraphFromIterator) {
     std::string model = R"V0G0N(
-<net name="Convolution" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,3,227,227"/>

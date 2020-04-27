@@ -18,7 +18,11 @@ function(add_gtest_libraries)
 
     get_target_property(gmock_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
     set_target_properties(gmock PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${gmock_include_dirs};${gmock_SOURCE_DIR}/include")
+
+    set_target_properties(gtest gtest_main gmock gmock_main
+                          PROPERTIES FOLDER thirdparty)
 endfunction()
+
 add_gtest_libraries()
 
 if (MSVC)

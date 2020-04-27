@@ -27,7 +27,8 @@ const std::vector<ActivationTypes> activationTypes = {
         Exp,
         Log,
         Sign,
-        Abs
+        Abs,
+        Gelu
 };
 
 const auto basicCases = ::testing::Combine(

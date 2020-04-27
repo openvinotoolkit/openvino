@@ -11,7 +11,7 @@
 #include "single_layer_common.hpp"
 #include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 
 
 using namespace ::testing;
@@ -118,11 +118,12 @@ protected:
             scatterTF_test_params p = ::testing::WithParamInterface<scatterTF_test_params>::GetParam();
             std::string model = getModel(p);
             //std::cout << model << std::endl;
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+                        InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model));
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             //  Input Data
             InferenceEngine::Blob::Ptr srcData = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, p.inDataDim, InferenceEngine::TensorDesc::getLayoutByDims(p.inDataDim) });
@@ -163,7 +164,7 @@ protected:
 
             //  Output Data
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
             InferenceEngine::TBlob<float>::Ptr output;

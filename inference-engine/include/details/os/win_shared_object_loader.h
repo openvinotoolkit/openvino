@@ -49,6 +49,11 @@ private:
     }
 
 public:
+    /**
+     * @brief A shared pointer to SharedObjectLoader
+     */
+    using Ptr = std::shared_ptr<SharedObjectLoader>;
+
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Loads a library with the name specified. The library is loaded according to the
@@ -70,7 +75,7 @@ public:
     explicit SharedObjectLoader(LPCSTR pluginName) {
         ExcludeCurrentDirectory();
 
-        shared_object = LoadLibrary(pluginName);
+        shared_object = LoadLibraryA(pluginName);
         if (!shared_object) {
             char cwd[1024];
             THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << GetLastError()

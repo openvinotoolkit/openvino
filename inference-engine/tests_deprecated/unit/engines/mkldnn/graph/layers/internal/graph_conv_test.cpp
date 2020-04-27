@@ -12,7 +12,7 @@
 #include <mkldnn_extension_utils.h>
 #include <cnn_network_impl.hpp>
 #include "tests_common.hpp"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_UNDEF_JNL
@@ -244,9 +244,6 @@ protected:
             conv_test_params p = ::testing::WithParamInterface<conv_test_params>::GetParam();
             std::string model = getModel(p);
 
-            CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
             size_t blob_size = p.out_c * p.dims[1] / p.grp_c;
             for (auto k : p.kernel) {
                 blob_size *= k;
@@ -260,8 +257,9 @@ protected:
 
             TBlob<uint8_t>::Ptr weights_ptr = TBlob<uint8_t>::Ptr(weights);
 
-            net_reader.SetWeights(weights_ptr);
-            CNNNetwork network = net_reader.getNetwork();
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
             MKLDNNGraphTestClass graph;
             graph.CreateGraph(network);
@@ -428,9 +426,6 @@ protected:
             if (dims[0] < 2)
                 dims[0] = 2;
 
-            CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
             size_t blob_size = p.out_c * dims[1] / p.grp_c;
             for (auto k : p.kernel) {
                 blob_size *= k;
@@ -441,8 +436,10 @@ protected:
             fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
             TBlob<uint8_t>::Ptr weights_ptr = TBlob<uint8_t>::Ptr(weights);
 
-            net_reader.SetWeights(weights_ptr);
-            CNNNetwork network = net_reader.getNetwork();
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
+
             auto implNet = dynamic_cast<details::CNNNetworkImpl *>(&((ICNNNetwork&)network));
             ASSERT_NE(nullptr, implNet) << "Failed to cast ICNNNetwork to CNNNetworkImpl";
             ResponseDesc resp;

@@ -2,10 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-/**
- * @brief A header file that provides interface for network reader that is used to build networks from a given IR
- * @file ie_icnn_net_reader.h
- */
 #pragma once
 
 #include <ie_blob.h>

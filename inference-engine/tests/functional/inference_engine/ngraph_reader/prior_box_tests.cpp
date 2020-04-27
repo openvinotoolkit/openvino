@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
     std::string model = R"V0G0N(
-<net name="PriorBoxClusteredNet" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,768,30,30"/>
@@ -30,7 +30,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="2" name="ch_concat_mixed_7_chconcat_anchors/0_port" type="ShapeOf" version="opset1">
+        <layer id="2" name="shape_of1" type="ShapeOf" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -69,7 +69,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="5" name="ch_concat_mixed_7_chconcat_anchors/ss_0_port" type="StridedSlice" version="opset1">
+        <layer id="5" name="ss1" type="StridedSlice" version="opset1">
             <data begin_mask="0" ellipsis_mask="0" end_mask="0" new_axis_mask="0" shrink_axis_mask="0"/>
             <input>
                 <port id="0" precision="I64">
@@ -91,7 +91,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="6" name="ch_concat_mixed_7_chconcat_anchors/1_port" type="ShapeOf" version="opset1">
+        <layer id="6" name="shape_of2" type="ShapeOf" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -106,7 +106,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="7" name="ch_concat_mixed_7_chconcat_anchors/ss_1_port" type="StridedSlice" version="opset1">
+        <layer id="7" name="ss2" type="StridedSlice" version="opset1">
             <data begin_mask="0" ellipsis_mask="0" end_mask="0" new_axis_mask="0" shrink_axis_mask="0"/>
             <input>
                 <port id="0" precision="I64">
@@ -202,7 +202,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Activation" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="in1" type="Input" precision="FP32">
             <output>
@@ -225,7 +225,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer name="ExpandDims" id="2" type="PriorBoxClustered" precision="FP32">
-            <data clip="0" step_h="16.000000" step_w="16.000000" flip="1" height="44,10,30,19,94,32,61,53,17" offset="0.500000" step="16.000000" variance="0.1,0.1,0.2,0.2" width="86,13,57,39,68,34,142,50,23"/>
+            <data clip="0" step_h="16.000000" step_w="16.000000" flip="1" height="44,10,30,19,94,32,61,53,17" offset="0.500000" step="16.000000" variance="0.1,0.1,0.2,0.2" width="86,13,57,39,68,34,142,50,23" originalLayersNames="ExpandDims,prior,shape_of1,shape_of2,ss1,ss2"/>
             <input>
                 <port id="1">
                     <dim>1</dim>
@@ -267,7 +267,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
 
 TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
     std::string model = R"V0G0N(
-<net name="PriorBoxNet" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,768,30,30"/>
@@ -291,7 +291,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="2" name="ch_concat_mixed_7_chconcat_anchors/0_port" type="ShapeOf" version="opset1">
+        <layer id="2" name="shape_of1" type="ShapeOf" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -330,7 +330,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="5" name="ch_concat_mixed_7_chconcat_anchors/ss_0_port" type="StridedSlice" version="opset1">
+        <layer id="5" name="ss1" type="StridedSlice" version="opset1">
             <data begin_mask="0" ellipsis_mask="0" end_mask="0" new_axis_mask="0" shrink_axis_mask="0"/>
             <input>
                 <port id="0" precision="I64">
@@ -352,7 +352,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="6" name="ch_concat_mixed_7_chconcat_anchors/1_port" type="ShapeOf" version="opset1">
+        <layer id="6" name="shape_of2" type="ShapeOf" version="opset1">
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -367,7 +367,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="7" name="ch_concat_mixed_7_chconcat_anchors/ss_1_port" type="StridedSlice" version="opset1">
+        <layer id="7" name="ss2" type="StridedSlice" version="opset1">
             <data begin_mask="0" ellipsis_mask="0" end_mask="0" new_axis_mask="0" shrink_axis_mask="0"/>
             <input>
                 <port id="0" precision="I64">
@@ -462,7 +462,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Activation" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="in1" type="Input" precision="FP32">
             <output>
@@ -485,7 +485,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer name="ExpandDims" id="2" type="PriorBox" precision="FP32">
-            <data density="" fixed_ratio="" fixed_size="" aspect_ratio="2,0.5" clip="0" flip="0" img_h="0" img_size="0" img_w="0" max_size="" min_size="51.200001,72.407555" offset="0.500000" scale_all_sizes="0" step="17.066666666666666" step_h="0" step_w="0" variance="0.1,0.1,0.2,0.2"/>
+            <data density="" fixed_ratio="" fixed_size="" aspect_ratio="2,0.5" clip="0" flip="0" img_h="0" img_size="0" img_w="0" max_size="" min_size="51.200001,72.407555" offset="0.500000" scale_all_sizes="0" step="17.066666666666666" step_h="0" step_w="0" variance="0.1,0.1,0.2,0.2" originalLayersNames="ExpandDims,prior,shape_of1,shape_of2,ss1,ss2"/>
             <input>
                 <port id="1">
                     <dim>1</dim>

@@ -79,7 +79,7 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->insData[1].lock()->getPrecision());
 
         // TODO(amalyse) what are the cases when we have non i8 weights and have to overide the precisions?
-        if ((inputDataType != memory::u8 || weightsDataType != memory::s8) && inputDataType != memory::bf16) {
+        if (((inputDataType != memory::u8 && inputDataType != memory::s8) || weightsDataType != memory::s8) && inputDataType != memory::bf16) {
             inputDataType = memory::f32;
             outputDataType = memory::f32;
         }
@@ -91,7 +91,7 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
     if (fcLayer->_weights == nullptr && baseInputsNumber == 1) {
         THROW_IE_EXCEPTION << "Weights are empty for layer: " << fcLayer->name
                            << " used in MKLDNN node: " << getName() << "\n"
-                           << "Use ReadWeights and SetWeights methods of InferenceEngine::CNNNetReader"
+                           << "Use the second argumemt of InferenceEngine::Core::ReadNetwork"
                            << " to load them from .bin part of the IR";
     }
 

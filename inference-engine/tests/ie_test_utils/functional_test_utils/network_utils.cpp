@@ -156,6 +156,7 @@ namespace FuncTestUtils {
                             " (new, old): " + item.second + ", " + refLayer->params[item.first]);
                 }
             } else {
+                if (item.first == "originalLayersNames") continue;
                 // autob is a WA for nGraph ops
                 if ((item.first != "auto_broadcast" && item.first != "autob") || item.second != "numpy") {
                     success = false;
@@ -316,6 +317,9 @@ namespace FuncTestUtils {
             refNetwork.begin();
             IE_SUPPRESS_DEPRECATED_END
         }
+        if (network.getName() != refNetwork.getName())
+            THROW_IE_EXCEPTION << "CNNNetworks have different names! " << network.getName()
+                               << " and " << refNetwork.getName();
 
         if (network.getBatchSize() != refNetwork.getBatchSize())
             THROW_IE_EXCEPTION << "CNNNetworks have different batch size! " << std::to_string(network.getBatchSize())

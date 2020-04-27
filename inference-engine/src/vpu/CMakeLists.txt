@@ -20,10 +20,10 @@ if(ENABLE_MYRIAD)
 
     add_subdirectory(myriad_plugin)
 
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/custom_kernels/
-            DESTINATION ${IE_CPACK_LIBRARY_PATH}/vpu_custom_kernels
-            COMPONENT myriad)
     if(DEFINED VPU_CLC_MA2X8X_ROOT)
+        install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/custom_kernels/
+                DESTINATION ${IE_CPACK_LIBRARY_PATH}/vpu_custom_kernels
+                COMPONENT myriad)
         install(DIRECTORY ${VPU_CLC_MA2X8X_ROOT}/
                 DESTINATION deployment_tools/tools/cl_compiler
                 COMPONENT myriad

@@ -16,7 +16,7 @@
 
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.softmax import LogSoftmax, Softmax
+from mo.ops.softmax import LogSoftmaxONNX, Softmax
 
 
 class SoftmaxExtractor(FrontExtractorOp):
@@ -37,5 +37,5 @@ class LogSoftmaxExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         axis = onnx_attr(node, 'axis', 'i', default=1)
-        LogSoftmax.update_node_stat(node, {'axis': axis})
+        LogSoftmaxONNX.update_node_stat(node, {'axis': axis})
         return cls.enabled

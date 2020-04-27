@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "flags.h"
 #include "../common/utils.h"
 #include <tests_utils.h>

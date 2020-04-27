@@ -14,35 +14,24 @@ const char *getModelPathNonFatal() noexcept;
 std::string get_data_path();
 
 inline const char *getModelPathNonFatalDefault() noexcept {
+    if (const auto envVar = std::getenv("MODELS_PATH")) {
+        return envVar;
+    }
+
 #ifdef MODELS_PATH
-    const char *models_path = std::getenv("MODELS_PATH");
-
-    if (models_path == nullptr && MODELS_PATH == nullptr) {
-        return nullptr;
-    }
-
-    if (models_path == nullptr) {
-        return MODELS_PATH;
-    }
-
-    return models_path;
+    return MODELS_PATH;
 #else
     return nullptr;
 #endif
 };
 
 inline std::string get_data_path_default() {
-#ifdef DATA_PATH
-    const char *data_path = std::getenv("DATA_PATH");
-
-    if (data_path == NULL) {
-        if (DATA_PATH != NULL) {
-            data_path = DATA_PATH;
-        } else {
-            return nullptr;
-        }
+    if (const auto envVar = std::getenv("DATA_PATH")) {
+        return envVar;
     }
-    return std::string(data_path);
+
+#ifdef DATA_PATH
+    return DATA_PATH;
 #else
     return nullptr;
 #endif

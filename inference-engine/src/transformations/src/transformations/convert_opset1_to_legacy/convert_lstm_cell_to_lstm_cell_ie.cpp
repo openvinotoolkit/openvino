@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include <ngraph_ops/lstm_cell_ie.hpp>
 
@@ -53,7 +54,8 @@ void ngraph::pass::ConvertLSTMCellToLSTMCellIE::convert_lstm_cell() {
                                                                       lstm_cell->get_output_shape(1));
 
         lstm_cell_ie->set_friendly_name(lstm_cell->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), lstm_cell_ie);
+        ngraph::copy_runtime_info(lstm_cell, {concat, lstm_cell_ie});
+        ngraph::replace_node(lstm_cell, lstm_cell_ie);
         return true;
     };
 

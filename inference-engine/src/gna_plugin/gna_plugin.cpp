@@ -524,6 +524,18 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         // gets output layer pointer in original topology not in cloned
         auto outLayer = outPort.second->getCreatorLayer().lock();
 
+        // Memory layers are not dnnComponents hence we need to make switch with identity layer
+        if (outLayer->type == "Memory") {
+            // traverse memory connection to find corresponding output_memory
+            for (auto && memConnection : graphCompiler.memory_connection) {
+                if (memConnection.second.getInput()->name == outLayer->name) {
+                    // if connection is found, replace memory input layer with memory output layer
+                    outLayer = memConnection.second.getOutput();
+                    break;
+                }
+            }
+        }
+
         // searching for outData represented in GNA blob
         // using ufs - upper first search
         gnalog() << "[UFS] searching for : "<< outPort.first << " representation in GNA\n";
@@ -745,7 +757,23 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
         gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(requestConfigId, -1, InferenceEngine::BlobMap()));
     }
 }
+
 #endif
+
+int GNAPlugin::GetDeviceVersionFromString(const std::string deviceString) {
+    constexpr uint32_t embeddedSuffix = 0xE;
+    if (deviceString.empty())
+        return 0x100 + embeddedSuffix;
+    if (deviceString.size() == 4 && deviceString.substr(0, 3) == "GNA") {
+        int version = deviceString[3] - '0';
+            if (version > 0) {
+            version <<= 8;
+            version += embeddedSuffix;
+            return version;
+        }
+    }
+    THROW_GNA_EXCEPTION << "Wrong GNA generation for embedded model dump: " << deviceString;
+}
 
 void GNAPlugin::DumpXNNToFile() const {
     // TODO: output  precision as well as pointer might be incorrect, LSTM for sure
@@ -754,17 +782,15 @@ void GNAPlugin::DumpXNNToFile() const {
         return;
     }
 
-    if (config.dumpXNNGeneration != "GNA1" &&
-        config.dumpXNNGeneration != "GNA3" &&
-        !config.dumpXNNGeneration.empty()) {
-        THROW_GNA_EXCEPTION << "Wrong GNA generation for embedded model dump: " << config.dumpXNNGeneration;
-    }
+    const auto versionInt = GetDeviceVersionFromString(config.dumpXNNGeneration);
 
     if (!gnadevice) {
         THROW_GNA_EXCEPTION << "Cannot generate XNNDump for float network";
     }
     std::ofstream dumpStream(config.dumpXNNPath, std::ios::out | std::ios::binary);
 #if GNA_LIB_VER == 1
+    if (versionInt != 0x10E)
+        THROW_GNA_EXCEPTION << "Wrong GNA version for embedded model dump: " << config.dumpXNNGeneration;
     auto dump = gnadevice->dumpXnn(&std::get<0>(nnets.front())->obj, ptr_active_indices, num_active_indices);
     dump.header.rw_region_size = gnamem->getRWBytes();
     dump.header.input_scaling_factor = inputsDesc->inputScaleFactors.front();
@@ -773,7 +799,7 @@ void GNAPlugin::DumpXNNToFile() const {
     dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.model_size);
 #else
     auto const modelId = gnadevice->createModel(std::get<0>(gnaModels.front())->obj);
-    if (config.dumpXNNGeneration != "GNA3") {
+    if (versionInt == Gna2DeviceVersionEmbedded1_0) {
         auto dump = gnadevice->dumpXnn(modelId);
         dump.header.RwRegionSize = gnamem->getRWBytes();
         dump.header.InputScalingFactor = inputsDesc->inputScaleFactors.front();
@@ -781,7 +807,9 @@ void GNAPlugin::DumpXNNToFile() const {
         dumpStream.write(reinterpret_cast<char*>(&dump.header), sizeof(Gna2ModelSueCreekHeader));
         dumpStream.write(reinterpret_cast<char*>(dump.model.get()), dump.header.ModelSize);
     } else {
-        gnadevice->dumpXnnNoMmu(modelId, dumpStream);
+        static_assert(sizeof(versionInt) >= sizeof(Gna2DeviceVersion), "");
+        gnadevice->dumpXnnForDeviceVersion(modelId, dumpStream,
+            *reinterpret_cast<const Gna2DeviceVersion*>(&versionInt));
     }
     gnadevice->releseModel(modelId);
 #endif
@@ -1175,7 +1203,7 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::str
     DumpXNNToFile();
 
 #ifdef PLOT
-    dnn->WriteGraphWizModel("gna-blob.dot");
+    dnn->WriteGraphWizModel("gna-blob-imported.dot");
 #endif
 #if GNA_LIB_VER == 2
     createRequestConfigsForGnaModels();

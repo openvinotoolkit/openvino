@@ -27,6 +27,11 @@ private:
 
 public:
     /**
+     * @brief A shared pointer to SharedObjectLoader
+     */
+    using Ptr = std::shared_ptr<InferenceEngine::details::SharedObjectLoader>;
+
+    /**
      * @brief Loads a library with the name specified. The library is loaded according to
      *        the POSIX rules for dlopen
      * @param pluginName Full or relative path to the library

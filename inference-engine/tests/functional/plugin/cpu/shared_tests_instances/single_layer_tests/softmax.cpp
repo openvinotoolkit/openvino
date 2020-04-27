@@ -15,10 +15,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
 };
 
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-    InferenceEngine::Precision::FP32,
-};
-
 const std::vector<InferenceEngine::Layout> inputLayouts2D = {
     InferenceEngine::Layout::NC,
 };
@@ -33,7 +29,6 @@ const std::vector<size_t> axis2D = {
 
 const auto params2D = testing::Combine(
     testing::ValuesIn(netPrecisions),
-    testing::ValuesIn(inputPrecisions),
     testing::ValuesIn(inputLayouts2D),
     testing::ValuesIn(inputShapes2D),
     testing::ValuesIn(axis2D),

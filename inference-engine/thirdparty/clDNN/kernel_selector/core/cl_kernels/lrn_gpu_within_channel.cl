@@ -15,8 +15,13 @@
 #include "include/common.cl"
 #include "include/data_types.cl"
 
-
-KERNEL (lrn_gpu_within_channel)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
+KERNEL (lrn_gpu_within_channel)(
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+    )
 {
     for (uint index = get_global_id(0) ; index < INPUT0_LENGTH ; index += get_global_size(0))
     {
@@ -48,23 +53,32 @@ KERNEL (lrn_gpu_within_channel)(const __global UNIT_TYPE* input, __global UNIT_T
         wstart = max(wstart, (int)0);
         hend = min(hend, INPUT0_SIZE_Y);
         wend = min(wend, INPUT0_SIZE_X);
-        UNIT_TYPE aveval = 0;
+        INPUT0_TYPE aveval = 0;
 
-        __global const UNIT_TYPE* bottom_slice = input + first_index_in_feature;
+        __global const INPUT0_TYPE* bottom_slice = input + first_index_in_feature;
         for (int h = hstart; h < hend; ++h)
         {
             for (int w = wstart; w < wend; ++w)
             {
-                UNIT_TYPE tmp_val = bottom_slice[h*INPUT0_Y_PITCH + w*INPUT0_X_PITCH] * TO_UNIT_TYPE(ALPHA_VAL_FACTOR);
+                INPUT0_TYPE tmp_val = bottom_slice[h*INPUT0_Y_PITCH + w*INPUT0_X_PITCH] * TO_INPUT0_TYPE(ALPHA_VAL_FACTOR);
                 aveval += (tmp_val * tmp_val);
             }
         }
 
-        UNIT_TYPE acc = aveval / pool_size;
-        acc = mad(acc, TO_UNIT_TYPE(ALPHA_AFTER_FACTORED), TO_UNIT_TYPE(K));
-        acc = native_powr(acc, -TO_UNIT_TYPE(BETA));
+        INPUT0_TYPE acc = aveval / pool_size;
+        acc = mad(acc, TO_INPUT0_TYPE(ALPHA_AFTER_FACTORED), TO_INPUT0_TYPE(K));
+        acc = native_powr(acc, -TO_INPUT0_TYPE(BETA));
 
         const uint output_idx = OUTPUT_OFFSET + batch_id*OUTPUT_BATCH_PITCH + feature_id*OUTPUT_FEATURE_PITCH + y*OUTPUT_Y_PITCH + x*OUTPUT_X_PITCH;
-        output[output_idx] = ACTIVATION(acc * input[input_id], ACTIVATION_PARAMS);
+        INPUT0_TYPE lrn_result = acc * input[input_id];
+
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        OUTPUT_TYPE res = FUSED_OPS_RESULT;
+        output[output_idx] = res;
+    #else
+        output[output_idx] = ACTIVATION(lrn_result, ACTIVATION_PARAMS);
+    #endif
+
     }
 }

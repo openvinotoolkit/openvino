@@ -36,7 +36,7 @@ std::string getPluginName(const std::string& deviceName) {
     static std::map<std::string, std::string> plugunFromDeviceMap = {
         {"CPU", "MKLDNNPlugin"},    {"GPU", "clDNNPlugin"},         {"FPGA", "dliaPlugin"},
         {"MYRIAD", "myriadPlugin"}, {"HDDL", "HDDLPlugin"},         {"GNA", "GNAPlugin"},
-        {"HETERO", "HeteroPlugin"}, {"MULTI", "MultiDevicePlugin"}};
+        {"HETERO", "HeteroPlugin"}, {"MULTI", "MultiDevicePlugin"}, {"KMB", "kmbPlugin"}};
     auto val = plugunFromDeviceMap.find(deviceName);
 
     if (val == plugunFromDeviceMap.end()) {

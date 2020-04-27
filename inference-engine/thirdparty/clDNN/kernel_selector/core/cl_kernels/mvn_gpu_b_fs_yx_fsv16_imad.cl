@@ -97,7 +97,11 @@
 
 DECLARE_PACKED_ACCUMULATE(accumulate_sum_input, int, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, GWS, ACCUMULATE_SUM)
 
+#if SG_NUM != 1
 DECLARE_WG_PACKED_REDUCE_ADD(reduce_sum_across_sg, int, FSV, SG_NUM, REDUCE_NO_POST_OP)
+#else
+DECLARE_SG_PACKED_REDUCE_ADD(reduce_sum_inside_sg, int, FSV, REDUCE_NO_POST_OP)
+#endif
 
 __attribute__((intel_reqd_sub_group_size(SIMD)))
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
@@ -113,10 +117,15 @@ KERNEL(mvn_mean_1)(const __global INPUT0_TYPE* input,
 
     const uint data_sets_offset = INPUT0_GET_INDEX(b, f, 0, 0);
 
-    __local int slm_acc[(SG_NUM - 1) * FSV];
 
     INT_PACKED_TYPE partial_sum = FUNC_CALL(accumulate_sum_input)(input, data_sets_offset, get_global_id(0));
+
+#if SG_NUM != 1
+    __local int slm_acc[(SG_NUM - 1) * FSV];
     int full_sum = FUNC_CALL(reduce_sum_across_sg)(partial_sum, slm_acc);
+#else
+    int full_sum = FUNC_CALL(reduce_sum_inside_sg)(partial_sum);
+#endif
 
     if (sgid == 0 && (sglid < FSV || SIMD == FSV)) {
         intermidiate_sum[flat_data_set_group * ITEM_GROUPS * FSV + items_group * FSV + sglid] = full_sum;
@@ -128,7 +137,11 @@ KERNEL(mvn_mean_1)(const __global INPUT0_TYPE* input,
 DECLARE_PACKED_ACCUMULATE(accumulate_sum_input, int, int, FSV, INPUT_SLICE_PITCH, ITEM_GROUPS, LWS, ACCUMULATE_SUM)
 
 #define CALC_MEAN(sum) ((sum) / ITEMS_NUM)
+#if SG_NUM != 1
 DECLARE_WG_PACKED_REDUCE_ADD(reduce_mean_across_sg, MEAN_TYPE, FSV, SG_NUM, CALC_MEAN)
+#else
+DECLARE_SG_PACKED_REDUCE_ADD(reduce_mean_inside_sg, MEAN_TYPE, FSV, CALC_MEAN)
+#endif
 
 __attribute__((intel_reqd_sub_group_size(SIMD)))
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
@@ -144,8 +157,13 @@ KERNEL(mvn_mean_2)(const __global int* intermidiate_sum,
     const uint data_sets_offset = flat_data_set_group * ITEM_GROUPS * FSV;
 
     INT_PACKED_TYPE complete_sum = FUNC_CALL(accumulate_sum_input)(intermidiate_sum, data_sets_offset, get_local_id(0));
+
+#if SG_NUM != 1
     __local MEAN_TYPE slm_acc[(SG_NUM - 1) * FSV];
     MEAN_TYPE mean = FUNC_CALL(reduce_mean_across_sg)(TO_MEAN_PACKED_TYPE(complete_sum), slm_acc);
+#else
+    MEAN_TYPE mean = FUNC_CALL(reduce_mean_inside_sg)(TO_MEAN_PACKED_TYPE(complete_sum));
+#endif
 
     if (sgid == 0 && (sglid < FSV || SIMD == FSV)) {
         intermidiate_mean[flat_data_set_group * FSV + sglid] = mean;
@@ -161,7 +179,11 @@ KERNEL(mvn_mean_2)(const __global int* intermidiate_sum,
 #define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, TO_MEAN_TYPE(next) - intel_sub_group_shuffle(mean, idx), idx)
 DECLARE_PACKED_ACCUMULATE_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, GWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 
+#if SG_NUM != 1
 DECLARE_WG_PACKED_REDUCE_ADD(reduce_sum_across_sg, MEAN_TYPE, FSV, SG_NUM, REDUCE_NO_POST_OP)
+#else
+DECLARE_SG_PACKED_REDUCE_ADD(reduce_sum_inside_sg, MEAN_TYPE, FSV, REDUCE_NO_POST_OP)
+#endif
 
 __attribute__((intel_reqd_sub_group_size(SIMD)))
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
@@ -178,11 +200,16 @@ KERNEL(mvn_var_1)(const __global INPUT0_TYPE* input,
 
     const uint data_sets_offset = INPUT0_GET_INDEX(b, f, 0, 0);
 
-    __local MEAN_TYPE slm_acc[(SG_NUM - 1) * FSV];
 
     MEAN_TYPE mean = means[flat_data_set_group * FSV + sglid];
     MEAN_PACKED_TYPE partial_sum = FUNC_CALL(accumulate_sum_sq_dev)(input, data_sets_offset, get_global_id(0), mean);
+
+#if SG_NUM != 1
+    __local MEAN_TYPE slm_acc[(SG_NUM - 1) * FSV];
     MEAN_TYPE full_sum = FUNC_CALL(reduce_sum_across_sg)(partial_sum, slm_acc);
+#else
+    MEAN_TYPE full_sum = FUNC_CALL(reduce_sum_inside_sg)(partial_sum);
+#endif
 
     if (sgid == 0 && (sglid < FSV || SIMD == FSV)) {
         intermidiate_sum[flat_data_set_group * ITEM_GROUPS * FSV + items_group * FSV + sglid] = full_sum;
@@ -194,7 +221,11 @@ KERNEL(mvn_var_1)(const __global INPUT0_TYPE* input,
 DECLARE_PACKED_ACCUMULATE(accumulate_sum, MEAN_TYPE, MEAN_TYPE, FSV, INPUT_SLICE_PITCH, ITEM_GROUPS, LWS, ACCUMULATE_SUM)
 
 #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr((sum_diff_sq) / ITEMS_NUM + (MEAN_TYPE)EPSILON, -0.5f)
+#if SG_NUM != 1
 DECLARE_WG_PACKED_REDUCE_ADD(reduce_var_across_sg, MEAN_TYPE, FSV, SG_NUM, CALC_INVERSE_VARIANCE)
+#else
+DECLARE_SG_PACKED_REDUCE_ADD(reduce_var_inside_sg, MEAN_TYPE, FSV, CALC_INVERSE_VARIANCE)
+#endif
 
 __attribute__((intel_reqd_sub_group_size(SIMD)))
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
@@ -212,8 +243,12 @@ KERNEL(mvn_var_2)(const __global MEAN_TYPE* intermidiate_sum,
 
     MEAN_PACKED_TYPE complete_sum = FUNC_CALL(accumulate_sum)(intermidiate_sum, data_sets_offset, get_local_id(0));
 
+#if SG_NUM != 1
     __local MEAN_TYPE slm_acc[(SG_NUM - 1) * FSV];
     MEAN_TYPE inv_variance = FUNC_CALL(reduce_var_across_sg)(complete_sum, slm_acc);
+#else
+    MEAN_TYPE inv_variance = FUNC_CALL(reduce_var_inside_sg)(complete_sum);
+#endif
 
     if (sgid == 0 && (sglid < FSV || SIMD == FSV)) {
         intermidiate_ivar[flat_data_set_group * FSV + sglid] = inv_variance;
@@ -226,7 +261,11 @@ KERNEL(mvn_var_2)(const __global MEAN_TYPE* intermidiate_sum,
 DECLARE_PACKED_ACCUMULATE(accumulate_sum_input, int, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, LWS, ACCUMULATE_SUM)
 
 #define CALC_MEAN(sum) ((sum) / ITEMS_NUM)
+#if SG_NUM != 1
 DECLARE_WG_PACKED_REDUCE_ADD(reduce_mean, MEAN_TYPE, FSV, SG_NUM, CALC_MEAN)
+#else
+DECLARE_SG_PACKED_REDUCE_ADD(reduce_mean, MEAN_TYPE, FSV, CALC_MEAN)
+#endif
 
 // Variance:
 #define EXTRA_ARGS_DECL_IMPL    , MEAN_TYPE mean
@@ -237,7 +276,11 @@ DECLARE_WG_PACKED_REDUCE_ADD(reduce_mean, MEAN_TYPE, FSV, SG_NUM, CALC_MEAN)
 DECLARE_PACKED_ACCUMULATE_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, LWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 
 #define CALC_INVERSE_VARIANCE(sum_diff_sq)   native_powr((sum_diff_sq) / ITEMS_NUM + (MEAN_TYPE)EPSILON, -0.5f)
+#if SG_NUM != 1
 DECLARE_WG_PACKED_REDUCE_ADD(reduce_inverse_variance, MEAN_TYPE, FSV, SG_NUM, CALC_INVERSE_VARIANCE)
+#else
+DECLARE_SG_PACKED_REDUCE_ADD(reduce_inverse_variance, MEAN_TYPE, FSV, CALC_INVERSE_VARIANCE)
+#endif
 
 #define INPUT_PACKED_BLOCK_READ(ptr)   CAT(as_, INPUT_PACKED_TYPE)(CAT(BLOCK_READ_UC_, FSV)((const __global uchar*)ptr))
 
@@ -272,7 +315,7 @@ KERNEL(mvn_final)(
     const uint data_sets_offset = INPUT0_GET_INDEX(b, f, 0, 0);
     uint input_offset;
 
-#if !PRECALC_MEAN || (NORMALIZE_VARIANCE && !PRECALC_VARIANCE)
+#if (!PRECALC_MEAN || (NORMALIZE_VARIANCE && !PRECALC_VARIANCE)) && SG_NUM != 1
     __local MEAN_TYPE slm_acc[(SG_NUM - 1) * FSV];
 #endif
 
@@ -280,7 +323,11 @@ KERNEL(mvn_final)(
     MEAN_TYPE mean = means[flat_data_set_group * FSV + sglid];
 #else
     INT_PACKED_TYPE partial_sum = FUNC_CALL(accumulate_sum_input)(input, data_sets_offset, get_local_id(0));
+#   if SG_NUM != 1
     MEAN_TYPE mean = FUNC_CALL(reduce_mean)(TO_MEAN_PACKED_TYPE(partial_sum), slm_acc);
+#   else
+    MEAN_TYPE mean = FUNC_CALL(reduce_mean)(TO_MEAN_PACKED_TYPE(partial_sum));
+#   endif
 #endif
 
 #if NORMALIZE_VARIANCE
@@ -288,7 +335,11 @@ KERNEL(mvn_final)(
     MEAN_TYPE inv_variance = variances[flat_data_set_group * FSV + sglid];
 #   else
     MEAN_PACKED_TYPE partial_dev = FUNC_CALL(accumulate_sum_sq_dev)(input, data_sets_offset, get_local_id(0), mean);
+#       if SG_NUM != 1
     MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev, slm_acc);
+#       else
+    MEAN_TYPE inv_variance = FUNC_CALL(reduce_inverse_variance)(partial_dev);
+#       endif
 #   endif
 #else
     MEAN_TYPE inv_variance = 1;

@@ -165,6 +165,7 @@ VPU_DECLARE_ENUM(StageType,
     ROIAlign = 123,
     ExpGenerateProposals = 124,
     ExpTopKROIs = 125,
+    ScatterElementsUpdate = 126,
 )
 
 //

@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include "transformations/utils/utils.hpp"
 
@@ -133,16 +134,28 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
 
         // TODO: in case if scale and shift constants has equal values the best way is to convert them to Power
         if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) {
+            NodeVector new_ops;
+
             auto weights_in = ngraph::op::util::normalize_constant(const_weights_node, add_node->get_shape());
             auto biases_in = ngraph::op::util::normalize_constant(const_bias_node, add_node->get_shape());
-            if (res1 == CONVERSION_RESULT::POWER)
+            new_ops.push_back(weights_in);
+            new_ops.push_back(biases_in);
+
+            if (res1 == CONVERSION_RESULT::POWER) {
                 weights_in = ngraph::op::util::broadcastTo(weights_in, biases_in->get_shape());
-            if (res2 == CONVERSION_RESULT::POWER)
+                new_ops.push_back(weights_in);
+            }
+            if (res2 == CONVERSION_RESULT::POWER) {
                 biases_in = ngraph::op::util::broadcastTo(biases_in, weights_in->get_shape());
+                new_ops.push_back(biases_in);
+            }
 
             auto scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, weights_in, biases_in);
+            new_ops.push_back(scaleshift);
+
             scaleshift->set_friendly_name(add_node->get_friendly_name());
-            ngraph::replace_node(m.get_match_root(), std::dynamic_pointer_cast<Node>(scaleshift));
+            ngraph::copy_runtime_info({mul_node, add_node}, new_ops);
+            ngraph::replace_node(m.get_match_root(), scaleshift);
         } else {
             float scale = 0.f, shift = 0.f;
             if (!op::util::get_single_value(const_weights_node, scale)) {
@@ -154,6 +167,7 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
 
             auto power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., scale, shift);
             power->set_friendly_name(add_node->get_friendly_name());
+            ngraph::copy_runtime_info({mul_node, add_node}, power);
             ngraph::replace_node(m.get_match_root(), power);
         }
 

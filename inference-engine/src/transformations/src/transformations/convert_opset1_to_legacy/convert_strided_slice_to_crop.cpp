@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset1.hpp>
 
 #include <ngraph_ops/crop_ie.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -190,7 +191,7 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
             return false;
         }
 
-        // NODES
+        NodeVector new_ops;
 
         // Reshape in case of new axis
         if (!new_axis_mask.empty()) {
@@ -198,11 +199,13 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
                                                                     ngraph::Shape{reshape_pattern.size()}, reshape_pattern);
             data_node = std::make_shared<ngraph::opset1::Reshape>(data_node, new_shape, true);
             data_node->set_friendly_name(slice->get_friendly_name() + "/Reshape_before");
+            new_ops.push_back(data_node);
         }
 
         // Crop
         data_node = std::make_shared<ngraph::op::CropIE> (data_node, axes, dim, offset);
         data_node->set_friendly_name(slice->get_friendly_name());
+        new_ops.push_back(data_node);
 
         auto crop_data_node = data_node;
 
@@ -213,9 +216,11 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
             data_node = std::make_shared<ngraph::opset1::Reshape>(data_node, new_shape, true);
             crop_data_node->set_friendly_name(slice->get_friendly_name() + "/Crop");
             data_node->set_friendly_name(slice->get_friendly_name());
+            new_ops.push_back(data_node);
         }
 
-        ngraph::replace_node(m.get_match_root(), std::dynamic_pointer_cast<ngraph::Node>(data_node));
+        ngraph::copy_runtime_info(slice, new_ops);
+        ngraph::replace_node(slice, data_node);
         return true;
     };
 

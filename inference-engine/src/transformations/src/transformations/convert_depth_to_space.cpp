@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertDepthToSpace::convert_depth_to_space() {
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -92,6 +93,7 @@ void ngraph::pass::ConvertDepthToSpace::convert_depth_to_space() {
         auto transpose = std::make_shared<ngraph::opset1::Transpose>(reshape_begin, create_constant(order));
         auto reshape_end = std::make_shared<ngraph::opset1::Reshape>(transpose, create_constant(shape_end), true);
         reshape_end->set_friendly_name(dts_node->get_friendly_name());
+        ngraph::copy_runtime_info(dts_node, {reshape_begin, transpose, reshape_end});
         ngraph::replace_node(dts_node, reshape_end);
         return true;
     };

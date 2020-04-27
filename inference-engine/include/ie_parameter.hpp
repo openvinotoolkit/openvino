@@ -296,12 +296,14 @@ private:
         }
 
         template <class U>
-        typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type equal(const Any& left, const Any& rhs) const {
+        typename std::enable_if<!HasOperatorEqual<U>::value, bool>::type
+        equal(const Any& left, const Any& rhs) const {
             THROW_IE_EXCEPTION << "Parameter doesn't contain equal operator";
         }
 
         template <class U>
-        typename std::enable_if<HasOperatorEqual<U>::value, bool>::type equal(const Any& left, const Any& rhs) const {
+        typename std::enable_if<HasOperatorEqual<U>::value, bool>::type
+        equal(const Any& left, const Any& rhs) const {
             return dyn_cast<U>(&left) == dyn_cast<U>(&rhs);
         }
 

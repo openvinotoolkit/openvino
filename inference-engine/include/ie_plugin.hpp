@@ -20,6 +20,7 @@
 
 #include "details/ie_no_copy.hpp"
 #include "ie_api.h"
+#include "ie_core.hpp"
 #include "ie_error.hpp"
 #include "ie_iexecutable_network.hpp"
 #include "ie_version.hpp"
@@ -47,28 +48,6 @@
 #endif
 
 namespace InferenceEngine {
-
-/**
- * @brief Responce structure encapsulating information about supported layer
- */
-struct QueryNetworkResult {
-    /**
-     * @brief A map of supported layers:
-     * - key - a layer name
-     * - value - a device name on which layer is assigned
-     */
-    std::map<std::string, std::string> supportedLayersMap;
-
-    /**
-     * @brief A status code
-     */
-    StatusCode rc = OK;
-
-    /**
-     * @brief Response mssage
-     */
-    ResponseDesc resp;
-};
 
 /**
  * @deprecated Use InferenceEngine::Core instead. Will be removed in 2020.3
@@ -102,7 +81,7 @@ public:
      *        them simultaneously (up to the limitation of the hardware resources)
      *
      * @param ret Reference to a shared ptr of the returned network interface
-     * @param network Network object acquired from CNNNetReader
+     * @param network Network object acquired from Core::ReadNetwork
      * @param config Map of pairs: (config parameter name, config parameter value) relevant only for this load operation
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      * @return Status code of the operation. InferenceEngine::OK if succeeded

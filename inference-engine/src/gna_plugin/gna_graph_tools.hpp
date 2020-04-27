@@ -66,6 +66,7 @@ inline std::vector<int> CNNLayerFindInsDataIdxes(DataPtr sourceData, CNNLayerPtr
 inline InferenceEngine::CNNLayerPtr  CNNNetPrevLayer(const InferenceEngine::CNNLayerPtr & layer, int idx = 0) {
     if (CNNNetHasPrevLayer(layer.get(), idx)) {
         auto prevData = layer->insData[idx].lock();
+        IE_ASSERT(prevData != nullptr);
         return prevData->getCreatorLayer().lock();
     } else {
         THROW_IE_EXCEPTION << "Layer " << layer->name << " has no previous layer";

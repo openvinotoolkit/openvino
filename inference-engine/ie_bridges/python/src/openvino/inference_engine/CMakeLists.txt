@@ -6,7 +6,7 @@ set(TARGET_NAME "ie_api")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
 
 file(GLOB SOURCE
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx
+        ${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
@@ -14,6 +14,18 @@ set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
 # create target
 
 cython_add_module(${TARGET_NAME} ${SOURCE})
+
+file(GLOB OTHER_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
+list(REMOVE_ITEM OTHER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ie_api.pyx")
+
+foreach(PYX_FILE ${OTHER_SOURCES})
+    get_filename_component(PYX_NAME "${PYX_FILE}" NAME_WE)
+    set_source_files_properties(${PYX_FILE} PROPERTIES CYTHON_IS_CXX ON)
+    cython_add_module(${PYX_NAME} ${PYX_FILE})
+    target_include_directories(${PYX_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(${PYX_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
+endforeach()
 
 function(python_disable_deprecated_warnings)
     disable_deprecated_warnings()

@@ -16,66 +16,71 @@
 
 import unittest
 
-from extensions.front.LogSoftmax import LogSoftmaxFrontReplacer
-from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph, regular_op, result, connect
+from generator import generator, generate
 
-nodes = {
-    **regular_op('input', {'type': 'Parameter'}),
-    **regular_op('logsoftmax', {'type': None, 'op': 'LogSoftmax', 'axis': -2, 'name': 'my_logsoftmax'}),
-    **result('output'),
+from extensions.front.LogSoftmax import LogSoftmaxFrontReplacer
+from mo.front.common.partial_infer.utils import int64_array
+from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
+
+graph_node_attributes = {
+    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'logsoftmax': {'type': None, 'kind': 'op', 'op': 'LogSoftmax', 'axis': -1},
+    'output': {'kind': 'op', 'type': 'Result', 'op': 'Result'},
 }
-edges = [
-    ('input', 'logsoftmax'),
+
+
+graph_edges = [
+    ('placeholder', 'logsoftmax'),
     ('logsoftmax', 'output'),
 ]
 
 
+graph_ref_node_attributes = {
+    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'exp': {'type': 'Exp', 'kind': 'op', 'op': 'Exp'},
+    'reduce_sum':  {'type': 'ReduceSum', 'kind': 'op', 'op': 'ReduceSum', 'keep_dims': True},
+    'reduce_max':  {'type': 'ReduceMax', 'kind': 'op', 'op': 'ReduceMax', 'keep_dims': True},
+    'log': {'type': 'Log', 'kind': 'op', 'op': 'Log'},
+    'second_sub': {'type': 'Subtract', 'kind': 'op', 'op': 'Sub'},
+    'reduce_sum_axis': {'type': 'Const', 'kind': 'op', 'op': 'Const', 'value': None, 'shape': int64_array([1])},
+    'reduce_max_axis': {'type': 'Const', 'kind': 'op', 'op': 'Const', 'value': None, 'shape': int64_array([1])},
+    'first_sub': {'type': 'Subtract', 'kind': 'op', 'op': 'Sub'},
+    'output': {'kind': 'op', 'type': 'Result', 'op': 'Result'},
+}
+
+
+graph_ref_edges = [
+    ('placeholder', 'reduce_max', {'in': 0, 'out': 0}),
+    ('placeholder', 'first_sub', {'in': 0, 'out': 0}),
+    ('reduce_max', 'first_sub', {'in': 1}),
+    ('reduce_max_axis', 'reduce_max', {'in': 1}),
+    ('first_sub', 'exp', {'in': 0, 'out': 0}),
+    ('first_sub', 'second_sub', {'in': 0, 'out': 0}),
+    ('exp', 'reduce_sum', {'in': 0}),
+    ('reduce_sum_axis', 'reduce_sum', {'in': 1}),
+    ('reduce_sum', 'log'),
+    ('log', 'second_sub', {'in': 1}),
+    ('second_sub', 'output'),
+]
+
+
+@generator
 class LogSoftmaxReplacerTest(unittest.TestCase):
-    def test_1(self):
-        graph = build_graph(nodes, edges)
-
-        graph_ref = build_graph({
-            **regular_op('input', {'type': 'Parameter'}),
-            **regular_op('log', {'op': 'Log', 'type': 'Log'}),
-            **regular_op('softmax', {'op': 'SoftMax', 'type': 'SoftMax', 'axis': -2}),
-            **result('output'),
-        },
-            [
-                ('input', 'softmax'),
-                ('softmax', 'log'),
-                ('log', 'output'),
-            ])
-
-        graph.graph['layout'] = 'NCHW'
+    @generate(*[(-1, 'NCHW'), (-1, 'NHWC'), (0, 'NHWC'),
+                (0, 'NCHW'), (2, 'NCHW'), (2, 'NHWC'),
+                (-2, 'NHWC'), (-2, 'NCHW')])
+    def test_logsoftmax_replacer(self, axis, layout):
+        graph = build_graph(nodes_attrs=graph_node_attributes, edges=graph_edges)
+        graph_ref = build_graph(nodes_attrs=graph_ref_node_attributes,
+                                edges=graph_ref_edges,
+                                update_attributes={
+                                    'reduce_max_axis': {'value': int64_array([axis])},
+                                    'reduce_sum_axis': {'value': int64_array([axis])},
+                                })
+        graph.graph['layout'] = layout
         graph.stage = 'front'
-
         LogSoftmaxFrontReplacer().find_and_replace_pattern(graph)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output')
         self.assertTrue(flag, resp)
-        self.assertTrue(graph.get_op_nodes(op='Log')[0].name == 'my_logsoftmax')
 
-    def test_2(self):
-        graph = build_graph(nodes, edges)
-
-        graph_ref = build_graph({
-            **regular_op('input', {'type': 'Parameter'}),
-            **regular_op('log', {'op': 'Log', 'type': 'Log'}),
-            **regular_op('softmax', {'op': 'SoftMax', 'type': 'SoftMax', 'axis': -2}),
-            **result('output'),
-        },
-            [
-                ('input', 'softmax'),
-                ('softmax', 'log'),
-                ('log', 'output'),
-            ])
-
-        graph.graph['layout'] = 'NHWC'
-        graph.stage = 'front'
-
-        LogSoftmaxFrontReplacer().find_and_replace_pattern(graph)
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
-        self.assertTrue(flag, resp)
-        self.assertTrue(graph.get_op_nodes(op='Log')[0].name == 'my_logsoftmax')

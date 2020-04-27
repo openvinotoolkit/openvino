@@ -21,6 +21,7 @@
 #include <ngraph/ops.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/opsets/opset2.hpp>
+#include <ngraph/opsets/opset3.hpp>
 
 #include "cnn_network_impl.hpp"
 #include "details/caseless.hpp"
@@ -53,6 +54,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) {
     // Load default opsets
     opsets["opset1"] = ngraph::get_opset1();
     opsets["opset2"] = ngraph::get_opset2();
+    opsets["opset3"] = ngraph::get_opset3();
 
     // Load custom opsets
     for (const auto& ext : exts) {
@@ -342,36 +344,26 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     }
 
     std::shared_ptr<ngraph::Node> ngraphNode;
-    if (opsets.find(params.version) != opsets.end()) {
-        // Create only parameter from opset1
-        if (params.version != "opset1" || params.type == "Parameter") {
-            auto opset = opsets.at(params.version);
+    if (opsets.count(params.version)) {
+        auto opset = opsets.at(params.version);
 
-            if (!opset.contains_type(params.type)) {
-                THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
-            }
-            ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(params.type));
-            ngraphNode->set_arguments(inputs);
-            XmlDeserializer visitor(node);
-            if (ngraphNode->visit_attributes(visitor))
-                ngraphNode->constructor_validate_and_infer_types();
-            else
-                ngraphNode.reset();
-
-            if (ngraphNode && params.version == "opset2" && params.type != "Parameter") {
-                auto opset1 = opsets.at("opset1");
-                if (opset1.get_types_info().find(ngraphNode->get_type_info()) != opset1.get_types_info().end())
-                    ngraphNode.reset();
-            }
-        }
-    }
-
-    if (!ngraphNode && (params.version == "opset1" || params.version == "opset2")) {
         for (const auto& creator : creators) {
             if (creator->shouldCreate(params.type)) {
                 ngraphNode = creator->createLayer(inputs, node, weights, params);
                 break;
             }
+        }
+
+        if (!ngraphNode) {
+            if (!opset.contains_type(params.type)) {
+                THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
+            }
+
+            ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(params.type));
+            ngraphNode->set_arguments(inputs);
+            XmlDeserializer visitor(node);
+            if (ngraphNode->visit_attributes(visitor))
+                ngraphNode->constructor_validate_and_infer_types();
         }
     }
 

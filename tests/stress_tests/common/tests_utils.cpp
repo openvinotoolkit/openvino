@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "tests_utils.h"
 
 #include <gtest/gtest.h>
@@ -27,6 +31,7 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
     const pugi::xml_document & test_config = Environment::Instance().getTestConfig();
     std::string models_path = Environment::Instance().getEnvConfig()
             .child("attributes").child("irs_path").child("value").text().as_string();
+    models_path = expand_env_vars(models_path);
 
     std::vector<int> processes;
     std::vector<int> threads;

@@ -111,16 +111,6 @@ buildSingleLayerNetworkCommon(InferenceEngine::details::IFormatParser *parser,
     return result;
 }
 
-inline std::string getTestDeviceName(std::string libraryName) {
-    if (libraryName == "MKLDNNPlugin") {
-        return "CPU";
-    } else if (libraryName == "clDNNPlugin") {
-        return "GPU";
-    } else {
-        return libraryName;
-    }
-}
-
 void GenRandomDataCommon(InferenceEngine::Blob::Ptr blob);
 
 class BufferWrapper {

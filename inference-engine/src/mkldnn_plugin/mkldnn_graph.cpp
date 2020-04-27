@@ -248,6 +248,10 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
         graphNodes.push_back(node);
         layer2node[layer] = node;
 
+        if (layer->params.count("originalLayersNames")) {
+            node->originalLayers = layer->params["originalLayersNames"];
+        }
+
         for (int port = 0; port < layer->insData.size(); port++) {
             auto data = layer->insData[port].lock();
             auto parent_layer = data->getCreatorLayer().lock();
@@ -354,7 +358,10 @@ void MKLDNNGraph::InitGraph() {
         auto nodeType = graphNode->getType();
         if (nodeType == Reorder || nodeType == Output) continue;
 
-        graphNode->addOriginalLayer(graphNode->getCnnLayer());
+        if (graphNode->getOriginalLayers().empty()) {
+            graphNode->addOriginalLayer(graphNode->getCnnLayer());
+        }
+
         if (graphNode->getFusedWith().size() || graphNode->getMergeWith().size()) {
             // Original layer names
             std::vector<MKLDNNNodePtr> internal = graphNode->getFusedWith();
@@ -419,6 +426,7 @@ void MKLDNNGraph::InitDescriptors() {
         node->getSupportedDescriptors();
 
         node->initSupportedPrimitiveDescriptors();
+        node->filterSupportedPrimitiveDescriptors();
     }
 
     for (auto &node : graphNodes) {

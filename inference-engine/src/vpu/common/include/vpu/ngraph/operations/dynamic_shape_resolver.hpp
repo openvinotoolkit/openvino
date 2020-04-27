@@ -8,11 +8,12 @@
 
 #include <memory>
 
-namespace ngraph { namespace op {
+namespace ngraph { namespace vpu { namespace op {
 
-class DynamicShapeResolver : public Op {
+class DynamicShapeResolver : public ngraph::op::Op {
 public:
-    static constexpr NodeTypeInfo type_info{"DynamicShapeResolver", 1};
+    static constexpr NodeTypeInfo type_info{"DynamicShapeResolver", 0};
+
     const NodeTypeInfo& get_type_info() const override { return type_info; }
 
     DynamicShapeResolver(const Output<Node>& tensorWithData, const Output<Node>& tensorWithDims);
@@ -25,4 +26,5 @@ public:
 };
 
 }  // namespace op
+}  // namespace vpu
 }  // namespace ngraph

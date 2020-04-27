@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadSplitNetwork) {
     std::string model = R"V0G0N(
-<net name="Activation" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter"  version="opset1">
             <data element_type="f32" shape="1,6,22,22"/>
@@ -81,7 +81,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Activation" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="0">
             <output>
@@ -133,7 +133,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork) {
 
 TEST_F(NGraphReaderTests, ReadSplitNetwork2) {
     std::string model = R"V0G0N(
-<net name="Activation" version="10">
+<net name="Network" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
             <data element_type="f32" shape="1,63,46,46"/>
@@ -255,7 +255,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork2) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Activation" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="0">
             <output>
@@ -367,7 +367,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork2) {
 
 TEST_F(NGraphReaderTests, ReadVariadicSplitNetwork) {
     std::string model = R"V0G0N(
-<net name="Activation" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter"  version="opset1">
             <data element_type="f32" shape="1,6,22,22"/>
@@ -453,7 +453,7 @@ TEST_F(NGraphReaderTests, ReadVariadicSplitNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Activation" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="0">
             <output>

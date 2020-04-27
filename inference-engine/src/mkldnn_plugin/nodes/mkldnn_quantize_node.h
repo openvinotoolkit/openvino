@@ -38,11 +38,20 @@ public:
     const std::vector<float>& getCropHigh() const { return cropHigh; }
     const std::vector<float>& getInputScale() const { return inputScale; }
     const std::vector<float>& getInputShift() const { return inputShift; }
+    const std::vector<float>& getOutputScale() const { return outputScale; }
+    const std::vector<float>& getOutputShift() const { return outputShift; }
 
     void setCropLow(std::vector<float> newCropLow) { cropLow = std::move(newCropLow); }
     void setCropHigh(std::vector<float> newCropHigh) { cropHigh = std::move(newCropHigh); }
     void setInputScale(std::vector<float> newInputScale) { inputScale = std::move(newInputScale); }
     void setInputShift(std::vector<float> newInputShift) { inputShift = std::move(newInputShift); }
+    void setOutputScale(std::vector<float> newOutputScale) { outputScale = std::move(newOutputScale); }
+    void setOutputShift(std::vector<float> newOutputShift) { outputShift = std::move(newOutputShift); }
+
+    const bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
+    const bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
+    const bool isOutputLowBroadcast() const { return isOutputLowBroadcasted; }
+    const bool isOutputHighBroadcast() const { return isOutputHighBroadcasted; }
 
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }

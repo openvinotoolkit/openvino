@@ -1,23 +1,28 @@
 #distutils: language=c++
 from cython.operator cimport dereference as deref
-from .cimport ie_api_impl_defs as C
-from .ie_api_impl_defs cimport Blob, TensorDesc, SizeVector, Precision
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp cimport bool
 from libcpp.pair cimport pair
 from libcpp.map cimport map
-from libcpp.memory cimport unique_ptr, shared_ptr
+from libcpp.memory cimport unique_ptr
 from libc.stdlib cimport malloc, free
-from libc.stdint cimport int64_t, uint8_t
+from libc.stdint cimport int64_t, uint8_t, int8_t, int32_t, uint16_t, int16_t
 from libc.string cimport memcpy
+
 import os
-import numpy as np
-from copy import deepcopy
-import warnings
-from collections import OrderedDict, namedtuple
-from collections import OrderedDict
+from pathlib import Path
 import threading
+import warnings
+from copy import deepcopy
+from collections import OrderedDict, namedtuple
+
+from .cimport ie_api_impl_defs as C
+from .ie_api_impl_defs cimport SizeVector, Precision
+from .constants import supported_precisions, known_plugins, layout_int_to_str_map, \
+                       format_map, layout_str_to_enum, StatusCode, WaitMode
+
+import numpy as np
 
 cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[C.IEExecNetwork] move(unique_ptr[C.IEExecNetwork])
@@ -42,52 +47,167 @@ cdef c_map_to_dict(map[string, string] c_map):
         py_dict[v.first.decode()] = v.second.decode()
     return py_dict
 
-supported_precisions = ["FP32", "FP16", "I64", "U64", "I32", "I16", "I8", "U16", "U8"]
-
-layout_int_to_str_map = {0: "ANY", 1: "NCHW", 2: "NHWC", 3: "NCDHW", 4: "NDHWC", 64: "OIHW", 95: "SCALAR", 96: "C",
-                         128: "CHW", 192: "HW", 193: "NC", 194: "CN", 200: "BLOCKED"}
-layout_str_to_enum = {'ANY': C.Layout.ANY,
-                      "NHWC": C.Layout.NHWC,
-                      "NCHW": C.Layout.NCHW,
-                      "NCDHW": C.Layout.NCDHW,
-                      "NDHWC": C.Layout.NDHWC,
-                      "OIHW": C.Layout.OIHW,
-                      "GOIHW": C.Layout.GOIHW,
-                      "OIDHW": C.Layout.OIDHW,
-                      "GOIDHW": C.Layout.GOIDHW,
-                      "SCALAR": C.Layout.SCALAR,
-                      "C": C.Layout.C,
-                      "CHW": C.Layout.CHW,
-                      "HW": C.Layout.HW,
-                      "NC": C.Layout.NC,
-                      "CN": C.Layout.CN,
-                      "BLOCKED": C.Layout.BLOCKED
-
-                      }
-
-known_plugins = ['CPU', 'GPU', 'FPGA', 'MYRIAD', 'HETERO', 'HDDL', 'MULTI']
-
-cpdef enum StatusCode:
-    OK = 0
-    GENERAL_ERROR = -1
-    NOT_IMPLEMENTED = -2
-    NETWORK_NOT_LOADED = -3
-    PARAMETER_MISMATCH = -4
-    NOT_FOUND = -5
-    OUT_OF_BOUNDS = -6
-    UNEXPECTED = -7
-    REQUEST_BUSY = -8
-    RESULT_NOT_READY = -9
-    NOT_ALLOCATED = -10
-    INFER_NOT_STARTED = -11
-    NETWORK_NOT_READ = -12
-
-cpdef enum WaitMode:
-    RESULT_READY = -1
-    STATUS_ONLY = 0
 
 def get_version():
     return C.get_version().decode()
+
+## This class defines Tensor description
+cdef class IETensorDesc:
+    def __eq__(self, other : IETensorDesc):
+        return self.layout == other.layout and self.precision == other.precision and self.dims == other.dims
+    def __ne__(self, other : IETensorDesc):
+        return self.layout != other.layout or self.precision != other.precision or self.dims != other.dims
+    def __deepcopy__(self, memodict={}):
+        return IETensorDesc(deepcopy(self.precision, memodict), deepcopy(self.dims, memodict), deepcopy(self.layout, memodict))
+    ## Class constructor
+    # @param precision: target memory precision
+    # @param dims: target memory dimensions
+    # @param layout: target memory layout
+    # @return Instance of defines class
+    def __cinit__(self, precision : str, dims : [list, tuple], layout : str):
+        if precision not in supported_precisions:
+            raise ValueError("Unsupported precision {}! List of supported precisions: {}".format(precision,
+                                                                                                 supported_precisions))
+        self.impl = C.TensorDesc(C.Precision.FromStr(precision.encode()), dims, layout_str_to_enum[layout])
+    ## Shape (dimensions) of the IETensorDesc object
+    @property
+    def dims(self):
+        return self.impl.getDims()
+    @dims.setter
+    def dims(self, dims_array : [list, tuple]):
+        self.impl.setDims(dims_array)
+    ## Precision of the IETensorDesc object
+    @property
+    def precision(self):
+        return self.impl.getPrecision().name().decode()
+    @precision.setter
+    def precision(self, precision : str):
+        if precision not in supported_precisions:
+            raise ValueError("Unsupported precision {}! List of supported precisions: {}".format(precision,
+                                                                                                 supported_precisions))
+        self.impl.setPrecision(C.Precision.FromStr(precision.encode()))
+    ## Layout of the IETensorDesc object
+    @property
+    def layout(self):
+        return layout_int_to_str_map[self.impl.getLayout()]
+    @layout.setter
+    def layout(self, layout : str):
+        if layout not in layout_str_to_enum.keys():
+            raise ValueError("Unsupported layout {}! "
+                             "List of supported layouts: {}".format(layout, list(layout_str_to_enum.keys())))
+        self.impl.setLayout(layout_str_to_enum[layout])
+
+## This class represents Blob
+cdef class IEBlob:
+    ## Class constructor
+    # @param tensor_desc: IETensorDesc object describing creating IEBlob object.
+    # @param array: numpy.ndarray with data to fill blob memory, The array have to have same elements count
+    #               as specified in tensor_desc.dims attribute and same elements precision corresponding to
+    #               tensor_desc.precision. If array isn't provided empty numpy.ndarray will be created accorsing
+    #               to parameters of tensor_desc
+    # @return Instance of IEBlob class
+    def __cinit__(self, IETensorDesc tensor_desc = None, array : np.ndarray = None):
+        cdef TensorDesc c_tensor_desc
+        cdef float[::1] fp32_array_memview
+        cdef int16_t[::1] I16_array_memview
+        cdef uint16_t[::1] U16_array_memview
+        cdef uint8_t[::1] U8_array_memview
+        cdef int8_t[::1] I8_array_memview
+        cdef int32_t[::1] I32_array_memview
+        cdef int64_t[::1] I64_array_memview
+
+        cdef int16_t[:] x_as_uint
+        cdef int16_t[:] y_as_uint
+
+        self._array_data = array
+        self._initial_shape = array.shape if array is not None else None
+
+        if self._array_data is not None:
+            if np.isfortran(self._array_data):
+                self._array_data = self._array_data.ravel(order="F")
+            else:
+                self._array_data = self._array_data.ravel(order="C")
+        if self._array_data is None and tensor_desc is not None:
+            c_tensor_desc = tensor_desc.impl
+            precision = tensor_desc.precision
+            if precision == "FP32":
+                self._ptr = C.make_shared_blob[float](c_tensor_desc)
+            elif precision == "FP16" or precision == "I16":
+                self._ptr = C.make_shared_blob[int16_t](c_tensor_desc)
+            elif precision == "Q78" or precision == "U16":
+                self._ptr = C.make_shared_blob[uint16_t](c_tensor_desc)
+            elif  precision == "U8" or precision == "BOOL":
+                self._ptr = C.make_shared_blob[uint8_t](c_tensor_desc)
+            elif  precision == "I8" or precision == "BIN":
+                self._ptr = C.make_shared_blob[int8_t](c_tensor_desc)
+            elif  precision == "I32":
+                self._ptr = C.make_shared_blob[int32_t](c_tensor_desc)
+            elif  precision == "I64":
+                self._ptr = C.make_shared_blob[int64_t](c_tensor_desc)
+            else:
+                raise AttributeError("Unsupported precision {} for blob".format(precision))
+            deref(self._ptr).allocate()
+        elif tensor_desc is not None and self._array_data is not None:
+            c_tensor_desc = tensor_desc.impl
+            precision = tensor_desc.precision
+            size_arr = np.prod(array.shape)
+            size_td = np.prod(tensor_desc.dims)
+            if size_arr != size_td:
+                raise AttributeError("Number of elements in provided numpy array {} and "
+                                     "required by TensorDesc {} are not equal".format(size_arr, size_td))
+            if self._array_data.dtype != format_map[precision]:
+                raise ValueError("Data type {} of provided numpy array "
+                                 "doesn't match to TensorDesc precision {}".format(self._array_data.dtype, precision))
+            if not self._array_data.flags['C_CONTIGUOUS']:
+                self._array_data = np.ascontiguousarray(self._array_data)
+            if precision == "FP32":
+                fp32_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[float](c_tensor_desc, &fp32_array_memview[0], fp32_array_memview.shape[0])
+            elif precision == "FP16":
+                raise RuntimeError("Currently, it's impossible to set_blob with FP16 precision")
+            elif precision == "I16":
+                I16_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[int16_t](c_tensor_desc, &I16_array_memview[0], I16_array_memview.shape[0])
+            elif precision == "Q78" or precision == "U16":
+                U16_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[uint16_t](c_tensor_desc, &U16_array_memview[0], U16_array_memview.shape[0])
+            elif  precision == "U8" or precision == "BOOL":
+                U8_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[uint8_t](c_tensor_desc, &U8_array_memview[0], U8_array_memview.shape[0])
+            elif  precision == "I8" or precision == "BIN":
+                I8_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[int8_t](c_tensor_desc, &I8_array_memview[0], I8_array_memview.shape[0])
+            elif  precision == "I32":
+                I32_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[int32_t](c_tensor_desc, &I32_array_memview[0], I32_array_memview.shape[0])
+            elif  precision == "I64":
+                I64_array_memview = self._array_data
+                self._ptr = C.make_shared_blob[int64_t](c_tensor_desc, &I64_array_memview[0], I64_array_memview.shape[0])
+            else:
+                raise AttributeError("Unsupported precision {} for blob".format(precision))
+
+    def __deepcopy__(self, memodict):
+        res = IEBlob(deepcopy(self.tensor_desc, memodict), deepcopy(self._array_data, memodict))
+        res.buffer[:] = deepcopy(self.buffer[:], memodict)
+        return res
+
+    ## IEBlob's memory as numpy.ndarray representation
+    @property
+    def buffer(self):
+        representation_shape = self._initial_shape if self._initial_shape is not None else []
+        cdef BlobBuffer buffer = BlobBuffer()
+        buffer.reset(self._ptr, representation_shape)
+        return buffer.to_numpy()
+
+    ## IETensorDesc of created IEBlob
+    @property
+    def tensor_desc(self):
+        cdef TensorDesc c_tensor_desc = deref(self._ptr).getTensorDesc()
+        precision = c_tensor_desc.getPrecision().name().decode()
+        layout = c_tensor_desc.getLayout()
+        dims = c_tensor_desc.getDims()
+        tensor_desc = IETensorDesc(precision, dims, layout_int_to_str_map[layout])
+        return tensor_desc
 
 ## This class represents an Inference Engine entity and allows you to manipulate with plugins using unified interfaces.
 cdef class IECore:
@@ -133,7 +253,7 @@ cdef class IECore:
     #  ie = IECore()
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  ```
-    cpdef IENetwork read_network(self, model: [str, bytes], weights: [str, bytes] = "", init_from_buffer: bool = False):
+    cpdef IENetwork read_network(self, model: [str, bytes, Path], weights: [str, bytes, Path] = "", init_from_buffer: bool = False):
         cdef char*xml_buffer
         cdef uint8_t*bin_buffer
         cdef string weights_
@@ -148,12 +268,20 @@ cdef class IECore:
             net.impl = self.impl.readNetwork(xml_buffer, bin_buffer, len(weights))
             free(xml_buffer)
         else:
-            if not os.path.isfile(model):
-                raise Exception("Path to the model {} doesn't exists or it's a directory".format(model))
-            if not os.path.isfile(weights):
-                raise Exception("Path to the weights {} doesn't exists or it's a directory".format(weights))
-            model_ = model.encode()
-            weights_ = weights.encode()
+            if isinstance(model, Path) and isinstance(weights, Path):
+                if not model.is_file():
+                    raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
+                if not weights.is_file():
+                    raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
+                model_ = bytes(model)
+                weights_ = bytes(weights)
+            else:
+                if not os.path.isfile(model):
+                    raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
+                if not os.path.isfile(weights):
+                    raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
+                model_ = model.encode()
+                weights_ = weights.encode()
             net.impl =  self.impl.readNetwork(model_, weights_)
         return net
 
@@ -249,7 +377,7 @@ cdef class IECore:
     #  ```python
     #  ie = IECore()
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-    #  ie.set_config({"DYN_BATCH_ENABLED": "YES"})
+    #  ie.set_config(config={"DYN_BATCH_ENABLED": "YES"}, device_name="CPU")
     #  ```
     def set_config(self, config: dict, device_name: str):
         cdef map[string, string] c_config = dict_to_c_map(config)
@@ -463,7 +591,7 @@ cdef class ExecutableNetwork:
     #  ```python
     #  ie_core = IECore()
     #  net = ie_core.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-    #  exec_net = ie_core.load_network(net, device, num_requests=2)
+    #  exec_net = ie_core.load_network(network=net, device_name="CPU", num_requests=2)
     #  res = exec_net.infer({'data': img})
     #  res
     #  {'prob': array([[[[2.83426580e-08]],
@@ -476,7 +604,11 @@ cdef class ExecutableNetwork:
     def infer(self, inputs=None):
         current_request = self.requests[0]
         current_request.infer(inputs)
-        return deepcopy(current_request.outputs)
+        res = {}
+        for out in current_request._outputs_list:
+            res[out] = deepcopy(current_request.output_blobs[out].buffer)
+        return res
+
 
     ## Starts asynchronous inference for specified infer request.
     #  Wraps `async_infer()` method of the `InferRequest` class.
@@ -489,7 +621,7 @@ cdef class ExecutableNetwork:
     #  ```python
     #  infer_request_handle = exec_net.start_async(request_id=0, inputs={input_blob: image})
     #  infer_status = infer_request_handle.wait()
-    #  res = infer_request_handle.outputs[out_blob_name]
+    #  res = infer_request_handle.output_blobs[out_blob_name]
     #  ```
     def start_async(self, request_id, inputs=None):
         if request_id not in list(range(len(self.requests))):
@@ -542,7 +674,7 @@ cdef class ExecutableNetwork:
     #  ```python
     #  ie_core = IECore()
     #  net = ie_core.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-    #  exec_net = ie_core.load_network(net, device, num_requsts=2)
+    #  exec_net = ie_core.load_network(net, device, num_requests=2)
     #  exec_graph = exec_net.get_exec_graph_info()
     #  ```
     def get_exec_graph_info(self):
@@ -575,7 +707,7 @@ cdef class ExecutableNetwork:
     #  ie = IECore()
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  exec_net = ie.load_network(net, "CPU")
-    #  exec_net.get_metric("DEVICE_ID")
+    #  config = exec_net.get_config("CPU_BIND_THREAD")
     #  ```
     def get_config(self, config_name: str):
         return deref(self.impl).getConfig(config_name.encode())
@@ -620,6 +752,7 @@ cdef class InferRequest:
     #  method of the `IECore` class with specified number of requests to get `ExecutableNetwork` instance
     #  which stores infer requests.
     def __init__(self):
+        self._user_blobs = {}
         self._inputs_list = []
         self._outputs_list = []
         self._py_callback = lambda *args, **kwargs: None
@@ -629,8 +762,9 @@ cdef class InferRequest:
 
     cdef void user_callback(self, int status) with gil:
         if self._py_callback:
-            self._py_callback(status, self._py_data)
+            # Set flag at first since user can call wait in callback
             self._py_callback_called.set()
+            self._py_callback(status, self._py_data)
 
     ## Description: Sets a callback function that is called on success or failure of an asynchronous request
     #
@@ -663,6 +797,48 @@ cdef class InferRequest:
         buffer.reset(blob_ptr)
         return buffer
 
+    ## Dictionary that maps input layer names to corresponding IEBlobs
+    @property
+    def input_blobs(self):
+        input_blobs = {}
+        for input in self._inputs_list:
+            # TODO: will not work for setting data via .inputs['data'][:]
+            if input in self._user_blobs:
+                input_blobs[input] = self._user_blobs[input]
+            else:
+                blob = IEBlob()
+                deref(self.impl).getBlobPtr(input.encode(), blob._ptr)
+                input_blobs[input] = blob
+        return input_blobs
+
+    ## Dictionary that maps output layer names to corresponding IEBlobs
+    @property
+    def output_blobs(self):
+        output_blobs = {}
+        for output in self._outputs_list:
+            blob = IEBlob()
+            deref(self.impl).getBlobPtr(output.encode(), blob._ptr)
+            output_blobs[output] = deepcopy(blob)
+        return output_blobs
+
+    ## Sets user defined IEBlob for the infer request
+    #  @param blob_name: A name of input blob
+    #  @param blob: IEBlob object to set for the infer request
+    #  @return None
+    #
+    #  Usage example:\n
+    #  ```python
+    #  ie = IECore()
+    #  net = IENetwork("./model.xml", "./model.bin")
+    #  exec_net = ie.load_network(net, "CPU", num_requests=2)
+    #  td = IETensorDesc("FP32", (1, 3, 224, 224), "NCHW")
+    #  blob_data = np.ones(shape=(1, 3, 224, 224), dtype=np.float32)
+    #  blob = IEBlob(td, blob_data)
+    #  exec_net.requests[0].set_blob(blob_name="input_blob_name", blob=blob),
+    #  ```
+    def set_blob(self, blob_name : str, blob : IEBlob):
+        deref(self.impl).setBlob(blob_name.encode(), blob._ptr)
+        self._user_blobs[blob_name] = blob
     ## Starts synchronous inference of the infer request and fill outputs array
     #
     #  @param inputs: A dictionary that maps input layer names to `numpy.ndarray` objects of proper shape with
@@ -671,9 +847,9 @@ cdef class InferRequest:
     #
     #  Usage example:\n
     #  ```python
-    #  exec_net = ie_core.load_network(network=net, num_requests=2)
+    #  exec_net = ie_core.load_network(network=net, device_name="CPU", num_requests=2)
     #  exec_net.requests[0].infer({input_blob: image})
-    #  res = exec_net.requests[0].outputs['prob']
+    #  res = exec_net.requests[0].output_blobs['prob']
     #  np.flip(np.sort(np.squeeze(res)),0)
     #  array([4.85416055e-01, 1.70385033e-01, 1.21873841e-01, 1.18894853e-01,
     #         5.45198545e-02, 2.44456064e-02, 5.41366823e-03, 3.42589128e-03,
@@ -692,10 +868,10 @@ cdef class InferRequest:
     #
     #  Usage example:\n
     #  ```python
-    #  exec_net = ie_core.load_network(network=net, num_requests=2)
+    #  exec_net = ie_core.load_network(network=net, device_name="CPU", num_requests=2)
     #  exec_net.requests[0].async_infer({input_blob: image})
     #  request_status = exec_net.requests[0].wait()
-    #  res = exec_net.requests[0].outputs['prob']
+    #  res = exec_net.requests[0].output_blobs['prob']
     #  ```
     cpdef async_infer(self, inputs=None):
         if inputs is not None:
@@ -724,6 +900,11 @@ cdef class InferRequest:
             if status != StatusCode.RESULT_NOT_READY:
                 return status
             if not self._py_callback_called.is_set():
+                if timeout == WaitMode.RESULT_READY:
+                    timeout = None
+                if timeout is not None:
+                    # Convert milliseconds to seconds
+                    timeout = float(timeout)/1000
                 if not self._py_callback_called.wait(timeout):
                     return StatusCode.REQUEST_BUSY
             return StatusCode.OK
@@ -741,7 +922,7 @@ cdef class InferRequest:
     #
     #  Usage example:
     #  ```python
-    #  exec_net = ie_core.load_network(network=net, num_requests=2)
+    #  exec_net = ie_core.load_network(network=net, device_name="CPU", num_requests=2)
     #  exec_net.requests[0].infer({input_blob: image})
     #  exec_net.requests[0].get_perf_counts()
     #  {'Conv2D': {'exec_type': 'jit_avx2_1x1',
@@ -772,6 +953,9 @@ cdef class InferRequest:
     #  objects of proper shape with input data for the layer
     @property
     def inputs(self):
+        warnings.filterwarnings("always", category=DeprecationWarning)
+        warnings.warn("'inputs' property of InferRequest is deprecated. Please instead use 'input_blobs' property.",
+                      DeprecationWarning)
         inputs = {}
         for input in self._inputs_list:
             inputs[input] = self._get_blob_buffer(input.encode()).to_numpy()
@@ -780,6 +964,9 @@ cdef class InferRequest:
     ## A dictionary that maps output layer names to `numpy.ndarray` objects with output data of the layer
     @property
     def outputs(self):
+        warnings.filterwarnings("always", category=DeprecationWarning)
+        warnings.warn("'outputs' property of InferRequest is deprecated. Please instead use 'output_blobs' property.",
+                      DeprecationWarning)
         outputs = {}
         for output in self._outputs_list:
             outputs[output] = self._get_blob_buffer(output.encode()).to_numpy()
@@ -804,8 +991,8 @@ cdef class InferRequest:
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  # Set max batch size
     #  net.batch = 10
-    #  ie.set_config({"DYN_BATCH_ENABLED": "YES"})
-    #  exec_net = ie.load_network(network=net)
+    #  ie.set_config(config={"DYN_BATCH_ENABLED": "YES"}, device_name=device)
+    #  exec_net = ie.load_network(network=net, device_name=device)
     #  # Set batch size for certain network.
     #  # NOTE: Input data shape will not be changed, but will be used partially in inference which increases performance
     #  exec_net.requests[0].set_batch(2)
@@ -818,7 +1005,7 @@ cdef class InferRequest:
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():
             assert k in self._inputs_list, "No input with name {} found in network".format(k)
-            self.inputs[k][:] = v
+            self.input_blobs[k].buffer[:] = v
 
 
 ## Layer calibration statistic container.
@@ -1085,9 +1272,9 @@ cdef class IENetwork:
                           "Please, use IECore.read_network() method instead",
                           DeprecationWarning)
                 if not os.path.isfile(model):
-                    raise Exception("Path to the model {} doesn't exists or it's a directory".format(model))
+                    raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
                 if not os.path.isfile(weights):
-                    raise Exception("Path to the weights {} doesn't exists or it's a directory".format(weights))
+                    raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
                 model_ = model.encode()
                 weights_ = weights.encode()
                 self.impl = C.IENetwork(model_, weights_)
@@ -1320,8 +1507,8 @@ cdef class IEPlugin:
     #  Usage example:\n
     #  ```python
     #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
-    #  plugin = IEPlugin(device="CPU")
-    #  exec_net = plugin.load(network=net, num_requsts=2)
+    #  ie = IECore()
+    #  exec_net = ie.load_network(network=net, device_name="CPU", num_requsts=2)
     #  ```
     cpdef ExecutableNetwork load(self, IENetwork network, int num_requests=1, config=None):
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
@@ -1389,10 +1576,14 @@ cdef class IEPlugin:
 cdef class BlobBuffer:
     """Copy-less accessor for Inference Engine Blob"""
 
-    cdef reset(self, Blob.Ptr & ptr):
+    cdef reset(self, Blob.Ptr & ptr, vector[size_t] representation_shape = []):
         self.ptr = ptr
         cdef TensorDesc desc = deref(ptr).getTensorDesc()
-        cdef SizeVector shape = desc.getDims()
+        cdef SizeVector shape
+        if len(representation_shape) == 0:
+            shape = desc.getDims()
+        else:
+            shape = representation_shape
         cdef Py_ssize_t itemsize = deref(ptr).element_size()
         self.strides.resize(shape.size())
         self.shape.resize(shape.size())
@@ -1437,7 +1628,6 @@ cdef class BlobBuffer:
             'I64': 'q',  # signed long int
             'U64': 'Q',  # signed long int
         }
-
         if name not in precision_to_format:
             raise ValueError("Unknown Blob precision: {}".format(name))
 

@@ -12,6 +12,18 @@ add_subdirectory(mock_engine)
 
 add_subdirectory(helpers)
 
+if (ENABLE_GAPI_TESTS)
+    add_subdirectory(fluid_preproc)
+endif()
+
+if (ENABLE_FUNCTIONAL_TESTS)
+    add_subdirectory(functional)
+endif()
+
+if (ENABLE_BEH_TESTS)
+    add_subdirectory(behavior)
+endif()
+
 disable_deprecated_warnings()
 
 if(ENABLE_TESTS)

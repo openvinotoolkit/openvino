@@ -48,7 +48,7 @@ void PassImpl::run(const Model& model) {
         // Data <-> Data Edges.
         //
 
-        if (auto dataEdge = data->parentDataEdge()) {
+        if (auto dataEdge = data->parentDataToDataEdge()) {
             auto parent = dataEdge->parent();
             auto child = dataEdge->child();
 

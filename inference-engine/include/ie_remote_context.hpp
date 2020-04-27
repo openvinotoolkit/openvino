@@ -117,7 +117,7 @@ public:
     template <typename T,
         typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
         typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
-        bool is() noexcept {
+    bool is() noexcept {
         return dynamic_cast<T*>(this) != nullptr;
     }
 
@@ -130,7 +130,7 @@ public:
     template <typename T,
         typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
         typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
-        bool is() const noexcept {
+    bool is() const noexcept {
         return dynamic_cast<const T*>(this) != nullptr;
     }
 
@@ -143,7 +143,7 @@ public:
     template <typename T,
         typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
         typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
-        T * as() noexcept {
+    T * as() noexcept {
         return dynamic_cast<T*>(this);
     }
 
@@ -156,7 +156,7 @@ public:
     template <typename T,
         typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
         typename std::enable_if<std::is_base_of<RemoteContext, T>::value, int>::type = 0>
-        const T * as() const noexcept {
+    const T * as() const noexcept {
         return dynamic_cast<const T*>(this);
     }
 

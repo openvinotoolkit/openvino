@@ -134,13 +134,13 @@ IE_SUPPRESS_DEPRECATED_START
 namespace details {
 
 /**
- * @brief This class defines the name of the fabric for creating an IHeteroInferencePlugin object in DLL
+ * @brief This class defines the name of the fabric for creating an ICNNNetReader object in DLL
  */
 template<>
 class SOCreatorTrait<ICNNNetReader> {
 public:
     /**
-     * @brief A name of the fabric for creating IInferencePlugin object in DLL
+     * @brief A name of the fabric for creating ICNNNetReader object in DLL
      */
     static constexpr auto name = "CreateICNNNetReader";
 };

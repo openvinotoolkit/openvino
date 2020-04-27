@@ -4,7 +4,7 @@
 
 if(DEFINED IE_MAIN_SOURCE_DIR AND TARGET inference_engine)
     set(InferenceEngine_LIBRARIES inference_engine_legacy inference_engine
-                                  inference_engine_c_api inference_engine_nn_builder)
+                                  inference_engine_c_api)
 else()
     include("${CMAKE_CURRENT_LIST_DIR}/targets.cmake")
     if(NOT WIN32)
@@ -30,5 +30,5 @@ else()
 
     get_target_property(InferenceEngine_INCLUDE_DIRS IE::inference_engine INTERFACE_INCLUDE_DIRECTORIES)
     set(InferenceEngine_LIBRARIES IE::inference_engine_legacy IE::inference_engine
-                                  IE::inference_engine_c_api IE::inference_engine_nn_builder)
+                                  IE::inference_engine_c_api)
 endif()

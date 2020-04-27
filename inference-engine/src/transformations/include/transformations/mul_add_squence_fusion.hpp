@@ -12,13 +12,8 @@
 #include <ngraph/ngraph.hpp>
 
 #include "ngraph/pattern/matcher.hpp"
-#include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/experimental/dyn_broadcast.hpp"
-#include "ngraph/op/fused/conv_fused.hpp"
-#include "ngraph/op/reshape.hpp"
-#include "ngraph/op/add.hpp"
 
-#include "ngraph/op/fused/group_conv.hpp"
+#include <ngraph/opsets/opset1.hpp>
 
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 
@@ -36,8 +31,8 @@ class INFERENCE_ENGINE_API_CLASS(MulAddFusion);
 class ngraph::pass::MulAddFusion: public ngraph::pass::GraphRewrite {
 public:
     MulAddFusion() : GraphRewrite() {
-        mul_add_fusion<op::v1::Multiply>();
-        mul_add_fusion<op::v1::Add>();
+        mul_add_fusion<opset1::Multiply>();
+        mul_add_fusion<opset1::Add>();
     }
 
 private:
@@ -74,8 +69,8 @@ bool fusion(std::shared_ptr<T> m_eltwise) {
 
     std::shared_ptr<op::Op> eltwise, add, mul;
     std::shared_ptr<Node> constant, constant1, constant2;
-    std::tie(add, constant1) = parse_eltwise_inputs<op::v1::Add, Node>(m_eltwise);
-    std::tie(mul, constant2) = parse_eltwise_inputs<op::v1::Multiply, Node>(m_eltwise);
+    std::tie(add, constant1) = parse_eltwise_inputs<opset1::Add, Node>(m_eltwise);
+    std::tie(mul, constant2) = parse_eltwise_inputs<opset1::Multiply, Node>(m_eltwise);
 
     if (add && add->output(0).get_target_inputs().size() != 1) {
         return false;
@@ -101,14 +96,10 @@ bool fusion(std::shared_ptr<T> m_eltwise) {
 
         // Mul->Mul => Mul, Add->Add => Add
         if (std::dynamic_pointer_cast<T>(eltwise) && std::dynamic_pointer_cast<T>(m_eltwise)) {
-            auto new_eltwise = std::make_shared<T>(
-                    res.first,
-                    std::make_shared<T>(
-                            constant,
-                            res.second,  // constant
-                            op::AutoBroadcastType::NUMPY),
-                    op::AutoBroadcastType::NUMPY);
+            auto new_const = std::make_shared<T>(constant, res.second);
+            auto new_eltwise = std::make_shared<T>(res.first, new_const);
 
+            copy_runtime_info(m_eltwise, {new_const, new_eltwise});
             replace_node(m_eltwise, new_eltwise);
             new_eltwise->set_op_annotations(std::make_shared<op::util::EltwiseAttrs>(m_attrs));
             new_eltwise->set_friendly_name(m_eltwise->get_friendly_name());
@@ -116,13 +107,12 @@ bool fusion(std::shared_ptr<T> m_eltwise) {
         }
 
         // Add->Mul => Mul->Add
-        if (std::dynamic_pointer_cast<op::v1::Add>(eltwise) && std::dynamic_pointer_cast<op::v1::Multiply>(m_eltwise)) {
-            auto new_mul = std::make_shared<op::v1::Multiply>(res.first, constant);
-            auto new_add = std::make_shared<op::v1::Add> (new_mul,
-                                                          std::make_shared<op::v1::Multiply>(
-                                                          constant,
-                                                          res.second));
+        if (std::dynamic_pointer_cast<opset1::Add>(eltwise) && std::dynamic_pointer_cast<opset1::Multiply>(m_eltwise)) {
+            auto new_mul = std::make_shared<opset1::Multiply>(res.first, constant);
+            auto new_const = std::make_shared<opset1::Multiply>(constant, res.second);
+            auto new_add = std::make_shared<opset1::Add> (new_mul, new_const);
 
+            copy_runtime_info(m_eltwise, {new_mul, new_const, new_add});
             replace_node(m_eltwise, new_add);
 
             // We need to preserve op annotations and namings
@@ -144,7 +134,7 @@ void ngraph::pass::MulAddFusion::mul_add_fusion() {
     auto eltwise = std::make_shared<T>(input1, input2);
 
     ngraph::graph_rewrite_callback callback = [&](ngraph::pattern::Matcher &m) {
-        static_assert(std::is_same<T, op::v1::Add>() || std::is_same<T, op::v1::Multiply>(),
+        static_assert(std::is_same<T, opset1::Add>() || std::is_same<T, opset1::Multiply>(),
                       "Unsupported template parameter. Only Add or Multiply allowed!");
 
         if (auto m_eltwise = std::dynamic_pointer_cast<T>(m.get_match_root())) {

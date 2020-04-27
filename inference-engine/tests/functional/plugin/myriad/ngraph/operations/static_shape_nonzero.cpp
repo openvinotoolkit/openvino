@@ -6,7 +6,7 @@
 
 #include <common_test_utils/test_common.hpp>
 
-#include <ngraph/op/parameter.hpp>
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/function.hpp>
 
 #include <details/ie_exception.hpp>
@@ -27,10 +27,10 @@ public:
         const auto& tensorType  = std::get<0>(parameters);
         const auto& tensorShape = std::get<1>(parameters);
 
-        m_param = std::make_shared<ngraph::op::Parameter>(tensorType, tensorShape);
+        m_param = std::make_shared<ngraph::opset3::Parameter>(tensorType, tensorShape);
     }
 protected:
-    std::shared_ptr<ngraph::op::Parameter> m_param;
+    std::shared_ptr<ngraph::opset3::Parameter> m_param;
 };
 
 std::vector<ngraph::PartialShape> testStaticShapes {
@@ -68,8 +68,8 @@ std::vector<ngraph::element::Type> testNGraphNumericTypes {
 //
 
 TEST_P(StaticShapeNonZeroTests, CanValidateAndInferTypes) {
-    std::shared_ptr<ngraph::op::StaticShapeNonZero> op;
-    ASSERT_NO_THROW(op = std::make_shared<ngraph::op::StaticShapeNonZero>(m_param));
+    std::shared_ptr<ngraph::vpu::op::StaticShapeNonZero> op;
+    ASSERT_NO_THROW(op = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(m_param));
     ASSERT_NO_THROW(std::make_shared<ngraph::Function>(
             ngraph::OutputVector{op->output(0), op->output(1)},
             ngraph::ParameterVector{m_param}));
@@ -84,10 +84,10 @@ INSTANTIATE_TEST_CASE_P(NGraph, StaticShapeNonZeroTests, testing::Combine(
 // Negative tests
 //
 
-class StaticShapeNonZeroTestsNegativeDataType : public StaticShapeNonZeroTests {};
+using StaticShapeNonZeroTestsNegativeDataType = StaticShapeNonZeroTests;
 TEST_P(StaticShapeNonZeroTestsNegativeDataType, ThrowsOnInvalidDataType) {
-    std::shared_ptr<ngraph::op::StaticShapeNonZero> op;
-    ASSERT_THROW(op = std::make_shared<ngraph::op::StaticShapeNonZero>(m_param),
+    std::shared_ptr<ngraph::vpu::op::StaticShapeNonZero> op;
+    ASSERT_THROW(op = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(m_param),
                  ngraph::NodeValidationFailure);
 }
 
@@ -96,10 +96,10 @@ INSTANTIATE_TEST_CASE_P(NGraph, StaticShapeNonZeroTestsNegativeDataType, testing
         testing::ValuesIn(testStaticShapes))
 );
 
-class StaticShapeNonZeroTestsNegativeDataShape : public StaticShapeNonZeroTests {};
+using StaticShapeNonZeroTestsNegativeDataShape = StaticShapeNonZeroTests;
 TEST_P(StaticShapeNonZeroTestsNegativeDataShape, ThrowsOnInvalidDataShape) {
-    std::shared_ptr<ngraph::op::StaticShapeNonZero> op;
-    ASSERT_THROW(op = std::make_shared<ngraph::op::StaticShapeNonZero>(m_param),
+    std::shared_ptr<ngraph::vpu::op::StaticShapeNonZero> op;
+    ASSERT_THROW(op = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(m_param),
                  ngraph::NodeValidationFailure);
 }
 

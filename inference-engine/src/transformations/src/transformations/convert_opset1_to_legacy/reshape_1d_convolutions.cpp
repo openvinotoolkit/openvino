@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include "ngraph_ops/convolution_ie.hpp"
 #include "transformations/utils/utils.hpp"
@@ -55,13 +56,17 @@ void ngraph::pass::Reshape1DConvolutions::reshape_convolutions() {
         new_pads_begin.insert(new_pads_begin.begin(), 0);
         new_pad_end.insert(new_pad_end.begin(), 0);
 
+        NodeVector new_ops;
+
         auto reshape_begin = op::util::reshapeTo(conv->input_value(0), new_input_shape);
         reshape_begin->set_friendly_name(conv->get_friendly_name() + "/reshape_begin");
+        new_ops.push_back(reshape_begin);
 
         auto create_convolution = [&](const Output<Node> & input) -> std::shared_ptr<Node> {
             Shape new_weights_shape(conv->input_value(1).get_shape());
             new_weights_shape.insert(new_weights_shape.begin() + 2, 1);
             auto weights = op::util::reshapeTo(conv->input_value(1), new_weights_shape);
+            new_ops.push_back(weights);
             if (conv->inputs().size() == 2) {
                 return std::make_shared<op::ConvolutionIE>(input,
                                                            weights,
@@ -88,10 +93,13 @@ void ngraph::pass::Reshape1DConvolutions::reshape_convolutions() {
 
         auto new_conv = create_convolution(reshape_begin);
         new_conv->set_friendly_name(conv->get_friendly_name() + "/new");
+        new_ops.push_back(new_conv);
 
         auto reshape_end = op::util::reshapeTo(new_conv, output_shape);
         reshape_end->set_friendly_name(conv->get_friendly_name());
+        new_ops.push_back(reshape_end);
 
+        ngraph::copy_runtime_info(conv, new_ops);
         ngraph::replace_node(conv, reshape_end);
         return true;
     };

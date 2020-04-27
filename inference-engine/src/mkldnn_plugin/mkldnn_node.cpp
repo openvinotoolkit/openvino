@@ -41,11 +41,13 @@
 #include <nodes/mkldnn_def_conv_node.h>
 #include <nodes/mkldnn_mvn_node.h>
 #include <nodes/mkldnn_resample_node.h>
+#include <nodes/mkldnn_normalize_node.h>
 #include <nodes/mkldnn_tensoriterator_node.h>
 #include <mkldnn_types.h>
 #include "mkldnn_extension_utils.h"
 #include "mkldnn_plugin.h"
 #include "ie_memcpy.h"
+#include "mkldnn_debug.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -112,6 +114,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Convert", Convert },
         { "MVN", MVN},
         { "Resample", Resample},
+        { "Normalize", Normalize},
 };
 
 Type TypeFromName(const std::string type) {
@@ -164,6 +167,24 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
             if (implPriorities[implPriorities.size() - 1] == impl_desc_type::unknown &&
                     str != "cpu:unknown")
                 THROW_IE_EXCEPTION << "Unsupported CPU implementation " << str << " for node " << getName();
+        }
+    }
+    if (layer->params.find("InputMemoryFormats") != layer->params.end()) {
+        std::istringstream stream(layer->params["InputMemoryFormats"]);
+        std::string str;
+        while (getline(stream, str, ',')) {
+            if (str.substr(0, 4) != "cpu:")
+                continue;
+            inputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+        }
+    }
+    if (layer->params.find("OutputMemoryFormats") != layer->params.end()) {
+        std::istringstream stream(layer->params["OutputMemoryFormats"]);
+        std::string str;
+        while (getline(stream, str, ',')) {
+            if (str.substr(0, 4) != "cpu:")
+                continue;
+            outputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
         }
     }
 }
@@ -529,6 +550,32 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
 
             supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
             itpd++;
+        }
+    }
+}
+
+void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
+    if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
+        auto itpd = supportedPrimitiveDescriptors.begin();
+        while (itpd != supportedPrimitiveDescriptors.end()) {
+            const auto &config = itpd->getConfig();
+            if (inputMemoryFormatsFilter.size() > config.inConfs.size() || outputMemoryFormatsFilter.size() > config.outConfs.size())
+                THROW_IE_EXCEPTION << "Incorrect number of input or output memory formats";
+
+            bool isSuitableDesc = true;
+            for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
+                if (inputMemoryFormatsFilter[i] != MKLDNNMemoryDesc(config.inConfs[i].desc).getFormat())
+                    isSuitableDesc = false;
+            }
+            for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
+                if (outputMemoryFormatsFilter[i] != MKLDNNMemoryDesc(config.outConfs[i].desc).getFormat())
+                    isSuitableDesc = false;
+            }
+            if (!isSuitableDesc) {
+                supportedPrimitiveDescriptors.erase(itpd);
+            } else {
+                itpd++;
+            }
         }
     }
 }

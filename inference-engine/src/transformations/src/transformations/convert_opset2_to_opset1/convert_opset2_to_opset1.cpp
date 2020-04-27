@@ -3,23 +3,29 @@
 //
 
 #include "transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp"
+
 #include "transformations/convert_gelu.hpp"
 #include "transformations/convert_batch_to_space.hpp"
 #include "transformations/convert_space_to_batch.hpp"
-#include <transformations/utils/pass_manager.hpp>
+
 #include <memory>
+#include <vector>
+
+#include <ngraph/pass/manager.hpp>
 
 bool ngraph::pass::ConvertOpSet2ToOpSet1::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    auto convert_gelu = ConvertGELU();
-    convert_gelu.setCallback(transformation_callback);
-    convert_gelu.run_on_function(f);
+    ngraph::pass::Manager OpSet2ToOpSet1;
+    std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
 
-    auto convert_space_to_batch = ConvertSpaceToBatch();
-    convert_space_to_batch.setCallback(transformation_callback);
-    convert_space_to_batch.run_on_function(f);
+#define NGRAPH_PASS(NAME, NAMESPACE) transforms.push_back(OpSet2ToOpSet1.register_pass<NAMESPACE::NAME>());
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1_tbl.hpp>
+#undef NGRAPH_PASS
 
-    auto convert_batch_to_space = ConvertBatchToSpace();
-    convert_batch_to_space.setCallback(transformation_callback);
-    convert_batch_to_space.run_on_function(f);
+    for (auto & t : transforms) {
+        if (auto t_param = std::dynamic_pointer_cast<PassParam>(t)) {
+            t_param->setCallback(transformation_callback);
+        }
+    }
+    OpSet2ToOpSet1.run_passes(f);
     return true;
 }

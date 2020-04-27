@@ -9,7 +9,7 @@
 
 #include <mkldnn_extension_mngr.h>
 #include "tests_common.hpp"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 
 #include "unit_test_utils/mocks/mock_error_listener.hpp"
 
@@ -82,9 +82,6 @@ TEST_F(MKLDNNGraphReorderTests, CreateReorder) {
 </Net>
 )V0G0N";
 
-    InferenceEngine::CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
     InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8,
                                                                                    {(1 * 1 * 17 * 9 / 1 + 17)
                                                       * sizeof(float)}, InferenceEngine::C });
@@ -92,10 +89,12 @@ TEST_F(MKLDNNGraphReorderTests, CreateReorder) {
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
 
-    net_reader.SetWeights(weights_ptr);
+    InferenceEngine::Core core;
+    InferenceEngine::CNNNetwork network;
+    ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
     MKLDNNGraphTestClass graph;
-    graph.CreateGraph(net_reader.getNetwork());
+    graph.CreateGraph(network);
 
     auto& nodes = graph.getNodes();
     for (int i = 0; i < nodes.size(); i++) {
@@ -194,9 +193,6 @@ TEST_F(MKLDNNGraphReorderTests, CreateInPlaceReorder) {
 </Net>
 )V0G0N";
 
-    InferenceEngine::CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
     InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, {24}, InferenceEngine::C });
     weights->allocate();
     float *data = weights->buffer().as<float *>();
@@ -205,12 +201,15 @@ TEST_F(MKLDNNGraphReorderTests, CreateInPlaceReorder) {
         data[i] = 2;
     }
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
+    
+    InferenceEngine::Core core;
+    InferenceEngine::CNNNetwork network;
+    ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
-    net_reader.SetWeights(weights_ptr);
-    net_reader.getNetwork().addOutput("reshape1");
+    network.addOutput("reshape1");
 
     MKLDNNGraphTestClass graph;
-    graph.CreateGraph(net_reader.getNetwork());
+    graph.CreateGraph(network);
 
     InferenceEngine::SizeVector dims_src = {1, 9, 16, 32};
 
@@ -231,7 +230,7 @@ TEST_F(MKLDNNGraphReorderTests, CreateInPlaceReorder) {
     srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in1", src));
 
     InferenceEngine::OutputsDataMap out;
-    out = net_reader.getNetwork().getOutputsInfo();
+    out = network.getOutputsInfo();
     InferenceEngine::BlobMap outputBlobs;
 
     auto it = out.begin();

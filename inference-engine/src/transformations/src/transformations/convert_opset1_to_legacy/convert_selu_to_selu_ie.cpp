@@ -11,6 +11,7 @@
 
 #include <ngraph_ops/selu_ie.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertSeluToSeluIE::convert_selu() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
@@ -41,6 +42,7 @@ void ngraph::pass::ConvertSeluToSeluIE::convert_selu() {
 
         auto selu_ie = std::make_shared<ngraph::op::SeluIE>(selu->input(0).get_source_output(), alpha, gamma);
         selu_ie->set_friendly_name(selu->get_friendly_name());
+        ngraph::copy_runtime_info(selu, selu_ie);
         ngraph::replace_node(selu, selu_ie);
         return true;
     };

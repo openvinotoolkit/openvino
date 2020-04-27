@@ -11,8 +11,8 @@
 #include "single_layer_common.hpp"
 #include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
-#include <cpp/ie_cnn_net_reader.h>
-
+#include <ie_core.hpp>
+#include <ie_system_conf.h>
 
 using namespace ::testing;
 using namespace std;
@@ -233,11 +233,12 @@ protected:
             roi_pooling_test_params p = ::testing::WithParamInterface<roi_pooling_test_params>::GetParam();
             std::string model = getModel(p);
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
             auto& nodes = graph.getNodes();
             for (int i = 0; i < nodes.size(); i++) {
                 if (nodes[i]->getType() == MKLDNNPlugin::ROIPooling) {
@@ -276,7 +277,7 @@ protected:
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in2", roi));
 
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
@@ -302,9 +303,16 @@ protected:
 
 TEST_P(MKLDNNGraphRoiPoolingTests, TestsRoiPooling) {}
 
+const size_t expect_num_impl = InferenceEngine::with_cpu_x86_avx2() ? 5 : 4;
 
 INSTANTIATE_TEST_CASE_P(
         TestsRoiPooling, MKLDNNGraphRoiPoolingTests,
         ::testing::Values(
                 roi_pooling_test_params{
-                        {1, 256, 39, 64}, {150, 5}, 6, 6, 0.0625f, 5, MKLDNNPlugin::impl_desc_type::jit}));
+                        {1, 256, 39, 64},  // in1
+                        {150, 5},          // in2
+                        6, 6,              // pool H and W
+                        0.0625f,           // spatial_scale
+                        expect_num_impl,   // num_prim_desc (platform dependent)
+                        MKLDNNPlugin::impl_desc_type::jit
+                }));

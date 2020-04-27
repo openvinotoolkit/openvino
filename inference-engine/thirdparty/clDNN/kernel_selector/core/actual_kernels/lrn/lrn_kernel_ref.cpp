@@ -24,6 +24,8 @@ ParamsKey LRNKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::byxf);
@@ -37,12 +39,14 @@ ParamsKey LRNKernelRef::GetSupportedKey() const {
     k.EnableLRNMode(LRNMode::ACROSS_CHANNEL);
     k.EnableLRNKernelDividerMode(KernelDividerMode::DYNAMIC);
     k.EnableLRNKernelDividerMode(KernelDividerMode::FIXED);
+    k.EnableDifferentTypes();
     return k;
 }
 
-JitConstants LRNKernelRef::GetJitConstants(const lrn_params& params, LRNKernelRef::Parent::DispatchData kd) const {
+JitConstants LRNKernelRef::GetJitConstants(const lrn_params& params, const LRNKernelRef::Parent::DispatchData& kd) const {
     const uint32_t round_norm_size = (params.localSize / 2) * 2 + 1;
     uint32_t numElement = round_norm_size * round_norm_size;
+    const auto& input_dt = params.inputs[0].GetDType();
 
     if (params.normMode == LRNMode::ACROSS_CHANNEL) {
         numElement = round_norm_size;
@@ -57,6 +61,11 @@ JitConstants LRNKernelRef::GetJitConstants(const lrn_params& params, LRNKernelRe
         MakeJitConstant("GWS_FEATURE", 1),
         MakeJitConstant("GWS_YX", 0),
     });
+
+    if (!params.fused_ops.empty()) {
+        FusedOpsConfiguration conf = {"", {"b", "f", "y", "x"}, "lrn_result", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
 
     return jit;
 }

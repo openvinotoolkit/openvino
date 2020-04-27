@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "utils.h"
 
 #include <string>
@@ -62,3 +66,25 @@ size_t getVmRSSInKB() {return getVirtualMemoryInKB((char*) "VmRSS:");}
 size_t getVmHWMInKB() {return getVirtualMemoryInKB((char*) "VmHWM:");}
 
 #endif
+
+void auto_expand_env_vars(std::string &input) {
+    const static std::string pattern1 = "${", pattern2 = "}";
+    size_t pattern1_pos, pattern2_pos, envvar_start_pos, envvar_finish_pos;
+    while ((pattern1_pos = input.find(pattern1)) != std::string::npos) {
+        envvar_start_pos = pattern1_pos + pattern1.length();
+        if ((pattern2_pos = input.find(pattern2)) != std::string::npos) {
+            envvar_finish_pos = pattern2_pos - pattern2.length();
+            const std::string envvar_name = input.substr(envvar_start_pos, envvar_finish_pos - envvar_start_pos + 1);
+            const char *envvar_val = getenv(envvar_name.c_str());
+            if (envvar_val == NULL)
+                throw std::logic_error("Expected environment variable " + envvar_name + " is not set.");
+            const std::string envvar_val_s(envvar_val);
+            input.replace(pattern1_pos, pattern2_pos - pattern1_pos + 1, envvar_val_s);
+        }
+    }
+}
+std::string expand_env_vars(const std::string &input) {
+    std::string _input = input;
+    auto_expand_env_vars(_input);
+    return _input;
+}

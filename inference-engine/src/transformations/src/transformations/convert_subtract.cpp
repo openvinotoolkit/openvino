@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertSubtract::convert_subtract() {
     auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
@@ -26,7 +27,7 @@ void ngraph::pass::ConvertSubtract::convert_subtract() {
         auto add = std::make_shared<ngraph::opset1::Add>(sub->input(0).get_source_output(), neg);
 
         add->set_friendly_name(sub->get_friendly_name());
-
+        ngraph::copy_runtime_info(sub, {neg, add});
         ngraph::replace_node(sub, add);
         return true;
     };

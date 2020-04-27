@@ -196,11 +196,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<convolution>() &&
         fmt_prev == format::bfyx &&
         ((fmt_next == format::fs_b_yx_fsv32 && next.as<convolution>().get_primitive()->groups == 1) ||
-        (fmt_next == format::b_fs_yx_fsv32 && prev_output_layout.size.feature[0] == 3) ||
+        (fmt_next == format::b_fs_yx_fsv32 && (prev_output_layout.size.feature[0] == 3 || prev_output_layout.size.feature[0] == 4)) ||
         (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 &&
-        prev_output_layout.size.feature[0] == 3 &&
-        (next_output_layout.data_type != data_types::i8 && next_output_layout.data_type != data_types::u8)) ||
-         (fmt_next == format::b_fs_yx_fsv16 && next_output_layout.size.feature[0] >= 16 && prev_output_layout.size.feature[0] == 3) ||
+        (prev_output_layout.size.feature[0] == 3 || (prev_output_layout.size.feature[0] == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8)))) ||
         (fmt_next == format::bs_fs_yx_bsv16_fsv16 && next_output_layout.size.feature[0] % 16 == 0 && prev_output_layout.size.feature[0] == 3)))
         return true;
 
@@ -349,6 +347,8 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
     if (i8_dt_case) {
         auto ks_x = weights_layout.size.spatial[0];
         auto ks_y = weights_layout.size.spatial[1];
+
+        // Check for depthwise convolution
         if (input_layout.size.spatial[2] == 1 &&
             input_layout.size.batch[0] < 16 &&
             ((ks_x == 7 && ks_y == 7) || (ks_x == 3 && ks_y == 3) || (ks_x == 1 && ks_y == 1) || (ks_x == 5 && ks_y == 5)) &&
@@ -356,7 +356,13 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
             ((conv->groups == 1 && conv->split() == 1) ||
              conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]) ||
              conv->split() == static_cast<int32_t>(input_layout.size.feature[0])) &&
-            conv->dilation == tensor{ 1 })
+             conv->dilation == tensor{ 1 })
+            return true;
+        // Check for grouped convolution
+        else if (input_layout.size.spatial[2] == 1 && input_layout.size.batch[0] < 16 &&
+                 weights_layout.size.batch[0] >= 16 &&
+                ((input_layout.size.feature[0] / conv->groups) % 4 == 0) &&
+                ((conv->dilation.spatial[0] + 1) * (ks_x - 1)) < 16)
             return true;
     }
     // A set of rules that define when b_fs_yx_fsv16 mem format can be used for fp16/fp32 case

@@ -85,7 +85,7 @@ TEST_F(VPU_EliminateCopyTest, OneInputTwoConcats) {
     pipeline.run(model);
 
     const auto& hwOutput = hwStage->output(0);
-    ASSERT_NE(hwOutput->parentDataEdge(), nullptr);
+    ASSERT_NE(hwOutput->parentDataToDataEdge(), nullptr);
     ASSERT_EQ(hwOutput->parentData(), outputCopy1);
 
     ASSERT_EQ(hwOutput->numConsumers(), 2);

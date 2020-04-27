@@ -15,15 +15,15 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-        size_t,
-        size_t,
-        InferenceEngine::Precision,
-        InferenceEngine::Precision,
-        InferenceEngine::SizeVector,
-        std::string> splitParams;
+        size_t,                         // Num splits
+        size_t,                         // Axis
+        InferenceEngine::Precision,     // Net precision
+        std::vector<size_t>,            // Input shapes
+        std::string                     // Target device name
+> splitParams;
 
-class SplitLayerTest
-        : public LayerTestsUtils::LayerTestsCommonClass<splitParams> {
+class SplitLayerTest : public testing::WithParamInterface<splitParams>,
+                       public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<splitParams> obj);
 

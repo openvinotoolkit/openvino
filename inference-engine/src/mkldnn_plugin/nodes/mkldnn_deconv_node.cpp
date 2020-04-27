@@ -48,7 +48,7 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
     if (deconvLayer->_weights == nullptr) {
         THROW_IE_EXCEPTION << "Weights are empty for layer: " << deconvLayer->name
                            << " used in MKLDNN node: " << getName() << "\n"
-                           << "Use ReadWeights and SetWeights methods of InferenceEngine::CNNNetReader"
+                           << "Use the second argumemt of InferenceEngine::Core::ReadNetwork"
                            << " to load them from .bin part of the IR";
     }
     withGroups = (deconvLayer->_group > 1);

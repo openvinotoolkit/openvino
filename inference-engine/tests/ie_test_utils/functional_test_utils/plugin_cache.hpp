@@ -7,7 +7,6 @@
 #include <string>
 
 #include <ie_core.hpp>
-#include <ie_plugin_ptr.hpp>
 
 class PluginCache {
 public:

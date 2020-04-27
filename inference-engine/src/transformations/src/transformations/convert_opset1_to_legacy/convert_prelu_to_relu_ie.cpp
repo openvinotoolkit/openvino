@@ -11,6 +11,7 @@
 
 #include <ngraph_ops/relu_ie.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertPReLUToReLUIE::convert_prelu() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
@@ -32,7 +33,8 @@ void ngraph::pass::ConvertPReLUToReLUIE::convert_prelu() {
 
             auto relu_ie = std::make_shared<ngraph::op::ReLUIE>(prelu->input(0).get_source_output(), value);
             relu_ie->set_friendly_name(prelu->get_friendly_name());
-            ngraph::replace_node(m.get_match_root(), relu_ie);
+            ngraph::copy_runtime_info(prelu, relu_ie);
+            ngraph::replace_node(prelu, relu_ie);
             return true;
         }
         return false;

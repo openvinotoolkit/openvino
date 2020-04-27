@@ -95,3 +95,18 @@ def tf_window_op_pad_infer(input, window, stride, auto_pad, is_deconv=False):
         pad = None
         output = None
     return (pad, output)
+
+
+def broadcast_shape(first_shape, second_shape):
+    """
+    Perform broadcasting of one shape to another for different shapes
+    """
+    shape = first_shape if len(first_shape) > len(second_shape) else second_shape
+    new_shape = int64_array(shape)
+    for i in range(len(shape)):
+        a_val = first_shape[-i - 1] if i < len(first_shape) else 1
+        b_val = second_shape[-i - 1] if i < len(second_shape) else 1
+        assert a_val == 1 or b_val == 1 or a_val == b_val, "Input shape do not broadcast"
+        new_val = b_val if a_val == 1 else a_val
+        new_shape[-i - 1] = new_val
+    return int64_array(new_shape)

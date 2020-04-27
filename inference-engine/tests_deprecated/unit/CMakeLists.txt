@@ -21,24 +21,10 @@ file(GLOB
         inference_engine_tests/transformations/*.cpp
         inference_engine_tests/transformations/*.hpp
         cnn_network/*.cpp
-        builders/*.cpp
-        # TODO: apeskov: Please fix issue CVS
-        # shape_infer/*.cpp
-        shape_infer/built-in/*.cpp
         topology_verification_tests/*.cpp
         stress_tests/*.cpp
         cpp_api/*.cpp
         )
-
-# disable deprecated warnings for NN Builder
-
-function(nn_builder_disable_warnings)
-    disable_deprecated_warnings()
-    file(GLOB NN_BUILDER_TESTS_SRC builders/*.cpp)
-    set_source_files_properties(${NN_BUILDER_TESTS_SRC} PROPERTIES COMPILE_FLAGS "${ie_c_cxx_deprecated}")
-endfunction()
-
-nn_builder_disable_warnings()
 
 if (ENABLE_GNA)
     file(GLOB

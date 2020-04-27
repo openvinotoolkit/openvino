@@ -10,6 +10,7 @@
 #pragma once
 
 #include <vector>
+#include <details/ie_exception.hpp>
 
 namespace InferenceEngine {
 

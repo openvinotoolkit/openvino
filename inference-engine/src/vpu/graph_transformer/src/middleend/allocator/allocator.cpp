@@ -61,7 +61,7 @@ Allocator::Allocator(): _allocatorOfShaves(_cmxMemoryPool) {
 namespace {
 
 void updateChildDataAllocation(const Data& data, int offsetLimitation) {
-    for (const auto& edge : data->childDataEdges()) {
+    for (const auto& edge : data->childDataToDataEdges()) {
         auto parent = edge->parent();
         auto child = edge->child();
 
@@ -107,7 +107,7 @@ bool Allocator::allocateData(const Data& data) {
 
     if (data->usage() == DataUsage::Fake) {
         if (_allocatedData.count(data) == 0) {
-            IE_ASSERT(data->parentDataEdge() == nullptr);
+            IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
             updateChildDataAllocation(data, 0);
 
@@ -123,7 +123,7 @@ bool Allocator::allocateData(const Data& data) {
 
     if (data->usage() == DataUsage::Input) {
         if (_allocatedData.count(data) == 0) {
-            IE_ASSERT(data->parentDataEdge() == nullptr);
+            IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
             auto finalByteSize = data->totalByteSize() * _modelBatchSize;
 
@@ -144,7 +144,7 @@ bool Allocator::allocateData(const Data& data) {
 
     if (data->usage() == DataUsage::Output) {
         if (_allocatedData.count(data) == 0) {
-            IE_ASSERT(data->parentDataEdge() == nullptr);
+            IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
             int finalByteSize = 0;
             if (data->attrs().getOrDefault<bool>("unbatched", false)) {
@@ -170,7 +170,7 @@ bool Allocator::allocateData(const Data& data) {
 
     if (data->usage() == DataUsage::Const) {
         if (_allocatedData.count(data) == 0) {
-            IE_ASSERT(data->parentDataEdge() == nullptr);
+            IE_ASSERT(data->parentDataToDataEdge() == nullptr);
             IE_ASSERT(data->checkStrides(StridesRequirement::compact()));
             IE_ASSERT(data->content() != nullptr);
 
@@ -192,15 +192,21 @@ bool Allocator::allocateData(const Data& data) {
     //
 
     if (data->usage() == DataUsage::Intermediate) {
-        IE_ASSERT(data->producerEdge() != nullptr);
-        IE_ASSERT(data->numConsumers() > 0);
+        VPU_INTERNAL_CHECK(data->producerEdge() != nullptr,
+            "Allocation check failed: data {} with usage {} must have producer, but actually it doesn't",
+            data->name(), data->usage());
+        VPU_INTERNAL_CHECK(!data->consumers().empty() || !data->childDataToShapeEdges().empty() ||
+            !data->dependentStagesEdges().empty(),
+            "Allocation check failed: data {} with usage {} must have at least one data/stage "
+            "depending on it, but it doesn't have either",
+            data->name(), data->usage());
     }
 
     //
     // Allocate parent data if any
     //
 
-    if (auto parentEdge = data->parentDataEdge()) {
+    if (auto parentEdge = data->parentDataToDataEdge()) {
         auto parent = parentEdge->parent();
 
         auto parentMemType = parent->memReqs();
@@ -210,7 +216,7 @@ bool Allocator::allocateData(const Data& data) {
         return allocateData(parent);
     }
 
-    IE_ASSERT(data->parentDataEdge() == nullptr);
+    IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
     //
     // Check if the data is already allocated
@@ -237,6 +243,7 @@ bool Allocator::allocateData(const Data& data) {
     //
 
     int inUse = 0;
+
     if (data->usage() == DataUsage::Temp) {
         inUse = 1;
     } else {
@@ -245,7 +252,12 @@ bool Allocator::allocateData(const Data& data) {
             return DataLoopStatus::NextChild;
         });
     }
-    IE_ASSERT(inUse >= 1);
+
+    inUse += data->childDataToShapeEdges().size();
+
+    VPU_INTERNAL_CHECK(inUse >= 1,
+        "allocateData failed: data {} with usage {} isn't used by anything",
+        data->name(), data->usage());
 
     auto chunk = allocateMem(memoryType, finalByteSize, inUse);
 
@@ -268,17 +280,27 @@ bool Allocator::allocateData(const Data& data) {
     return chunk->memType == memoryType;
 }
 
-ShapeLocation Allocator::allocateConstShape(Data& data) {
+ShapeLocation Allocator::allocateShape(Data& data) {
     ShapeLocation shapeLocation;
-
-    shapeLocation.dimsLocation = Location::Blob;
-    shapeLocation.stridesLocation = Location::Blob;
 
     const auto dimsByteSize = data->desc().dimsByteSize();
 
-    shapeLocation.dimsOffset = _blobMemOffset;
-    _blobMemOffset += dimsByteSize;
+    if (data->parentDataToShapeEdge()) {
+        // Dims for this data is already allocated, so reuse it
+        const auto& dataLocation = data->parentDataToShapeEdge()->parent()->dataLocation();
 
+        shapeLocation.dimsLocation = dataLocation.location;
+        shapeLocation.dimsOffset = dataLocation.offset;
+    } else {
+        // Static allocation
+        shapeLocation.dimsLocation = Location::Blob;
+        shapeLocation.dimsOffset = _blobMemOffset;
+        _blobMemOffset += dimsByteSize;
+    }
+
+
+    // Allocate strides always statically, as dynamically we can get only dims
+    shapeLocation.stridesLocation = Location::Blob;
     shapeLocation.stridesOffset = _blobMemOffset;
     _blobMemOffset += dimsByteSize;
 
@@ -289,6 +311,37 @@ void Allocator::freeData(const Data& data, DeallocationMode mode) {
     //
     // Release the chunk
     //
+
+    if (const auto& parentDataToShapeEdge = data->parentDataToShapeEdge()) {
+        auto const& parent = parentDataToShapeEdge->parent();
+
+        auto it = _memChunksPerData.find(parentDataToShapeEdge->parent());
+        auto chunk = it->second;
+
+        VPU_INTERNAL_CHECK(it != _memChunksPerData.end(),
+            "Allocator failed on freeData for {} with usage {}: parent data {} with usage {} "
+            "containing shape for current data wasn't yet allocated",
+            data->name(), data->usage(), parent->name(), parent->usage());
+
+        VPU_INTERNAL_CHECK(chunk != nullptr,
+            "Allocator failed on freeData for {} with usage {}: parent data {} with usage {} "
+            "containing shape for current data has no memory chunk",
+            data->name(), data->usage(), parent->name(), parent->usage());
+
+        VPU_INTERNAL_CHECK(chunk->inUse > 0,
+            "Allocator failed on freeData for {} with usage {}: parent data {} with usage {} "
+            "containing shape for this data has zero usages, but it is using at least by current data",
+            data->name(), data->usage(), parent->name(), parent->usage());
+
+        --chunk->inUse;
+
+        if (chunk->inUse == 0) {
+            freeMem(chunk);
+
+            _memChunksPerData.erase(parent);
+            _allocatedIntermData.erase(parent);
+        }
+    }
 
     auto topParent = data->getTopParentData();
 
@@ -629,7 +682,7 @@ bool Allocator::removeCMXCandidates(const vpu::Data& data) {
     auto it = _candidatesForCMX.find(data);
 
     if (it != _candidatesForCMX.end()) {
-        IE_ASSERT(data->parentDataEdge() == nullptr);
+        IE_ASSERT(data->parentDataToDataEdge() == nullptr);
 
         if (_allocatedIntermData.count(data) != 0) {
             if (auto producerEdge = data->producerEdge()) {
@@ -654,7 +707,7 @@ bool Allocator::removeCMXCandidates(const vpu::Data& data) {
         auto cmxDatas = getAllocatedDatas(MemoryType::CMX);
 
         for (const auto& cmxData : cmxDatas) {
-            IE_ASSERT(cmxData->parentDataEdge() == nullptr);
+            IE_ASSERT(cmxData->parentDataToDataEdge() == nullptr);
 
             it = _candidatesForCMX.find(cmxData);
 

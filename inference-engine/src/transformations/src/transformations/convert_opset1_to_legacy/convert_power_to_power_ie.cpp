@@ -11,6 +11,7 @@
 
 #include <ngraph_ops/power.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertPowerToPowerIE::convert_power() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
@@ -32,7 +33,8 @@ void ngraph::pass::ConvertPowerToPowerIE::convert_power() {
 
             auto power_ie = std::make_shared<ngraph::op::PowerIE>(power->input(0).get_source_output(), value, 1, 0);
             power_ie->set_friendly_name(power->get_friendly_name());
-            ngraph::replace_node(m.get_match_root(), power_ie);
+            ngraph::copy_runtime_info(power, power_ie);
+            ngraph::replace_node(power, power_ie);
             return true;
         }
         return false;

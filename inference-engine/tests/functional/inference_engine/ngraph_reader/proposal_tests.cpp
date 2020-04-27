@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadProposalNetwork) {
     std::string model_v10 = R"V0G0N(
-<net name="ProposalNet" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,12,34,62"/>
@@ -82,7 +82,7 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork) {
     </net>
     )V0G0N";
     std::string model_v6  = R"V0G0N(
-<net name="ProposalNet" version="6" batch="1">
+<net name="Network" version="6" batch="1">
     <layers>
         <layer name="in3" type="Const" precision="I64" id="4">
             <output>
@@ -157,7 +157,7 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork) {
 
 TEST_F(NGraphReaderTests, ReadProposalNetwork_2) {
     std::string model_v10 = R"V0G0N(
-<net name="ProposalNet" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,12,34,62"/>
@@ -233,7 +233,7 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork_2) {
     </net>
     )V0G0N";
     std::string model_v6  = R"V0G0N(
-<net name="ProposalNet" version="6" batch="1">
+<net name="Network" version="6" batch="1">
     <layers>
         <layer name="in3" type="Const" precision="I64" id="4">
             <output>

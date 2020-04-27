@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset2.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -62,8 +63,11 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         std::vector<int64_t> block_values;
         block_values = block_const->cast_vector<int64_t>();
 
+        NodeVector new_ops;
+
         std::shared_ptr<Node> flat_node = data.get_node_shared_ptr();
-        flat_node = std::make_shared<op::v1::Pad>(flat_node, pads_begin_const, pads_end_const, ngraph::op::PadMode::CONSTANT);
+        flat_node = std::make_shared<opset2::Pad>(flat_node, pads_begin_const, pads_end_const, ngraph::op::PadMode::CONSTANT);
+        new_ops.push_back(flat_node);
         auto out_shape = flat_node->get_shape();
 
         std::vector<int64_t> dispersed_shape(block_values.size() + 1);
@@ -93,6 +97,7 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
                     op::Constant::create(element::i64, Shape{dispersed_shape.size()}, dispersed_shape);
             const bool special_zero = false;
             flat_node = std::make_shared<ngraph::op::v1::Reshape>(flat_node, out_pattern_1, special_zero);
+            new_ops.push_back(flat_node);
 
             const auto axes_order_const =
                     op::Constant::create(element::i64,
@@ -100,16 +105,18 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
                                          std::vector<int64_t>(axes_order.begin(), axes_order.end()));
             flat_node = std::make_shared<ngraph::opset1::Transpose>(flat_node, axes_order_const)
                     ->add_provenance_group_members_above({flat_node});
-
+            new_ops.push_back(flat_node);
             squeezed_shape[0] *= block_values[block_idx];
             squeezed_shape[block_idx] /= block_values[block_idx];
             const auto out_pattern_2 =
                     op::Constant::create(element::i64, Shape{squeezed_shape.size()}, squeezed_shape);
             flat_node = std::make_shared<ngraph::op::v1::Reshape>(flat_node, out_pattern_2, special_zero)
                     ->add_provenance_group_members_above({data});
+            new_ops.push_back(flat_node);
         }
 
         flat_node->set_friendly_name(space_to_batch->get_friendly_name());
+        ngraph::copy_runtime_info(space_to_batch, new_ops);
         ngraph::replace_node(space_to_batch, flat_node);
         return true;
     };

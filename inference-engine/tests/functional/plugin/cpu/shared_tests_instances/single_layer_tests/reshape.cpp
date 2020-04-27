@@ -10,12 +10,6 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-// Common params
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::U8
-};
-
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16
@@ -24,7 +18,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 INSTANTIATE_TEST_CASE_P(ReshapeCheckDynBatch, ReshapeLayerTest,
         ::testing::Combine(
                 ::testing::Values(true),
-                ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(std::vector<size_t>({30, 30, 30, 30})),
                 ::testing::Values(std::vector<size_t>({30, 30, 30, 30})),
@@ -35,7 +28,6 @@ INSTANTIATE_TEST_CASE_P(ReshapeCheckDynBatch, ReshapeLayerTest,
 INSTANTIATE_TEST_CASE_P(ReshapeCheck, ReshapeLayerTest,
         ::testing::Combine(
                 ::testing::Values(true),
-                ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(std::vector<size_t>({10, 10, 10, 10})),
                 ::testing::Values(std::vector<size_t>({10, 0, 100})),

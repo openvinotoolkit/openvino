@@ -87,10 +87,10 @@ TEST_F(VPU_AdjustDataLocationTest, FlushCMX_TwoSpecialConsumers) {
     ASSERT_EQ(data1Consumer->type(), StageType::Copy);
     ASSERT_EQ(data1ConsumerOutput->dataLocation().location, Location::BSS);
     ASSERT_EQ(data1ConsumerOutput->numChildDatas(), 4);
-    ASSERT_TRUE(contains(data1ConsumerOutput->childDataEdges(), [data2](const SharedAllocation& e) { return e->child() == data2; }));
-    ASSERT_TRUE(contains(data1ConsumerOutput->childDataEdges(), [data3](const SharedAllocation& e) { return e->child() == data3; }));
-    ASSERT_TRUE(contains(data1ConsumerOutput->childDataEdges(), [data4](const SharedAllocation& e) { return e->child() == data4; }));
-    ASSERT_TRUE(contains(data1ConsumerOutput->childDataEdges(), [data5](const SharedAllocation& e) { return e->child() == data5; }));
+    ASSERT_TRUE(contains(data1ConsumerOutput->childDataToDataEdges(), [data2](const DataToDataAllocation& e) { return e->child() == data2; }));
+    ASSERT_TRUE(contains(data1ConsumerOutput->childDataToDataEdges(), [data3](const DataToDataAllocation& e) { return e->child() == data3; }));
+    ASSERT_TRUE(contains(data1ConsumerOutput->childDataToDataEdges(), [data4](const DataToDataAllocation& e) { return e->child() == data4; }));
+    ASSERT_TRUE(contains(data1ConsumerOutput->childDataToDataEdges(), [data5](const DataToDataAllocation& e) { return e->child() == data5; }));
 }
 
 //

@@ -6,7 +6,6 @@
 
 #include "description_buffer.hpp"
 #include "ie_icore.hpp"
-#include "ie_error.hpp"
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
 #include "cpp/ie_plugin_cpp.hpp"
 #include <memory>

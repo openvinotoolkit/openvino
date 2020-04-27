@@ -12,30 +12,45 @@ from libc.stdint cimport int64_t, uint8_t
 cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
     ctypedef vector[size_t] SizeVector
 
+    cdef cppclass TBlob[T]:
+        ctypedef shared_ptr[TBlob[T]] Ptr
+
+    cdef cppclass Blob:
+        ctypedef shared_ptr[Blob] Ptr
+        const TensorDesc& getTensorDesc()  except +
+        size_t element_size()  except +
+        void allocate()
+
+    cdef TBlob[Type].Ptr make_shared_blob[Type](const TensorDesc& tensorDesc)
+
+    cdef TBlob[Type].Ptr make_shared_blob[Type](const TensorDesc& tensorDesc, Type* ptr, size_t size)
 
     cdef cppclass TensorDesc:
-        SizeVector& getDims()
-        const Precision& getPrecision() const
+        TensorDesc() except +
+        TensorDesc(const Precision& precision, SizeVector dims, Layout layout) except +
+        SizeVector& getDims() except +
+        void setDims(const SizeVector& dims) except +
+        Layout getLayout() except +
+        void setLayout(Layout l) except +
+        const Precision& getPrecision() except +
+        void setPrecision(const Precision& p) except +
+
 
     cdef cppclass Data:
         const Precision getPrecision() const
         void setPrecision(const Precision& precision) const
-        const SizeVector getDims()
-        const string& getName() const
-        const Layout getLayout() const
-        void setLayout(Layout layout) const
-        const bool isInitialized() const
-        weak_ptr[CNNLayer] & getCreatorLayer()
-        map[string, shared_ptr[CNNLayer]] & getInputTo()
+        const SizeVector getDims() except +
+        const string& getName() except +
+        const Layout getLayout() except +
+        void setLayout(Layout layout) except +
+        const bool isInitialized() except +
+        weak_ptr[CNNLayer] & getCreatorLayer() except +
+        map[string, shared_ptr[CNNLayer]] & getInputTo() except +
 
     ctypedef shared_ptr[Data] DataPtr
     ctypedef weak_ptr[Data] DataWeakPtr
     ctypedef shared_ptr[const Data] CDataPtr
 
-    cdef cppclass Blob:
-        ctypedef shared_ptr[Blob] Ptr
-        const TensorDesc& getTensorDesc() const
-        size_t element_size()  const
 
     cdef cppclass Precision:
         const char*name() const
@@ -85,17 +100,6 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
 
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
-#    cdef cppclass IENetLayer:
-#        string layout
-#        vector[string] children
-#        vector[string] parents
-#        void setAffinity(const string & target_affinity) except +
-#        void setParams(const map[string, string] & params_map) except +
-#        map[string, Blob.Ptr] getWeights() except +
-#        void setPrecision(string precision) except +
-#        vector[DataPtr] getOutData() except +
-
-
     cdef cppclass ProfileInfo:
         string status
         string exec_type
@@ -112,11 +116,11 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
     cdef cppclass IEExecNetwork:
         vector[InferRequestWrap] infer_requests
         IENetwork GetExecGraphInfo() except +
-        map[string, DataPtr] getInputs()
-        map[string, CDataPtr] getOutputs()
+        map[string, DataPtr] getInputs() except +
+        map[string, CDataPtr] getOutputs() except +
         void exportNetwork(const string & model_file) except +
-        object getMetric(const string & metric_name)
-        object getConfig(const string & metric_name)
+        object getMetric(const string & metric_name) except +
+        object getConfig(const string & metric_name) except +
         int wait(int num_requests, int64_t timeout)
         int getIdleRequestId()
 
@@ -158,6 +162,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         double exec_time;
         int index;
         void getBlobPtr(const string & blob_name, Blob.Ptr & blob_ptr) except +
+        void setBlob(const string & blob_name, const Blob.Ptr & blob_ptr) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
         void infer() except +
         void infer_async() except +

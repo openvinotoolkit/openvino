@@ -7,7 +7,6 @@
 #include <vector>
 #include <memory>
 
-#include <cpp/ie_cnn_net_reader.h>
 #include <inference_engine.hpp>
 #include <ie_compound_blob.h>
 

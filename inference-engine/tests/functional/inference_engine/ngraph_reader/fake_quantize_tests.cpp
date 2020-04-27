@@ -8,7 +8,7 @@
 
 TEST_F(NGraphReaderTests, ReadFQNetwork) {
     std::string model = R"V0G0N(
-<net name="FakeQuantize" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,56,96,168"/>
@@ -130,7 +130,7 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="FakeQuantize" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="in1" type="Input" precision="FP32">
             <output>

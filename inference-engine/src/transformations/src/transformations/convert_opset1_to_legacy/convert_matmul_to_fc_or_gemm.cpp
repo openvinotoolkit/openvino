@@ -12,6 +12,7 @@
 #include <numeric>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include <ngraph_ops/fully_connected.hpp>
 #include <transformations/utils/utils.hpp>
@@ -96,6 +97,9 @@ void ngraph::pass::ConvertMatMulToFCorGemm::convert_matmul() {
         // fc_input_b updated.
         auto fc_input_a = input_a, fc_input_b = input_b;
 
+        // vector of new nGraph operations
+        NodeVector new_ops;
+
         // Check that if second inputs is Constant operation and it's shape without ones dimensions has length <= 2
         // we replace MatMul with FullyConnected operation.
         // Otherwise we replace MatMul with Gemm.
@@ -120,17 +124,20 @@ void ngraph::pass::ConvertMatMulToFCorGemm::convert_matmul() {
             // Weights normalization
             if (!matmul->get_transpose_b()) {
                 fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+                new_ops.push_back(fc_input_b.get_node_shared_ptr());
             }
 
             if (shape_b.size() != 2) {
                 auto reshape_shape =
                         opset1::Constant::create<int64_t>(element::i64, Shape {2}, {-1ll, static_cast<int64_t>(K)});
                 fc_input_b = std::make_shared<opset1::Reshape>(fc_input_b, reshape_shape, true);
+                new_ops.push_back(fc_input_b.get_node_shared_ptr());
             }
 
             // Input normalization
             if (matmul->get_transpose_a()) {
                 fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
+                new_ops.push_back(fc_input_a.get_node_shared_ptr());
             }
 
             // Create FullyConnected
@@ -139,7 +146,9 @@ void ngraph::pass::ConvertMatMulToFCorGemm::convert_matmul() {
 
             auto fc = std::make_shared<op::FullyConnected>(fc_input_a, fc_input_b, fc_bias, output_shape);
             fc->set_friendly_name(matmul->get_friendly_name());
+            new_ops.push_back(fc);
 
+            ngraph::copy_runtime_info(matmul, new_ops);
             ngraph::replace_node(matmul, fc);
         } else {
             // WA for IE that Gemm must have inputs with the same length.
@@ -148,6 +157,7 @@ void ngraph::pass::ConvertMatMulToFCorGemm::convert_matmul() {
                 Shape reshape_shape(shape_b.size() - shape_a.size(), 1);
                 reshape_shape.insert(reshape_shape.end(), shape_a.begin(), shape_a.end());
                 fc_input_a = op::util::reshapeTo(fc_input_a, reshape_shape);
+                new_ops.push_back(fc_input_a.get_node_shared_ptr());
             } else if (shape_b.size() < shape_a.size()) {
                 // Reshape second input (fc_input_b)
                 Shape reshape_shape;
@@ -162,20 +172,25 @@ void ngraph::pass::ConvertMatMulToFCorGemm::convert_matmul() {
                     reshape_shape.insert(reshape_shape.end(), shape_b.begin(), shape_b.end());
                 }
                 fc_input_b = op::util::reshapeTo(fc_input_b, reshape_shape);
+                new_ops.push_back(fc_input_b.get_node_shared_ptr());
             }
 
             auto gemm = std::make_shared<opset1::MatMul>(fc_input_a, fc_input_b, matmul->get_transpose_a(), matmul->get_transpose_b());
+            new_ops.push_back(gemm);
 
             if (gemm->get_shape() != output_shape) {
                 // This case is possible only when second input had exactly 1 dimension (that is not supported by GEMM operation)
                 // and for this case we have to reshape second input to first but this affects output shape (additional dimensions)
                 // So to preserve output shape we insert additional reshape operation
                 auto reshape_output = op::util::reshapeTo(gemm, output_shape);
+                new_ops.push_back(reshape_output);
                 gemm->set_friendly_name(matmul->get_friendly_name() + "/gemm");
                 reshape_output->set_friendly_name(matmul->get_friendly_name());
+                ngraph::copy_runtime_info(matmul, new_ops);
                 ngraph::replace_node(matmul, reshape_output);
             } else {
                 gemm->set_friendly_name(matmul->get_friendly_name());
+                ngraph::copy_runtime_info(matmul, new_ops);
                 ngraph::replace_node(matmul, gemm);
             }
         }

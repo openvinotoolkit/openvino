@@ -9,6 +9,7 @@
 #include <string>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include <ngraph_ops/lrn_ie.hpp>
 
@@ -56,7 +57,8 @@ void ngraph::pass::ConvertLRNToLRNIE::convert_lrn() {
                                                             region);
 
         lrn_ie->set_friendly_name(lrn->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), lrn_ie);
+        ngraph:copy_runtime_info(lrn, lrn_ie);
+        ngraph::replace_node(lrn, lrn_ie);
         return true;
     };
 

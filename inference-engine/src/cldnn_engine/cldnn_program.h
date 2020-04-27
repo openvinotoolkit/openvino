@@ -198,6 +198,7 @@ public:
         SoftPlus,
         SoftSign,
         Swish,
+        Gelu,
         Sin,
         Sinh,
         Cos,

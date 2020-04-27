@@ -127,7 +127,9 @@ public:
     /**
      * @brief If suggested to fuse - a pointer to the layer which needs to be fused with this layer
      */
+    IE_SUPPRESS_DEPRECATED_START_WIN
     Ptr _fusedWith;
+    IE_SUPPRESS_DEPRECATED_END_WIN
 
     /**
      * @brief Convenience user values to store in this object as extra data
@@ -174,25 +176,18 @@ public:
      *
      * @param layer Reference to the layer to be fused with
      */
+    IE_SUPPRESS_DEPRECATED_START_WIN
     void fuse(Ptr& layer) {
         _fusedWith = layer;
     }
+    IE_SUPPRESS_DEPRECATED_END_WIN
 
     /**
      * @brief Returns the first element of the input data for this layer
      *
      * @return A smart pointer to the input data element
      */
-    virtual const DataPtr input() const {
-        if (insData.empty()) {
-            THROW_IE_EXCEPTION << "Internal error: input data is empty";
-        }
-        auto lockedFirstInsData = insData[0].lock();
-        if (!lockedFirstInsData) {
-            THROW_IE_EXCEPTION << "Internal error: unable to lock weak_ptr\n";
-        }
-        return lockedFirstInsData;
-    }
+    virtual const DataPtr input() const;
 
     /**
      * @brief Checks if the input data and layer data are legitimate
@@ -206,30 +201,13 @@ public:
      * @return float value if parsing was successful
      * @throws InferenceEngineException in case of parsing error
      */
-    static float ie_parse_float(const std::string& str) {
-        if (str == "-inf") {
-            return -std::numeric_limits<float>::infinity();
-        } else if (str == "inf") {
-            return std::numeric_limits<float>::infinity();
-        } else {
-            float res;
-            std::stringstream val_stream(str);
-            val_stream.imbue(std::locale("C"));
-            val_stream >> res;
-            if (!val_stream.eof()) THROW_IE_EXCEPTION;
-            return res;
-        }
-    }
+    static float ie_parse_float(const std::string& str);
+
     /**
      * @brief serialize float with c_locale formating
      * used for default values serializing
      */
-    static std::string ie_serialize_float(float value) {
-        std::stringstream val_stream;
-        val_stream.imbue(std::locale("C"));
-        val_stream << value;
-        return val_stream.str();
-    }
+    static std::string ie_serialize_float(float value);
 
     /**
      * @brief Gets float value for the given parameter
@@ -238,15 +216,7 @@ public:
      * @param def default value of the parameter if not found
      * @return float value
      */
-    float GetParamAsFloat(const char* param, float def) const {
-        std::string val = GetParamAsString(param, ie_serialize_float(def).c_str());
-        try {
-            return ie_parse_float(val);
-        } catch (...) {
-            THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name << ". Value "
-                               << val << " cannot be casted to float.";
-        }
-    }
+    float GetParamAsFloat(const char* param, float def) const;
 
     /**
      * @brief Returns a float value for the given layer parameter
@@ -254,15 +224,7 @@ public:
      * @param param Name of the layer parameter
      * @return A float value for the specified parameter
      */
-    float GetParamAsFloat(const char* param) const {
-        std::string val = GetParamAsString(param);
-        try {
-            return ie_parse_float(val);
-        } catch (...) {
-            THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name << ". Value "
-                               << val << " cannot be casted to float.";
-        }
-    }
+    float GetParamAsFloat(const char* param) const;
 
     /**
      * @brief Returns a vector of float values for the given parameter or returns the default value
@@ -271,23 +233,7 @@ public:
      * @param def Default value of the parameter if not found
      * @return vector of float values
      */
-    std::vector<float> GetParamAsFloats(const char* param, std::vector<float> def) const {
-        std::string vals = GetParamAsString(param, "");
-        std::vector<float> result;
-        std::istringstream stream(vals);
-        std::string str;
-        if (vals.empty()) return def;
-        while (getline(stream, str, ',')) {
-            try {
-                float val = ie_parse_float(str);
-                result.push_back(val);
-            } catch (...) {
-                THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
-                                   << ". Value " << vals << " cannot be casted to floats.";
-            }
-        }
-        return result;
-    }
+    std::vector<float> GetParamAsFloats(const char* param, std::vector<float> def) const;
 
     /**
      * @brief Returns a vector of float values for the given parameter
@@ -295,22 +241,7 @@ public:
      * @param param Name of the layer parameter
      * @return vector of float values
      */
-    std::vector<float> GetParamAsFloats(const char* param) const {
-        std::string vals = GetParamAsString(param);
-        std::vector<float> result;
-        std::istringstream stream(vals);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            try {
-                float val = ie_parse_float(str);
-                result.push_back(val);
-            } catch (...) {
-                THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
-                                   << ". Value " << vals << " cannot be casted to floats.";
-            }
-        }
-        return result;
-    }
+    std::vector<float> GetParamAsFloats(const char* param) const;
 
     /**
      * @brief Returns an integer value for the given parameter or returns the default value
@@ -319,15 +250,7 @@ public:
      * @param def Default value of the parameter if not found
      * @return An int value for the specified parameter
      */
-    int GetParamAsInt(const char* param, int def) const {
-        std::string val = GetParamAsString(param, std::to_string(def).c_str());
-        try {
-            return std::stoi(val);
-        } catch (...) {
-            THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name << ". Value "
-                               << val << " cannot be casted to int.";
-        }
-    }
+    int GetParamAsInt(const char* param, int def) const;
 
     /**
      * @brief Returns an integer value for the given parameter
@@ -335,15 +258,7 @@ public:
      * @param param Name of the layer parameter
      * @return An int value for the specified parameter
      */
-    int GetParamAsInt(const char* param) const {
-        std::string val = GetParamAsString(param);
-        try {
-            return std::stoi(val);
-        } catch (...) {
-            THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name << ". Value "
-                               << val << " cannot be casted to int.";
-        }
-    }
+    int GetParamAsInt(const char* param) const;
 
     /**
      * @brief Returns a vector of int values for the given parameter or returns the default value
@@ -352,22 +267,7 @@ public:
      * @param def Default value of the parameter if not found
      * @return vector of int values
      */
-    std::vector<int> GetParamAsInts(const char* param, std::vector<int> def) const {
-        std::string vals = GetParamAsString(param, "");
-        std::vector<int> result;
-        std::istringstream stream(vals);
-        std::string str;
-        if (vals.empty()) return def;
-        while (getline(stream, str, ',')) {
-            try {
-                result.push_back(std::stoi(str));
-            } catch (...) {
-                THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
-                                   << ". Value " << vals << " cannot be casted to int.";
-            }
-        }
-        return result;
-    }
+    std::vector<int> GetParamAsInts(const char* param, std::vector<int> def) const;
 
     /**
      * @brief Returns a vector of int values for the given parameter
@@ -375,21 +275,8 @@ public:
      * @param param Name of the layer parameter
      * @return vector of int values
      */
-    std::vector<int> GetParamAsInts(const char* param) const {
-        std::string vals = GetParamAsString(param);
-        std::vector<int> result;
-        std::istringstream stream(vals);
-        std::string str;
-        while (getline(stream, str, ',')) {
-            try {
-                result.push_back(std::stoi(str));
-            } catch (...) {
-                THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " " << str << " from IR for layer " << name
-                                   << ". Value " << vals << " cannot be casted to int.";
-            }
-        }
-        return result;
-    }
+    std::vector<int> GetParamAsInts(const char* param) const;
+
     /**
      * @brief Returns an unsigned integer value for the given parameter or returns the default value
      *
@@ -397,20 +284,7 @@ public:
      * @param def Default value of the parameter if not found
      * @return An unsigned integer value for the specified parameter
      */
-    unsigned int GetParamAsUInt(const char* param, unsigned int def) const {
-        std::string val = GetParamAsString(param, std::to_string(def).c_str());
-        std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name +
-                              ". Value " + val + " cannot be casted to int.";
-        try {
-            int value = std::stoi(val);
-            if (value < 0) {
-                THROW_IE_EXCEPTION << message;
-            }
-            return static_cast<unsigned int>(value);
-        } catch (...) {
-            THROW_IE_EXCEPTION << message;
-        }
-    }
+    unsigned int GetParamAsUInt(const char* param, unsigned int def) const;
 
     /**
      * @brief Returns an unsigned integer value for the given parameter
@@ -418,20 +292,7 @@ public:
      * @param param Name of the layer parameter
      * @return An unsigned integer value for the specified parameter
      */
-    unsigned int GetParamAsUInt(const char* param) const {
-        std::string val = GetParamAsString(param);
-        std::string message = "Cannot parse parameter " + std::string(param) + " from IR for layer " + name +
-                              ". Value " + val + " cannot be casted to unsigned int.";
-        try {
-            int value = std::stoi(val);
-            if (value < 0) {
-                THROW_IE_EXCEPTION << message;
-            }
-            return static_cast<unsigned int>(value);
-        } catch (...) {
-            THROW_IE_EXCEPTION << message;
-        }
-    }
+    unsigned int GetParamAsUInt(const char* param) const;
 
     /**
      * @brief Returns a vector of unsigned int values for the given parameter or returns the default value
@@ -440,27 +301,7 @@ public:
      * @param def Default value of the parameter if not found
      * @return vector of unsigned int values
      */
-    std::vector<unsigned int> GetParamAsUInts(const char* param, std::vector<unsigned int> def) const {
-        std::string vals = GetParamAsString(param, "");
-        std::vector<unsigned int> result;
-        std::istringstream stream(vals);
-        std::string str;
-        std::string message = "Cannot parse parameter " + std::string(param) + " " + str + " from IR for layer " +
-                              name + ". Value " + vals + " cannot be casted to unsigned int.";
-        if (vals.empty()) return def;
-        while (getline(stream, str, ',')) {
-            try {
-                int value = std::stoi(str);
-                if (value < 0) {
-                    THROW_IE_EXCEPTION << message;
-                }
-                result.push_back(static_cast<unsigned int>(value));
-            } catch (...) {
-                THROW_IE_EXCEPTION << message;
-            }
-        }
-        return result;
-    }
+    std::vector<unsigned int> GetParamAsUInts(const char* param, std::vector<unsigned int> def) const;
 
     /**
      * @brief Returns a vector of unsigned int values for the given parameter
@@ -468,26 +309,8 @@ public:
      * @param param Name of the layer parameter
      * @return vector of unsigned int values
      */
-    std::vector<unsigned int> GetParamAsUInts(const char* param) const {
-        std::string vals = GetParamAsString(param);
-        std::vector<unsigned int> result;
-        std::istringstream stream(vals);
-        std::string str;
-        std::string message = "Cannot parse parameter " + std::string(param) + " " + str + " from IR for layer " +
-                              name + ". Value " + vals + " cannot be casted to int.";
-        while (getline(stream, str, ',')) {
-            try {
-                int value = std::stoi(str);
-                if (value < 0) {
-                    THROW_IE_EXCEPTION << message;
-                }
-                result.push_back(static_cast<unsigned int>(value));
-            } catch (...) {
-                THROW_IE_EXCEPTION << message;
-            }
-        }
-        return result;
-    }
+    std::vector<unsigned int> GetParamAsUInts(const char* param) const;
+
     /**
      * @brief Returns a boolean value for the given parameter.
      *
@@ -496,44 +319,15 @@ public:
      * @param def Default value of the parameter if not found
      * @return A bool value for the specified parameter
      */
-    bool GetParamAsBool(const char* param, bool def) const {
-        std::string val = GetParamAsString(param, std::to_string(def).c_str());
-        std::string loweredCaseValue;
-        std::transform(val.begin(), val.end(), std::back_inserter(loweredCaseValue), [](char value) {
-            return std::tolower(value);
-        });
+    bool GetParamAsBool(const char* param, bool def) const;
 
-        bool result = false;
-
-        if (!(std::istringstream(loweredCaseValue) >> std::boolalpha >> result)) {
-            // attempting parse using non alpha bool
-            return (GetParamAsInt(param, def) != 0);
-        }
-
-        return result;
-    }
     /**
      * @brief Returns a boolean value for the given parameter
      *
      * @param param Name of the layer parameter
      * @return A bool value for the specified parameter
      */
-    bool GetParamAsBool(const char* param) const {
-        std::string val = GetParamAsString(param);
-        std::string loweredCaseValue;
-        std::transform(val.begin(), val.end(), std::back_inserter(loweredCaseValue), [](char value) {
-            return std::tolower(value);
-        });
-
-        bool result = false;
-
-        if (!(std::istringstream(loweredCaseValue) >> std::boolalpha >> result)) {
-            // attempting parse using non alpha bool
-            return (GetParamAsInt(param) != 0);
-        }
-
-        return result;
-    }
+    bool GetParamAsBool(const char* param) const;
 
     /**
      * @brief Returns a string value for the given parameter or returns the default one
@@ -542,13 +336,7 @@ public:
      * @param def Default value of the parameter if not found
      * @return A string value
      */
-    std::string GetParamAsString(const char* param, const char* def) const {
-        auto it = params.find(param);
-        if (it == params.end() || it->second.empty()) {
-            return def;
-        }
-        return (*it).second;
-    }
+    std::string GetParamAsString(const char* param, const char* def) const;
 
     /**
      * @brief Checks the param presence in the layer
@@ -556,13 +344,7 @@ public:
      * @param param Name of the layer parameter
      * @return a bool depending param presence
      */
-    bool CheckParamPresence(const char* param) const {
-        auto it = params.find(param);
-        if (it == params.end()) {
-            return false;
-        }
-        return true;
-    }
+    bool CheckParamPresence(const char* param) const;
 
     /**
      * @brief Returns a string value for the given parameter.
@@ -571,13 +353,7 @@ public:
      * @param param Name of the layer parameter
      * @return A string value
      */
-    std::string GetParamAsString(const char* param) const {
-        auto it = params.find(param);
-        if (it == params.end()) {
-            THROW_IE_EXCEPTION << "No such parameter name '" << param << "' for layer " << name;
-        }
-        return (*it).second;
-    }
+    std::string GetParamAsString(const char* param) const;
 
     /**
      * @brief Gets the parameter as a std::vector<std::string>
@@ -585,21 +361,7 @@ public:
      * @param def The default values if case of parameter is not found
      * @return The parameter as strings.
      */
-    std::vector<std::string> GetParamAsStrings(const char* param, std::vector<std::string> def) const {
-        std::string vals = GetParamAsString(param, "");
-        std::vector<std::string> result;
-        std::istringstream stream(vals);
-        std::string str;
-        if (vals.empty()) return def;
-        while (getline(stream, str, ',')) {
-            try {
-                result.push_back(str);
-            } catch (...) {
-                THROW_IE_EXCEPTION << "Cannot parse parameter " << param << " from IR for layer " << name << ".";
-            }
-        }
-        return result;
-    }
+    std::vector<std::string> GetParamAsStrings(const char* param, std::vector<std::string> def) const;
 
     /**
      * @brief Map of pairs: (parameter name, parameter value)
@@ -1881,7 +1643,7 @@ public:
 /**
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
  * @brief This class represents a standard Space To Batch layer
- * 
+ *
  * Space To Batch picks from input tensor according parameters
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(SpaceToBatchLayer): public CNNLayer {
@@ -1911,7 +1673,7 @@ public:
 /**
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
  * @brief This class represents a standard Batch To Space layer
- * 
+ *
  * Batch To Space picks from input tensor according parameters
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(BatchToSpaceLayer): public CNNLayer {
@@ -2300,6 +2062,20 @@ public:
     using CNNLayer::CNNLayer;
 
     ~ScatterUpdateLayer() override;
+};
+
+/**
+ * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
+ * @brief This class represents a standard ScatterElementsUpdate layer
+ */
+class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ScatterElementsUpdateLayer): public CNNLayer {
+public:
+    /**
+     * @brief Creates a new ScatterElementsUpdateLayer instance.
+     */
+    using CNNLayer::CNNLayer;
+
+    ~ScatterElementsUpdateLayer() override;
 };
 
 /**

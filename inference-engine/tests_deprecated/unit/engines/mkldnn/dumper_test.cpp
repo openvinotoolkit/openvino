@@ -11,7 +11,7 @@
 #include "details/ie_cnn_network_tools.h"
 #include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
 #include "graph_tools.hpp"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 
 #include <string>
 #include <map>
@@ -57,11 +57,8 @@ public:
     }
 
     CNNNetwork net() {
-        CNNNetReader net_reader;
-        net_reader.ReadNetwork(model.data(), model.length());
-        net_reader.SetWeights(weights);
-
-        return net_reader.getNetwork();
+        InferenceEngine::Core core;
+        return core.ReadNetwork(model, weights);
     }
 };
 

@@ -8,6 +8,8 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
+
 #include <transformations/utils/utils.hpp>
 #include <ngraph_ops/hard_sigmoid_ie.hpp>
 
@@ -44,7 +46,8 @@ void ngraph::pass::ConvertHardSigmoidToHardSigmoidIE::convert_hard_sigmoid() {
                                                                              beta_value);
 
         hard_sigmoid_ie->set_friendly_name(hard_sigmoid->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), hard_sigmoid_ie);
+        ngraph::copy_runtime_info(hard_sigmoid, hard_sigmoid_ie);
+        ngraph::replace_node(hard_sigmoid, hard_sigmoid_ie);
         return true;
     };
 

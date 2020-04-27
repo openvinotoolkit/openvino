@@ -62,7 +62,7 @@ protected:
                         const std::vector<InferenceEngine::CNNLayerPtr> &refLayersVec) {
         ASSERT_NO_THROW(FuncTestUtils::compareLayerByLayer<std::vector<InferenceEngine::CNNLayerPtr>>(
                 InferenceEngine::details::CNNNetSortTopologically(network),
-                refLayersVec));
+                refLayersVec, false));
     }
 
     const std::string _modelPath = "NetReader_test.xml";

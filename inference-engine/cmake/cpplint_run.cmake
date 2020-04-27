@@ -47,7 +47,7 @@ file(WRITE "${OUTPUT_FILE}" "${formatted_output}")
 
 if(NOT SKIP_RETURN_CODE)
     # Pass through the cpplint return code
-    if(NOT result EQUAL 0)
+    if(NOT result EQUAL "0")
         # Display the cpplint output to console (to parse it form IDE)
         message("${output}")
         message(FATAL_ERROR "[cpplint] Code style check failed for : ${INPUT_FILE}")

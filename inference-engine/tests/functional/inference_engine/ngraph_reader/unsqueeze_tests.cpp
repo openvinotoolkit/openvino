@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadUnsqueeze) {
     std::string model_version10 = R"V0G0N(
-<net name="Reshape" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="32,64,60"/>
@@ -65,7 +65,7 @@ TEST_F(NGraphReaderTests, ReadUnsqueeze) {
 </net>
 )V0G0N";
     std::string model_version6 = R"V0G0N(
-<net name="Reshape" version="6" batch="1">
+<net name="Network" version="6" batch="1">
     <layers>
         <layer name="data" type="Input" precision="FP32" id="0">
             <output>

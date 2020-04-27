@@ -268,6 +268,7 @@ FormatParser::FormatParser(size_t version): _version(version) {
                 std::make_shared<LayerCreator<UniqueLayer>>("Unique"),
                 std::make_shared<LayerCreator<NonMaxSuppressionLayer>>("NonMaxSuppression"),
                 std::make_shared<LayerCreator<ScatterUpdateLayer>>("ScatterUpdate"),
+                std::make_shared<LayerCreator<ScatterElementsUpdateLayer>>("ScatterElementsUpdate"),
                 std::make_shared<LayerCreator<ExperimentalDetectronPriorGridGeneratorLayer>>("ExperimentalDetectronPriorGridGenerator"),
                 std::make_shared<LayerCreator<ExperimentalDetectronGenerateProposalsSingleImageLayer>>("ExperimentalDetectronGenerateProposalsSingleImage"),
                 std::make_shared<LayerCreator<ExperimentalDetectronTopKROIs>>("ExperimentalDetectronTopKROIs")};

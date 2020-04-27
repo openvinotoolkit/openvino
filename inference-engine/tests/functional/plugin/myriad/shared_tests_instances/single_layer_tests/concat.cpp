@@ -18,9 +18,6 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}}
 };
-std::vector<InferenceEngine::Precision> inputPrecisions = {InferenceEngine::Precision::FP32,
-                                                           InferenceEngine::Precision::FP16,
-                                                           InferenceEngine::Precision::U8};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP16};
 
 
@@ -28,7 +25,6 @@ INSTANTIATE_TEST_CASE_P(Axis_1_and_3, ConcatLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(1, 3),
                                 ::testing::ValuesIn(inShapes),
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         ConcatLayerTest::getTestCaseName);
@@ -39,7 +35,6 @@ INSTANTIATE_TEST_CASE_P(Axis_2, ConcatLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(2),
                                 ::testing::ValuesIn(inShapes),
-                                ::testing::Values(InferenceEngine::Precision::FP16),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         ConcatLayerTest::getTestCaseName);

@@ -4,14 +4,17 @@
 
 if(NOT TARGET ie_coverage_clean)
     add_custom_target(ie_coverage_clean)
+    set_target_properties(ie_coverage_clean PROPERTIES FOLDER coverage)
 endif()
 
 if(NOT TARGET ie_coverage_init)
     add_custom_target(ie_coverage_init)
+    set_target_properties(ie_coverage_init PROPERTIES FOLDER coverage)
 endif()
 
 if(NOT TARGET ie_coverage)
     add_custom_target(ie_coverage)
+    set_target_properties(ie_coverage PROPERTIES FOLDER coverage)
 endif()
 
 set(IE_COVERAGE_REPORTS "${CMAKE_BINARY_DIR}/coverage")
@@ -26,10 +29,10 @@ function(ie_coverage_clean)
     cmake_parse_arguments(IE_COVERAGE "" "REPOSITORY;DIRECTORY" "" ${ARGN})
 
     add_custom_target(ie_coverage_zerocounters_${IE_COVERAGE_REPOSITORY}
-                  COMMAND lcov --zerocounters --quiet
-                               --directory "${IE_COVERAGE_DIRECTORY}"
-                  COMMENT "Add zero counters for coverage for ${IE_COVERAGE_REPOSITORY}"
-                  VERBATIM)
+                      COMMAND lcov --zerocounters --quiet
+                                   --directory "${IE_COVERAGE_DIRECTORY}"
+                      COMMENT "Add zero counters for coverage for ${IE_COVERAGE_REPOSITORY}"
+                      VERBATIM)
 
     add_custom_target(ie_coverage_clean_${IE_COVERAGE_REPOSITORY}
                       COMMAND ${CMAKE_COMMAND}
@@ -41,6 +44,10 @@ function(ie_coverage_clean)
                       COMMENT "Clean previously created HTML report files for ${IE_COVERAGE_REPOSITORY}"
                       DEPENDS "${IE_COVERAGE_SCRIPT_DIR}/coverage_clean.cmake"
                       VERBATIM)
+
+    set_target_properties(ie_coverage_zerocounters_${IE_COVERAGE_REPOSITORY}
+                          ie_coverage_clean_${IE_COVERAGE_REPOSITORY}
+                          PROPERTIES FOLDER coverage)
 
     add_dependencies(ie_coverage_clean ie_coverage_zerocounters_${IE_COVERAGE_REPOSITORY}
                                        ie_coverage_clean_${IE_COVERAGE_REPOSITORY})
@@ -87,6 +94,8 @@ function(ie_coverage_capture)
 
     add_custom_target(ie_coverage_${IE_COVERAGE_INFO_FILE}_info
                       DEPENDS ${output_file})
+    set_target_properties(ie_coverage_${IE_COVERAGE_INFO_FILE}_info
+                          PROPERTIES FOLDER coverage)
 endfunction()
 
 #
@@ -111,6 +120,8 @@ function(ie_coverage_extract)
                        VERBATIM)
     add_custom_target(ie_coverage_${IE_COVERAGE_OUTPUT}_info
                       DEPENDS ${output_file})
+    set_target_properties(ie_coverage_${IE_COVERAGE_OUTPUT}_info
+                          PROPERTIES FOLDER coverage)
 
     add_dependencies(ie_coverage_${IE_COVERAGE_OUTPUT}_info ie_coverage_${IE_COVERAGE_INPUT}_info)
 endfunction()
@@ -137,6 +148,8 @@ function(ie_coverage_remove)
                        VERBATIM)
     add_custom_target(ie_coverage_${IE_COVERAGE_OUTPUT}_info
                       DEPENDS ${output_file})
+    set_target_properties(ie_coverage_${IE_COVERAGE_OUTPUT}_info
+                          PROPERTIES FOLDER coverage)
 
     add_dependencies(ie_coverage_${IE_COVERAGE_OUTPUT}_info ie_coverage_${IE_COVERAGE_INPUT}_info)
 endfunction()
@@ -164,6 +177,8 @@ function(ie_coverage_merge)
                        VERBATIM)
     add_custom_target(ie_coverage_${IE_COVERAGE_OUTPUT}_info
                       DEPENDS ${output_file})
+    set_target_properties(ie_coverage_${IE_COVERAGE_OUTPUT}_info
+                          PROPERTIES FOLDER coverage)
 
     add_dependencies(ie_coverage_${IE_COVERAGE_OUTPUT}_info ${dependencies})
 endfunction()
@@ -188,6 +203,8 @@ function(ie_coverage_genhtml)
                        VERBATIM)
     add_custom_target(ie_coverage_${IE_COVERAGE_INFO_FILE}_genhtml
                       DEPENDS "${output_directory}/index.html")
+    set_target_properties(ie_coverage_${IE_COVERAGE_INFO_FILE}_genhtml
+                          PROPERTIES FOLDER coverage)
 
     add_dependencies(ie_coverage_${IE_COVERAGE_INFO_FILE}_genhtml ie_coverage_${IE_COVERAGE_INFO_FILE}_info)
     add_dependencies(ie_coverage ie_coverage_${IE_COVERAGE_INFO_FILE}_genhtml)

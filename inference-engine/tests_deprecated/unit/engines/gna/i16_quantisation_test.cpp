@@ -9,6 +9,7 @@
 #include "frontend/model_quantizer.hpp"
 #include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
+#include <ie_core.hpp>
 
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
@@ -82,18 +83,16 @@ TEST_F(I16QuantisationTest, canQuantizeActivation){
 }
 
 TEST_F(I16QuantisationTest, outputAffinePrecisionIs32Bits){
-
     ModelQuantizer<QuantI16> q;
-
-    CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(Fc2DOutputModel().data(), Fc2DOutputModel().length()));
 
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {440}, C });
     weights->allocate();
     fillWeights(weights);
-    net_reader.SetWeights(weights);
 
-    auto newNet = q.quantize(net_reader.getNetwork(), 1000);
+    Core ie;
+    auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
+
+    auto newNet = q.quantize(network, 1000);
     InputsDataMap inputs;
     newNet->getInputsInfo(inputs);
     auto affineDataPtr = inputs.begin()->second->getInputData()->getInputTo().begin()->second->outData.front();
@@ -105,29 +104,26 @@ TEST_F(I16QuantisationTest, outputAffinePrecisionIs32Bits){
 TEST_F(I16QuantisationTest, canQuantizeLstmLikeTopology) {
     ModelQuantizer<QuantI16> q;
 
-    CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(affineToMemoryModel().data(), affineToMemoryModel().length()));
-
     auto weights = setWeights(make_shared_blob<uint8_t >({ Precision::U8, {440}, C }));
     //std::fill_n(weights->buffer().as<float*>(), weights->byteSize()/sizeof(float), 0);
-    net_reader.SetWeights(weights);
 
-    ASSERT_NO_THROW(q.quantize(net_reader.getNetwork(), 1000));
+    Core ie;
+    auto network = ie.ReadNetwork(affineToMemoryModel(), weights);
+
+    ASSERT_NO_THROW(q.quantize(network, 1000));
 }
 
 TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
-
     ModelQuantizer<QuantI16> q;
-
-    CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(Fc2DOutputModel().data(), Fc2DOutputModel().length()));
 
     auto weights = make_shared_blob<uint8_t >({ Precision::U8, {440}, C });
     weights->allocate();
     fillWeights(weights, {100});
-    net_reader.SetWeights(weights);
 
-    auto newNet = q.quantize(net_reader.getNetwork(), 1000);
+    Core ie;
+    auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
+
+    auto newNet = q.quantize(network, 1000);
     InputsDataMap inputs;
     newNet->getInputsInfo(inputs);
     auto affineLayerPtr = inputs.begin()->second->getInputData()->getInputTo().begin()->second;
@@ -350,15 +346,14 @@ TEST_F(I16QuantisationTest, DISABLED_noPermutationOfWeightsBetweenConvAndAffineI
 TEST_F(I16QuantisationTest, fp16tofp32_on_fullyConnected_model) {
     ModelQuantizer<QuantI16> q;
 
-    CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(FCOnlyModelFP16().data(), FCOnlyModelFP16().length()));
-
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {220}, Layout::C });
     weights->allocate();
     fillWeights(weights);
-    net_reader.SetWeights(weights);
+    
+    Core ie;
+    auto network = ie.ReadNetwork(FCOnlyModelFP16(), weights);
 
-    q.quantize(net_reader.getNetwork(), 1000);
+    q.quantize(network, 1000);
 }
 
 
@@ -388,29 +383,27 @@ TEST_F(I16QuantisationTest, ConcatWithConstInputPropagatedForward) {
 TEST_F(I16QuantisationTest, LSTMCell_quantize) {
     ModelQuantizer<QuantI16> q;
 
-    CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(LSTMCellOnlyModel().data(), LSTMCellOnlyModel().length()));
-
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {33664}, C });
     weights->allocate();
     fillWeights(weights);
-    net_reader.SetWeights(weights);
 
-    ASSERT_NO_THROW(q.quantize(net_reader.getNetwork(), 1000));
+    Core ie;
+    auto network = ie.ReadNetwork(LSTMCellOnlyModel(), weights);
+
+    ASSERT_NO_THROW(q.quantize(network, 1000));
 }
 
 TEST_F(I16QuantisationTest, LSTMCell_unaligned_quantize) {
     ModelQuantizer<QuantI16> q;
 
-    CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(LSTMCellOnlyModelUnaligned().data(), LSTMCellOnlyModelUnaligned().length()));
-
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {3480}, C });
     weights->allocate();
     fillWeights(weights);
-    net_reader.SetWeights(weights);
+    
+    Core ie;
+    auto network = ie.ReadNetwork(LSTMCellOnlyModelUnaligned(), weights);
 
-    ASSERT_NO_THROW(q.quantize(net_reader.getNetwork(), 1000));
+    ASSERT_NO_THROW(q.quantize(network, 1000));
 }
 
 TEST_F(I16QuantisationTest, EltwisetWithConstInputPropagatedForward) {
@@ -434,15 +427,14 @@ TEST_F(I16QuantisationTest, ConcatWithDifferentInputScaleFactorsPropagateForward
 TEST_F(I16QuantisationTest, TI_quantize) {
     ModelQuantizer<QuantI16> q;
 
-    CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(TIModelWithLSTMCell2().data(), TIModelWithLSTMCell2().length()));
-
     auto weights = make_shared_blob<uint8_t>({ Precision::U8, {249748}, C });
     weights->allocate();
     fillWeights(weights);
-    net_reader.SetWeights(weights);
+    
+    Core ie;
+    auto network = ie.ReadNetwork(TIModelWithLSTMCell2(), weights);
 
-    ASSERT_NO_THROW(q.quantize(net_reader.getNetwork(), 1000));
+    ASSERT_NO_THROW(q.quantize(network, 1000));
 }
 
 TEST_F(I16QuantisationTest, TI_PropagateForward) {

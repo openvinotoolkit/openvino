@@ -40,9 +40,9 @@ Data DataNode::getTopParentData() const {
 }
 
 DimValues DataNode::strides() const {
-    if (_parentDataEdge != nullptr) {
-        if (_parentDataEdge->mode() == SharedDataMode::ROI) {
-            return _parentDataEdge->parent()->strides();
+    if (_parentDataToDataEdge != nullptr) {
+        if (_parentDataToDataEdge->mode() == SharedDataMode::ROI) {
+            return _parentDataToDataEdge->parent()->strides();
         }
     }
 
@@ -51,7 +51,7 @@ DimValues DataNode::strides() const {
 
 int DataNode::totalByteSize() const {
     // IT doesn't have sence for child Data.
-    IE_ASSERT(_parentDataEdge == nullptr);
+    IE_ASSERT(_parentDataToDataEdge == nullptr);
 
     return calcTotalByteSize(_desc, strides());
 }
@@ -87,8 +87,8 @@ bool DataNode::checkStrides(const StridesRequirement& reqs) const {
 
 void DataNode::updateRequiredStrides(const StridesRequirement& newReqs) {
     // There shouldn't be any Data<->Data edges.
-    IE_ASSERT(_parentDataEdge == nullptr);
-    IE_ASSERT(_childDataEdges.empty());
+    IE_ASSERT(_parentDataToDataEdge == nullptr);
+    IE_ASSERT(_childDataToDataEdges.empty());
 
     auto prevReqs = _requiredStrides;
 

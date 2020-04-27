@@ -17,7 +17,6 @@
 #include "ie_profiling.hpp"
 #include "ie_parallel.hpp"
 #include "ie_system_conf.h"
-#include "ie_error.hpp"
 #include "threading/ie_thread_affinity.hpp"
 #include "details/ie_exception.hpp"
 #include "ie_util_internal.hpp"

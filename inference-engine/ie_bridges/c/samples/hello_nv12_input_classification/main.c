@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
     // set input resize algorithm to enable input autoresize
     status |= ie_network_set_input_resize_algorithm(network, input_name, RESIZE_BILINEAR);
     // set input color format to NV12 to enable automatic input color format pre-processing
-    status |= ie_network_set_color_format(network, input_name, NV12 );
+    status |= ie_network_set_color_format(network, input_name, NV12);
 
     if (status != OK)
         goto err;

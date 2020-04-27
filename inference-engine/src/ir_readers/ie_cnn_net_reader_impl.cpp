@@ -43,7 +43,7 @@ StatusCode CNNNetReaderImpl::SetWeights(const TBlob<uint8_t>::Ptr& weights, Resp
             std::stringstream model;
             xmlDoc->save(model);
             network = std::make_shared<CNNNetworkNGraphImpl>(v10Reader.read(model.str(), weights));
-        } else {
+        } else if (weights) {
             _parser->SetWeights(weights);
         }
     } catch (const InferenceEngineException& iee) {

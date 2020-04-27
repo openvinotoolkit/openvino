@@ -5,7 +5,6 @@
 #pragma once
 
 #include <algorithm>
-#include <ie_plugin_ptr.hpp>
 #include <map>
 #include <memory>
 #include <string>

@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "../common/tests_utils.h"
 
 #include <pugixml.hpp>
@@ -34,6 +38,7 @@ public:
         // Parse RefsConfig from MemCheckEnvironment
         std::string models_path = Environment::Instance().getEnvConfig()
                 .child("attributes").child("irs_path").child("value").text().as_string();
+        models_path = expand_env_vars(models_path);
 
         const pugi::xml_document &refs_config = MemCheckEnvironment::Instance().getRefsConfig();
         auto values = refs_config.child("attributes").child("models");

@@ -7,7 +7,7 @@
 #include "mkldnn_graph.h"
 
 #include "test_graph.hpp"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 
 #include "single_layer_common.hpp"
 #include <mkldnn_extension_utils.h>
@@ -102,11 +102,12 @@ protected:
             bucketize_test_params p = ::testing::WithParamInterface<bucketize_test_params>::GetParam();
             std::string model = getModel(p);
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+                        InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             auto& nodes = graph.getNodes();
             nodes = graph.getNodes();
@@ -140,7 +141,7 @@ protected:
             input_blob_map["BoundariesValues"] = boundaries;
 
             // prepare output blob map
-            InferenceEngine::OutputsDataMap out = net_reader.getNetwork().getOutputsInfo();
+            InferenceEngine::OutputsDataMap out = network.getOutputsInfo();
             InferenceEngine::BlobMap output_blob_map;
             for (auto iter = out.begin(); iter != out.end(); iter++) {
                 std::pair<std::string, InferenceEngine::DataPtr> item = *iter;

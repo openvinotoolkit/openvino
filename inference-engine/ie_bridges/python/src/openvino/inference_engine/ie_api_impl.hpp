@@ -113,6 +113,8 @@ struct InferRequestWrap {
 
     void getBlobPtr(const std::string &blob_name, InferenceEngine::Blob::Ptr &blob_ptr);
 
+    void setBlob(const std::string &blob_name, const InferenceEngine::Blob::Ptr &blob_ptr);
+
     void setBatch(int size);
 
     std::map<std::string, InferenceEnginePython::ProfileInfo> getPerformanceCounts();
@@ -136,7 +138,7 @@ struct IEExecNetwork {
     std::map<std::string, InferenceEngine::CDataPtr> getOutputs();
 
     PyObject* getMetric(const std::string & metric_name);
-    PyObject* getConfig(const std::string & metric_name);
+    PyObject* getConfig(const std::string & name);
 
     int wait(int num_requests, int64_t timeout);
     int getIdleRequestId();

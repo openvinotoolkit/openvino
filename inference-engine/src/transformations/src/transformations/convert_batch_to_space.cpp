@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset2.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -69,6 +70,9 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_ie_side() {
         if (squeezed_shape.size() > block_values.size()) {
             return false;
         }
+
+        NodeVector new_ops;
+
         std::shared_ptr<Node> flat_node = data.get_node_shared_ptr();
         for (size_t block_idx = 1; block_idx < block_values.size(); ++block_idx) {
             dispersed_shape[0] = block_values[block_idx];
@@ -78,6 +82,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_ie_side() {
             const bool special_zero = false;
             flat_node = std::make_shared<ngraph::op::v1::Reshape>(flat_node, out_pattern_1, special_zero)
                     ->add_provenance_group_members_above({data});
+            new_ops.push_back(flat_node);
 
             size_t val = 1;
             for (size_t axis_idx = 0; axis_idx <= block_values.size(); ++axis_idx) {
@@ -95,6 +100,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_ie_side() {
                                          std::vector<int64_t>(axes_order.begin(), axes_order.end()));
             flat_node = std::make_shared<ngraph::opset1::Transpose>(flat_node, axes_order_const)
                     ->add_provenance_group_members_above({flat_node});
+            new_ops.push_back(flat_node);
 
             squeezed_shape[0] = dispersed_shape[1];
             squeezed_shape[block_idx] *= block_values[block_idx];
@@ -103,6 +109,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_ie_side() {
                     op::Constant::create(element::i64, Shape{squeezed_shape.size()}, squeezed_shape);
             flat_node = std::make_shared<ngraph::op::v1::Reshape>(flat_node, out_pattern_2, special_zero)
                     ->add_provenance_group_members_above({data});
+            new_ops.push_back(flat_node);
         }
 
         std::vector<int64_t> upperbounds_values;
@@ -117,8 +124,10 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_ie_side() {
         std::vector<int64_t> end_mask(data_shape.size(), 0);
         flat_node = std::make_shared<op::v1::StridedSlice>(
                 flat_node, crops_begin_const, upperbounds, begin_mask, end_mask);
+        new_ops.push_back(flat_node);
 
         flat_node->set_friendly_name(batch_to_space->get_friendly_name());
+        ngraph::copy_runtime_info(batch_to_space, flat_node);
         ngraph::replace_node(batch_to_space, flat_node);
         return true;
     };

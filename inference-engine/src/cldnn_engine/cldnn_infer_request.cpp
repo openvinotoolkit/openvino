@@ -250,6 +250,7 @@ void CLDNNInferRequest::copyInputData(std::shared_ptr<cldnn::network> network,
     case Precision::BOOL: {
         uint8_t* blob_ptr = const_cast<uint8_t*>(locked.as<const uint8_t*>()) + offset;
         network->set_input_data(internalName, cldnn::memory::attach(inputLayout, blob_ptr, n));
+        break;
     }
     default:
         THROW_IE_EXCEPTION << "The plugin does not support input " << inputBlob.getTensorDesc().getPrecision() << " precision";
@@ -808,6 +809,28 @@ void CLDNNInferRequest::GetPerformanceCounts(
     }
 }
 
+namespace {
+
+template <typename T>
+void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
+    if (!dst) {
+        return;
+    }
+    const InferenceEngine::TBlob<T>* t_blob = dynamic_cast<const InferenceEngine::TBlob<T>*>(src);
+    if (t_blob == nullptr) {
+        THROW_IE_EXCEPTION << "input type is " << src->getTensorDesc().getPrecision() << " but input is not "
+                           << typeid(T).name();
+    }
+
+    const T* srcPtr = t_blob->readOnly();
+    if (srcPtr == nullptr) {
+        THROW_IE_EXCEPTION << "Input data was not allocated.";
+    }
+    for (size_t i = 0; i < t_blob->size(); i++) dst[i] = srcPtr[i];
+}
+
+}  // namespace
+
 void CLDNNInferRequest::PrepareInput(const cldnn::primitive_id &inputName, const Blob &inputBlob) {
     // Get input layout
     if (m_graph->GetInputLayouts().find(inputName) == m_graph->GetInputLayouts().end()) {
@@ -837,9 +860,7 @@ void CLDNNInferRequest::PrepareInput(const cldnn::primitive_id &inputName, const
         // clDNN doesn't support I16 input precision, so we always have to convert input data to fp32 precision
         const cldnn::memory& fp32_mem = inputsMemory.at(inputName+fp32_suffix);
         cldnn::pointer<float> ptr = fp32_mem.pointer<float>();
-        IE_SUPPRESS_DEPRECATED_START
-        InferenceEngine::copyToFloat<int16_t>(ptr.data(), &inputBlob);
-        IE_SUPPRESS_DEPRECATED_END
+        copyToFloat<int16_t>(ptr.data(), &inputBlob);
         _nw_ptr->set_input_data(internalName, fp32_mem);
     } else if (is_same_buffer(inputBlob, memory)) {
         // If input memory was allocated by cldnn engine and wasn't overwritten by user set_input_data method won't copy input data.

@@ -20,6 +20,7 @@
 // #include <shape_infer/ie_reshaper.hpp>
 #include <string>
 
+#include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
@@ -69,6 +70,7 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     for (auto n : specialized_function->get_ops()) {
         goe_elimination.run_on_node(n);
     }
+    specialized_function->set_friendly_name(func->get_friendly_name());
     return specialized_function;
 }
 
@@ -125,7 +127,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         network.setInputInfo(info);
     };
 
-    // Add shape infer method for old operations which are not included to opset1 and opset2
+    // Add shape infer method for old operations which are not included to opset1, opset2 and opset3
     ::ngraph::op::GenericIE::addExtension(_ngraph_function, std::make_shared<ShapeInfer::BuiltInShapeInferHolder>());
 
     reshape();
@@ -189,14 +191,14 @@ void CNNNetworkNGraphImpl::getName(char* pName, size_t len) const noexcept {
     // Description buffer will preserve garbage if external pointer not initialized
     if (len < 1) return;
     memset(pName, 0, len);
-    DescriptionBuffer(pName, len) << _ngraph_function->get_name();
+    DescriptionBuffer(pName, len) << _ngraph_function->get_friendly_name();
 }
 
 const std::string& CNNNetworkNGraphImpl::getName() const noexcept {
     if (cnnNetwork) {
         return cnnNetwork->getName();
     }
-    return _ngraph_function->get_name();
+    return _ngraph_function->get_friendly_name();
 }
 
 InputInfo::Ptr CNNNetworkNGraphImpl::getInput(const std::string& inputName) const noexcept {
@@ -453,6 +455,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
+        ::ngraph::pass::CommonOptimizations().run_on_function(graph);
         ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
         ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
         network = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *this);
@@ -515,6 +518,7 @@ void CNNNetworkNGraphImpl::convertToCNNNetworkImpl() {
     // Disable shape inference (WA for generic operations)
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
+    ::ngraph::pass::CommonOptimizations().run_on_function(graph);
     ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
     ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
     cnnNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *this);

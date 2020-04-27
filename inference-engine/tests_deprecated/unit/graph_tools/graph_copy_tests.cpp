@@ -10,7 +10,7 @@
 #include <gmock/gmock-generated-matchers.h>
 #include <gmock/gmock-more-actions.h>
 #include "ie_common.h"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 #include "graph_test_base.hpp"
 #include <memory>
 
@@ -168,7 +168,6 @@ TEST_F(GraphCopyTests, canQuantizeTopology) {
 #endif
 
 TEST(CNNSpecificGraphCopyTests, copyNetworkWithClampLayer) {
-    CNNNetReader netReader;
     //define minimal network with Clamp layer
     const std::string SINGLE_LAYER_MODEL = R"V0G0N(
     <net name="SingleLayer" version="2" batch="1">
@@ -208,9 +207,10 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithClampLayer) {
         </edges>
     </net>
     )V0G0N";
-    ASSERT_NO_THROW(netReader.ReadNetwork(SINGLE_LAYER_MODEL.data(), SINGLE_LAYER_MODEL.length()));
-    ASSERT_TRUE(netReader.isParseSuccess());
-    auto network = netReader.getNetwork();
+
+    InferenceEngine::Core core;
+    InferenceEngine::CNNNetwork network;
+    ASSERT_NO_THROW(network = core.ReadNetwork(SINGLE_LAYER_MODEL, InferenceEngine::Blob::CPtr()));
 
     //copy the network
     struct EmptyStruct {};
@@ -225,7 +225,6 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithClampLayer) {
 }
 
 TEST(CNNSpecificGraphCopyTests, copyPreprocess) {
-    CNNNetReader netReader;
     //define minimal network with Clamp layer
     const std::string SINGLE_LAYER_MODEL = R"V0G0N(
     <net name="SingleLayer" version="2" batch="1">
@@ -276,9 +275,10 @@ TEST(CNNSpecificGraphCopyTests, copyPreprocess) {
         </pre-process>
     </net>
     )V0G0N";
-    ASSERT_NO_THROW(netReader.ReadNetwork(SINGLE_LAYER_MODEL.data(), SINGLE_LAYER_MODEL.length()));
-    ASSERT_TRUE(netReader.isParseSuccess());
-    auto network = netReader.getNetwork();
+
+    InferenceEngine::Core core;
+    InferenceEngine::CNNNetwork network;
+    ASSERT_NO_THROW(network = core.ReadNetwork(SINGLE_LAYER_MODEL, InferenceEngine::Blob::CPtr()));
 
     //copy the network
     struct EmptyStruct {};
@@ -298,7 +298,6 @@ TEST(CNNSpecificGraphCopyTests, copyPreprocess) {
 }
 
 TEST(CNNSpecificGraphCopyTests, copyNetworkWithDeconvolution) {
-    CNNNetReader netReader;
     //define minimal network with deconvolution layer
     const std::string SINGLE_LAYER_MODEL = R"V0G0N(
     <net name="SingleLayer" version="2" batch="1">
@@ -339,9 +338,10 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithDeconvolution) {
         </edges>
     </net>
     )V0G0N";
-    ASSERT_NO_THROW(netReader.ReadNetwork(SINGLE_LAYER_MODEL.data(), SINGLE_LAYER_MODEL.length()));
-    ASSERT_TRUE(netReader.isParseSuccess());
-    auto network = netReader.getNetwork();
+
+    InferenceEngine::Core core;
+    InferenceEngine::CNNNetwork network;
+    ASSERT_NO_THROW(network = core.ReadNetwork(SINGLE_LAYER_MODEL, InferenceEngine::Blob::CPtr()));
 
     // copy the network
     struct EmptyStruct {};

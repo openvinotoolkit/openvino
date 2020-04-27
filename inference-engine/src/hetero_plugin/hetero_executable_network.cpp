@@ -3,7 +3,6 @@
 //
 
 #include "ie_metric_helpers.hpp"
-#include "cpp/ie_cnn_net_reader.h"
 #include "hetero_executable_network.hpp"
 #include "hetero_async_infer_request.hpp"
 #include "ie_util_internal.hpp"
@@ -23,7 +22,6 @@
 #include <array>
 #include <cstdint>
 
-#include <ie_plugin_dispatcher.hpp>
 #include "details/caseless.hpp"
 #include "ie_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
@@ -424,24 +422,24 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
             executableNetwork = pluginAPI->ImportNetwork(heteroModel, supportedConfig);
         } catch(InferenceEngine::details::InferenceEngineException& ie_ex) {
             if (std::string::npos != std::string{ie_ex.what()}.find(NOT_IMPLEMENTED_str)) {
-                IE_SUPPRESS_DEPRECATED_START
-                CNNNetReader reader;
+                // read XML content
                 std::string xmlString;
                 std::getline(heteroModel, xmlString);
-                reader.ReadNetwork(xmlString.data(), xmlString.size());
                 std::uint64_t dataSize = 0;
                 heteroModel.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+
+                // read blob content
+                InferenceEngine::Blob::Ptr dataBlob;
                 if (0 != dataSize) {
-                    auto dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
+                    dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
                         InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
                                                     {static_cast<std::size_t>(dataSize)},
                                                     InferenceEngine::Layout::C));
                     dataBlob->allocate();
                     heteroModel.read(dataBlob->buffer(), dataSize);
-                    reader.SetWeights(std::move(dataBlob));
                 }
-                cnnnetwork = reader.getNetwork();
-                IE_SUPPRESS_DEPRECATED_END
+
+                cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
                 auto inputs = cnnnetwork.getInputsInfo();
                 auto inputsNode = subnetworkNode.child("inputs");
                 for (auto inputNode = inputsNode.child("input"); !inputNode.empty(); inputNode = inputNode.next_sibling("input")) {
@@ -600,22 +598,107 @@ void HeteroExecutableNetwork::GetConfig(const std::string &name, InferenceEngine
         IE_ASSERT(it != _config.end());
         result = it->second == YES ? true : false;
     } else {
+        // find config key among plugin config keys
+        for (auto&& desc : networks) {
+            auto execNetwork = desc._network;
+            auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            for (auto && configKey : param.as<std::vector<std::string>>()) {
+                if (configKey == name) {
+                    result = execNetwork.GetConfig(configKey);
+                    return;
+                }
+            }
+        }
+
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
     }
 }
 
+using Metrics = std::map<std::string, Parameter>;
+
+namespace {
+
+void collectPluginMetrics(std::vector<std::string> & baseMetrics,
+                          const std::vector<::Metrics> pluginMetrics) {
+    // check whether the metric has unique name and value among all the plugins
+    auto isMetricValueUnique = [&](const std::string & key,
+                                    const Parameter & value) -> bool {
+        if (std::find(baseMetrics.begin(), baseMetrics.end(), key) !=  baseMetrics.end())
+            return false;
+
+        for (auto && metrics : pluginMetrics) {
+            for (auto && metric : metrics)
+                if (key == metric.first && value != metric.second)
+                    return false;
+        }
+
+        return true;
+    };
+
+    // collect only unique metrics
+    std::vector<std::string> uniqueMetrics;
+    for (auto && metrics : pluginMetrics) {
+        for (auto && metric : metrics) {
+            if (isMetricValueUnique(metric.first, metric.second)) {
+                uniqueMetrics.push_back(metric.first);
+            }
+        }
+    }
+
+    // add plugin specific metrics which don't conflict with base ones
+    std::copy(uniqueMetrics.begin(), uniqueMetrics.end(), std::back_inserter(baseMetrics));
+}
+
+}  // namespace
+
 void HeteroExecutableNetwork::GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *) const {
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        result = IE_SET_METRIC(SUPPORTED_METRICS, std::vector<std::string>{
+        std::vector<std::string> heteroMetrics = {
             METRIC_KEY(NETWORK_NAME),
             METRIC_KEY(SUPPORTED_METRICS),
             METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-            METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)});
+            METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)
+        };
+
+        {
+            std::vector<::Metrics> pluginMetrics;
+            for (auto&& desc : networks) {
+                auto execNetwork = desc._network;
+                auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+                ::Metrics metrics;
+                for (auto && metricName : param.as<std::vector<std::string>>()) {
+                    metrics[metricName] = execNetwork.GetMetric(metricName);
+                }
+                pluginMetrics.push_back(std::move(metrics));
+            }
+
+            collectPluginMetrics(heteroMetrics, pluginMetrics);
+        }
+
+        result = IE_SET_METRIC(SUPPORTED_METRICS, heteroMetrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{
+        std::vector<std::string> heteroConfigKeys = {
             "TARGET_FALLBACK",
             HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
-            CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)});
+            CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)
+        };
+
+        {
+            std::vector<::Metrics> pluginConfigKeys;
+            for (auto&& desc : networks) {
+                auto execNetwork = desc._network;
+                auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                ::Metrics configKeys;
+                for (auto && metricName : param.as<std::vector<std::string>>()) {
+                    configKeys[metricName] = execNetwork.GetConfig(metricName);
+                }
+                pluginConfigKeys.push_back(std::move(configKeys));
+            }
+
+            collectPluginMetrics(heteroConfigKeys, pluginConfigKeys);
+        }
+
+        result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, heteroConfigKeys);
     } else if (METRIC_KEY(NETWORK_NAME) == name) {
         result = IE_SET_METRIC(NETWORK_NAME, _name);
     } else if (METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
@@ -625,6 +708,18 @@ void HeteroExecutableNetwork::GetMetric(const std::string &name, InferenceEngine
         }
         result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     } else {
+        // find metric key among plugin metrics
+        for (auto&& desc : networks) {
+            auto execNetwork = desc._network;
+            auto param = execNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+            for (auto && metricKey : param.as<std::vector<std::string>>()) {
+                if (metricKey == name) {
+                    result = execNetwork.GetMetric(metricKey);
+                    return;
+                }
+            }
+        }
+
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
     }
 }

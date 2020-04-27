@@ -9,18 +9,19 @@
 #include <vector>
 #include <memory>
 
-namespace ngraph {
-namespace pass {
+namespace vpu {
 
-class DynamicToStaticShape : public FunctionPass {
+using Transformations = std::unordered_map<ngraph::NodeTypeInfo, std::function<void(std::shared_ptr<ngraph::Node>)>>;
+
+class DynamicToStaticShape {
 public:
-    DynamicToStaticShape() = default;
-
-    bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
+    explicit DynamicToStaticShape(const Transformations& specificTransformations = {});
+    void transform(ngraph::Function& function) const;
 
 private:
-    bool validateStaticShapes(std::shared_ptr<ngraph::Function> function) const;
+    Transformations transformations;
 };
 
-}  // namespace pass
-}  // namespace ngraph
+void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object);
+
+}  // namespace vpu

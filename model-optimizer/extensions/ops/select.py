@@ -16,6 +16,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array, broadcast_shape
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -41,16 +42,14 @@ class Select(Op):
         condition_node = node.in_node(0)
         resulting_tensors = [node.in_node(1), node.in_node(2)]
 
-        assert np.array_equal(resulting_tensors[0].shape, resulting_tensors[1].shape), \
-            "TensorFlow \'Select\' operation has 3 inputs: \'condition\', \'then\' and \'else\' tensors." \
-            "\'then\' and \'else\' tensors must have the same shape by TensorFlow reference"
-        output_shape = resulting_tensors[0].shape
+        a_shape = node.in_port(1).data.get_shape()
+        b_shape = node.in_port(2).data.get_shape()
+        output_shape = broadcast_shape(a_shape, b_shape)
 
         # Case with unknown condition
         if not condition_node.has_valid('value'):
             # infer only shapes
-            for out in node.out_nodes():
-                node.out_node(out).shape = np.array(output_shape)
+            node.out_port(0).data.set_shape(output_shape)
             return
 
         assert condition_node.value.size == 1

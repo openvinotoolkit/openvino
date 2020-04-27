@@ -13,7 +13,7 @@
 #include <cnn_network_impl.hpp>
 #include "tests_common.hpp"
 
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
 
 using namespace ::testing;
@@ -168,11 +168,12 @@ protected:
             split_test_params p = ::testing::WithParamInterface<split_test_params>::GetParam();
             std::string model = getModel(p);
 
-            InferenceEngine::CNNNetReader net_reader;
-            net_reader.ReadNetwork(model.data(), model.length());
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
             auto& nodes = graph.getNodes();
             for (int i = 0; i < nodes.size(); i++) {
                 if (nodes[i]->getType() == MKLDNNPlugin::Split) {
@@ -186,7 +187,7 @@ protected:
             }
             ASSERT_LE(3, nodes.size());
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(net_reader.getNetwork().getInputsInfo().begin()->second->getTensorDesc());
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(network.getInputsInfo().begin()->second->getTensorDesc());
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -199,7 +200,7 @@ protected:
                 FAIL() << "Cannot cast blob to TBlob<float>.";
 
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
             std::vector<InferenceEngine::TBlob<float>> dst_refs;
             for (auto& item : out) {
@@ -411,9 +412,10 @@ protected:
             if (MB < 2)
                 MB = 2;
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-            InferenceEngine::CNNNetwork network = net_reader.getNetwork();
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
+            
             auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
             ASSERT_NE(nullptr, implNet) << "Failed to cast ICNNNetwork to CNNNetworkImpl";
             InferenceEngine::ResponseDesc resp;
@@ -422,9 +424,9 @@ protected:
 
             MKLDNNGraphTestClass graph;
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
-            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(net_reader.getNetwork().getInputsInfo().begin()->second->getTensorDesc());
+            InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(network.getInputsInfo().begin()->second->getTensorDesc());
             src->allocate();
             fill_data(src->buffer(), src->size());
 
@@ -437,7 +439,7 @@ protected:
                 FAIL() << "Cannot cast blob to TBlob<float>.";
 
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
             auto it = out.begin();
 

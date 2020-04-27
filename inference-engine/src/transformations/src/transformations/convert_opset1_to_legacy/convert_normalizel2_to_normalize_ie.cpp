@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include "ngraph_ops/normalize_ie.hpp"
 
@@ -61,8 +62,9 @@ void ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::convert_normalize_l2_
                                                                        across_spatial,
                                                                        channel_shared);
 
-        normalize_ie->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), normalize_ie);
+        normalize_ie->set_friendly_name(normalize->get_friendly_name());
+        ngraph::copy_runtime_info(normalize, normalize_ie);
+        ngraph::replace_node(normalize, normalize_ie);
         return true;
     };
 
@@ -95,8 +97,9 @@ void ngraph::pass::ConvertNormalizeL2ToNormalizeIE::convert_normalize_l2() {
                                                                        across_channels,
                                                                        channel_shared);
 
-        normalize_ie->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), normalize_ie);
+        normalize_ie->set_friendly_name(normalize->get_friendly_name());
+        ngraph::copy_runtime_info(normalize, normalize_ie);
+        ngraph::replace_node(normalize, normalize_ie);
         return true;
     };
 

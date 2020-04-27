@@ -7,7 +7,7 @@
 /*
 TEST_F(NGraphReaderTests, ReadNonMaxSuppression) {
     std::string model = R"V0G0N(
-<net name="NonMaxSuppression" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter" >
             <data element_type="f32" shape="1,15130,4"/>
@@ -111,7 +111,7 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="NonMaxSuppression" version="5">
+<net name="Network" version="5">
     <layers>
         <layer id="0" name="in1" type="Input" >
             <data precision="I32"/>

@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 
 #include <ngraph_ops/nms_ie.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertNMSToNMSIE::convert_nms_to_nms_ie() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 4});
@@ -30,23 +31,29 @@ void ngraph::pass::ConvertNMSToNMSIE::convert_nms_to_nms_ie() {
             return false;
         }
 
+        // vector of new nGraph operations
+        NodeVector new_ops;
+
         auto new_max_per_class = nms->input(2).get_source_output();
         if (nms->input(2).get_shape().empty()) {
             new_max_per_class = std::make_shared<ngraph::op::Unsqueeze>(
                     nms->input(2).get_source_output().get_node_shared_ptr(),
                     opset1::Constant::create(element::i64, Shape{1}, {0}));
+            new_ops.push_back(new_max_per_class.get_node_shared_ptr());
         }
         auto new_iou_threshold = nms->input(3).get_source_output();
         if (nms->input(3).get_shape().empty()) {
             new_iou_threshold = std::make_shared<ngraph::op::Unsqueeze>(
                     nms->input(3).get_source_output().get_node_shared_ptr(),
                     opset1::Constant::create(element::i64, Shape{1}, {0}));
+            new_ops.push_back(new_iou_threshold.get_node_shared_ptr());
         }
         auto new_score_threshold = nms->input(4).get_source_output();
         if (nms->input(4).get_shape().empty()) {
             new_score_threshold = std::make_shared<ngraph::op::Unsqueeze>(
                     nms->input(4).get_source_output().get_node_shared_ptr(),
                     opset1::Constant::create(element::i64, Shape{1}, {0}));
+            new_ops.push_back(new_score_threshold.get_node_shared_ptr());
         }
         int center_point_box = 0;
         switch (nms->get_box_encoding()) {
@@ -68,8 +75,10 @@ void ngraph::pass::ConvertNMSToNMSIE::convert_nms_to_nms_ie() {
                                                                          nms->output(0).get_shape(),
                                                                          center_point_box,
                                                                          nms->get_sort_result_descending());
+        new_ops.push_back(new_nms);
         new_nms->set_friendly_name(nms->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), new_nms);
+        ngraph::copy_runtime_info(nms, new_ops);
+        ngraph::replace_node(nms, new_nms);
         return true;
     };
 

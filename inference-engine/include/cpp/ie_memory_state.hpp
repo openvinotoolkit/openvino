@@ -7,7 +7,9 @@
  */
 
 #pragma once
+
 #include <string>
+#include <ie_imemory_state.hpp>
 
 namespace InferenceEngine {
 

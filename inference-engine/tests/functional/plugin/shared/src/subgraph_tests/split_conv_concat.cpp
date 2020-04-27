@@ -22,14 +22,13 @@
 namespace LayerTestsDefinitions {
 
 std::string SplitConvConcat::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj) {
-    InferenceEngine::Precision inputPrecision, netPrecision;
+    InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     std::string targetDevice;
-    std::tie(inputPrecision, netPrecision, inputShapes, targetDevice) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "inPRC=" << inputPrecision.name() << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     return result.str();
@@ -37,7 +36,8 @@ std::string SplitConvConcat::getTestCaseName(testing::TestParamInfo<LayerTestsUt
 
 void SplitConvConcat::SetUp() {
     std::vector<size_t> inputShape;
-    std::tie(inputPrecision, netPrecision, inputShape, targetDevice) = this->GetParam();
+    InferenceEngine::Precision netPrecision;
+    std::tie(netPrecision, inputShape, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -54,11 +54,15 @@ void SplitConvConcat::SetUp() {
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), relu2->output(0)}, 1);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
-    fnPtr = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
+    function = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
 }
 
 TEST_P(SplitConvConcat, CompareWithRefImpl) {
-    inferAndValidate();
+    Run();
+
+    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+        PluginCache::get().reset();
+    }
 };
 
 }  // namespace LayerTestsDefinitions

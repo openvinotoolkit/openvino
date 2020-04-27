@@ -12,6 +12,7 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include "ngraph_ops/scaleshift.hpp"
 #include "ngraph_ops/eltwise.hpp"
@@ -57,7 +58,8 @@ bool convert_to_eltwise(std::shared_ptr<T> & node,
 
     auto eltwise = std::make_shared<ngraph::op::Eltwise>(data1, data2, et);
     eltwise->set_friendly_name(node->get_friendly_name());
-    ngraph::replace_node(node, std::dynamic_pointer_cast<ngraph::Node>(eltwise));
+    ngraph::copy_runtime_info(node, eltwise);
+    ngraph::replace_node(node, eltwise);
     return true;
 }
 
@@ -147,7 +149,8 @@ ngraph::graph_rewrite_callback get_callback() {
             }
 
             scaleshift->set_friendly_name(lin_op->get_friendly_name());
-            ngraph::replace_node(m.get_match_root(), std::dynamic_pointer_cast<ngraph::Node>(scaleshift));
+            ngraph::copy_runtime_info(m.get_match_root(), scaleshift);
+            ngraph::replace_node(m.get_match_root(), scaleshift);
         } else {
             float value;
             if (!ngraph::op::util::get_single_value(const_node, value)) {
@@ -164,6 +167,7 @@ ngraph::graph_rewrite_callback get_callback() {
                 return false;
             }
             power->set_friendly_name(lin_op->get_friendly_name());
+            ngraph::copy_runtime_info(m.get_match_root(), power);
             ngraph::replace_node(m.get_match_root(), power);
         }
 

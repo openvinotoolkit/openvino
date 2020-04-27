@@ -13,12 +13,8 @@
 #include "tests_common.hpp"
 #include <stdio.h>
 
-#include <cpp/ie_cnn_net_reader.h>
 #include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
-
-
-#include <ie_plugin_ptr.hpp>
 
 #include "single_layer_common.hpp"
 #include "tests_common.hpp"
@@ -227,15 +223,16 @@ protected:
             topk_test_params p = ::testing::WithParamInterface<topk_test_params>::GetParam();
             std::string model = getModel(p);
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+            InferenceEngine::Core ie;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = ie.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             // Output Data
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             auto it = out.begin();
@@ -426,11 +423,12 @@ protected:
             topk_test_params p = ::testing::WithParamInterface<topk_test_params>::GetParam();
             std::string model = getModel(p);
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             // Input Data
             InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, p.in_shape,
@@ -459,7 +457,7 @@ protected:
 
             // Output Data
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
             auto it = out.begin();
             std::pair<std::string, InferenceEngine::DataPtr> item = *it;

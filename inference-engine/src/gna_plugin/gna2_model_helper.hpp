@@ -46,6 +46,8 @@ Gna2Tensor HelperGna2TensorInit3D(uint32_t x, uint32_t y, uint32_t z, Gna2DataTy
 
 Gna2Tensor * createGna2Tensor1D(uint32_t x, uint32_t byteSize, void* data);
 
+Gna2Tensor * createGna2TensorPwl(uint32_t x, void* data);
+
 Gna2Tensor * createGna2BiasTensor1D(uint32_t x, uint32_t byteSize, void* data);
 
 Gna2Tensor * createGna2Tensor2D(uint32_t x, uint32_t y, uint32_t byteSize, void* data);

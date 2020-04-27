@@ -152,7 +152,8 @@ void MyriadInferRequest::GetResult() {
         return foundBlob->second->getTensorDesc().getLayout();
     };
 
-    if (_outputs.size() == 1) {
+    // For networks with only one output
+    if (_outputInfo.offset.size() == 1) {
         const auto& it = _outputs.begin();
         const auto& name = (*it).first;
         const auto& blob = (*it).second;
@@ -166,10 +167,10 @@ void MyriadInferRequest::GetResult() {
     _executor->getResult(_graphDesc, resultBuffer.data(), resultBuffer.size());
 
     for (const auto& output : _outputs) {
-        const auto& name = output.first;
-        const auto& blob = output.second;
+        const auto& ieBlobName = output.first;
+        const auto& ieBlob = output.second; // Original IE output blob
 
-        const auto resultOffset = [&] {
+        const auto resultOffset = [&](const std::string& name) {
             const auto offset_it = _outputInfo.offset.find(name);
             IE_ASSERT(offset_it != _outputInfo.offset.end())  << "MyriadInferRequest::InferAsync()\n"
                                                                        << "Output offset [" << name << "] error.";
@@ -179,14 +180,27 @@ void MyriadInferRequest::GetResult() {
                                                       << "Required offset: " << offset
                                                       << "Result buffer size: " << resultBuffer.size();
             return offset;
-        }();
+        };
 
-        const auto outDesc = blob->getTensorDesc();
+        const auto& ieOutDesc = ieBlob->getTensorDesc();
+        const auto& ieOutPrc = ieOutDesc.getPrecision();
+        auto ieOutDims = ieOutDesc.getDims();
+        // Eject dynamic output shape (suffix "@shape") and copy it to vector of dimensions in reverse order
+        const auto& shapeInfo = _outputInfo.offset.find(ieBlobName + "@shape");
+        if (shapeInfo != _outputInfo.offset.end()) {
+            const auto shapeOffset = resultOffset(shapeInfo->first);
+            const auto shapePtr = reinterpret_cast<const int32_t*>(resultBuffer.data() + shapeOffset);
+
+            const auto shapeRank = ieOutDims.size();
+            for (size_t idx = 0; idx < shapeRank; ++idx) {
+                ieOutDims[idx] = shapePtr[shapeRank - idx - 1];
+            }
+        }
         // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
-        const auto tempTensorDesc = ie::TensorDesc{outDesc.getPrecision(), outDesc.getDims(), getVpuLayout(name)};
-        const auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset);
+        const auto tempTensorDesc = ie::TensorDesc{ieOutPrc, ieOutDims, getVpuLayout(ieBlobName)};
+        const auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset(ieBlobName));
 
-        copyBlob(tmpBlob, blob);
+        copyBlob(tmpBlob, ieBlob);
     }
 }
 

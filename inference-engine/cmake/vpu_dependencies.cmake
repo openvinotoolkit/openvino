@@ -20,6 +20,7 @@ set(VPU_SUPPORTED_FIRMWARES usb-ma2450 usb-ma2x8x pcie-ma248x)
 #
 
 set(FIRMWARE_PACKAGE_VERSION 1076)
+set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.02.0")
 
 #
 # CMake variables to override default firmware files
@@ -82,7 +83,7 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
         VERBATIM)
 
     install(FILES ${${var_name}}
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT myriad)
 endforeach()
 
@@ -104,4 +105,107 @@ if(ANDROID)
     set(LIBUSB_LIBRARY "${LIBUSB}/libs/${ANDROID_ABI}/libusb1.0.so")
 
     log_rpath_from_dir(LIBUSB "${LIBUSB}/libs/${ANDROID_ABI}")
+endif()
+
+#
+# OpenCL compiler
+#
+
+if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
+    if(DEFINED ENV{VPU_OCL_COMPILER_PATH})
+        set(IE_PATH_TO_DEPS "$ENV{VPU_OCL_COMPILER_PATH}")
+    elseif(DEFINED VPU_OCL_COMPILER_PATH)
+        set(IE_PATH_TO_DEPS "${VPU_OCL_COMPILER_PATH}")
+    else()
+        message(WARNING "VPU_OCL_COMPILER is not found. Some tests will skipped")
+    endif()
+
+    if(DEFINED IE_PATH_TO_DEPS)
+        message(STATUS "VPU_OCL_COMPILER_PATH=${IE_PATH_TO_DEPS}")
+
+        reset_deps_cache(VPU_CLC_MA2X8X_ROOT)
+        reset_deps_cache(VPU_CLC_MA2X8X_COMMAND)
+
+        RESOLVE_DEPENDENCY(VPU_CLC_MA2X8X
+            ARCHIVE_LIN "VPU_OCL_compiler/${VPU_CLC_MA2X8X_VERSION}.tar.gz"
+            TARGET_PATH "${TEMP}/vpu/clc/ma2x8x/${VPU_CLC_MA2X8X_VERSION}"
+            ENVIRONMENT "VPU_CLC_MA2X8X_COMMAND")
+        debug_message(STATUS "VPU_CLC_MA2X8X=" ${VPU_CLC_MA2X8X})
+
+        update_deps_cache(
+            VPU_CLC_MA2X8X_ROOT
+            "${VPU_CLC_MA2X8X}"
+            "[VPU] Root directory of OpenCL compiler")
+
+        update_deps_cache(
+            VPU_CLC_MA2X8X_COMMAND
+            "${VPU_CLC_MA2X8X}/bin/clc"
+            "[VPU] OpenCL compiler")
+
+        find_program(VPU_CLC_MA2X8X_COMMAND clc)
+        unset (IE_PATH_TO_DEPS)
+    endif()
+endif()
+
+#
+# `vpu_custom_kernels` CMake target
+#
+
+add_library(vpu_custom_kernels INTERFACE)
+
+function(add_vpu_compile_custom_kernels)
+    set(SRC_DIR "${IE_MAIN_SOURCE_DIR}/src/vpu/custom_kernels")
+    set(DST_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu_custom_kernels")
+
+    file(MAKE_DIRECTORY "${DST_DIR}")
+
+    file(GLOB XML_FILES "${SRC_DIR}/*.xml")
+    file(GLOB CL_FILES "${SRC_DIR}/*.cl")
+
+    foreach(xml_file IN LISTS XML_FILES)
+        get_filename_component(xml_file_name ${xml_file} NAME)
+
+        set(out_file "${DST_DIR}/${xml_file_name}")
+        list(APPEND all_output_files ${out_file})
+
+        add_custom_command(
+            OUTPUT ${out_file}
+            COMMAND
+                ${CMAKE_COMMAND} -E copy ${xml_file} ${out_file}
+            MAIN_DEPENDENCY ${xml_file}
+            COMMENT "[VPU] Copy ${xml_file} to ${DST_DIR}"
+            VERBATIM)
+    endforeach()
+
+    foreach(cl_file IN LISTS CL_FILES)
+        get_filename_component(cl_file_name ${cl_file} NAME_WE)
+
+        set(out_file "${DST_DIR}/${cl_file_name}.bin")
+        list(APPEND all_output_files ${out_file})
+
+        add_custom_command(
+            OUTPUT ${out_file}
+            COMMAND
+                ${CMAKE_COMMAND} -E env
+                    "SHAVE_LDSCRIPT_DIR=${VPU_CLC_MA2X8X}/ldscripts/"
+                    "SHAVE_MA2X8XLIBS_DIR=${VPU_CLC_MA2X8X}/lib"
+                    "SHAVE_MOVIASM_DIR=${VPU_CLC_MA2X8X}/bin"
+                    "SHAVE_MYRIAD_LD_DIR=${VPU_CLC_MA2X8X}/bin"
+                ${VPU_CLC_MA2X8X_COMMAND} --strip-binary-header ${cl_file} -o ${out_file}
+            MAIN_DEPENDENCY ${cl_file}
+            DEPENDS ${VPU_CLC_MA2X8X_COMMAND}
+            COMMENT "[VPU] Compile ${cl_file}"
+            VERBATIM)
+    endforeach()
+
+    add_custom_target(vpu_compile_custom_kernels
+        DEPENDS ${all_output_files}
+        COMMENT "[VPU] Compile custom kernels")
+
+    add_dependencies(vpu_custom_kernels vpu_compile_custom_kernels)
+    target_compile_definitions(vpu_custom_kernels INTERFACE "VPU_HAS_CUSTOM_KERNELS")
+endfunction()
+
+if(VPU_CLC_MA2X8X_COMMAND)
+    add_vpu_compile_custom_kernels()
 endif()

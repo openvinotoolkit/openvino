@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <cstring>
 #include <ncCommPrivate.h>
 #include <mvnc.h>
 #include <ncPrivateTypes.h>
@@ -157,6 +158,36 @@ class NoDueOnFirstCall : public IDevice {
     }
 };
 
+class CustomUniqueLock {
+public:
+    explicit CustomUniqueLock(pthread_mutex_t* mutex)
+        :m_mutex(mutex) {
+        if(m_mutex == nullptr) {
+            throw std::runtime_error("mutex should not be null");
+        }
+
+        int rc = pthread_mutex_lock(m_mutex);
+        if (rc != 0) {
+            throw std::runtime_error(std::string("failed to lock mutex. rc: ") + strerror(rc));
+        }
+    };
+
+    ~CustomUniqueLock() {
+        int rc = pthread_mutex_unlock(m_mutex);
+        if (rc != 0) {
+            mvLog(MVLOG_ERROR, "failed to unlock mutex. rc: %s", strerror(rc));
+        }
+    }
+
+    CustomUniqueLock(const CustomUniqueLock&) = delete;
+    CustomUniqueLock(const CustomUniqueLock&&) = delete;
+    CustomUniqueLock& operator=(const CustomUniqueLock&) = delete;
+    CustomUniqueLock& operator=(const CustomUniqueLock&&) = delete;
+
+private:
+    pthread_mutex_t* m_mutex = nullptr;
+};
+
 static void * WD_OPAQUE_MAGIC = reinterpret_cast<void*>(0xdeadbeaf);
 
 struct wd_context_opaque {
@@ -223,12 +254,11 @@ public:
         mvLog(MVLOG_INFO, "watchdog terminated\n");
         try
         {
-            lockRoutineMutex();
+            CustomUniqueLock lock {&routineLock};
             for (auto &item : watchedDevices) {
                 *std::get<1>(item) = true;
                 mvLog(MVLOG_WARN, "[%p] device, stop watching due to watchdog termination\n", std::get<2>(item));
             }
-            unlockRoutineMutex();
         } catch (const std::exception & ex) {
             mvLog(MVLOG_ERROR, "error %s", ex.what());
         } catch (...) {
@@ -258,7 +288,7 @@ public:
 
 public:
     void *register_device(std::shared_ptr<IDevice> device) {
-        lockRoutineMutex();
+        CustomUniqueLock lock {&routineLock};
         std::unique_ptr<wd_context_opaque> ctx (new wd_context_opaque);
 
         // rare case of exact pointer address collision
@@ -296,7 +326,6 @@ public:
 
         ctx->actual = std::get<0>(watchedDevices.back()).get();
 
-        unlockRoutineMutex();
         return ctx.release();
     }
 
@@ -310,28 +339,30 @@ public:
         if (ptr == nullptr) {
             return false;
         }
-        lockRoutineMutex();
 
-        // thread already removed
-        if (ptr->destroyed) {
-            delete ptr;
-            unlockRoutineMutex();
-            return true;
-        }
+        bool bFound = false;
+        {
+            CustomUniqueLock lock {&routineLock};
 
-        auto idx = std::find_if(std::begin(watchedDevices),
-                                std::end(watchedDevices),
-                                [ptr](const wd_context_as_tuple &item) {
-                                    return std::get<0>(item)->getHandle() == ptr->actual->getHandle();
-                                });
-        bool bFound = idx != std::end(watchedDevices);
-        if(bFound) {
-            watchedDevices.erase(idx);
-            delete ptr;
+            // thread already removed
+            if (ptr->destroyed) {
+                delete ptr;
+                return true;
+            }
+
+            auto idx = std::find_if(std::begin(watchedDevices),
+                                    std::end(watchedDevices),
+                                    [ptr](const wd_context_as_tuple &item) {
+                                        return std::get<0>(item)->getHandle() == ptr->actual->getHandle();
+                                    });
+            bFound = idx != std::end(watchedDevices);
+            if(bFound) {
+                watchedDevices.erase(idx);
+                delete ptr;
+            }
         }
 
         // wake up thread since we might select removed device as nex to be ping, and there is no more devices available
-        unlockRoutineMutex();
         int rc = pthread_cond_broadcast(&wakeUpPingThread);
         if (rc != 0) {
             mvLog(MVLOG_WARN, "failed to unblock threads blocked on the \"wakeUpPingThread\". rc=%d", rc);
@@ -341,19 +372,7 @@ public:
     }
 
  private:
-    void lockRoutineMutex() {
-        int rc = pthread_mutex_lock(&routineLock);
-        if (rc != 0) {
-            throw std::runtime_error("failed to lock \"routineLock\" mutex. rc: " + std::to_string(rc));
-        }
-    }
 
-    void unlockRoutineMutex() {
-        int rc = pthread_mutex_unlock(&routineLock);
-        if (rc != 0) {
-            throw std::runtime_error("failed to unlock \"routineLock\" mutex. rc: " + std::to_string(rc));
-        }
-    }
 
     void watchdog_routine() noexcept {
         try {
@@ -361,7 +380,7 @@ public:
 
             milliseconds sleepInterval;
             struct timespec timeToWait = {0, 0};
-            lockRoutineMutex();
+            CustomUniqueLock lock {&routineLock};
 
             do {
                 for (auto deviceIt = watchedDevices.begin(); deviceIt != watchedDevices.end(); ) {
@@ -430,7 +449,6 @@ public:
             mvLog(MVLOG_ERROR, "unknown error");
         }
 
-        unlockRoutineMutex();
         mvLog(MVLOG_INFO, "thread ended\n");
     }
 };
@@ -539,9 +557,9 @@ WD_API wd_error_t watchdog_unregister_device(wd_context *ctx) {
 
         return WD_ERRNO;
     } catch (const std::exception & ex) {
-        mvLog(MVLOG_ERROR, "error %s", ex.what());
+        mvLog(MVLOG_WARN, "error %s", ex.what());
     } catch (...) {
-        mvLog(MVLOG_ERROR, "unknown error");
+        mvLog(MVLOG_WARN, "unknown error");
     }
 
     return WD_FAIL;

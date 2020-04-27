@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadBatchNormInferenceNetwork) {
     std::string model = R"V0G0N(
-<net name="BNFusion" version="10">
+<net name="Network" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
             <data element_type="f32" shape="1,3,22,22"/>
@@ -142,7 +142,7 @@ TEST_F(NGraphReaderTests, ReadBatchNormInferenceNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="BNFusion" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="in1" precision="FP32" type="Input">
             <output>
@@ -155,7 +155,7 @@ TEST_F(NGraphReaderTests, ReadBatchNormInferenceNetwork) {
             </output>
         </layer>
         <layer id="3" name="bn" precision="FP32" type="Convolution">
-            <data dilations="1,1" group="1" kernel="1,1" output="3" pads_begin="0,0" pads_end="0,0" strides="1,1"/>
+            <data dilations="1,1" group="1" kernel="1,1" output="3" pads_begin="0,0" pads_end="0,0" strides="1,1" originalLayersNames="bn,conv"/>
             <input>
                 <port id="0">
                     <dim>1</dim>

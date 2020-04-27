@@ -12,28 +12,19 @@ using namespace NGraphFunctions;
 using namespace LayerTestsDefinitions;
 
 namespace {
-// Common params
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::FP32,
-// TODO: Issue: 26570
-//      InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::U8,
-// TODO: Issue: 26570
-//      InferenceEngine::Precision::I8
-};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
 const std::vector<std::vector<size_t >> kernels = {{3, 3},
-                                                          {3, 5}};
+                                                   {3, 5}};
 const std::vector<std::vector<size_t >> strides = {{1, 1},
-                                                          {1, 2}};
+                                                   {1, 2}};
 const std::vector<std::vector<size_t >> padBegins = {{0, 0},
-                                                            {0, 2}};
+                                                     {0, 2}};
 const std::vector<std::vector<size_t >> padEnds = {{0, 0},
-                                                          {0, 2}};
+                                                   {0, 2}};
 const std::vector<ngraph::op::RoundingType> roundingTypes = {ngraph::op::RoundingType::CEIL,
                                                              ngraph::op::RoundingType::FLOOR};
 ////* ========== Max Polling ========== */
@@ -53,9 +44,8 @@ const auto maxPool_ExplicitPad_FloorRounding_Params = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(DISABLED_MaxPool_ExplicitPad_FloorRpunding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_FloorRounding_Params,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         PoolingLayerTest::getTestCaseName);
 
@@ -75,9 +65,8 @@ const auto maxPool_ExplicitPad_CeilRounding_Params = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(DISABLED_MaxPool_ExplicitPad_CeilRpunding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_CeilRounding_Params,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         PoolingLayerTest::getTestCaseName);
 
@@ -100,9 +89,8 @@ const auto avgPoolExplicitPadCeilRoundingParams = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(DISABLED_AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 avgPoolExplicitPadCeilRoundingParams,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         PoolingLayerTest::getTestCaseName);
 /* +========== Explicit Pad Floor Rounding ========== */
@@ -122,9 +110,8 @@ const auto avgPoolExplicitPadFloorRoundingParams = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(DISABLED_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 avgPoolExplicitPadFloorRoundingParams,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         PoolingLayerTest::getTestCaseName);
 
@@ -145,9 +132,8 @@ const auto allPools_ValidPad_Params = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(DISABLED_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                         ::testing::Combine(
                                 allPools_ValidPad_Params,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
+                                ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         PoolingLayerTest::getTestCaseName);
 }  // namespace

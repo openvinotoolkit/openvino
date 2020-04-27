@@ -72,7 +72,8 @@ enum Type {
     TensorIterator,
     Convert,
     MVN,
-    Resample
+    Resample,
+    Normalize
 };
 
 Type TypeFromName(const std::string type);
@@ -153,6 +154,8 @@ static std::string NameFromType(Type type) {
             return "Convert";
         case Resample:
             return "Resample";
+        case Normalize:
+            return "Normalize";
         default:
             return "Unknown";
     }
@@ -164,9 +167,9 @@ public:
         implementationType = type;
     }
 
-    PrimitiveDescInfo(const InferenceEngine::LayerConfig conf, impl_desc_type type, std::vector<mkldnn::memory::format> outFmt): config(conf) {
+    PrimitiveDescInfo(const InferenceEngine::LayerConfig conf, impl_desc_type type, std::vector<mkldnn::memory::format> outFmts): config(conf) {
         implementationType = type;
-        outputLayouts = outFmt;
+        outputLayouts = outFmts;
     }
 
     PrimitiveDescInfo(const InferenceEngine::LayerConfig conf, impl_desc_type type, mkldnn::memory::format outFmt): config(conf) {
@@ -329,6 +332,13 @@ public:
     void resolveNotAllocatedEdges();
     virtual void execute(mkldnn::stream strm);
     virtual void initSupportedPrimitiveDescriptors();
+
+    /**
+     * @brief Filters supportedPrimitiveDescriptors according to the input layouts specified in inputMemoryFormatsFilter
+     * and output layouts specified in outputMemoryFormatsFilter
+     */
+    virtual void filterSupportedPrimitiveDescriptors();
+
     virtual void createPrimitive() = 0;
 
     virtual void selectOptimalPrimitiveDescriptor();
@@ -465,6 +475,8 @@ protected:
     std::vector <MKLDNNNodePtr> fusedWith;
     std::vector <MKLDNNNodePtr> mergedWith;
     std::vector <impl_desc_type> implPriorities;
+    std::vector <mkldnn_memory_format_t> inputMemoryFormatsFilter;
+    std::vector <mkldnn_memory_format_t> outputMemoryFormatsFilter;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 

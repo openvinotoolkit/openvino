@@ -97,6 +97,11 @@ JitTerm exp(const JitTerm& arg) {
     return jit_term;
 }
 
+JitTerm erf(const JitTerm& arg) {
+    JitTerm jit_term{"(erf(" + arg.str() + "))"};
+    return jit_term;
+}
+
 JitTerm log(const JitTerm& arg) {
     JitTerm jit_term{"(log(" + arg.str() + "))"};
     return jit_term;
@@ -689,7 +694,7 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(-input)"));
             break;
         case ActivationFunction::ERF:
-            jitConstants.AddConstant(MakeJitConstant(macro_def, "erf(input)"));
+            jitConstants.AddConstant(MakeJitConstant(macro_def, erf(input).str()));
             break;
         case ActivationFunction::HARD_SIGMOID: {
             auto alpha = disable_type_conversion ? "m"_jit : to_type("m"_jit);
@@ -731,6 +736,15 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
                     (input / (one + exp(neg(input)))).str()));
+            break;
+        }
+        case ActivationFunction::GELU: {
+            std::string type_suffix = out_dt == Datatype::F32 ? "f" : "h";
+            const JitTerm half{"0.5" + type_suffix};
+            const JitTerm mult{std::to_string(1.0f / std::sqrt(2.0f)) + type_suffix};
+            jitConstants.AddConstant(MakeJitConstant(
+                    macro_def,
+                    (half * input * (one + erf((input * mult)))).str()));
             break;
         }
         case ActivationFunction::NOT:
@@ -1297,6 +1311,10 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
             } else if (input_dt == Datatype::F16) {
                 block_read = CastToType(" intel_sub_group_block_read_us" + vs + "("
                                         + "(const __global ushort*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
+                                        input_dt, vec_size);
+            } else if (input_dt == Datatype::UINT8 || input_dt == Datatype::INT8) {
+                block_read = CastToType("BLOCK_READ_UC_" + std::to_string(vec_size) + "("
+                                        + "(const __global uchar*)(" + GetInputPtrName(input_id) + " + " + index_func_call_vec + "))",
                                         input_dt, vec_size);
             } else {
                 throw std::runtime_error("Aligned load is not supported yet for " + toCLType(input_dt) + " data type");

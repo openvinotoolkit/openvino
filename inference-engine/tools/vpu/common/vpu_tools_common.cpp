@@ -25,15 +25,7 @@
 #include "precision_utils.h"
 
 InferenceEngine::CNNNetwork readNetwork(const std::string &xmlFileName) {
-    std::string binFileName = fileNameNoExt(xmlFileName) + ".bin";
-
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::CNNNetReader reader;
-    reader.ReadNetwork(xmlFileName);
-    reader.ReadWeights(binFileName);
-
-    return reader.getNetwork();
-    IE_SUPPRESS_DEPRECATED_END
+    return InferenceEngine::Core().ReadNetwork(xmlFileName);
 }
 
 bool isFP16(InferenceEngine::Precision precision) {

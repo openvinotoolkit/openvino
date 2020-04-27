@@ -20,6 +20,9 @@ ParamsKey LRNKernelAcrossChannel_b8::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableTensorOffset();
@@ -28,6 +31,7 @@ ParamsKey LRNKernelAcrossChannel_b8::GetSupportedKey() const {
     k.EnableLRNMode(LRNMode::ACROSS_CHANNEL);
     k.EnableLRNKernelDividerMode(KernelDividerMode::FIXED);
     k.EnableSubGroup();
+    k.EnableDifferentTypes();
     return k;
 }
 
@@ -58,10 +62,27 @@ bool LRNKernelAcrossChannel_b8::Validate(const Params& p, const optional_params&
     return true;
 }
 
-JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params, DispatchData kd) const {
-    auto cldnnJit = LRNKernelBase::GetJitConstants(params, kd);
-    cldnnJit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", 8));
-    return cldnnJit;
+JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params, const DispatchData& kd) const {
+    JitConstants jit = Parent::GetJitConstants(params, kd);
+    const auto& input_dt = params.inputs[0].GetDType();
+
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", 8));
+
+    if (!params.fused_ops.empty()) {
+        FusedOpsConfiguration conf = {
+            "",
+            {"batch_id", "feature_id", "y", "x"},
+            "lrn_result",
+            input_dt,
+            8,
+            LoadType::LT_UNALIGNED,
+            BoundaryCheck::DISABLED,
+            IndexType::TENSOR_COORD,
+            Tensor::DataChannelName::BATCH
+        };
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+    return jit;
 }
 
 KernelsData LRNKernelAcrossChannel_b8::GetKernelsData(const Params& params, const optional_params& options) const {

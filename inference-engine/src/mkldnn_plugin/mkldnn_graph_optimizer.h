@@ -43,6 +43,7 @@ private:
 #endif
     void FuseMVNAndSimpleOperation(MKLDNNGraph &graph);
     void FuseResampleAndSimpleOperation(MKLDNNGraph &graph);
+    void FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph);
     void RemoveIdentityOperator(MKLDNNGraph& graph);
 
     void RemoveIOScaleShifts(MKLDNNGraph& graph);

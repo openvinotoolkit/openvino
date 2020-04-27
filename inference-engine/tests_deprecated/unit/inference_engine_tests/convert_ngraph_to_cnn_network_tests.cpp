@@ -12,6 +12,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/convolution_ie.hpp>
+#include <transformations/init_node_info.hpp>
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -29,6 +30,7 @@ TEST_F(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                ngraph::ParameterVector{param1, param2});
+        ngraph::pass::InitNodeInfo().run_on_function(f);
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
@@ -38,7 +40,7 @@ TEST_F(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
     } catch (InferenceEngine::details::InferenceEngineException &err) {
         const std::string ref_msg = "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
         const std::string resp_msg = err.what();
-        ASSERT_TRUE(resp_msg.find(ref_msg) != std::string::npos);
+        ASSERT_TRUE(resp_msg.find(ref_msg) != std::string::npos) << resp_msg;
     }
 }
 
@@ -58,6 +60,7 @@ TEST_F(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                ngraph::ParameterVector{param1, param2});
+        ngraph::pass::InitNodeInfo().run_on_function(f);
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);

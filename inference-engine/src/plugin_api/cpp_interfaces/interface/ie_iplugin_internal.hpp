@@ -11,10 +11,10 @@
 
 
 #include <ie_iextension.h>
-#include <cpp/ie_executable_network.hpp>
 #include <ie_input_info.hpp>
 #include <ie_icnn_network.hpp>
 #include <ie_icore.hpp>
+#include <ie_plugin.hpp>
 #include <ie_iexecutable_network.hpp>
 #include <ie_remote_context.hpp>
 
@@ -118,7 +118,7 @@ public:
      * @brief Creates an executable network from an pares network object, users can create as many networks as they need
      * and use them simultaneously (up to the limitation of the HW resources)
      * @param executableNetwork - a reference to a shared ptr of the returned network interface
-     * @param network - a network object acquired from CNNNetReader
+     * @param network - a network object acquired from InferenceEngine::Core::ReadNetwork
      * @param config string-string map of config parameters relevant only for this load operation
      */
     virtual void LoadNetwork(IExecutableNetwork::Ptr& executableNetwork, const ICNNNetwork& network,
@@ -126,7 +126,7 @@ public:
 
     /**
      * @brief Creates an executable network from network object, on specified remote context
-     * @param network - a network object acquired from CNNNetReader
+     * @param network - a network object acquired from InferenceEngine::Core::ReadNetwork
      * @param config string-string map of config parameters relevant only for this load operation
      * @param context - a pointer to plugin context derived from RemoteContext class used to
      *        execute the network

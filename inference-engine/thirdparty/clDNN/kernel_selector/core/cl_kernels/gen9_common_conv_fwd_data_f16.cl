@@ -15,6 +15,7 @@
 *******************************************************************************/
 #include "include/include_all.cl"
 #include "include/unit_type.cl"
+#include "include/mmad.cl"
 
 #define WITH_ELTWISE 1
 

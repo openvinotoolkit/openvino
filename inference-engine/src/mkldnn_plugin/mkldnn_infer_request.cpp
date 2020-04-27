@@ -55,6 +55,28 @@ void MKLDNNPlugin::MKLDNNInferRequest::pushInput(const std::string& inputName, I
     graph->PushInputData(inputName, inputBlob);
 }
 
+namespace {
+
+template <typename T>
+void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
+    if (!dst) {
+        return;
+    }
+    const InferenceEngine::TBlob<T>* t_blob = dynamic_cast<const InferenceEngine::TBlob<T>*>(src);
+    if (t_blob == nullptr) {
+        THROW_IE_EXCEPTION << "input type is " << src->getTensorDesc().getPrecision() << " but input is not "
+                           << typeid(T).name();
+    }
+
+    const T* srcPtr = t_blob->readOnly();
+    if (srcPtr == nullptr) {
+        THROW_IE_EXCEPTION << "Input data was not allocated.";
+    }
+    for (size_t i = 0; i < t_blob->size(); i++) dst[i] = srcPtr[i];
+}
+
+}  // namespace
+
 void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
     IE_PROFILING_AUTO_SCOPE_TASK(profilingTask)
     graph = execNetwork->_graphs.local().get();
@@ -94,9 +116,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
                     in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
                     if (in_f == nullptr)
                         THROW_IE_EXCEPTION << "Cannot get TBlob";
-                    IE_SUPPRESS_DEPRECATED_START
-                    InferenceEngine::copyToFloat<uint16_t>(in_f->data(), input.second.get());
-                    IE_SUPPRESS_DEPRECATED_END
+                    copyToFloat<uint16_t>(in_f->data(), input.second.get());
                     pushInput<float>(input.first, iconv);
                     break;
                 case InferenceEngine::Precision::I16:
@@ -110,9 +130,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
                         in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
                         if (in_f == nullptr)
                             THROW_IE_EXCEPTION << "Cannot get TBlob";
-                        IE_SUPPRESS_DEPRECATED_START
-                        InferenceEngine::copyToFloat<int16_t>(in_f->data(), input.second.get());
-                        IE_SUPPRESS_DEPRECATED_END
+                        copyToFloat<int16_t>(in_f->data(), input.second.get());
                         pushInput<float>(input.first, iconv);
                     } else {
                         // Instead we can send I16 directly
@@ -120,6 +138,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
                     }
                     break;
                 case InferenceEngine::Precision::U8:
+                case InferenceEngine::Precision::BOOL:
                     if (graph->hasMeanImageFor(input.first)) {
                         // If a mean image exists, we convert the blob and send FP32
                         iconv = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32,
@@ -130,9 +149,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
                         in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
                         if (in_f == nullptr)
                             THROW_IE_EXCEPTION << "Cannot get TBlob";
-                        IE_SUPPRESS_DEPRECATED_START
-                        InferenceEngine::copyToFloat<uint8_t>(in_f->data(), input.second.get());
-                        IE_SUPPRESS_DEPRECATED_END
+                        copyToFloat<uint8_t>(in_f->data(), input.second.get());
                         pushInput<float>(input.first, iconv);
                     } else {
                         // Instead we can send I8 directly

@@ -10,15 +10,19 @@
 #include <mkldnn_extension_utils.h>
 #include <cnn_network_impl.hpp>
 #include "tests_common.hpp"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
+#include <ie_system_conf.h>
 
-using namespace ::testing;
-using namespace std;
+using namespace MKLDNNPlugin;
 using namespace mkldnn;
+using namespace ::testing;
+
+using std::vector;
+using std::function;
 
 struct depthwise_test_params {
-    mkldnn::algorithm alg;
+    algorithm alg;
 
     // Formats: NC, NCHW, NCDHW
     vector<size_t> dims;
@@ -184,9 +188,6 @@ protected:
             depthwise_test_params p = ::testing::WithParamInterface<depthwise_test_params>::GetParam();
             std::string model = getModel(p);
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
             size_t weightSize = 2 * p.dims[1] * sizeof(float);
             InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, 
                 {weightSize}, InferenceEngine::C });
@@ -195,10 +196,12 @@ protected:
 
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
 
-            net_reader.SetWeights(weights_ptr);
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
             auto& nodes = graph.getNodes();
             for (int i = 0; i < nodes.size(); i++) {
                 if (nodes[i]->getType() == MKLDNNPlugin::Depthwise) {
@@ -233,7 +236,7 @@ protected:
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in1", src));
 
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
@@ -259,24 +262,26 @@ protected:
 
 TEST_P(MKLDNNGraphDepthwiseTests, TestsDepthwise) {}
 
+const size_t num_2d_impl = InferenceEngine::with_cpu_x86_avx2() ? 3 : 2;
+
 INSTANTIATE_TEST_CASE_P(
         TestsDepthwise, MKLDNNGraphDepthwiseTests,
         ::testing::Values(
                 // 2D
-                depthwise_test_params{depthwise_scale_shift, {128, 32}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
-                depthwise_test_params{depthwise_scale_shift, {4, 3}, true, 3, MKLDNNPlugin::impl_desc_type::jit},
-                depthwise_test_params{depthwise_scale_shift, {1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
-                depthwise_test_params{depthwise_scale_shift, {37, 35}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
-                depthwise_test_params{depthwise_prelu, {128, 32}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
-                depthwise_test_params{depthwise_prelu, {4, 3}, true, 3, MKLDNNPlugin::impl_desc_type::jit},
-                depthwise_test_params{depthwise_prelu, {1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
-                depthwise_test_params{depthwise_prelu, {37, 35}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
-                depthwise_test_params{depthwise_scale_shift, {128, 32}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                depthwise_test_params{depthwise_scale_shift, {4, 3}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                depthwise_test_params{depthwise_scale_shift, {1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                depthwise_test_params{depthwise_prelu, {128, 32}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                depthwise_test_params{depthwise_prelu, {4, 3}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-                depthwise_test_params{depthwise_prelu, {1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                depthwise_test_params{depthwise_scale_shift, {128, 32}, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_scale_shift, {4,   3 }, true,  num_2d_impl, jit},
+                depthwise_test_params{depthwise_scale_shift, {1,   1 }, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_scale_shift, {37,  35}, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_prelu,       {128, 32}, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_prelu,       {4,   3 }, true,  num_2d_impl, jit},
+                depthwise_test_params{depthwise_prelu,       {1,   1 }, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_prelu,       {37,  35}, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_scale_shift, {128, 32}, false, num_2d_impl, ref, {ref_any}},
+                depthwise_test_params{depthwise_scale_shift, {4,   3 }, true,  num_2d_impl, ref, {ref_any}},
+                depthwise_test_params{depthwise_scale_shift, {1,   1 }, false, num_2d_impl, ref, {ref_any}},
+                depthwise_test_params{depthwise_prelu,       {128, 32}, false, num_2d_impl, ref, {ref_any}},
+                depthwise_test_params{depthwise_prelu,       {4,   3 }, true,  num_2d_impl, ref, {ref_any}},
+                depthwise_test_params{depthwise_prelu,       {1,   1 }, false, num_2d_impl, ref, {ref_any}},
                 // 4D
                 depthwise_test_params{depthwise_scale_shift, {1, 32, 128, 256}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
                 depthwise_test_params{depthwise_scale_shift, {4, 3, 228, 228}, false, 3, MKLDNNPlugin::impl_desc_type::jit},
@@ -329,9 +334,6 @@ protected:
             if (MB < 2)
                 MB = 2;
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
             InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, 
                 {p.dims[1] * 4 * sizeof(float)}, InferenceEngine::C });
             weights->allocate();
@@ -343,8 +345,11 @@ protected:
                 }
             }
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
-            net_reader.SetWeights(weights_ptr);
-            InferenceEngine::CNNNetwork network = net_reader.getNetwork();
+
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
+
             auto implNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
             ASSERT_NE(nullptr, implNet) << "Failed to cast ICNNNetwork to CNNNetworkImpl";
             InferenceEngine::ResponseDesc resp;
@@ -354,7 +359,7 @@ protected:
 
             MKLDNNGraphTestClass graph;
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             InferenceEngine::SizeVector dims_src = p.dims;
             InferenceEngine::Layout layout = InferenceEngine::ANY;
@@ -378,7 +383,7 @@ protected:
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in1", src));
 
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();

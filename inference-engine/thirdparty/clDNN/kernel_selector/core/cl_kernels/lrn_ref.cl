@@ -18,8 +18,13 @@
 #include "include/fetch.cl"
 #include "include/data_types.cl"
 
-
-KERNEL(normalization)(__global const INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+KERNEL(normalization)(
+    __global const INPUT0_TYPE* input, 
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif                        
+    )
 {
     const uint b = get_global_id(GWS_BATCH);
     const uint f = get_global_id(GWS_FEATURE);
@@ -42,7 +47,7 @@ KERNEL(normalization)(__global const INPUT0_TYPE* input, __global OUTPUT_TYPE* o
     {
         const int z_idx = (j + f - PADDING);
         bool zero = (z_idx < 0 || z_idx >= INPUT0_FEATURE_NUM);
-        UNIT_TYPE val = zero ? 0.0f : input[j_offset];
+        INPUT0_TYPE val = zero ? 0.0f : input[j_offset];
         sum += val*val;
         j_offset += INPUT0_FEATURE_PITCH;
 #ifdef DYNAMIC_KERNEL_DIVIDER 
@@ -68,7 +73,7 @@ KERNEL(normalization)(__global const INPUT0_TYPE* input, __global OUTPUT_TYPE* o
             zero = input_offset_x >= INPUT0_SIZE_X ? true : zero;
             zero = input_offset_y >= INPUT0_SIZE_Y ? true : zero;
 
-            UNIT_TYPE val = zero ? UNIT_VAL_ZERO : input[input_offset];
+            INPUT0_TYPE val = zero ? INPUT0_VAL_ZERO : input[input_offset];
             
             sum += val*val;
             input_offset += INPUT0_X_PITCH;
@@ -81,15 +86,22 @@ KERNEL(normalization)(__global const INPUT0_TYPE* input, __global OUTPUT_TYPE* o
 #endif
 
 #ifdef DYNAMIC_KERNEL_DIVIDER 
-    const UNIT_TYPE num_elementes_div = UNIT_VAL_ONE / TO_UNIT_TYPE(num_elementes);
+    const INPUT0_TYPE num_elementes_div = INPUT0_VAL_ONE / TO_INPUT0_TYPE(num_elementes);
 #else
-    const UNIT_TYPE num_elementes_div = NUM_ELEMENTS_DIV;
+    const INPUT0_TYPE num_elementes_div = NUM_ELEMENTS_DIV;
 #endif
     
-    const UNIT_TYPE base = TO_UNIT_TYPE(K) + TO_UNIT_TYPE((ACCUMULATOR_TYPE)ALPHA*sum * num_elementes_div);
-    const UNIT_TYPE normalization_factor = native_powr(base, TO_UNIT_TYPE(-BETA));
+    INPUT0_TYPE base = TO_INPUT0_TYPE(K) + TO_INPUT0_TYPE((ACCUMULATOR_TYPE)ALPHA*sum * num_elementes_div);
+    INPUT0_TYPE normalization_factor = native_powr(base, TO_INPUT0_TYPE(-BETA));
     
-    const UNIT_TYPE val = input[input_index];
-    const UNIT_TYPE normres =  val*normalization_factor;
-    output[output_index] = ACTIVATION(normres, ACTIVATION_PARAMS);
+    INPUT0_TYPE lrn_result = input[input_index] * normalization_factor;
+
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    OUTPUT_TYPE res = FUSED_OPS_RESULT;
+    output[output_index] = res;
+#else
+    output[output_index] = ACTIVATION(lrn_result, ACTIVATION_PARAMS);
+#endif
+
 }

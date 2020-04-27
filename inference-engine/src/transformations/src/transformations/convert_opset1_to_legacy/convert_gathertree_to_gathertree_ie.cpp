@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertGatherTreeToGatherTreeIE::convert() {
     auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1});
@@ -27,6 +28,7 @@ void ngraph::pass::ConvertGatherTreeToGatherTreeIE::convert() {
         auto gt_ie = std::make_shared<ngraph::op::GatherTreeIE>(gt->input_value(0), gt->input_value(1), gt->input_value(2), reshape);
 
         gt_ie->set_friendly_name(gt->get_friendly_name());
+        ngraph::copy_runtime_info(gt, {reshape, gt_ie});
         ngraph::replace_node(gt, gt_ie);
         return true;
     };

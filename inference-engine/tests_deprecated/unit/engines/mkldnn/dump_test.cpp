@@ -7,7 +7,6 @@
 #include "ie_blob.h"
 #include "blob_factory.hpp"
 #include "utils/blob_dump.h"
-#include <cpp/ie_cnn_net_reader.h>
 
 using namespace InferenceEngine;
 using namespace MKLDNNPlugin;

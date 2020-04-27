@@ -23,25 +23,26 @@ namespace LayerTestsDefinitions {
 
 std::string SplitLayerTest::getTestCaseName(testing::TestParamInfo<splitParams> obj) {
     size_t numSplits, axis;
-    InferenceEngine::Precision inputPrecision, netPrecision;
+    InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    std::tie(numSplits, axis, inputPrecision, netPrecision, inputShapes, targetDevice) = obj.param;
+    std::tie(numSplits, axis, netPrecision, inputShapes, targetDevice) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "numSplits=" << numSplits << "_";
     result << "axis=" << axis << "_";
     result << "IS";
-    result << "inPRC=" << inputPrecision.name() << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
 void SplitLayerTest::SetUp() {
+    SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     size_t axis, numSplits;
     std::vector<size_t> inputShape;
-    std::tie(numSplits, axis, inputPrecision, netPrecision, inputShape, targetDevice) = this->GetParam();
+    InferenceEngine::Precision netPrecision;
+    std::tie(numSplits, axis, netPrecision, inputShape, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
@@ -52,11 +53,15 @@ void SplitLayerTest::SetUp() {
     for (int i = 0; i < numSplits; i++) {
         results.push_back(std::make_shared<ngraph::opset1::Result>(split));
     }
-    fnPtr = std::make_shared<ngraph::Function>(results, params, "split");
+    function = std::make_shared<ngraph::Function>(results, params, "split");
 }
 
 TEST_P(SplitLayerTest, CompareWithRefs) {
-    inferAndValidate();
+    Run();
+
+    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+        PluginCache::get().reset();
+    }
 };
 
 }  // namespace LayerTestsDefinitions

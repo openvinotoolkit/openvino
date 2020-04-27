@@ -15,7 +15,7 @@
 
 #include "include/include_all.cl"
 
-KERNEL(reverse_sequence_ref)(const __global UNIT_TYPE* input, const __global float* seq_lengths, __global UNIT_TYPE* output)
+KERNEL(reverse_sequence_ref)(const __global UNIT_TYPE* input, const __global INPUT1_TYPE* seq_lengths, __global UNIT_TYPE* output)
 {
     const uint batch = get_global_id(0);
     const uint feature = get_global_id(1);
@@ -29,7 +29,7 @@ KERNEL(reverse_sequence_ref)(const __global UNIT_TYPE* input, const __global flo
                              y * INPUT0_Y_PITCH +
                              x * INPUT0_X_PITCH;
 
-    const uint length = seq_lengths[dimensions[BATCH_AXIS]];
+    const uint length = (uint)seq_lengths[dimensions[BATCH_AXIS]];
     if (dimensions[SEQ_AXIS] < length)
         dimensions[SEQ_AXIS] = length - dimensions[SEQ_AXIS] - 1;
 

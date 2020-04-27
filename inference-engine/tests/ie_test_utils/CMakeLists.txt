@@ -10,7 +10,3 @@ endif()
 if (ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional_test_utils)
 endif()
-
-if(ENABLE_FUZZING)
-    add_subdirectory(fuzz_test_utils)
-endif()

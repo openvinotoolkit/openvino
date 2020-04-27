@@ -11,6 +11,7 @@
 #include <map>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include <ngraph_ops/interp.hpp>
 
@@ -55,8 +56,10 @@ void ngraph::pass::ConvertInterpolateToInterpOrResample::convert_interpolate_to_
             attrs.antialias = interpolate_attrs.antialias;
 
             auto interp = std::make_shared<ngraph::op::Interp>(data_node, attrs);
-            interp->set_friendly_name(m.get_match_root()->get_friendly_name());
-            ngraph::replace_node(m.get_match_root(), std::dynamic_pointer_cast<ngraph::Node>(interp));
+            interp->set_friendly_name(interpolate->get_friendly_name());
+
+            ngraph::copy_runtime_info(interpolate, interp);
+            ngraph::replace_node(interpolate, interp);
         } else if (interpolate_attrs.pads_begin[0] == 0 && interpolate_attrs.pads_end[0] == 0 && !interpolate_attrs.align_corners) {
             auto attrs = ngraph::op::ResampleIEAttrs();
             attrs.mode = interpolate_mode;
@@ -121,8 +124,9 @@ void ngraph::pass::ConvertInterpolateToInterpOrResample::convert_interpolate_to_
                 resample = std::make_shared<ngraph::op::ResampleV2>(data_node, constant, attrs);
             }
 
-            resample->set_friendly_name(m.get_match_root()->get_friendly_name());
-            ngraph::replace_node(m.get_match_root(), resample);
+            resample->set_friendly_name(interpolate->get_friendly_name());
+            ngraph::copy_runtime_info(interpolate, resample);
+            ngraph::replace_node(interpolate, resample);
         } else {
             return false;
         }

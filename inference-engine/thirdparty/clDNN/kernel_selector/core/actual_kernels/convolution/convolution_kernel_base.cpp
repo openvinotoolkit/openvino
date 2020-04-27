@@ -431,6 +431,10 @@ Datatype ConvolutionKernelBase::GetActivationType(const convolution_params& para
     if (params.quantization != QuantizationType::NONE || quantized_inputs || quantized_weights)
         return Datatype::F32;
 
+    if (params.output.GetDType() == Datatype::UINT8 ||
+        params.output.GetDType() == Datatype::INT8)
+        return Datatype::F32;
+
     return GetUnitType(params);
 }
 

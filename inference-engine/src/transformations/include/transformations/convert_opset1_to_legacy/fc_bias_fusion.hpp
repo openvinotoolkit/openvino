@@ -21,6 +21,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include <ngraph/rt_info.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -81,17 +82,24 @@ private:
                 return false;
             }
 
+            NodeVector new_ops;
+
             auto new_bias = std::make_shared<opset1::Add>(m_fc->input(2).get_source_output(), m_bias);
+            new_ops.push_back(new_bias);
             std::shared_ptr<Node> final_bias = new_bias;
             if (new_bias->get_shape().size() >= 2) {
                 final_bias = std::make_shared<opset1::Reshape>(final_bias, opset1::Constant::create(element::i64, Shape{1}, {-1}), true);
+                new_ops.push_back(final_bias);
             }
 
             auto new_fc = std::make_shared<op::FullyConnected>(m_fc->input(0).get_source_output(),
                                                                m_fc->input(1).get_source_output(),
                                                                final_bias,
                                                                m_fc->get_shape());
+            new_ops.push_back(new_fc);
+
             new_fc->set_friendly_name(add->get_friendly_name());
+            ngraph::copy_runtime_info({m_fc, add}, new_ops);
             ngraph::replace_node(add, new_fc);
             return true;
         };

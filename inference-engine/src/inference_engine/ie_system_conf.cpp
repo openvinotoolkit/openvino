@@ -18,12 +18,15 @@
 namespace InferenceEngine {
 
 #ifdef ENABLE_MKL_DNN
-static Xbyak::util::Cpu cpu;
+static Xbyak::util::Cpu& get_cpu_info() {
+    static Xbyak::util::Cpu cpu;
+    return cpu;
+}
 #endif
 
 bool with_cpu_x86_sse42() {
 #ifdef ENABLE_MKL_DNN
-    return cpu.has(Xbyak::util::Cpu::tSSE42);
+    return get_cpu_info().has(Xbyak::util::Cpu::tSSE42);
 #else
 #if defined(HAVE_SSE)
     return true;
@@ -33,9 +36,21 @@ bool with_cpu_x86_sse42() {
 #endif
 }
 
+bool with_cpu_x86_avx() {
+#ifdef ENABLE_MKL_DNN
+    return get_cpu_info().has(Xbyak::util::Cpu::tAVX);
+#else
+#if defined(HAVE_AVX)
+    return true;
+#else
+    return false;
+#endif
+#endif
+}
+
 bool with_cpu_x86_avx2() {
 #ifdef ENABLE_MKL_DNN
-    return cpu.has(Xbyak::util::Cpu::tAVX2);
+    return get_cpu_info().has(Xbyak::util::Cpu::tAVX2);
 #else
 #if defined(HAVE_AVX2)
     return true;
@@ -47,7 +62,7 @@ bool with_cpu_x86_avx2() {
 
 bool with_cpu_x86_avx512f() {
 #ifdef ENABLE_MKL_DNN
-    return cpu.has(Xbyak::util::Cpu::tAVX512F);
+    return get_cpu_info().has(Xbyak::util::Cpu::tAVX512F);
 #else
 #if defined(HAVE_AVX512)
     return true;
@@ -59,9 +74,9 @@ bool with_cpu_x86_avx512f() {
 
 bool with_cpu_x86_avx512_core() {
 #ifdef ENABLE_MKL_DNN
-       return cpu.has(Xbyak::util::Cpu::tAVX512F  |
-                      Xbyak::util::Cpu::tAVX512DQ |
-                      Xbyak::util::Cpu::tAVX512BW);
+       return get_cpu_info().has(Xbyak::util::Cpu::tAVX512F |
+                                 Xbyak::util::Cpu::tAVX512DQ |
+                                 Xbyak::util::Cpu::tAVX512BW);
 #else
 #if defined(HAVE_AVX512)
     return true;
@@ -73,7 +88,7 @@ bool with_cpu_x86_avx512_core() {
 
 bool with_cpu_x86_bfloat16() {
 #ifdef ENABLE_MKL_DNN
-    return cpu.has(Xbyak::util::Cpu::tAVX512_BF16);
+    return get_cpu_info().has(Xbyak::util::Cpu::tAVX512_BF16);
 #else
     return false;
 #endif

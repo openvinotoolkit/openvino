@@ -19,8 +19,8 @@
 #include "cpp/ie_infer_request.hpp"
 #include "cpp/ie_memory_state.hpp"
 #include "details/ie_exception_conversion.hpp"
+#include "details/ie_so_loader.h"
 #include "ie_iexecutable_network.hpp"
-#include "ie_plugin_ptr.hpp"
 
 namespace InferenceEngine {
 
@@ -29,7 +29,7 @@ namespace InferenceEngine {
  */
 class ExecutableNetwork {
     IExecutableNetwork::Ptr actual;
-    InferenceEnginePluginPtr plg;
+    details::SharedObjectLoader::Ptr plg;
 
 public:
     /**
@@ -50,7 +50,7 @@ public:
      * @param actual Initialized shared pointer
      * @param plg Plugin to use
      */
-    explicit ExecutableNetwork(IExecutableNetwork::Ptr actual, InferenceEnginePluginPtr plg = {})
+    explicit ExecutableNetwork(IExecutableNetwork::Ptr actual, details::SharedObjectLoader::Ptr plg = {})
         : actual(actual), plg(plg) {
         //  plg can be null, but not the actual
         if (actual == nullptr) {
@@ -129,7 +129,6 @@ public:
      * Wraps IExecutableNetwork::Export.
      *
      * @see Core::ImportNetwork
-     * @see InferencePlugin::ImportNetwork
      *
      * @param modelFileName Full path to the location of the exported file
      */
@@ -143,7 +142,6 @@ public:
      * Wraps IExecutableNetwork::Export.
      *
      * @see Core::ImportNetwork
-     * @see InferencePlugin::ImportNetwork
      *
      * @param networkModel network model output stream
      */

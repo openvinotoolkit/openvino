@@ -21,6 +21,7 @@
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph_ops/deconvolution_ie.hpp"
 #include "ngraph/op/fused/group_conv.hpp"
+#include "ngraph/rt_info.hpp"
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
@@ -136,6 +137,7 @@ ngraph::graph_rewrite_callback ngraph::pass::ConvFusion::get_callback() {
             return false;
         }
 
+        ngraph::copy_runtime_info({m_conv, eltwise}, new_conv);
         new_conv->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::replace_node(m.get_match_root(), new_conv);
         return true;

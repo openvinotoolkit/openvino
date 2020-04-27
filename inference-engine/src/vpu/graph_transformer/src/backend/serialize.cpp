@@ -75,7 +75,7 @@ int BackEnd::serializeIOInfoSection(
                 data->usage());
         }
 
-        VPU_INTERNAL_CHECK(data->parentDataEdge() == nullptr,
+        VPU_INTERNAL_CHECK(data->parentDataToDataEdge() == nullptr,
             "serializeIOInfoSection failed on {} with usage {}. IO data must have no parentDatas but it does");
 
         VPU_INTERNAL_CHECK(!data->attrs().has("ioIdx"),
@@ -119,7 +119,7 @@ void BackEnd::serializeConstData(const Model& model, const mv_blob_header& blobH
         }
 
         IE_ASSERT(data->producerEdge() == nullptr);
-        IE_ASSERT(data->parentDataEdge() == nullptr);
+        IE_ASSERT(data->parentDataToDataEdge() == nullptr);
         IE_ASSERT(data->numConsumers() != 0);
         IE_ASSERT(data->dataLocation().location == Location::Blob);
 

@@ -52,6 +52,13 @@ INFERENCE_ENGINE_API_CPP(int) getNumberOfCPUCores();
 INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_sse42();
 
 /**
+ * @brief      Checks whether CPU supports AVX capability
+ * @ingroup    ie_dev_api_system_conf
+ * @return     `True` is AVX instructions are available, `false` otherwise
+ */
+INFERENCE_ENGINE_API_CPP(bool) with_cpu_x86_avx();
+
+/**
  * @brief      Checks whether CPU supports AVX2 capability
  * @ingroup    ie_dev_api_system_conf
  * @return     `True` is AVX2 instructions are available, `false` otherwise

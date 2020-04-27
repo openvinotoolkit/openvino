@@ -10,12 +10,13 @@
 #include <ngraph_ops/fully_connected.hpp>
 #include <ngraph/builder/make_constant.hpp>
 #include <ngraph/graph_util.hpp>
-#include <ngraph/op/add.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/pattern/op/label.hpp>
 #include <ngraph/pattern/op/skip.hpp>
 #include <ngraph/util.hpp>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <transformations/utils/utils.hpp>
@@ -46,7 +47,7 @@ private:
         auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{2, 4});
 
         auto reshape_shape = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
-        auto reshape = std::make_shared<ngraph::op::v1::Reshape>(input, reshape_shape, true);
+        auto reshape = std::make_shared<ngraph::opset1::Reshape>(input, reshape_shape, true);
 
         auto weights = std::make_shared<pattern::op::Label>(element::f32, Shape{2, 4});
         auto biases = std::make_shared<pattern::op::Label>(element::f32, Shape{2});
@@ -58,7 +59,7 @@ private:
                 return false;
             }
 
-            auto reshape = std::dynamic_pointer_cast<ngraph::op::v1::Reshape>(fc->input_value(0).get_node_shared_ptr());
+            auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(fc->input_value(0).get_node_shared_ptr());
             if (!reshape) {
                 return false;
             }
@@ -82,6 +83,7 @@ private:
                                                                fc->get_shape());
 
             new_fc->set_friendly_name(fc->get_friendly_name());
+            ngraph::copy_runtime_info({reshape, fc}, new_fc);
             ngraph::replace_node(fc, new_fc);
             return true;
         };

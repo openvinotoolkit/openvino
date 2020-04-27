@@ -13,6 +13,7 @@ endif()
 
 if(ENABLE_CPPLINT)
     add_custom_target(cpplint_all ALL)
+    set_target_properties(cpplint_all PROPERTIES FOLDER cpplint)
     set(CPPLINT_ALL_OUTPUT_FILES "" CACHE INTERNAL "All cpplint output files")
 endif()
 
@@ -93,6 +94,7 @@ function(add_cpplint_target TARGET_NAME)
     add_custom_target(${TARGET_NAME} ALL
         DEPENDS ${all_output_files}
         COMMENT "[cpplint] ${TARGET_NAME}")
+    set_target_properties(${TARGET_NAME} PROPERTIES FOLDER cpplint)
 
     if(CPPLINT_FOR_TARGETS)
         foreach(target IN LISTS CPPLINT_FOR_TARGETS)
@@ -168,4 +170,5 @@ function(add_cpplint_report_target)
     add_custom_target(cpplint_report
         DEPENDS "${html_output_file}"
         COMMENT "[cpplint] Generate report")
+    set_target_properties(cpplint_report PROPERTIES FOLDER cpplint)
 endfunction()

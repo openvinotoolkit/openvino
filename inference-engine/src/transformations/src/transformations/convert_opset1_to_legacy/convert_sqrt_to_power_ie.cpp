@@ -11,6 +11,7 @@
 
 #include <ngraph_ops/power.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertSqrtToPowerIE::convert_sqrt() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
@@ -24,7 +25,8 @@ void ngraph::pass::ConvertSqrtToPowerIE::convert_sqrt() {
         }
         auto power_ie = std::make_shared<ngraph::op::PowerIE>(sqrt->input(0).get_source_output(), 0.5f, 1, 0);
         power_ie->set_friendly_name(sqrt->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), power_ie);
+        ngraph::copy_runtime_info(sqrt, power_ie);
+        ngraph::replace_node(sqrt, power_ie);
         return true;
     };
 

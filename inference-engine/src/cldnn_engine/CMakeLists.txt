@@ -25,11 +25,13 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${INTEL_ITT_LIBS} inference_engine inference_engine_lp_transformations clDNN_lib pugixml)
+target_link_libraries(${TARGET_NAME} PRIVATE ${INTEL_ITT_LIBS} inference_engine inference_engine_lp_transformations
+                                             clDNN_lib pugixml inference_engine_transformations)
 
 set (CLDNN_TOP_FOLDER ${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN)
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
+        $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
         ${CLDNN__IOCL_ICD_INCDIRS}
         ${CLDNN_TOP_FOLDER})
 
@@ -42,9 +44,9 @@ add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
 # install
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cldnn_global_custom_kernels
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT gpu)
 
 install(FILES "${clDNN_SOURCE_DIR}/kernel_selector/core/cache/cache.json"
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT gpu)

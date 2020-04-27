@@ -94,19 +94,16 @@ TEST(TestAgeGenderIE, InferBasicTensor)
 
     IE::Blob::Ptr ie_age, ie_gender;
     {
-        IE::CNNNetReader reader;
-        reader.ReadNetwork(topology_path);
-        reader.ReadWeights(weights_path);
-        auto net = reader.getNetwork();
+        IE::Core ie;
+        auto net = ie.ReadNetwork(topology_path, weights_path);
 
         const auto &iedims = net.getInputsInfo().begin()->second->getTensorDesc().getDims();
               auto  cvdims = cv::gapi::ie::util::to_ocv(iedims);
         in_mat.create(cvdims, CV_32F);
         cv::randu(in_mat, -1, 1);
 
-        auto plugin = IE::PluginDispatcher().getPluginByDevice("CPU");
-        auto plugin_net = plugin.LoadNetwork(net, {});
-        auto infer_request = plugin_net.CreateInferRequest();
+        auto execNet = ie.LoadNetwork(net, "CPU");
+        auto infer_request = execNet.CreateInferRequest();
 
         infer_request.SetBlob("data", cv::gapi::ie::util::to_ie(in_mat));
         infer_request.Infer();
@@ -153,17 +150,14 @@ TEST(TestAgeGenderIE, InferBasicImage)
     namespace IE = InferenceEngine;
     IE::Blob::Ptr ie_age, ie_gender;
     {
-        IE::CNNNetReader reader;
-        reader.ReadNetwork(topology_path);
-        reader.ReadWeights(weights_path);
-        auto net = reader.getNetwork();
+        IE::Core ie;
+        auto net = reader.ReadNetwork(topology_path, weights_path);
         auto &ii = net.getInputsInfo().at("data");
         ii->setPrecision(IE::Precision::U8);
         ii->setLayout(IE::Layout::NHWC);
         ii->getPreProcess().setResizeAlgorithm(IE::RESIZE_BILINEAR);
 
-        auto plugin = IE::PluginDispatcher().getPluginByDevice("CPU");
-        auto plugin_net = plugin.LoadNetwork(net, {});
+        auto plugin_net = ie.LoadNetwork(net, "CPU");
         auto infer_request = plugin_net.CreateInferRequest();
 
         infer_request.SetBlob("data", cv::gapi::ie::util::to_ie(in_mat));
@@ -216,17 +210,14 @@ TEST(TestAgeGenderIE, InferROIList)
     namespace IE = InferenceEngine;
     std::vector<cv::Mat> ie_age, ie_gender;
     {
-        IE::CNNNetReader reader;
-        reader.ReadNetwork(topology_path);
-        reader.ReadWeights(weights_path);
-        auto net = reader.getNetwork();
+        IE::Core ie;
+        auto net = ie.ReadNetwork(topology_path,weights_path );
         auto &ii = net.getInputsInfo().at("data");
         ii->setPrecision(IE::Precision::U8);
         ii->setLayout(IE::Layout::NHWC);
         ii->getPreProcess().setResizeAlgorithm(IE::RESIZE_BILINEAR);
 
-        auto plugin = IE::PluginDispatcher().getPluginByDevice("CPU");
-        auto plugin_net = plugin.LoadNetwork(net, {});
+        auto plugin_net = ie.LoadNetwork(net, "CPU");
         auto infer_request = plugin_net.CreateInferRequest();
         auto frame_blob = cv::gapi::ie::util::to_ie(in_mat);
 

@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadTileNetwork) {
     std::string model = R"V0G0N(
-<net name="Transpose" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,2,3,4"/>
@@ -67,7 +67,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Transpose" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -116,7 +116,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork) {
 
 TEST_F(NGraphReaderTests, ReadTileNetwork2) {
     std::string model = R"V0G0N(
-<net name="Transpose" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,64,10,10"/>
@@ -177,7 +177,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork2) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Transpose" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -190,7 +190,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork2) {
             </output>
         </layer>
         <layer id="1" name="tile:" precision="FP32" type="Tile">
-        <data axis="3" tiles="4"/>
+        <data axis="3" tiles="4" originalLayersNames="tile"/>
             <input>
                 <port id="0">
                     <dim>1</dim>
@@ -209,7 +209,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork2) {
             </output>
         </layer>
         <layer id="2" name="tile:_3" precision="FP32" type="Tile">
-        <data axis="2" tiles="3"/>
+        <data axis="2" tiles="3" originalLayersNames="tile"/>
             <input>
                 <port id="0">
                     <dim>1</dim>
@@ -227,7 +227,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork2) {
                 </port>
             </output>
         </layer>
-        <layer id="3" name="tile:_3_2" precision="FP32" type="Tile">
+        <layer id="3" name="tile" precision="FP32" type="Tile">
         <data axis="0" tiles="2"/>
             <input>
                 <port id="0">

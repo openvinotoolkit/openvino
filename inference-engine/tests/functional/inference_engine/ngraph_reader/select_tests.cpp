@@ -7,7 +7,7 @@
 
 TEST_F(NGraphReaderTests, ReadSelectFP32Network) {
     std::string model = R"V0G0N(
-<net name="Select_net" version="10">
+<net name="Network" version="10">
     <layers>
         <layer name="cond" type="Parameter" id="0" version="opset1">
             <data element_type="boolean" shape="1,3,22,22"/>
@@ -92,7 +92,7 @@ TEST_F(NGraphReaderTests, ReadSelectFP32Network) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Select_net" version="5" precision="BOOL" batch="1">
+<net name="Network" version="5" precision="BOOL" batch="1">
     <layers>
         <layer name="cond" type="Input" precision="BOOL" id="0">
             <output>
@@ -168,7 +168,7 @@ TEST_F(NGraphReaderTests, ReadSelectFP32Network) {
 
 TEST_F(NGraphReaderTests, ReadSelectI32Network) {
     std::string model = R"V0G0N(
-<net name="Select_net" version="10">
+<net name="Network" version="10">
     <layers>
         <layer name="cond" type="Parameter" id="0" version="opset1">
             <data element_type="boolean" shape="1,3,22,22"/>
@@ -253,7 +253,7 @@ TEST_F(NGraphReaderTests, ReadSelectI32Network) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Select_net" version="5" precision="BOOL" batch="1">
+<net name="Network" version="5" precision="BOOL" batch="1">
     <layers>
         <layer name="cond" type="Input" precision="BOOL" id="0">
             <output>

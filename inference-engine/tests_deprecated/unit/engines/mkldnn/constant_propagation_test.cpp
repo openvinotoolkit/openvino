@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <ie_iextension.h>
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 #include <ie_common.h>
 #include <ie_layers.h>
 #include <tests_common.hpp>
@@ -236,11 +236,12 @@ TEST_F(MKLDNNConstantPropagationTests, ConcatAfterConstLayers) {
         </Net>
         )V0G0N";
 
-    InferenceEngine::CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+    InferenceEngine::Core core;
+    InferenceEngine::CNNNetwork network;
+    ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
     MKLDNNGraphTestClass graph;
-    graph.CreateGraph(net_reader.getNetwork(), extMgr);
+    graph.CreateGraph(network, extMgr);
 
     InferenceEngine::SizeVector dims_src1 = {1, 2, 10, 5};
 
@@ -259,7 +260,7 @@ TEST_F(MKLDNNConstantPropagationTests, ConcatAfterConstLayers) {
     srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in2", src2));
 
     InferenceEngine::OutputsDataMap out;
-    out = net_reader.getNetwork().getOutputsInfo();
+    out = network.getOutputsInfo();
     InferenceEngine::BlobMap outputBlobs;
 
     auto it = out.begin();

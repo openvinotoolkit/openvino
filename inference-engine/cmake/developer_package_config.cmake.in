@@ -33,7 +33,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/targets_developer.cmake")
 set_property(TARGET IE::inference_engine PROPERTY IMPORTED_GLOBAL TRUE)
 
 get_target_property(InferenceEngine_INCLUDE_DIRS IE::inference_engine INTERFACE_INCLUDE_DIRECTORIES)
-set(InferenceEngine_LIBRARIES IE::inference_engine_legacy IE::inference_engine IE::inference_engine_nn_builder)
+set(InferenceEngine_LIBRARIES IE::inference_engine_legacy IE::inference_engine)
 
 #
 # Common cmake includes

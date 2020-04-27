@@ -18,14 +18,21 @@
 
 namespace kernel_selector {
 bool LRNKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::LRN || o.GetType() != KernelType::LRN) {
+    if (!common_kernel_base::Validate(p, o) || p.GetType() != KernelType::LRN || o.GetType() != KernelType::LRN) {
         return false;
+    }
+
+    const lrn_params& params = static_cast<const lrn_params&>(p);
+
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
     }
 
     return true;
 }
 
-JitConstants LRNKernelBase::GetJitConstants(const lrn_params& params, LRNKernelBase::DispatchData kd) const {
+JitConstants LRNKernelBase::GetJitConstants(const lrn_params& params, const LRNKernelBase::DispatchData& kd) const {
     JitConstants mem_consts = MakeBaseParamsJitConstants(params);
 
     const auto padding = (params.localSize - 1) / 2;
@@ -95,9 +102,20 @@ KernelsData LRNKernelBase::GetCommonKernelsData(const Params& params,
     auto cldnnJit = GetJitConstants(orgParams, runInfo);
     auto entryPoint = GetEntryPoint(kernelName, orgParams.layerID, options);
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
+    auto fused_deps_total = GetFusedPrimitiveInputsCount(params);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entryPoint);
+    FillCLKernelData(kernel,
+                     runInfo,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entryPoint,
+                     "",
+                     false,
+                     false,
+                     1,
+                     fused_deps_total);
 
     kd.estimatedTime = estimatedTime;
 

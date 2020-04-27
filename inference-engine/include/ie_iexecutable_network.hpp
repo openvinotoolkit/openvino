@@ -43,9 +43,9 @@ public:
     /**
      * @brief Gets the Executable network output Data node information.
      *
-     * The received info is stored in the given ::ConstOutputsDataMap node.
-     * This method need to be called to find output names for using them later during filling of a map
-     * of blobs passed to InferenceEngine::IInferencePlugin::Infer()
+     * The received info is stored in the given InferenceEngine::ConstOutputsDataMap node.
+     * This method need to be called to find output names for using them later
+     * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
      *
      * @param out Reference to the ::ConstOutputsDataMap object
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
@@ -57,8 +57,8 @@ public:
      * @brief Gets the executable network input Data node information.
      *
      * The received info is stored in the given ::ConstInputsDataMap object.
-     * This method need to be called to find out input names for using them later during filling of a map
-     * of blobs passed to InferenceEngine::IInferencePlugin::Infer()
+     * This method need to be called to find out input names for using them later
+     * when calling InferenceEngine::InferRequest::SetBlob
      *
      * @param inputs Reference to ::ConstInputsDataMap object.
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
@@ -81,7 +81,6 @@ public:
      * @brief Exports the current executable network.
      *
      * @see Core::ImportNetwork
-     * @see IInferencePlugin::ImportNetwork
      *
      * @param modelFileName Full path to the location of the exported file
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
@@ -93,7 +92,6 @@ public:
      * @brief Exports the current executable network.
      *
      * @see Core::ImportNetwork
-     * @see IInferencePlugin::ImportNetwork
      *
      * @param networkModel Network model output stream
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure

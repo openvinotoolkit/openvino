@@ -61,6 +61,22 @@ Model Optimizer requires:
     pip3 install -r requirements.txt
     </pre>
 
+4. [OPTIONAL] If you use Windows OS, most probably you get python version of `protobuf` library. It is known to be rather slow,
+   and you can use a boosted version of library by building the .egg file (Python package format) yourself,
+   using instructions below (section 'How to boost Caffe model loading') for the target OS and Python, or install it
+   with the pre-built .egg (it is built for Python 3.4, 3.5, 3.6, 3.7):
+    <pre>
+        python3 -m easy_install protobuf-3.6.1-py3.6-win-amd64.egg
+    </pre>
+
+   It overrides the protobuf python package installed by the previous command.
+
+   Set environment variable to enable boost in protobuf performance:
+    <pre>
+        set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
+    </pre>
+
+
 ## Command-Line Interface (CLI)
 
 The following short examples are framework-dependent. Please read the complete help
@@ -143,6 +159,9 @@ The whole workflow and more documentation on the structure of IR are documented 
 of Inference Engine. Note that sections about running Model Optimizer refer to the old version
 of the tool and can not be applied to the current version of Model Optimizer.
 
+
+## Setup development environment
+
 ### How to run unit-tests
 
 1. Run tests with:
@@ -150,5 +169,30 @@ of the tool and can not be applied to the current version of Model Optimizer.
     python -m unittest discover -p "*_test.py" [-s PATH_TO_DIR]
 </pre>
 
----
-\* Other names and brands may be claimed as the property of others.
+### How to capture unit-tests coverage
+
+1. Run tests with:
+<pre>
+    coverage run -m unittest discover -p "*_test.py" [-s PATH_TO_DIR]
+</pre>
+
+2. Build html report:
+<pre>
+    coverage html
+</pre>
+
+### How to run code linting
+
+1. Run the following command:
+<pre>
+    pylint mo/ mo.py
+</pre>
+
+### How to check requirements dependencies 
+
+1. Run the following command:
+<pre>
+    safety check -r requirements_file
+</pre>
+
+> **NOTE**: here <code>requirements_file</code> is one of the following: <code>requirements.txt</code>, <code>requirements_caffe.txt</code>, <code>requirements_tf.txt</code>, <code>requirements_mxnet.txt</code>, <code>requirements_dev.txt</code>.

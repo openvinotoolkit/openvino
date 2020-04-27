@@ -117,17 +117,29 @@ class DataNode final :
     VPU_MODEL_ATTRIBUTE(StageOutput, producerEdge, nullptr)
     VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageInputList, consumerEdges)
 
+    VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageDependencyList, dependentStagesEdges)
+
     VPU_MODEL_ATTRIBUTE(StageTempBuffer, tempBufferEdge, nullptr)
 
     /**
      * Parent data edge actually allocates memory
      */
-    VPU_MODEL_ATTRIBUTE(SharedAllocation, parentDataEdge, nullptr)
+    VPU_MODEL_ATTRIBUTE(DataToDataAllocation, parentDataToDataEdge, nullptr)
 
     /**
      * Children data edges uses parent's memory
      */
-    VPU_MODEL_ATTRIBUTE_PTR_RANGE(SharedAllocationList, childDataEdges)
+    VPU_MODEL_ATTRIBUTE_PTR_RANGE(DataToDataAllocationList, childDataToDataEdges)
+
+    /**
+     * Parent data edge actually allocates memory as a shape for current data
+     */
+    VPU_MODEL_ATTRIBUTE(DataToShapeAllocation, parentDataToShapeEdge, nullptr)
+
+    /**
+     * Children data edges uses parent's memory as a shape
+     */
+    VPU_MODEL_ATTRIBUTE_PTR_RANGE(DataToShapeAllocationList, childDataToShapeEdges)
 
     //
     // Const data content
@@ -157,7 +169,7 @@ private:
     };
 
     struct ChildDataAccess final {
-        inline auto operator()(const SharedAllocation& edge) const -> decltype(edge->child()) {
+        inline auto operator()(const DataToDataAllocation& edge) const -> decltype(edge->child()) {
             return edge->child();
         }
     };
@@ -182,14 +194,14 @@ public:
     }
 
     inline Data parentData() const {
-        return _parentDataEdge == nullptr ? nullptr : _parentDataEdge->parent();
+        return _parentDataToDataEdge == nullptr ? nullptr : _parentDataToDataEdge->parent();
     }
 
     inline int numChildDatas() const {
-        return _childDataEdges.size();
+        return _childDataToDataEdges.size();
     }
-    inline auto childDatas() const -> decltype(mapRange<ChildDataAccess>(childDataEdges())) {
-        return mapRange<ChildDataAccess>(childDataEdges());
+    inline auto childDatas() const -> decltype(mapRange<ChildDataAccess>(childDataToDataEdges())) {
+        return mapRange<ChildDataAccess>(childDataToDataEdges());
     }
 
     Data getTopParentData() const;
@@ -257,7 +269,9 @@ private:
 private:
     inline DataNode() :
         _consumerEdges(&StageInputEdge::_posInData),
-        _childDataEdges(&SharedAllocationEdge::_posInData),
+        _dependentStagesEdges(&StageDependencyEdge::_posInData),
+        _childDataToDataEdges(&DataToDataAllocationEdge::_posInData),
+        _childDataToShapeEdges(&DataToShapeAllocationEdge::_posInData),
         _posInModel(this) {
     }
 

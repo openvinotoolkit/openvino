@@ -505,18 +505,17 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Exp>::createLayer(const std::shared_ptr<
 
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::MVN>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "MVN",
-                          details::convertPrecision(layer->get_output_element_type(0))};
+    LayerParams params = {layer->get_friendly_name(), "MVN", details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::MVNLayer>(params);
     auto castedLayer = ngraph::as_type_ptr<ngraph::op::MVN>(layer);
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
     res->params["eps"] = asString(castedLayer->get_eps());
-    if (castedLayer->get_reduction_axes().size() == castedLayer->get_shape().size()) {
-        res->params["across_channels"] = "1";
-    } else {
-        res->params["across_channels"] = "0";
-    }
+
+    const size_t chanelAxis = 1;
+    ngraph::AxisSet reductionAxes = castedLayer->get_reduction_axes();
+    res->params["across_channels"] = asString(reductionAxes.count(chanelAxis) > 0);
+
     res->params["normalize_variance"] = asString(castedLayer->get_normalize_variance());
     return res;
 }
@@ -769,6 +768,20 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ConvolutionIE>::createLayer(
     auto & rt_info = layer->get_rt_info();
     InferenceEngine::Parameter attr(rt_info["keep_constants"]);
     bool keep_constants = attr.as<bool>();
+
+    //  These params added for CPU tests
+    if (rt_info.find("PrimitivesPriority") != rt_info.end()) {
+        attr = rt_info["PrimitivesPriority"];
+        res->params["PrimitivesPriority"] = attr.as<std::string>();
+    }
+    if (rt_info.find("InputMemoryFormats") != rt_info.end()) {
+        attr = rt_info["InputMemoryFormats"];
+        res->params["InputMemoryFormats"] = attr.as<std::string>();
+    }
+    if (rt_info.find("OutputMemoryFormats") != rt_info.end()) {
+        attr = rt_info["OutputMemoryFormats"];
+        res->params["OutputMemoryFormats"] = attr.as<std::string>();
+    }
 
     NodeConverter<ngraph::op::Constant> converter;
     const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
@@ -1373,6 +1386,24 @@ CNNLayer::Ptr NodeConverter<ngraph::op::SquaredDifference>::createLayer(const st
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
     res->params["operation"] = "squared_diff";
+    return res;
+}
+
+template <>
+CNNLayer::Ptr NodeConverter<ngraph::op::v1::Select>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    LayerParams params = {layer->get_friendly_name(), "Select", details::convertPrecision(layer->get_output_element_type(0))};
+
+    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
+    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::Select>(layer);
+    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
+
+    auto broadcast = castedLayer->get_auto_broadcast().m_type;
+    if (broadcast == ngraph::op::AutoBroadcastType::NUMPY) {
+        res->params["auto_broadcast"] = "numpy";
+    } else if (broadcast == ngraph::op::AutoBroadcastType::NONE) {
+        res->params["auto_broadcast"] = "none";
+    }
+
     return res;
 }
 

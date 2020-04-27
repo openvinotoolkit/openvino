@@ -22,12 +22,11 @@ namespace LayerTestsDefinitions {
 
 std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<batchToSpaceParamsTuple> &obj) {
     std::vector<size_t> inShapes, blockShape, cropsBegin, cropsEnd;
-    InferenceEngine::Precision inPrc, netPrc;
+    InferenceEngine::Precision  netPrc;
     std::string targetName;
-    std::tie(blockShape, cropsBegin, cropsEnd, inShapes, inPrc, netPrc, targetName) = obj.param;
+    std::tie(blockShape, cropsBegin, cropsEnd, inShapes, netPrc, targetName) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inShapes) << "_";
-    result << "inPRC=" << inPrc.name() << "_";
     result << "netPRC=" << netPrc.name() << "_";
     result << "BS=" << CommonTestUtils::vec2str(blockShape) << "_";
     result << "CB=" << CommonTestUtils::vec2str(cropsBegin) << "_";
@@ -38,20 +37,23 @@ std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<
 
 void BatchToSpaceLayerTest::SetUp() {
     std::vector<size_t> inputShape, blockShape, cropsBegin, cropsEnd;
-    std::tie(blockShape, cropsBegin, cropsEnd, inputShape, inputPrecision, netPrecision,
-             targetDevice) = this->GetParam();
-
+    InferenceEngine::Precision netPrecision;
+    std::tie(blockShape, cropsBegin, cropsEnd, inputShape, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto b2s = ngraph::builder::makeBatchToSpace(paramOuts[0], ngPrc, blockShape, cropsBegin, cropsEnd);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(b2s)};
-    fnPtr = std::make_shared<ngraph::Function>(results, params, "BatchToSpace");
+    function = std::make_shared<ngraph::Function>(results, params, "BatchToSpace");
 }
 
 TEST_P(BatchToSpaceLayerTest, CompareWithRefs) {
-    inferAndValidate();
+    Run();
+
+    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+        PluginCache::get().reset();
+    }
 };
 
 }  // namespace LayerTestsDefinitions

@@ -138,6 +138,14 @@ function (RESOLVE_DEPENDENCY NAME_OF_CMAKE_VAR)
 
 endfunction(RESOLVE_DEPENDENCY)
 
+function (resolve_model_dependency network archive network_model_path)
+  RESOLVE_DEPENDENCY(${network_model_path}
+        ARCHIVE "models_archives/${archive}"
+        TARGET_PATH "${MODELS_PATH}/${network}")
+  string (REPLACE ${MODELS_PATH} "" relative_path ${${network_model_path}})
+  set(${network_model_path} ".${relative_path}" PARENT_SCOPE)
+endfunction()
+
 function(reset_deps_cache)
     #
     # Reset the dependencies cache if it was set by dependency solver

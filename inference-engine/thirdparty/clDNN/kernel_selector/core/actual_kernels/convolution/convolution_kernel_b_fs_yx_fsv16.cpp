@@ -58,11 +58,18 @@ ConvolutionKernel_b_fs_yx_fsv16::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16:
 ParamsKey ConvolutionKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
-    k.EnableOutputDataType(Datatype::F16);
-    k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputDataType(Datatype::F32);
+
+    k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+
+    k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
+
+    k.EnableDifferentTypes();
+
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableTensorOffset();
@@ -141,18 +148,21 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_p
     if (input.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0)
         return false;
 
+    if (!params.bias.empty() && params.bias[0].GetDType() != input.GetDType())
+        return false;
+
     return true;
 }
 
 JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_params& params,
-                                                         const DispatchData& runInfo) const {
+                                                              const DispatchData& runInfo) const {
     auto input = params.inputs[0];
     auto output = params.output;
     auto jit = Parent::GetJitConstants(params, runInfo);
 
     auto blockWidth = runInfo.cldnnStyle.blockWidth;
     if (!params.fused_ops.empty()) {
-        auto input_dt = GetUnitType(params);
+        auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf_vec = { "_VEC",
                                            {"b", "(f_block*16)", "y", "x"},
                                            "dst",

@@ -140,7 +140,8 @@ private:
 
         {
             auto supportedDataTypesInput0 = EnumSet<DataType>{DataType::FP16};
-            if (operation == StageType::Sum || operation == StageType::Greater_equal || operation == StageType::Select || operation == StageType::Prod) {
+            if (operation == StageType::Sum || operation == StageType::Greater_equal || operation == StageType::Select ||
+                operation == StageType::Prod || operation == StageType::Max) {
                 supportedDataTypesInput0.insert(DataType::S32);
             }
 

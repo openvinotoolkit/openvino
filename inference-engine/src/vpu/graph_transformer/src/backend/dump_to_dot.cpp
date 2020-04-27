@@ -179,8 +179,12 @@ void BackEnd::dumpModelToDot(
                     }
                 }
                 lbl.appendPair("memReqs", data->memReqs());
-                lbl.appendPair("location", data->dataLocation().location);
-                lbl.appendPair("memoryOffset", data->dataLocation().offset);
+                lbl.appendPair("dataLocation", data->dataLocation().location);
+                lbl.appendPair("dataOffset", data->dataLocation().offset);
+                lbl.appendPair("dimsLocation", data->shapeLocation().dimsLocation);
+                lbl.appendPair("dimsOffset", data->shapeLocation().dimsOffset);
+                lbl.appendPair("stridesLocation", data->shapeLocation().stridesLocation);
+                lbl.appendPair("stridesOffset", data->shapeLocation().stridesOffset);
                 if (!data->attrs().empty()) {
                     lbl.appendPair("extraAttrs", data->attrs());
                 }
@@ -308,23 +312,57 @@ void BackEnd::dumpModelToDot(
         }
 
         //
+        // Dump Data->Stage edges
+        //
+
+        for (const auto& data : model->datas()) {
+            for (const auto& dependentStageEdge : data->dependentStagesEdges()) {
+                out.append("%s -> %s [", dataDotName(data), stageDotName(dependentStageEdge->dependentStage()));
+                {
+                    VPU_DOT_IDENT(out);
+
+                    DotLabel lbl("Extra dependency", out);
+                }
+                out.append("];");
+            }
+        }
+
+        //
         // Dump Data<->Data edges
         //
 
         for (const auto& data : model->datas()) {
-            if (auto edge = data->parentDataEdge()) {
+            if (auto edge = data->parentDataToDataEdge()) {
                 out.append("%s -> %s [", dataDotName(edge->child()), dataDotName(edge->parent()));
                 {
                     VPU_DOT_IDENT(out);
 
                     out.append("style=dotted");
 
-                    DotLabel lbl("SharedAllocation", out);
+                    DotLabel lbl("DataToDataAllocation", out);
                     lbl.appendPair("mode", edge->mode());
                     lbl.appendPair("order", edge->order());
                     if (!edge->attrs().empty()) {
                         lbl.appendPair("extraAttrs", edge->attrs());
                     }
+                }
+                out.append("];");
+            }
+        }
+
+        //
+        // Dump Data<->Data shape edges
+        //
+
+        for (const auto& data : model->datas()) {
+            if (auto edge = data->parentDataToShapeEdge()) {
+                out.append("%s -> %s [", dataDotName(edge->parent()), dataDotName(edge->child()));
+                {
+                    VPU_DOT_IDENT(out);
+
+                    out.append("style=dotted");
+
+                    DotLabel lbl("DataToShapeAllocation", out);
                 }
                 out.append("];");
             }

@@ -50,6 +50,7 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         ]
     """
     enabled = True
+    force_shape_inference = True
 
     def run_before(self):
         return [InterpolateSequenceToInterpolate]

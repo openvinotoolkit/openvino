@@ -377,6 +377,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>());
 
+            should_fuse |= input_data.is_type<lrn>();
+
             should_fuse |= input_data.is_type<pooling>() &&
                 (input_data.get_dependency(0).get_output_layout().data_type == data_types::i8 ||
                  input_data.get_dependency(0).get_output_layout().data_type == data_types::u8) &&
@@ -409,6 +411,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<fully_connected>() && fc_supports_fusings(input_data.as<fully_connected>());
 
             should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>());
+
+            should_fuse |= input_data.is_type<lrn>();
 
             should_fuse |= input_data.is_type<pooling>() &&
                 (input_data.get_dependency(0).get_output_layout().data_type == data_types::i8 ||
@@ -450,6 +454,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<convolution>() && conv_supports_fusings(input_data.as<convolution>()) &&
                            quantize_node.get_scale_shift_opt() &&
                            ((out_layout.data_type == data_types::f32 || out_layout.data_type == data_types::f16)  ||
+                            input_data.get_output_layout().format == format::b_fs_yx_fsv16 ||
+                            (_lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_dependency(1).get_output_layout()) &&
+                             !is_grouped_conv(input_data.as<convolution>())) ||
                            // Avoid fusing to b_fs_yx_fsv16 (and similar) kernels
                            ((input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
                            input_data.get_dependency(0).get_output_layout().data_type == data_types::i8) &&
@@ -466,6 +473,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<fully_connected>() && fc_supports_fusings(input_data.as<fully_connected>()) &&
                            quantize_node.get_scale_shift_opt() &&
                            (out_layout.data_type == data_types::u8 || out_layout.data_type == data_types::i8);
+
+            should_fuse |= input_data.is_type<lrn>() &&
+                           quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>()) &&
                            quantize_node.get_scale_shift_opt() &&
@@ -661,7 +671,7 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     // only single ADD operation is currently supported
     // TODO: enable more
     eltwise& eltw = const_cast<eltwise&>(*eltw_node->get_primitive());
-    if (eltw.mode != eltwise_mode::sum)
+    if (eltw.mode != eltwise_mode::sum || !eltw.coefficients.empty())
         return;
 
     int eltw_fused_input_idx;   // <-- this input gets fused with eltwise

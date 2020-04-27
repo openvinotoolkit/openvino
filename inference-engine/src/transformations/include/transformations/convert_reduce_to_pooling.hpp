@@ -165,10 +165,12 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
              *
              *  Note: some of reshape nodes can be optimized if they do nothing.
              */
+            NodeVector new_ops;
 
             if (!shape_begin.empty() && shape_begin != input->output(0).get_shape()) {
                 input = std::make_shared<ngraph::opset1::Reshape>(input, opset1::Constant::create(element::i64, Shape{shape_begin.size()}, shape_begin), true);
                 input->set_friendly_name(reduce->get_friendly_name() + "/reshape_begin");
+                new_ops.push_back(input);
             }
 
             if (std::is_same<T, ngraph::opset1::ReduceMean>()) {
@@ -181,6 +183,7 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                                                                   op::RoundingType::FLOOR);
 
                 input->set_friendly_name(reduce->get_friendly_name() + "/pool");
+                new_ops.push_back(input);
             } else if (std::is_same<T, ngraph::opset1::ReduceMax>()) {
                 input = std::make_shared<ngraph::opset1::MaxPool>(input,
                                                                   strides,
@@ -190,6 +193,7 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                                                                   op::RoundingType::FLOOR);
 
                 input->set_friendly_name(reduce->get_friendly_name() + "/pool");
+                new_ops.push_back(input);
             } else if (std::is_same<T, ngraph::opset1::ReduceSum>()) {
                 input = std::make_shared<ngraph::opset1::AvgPool>(input,
                                                                   strides,
@@ -200,19 +204,22 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                                                                   op::RoundingType::FLOOR);
 
                 input->set_friendly_name(reduce->get_friendly_name() + "/pool");
+                new_ops.push_back(input);
 
                 input = std::make_shared<ngraph::opset1::Multiply>(input,
                         opset1::Constant::create(reduce->input(0).get_element_type(), Shape{1}, {reduction_dims_count}));
                 input->set_friendly_name(reduce->get_friendly_name() + "/mul");
+                new_ops.push_back(input);
             } else {
                 return false;
             }
 
             if (!shape_end.empty() && shape_end != input->output(0).get_shape()) {
                 input = std::make_shared<ngraph::opset1::Reshape>(input, opset1::Constant::create(element::i64, Shape{shape_end.size()}, shape_end), true);
+                new_ops.push_back(input);
             }
             input->set_friendly_name(reduce->get_friendly_name());
-
+            copy_runtime_info(reduce, new_ops);
             replace_node(reduce, input);
             return true;
         };

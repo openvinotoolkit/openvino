@@ -16,6 +16,7 @@
 #include <graph_tools.hpp>
 
 #include <ngraph/function.hpp>
+#include <ngraph/opsets/opset3.hpp>
 
 #include <vpu/compile_env.hpp>
 
@@ -144,7 +145,7 @@ void FrontEnd::detectNetworkBatch(
             for (const auto& outputHandle : layer->get_outputs()) {
                 for (const auto& inputHandle : outputHandle.get_inputs()) {
                     auto outNode = inputHandle->get_node();
-                    if (std::dynamic_pointer_cast<::ngraph::op::Result>(outNode)) {
+                    if (std::dynamic_pointer_cast<::ngraph::opset3::Result>(outNode)) {
                         continue;
                     }
                     VPU_THROW_FORMAT("Unsupported layer %s configuration : it is not a network output", layer->get_name());

@@ -225,6 +225,12 @@ InferenceEngine::Blob::Ptr inline copyBlobWithCast(const InferenceEngine::Blob::
         case InferenceEngine::Precision::U8:
             newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::U8, targetPRC>(blob);
             break;
+        case InferenceEngine::Precision::I32:
+            newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::I32, targetPRC>(blob);
+            break;
+        case InferenceEngine::Precision::BOOL:
+            newBlob = FuncTestUtils::convertBlobPrecision<InferenceEngine::Precision::BOOL, targetPRC>(blob);
+            break;
         default:
             THROW_IE_EXCEPTION << "Conversion from blob with precision " << blob->getTensorDesc().getPrecision().name()
                                << " not implemented yet!";
@@ -249,6 +255,7 @@ InferenceEngine::Blob::Ptr inline createAndFillBlob(const InferenceEngine::Tenso
         CASE(InferenceEngine::Precision::I64)
         CASE(InferenceEngine::Precision::BIN)
         CASE(InferenceEngine::Precision::I32)
+        CASE(InferenceEngine::Precision::BOOL)
 #undef CASE
         default:
             THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();

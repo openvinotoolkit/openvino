@@ -44,6 +44,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tile_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_mvn_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_resample_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_normalize_node.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/batch_to_space.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/broadcast.cpp
@@ -91,7 +92,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unique.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unsqueeze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/softmax.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/normalize.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/interp.cpp
 )
 

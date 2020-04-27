@@ -76,7 +76,28 @@ class OneHot(Op):
 
         node.out_port(0).data.set_shape(output_shape)
 
-        # This operation should be inferred in original TF (NHWC) layout
+        indices = node.in_port(0).data.get_value()
+        depth = node.in_port(1).data.get_value()
+        on_value = node.in_port(2).data.get_value()
+        off_value = node.in_port(3).data.get_value()
+
+        if indices is not None and depth is not None and on_value is not None and off_value is not None:
+            onehot_value = np.full(output_shape, off_value)
+
+            for idx in np.ndindex(tuple(indices_shape)):
+                if axis == 0:
+                    hot_idx = indices[idx], *idx
+                elif (axis > 0) and (axis < len(output_shape) - 1):
+                    hot_idx = *idx[:axis], indices[idx], *idx[axis:]
+                elif axis == len(output_shape) - 1:
+                    hot_idx = *idx, indices[idx]
+
+                if -depth <= indices[idx] < depth:
+                    onehot_value[hot_idx] = on_value
+
+            node.out_port(0).data.set_value(onehot_value)
+
+        # This operation should be inferred in original layout
         node['reinterp_shape'] = True
         node['NCHW'] = True
 
