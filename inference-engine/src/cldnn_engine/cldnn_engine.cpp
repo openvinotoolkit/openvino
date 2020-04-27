@@ -23,6 +23,12 @@
 #include "ie_plugin_config.hpp"
 #include "details/caseless.hpp"
 #include <details/ie_cnn_network_tools.h>
+#include <ngraph/opsets/opset2.hpp>
+#include <ngraph/op/fused/gelu.hpp>
+#include <generic_ie.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include "convert_function_to_cnn_network.hpp"
 
 #undef min
 #undef max
@@ -47,6 +53,48 @@ namespace CLDNNPlugin {
 struct clDNNEngine::impl {
     CLDNNPlugin::Config m_config;
 };
+
+cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::string> &config) const {
+    auto device_info = device_map.begin()->second.get_info();
+    if (config.find(PluginConfigParams::KEY_DEVICE_ID) != config.end()) {
+        auto val = config.at(PluginConfigParams::KEY_DEVICE_ID);
+        if (device_map.find(val) == device_map.end()) {
+            THROW_IE_EXCEPTION << "Invalid device ID: " << val;
+        }
+        device_info = device_map.at(val).get_info();
+    }
+
+    return device_info;
+}
+
+InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngine::ICNNNetwork& network) const {
+    std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
+    if (network.getFunction()) {
+        const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
+            return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) != nullptr;
+        };
+        CNNNetwork net(network.getFunction());
+        auto nGraphFunc = net.getFunction();
+        // Disable shape inference (WA for generic operations)
+        ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
+
+        // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
+        ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
+        ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
+        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
+    } else {
+        clonedNetwork = cloneNet(network);
+    }
+
+    auto implNetwork = std::dynamic_pointer_cast<InferenceEngine::details::CNNNetworkImpl>(clonedNetwork);
+    if (implNetwork) {
+        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
+        ConstTransformer transformator(implNetwork.get());
+        transformator.fullTrim();
+    }
+
+    return clonedNetwork;
+}
 
 clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
     _pluginName = "GPU";
@@ -103,13 +151,8 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     check_inputs(_networkInputs);
 
     CLDNNPlugin::Config conf = _impl->m_config;
-    auto iter = device_map.find(conf.device_id);
-    auto device_info = iter != device_map.end() ?
-                       iter->second.get_info() :
-                       device_map.begin()->second.get_info();
-
+    auto device_info = GetDeviceInfo(config);
     conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
-
     conf.UpdateFromMap(config);
 
     if (conf.enableDynamicBatch) {
@@ -143,11 +186,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     context = m_defaultContext;
 
-    auto clonedNetwork = cloneNet(network);
-    ConstTransformer transformator(clonedNetwork.get());
-    transformator.fullTrim();
-
-    return std::make_shared<CLDNNExecNetwork>(*clonedNetwork, context, conf);
+    return std::make_shared<CLDNNExecNetwork>(*CloneNetwork(network), context, conf);
 }
 
 ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICore * /*core*/, const InferenceEngine::ICNNNetwork &network,
@@ -163,25 +202,15 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     }
 
     CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
-    auto iter = device_map.find(conf.device_id);
-    auto device_info = iter != device_map.end() ?
-                       iter->second.get_info() :
-                       device_map.begin()->second.get_info();
-
+    auto device_info = GetDeviceInfo(config);
     conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
-
-    // TODO - change this when context config and network config will be separated
     conf.UpdateFromMap(config);
 
     if (conf.enableDynamicBatch) {
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
 
-    auto clonedNetwork = cloneNet(network);
-    ConstTransformer transformator(clonedNetwork.get());
-    transformator.fullTrim();
-
-    return std::make_shared<CLDNNExecNetwork>(*clonedNetwork, casted, conf);
+    return std::make_shared<CLDNNExecNetwork>(*CloneNetwork(network), casted, conf);
 }
 
 RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
@@ -217,6 +246,9 @@ void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
 void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
     std::vector <CNNLayer::Ptr> concats;
     std::vector <CNNLayer::Ptr> nextLayerDependent;
+
+    // Verify device id
+    GetDeviceInfo(config);
 
     std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
     for (auto layer : sortedLayers) {

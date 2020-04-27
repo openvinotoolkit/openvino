@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 
 #include <ngraph_ops/strided_slice_ie.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertStridedSliceToStridedSliceIE::convert_strided_slice_to_strided_slice_ie() {
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -54,7 +55,8 @@ void ngraph::pass::ConvertStridedSliceToStridedSliceIE::convert_strided_slice_to
                                                                              output_shape);
         strided_slice_ie->set_friendly_name(strided_slice->get_friendly_name());
 
-        ngraph::replace_node(m.get_match_root(), strided_slice_ie);
+        ngraph::copy_runtime_info(strided_slice, {converted_begin, converted_end, converted_stride, strided_slice_ie});
+        ngraph::replace_node(strided_slice, strided_slice_ie);
         return true;
     };
 

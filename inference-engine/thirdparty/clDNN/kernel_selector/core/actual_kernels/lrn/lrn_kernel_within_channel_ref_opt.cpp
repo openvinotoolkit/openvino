@@ -22,6 +22,8 @@ ParamsKey LRNKernelWithinChannelOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -31,6 +33,7 @@ ParamsKey LRNKernelWithinChannelOpt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableLRNMode(LRNMode::WITHIN_CHANNEL);
     k.EnableLRNKernelDividerMode(KernelDividerMode::FIXED);
+    k.EnableDifferentTypes();
     return k;
 }
 
@@ -48,6 +51,25 @@ CommonDispatchData LRNKernelWithinChannelOpt::SetDefault(const lrn_params& param
     runInfo.lws2 = 1;
 
     return runInfo;
+}
+
+bool LRNKernelWithinChannelOpt::Validate(const Params& p, const optional_params& o) const {
+    if (!LRNKernelBase::Validate(p, o)) {
+        return false;
+    }
+    return true;
+}
+
+JitConstants LRNKernelWithinChannelOpt::GetJitConstants(const lrn_params& params, const LRNKernelWithinChannelOpt::Parent::DispatchData& kd) const {
+    const auto& input_dt = params.inputs[0].GetDType();
+    JitConstants jit = Parent::GetJitConstants(params, kd);
+
+    if (!params.fused_ops.empty()) {
+        FusedOpsConfiguration conf = {"", {"batch_id", "feature_id", "y", "x"}, "lrn_result", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
+    return jit;
 }
 
 KernelsData LRNKernelWithinChannelOpt::GetKernelsData(const Params& params, const optional_params& options) const {

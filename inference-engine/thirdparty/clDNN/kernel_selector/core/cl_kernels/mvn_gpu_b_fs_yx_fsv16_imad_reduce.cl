@@ -15,6 +15,7 @@
 #include "include/common.cl"
 
 // ==============================================================================================================================
+// DECLARE_SG_PACKED_REDUCE_ADD(Name, Type, VecSize, PostOp)
 // DECLARE_WG_PACKED_REDUCE_ADD(Name, Type, VecSize, SgNum, PostOp)
 //
 // Declares function "Name" performing work-group reduction on vector data, using addition operator:
@@ -26,6 +27,10 @@
 //   work-item for which get_sub_group_local_id() == 3 will hold reduced values from value.s2
 //  for other work-items in sub-group the result will be undefined.
 // All work-items in sub-group must enter declared function.
+//
+// DECLARE_SG_PACKED_REDUCE_ADD - declares function with same behaviour, but specialized for case with single sub-group
+// and not using local memory. It is declared as:
+//   Type Name (Type<VecSize> value)
 //
 // Template arguments:
 //   Name    - Name of function to declare.
@@ -58,6 +63,32 @@
 
 #define REDUCE_NO_POST_OP(val) (val)
 
+#define DECLARE_SG_PACKED_REDUCE_ADD(Name, Type, VecSize, PostOp)                                                       \
+    inline Type FUNC(Name) (MAKE_VECTOR_TYPE(Type, VecSize) value) {                                                    \
+        typedef MAKE_VECTOR_TYPE(Type, VecSize) packed_t;                                                               \
+                                                                                                                        \
+        Type result;                                                                                                    \
+                                                                                                                        \
+        /* [uniform] Current sub-groups id */                                                                           \
+        const uint sgid = get_sub_group_id();                                                                           \
+        /* Id of work-item inside sub-group */                                                                          \
+        const uint sglid = get_sub_group_local_id();                                                                    \
+        /* [constexpr] Maximum simd/sub-group size */                                                                   \
+        const uint simd = get_max_sub_group_size();                                                                     \
+                                                                                                                        \
+        /* Accumulation inside sub-group */                                                                             \
+        packed_t acc;  /* [uniform] Accumulator variable */                                                             \
+        __attribute__((opencl_unroll_hint))                                                                             \
+        for (uint idx = 0; idx < VecSize; ++idx) {                                                                      \
+            acc[idx] = sub_group_reduce_add(value[idx]);                                                                \
+        }                                                                                                               \
+        /* Transpose the data to correct layout */                                                                      \
+        if (sglid < VecSize || simd == VecSize) {                                                                       \
+            result = PostOp(acc[sglid]);                                                                                \
+        }                                                                                                               \
+        return result;                                                                                                  \
+    }
+
 #define DECLARE_WG_PACKED_REDUCE_ADD(Name, Type, VecSize, SgNum, PostOp)                                                \
     inline Type FUNC(Name) (MAKE_VECTOR_TYPE(Type, VecSize) value, __local Type* slm_acc) {                             \
         typedef MAKE_VECTOR_TYPE(Type, VecSize) packed_t;                                                               \
@@ -77,49 +108,41 @@
         for (uint idx = 0; idx < VecSize; ++idx) {                                                                      \
             acc[idx] = sub_group_reduce_add(value[idx]);                                                                \
         }                                                                                                               \
-        if ((SgNum) != 1) {                                                                                             \
-            /* More than one sub-group in work-group, reduce using local memory */                                      \
-            /* Store partial results into local memory from sub-groups other than first one */                          \
-            if (sgid != 0 && (sglid < VecSize || simd == VecSize)) {                                                    \
-                slm_acc[(sgid - 1) * VecSize + sglid] = acc[sglid];                                                     \
-            }                                                                                                           \
-            barrier(CLK_LOCAL_MEM_FENCE);                                                                               \
-            /* Accumulate partial results inside first sub-group */                                                     \
-            if (sgid == 0) {                                                                                            \
-                __attribute__((opencl_unroll_hint))                                                                     \
-                for (uint vi = 0; vi < VecSize; ++vi) {                                                                 \
-                    /* Accumulate single vector element using sub_group_reduce_add */                                   \
-                    /* Last work-item inside sub-group holds previous value (iteration or sub-group reduction stage) */ \
+        /* More than one sub-group in work-group, reduce using local memory */                                          \
+        /* Store partial results into local memory from sub-groups other than first one */                              \
+        if (sgid != 0 && (sglid < VecSize || simd == VecSize)) {                                                        \
+            slm_acc[(sgid - 1) * VecSize + sglid] = acc[sglid];                                                         \
+        }                                                                                                               \
+        barrier(CLK_LOCAL_MEM_FENCE);                                                                                   \
+        /* Accumulate partial results inside first sub-group */                                                         \
+        if (sgid == 0) {                                                                                                \
+            __attribute__((opencl_unroll_hint))                                                                         \
+            for (uint vi = 0; vi < VecSize; ++vi) {                                                                     \
+                /* Accumulate single vector element using sub_group_reduce_add */                                       \
+                /* Last work-item inside sub-group holds previous value (iteration or sub-group reduction stage) */     \
                                                                                                                         \
-                    Type tmp = acc[vi];                                                                                 \
-                    __attribute__((opencl_unroll_hint))                                                                 \
-                    for (uint sg = 0; sg < (SgNum) - 1; sg += (simd - 1)) {                                             \
-                        bool last_sglid = sglid == simd - 1;                                                            \
-                        bool sglid_inside_sgs = sg + simd - 1 <= (SgNum) - 1 || sg + sglid < (SgNum) - 1;               \
-                        Type tmp_in_slm = slm_acc[sg * VecSize + sglid * VecSize + vi];                                 \
-                        tmp = last_sglid ? tmp :                                                                        \
-                              sglid_inside_sgs ? tmp_in_slm                                                             \
-                              : 0;                                                                                      \
-                        tmp = sub_group_reduce_add(tmp);                                                                \
-                    }                                                                                                   \
-                    acc[vi] = tmp;                                                                                      \
+                Type tmp = acc[vi];                                                                                     \
+                __attribute__((opencl_unroll_hint))                                                                     \
+                for (uint sg = 0; sg < (SgNum) - 1; sg += (simd - 1)) {                                                 \
+                    bool last_sglid = sglid == simd - 1;                                                                \
+                    bool sglid_inside_sgs = sg + simd - 1 <= (SgNum) - 1 || sg + sglid < (SgNum) - 1;                   \
+                    Type tmp_in_slm = slm_acc[sg * VecSize + sglid * VecSize + vi];                                     \
+                    tmp = last_sglid ? tmp :                                                                            \
+                          sglid_inside_sgs ? tmp_in_slm                                                                 \
+                          : 0;                                                                                          \
+                    tmp = sub_group_reduce_add(tmp);                                                                    \
                 }                                                                                                       \
-                if (sglid < VecSize || simd == VecSize) {                                                               \
-                    result = PostOp(acc[sglid]);                                                                        \
-                    slm_acc[sglid] = result;                                                                            \
-                }                                                                                                       \
+                acc[vi] = tmp;                                                                                          \
             }                                                                                                           \
-            barrier(CLK_LOCAL_MEM_FENCE);                                                                               \
-            /* Read result in all other sub-groups */                                                                   \
-            if (sgid != 0 && (sglid < VecSize || simd == VecSize)) {                                                    \
-                result = slm_acc[sglid];                                                                                \
-            }                                                                                                           \
-        } else {                                                                                                        \
-            /* Single sub-group case, just transpose the data to correct layout */                                      \
             if (sglid < VecSize || simd == VecSize) {                                                                   \
                 result = PostOp(acc[sglid]);                                                                            \
                 slm_acc[sglid] = result;                                                                                \
             }                                                                                                           \
+        }                                                                                                               \
+        barrier(CLK_LOCAL_MEM_FENCE);                                                                                   \
+        /* Read result in all other sub-groups */                                                                       \
+        if (sgid != 0 && (sglid < VecSize || simd == VecSize)) {                                                        \
+            result = slm_acc[sglid];                                                                                    \
         }                                                                                                               \
         return result;                                                                                                  \
     }

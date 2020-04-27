@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 #include <ie_layer_validators.hpp>
-#include <shape_infer/built_in_shape_infer_general_test.hpp>
 #include <memory>
 #include <ie_data.h>
 

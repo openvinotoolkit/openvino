@@ -16,17 +16,25 @@
 #pragma once
 
 #include "lrn_kernel_base.h"
+#include "vector"
 
 namespace kernel_selector {
 class LRNKernelWithinChannelOpt : public LRNKernelBase {
 public:
-    LRNKernelWithinChannelOpt() : LRNKernelBase("lrn_gpu_within_channel_opt") {}
+    using Parent = LRNKernelBase;
+    LRNKernelWithinChannelOpt() : Parent("lrn_gpu_within_channel_opt") {}
     virtual ~LRNKernelWithinChannelOpt() {}
-
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 private:
-    CommonDispatchData SetDefault(const lrn_params& params) const override;
+    DispatchData SetDefault(const lrn_params& params) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
+    bool Validate(const Params& params, const optional_params& options) const override;
+    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& kd) const override;
 };
 }  // namespace kernel_selector

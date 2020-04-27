@@ -12,7 +12,32 @@ void PluginSpecificConversion::SetUp() {
 }
 
 std::string PluginSpecificConversion::getTestCaseName(const testing::TestParamInfo<std::string> & obj) {
-    return obj.param;
+    return "Device=" + obj.param;
+}
+
+TEST_P(PluginSpecificConversion, addOutputAfterLoadNetwork) {
+    std::shared_ptr<ngraph::Function> f(nullptr);
+
+    {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 300, 300});
+        auto const1 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1, 1}, {1});
+        auto add1 = std::make_shared<ngraph::opset1::Add>(input, const1);
+        add1->set_friendly_name("add1");
+        auto const2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 1, 1}, {1});
+        auto add2 = std::make_shared<ngraph::opset1::Add>(add1, const2);
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add2}, ngraph::ParameterVector{input});
+    }
+
+    auto network = InferenceEngine::CNNNetwork(f);
+
+    try {
+        InferenceEngine::Core ie;
+        InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(network, device);
+        network.addOutput("add1");
+        InferenceEngine::ExecutableNetwork exeNetwork2 = ie.LoadNetwork(network, device);
+    } catch (InferenceEngine::details::InferenceEngineException& ex) {
+        FAIL() << ex.what();
+    }
 }
 
 TEST_P(PluginSpecificConversion, GeluConversionTest) {
@@ -34,9 +59,8 @@ TEST_P(PluginSpecificConversion, GeluConversionTest) {
         // Parameter->Activation->Output
         ASSERT_EQ(net.layerCount(), 3);
     } else if (device == "GPU") {
-        // Parameter--->ScaleShift-------------->Eltwise
-        //          `-->ScaleShift->ScaleShift-`
-        ASSERT_EQ(net.layerCount(), 5);
+        // Parameter--->Activation--->
+        ASSERT_EQ(net.layerCount(), 2);
     }
 }
 

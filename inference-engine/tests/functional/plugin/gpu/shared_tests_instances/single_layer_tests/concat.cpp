@@ -19,10 +19,6 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}}
 };
-std::vector<InferenceEngine::Precision> inputPrecisions = {InferenceEngine::Precision::FP32,
-                                                           InferenceEngine::Precision::FP16,
-                                                           InferenceEngine::Precision::U8
-};
 std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                          InferenceEngine::Precision::FP16};
 
@@ -31,7 +27,6 @@ INSTANTIATE_TEST_CASE_P(NoReshape, ConcatLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(axes),
                                 ::testing::ValuesIn(inShapes),
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConcatLayerTest::getTestCaseName);

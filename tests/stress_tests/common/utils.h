@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
 #include <iostream>
@@ -70,3 +74,6 @@ inline void run_in_threads(const int &numthreads, Function const &function, Args
     }
     v.clear();
 }
+
+void auto_expand_env_vars(std::string &input);
+std::string expand_env_vars(const std::string &input);

@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadReLUNetworkWithoutTopologicalOrder) {
     std::string model = R"V0G0N(
-<net name="Activation" version="10">
+<net name="Network" version="10">
     <layers>
         <layer name="output" type="Result" id="2" version="opset1">
             <input>
@@ -55,7 +55,7 @@ TEST_F(NGraphReaderTests, ReadReLUNetworkWithoutTopologicalOrder) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Activation" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer name="activation" id="1" type="ReLU" precision="FP32">
             <input>
@@ -97,7 +97,7 @@ TEST_F(NGraphReaderTests, ReadReLUNetworkWithoutTopologicalOrder) {
 
 TEST_F(NGraphReaderTests, ReadReLUNetwork) {
     std::string model = R"V0G0N(
-<net name="Activation" version="10">
+<net name="Network" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
             <data element_type="f32" shape="1,3,22,22"/>
@@ -146,7 +146,7 @@ TEST_F(NGraphReaderTests, ReadReLUNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Activation" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="0">
             <output>
@@ -188,7 +188,7 @@ TEST_F(NGraphReaderTests, ReadReLUNetwork) {
 
 TEST_F(NGraphReaderTests, ReadReLUScalarNetwork) {
     std::string model = R"V0G0N(
-<net name="Activation" version="10">
+<net name="Network" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
             <data element_type="f32" shape=""/>

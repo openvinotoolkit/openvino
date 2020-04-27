@@ -25,6 +25,8 @@ public:
     void initDescriptor(const InferenceEngine::LayerConfig& config) override;
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
+    void filterSupportedPrimitiveDescriptors() override;
+    void filterSupportedDescriptors();
     bool created() const override;
     bool canBeInPlace() const override {
         return false;

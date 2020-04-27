@@ -9,7 +9,6 @@
 
 #include <gtest/gtest.h>
 
-#include <ie_builders.hpp>
 #include <ie_precision.hpp>
 
 #include "single_layer_common.hpp"

@@ -43,7 +43,7 @@ bool PassImpl::isApplicable(const Stage& copyStage) {
     IE_ASSERT(copyInput->producerEdge() != nullptr);
     IE_ASSERT(copyInput->desc().dimsOrder() == copyOutput->desc().dimsOrder());
 
-    if (copyInput->parentDataEdge() != nullptr) {
+    if (copyInput->parentDataToDataEdge() != nullptr) {
         return false;
     }
     if (copyInput->numChildDatas() > 0) {

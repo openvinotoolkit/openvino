@@ -39,4 +39,5 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_FORMAT_READER)
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
                                                  "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
-set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}
+                                                FOLDER cpp_samples)

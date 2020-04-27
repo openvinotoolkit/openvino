@@ -6,8 +6,6 @@
 
 #include <ie_layers.h>
 
-#include <builders/ie_network_builder.hpp>
-#include <ie_context.hpp>
 #include <list>
 #include <map>
 #include <memory>
@@ -65,12 +63,6 @@ public:
     explicit Reshaper(std::vector<DataPtr> inputs,
                       const LauncherCreator::Ptr& launcherCreator = std::make_shared<LauncherCreator>());
 
-    IE_SUPPRESS_DEPRECATED_START
-
-    explicit Reshaper(Builder::Network* network);
-
-    IE_SUPPRESS_DEPRECATED_END
-
     virtual ~Reshaper() = default;
 
     /**
@@ -107,8 +99,6 @@ public:
 private:
     ReshapeLauncher::Ptr getLauncherByLayerName(const std::string& layerName) const;
 
-    StatusCode networkShapeInfer(const std::map<std::string, SizeVector>& inputShapes, ResponseDesc* resp);
-
     InferenceEngine::details::caseless_set<std::string> getTypeNamesFromExtension(
         const IShapeInferExtensionPtr& extension);
 
@@ -117,10 +107,6 @@ private:
     std::vector<CNNLayerPtr> _allSortedLayers {};
     std::set<CNNLayerPtr> _inputLayers {};
     InferenceEngine::details::caseless_set<std::string> _allTypes;
-
-    IE_SUPPRESS_DEPRECATED_START
-    Builder::Network* network;
-    IE_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace ShapeInfer

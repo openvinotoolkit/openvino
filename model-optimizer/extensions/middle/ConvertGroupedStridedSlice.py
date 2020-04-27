@@ -210,7 +210,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
         k = 0
 
         # Don't permute reshape if channels were squeezed
-        dont_permute = False
+        dont_permute = graph.graph['layout'] == 'NCHW'
         if graph.graph['layout'] == 'NHWC' and ss_node['shrink_axis_mask'][-1] == 1:
             dont_permute = True
 

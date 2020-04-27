@@ -14,6 +14,7 @@
 //   #include <transformations/transformations_tbl.hpp>
 //   #undef NGRAPH_PASS
 
+NGRAPH_PASS(InitNodeInfo, ::ngraph::pass)
 NGRAPH_PASS(ConvertPriorBox, ::ngraph::pass)
 NGRAPH_PASS(ConstantFolding, ::ngraph::pass)
 NGRAPH_PASS(ConvertReduceToPooling, ::ngraph::pass)

@@ -15,6 +15,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 if (NOT(BIN_FOLDER))
     string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
     if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
@@ -82,6 +84,16 @@ else()
     endif()
 endif()
 
+if(APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
+endif()
+
+set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+
 ####################################
 ## to use C++11; can overwritten via cmake command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
@@ -102,6 +114,7 @@ set (BUILD_TESTING OFF)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
     add_subdirectory(thirdparty/gflags)
+    set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
@@ -191,9 +204,13 @@ macro(ie_add_sample)
         target_compile_definitions(${IE_SAMPLE_NAME} PRIVATE USE_OPENCV)
     endif()
 
-    if(WIN32)
-        set_target_properties(${IE_SAMPLE_NAME} PROPERTIES COMPILE_PDB_NAME ${IE_SAMPLE_NAME})
+    set(folder_name cpp_samples)
+    if(IE_SAMPLE_NAME MATCHES ".*_c$")
+        set(folder_name c_samples)
     endif()
+
+    set_target_properties(${IE_SAMPLE_NAME} PROPERTIES FOLDER ${folder_name}
+                                                       COMPILE_PDB_NAME ${IE_SAMPLE_NAME})
 
     if(IE_SAMPLE_INCLUDE_DIRECTORIES)
         target_include_directories(${IE_SAMPLE_NAME} PRIVATE ${IE_SAMPLE_INCLUDE_DIRECTORIES})
@@ -210,7 +227,11 @@ macro(ie_add_sample)
     add_dependencies(ie_samples ${IE_SAMPLE_NAME})
 
     if(COMMAND add_cpplint_target AND NOT IE_SAMPLE_EXCLUDE_CPPLINT)
-        add_cpplint_target(${IE_SAMPLE_NAME}_cpplint FOR_TARGETS ${IE_SAMPLE_NAME})
+        if(folder_name STREQUAL "c_samples")
+            set(custom_filters "-readability/casting,-runtime/printf")
+        endif()
+        add_cpplint_target(${IE_SAMPLE_NAME}_cpplint FOR_TARGETS ${IE_SAMPLE_NAME}
+                           CUSTOM_FILTERS ${custom_filters})
     endif()
 endmacro()
 

@@ -275,6 +275,16 @@ public:
             const Data& updates,
             const Data& axis);
 
+    Stage addScatterElementsUpdateStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input,
+            const Data& output,
+            const Data& indices,
+            const Data& updates,
+            const Data& axis);
+
     Stage addLoopStartStage(
         const Model& model,
         const std::string& name,

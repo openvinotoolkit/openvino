@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertBroadcastToTiles::convert_broadcast_to_tiles() {
     auto weights = std::make_shared<pattern::op::Label>(element::f32, Shape {1});
@@ -34,6 +35,8 @@ void ngraph::pass::ConvertBroadcastToTiles::convert_broadcast_to_tiles() {
 
         auto last_node = std::dynamic_pointer_cast<ngraph::Node>(data_node);
 
+        NodeVector new_ops;
+
         // In case if input_shape and output_shape differ we insert Reshape to align shapes
         if (input_shape.size() != dims_count) {
             if (input_shape.size() > dims_count) {
@@ -57,6 +60,7 @@ void ngraph::pass::ConvertBroadcastToTiles::convert_broadcast_to_tiles() {
             }
             auto shape_const = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape {shape.size()}, shape);
             auto reshape = std::make_shared<ngraph::opset1::Reshape>(data_node, shape_const, true);
+            new_ops.push_back(reshape);
             last_node = std::dynamic_pointer_cast<ngraph::Node>(reshape);
             input_shape = shape;
         }
@@ -80,11 +84,12 @@ void ngraph::pass::ConvertBroadcastToTiles::convert_broadcast_to_tiles() {
 
         auto const_node = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape {dims_count}, dims);
         auto tile = std::make_shared<ngraph::opset1::Tile>(last_node, const_node);
+        new_ops.push_back(tile);
         tile->set_friendly_name(broadcast->get_friendly_name());
 
         last_node = std::dynamic_pointer_cast<ngraph::Node>(tile);
-
-        ngraph::replace_node(m.get_match_root(), last_node);
+        ngraph::copy_runtime_info(broadcast, new_ops);
+        ngraph::replace_node(broadcast, last_node);
         return true;
     };
 

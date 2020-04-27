@@ -11,7 +11,7 @@
 #include "single_layer_common.hpp"
 #include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
 
 using namespace ::testing;
@@ -266,9 +266,6 @@ protected:
             dw_conv_fusing_test_params p = ::testing::WithParamInterface<dw_conv_fusing_test_params>::GetParam();
             std::string model = getModel(p);
 
-            InferenceEngine::CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
             size_t conv1_w_size = p.conv1.krn_w * p.conv1.krn_h * p.conv1.out_c * p.in.c / p.conv1.grp_c + p.conv1.out_c; // conv1 weights + biases
             size_t conv2_w_size = p.conv2.krn_w * p.conv2.krn_h * p.conv2.out_c * p.conv1.out_c / p.conv2.grp_c + p.conv2.out_c; // conv2 weights + biases
 
@@ -278,10 +275,12 @@ protected:
             fill_data((float *) weights->buffer(), weights->size() / sizeof(float), 1);
             InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
 
-            net_reader.SetWeights(weights_ptr);
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
+            ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
 
@@ -298,7 +297,7 @@ protected:
             srcs.insert(std::pair<std::string, InferenceEngine::Blob::Ptr>("in1", src));
 
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();

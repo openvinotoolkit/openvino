@@ -108,7 +108,7 @@ struct ModelHeader {
 class GNAModelSerial {
  public:
     /*
-     * In runtime endpoint mostly same as in serial version, except pf descriptor field
+     * In runtime endpoint mostly same as in serial version, except of descriptor field
      */
     struct RuntimeEndPoint {
         /**

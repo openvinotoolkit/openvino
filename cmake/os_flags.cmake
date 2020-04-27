@@ -223,12 +223,13 @@ if(WIN32)
         # 161 unrecognized pragma
         # 177 variable was declared but never referenced
         # 556 not matched type of assigned function pointer
+        # 1744: field of class type without a DLL interface used in a class with a DLL interface
         # 2586 decorated name length exceeded, name was truncated
         # 2651: attribute does not apply to any entity
         # 3180 unrecognized OpenMP pragma
         # 11075: To get full report use -Qopt-report:4 -Qopt-report-phase ipo
         # 15335 was not vectorized: vectorization possible but seems inefficient. Use vector always directive or /Qvec-threshold0 to override
-        ie_add_compiler_flags(/Qdiag-disable:161,177,556,2586,2651,3180,11075,15335)
+        ie_add_compiler_flags(/Qdiag-disable:161,177,556,1744,2586,2651,3180,11075,15335)
     endif()
 
     # Debug information flags

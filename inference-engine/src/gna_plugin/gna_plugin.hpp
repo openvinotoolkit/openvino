@@ -73,6 +73,8 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
     void createRequestConfigsForGnaModels();
 #endif
 
+    static int GetDeviceVersionFromString(const std::string deviceString);
+
     std::shared_ptr<GNADeviceHelper> gnadevice;
     /**
      * @brief size of RW segment without extra memory for parallel execution

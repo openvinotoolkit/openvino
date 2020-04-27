@@ -35,18 +35,29 @@ function(build_with_lto)
         add_subdirectory(clDNN)
     endif()
 
-    add_subdirectory(pugixml)
+    function(ie_build_pugixml)
+        set(BUILD_TESTS_current ${BUILD_TESTS})
+        set(BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
+        add_subdirectory(pugixml)
+        set(BUILD_TESTS ${BUILD_TESTS_current} CACHE BOOL "Build tests" FORCE)
+    endfunction()
+
+    ie_build_pugixml()
     add_subdirectory(stb_lib)
     add_subdirectory(ade)
     add_subdirectory(fluid/modules/gapi)
 
-    # developer package
-
     target_include_directories(pugixml INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pugixml/src>")
+
+    set_target_properties(pugixml ade fluid stb_image
+                          PROPERTIES FOLDER thirdparty)
+
+    # developer package
 
     ie_developer_export_targets(ade fluid pugixml)
     if(TARGET pugixml_mt)
         ie_developer_export_targets(pugixml_mt)
+        set_target_properties(pugixml_mt PROPERTIES FOLDER thirdparty)
     endif()
 endfunction()
 

@@ -269,6 +269,8 @@ kernel_selector::weights_layout to_weights_layout(format f) {
             return kernel_selector::weights_layout::os_is_yx_osv16_isv4;
         case format::os_is_yx_osv32_isv4_swizzled_by_2:
             return kernel_selector::weights_layout::os_is_yx_osv32_isv4_swizzled_by_2;
+        case format::os_is_yx_osv32_isv4:
+            return kernel_selector::weights_layout::os_is_yx_osv32_isv4;
         case format::os_is_yx_osv32_isv32p:
             return kernel_selector::weights_layout::os_is_yx_osv32_isv32p;
         case format::os_is_yx_isv16_osv16:
@@ -387,6 +389,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_y_x8_osv8_isv4;
         case kernel_selector::weights_layout::os_is_yx_osv32_isv4_swizzled_by_2:
             return format::os_is_yx_osv32_isv4_swizzled_by_2;
+        case kernel_selector::weights_layout::os_is_yx_osv32_isv4:
+            return format::os_is_yx_osv32_isv4;
         case kernel_selector::weights_layout::os_is_y_x8_osv8_isv4_swizzled_by_4:
             return cldnn::format::os_is_y_x8_osv8_isv4_swizzled_by_4;
         case kernel_selector::weights_layout::os_is_yx_osv32_isv32p:
@@ -616,6 +620,8 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             return kernel_selector::activation_function::HARD_SIGMOID;
         case cldnn::activation_func::swish:
             return kernel_selector::activation_function::SWISH;
+        case cldnn::activation_func::gelu:
+            return kernel_selector::activation_function::GELU;
         default:
             throw std::runtime_error("Unknown activation function");
             break;

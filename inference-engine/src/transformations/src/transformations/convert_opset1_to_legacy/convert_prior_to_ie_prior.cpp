@@ -11,6 +11,7 @@
 
 #include <ngraph_ops/prior_box_ie.hpp>
 #include <ngraph_ops/prior_box_clustered_ie.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertPriorBox::convert_prior_box() {
     auto data = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
@@ -41,6 +42,10 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
         if (!prior_box_node) {
             return false;
         }
+
+        // vector of nGraph nodes that will be replaced
+        ngraph::NodeVector ops_to_replace{unsqueeze, prior_box_node};
+
         std::shared_ptr<Node> input_1(prior_box_node->input_value(0).get_node_shared_ptr());
         std::shared_ptr<Node> input_2(prior_box_node->input_value(1).get_node_shared_ptr());
 
@@ -48,6 +53,8 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
         auto convert2 = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_2);
 
         if (convert1 && convert2) {
+            ops_to_replace.push_back(convert1);
+            ops_to_replace.push_back(convert2);
             input_1 = convert1->input_value(0).get_node_shared_ptr();
             input_2 = convert2->input_value(0).get_node_shared_ptr();
         }
@@ -58,6 +65,9 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
         if (!strided_slice1 || !strided_slice2) {
             return false;
         }
+
+        ops_to_replace.push_back(strided_slice1);
+        ops_to_replace.push_back(strided_slice2);
 
         //  Check that StridedSlice1 cuts H,W dims for PriorBox
         auto begin = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(1).get_node_shared_ptr());
@@ -92,6 +102,8 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
         convert2 = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_2);
 
         if (convert1 && convert2) {
+            ops_to_replace.push_back(convert1);
+            ops_to_replace.push_back(convert2);
             input_1 = convert1->input_value(0).get_node_shared_ptr();
             input_2 = convert2->input_value(0).get_node_shared_ptr();
         }
@@ -103,10 +115,18 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
             return false;
         }
 
+        ops_to_replace.push_back(shape_of1);
+        ops_to_replace.push_back(shape_of2);
+
         auto prior_box_ie = std::make_shared<ngraph::op::PriorBoxIE> (shape_of1->input_value(0),
                                                                       shape_of2->input_value(0),
                                                                       prior_box_node->get_attrs());
+
         prior_box_ie->set_friendly_name(unsqueeze->get_friendly_name());
+
+        // Nodes in copy runtime info function should be in topological order
+        std::reverse(ops_to_replace.begin(), ops_to_replace.end());
+        ngraph::copy_runtime_info(ops_to_replace, prior_box_ie);
         ngraph::replace_node(m.get_match_root(), prior_box_ie);
         return true;
     };
@@ -143,6 +163,9 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
             return false;
         }
 
+        // vector of nGraph nodes that will be replaced
+        ngraph::NodeVector ops_to_replace{unsqueeze, prior_box_node};
+
         std::shared_ptr<Node> input_1(prior_box_node->input_value(0).get_node_shared_ptr());
         std::shared_ptr<Node> input_2(prior_box_node->input_value(1).get_node_shared_ptr());
 
@@ -150,6 +173,8 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
         auto convert2 = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_2);
 
         if (convert1 && convert2) {
+            ops_to_replace.push_back(convert1);
+            ops_to_replace.push_back(convert2);
             input_1 = convert1->input_value(0).get_node_shared_ptr();
             input_2 = convert2->input_value(0).get_node_shared_ptr();
         }
@@ -160,6 +185,9 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
         if (!strided_slice1 || !strided_slice2) {
             return false;
         }
+
+        ops_to_replace.push_back(strided_slice1);
+        ops_to_replace.push_back(strided_slice2);
 
         //  Check that StridedSlice1 cuts H,W dims for PriorBox
         auto begin = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->get_argument(1));
@@ -194,6 +222,8 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
         convert2 = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_2);
 
         if (convert1 && convert2) {
+            ops_to_replace.push_back(convert1);
+            ops_to_replace.push_back(convert2);
             input_1 = convert1->input_value(0).get_node_shared_ptr();
             input_2 = convert2->input_value(0).get_node_shared_ptr();
         }
@@ -205,11 +235,18 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
             return false;
         }
 
+        ops_to_replace.push_back(shape_of1);
+        ops_to_replace.push_back(shape_of2);
+
         auto prior_box_ie = std::make_shared<ngraph::op::PriorBoxClusteredIE> (shape_of1->get_argument(0),
                                                                                shape_of2->get_argument(0),
                                                                                prior_box_node->get_attrs());
         prior_box_ie->set_friendly_name(unsqueeze->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), prior_box_ie);
+
+        // Nodes in copy runtime info function should be in topological order
+        std::reverse(ops_to_replace.begin(), ops_to_replace.end());
+        ngraph::copy_runtime_info(ops_to_replace, prior_box_ie);
+        ngraph::replace_node(unsqueeze, prior_box_ie);
         return true;
     };
 

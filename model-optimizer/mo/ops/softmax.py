@@ -54,7 +54,23 @@ class LogSoftmax(Op):
             'infer': None,
             'kind': 'op',
             'axis': 1,
-            'type': None,  # the operation will be replaced with a Log(Softmax(x)) sub-graph
+            'type': None,  # the operation will be replaced with a x - Log(ReduceSum(Exp(x), axis)) sub-graph
+            'op': __class__.op,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+        }, attrs)
+
+class LogSoftmaxONNX(Op):
+    op = 'LogSoftmaxONNX'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'infer': None,
+            'kind': 'op',
+            'axis': 1,
+            'type': None,  # the operation will be replaced with a
+                           # Reshape(LogSoftmax(FlattenONNX(x, axis), 1), x.shape) sub-graph
             'op': __class__.op,
             'in_ports_count': 1,
             'out_ports_count': 1,

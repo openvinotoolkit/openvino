@@ -12,13 +12,6 @@ using namespace ngraph::helpers;
 using namespace LayerTestsDefinitions;
 
 namespace {
-// Common params
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::U8,
-//         InferenceEngine::Precision::I8 // Too much cases
-};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
@@ -52,7 +45,6 @@ const auto maxPool_ExplicitPad_FloorRounding_Params = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(MaxPool_ExplicitPad_FloorRpunding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_FloorRounding_Params,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 50, 50})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
@@ -75,7 +67,6 @@ const auto maxPool_ExplicitPad_CeilRounding_Params = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(MaxPool_ExplicitPad_CeilRpunding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_CeilRounding_Params,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 50, 50})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
@@ -100,7 +91,6 @@ const auto avgPoolExplicitPadCeilRoundingParams = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 avgPoolExplicitPadCeilRoundingParams,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
@@ -123,7 +113,6 @@ const auto avgPoolExplicitPadFloorRoundingParams = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_FloorRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 avgPoolExplicitPadFloorRoundingParams,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
@@ -146,7 +135,6 @@ const auto allPools_ValidPad_Params = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                         ::testing::Combine(
                                 allPools_ValidPad_Params,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 50, 50})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),

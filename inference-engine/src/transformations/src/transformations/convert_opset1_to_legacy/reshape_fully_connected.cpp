@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include "ngraph_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
@@ -31,9 +32,12 @@ void ngraph::pass::ReshapeFullyConnected::reshape_fully_connected() {
             return false;
         }
 
+        NodeVector new_ops;
+
         std::vector<int64_t> reshape_shape{-1, static_cast<int64_t>(input_shape.back())};
         auto reshape = std::make_shared<opset1::Reshape>(fc->input_value(0),
                                                          opset1::Constant::create(element::i64, Shape{2}, reshape_shape), true);
+        new_ops.push_back(reshape);
 
         reshape->set_friendly_name(fc->get_friendly_name() + "/Reshape");
 
@@ -47,14 +51,18 @@ void ngraph::pass::ReshapeFullyConnected::reshape_fully_connected() {
                                                            fc->input_value(1),
                                                            fc->input_value(2),
                                                            output_shape_new);
+        new_ops.push_back(fc_new);
 
         if (output_shape != output_shape_new) {
             auto reshape_output = op::util::reshapeTo(fc_new, output_shape);
+            new_ops.push_back(reshape_output);
             reshape_output->set_friendly_name(fc->get_friendly_name());
             fc->set_friendly_name(fc->get_friendly_name() + "/FC");
+            ngraph::copy_runtime_info(fc, new_ops);
             ngraph::replace_node(fc, reshape_output);
         } else {
             fc_new->set_friendly_name(fc->get_friendly_name());
+            ngraph::copy_runtime_info(fc, new_ops);
             ngraph::replace_node(fc, fc_new);
         }
 

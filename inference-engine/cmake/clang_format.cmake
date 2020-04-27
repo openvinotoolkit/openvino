@@ -22,6 +22,8 @@ endif()
 if(ENABLE_CLANG_FORMAT)
     add_custom_target(clang_format_check_all)
     add_custom_target(clang_format_fix_all)
+    set_target_properties(clang_format_check_all clang_format_fix_all
+                          PROPERTIES FOLDER clang_format)
     set(CLANG_FORMAT_ALL_OUTPUT_FILES "" CACHE INTERNAL "All clang-format output files")
 endif()
 
@@ -107,6 +109,9 @@ function(add_clang_format_target TARGET_NAME)
         COMMENT
         "[clang-format] ${TARGET_NAME}_fix"
         VERBATIM)
+
+    set_target_properties(${TARGET_NAME} ${TARGET_NAME}_fix
+                          PROPERTIES FOLDER clang_format)
 
     # if(CLANG_FORMAT_FOR_TARGETS)
     #     foreach(target IN LISTS CLANG_FORMAT_FOR_TARGETS)

@@ -18,7 +18,7 @@
 
 #define MAX_IMAGE 20
 
-static const char *img_msg = NULL;                                                                                                                                                                        
+static const char *img_msg = NULL;
 static const char *input_model = NULL;
 static const char *device_name = "CPU";
 static const char *custom_cldnn_msg = NULL;
@@ -38,7 +38,7 @@ int ParseAndCheckCommandLine(int argc, char *argv[]) {
     printf("%sParsing input parameters\n", info);
 
     while ((opt = getopt(argc, argv, string)) != -1) {
-        switch(opt) {
+        switch (opt) {
             case 'h':
                 showUsage();
                 help = 1;
@@ -183,7 +183,7 @@ ie_config_t *parseConfig(const char *config_file, char comment) {
 
     ie_config_t *cfg = NULL;
     char key[256], value[256];
-    
+
     if (fscanf(file, "%s", key)!= EOF && fscanf(file, "%s", value) != EOF) {
         char *cfg_name = (char *)calloc(strlen(key) + 1, sizeof(char));
         char *cfg_value = (char *)calloc(strlen(value) + 1, sizeof(char));
@@ -213,7 +213,7 @@ ie_config_t *parseConfig(const char *config_file, char comment) {
             cfg_temp = cfg_temp->next;
         }
     }
-    
+
     return cfg;
 }
 
@@ -229,11 +229,11 @@ void config_free(ie_config_t *config) {
             free((char *)config->name);
             config->name = NULL;
         }
-        if(config->value) {
+        if (config->value) {
             free((char *)config->value);
             config->value = NULL;
         }
-        if(config->next) {
+        if (config->next) {
             config = config->next;
         }
 
@@ -388,7 +388,7 @@ int main(int argc, char **argv) {
             goto err;
 
         /** Working with first input tensor that stores image **/
-        if(input_dim.ranks == 4) {
+        if (input_dim.ranks == 4) {
             imageInputName = name;
             input_height = input_dim.dims[2];
             input_width = input_dim.dims[3];
@@ -399,9 +399,9 @@ int main(int argc, char **argv) {
                 goto err;
         } else if (input_dim.ranks == 2) {
             imInfoInputName = name;
-        
+
             status = ie_network_set_input_precision(network, name, FP32);
-            if(status !=OK || (input_dim.dims[1] != 3 && input_dim.dims[1] != 6)) {
+            if (status !=OK || (input_dim.dims[1] != 3 && input_dim.dims[1] != 6)) {
                 printf("Invalid input info. Should be 3 or 6 values length\n");
                 goto err;
             }
@@ -590,7 +590,7 @@ int main(int argc, char **argv) {
 
         dimensions_t imInfoDim;
         status |= ie_blob_get_dims(input2, &imInfoDim);
-        //Fill input tensor with values 
+        //Fill input tensor with values
         ie_blob_buffer_t info_blob_buffer;
         status |= ie_blob_get_buffer(input2, &info_blob_buffer);
         if (status != OK) {
@@ -601,7 +601,7 @@ int main(int argc, char **argv) {
         for (image_id = 0; image_id < batchSize; ++image_id) {
             p[image_id * imInfoDim.dims[1] + 0] = (float)input_height;
             p[image_id * imInfoDim.dims[1] + 1] = (float)input_width;
-            
+
             for (k = 2; k < imInfoDim.dims[1]; k++) {
                 p[image_id * imInfoDim.dims[1] + k] = 1.0f;  // all scale factors are set to 1.0
             }
@@ -616,7 +616,7 @@ int main(int argc, char **argv) {
     status |= ie_infer_request_wait(infer_request, -1);
     if (status != OK)
         goto err;
-    // ----------------------------------------------------------------------------------------------------- 
+    // -----------------------------------------------------------------------------------------------------
 
     // --------------------------- 11. Process output -------------------------------------------------------
     printf("%sProcessing output blobs\n", info);
@@ -634,7 +634,7 @@ int main(int argc, char **argv) {
     int **classes = (int **)calloc(image_num, sizeof(int *));
     rectangle_t **boxes = (rectangle_t **)calloc(image_num, sizeof(rectangle_t *));
     int *object_num = (int *)calloc(image_num, sizeof(int));
-    for ( i = 0; i < image_num; ++i) {
+    for (i = 0; i < image_num; ++i) {
         classes[i] = (int *)calloc(maxProposalCount, sizeof(int));
         boxes[i] = (rectangle_t *)calloc(maxProposalCount, sizeof(rectangle_t));
         object_num[i] = 0;
@@ -678,7 +678,7 @@ int main(int argc, char **argv) {
         }
         const char *out = "out_";
         char str_num[16] = {0};
-        int2str(str_num, batch_id); 
+        int2str(str_num, batch_id);
         char *img_path = (char *)calloc(strlen(out) + strlen(str_num) + strlen(".bmp") + 1, sizeof(char));
         strcpy(img_path, out);
         strcat(img_path, str_num);

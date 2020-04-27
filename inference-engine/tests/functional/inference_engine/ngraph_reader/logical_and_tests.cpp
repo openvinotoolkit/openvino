@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadLogicalAndNetwork) {
     std::string model = R"V0G0N(
-<net name="LogicalAnd_net" version="10">
+<net name="Network" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
             <data element_type="boolean" shape="1,3,22,22"/>
@@ -73,7 +73,7 @@ TEST_F(NGraphReaderTests, ReadLogicalAndNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="LogicalAnd_net" version="5" precision="BOOL" batch="1">
+<net name="Network" version="5" precision="BOOL" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="BOOL" id="0">
             <output>

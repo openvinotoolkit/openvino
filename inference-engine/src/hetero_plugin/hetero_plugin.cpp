@@ -297,12 +297,15 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{
             METRIC_KEY(SUPPORTED_METRICS),
+            METRIC_KEY(FULL_DEVICE_NAME),
             METRIC_KEY(SUPPORTED_CONFIG_KEYS)});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{
             HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
             "TARGET_FALLBACK",
             CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)});
+    } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
+        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, std::string{"HETERO"});
     } else {
         THROW_IE_EXCEPTION << "Unsupported Plugin metric: " << name;
     }

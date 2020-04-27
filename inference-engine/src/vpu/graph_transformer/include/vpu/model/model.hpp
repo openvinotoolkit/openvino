@@ -141,6 +141,10 @@ public:
             const Stage& stage,
             const Data& data);
 
+    StageDependency addStageDependency(
+            const Stage& stage,
+            const Data& data);
+
     StageTempBuffer addTempBuffer(
             const Stage& stage,
             const DataDesc& desc);
@@ -192,30 +196,30 @@ public:
     // Data<->Data edges
     //
 
-    class DataEdgeHelper final {
+    class DataToDataEdgeHelper final {
     public:
-        inline DataEdgeHelper(DataEdgeHelper&&) = default;
+        inline DataToDataEdgeHelper(DataToDataEdgeHelper&&) = default;
 
-        DataEdgeHelper(const DataEdgeHelper&) = delete;
-        DataEdgeHelper& operator=(const DataEdgeHelper&) = delete;
-        DataEdgeHelper& operator=(DataEdgeHelper&&) = delete;
+        DataToDataEdgeHelper(const DataToDataEdgeHelper&) = delete;
+        DataToDataEdgeHelper& operator=(const DataToDataEdgeHelper&) = delete;
+        DataToDataEdgeHelper& operator=(DataToDataEdgeHelper&&) = delete;
 
-        ~DataEdgeHelper();
+        ~DataToDataEdgeHelper();
 
-        DataEdgeHelper& parent(const Data& parent);
-        DataEdgeHelper& child(const Data& child);
+        DataToDataEdgeHelper& parent(const Data& parent);
+        DataToDataEdgeHelper& child(const Data& child);
 
-        DataEdgeHelper& mode(SharedDataMode mode);
-        DataEdgeHelper& order(SharedDataOrder order);
+        DataToDataEdgeHelper& mode(SharedDataMode mode);
+        DataToDataEdgeHelper& order(SharedDataOrder order);
 
-        DataEdgeHelper& offset(const DimValues& offset);
+        DataToDataEdgeHelper& offset(const DimValues& offset);
 
-        DataEdgeHelper& connectionMode(SharedConnectionMode);
+        DataToDataEdgeHelper& connectionMode(SharedConnectionMode);
 
-        SharedAllocation done();
+        DataToDataAllocation done();
 
     private:
-        inline explicit DataEdgeHelper(const Model& model) : _model(model) {}
+        inline explicit DataToDataEdgeHelper(const Model& model) : _model(model) {}
 
     private:
         Model _model;
@@ -237,18 +241,22 @@ public:
         friend ModelObj;
     };
 
-    inline DataEdgeHelper connectDatas() {
-        return DataEdgeHelper(this);
+    inline DataToDataEdgeHelper connectDataWithData() {
+        return DataToDataEdgeHelper(this);
     }
 
+    DataToShapeAllocation connectDataWithShape(
+            const Data& parent,
+            const Data& child);
+
     void replaceParentData(
-            const SharedAllocation& edge,
+            const DataToDataAllocation& edge,
             const Data& newParent);
     void replaceChildData(
-            const SharedAllocation& edge,
+            const DataToDataAllocation& edge,
             const Data& newChild);
 
-    void disconnectDatas(const SharedAllocation& edge);
+    void disconnectDatas(const DataToDataAllocation& edge);
 
     //
     // Nodes removal
@@ -309,7 +317,7 @@ private:
             const Stage& parent,
             const Stage& child);
 
-    SharedAllocation connectDatasImpl(
+    DataToDataAllocation connectDataWithDataImpl(
             const Data& parent,
             const Data& child,
             SharedDataMode mode,
@@ -328,7 +336,9 @@ private:
     StageInputPtrList _inEdgePtrList;
     StageOutputPtrList _outEdgePtrList;
     StageTempBufferPtrList _tempBufferEdgePtrList;
-    SharedAllocationPtrList _dataEdgePtrList;
+    DataToDataAllocationPtrList _dataEdgePtrList;
+    DataToShapeAllocationPtrList _shapeEdgePtrList;
+    StageDependencyPtrList _stageDependencyEdgePtrList;
     InjectionPtrList _stageEdgePtrList;
 
     Allocator _allocator;
@@ -339,7 +349,7 @@ private:
     std::function<void(Stage&)> onNewStageCallback = nullptr;
 
     friend class InjectStageHelper;
-    friend class DataEdgeHelper;
+    friend class DataToDataEdgeHelper;
 };
 
 template <class StageImpl>

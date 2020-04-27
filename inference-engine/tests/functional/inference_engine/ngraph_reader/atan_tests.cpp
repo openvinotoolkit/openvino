@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadAtanNetwork) {
     std::string model = R"V0G0N(
-<net name="Atan_net" version="10">
+<net name="Network" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
             <data element_type="f32" shape="1,3,22,22"/>
@@ -55,9 +55,10 @@ TEST_F(NGraphReaderTests, ReadAtanNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Atan_net" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="0">
+            <data originalLayersNames="in1"/>
             <output>
                 <port id="0">
                     <dim>1</dim>
@@ -68,6 +69,7 @@ TEST_F(NGraphReaderTests, ReadAtanNetwork) {
             </output>
         </layer>
         <layer name="Atan" id="1" type="Atan" precision="FP32">
+            <data originalLayersNames="Atan"/>
             <input>
                 <port id="1">
                     <dim>1</dim>

@@ -41,8 +41,10 @@
 #include "ie_cnn_layer_builder_ngraph.h"
 
 #include <debug.h>
+#include <ngraph/opsets/opset1.hpp>
 #include "transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/rt_info/fused_names_attribute.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -445,6 +447,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Sign>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Sinh>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::SquaredDifference>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Select>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Softmax>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Split>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),
@@ -578,7 +581,14 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         rt_info["keep_constants"] = attr.asVariant();
 
         CNNLayerPtr cnnLayer = createCNNLayer(layer);
-        for (const auto &rt : layer->get_rt_info()) {
+
+        // Set originalLayersNames from FusedNames
+        std::string originalNames = ::ngraph::getFusedNames(layer);
+        if (!originalNames.empty()) {
+            cnnLayer->params["originalLayersNames"] = originalNames;
+        }
+
+        for (const auto &rt : rt_info) {
             Parameter param(rt.second);
             if (param.empty()) continue;
             if (details::CaselessEq<std::string>()(rt.first, "affinity")) {

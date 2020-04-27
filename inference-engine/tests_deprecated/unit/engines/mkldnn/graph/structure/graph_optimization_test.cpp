@@ -10,7 +10,7 @@
 #include <mkldnn_extension_utils.h>
 #include <mkldnn_extension_mngr.h>
 #include "tests_common.hpp"
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 #include "../test_graph.hpp"
 
 
@@ -90,21 +90,19 @@ TEST_F(MKLDNNGraphOptimizationTests, TestNoFuseConvSumWithOneInput) {
 
 )V0G0N";
 
-    InferenceEngine::CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
     InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, {48}, InferenceEngine::C });
     weights->allocate();
     float * data = weights->buffer();
 
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
-
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
 
-    net_reader.SetWeights(weights_ptr);
+    InferenceEngine::Core ie;
+    InferenceEngine::CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(model, weights_ptr));
 
     MKLDNNGraphTestClass graph;
-    ASSERT_NO_THROW(graph.CreateGraph(net_reader.getNetwork()));
+    ASSERT_NO_THROW(graph.CreateGraph(network));
 
     bool fused = true;
     auto& nodes = graph.getNodes();
@@ -205,21 +203,19 @@ TEST_F(MKLDNNGraphOptimizationTests, DISABLED_TestNoCrashForFuseConvSumAndInput)
 
 )V0G0N";
 
-    InferenceEngine::CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
     InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, {48}, InferenceEngine::C });
     weights->allocate();
     float * data = weights->buffer();
 
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
-
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
 
-    net_reader.SetWeights(weights_ptr);
+    InferenceEngine::Core ie;
+    InferenceEngine::CNNNetwork network;
+    ASSERT_NO_THROW(ie.ReadNetwork(model, weights_ptr));
 
     MKLDNNGraphTestClass graph;
-    ASSERT_NO_THROW(graph.CreateGraph(net_reader.getNetwork()));
+    ASSERT_NO_THROW(graph.CreateGraph(network));
 
     bool fused = false;
     auto& nodes = graph.getNodes();
@@ -413,21 +409,19 @@ TEST_F(MKLDNNGraphOptimizationTests, TestNoFuseCustomActivation) {
     MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
     extMgr->AddExtension(extension);
 
-    InferenceEngine::CNNNetReader net_reader;
-    ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
-
     InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8, {139776}, InferenceEngine::C });
     weights->allocate();
     float * data = weights->buffer();
 
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
-
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(weights);
 
-    net_reader.SetWeights(weights_ptr);
+    InferenceEngine::Core core;
+    InferenceEngine::CNNNetwork network;
+    ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
     MKLDNNGraphTestClass graph;
-    ASSERT_NO_THROW(graph.CreateGraph(net_reader.getNetwork(), extMgr));
+    ASSERT_NO_THROW(graph.CreateGraph(network, extMgr));
 
     bool fused = true;
     auto& nodes = graph.getNodes();

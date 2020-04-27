@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "include/common.cl"
-#include "include/data_types.cl"
+#include "include/include_all.cl"
 
-
-#if FP16_UNIT_USED
-    #define UNIT_CVT_FUNC(val) convert_half(val)
-#else
-    #define UNIT_CVT_FUNC(val) (val)
-#endif
+#define INPUT_VECTOR_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
+#define OUTPUT_VECTOR_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8)
 
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
-KERNEL (lrn_gpu_yxfb_b8)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
+KERNEL (lrn_gpu_yxfb_b8)(
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+    )
 {
-    
+
     const uint batch_num_group  = (INPUT0_BATCH_NUM/SUB_GROUP_SIZE);
     const uint b_f              = get_global_id(0);
     const uint x                = (uint)get_global_id(1);
@@ -38,11 +39,11 @@ KERNEL (lrn_gpu_yxfb_b8)(const __global UNIT_TYPE* input, __global UNIT_TYPE* ou
     const uint input_id_group = input_id / SUB_GROUP_SIZE;
 
     int input_offset_f = feature_id - PADDING;
-    
+
     const uint input_feature_pitch_group  = (INPUT0_FEATURE_PITCH/SUB_GROUP_SIZE);
     int input_idx_group = (int)input_id_group - PADDING*input_feature_pitch_group;
-    
-    float8 acc = 0;
+
+    INPUT_VECTOR_TYPE acc = 0;
 
     for (int i = 0; i < LOCAL_SIZE; i++)
     {
@@ -50,19 +51,29 @@ KERNEL (lrn_gpu_yxfb_b8)(const __global UNIT_TYPE* input, __global UNIT_TYPE* ou
 
         if(!zero)
         {
-            float8 value = vload8(input_idx_group, input);
+            INPUT_VECTOR_TYPE value = vload8(input_idx_group, input);
             acc = mad(value, value, acc);
         }
 
         input_offset_f++;
         input_idx_group += input_feature_pitch_group;
     }
-    acc = mad(acc, UNIT_CVT_FUNC(ALPHA_DIV_BY_SIZE), UNIT_CVT_FUNC(K));
-    acc = native_powr(acc, -UNIT_CVT_FUNC(BETA));
+    acc = mad(acc, TO_INPUT0_TYPE(ALPHA_DIV_BY_SIZE), TO_INPUT0_TYPE(K));
+    acc = native_powr(acc, -TO_INPUT0_TYPE(BETA));
 
     const uint output_idx = OUTPUT_OFFSET + batch_id*OUTPUT_BATCH_PITCH + feature_id*OUTPUT_FEATURE_PITCH + y*OUTPUT_Y_PITCH + x*OUTPUT_X_PITCH;
     const uint output_idx_group = output_idx / SUB_GROUP_SIZE;
     float8 _in = vload8(input_id_group, input);
-    float8 res = ACTIVATION(acc * _in, ACTIVATION_PARAMS);
-    vstore8(res, output_idx_group, output);
+    float8 lrn_result = ACTIVATION(acc * _in, ACTIVATION_PARAMS);
+
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        OUTPUT_VECTOR_TYPE res = FUSED_OPS_RESULT;
+        vstore8(res, output_idx_group, output);
+    #else
+        vstore8(lrn_result, output_idx_group, output);
+    #endif
 }
+
+#undef INPUT_VECTOR_TYPE
+#undef OUTPUT_VECTOR_TYPE

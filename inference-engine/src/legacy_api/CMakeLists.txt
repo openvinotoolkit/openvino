@@ -10,7 +10,6 @@ endif()
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
-file(GLOB_RECURSE NN_BUILDER_LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/builders/*.cpp)
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
@@ -24,7 +23,6 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
-            ${NN_BUILDER_LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
@@ -37,13 +35,6 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE ${PUBLIC_HEADERS_DIR} ${CM
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
-
-function(nn_builder_disable_warnings)
-    disable_deprecated_warnings()
-    set_source_files_properties(${NN_BUILDER_LIBRARY_SRC} PROPERTIES COMPILE_FLAGS "${ie_c_cxx_deprecated}")
-endfunction()
-
-nn_builder_disable_warnings()
 
 # Create shared library
 

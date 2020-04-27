@@ -350,6 +350,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_rows_in = FROM_IR_DIM(input, 1);
     uint32_t num_columns_in = FROM_IR_DIM(input, 2);
     uint32_t num_rows_out = num_rows_in;
+    uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
 
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
@@ -359,9 +360,9 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto& currentComponent = dnnComponents.addComponent(layer->name, "power");
 
     dnn->InitAffineComponent(currentComponent,
-        num_rows_in,
+        num_rows_in + num_padding,
         num_columns_in,
-        num_rows_out,
+        num_rows_out + num_padding,
         input->getPrecision().size(),
         outputs->getPrecision().size(),
         // TODO: only fp32 and Int16 tested

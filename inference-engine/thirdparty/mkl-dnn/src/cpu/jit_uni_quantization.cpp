@@ -42,7 +42,7 @@ void jit_uni_quantization_injector_f32<isa>::init_crop_ptrs(const Xbyak::Operand
 }
 
 template <cpu_isa_t isa>
-void jit_uni_quantization_injector_f32<isa>::compute_crop(int start_idx, int end_idx, int offset, bool is_scalar) {
+void jit_uni_quantization_injector_f32<isa>::compute_crop(int start_idx, int end_idx, int offset, bool is_scalar, bool is_broadcast) {
     if (is_scalar) {
         if (post_op_.quantization.crop_low_data->count_ == 1)
             h->movss(xmm_d_weights_, h->ptr[reg_d_weights_]);
@@ -55,6 +55,8 @@ void jit_uni_quantization_injector_f32<isa>::compute_crop(int start_idx, int end
             h->uni_vbroadcastss(vmm_d_weights_, h->ptr[reg_d_weights_]);
         else if (post_op_.quantization.crop_low_data->has_default_values())
             h->uni_vpxor(vmm_d_weights_, vmm_d_weights_, vmm_d_weights_);
+        else if (is_broadcast)
+            h->uni_vbroadcastss(vmm_d_weights_, h->ptr[reg_d_weights_ + offset]);
         else
             h->uni_vmovups(vmm_d_weights_, h->ptr[reg_d_weights_ + offset]);
     }
@@ -78,6 +80,8 @@ void jit_uni_quantization_injector_f32<isa>::compute_crop(int start_idx, int end
             h->uni_vbroadcastss(vmm_d_bias_, h->ptr[reg_d_bias_]);
         else if (post_op_.quantization.crop_high_data->has_default_values())
             h->uni_vpxor(vmm_d_bias_, vmm_d_bias_, vmm_d_bias_);
+        else if (is_broadcast)
+            h->uni_vbroadcastss(vmm_d_bias_, h->ptr[reg_d_bias_ + offset]);
         else
             h->uni_vmovups(vmm_d_bias_, h->ptr[reg_d_bias_ + offset]);
     }
@@ -104,7 +108,7 @@ void jit_uni_quantization_injector_f32<isa>::init_input_scale_shift_ptrs(const X
 }
 
 template <cpu_isa_t isa>
-void jit_uni_quantization_injector_f32<isa>::compute_input_scale_shift(int start_idx, int end_idx, int offset, bool do_rounding, bool is_scalar) {
+void jit_uni_quantization_injector_f32<isa>::compute_input_scale_shift(int start_idx, int end_idx, int offset, bool do_rounding, bool is_scalar, bool is_broadcast) {
     if (is_scalar) {
         if (post_op_.quantization.input_scale_data->count_ == 1)
             h->movss(xmm_d_weights_, h->ptr[reg_d_weights_]);
@@ -113,6 +117,8 @@ void jit_uni_quantization_injector_f32<isa>::compute_input_scale_shift(int start
     } else {
         if (post_op_.quantization.input_scale_data->count_ == 1)
             h->uni_vbroadcastss(vmm_d_weights_, h->ptr[reg_d_weights_]);
+        else if (is_broadcast)
+            h->uni_vbroadcastss(vmm_d_weights_, h->ptr[reg_d_weights_ + offset]);
         else
             h->uni_vmovups(vmm_d_weights_, h->ptr[reg_d_weights_ + offset]);
     }
@@ -137,6 +143,8 @@ void jit_uni_quantization_injector_f32<isa>::compute_input_scale_shift(int start
             h->uni_vbroadcastss(vmm_d_bias_, h->ptr[reg_d_bias_]);
         else if (post_op_.quantization.input_shift_data->has_default_values())
             h->uni_vpxor(vmm_d_bias_, vmm_d_bias_, vmm_d_bias_);
+        else if (is_broadcast)
+            h->uni_vbroadcastss(vmm_d_bias_, h->ptr[reg_d_bias_ + offset]);
         else
             h->uni_vmovups(vmm_d_bias_, h->ptr[reg_d_bias_ + offset]);
     }
@@ -169,7 +177,7 @@ void jit_uni_quantization_injector_f32<isa>::init_output_scale_shift_ptrs(const 
 }
 
 template <cpu_isa_t isa>
-void jit_uni_quantization_injector_f32<isa>::compute_output_scale_shift(int start_idx, int end_idx, int offset, bool is_scalar) {
+void jit_uni_quantization_injector_f32<isa>::compute_output_scale_shift(int start_idx, int end_idx, int offset, bool is_scalar, bool is_broadcast) {
     if (!do_dequantization)
         return;
 
@@ -181,6 +189,8 @@ void jit_uni_quantization_injector_f32<isa>::compute_output_scale_shift(int star
     } else {
         if (post_op_.quantization.output_scale_data->count_ == 1)
             h->uni_vbroadcastss(vmm_d_weights_, h->ptr[reg_d_weights_]);
+        else if (is_broadcast)
+            h->uni_vbroadcastss(vmm_d_weights_, h->ptr[reg_d_weights_ + offset]);
         else
             h->uni_vmovups(vmm_d_weights_, h->ptr[reg_d_weights_ + offset]);
     }
@@ -205,6 +215,8 @@ void jit_uni_quantization_injector_f32<isa>::compute_output_scale_shift(int star
             h->uni_vbroadcastss(vmm_d_bias_, h->ptr[reg_d_bias_]);
         else if (post_op_.quantization.output_shift_data->has_default_values())
             h->uni_vpxor(vmm_d_bias_, vmm_d_bias_, vmm_d_bias_);
+        else if (is_broadcast)
+            h->uni_vbroadcastss(vmm_d_bias_, h->ptr[reg_d_bias_ + offset]);
         else
             h->uni_vmovups(vmm_d_bias_, h->ptr[reg_d_bias_ + offset]);
     }

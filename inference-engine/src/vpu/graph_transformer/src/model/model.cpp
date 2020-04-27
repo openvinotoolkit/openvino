@@ -97,7 +97,7 @@ Data ModelObj::addConstData(
     IE_ASSERT(content != nullptr);
 
     VPU_THROW_UNLESS(desc.totalDimSize() * desc.elemSize() == content->byteSize(),
-        "duplicateData error: while duplicating {} Const data got different "
+        "addConstData error: while duplicating {} Const data got different "
         "newDesc and content byte sizes ({} and {} respectively)",
         name, desc.totalDimSize() * desc.elemSize(), content->byteSize());
 
@@ -345,11 +345,11 @@ StageOutput ModelObj::addStageOutput(
 
     IE_ASSERT(data->_producerEdge == nullptr);
 
-    if (data->_parentDataEdge != nullptr) {
-        IE_ASSERT(data->_parentDataEdge->_order != SharedDataOrder::ParentWritesToChild);
+    if (data->_parentDataToDataEdge != nullptr) {
+        IE_ASSERT(data->_parentDataToDataEdge->_order != SharedDataOrder::ParentWritesToChild);
     }
 
-    for (const auto& childDataEdge : data->_childDataEdges) {
+    for (const auto& childDataEdge : data->_childDataToDataEdges) {
         IE_ASSERT(childDataEdge->_order != SharedDataOrder::ChildWritesToParent);
     }
 
@@ -385,6 +385,34 @@ StageOutput ModelObj::addStageOutput(
         ++stage->_nextStages[consumerEdge->_consumer];
 
         _initialStages.erase(consumerEdge->_consumer);
+    }
+
+    return edge;
+}
+
+StageDependency ModelObj::addStageDependency(const Stage& stage, const Data& data) {
+    _resetStageOrder = true;
+
+    std::shared_ptr<StageDependencyEdge> edge(new StageDependencyEdge);
+    edge->_ptrPosInModel = _stageDependencyEdgePtrList.emplace(_stageDependencyEdgePtrList.end(), edge);
+
+    edge->_data = data;
+    edge->_dependentStage = stage;
+
+    data->_dependentStagesEdges.push_back(edge);
+
+    VPU_THROW_UNLESS(data->usage() == DataUsage::Intermediate,
+        "Adding stage dependency for {} with type {} failed: only {} datas can be added as a dependency "
+        "while adding {} with usage {} was attempted",
+        stage->name(), stage->type(), DataUsage::Intermediate, data->name(), data->usage());
+
+    VPU_THROW_UNLESS(data->_producerEdge != nullptr,
+        "Adding stage dependency for {} with type {} failed: data {} with usage {} should have producer, "
+        "but actually it doesn't", stage->name(), stage->type(), data->name(), data->usage());
+
+    if (data->_producerEdge != nullptr) {
+        ++data->_producerEdge->_producer->_nextStages[stage];
+        ++stage->_prevStages[data->_producerEdge->_producer];
     }
 
     return edge;
@@ -547,11 +575,11 @@ void ModelObj::replaceStageOutput(
 
     IE_ASSERT(newOutput->_producerEdge == nullptr);
 
-    if (newOutput->_parentDataEdge != nullptr) {
-        IE_ASSERT(newOutput->_parentDataEdge->_order != SharedDataOrder::ParentWritesToChild);
+    if (newOutput->_parentDataToDataEdge != nullptr) {
+        IE_ASSERT(newOutput->_parentDataToDataEdge->_order != SharedDataOrder::ParentWritesToChild);
     }
 
-    for (const auto& childDataEdge : newOutput->_childDataEdges) {
+    for (const auto& childDataEdge : newOutput->_childDataToDataEdges) {
         IE_ASSERT(childDataEdge->_order != SharedDataOrder::ChildWritesToParent);
     }
 
@@ -1104,7 +1132,7 @@ void ModelObj::revertInjection(const Injection& edge) {
     _stageEdgePtrList.erase(edge->_ptrPosInModel);
 }
 
-ModelObj::DataEdgeHelper::~DataEdgeHelper() {
+ModelObj::DataToDataEdgeHelper::~DataToDataEdgeHelper() {
     //
     // Check that `done` was called.
     //
@@ -1114,7 +1142,7 @@ ModelObj::DataEdgeHelper::~DataEdgeHelper() {
     }
 }
 
-ModelObj::DataEdgeHelper& ModelObj::DataEdgeHelper::parent(const Data& parent) {
+ModelObj::DataToDataEdgeHelper& ModelObj::DataToDataEdgeHelper::parent(const Data& parent) {
     //
     // Check that `done` was not called.
     //
@@ -1138,7 +1166,7 @@ ModelObj::DataEdgeHelper& ModelObj::DataEdgeHelper::parent(const Data& parent) {
     return *this;
 }
 
-ModelObj::DataEdgeHelper& ModelObj::DataEdgeHelper::child(const Data& child) {
+ModelObj::DataToDataEdgeHelper& ModelObj::DataToDataEdgeHelper::child(const Data& child) {
     //
     // Check that `done` was not called.
     //
@@ -1162,7 +1190,7 @@ ModelObj::DataEdgeHelper& ModelObj::DataEdgeHelper::child(const Data& child) {
     return *this;
 }
 
-ModelObj::DataEdgeHelper& ModelObj::DataEdgeHelper::mode(SharedDataMode mode) {
+ModelObj::DataToDataEdgeHelper& ModelObj::DataToDataEdgeHelper::mode(SharedDataMode mode) {
     //
     // Check that `done` was not called.
     //
@@ -1181,7 +1209,7 @@ ModelObj::DataEdgeHelper& ModelObj::DataEdgeHelper::mode(SharedDataMode mode) {
     return *this;
 }
 
-ModelObj::DataEdgeHelper& ModelObj::DataEdgeHelper::order(SharedDataOrder order) {
+ModelObj::DataToDataEdgeHelper& ModelObj::DataToDataEdgeHelper::order(SharedDataOrder order) {
     //
     // Check that `done` was not called.
     //
@@ -1200,7 +1228,7 @@ ModelObj::DataEdgeHelper& ModelObj::DataEdgeHelper::order(SharedDataOrder order)
     return *this;
 }
 
-ModelObj::DataEdgeHelper& ModelObj::DataEdgeHelper::offset(const DimValues& offset) {
+ModelObj::DataToDataEdgeHelper& ModelObj::DataToDataEdgeHelper::offset(const DimValues& offset) {
     //
     // Check that `done` was not called.
     //
@@ -1219,7 +1247,7 @@ ModelObj::DataEdgeHelper& ModelObj::DataEdgeHelper::offset(const DimValues& offs
     return *this;
 }
 
-ModelObj::DataEdgeHelper& ModelObj::DataEdgeHelper::connectionMode(SharedConnectionMode connectionMode) {
+ModelObj::DataToDataEdgeHelper& ModelObj::DataToDataEdgeHelper::connectionMode(SharedConnectionMode connectionMode) {
     //
     // Check that `done` was not called.
     //
@@ -1237,7 +1265,7 @@ ModelObj::DataEdgeHelper& ModelObj::DataEdgeHelper::connectionMode(SharedConnect
     return *this;
 }
 
-SharedAllocation ModelObj::DataEdgeHelper::done() {
+DataToDataAllocation ModelObj::DataToDataEdgeHelper::done() {
     //
     // Check that `done` was not called.
     //
@@ -1260,7 +1288,7 @@ SharedAllocation ModelObj::DataEdgeHelper::done() {
     // Call the actual implementation.
     //
 
-    auto edge = _model->connectDatasImpl(
+    auto edge = _model->connectDataWithDataImpl(
         _parent, _child,
         _mode, _order,
         _offset, _connectionMode);
@@ -1440,7 +1468,7 @@ Stage getDataConnectionStage(
 
 }  // namespace
 
-SharedAllocation ModelObj::connectDatasImpl(
+DataToDataAllocation ModelObj::connectDataWithDataImpl(
         const Data& parent,
         const Data& child,
         SharedDataMode mode,
@@ -1451,13 +1479,13 @@ SharedAllocation ModelObj::connectDatasImpl(
     // Child must not have other parents
     //
 
-    IE_ASSERT(child->parentDataEdge() == nullptr);
+    IE_ASSERT(child->parentDataToDataEdge() == nullptr);
 
     //
     // Create new Edge.
     //
 
-    std::shared_ptr<SharedAllocationEdge> edge(new SharedAllocationEdge);
+    std::shared_ptr<DataToDataAllocationEdge> edge(new DataToDataAllocationEdge);
     edge->_ptrPosInModel = _dataEdgePtrList.emplace(_dataEdgePtrList.end(), edge);
 
     edge->_parent = parent;
@@ -1476,8 +1504,8 @@ SharedAllocation ModelObj::connectDatasImpl(
         edge->attrs().set("offset", offset);
     }
 
-    parent->_childDataEdges.push_back(edge);
-    child->_parentDataEdge = edge;
+    parent->_childDataToDataEdges.push_back(edge);
+    child->_parentDataToDataEdge = edge;
 
     //
     // Notify allocator.
@@ -1490,13 +1518,41 @@ SharedAllocation ModelObj::connectDatasImpl(
     return edge;
 }
 
+DataToShapeAllocation ModelObj::connectDataWithShape(
+        const Data& parent,
+        const Data& child) {
+    VPU_THROW_UNLESS(child->parentDataToShapeEdge() == nullptr,
+        "connectDataWithShape failed: child data {} with usage {} must not have any parents "
+        "but it actually have (data {} with usage {})",
+        child->name(), child->usage(), child->parentDataToShapeEdge()->parent()->name(), child->parentDataToShapeEdge()->parent()->usage());
+
+    std::shared_ptr<DataToShapeAllocationEdge> edge(new DataToShapeAllocationEdge);
+    edge->_ptrPosInModel = _shapeEdgePtrList.emplace(_shapeEdgePtrList.end(), edge);
+
+    edge->_parent = parent;
+    edge->_child = child;
+
+    parent->_childDataToShapeEdges.push_back(edge);
+    child->_parentDataToShapeEdge = edge;
+
+    const auto& parentStage = parent->producer();
+    const auto& childStage = child->producer();
+
+    if (parentStage && childStage && parentStage != childStage && parent->usage() == DataUsage::Intermediate) {
+        // Shape and data are produced from different stages, make sure that shape is calculated before data
+        addStageDependency(childStage, parent);
+    }
+
+    return edge;
+}
+
 void ModelObj::replaceParentData(
-        const SharedAllocation& edge,
+        const DataToDataAllocation& edge,
         const Data& newParent) {
     auto oldParent = edge->parent();
     auto child = edge->child();
 
-    oldParent->_childDataEdges.erase(edge);
+    oldParent->_childDataToDataEdges.erase(edge);
 
     edge->_parent = newParent;
     if (edge->connectionMode() == SharedConnectionMode::SINGLE_STAGE) {
@@ -1507,7 +1563,7 @@ void ModelObj::replaceParentData(
             this);
     }
 
-    newParent->_childDataEdges.push_back(edge);
+    newParent->_childDataToDataEdges.push_back(edge);
 
     if (oldParent->usage() != DataUsage::Intermediate ||
         newParent->usage() != DataUsage::Intermediate) {
@@ -1516,12 +1572,12 @@ void ModelObj::replaceParentData(
 }
 
 void ModelObj::replaceChildData(
-        const SharedAllocation& edge,
+        const DataToDataAllocation& edge,
         const Data& newChild) {
     auto parent = edge->parent();
     auto oldChild = edge->child();
 
-    oldChild->_parentDataEdge = nullptr;
+    oldChild->_parentDataToDataEdge = nullptr;
 
     edge->_child = newChild;
     if (edge->connectionMode() == SharedConnectionMode::SINGLE_STAGE) {
@@ -1532,19 +1588,19 @@ void ModelObj::replaceChildData(
             this);
     }
 
-    newChild->_parentDataEdge = edge;
+    newChild->_parentDataToDataEdge = edge;
 
     if (parent->usage() != DataUsage::Intermediate) {
         getAllocator().setNeedToAllocNonIntermData();
     }
 }
 
-void ModelObj::disconnectDatas(const SharedAllocation& edge) {
+void ModelObj::disconnectDatas(const DataToDataAllocation& edge) {
     auto parent = edge->parent();
     auto child = edge->child();
 
-    child->_parentDataEdge = nullptr;
-    parent->_childDataEdges.erase(edge);
+    child->_parentDataToDataEdge = nullptr;
+    parent->_childDataToDataEdges.erase(edge);
 
     IE_ASSERT(edge->_ptrPosInModel != _dataEdgePtrList.end());
     _dataEdgePtrList.erase(edge->_ptrPosInModel);
@@ -1659,11 +1715,12 @@ void ModelObj::cleanUp() {
 
     for (const auto& data : datas()) {
         if (data->_usage == DataUsage::Input) {
-            IE_ASSERT(!data->_consumerEdges.empty());
-            IE_ASSERT(data->_parentDataEdge == nullptr);
+            VPU_THROW_UNLESS(!data->_consumerEdges.empty(),
+                "Input data {} must have at least one consumers, but got zero.", data->name());
+            IE_ASSERT(data->_parentDataToDataEdge == nullptr);
         } else if (data->_usage == DataUsage::Output) {
             IE_ASSERT(data->_producerEdge != nullptr);
-            IE_ASSERT(data->_parentDataEdge == nullptr);
+            IE_ASSERT(data->_parentDataToDataEdge == nullptr);
         } else if (data->_usage == DataUsage::Temp) {
             if (data->_tempBufferEdge == nullptr) {
                 _dataList.erase(data);

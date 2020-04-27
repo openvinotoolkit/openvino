@@ -22,12 +22,11 @@ namespace LayerTestsDefinitions {
 
 std::string SpaceToBatchLayerTest::getTestCaseName(const testing::TestParamInfo<spaceToBatchParamsTuple> &obj) {
     std::vector<size_t> inShapes, blockShape, padsBegin, padsEnd;
-    InferenceEngine::Precision inPrc, netPrc;
+    InferenceEngine::Precision netPrc;
     std::string targetName;
-    std::tie(blockShape, padsBegin, padsEnd, inShapes, inPrc, netPrc, targetName) = obj.param;
+    std::tie(blockShape, padsBegin, padsEnd, inShapes, netPrc, targetName) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inShapes) << "_";
-    result << "inPRC=" << inPrc.name() << "_";
     result << "netPRC=" << netPrc.name() << "_";
     result << "BS=" << CommonTestUtils::vec2str(blockShape) << "_";
     result << "PB=" << CommonTestUtils::vec2str(padsBegin) << "_";
@@ -38,8 +37,8 @@ std::string SpaceToBatchLayerTest::getTestCaseName(const testing::TestParamInfo<
 
 void SpaceToBatchLayerTest::SetUp() {
     std::vector<size_t> inputShape, blockShape, padsBegin, padsEnd;
-    std::tie(blockShape, padsBegin, padsEnd, inputShape, inputPrecision, netPrecision,
-             targetDevice) = this->GetParam();
+    InferenceEngine::Precision inputPrecision, netPrecision;
+    std::tie(blockShape, padsBegin, padsEnd, inputShape, netPrecision, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -47,11 +46,15 @@ void SpaceToBatchLayerTest::SetUp() {
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto s2b = ngraph::builder::makeSpaceToBatch(paramOuts[0], ngPrc, blockShape, padsBegin, padsEnd);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2b)};
-    fnPtr = std::make_shared<ngraph::Function>(results, params, "SpaceToBatch");
+    function = std::make_shared<ngraph::Function>(results, params, "SpaceToBatch");
 }
 
 TEST_P(SpaceToBatchLayerTest, CompareWithRefs) {
-    inferAndValidate();
+    Run();
+
+    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+        PluginCache::get().reset();
+    }
 }
 
 }  // namespace LayerTestsDefinitions

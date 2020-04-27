@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadRangeNetwork) {
     std::string model = R"V0G0N(
-<net name="Range" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,2,12"/>
@@ -99,7 +99,7 @@ TEST_F(NGraphReaderTests, ReadRangeNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Range" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="in1" precision="FP32" type="Input">
             <output>

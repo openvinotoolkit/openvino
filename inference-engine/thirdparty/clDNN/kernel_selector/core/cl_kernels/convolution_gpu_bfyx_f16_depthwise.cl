@@ -14,6 +14,7 @@
 
 #include "include/include_all.cl"
 #include "include/unit_type.cl"
+#include "include/mmad.cl"
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 

@@ -152,7 +152,7 @@ def main():
 
     # Processing output blob
     log.info("Processing output blob")
-    res = infer_request.outputs[out_blob]
+    res = infer_request.output_blobs[out_blob]
     log.info("Top {} results: ".format(args.number_top))
     if args.labels:
         with open(args.labels, 'r') as f:
@@ -161,7 +161,7 @@ def main():
         labels_map = None
     classid_str = "classid"
     probability_str = "probability"
-    for i, probs in enumerate(res):
+    for i, probs in enumerate(res.buffer):
         probs = np.squeeze(probs)
         top_ind = np.argsort(probs)[-args.number_top:][::-1]
         print("Image {}\n".format(args.input[i]))

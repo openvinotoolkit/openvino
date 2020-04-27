@@ -85,7 +85,7 @@ public:
     /**
      * @brief Wraps original method
      * IInferencePlugin::LoadNetwork
-     * @param network - a network object acquired from CNNNetReader
+     * @param network - a network object acquired from InferenceEngine::Core::ReadNetwork
      * @param config string-string map of config parameters relevant only for this load operation
      * @param context - a pointer to plugin context derived from RemoteContext class used to
      *        execute the network

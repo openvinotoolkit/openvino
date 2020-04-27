@@ -13,7 +13,7 @@
 #include "tests_common.hpp"
 
 #include "single_layer_common.hpp"
-#include "cpp/ie_cnn_net_reader.h"
+#include <ie_core.hpp>
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -27,10 +27,10 @@ struct one_hot_base_params {
 };
 
 struct one_hot_test_params : one_hot_base_params {
-    std::string libraryName;
+    std::string device_name;
 
     one_hot_test_params(std::string name, one_hot_base_params params) :
-            one_hot_base_params(params), libraryName(name) {}
+            one_hot_base_params(params), device_name(name) {}
 };
 
 class OneHotOnly1dTest: public TestsCommon,
@@ -109,9 +109,10 @@ protected:
             one_hot_test_params p = ::testing::WithParamInterface<one_hot_test_params>::GetParam();
             std::string model = getModel(p);
 
-            CNNNetReader net_reader;
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
             try {
-                net_reader.ReadNetwork(model.data(), model.length());
+                network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
             } catch (InferenceEngine::details::InferenceEngineException &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
@@ -119,11 +120,11 @@ protected:
             }
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             // Output Data
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
@@ -247,9 +248,10 @@ protected:
             one_hot_test_params p = ::testing::WithParamInterface<one_hot_test_params>::GetParam();
             std::string model = getModel(p);
 
-            CNNNetReader net_reader;
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
             try {
-                net_reader.ReadNetwork(model.data(), model.length());
+                network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
             } catch (InferenceEngine::details::InferenceEngineException &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
@@ -257,11 +259,11 @@ protected:
             }
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             // Output Data
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
@@ -398,9 +400,10 @@ protected:
             one_hot_test_params p = ::testing::WithParamInterface<one_hot_test_params>::GetParam();
             std::string model = getModel(p);
 
-            CNNNetReader net_reader;
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
             try {
-                net_reader.ReadNetwork(model.data(), model.length());
+                network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
             } catch (InferenceEngine::details::InferenceEngineException &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
@@ -408,11 +411,11 @@ protected:
             }
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             // Output Data
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
@@ -555,9 +558,10 @@ protected:
             one_hot_test_params p = ::testing::WithParamInterface<one_hot_test_params>::GetParam();
             std::string model = getModel(p);
 
-            CNNNetReader net_reader;
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
             try {
-                net_reader.ReadNetwork(model.data(), model.length());
+                network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
             } catch (InferenceEngine::details::InferenceEngineException &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
@@ -565,11 +569,11 @@ protected:
             }
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             // Output Data
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
@@ -726,9 +730,10 @@ protected:
             one_hot_test_params p = ::testing::WithParamInterface<one_hot_test_params>::GetParam();
             std::string model = getModel(p);
 
-            CNNNetReader net_reader;
+            InferenceEngine::Core core;
+            InferenceEngine::CNNNetwork network;
             try {
-                net_reader.ReadNetwork(model.data(), model.length());
+                network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
             } catch (InferenceEngine::details::InferenceEngineException &e) {
                 FAIL() << e.what();
             } catch (std::exception &e) {
@@ -736,11 +741,11 @@ protected:
             }
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(net_reader.getNetwork());
+            graph.CreateGraph(network);
 
             // Output Data
             InferenceEngine::OutputsDataMap out;
-            out = net_reader.getNetwork().getOutputsInfo();
+            out = network.getOutputsInfo();
             InferenceEngine::BlobMap outputBlobs;
 
             std::pair<std::string, InferenceEngine::DataPtr> item = *out.begin();
@@ -807,34 +812,34 @@ protected:
 #define case_5d_4 one_hot_base_params({ {1, 3, 2, 3}, {2, 1, 3, 4, 3}, 3, 4, 1.0f, 0.0f })
 
 one_hot_test_params one_hot_only_1d_test_cases[] = {
-    one_hot_test_params("MKLDNNPlugin", case_1d_0),
-    one_hot_test_params("MKLDNNPlugin", case_1d_1)
+    one_hot_test_params("CPU", case_1d_0),
+    one_hot_test_params("CPU", case_1d_1)
 };
 
 one_hot_test_params one_hot_only_2d_test_cases[] = {
-    one_hot_test_params("MKLDNNPlugin", case_2d_0),
-    one_hot_test_params("MKLDNNPlugin", case_2d_1),
-    one_hot_test_params("MKLDNNPlugin", case_2d_2),
+    one_hot_test_params("CPU", case_2d_0),
+    one_hot_test_params("CPU", case_2d_1),
+    one_hot_test_params("CPU", case_2d_2),
 };
 
 one_hot_test_params one_hot_only_3d_test_cases[] = {
-    one_hot_test_params("MKLDNNPlugin", case_3d_0),
-    one_hot_test_params("MKLDNNPlugin", case_3d_1),
-    one_hot_test_params("MKLDNNPlugin", case_3d_2),
+    one_hot_test_params("CPU", case_3d_0),
+    one_hot_test_params("CPU", case_3d_1),
+    one_hot_test_params("CPU", case_3d_2),
 };
 one_hot_test_params one_hot_only_4d_test_cases[] = {
-    one_hot_test_params("MKLDNNPlugin", case_4d_0),
-    one_hot_test_params("MKLDNNPlugin", case_4d_1),
-    one_hot_test_params("MKLDNNPlugin", case_4d_2),
-    one_hot_test_params("MKLDNNPlugin", case_4d_3)
+    one_hot_test_params("CPU", case_4d_0),
+    one_hot_test_params("CPU", case_4d_1),
+    one_hot_test_params("CPU", case_4d_2),
+    one_hot_test_params("CPU", case_4d_3)
 };
 
 one_hot_test_params one_hot_only_5d_test_cases[] = {
-    one_hot_test_params("MKLDNNPlugin", case_5d_0),
-    one_hot_test_params("MKLDNNPlugin", case_5d_1),
-    one_hot_test_params("MKLDNNPlugin", case_5d_2),
-    one_hot_test_params("MKLDNNPlugin", case_5d_3),
-    one_hot_test_params("MKLDNNPlugin", case_5d_4)
+    one_hot_test_params("CPU", case_5d_0),
+    one_hot_test_params("CPU", case_5d_1),
+    one_hot_test_params("CPU", case_5d_2),
+    one_hot_test_params("CPU", case_5d_3),
+    one_hot_test_params("CPU", case_5d_4)
 };
 
 TEST_P(OneHotOnly1dTest, TestsOneHot) {}

@@ -81,6 +81,7 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
                                    &layerCloneImpl<ExperimentalDetectronGenerateProposalsSingleImageLayer>,
                                    &layerCloneImpl<ExperimentalDetectronPriorGridGeneratorLayer>,
                                    &layerCloneImpl<ScatterUpdateLayer>,
+                                   &layerCloneImpl<ScatterElementsUpdateLayer>,
                                    &layerCloneImpl<NonMaxSuppressionLayer>,
                                    &layerCloneImpl<SelectLayer>,
                                    &layerCloneImpl<BatchNormalizationLayer>,
@@ -175,7 +176,15 @@ std::shared_ptr<ICNNNetwork> cloneNetwork(const ICNNNetwork& network) {
 
     return cloneNet(network);
 }
-details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& network) {
+
+details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
+    std::shared_ptr<ICNNNetwork> clonedNetwork;
+    // Call conversion only on the copy of nGraph function
+    if (auto func = origin_network.getFunction()) {
+        clonedNetwork = cloneNetwork(origin_network);
+    }
+    const ICNNNetwork& network = (clonedNetwork) ? *clonedNetwork : origin_network;
+
     std::vector<CNNLayerPtr> layers;
     details::CNNNetworkIterator i(&network);
     while (i != details::CNNNetworkIterator()) {

@@ -10,14 +10,6 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-
-// Common params
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
-        InferenceEngine::Precision::U8
-};
-
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16
@@ -61,7 +53,6 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
@@ -70,7 +61,6 @@ INSTANTIATE_TEST_CASE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
 INSTANTIATE_TEST_CASE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
@@ -111,7 +101,6 @@ const auto conv3DParams_FP16 = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(Convolution3D_FP32, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv3DParams_FP32,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::FP32),
                                 ::testing::Values(std::vector<size_t >({1, 3, 10, 10, 10})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
@@ -120,23 +109,9 @@ INSTANTIATE_TEST_CASE_P(Convolution3D_FP32, ConvolutionLayerTest,
 INSTANTIATE_TEST_CASE_P(Convolution3D_FP16, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv3DParams_FP16,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::FP16),
                                 ::testing::Values(std::vector<size_t >({1, 3, 10, 10, 10})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionLayerTest::getTestCaseName);
-
-const std::vector<std::vector<size_t >> targetReshapeShapes = {{2, 3, 10, 10, 10},
-                                                                      {1, 3, 12, 12, 12},
-                                                                      {2, 3, 12, 13, 14}};
-const auto convReshape = ::testing::Combine(
-        ::testing::Values(std::vector<size_t >({3, 3, 3})),
-        ::testing::Values(std::vector<size_t >({1, 1, 1})),
-        ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
-        ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
-        ::testing::Values(std::vector<size_t >({1, 1, 1})),
-        ::testing::Values(5),
-        ::testing::ValuesIn(padTypes)
-);
 
 }  // namespace

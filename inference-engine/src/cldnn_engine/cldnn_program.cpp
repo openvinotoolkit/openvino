@@ -567,6 +567,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Sinh" , Sinh },
         { "Cosh" , Cosh },
         { "Swish" , Swish },
+        { "Gelu" , Gelu },
         { "Atanh" , Atanh },
         { "Floor" , Floor },
         { "Ceil" , Ceil },
@@ -1142,6 +1143,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case SoftPlus:
         case SoftSign:
         case Swish:
+        case Gelu:
             CreateActivationPrimitive(topology, layer, LayerTypeFromStr(layer->type));
             break;
         case LRN: CreateLRNPrimitive(topology, layer);
@@ -2760,6 +2762,8 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
             activationType = ELU;
         } else if (activation_type == "swish")  {
             activationType = Swish;
+        } else if (activation_type == "gelu")  {
+            activationType = Gelu;
         } else if (activation_type == "relu")  {
             activationType = ReLU;
         } else if (activation_type == "relu6")  {
@@ -2946,6 +2950,11 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
     case Swish:
     {
         func = cldnn::activation_func::swish;
+        break;
+    }
+    case Gelu:
+    {
+        func = cldnn::activation_func::gelu;
         break;
     }
     case Sign:
@@ -4222,11 +4231,80 @@ void Program::CreateSelectPrimitive(cldnn::topology& topology, InferenceEngine::
     ValidateLayer(layer, 3);
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
 
-    auto layerName = layer_type_name_ID(layer);
-    auto primitive = cldnn::select(layerName, inputPrimitives[0], inputPrimitives[1], inputPrimitives[2]);
+    auto selectLayerName = layer_type_name_ID(layer);
+
+    auto outDims = layer->outData[0]->getTensorDesc().getDims();
+    auto outDimsN = outDims.size();
+
+    std::string broadcast_type = layer->GetParamAsString("auto_broadcast", "numpy");
+
+    if ((broadcast_type != "none") && (broadcast_type != "numpy")) {
+        THROW_CLDNN_EXCEPTION("Unsupported broadcast type (" + broadcast_type +
+                                  ") in layer " + selectLayerName);
+    }
+
+    auto selectSpecificTensor = [](const InferenceEngine::SizeVector& dims, int def = 1) {
+        switch (dims.size()) {
+        case 0: return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(def, def));
+        case 1: return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(dims[0], def));
+        case 2: return cldnn::tensor(cldnn::batch(def), cldnn::feature(def), cldnn::spatial(dims[1], dims[0]));
+        case 3: return cldnn::tensor(cldnn::batch(def), cldnn::feature(dims[0]), cldnn::spatial(dims[2], dims[1]));
+        case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
+        case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
+        case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
+        default: THROW_CLDNN_EXCEPTION("Invalid dimensions size(" << dims.size() << ") for Select layer");
+        }
+    };
+
+    if (broadcast_type == "numpy") {
+        // Preprocess inputs
+        for (size_t i = 0; i < inputPrimitives.size(); ++i) {
+            auto inputDims = layer->insData[i].lock()->getTensorDesc().getDims();
+            auto inputDimsN = inputDims.size();
+
+            // Add reorder if changing number of dimensions requires changing format
+            auto targetFormat = defaultFormatForDims(outDimsN);
+
+            if (targetFormat.value != defaultFormatForDims(inputDimsN).value) {
+                auto reorderName = selectLayerName + "_cldnn_in" + std::to_string(i) + "_reorder";
+                auto targetDatatype = DataTypeFromPrecision(layer->precision);
+                auto reorderPrim = cldnn::reorder(reorderName, inputPrimitives[i], targetFormat, targetDatatype);
+
+                topology.add(reorderPrim);
+                AddInnerPrimitiveToProfiler(reorderName, selectLayerName, layer);
+
+                inputPrimitives[i] = reorderName;
+            }
+
+            // Reshape input if they differ or select specific shape matches default one
+            if (inputDimsN != outDimsN || inputDimsN < 4) {
+                auto reshapeName = selectLayerName + "_cldnn_in" + std::to_string(i) + "_reshape";
+
+                // Extend input dimensions to the same size as output dimensions by prepending ones
+                inputDims.insert(inputDims.begin(), outDimsN - inputDimsN, 1ul);
+
+                auto targetShape = selectSpecificTensor(inputDims);
+
+                auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
+
+                topology.add(reshapePrim);
+                AddInnerPrimitiveToProfiler(reshapeName, selectLayerName, layer);
+
+                inputPrimitives[i] = reshapeName;
+            }
+        }
+    }
+
+    auto primitive = cldnn::select(
+        selectLayerName,
+        inputPrimitives[0],
+        inputPrimitives[1],
+        inputPrimitives[2],
+        cldnn::padding(),
+        broadcast_type);
 
     topology.add(primitive);
-    AddPrimitiveToProfiler(layerName, layer);
+    AddPrimitiveToProfiler(selectLayerName, layer);
 }
 
 bool Program::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitLayer) const {

@@ -854,6 +854,39 @@ void MKLDNNConvolutionNode::initDescriptor(const InferenceEngine::LayerConfig& c
     selectedPD->getConfig() = rightConfig;
 }
 
+void MKLDNNConvolutionNode::filterSupportedPrimitiveDescriptors() {
+    MKLDNNNode::filterSupportedPrimitiveDescriptors();
+    // We also need to filter descs in Convolution node
+    filterSupportedDescriptors();
+}
+
+void MKLDNNConvolutionNode::filterSupportedDescriptors() {
+    if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
+        if (inputMemoryFormatsFilter.size() > 1 || outputMemoryFormatsFilter.size() > 1) {
+            THROW_IE_EXCEPTION << "Incorrect number of input or output memory formats for Convolution node";
+        }
+        auto itd = descs.begin();
+        while (itd != descs.end()) {
+            bool isSuitableDesc = true;
+            if (!inputMemoryFormatsFilter.empty()) {
+                auto src_fmt = std::shared_ptr<mkldnn::convolution_forward::desc>(*itd)->data.src_desc.format;
+                if (src_fmt != inputMemoryFormatsFilter[0])
+                    isSuitableDesc = false;
+            }
+            if (!outputMemoryFormatsFilter.empty()) {
+                auto dst_fmt = std::shared_ptr<mkldnn::convolution_forward::desc>(*itd)->data.dst_desc.format;
+                if (dst_fmt != outputMemoryFormatsFilter[0])
+                    isSuitableDesc = false;
+            }
+            if (!isSuitableDesc) {
+                descs.erase(itd);
+            } else {
+                itd++;
+            }
+        }
+    }
+}
+
 MKLDNNMemoryDesc MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     InferenceEngine::TensorDesc desc = idx > 0 ? MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(idx - 1).desc())
                                                : MKLDNNMemoryDesc(primitive_desc_it.src_primitive_desc(idx).desc());

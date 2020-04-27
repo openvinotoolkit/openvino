@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertDivide::convert_divide() {
     auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
@@ -26,7 +27,7 @@ void ngraph::pass::ConvertDivide::convert_divide() {
         auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow);
 
         mul->set_friendly_name(div->get_friendly_name());
-
+        ngraph::copy_runtime_info(div, {pow, mul});
         ngraph::replace_node(div, mul);
         return true;
     };

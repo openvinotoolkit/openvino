@@ -26,7 +26,7 @@ TEST_F(GraphTransformerTest, CantConnectInputOutputDatas) {
     model->attrs().set<int>("numOutputs", 1);
 
     ASSERT_ANY_THROW(
-    model->connectDatas()
+    model->connectDataWithData()
         .parent(input)
         .child(output)
         .mode(SharedDataMode::ROI)

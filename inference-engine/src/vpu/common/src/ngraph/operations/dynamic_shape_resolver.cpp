@@ -4,7 +4,7 @@
 
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
 
-namespace ngraph { namespace op {
+namespace ngraph { namespace vpu { namespace op {
 
 constexpr NodeTypeInfo DynamicShapeResolver::type_info;
 
@@ -23,21 +23,24 @@ void DynamicShapeResolver::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).is_static(), "(", get_friendly_name(), ") does not support dynamic shape for data tensor");
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(1).is_static(), "(", get_friendly_name(), ") does not support dynamic shape for dims tensor");
 
+    const auto& dataElementType = get_input_element_type(0);
+    NODE_VALIDATION_CHECK(this, dataElementType.is_static(), "(", get_friendly_name(), ") does not support dynamic element type for data tensor");
     const auto& dimsElementType = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(this, dimsElementType.is_integral_number() && dimsElementType.is_static(), "(", get_friendly_name(), ") supports only integral "
-        "number type for dims tensor, but ", dimsElementType, " provided");
+    NODE_VALIDATION_CHECK(this, dimsElementType.is_static() && dimsElementType.compatible(ngraph::element::i64), "(", get_friendly_name(),
+        ") supports only i64 number type for dims tensor, but ", dimsElementType, " provided");
 
     const auto& dataShape = get_input_shape(0);
     const auto& dimsShape = get_input_shape(1);
     NODE_VALIDATION_CHECK(this, dimsShape.size() == 1 && dimsShape.front() == dataShape.size(), "(", get_friendly_name(), ") inputs shapes mismatch: first "
         "input shape = ", dataShape, " second input shape = ", dimsShape, " but ", dataShape, " and ", Shape{dataShape.size()}, " are expected");
 
-    set_output_type(0, get_input_element_type(0), get_input_shape(0));
+    set_output_type(0, dataElementType, dataShape);
 }
 
-bool DynamicShapeResolver::visit_attributes(ngraph::AttributeVisitor& visitor) {
+bool DynamicShapeResolver::visit_attributes(ngraph::AttributeVisitor&) {
     return true;
 }
 
 }  // namespace op
+}  // namespace vpu
 }  // namespace ngraph

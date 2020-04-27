@@ -10,12 +10,12 @@
 #include <memory>
 #include <vector>
 
-namespace ngraph {
-namespace op {
+namespace ngraph { namespace vpu { namespace op {
 
-class StaticShapeNonZero : public Op {
+class StaticShapeNonZero : public ngraph::op::Op {
 public:
-    static constexpr NodeTypeInfo type_info{"StaticShapeNonZero", 1};
+    static constexpr NodeTypeInfo type_info{"StaticShapeNonZero", 0};
+
     const NodeTypeInfo& get_type_info() const override { return type_info; }
 
     explicit StaticShapeNonZero(const Output<ngraph::Node>& input);
@@ -26,5 +26,7 @@ public:
 
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
 };
+
 }  // namespace op
+}  // namespace vpu
 }  // namespace ngraph

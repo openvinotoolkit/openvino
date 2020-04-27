@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertPadToPadIE::convert_pad() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -28,7 +29,8 @@ void ngraph::pass::ConvertPadToPadIE::convert_pad() {
         if (pad_ie == nullptr)
             return false;
         pad_ie->set_friendly_name(pad->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), pad_ie);
+        ngraph::copy_runtime_info(pad, pad_ie);
+        ngraph::replace_node(pad, pad_ie);
         return true;
     };
 

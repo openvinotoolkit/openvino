@@ -30,7 +30,14 @@ primitive_type_id select::type_id() {
 layout select_inst::calc_output_layout(select_node const& node) {
     assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
            "Output data type forcing is not supported for select_node!");
-    return node.input(1).get_non_padded_output_layout();
+
+    auto output_layout = node.input(1).get_non_padded_output_layout();
+
+    if (node.get_primitive()->broadcast_type == "numpy") {
+        output_layout.size = tensor::max(node.input(1).get_output_layout().size, node.input(2).get_output_layout().size);
+    }
+
+    return output_layout;
 }
 
 std::string select_inst::to_string(select_node const& node) {
@@ -53,51 +60,64 @@ std::string select_inst::to_string(select_node const& node) {
 select_inst::typed_primitive_inst(network_impl& network, select_node const& node) : parent(network, node) {
     auto& deps = node.get_dependencies();
 
-    for (size_t i = 1; i < deps.size() - 1; i++) {
-        auto batch1 = deps[i]->get_output_layout().size.batch[0];
-        auto batch2 = deps[i + 1]->get_output_layout().size.batch[0];
-        CLDNN_ERROR_NOT_EQUAL(node.id(), "Batch size input", batch1, "Batch size next input", batch2, "");
+    CLDNN_ERROR_LESS_THAN(node.id(),
+                                "Number of inputs",
+                                deps.size(),
+                                "Expected number of inputs",
+                                3,
+                                "");
 
-        auto feature1 = deps[i]->get_output_layout().size.feature[0];
-        auto feature2 = deps[i + 1]->get_output_layout().size.feature[0];
-        CLDNN_ERROR_NOT_EQUAL(node.id(), "Feature size input", feature1, "Feature size next input", feature2, "");
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                "Mask format",
+                                deps[0]->get_output_layout().format,
+                                "Positive input format",
+                                deps[1]->get_output_layout().format,
+                                "");
 
-        auto spatial1 = deps[i]->get_output_layout().size.spatial[0];
-        auto spatial2 = deps[i + 1]->get_output_layout().size.spatial[0];
-        CLDNN_ERROR_NOT_EQUAL(node.id(), "Spatial size input", spatial1, "Spatial size next input", spatial2, "");
+    if (node.get_primitive()->broadcast_type == "none") {
+        CLDNN_ERROR_LAYOUT_MISMATCH(node.id(),
+                                "Positive input layout",
+                                deps[1]->get_output_layout(),
+                                "Negative input layout",
+                                deps[2]->get_output_layout(),
+                                "");
 
-        auto format1 = deps[i]->get_output_layout().format;
-        auto format2 = deps[i + 1]->get_output_layout().format;
-        CLDNN_ERROR_NOT_EQUAL(node.id(), "Format input", format1, "Format next input", format2, "");
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                "Mask size",
+                                deps[0]->get_output_layout().size,
+                                "Positive input format",
+                                deps[1]->get_output_layout().size,
+                                "");
+    } else if (node.get_primitive()->broadcast_type == "numpy") {
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                "Positive input format",
+                                deps[1]->get_output_layout().format,
+                                "Negative input format",
+                                deps[2]->get_output_layout().format,
+                                "");
+
+        CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),
+                                "Positive input data type",
+                                deps[1]->get_output_layout().data_type,
+                                "Negative input data type",
+                                deps[2]->get_output_layout().data_type,
+                                "");
+
+        cldnn::tensor output_tensor = tensor::max(deps[1]->get_output_layout().size, deps[2]->get_output_layout().size);
+        auto max_dim_count = output_tensor.raw.size();
+
+        for (size_t i = 0; i < deps.size(); i++) {
+            for (size_t d = 0; d < max_dim_count; d++) {
+                auto current_dim = deps[i]->get_output_layout().size.raw[d];
+
+                CLDNN_ERROR_BOOL(node.id(),
+                                    "Sizes equal or broadcast is possible",
+                                    !(current_dim == output_tensor.raw[d] || current_dim == 1),
+                                    "Invalid input shapes");
+            }
+        }
+    } else {
+        CLDNN_ERROR_MESSAGE(node.id(), "Unsupported broadcast_type: " + node.get_primitive()->broadcast_type);
     }
-
-    // For mask added special validations (it can differ from inputs in size)
-    auto batch1 = deps[0]->get_output_layout().size.batch[0];
-    auto batch2 = deps[1]->get_output_layout().size.batch[0];
-    if (batch1 != batch2 && batch1 != 1)
-        CLDNN_ERROR_MESSAGE(node.id(), "Incorrect mask batch size with respect to inputs batch size");
-
-    auto feature1 = deps[0]->get_output_layout().size.feature[0];
-    auto feature2 = deps[1]->get_output_layout().size.feature[0];
-    if (feature1 != feature2 && batch1 != 1)
-        CLDNN_ERROR_MESSAGE(node.id(), "Incorrect mask feature size with respect to inputs feature size");
-
-    auto spatial01 = deps[0]->get_output_layout().size.spatial[0];
-    auto spatial02 = deps[1]->get_output_layout().size.spatial[0];
-    if (spatial01 != spatial02 && spatial01 != 1)
-        CLDNN_ERROR_MESSAGE(node.id(), "Incorrect mask spatial size with respect to inputs spatial size");
-
-    auto spatial11 = deps[0]->get_output_layout().size.spatial[1];
-    auto spatial12 = deps[1]->get_output_layout().size.spatial[1];
-    if (spatial11 != spatial12 && spatial11 != 1)
-        CLDNN_ERROR_MESSAGE(node.id(), "Incorrect mask spatial size with respect to inputs spatial size");
-
-    auto format1 = deps[0]->get_output_layout().format;
-    auto format2 = deps[1]->get_output_layout().format;
-    CLDNN_ERROR_NOT_EQUAL(node.id(), "Format input", format1, "Format next input", format2, "");
-
-    auto data_type1 = deps[1]->get_output_layout().data_type;
-    auto data_type2 = deps[2]->get_output_layout().data_type;
-    CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(), "Data type input 1", data_type1, "Data type input 2", data_type2, "");
 }
 }  // namespace cldnn

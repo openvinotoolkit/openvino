@@ -22,10 +22,10 @@ namespace LayerTestsDefinitions {
 
 std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLayerTestParamsSet> obj) {
     convSpecificParams convParams;
-    InferenceEngine::Precision inputPrecision, netPrecision;
+    InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    std::tie(convParams, inputPrecision, netPrecision, inputShapes, targetDevice) = obj.param;
+    std::tie(convParams, netPrecision, inputShapes, targetDevice) = obj.param;
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
@@ -35,13 +35,12 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "K" << CommonTestUtils::vec2str(kernel) << "_";
-    result << "S" << CommonTestUtils::vec2str(stride) << "_";;
-    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";;
-    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";;
-    result << "D=" << CommonTestUtils::vec2str(dilation) << "_";;
+    result << "S" << CommonTestUtils::vec2str(stride) << "_";
+    result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
+    result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
+    result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
     result << "O=" << convOutChannels << "_";
     result << "AP=" << padType << "_";
-    result << "inPRC=" << inputPrecision.name() << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     return result.str();
@@ -50,9 +49,8 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
 void ConvolutionLayerTest::SetUp() {
     convSpecificParams convParams;
     std::vector<size_t> inputShape;
-    auto inputPrecision = InferenceEngine::Precision::UNSPECIFIED;
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(convParams, inputPrecision, netPrecision, inputShape, targetDevice) = this->GetParam();
+    std::tie(convParams, netPrecision, inputShape, targetDevice) = this->GetParam();
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;

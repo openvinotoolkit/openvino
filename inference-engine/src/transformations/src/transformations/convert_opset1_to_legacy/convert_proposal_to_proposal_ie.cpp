@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 
 #include <ngraph_ops/proposal_ie.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertProposalToProposalIE::convert_proposal() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -29,10 +30,14 @@ void ngraph::pass::ConvertProposalToProposalIE::convert_proposal() {
 
         Output<Node> last;
 
+        ngraph::NodeVector ops_to_replace, new_ops;
+        ops_to_replace.push_back(proposal);
+
         if (auto reshape = std::dynamic_pointer_cast<opset1::Reshape>(proposal->input_value(2).get_node_shared_ptr())) {
             auto input_shape = reshape->get_input_shape(0);
             if (input_shape.size() == 2) {
                 last = reshape->input_value(0);
+                ops_to_replace.push_back(reshape);
             }
         }
 
@@ -40,15 +45,18 @@ void ngraph::pass::ConvertProposalToProposalIE::convert_proposal() {
             std::vector<int64_t> dims{1, -1};
             auto const_shape = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{2}, dims);
             last = std::make_shared<ngraph::opset1::Reshape>(proposal->input_value(2), const_shape, true);
+            new_ops.push_back(last.get_node_shared_ptr());
         }
 
         auto proposal_ie = std::make_shared<ngraph::op::ProposalIE> (proposal->input_value(0),
                                                                      proposal->input_value(1),
                                                                      last,
                                                                      proposal->get_attrs());
+        new_ops.push_back(proposal_ie);
 
         proposal_ie->set_friendly_name(proposal->get_friendly_name());
-        ngraph::replace_node(m.get_match_root(), proposal_ie);
+        ngraph::copy_runtime_info(ops_to_replace, new_ops);
+        ngraph::replace_node(proposal, proposal_ie);
         return true;
     };
 

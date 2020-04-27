@@ -49,7 +49,6 @@ const auto maxPool_ExplicitPad_FloorRounding_Params = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(MaxPool_ExplicitPad_FloorRpunding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_FloorRounding_Params,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -71,7 +70,6 @@ const auto maxPool_ExplicitPad_CeilRounding_Params = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(MaxPool_ExplicitPad_CeilRpunding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_CeilRounding_Params,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -96,7 +94,6 @@ const auto avgPoolExplicitPadCeilRoundingParams = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 avgPoolExplicitPadCeilRoundingParams,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -118,7 +115,6 @@ const auto avgPoolExplicitPadFloorRoundingParams = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_FloorRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 avgPoolExplicitPadFloorRoundingParams,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -141,7 +137,6 @@ const auto allPools_ValidPad_Params = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                         ::testing::Combine(
                                 allPools_ValidPad_Params,
-                                ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),

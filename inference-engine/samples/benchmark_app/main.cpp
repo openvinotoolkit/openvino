@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
         if (FLAGS_d.find("CPU") != std::string::npos && !FLAGS_l.empty()) {
             // CPU (MKLDNN) extensions is loaded as a shared library and passed as a pointer to base extension
             const auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(FLAGS_l);
-            ie.AddExtension(extension_ptr, "CPU");
+            ie.AddExtension(extension_ptr);
             slog::info << "CPU (MKLDNN) extensions is loaded " << FLAGS_l << slog::endl;
         }
 

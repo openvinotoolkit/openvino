@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertMinimum::convert_minimum() {
     auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
@@ -36,7 +37,7 @@ void ngraph::pass::ConvertMinimum::convert_minimum() {
         auto neg_2 = std::make_shared<ngraph::opset1::Multiply>(max, opset1::Constant::create(max->get_element_type(), Shape{1}, {-1}));
 
         neg_2->set_friendly_name(minimum->get_friendly_name());
-
+        ngraph::copy_runtime_info(minimum, {neg_0, neg_1, max, neg_2});
         ngraph::replace_node(minimum, neg_2);
         return true;
     };
