@@ -95,6 +95,26 @@ jobs:
     workingDirectory: dldt-build-release
     displayName: 'IE FuncTests'
     continueOnError: true
+  - script: |
+        ../bin/intel64/Release/MklDnnBehaviorTests
+    workingDirectory: dldt-build-release
+    displayName: 'MklDnnBehaviorTests'
+    continueOnError: true
+  - script: |
+        ../bin/intel64/Release/MklDnnFunctionalTests
+    workingDirectory: dldt-build-release
+    displayName: 'MklDnnFunctionalTests'
+    continueOnError: true
+  - script: |
+        ../bin/intel64/Release/InferenceEngineCAPITests
+    workingDirectory: dldt-build-release
+    displayName: 'IE CAPITests'
+    continueOnError: true
+  - script: |
+        ../bin/intel64/Release/unit-test
+    workingDirectory: dldt-build-release
+    displayName: 'nGraph UT'
+    continueOnError: true
 
 #IE_MAC
 - job: IE_MAC
@@ -165,6 +185,26 @@ jobs:
         ../bin/intel64/Release/ieFuncTests
     workingDirectory: dldt-build-release
     displayName: 'IE FuncTests'
+    continueOnError: true
+  - script: |
+        ../bin/intel64/Release/MklDnnBehaviorTests
+    workingDirectory: dldt-build-release
+    displayName: 'MklDnnBehaviorTests'
+    continueOnError: true
+  - script: |
+        ../bin/intel64/Release/MklDnnFunctionalTests
+    workingDirectory: dldt-build-release
+    displayName: 'MklDnnFunctionalTests'
+    continueOnError: true
+  - script: |
+        ../bin/intel64/Release/InferenceEngineCAPITests
+    workingDirectory: dldt-build-release
+    displayName: 'IE CAPITests'
+    continueOnError: true
+  - script: |
+        ../bin/intel64/Release/unit-test
+    workingDirectory: dldt-build-release
+    displayName: 'nGraph UT'
     continueOnError: true
 
 #IE_Win
@@ -237,6 +277,30 @@ jobs:
     workingDirectory: dldt-build-release
     displayName: 'IE FuncTests'
     continueOnError: true
+  - script: |
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        ..\bin\intel64\Release\MklDnnBehaviorTests
+    workingDirectory: dldt-build-release
+    displayName: 'MklDnnBehaviorTests'
+    continueOnError: true
+  - script: |
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        ..\bin\intel64\Release\MklDnnFunctionalTests
+    workingDirectory: dldt-build-release
+    displayName: 'MklDnnFunctionalTests'
+    continueOnError: true
+  - script: |
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        ..\bin\intel64\Release\InferenceEngineCAPITests
+    workingDirectory: dldt-build-release
+    displayName: 'IE CAPITests'
+    continueOnError: true
+  - script: |
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        ..\bin\intel64\Release\unit-test
+    workingDirectory: dldt-build-release
+    displayName: 'nGraph UT'
+    continueOnError: true
 
 #IE_Win_self
 - job: IE_Win_self
@@ -258,7 +322,9 @@ jobs:
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
+        rd /Q /S C:\c-dldt-build-release
         mkdir C:\c-dldt-build-release\bin
+        rd /Q /S dldt-build-release
         mkdir dldt-build-release
         cd dldt-build-release
     displayName: 'Create build directory'
@@ -304,4 +370,28 @@ jobs:
         ..\bin\intel64\Release\ieFuncTests
     workingDirectory: dldt-build-release
     displayName: 'IE FuncTests'
+    continueOnError: true
+  - script: |
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        ..\bin\intel64\Release\MklDnnBehaviorTests
+    workingDirectory: dldt-build-release
+    displayName: 'MklDnnBehaviorTests'
+    continueOnError: true
+  - script: |
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        ..\bin\intel64\Release\MklDnnFunctionalTests
+    workingDirectory: dldt-build-release
+    displayName: 'MklDnnFunctionalTests'
+    continueOnError: true
+  - script: |
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        ..\bin\intel64\Release\InferenceEngineCAPITests
+    workingDirectory: dldt-build-release
+    displayName: 'IE CAPITests'
+    continueOnError: true
+  - script: |
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        ..\bin\intel64\Release\unit-test
+    workingDirectory: dldt-build-release
+    displayName: 'nGraph UT'
     continueOnError: true
