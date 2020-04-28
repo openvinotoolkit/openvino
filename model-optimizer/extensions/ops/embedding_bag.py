@@ -14,6 +14,7 @@
  limitations under the License.
 """
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -111,10 +112,10 @@ class EmbeddingSegmentsSum(Op):
             "EmbeddingSegmentsSum should have at least 4 connected input port, but it doesn't for node: `{}`. " \
             "Ports: {}".format(name, connected_in_ports)
 
-        weights = node.in_port(0).data.get_value()
-        assert weights is not None and len(weights.shape) >= 2
-        num_segments = node.in_port(2).data.get_value()
+        weights_shape = node.in_port(0).data.get_shape()
+        assert len(weights_shape) >= 2
+        num_segments = node.in_port(3).data.get_value()
         assert num_segments is not None, "EmbeddingSegmentsSum should have a constant num_segments provided, but it " \
                                          "doesn't for node: `{}`.".format(name)
-
-        node.out_port(0).data.set_shape(np.concatenate((num_segments, weights.shape[1:]), dtype=np.int64))
+        output_shape = int64_array(num_segments.tolist() + weights_shape[1:].tolist())
+        node.out_port(0).data.set_shape(output_shape)

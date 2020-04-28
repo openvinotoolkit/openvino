@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
 
 import unittest
 
-from extensions.front.tf.sparse_weighted_sum import ExperimentalSparseWeightedSumFrontReplacer, \
-    ExperimentalSparseWeightedSumFrontReplacer2
+from extensions.front.tf.embedding_segments_sum import EmbeddingSegmentsSumFrontReplacer, EmbeddingSegmentsSumFrontReplacer2
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph
+from mo.utils.unittest.graph import build_graph, const
 
 
-class ExperimentalSparseWeightedSumFrontReplacersTest(unittest.TestCase):
+class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
     def test1(self):
         nodes_attributes = {
             'input_indices': {'shape': int64_array([5, 2]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
@@ -48,7 +47,12 @@ class ExperimentalSparseWeightedSumFrontReplacersTest(unittest.TestCase):
             'tile': {'kind': 'op', 'op': 'Tile', 'type': 'Tile'},
             'select': {'kind': 'op', 'op': 'Select'},
 
-            'sparse_weighted_sum': {'kind': 'op', 'op': 'ExperimentalSparseWeightedSum'},
+            'split_for_indices': {'kind': 'op', 'op': 'Split'},
+            'split_for_dense_shape': {'kind': 'op', 'op': 'Split'},
+            'embedding_segments_sum': {'kind': 'op', 'op': 'EmbeddingSegmentsSum'},
+
+            **const('split_for_indices_axis', int64_array(1)),
+            **const('split_for_dense_shape_axis', int64_array(0)),
 
             'last': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
         }
@@ -82,16 +86,20 @@ class ExperimentalSparseWeightedSumFrontReplacersTest(unittest.TestCase):
                                 ('select', 'last', {'out': 0, 'in': 0}),
                             ], nodes_with_edges_only=True)
         graph.stage = 'front'
-        ExperimentalSparseWeightedSumFrontReplacer().find_and_replace_pattern(graph)
+        EmbeddingSegmentsSumFrontReplacer().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes_attributes,
-                                [('input_indices', 'sparse_weighted_sum', {'in': 0}),
-                                    ('input_values', 'sparse_weighted_sum', {'in': 1}),
-                                    ('input_dense_shape', 'sparse_weighted_sum', {'in': 2}),
-                                    ('input_params_table', 'sparse_weighted_sum', {'in': 3}),
-                                    ('input_default_value', 'sparse_weighted_sum', {'in': 4}),
-                                    ('sparse_weighted_sum', 'last', {'in': 0}),],
-                                    nodes_with_edges_only=True)
+                                [('input_indices', 'split_for_indices', {'in': 0}),
+                                 ('split_for_indices_axis', 'split_for_indices', {'in': 1}),
+                                 ('split_for_indices', 'embedding_segments_sum', {'in': 2, 'out': 0}),
+                                 ('input_values', 'embedding_segments_sum', {'in': 1}),
+                                 ('input_dense_shape', 'split_for_dense_shape', {'in': 0}),
+                                 ('split_for_dense_shape_axis', 'split_for_dense_shape', {'in': 1}),
+                                 ('split_for_dense_shape', 'embedding_segments_sum', {'in': 3, 'out': 0}),
+                                 ('input_params_table', 'embedding_segments_sum', {'in': 0}),
+                                 ('input_default_value', 'embedding_segments_sum', {'in': 5}),
+                                 ('embedding_segments_sum', 'last', {'in': 0}),],
+                                 nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -122,7 +130,12 @@ class ExperimentalSparseWeightedSumFrontReplacersTest(unittest.TestCase):
             'tile': {'kind': 'op', 'op': 'Tile', 'type': 'Tile'},
             'select': {'kind': 'op', 'op': 'Select'},
 
-            'sparse_weighted_sum': {'kind': 'op', 'op': 'ExperimentalSparseWeightedSum'},
+            'split_for_indices': {'kind': 'op', 'op': 'Split'},
+            'split_for_dense_shape': {'kind': 'op', 'op': 'Split'},
+            'embedding_segments_sum': {'kind': 'op', 'op': 'EmbeddingSegmentsSum'},
+
+            **const('split_for_indices_axis', int64_array(1)),
+            **const('split_for_dense_shape_axis', int64_array(0)),
 
             'last': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
         }
@@ -158,16 +171,20 @@ class ExperimentalSparseWeightedSumFrontReplacersTest(unittest.TestCase):
                                 ('select', 'last', {'out': 0, 'in': 0})],
                                 nodes_with_edges_only=True)
         graph.stage = 'front'
-        ExperimentalSparseWeightedSumFrontReplacer2().find_and_replace_pattern(graph)
+        EmbeddingSegmentsSumFrontReplacer2().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes_attributes,
-                                [('input_indices', 'sparse_weighted_sum', {'in': 0}),
-                                    ('input_values', 'sparse_weighted_sum', {'in': 1}),
-                                    ('input_dense_shape', 'sparse_weighted_sum', {'in': 2}),
-                                    ('input_params_table', 'sparse_weighted_sum', {'in': 3}),
-                                    ('input_default_value', 'sparse_weighted_sum', {'in': 4}),
-                                    ('sparse_weighted_sum', 'last', {'in': 0}),],
-                                    nodes_with_edges_only=True)
+                                [('input_indices', 'split_for_indices', {'in': 0}),
+                                 ('split_for_indices_axis', 'split_for_indices', {'in': 1}),
+                                 ('split_for_indices', 'embedding_segments_sum', {'in': 2, 'out': 0}),
+                                 ('input_values', 'embedding_segments_sum', {'in': 1}),
+                                 ('input_dense_shape', 'split_for_dense_shape', {'in': 0}),
+                                 ('split_for_dense_shape_axis', 'split_for_dense_shape', {'in': 1}),
+                                 ('split_for_dense_shape', 'embedding_segments_sum', {'in': 3, 'out': 0}),
+                                 ('input_params_table', 'embedding_segments_sum', {'in': 0}),
+                                 ('input_default_value', 'embedding_segments_sum', {'in': 5}),
+                                 ('embedding_segments_sum', 'last', {'in': 0}),],
+                                nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
         self.assertTrue(flag, resp)
