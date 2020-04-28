@@ -72,14 +72,12 @@ function(build_ngraph)
     ngraph_set(NGRAPH_PLAIDML_ENABLE FALSE)
     ngraph_set(NGRAPH_FAST_MATH_ENABLE FALSE)
     ngraph_set(NGRAPH_JSON_ENABLE FALSE)
-    ngraph_set(NGRAPH_DYNAMIC_COMPONENTS_ENABLE FALSE)
     ngraph_set(NGRAPH_NATIVE_ARCH_ENABLE FALSE)
 
     if (NOT ANDROID)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE TRUE)
-        ngraph_set(NGRAPH_IE_ENABLE TRUE)
-        # ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE TRUE)
-        set(NGRAPH_ONNX_IMPORT_ENABLE TRUE CACHE BOOL "" FORCE)
+        ngraph_set(NGRAPH_UNIT_TEST_OPENVINO_ENABLE TRUE)
+        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE TRUE)
     else()
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
         ngraph_set(NGRAPH_TEST_UTIL_ENABLE FALSE)
@@ -117,5 +115,48 @@ endfunction()
 build_ngraph()
 
 add_subdirectory(inference-engine)
+
+# cpack
+
+# install setupvars
+
+ie_cpack_add_component(setupvars REQUIRED)
+
+if(UNIX)
+    install(PROGRAMS scripts/setupvars/setupvars.sh
+            DESTINATION bin
+            COMPONENT setupvars)
+elseif(WIN32)
+    install(PROGRAMS scripts/setupvars/setupvars.bat
+            DESTINATION bin
+            COMPONENT setupvars)
+endif()
+
+# install install_dependencies
+
+if(UNIX)
+    ie_cpack_add_component(install_dependencies REQUIRED)
+    install(DIRECTORY scripts/install_dependencies/
+            DESTINATION install_dependencies
+            COMPONENT install_dependencies)
+endif()
+
+# install files for demo
+
+ie_cpack_add_component(demo_scripts REQUIRED DEPENDS core)
+
+if(UNIX)
+    install(DIRECTORY scripts/demo/
+            DESTINATION deployment_tools/demo
+            COMPONENT demo_scripts
+            USE_SOURCE_PERMISSIONS
+            PATTERN *.bat EXCLUDE)
+elseif(WIN32)
+    install(DIRECTORY scripts/demo/
+            DESTINATION deployment_tools/demo
+            COMPONENT demo_scripts
+            USE_SOURCE_PERMISSIONS
+            PATTERN *.sh EXCLUDE)
+endif()
 
 ie_cpack(${IE_CPACK_COMPONENTS_ALL})
