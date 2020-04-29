@@ -48,6 +48,11 @@ jobs:
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
+        git clone https://github.com/openvinotoolkit/testdata.git
+        export DATA_PATH=`pwd`/testdata
+        export MODELS_PATH=`pwd`/testdata
+    displayName: 'Clone testdata'
+  - script: |
         mkdir dldt-build-release
         cd dldt-build-release
     displayName: 'Create build directory'
@@ -145,6 +150,10 @@ jobs:
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
+        git clone https://github.com/openvinotoolkit/testdata.git
+        export DATA_PATH=`pwd`/testdata
+        export MODELS_PATH=`pwd`/testdata
+  - script: |
         mkdir dldt-build-release
         cd dldt-build-release
     displayName: 'Create build directory'
@@ -229,6 +238,11 @@ jobs:
         mkdir dldt-build-release
         cd dldt-build-release
     displayName: 'Create build directory'
+  - script: |
+        git clone https://github.com/openvinotoolkit/testdata.git
+        set DATA_PATH=C:\c-dldt-build-release\testdata
+        set MODELS_PATH=C:\c-dldt-build-release\testdata
+    workingDirectory: C:\c-dldt-build-release
   - task: CMake@1
     inputs:
         workingDirectory: C:\c-dldt-build-release
@@ -328,6 +342,11 @@ jobs:
         mkdir dldt-build-release
         cd dldt-build-release
     displayName: 'Create build directory'
+  - script: |
+        git clone https://github.com/openvinotoolkit/testdata.git
+        set DATA_PATH=C:\c-dldt-build-release\testdata
+        set MODELS_PATH=C:\c-dldt-build-release\testdata
+    workingDirectory: C:\c-dldt-build-release
   - task: CMake@1
     inputs:
         workingDirectory: C:\c-dldt-build-release
