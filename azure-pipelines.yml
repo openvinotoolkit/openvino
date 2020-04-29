@@ -47,10 +47,7 @@ jobs:
     displayName: 'Install dependencies'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
-  - script: |
-        git clone https://github.com/openvinotoolkit/testdata.git
-        export DATA_PATH=`pwd`/testdata
-        export MODELS_PATH=`pwd`/testdata
+  - script: git clone https://github.com/openvinotoolkit/testdata.git
     displayName: 'Clone testdata'
   - script: |
         mkdir dldt-build-release
@@ -59,9 +56,9 @@ jobs:
   - task: CMake@1
     inputs:
         workingDirectory: dldt-build-release
-        cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_MODELS=OFF -DENABLE_VALIDATION_SET=OFF -DENABLE_TESTS=ON -DENABLE_PERFORMANCE_TESTS=ON -DENABLE_INTEGRATION_TESTS=ON
+        cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
   - script: make -j2
-#        cmakeArgs: .. -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_MODELS=OFF -DENABLE_VALIDATION_SET=OFF -DENABLE_TESTS=ON -DENABLE_PERFORMANCE_TESTS=ON -DENABLE_INTEGRATION_TESTS=ON
+#        cmakeArgs: .. -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
 #  - script: ninja
     workingDirectory: dldt-build-release
     displayName: 'Build IE'
@@ -106,11 +103,15 @@ jobs:
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
   - script: |
+        export DATA_PATH=`pwd`/../testdata
+        export MODELS_PATH=`pwd`/../testdata
         ../bin/intel64/Release/MklDnnFunctionalTests
     workingDirectory: dldt-build-release
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
+        export DATA_PATH=`pwd`/../testdata
+        export MODELS_PATH=`pwd`/../testdata
         ../bin/intel64/Release/InferenceEngineCAPITests
     workingDirectory: dldt-build-release
     displayName: 'IE CAPITests'
@@ -149,17 +150,15 @@ jobs:
     displayName: 'Install dependencies'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
-  - script: |
-        git clone https://github.com/openvinotoolkit/testdata.git
-        export DATA_PATH=`pwd`/testdata
-        export MODELS_PATH=`pwd`/testdata
+  - script: git clone https://github.com/openvinotoolkit/testdata.git
+    displayName: 'Clone testdata'
   - script: |
         mkdir dldt-build-release
         cd dldt-build-release
     displayName: 'Create build directory'
   - script: |
         export PATH="/usr/local/opt/cython/bin:$PATH"
-        cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=10.12 -DCMAKE_POLICY_DEFAULT_CMP0068=NEW -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_MODELS=OFF -DENABLE_VALIDATION_SET=OFF -DENABLE_TESTS=ON -DENABLE_PERFORMANCE_TESTS=ON -DENABLE_INTEGRATION_TESTS=ON
+        cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=10.12 -DCMAKE_POLICY_DEFAULT_CMP0068=NEW -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
     workingDirectory: dldt-build-release
     displayName: 'CMake'
   - script: make -j2
@@ -201,11 +200,15 @@ jobs:
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
   - script: |
+        export DATA_PATH=`pwd`/../testdata
+        export MODELS_PATH=`pwd`/../testdata
         ../bin/intel64/Release/MklDnnFunctionalTests
     workingDirectory: dldt-build-release
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
+        export DATA_PATH=`pwd`/../testdata
+        export MODELS_PATH=`pwd`/../testdata
         ../bin/intel64/Release/InferenceEngineCAPITests
     workingDirectory: dldt-build-release
     displayName: 'IE CAPITests'
@@ -238,15 +241,13 @@ jobs:
         mkdir dldt-build-release
         cd dldt-build-release
     displayName: 'Create build directory'
-  - script: |
-        git clone https://github.com/openvinotoolkit/testdata.git
-        set DATA_PATH=C:\c-dldt-build-release\testdata
-        set MODELS_PATH=C:\c-dldt-build-release\testdata
+  - script: git clone https://github.com/openvinotoolkit/testdata.git
     workingDirectory: C:\c-dldt-build-release
+    displayName: 'Clone testdata'
   - task: CMake@1
     inputs:
         workingDirectory: C:\c-dldt-build-release
-        cmakeArgs: -G"Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=ON -DENABLE_MODELS=OFF -DENABLE_VALIDATION_SET=OFF -DENABLE_TESTS=ON -DENABLE_PERFORMANCE_TESTS=ON -DENABLE_INTEGRATION_TESTS=ON -DENABLE_VPU=OFF $(Build.Repository.LocalPath)
+        cmakeArgs: -G"Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=ON -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
   - script: cmake --build . --config Release -j2
     workingDirectory: C:\c-dldt-build-release
     displayName: 'Build IE VS2017'
@@ -299,12 +300,16 @@ jobs:
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        set DATA_PATH=C:\c-dldt-build-release\testdata
+        set MODELS_PATH=C:\c-dldt-build-release\testdata
         ..\bin\intel64\Release\MklDnnFunctionalTests
     workingDirectory: dldt-build-release
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        set DATA_PATH=C:\c-dldt-build-release\testdata
+        set MODELS_PATH=C:\c-dldt-build-release\testdata
         ..\bin\intel64\Release\InferenceEngineCAPITests
     workingDirectory: dldt-build-release
     displayName: 'IE CAPITests'
@@ -342,15 +347,13 @@ jobs:
         mkdir dldt-build-release
         cd dldt-build-release
     displayName: 'Create build directory'
-  - script: |
-        git clone https://github.com/openvinotoolkit/testdata.git
-        set DATA_PATH=C:\c-dldt-build-release\testdata
-        set MODELS_PATH=C:\c-dldt-build-release\testdata
+  - script: git clone https://github.com/openvinotoolkit/testdata.git
     workingDirectory: C:\c-dldt-build-release
+    displayName: 'Clone testdata'
   - task: CMake@1
     inputs:
         workingDirectory: C:\c-dldt-build-release
-        cmakeArgs: -G"Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=ON -DENABLE_MODELS=OFF -DENABLE_VALIDATION_SET=OFF -DENABLE_TESTS=ON -DENABLE_PERFORMANCE_TESTS=ON -DENABLE_INTEGRATION_TESTS=ON -DENABLE_VPU=ON $(Build.Repository.LocalPath)
+        cmakeArgs: -G"Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=ON -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
   - script: cmake --build . --config Release -j4
     workingDirectory: C:\c-dldt-build-release
     displayName: 'Build IE VS2019'
@@ -398,12 +401,16 @@ jobs:
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        set DATA_PATH=C:\c-dldt-build-release\testdata
+        set MODELS_PATH=C:\c-dldt-build-release\testdata
         ..\bin\intel64\Release\MklDnnFunctionalTests
     workingDirectory: dldt-build-release
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        set DATA_PATH=C:\c-dldt-build-release\testdata
+        set MODELS_PATH=C:\c-dldt-build-release\testdata
         ..\bin\intel64\Release\InferenceEngineCAPITests
     workingDirectory: dldt-build-release
     displayName: 'IE CAPITests'
