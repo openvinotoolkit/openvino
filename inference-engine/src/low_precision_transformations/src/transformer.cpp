@@ -39,6 +39,7 @@
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 #include "low_precision_transformations/squeeze.hpp"
 #include "low_precision_transformations/eltwise.hpp"
+#include "low_precision_transformations/normalize.hpp"
 
 // uncomment to display precision info during low precision transformations
 // #define DISPLAY_PECISION
@@ -188,7 +189,8 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
             { "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
             { "Eltwise", LayerTransformationPtr(new EltwiseTransformation(params)) },
             { "Resample", LayerTransformationPtr(new ResampleTransformation(params)) },
-            { "Power", LayerTransformationPtr(new PowerTransformation(params)) }
+            { "Power", LayerTransformationPtr(new PowerTransformation(params)) },
+            { "Normalize", LayerTransformationPtr(new NormalizeTransformation(params)) }
         }),
         std::map<std::string, LayerTransformationPtr>({
             { "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },
