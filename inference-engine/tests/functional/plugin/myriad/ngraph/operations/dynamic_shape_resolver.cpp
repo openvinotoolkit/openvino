@@ -179,16 +179,14 @@ INSTANTIATE_TEST_CASE_P(NGraph, DynamicShapeResolverNegativeTestsDimsShape, test
         DataPartialShape{1},
         DataPartialShape{3})));
 
-typedef std::vector<int32_t> InputData;
-
 typedef std::tuple<
-        InputData,
+        InferenceEngine::SizeVector,
         std::string> dsrParams;
 
 class DynamicShapeResolverPluginTests : public testing::WithParamInterface<dsrParams>, public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<dsrParams> &obj) {
-        InputData inputData;
+        InferenceEngine::SizeVector inputData;
         std::string targetDevice;
         std::tie(inputData,
                  targetDevice) = obj.param;
@@ -206,34 +204,74 @@ protected:
 
         const auto& inPrecision = ::ngraph::element::Type(::ngraph::element::Type_t::i32);
 
-        const auto& tensor = std::make_shared<ngraph::op::Parameter>(inPrecision, ngraph::Shape{inputData.size()});
+        const auto& tensor = std::make_shared<ngraph::op::Parameter>(inPrecision, ngraph::Shape(inputData));
         const auto& nonZero = std::make_shared<ngraph::op::NonZero>(tensor);
-        const auto& gatherIndices = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
-                                                                               ngraph::Shape{1},
-                                                                               std::vector<int64_t>{0});
-        const auto& gatherAxis = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
-                                                                            ngraph::Shape{1},
-                                                                            std::vector<int64_t>{1});
-        const auto& gather = std::make_shared<ngraph::opset1::Gather>(nonZero->output(0), gatherIndices, gatherAxis);
 
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{tensor});
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{nonZero}, ngraph::ParameterVector{tensor});
     }
 
 protected:
-    InputData inputData;
+    InferenceEngine::SizeVector inputData;
 };
 
-TEST_P(DynamicShapeResolverPluginTests, DynamicNetworkWithStaticOutput) {
-    // TODO: reimplement with normal reference function
-    // Currently the network gets the index of the first non-zero element
-    int32_t refOutput{};
-    for (size_t i = 0; i < inputData.size(); i++) {
-        if (inputData[i] != 0) {
-            refOutput = static_cast<int32_t>(i);
-            break;
+static void ref_nonZero(const InferenceEngine::Blob::Ptr& src,
+                 InferenceEngine::Blob::Ptr& outIndices) {
+    auto outIndicesPtr = outIndices->buffer().as<int32_t*>();
+
+    const auto srcTotalDimSize = src->size();
+
+    const auto getCoord = [&src](int offset){
+        std::vector<size_t> coord;
+        for (const size_t& stride : src->getTensorDesc().getBlockingDesc().getStrides()) {
+            coord.insert(coord.begin(), offset / stride);
+            offset %= stride;
+        }
+        return coord;
+    };
+
+    const auto addCoordToIndices = [&outIndicesPtr, &srcTotalDimSize](const std::vector<size_t> &coord,
+                                                                      const size_t numNonZeros) {
+        for (int j = 0; j < coord.size(); ++j) {
+            outIndicesPtr[j * srcTotalDimSize + numNonZeros] = coord[j];
+        }
+    };
+
+    const auto isNonZero = [&src](const size_t i) {
+        if (src->getTensorDesc().getPrecision() == InferenceEngine::Precision::I32) {
+            const auto srcPtr = src->cbuffer().as<const int32_t*>();
+            return srcPtr[i] != 0;
+        }
+    };
+
+    size_t numNonZeros = 0;
+    for (size_t i = 0; i < srcTotalDimSize; ++i) {
+        if (isNonZero(i)) {
+            addCoordToIndices(getCoord(i), numNonZeros++);
         }
     }
 
+    auto rank = src->getTensorDesc().getDims().size();
+    outIndices->getTensorDesc().reshape({rank, numNonZeros}, InferenceEngine::Layout::NC);
+}
+
+static void GenRandomNonZeroData(InferenceEngine::Blob::Ptr& blob) {
+    std::mt19937 generator(43);
+
+    const auto getRandomValue = [&generator]() {
+        // Each third value will be a zero for test NonZero functionality
+        return generator() % 3 ? static_cast<float>(generator()) / generator.max() * 255.f : 0.f;
+    };
+
+    size_t count = blob->size();
+    if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::I32) {
+        auto blobPtr = blob->buffer().as<int32_t*>();
+        for (size_t idx = 0; idx < count; ++idx) {
+            blobPtr[idx] = static_cast<int32_t>(getRandomValue());
+        }
+    }
+}
+
+TEST_P(DynamicShapeResolverPluginTests, DynamicNetworkWithStaticOutput) {
     InferenceEngine::CNNNetwork cnnNet(function);
 
     for (const auto& outputInfo : cnnNet.getOutputsInfo()) {
@@ -245,40 +283,46 @@ TEST_P(DynamicShapeResolverPluginTests, DynamicNetworkWithStaticOutput) {
     ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice));
     auto req = execNet.CreateInferRequest();
 
-    for (const auto &inputItem : cnnNet.getInputsInfo()) {
-        auto blob = make_blob_with_precision(inputItem.second->getTensorDesc());
-        blob->allocate();
-        std::copy_n(inputData.begin(), inputData.size(), blob->buffer().as<int32_t*>());
-        req.SetBlob(inputItem.first, blob);
-    }
+    auto inputBlob = req.GetBlob(cnnNet.getInputsInfo().cbegin()->first);
+    GenRandomNonZeroData(inputBlob);
 
     ASSERT_NO_THROW(req.Infer());
 
-    for (const auto &output : cnnNet.getOutputsInfo()) {
-        auto outBlob = req.GetBlob(output.first);
-        auto outBuffer = outBlob->cbuffer().as<int32_t*>();
+    auto outputIndicesBlob = req.GetBlob(cnnNet.getOutputsInfo().cbegin()->first);
+    auto refIndicesBlob = make_blob_with_precision(outputIndicesBlob->getTensorDesc());
+    refIndicesBlob->allocate();
+    ref_nonZero(inputBlob, refIndicesBlob);
 
-        ASSERT_EQ(outBlob->size() , 1);
-        ASSERT_EQ(refOutput, outBuffer[0]);
+    ASSERT_EQ(refIndicesBlob->size(), outputIndicesBlob->size());
+    ASSERT_EQ(refIndicesBlob->byteSize(), outputIndicesBlob->byteSize());
+    const auto outPtr = outputIndicesBlob->cbuffer().as<const int32_t*>();
+    const auto refPtr = refIndicesBlob->cbuffer().as<const int32_t*>();
+    for (size_t idx = 0; idx < outputIndicesBlob->size(); idx++) {
+        ASSERT_EQ(refPtr[idx], outPtr[idx]);
     }
 }
 
-const std::vector<InputData> inputDatas = {
-    {1, 0, 0, 0, 0},
-    {0, 1, 0, 1, 0},
-    {0, 0, 42, 0, 1},
-    {0, 0, 0, 0, -42}
+std::vector<InferenceEngine::SizeVector> inputDims = {
+//    { 7 },
+    { 1000 },
+//    { 3, 5 },
+//    { 65, 33 },
+//    { 33, 65 },
+//    { 1, 1000 },
+//    { 223, 217, 21 },
+//    { 3, 4, 5, 1 },
+//    { 3, 4, 1, 5, 1 }
 };
 
 const auto basicCases = ::testing::Combine(
-        ::testing::ValuesIn(inputDatas),
+        ::testing::ValuesIn(inputDims),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)
 );
 
 
 INSTANTIATE_TEST_CASE_P(DynamicShapeResolverPluginTests, DynamicShapeResolverPluginTests,
                         ::testing::Combine(
-                                ::testing::ValuesIn(inputDatas),
+                                ::testing::ValuesIn(inputDims),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         DynamicShapeResolverPluginTests::getTestCaseName);
 
