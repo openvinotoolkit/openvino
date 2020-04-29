@@ -239,7 +239,8 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
 
         auto transforms = LowPrecisionTransformer::getAllTransformations(params)
                 .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
-                .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
+                .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM")
+                .removeTransformations("Normalize");
 
         auto it = details::CNNNetworkIterator(&network);
         auto end = details::CNNNetworkIterator();

@@ -123,7 +123,11 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
     }
 
     withBiases = (fcLayer->_biases != nullptr && fcLayer->_biases->size() != 0) || baseInputsNumber == 3;
-    biasesDims.push_back(static_cast<int>(fcLayer->_out_num));
+    if (inDims.ndims() == 3) {
+        biasesDims.push_back(static_cast<int>(outDims[2]));
+    } else {
+        biasesDims.push_back(static_cast<int>(fcLayer->_out_num));
+    }
     if (withBiases && baseInputsNumber == 1) {
         internalBlobs.push_back(createInternalBlob(biasesDims, false));
     }

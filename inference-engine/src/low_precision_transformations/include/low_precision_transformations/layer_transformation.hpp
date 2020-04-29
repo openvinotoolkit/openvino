@@ -308,6 +308,26 @@ public:
 
     void fillAvailablePrecisions(const CNNLayer& layer, std::vector<Precision>& availablePrecisions) const;
 
+    void addDequantizationLayer(
+            TransformationContext& context,
+            const CNNLayer& layer,
+            const std::vector<float>& dequantizationScales,
+            const std::vector<float>& dequantizationShifts) const;
+
+    void fillFromQuantizationDetails(
+            const QuantizationDetails& quantizationDetails,
+            const DataPrecision& dataPrecision,
+            std::vector<float>& dequantizationScales,
+            std::vector<float>& dequantizationShifts) const;
+
+    void checkAndUpdateDequantizationShiftWithZero(
+            const QuantizationDetails& quantizationDetails,
+            std::vector<float>& dequantizationShifts) const;
+
+    void fillFromDequantizationLayer(
+            const CNNLayer& dequantizationLayer,
+            std::vector<float>& dequantizationScales,
+            std::vector<float>& dequantizationShifts) const;
 protected:
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     static void printDequantizationInfo(const CNNLayer& layer);
@@ -316,26 +336,7 @@ protected:
         const std::vector<float>& dequantizationScales,
         const std::vector<float>& dequantizationShifts);
 #endif
-    void addDequantizationLayer(
-        TransformationContext& context,
-        const CNNLayer& layer,
-        const std::vector<float>& dequantizationScales,
-        const std::vector<float>& dequantizationShifts) const;
 
-    void fillFromQuantizationDetails(
-        const QuantizationDetails& quantizationDetails,
-        const DataPrecision& dataPrecision,
-        std::vector<float>& dequantizationScales,
-        std::vector<float>& dequantizationShifts) const;
-
-    void checkAndUpdateDequantizationShiftWithZero(
-        const QuantizationDetails& quantizationDetails,
-        std::vector<float>& dequantizationShifts) const;
-
-    void fillFromDequantizationLayer(
-        const CNNLayer& dequantizationLayer,
-        std::vector<float>& dequantizationScales,
-        std::vector<float>& dequantizationShifts) const;
 
     bool updatePrecisions;
     bool quantizeOutputs;
