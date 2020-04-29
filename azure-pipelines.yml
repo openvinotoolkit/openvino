@@ -299,7 +299,7 @@ jobs:
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
   - script: |
-        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
         set DATA_PATH=C:\c-dldt-build-release\testdata
         set MODELS_PATH=C:\c-dldt-build-release\testdata
         ..\bin\intel64\Release\MklDnnFunctionalTests
@@ -307,7 +307,7 @@ jobs:
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
-        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
         set DATA_PATH=C:\c-dldt-build-release\testdata
         set MODELS_PATH=C:\c-dldt-build-release\testdata
         ..\bin\intel64\Release\InferenceEngineCAPITests
@@ -400,7 +400,7 @@ jobs:
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
   - script: |
-        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
         set DATA_PATH=C:\c-dldt-build-release\testdata
         set MODELS_PATH=C:\c-dldt-build-release\testdata
         ..\bin\intel64\Release\MklDnnFunctionalTests
@@ -408,7 +408,7 @@ jobs:
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
-        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
         set DATA_PATH=C:\c-dldt-build-release\testdata
         set MODELS_PATH=C:\c-dldt-build-release\testdata
         ..\bin\intel64\Release\InferenceEngineCAPITests
