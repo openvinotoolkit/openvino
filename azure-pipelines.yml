@@ -116,7 +116,7 @@ jobs:
     displayName: 'IE CAPITests'
     continueOnError: true
   - script: |
-        ../bin/intel64/Release/unit-test
+        ../bin/intel64/Release/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
     workingDirectory: dldt-build-release
     displayName: 'nGraph UT'
     continueOnError: true
@@ -211,7 +211,7 @@ jobs:
     displayName: 'IE CAPITests'
     continueOnError: true
   - script: |
-        ../bin/intel64/Release/unit-test
+        ../bin/intel64/Release/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
     workingDirectory: dldt-build-release
     displayName: 'nGraph UT'
     continueOnError: true
@@ -311,7 +311,7 @@ jobs:
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-        ..\bin\intel64\Release\unit-test
+        ..\bin\intel64\Release\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
     workingDirectory: dldt-build-release
     displayName: 'nGraph UT'
     continueOnError: true
@@ -410,7 +410,7 @@ jobs:
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-        ..\bin\intel64\Release\unit-test
+        ..\bin\intel64\Release\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
     workingDirectory: dldt-build-release
     displayName: 'nGraph UT'
     continueOnError: true
