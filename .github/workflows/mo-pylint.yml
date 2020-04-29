@@ -3,6 +3,9 @@ on:
   push:
     paths:
       - 'model-optimizer/**'
+  pull_request:
+    paths:
+      - 'model-optimizer/**'
 jobs:
   pylint:
     runs-on: ubuntu-18.04
@@ -33,8 +36,6 @@ jobs:
           pip install -r requirements_dev.txt
         working-directory: model-optimizer
 
-
-
       - name: Run pylint
-        run: pylint --ignored-modules=tensorflow.core.framework --ignored-modules=tensorflow.contrib -d C,R,W mo/ mo.py extensions/
+        run: pylint -d C,R,W mo/ mo.py extensions/
         working-directory: model-optimizer
