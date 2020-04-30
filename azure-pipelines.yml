@@ -40,15 +40,9 @@ jobs:
   - script: |
         sudo apt --assume-yes install libusb-1.0-0-dev
         python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
-#        sudo apt --assume-yes install cython3
-#        curl -Ls https://github.com/ninja-build/ninja/releases/download/v1.8.2/ninja-linux.zip -o ninja-linux.zip
-#        unzip ninja-linux.zip
-#        sudo cp -v ninja /usr/local/bin/
     displayName: 'Install dependencies'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
-  - script: git clone https://github.com/openvinotoolkit/testdata.git
-    displayName: 'Clone testdata'
   - script: |
         mkdir dldt-build-release
         cd dldt-build-release
@@ -58,14 +52,15 @@ jobs:
         workingDirectory: dldt-build-release
         cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
   - script: make -j2
-#        cmakeArgs: .. -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
-#  - script: ninja
     workingDirectory: dldt-build-release
     displayName: 'Build IE'
-  - script: |
-        ls -al ../bin/intel64/Release/
+  - script: ls -al ../bin/intel64/Release/
     workingDirectory: dldt-build-release
     displayName: 'List files'
+  - script: |
+        ../bin/intel64/Release/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
+    workingDirectory: dldt-build-release
+    displayName: 'nGraph UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/InferenceEngineUnitTests
@@ -102,6 +97,8 @@ jobs:
     workingDirectory: dldt-build-release
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
+  - script: git clone https://github.com/openvinotoolkit/testdata.git
+    displayName: 'Clone testdata'
   - script: |
         export DATA_PATH=`pwd`/../testdata
         export MODELS_PATH=`pwd`/../testdata
@@ -115,11 +112,6 @@ jobs:
         ../bin/intel64/Release/InferenceEngineCAPITests
     workingDirectory: dldt-build-release
     displayName: 'IE CAPITests'
-    continueOnError: true
-  - script: |
-        ../bin/intel64/Release/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
-    workingDirectory: dldt-build-release
-    displayName: 'nGraph UT'
     continueOnError: true
 
 #IE_MAC
@@ -150,24 +142,25 @@ jobs:
     displayName: 'Install dependencies'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
-  - script: git clone https://github.com/openvinotoolkit/testdata.git
-    displayName: 'Clone testdata'
   - script: |
         mkdir dldt-build-release
         cd dldt-build-release
     displayName: 'Create build directory'
   - script: |
         export PATH="/usr/local/opt/cython/bin:$PATH"
-        cmake .. -DCMAKE_OSX_DEPLOYMENT_TARGET=10.12 -DCMAKE_POLICY_DEFAULT_CMP0068=NEW -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
+        cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
     workingDirectory: dldt-build-release
     displayName: 'CMake'
   - script: make -j2
     workingDirectory: dldt-build-release
     displayName: 'Build IE'
-  - script: |
-        ls -al ../bin/intel64/Release/
+  - script: ls -al ../bin/intel64/Release/
     workingDirectory: dldt-build-release
     displayName: 'List files'
+  - script: |
+        ../bin/intel64/Release/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
+    workingDirectory: dldt-build-release
+    displayName: 'nGraph UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/InferenceEngineUnitTests
@@ -199,6 +192,8 @@ jobs:
     workingDirectory: dldt-build-release
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
+  - script: git clone https://github.com/openvinotoolkit/testdata.git
+    displayName: 'Clone testdata'
   - script: |
         export DATA_PATH=`pwd`/../testdata
         export MODELS_PATH=`pwd`/../testdata
@@ -213,11 +208,6 @@ jobs:
     workingDirectory: dldt-build-release
     displayName: 'IE CAPITests'
     continueOnError: true
-  - script: |
-        ../bin/intel64/Release/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
-    workingDirectory: dldt-build-release
-    displayName: 'nGraph UT'
-    continueOnError: true
 
 #IE_Win
 - job: IE_Win
@@ -231,9 +221,6 @@ jobs:
         wmic logicaldisk get description,name
         wmic VOLUME list
     displayName: 'System properties'
-#  - script: |
-#        choco install ninja
-#    displayName: 'Download ninja'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
@@ -241,9 +228,6 @@ jobs:
         mkdir dldt-build-release
         cd dldt-build-release
     displayName: 'Create build directory'
-  - script: git clone https://github.com/openvinotoolkit/testdata.git
-    workingDirectory: C:\c-dldt-build-release
-    displayName: 'Clone testdata'
   - task: CMake@1
     inputs:
         workingDirectory: C:\c-dldt-build-release
@@ -251,10 +235,14 @@ jobs:
   - script: cmake --build . --config Release -j2
     workingDirectory: C:\c-dldt-build-release
     displayName: 'Build IE VS2017'
-  - script: |
-        dir ..\bin\intel64\Release\
+  - script: dir ..\bin\intel64\Release\
     workingDirectory: dldt-build-release
     displayName: 'List files'
+  - script: |
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        ..\bin\intel64\Release\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
+    workingDirectory: dldt-build-release
+    displayName: 'nGraph UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
@@ -298,6 +286,9 @@ jobs:
     workingDirectory: dldt-build-release
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
+  - script: git clone https://github.com/openvinotoolkit/testdata.git
+    workingDirectory: C:\c-dldt-build-release
+    displayName: 'Clone testdata'
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
         set DATA_PATH=C:\c-dldt-build-release\testdata
@@ -313,12 +304,6 @@ jobs:
         ..\bin\intel64\Release\InferenceEngineCAPITests
     workingDirectory: dldt-build-release
     displayName: 'IE CAPITests'
-    continueOnError: true
-  - script: |
-        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-        ..\bin\intel64\Release\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
-    workingDirectory: dldt-build-release
-    displayName: 'nGraph UT'
     continueOnError: true
 
 #IE_Win_self
@@ -335,9 +320,6 @@ jobs:
         wmic logicaldisk get description,name
         wmic VOLUME list
     displayName: 'System properties'
-#  - script: |
-#        choco install ninja
-#    displayName: 'Download ninja'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
@@ -347,9 +329,6 @@ jobs:
         mkdir dldt-build-release
         cd dldt-build-release
     displayName: 'Create build directory'
-  - script: git clone https://github.com/openvinotoolkit/testdata.git
-    workingDirectory: C:\c-dldt-build-release
-    displayName: 'Clone testdata'
   - task: CMake@1
     inputs:
         workingDirectory: C:\c-dldt-build-release
@@ -357,6 +336,15 @@ jobs:
   - script: cmake --build . --config Release -j4
     workingDirectory: C:\c-dldt-build-release
     displayName: 'Build IE VS2019'
+  - script: dir ..\bin\intel64\Release\
+    workingDirectory: dldt-build-release
+    displayName: 'List files'
+  - script: |
+        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+        ..\bin\intel64\Release\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
+    workingDirectory: dldt-build-release
+    displayName: 'nGraph UT'
+    continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\InferenceEngineUnitTests
@@ -399,6 +387,9 @@ jobs:
     workingDirectory: dldt-build-release
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
+  - script: git clone https://github.com/openvinotoolkit/testdata.git
+    workingDirectory: C:\c-dldt-build-release
+    displayName: 'Clone testdata'
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
         set DATA_PATH=C:\c-dldt-build-release\testdata
@@ -414,10 +405,4 @@ jobs:
         ..\bin\intel64\Release\InferenceEngineCAPITests
     workingDirectory: dldt-build-release
     displayName: 'IE CAPITests'
-    continueOnError: true
-  - script: |
-        set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-        ..\bin\intel64\Release\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
-    workingDirectory: dldt-build-release
-    displayName: 'nGraph UT'
     continueOnError: true
