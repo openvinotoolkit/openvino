@@ -12,11 +12,11 @@ jobs:
   steps:
   - task: SSH@0
     inputs:
-      sshEndpoint: '$(Server)'
+      sshEndpoint: '${Server}'
       runOptions: inline
       #commands: # Required when runOptions == Commands
       #scriptPath: # Required when runOptions == Script
-      inline: 'echo $(Server)'
+      inline: 'echo ${Server}'
       #args: # Optional
       #failOnStdErr: true # Optional
   - task: UsePythonVersion@0
