@@ -10,19 +10,20 @@ jobs:
       DL_SDK_TEMP: /tmp/
       Server: $[dependencies.Name.outputs['SetVariableJob.Server']]
   steps:
-  - task: SSH@0
-    inputs:
-      sshEndpoint: '${Server}'
-      runOptions: inline
+  #- task: SSH@0
+    #inputs:
+      #sshEndpoint: '${Server}'
+      #runOptions: inline
       #commands: # Required when runOptions == Commands
       #scriptPath: # Required when runOptions == Script
-      inline: 'echo ${Server}'
+      #inline: 'echo ${Server}'
       #args: # Optional
       #failOnStdErr: true # Optional
   - task: UsePythonVersion@0
     inputs:
         versionSpec: '3.7'
   - script: |
+        echo Server: ${Server}
         whoami
         uname -a
         gcc --version
