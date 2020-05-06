@@ -3,11 +3,11 @@ jobs:
 - job: IE_MAC
   timeoutInMinutes: 0
   pool:
-      vmImage: 'macOS-10.14'
+      vmImage: 'macOS-10.15'
   variables:
-      CC: gcc
-      CXX: g++
-      DL_SDK_TEMP: /tmp/
+      #CC: gcc
+      #CXX: g++
+      #DL_SDK_TEMP: /tmp/
       Server: $[dependencies.Name.outputs['SetVariableJob.Server']]
   steps:
   #- task: SSH@0
