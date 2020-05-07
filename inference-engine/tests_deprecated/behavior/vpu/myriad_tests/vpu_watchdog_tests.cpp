@@ -73,12 +73,8 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
     void bootOneDevice(int watchdogInterval, void* ptr_in_dll) {
         ncStatus_t statusOpen = NC_ERROR;
         std::cout << "Opening device" << std::endl;
-#ifdef  _WIN32
-        const char* pathToFw = nullptr;
-#else
-        std::string absPathToFw = getIELibraryPath();
-        const char* pathToFw = absPathToFw.c_str();
-#endif //  _WIN32
+
+        const std::string absPathToFw = getIELibraryPath();
 
         ncDeviceDescr_t deviceDesc = {};
         deviceDesc.protocol = NC_ANY_PROTOCOL;
@@ -87,7 +83,7 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
         ncDeviceOpenParams_t deviceOpenParams = {};
         deviceOpenParams.watchdogHndl = m_watchdogHndl;
         deviceOpenParams.watchdogInterval = watchdogInterval;
-        deviceOpenParams.customFirmwareDirectory = pathToFw;
+        deviceOpenParams.customFirmwareDirectory = absPathToFw.c_str();
 
         statusOpen = ncDeviceOpen(&device, deviceDesc, deviceOpenParams);
 
