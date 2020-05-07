@@ -11,8 +11,8 @@ set(XLINK_INCLUDE
 set(XLINK_PRIVATE_INCLUDE)
 
 file(GLOB PC_SRC             "${XLINK_ROOT_DIR}/pc/*.c")
-file(GLOB PC_PROTO_SRC       "${XLINK_ROOT_DIR}/pc/protocols/*.c")
-file(GLOB_RECURSE SHARED_SRC "${XLINK_ROOT_DIR}/shared/*.c")
+file(GLOB PC_PROTO_SRC       "${XLINK_ROOT_DIR}/pc/protocols/*.c" "${XLINK_ROOT_DIR}/pc/protocols/*.h")
+file(GLOB_RECURSE SHARED_SRC "${XLINK_ROOT_DIR}/shared/*.c" "${XLINK_ROOT_DIR}/shared/*.h")
 
 list(APPEND XLINK_SOURCES ${PC_SRC} ${PC_PROTO_SRC} ${SHARED_SRC})
 
@@ -20,7 +20,7 @@ if(WIN32)
     set(XLINK_PLATFORM_INCLUDE
             ${XLINK_ROOT_DIR}/pc/Win/include)
 
-    file(GLOB XLINK_PLATFORM_SRC "${XLINK_ROOT_DIR}/pc/Win/src/*.c")
+    file(GLOB XLINK_PLATFORM_SRC "${XLINK_ROOT_DIR}/pc/Win/src/*.c" "${XLINK_ROOT_DIR}/pc/Win/include/*.h")
     list(APPEND XLINK_SOURCES ${XLINK_PLATFORM_SRC})
 else()
     find_package(Threads REQUIRED)
