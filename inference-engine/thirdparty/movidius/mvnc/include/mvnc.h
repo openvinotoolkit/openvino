@@ -205,7 +205,7 @@ MVNC_EXPORT_API ncStatus_t ncSetDeviceConnectTimeout(int deviceConnectTimeoutSec
  * @brief Create handle and open any free device
  * @param in_ncDeviceDesc a set of parameters that the device must comply with
  * @param watchdogInterval Time interval to ping device in milliseconds. 0 to disable watchdog.
- * @param customFirmwareDirectory Custom path to directory with firmware.
+ * @param customFirmwareDirectory Custom path to directory with firmware (in utf-8).
  *          If NULL or empty, default path searching behavior will be used.
  */
 MVNC_EXPORT_API ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,

@@ -10,12 +10,11 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/types.h>
-#if (defined(_WIN32) || defined(_WIN64))
+#ifdef _WIN32
 #include "win_time.h"
-#include <windows.h>    // for Sleep()
+#include <Windows.h>    // for Sleep()
 #include <io.h>
 #else
-#include <dlfcn.h>      // For dladdr
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/file.h>
@@ -35,6 +34,7 @@
 #include "mvnc_tool.h"
 #include "XLinkMacros.h"
 #include "XLinkStringUtils.h"
+#include "XLinkFileUtils.h"
 #include "watchdog.h"
 #include "xlink_device.h"
 
@@ -368,20 +368,15 @@ static ncStatus_t initializeXLink()
  * @brief Check is path exists (directory or file)
  */
 static int isPathExists(const char* filePath) {
-#if (defined(_WIN32) || defined(_WIN64))
-    return ( _access( filePath, 0 ) != -1 ) ? 1 : 0;
-#else
-    return (  access( filePath, 0 ) != -1 ) ? 1 : 0;
-#endif
+    return ( utf8_access( filePath, 0 ) != -1 ) ? 1 : 0;
 }
 
-static char getPathSeparator() {
+static const char pathSeparator =
 #ifdef _WIN32
-    return '\\';
+    '\\';
 #else
-    return '/';
+    '/';
 #endif
-}
 
 /**
  * @brief Add / or \\ at the end of the path, if doesn't have it
@@ -390,8 +385,8 @@ static char getPathSeparator() {
 static void addEndPathSeparator(char* buffer, const int buffer_length) {
     const int filePathLen = strnlen(buffer, buffer_length);
     if ((filePathLen > 1) && (filePathLen < buffer_length - 1) &&
-            buffer[filePathLen - 1] != getPathSeparator()) {
-        buffer[filePathLen] = getPathSeparator();
+            buffer[filePathLen - 1] != pathSeparator) {
+        buffer[filePathLen] = pathSeparator;
         buffer[filePathLen + 1] = 0;
     }
 }
@@ -467,38 +462,24 @@ static ncStatus_t getDeviceFwFormat(const deviceDesc_t deviceDesc,
 static ncStatus_t getLibDirectory(char *firmware_directory, const int firwmare_directory_length) {
     // If firmware_directory contain path, use it.
     // It's case when firmware_directory was set by ncDeviceOpen custom path argument
-    if (!strnlen(firmware_directory, firwmare_directory_length)) {
+    if (!strnlen(firmware_directory, (size_t)firwmare_directory_length)) {
         int rc = 0;
         char path_to_lib_file[MAX_PATH_LENGTH] = {0};
+
         // Get dll full path
-#if (defined(_WIN32) || defined(_WIN64))
-        HMODULE hm = NULL;
-        if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                                  GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                              (LPCSTR) "ncDeviceOpen", &hm)) {
-            int ret = GetLastError();
-            fprintf(stderr, "GetModuleHandle returned %d", ret);
-        }
-        GetModuleFileNameA(hm, path_to_lib_file, MAX_PATH_LENGTH - 1);
-#else
-        Dl_info info;
-        dladdr(ncDeviceOpen, &info);
-        rc = mv_strncpy(path_to_lib_file, MAX_PATH_LENGTH, info.dli_fname, MAX_PATH_LENGTH - 1);
-        if (rc != 0) {
-            return NC_ERROR;
-        }
-#endif
+        utf8_shared_lib_path(MAX_PATH_LENGTH, path_to_lib_file);
+
         // Path can contains library name. Use path before last '/'
         char* pointerToSeparator = NULL;
         size_t lib_dir_path_len = 0;
 
-        pointerToSeparator = strrchr(path_to_lib_file, getPathSeparator());
+        pointerToSeparator = strrchr(path_to_lib_file, pathSeparator);
         if(pointerToSeparator) {
             *pointerToSeparator = 0;
             lib_dir_path_len = pointerToSeparator - path_to_lib_file + 1;
         }
 
-        rc = mv_strncpy(firmware_directory, firwmare_directory_length, path_to_lib_file, lib_dir_path_len);
+        rc = mv_strncpy(firmware_directory, (size_t)firwmare_directory_length, path_to_lib_file, lib_dir_path_len);
         if (rc != 0) {
             return NC_ERROR;
         }
@@ -603,12 +584,13 @@ ncStatus_t getFirmwarePath(char *firmware_file_path, const int firmware_file_len
     }
     mvLog(MVLOG_DEBUG, "Firmware name %s", firmware_full_name);
 
-    ///     Get file location
+    // Get file location from shared library path
     ncStatus = getLibDirectory(firmware_dir, FIRMWARE_DIR_LENGTH);
     if (ncStatus != NC_OK) {
         return ncStatus;
     }
-    mvLog(MVLOG_DEBUG, "Firmware dir %s", firmware_full_name);
+
+    mvLog(MVLOG_DEBUG, "Firmware dir %s", firmware_dir);
 
     rc = snprintf(full_path_to_firmware, MAX_PATH_LENGTH, "%s%s", firmware_dir, firmware_full_name);
     if (rc < 0) {

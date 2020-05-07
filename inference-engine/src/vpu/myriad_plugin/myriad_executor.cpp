@@ -11,10 +11,12 @@
 #include <utility>
 #include <chrono>
 #include <memory>
+#include <thread>
 
 #include <mvnc.h>
+#include <mvnc_env.h>
 #include <ie_common.h>
-#include <thread>
+#include <file_utils.h>
 
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/utils/logger.hpp>
@@ -35,6 +37,20 @@ using namespace std;
 using namespace vpu;
 
 static std::mutex device_mutex;
+
+namespace {
+
+std::string getFirmwareDir() {
+    std::string absPathToFw = getIELibraryPath();
+    const size_t firmwareDirLength = 190;
+    char firmware_dir[firmwareDirLength]  = {0};
+    if (utf8_getenv_s(firmwareDirLength - 1, firmware_dir, "IE_VPU_FIRMWARE_DIR")) {
+        absPathToFw = firmware_dir;
+    }
+    return absPathToFw;
+}
+
+} // namespace
 
 MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
     const LogLevel& vpuLogLevel, const Logger::Ptr& log) : _log(log), _mvnc(std::move(mvnc)) {
@@ -95,18 +111,6 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
 
     DeviceDesc device;
 
-    std::string dirName;
-
-#if !defined(_WIN32)
-    Dl_info info;
-    dladdr(&device_mutex, &info);
-
-    if (info.dli_fname != nullptr) {
-        std::string dli_fname {info.dli_fname};
-        dirName = dirname(&dli_fname[0]);
-    }
-#endif
-
     ncDeviceDescr_t in_deviceDesc = {};
     in_deviceDesc.platform = configPlatform;
     in_deviceDesc.protocol = configProtocol;
@@ -140,11 +144,10 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
     ncDeviceOpenParams_t deviceOpenParams = {};
     deviceOpenParams.watchdogHndl = _mvnc->watchdogHndl();
     deviceOpenParams.watchdogInterval = config.watchdogInterval().count();
-    deviceOpenParams.customFirmwareDirectory = dirName.c_str();
+    deviceOpenParams.customFirmwareDirectory = getFirmwareDir().c_str();
 
     // Open new device with specific path to FW folder
-    statusOpen = ncDeviceOpen(&device._deviceHandle,
-        in_deviceDesc, deviceOpenParams);
+    statusOpen = ncDeviceOpen(&device._deviceHandle, in_deviceDesc, deviceOpenParams);
 
     if (statusOpen != NC_OK) {
         ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());

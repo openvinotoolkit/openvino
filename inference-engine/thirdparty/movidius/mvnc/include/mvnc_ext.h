@@ -14,7 +14,7 @@ extern "C"
 /**
  * @brief Boot device with firmware without creating handler for it
  * @param devicePlatform Platform to boot
- * @param customFirmwareDir Path to directory with firmware to load. If NULL, use default
+ * @param customFirmwareDir Path to directory with firmware to load (in utf-8). If NULL, use default
  */
 MVNC_EXPORT_API ncStatus_t ncDeviceLoadFirmware(const ncDevicePlatform_t devicePlatform, const char* customFirmwareDir);
 
