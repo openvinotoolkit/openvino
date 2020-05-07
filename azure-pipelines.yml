@@ -44,7 +44,7 @@ jobs:
     displayName: 'Create build directory'
   - script: |
         export PATH="/usr/local/opt/cython/bin:$PATH"
-        cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
+        cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Debug -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
     workingDirectory: dldt-build-release
     displayName: 'CMake'
   - script: make -j2
@@ -96,6 +96,13 @@ jobs:
         ../bin/intel64/Release/MklDnnFunctionalTests
     workingDirectory: dldt-build-release
     displayName: 'MklDnnFunctionalTests'
+    continueOnError: true
+  - script: |
+        export DATA_PATH=`pwd`/../testdata
+        export MODELS_PATH=`pwd`/../testdata
+        sudo DATA_PATH=`pwd`/../testdata MODELS_PATH=`pwd`/../testdata dtruss -s ../bin/intel64/Release/MklDnnFunctionalTests
+    workingDirectory: dldt-build-release
+    displayName: 'MklDnnFunctionalTests dtruss'
     continueOnError: true
   - script: |
         export DATA_PATH=`pwd`/../testdata
