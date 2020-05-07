@@ -208,7 +208,7 @@ INSTANTIATE_TEST_CASE_P(
                 concat_test_params {
                         {1, 3, 3, 5},
                         {1, 3, 3, 5},
-                        1, 2
+                        1, 1, MKLDNNPlugin::impl_desc_type::ref
                 },
                 concat_test_params {
                         {1, 7, 1, 5},
@@ -218,12 +218,12 @@ INSTANTIATE_TEST_CASE_P(
                 concat_test_params {
                         {1, 2, 3, 5, 3},
                         {1, 5, 3, 5, 3},
-                        1, 2
+                        1, 1, MKLDNNPlugin::impl_desc_type::ref
                 },
                 concat_test_params {
                         {1, 32, 3, 4, 5},
                         {1, 32, 3, 4, 5},
-                        1, 6, MKLDNNPlugin::impl_desc_type::unknown
+                        1, 1, MKLDNNPlugin::impl_desc_type::simple
                 },
                 concat_test_params {
                         {1, 64, 16, 16, 16, 1},
@@ -629,7 +629,7 @@ class MKLDNNGraphTwoConcatTests: public TestsCommon,
 
         s_dims = "";
         for (size_t i = 0; i < p.in2.size(); i++) {
-            size_t concat = p.concat1.axis == i ? concat11[i] + concat12[i] : concat21[i];
+            size_t concat = p.concat1.axis == i ? concat11[i] + concat12[i] : concat11[i];
             s_dims += "\n                    <dim>";
             s_dims += std::to_string(concat) + "</dim>";
         }
