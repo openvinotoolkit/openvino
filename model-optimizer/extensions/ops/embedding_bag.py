@@ -117,5 +117,5 @@ class EmbeddingSegmentsSum(Op):
         num_segments = node.in_port(3).data.get_value()
         assert num_segments is not None, "EmbeddingSegmentsSum should have a constant num_segments provided, but it " \
                                          "doesn't for node: `{}`.".format(name)
-        output_shape = int64_array(num_segments.tolist() + weights_shape[1:].tolist())
+        output_shape = int64_array([num_segments] + weights_shape[1:].tolist())
         node.out_port(0).data.set_shape(output_shape)

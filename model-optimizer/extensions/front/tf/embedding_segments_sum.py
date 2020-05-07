@@ -22,6 +22,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
+from mo.ops.squeeze import Squeeze
 
 
 class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
@@ -87,9 +88,9 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
 
         split_for_indices = create_op_with_const_inputs(graph, Split, {1: int64_array(1)}, {'num_splits': 2})
         split_for_dense_shape = create_op_with_const_inputs(graph, Split, {1: int64_array(0)}, {'num_splits': 2})
-        abandoned_name = output_node_name + '/AbandonedName'
-        embedding_segments_sum = EmbeddingSegmentsSum(graph, {'name': abandoned_name}).create_node()
-        rename_nodes([(select, abandoned_name), (embedding_segments_sum, output_node_name)])
+        squeeze_to_scalar = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([0])})
+        embedding_segments_sum = EmbeddingSegmentsSum(graph, {'name': output_node_name}).create_node()
+        rename_nodes([(select, output_node_name + '/AbandonedName'), (embedding_segments_sum, output_node_name)])
 
         # connect parameters table
         gather.in_port(0).get_connection().set_destination(embedding_segments_sum.in_port(0))
@@ -100,7 +101,8 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
         embedding_segments_sum.in_port(2).connect(split_for_indices.out_port(0))
         # split and connect number of segments
         identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
-        embedding_segments_sum.in_port(3).connect(split_for_dense_shape.out_port(0))
+        squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))
+        embedding_segments_sum.in_port(3).connect(squeeze_to_scalar.out_port(0))
         # no input port for per_sample_weight
         # connect default value
         sparse_fill_empty_rows.in_port(3).get_connection().set_destination(embedding_segments_sum.in_port(5))
@@ -187,9 +189,9 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
         split_for_dense_shape = create_op_with_const_inputs(graph, Split, {1: int64_array(0)},
                                                             {'num_splits': 2,
                                                              'name': output_node_name + '/SplitForDenseShape'})
-        abandoned_name = output_node_name + '/AbandonedName'
-        embedding_segments_sum = EmbeddingSegmentsSum(graph, {'name': abandoned_name}).create_node()
-        rename_nodes([(select, abandoned_name), (embedding_segments_sum, output_node_name)])
+        squeeze_to_scalar = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([0])})
+        embedding_segments_sum = EmbeddingSegmentsSum(graph, {'name': output_node_name}).create_node()
+        rename_nodes([(select, output_node_name + '/AbandonedName'), (embedding_segments_sum, output_node_name)])
 
         # connect parameters table
         gather.in_port(0).get_connection().set_destination(embedding_segments_sum.in_port(0))
@@ -200,7 +202,8 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
         embedding_segments_sum.in_port(2).connect(split_for_indices.out_port(0))
         # split and connect number of segments
         identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
-        embedding_segments_sum.in_port(3).connect(split_for_dense_shape.out_port(0))
+        squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))
+        embedding_segments_sum.in_port(3).connect(squeeze_to_scalar.out_port(0))        
         # no input port for per_sample_weight
         # connect default value
         sparse_fill_empty_rows.in_port(3).get_connection().set_destination(embedding_segments_sum.in_port(5))
