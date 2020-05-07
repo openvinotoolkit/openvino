@@ -8,6 +8,7 @@
 #include "XLinkPlatformErrorUtils.h"
 #include "usb_boot.h"
 #include "pcie_host.h"
+#include "XLinkFileUtils.h"
 #include "XLinkStringUtils.h"
 
 #define MVLOG_UNIT_NAME PlatformDeviceControl
@@ -92,7 +93,7 @@ void XLinkPlatformInit()
 #endif
 }
 
-int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
+int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPathUtf8)
 {
     FILE *file;
     long file_size;
@@ -100,10 +101,12 @@ int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
     char *image_buffer;
 
     /* Open the mvcmd file */
-    file = fopen(binaryPath, "rb");
+    file = utf8_fopen(binaryPathUtf8, "rb");
 
     if(file == NULL) {
-        mvLog(MVLOG_ERROR, "Cannot open file by path: %s", binaryPath);
+        mvLog(MVLOG_ERROR, "Cannot open file by path: %s", binaryPathUtf8);
+        if(usb_loglevel)
+            perror(binaryPathUtf8);
         return -7;
     }
 
@@ -119,6 +122,8 @@ int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
     if(fread(image_buffer, 1, file_size, file) != file_size)
     {
         mvLog(MVLOG_ERROR, "cannot read file to image_buffer");
+        if(usb_loglevel)
+            perror(binaryPathUtf8);
         fclose(file);
         free(image_buffer);
         return -7;
