@@ -44,57 +44,57 @@ jobs:
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
-        mkdir dldt-build-release
-        cd dldt-build-release
+        mkdir dldt-build
+        cd dldt-build
     displayName: 'Create build directory'
   - task: CMake@1
     inputs:
-        workingDirectory: dldt-build-release
+        workingDirectory: dldt-build
         cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
-  - script: make -j2
-    workingDirectory: dldt-build-release
+  - script: make -j3
+    workingDirectory: dldt-build
     displayName: 'Build IE'
   - script: ls -al ../bin/intel64/Release/
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'List files'
   - script: |
         ../bin/intel64/Release/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/InferenceEngineUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/ieUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/cpuUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'CPU UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/gnaUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'GNA UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/vpuUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'VPU UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/ieFuncTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/MklDnnBehaviorTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
   - script: git clone https://github.com/openvinotoolkit/testdata.git
@@ -103,14 +103,14 @@ jobs:
         export DATA_PATH=`pwd`/../testdata
         export MODELS_PATH=`pwd`/../testdata
         ../bin/intel64/Release/MklDnnFunctionalTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
         export DATA_PATH=`pwd`/../testdata
         export MODELS_PATH=`pwd`/../testdata
         ../bin/intel64/Release/InferenceEngineCAPITests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: true
 
@@ -118,11 +118,10 @@ jobs:
 - job: IE_MAC
   timeoutInMinutes: 0
   pool:
-      vmImage: 'macOS-10.14'
+      vmImage: 'macOS-10.15'
   variables:
       CC: gcc
       CXX: g++
-      DL_SDK_TEMP: /tmp/
   steps:
   - task: UsePythonVersion@0
     inputs:
@@ -143,53 +142,53 @@ jobs:
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
-        mkdir dldt-build-release
-        cd dldt-build-release
+        mkdir dldt-build
+        cd dldt-build
     displayName: 'Create build directory'
   - script: |
         export PATH="/usr/local/opt/cython/bin:$PATH"
         cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'CMake'
-  - script: make -j2
-    workingDirectory: dldt-build-release
+  - script: make -j3
+    workingDirectory: dldt-build
     displayName: 'Build IE'
   - script: ls -al ../bin/intel64/Release/
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'List files'
   - script: |
         ../bin/intel64/Release/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/InferenceEngineUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/ieUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/cpuUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'CPU UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/vpuUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'VPU UT'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/ieFuncTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: true
   - script: |
         ../bin/intel64/Release/MklDnnBehaviorTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
   - script: git clone https://github.com/openvinotoolkit/testdata.git
@@ -198,14 +197,14 @@ jobs:
         export DATA_PATH=`pwd`/../testdata
         export MODELS_PATH=`pwd`/../testdata
         ../bin/intel64/Release/MklDnnFunctionalTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
         export DATA_PATH=`pwd`/../testdata
         export MODELS_PATH=`pwd`/../testdata
         ../bin/intel64/Release/InferenceEngineCAPITests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: true
 
@@ -224,85 +223,85 @@ jobs:
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
-        mkdir C:\c-dldt-build-release\bin
-        mkdir dldt-build-release
-        cd dldt-build-release
+        mkdir C:\c-dldt-build\bin
+        mkdir dldt-build
+        cd dldt-build
     displayName: 'Create build directory'
   - task: CMake@1
     inputs:
-        workingDirectory: C:\c-dldt-build-release
+        workingDirectory: C:\c-dldt-build
         cmakeArgs: -G"Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=ON -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
-  - script: cmake --build . --config Release -j2
-    workingDirectory: C:\c-dldt-build-release
+  - script: cmake --build . --config Release -j3
+    workingDirectory: C:\c-dldt-build
     displayName: 'Build IE VS2017'
   - script: dir ..\bin\intel64\Release\
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'List files'
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\InferenceEngineUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\ieUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\cpuUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'CPU UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\gnaUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'GNA UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\vpuUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'VPU UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\ieFuncTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\MklDnnBehaviorTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
   - script: git clone https://github.com/openvinotoolkit/testdata.git
-    workingDirectory: C:\c-dldt-build-release
+    workingDirectory: C:\c-dldt-build
     displayName: 'Clone testdata'
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
-        set DATA_PATH=C:\c-dldt-build-release\testdata
-        set MODELS_PATH=C:\c-dldt-build-release\testdata
+        set DATA_PATH=C:\c-dldt-build\testdata
+        set MODELS_PATH=C:\c-dldt-build\testdata
         ..\bin\intel64\Release\MklDnnFunctionalTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
-        set DATA_PATH=C:\c-dldt-build-release\testdata
-        set MODELS_PATH=C:\c-dldt-build-release\testdata
+        set DATA_PATH=C:\c-dldt-build\testdata
+        set MODELS_PATH=C:\c-dldt-build\testdata
         ..\bin\intel64\Release\InferenceEngineCAPITests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: true
 
@@ -323,86 +322,86 @@ jobs:
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
-        rd /Q /S C:\c-dldt-build-release
-        mkdir C:\c-dldt-build-release\bin
-        rd /Q /S dldt-build-release
-        mkdir dldt-build-release
-        cd dldt-build-release
+        rd /Q /S C:\c-dldt-build
+        mkdir C:\c-dldt-build\bin
+        rd /Q /S dldt-build
+        mkdir dldt-build
+        cd dldt-build
     displayName: 'Create build directory'
   - task: CMake@1
     inputs:
-        workingDirectory: C:\c-dldt-build-release
+        workingDirectory: C:\c-dldt-build
         cmakeArgs: -G"Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=ON -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
-  - script: cmake --build . --config Release -j4
-    workingDirectory: C:\c-dldt-build-release
+  - script: cmake --build . --config Release -j6
+    workingDirectory: C:\c-dldt-build
     displayName: 'Build IE VS2019'
   - script: dir ..\bin\intel64\Release\
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'List files'
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\InferenceEngineUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\ieUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\cpuUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'CPU UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\gnaUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'GNA UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\vpuUnitTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'VPU UT'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\ieFuncTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
         ..\bin\intel64\Release\MklDnnBehaviorTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
   - script: git clone https://github.com/openvinotoolkit/testdata.git
-    workingDirectory: C:\c-dldt-build-release
+    workingDirectory: C:\c-dldt-build
     displayName: 'Clone testdata'
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
-        set DATA_PATH=C:\c-dldt-build-release\testdata
-        set MODELS_PATH=C:\c-dldt-build-release\testdata
+        set DATA_PATH=C:\c-dldt-build\testdata
+        set MODELS_PATH=C:\c-dldt-build\testdata
         ..\bin\intel64\Release\MklDnnFunctionalTests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
         set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
-        set DATA_PATH=C:\c-dldt-build-release\testdata
-        set MODELS_PATH=C:\c-dldt-build-release\testdata
+        set DATA_PATH=C:\c-dldt-build\testdata
+        set MODELS_PATH=C:\c-dldt-build\testdata
         ..\bin\intel64\Release\InferenceEngineCAPITests
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: true
