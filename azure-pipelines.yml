@@ -5,10 +5,10 @@ jobs:
   pool:
       vmImage: 'macOS-10.15'
   variables:
-      #CC: gcc
-      #CXX: g++
-      #DL_SDK_TEMP: /tmp/
-      Server: $[dependencies.Name.outputs['SetVariableJob.Server']]
+      CC: gcc
+      CXX: g++
+      BIN_DIR: ../bin/intel64/Debug
+      #Server: $[dependencies.Name.outputs['SetVariableJob.Server']]
   steps:
   #- task: SSH@0
     #inputs:
@@ -23,7 +23,7 @@ jobs:
     inputs:
         versionSpec: '3.7'
   - script: |
-        echo Server: ${Server}
+        #echo Server: $(Server)
         whoami
         uname -a
         gcc --version
@@ -39,53 +39,53 @@ jobs:
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
-        mkdir dldt-build-release
-        cd dldt-build-release
+        mkdir dldt-build
+        cd dldt-build
     displayName: 'Create build directory'
   - script: |
         export PATH="/usr/local/opt/cython/bin:$PATH"
-        cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON -DENABLE_AVX2=OFF
-    workingDirectory: dldt-build-release
+        cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Debug -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON -DENABLE_AVX2=OFF
+    workingDirectory: dldt-build
     displayName: 'CMake'
   - script: make -j2
-    workingDirectory: dldt-build-release
+    workingDirectory: dldt-build
     displayName: 'Build IE'
-  - script: ls -al ../bin/intel64/Release/
-    workingDirectory: dldt-build-release
+  - script: ls -al $(BIN_DIR)
+    workingDirectory: dldt-build
     displayName: 'List files'
   - script: |
-        ../bin/intel64/Release/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
-    workingDirectory: dldt-build-release
+        $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
+    workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
   - script: |
-        ../bin/intel64/Release/InferenceEngineUnitTests
-    workingDirectory: dldt-build-release
+        $(BIN_DIR)/InferenceEngineUnitTests
+    workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: true
   - script: |
-        ../bin/intel64/Release/ieUnitTests
-    workingDirectory: dldt-build-release
+        $(BIN_DIR)/ieUnitTests
+    workingDirectory: dldt-build
     displayName: 'IE UT'
     continueOnError: true
   - script: |
-        ../bin/intel64/Release/cpuUnitTests
-    workingDirectory: dldt-build-release
+        $(BIN_DIR)/cpuUnitTests
+    workingDirectory: dldt-build
     displayName: 'CPU UT'
     continueOnError: true
   - script: |
-        ../bin/intel64/Release/vpuUnitTests
-    workingDirectory: dldt-build-release
+        $(BIN_DIR)/vpuUnitTests
+    workingDirectory: dldt-build
     displayName: 'VPU UT'
     continueOnError: true
   - script: |
-        ../bin/intel64/Release/ieFuncTests
-    workingDirectory: dldt-build-release
+        $(BIN_DIR)/ieFuncTests
+    workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: true
   - script: |
-        ../bin/intel64/Release/MklDnnBehaviorTests
-    workingDirectory: dldt-build-release
+        $(BIN_DIR)/MklDnnBehaviorTests
+    workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
   - script: git clone https://github.com/openvinotoolkit/testdata.git
@@ -93,21 +93,21 @@ jobs:
   - script: |
         export DATA_PATH=`pwd`/../testdata
         export MODELS_PATH=`pwd`/../testdata
-        ../bin/intel64/Release/MklDnnFunctionalTests
-    workingDirectory: dldt-build-release
+        $(BIN_DIR)/MklDnnFunctionalTests
+    workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
         export DATA_PATH=`pwd`/../testdata
         export MODELS_PATH=`pwd`/../testdata
-        sudo DATA_PATH=`pwd`/../testdata MODELS_PATH=`pwd`/../testdata dtruss -s ../bin/intel64/Release/MklDnnFunctionalTests
-    workingDirectory: dldt-build-release
+        sudo DATA_PATH=`pwd`/../testdata MODELS_PATH=`pwd`/../testdata dtruss -s $(BIN_DIR)/MklDnnFunctionalTests
+    workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests dtruss'
     continueOnError: true
   - script: |
         export DATA_PATH=`pwd`/../testdata
         export MODELS_PATH=`pwd`/../testdata
-        ../bin/intel64/Release/InferenceEngineCAPITests
-    workingDirectory: dldt-build-release
+        $(BIN_DIR)/InferenceEngineCAPITests
+    workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: true
