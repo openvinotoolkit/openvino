@@ -44,7 +44,7 @@ jobs:
     displayName: 'Create build directory'
   - script: |
         export PATH="/usr/local/opt/cython/bin:$PATH"
-        cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Debug -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
+        cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON -DENABLE_AVX2=OFF
     workingDirectory: dldt-build-release
     displayName: 'CMake'
   - script: make -j2
