@@ -94,16 +94,16 @@ jobs:
   - script: git clone https://github.com/openvinotoolkit/testdata.git
     displayName: 'Clone testdata'
   - script: |
-        export DATA_PATH=`pwd`/../testdata
-        export MODELS_PATH=`pwd`/../testdata
-        ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests
+      export DATA_PATH=`pwd`/../testdata
+      export MODELS_PATH=`pwd`/../testdata
+      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
-        export DATA_PATH=`pwd`/../testdata
-        export MODELS_PATH=`pwd`/../testdata
-        ../bin/intel64/$(BUILD_TYPE)/InferenceEngineCAPITests
+      export DATA_PATH=`pwd`/../testdata
+      export MODELS_PATH=`pwd`/../testdata
+      ../bin/intel64/$(BUILD_TYPE)/InferenceEngineCAPITests
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: true
@@ -182,16 +182,16 @@ jobs:
   - script: git clone https://github.com/openvinotoolkit/testdata.git
     displayName: 'Clone testdata'
   - script: |
-        export DATA_PATH=`pwd`/../testdata
-        export MODELS_PATH=`pwd`/../testdata
-        ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=-smoke_Inception/ModelTransformationsTest.LPT/inception_v3_tf_batch1_inPluginDisabled_inTestDisabled_asymmetric_{ U8, I8 }_{ I8 }_None
+      export DATA_PATH=`pwd`/../testdata
+      export MODELS_PATH=`pwd`/../testdata
+      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=-smoke_Inception/ModelTransformationsTest.LPT/inception_v3_tf_batch1_inPluginDisabled_inTestDisabled_asymmetric
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
-        export DATA_PATH=`pwd`/../testdata
-        export MODELS_PATH=`pwd`/../testdata
-        ../bin/intel64/$(BUILD_TYPE)/InferenceEngineCAPITests
+      export DATA_PATH=`pwd`/../testdata
+      export MODELS_PATH=`pwd`/../testdata
+      ../bin/intel64/$(BUILD_TYPE)/InferenceEngineCAPITests
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: true
