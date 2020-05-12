@@ -119,14 +119,38 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
 
     if (!isInt8) {
         if (blockSize == 8) {
-            outputFormat = numOfDim == 4 ? mkldnn::memory::nChw8c : mkldnn::memory::nCdhw8c;
+            std::map<int, mkldnn::memory::format> formats =
+                { { 2, mkldnn::memory::nc },
+                  { 4, mkldnn::memory::nChw8c },
+                  { 5, mkldnn::memory::nCdhw8c }};
+            if (formats.find(numOfDim) != formats.end()) {
+                outputFormat = formats[numOfDim];
+            } else {
+                outputFormat = MKLDNNMemory::GetPlainFormat(outDims);
+            }
         } else if (blockSize == 16) {
-            outputFormat = numOfDim == 4 ? mkldnn::memory::nChw16c : mkldnn::memory::nCdhw16c;
+            std::map<int, mkldnn::memory::format> formats =
+                { { 2, mkldnn::memory::nc },
+                  { 4, mkldnn::memory::nChw16c },
+                  { 5, mkldnn::memory::nCdhw16c }};
+            if (formats.find(numOfDim) != formats.end()) {
+                outputFormat = formats[numOfDim];
+            } else {
+                outputFormat = MKLDNNMemory::GetPlainFormat(outDims);
+            }
         } else {
             THROW_IE_EXCEPTION << "Not supported block size for concat node " << getName();
         }
     } else {
-        outputFormat = numOfDim == 4 ? mkldnn::memory::nhwc : mkldnn::memory::ndhwc;
+        std::map<int, mkldnn::memory::format> formats =
+                { { 2, mkldnn::memory::nc },
+                  { 4, mkldnn::memory::nhwc },
+                  { 5, mkldnn::memory::ndhwc }};
+        if (formats.find(numOfDim) != formats.end()) {
+            outputFormat = formats[numOfDim];
+        } else {
+            outputFormat = mkldnn::memory::any;
+        }
     }
 
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
@@ -147,15 +171,16 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    size_t inputDimsBelowBlock = 0;
+    size_t inputDimsAcc = 0;
     for (int i = 0; i < getParentEdges().size(); i++) {
-        if (getParentEdgeAt(i)->getDims()[1] < blockSize) {
-            inputDimsBelowBlock++;
-        }
+        inputDimsAcc += getParentEdgeAt(i)->getDims()[axis];
     }
 
-    if (axis != 1 || numOfDim > 5 || hasDoubleConnection || inputDimsBelowBlock != 0) {
-        outputFormat = MKLDNNMemory::GetPlainFormat(outDims);
+    if (axis != 1 || (numOfDim < 4 || numOfDim > 5) ||
+        hasDoubleConnection || inputDimsAcc < blockSize) {
+        if (!isInt8) {
+            outputFormat = MKLDNNMemory::GetPlainFormat(outDims);
+        }
 
         InferenceEngine::LayerConfig config;
         config.dynBatchSupport = true;
@@ -165,7 +190,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
             InferenceEngine::DataConfig inConfig;
             inConfig.inPlace = -1;
             inConfig.constant = false;
-            inConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(parentEdge->getDims(), inputDataType, memory::format::any));
+            inConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(parentEdge->getDims(), inputDataType, outputFormat));
             config.inConfs.push_back(inConfig);
         }
 
@@ -536,8 +561,8 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
 
             const size_t dst_ndims = dst_dims.size();
             const size_t D = (dst_ndims == 5) ? dst_dims[dst_ndims - 3] : 1;
-            const size_t H = dst_dims[dst_ndims - 2];
-            const size_t W = dst_dims[dst_ndims - 1];
+            const size_t H = (dst_ndims > 2) ? dst_dims[dst_ndims - 2] : 1;
+            const size_t W = (dst_ndims > 3) ? dst_dims[dst_ndims - 1] : 1;
             const size_t HW = H * W * D;
 
             const size_t HW_rounded = (HW / threads) * threads;
@@ -578,40 +603,36 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
 
                 bool dst_aligned = (dst_layout == NCHW) || (OC % dst_block == 0);
 
-                if (dst_aligned) {
+                if (dst_aligned && IC > src_block) {
                     src = src_data;
                     dst = dst_data + OC * HW * data_size;
 
-                    const float* srcf = reinterpret_cast<const float*>(src);
-
                     if (src != dst) {
-                        const size_t IC_to_copy = (src_layout == BLOCKED) ? (IC / src_block) * src_block : IC;
+                        size_t IC_to_copy = (src_layout == BLOCKED) ? (IC / src_block) * src_block : IC;
 
-                        if (IC_to_copy > 0) {
-                            size_t bytes_to_copy = HW * IC_to_copy * data_size;
-                            size_t rounded_bytes_to_copy = (bytes_to_copy / threads) * threads;
-                            size_t bytes_tail = bytes_to_copy - rounded_bytes_to_copy;
-                            size_t bytes_per_thread = rounded_bytes_to_copy / threads;
+                        size_t bytes_to_copy = HW * IC_to_copy * data_size;
+                        size_t rounded_bytes_to_copy = (bytes_to_copy / threads) * threads;
+                        size_t bytes_tail = bytes_to_copy - rounded_bytes_to_copy;
+                        size_t bytes_per_thread = rounded_bytes_to_copy / threads;
 
-                            for (size_t t = 0; t < threads; t++) {
-                                size_t byte_size = ((t + 1) < threads) ? bytes_per_thread : bytes_per_thread + bytes_tail;
+                        for (size_t t = 0; t < threads; t++) {
+                            size_t byte_size = ((t + 1) < threads) ? bytes_per_thread : bytes_per_thread + bytes_tail;
 
-                                CopyMemTask task;
+                            CopyMemTask task;
 
-                                task.input_size = input_size[i];
+                            task.input_size = input_size[i];
 
-                                task.src = src + t * bytes_per_thread;
-                                task.dst = dst + t * bytes_per_thread;
-                                task.src_stride = 0;
-                                task.dst_stride = 0;
-                                task.byte_size = byte_size;
-                                task.iters = 1;
+                            task.src = src + t * bytes_per_thread;
+                            task.dst = dst + t * bytes_per_thread;
+                            task.src_stride = 0;
+                            task.dst_stride = 0;
+                            task.byte_size = byte_size;
+                            task.iters = 1;
 
-                                _tasks.push_back(task);
-                            }
-
-                            OC += IC_to_copy;
+                            _tasks.push_back(task);
                         }
+
+                        OC += IC_to_copy;
 
                         size_t IC_tail = IC - IC_to_copy;
 
@@ -647,16 +668,20 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
                 } else {
                     size_t IC_acc = 0;
                     size_t OC_tail = (OC > dst_block) ? OC % dst_block : OC;
-                    size_t IC_tail = 0;
+                    size_t IC_tail = (IC < src_block) ? src_block - IC : 0;
 
                     while (IC_acc < IC) {
                         size_t C_to_copy = (OC_tail != 0) ? (dst_block - OC_tail) : (src_block - IC_tail);
 
+                        if (C_to_copy + IC_acc > IC) {
+                            C_to_copy = IC - IC_acc;
+                        }
+
                         size_t bytes_to_copy = C_to_copy * data_size;
                         size_t offset = HW_per_thread * src_block * data_size;
 
-                        size_t src_off = ((IC_acc - IC_tail) * HW + IC_tail) * data_size;
-                        size_t dst_off = ((OC - OC_tail) * HW + OC_tail) * data_size;
+                        size_t src_off = IC_acc == 0 ? 0 : ((IC_acc - IC_tail) * HW + IC_tail) * data_size;
+                        size_t dst_off = OC == 0 ? 0 : ((OC - OC_tail) * HW + OC_tail) * data_size;
 
                         src = src_data + src_off;
                         dst = dst_data + dst_off;
@@ -689,6 +714,7 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
         }
 
         const size_t N = batchToProcess();
+
         std::vector<CopyMemTask> batch_tasks = _tasks;
 
         if (N > 1) {

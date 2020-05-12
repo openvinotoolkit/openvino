@@ -71,7 +71,7 @@ TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
 
     int numReorders = 0;
-    int expectedReorders = 2;
+    int expectedReorders = 0;
     std::unordered_set<std::string> names;
 
     if (auto function = execGraphInfo.getFunction()) {

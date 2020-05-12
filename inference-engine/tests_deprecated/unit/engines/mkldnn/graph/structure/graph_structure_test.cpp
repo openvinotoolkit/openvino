@@ -463,7 +463,7 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersBeforeConcat) {
             reorders_num++;
         }
     }
-    ASSERT_EQ(reorders_num, 0);
+    ASSERT_EQ(reorders_num, InferenceEngine::with_cpu_x86_avx512_core() ? 2 : 0);
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, {1, 3, 7, 7}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(desc);
     src->allocate();
@@ -734,7 +734,7 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersBeforeDWConvolution) {
             reorders_num++;
         }
     }
-    size_t expected = 0;
+    size_t expected = InferenceEngine::with_cpu_x86_avx512_core() ? 2 : 1;
     ASSERT_EQ(reorders_num, expected);
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, {2, 3, 5, 5}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(desc);
