@@ -87,6 +87,16 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // initial dump pass must be the first dump
     ADD_DUMP_PASS("initial");
 
+    //
+    // Replace Global AvgPooling with ReduceMean
+    //
+
+    if (env.config.enableReplaceWithReduceMean) {
+        ADD_PASS(replaceWithReduceMean);
+        ADD_DUMP_PASS("replaceWithReduceMean");
+    }
+
+
     if (!env.config.disableReorder && !env.config.hwOptimization) {
         ADD_PASS(reorderInputsToChannelMinor);
         ADD_DUMP_PASS("reorderInputsToChannelMinor");
@@ -126,15 +136,6 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(mergeParallelFC);
     ADD_DUMP_PASS("mergeParallelFC");
-
-    //
-    // Replace Global AvgPooling with ReduceMean
-    //
-
-    if (env.config.enableReplaceWithReduceMean) {
-        ADD_PASS(replaceWithReduceMean);
-        ADD_DUMP_PASS("replaceWithReduceMean");
-    }
 
     //
     // Model common adaptation
@@ -187,6 +188,11 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(hwPadding);
     ADD_DUMP_PASS("hwPadding");
+
+    if (env.config.hwOptimization) {
+        ADD_PASS(splitLargeKernelConv);
+        ADD_DUMP_PASS("splitLargeKernelConv");
+    }
 
     //
     // Batch support

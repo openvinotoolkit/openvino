@@ -22,7 +22,7 @@ struct TopKROIsParam {
 
 using ExpTopKROIsTestParams = std::tuple<int, TopKROIsParam>;
 
-typedef myriadLayerTestBaseWithParam<ExpTopKROIsTestParams> myriadLayersTestsExpTopKROIs_nightly;
+typedef myriadLayerTestBaseWithParam<ExpTopKROIsTestParams> myriadLayersTestsExpTopKROIs_smoke;
 
 static void genInputs(InferenceEngine::BlobMap inputMap) {
     const std::string INPUT_ROIS    = "input0";
@@ -101,7 +101,7 @@ static void genInputs(InferenceEngine::BlobMap inputMap) {
     }
 }
 
-TEST_P(myriadLayersTestsExpTopKROIs_nightly, ExpTopKROIs) {
+TEST_P(myriadLayersTestsExpTopKROIs_smoke, ExpTopKROIs) {
     int inputRoisNum = std::get<0>(GetParam());
     TopKROIsParam opParams = std::get<1>(GetParam());
 

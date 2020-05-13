@@ -62,6 +62,7 @@ IE_SUPPRESS_DEPRECATED_START
         VPU_CONFIG_KEY(ENABLE_REPLACE_WITH_REDUCE_MEAN),
         VPU_CONFIG_KEY(ENABLE_TENSOR_ITERATOR_UNROLLING),
         VPU_CONFIG_KEY(FORCE_PURE_TENSOR_ITERATOR),
+        VPU_CONFIG_KEY(DISABLE_CONVERT_STAGES),
 
         //
         // Debug options
@@ -168,6 +169,7 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.enableReplaceWithReduceMean,    switches, config, VPU_CONFIG_KEY(ENABLE_REPLACE_WITH_REDUCE_MEAN));
     setOption(_compileConfig.enableTensorIteratorUnrolling,  switches, config, VPU_CONFIG_KEY(ENABLE_TENSOR_ITERATOR_UNROLLING));
     setOption(_compileConfig.forcePureTensorIterator,        switches, config, VPU_CONFIG_KEY(FORCE_PURE_TENSOR_ITERATOR));
+    setOption(_compileConfig.disableConvertStages,           switches, config, VPU_CONFIG_KEY(DISABLE_CONVERT_STAGES));
 
     setOption(_compileConfig.irWithVpuScalesDir, config, VPU_CONFIG_KEY(IR_WITH_SCALES_DIRECTORY));
     setOption(_compileConfig.noneLayers,    config, VPU_CONFIG_KEY(NONE_LAYERS), parseStringSet);
@@ -212,6 +214,9 @@ IE_SUPPRESS_DEPRECATED_END
     }
     if (const auto envVar = std::getenv("IE_VPU_DUMP_ALL_PASSES")) {
         _compileConfig.dumpAllPasses = std::stoi(envVar) != 0;
+    }
+    if (const auto envVar = std::getenv("IE_VPU_NUMBER_OF_SHAVES_AND_CMX_SLICES")) {
+        _compileConfig.numSHAVEs = _compileConfig.numCMXSlices = std::stoi(envVar);
     }
 #endif
 }

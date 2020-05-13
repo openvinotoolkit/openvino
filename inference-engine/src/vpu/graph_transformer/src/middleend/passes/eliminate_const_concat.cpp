@@ -18,7 +18,7 @@ namespace {
 
 class PassImpl final : public PerStagePass {
 public:
-    PassImpl() : PerStagePass({StageType::Concat}) {}
+    PassImpl() : PerStagePass({StageType::StubConcat}) {}
 
     void runForStage(const Model& model, const Stage& stage) override;
 };

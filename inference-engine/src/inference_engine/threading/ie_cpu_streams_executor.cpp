@@ -23,159 +23,215 @@
 #include "threading/ie_cpu_streams_executor.hpp"
 
 namespace InferenceEngine {
-#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-struct PinningObserver: public tbb::task_scheduler_observer {
-    CpuSet& _mask;
-    int     _ncpus                  = 0;
-    int     _streamId               = 0;
-    int     _threadsPerStream       = 0;
-    int     _threadBindingStep      = 0;
-    int     _threadBindingOffset    = 0;
-
-    PinningObserver(tbb::task_arena&    arena,
-                    CpuSet&             mask,
-                    int                 ncpus,
-                    const int           streamId,
-                    const int           threadsPerStream,
-                    const int           threadBindingStep,
-                    const int           threadBindingOffset) :
-        tbb::task_scheduler_observer(arena),
-        _mask(mask),
-        _ncpus(ncpus),
-        _streamId(streamId),
-        _threadsPerStream(threadsPerStream),
-        _threadBindingStep(threadBindingStep),
-        _threadBindingOffset(threadBindingOffset) {
-        observe(true);
-    }
-
-    void on_scheduler_entry(bool) override {
-        int threadIdx = tbb::task_arena::current_thread_index();
-        int thrIdx = _streamId * _threadsPerStream + threadIdx + _threadBindingOffset;
-        // pin thread to the vacant slot
-        PinThreadToVacantCore(thrIdx, _threadBindingStep, _ncpus, _mask);
-    }
-
-    void on_scheduler_exit(bool) override {
-        // reset the thread's mask (to the original process mask)
-        PinCurrentThreadByMask(_ncpus, _mask);
-    }
-
-    ~PinningObserver() {
-        observe(false);
-    }
-};
-#endif  //  IE_THREAD != IE_THREAD_TBB
-
-struct Stream {
-    int _streamId   = 0;
-    int _numaNodeId = 0;
-#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-    std::unique_ptr<tbb::task_arena> _taskArena;
-    std::unique_ptr<PinningObserver> _pinningObserver;
-#endif
-};
-
 struct CPUStreamsExecutor::Impl {
-    std::string                 _name;
-    std::vector<std::thread>    _threads;
-    std::mutex                  _mutex;
-    std::condition_variable     _queueCondVar;
-    std::queue<Task>            _taskQueue;
-    bool                        _isStopped = false;
-    int                         _ncpus = 0;
-    CpuSet                      _processMask;
-    ThreadLocal<Stream*>        _localStream;
-};
-
-int CPUStreamsExecutor::GetStreamId() {
-    auto stream = _impl->_localStream.local();
-    if (nullptr == stream) THROW_IE_EXCEPTION << "Not in the stream thread";
-    return stream->_streamId;
-}
-
-int CPUStreamsExecutor::GetNumaNodeId() {
-    auto stream = _impl->_localStream.local();
-    if (nullptr == stream) THROW_IE_EXCEPTION << "Not in the stream thread";
-    return stream->_numaNodeId;
-}
-
-CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) :
-    _impl{new Impl} {
-    IE_ASSERT(config._streams > 0);
-    _impl->_name = config._name;
-    auto numaNodes = getAvailableNUMANodes();
-    IE_ASSERT(!numaNodes.empty());
-    if (ThreadBindingType::CORES == config._threadBindingType) {
-        std::tie(_impl->_processMask, _impl->_ncpus) = GetProcessMask();
-    }
-    for (auto streamId = 0; streamId < config._streams; ++streamId) {
-        _impl->_threads.emplace_back([=] {
-            annotateSetThreadName((_impl->_name + "_" + std::to_string(streamId)).c_str());
-            Stream stream;
-            stream._streamId   = streamId;
-            stream._numaNodeId = numaNodes.at(streamId/((config._streams + numaNodes.size() - 1)/numaNodes.size()));
+    struct Stream {
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-            auto concurrency = (0 == config._threadsPerStream) ? tbb::task_arena::automatic : config._threadsPerStream;
-            if (ThreadBindingType::NUMA == config._threadBindingType) {
-                stream._taskArena.reset(new tbb::task_arena(tbb::task_arena::constraints(stream._numaNodeId, concurrency)));
-            } else if ((0 != config._threadsPerStream) || ThreadBindingType::CORES == config._threadBindingType) {
-                stream._taskArena.reset(new tbb::task_arena(concurrency));
-                if (ThreadBindingType::CORES == config._threadBindingType) {
-                    if (nullptr != _impl->_processMask) {
-                        stream._pinningObserver.reset(new PinningObserver{*stream._taskArena,
-                                                                          _impl->_processMask,
-                                                                          _impl->_ncpus,
-                                                                          stream._streamId,
-                                                                          config._threadsPerStream,
-                                                                          config._threadBindingStep,
-                                                                          config._threadBindingOffset});
+        struct Observer: public tbb::task_scheduler_observer {
+            CpuSet  _mask;
+            int     _ncpus                  = 0;
+            int     _threadBindingStep      = 0;
+            int     _offset                 = 0;
+            Observer(tbb::task_arena&    arena,
+                     CpuSet              mask,
+                     int                 ncpus,
+                     const int           streamId,
+                     const int           threadsPerStream,
+                     const int           threadBindingStep,
+                     const int           threadBindingOffset) :
+                tbb::task_scheduler_observer(arena),
+                _mask{std::move(mask)},
+                _ncpus(ncpus),
+                _threadBindingStep(threadBindingStep),
+                _offset{streamId * threadsPerStream  + threadBindingOffset} {
+            }
+            void on_scheduler_entry(bool) override {
+                PinThreadToVacantCore(_offset + tbb::task_arena::current_thread_index(), _threadBindingStep, _ncpus, _mask);
+            }
+            void on_scheduler_exit(bool) override {
+                PinCurrentThreadByMask(_ncpus, _mask);
+            }
+            ~Observer() override = default;
+        };
+#endif
+        explicit Stream(Impl* impl) :
+            _impl(impl) {
+            {
+                std::lock_guard<std::mutex> lock{_impl->_streamIdMutex};
+                if (_impl->_streamIdQueue.empty()) {
+                    _streamId = _impl->_streamId++;
+                } else {
+                    _streamId = _impl->_streamIdQueue.front();
+                    _impl->_streamIdQueue.pop();
+                }
+            }
+            _numaNodeId = _impl->_usedNumaNodes.at(
+                (_streamId % _impl->_config._streams)/
+                ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1)/_impl->_usedNumaNodes.size()));
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+            auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
+            if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+                _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{_numaNodeId, concurrency}});
+            } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
+                _taskArena.reset(new tbb::task_arena{concurrency});
+                if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
+                    CpuSet processMask;
+                    int    ncpus = 0;
+                    std::tie(processMask, ncpus) = GetProcessMask();
+                    if (nullptr != processMask) {
+                        _observer.reset(new Observer{*_taskArena,
+                                                     std::move(processMask),
+                                                     ncpus,
+                                                     _streamId,
+                                                     _impl->_config._threadsPerStream,
+                                                     _impl->_config._threadBindingStep,
+                                                     _impl->_config._threadBindingOffset});
+                        _observer->observe(true);
                     }
                 }
             }
 #elif IE_THREAD == IE_THREAD_OMP
-            omp_set_num_threads(config._threadsPerStream);
-            if (!checkOpenMpEnvVars(false) && (ThreadBindingType::NONE != config._threadBindingType)) {
-                if (nullptr != _impl->_processMask) {
-                    parallel_nt(config._threadsPerStream, [&] (int threadIndex, int threadsPerStream) {
-                        int thrIdx = stream._streamId * threadsPerStream + threadIndex + config._threadBindingOffset;
-                        PinThreadToVacantCore(thrIdx, config._threadBindingStep, _impl->_ncpus, _impl->_processMask);
+            omp_set_num_threads(_impl->_config._threadsPerStream);
+            if (!checkOpenMpEnvVars(false) && (ThreadBindingType::NONE != _impl->_config._threadBindingType)) {
+                CpuSet processMask;
+                int    ncpus = 0;
+                std::tie(processMask, ncpus) = GetProcessMask();
+                if (nullptr != processMask) {
+                    parallel_nt(_impl->_config._threadsPerStream, [&] (int threadIndex, int threadsPerStream) {
+                        int thrIdx = _streamId * _impl->_config._threadsPerStream + threadIndex + _impl->_config._threadBindingOffset;
+                        PinThreadToVacantCore(thrIdx, _impl->_config._threadBindingStep, ncpus, processMask);
                     });
                 }
             }
 #elif IE_THREAD == IE_THREAD_SEQ
-            if (ThreadBindingType::NUMA == config._threadBindingType) {
-                PinCurrentThreadToSocket(stream._numaNodeId);
-            } else if (ThreadBindingType::CORES == config._threadBindingType) {
-                PinThreadToVacantCore(stream._streamId + config._threadBindingOffset, config._threadBindingStep, _impl->_ncpus, _impl->_processMask);
+            if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+                PinCurrentThreadToSocket(_numaNodeId);
+            } else if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
+                CpuSet processMask;
+                int    ncpus = 0;
+                std::tie(processMask, ncpus) = GetProcessMask();
+                if (nullptr != processMask) {
+                    PinThreadToVacantCore(_streamId + _impl->_config._threadBindingOffset, _impl->_config._threadBindingStep, ncpus, processMask);
+                }
             }
 #endif
-            _impl->_localStream.local() = &stream;
-            for (bool stopped = false; !stopped;) {
-                Task currentTask;
-                {  // waiting for the new task or for stop signal
-                    std::unique_lock<std::mutex> lock(_impl->_mutex);
-                    _impl->_queueCondVar.wait(lock, [&] { return !_impl->_taskQueue.empty() || (stopped = _impl->_isStopped); });
-                    if (!_impl->_taskQueue.empty()) {
-                        currentTask = std::move(_impl->_taskQueue.front());
-                        _impl->_taskQueue.pop();
-                    }
-                }
-
-                if (currentTask) {
+        }
+        ~Stream() {
+            {
+                std::lock_guard<std::mutex> lock{_impl->_streamIdMutex};
+                _impl->_streamIdQueue.push(_streamId);
+            }
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
-                    if (nullptr != stream._taskArena) {
-                        stream._taskArena->execute(std::move(currentTask));
-                    } else {
-                        currentTask();
-                    }
-#else
-                    currentTask();
-#endif
-                }
+            if (nullptr != _observer) {
+                _observer->observe(false);
             }
-        });
+#endif
+        }
+
+        Impl* _impl     = nullptr;
+        int _streamId   = 0;
+        int _numaNodeId = 0;
+        bool _execute = false;
+        std::queue<Task> _taskQueue;
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+        std::unique_ptr<tbb::task_arena>    _taskArena;
+        std::unique_ptr<Observer>           _observer;
+#endif
+    };
+
+    explicit Impl(const Config& config) :
+        _config{config},
+        _streams([this] {
+            return std::make_shared<Impl::Stream>(this);
+        }) {
+        auto numaNodes = getAvailableNUMANodes();
+        std::copy_n(std::begin(numaNodes),
+                    std::min(std::max(static_cast<std::size_t>(1),
+                                      static_cast<std::size_t>(_config._streams)),
+                             numaNodes.size()),
+                    std::back_inserter(_usedNumaNodes));
+        for (auto streamId = 0; streamId < _config._streams; ++streamId) {
+            _threads.emplace_back([this, streamId] {
+                annotateSetThreadName((_config._name + "_" + std::to_string(streamId)).c_str());
+                for (bool stopped = false; !stopped;) {
+                    Task task;
+                    {
+                        std::unique_lock<std::mutex> lock(_mutex);
+                        _queueCondVar.wait(lock, [&] { return !_taskQueue.empty() || (stopped = _isStopped); });
+                        if (!_taskQueue.empty()) {
+                            task = std::move(_taskQueue.front());
+                            _taskQueue.pop();
+                        }
+                    }
+                    if (task) {
+                        Execute(task, *(_streams.local()));
+                    }
+                }
+            });
+        }
     }
+
+    void Enqueue(Task task) {
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            _taskQueue.emplace(std::move(task));
+        }
+        _queueCondVar.notify_one();
+    }
+
+    void Execute(const Task& task, Stream& stream) {
+#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+        auto& arena = stream._taskArena;
+        if (nullptr != arena) {
+            arena->execute(std::move(task));
+        } else {
+            task();
+        }
+#else
+        task();
+#endif
+    }
+
+    void Defer(Task task) {
+        auto& stream = *(_streams.local());
+        stream._taskQueue.push(std::move(task));
+        if (!stream._execute) {
+            stream._execute = true;
+            try {
+                while (!stream._taskQueue.empty()) {
+                    Execute(stream._taskQueue.front(), stream);
+                    stream._taskQueue.pop();
+                }
+            } catch(...) {}
+            stream._execute = false;
+        }
+    }
+
+    Config                                  _config;
+    std::mutex                              _streamIdMutex;
+    int                                     _streamId = 0;
+    std::queue<int>                         _streamIdQueue;
+    std::vector<std::thread>                _threads;
+    std::mutex                              _mutex;
+    std::condition_variable                 _queueCondVar;
+    std::queue<Task>                        _taskQueue;
+    bool                                    _isStopped = false;
+    std::vector<int>                        _usedNumaNodes;
+    ThreadLocal<std::shared_ptr<Stream>>    _streams;
+};
+
+
+int CPUStreamsExecutor::GetStreamId() {
+    auto stream = _impl->_streams.local();
+    return stream->_streamId;
+}
+
+int CPUStreamsExecutor::GetNumaNodeId() {
+    auto stream = _impl->_streams.local();
+    return stream->_numaNodeId;
+}
+
+CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) :
+    _impl{new Impl{config}} {
 }
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {
@@ -191,12 +247,16 @@ CPUStreamsExecutor::~CPUStreamsExecutor() {
     }
 }
 
+void CPUStreamsExecutor::Execute(Task task) {
+    _impl->Defer(std::move(task));
+}
+
 void CPUStreamsExecutor::run(Task task) {
-    {
-        std::lock_guard<std::mutex> lock(_impl->_mutex);
-        _impl->_taskQueue.emplace(std::move(task));
+    if (0 == _impl->_config._streams) {
+        _impl->Defer(std::move(task));
+    } else {
+        _impl->Enqueue(std::move(task));
     }
-    _impl->_queueCondVar.notify_one();
 }
 
 }  // namespace InferenceEngine

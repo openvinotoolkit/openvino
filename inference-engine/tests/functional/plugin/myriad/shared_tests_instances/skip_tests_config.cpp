@@ -9,6 +9,9 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
+            // Issue 26268
+            ".*ConcatLayerTest.*axis=0.*",
+            // Not supported activation types
             ".*ActivationLayerTest\\.CompareWithRefs/Tanh.*netPRC=FP32.*",
             ".*ActivationLayerTest\\.CompareWithRefs/Exp.*netPRC=FP32.*",
             ".*ActivationLayerTest\\.CompareWithRefs/Log.*netPRC=FP32.*",

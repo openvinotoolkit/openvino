@@ -42,11 +42,11 @@ void GNAPluginNS::backend::AMIntelDNN::BeginNewWrite(uint32_t index) {
 
 void GNAPluginNS::backend::AMIntelDNN::Init(void *ptr_memory,
                       uint32_t num_memory_bytes,
-                      intel_dnn_number_type_t number_type,
+                      intel_dnn_number_type_t compute_precision,
                       float scale_factor) {
     ptr_dnn_memory_ = ptr_memory;
     num_bytes_dnn_memory_ = num_memory_bytes;
-    number_type_ = number_type;
+    compute_precision_ = compute_precision;
     input_scale_factor_ = scale_factor;
 
     ptr_active_outputs_ = nullptr;
@@ -342,7 +342,7 @@ void GNAPluginNS::backend::AMIntelDNN::Propagate() {
                                 reinterpret_cast<void *>(reinterpret_cast<int32_t *>(comp->op.recurrent.ptr_feedbacks) + j * comp_pwl->num_columns_out);
                         ApplyRecurrentTransform(comp, j, ptr_feedbacks);
                         //  PrintOutputs(i);
-                        ApplyPiecewiseLinearTransform(comp_pwl, number_type_, num_active_outputs, j);
+                        ApplyPiecewiseLinearTransform(comp_pwl, compute_precision_, num_active_outputs, j);
                     }
                     i++;  // skip next component
                 } else {
@@ -352,9 +352,9 @@ void GNAPluginNS::backend::AMIntelDNN::Propagate() {
                 break;
             case kDnnConvolutional1dOp:ApplyConvolutional1DTransform(comp);
                 break;
-            case kDnnPiecewiselinearOp:ApplyPiecewiseLinearTransform(comp, number_type_, num_active_outputs);
+            case kDnnPiecewiselinearOp:ApplyPiecewiseLinearTransform(comp, compute_precision_, num_active_outputs);
                 break;
-            case kDnnMaxPoolOp:ApplyMaxPoolTransform(comp, number_type_);
+            case kDnnMaxPoolOp:ApplyMaxPoolTransform(comp, compute_precision_);
                 break;
             case kDnnInterleaveOp:ApplyTranspose(comp);
                 break;
@@ -633,8 +633,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
     graph << "}";
 }
 
-void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_dnn_number_type_t number_type) {
-    if ((number_type_ == kDnnFloat) && (number_type == kDnnInt)) {
+void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_dnn_number_type_t logging_precision) {
+    if ((compute_precision_ == kDnnFloat) && (logging_precision == kDnnInt)) {
         fprintf(stderr, "Error trying to write floating point DNN as integer in GNAPluginNS::backend::AMIntelDNN::WriteDnnText().\n");
         fprintf(stderr, "  Please convert to integer first.\n");
         throw -1;
@@ -653,7 +653,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
         uint32_t layer = 0;
 
         out_file << "<intel_dnn_file>\n";
-        out_file << "<number_type> " << intel_dnn_number_type_name[number_type] << "\n";
+        out_file << "<number_type> " << intel_dnn_number_type_name[logging_precision] << "\n";
         out_file << "<softmax_type> " << intel_dnn_softmax_name[softmax_type] << "\n";
         out_file << "<num_memory_bytes> " << std::dec << num_bytes_dnn_memory_ << "\n";
         out_file << "<num_group> " << std::dec << num_group << "\n";
@@ -701,7 +701,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
             out_file << "<orientation_out> " << std::dec << (component[i].orientation_out == kDnnInterleavedOrientation ?
                                                              "interleaved" : "deinterleaved") << "\n";
 
-            if ((number_type_ == kDnnInt) && (number_type == kDnnFloat)) {
+            if ((compute_precision_ == kDnnInt) && (logging_precision == kDnnFloat)) {
                 out_file << "<num_bytes_per_input> " << std::dec << sizeof(float) << "\n";
                 out_file << "<num_bytes_per_output> " << std::dec << sizeof(float) << "\n";
             } else {
@@ -721,14 +721,14 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     float output_scale_factor = component[i].output_scale_factor;
                     uint32_t num_weight_rows = (component[i].operation == kDnnDiagonalOp) ? 1 : num_rows_out;
                     uint32_t num_weight_columns = num_rows_in;
-                    if ((number_type_ == kDnnInt) && (number_type == kDnnFloat)) {
+                    if ((compute_precision_ == kDnnInt) && (logging_precision == kDnnFloat)) {
                         out_file << "<num_bytes_per_weight> " << std::dec << 4 << "\n";
                         out_file << "<num_bytes_per_bias> " << std::dec << 4 << "\n";
                     } else {
                         out_file << "<num_bytes_per_weight> " << std::dec << num_bytes_per_weight << "\n";
                         out_file << "<num_bytes_per_bias> " << std::dec << num_bytes_per_bias << "\n";
                     }
-                    if ((number_type_ == kDnnInt) && (number_type == kDnnFloat)) {
+                    if ((compute_precision_ == kDnnInt) && (logging_precision == kDnnFloat)) {
                         out_file << std::setprecision(12) << std::scientific << "<weight_scale_factor> " << 1.0 << "\n";
                         out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> " << 1.0 << "\n";
                     } else {
@@ -751,7 +751,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
 #ifdef DUMP_WB
                         for (uint32_t row = 0; row < num_weight_rows; row++) {
                             for (uint32_t col = 0; col < num_weight_columns; col++) {
-                                if (number_type == kDnnFloat) {
+                                if (logging_precision == kDnnFloat) {
                                     float val =
                                         static_cast<float>(ptr_weight[row * num_weight_columns + col]) * ptr_bias[row].multiplier
                                             / weight_scale_factor;
@@ -768,7 +768,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
 #ifdef DUMP_WB
                         for (uint32_t row = 0; row < num_weight_rows; row++) {
                             for (uint32_t col = 0; col < num_weight_columns; col++) {
-                                if (number_type == kDnnFloat) {
+                                if (logging_precision == kDnnFloat) {
                                     out_wfile << std::setprecision(12)
                                               << ptr_weight[row * num_weight_columns + col] / weight_scale_factor << " ";
                                 } else {
@@ -778,7 +778,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                             }
                         }
 #endif
-                    } else if (number_type_ == kDnnFloat) {
+                    } else if (compute_precision_ == kDnnFloat) {
                         float *ptr_weight = reinterpret_cast<float *>(component[i].op.affine.ptr_weights);
 #ifdef DUMP_WB
                         for (uint32_t row = 0; row < num_weight_rows; row++) {
@@ -793,21 +793,25 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                         fprintf(stderr, "Unsupported weight type in WriteDnnText!\n");
                         throw -1;
                     }
-                    if (number_type_ == kDnnInt) {
+                    if (compute_precision_ == kDnnInt) {
                         if (num_bytes_per_weight == 1) {
                             intel_compound_bias_t
                                 *ptr_biases = reinterpret_cast<intel_compound_bias_t *>(component[i].op.affine.ptr_biases);
 #ifdef DUMP_WB
                             for (uint32_t row = 0; row < num_rows_out; row++) {
-                                out_bfile << std::setw(8) << ptr_biases[row].bias << ", ";
-                                out_bfile << std::setw(8) << int(ptr_biases[row].multiplier) << "\n";
+                                if (logging_precision == kDnnInt) {
+                                    out_bfile << std::setw(8) << ptr_biases[row].bias << ", ";
+                                    out_bfile << std::setw(8) << int(ptr_biases[row].multiplier) << "\n";
+                                } else {
+                                    out_bfile << std::setw(8) << ptr_biases[row].bias / output_scale_factor << "\n";
+                                }
                             }
 #endif
                         } else {
                             int32_t *ptr_biases = reinterpret_cast<int32_t *>(component[i].op.affine.ptr_biases);
 #ifdef DUMP_WB
                             for (uint32_t row = 0; row < num_rows_out; row++) {
-                                if (number_type == kDnnInt) {
+                                if (logging_precision == kDnnInt) {
                                     out_bfile << std::setw(8) << ptr_biases[row] << "\n";
                                 } else {
                                     out_bfile << std::setw(8) << ptr_biases[row] / output_scale_factor << "\n";
@@ -844,14 +848,14 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     out_file << "<num_feature_maps> " << std::dec << num_feature_maps << "\n";
                     out_file << "<num_feature_map_rows> " << std::dec << num_feature_map_rows << "\n";
                     out_file << "<num_feature_map_columns> " << std::dec << num_feature_map_columns << "\n";
-                    if ((number_type_ == kDnnInt) && (number_type == kDnnFloat)) {
+                    if ((compute_precision_ == kDnnInt) && (logging_precision == kDnnFloat)) {
                         out_file << "<num_bytes_per_weight> " << std::dec << 4 << "\n";
                         out_file << "<num_bytes_per_bias> " << std::dec << 4 << "\n";
                     } else {
                         out_file << "<num_bytes_per_weight> " << std::dec << num_bytes_per_weight << "\n";
                         out_file << "<num_bytes_per_bias> " << std::dec << num_bytes_per_bias << "\n";
                     }
-                    if ((number_type_ == kDnnInt) && (number_type == kDnnFloat)) {
+                    if ((compute_precision_ == kDnnInt) && (logging_precision == kDnnFloat)) {
                         out_file << std::setprecision(12) << std::scientific << "<weight_scale_factor> " << 1.0 << "\n";
                         out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> " << 1.0 << "\n";
                     } else {
@@ -876,7 +880,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
 #ifdef DUMP_WB
                         for (uint32_t row = 0; row < num_filters; row++) {
                             for (uint32_t col = 0; col < num_filter_coefficients; col++) {
-                                if (number_type == kDnnFloat) {
+                                if (logging_precision == kDnnFloat) {
                                     float val = static_cast<float>(ptr_weight[row * num_filter_coefficients + col])
                                         * ptr_bias[row].multiplier / weight_scale_factor;
                                     out_wfile << std::setprecision(12) <<val << "\n";
@@ -892,7 +896,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
 #ifdef DUMP_WB
                         for (uint32_t row = 0; row < num_filters; row++) {
                             for (uint32_t col = 0; col < num_filter_coefficients; col++) {
-                                if (number_type == kDnnFloat) {
+                                if (logging_precision == kDnnFloat) {
                                     out_wfile << std::setprecision(12)
                                              << ptr_weight[row * num_filter_coefficients + col] / weight_scale_factor
                                              << "\n";
@@ -903,7 +907,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                             }
                         }
 #endif
-                    } else if (number_type_ == kDnnFloat) {
+                    } else if (compute_precision_ == kDnnFloat) {
                         float *ptr_weight = reinterpret_cast<float *>(component[i].op.conv1D.ptr_filters);
 #ifdef DUMP_WB
                         for (uint32_t row = 0; row < num_filters; row++) {
@@ -918,8 +922,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                         throw -1;
                     }
 
-                    if (number_type_ == kDnnInt) {
-                        if (number_type == kDnnInt) {
+                    if (compute_precision_ == kDnnInt) {
+                        if (logging_precision == kDnnInt) {
                             if (num_bytes_per_weight == 1) {
                                 intel_compound_bias_t
                                         *ptr_biases = reinterpret_cast<intel_compound_bias_t *>(component[i].op.conv1D.ptr_biases);
@@ -969,14 +973,14 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     uint32_t num_weight_rows = num_columns_out;
                     uint32_t num_weight_columns = num_columns_in + num_columns_out;
                     out_file << "<num_vector_delay> " << std::dec << num_vector_delay << "\n";
-                    if ((number_type_ == kDnnInt) && (number_type == kDnnFloat)) {
+                    if ((compute_precision_ == kDnnInt) && (logging_precision == kDnnFloat)) {
                         out_file << "<num_bytes_per_weight> " << std::dec << 4 << "\n";
                         out_file << "<num_bytes_per_bias> " << std::dec << 4 << "\n";
                     } else {
                         out_file << "<num_bytes_per_weight> " << std::dec << num_bytes_per_weight << "\n";
                         out_file << "<num_bytes_per_bias> " << std::dec << num_bytes_per_bias << "\n";
                     }
-                    if ((number_type_ == kDnnInt) && (number_type == kDnnFloat)) {
+                    if ((compute_precision_ == kDnnInt) && (logging_precision == kDnnFloat)) {
                         out_file << std::setprecision(12) << std::scientific << "<weight_scale_factor> " << 1.0 << "\n";
                         out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> " << 1.0 << "\n";
                     } else {
@@ -999,7 +1003,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                         for (uint32_t row = 0; row < num_weight_rows; row++) {
                             out_file << "<weight_row> ";
                             for (uint32_t col = 0; col < num_weight_columns; col++) {
-                                if (number_type == kDnnFloat) {
+                                if (logging_precision == kDnnFloat) {
                                     float val =
                                         static_cast<float>(ptr_weight[row * num_weight_columns + col]) * ptr_bias[col].multiplier
                                             / weight_scale_factor;
@@ -1018,7 +1022,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                         for (uint32_t row = 0; row < num_weight_rows; row++) {
                             out_file << "<weight_row> ";
                             for (uint32_t col = 0; col < num_weight_columns; col++) {
-                                if (number_type == kDnnFloat) {
+                                if (logging_precision == kDnnFloat) {
                                     out_file << std::setprecision(12) << std::scientific
                                              << ptr_weight[row * num_weight_columns + col] / weight_scale_factor << " ";
                                 } else {
@@ -1029,7 +1033,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                             out_file << "\n";
                         }
 #endif
-                    } else if (number_type_ == kDnnFloat) {
+                    } else if (compute_precision_ == kDnnFloat) {
                         float *ptr_weight = reinterpret_cast<float *>(component[i].op.recurrent.ptr_weights);
 #ifdef DUMP_WB
                         for (uint32_t row = 0; row < num_weight_rows; row++) {
@@ -1045,8 +1049,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                         fprintf(stderr, "Unsupported weight type in WriteDnnText!\n");
                         throw -1;
                     }
-                    if (number_type_ == kDnnInt) {
-                        if (number_type == kDnnInt) {
+                    if (compute_precision_ == kDnnInt) {
+                        if (logging_precision == kDnnInt) {
                             if (num_bytes_per_weight == 1) {
                                 intel_compound_bias_t
                                         *ptr_biases = reinterpret_cast<intel_compound_bias_t *>(component[i].op.recurrent.ptr_biases);
@@ -1110,7 +1114,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     out_file << "<num_bytes_per_slope> " << std::dec << sizeof(int16_t) << "\n";
                     out_file << "<num_bytes_per_intercept> " << std::dec << sizeof(int16_t) << "\n";
                     out_file << "<num_bytes_per_offset> " << std::dec << sizeof(int32_t) << "\n";
-                    if (number_type == kDnnFloat) {
+                    if (logging_precision == kDnnFloat) {
                         out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> " << 1.0 << "\n";
                         out_file << "<num_segments> " << std::dec << 0 << "\n";
                         out_file << "<segment_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
@@ -1121,7 +1125,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                         out_file << "<num_segments> " << std::dec << num_segments << "\n";
                         out_file << "<segment_address> " << "0x" << std::setfill('0') << std::setw(8) << std::hex
                                  << GNAPluginNS::memory::MemoryOffset(component[i].op.pwl.ptr_segments, ptr_dnn_memory_) << "\n";
-                        if (number_type_ == kDnnInt) {
+                        if (compute_precision_ == kDnnInt) {
                             out_file << "<slope> ";
                             for (int segment = 0; segment < num_segments; segment++) {
                                 out_file << "0x" << std::setfill('0') << std::setw(4) << std::hex
@@ -1862,7 +1866,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
             for (int j = 0; j < component[i].num_columns_out; j++) {
                 float floatValue = 0.f;
                 if (component[i].num_bytes_per_output == 4) {
-                    if (number_type_ == kDnnInt) {
+                    if (compute_precision_ == kDnnInt) {
                         auto value = reinterpret_cast<int32_t *>(component[i].ptr_outputs)[k * component[i].num_columns_out+ j];
                         floatValue = static_cast<float>(value);
 
@@ -1903,7 +1907,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
             for (int j = 0; j < component[i].num_columns_in; j++) {
                 float floatValue = 0.f;
                 if (component[i].num_bytes_per_input == 4) {
-                    if (number_type_ == kDnnInt) {
+                    if (compute_precision_ == kDnnInt) {
                         auto value = reinterpret_cast<int32_t *>(component[i].ptr_inputs)[k * component[i].num_columns_in + j];
                         floatValue = static_cast<float>(value);
                     } else {

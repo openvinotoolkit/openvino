@@ -87,10 +87,15 @@ namespace LayerTestsDefinitions {
             std::vector<int32_t> convRefOutData(outElementsCount);
             for (size_t i = 0; i < outElementsCount; i++)
                 convRefOutData[i] = static_cast<int32_t>(refOutData[i]);
-            FuncTestUtils::compareRawBuffers(outBlob->cbuffer().as<int32_t *>(), convRefOutData.data(), outElementsCount, outElementsCount);
+            FuncTestUtils::compareRawBuffers(outBlob->cbuffer().as<int32_t *>(), convRefOutData.data(),
+                    outElementsCount, outElementsCount, FuncTestUtils::CompareType::ABS_AND_REL);
         } else {
-            auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
-            FuncTestUtils::compareRawBuffers(outBlob->cbuffer().as<float *>(), refOutData.data(), outElementsCount, outElementsCount, thr);
+            float thr1, thr2;
+            FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32, thr1, thr2);
+            FuncTestUtils::compareRawBuffers(outBlob->cbuffer().as<float *>(), refOutData.data(),
+                                                             outElementsCount, outElementsCount,
+                                                             FuncTestUtils::CompareType::ABS_AND_REL,
+                                                             thr1, thr2);
         }
 
         layer.fnPtr.reset();

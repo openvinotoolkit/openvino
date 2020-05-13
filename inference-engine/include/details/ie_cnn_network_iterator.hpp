@@ -53,6 +53,7 @@ public:
      * scope.
      */
     explicit CNNNetworkIterator(const ICNNNetwork* network) {
+        if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
         InputsDataMap inputs;
         network->getInputsInfo(inputs);
         if (!inputs.empty()) {

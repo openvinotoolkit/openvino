@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include <graph_tools.hpp>
-#include "test_assertions.hpp"
+#include <common_test_utils/test_assertions.hpp>
 #include <unordered_set>
 #include <gmock/gmock-generated-function-mockers.h>
 #include <gmock/gmock-generated-matchers.h>

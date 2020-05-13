@@ -116,7 +116,8 @@ public:
             const ie::CNNLayerPtr& layer,
             Dim axis,
             const DataVector& inputs,
-            const Data& output);
+            const Data& output,
+            ConcatInferRequirement inferRequirement = ConcatInferRequirement::CanBeReplaced);
 
     Stage addConcatStage(
             const Model& model,

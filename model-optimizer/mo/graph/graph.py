@@ -51,6 +51,9 @@ class Node:
         attrs = self.graph.node[self.node]
         if not k in attrs:
             raise AttributeError("Attribute {} missing in {} node".format(k, self.name))
+        if k == 'version' and attrs.get(k, v) != v:
+            raise AttributeError("Attribute 'version' cannot be updated in {} node".format(self.name))
+
         attrs[k] = v
 
     def __getattr__(self, k):
@@ -60,6 +63,8 @@ class Node:
         return self.graph.node[self.node][k]
 
     def __setitem__(self, k, v):
+        if k == 'version' and self.graph.node[self.node].get(k, v) != v:
+            raise AttributeError("Attribute 'version' cannot be updated in {} node".format(self.name))
         self.graph.node[self.node][k] = v
 
     def __contains__(self, k):
@@ -533,6 +538,14 @@ class Node:
             for idx in range(out_ports_count):
                 if idx not in self._out_ports:
                     self.add_output_port(idx=idx)
+
+    def get_opset(self):
+        """
+        Gets the operation set version where the operation was introduced.
+        If the version is not defined then consider it an extension
+        :return: the string with the opset name
+        """
+        return self.soft_get('version', 'extension')
 
 
 class Graph(nx.MultiDiGraph):

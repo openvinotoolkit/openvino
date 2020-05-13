@@ -17,6 +17,7 @@ namespace ngraph {
 namespace builder {
 
 ngraph::ParameterVector makeParams(const element::Type &type, const std::vector<std::vector<size_t>> &shapes);
+ngraph::ParameterVector makeParams(const element::Type &type, const std::vector<std::pair<std::string, std::vector<size_t>>> &inputs);
 
 std::shared_ptr<ngraph::Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
                                            const std::vector<float> &data, bool random = false);
@@ -92,5 +93,24 @@ std::shared_ptr<ngraph::Node> makeSqueeze(const ngraph::Output<Node> &in,
 std::shared_ptr<ngraph::Node> makeUnsqueeze(const ngraph::Output<Node> &in,
                                             const element::Type &type,
                                             const std::vector<size_t> &squeeze_indices);
+
+std::shared_ptr<ngraph::Node> makeProposal(const ngraph::Output<Node> &class_probs,
+                                           const ngraph::Output<Node> &class_logits,
+                                           const ngraph::Output<Node> &image_shape,
+                                           const element::Type &type,
+                                           size_t base_size,
+                                           size_t pre_nms_topn,
+                                           size_t post_nms_topn,
+                                           float nms_thresh,
+                                           size_t feat_stride,
+                                           size_t min_size,
+                                           const std::vector<float> &ratio,
+                                           const std::vector<float> &scale,
+                                           bool clip_before_nms,
+                                           bool clip_after_nms,
+                                           bool normalize,
+                                           float box_size_scale,
+                                           float box_coordinate_scale,
+                                           std::string framework);
 }  // namespace builder
 }  // namespace ngraph

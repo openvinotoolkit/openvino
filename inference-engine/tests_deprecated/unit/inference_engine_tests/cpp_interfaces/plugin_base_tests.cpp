@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include <ie_version.hpp>
+#include <cpp/ie_plugin_cpp.hpp>
 #include "cpp_interfaces/base/ie_plugin_base.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/mock_plugin_impl.hpp"
 
@@ -83,4 +84,43 @@ TEST_F(PluginBaseTests, canCatchUnknownErrorInSetConfig) {
     EXPECT_CALL(*mock_impl.get(), SetConfig(_)).WillOnce(Throw(5));
     const std::map <std::string, std::string> config;
     ASSERT_EQ(UNEXPECTED, plugin->SetConfig(config, nullptr));
+}
+
+using InferencePluginTests = testing::Test;
+
+TEST_F(InferencePluginTests, throwsOnNullptrCreation) {
+    InferenceEnginePluginPtr nulptr;
+    InferencePlugin plugin;
+    ASSERT_THROW(plugin = InferencePlugin(nulptr), details::InferenceEngineException);
+}
+
+TEST_F(InferencePluginTests, throwsOnUninitializedGetVersion) {
+    InferencePlugin plg;
+    ASSERT_THROW(plg.GetVersion(), details::InferenceEngineException);
+}
+
+TEST_F(InferencePluginTests, throwsOnUninitializedLoadNetwork) {
+    InferencePlugin plg;
+    QueryNetworkResult r;
+    ASSERT_THROW(plg.LoadNetwork(CNNNetwork(), {}), details::InferenceEngineException);
+}
+
+TEST_F(InferencePluginTests, throwsOnUninitializedImportNetwork) {
+    InferencePlugin plg;
+    ASSERT_THROW(plg.ImportNetwork({}, {}), details::InferenceEngineException);
+}
+
+TEST_F(InferencePluginTests, throwsOnUninitializedAddExtension) {
+    InferencePlugin plg;
+    ASSERT_THROW(plg.AddExtension(IExtensionPtr()), details::InferenceEngineException);
+}
+
+TEST_F(InferencePluginTests, throwsOnUninitializedSetConfig) {
+    InferencePlugin plg;
+    ASSERT_THROW(plg.SetConfig({{}}), details::InferenceEngineException);
+}
+
+TEST_F(InferencePluginTests, nothrowsUninitializedCast) {
+    InferencePlugin plg;
+    ASSERT_NO_THROW(auto plgPtr = static_cast<InferenceEnginePluginPtr>(plg));
 }

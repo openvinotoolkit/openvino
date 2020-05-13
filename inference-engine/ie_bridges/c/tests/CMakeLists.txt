@@ -27,6 +27,8 @@ target_compile_definitions(${TARGET_NAME}
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\" )
 
+add_dependencies(${TARGET_NAME} MultiDevicePlugin)
+
 if(ENABLE_MKL_DNN)
     add_dependencies(${TARGET_NAME} MKLDNNPlugin)
 endif()

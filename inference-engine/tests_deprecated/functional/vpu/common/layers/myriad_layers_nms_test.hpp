@@ -174,9 +174,9 @@ static void copyReference(const Blob::Ptr& blob, const refType src) {
     }
 }
 
-typedef myriadLayerTestBaseWithParam<NMS_testParams> myriadLayersTestsNonMaxSuppression_nightly;
+typedef myriadLayerTestBaseWithParam<NMS_testParams> myriadLayersTestsNonMaxSuppression_smoke;
 
-TEST_P(myriadLayersTestsNonMaxSuppression_nightly, NonMaxSuppression) {
+TEST_P(myriadLayersTestsNonMaxSuppression_smoke, NonMaxSuppression) {
     const auto params = GetParam();
     const int spatDim = params.dims[0];
     const int numClasses = params.dims[1];

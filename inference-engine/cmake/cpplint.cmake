@@ -3,10 +3,10 @@
 #
 
 if(ENABLE_CPPLINT)
-    find_host_package(PythonInterp)
+    find_package(Python3 COMPONENTS Interpreter)
 
-    if(NOT PYTHONINTERP_FOUND)
-        message(WARNING "Python interpreter was not found (required for cpplint check)")
+    if(NOT Python3_Interpreter_FOUND)
+        message(WARNING "Python3 interpreter was not found (required for cpplint check)")
         set(ENABLE_CPPLINT OFF)
     endif()
 endif()

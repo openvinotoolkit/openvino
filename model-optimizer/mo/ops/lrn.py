@@ -34,6 +34,7 @@ class LRN(Op):
         super().__init__(graph, {
             'type': self.op,
             'op': self.op,
+            'version': 'opset1',
 
             'infer': self.infer,
 
@@ -70,6 +71,7 @@ class AttributedLRN(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': 'Norm',
+            'version': 'opset1',
 
             'bias': 1,
             'region': 'across',

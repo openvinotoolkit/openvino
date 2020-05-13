@@ -34,7 +34,12 @@ int pthread_cond_timedwait(pthread_cond_t* __cond,
         msec = __abstime->tv_sec * 1000 + __abstime->tv_nsec / 1000000;
     }
 
-    return SleepConditionVariableCS(&__cond->_cv, __mutex, (DWORD)msec);
+    // SleepConditionVariableCS returns bool=true on success.
+    if (SleepConditionVariableCS(&__cond->_cv, __mutex, (DWORD)msec))
+        return 0;
+
+    const int rc = (int)GetLastError();
+    return rc == ERROR_TIMEOUT ? ETIMEDOUT : rc;
 }
 
 int pthread_cond_broadcast(pthread_cond_t *__cond)

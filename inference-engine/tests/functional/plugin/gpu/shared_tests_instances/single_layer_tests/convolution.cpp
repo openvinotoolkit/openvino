@@ -78,7 +78,7 @@ const std::vector<std::vector<size_t >> strides3d = {{1, 1, 1},
 const std::vector<std::vector<size_t >> dilations3d = {{1, 1, 1},
                                                               {1, 2, 1}};
 
-const auto conv3DParams_FP32 = ::testing::Combine(
+const auto conv3DParams = ::testing::Combine(
         ::testing::ValuesIn(kernels3d),
         ::testing::ValuesIn(strides3d),
         ::testing::ValuesIn(paddings3d),
@@ -88,30 +88,11 @@ const auto conv3DParams_FP32 = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-const auto conv3DParams_FP16 = ::testing::Combine(
-        ::testing::Values(std::vector<size_t >({3, 3, 3})),
-        ::testing::ValuesIn(strides3d),
-        ::testing::ValuesIn(paddings3d),
-        ::testing::ValuesIn(paddings3d),
-        ::testing::ValuesIn(dilations3d),
-        ::testing::Values(5),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
-);
-
-INSTANTIATE_TEST_CASE_P(Convolution3D_FP32, ConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(Convolution3D, ConvolutionLayerTest,
                         ::testing::Combine(
-                                conv3DParams_FP32,
-                                ::testing::Values(InferenceEngine::Precision::FP32),
+                                conv3DParams,
+                                ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 3, 10, 10, 10})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(Convolution3D_FP16, ConvolutionLayerTest,
-                        ::testing::Combine(
-                                conv3DParams_FP16,
-                                ::testing::Values(InferenceEngine::Precision::FP16),
-                                ::testing::Values(std::vector<size_t >({1, 3, 10, 10, 10})),
-                                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                        ConvolutionLayerTest::getTestCaseName);
-
 }  // namespace

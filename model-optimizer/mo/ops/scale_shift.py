@@ -26,7 +26,6 @@ class ScaleShiftOp(Op):
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'infer': copy_shape_infer,
-            'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
             'in_ports_count': 3,

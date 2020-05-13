@@ -29,3 +29,6 @@ if(GAPI_TEST_PERF)
 else()
   target_compile_definitions(${TARGET} PRIVATE -DPERF_TEST=0)
 endif()
+
+add_test(NAME ${TARGET} COMMAND ${TARGET})
+set_property(TEST ${TARGET} PROPERTY LABELS IE PREPROC)

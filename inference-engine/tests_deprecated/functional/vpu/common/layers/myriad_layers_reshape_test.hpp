@@ -10,11 +10,11 @@
 
 using namespace InferenceEngine;
 
-using myriadEliminateReshapeTests_nightly = myriadLayersTests_nightly;
+using myriadEliminateReshapeTests_smoke = myriadLayersTests_nightly;
 
-typedef myriadLayerTestBaseWithParam<std::tuple<InferenceEngine::SizeVector, InferenceEngine::SizeVector>> myriadLayerReshape_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<InferenceEngine::SizeVector, InferenceEngine::SizeVector>> myriadLayerReshape_smoke;
 
-TEST_P(myriadLayerReshape_nightly, Reshape) {
+TEST_P(myriadLayerReshape_smoke, Reshape) {
     auto input_tensor = std::get<0>(GetParam());
     auto output_tensor = std::get<1>(GetParam());
 
@@ -38,7 +38,7 @@ TEST_P(myriadLayerReshape_nightly, Reshape) {
 }
 
 
-typedef myriadLayersTests_nightly myriadLayerReshapeFasterRCNN_nightly;
+typedef myriadLayersTests_nightly myriadLayerReshapeFasterRCNN_smoke;
 
 static std::vector<InferenceEngine::SizeVector> s_reshapeInParams = {
     {{1, 4, 2, 16}},
@@ -198,9 +198,9 @@ std::string MODEL_WITHOUT_FLATTEN = R"V0G0N(
 )V0G0N";
 
 
-typedef myriadLayerTestBaseWithParam<std::string> myriadLayersTestsReshapeBeforeFC_nightly;
+typedef myriadLayerTestBaseWithParam<std::string> myriadLayersTestsReshapeBeforeFC_smoke;
 
-TEST_P(myriadLayersTestsReshapeBeforeFC_nightly, OptimizeReshapeIfItIsPlacedBeforeFC) {
+TEST_P(myriadLayersTestsReshapeBeforeFC_smoke, OptimizeReshapeIfItIsPlacedBeforeFC) {
     std::string HWConfigValue = GetParam();
     if (!CheckMyriadX() && HWConfigValue == CONFIG_VALUE(YES)) {
         std::cout << "Disable for non-MyriadX devices" << std::endl;
@@ -247,11 +247,11 @@ TEST_P(myriadLayersTestsReshapeBeforeFC_nightly, OptimizeReshapeIfItIsPlacedBefo
     EXPECT_EQ(InferenceEngineProfileInfo::NOT_RUN, layerInfo.status);
 }
 
-class myriadLayersTestsReshapeFasterRCNN_nightly: public ConvolutionTest<>{
+class myriadLayersTestsReshapeFasterRCNN_smoke: public ConvolutionTest<>{
 };
 
 // FIXME: rewrite the test (it doesn't use Convolution) avoid HWC layout for 3D tensor in reference code
-TEST_P(myriadLayersTestsReshapeFasterRCNN_nightly, DISABLED_Convolution) {
+TEST_P(myriadLayersTestsReshapeFasterRCNN_smoke, DISABLED_Convolution) {
     std::map<std::string, std::string> permute_params = {
               {"order", "0,2,3,1"}
     };

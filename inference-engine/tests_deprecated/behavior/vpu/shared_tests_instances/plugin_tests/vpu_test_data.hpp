@@ -13,42 +13,67 @@
                                  FuncTestUtils::TestModel::convReluNormPoolFcModelFP32.model_xml_str, \
                                  FuncTestUtils::TestModel::convReluNormPoolFcModelFP32.weights_blob, \
                                  Precision::FP32)
+// for multi-device we are testing the fp16 (as it is supported by all device combos we are considering for testing
+// e.g. GPU and VPU, for CPU the network is automatically (internally) converted to fp32.
+#define BEH_MULTI(device) BehTestParams("MULTI", \
+                                        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str, \
+                                        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob, \
+                                        Precision::FP32, \
+                                        {{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, #device}})
+#define BEH_MULTI_CONFIG  BehTestParams("MULTI", \
+                                        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.model_xml_str, \
+                                        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16.weights_blob, \
+                                        Precision::FP32)
 
 // all parameters are unsupported - reversed
 #define BEH_US_ALL_MYRIAD  BehTestParams("MYRIAD", \
                                          FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.model_xml_str, \
                                          FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.weights_blob, \
                                          Precision::Q78)
+#define BEH_US_ALL_MULTI(device) BehTestParams("MULTI", \
+                                               FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.model_xml_str, \
+                                               FuncTestUtils::TestModel::convReluNormPoolFcModelQ78.weights_blob, \
+                                               Precision::Q78, \
+                                               {{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, #device}})
 const BehTestParams supportedValues[] = {
         BEH_MYRIAD,
+        BEH_MULTI(MYRIAD),
 };
 
 const BehTestParams requestsSupportedValues[] = {
         BEH_MYRIAD,
+        BEH_MULTI(MYRIAD),
 };
 
 const BehTestParams allInputSupportedValues[] = {
         BEH_MYRIAD, BEH_MYRIAD.withIn(Precision::U8), BEH_MYRIAD.withIn(Precision::FP16),
+        BEH_MULTI(MYRIAD), BEH_MULTI(MYRIAD).withIn(Precision::U8), BEH_MULTI(MYRIAD).withIn(Precision::FP16),
         // I16 not supported yet
-        // (ISSUE-7979) [IE myriad] The plugin should support I16 format for Input
+        // (CVS-7979) [IE myriad] The plugin should support I16 format for Input
         //BEH_MYRIAD.withIn(Precision::I16),
 };
 
 const BehTestParams allOutputSupportedValues[] = {
         BEH_MYRIAD, BEH_MYRIAD.withOut(Precision::FP16),
+        BEH_MULTI(MYRIAD), BEH_MULTI(MYRIAD).withOut(Precision::FP16),
 };
 
 const BehTestParams typeUnSupportedValues[] = {
         BEH_MYRIAD.withIn(Precision::Q78), BEH_MYRIAD.withIn(Precision::U16), BEH_MYRIAD.withIn(Precision::I8),
         BEH_MYRIAD.withIn(Precision::I16), BEH_MYRIAD.withIn(Precision::I32),
+        BEH_MULTI(MYRIAD).withIn(Precision::Q78), BEH_MULTI(MYRIAD).withIn(Precision::U16),
+        BEH_MULTI(MYRIAD).withIn(Precision::I8),
+        BEH_MULTI(MYRIAD).withIn(Precision::I16), BEH_MULTI(MYRIAD).withIn(Precision::I32),
 };
 
 const BehTestParams batchUnSupportedValues[] = {
         BEH_MYRIAD.withBatchSize(0),
+        BEH_MULTI(MYRIAD).withBatchSize(0),
 };
 
 const BehTestParams allUnSupportedValues[] = {
         BEH_US_ALL_MYRIAD,
+        BEH_US_ALL_MULTI(MYRIAD),
 };
 
 const std::vector<BehTestParams> deviceSpecificConfigurations = {
@@ -78,6 +103,15 @@ const std::vector<BehTestParams> deviceAgnosticConfigurations = {
 
     BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(YES)}}),
     BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), CONFIG_VALUE(NO)}}),
+
+    BEH_MULTI_CONFIG.withConfig({
+        {MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+         {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)}
+    }),
+    BEH_MULTI_CONFIG.withConfig({
+        {MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+        {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)}
+    }),
 };
 
 const std::vector<BehTestParams> withCorrectConfValuesPluginOnly = {
@@ -107,8 +141,22 @@ const BehTestParams withIncorrectConfValues[] = {
 
     BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "ON"}}),
     BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME), "OFF"}}),
+
+    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+                                 {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),"ON"}}),
+    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+                                 {CONFIG_KEY(LOG_LEVEL), "VERBOSE"}}),
+    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+                                 {VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), "ON"}}),
+    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+                                 {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}}),
+    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+                                 {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}}),
+    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+                                 {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}),
 };
 
 const BehTestParams withIncorrectConfKeys[] = {
         BEH_MYRIAD.withIncorrectConfigItem(),
+        BEH_MULTI(MYRIAD).withIncorrectConfigItem(),
 };

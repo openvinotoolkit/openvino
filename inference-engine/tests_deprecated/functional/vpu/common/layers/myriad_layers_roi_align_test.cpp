@@ -4,7 +4,7 @@
 
 #include "myriad_layers_roi_align_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsROIAlign_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsROIAlign_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_ROIAlignLayerInput),
         ::testing::ValuesIn(s_ROIAlignLayerParam),

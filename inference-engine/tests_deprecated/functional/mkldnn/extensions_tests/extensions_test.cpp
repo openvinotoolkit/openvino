@@ -6,7 +6,6 @@
 #include <tests_common.hpp>
 #include <tests_common_func.hpp>
 #include <memory>
-#include <tests_utils.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ie_core.hpp>
 #include <ie_plugin_ptr.hpp>
@@ -385,37 +384,4 @@ TEST_F(smoke_ExtensionTest, MKLDNN_no_share_extension_between_engines) {
 TEST_F(smoke_ExtensionTest, MKLDNN_no_share_new_extension_between_engines) {
     std::shared_ptr<IExtension> ext(new NewTestExtension());
     checkNotSharedExtensions(ext, "CPU");
-}
-
-TEST_F(smoke_ExtensionTest, MULTI_delete_extension) {
-    try {
-        InferenceEngine::Core ie;
-        ie.GetVersions("MULTI");
-    } catch (...) {
-        GTEST_SKIP();
-    }
-    std::shared_ptr<IExtension> ext(new TestExtension());
-    checkExtensionRemoved({"MultiDevice", ext, {{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "CPU"}}});
-}
-
-TEST_F(smoke_ExtensionTest, MULTI_no_delete_extension_from_another_engine) {
-    try {
-        InferenceEngine::Core ie;
-        ie.GetVersions("MULTI");
-    } catch (...) {
-        GTEST_SKIP();
-    }
-    std::shared_ptr<IExtension> ext(new TestExtension());
-    checkExtensionNotRemovedFromAnotherEngineObject({"MultiDevice", ext, {{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "CPU"}}});
-}
-
-TEST_F(smoke_ExtensionTest, MULTI_no_share_extension_between_engines) {
-    try {
-        InferenceEngine::Core ie;
-        ie.GetVersions("MULTI");
-    } catch (...) {
-        GTEST_SKIP();
-    }
-    std::shared_ptr<IExtension> ext(new TestExtension());
-    checkNotSharedExtensions(ext, "MULTI:CPU");
 }

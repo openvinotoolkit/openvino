@@ -110,6 +110,7 @@ public:
     Pass::Ptr splitHwDepthConv();
     Pass::Ptr splitHwConvAndPool();
     Pass::Ptr hwPadding();
+    Pass::Ptr splitLargeKernelConv();
 
     //
     // Batch support

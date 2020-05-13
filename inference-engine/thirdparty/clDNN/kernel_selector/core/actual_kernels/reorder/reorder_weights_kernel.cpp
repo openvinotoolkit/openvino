@@ -31,6 +31,7 @@ ParamsKey ReorderWeightsKernel::GetSupportedKey() const {
     k.EnableDifferentTypes();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
+    k.EnableRotateReorder();
     return k;
 }
 

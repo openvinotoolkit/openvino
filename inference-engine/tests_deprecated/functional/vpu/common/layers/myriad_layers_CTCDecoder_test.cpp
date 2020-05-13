@@ -4,7 +4,11 @@
 
 #include "myriad_layers_CTCDecoder_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(myriad, myriadCTCDecoderLayerTests_nightly,
-        ::testing::Combine(
-        ::testing::Values(true, false),
-        ::testing::ValuesIn(s_DimsConfig)));
+INSTANTIATE_TEST_CASE_P(
+	accuracy, myriadCTCDecoderLayerTests_smoke,
+	::testing::Combine(
+		::testing::Values<Dims>({{1, 88, 1, 71}}),
+		::testing::Values<HwOptimization>(true, false),
+		::testing::Values<IRVersion>(IRVersion::v7, IRVersion::v10),
+		::testing::ValuesIn(s_CustomConfig)
+));

@@ -3,6 +3,7 @@
 //
 
 #include <vpu/frontend/custom_layer.hpp>
+#include <vpu/utils/numeric.hpp>
 
 #include <climits>
 
@@ -11,7 +12,6 @@
 #include <streambuf>
 #include <tuple>
 #include <utility>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -31,289 +31,51 @@
 
 #include <vpu/utils/simple_math.hpp>
 #include <vpu/utils/error.hpp>
-#include <vpu/utils/extra.hpp>
+#include <cstring>
 
 namespace vpu {
 
 namespace {
 
-VPU_PACKED(Elf32Ehdr {
-    uint8_t  offs1[28];
-    uint32_t ePhoff;        // Program header offset
-    uint32_t eShoff;        // Section header offset
-    uint8_t  offs2[12];
-    uint16_t eShnum;        // Number of sections
-    uint16_t offs3;
-};)
-
-VPU_PACKED(Elf32Section {
-    uint32_t shName;
-    uint32_t shType;
-    uint32_t shFlags;
-    uint32_t shAddr;
-    uint32_t shOffset;
-    uint32_t shSize;
-    uint32_t shLink;
-    uint32_t shInfo;
-    uint32_t shAddralign;
-    uint32_t shEntsize;
-};)
-
-VPU_PACKED(Elf32Phdr {
-    uint32_t pType;       // Identifies program segment type
-    uint32_t pOffset;     // Segment file offset
-    uint32_t pVaddr;      // Segment virtual address
-    uint32_t pPaddr;      // Segment physical address
-    uint32_t pFilesz;     // Segment size in file
-    uint32_t pMemsz;      // Segment size in memory
-    uint32_t pFlags;      // Flags position from ELF standard spec
-    uint32_t pAlign;      // Segment alignment, file & memory
-};)
-
-VPU_PACKED(Elf32Sym {
-    uint32_t stName;
-    uint32_t stValue;
-    uint32_t stSize;
-    uint8_t  stInfo;
-    uint8_t  stOther;
-    uint16_t stShndx;
-};)
-
-VPU_PACKED(KernelHdr {
-    uint32_t address;       // Kernel address
-    uint32_t flags;         // Should be 0 for now
-    uint32_t sectionSize;   // Section size, offset to the next kernel
-    uint32_t argOffset;     // offset to arguments
-    uint32_t stackSize;     // Size of the stack required for kernel
-    uint32_t stackSizeWI;     // Size of the stack required for kernel per WI
-};)
-
-VPU_PACKED(KernelArgHdr {
-    uint32_t stringOffset;
-    uint32_t addressSpace;
-    uint32_t typeOffset;
-    uint32_t size;
-    uint32_t laneSize;
-};)
-
-enum Flags {
-  CL_Vecz          = 0x01,
-  CL_Unrolled      = 0x02,
-  CL_Predicated    = 0x04,
-  CL_Dma           = 0x08,
-  CL_VeczDma       = 0x10
-};
-
-std::pair<const Elf32Section*, const Elf32Section*> findSymbolTable(
-        const char* ELFData) {
-    const uint32_t SYMTAB = 2;  // Link editing symbol table
-    const uint32_t STRTAB = 3;  // A string table
-
-    IE_ASSERT(ELFData != nullptr);
-
-    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
-    auto shdr = reinterpret_cast<const Elf32Section*>(ELFData + ehdr->eShoff);
-
-    const Elf32Section* strShdr = nullptr;
-    const Elf32Section* symShdr = nullptr;
-    for (size_t i = 0; i < ehdr->eShnum; i++) {
-        if (shdr[i].shType == STRTAB && strShdr == nullptr) {
-            strShdr = &shdr[i];
-        } else if (shdr[i].shType == SYMTAB && symShdr == nullptr) {
-            symShdr = &shdr[i];
-        }
-
-        if (symShdr != nullptr && strShdr != nullptr)
-            break;
+void assertExactlyOneOccurrence(const pugi::xml_node &node, const SmallVector<std::string>& childs) {
+    for (const auto &name : childs) {
+        const auto& child = node.child(name.c_str());
+        VPU_THROW_UNLESS(!child.empty(), "Required parameter %s is not found", name);
+        VPU_THROW_UNLESS(child.next_sibling(name.c_str()).empty(),
+            "Found several definitions of the parameter %s", name);
     }
-    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
-
-    return std::make_pair(strShdr, symShdr);
 }
 
-uint32_t getKernelEntry(const char* ELFData, const std::string& kernelName) {
-    ie::details::CaselessEq<std::string> cmp;
-
-    IE_ASSERT(ELFData != nullptr);
-
-    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
-    auto phdr = reinterpret_cast<const Elf32Phdr*>(ELFData + ehdr->ePhoff);
-
-    const Elf32Section* strShdr = nullptr;
-    const Elf32Section* symShdr = nullptr;
-    std::tie(strShdr, symShdr) = findSymbolTable(ELFData);
-    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
-
-    auto numSymEntries = symShdr->shSize / symShdr->shEntsize;
-    auto sym = reinterpret_cast<const Elf32Sym*>(ELFData + symShdr->shOffset);
-    auto firstStr = ELFData + strShdr->shOffset;
-
-    for (size_t i = 0; i < numSymEntries; i++) {
-        if (cmp(firstStr + sym[i].stName, kernelName)) {
-            return sym[i].stValue - phdr->pVaddr;
-        }
+void assertOneOrMoreOccurrence(const pugi::xml_node &node, const SmallVector<std::string>& childs) {
+    for (const auto& name : childs) {
+        const auto& child = node.child(name.c_str());
+        VPU_THROW_UNLESS(!child.empty(),
+            "Required parameter %s is not found", name);
     }
-
-    VPU_THROW_EXCEPTION << "Cannot find kernel entry point for custom kernel " << kernelName;
 }
 
-SmallVector<std::string> deduceKernelParameters(
-        const char* ELFData,
-        uint32_t kernelAddress) {
-    ie::details::CaselessEq<std::string> cmp;
-    IE_ASSERT(ELFData != nullptr);
-
-    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
-    auto phdr = reinterpret_cast<const Elf32Phdr*>(ELFData + ehdr->ePhoff);
-    auto shdr = reinterpret_cast<const Elf32Section*>(ELFData + ehdr->eShoff);
-
-    const Elf32Section* strShdr = nullptr;
-    const Elf32Section* symShdr = nullptr;
-    std::tie(strShdr, symShdr) = findSymbolTable(ELFData);
-    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
-
-    auto numSymEntries = symShdr->shSize / symShdr->shEntsize;
-    auto sym = reinterpret_cast<const Elf32Sym*>(ELFData + symShdr->shOffset);
-    auto firstStr = ELFData + strShdr->shOffset;
-
-    const char* kernelArgStrings = nullptr;
-    for (size_t i = 0; i < numSymEntries; i++) {
-        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.strings")) {
-            kernelArgStrings = ELFData + shdr[sym[i].stShndx].shOffset;
-            break;
-        }
+void assertZeroOrOneOccurrence(const pugi::xml_node& node, const SmallVector<std::string>& childNames) {
+    for (const auto& name : childNames) {
+        const auto& child = node.child(name.c_str());
+        VPU_THROW_UNLESS(!child.empty() || child.next_sibling(name.c_str()).empty(),
+            "Found several definitions of the parameter %s", name);
     }
-    IE_ASSERT(kernelArgStrings != nullptr);
-
-    SmallVector<std::string> parameters;
-    for (size_t i = 0; i < numSymEntries; i++) {
-        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.info")) {
-            auto ptr = ELFData + shdr[sym[i].stShndx].shOffset;
-            auto numKernels = *reinterpret_cast<const int*>(ptr);
-
-            auto metaOffset = sizeof(int);
-            for (int k = 0; k < numKernels; k++) {
-                auto kHdr = reinterpret_cast<const KernelHdr*>(ptr + metaOffset);
-
-                if (kHdr->address-phdr->pVaddr == kernelAddress) {
-                    auto aHdr = reinterpret_cast<const KernelArgHdr*>(
-                        reinterpret_cast<const char*>(&(kHdr->argOffset)) + sizeof(kHdr->argOffset) + kHdr->argOffset);
-
-                    auto numArgs = reinterpret_cast<const int*>(aHdr)[-1];
-                    for (int n = 0; n < numArgs; n++, aHdr++) {
-                        parameters.push_back(kernelArgStrings + aHdr->stringOffset);
-                    }
-
-                    break;
-                }
-
-                metaOffset += kHdr->sectionSize + sizeof(kHdr->address) + sizeof(kHdr->flags);
-            }
-        }
-    }
-
-    return parameters;
 }
 
-std::pair<uint32_t, uint32_t> deduceVectorized(
-        const char* ELFData,
-        uint32_t kernelAddress) {
-    ie::details::CaselessEq<std::string> cmp;
-
-    IE_ASSERT(ELFData != nullptr);
-
-    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
-    auto phdr = reinterpret_cast<const Elf32Phdr*>(ELFData + ehdr->ePhoff);
-    auto shdr = reinterpret_cast<const Elf32Section*>(ELFData + ehdr->eShoff);
-
-    const Elf32Section* strShdr = nullptr;
-    const Elf32Section* symShdr = nullptr;
-    std::tie(strShdr, symShdr) = findSymbolTable(ELFData);
-    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
-
-    auto numSymEntries = symShdr->shSize / symShdr->shEntsize;
-    auto sym = reinterpret_cast<const Elf32Sym*>(ELFData + symShdr->shOffset);
-    auto firstStr = ELFData + strShdr->shOffset;
-
-    const char* kernelArgStrings = nullptr;
-    for (size_t i = 0; i < numSymEntries; i++) {
-        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.strings")) {
-            kernelArgStrings = ELFData + shdr[sym[i].stShndx].shOffset;
-            break;
+void assertNoEmptyAttributes(const pugi::xml_node& customLayer) {
+    const auto checkAttributes = [&customLayer](const pugi::xml_node& node) {
+        for (const auto& attr : node.attributes()) {
+            VPU_THROW_UNLESS(strlen(attr.value()) != 0,
+                "Wrong custom layer XML: Custom layer %s has node <%s> with an empty attribute %s",
+                customLayer.attribute("name").value(), node.name(), attr.name());
         }
+    };
+
+    checkAttributes(customLayer);
+
+    for (const auto& child : customLayer.children()) {
+        assertNoEmptyAttributes(child);
     }
-    IE_ASSERT(kernelArgStrings != nullptr);
-
-    for (size_t i = 0; i < numSymEntries; i++) {
-        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.info")) {
-            auto ptr = ELFData + shdr[sym[i].stShndx].shOffset;
-            auto numKernels = *reinterpret_cast<const int*>(ptr);
-
-            auto metaOffset = sizeof(int);
-            for (int k = 0; k < numKernels; k++) {
-                auto kHdr = reinterpret_cast<const KernelHdr*>(ptr + metaOffset);
-
-                if (kHdr->address-phdr->pVaddr == kernelAddress && kHdr->flags == 1) {
-                    auto vecInfo = reinterpret_cast<const uint32_t*>(kHdr + 1);
-                    return std::make_pair(vecInfo[1], vecInfo[0]-phdr->pVaddr);
-                }
-
-                metaOffset += kHdr->sectionSize + sizeof(kHdr->address) + sizeof(kHdr->flags);
-            }
-        }
-    }
-
-    return std::make_pair(0, 0);
-}
-
-int32_t getKernelId(
-        const char* ELFData,
-        uint32_t kernelAddress) {
-    ie::details::CaselessEq<std::string> cmp;
-
-    IE_ASSERT(ELFData != nullptr);
-
-    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
-    auto phdr = reinterpret_cast<const Elf32Phdr*>(ELFData + ehdr->ePhoff);
-    auto shdr = reinterpret_cast<const Elf32Section*>(ELFData + ehdr->eShoff);
-
-    const Elf32Section* strShdr = nullptr;
-    const Elf32Section* symShdr = nullptr;
-    std::tie(strShdr, symShdr) = findSymbolTable(ELFData);
-    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
-
-    auto numSymEntries = symShdr->shSize / symShdr->shEntsize;
-    auto sym = reinterpret_cast<const Elf32Sym*>(ELFData + symShdr->shOffset);
-    auto firstStr = ELFData + strShdr->shOffset;
-
-    const char* kernelArgStrings = nullptr;
-    for (size_t i = 0; i < numSymEntries; i++) {
-        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.strings")) {
-            kernelArgStrings = ELFData + shdr[sym[i].stShndx].shOffset;
-            break;
-        }
-    }
-    IE_ASSERT(kernelArgStrings != nullptr);
-
-    for (size_t i = 0; i < numSymEntries; i++) {
-        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.info")) {
-            auto ptr = ELFData + shdr[sym[i].stShndx].shOffset;
-            auto numKernels = *reinterpret_cast<const int*>(ptr);
-
-            auto metaOffset = sizeof(int);
-            for (int k = 0; k < numKernels; k++) {
-                auto kHdr = reinterpret_cast<const KernelHdr*>(ptr + metaOffset);
-
-                if (kHdr->address-phdr->pVaddr == kernelAddress) {
-                    return k;
-                }
-
-                metaOffset += kHdr->sectionSize + sizeof(kHdr->address) + sizeof(kHdr->flags);
-            }
-        }
-    }
-
-    return -1;
 }
 
 }  // namespace
@@ -321,20 +83,16 @@ int32_t getKernelId(
 ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLayer::loadFromFile(
         const std::string& configFile,
         bool canBeMissed) {
-    ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> out;
-
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load_file(configFile.c_str());
 
     if (res.status != pugi::status_ok) {
         if (canBeMissed) {
             // Config file might not exist - like global config, for example.
-            return out;
+            return {};
         } else {
-            VPU_THROW_EXCEPTION
-                << "Failed to load custom layer configuration file " << configFile
-                << " : " << res.description()
-                << " at offset " << res.offset;
+            VPU_THROW_FORMAT("Failed to load custom layer configuration file %s : %s at offset %s",
+                configFile, res.description(), res.offset);
         }
     }
 
@@ -346,18 +104,15 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
     auto abs_path_ptr = realpath(configFile.c_str(), path);
 #endif
 
-    if (abs_path_ptr == nullptr) {
-        VPU_THROW_EXCEPTION
-            << "Failed to load custom layer configuration file " << configFile
-            << " : can't get canonicalized absolute path";
-    }
+    VPU_THROW_UNLESS(abs_path_ptr != nullptr,
+        "Failed to load custom layer configuration file %s : can't get canonicalized absolute path", configFile);
 
     std::string abs_file_name(path);
 
     // Try extracting directory from config path.
     auto dir_split_pos = abs_file_name.find_last_of("/\\");
-    auto colon_pos = abs_file_name.find_first_of(":");
-    auto first_slash_pos = abs_file_name.find_first_of("/");
+    auto colon_pos = abs_file_name.find_first_of(':');
+    auto first_slash_pos = abs_file_name.find_first_of('/');
 
     // If path is absolute.
     std::string dir_path;
@@ -369,411 +124,113 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
             << " : path is not valid";
     }
 
+    auto out = ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> {};
     for (auto r = xmlDoc.document_element(); r; r = r.next_sibling()) {
-        CustomLayer::Ptr layer(new CustomLayer(dir_path));
-
-        layer->loadSingleLayer(r);
-
-        out[layer->_layerName].push_back(layer);
+        auto layerPtr = std::make_shared<CustomLayer>(dir_path, r);
+        out[layerPtr->_layerName].push_back(std::move(layerPtr));
     }
 
     return out;
 }
 
-int CustomLayer::maxShaves() const {
-    return _maxShaves;
-}
 
-void CustomLayer::setStageNumInputs(int id) {
-    _stageNumInputs = id;
-}
+CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLayer) : _configDir(std::move(configDir)) {
+    const auto cmp = ie::details::CaselessEq<std::string>{};
+    const auto nodeName = customLayer.name();
+    VPU_THROW_UNLESS(cmp(nodeName, "CustomLayer"),
+        "Wrong custom layer XML : Node is not CustomLayer, but %s",  nodeName);
 
-int CustomLayer::stageNumInputs() const {
-    return _stageNumInputs;
-}
+    const auto nodeType = XMLParseUtils::GetStrAttr(customLayer, "type");
+    VPU_THROW_UNLESS(cmp(nodeType, "MVCL"),
+        "Wrong custom layer XML : Type is not MVCL, but %s", nodeType);
 
-uint32_t CustomLayer::kernelAddress(int idx) const {
-    for (const auto& x : _kernelAddress) {
-        if ((checked_cast<uint32_t>(idx) % x.first) == 0) {
-            return x.second;
+    const auto version = XMLParseUtils::GetIntAttr(customLayer, "version");
+    VPU_THROW_UNLESS(version == 1, "Wrong custom layer XML : only version 1 is supported");
+
+    _layerName = XMLParseUtils::GetStrAttr(customLayer, "name");
+
+    assertNoEmptyAttributes(customLayer);
+
+    assertZeroOrOneOccurrence(customLayer, {"Where"});
+    const auto whereNode = customLayer.child("Where");
+    for (auto where : whereNode.attributes()) {
+        _whereParams[where.name()] = where.value();
+    }
+
+    assertOneOrMoreOccurrence(customLayer, {"Kernel"});
+    auto kernelNodes = [&] {
+        auto nodes = SmallVector<pugi::xml_node>{};
+        for (auto kernel = customLayer.child("Kernel"); !kernel.empty(); kernel = kernel.next_sibling("Kernel")) {
+            assertExactlyOneOccurrence(kernel, {"Parameters", "WorkSizes"});
+            assertOneOrMoreOccurrence(kernel, {"Source"});
+            nodes.push_back(kernel);
+        }
+        return nodes;
+    }();
+
+    if (kernelNodes.size() == 1) {
+        _kernels.emplace_back(kernelNodes.front(), _configDir);
+    } else {
+        auto stageOrder = std::map<int, CustomKernel>{};
+        for (auto& kernel : kernelNodes) {
+            const auto stageAttr = kernel.attribute("stage");
+            VPU_THROW_UNLESS(stageAttr, "Error while binding %s custom layer: for multi-kernel binding, "
+                "each kernel should be provided with 'stage' attribute.", _layerName);
+
+            const auto stageNum = std::stod(stageAttr.value());
+            VPU_THROW_UNLESS(stageOrder.find(stageNum) == stageOrder.end(),
+                "Error while binding %s custom layer: found duplicating stage id.", _layerName);
+
+            stageOrder.emplace(stageNum, CustomKernel{kernel, _configDir});
+        }
+
+        VPU_THROW_UNLESS(stageOrder.begin()->first == 0,
+            "Error while binding %s custom layer: Stage 0 is not found.", _layerName);
+        VPU_THROW_UNLESS(stageOrder.rbegin()->first == stageOrder.size() - 1,
+            "Error while binding %s custom layer: Kernels should have stage id from 0 to N.", _layerName);
+
+        for (auto& stage : stageOrder) {
+            _kernels.push_back(std::move(stage.second));
         }
     }
 
-    auto it = _kernelAddress.find(1);
-    IE_ASSERT(it != _kernelAddress.end());
-
-    return it->second;
-}
-
-int CustomLayer::kernelId() const {
-    uint32_t kernelAddress = getKernelEntry(&_kernelBinary[0], _kernelEntry);
-    return getKernelId(&_kernelBinary[0], kernelAddress);
-}
-
-void CustomLayer::loadSingleLayer(const pugi::xml_node& node) {
-    ie::details::CaselessEq<std::string> cmp;
-
-    std::string nodeName(node.name());
-    if (!cmp(nodeName, "CustomLayer")) {
-        VPU_THROW_EXCEPTION << "Wrong custom layer XML : Node is not CustomLayer, but " << nodeName;
-    }
-
-    auto nodeType = XMLParseUtils::GetStrAttr(node, "type", "");
-    if (!cmp(nodeType, "MVCL")) {
-        VPU_THROW_EXCEPTION << "Wrong custom layer XML : Type is not MVCL, but " << nodeType;
-    }
-
-    auto version = XMLParseUtils::GetIntAttr(node, "version", -1);
-    IE_ASSERT(version == 1);
-
-    auto layerStage = XMLParseUtils::GetStrAttr(node, "stage", "");
-    auto layerName = XMLParseUtils::GetStrAttr(node, "name", "");
-    if (layerName.empty()) {
-        VPU_THROW_EXCEPTION << "Missing Layer name in CustomLayer";
-    }
-    _layerName = layerStage.empty() ? layerName : layerName + "@stage_" + layerStage;
-
-    _maxShaves = XMLParseUtils::GetIntAttr(node, "max-shaves", 0);
-
-    processWhere(node.child("Where"));
-
-    processKernelNode(node.child("Kernel"));
-
-    processParametersNode(node.child("Parameters"));
-
-    processWorkSizesNode(node.child("WorkSizes"));
-}
-
-void CustomLayer::processWhere(const pugi::xml_node& node) {
-    for (auto child : node.attributes()) {
-        _whereParams[child.name()] = child.value();
-    }
-}
-
-void CustomLayer::processKernelNode(const pugi::xml_node& node) {
-    ie::details::CaselessEq<std::string> cmp;
-
-    std::string nodeName(node.name());
-    if (!cmp(nodeName, "Kernel")) {
-        VPU_THROW_EXCEPTION << "Wrong node, expected Kernel found " << nodeName;
-    }
-
-    if (!_kernelBinary.empty()) {
-        VPU_THROW_EXCEPTION << "Multiple definition of Kernel";
-    }
-
-    _kernelEntry = XMLParseUtils::GetStrAttr(node, "entry", "");
-    if (_kernelEntry.empty()) {
-        VPU_THROW_EXCEPTION << "No Kernel entry in custom layer";
-    }
-
-    _kernelBinary.clear();
-    for (auto sourceNode = node.child("Source"); !sourceNode.empty(); sourceNode = sourceNode.next_sibling("Source")) {
-        auto fileName = _configDir + "/" + XMLParseUtils::GetStrAttr(sourceNode, "filename", "");
-
-        std::ifstream inputFile(fileName, std::ios::binary);
-        if (!inputFile.is_open()) {
-            VPU_THROW_EXCEPTION << "Couldn't open kernel file " << fileName;
+    const auto addPorts = [](std::map<int, CustomDataFormat>& ports, const CustomKernel::KernelParam& newEdge) {
+        const auto layerInput = ports.find(newEdge.portIndex);
+        if (layerInput == ports.end()) {
+            ports.emplace(newEdge.portIndex, newEdge.format);
+        } else if (newEdge.format == CustomDataFormat::Any) {
+            return;
+        } else if (layerInput->second == CustomDataFormat::Any) {
+            layerInput->second = newEdge.format;
         }
+    };
 
-        std::ostringstream contentStream;
-        contentStream << inputFile.rdbuf();
-        _kernelBinary.append(contentStream.str());
-    }
-
-    _kernelAddress[1] = getKernelEntry(&_kernelBinary[0], _kernelEntry);
-
-    _parameters = deduceKernelParameters(&_kernelBinary[0], _kernelAddress[1]);
-
-    auto vecInfo = deduceVectorized(&_kernelBinary[0], _kernelAddress[1]);
-    if (vecInfo.first != 0) {
-        _kernelAddress[vecInfo.first] = vecInfo.second;
-    }
-}
-
-void CustomLayer::processParametersNode(const pugi::xml_node& node) {
-    ie::details::CaselessEq<std::string> cmp;
-
-    std::string nodeName(node.name());
-    if (!cmp(nodeName, "Parameters")) {
-        VPU_THROW_EXCEPTION << "Wrong node, expected Parameters found " << nodeName;
-    }
-
-    for (auto tensorNode = node.child("Tensor"); !tensorNode.empty(); tensorNode = tensorNode.next_sibling("Tensor")) {
-        KernelParam kp;
-
-        auto typeStr = XMLParseUtils::GetStrAttr(tensorNode, "type");
-        if (cmp(typeStr, "input")) {
-            kp.type = CustomParamType::Input;
-        } else if (cmp(typeStr, "output")) {
-            kp.type = CustomParamType::Output;
-        } else if (cmp(typeStr, "input_buffer")) {
-            kp.type = CustomParamType::InputBuffer;
-        } else if (cmp(typeStr, "output_buffer")) {
-            kp.type = CustomParamType::OutputBuffer;
-        } else if (cmp(typeStr, "data")) {
-            kp.type = CustomParamType::Data;
-        } else {
-            VPU_THROW_EXCEPTION << "Tensor node has an invalid type " << typeStr;
-        }
-
-        kp.format = formatFromString(XMLParseUtils::GetStrAttr(tensorNode, "format", "BFYX"));
-        if (kp.format == CustomDataFormat::None) {
-            VPU_THROW_EXCEPTION << "Tensor node has an invalid format " << kp.format;
-        }
-
-        kp.argName = XMLParseUtils::GetStrAttr(tensorNode, "arg-name");
-        if (kp.argName.empty()) {
-            VPU_THROW_EXCEPTION << "Tensor node has no arg-name";
-        }
-
-        kp.portIndex = XMLParseUtils::GetIntAttr(tensorNode, "port-index", -1);
-        if (kp.portIndex == -1) {
-            VPU_THROW_EXCEPTION << "Tensor node has no port-index";
-        }
-
-        if (kp.type == CustomParamType::InputBuffer || kp.type == CustomParamType::OutputBuffer) {
-            std::string bufferSize(XMLParseUtils::GetStrAttr(tensorNode, "size", ""));
-            while (!bufferSize.empty()) {
-                auto pos = bufferSize.find_first_of(',');
-                auto rule = bufferSize.substr(0, pos);
-                if (!isLegalSizeRule(rule)) {
-                    VPU_THROW_EXCEPTION << "Invalid BufferSize " << rule;
-                }
-
-                kp.bufferSizeRules.emplace_back(std::move(rule));
-
-                if (pos == std::string::npos) {
-                    bufferSize.clear();
-                } else {
-                    bufferSize = bufferSize.substr(pos + 1, std::string::npos);
-                }
+    for (const auto& kernel : _kernels) {
+        for (const auto& binding : kernel.bindings()) {
+            if (binding.type == CustomParamType::Input) {
+                addPorts(_inputs, binding);
             }
-
-            kp.dimIdx = -1;
-            std::string dim_src_string(XMLParseUtils::GetStrAttr(tensorNode, "dim", ""));
-            if (!dim_src_string.empty()) {
-                // Try to locate index separator.
-                auto pos = dim_src_string.find_first_of(',');
-                auto flag = dim_src_string.substr(0, pos);
-                if (cmp(flag, "input")) {
-                    kp.dimSource = CustomDimSource::Input;
-                } else if (cmp(flag, "output")) {
-                    kp.dimSource = CustomDimSource::Output;
-                } else {
-                    VPU_THROW_EXCEPTION << "Invalid WG dim source " << flag;
-                }
-
-                int idx = 0;
-                if (pos != std::string::npos) {
-                    // User explicitly set input index in config.
-                    auto idx_string = dim_src_string.substr(pos + 1, std::string::npos);
-                    idx = std::stoi(idx_string);
-                }
-                if (idx < 0) {
-                    VPU_THROW_EXCEPTION << "Invalid tensor index " << idx;
-                }
-
-                kp.dimIdx = idx;
+            if (binding.type == CustomParamType::Output) {
+                addPorts(_outputs, binding);
             }
         }
-
-        kp.irSource.clear();
-
-        _kernelParams.emplace_back(std::move(kp));
-    }
-
-    for (auto dataNode = node.child("Data"); !dataNode.empty(); dataNode = dataNode.next_sibling("Data")) {
-        KernelParam kp;
-
-        auto typeStr = XMLParseUtils::GetStrAttr(dataNode, "type");
-        if (cmp(typeStr, "data")) {
-            kp.type = CustomParamType::Data;
-        } else if (cmp(typeStr, "local_data")) {
-            kp.type = CustomParamType::LocalData;
-        } else {
-            VPU_THROW_EXCEPTION << "Data node has an invalid type " << typeStr;
-        }
-
-        kp.format = CustomDataFormat::Any;
-
-        kp.argName = XMLParseUtils::GetStrAttr(dataNode, "arg-name");
-        if (kp.argName.empty()) {
-            VPU_THROW_EXCEPTION << "Data node has no arg-name";
-        }
-
-        kp.portIndex = -1;
-
-        kp.irSource = XMLParseUtils::GetStrAttr(dataNode, "source", "");
-        std::string dim_src_string(XMLParseUtils::GetStrAttr(dataNode, "dim", ""));
-
-        if (kp.irSource.empty() && dim_src_string.empty()) {
-            VPU_THROW_EXCEPTION << "Data node has no source or dim";
-        }
-
-        if (!kp.irSource.empty() && !dim_src_string.empty()) {
-            VPU_THROW_EXCEPTION << "Data node can only have source or dim";
-        }
-
-        kp.dimIdx = -1;
-        if (kp.type == CustomParamType::LocalData) {
-            std::string bufferSize(XMLParseUtils::GetStrAttr(dataNode, "size", ""));
-            while (!bufferSize.empty()) {
-                auto pos = bufferSize.find_first_of(',');
-                auto rule = bufferSize.substr(0, pos);
-                if (!isLegalSizeRule(rule)) {
-                    VPU_THROW_EXCEPTION << "Invalid BufferSize " << rule;
-                }
-
-                kp.bufferSizeRules.emplace_back(std::move(rule));
-
-                if (pos == std::string::npos) {
-                    bufferSize.clear();
-                } else {
-                    bufferSize = bufferSize.substr(pos + 1, std::string::npos);
-                }
-            }
-
-            kp.dimIdx = -1;
-            std::string dim_src_string(XMLParseUtils::GetStrAttr(dataNode, "dim", ""));
-            if (!dim_src_string.empty()) {
-                // Try to locate index separator.
-                auto pos = dim_src_string.find_first_of(',');
-                auto flag = dim_src_string.substr(0, pos);
-                if (cmp(flag, "input")) {
-                    kp.dimSource = CustomDimSource::Input;
-                } else if (cmp(flag, "output")) {
-                    kp.dimSource = CustomDimSource::Output;
-                } else {
-                    VPU_THROW_EXCEPTION << "Invalid WG dim source " << flag;
-                }
-
-                int idx = 0;
-                if (pos != std::string::npos) {
-                    // User explicitly set input index in config.
-                    auto idx_string = dim_src_string.substr(pos + 1, std::string::npos);
-                    idx = std::stoi(idx_string);
-                }
-                if (idx < 0) {
-                    VPU_THROW_EXCEPTION << "Invalid tensor index " << idx;
-                }
-
-                kp.dimIdx = idx;
-            }
-        }
-
-        _kernelParams.emplace_back(std::move(kp));
-    }
-
-    for (auto scalarNode = node.child("Scalar"); !scalarNode.empty(); scalarNode = scalarNode.next_sibling("Scalar")) {
-        KernelParam kp;
-
-        std::string typeStr = XMLParseUtils::GetStrAttr(scalarNode, "type");
-        if (cmp(typeStr, "int")) {
-            kp.type = CustomParamType::Int;
-        } else if (cmp(typeStr, "float")) {
-            kp.type = CustomParamType::Float;
-        } else {
-            VPU_THROW_EXCEPTION << "Scalar node has an invalid type " << typeStr;
-        }
-
-        kp.format = CustomDataFormat::Any;
-
-        kp.argName = XMLParseUtils::GetStrAttr(scalarNode, "arg-name");
-        if (kp.argName.empty()) {
-            VPU_THROW_EXCEPTION << "Scalar node has no arg-name";
-        }
-
-        kp.portIndex = XMLParseUtils::GetIntAttr(scalarNode, "port-index", 0);
-
-        kp.irSource = XMLParseUtils::GetStrAttr(scalarNode, "source", "");
-        if (kp.irSource.empty()) {
-            VPU_THROW_EXCEPTION << "Scalar node has no source";
-        }
-
-        _kernelParams.emplace_back(std::move(kp));
     }
 }
 
-void CustomLayer::processWorkSizesNode(const pugi::xml_node & node) {
-    ie::details::CaselessEq<std::string> cmp;
+bool CustomLayer::isLegalSizeRule(const std::string& rule, std::map<std::string, std::string> layerParams) {
+    {
+        auto sizes = SmallVector<std::pair<std::string, std::string>> {
+            { "b", "1" }, { "B", "1" },
+            { "f", "1" }, { "F", "1" },
+            { "y", "1" }, { "Y", "1" },
+            { "x", "1" }, { "X", "1" },
+        };
 
-    std::string nodeName(node.name());
-    if (!cmp(node.name(), "WorkSizes")) {
-        VPU_THROW_EXCEPTION << "Wrong node, expected WorkSizes found " << nodeName;
+        std::move(begin(sizes), end(sizes), inserter(layerParams, end(layerParams)));
     }
 
-    _wgDimIdx = -1;
-    std::string dim_src_string(node.attribute("dim").as_string(""));
-    if (!dim_src_string.empty()) {
-        // Try to locate index separator.
-        auto pos = dim_src_string.find_first_of(',');
-        auto flag = dim_src_string.substr(0, pos);
-        if (cmp(flag, "input")) {
-            _wgDimSource = CustomDimSource::Input;
-        } else if (cmp(flag, "output")) {
-            _wgDimSource = CustomDimSource::Output;
-        } else {
-            VPU_THROW_EXCEPTION << "Invalid WG dim source " << flag;
-        }
-
-        int idx = 0;
-        if (pos != std::string::npos) {
-            // User explicitly set input index in config.
-            auto idx_string = dim_src_string.substr(pos + 1, std::string::npos);
-            idx = std::stoi(idx_string);
-        }
-        if (idx < 0) {
-            VPU_THROW_EXCEPTION << "Invalid tensor index " << idx;
-        }
-
-        _wgDimIdx = idx;
-    }
-
-    std::string gws(node.attribute("global").as_string(""));
-    while (!gws.empty()) {
-        auto pos = gws.find_first_of(',');
-        auto rule = gws.substr(0, pos);
-        if (!isLegalSizeRule(rule)) {
-            VPU_THROW_EXCEPTION << "Invalid WorkSize " << rule;
-        }
-
-        _globalSizeRules.emplace_back(std::move(rule));
-
-        if (pos == std::string::npos) {
-            gws.clear();
-        } else {
-            gws = gws.substr(pos + 1, std::string::npos);
-        }
-    }
-
-    std::string lws(node.attribute("local").as_string(""));
-    while (!lws.empty()) {
-        auto pos = lws.find_first_of(',');
-        auto rule = lws.substr(0, pos);
-        if (!isLegalSizeRule(rule)) {
-            VPU_THROW_EXCEPTION << "Invalid WorkSize " << rule;
-        }
-
-        _localSizeRules.emplace_back(std::move(rule));
-
-        if (pos == std::string::npos) {
-            lws.clear();
-        } else {
-            lws = lws.substr(pos + 1, std::string::npos);
-        }
-    }
-}
-
-bool CustomLayer::isLegalSizeRule(const std::string& rule) {
-    SimpleMathExpression expr;
-
-    expr.setVariables({
-        { 'b', 1 }, { 'B', 1 },
-        { 'f', 1 }, { 'F', 1 },
-        { 'y', 1 }, { 'Y', 1 },
-        { 'x', 1 }, { 'X', 1 },
-    });
+    MathExpression expr;
+    expr.setVariables(layerParams);
 
     try {
         expr.parse(rule);
@@ -784,21 +241,66 @@ bool CustomLayer::isLegalSizeRule(const std::string& rule) {
     return true;
 }
 
-CustomDataFormat CustomLayer::formatFromString(const std::string & str) {
-    static const ie::details::caseless_map<std::string, CustomDataFormat> FormatNameToType = {
-        { "BFYX" , CustomDataFormat::BFYX },
-        { "BYXF" , CustomDataFormat::BYXF },
-        { "FYX" , CustomDataFormat::FYX },
-        { "YXF" , CustomDataFormat::YXF },
-        { "ANY"  , CustomDataFormat::Any },
+CustomDataFormat CustomLayer::formatFromLayout(const InferenceEngine::Layout& layout) {
+    const auto layoutToFormat = std::map<ie::Layout, CustomDataFormat> {
+        { ie::NCHW , CustomDataFormat::BFYX },
+        { ie::NHWC , CustomDataFormat::BYXF },
+        { ie::CHW , CustomDataFormat::FYX },
+        { ie::NC , CustomDataFormat::BF },
+        { ie::ANY , CustomDataFormat::Any }
     };
 
-    auto it = FormatNameToType.find(str);
-    if (it != FormatNameToType.end()) {
-        return it->second;
-    }
+    const auto it = layoutToFormat.find(layout);
+    VPU_THROW_UNLESS(it != layoutToFormat.end(), "Tensor node has an invalid format %s", layout);
+    return it->second;
+}
 
-    return CustomDataFormat::None;
+bool CustomLayer::meetsWhereRestrictions(const std::map<std::string, std::string>& params) const {
+    const auto cmp = ie::details::CaselessEq<std::string>{};
+
+    for (const auto& where : _whereParams) {
+        const auto restrictedParam = [&](const std::pair<std::string, std::string>& param) {
+            return param.first == where.first;
+        };
+
+        const auto param = std::find_if(begin(params), end(params), restrictedParam);
+        if (param == params.end()) {
+            return false;
+        }
+
+        const auto& restriction = where.second;
+        const auto number = parseNumber<float>(param->second);
+
+        const auto meetsRestriction = [&] {
+            // compare non-number restrictions (ex. kernel="3,3")
+            if (!number.hasValue()) {
+                return cmp(param->second, restriction);
+            } else {
+                if (restriction[0] == '>' && restriction[1] == '=') {
+                    const auto to_compare = std::stof(restriction.substr(2, std::string::npos));
+                    return number.get() >= to_compare;
+                } else if (restriction[0] == '<' && restriction[1] == '=') {
+                    const auto to_compare = std::stof(restriction.substr(2, std::string::npos));
+                    return number.get() <= to_compare;
+                } else if (restriction[0] == '>') {
+                    const auto to_compare = std::stof(restriction.substr(1, std::string::npos));
+                    return number.get() > to_compare;
+                } else if (restriction[0] == '<') {
+                    const auto to_compare = std::stof(restriction.substr(1, std::string::npos));
+                    return number.get() < to_compare;
+                } else if (restriction[0] == '!' && restriction[1] == '=') {
+                    const auto to_compare = std::stof(restriction.substr(2, std::string::npos));
+                    return number.get() != to_compare;
+                }
+                return number.get() == std::stof(restriction);
+            }
+        }();
+
+        if (!meetsRestriction) {
+            return false;
+        }
+    }
+    return true;
 }
 
 }  // namespace vpu

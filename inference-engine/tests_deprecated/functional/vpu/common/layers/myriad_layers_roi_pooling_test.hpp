@@ -42,7 +42,7 @@ static inline void PrintTo(const t_ROIPooling_method& param, ::std::ostream* os)
 
 using ROIPoolingTestParams = std::tuple<Dims, roi_pooling_param, uint32_t, roi_pooling_method, IRVersion>;
 
-class myriadLayersTestsROIPooling_nightly: public myriadLayerTestBaseWithParam<ROIPoolingTestParams> {
+class myriadLayersTestsROIPooling_smoke: public myriadLayerTestBaseWithParam<ROIPoolingTestParams> {
 public:
     void genROIs(InferenceEngine::Blob::Ptr rois,
                  const ROIPoolingParams& params,
@@ -260,7 +260,7 @@ public:
     }
 };
 
-TEST_P(myriadLayersTestsROIPooling_nightly, ROIPooling) {
+TEST_P(myriadLayersTestsROIPooling_smoke, ROIPooling) {
     tensor_test_params dims_layer_in = std::get<0>(GetParam());
     ROIPoolingParams test_params = std::get<1>(GetParam());
     const uint32_t num_rois = std::get<2>(GetParam());

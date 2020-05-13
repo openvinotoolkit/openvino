@@ -232,7 +232,8 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                                        GetPreferredWeightsLayout(newParams),
                                        kd.weightsReorderParams,
                                        GetSupportedKey(),
-                                       newParams.groups);
+                                       newParams.groups,
+                                       newParams.transposed);
 
     if (!succeed) {
         return {};

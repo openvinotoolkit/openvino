@@ -42,7 +42,7 @@ struct InputDims {
 
 using ExpPriorGridGeneratorTestParams = std::tuple<InputDims, PriorGridGeneratorParam>;
 
-typedef myriadLayerTestBaseWithParam<ExpPriorGridGeneratorTestParams> myriadLayersTestsExpPriorGridGenerator_nightly;
+typedef myriadLayerTestBaseWithParam<ExpPriorGridGeneratorTestParams> myriadLayersTestsExpPriorGridGenerator_smoke;
 
 static void genPriors(InferenceEngine::Blob::Ptr rois,
                     const tensor_test_params& params,
@@ -64,7 +64,7 @@ static void genPriors(InferenceEngine::Blob::Ptr rois,
     }
 }
 
-TEST_P(myriadLayersTestsExpPriorGridGenerator_nightly, ExpPriorGridGenerator) {
+TEST_P(myriadLayersTestsExpPriorGridGenerator_smoke, ExpPriorGridGenerator) {
     InputDims inputTensorsDims = std::get<0>(GetParam());
     PriorGridGeneratorParam opParams = std::get<1>(GetParam());
 

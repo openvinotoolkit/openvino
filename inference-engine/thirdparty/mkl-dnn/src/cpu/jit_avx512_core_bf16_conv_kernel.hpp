@@ -25,6 +25,7 @@
 #include "jit_primitive_conf.hpp"
 #include "jit_uni_eltwise.hpp"
 #include "jit_avx512_core_bf16cvt.hpp"
+#include "jit_uni_depthwise.hpp"
 
 //#define BF16_CONV_BWD_W_JIT_KER_USES_PERMW_TRANSPOSITION
 //#define BF16_CONV_BWD_W_DOES_NOT_USE_BARRIERS
@@ -40,12 +41,8 @@ struct jit_avx512_core_bf16_fwd_kernel : public jit_generator {
         jit_generator(nullptr, ker_code_size),
         jcp(ajcp),
         attr_(attr),
-        eltwise_injector_(nullptr),
         bf16_emu_(nullptr)
     {
-        if (jcp.with_eltwise)
-            eltwise_injector_ = new jit_uni_eltwise_injector_f32<avx512_common>(
-                    this, jcp.eltwise);
         if (!mayiuse(avx512_core_bf16))
             bf16_emu_ = new bf16_emulation_t(this,
                     bf16_emu_reserv_1, bf16_emu_reserv_2,
@@ -58,7 +55,13 @@ struct jit_avx512_core_bf16_fwd_kernel : public jit_generator {
 
     ~jit_avx512_core_bf16_fwd_kernel() {
         delete bf16_emu_;
-        delete eltwise_injector_;
+        for (auto inj : eltwise_injectors)
+            delete inj;
+        eltwise_injectors.clear();
+
+        for (auto inj : depthwise_injectors)
+            delete inj;
+        depthwise_injectors.clear();
     }
 
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_avx512_core_bf16_fwd_kernel)
@@ -144,7 +147,12 @@ private:
     Xbyak::Zmm bf16_emu_reserv_5 = Xbyak::Zmm(29);
     Xbyak::Zmm bf16_emu_reserv_6 = Xbyak::Zmm(30);
 
-    jit_uni_eltwise_injector_f32<avx512_common> *eltwise_injector_;
+    reg64_t reg_d_weights = imm_addr64;
+    reg64_t reg_d_bias = reg_kj;
+
+    nstl::vector<jit_uni_eltwise_injector_f32<avx512_common>*> eltwise_injectors;
+    nstl::vector<jit_uni_depthwise_injector_f32<avx512_common>*> depthwise_injectors;
+
     bf16_emulation_t *bf16_emu_;
 
     inline void prepare_output(int ur_w);

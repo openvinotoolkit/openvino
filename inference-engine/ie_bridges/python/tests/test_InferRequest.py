@@ -2,6 +2,7 @@ import numpy as np
 import os
 import pytest
 import warnings
+import threading
 
 from openvino.inference_engine import ie_api as ie
 from conftest import model_path, image_path
@@ -324,15 +325,22 @@ def test_async_infer_callback_wait_in_callback(device):
     class InferReqWrap:
         def __init__(self, request):
             self.request = request
+            self.cv = threading.Condition()
             self.request.set_completion_callback(self.callback)
             self.status_code = self.request.wait(ie.WaitMode.STATUS_ONLY)
             assert self.status_code == ie.StatusCode.INFER_NOT_STARTED
 
         def callback(self, statusCode, userdata):
             self.status_code = self.request.wait(ie.WaitMode.STATUS_ONLY)
+            self.cv.acquire()
+            self.cv.notify()
+            self.cv.release()
 
         def execute(self, input_data):
             self.request.async_infer(input_data)
+            self.cv.acquire()
+            self.cv.wait()
+            self.cv.release()
             status = self.request.wait(ie.WaitMode.RESULT_READY)
             assert status == ie.StatusCode.OK
             assert self.status_code == ie.StatusCode.OK

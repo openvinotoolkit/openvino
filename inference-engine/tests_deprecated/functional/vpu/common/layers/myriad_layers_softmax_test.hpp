@@ -18,20 +18,20 @@ void PrintTo(const SoftmaxAxisSizes& p, std::ostream* os) {
     *os << "axis=" << p.axis << ", sizes=" << testing::PrintToString(p.sizes);
 }
 
-using myriadLayersTestsSoftMaxParams_nightly = myriadLayerTestBaseWithParam<std::tuple<SoftmaxAxisSizes, IRVersion>>;
+using myriadLayersTestsSoftMaxParams_smoke = myriadLayerTestBaseWithParam<std::tuple<SoftmaxAxisSizes, IRVersion>>;
 
-class myriadLayersTestsSoftMax_nightly: public myriadLayersTestsSoftMaxParams_nightly {
+class myriadLayersTestsSoftMax_smoke: public myriadLayersTestsSoftMaxParams_smoke {
 protected:
     SoftmaxAxisSizes _testingInput;
 
     void SetUp() override {
-        myriadLayersTestsSoftMaxParams_nightly::SetUp();
+        myriadLayersTestsSoftMaxParams_smoke::SetUp();
         _testingInput = std::get<0>(GetParam());
         _irVersion = std::get<1>(GetParam());
     }
 };
 
-TEST_P(myriadLayersTestsSoftMax_nightly, TestsSoftMax)
+TEST_P(myriadLayersTestsSoftMax_smoke, TestsSoftMax)
 {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
     SetInputTensors({_testingInput.sizes});

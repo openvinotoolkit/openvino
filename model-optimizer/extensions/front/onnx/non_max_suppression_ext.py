@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
 from extensions.ops.non_max_suppression import NonMaxSuppression
 from mo.front.extractor import FrontExtractorOp
@@ -28,5 +29,6 @@ class NonMaxSuppressionExtractor(FrontExtractorOp):
         encoding_map = {0: 'corner', 1: 'center'}
         center_point_box = onnx_attr(node, 'center_point_box', 'i', default=0)
         NonMaxSuppression.update_node_stat(node, {'sort_result_descending': 0,
+                                                  'output_type': np.int64,
                                                   'box_encoding': encoding_map[center_point_box]})
         return cls.enabled

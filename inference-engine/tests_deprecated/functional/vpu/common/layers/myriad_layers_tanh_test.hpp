@@ -10,11 +10,11 @@
 #define ERROR_BOUND_WITH_TANH (1.0e-3f)
 using namespace InferenceEngine;
 
-class myriadLayersTestsTanh_nightly: public myriadLayersTests_nightly,
+class myriadLayersTestsTanh_smoke: public myriadLayersTests_nightly,
                              public testing::WithParamInterface<SizeVector> {
 };
 
-TEST_P(myriadLayersTestsTanh_nightly, TestsTanh)
+TEST_P(myriadLayersTestsTanh_smoke, TestsTanh)
 {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
     auto p = ::testing::WithParamInterface<SizeVector>::GetParam();
@@ -71,10 +71,10 @@ static std::vector<fcon_test_params> s_fcTestParamsSubset = {
     {{1, 16, 8, 8},    8, 0.065f}
 };
 
-class myriadLayerConvolutionWithTanH_nightly: public ConvolutionTest<IRVersion>{
+class myriadLayerConvolutionWithTanH_smoke: public ConvolutionTest<IRVersion>{
 };
 
-TEST_P(myriadLayerConvolutionWithTanH_nightly, Convolution) {
+TEST_P(myriadLayerConvolutionWithTanH_smoke, Convolution) {
     auto param = GetParam();
     _irVersion = std::get<6>(param);
 
@@ -92,13 +92,13 @@ TEST_P(myriadLayerConvolutionWithTanH_nightly, Convolution) {
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), maxerr);
 }
 
-class myriadLayersTestsMaxPoolingWithTanh_nightly: public PoolingTest<POOLING_MAX>{
+class myriadLayersTestsMaxPoolingWithTanh_smoke: public PoolingTest<POOLING_MAX>{
 };
 
-class myriadLayersTestsAvgPoolingWithTanh_nightly: public PoolingTest<POOLING_AVG>{
+class myriadLayersTestsAvgPoolingWithTanh_smoke: public PoolingTest<POOLING_AVG>{
 };
 
-TEST_P(myriadLayersTestsMaxPoolingWithTanh_nightly, TestsMaxPoolingWithTanh)
+TEST_P(myriadLayersTestsMaxPoolingWithTanh_smoke, TestsMaxPoolingWithTanh)
 {
     _testNet.addLayer(LayerInitParams("TanH")
              .in({_output_tensor})
@@ -108,7 +108,7 @@ TEST_P(myriadLayersTestsMaxPoolingWithTanh_nightly, TestsMaxPoolingWithTanh)
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND_WITH_TANH);
 }
 
-TEST_P(myriadLayersTestsAvgPoolingWithTanh_nightly, TestsAvgPoolingWithTanh)
+TEST_P(myriadLayersTestsAvgPoolingWithTanh_smoke, TestsAvgPoolingWithTanh)
 {
     _testNet.addLayer(LayerInitParams("TanH")
              .in({_output_tensor})
@@ -118,10 +118,10 @@ TEST_P(myriadLayersTestsAvgPoolingWithTanh_nightly, TestsAvgPoolingWithTanh)
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND_WITH_TANH);
 }
 
-class myriadLayerFullyConnectedWithTanH_nightly: public FCTest<>{
+class myriadLayerFullyConnectedWithTanH_smoke: public FCTest<>{
 };
 
-TEST_P(myriadLayerFullyConnectedWithTanH_nightly, TestsFullyConnected)
+TEST_P(myriadLayerFullyConnectedWithTanH_smoke, TestsFullyConnected)
 {
     _testNet.addLayer(LayerInitParams("TanH")
              .in({_output_tensor})

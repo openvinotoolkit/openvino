@@ -150,7 +150,7 @@ else()
                 set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
                         IMPORTED_LOCATION "${IE${ie_library_usuffix}_RELEASE_LIBRARY}"
                         INTERFACE_INCLUDE_DIRECTORIES "${IE_INCLUDE_DIR}")
-                if(CMAKE_CXX_COMPILER_ID MATCHES Intel)
+                if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
                     set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
                             INTERFACE_COMPILE_OPTIONS "-diag-warning=1786")
                 else()

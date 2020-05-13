@@ -30,7 +30,7 @@ struct GenerateProposalsParam {
 
 using ExpGenerateProposalsTestParams = std::tuple<Dims, std::vector<int>, GenerateProposalsParam>;
 
-typedef myriadLayerTestBaseWithParam<ExpGenerateProposalsTestParams> myriadLayersTestsExpGenerateProposals_nightly;
+typedef myriadLayerTestBaseWithParam<ExpGenerateProposalsTestParams> myriadLayersTestsExpGenerateProposals_smoke;
 
 static void genInputs(InferenceEngine::BlobMap inputMap,
                       const int numProposals,
@@ -140,7 +140,7 @@ static void genInputs(InferenceEngine::BlobMap inputMap,
     inputIMinfo[1] = PrecisionUtils::f32tof16( (float) imgW );
 }
 
-TEST_P(myriadLayersTestsExpGenerateProposals_nightly, ExpGenerateProposals) {
+TEST_P(myriadLayersTestsExpGenerateProposals_smoke, ExpGenerateProposals) {
     tensor_test_params scoresDims = std::get<0>(GetParam());
     std::vector<int> im_info = std::get<1>(GetParam());
     GenerateProposalsParam opParams = std::get<2>(GetParam());

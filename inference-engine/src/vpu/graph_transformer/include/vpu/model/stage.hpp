@@ -53,7 +53,7 @@ VPU_DECLARE_ENUM(StageType,
     StubPriorBox,
     StubPriorBoxClustered,
 
-    Concat,
+    StubConcat,
     Split,
     Reshape,
     Expand,
@@ -119,7 +119,6 @@ VPU_DECLARE_ENUM(StageType,
     Pad = 71,
     Resample = 72,
     Upsampling = 73,
-    ArgMax = 74,
     Div = 75,
     Min = 76,
     Squared_diff = 77,
@@ -166,6 +165,9 @@ VPU_DECLARE_ENUM(StageType,
     ExpGenerateProposals = 124,
     ExpTopKROIs = 125,
     ScatterElementsUpdate = 126,
+    OutShapeOfReshape = 127,
+    Concat = 128,
+    Broadcast = 129,
 )
 
 //
@@ -239,6 +241,24 @@ VPU_DECLARE_ENUM(TopKOutputs,
     All = 0,
     ValueOnly = 1,
     IndexOnly = 2)
+
+//
+// ConcatInferRequirement
+//
+
+// Requirement whether to infer Concat stage on the device side
+VPU_DECLARE_ENUM(ConcatInferRequirement,
+    NeedToInfer = 0,
+    CanBeReplaced = 1)
+
+//
+// ConcatInferRequirement
+//
+
+// Modes for Broadcast operation according to specification
+VPU_DECLARE_ENUM(BroadcastMode,
+    NUMPY = 0,
+    EXPLICIT = 1)
 
 //
 // StageDataInfo

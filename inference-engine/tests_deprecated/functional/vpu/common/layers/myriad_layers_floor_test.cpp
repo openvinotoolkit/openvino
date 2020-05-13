@@ -5,5 +5,5 @@
 #include "myriad_layers_floor_test.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-        accuracy, myriadLayersTestsFloor_nightly,
+        accuracy, myriadLayersTestsFloor_smoke,
         ::testing::ValuesIn(s_FloorParams));

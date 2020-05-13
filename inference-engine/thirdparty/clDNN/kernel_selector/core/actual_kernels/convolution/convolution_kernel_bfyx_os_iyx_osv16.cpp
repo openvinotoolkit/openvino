@@ -63,7 +63,6 @@ ParamsKey ConvolutionKernel_bfyx_os_iyx_osv16::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableSplitSupport();
     k.EnableDilation();
-    k.EnableTranspose();
     k.EnableGroupedConvolution();
     return k;
 }
@@ -237,11 +236,7 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
 
 WeightsLayout ConvolutionKernel_bfyx_os_iyx_osv16::GetPreferredWeightsLayout(
         const convolution_params &params) const {
-    if (!params.transposed) {
-        return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv16 : WeightsLayout::os_iyx_osv16;
-    } else {
-        return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv16_rotate_180 : WeightsLayout::os_iyx_osv16_rotate_180;
-    }
+    return (params.groups > 1) ? WeightsLayout::g_os_iyx_osv16 : WeightsLayout::os_iyx_osv16;
 }
 
 KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsData(const Params& params,

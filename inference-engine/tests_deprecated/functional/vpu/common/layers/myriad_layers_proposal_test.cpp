@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 #define OUTPUT_SAMPLING_NUM   (20)  // Validate only top 20 rois
 #define OUTPUT_ROI_MATCH_THRESHOLD   (18)  // At least 18 rois should be matched
 
-class myriadLayersTestsProposal_nightly : public myriadLayersTests_nightly {
+class myriadLayersTestsProposal_smoke : public myriadLayersTests_nightly {
 
 protected:
  std::string model;
@@ -277,7 +277,7 @@ std::string caffeModel() {
     )V0G0N";
 }
 
-TEST_F(myriadLayersTestsProposal_nightly, Caffe) {
+TEST_F(myriadLayersTestsProposal_smoke, Caffe) {
 
     // Verify only 20 ranked proposal output with GT values
     std::vector<float> gt_values = {
@@ -313,7 +313,7 @@ TEST_F(myriadLayersTestsProposal_nightly, Caffe) {
     ASSERT_NO_FATAL_FAILURE(compareOutputSampleToRef(gt_values, 0.26f));
 }
 
-TEST_F(myriadLayersTestsProposal_nightly, CaffeNoClipBeforeNms) {
+TEST_F(myriadLayersTestsProposal_smoke, CaffeNoClipBeforeNms) {
 
     // Verify only 20 ranked proposal output with GT values - reference get from MKLDNN plugin
     std::vector<float> gt_values = {
@@ -352,7 +352,7 @@ TEST_F(myriadLayersTestsProposal_nightly, CaffeNoClipBeforeNms) {
     ASSERT_NO_FATAL_FAILURE(compareOutputSampleToRef(gt_values, 0.26f));
 }
 
-TEST_F(myriadLayersTestsProposal_nightly, CaffeClipAfterNms) {
+TEST_F(myriadLayersTestsProposal_smoke, CaffeClipAfterNms) {
 
     // Verify only 20 ranked proposal output with GT values
     std::vector<float> gt_values = {
@@ -394,7 +394,7 @@ TEST_F(myriadLayersTestsProposal_nightly, CaffeClipAfterNms) {
     ASSERT_NO_FATAL_FAILURE(compareOutputSampleToRef(gt_values, 0.26f));
 }
 
-TEST_F(myriadLayersTestsProposal_nightly, CaffeNormalizedOutput) {
+TEST_F(myriadLayersTestsProposal_smoke, CaffeNormalizedOutput) {
 
     // Verify only 20 ranked proposal output with GT values
     std::vector<float> gt_values = {
@@ -436,7 +436,7 @@ TEST_F(myriadLayersTestsProposal_nightly, CaffeNormalizedOutput) {
     ASSERT_NO_FATAL_FAILURE(compareOutputSampleToRef(gt_values, 0.026f));
 }
 
-TEST_F(myriadLayersTestsProposal_nightly, TensorFlow) {
+TEST_F(myriadLayersTestsProposal_smoke, TensorFlow) {
 
      model = R"V0G0N(
         <net name="testProposal" version="2" batch="1">

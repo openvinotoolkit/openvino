@@ -17,9 +17,13 @@ from extensions.ops.elementwise import Add
 from extensions.ops.gather import Gather
 from extensions.ops.range import Range
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node
+from mo.front.tf.graph_utils import create_op_node_with_second_input
+from mo.graph.graph import Node, Graph
+from mo.graph.port import Port
 from mo.ops.concat import Concat
 from mo.ops.const import Const
+from mo.ops.shape import Shape
+from mo.ops.squeeze import Squeeze
 
 
 def get_canonical_axis_index_node(rank: Node, axis: int) -> Node:
@@ -189,3 +193,26 @@ def new_shape_node_from_shape_nodes(input_shape_nodes: list):
         new_shape_node.add_input_port(ind)
         new_shape_node.in_port(ind).connect(input_node.out_port(0))
     return new_shape_node
+
+
+def get_shape_and_rank_nodes_by_port(port: Port, return_as_a_scalar: bool = True):
+    """
+    The function returns nodes producing shape and rank of the data from the desired port in order to use those
+    operations on the middle/back phase
+    :param port: Port object that specifies node output port
+    :param return_as_a_scalar: boolean flag to return 1D or 0D rank
+    :return: shape and rank nodes
+    """
+    input_node_name = port.node.soft_get('name', port.node.id)
+    graph = port.node.graph
+
+    shape = Shape(graph, dict(name=input_node_name + '/ShapeOf')).create_node()
+    rank_1_d = Shape(graph, dict(name=input_node_name + '/1dRankOf')).create_node()
+    rank_1_d.in_port(0).connect(shape.out_port(0))
+    shape.in_port(0).connect(port)
+    if not return_as_a_scalar:
+        return shape, rank_1_d
+
+    rank = create_op_node_with_second_input(graph, Squeeze, int64_array([0]), {'name': input_node_name + '/0dRankOf'},
+                                            rank_1_d)
+    return shape, rank

@@ -27,6 +27,7 @@ class CTCGreedyDecoderOp(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
             'in_ports_count': 2,
             'out_ports_count': 1,
             'infer': CTCGreedyDecoderOp.ctc_greedy_decoder_infer

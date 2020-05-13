@@ -59,7 +59,7 @@ struct primitive_impl {
     virtual bool validate(const primitive_inst& instance) const = 0;
     std::string get_kernel_name() const { return _kernel_name; }
     // TODO: added a derived class for weights reordering (maybe for all static data reordering)
-    const kernel_selector::weights_reorder_params _weights_reorder_params;
+    kernel_selector::weights_reorder_params _weights_reorder_params;
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
 

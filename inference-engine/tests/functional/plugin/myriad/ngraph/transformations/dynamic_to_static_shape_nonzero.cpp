@@ -24,31 +24,39 @@ namespace {
 using TensorType  = ngraph::element::Type_t;
 using TensorShape = ngraph::Shape;
 
-class DynamicToStaticShapeNonZeroTests : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::tuple<TensorType, TensorShape>> {
+typedef std::tuple<
+        TensorType, // input type
+        TensorShape, // input shape
+        TensorType // output type
+> dynamicToStaticShapeNonZeroTestParams;
+
+class DynamicToStaticShapeNonZeroTests : public CommonTestUtils::TestsCommon,
+                                         public testing::WithParamInterface<dynamicToStaticShapeNonZeroTestParams> {
 public:
     void prepareFunctions() {
         const auto& parameters = GetParam();
-        const auto& tensorType = std::get<0>(parameters);
-        const auto& tensorShape = std::get<1>(parameters);
+        const auto& inputType = std::get<0>(parameters);
+        const auto& inputShape = std::get<1>(parameters);
+        const auto& resultType = std::get<2>(parameters);
 
         // Create a function with only op::NonZero
         // And then run conversion pass
         {
-            const auto input = std::make_shared<ngraph::opset3::Parameter>(tensorType, tensorShape);
+            const auto input = std::make_shared<ngraph::opset3::Parameter>(inputType, inputShape);
 
-            const auto nonZero = std::make_shared<ngraph::opset3::NonZero>(input);
+            const auto nonZero = std::make_shared<ngraph::opset3::NonZero>(input, resultType);
             nonZero->set_friendly_name(s_FriendlyName);
 
             actual = std::make_shared<ngraph::Function>(ngraph::NodeVector{nonZero}, ngraph::ParameterVector{input});
             const auto transformation = vpu::Transformations{{ngraph::opset3::NonZero::type_info, vpu::dynamicToStaticShapeNonZero}};
-            vpu::DynamicToStaticShape(transformation).transform(*actual);
+            vpu::DynamicToStaticShape(transformation).transform(actual);
         }
 
         // Create a reference function
         {
-            const auto input = std::make_shared<ngraph::opset1::Parameter>(tensorType, tensorShape);
+            const auto input = std::make_shared<ngraph::opset1::Parameter>(inputType, inputShape);
 
-            const auto staticShapeNonZero = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(input);
+            const auto staticShapeNonZero = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(input, resultType);
             staticShapeNonZero->set_friendly_name(std::string(s_FriendlyName) + "/static_shape");
             const auto dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
                     staticShapeNonZero->output(0), staticShapeNonZero->output(1));
@@ -98,7 +106,10 @@ INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeNonZeroTests, testing::Combi
         TensorShape{1000},
         TensorShape{4, 1000},
         TensorShape{3, 128, 256},
-        TensorShape{2, 3, 128, 256})
+        TensorShape{2, 3, 128, 256}),
+    testing::Values(
+        ngraph::element::i32,
+        ngraph::element::i64)
 ));
 
 }  // namespace

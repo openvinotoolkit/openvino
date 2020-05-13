@@ -74,6 +74,7 @@ class StridedSlice(Op):
         super().__init__(graph, {
             'type': __class__.op,
             'op': 'StridedSlice',
+            'version': 'opset1',
             'in_ports_count': 4,
             'out_ports_count': 1,
             'infer': __class__.infer

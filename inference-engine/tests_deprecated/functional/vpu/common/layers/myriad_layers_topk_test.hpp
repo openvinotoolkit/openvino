@@ -32,17 +32,6 @@ static const Precision indexPrecision = Precision::I32;
 class TopKTest: public myriadLayerTestBaseWithParam<TopKTestParams>
 {
 protected:
-    std::set<std::string> getExecutedStagesTypes() const {
-        std::set<std::string> result;
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-        _inferRequest->GetPerformanceCounts(perfMap, nullptr);
-
-        for (const auto& perf : perfMap)
-            result.emplace(perf.second.exec_type);
-
-        return result;
-    }
-
     void testTopK(const IRVersion irVersion, const bool outputValues, const bool outputIndices) {
         _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
         _config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
@@ -104,16 +93,6 @@ protected:
 
         ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
         ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        const auto executedTypes = getExecutedStagesTypes();
-
-        // This logic must be synchronized with TopKStage class.
-        const bool useArgMaxOptimization = (!outputValues || !outputIndices)
-                && mode == "max"
-                && ((sort == "value" && outputValues) || (sort == "index" && outputIndices));
-
-        ASSERT_EQ(executedTypes.count("ArgMax"), useArgMaxOptimization);
-        ASSERT_EQ(executedTypes.count("TopK"), !useArgMaxOptimization);
 
         Blob::Ptr outputValuesBlob, outputIndicesBlob;
         if (outputValues) {
@@ -326,26 +305,26 @@ protected:
     }
 };
 
-class myriadTestsTopK_nightly: public TopKTest
+class myriadTestsTopK_smoke: public TopKTest
 {
 };
 
-TEST_P(myriadTestsTopK_nightly, TopKv7)
+TEST_P(myriadTestsTopK_smoke, TopKv7)
 {
     testTopK(IRVersion::v7, true, true);
 }
 
-TEST_P(myriadTestsTopK_nightly, TopKv10_All)
+TEST_P(myriadTestsTopK_smoke, TopKv10_All)
 {
     testTopK(IRVersion::v10, true, true);
 }
 
-TEST_P(myriadTestsTopK_nightly, TopKv10_ArgMaxValues)
+TEST_P(myriadTestsTopK_smoke, TopKv10_ArgMaxValues)
 {
     testTopK(IRVersion::v10, true, false);
 }
 
-TEST_P(myriadTestsTopK_nightly, TopKv10_ArgMaxIndices)
+TEST_P(myriadTestsTopK_smoke, TopKv10_ArgMaxIndices)
 {
     testTopK(IRVersion::v10, false, true);
 }

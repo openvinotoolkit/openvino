@@ -102,7 +102,7 @@ public:
         _core = core;
     }
 
-    const ICore* GetCore() const noexcept override {
+    ICore* GetCore() const noexcept override {
         return _core;
     }
 
@@ -137,7 +137,6 @@ public:
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
-
     RemoteContext::Ptr GetDefaultContext() override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
@@ -154,7 +153,7 @@ protected:
      * @param config string-string map of config parameters relevant only for this load operation
      * @return Shared pointer to the ExecutableNetwork object
      */
-    virtual ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICore* core, const ICNNNetwork& network,
+    virtual ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICNNNetwork& network,
                                                               const std::map<std::string, std::string>& config) = 0;
 
     /**
@@ -163,16 +162,13 @@ protected:
      * @note The function is used in
      * InferencePluginInternal::LoadNetwork(const ICNNNetwork&, const std::map<std::string, std::string>&, RemoteContext::Ptr)
      * which performs common steps first and calls this plugin-dependent method implementation after.
-     * @param core A pointer to ICore interface.
      * @param network A network object
      * @param context A remote context
      * @param config string-string map of config parameters relevant only for this load operation
      * @return Shared pointer to the ExecutableNetwork object
      */
-    virtual ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICore* core, const ICNNNetwork& network,
-                                                              RemoteContext::Ptr context,
+    virtual ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICNNNetwork& network, RemoteContext::Ptr context,
                                                               const std::map<std::string, std::string>& config) {
-        (void)core;
         (void)network;
         (void)context;
         (void)config;
@@ -190,21 +186,21 @@ protected:
     void cloneAndCreateExecutableNetwork(IExecutableNetwork::Ptr& executableNetwork, const ICNNNetwork& network,
                                          const std::map<std::string, std::string>& config,
                                          RemoteContext::Ptr context = nullptr) {
-        InputsDataMap networkInputs;
-        OutputsDataMap networkOutputs;
+        InputsDataMap networkInputs, networkInputsCloned;
+        OutputsDataMap networkOutputs, networkOutputsCloned;
         network.getInputsInfo(networkInputs);
         network.getOutputsInfo(networkOutputs);
-        copyInputOutputInfo(networkInputs, networkOutputs, _networkInputs, _networkOutputs);
+        copyInputOutputInfo(networkInputs, networkOutputs, networkInputsCloned, networkOutputsCloned);
 
         ExecutableNetworkInternal::Ptr impl;
         if (nullptr == context) {
-            impl = LoadExeNetworkImpl(GetCore(), network, config);
+            impl = LoadExeNetworkImpl(network, config);
         } else {
-            impl = LoadExeNetworkImpl(GetCore(), network, context, config);
+            impl = LoadExeNetworkImpl(network, context, config);
         }
 
-        impl->setNetworkInputs(_networkInputs);
-        impl->setNetworkOutputs(_networkOutputs);
+        impl->setNetworkInputs(networkInputsCloned);
+        impl->setNetworkOutputs(networkOutputsCloned);
         impl->SetPointerToPluginInternal(shared_from_this());
 
         executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(impl), [](details::IRelease* p) {
@@ -243,8 +239,6 @@ protected:
     }
 
     std::string _pluginName;  //!< A device name that plugins enables
-    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
-    InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
     std::map<std::string, std::string> _config;  //!< A map config keys -> values
     ICore* _core = nullptr;  //!< A pointer to ICore interface
 };

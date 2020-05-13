@@ -8,7 +8,7 @@ pool_test_params roi_pool_test_cases[] = {
     pool_test_params(CommonTestUtils::DEVICE_MYRIAD, "FP16", pool_case),
 };
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, ROIPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, ROIPoolingLayerTest,
                         ::testing::ValuesIn(roi_pool_test_cases),
                         getTestName<pool_test_params>);
 
@@ -18,7 +18,7 @@ memory_test_params memory_test_cases[] = {
 
 // FIXME
 //#if (defined INSTANTIATE_TESTS)
-//INSTANTIATE_TEST_CASE_P(BehaviorTest, MemoryLayerTest,
+//INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, MemoryLayerTest,
 //    ::testing::ValuesIn(memory_test_cases),
 //    getTestName<memory_test_params>);
 //#endif

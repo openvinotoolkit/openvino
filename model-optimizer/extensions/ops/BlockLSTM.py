@@ -26,7 +26,7 @@ class BlockLSTM(Op):
         mandatory_props = {
             'op': __class__.op,
             'infer': __class__.infer,
-            'type': __class__.op,
+            'type': None,
         }
         super().__init__(graph, mandatory_props, attrs)
 

@@ -5,11 +5,11 @@
 #include "behavior_test_plugin_infer_request_config.hpp"
 #include "gna_test_data.hpp"
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInferRequestConfig,
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestInferRequestConfig,
                         ValuesIn(withCorrectConfValues),
                         getConfigTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInferRequestConfigExclusiveAsync, ValuesIn(supportedValues),
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestInferRequestConfigExclusiveAsync, ValuesIn(supportedValues),
                         getConfigTestCaseName);
 
 bool CheckGnaHw() {
@@ -38,6 +38,6 @@ TEST_P(BehaviorPluginTestInferRequestWithGnaHw, CanInferOrFailWithGnaHw) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInferRequestWithGnaHw,
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestInferRequestWithGnaHw,
                         ValuesIn(withGnaHwConfValue),
                         getConfigTestCaseName);

@@ -291,6 +291,12 @@ ShapeLocation Allocator::allocateShape(Data& data) {
 
         shapeLocation.dimsLocation = dataLocation.location;
         shapeLocation.dimsOffset = dataLocation.offset;
+
+        if (data->usage() == DataUsage::Output) {
+            // We need to allocate memory for maximum dims values also
+            data->attrs().set<int>("ioDimsUpperBoundOffset", _blobMemOffset);
+            _blobMemOffset += dimsByteSize;
+        }
     } else {
         // Static allocation
         shapeLocation.dimsLocation = Location::Blob;
@@ -308,20 +314,19 @@ ShapeLocation Allocator::allocateShape(Data& data) {
 }
 
 void Allocator::freeData(const Data& data, DeallocationMode mode) {
-    //
-    // Release the chunk
-    //
+    const auto getChunk = [this, &data](const Data& parent) {
+        VPU_THROW_UNLESS(_allocatedIntermData.count(parent) > 0,
+            "Allocator failed on freeData for {} with usage {}: parent data {} with usage {} is not allocated",
+             data->name(), data->usage(), parent->name(), parent->usage());
 
-    if (const auto& parentDataToShapeEdge = data->parentDataToShapeEdge()) {
-        auto const& parent = parentDataToShapeEdge->parent();
-
-        auto it = _memChunksPerData.find(parentDataToShapeEdge->parent());
-        auto chunk = it->second;
+        auto it = _memChunksPerData.find(parent);
 
         VPU_INTERNAL_CHECK(it != _memChunksPerData.end(),
             "Allocator failed on freeData for {} with usage {}: parent data {} with usage {} "
             "containing shape for current data wasn't yet allocated",
             data->name(), data->usage(), parent->name(), parent->usage());
+
+        auto chunk = it->second;
 
         VPU_INTERNAL_CHECK(chunk != nullptr,
             "Allocator failed on freeData for {} with usage {}: parent data {} with usage {} "
@@ -333,6 +338,10 @@ void Allocator::freeData(const Data& data, DeallocationMode mode) {
             "containing shape for this data has zero usages, but it is using at least by current data",
             data->name(), data->usage(), parent->name(), parent->usage());
 
+        return chunk;
+    };
+
+    const auto decreaseChunkUsage = [this](allocator::MemChunk* chunk, const Data& parent) {
         --chunk->inUse;
 
         if (chunk->inUse == 0) {
@@ -341,32 +350,30 @@ void Allocator::freeData(const Data& data, DeallocationMode mode) {
             _memChunksPerData.erase(parent);
             _allocatedIntermData.erase(parent);
         }
+    };
+
+    //
+    // Release the chunk
+    //
+
+    if (const auto& parentDataToShapeEdge = data->parentDataToShapeEdge()) {
+        auto const& parent = parentDataToShapeEdge->parent();
+
+        if (parent->usage() == DataUsage::Intermediate || parent->usage() == DataUsage::Temp) {
+            auto chunk = getChunk(parent);
+            decreaseChunkUsage(chunk, parent);
+        }
     }
 
     auto topParent = data->getTopParentData();
 
     if (topParent->usage() == DataUsage::Intermediate ||
         topParent->usage() == DataUsage::Temp) {
-        IE_ASSERT(_allocatedIntermData.count(topParent) > 0);
-
-        auto it = _memChunksPerData.find(topParent);
-        IE_ASSERT(it != _memChunksPerData.end());
-
-        auto chunk = it->second;
-        IE_ASSERT(chunk != nullptr);
-        IE_ASSERT(chunk->inUse > 0);
+        auto chunk = getChunk(topParent);
 
         switch (mode) {
         case DeallocationMode::JustFree: {
-            --chunk->inUse;
-
-            if (chunk->inUse == 0) {
-                freeMem(chunk);
-
-                _memChunksPerData.erase(topParent);
-                _allocatedIntermData.erase(topParent);
-            }
-
+            decreaseChunkUsage(chunk, topParent);
             break;
         }
 

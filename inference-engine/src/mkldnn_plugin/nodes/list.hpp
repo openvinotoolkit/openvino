@@ -35,9 +35,6 @@ struct ExtensionsHolder {
     std::map<std::string, IShapeInferImpl::Ptr> si_list;
 };
 
-template <mkldnn::impl::cpu::cpu_isa_t T>
-class TExtensionsHolder : public ExtensionsHolder {};
-
 template<mkldnn::impl::cpu::cpu_isa_t Type>
 class MKLDNNExtensions : public IExtension {
 public:
@@ -89,11 +86,11 @@ public:
     }
 
     static std::shared_ptr<ExtensionsHolder> GetExtensionsHolder() {
-        static std::shared_ptr<TExtensionsHolder<Type>> localHolder;
+        static std::shared_ptr<ExtensionsHolder> localHolder;
         if (localHolder == nullptr) {
-            localHolder = std::make_shared<TExtensionsHolder<Type>>();
+            localHolder = std::make_shared<ExtensionsHolder>();
         }
-        return std::dynamic_pointer_cast<ExtensionsHolder>(localHolder);
+        return localHolder;
     }
 
 private:

@@ -40,12 +40,12 @@ PRETTY_PARAM(layoutPreference, vpu::LayoutPreference)
 PRETTY_PARAM(hw_optimization, bool)
 
 typedef myriadLayerTestBaseWithParam<tuple<DimsInput, kernel, stride, pad
-        , out_channels, group, layoutPreference, hw_optimization >> myriadLayerDeconvolution_nightly;
+        , out_channels, group, layoutPreference, hw_optimization >> myriadLayerDeconvolution_smoke;
 
 typedef myriadLayerTestBaseWithParam<tuple<DimsInput, kernel, stride, pad, pad_end
         , out_channels, group, layoutPreference, hw_optimization >> myriadLayerDeconvolution_asymm_pad;
 
-TEST_P(myriadLayerDeconvolution_nightly, Deconvolution) {
+TEST_P(myriadLayerDeconvolution_smoke, Deconvolution) {
     tensor_test_params input_dims = get<0>(GetParam());
     param_size kernel = get<1>(GetParam());
     param_size stride = get<2>(GetParam());

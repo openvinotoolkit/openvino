@@ -4,7 +4,7 @@
 
 #include "holders_tests.hpp"
 
-INSTANTIATE_TEST_CASE_P(ReleaseOrderTests, CPP_HoldersTests, testing::Combine(testing::ValuesIn(std::vector<std::vector<int>> {
+INSTANTIATE_TEST_CASE_P(smoke_ReleaseOrderTests, CPP_HoldersTests, testing::Combine(testing::ValuesIn(std::vector<std::vector<int>> {
     // 0 - plugin
     // 1 - executable_network
     // 2 - infer_request

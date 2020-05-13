@@ -375,51 +375,51 @@ protected:
     }
 };
 
-class myriadTestsEltwiseMax_nightly: public EltwiseTest<ELTWISE_MAX>
+class myriadTestsEltwiseMax_smoke: public EltwiseTest<ELTWISE_MAX>
 {
 };
 
-class myriadTestsEltwiseSum_nightly: public EltwiseTest<ELTWISE_SUM>
+class myriadTestsEltwiseSum_smoke: public EltwiseTest<ELTWISE_SUM>
 {
 };
 
-class myriadTestsEltwiseSub_nightly: public EltwiseTest<ELTWISE_SUB>
+class myriadTestsEltwiseSub_smoke: public EltwiseTest<ELTWISE_SUB>
 {
 };
 
-class myriadTestsEltwiseMul_nightly: public EltwiseTest<ELTWISE_MUL>
+class myriadTestsEltwiseMul_smoke: public EltwiseTest<ELTWISE_MUL>
 {
 };
 
-class myriadTestsEltwiseSumWithCoeff_nightly: public EltwiseTest<ELTWISE_SUM>
+class myriadTestsEltwiseSumWithCoeff_smoke: public EltwiseTest<ELTWISE_SUM>
 {
 };
 
-class myriadTestsEltwiseSubWithCoeff_nightly: public EltwiseTest<ELTWISE_SUB>
+class myriadTestsEltwiseSubWithCoeff_smoke: public EltwiseTest<ELTWISE_SUB>
 {
 };
 
-class myriadTestsEltwiseSumWithBroadcast_nightly: public EltwiseTest<ELTWISE_SUM>
+class myriadTestsEltwiseSumWithBroadcast_smoke: public EltwiseTest<ELTWISE_SUM>
 {
 };
 
-class myriadTestsEltwiseSubWithBroadcast_nightly: public EltwiseTest<ELTWISE_SUB>
+class myriadTestsEltwiseSubWithBroadcast_smoke: public EltwiseTest<ELTWISE_SUB>
 {
 };
 
-class myriadTestsEltwiseDiv_nightly: public EltwiseTest<ELTWISE_DIV>
+class myriadTestsEltwiseDiv_smoke: public EltwiseTest<ELTWISE_DIV>
 {
 };
 
-class myriadTestsEltwiseMin_nightly: public EltwiseTest<ELTWISE_MIN>
+class myriadTestsEltwiseMin_smoke: public EltwiseTest<ELTWISE_MIN>
 {
 };
 
-class myriadTestsEltwiseSqDiff_nightly: public EltwiseTest<ELTWISE_SQDIFF>
+class myriadTestsEltwiseSqDiff_smoke: public EltwiseTest<ELTWISE_SQDIFF>
 {
 };
 
-class myriadTestsEltwisePow_nightly: public EltwiseTest<ELTWISE_POW>
+class myriadTestsEltwisePow_smoke: public EltwiseTest<ELTWISE_POW>
 {
     void SetUp() override {
         EltwiseTest::SetUp();
@@ -427,35 +427,35 @@ class myriadTestsEltwisePow_nightly: public EltwiseTest<ELTWISE_POW>
     }
 };
 
-class myriadTestsEltwiseFloorMod_nightly: public EltwiseTest<ELTWISE_FLOOR_MOD>
+class myriadTestsEltwiseFloorMod_smoke: public EltwiseTest<ELTWISE_FLOOR_MOD>
 {
 };
 
-class myriadTestsEltwiseEqual_nightly: public EltwiseTest<ELTWISE_EQUAL>
+class myriadTestsEltwiseEqual_smoke: public EltwiseTest<ELTWISE_EQUAL>
 {
 };
 
-class myriadTestsEltwiseNotEqual_nightly: public EltwiseTest<ELTWISE_NOT_EQUAL>
+class myriadTestsEltwiseNotEqual_smoke: public EltwiseTest<ELTWISE_NOT_EQUAL>
 {
 };
 
-class myriadTestsEltwiseGreater_nightly: public EltwiseTest<ELTWISE_GREATER>
+class myriadTestsEltwiseGreater_smoke: public EltwiseTest<ELTWISE_GREATER>
 {
 };
 
-class myriadTestsEltwiseGreaterEqual_nightly: public EltwiseTest<ELTWISE_GREATER_EQUAL>
+class myriadTestsEltwiseGreaterEqual_smoke: public EltwiseTest<ELTWISE_GREATER_EQUAL>
 {
 };
 
-class myriadTestsEltwiseLess_nightly: public EltwiseTest<ELTWISE_LESS>
+class myriadTestsEltwiseLess_smoke: public EltwiseTest<ELTWISE_LESS>
 {
 };
 
-class myriadTestsEltwiseLessEqual_nightly: public EltwiseTest<ELTWISE_LESS_EQUAL>
+class myriadTestsEltwiseLessEqual_smoke: public EltwiseTest<ELTWISE_LESS_EQUAL>
 {
 };
 
-class myriadTestsEltwiseLogicalNot_nightly: public EltwiseTest<ELTWISE_LOGICAL_NOT>
+class myriadTestsEltwiseLogicalNot_smoke: public EltwiseTest<ELTWISE_LOGICAL_NOT>
 {
     void SetUp() override {
         EltwiseTest::SetUp();
@@ -463,7 +463,7 @@ class myriadTestsEltwiseLogicalNot_nightly: public EltwiseTest<ELTWISE_LOGICAL_N
     }
 };
 
-class myriadTestsEltwiseLogicalAnd_nightly: public EltwiseTest<ELTWISE_LOGICAL_AND>
+class myriadTestsEltwiseLogicalAnd_smoke: public EltwiseTest<ELTWISE_LOGICAL_AND>
 {
     void SetUp() override {
         EltwiseTest::SetUp();
@@ -471,7 +471,7 @@ class myriadTestsEltwiseLogicalAnd_nightly: public EltwiseTest<ELTWISE_LOGICAL_A
     }
 };
 
-class myriadTestsEltwiseLogicalOr_nightly: public EltwiseTest<ELTWISE_LOGICAL_OR>
+class myriadTestsEltwiseLogicalOr_smoke: public EltwiseTest<ELTWISE_LOGICAL_OR>
 {
     void SetUp() override {
         EltwiseTest::SetUp();
@@ -479,7 +479,7 @@ class myriadTestsEltwiseLogicalOr_nightly: public EltwiseTest<ELTWISE_LOGICAL_OR
     }
 };
 
-class myriadTestsEltwiseLogicalXor_nightly: public EltwiseTest<ELTWISE_LOGICAL_XOR>
+class myriadTestsEltwiseLogicalXor_smoke: public EltwiseTest<ELTWISE_LOGICAL_XOR>
 {
     void SetUp() override {
         EltwiseTest::SetUp();
@@ -487,126 +487,126 @@ class myriadTestsEltwiseLogicalXor_nightly: public EltwiseTest<ELTWISE_LOGICAL_X
     }
 };
 
-class myriadTestsEltwiseMean_nightly: public EltwiseTest<ELTWISE_MEAN>
+class myriadTestsEltwiseMean_smoke: public EltwiseTest<ELTWISE_MEAN>
 {
 };
 
-TEST_P(myriadTestsEltwiseMax_nightly, Max)
+TEST_P(myriadTestsEltwiseMax_smoke, Max)
 {
     InitBody();
 }
 
-TEST_P(myriadTestsEltwiseSum_nightly, Sum)
+TEST_P(myriadTestsEltwiseSum_smoke, Sum)
 {
     InitBody();
 }
 
-TEST_P(myriadTestsEltwiseSub_nightly, Sub)
+TEST_P(myriadTestsEltwiseSub_smoke, Sub)
 {
     InitBody();
 }
 
-TEST_P(myriadTestsEltwiseMul_nightly, Mul)
+TEST_P(myriadTestsEltwiseMul_smoke, Mul)
 {
     InitBody();
 }
 
-TEST_P(myriadTestsEltwiseSumWithCoeff_nightly, Sum)
+TEST_P(myriadTestsEltwiseSumWithCoeff_smoke, Sum)
 {
     InitBody(true);
 }
 
-TEST_P(myriadTestsEltwiseSubWithCoeff_nightly, Sub)
+TEST_P(myriadTestsEltwiseSubWithCoeff_smoke, Sub)
 {
     InitBody(true);
 }
 
-TEST_P(myriadTestsEltwiseSumWithBroadcast_nightly, Sum)
+TEST_P(myriadTestsEltwiseSumWithBroadcast_smoke, Sum)
 {
     InitBody(false, true);
 }
 
-TEST_P(myriadTestsEltwiseSubWithBroadcast_nightly, Sub)
+TEST_P(myriadTestsEltwiseSubWithBroadcast_smoke, Sub)
 {
     InitBody(false, true);
 }
 
-TEST_P(myriadTestsEltwiseDiv_nightly, Div)
+TEST_P(myriadTestsEltwiseDiv_smoke, Div)
 {
     InitBody();
 }
 
-TEST_P(myriadTestsEltwiseMin_nightly, Min)
+TEST_P(myriadTestsEltwiseMin_smoke, Min)
 {
     InitBody();
 }
 
-TEST_P(myriadTestsEltwiseSqDiff_nightly, SqDiff)
+TEST_P(myriadTestsEltwiseSqDiff_smoke, SqDiff)
 {
     InitBody();
 }
 
-TEST_P(myriadTestsEltwisePow_nightly, Pow)
+TEST_P(myriadTestsEltwisePow_smoke, Pow)
 {
     InitBody();
 }
 
-TEST_P(myriadTestsEltwiseFloorMod_nightly, FloorMod)
+TEST_P(myriadTestsEltwiseFloorMod_smoke, FloorMod)
 {
     InitBody();
 }
 
-TEST_P(myriadTestsEltwiseEqual_nightly, Equal)
+TEST_P(myriadTestsEltwiseEqual_smoke, Equal)
 {
     InitBody(false, false, true);
 }
 
-TEST_P(myriadTestsEltwiseNotEqual_nightly, NotEqual)
+TEST_P(myriadTestsEltwiseNotEqual_smoke, NotEqual)
 {
     InitBody(false, false, true);
 }
 
-TEST_P(myriadTestsEltwiseGreater_nightly, Greater)
+TEST_P(myriadTestsEltwiseGreater_smoke, Greater)
 {
     InitBody(false, false, true);
 }
 
-TEST_P(myriadTestsEltwiseGreaterEqual_nightly, GreaterEqual)
+TEST_P(myriadTestsEltwiseGreaterEqual_smoke, GreaterEqual)
 {
     InitBody(false, false, true);
 }
 
-TEST_P(myriadTestsEltwiseLess_nightly, Less)
+TEST_P(myriadTestsEltwiseLess_smoke, Less)
 {
     InitBody(false, false, true);
 }
 
-TEST_P(myriadTestsEltwiseLessEqual_nightly, LessEqual)
+TEST_P(myriadTestsEltwiseLessEqual_smoke, LessEqual)
 {
     InitBody(false, false, true);
 }
 
-TEST_P(myriadTestsEltwiseLogicalNot_nightly, LogicalNot)
+TEST_P(myriadTestsEltwiseLogicalNot_smoke, LogicalNot)
 {
     InitBody(false, false, true);
 }
 
-TEST_P(myriadTestsEltwiseLogicalAnd_nightly, LogicalAnd)
+TEST_P(myriadTestsEltwiseLogicalAnd_smoke, LogicalAnd)
 {
     InitBody(false, false, true);
 }
 
-TEST_P(myriadTestsEltwiseLogicalOr_nightly, LogicalOr)
+TEST_P(myriadTestsEltwiseLogicalOr_smoke, LogicalOr)
 {
     InitBody(false, false, true);
 }
 
-TEST_P(myriadTestsEltwiseLogicalXor_nightly, LogicalXor)
+TEST_P(myriadTestsEltwiseLogicalXor_smoke, LogicalXor)
 {
     InitBody(false, false, true);
 }
 
-TEST_P(myriadTestsEltwiseMean_nightly, Mean)
+TEST_P(myriadTestsEltwiseMean_smoke, Mean)
 {
     InitBody();
 }

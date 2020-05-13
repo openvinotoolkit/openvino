@@ -13,15 +13,13 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.Log import LogOp
 from extensions.ops.ReduceOps import ReduceMax, ReduceSum
+from extensions.ops.activation_ops import Exp, Log
 from extensions.ops.elementwise import Sub
-from extensions.ops.exp import ExpOp
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
-from mo.ops.const import Const
 
 
 class LogSoftmaxFrontReplacer(FrontReplacementOp):
@@ -69,12 +67,12 @@ class LogSoftmaxFrontReplacer(FrontReplacementOp):
         reduce_max_node.out_port(0).connect(first_sub_node.in_port(1))
 
         # Creating of Exp -> ReduceSum -> Log block
-        exp_node = ExpOp(graph,  {'name': node_name + '/Exp_'}).create_node()
+        exp_node = Exp(graph,  {'name': node_name + '/Exp_'}).create_node()
         reduce_sum_node = create_op_with_const_inputs(graph,
                                                       ReduceSum,
                                                       {1: int64_array([node.axis])},
                                                       op_attrs={'name': node_name + '/ReduceSum_', 'keep_dims': True})
-        log_node = LogOp(graph, {'name': node_name + '/Log_'}).create_node()
+        log_node = Log(graph, {'name': node_name + '/Log_'}).create_node()
 
         first_sub_node.out_port(0).connect(exp_node.in_port(0))
         exp_node.out_port(0).connect(reduce_sum_node.in_port(0))

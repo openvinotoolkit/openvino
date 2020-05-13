@@ -4,7 +4,7 @@
 
 #include "myriad_layers_nms_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsNonMaxSuppression_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsNonMaxSuppression_smoke,
     ::testing::Values(
             MAKE_STRUCT(NMS_testParams,
                         {6, 1, 1}, // {spatial_dimension, num_classes, num_batches}

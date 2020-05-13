@@ -7,16 +7,16 @@
 
 using namespace InferenceEngine;
 
-class myriadLayersTestsFullyConnected_nightly: public myriadLayersTests_nightly,
+class myriadLayersTestsFullyConnected_smoke: public myriadLayersTests_nightly,
                            public testing::WithParamInterface<fcon_test_params> {
 };
 
 typedef std::tuple<InferenceEngine::SizeVector, uint32_t> IR3_FC_params;
-class myriadLayersTestsFullyConnectedBatch_nightly: public myriadLayersTests_nightly,
+class myriadLayersTestsFullyConnectedBatch_smoke: public myriadLayersTests_nightly,
                            public testing::WithParamInterface<IR3_FC_params> {
 };
 
-TEST_P(myriadLayersTestsFullyConnected_nightly, TestsFullyConnected)
+TEST_P(myriadLayersTestsFullyConnected_smoke, TestsFullyConnected)
 {
     fcon_test_params p = ::testing::WithParamInterface<fcon_test_params>::GetParam();
 
@@ -83,7 +83,7 @@ static void genTestData1(InferenceEngine::Blob::Ptr blob) {
 }
 
 
-TEST_P(myriadLayersTestsFullyConnectedBatch_nightly, TestsFullyConnected)
+TEST_P(myriadLayersTestsFullyConnectedBatch_smoke, TestsFullyConnected)
 {
     auto p = ::testing::WithParamInterface<IR3_FC_params>::GetParam();
     auto input_tensor = std::get<0>(p);
@@ -117,11 +117,11 @@ TEST_P(myriadLayersTestsFullyConnectedBatch_nightly, TestsFullyConnected)
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), 0.02);
 }
 
-class myriadLayersTestsFullyConnectedPVA_nightly: public myriadLayersTests_nightly,
+class myriadLayersTestsFullyConnectedPVA_smoke: public myriadLayersTests_nightly,
                            public testing::WithParamInterface<IR3_FC_params> {
 };
 
-TEST_P(myriadLayersTestsFullyConnectedPVA_nightly, TestsFullyConnected)
+TEST_P(myriadLayersTestsFullyConnectedPVA_smoke, TestsFullyConnected)
 {
     auto p = ::testing::WithParamInterface<IR3_FC_params>::GetParam();
     auto input_tensor = std::get<0>(p);

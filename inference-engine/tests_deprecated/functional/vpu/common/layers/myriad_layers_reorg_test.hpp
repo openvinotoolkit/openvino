@@ -5,121 +5,109 @@
 #include <gtest/gtest.h>
 #include "myriad_layers_tests.hpp"
 
-using std::tuple;
-using std::get;
-
 using namespace InferenceEngine;
 
-static void reorg_calculate(short *inp, int w, int h, int c, int batch, int stride, float *out)
+static void reorg_calculate(const Blob::Ptr src, Blob::Ptr dst, int stride)
 {
-    int out_c = c / (stride*stride);
+	ASSERT_NE(src, nullptr);
+    ASSERT_NE(dst, nullptr);
+    const uint16_t *src_data = src->buffer();
+          uint16_t *dst_data = dst->buffer();
+    ASSERT_NE(src_data, nullptr);
+    ASSERT_NE(dst_data, nullptr);
 
-    int oc = c * (stride*stride);
-    int oh = h / stride;
-    int ow = w / stride;
+    const auto inputDims = src->getTensorDesc().getDims();
+    const int C = inputDims[1];
+    const int H = inputDims[2];
+    const int W = inputDims[3];
 
-    for(int b = 0; b < batch; ++b)
-    {
-        for(int k = 0; k < c; ++k)
-        {
-            for(int j = 0; j < h; ++j)
-            {
-                for(int i = 0; i < w; ++i)
-                {
-                    int in_index = i + w * (j + h * (k + c * b));
+	const auto inputCHW = [&] {
+		auto inputCHW = std::vector<ie_fp16>(C*H*W);
+		if (Layout::NCHW == src->getTensorDesc().getLayout()) {
+			std::copy(src_data, src_data + C*H*W, begin(inputCHW));
+		} else {
+			for (int c = 0; c < C; c++) {
+				for (int h = 0; h < H; h++) {
+					for (int w = 0; w < W; w++) {
+						inputCHW[c*H*W + h*W + w] = src_data[h*W*C + w*C + c];
+					}
+				}
+			}
+		}
+		return inputCHW;
+	}();
 
-                    int new_z = in_index / (oh*ow);
-                    int new_y = (in_index %(oh*ow)) / ow;
-                    int new_x = (in_index %(oh*ow)) % ow;
-                    int new_index = new_z + new_x * oc + new_y * oc * ow;
+	const int C2 = C/(stride*stride);
+	const int H2 = H*stride;
+	const int W2 = W*stride;
 
-                    int c2 = k % out_c;
-                    int offset = k / out_c;
-                    int w2 = i*stride + offset % stride;
-                    int h2 = j*stride + offset / stride;
-                    int out_index = w2 + w*stride*(h2 + h*stride*(c2 + out_c*b));
+    for (int c = 0; c < C; ++c) {
+		for (int h = 0; h < H; ++h) {
+			for (int w = 0; w < W; ++w) {
+				const int offset = c/C2;
+				const int c2 = c - C2*offset;
+				const int h2 = h*stride + offset/stride;
+				const int w2 = w*stride + offset - stride*(offset/stride);
 
-                    out[new_index] = PrecisionUtils::f16tof32(inp[out_index]);
-                }
-            }
-        }
-    }
+				dst_data[c*H*W + h*W + w] = inputCHW[c2*H2*W2 + h2*W2 + w2];
+			}
+		}
+	}
+
+	dst->getTensorDesc().setLayout(Layout::NCHW);
 }
 
 PRETTY_PARAM(Stride, int);
-PRETTY_PARAM(ScaleOutput, int);
 PRETTY_PARAM(layoutPreference, vpu::LayoutPreference);
+PRETTY_PARAM(CustomConfig, std::string)
 
+typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, Stride, layoutPreference, IRVersion, CustomConfig>>
+	myriadLayersTestsReorg_smoke;
 
-typedef myriadLayerTestBaseWithParam<tuple<DimsInput, ScaleOutput, Stride, layoutPreference, std::string, IRVersion>> myriadLayersTestsReorg_nightly;
+TEST_P(myriadLayersTestsReorg_smoke, TestsReorg) {
+    const SizeVector dimsInput = std::get<0>(GetParam());
+    const int stride = std::get<1>(GetParam());
+    const auto layoutPreference = std::get<2>(GetParam());
+    _irVersion = std::get<3>(GetParam());
+	const std::string customConfig = std::get<4>(GetParam());
 
-TEST_P(myriadLayersTestsReorg_nightly, TestsReorg) {
+    if(!customConfig.empty() && !CheckMyriadX()) {
+		GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
+	}
+    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
 
-    // TODO: M2 mode is not working for OpenCL compiler
-    if(!get<4>(GetParam()).empty() && !CheckMyriadX()) {
-        GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
-    }
+    const auto dimsOutput = SizeVector{dimsInput[0],
+									   dimsInput[1] * (stride * stride),
+									   dimsInput[2] / stride,
+									   dimsInput[3] / stride};
 
-    tensor_test_params dimsInput = get<0>(GetParam());
+    SetInputTensors({dimsInput});
+    SetOutputTensors({dimsOutput});
 
-    int scaleOutput = get<1>(GetParam());
-    tensor_test_params dimsOutput = {dimsInput.n, dimsInput.c * (scaleOutput * scaleOutput), dimsInput.h / scaleOutput, dimsInput.w / scaleOutput};
-
-    int stride = get<2>(GetParam());
-    auto layoutPreference = get<3>(GetParam());
-    _irVersion = get<5>(GetParam());
     std::map<std::string, std::string> params;
-    std::string type =  "ReorgYolo";
-
     params["stride"] = std::to_string(stride);
-    SetInputTensor(dimsInput);
-    SetOutputTensor(dimsOutput);
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = get<4>(GetParam());
-    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams(type)
-                                                   .params(params),
-                                                   NetworkInitParams().layoutPreference(layoutPreference)
-                                                   .outputPrecision(InferenceEngine::Precision::FP32)));
-    /* input data preparation */
-    SetInputInOrder();
+
+    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("ReorgYolo").params(params),
+												   NetworkInitParams()
+													   .layoutPreference(layoutPreference)
+													   .lockLayout(true)));
 
     ASSERT_TRUE(Infer());
-    InferenceEngine::SizeVector inputDims = _inputsInfo.begin()->second->getTensorDesc().getDims();
-    InferenceEngine::Blob::Ptr inputBlobRef =
-            InferenceEngine::make_shared_blob<short>({InferenceEngine::Precision::FP16, inputDims, InferenceEngine::NHWC});
-    inputBlobRef->allocate();
-    short *inputBlobRefRawData = inputBlobRef->buffer();
 
-    int c = inputDims[1];
-    int h = inputDims[2];
-    int w = inputDims[3];
+    ASSERT_NO_FATAL_FAILURE(reorg_calculate(_inputMap.begin()->second, _refBlob, stride));
 
-    auto inputBlob =_inputMap[_inputsInfo.begin()->first];
-    short * inputBlob_data = inputBlob->buffer();
-
-    /* Preliminary repacking */
-    for(int k = 0; k < c; k++)
-    {
-        for(int j = 0; j < h; j++)
-        {
-            for(int i = 0; i < w; i++)
-            {
-                int dst_index = i + w * j + w * h * k;
-                int src_index = k + c * i + c * w * j;
-
-                inputBlobRefRawData[dst_index] = inputBlob_data[src_index];
-            }
-        }
-    }
-
-    auto outputBlob =_outputMap[_outputsInfo.begin()->first];
-    InferenceEngine::SizeVector outputDims = _outputsInfo.begin()->second->getTensorDesc().getDims();
-
-    InferenceEngine::TBlob<float>::Ptr outputBlobRef =
-                InferenceEngine::make_shared_blob<float>(TensorDesc(InferenceEngine::Precision::FP32, outputDims, InferenceEngine::NCHW));
-    outputBlobRef->allocate();
-    float *outputBlobRefRawData = outputBlobRef->buffer();
-
-    reorg_calculate(inputBlobRefRawData, w, h, c, 1, stride, outputBlobRefRawData);
-
-    compare(outputBlob->buffer(), outputBlobRef->buffer(), outputBlob->size(), 0.0);
+    CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, 0);
 }
+
+static std::vector<CustomConfig> s_CustomConfig = {
+	{""},
+#ifdef VPU_HAS_CUSTOM_KERNELS
+    getIELibraryPath() + "/vpu_custom_kernels/customLayerBindings.xml"
+#endif
+};
+
+static std::vector<SizeVector> s_ReorgInputs = {
+		{1, 64, 26, 26},
+		{1, 192, 6 * 26, 6 * 26},
+		{1, 4, 6, 6}
+};

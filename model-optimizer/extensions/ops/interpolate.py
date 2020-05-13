@@ -26,6 +26,7 @@ class Interpolate(Op):
         mandatory_props = {
             'op': self.op,
             'type': self.op,
+            'version': 'opset1',
 
             'axes': None,
             'mode': None,

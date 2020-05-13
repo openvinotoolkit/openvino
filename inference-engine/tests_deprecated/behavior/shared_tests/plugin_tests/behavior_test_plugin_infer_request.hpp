@@ -13,8 +13,11 @@ using namespace InferenceEngine::details;
 
 namespace {
 std::string getTestCaseName(testing::TestParamInfo<BehTestParams> obj) {
-    return obj.param.device + "_" + obj.param.input_blob_precision.name()
-           + (obj.param.config.size() ? "_" + obj.param.config.begin()->second : "");
+    std::string config;
+    for (auto&& cfg : obj.param.config) {
+        config += "_" + cfg.first + "_" + cfg.second;
+    }
+    return obj.param.device + "_" + obj.param.input_blob_precision.name() + config;
 }
 }
 
@@ -500,6 +503,15 @@ TEST_P(BehaviorPluginTestInferRequest, canWaitWithotStartAsync) {
 
 TEST_P(BehaviorPluginTestInferRequest, returnDeviceBusyOnSetBlobAfterAsyncInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    auto&& config = GetParam().config;
+    auto itConfig = config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
+    if (itConfig != config.end()) {
+        if (itConfig->second != "CPU_THROUGHPUT_AUTO") {
+            if (std::stoi(itConfig->second) == 0) {
+                GTEST_SKIP() << "Not applicable with disabled streams";
+            }
+        }
+    }
     TestEnv::Ptr testEnv;
     ASSERT_NO_FATAL_FAILURE(_createAndCheckInferRequest(GetParam(), testEnv));
     Blob::Ptr input;

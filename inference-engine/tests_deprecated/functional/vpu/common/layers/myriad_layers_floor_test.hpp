@@ -25,12 +25,12 @@ void ref_floor(const InferenceEngine::Blob::Ptr src,
     }
 }
 
-class myriadLayersTestsFloor_nightly: public myriadLayersTests_nightly,
+class myriadLayersTestsFloor_smoke: public myriadLayersTests_nightly,
                                     public testing::WithParamInterface<Dims> {
 public:
 };
 
-TEST_P(myriadLayersTestsFloor_nightly, TestsFloor)
+TEST_P(myriadLayersTestsFloor_smoke, TestsFloor)
 {
     auto p = ::testing::WithParamInterface<Dims>::GetParam();
     SetInputTensor(p);
