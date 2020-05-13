@@ -128,30 +128,45 @@ inline OutInfoWrapper default_order(CNNLayer* layer) {
 template <class T, class Ordering = std::function<OutInfoWrapper(CNNLayer*)>>
 inline bool DFS(std::unordered_map<CNNLayer*, bool>& visited, const InferenceEngine::CNNLayerPtr& layer, const T& visit,
                 bool visitBefore, const Ordering& order = &default_order) {
+
     if (layer == nullptr) {
         return true;
     }
 
-    if (visitBefore) visit(layer);
-    visited[layer.get()] = false;
-    for (auto outLayerPtr : order(layer.get())) {
-        auto i = visited.find(outLayerPtr.get());
-        if (i != visited.end()) {
-            /**
-             * cycle detected we entered still not completed node
-             */
-            if (!i->second) {
-                return false;
+    auto list = std::list<CNNLayerPtr>{layer};
+    while (!list.empty()) {
+        const auto& currentNode = list.front();
+        const auto& currentLayer = currentNode.get();
+
+        const auto& visitState = visited.find(currentLayer);
+        if (visitState == visited.end()) {
+            visited.emplace(currentLayer, false);
+
+            if (visitBefore) {
+                visit(currentNode);
             }
-            continue;
-        }
-        if (!DFS(visited, outLayerPtr, visit, visitBefore, order)) {
-            return false;
+
+            auto position = list.begin();
+            for (auto successorNode : order(currentLayer)) {
+                const auto& successorLayer = successorNode.get();
+                const auto& visitSuccessorState = visited.find(successorLayer);
+                if (visitSuccessorState == visited.end()) {
+                    list.emplace(position, std::move(successorNode));
+                } else if (!visitSuccessorState->second) {
+                    return false;
+                }
+            }
+        } else {
+            if (!visitState->second) {
+                if (!visitBefore) {
+                    visit(currentNode);
+                }
+                visited[currentLayer] = true;
+            }
+            list.pop_front();
         }
     }
 
-    if (!visitBefore) visit(layer);
-    visited[layer.get()] = true;
     return true;
 }
 
