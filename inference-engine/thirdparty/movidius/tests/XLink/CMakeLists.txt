@@ -27,6 +27,12 @@ target_link_libraries(${TARGET_NAME}
         PRIVATE
         XLink gtest gtest_main)
 
+if(NOT WIN32)
+    target_link_libraries(${TARGET_NAME}
+            PUBLIC
+            ${CMAKE_DL_LIBS})
+endif()
+
 set_target_properties(${TARGET_NAME} PROPERTIES
         POSITION_INDEPENDENT_CODE TRUE
         COMPILE_PDB_NAME ${TARGET_NAME})
