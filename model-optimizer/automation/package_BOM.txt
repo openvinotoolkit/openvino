@@ -362,6 +362,7 @@ extensions/front/tf/cumsum_ext.py
 extensions/front/tf/deconv_ext.py
 extensions/front/tf/depth_to_space.py
 extensions/front/tf/elementwise_ext.py
+extensions/front/tf/embedding_segments_sum.py
 extensions/front/tf/expand_dims_ext.py
 extensions/front/tf/extract_image_patches_ext.py
 extensions/front/tf/fake_const_ext.py
@@ -435,7 +436,6 @@ extensions/front/tf/sparse_segment_mean_ext.py
 extensions/front/tf/sparse_segment_sqrtn_ext.py
 extensions/front/tf/sparse_segment_sum_ext.py
 extensions/front/tf/sparse_to_dense_ext.py
-extensions/front/tf/sparse_weighted_sum.py
 extensions/front/tf/split_ext.py
 extensions/front/tf/ssd_support.json
 extensions/front/tf/ssd_support_api_v1.14.json
