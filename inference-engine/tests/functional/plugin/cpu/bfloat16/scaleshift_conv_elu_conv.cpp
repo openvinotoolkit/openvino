@@ -27,7 +27,7 @@ namespace LayerTestsDefinitions {
 
 class ScaleshiftConvEluConv : public BasicBF16Test {
 protected:
-    std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision)override {
+    std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
         //              scaleshift (FP32)
         //                 |
         //                Conv (BF16)
@@ -37,8 +37,10 @@ protected:
         //                Conv (BF16)
 
         ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
+        auto channelsCount = inputShapes[1];
+
         // multiply
-        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{1, 3, 40, 40});
+        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{inputShapes});
         input1->set_friendly_name("Input_1");
         std::shared_ptr<ngraph::opset1::Constant> const1 = nullptr;
         if (netPrecision == Precision::FP32) {
@@ -60,15 +62,15 @@ protected:
 
         // convolution
         std::shared_ptr<ngraph::opset1::Constant> weightsNode = nullptr;
-        ngraph::Shape convFilterShape = { 3, 3, 3, 3 };  // out channel, /input channels, kernel h, kernel w
+        ngraph::Shape convFilterShape = { channelsCount, channelsCount, 3, 3 };  // out channel, /input channels, kernel h, kernel w
         if (netPrecision == Precision::FP32) {
             std::vector<float> weightValuesFP32;
-            weightValuesFP32.resize(3 * 3 * 3 * 3);
+            weightValuesFP32.resize(channelsCount * channelsCount * 3 * 3);
             BFloat16Helpers::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
             weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesFP32);
         } else {
             std::vector<short> weightValuesBF16;
-            weightValuesBF16.resize(3 * 3 * 3 * 3);
+            weightValuesBF16.resize(channelsCount * channelsCount * 3 * 3);
             BFloat16Helpers::fillInputsBySinValues(weightValuesBF16.data(), weightValuesBF16.size());
             weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesBF16.data());
         }
@@ -98,7 +100,7 @@ protected:
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{convNode2}, ngraph::ParameterVector{input1});
     }
-    void SetUp()override {
+    void SetUp() override {
         std::tie(inputPrecision, netPrecision, inputShapes, newInputShapes, targetDevice) = this->GetParam();
         fnPtr = createGraph(netPrecision);
 
@@ -109,7 +111,6 @@ protected:
         // performance counters
         expectedPrecisions["ADD_1"] = "FP32";
         expectedPrecisions["CONV_1"] = "BF16";
-        expectedPrecisions["ELU_1"] = "FP32";
         expectedPrecisions["CONV_2"] = "BF16";
     }
 };

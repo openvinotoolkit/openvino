@@ -34,6 +34,7 @@ class Activation(Op):
             'type': self.op,
             'op': self.op,
             'operation': self.operation,
+            'version': 'opset1',
             'infer': self.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,

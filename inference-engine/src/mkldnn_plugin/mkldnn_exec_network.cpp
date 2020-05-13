@@ -41,25 +41,7 @@ MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap network
 MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network,
                                      const Config &cfg,
                                      const MKLDNNExtensionManager::Ptr& extMgr) :
-    InferenceEngine::ExecutableNetworkThreadSafeDefault([&] ()->ITaskExecutor::Ptr {
-        ExecutorManager *executorManager = ExecutorManager::getInstance();
-
-        if (cfg.exclusiveAsyncRequests) {
-            // special case when all InferRequests are muxed into a single queue
-            return executorManager->getExecutor("CPU");;
-        } else {
-            const int env_threads = parallel_get_env_threads();
-            const auto& numa_nodes = getAvailableNUMANodes();
-            const auto numa_nodes_num = numa_nodes.size();
-            auto streamExecutorConfig = cfg.streamExecutorConfig;
-            // use logical cores only for single-socket targets in throughput mode
-            const int hw_cores = streamExecutorConfig._streams > 1 && numa_nodes_num == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
-            const int threads = streamExecutorConfig._threads ? streamExecutorConfig._threads : (env_threads ? env_threads : hw_cores);
-            streamExecutorConfig._threadsPerStream = std::max(1, threads/streamExecutorConfig._streams);
-            streamExecutorConfig._name = "CPUStreamsExecutor";
-            return executorManager->getIdleCPUStreamsExecutor(streamExecutorConfig);
-        }
-    } ()),
+    InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()} {
@@ -101,7 +83,21 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                     LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
                     "ScaleShift"));
             transformer.transform(*_clonedNetwork);
-            if (with_cpu_x86_bfloat16()) {
+
+            // Check if network is INT8 or Binary.
+            // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
+            // BF16 + INT8 or BF16 + BIN.
+            bool isFloatModel = true;
+            CNNNetworkIterator i(&network);
+            while (i != CNNNetworkIterator()) {
+                if (CaselessEq<std::string>()((*i)->type, "FakeQuantize")) {
+                    isFloatModel = false;
+                    break;
+                }
+                i++;
+            }
+
+            if (with_cpu_x86_bfloat16() && isFloatModel) {
                 BF16Transformer bf16Transformer;
                 CNNNetwork cnnetwork(_clonedNetwork);
                 if (cfg.enforceBF16 == true) {
@@ -124,6 +120,30 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
         if (!CanProcessDynBatch(*_clonedNetwork)) {
             THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
         }
+    }
+
+    if (cfg.exclusiveAsyncRequests) {
+        // special case when all InferRequests are muxed into a single queue
+        _taskExecutor = ExecutorManager::getInstance()->getExecutor("CPU");
+    } else {
+        const int env_threads = parallel_get_env_threads();
+        const auto& numa_nodes = getAvailableNUMANodes();
+        const auto numa_nodes_num = numa_nodes.size();
+        auto streamExecutorConfig = cfg.streamExecutorConfig;
+        // use logical cores only for single-socket targets in throughput mode
+        const int hw_cores = streamExecutorConfig._streams > 1 && numa_nodes_num == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
+        const int threads = streamExecutorConfig._threads ? streamExecutorConfig._threads : (env_threads ? env_threads : hw_cores);
+        streamExecutorConfig._threadsPerStream = streamExecutorConfig._streams
+                                                ? std::max(1, threads/streamExecutorConfig._streams)
+                                                : threads;
+        streamExecutorConfig._name = "CPUStreamsExecutor";
+        _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamExecutorConfig);
+    }
+    if (0 != cfg.streamExecutorConfig._streams) {
+        _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
+            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+    } else {
+        _callbackExecutor = _taskExecutor;
     }
 
     _graphs = decltype(_graphs){[&] {
@@ -230,7 +250,9 @@ void MKLDNNExecNetwork::GetMetric(const std::string &name, Parameter &result, Re
         Config engConfig = _graphs.begin()->get()->getProperty();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(std::stoi(option->second)));
+        auto streams = std::stoi(option->second);
+        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(
+            streams ? streams : 1));
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
     }

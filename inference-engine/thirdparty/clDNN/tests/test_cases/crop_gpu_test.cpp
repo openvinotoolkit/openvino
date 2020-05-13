@@ -19,6 +19,7 @@
 #include "api/memory.hpp"
 #include <api/input_layout.hpp>
 #include "api/crop.hpp"
+#include <api/eltwise.hpp>
 #include <api/topology.hpp>
 #include <api/network.hpp>
 #include <api/engine.hpp>
@@ -794,3 +795,84 @@ TEST(crop_gpu, basic_in3x1x2x2x1_crop_all_bfzyx) {
         }
     }
 }
+
+// batch size, input feature, crop out feature, (in_out format, crop format)
+using crop_test_params = std::tuple<size_t, size_t, size_t, std::pair<cldnn::format,cldnn::format>>;
+
+class crop_gpu : public ::testing::TestWithParam<crop_test_params> {};
+
+TEST_P(crop_gpu, pad_test) {
+    auto p = GetParam();
+
+    const auto& engine = get_test_engine();
+
+    auto batch_num = std::get<0>(p);
+    auto feature_num = std::get<1>(p);
+    auto x_size = 1;
+    auto y_size = 1;
+    auto z_size = 1;
+
+    auto crop_batch_num = batch_num;
+    auto crop_feature_num_1 = std::get<2>(p);
+    auto crop_x_size = 1;
+    auto crop_y_size = 1;
+    auto crop_z_size = 1;
+    auto feature_offset_1 = feature_num - crop_feature_num_1;
+
+    auto in_out_format = std::get<3>(p).first;
+    auto crop_format = std::get<3>(p).second;
+
+    auto input = memory::allocate(engine, { data_types::f32, in_out_format, { tensor(spatial(x_size, y_size, z_size), feature(feature_num), batch(batch_num)) } });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(reorder("reorder", "input", crop_format, data_types::f32));
+    topology.add(crop("crop1", "reorder", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size, crop_z_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0,0), batch(0)) }));
+    topology.add(reorder("out", "crop1", in_out_format, data_types::f32));
+
+    std::vector<float> input_vec; 
+    std::vector<float> res; 
+    std::vector<float> input_data;
+    std::vector<float> res_data;
+    for (size_t i = 0; i < feature_num; i++) {
+        input_data.push_back(static_cast<float>(i));
+    }
+    for (size_t i = 0; i < crop_feature_num_1; i++) {
+        res_data.push_back(input_data[feature_offset_1 + i]);
+    }
+    for (size_t i = 0; i < batch_num; i++) {
+        input_vec.insert(input_vec.end(), input_data.begin(), input_data.end());
+        res.insert(res.end(), res_data.begin(), res_data.end());
+    }
+    set_values(input, input_vec);
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("out").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    for (size_t i = 0; i < res.size(); i++)
+        EXPECT_EQ(output_ptr[i], res[i]);
+}
+
+static std::vector<std::pair<cldnn::format,cldnn::format>> formats = {
+    std::make_pair<cldnn::format, cldnn::format>(format::bfyx, format::b_fs_yx_fsv16),
+    std::make_pair<cldnn::format, cldnn::format>(format::bfzyx, format::b_fs_zyx_fsv16),
+    std::make_pair<cldnn::format, cldnn::format>(format::bfyx, format::bs_fs_yx_bsv16_fsv16),
+    std::make_pair<cldnn::format, cldnn::format>(format::bfzyx, format::bs_fs_zyx_bsv16_fsv16),
+    };
+static std::vector<size_t> batches = {1, 8, 16, 17};
+static std::vector<size_t> in_features = {18, 24, 32};
+static std::vector<size_t> crop_features = {4, 8, 12, 17};
+
+INSTANTIATE_TEST_CASE_P(crop_test, crop_gpu,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(batches),
+                                ::testing::ValuesIn(in_features),
+                                ::testing::ValuesIn(crop_features),
+                                ::testing::ValuesIn(formats)
+                                ), );

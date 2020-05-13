@@ -67,10 +67,6 @@ ParamsKey convolution_params::GetParamsKey() const {
         k.EnableDepthwiseSeparableOpt();
     }
 
-    if (transposed) {
-        k.EnableTranspose();
-    }
-
     if (local_convolution) {
         k.EnableLocalConvolution();
     }

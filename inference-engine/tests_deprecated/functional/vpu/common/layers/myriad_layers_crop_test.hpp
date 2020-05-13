@@ -14,9 +14,9 @@ PRETTY_PARAM(dim, InferenceEngine::SizeVector)
 PRETTY_PARAM(crop_begin, InferenceEngine::SizeVector)
 PRETTY_PARAM(crop_end, InferenceEngine::SizeVector)
 
-typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Dims, crop_axis, offset, dim >> myriadLayerCropOneInputAndDim_nightly;
-typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Dims, crop_axis, crop_begin, crop_end >> myriadLayerCropOneInput_nightly;
-typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Dims, Dims, crop_axis, offset >> myriadLayerCropTwoInputs_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Dims, crop_axis, offset, dim >> myriadLayerCropOneInputAndDim_smoke;
+typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Dims, crop_axis, crop_begin, crop_end >> myriadLayerCropOneInput_smoke;
+typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Dims, Dims, crop_axis, offset >> myriadLayerCropTwoInputs_smoke;
 
 static void ref_crop(const Blob::Ptr src,
                      Blob::Ptr dst,
@@ -67,7 +67,7 @@ static void ref_crop(const Blob::Ptr src,
     }
 }
 
-TEST_P(myriadLayerCropOneInputAndDim_nightly, CropWithOneInputAndDim) {
+TEST_P(myriadLayerCropOneInputAndDim_smoke, CropWithOneInputAndDim) {
     auto param = GetParam();
     tensor_test_params tensor1 = std::get<0>(param);
     tensor_test_params tensor2 = std::get<1>(param);
@@ -101,7 +101,7 @@ TEST_P(myriadLayerCropOneInputAndDim_nightly, CropWithOneInputAndDim) {
     CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, ERROR_BOUND);
 }
 
-TEST_P(myriadLayerCropOneInput_nightly, CropWithOneInput) {
+TEST_P(myriadLayerCropOneInput_smoke, CropWithOneInput) {
     auto param = GetParam();
     tensor_test_params tensor1 = std::get<0>(param);
     tensor_test_params tensor2 = std::get<1>(param);
@@ -135,7 +135,7 @@ TEST_P(myriadLayerCropOneInput_nightly, CropWithOneInput) {
     CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, ERROR_BOUND);
 }
 
-TEST_P(myriadLayerCropTwoInputs_nightly, CropWithTwoInputs) {
+TEST_P(myriadLayerCropTwoInputs_smoke, CropWithTwoInputs) {
     auto param = GetParam();
     tensor_test_params tensor1 = std::get<0>(param);
     tensor_test_params tensor2 = std::get<1>(param);

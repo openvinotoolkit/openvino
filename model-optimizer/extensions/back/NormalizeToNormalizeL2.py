@@ -18,9 +18,11 @@ import numpy as np
 from extensions.back.ElementwiseOpsToEltwiseOps import SimpleEltwiseToEltwiseOp
 from extensions.back.insert_compatibility_l2normalization import CompatibilityL2NormalizationPattern
 from extensions.ops.elementwise import Mul
+from extensions.ops.normalize_l2 import NormalizeL2Op
 from mo.back.replacement import BackReplacementPattern
+from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_node
-from mo.ops.const import Const
 
 
 class NormalizeToNormalizeL2(BackReplacementPattern):
@@ -72,19 +74,14 @@ class NormalizeToNormalizeL2(BackReplacementPattern):
         mul = Mul(graph, {'name': output_name}).create_node()
         rename_node(mul, output_name)
 
+        if not node.across_spatial:
+            axes = int64_array([1])
+        else:
+            axes = int64_array(np.arange(start=1, stop=node.in_port(0).data.get_shape().size))
+
+        normalizel2 = create_op_with_const_inputs(graph, NormalizeL2Op, {1: axes}, {'eps_mode': 'add', 'eps': node.eps})
+
         node.out_port(0).get_connection().set_source(mul.out_port(0))
-        node.out_port(0).connect(mul.in_port(0))
         node.in_port(1).get_connection().get_source().connect(mul.in_port(1))
-        node.in_port(1).disconnect()
-
-        node['type'] = 'NormalizeL2'
-        node['eps_mode'] = 'add'
-        node['force_precision_in_ports'] = {1: 'int64'}
-
-        axes_val = np.array([1]) if not node.across_spatial else \
-            np.arange(start=1, stop=node.in_port(0).data.get_shape().size)
-        axes = Const(graph, {'value': axes_val}).create_node()
-        node.in_port(1).connect(axes.out_port(0))
-
-        del node['across_spatial']
-        del node['channel_shared']
+        normalizel2.out_port(0).connect(mul.in_port(0))
+        node.in_port(0).get_connection().set_destination(normalizel2.in_port(0))

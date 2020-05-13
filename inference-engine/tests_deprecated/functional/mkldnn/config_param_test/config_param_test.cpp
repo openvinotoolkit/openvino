@@ -40,12 +40,13 @@ TEST_F(smoke_PropertyTest, onSplitConvConcat) {
     inferRequest1.Infer();
     float* outRawDataWithConfig = inferRequest1.GetBlob(net.getOutputsInfo().begin()->first)->cbuffer().as<float*>();
 
-    auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+    float thr1, thr2;
+    FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32, thr1, thr2);
 
     size_t outElementsCount = std::accumulate(begin(fnPtr->get_output_shape(0)), end(fnPtr->get_output_shape(0)), 1,
                                               std::multiplies<size_t>());
 
-    FuncTestUtils::compareRawBuffers(outRawData, outRawDataWithConfig, outElementsCount,
-                                     outElementsCount,
-                                     thr);
+    FuncTestUtils::compareRawBuffers(outRawData, outRawDataWithConfig, outElementsCount, outElementsCount,
+                                                     FuncTestUtils::CompareType::ABS_AND_REL,
+                                                     thr1, thr2);
 }

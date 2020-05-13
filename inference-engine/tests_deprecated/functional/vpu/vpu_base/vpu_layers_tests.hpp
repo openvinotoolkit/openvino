@@ -69,6 +69,7 @@ protected:
     void TearDown() override;
     bool CheckMyriadX();
     void dumpPerformance();
+    bool wasCustomLayerInferred() const;
 
     // For historical reasons, gen-blob functions use to 'hack' blob layout:
     // replace NCHW with NHWC even if you explicitly setup layout preference

@@ -137,9 +137,11 @@ public:
         // Run ngraph Interpreter backend to calculate references
         auto refOutData = ngraph::helpers::inferFnWithInterp<ngraph::element::Type_t::f32>(fnPtr, inRawData);
         // Compare IE infer results vs ngraph Interpreter reference results
-        auto thr = FuncTestUtils::GetComparisonThreshold(netPrecision);
-        FuncTestUtils::compareRawBuffers(outBlobsRawData, refOutData, outElementsCount, outElementsCount, thr);
-
+        float thr1, thr2;
+        FuncTestUtils::GetComparisonThreshold(netPrecision, thr1, thr2);
+        FuncTestUtils::compareRawBuffers(outBlobsRawData, refOutData, outElementsCount, outElementsCount,
+                                                         FuncTestUtils::CompareType::ABS_AND_REL,
+                                                         thr1, thr2);
         // Deallocate ngraph::Function pointer
         fnPtr.reset();
         if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
@@ -229,6 +231,8 @@ public:
 
     virtual void Run();
 
+    virtual void Compare(const std::vector<std::vector<std::uint8_t>>& expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs);
+
     virtual void Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual);
 
     virtual void SetRefMode(RefMode mode);
@@ -262,6 +266,10 @@ protected:
         return refMode;
     }
 
+    void ConfigurePlugin() const;
+
+    void LoadNetwork();
+
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
     std::map<std::string, std::string> configuration;
@@ -272,18 +280,14 @@ protected:
     InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED;
     InferenceEngine::ExecutableNetwork executableNetwork;
 
+    virtual void Validate();
+
 private:
-    void ConfigurePlugin() const;
-
     void ConfigureNetwork() const;
-
-    void LoadNetwork();
 
     void Infer();
 
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
-
-    void Validate();
 
     InferenceEngine::Core *core = nullptr;
     InferenceEngine::CNNNetwork cnnNetwork;

@@ -55,4 +55,23 @@ CommonDispatchData DeconvolutionKernel_bfyx_opt::SetDefault(const deconvolution_
     kd.efficiency = FORCE_PRIORITY_6;
     return kd;
 }
+
+JitConstants DeconvolutionKernel_bfyx_opt::GetJitConstants(const deconvolution_params& params) const {
+    auto jit = Parent::GetJitConstants(params);
+
+    if (!params.fused_ops.empty()) {
+        auto fused_dt = GetActivationType(params);
+        FusedOpsConfiguration conf = {
+            "",
+            {"batch_offset", "ofm_offset", "id_y", "id_x"},
+            "result",
+            fused_dt,
+            1,
+            LoadType::LT_UNALIGNED,
+            BoundaryCheck::DISABLED };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
+    return jit;
+}
+
 }  // namespace kernel_selector

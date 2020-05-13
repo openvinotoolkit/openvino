@@ -5,9 +5,9 @@
 #include "behavior_test_plugin_infer_request_config.hpp"
 #include "vpu_test_data.hpp"
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInferRequestConfig,
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestInferRequestConfig,
                         ValuesIn(BehTestParams::concat(deviceAgnosticConfigurations, withCorrectConfValuesNetworkOnly)),
                         getConfigTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInferRequestConfigExclusiveAsync, ValuesIn(supportedValues),
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestInferRequestConfigExclusiveAsync, ValuesIn(supportedValues),
                         getConfigTestCaseName);

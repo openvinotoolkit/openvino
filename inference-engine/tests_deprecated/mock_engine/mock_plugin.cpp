@@ -37,6 +37,7 @@ void MockPlugin::SetLogCallback(InferenceEngine::IErrorListener &listener) noexc
 }
 
 void MockPlugin::GetVersion(const Version *&versionInfo) noexcept {
+    versionInfo = &version;
 }
 
 StatusCode MockPlugin::AddExtension(IExtensionPtr extension, InferenceEngine::ResponseDesc *resp) noexcept {

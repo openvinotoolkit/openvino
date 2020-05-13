@@ -31,6 +31,7 @@ class ArgMaxOp(Op):
             'type': __class__.op,
             'op': __class__.op,
             'infer': ArgMaxOp.argmax_infer,
+            'output_type': np.int64,
             'in_ports_count': 2,
             'out_ports_count': 1,
         }

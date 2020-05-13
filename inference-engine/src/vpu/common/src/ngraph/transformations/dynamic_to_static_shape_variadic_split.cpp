@@ -1,0 +1,77 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_variadic_split.hpp"
+
+#include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
+#include <vpu/utils/error.hpp>
+
+#include "ngraph/graph_util.hpp"
+#include "ngraph/opsets/opset3.hpp"
+
+#include <memory>
+#include <numeric>
+#include <ngraph/validation_util.hpp>
+
+namespace vpu {
+
+void dynamicToStaticShapeVariadicSplit(std::shared_ptr<ngraph::Node> target) {
+    const auto dsr = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node_shared_ptr());
+    VPU_THROW_UNLESS(dsr, "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
+                     target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
+
+    const auto axis_node = ngraph::as_type_ptr<ngraph::opset3::Constant>(target->input_value(1).get_node_shared_ptr());
+    VPU_THROW_UNLESS(axis_node, "dynamicToStaticShapeVariadic transformation is not applicable for {}, dynamic axis is not supported", target);
+
+    const auto data_rank = target->get_input_partial_shape(0).rank();
+    VPU_THROW_UNLESS(data_rank.is_static(), "dynamicToStaticShapeVariadic transformation for {} doesn't support dynamic rank", target);
+
+    int64_t axis = ngraph::normalize_axis(target->description(), axis_node->cast_vector<int64_t>()[0], data_rank);
+
+    const auto split_lengths_node = ngraph::as_type_ptr<ngraph::opset3::Constant>(target->input_value(2).get_node_shared_ptr());
+    VPU_THROW_UNLESS(split_lengths_node, "dynamicToStaticShapeVariadic transformation is not applicable for {}, dynamic split_length is not supported", target);
+    const auto split_lengths = split_lengths_node->cast_vector<int64_t>();
+
+    for (const auto & i : split_lengths) {
+        VPU_THROW_UNLESS(i != -1, "dynamicToStaticShapeVariadic transformation is not applicable for {}, split_length with -1 is not supported", target);
+        VPU_THROW_UNLESS(i > 0, "dynamicToStaticShapeVariadic transformation is not applicable for {}, non-positive split_length  is not supported", target);
+    }
+
+    const auto data_shape = dsr->input_value(1).get_node_shared_ptr();
+    const auto copied = target->clone_with_new_inputs(target->input_values());
+    const auto data_rank_value = data_rank.get_length();
+    ngraph::OutputVector first_shape_part, second_shape_part;
+    if (axis) {
+        std::vector<int64_t> first_data_shape_part_indices(axis);
+        std::iota(first_data_shape_part_indices.begin(), first_data_shape_part_indices.end(), 0);
+        const auto first_data_shape_part = std::make_shared<ngraph::opset3::Gather>(
+                data_shape,
+                ngraph::opset3::Constant::create(ngraph::element::i64, {first_data_shape_part_indices.size()}, first_data_shape_part_indices),
+                ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0}));
+        first_shape_part.push_back(first_data_shape_part);
+    }
+    if (axis + 1 < data_rank_value) {
+        std::vector<int64_t> second_data_shape_part_indices(data_rank_value - axis - 1);
+        std::iota(second_data_shape_part_indices.begin(), second_data_shape_part_indices.end(), axis + 1);
+        const auto second_data_shape_part = std::make_shared<ngraph::opset3::Gather>(
+                data_shape,
+                ngraph::opset3::Constant::create(ngraph::element::i64, {second_data_shape_part_indices.size()}, second_data_shape_part_indices),
+                ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0}));
+        second_shape_part.push_back(second_data_shape_part);
+    }
+    for (auto i = 0; i < split_lengths.size(); ++i) {
+        const auto dim = ngraph::opset3::Constant::create(data_shape->get_element_type(), {1}, {split_lengths[i]});
+        if (!first_shape_part.empty() || !second_shape_part.empty()) {
+            ngraph::OutputVector output_dims{dim};
+            output_dims.insert(output_dims.begin(), first_shape_part.begin(), first_shape_part.end());
+            output_dims.insert(output_dims.end(), second_shape_part.begin(), second_shape_part.end());
+            const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
+            target->output(i).replace(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied->output(i), output_shape));
+        } else {
+            target->output(i).replace(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied->output(i), dim));
+        }
+    }
+}
+
+}  // namespace vpu

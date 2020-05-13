@@ -28,7 +28,6 @@ public:
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
     ie::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-            const ie::ICore* core,
             const ie::ICNNNetwork& network,
             const std::map<std::string, std::string>& config) override;
 

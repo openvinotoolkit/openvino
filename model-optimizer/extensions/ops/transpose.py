@@ -29,6 +29,7 @@ class Transpose(Op):
         super().__init__(graph, {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
             'infer': self.infer,
             'force_precision_in_ports': {1: 'int64'},
             'in_ports_count': 2,

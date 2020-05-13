@@ -34,6 +34,7 @@
 #include "low_precision_transformations/permute.hpp"
 #include "low_precision_transformations/pooling.hpp"
 #include "low_precision_transformations/resample.hpp"
+#include "low_precision_transformations/power.hpp"
 #include "low_precision_transformations/reshape.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 #include "low_precision_transformations/squeeze.hpp"
@@ -186,7 +187,8 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
             { "ReLU", LayerTransformationPtr(new ActivationTransformation(params)) },
             { "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
             { "Eltwise", LayerTransformationPtr(new EltwiseTransformation(params)) },
-            { "Resample", LayerTransformationPtr(new ResampleTransformation(params)) }
+            { "Resample", LayerTransformationPtr(new ResampleTransformation(params)) },
+            { "Power", LayerTransformationPtr(new PowerTransformation(params)) }
         }),
         std::map<std::string, LayerTransformationPtr>({
             { "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },

@@ -1757,7 +1757,7 @@ TEST_F(NGraphReaderTests, RemoveAdd2) {
             </output>
         </layer>
         <layer id="3" name="add" precision="FP32" type="ReLU">
-            <data originalLayersNames="relu" />
+            <data originalLayersNames="relu"/>
             <input>
                 <port id="0">
                     <dim>1</dim>

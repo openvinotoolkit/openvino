@@ -24,9 +24,9 @@ class DeformableConvolution(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
             'infer': Convolution.infer,
             'multiplication_transparent': True,
             'multiplication_transparent_ports': [(0, 0), (2, 0)],

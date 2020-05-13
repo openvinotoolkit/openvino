@@ -9,17 +9,11 @@ using namespace InferenceEngine;
 
 #define ERROR_BOUND 0.2f
 
-typedef struct {
-    SizeVector src_dims;
-    SizeVector seq_ind_dims;
-    SizeVector dst_dims;
-    std::string custom_config;
-} dims_config;
+PRETTY_PARAM(CustomConfig, std::string);
+PRETTY_PARAM(HwOptimization, bool);
 
-PRETTY_PARAM(hwAcceleration, std::string);
-PRETTY_PARAM(dimsConfig, dims_config);
-
-typedef myriadLayerTestBaseWithParam<std::tuple<bool, dims_config>> myriadCTCDecoderLayerTests_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<Dims, HwOptimization, IRVersion, CustomConfig>>
+    myriadCTCDecoderLayerTests_smoke;
 
 void refCTCDecoder(const Blob::Ptr src, const Blob::Ptr seq_ind, Blob::Ptr dst) {
     ie_fp16 *src_data = static_cast<ie_fp16*>(src->buffer());
@@ -89,46 +83,40 @@ void refCTCDecoder(const Blob::Ptr src, const Blob::Ptr seq_ind, Blob::Ptr dst) 
     }
 }
 
-TEST_P(myriadCTCDecoderLayerTests_nightly, CTCGreedyDecoder) {
+TEST_P(myriadCTCDecoderLayerTests_smoke, CTCGreedyDecoder) {
+    const tensor_test_params dims = std::get<0>(GetParam());
+    const bool hwOptimization = std::get<1>(GetParam());
+    _irVersion = std::get<2>(GetParam());
+    const std::string customConfig = std::get<3>(GetParam());
 
-    bool HWConfigValue = std::get<0>(GetParam());
-    dims_config dimsConfig = std::get<1>(GetParam());
+    if (!customConfig.empty() && !CheckMyriadX()) {
+		GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
+	}
 
-    if(!dimsConfig.custom_config.empty() && !CheckMyriadX()) {
-        GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
-    }
+    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
 
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = dimsConfig.custom_config;
-
-    IN_OUT_desc inputTensors;
-    IN_OUT_desc outputTensors;
-
-    inputTensors.resize(2);
-    outputTensors.resize(1);
-
-    inputTensors[0] = dimsConfig.src_dims;
-    inputTensors[1] = dimsConfig.seq_ind_dims;
-    outputTensors[0] = dimsConfig.dst_dims;
+    const auto inputTensors = IN_OUT_desc{{dims.c, dims.h, dims.w}, {dims.h, dims.c}};
+    const auto outputTensors = IN_OUT_desc{{1, 1, dims.h, dims.c}};
 
     SetInputTensors(inputTensors);
     SetOutputTensors(outputTensors);
 
-    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("CTCGreedyDecoder"), NetworkInitParams().useHWOpt(HWConfigValue)));
+    std::map<std::string, std::string> params;
+    params["ctc_merge_repeated"] = "1";
 
-    auto iter = _inputMap.begin();
-    auto first_input = iter->first;
-    ++iter;
-    auto second_input = iter->first;
+    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("CTCGreedyDecoder").params(params),
+                                                   NetworkInitParams()
+                                                           .useHWOpt(hwOptimization)
+                                                           .layoutPreference(vpu::LayoutPreference::ChannelMajor)
+                                                           .lockLayout(true)));
 
-    Blob::Ptr data;
-    auto dataBlob = _inputMap[first_input];
+    auto dataBlob = _inputMap.begin()->second;
+    auto seqIndBlob = std::next(_inputMap.begin())->second;
 
-    auto seqIndBlob = _inputMap[second_input];
-    uint16_t *blobRawSeqFp16 = seqIndBlob->buffer().as<uint16_t *>();
-    size_t count = seqIndBlob->size();
-    blobRawSeqFp16[0] = PrecisionUtils::f32tof16(0.0);
-    for (size_t indx = 1; indx < count; ++indx) {
-        blobRawSeqFp16[indx] = PrecisionUtils::f32tof16(1.0);
+    auto seqIndFp16 = seqIndBlob->buffer().as<uint16_t *>();
+    seqIndFp16[0] = PrecisionUtils::f32tof16(0.0);
+    for (size_t i = 1; i < seqIndBlob->size(); ++i) {
+        seqIndFp16[i] = PrecisionUtils::f32tof16(1.0);
     }
 
     std::string inputTensorBinary = TestDataHelpers::get_data_path() + "/vpu/InputGreedyDecoderMyriadCHW.bin";
@@ -136,19 +124,14 @@ TEST_P(myriadCTCDecoderLayerTests_nightly, CTCGreedyDecoder) {
 
     ASSERT_TRUE(Infer());
 
-    auto outputBlob = _outputMap.begin()->second;
-
-    _refBlob = make_shared_blob<ie_fp16>(TensorDesc(Precision::FP16, outputBlob->getTensorDesc().getDims(), ANY));
-    _refBlob->allocate();
-
     refCTCDecoder(dataBlob, seqIndBlob, _refBlob);
 
-    CompareCommonAbsolute(outputBlob, _refBlob, 0.0);
+    CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, 0.0);
 }
 
-static std::vector<dims_config> s_DimsConfig = {
-    {{88, 1, 71}, {88,  1}, {1, 88, 1, 1}, ""},
+static std::vector<CustomConfig> s_CustomConfig = {
+        {""},
 #ifdef VPU_HAS_CUSTOM_KERNELS
-    {{88, 1, 71}, {88,  1}, {1, 88, 1, 1}, getIELibraryPath() + "/vpu_custom_kernels/customLayerBindings.xml"},
+        getIELibraryPath() + "/vpu_custom_kernels/customLayerBindings.xml"
 #endif
 };

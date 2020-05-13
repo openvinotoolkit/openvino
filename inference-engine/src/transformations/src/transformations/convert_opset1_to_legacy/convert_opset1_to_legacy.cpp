@@ -27,7 +27,6 @@
 #include <transformations/convert_opset1_to_legacy/convert_power_to_power_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_proposal_to_proposal_ie.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_reduce_to_pooling.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <transformations/convert_subtract.hpp>
@@ -47,7 +46,6 @@
 #include <transformations/pull_transpose_through_fq.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_strided_slice_to_strided_slice_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp>
-#include <transformations/init_node_info.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>

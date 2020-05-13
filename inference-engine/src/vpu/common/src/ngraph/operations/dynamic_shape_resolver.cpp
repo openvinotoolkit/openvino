@@ -26,8 +26,9 @@ void DynamicShapeResolver::validate_and_infer_types() {
     const auto& dataElementType = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this, dataElementType.is_static(), "(", get_friendly_name(), ") does not support dynamic element type for data tensor");
     const auto& dimsElementType = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(this, dimsElementType.is_static() && dimsElementType.compatible(ngraph::element::i64), "(", get_friendly_name(),
-        ") supports only i64 number type for dims tensor, but ", dimsElementType, " provided");
+    NODE_VALIDATION_CHECK(this, dimsElementType.is_static() && (dimsElementType.compatible(ngraph::element::i64) ||
+                                                                dimsElementType.compatible(ngraph::element::i32)),
+        "(", get_friendly_name(), ") supports only i64 and i32 number type for dims tensor, but ", dimsElementType, " provided");
 
     const auto& dataShape = get_input_shape(0);
     const auto& dimsShape = get_input_shape(1);

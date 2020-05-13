@@ -304,9 +304,14 @@ void SingleLayerTransformationsTest::SetUp() {
 
                                                     const float threshold = p.model->getThreshold(p.device_name, net_precision, param);
                                                     const float zeroThreshold = p.model->getZeroThreshold();
-                                                    // const float threshold = net_precision == Precision::FP16 ? 0.0005f : 0.0003f;
+                                                    
+                                                    const auto outName = transformedOutput.find(name);
+                                                    if (outName == transformedOutput.end()) {
+                                                        THROW_IE_EXCEPTION << "Original output name " + name + " doesn't exist in transformed model";
+                                                    }
+
                                                     relative_compare(
-                                                        CNNNetworkHelper::getFloatData(transformedOutput.find(name)->second).get(),
+                                                        CNNNetworkHelper::getFloatData(outName->second).get(),
                                                         CNNNetworkHelper::getFloatData(originalOutput.second).get(),
                                                         outSize,
                                                         threshold,

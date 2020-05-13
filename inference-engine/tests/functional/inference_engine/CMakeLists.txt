@@ -13,14 +13,16 @@ addIeTargetTest(
         EXCLUDED_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/extension_lib
         LINK_LIBRARIES
+            gmock
             funcTestUtils
             ngraphFunctions
             inference_engine_transformations
         ADD_CPPLINT
-        LABELS
-            INFERENCE_ENGINE
         DEPENDENCIES
             extension_tests
+            mock_engine
+        LABELS
+            IE
 )
 
 include(CMakeParseArguments)
@@ -86,6 +88,7 @@ function(ie_headers_compilation_with_custom_flags)
         set(content "#include <${header_file}>\n${content}")
     endforeach()
     set(source_file "${CMAKE_CURRENT_BINARY_DIR}/modern_flags_${IE_TEST_TEST_SUFFIX}.cpp")
+    file(REMOVE ${source_file})
     file(GENERATE OUTPUT ${source_file} CONTENT ${content})
 
     set(target_name ieFuncTestsCompilation${IE_TEST_TEST_SUFFIX})

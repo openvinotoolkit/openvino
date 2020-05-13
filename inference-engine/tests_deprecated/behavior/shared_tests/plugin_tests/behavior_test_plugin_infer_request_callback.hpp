@@ -13,8 +13,11 @@ using namespace InferenceEngine::details;
 
 namespace {
 std::string getTestCaseName(testing::TestParamInfo<BehTestParams> obj) {
-    return obj.param.device + "_" + obj.param.input_blob_precision.name()
-                + (obj.param.config.size() ? "_" + obj.param.config.begin()->second : "");
+    std::string config;
+    for (auto&& cfg : obj.param.config) {
+        config += "_" + cfg.first + "_" + cfg.second;
+    }
+    return obj.param.device + "_" + obj.param.input_blob_precision.name() + config;
 }
 }
 

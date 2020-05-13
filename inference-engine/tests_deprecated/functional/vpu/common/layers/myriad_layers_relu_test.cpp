@@ -4,7 +4,7 @@
 
 #include "myriad_layers_relu_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerReLU_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(s_copyTensors),
                                 ::testing::ValuesIn(s_reluLayerParams)
@@ -12,7 +12,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerReLU_nightly,
 );
 
 INSTANTIATE_TEST_CASE_P(
-        accuracy, myriadLayerFullyConnectedWithReLU_nightly,
+        accuracy, myriadLayerFullyConnectedWithReLU_smoke,
         ::testing::Combine(
                 ::testing::ValuesIn(g_fcTestParamsSubset),
                 ::testing::Values(g_dimensionsFC[0]),
@@ -21,7 +21,7 @@ INSTANTIATE_TEST_CASE_P(
         )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMaxPoolingWithReLU_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMaxPoolingWithReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(g_poolingInput),
                                 ::testing::ValuesIn(g_poolingLayerParamsLite),
@@ -29,7 +29,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMaxPoolingWithReLU_nightly,
                                 ::testing::ValuesIn(s_reluLayerParams))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsAvgPoolingWithReLU_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsAvgPoolingWithReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(g_poolingInput),
                                 ::testing::ValuesIn(g_poolingLayerParamsLite),
@@ -37,7 +37,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsAvgPoolingWithReLU_nightly,
                                 ::testing::ValuesIn(s_reluLayerParams))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsMaxPoolingWithReLU_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsMaxPoolingWithReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(g_poolingInput_postOp),
                                 ::testing::Values<pooling_layer_params>(MAKE_STRUCT(pooling_layer_params, {3, 3}, {1, 1}, {1, 1})),
@@ -45,7 +45,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsMaxPoolingWithReLU_nig
                                 ::testing::Values<ReLULayerDef>(MAKE_STRUCT(ReLULayerDef, {{{"negative_slope", "0.0"}}})))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsAvgPoolingWithReLU_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsAvgPoolingWithReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(g_poolingInput_postOp),
                                 ::testing::Values<pooling_layer_params>(MAKE_STRUCT(pooling_layer_params, {3, 3}, {1, 1}, {1, 1})),
@@ -53,7 +53,7 @@ INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayersTestsAvgPoolingWithReLU_nig
                                 ::testing::Values<ReLULayerDef>(MAKE_STRUCT(ReLULayerDef, {{{"negative_slope", "0.0"}}})))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerConvolutionWithReLU_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerConvolutionWithReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(g_convolutionTensors)
                                 , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 3, 3))
@@ -65,7 +65,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerConvolutionWithReLU_nightly,
                         )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayerConvolutionWithReLU_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy_postop, myriadLayerConvolutionWithReLU_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(g_poolingInput_postOp)
                                 , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 3, 3))

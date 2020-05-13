@@ -28,6 +28,7 @@ class DetectionOutput(Op):
         super().__init__(graph, {
             'type': self.op,
             'op': self.op,
+            'version': 'opset1',
             'in_ports_count': 3,
             'out_ports_count': 1,
             'infer': multi_box_detection_infer,

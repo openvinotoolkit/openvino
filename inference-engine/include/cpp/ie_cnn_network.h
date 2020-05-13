@@ -49,9 +49,7 @@ public:
      */
     explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network): network(network) {
         actual = network.get();
-        if (actual == nullptr) {
-            THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        }
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
     }
 
     /**
@@ -100,6 +98,7 @@ public:
      * @return outputs Reference to the OutputsDataMap object
      */
     virtual OutputsDataMap getOutputsInfo() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         OutputsDataMap outputs;
         actual->getOutputsInfo(outputs);
         return outputs;
@@ -113,6 +112,7 @@ public:
      * @return inputs Reference to InputsDataMap object
      */
     virtual InputsDataMap getInputsInfo() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         InputsDataMap inputs;
         actual->getInputsInfo(inputs);
         return inputs;
@@ -126,6 +126,7 @@ public:
      * @return The number of layers as an integer value
      */
     size_t layerCount() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         return actual->layerCount();
     }
 
@@ -136,7 +137,8 @@ public:
      *
      * @return Network name
      */
-    const std::string& getName() const noexcept {
+    const std::string& getName() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         return actual->getName();
     }
 
@@ -160,6 +162,7 @@ public:
      * @return The size of batch as a size_t value
      */
     virtual size_t getBatchSize() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         return actual->getBatchSize();
     }
 
@@ -168,7 +171,7 @@ public:
      *
      * @return A shared pointer of the current network
      */
-    operator std::shared_ptr<ICNNNetwork>() {
+    operator ICNNNetwork::Ptr() {
         return network;
     }
 
@@ -178,6 +181,7 @@ public:
      * @return An instance of the current network
      */
     operator ICNNNetwork&() {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         return *actual;
     }
 
@@ -187,6 +191,7 @@ public:
      * @return A const reference of the current network
      */
     operator const ICNNNetwork&() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         return *actual;
     }
 
@@ -195,7 +200,8 @@ public:
      *
      * @return constant nGraph function
      */
-    std::shared_ptr<ngraph::Function> getFunction() noexcept {
+    std::shared_ptr<ngraph::Function> getFunction() {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         return actual->getFunction();
     }
 
@@ -204,7 +210,8 @@ public:
      *
      * @return constant nGraph function
      */
-    std::shared_ptr<const ngraph::Function> getFunction() const noexcept {
+    std::shared_ptr<const ngraph::Function> getFunction() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         return actual->getFunction();
     }
 
@@ -278,6 +285,7 @@ public:
      * @return Map of pairs: input name and its dimension.
      */
     virtual ICNNNetwork::InputShapes getInputShapes() const {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
         ICNNNetwork::InputShapes shapes;
         InputsDataMap inputs;
         actual->getInputsInfo(inputs);

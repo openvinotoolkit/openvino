@@ -14,14 +14,17 @@
  limitations under the License.
 """
 
+from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from mo.utils.graph import Node
 from mo.utils.ir_reader.extender import Extender
 
 
-class TopK_extender(Extender):
+class TopKExtender(Extender):
     op = 'TopK'
 
     @staticmethod
     def extend(op: Node):
         if op.graph.graph['cmd_params'].framework in ('tf', 'caffe'):
             op['remove_values_output'] = True
+        if op.has_valid('index_element_type'):
+            op['index_element_type'] = destination_type_to_np_data_type(op.index_element_type)

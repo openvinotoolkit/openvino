@@ -27,7 +27,9 @@ The "demo" folder contains three scripts:
 
 3. Benchmark demo using public SqueezeNet topology (demo_benchmark_app.sh|bat) 
 
-To run the demos, run demo_squeezenet_download_convert_run.sh or demo_security_barrier_camera.sh or demo_benchmark_app.sh (*.bat on Windows) scripts from the console without parameters, for example:
+4. Speech recognition demo utilizing models trained on open LibriSpeech dataset
+
+To run the demos, run demo_squeezenet_download_convert_run.sh or demo_security_barrier_camera.sh or demo_benchmark_app.sh or demo_speech_recognition.sh (*.bat on Windows) scripts from the console without parameters, for example:
 
 ./demo_squeezenet_download_convert_run.sh
 
@@ -81,3 +83,18 @@ The demo script does the following:
 The benchmark app prints performance counters, resulting latency, and throughput values.
  
 For more information about the Inference Engine benchmark app, refer to the documentation available in the sample folder.
+
+Speech Recognition Demo Using LibriSpeech models
+================================================
+
+The demo illustrates live speech recognition - transcribing speech from microphone or offline (from wave file).
+The demo is also capable of live close captioning of an audio clip or movie, where signal is intercepted from the speaker. 
+
+The demo script does the following:
+
+  - Downloads US English models trained on LibriSpeech dataset prepared for direct usage by the Inference Engine
+  - Installs the required components
+  - Runs the command line offline demo
+  - As a final step, runs live speech recognition application with graphical interface
+
+The GUI application prints the speech transcribed from input signal in window. Up to two channels can be transcribed in parallel: microphone & speakers streams.

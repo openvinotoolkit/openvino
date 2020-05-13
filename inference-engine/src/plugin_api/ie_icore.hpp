@@ -32,6 +32,7 @@ public:
     virtual std::shared_ptr<ITaskExecutor> GetTaskExecutor() const = 0;
 
     /**
+     * @deprecated Use ICore::GetMetric, ICore::LoadNetwork, ICore::QueryNetwork instead
      * @brief Returns reference to plugin by a device name
      * @param deviceName - a name of device
      * @return Reference to plugin
@@ -54,6 +55,55 @@ public:
      * @return CNNNetwork
      */
     virtual CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const = 0;
+
+    /**
+     * @brief Creates an executable network from a network object.
+     *
+     * Users can create as many networks as they need and use
+     *        them simultaneously (up to the limitation of the hardware resources)
+     *
+     * @param network CNNNetwork object acquired from Core::ReadNetwork
+     * @param deviceName Name of device to load network to
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation
+     * @return An executable network reference
+     */
+    virtual ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
+                                          const std::map<std::string, std::string>& config = {}) = 0;
+
+    /**
+     * @brief Creates an executable network from a previously exported network
+     * @param deviceName Name of device load executable network on
+     * @param networkModel network model stream
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation*
+     * @return An executable network reference
+     */
+    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+                                            const std::map<std::string, std::string>& config = {}) = 0;
+
+    /**
+     * @brief Query device if it supports specified network with specified configuration
+     *
+     * @param deviceName A name of a device to query
+     * @param network Network object to query
+     * @param config Optional map of pairs: (config parameter name, config parameter value)
+     * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
+     */
+    virtual QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
+                                            const std::map<std::string, std::string>& config) const = 0;
+
+    /**
+     * @brief Gets general runtime metric for dedicated hardware.
+     *
+     * The method is needed to request common device properties
+     * which are executable network agnostic. It can be device name, temperature, other devices-specific values.
+     *
+     * @param deviceName - A name of a device to get a metric value.
+     * @param name - metric name to request.
+     * @return Metric value corresponding to metric key.
+     */
+    virtual Parameter GetMetric(const std::string& deviceName, const std::string& name) const = 0;
 
     /**
      * @brief Default virtual destructor

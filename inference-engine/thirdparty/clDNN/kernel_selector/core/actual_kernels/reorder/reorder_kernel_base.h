@@ -63,6 +63,7 @@ struct reorder_weights_params : public Params {
     WeightsTensor input;
     WeightsTensor output;
     bool winograd = false;
+    bool rotate_180 = false;
 
     virtual ParamsKey GetParamsKey() const {
         ParamsKey k;
@@ -81,6 +82,10 @@ struct reorder_weights_params : public Params {
 
         if (winograd) {
             k.EnableWinogradReorder();
+        }
+
+        if (rotate_180) {
+            k.EnableRotateReorder();
         }
         return k;
     }

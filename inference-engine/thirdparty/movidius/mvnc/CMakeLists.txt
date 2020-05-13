@@ -73,3 +73,7 @@ if(NOT WIN32)
             ${LIBUSB_LIBRARY})
 endif()
 
+if(ENABLE_TESTS AND ENABLE_MYRIAD_MVNC_TESTS)
+    add_subdirectory(tests)
+endif()
+

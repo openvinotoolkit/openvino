@@ -5,32 +5,14 @@
 #include "myriad_layers_region_test.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-        accuracy, myriadLayerRegionYolo_nightly,
-        ::testing::ValuesIn(s_regionData)
-);
-
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsRegion_CHW_HW_nightly,
-        ::testing::Combine(
-            ::testing::Values<InferenceEngine::SizeVector>({1, 125, 13, 13})
-          , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 1, 1))
-          , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 1, 1))
-          , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 0, 0))
-          , ::testing::Values<uint32_t>(125)
-          , ::testing::Values<uint32_t>(1)
-          )
-);
-
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsRegion_CHW_HW_80cl_nightly,
-        ::testing::Combine(
-            ::testing::Values<InferenceEngine::SizeVector>({1, 425, 13, 13})
-          , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 1, 1))
-          , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 1, 1))
-          , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 0, 0))
-          , ::testing::Values<uint32_t>(425)
-          , ::testing::Values<uint32_t>(1)
-          )
-);
-
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerRegionYolo_CHW_nightly,
-        ::testing::ValuesIn(s_classes)
-);
+	accuracy, myriadLayersTestsRegionYolo_smoke,
+	::testing::Combine(
+		::testing::Values<Coords>(4),
+		::testing::Values<Classes>(20, 80),
+		::testing::Values<Num>(5, 10),
+		::testing::Values<MaskSize>(3),
+		::testing::Values<DoSoftmax>(1, 0),
+		::testing::Values(vpu::LayoutPreference::ChannelMajor, vpu::LayoutPreference::ChannelMinor),
+		::testing::Values(IRVersion::v7, IRVersion::v10),
+		::testing::ValuesIn(s_CustomConfig)
+));

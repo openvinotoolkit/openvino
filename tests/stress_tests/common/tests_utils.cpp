@@ -26,6 +26,14 @@ void Environment::setEnvConfig(const pugi::xml_document &env_config) {
     _env_config.reset(env_config);
 }
 
+const bool & Environment::getCollectResultsOnly() {
+    return _collect_results_only;
+}
+
+void Environment::setCollectResultsOnly(const bool &collect_results_only) {
+    _collect_results_only = collect_results_only;
+}
+
 std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fields) {
     std::vector<TestCase> tests_cases;
     const pugi::xml_document & test_config = Environment::Instance().getTestConfig();

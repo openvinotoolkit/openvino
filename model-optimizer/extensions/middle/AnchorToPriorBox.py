@@ -16,6 +16,7 @@
 
 import numpy as np
 
+from extensions.middle.SliceLikeToStridedSlice import SliceLikeToStridedSlice
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
@@ -33,12 +34,15 @@ class AnchorToPriorBoxes(MiddleReplacementPattern):
         from extensions.middle.pass_separator import MiddleStart
         return [MiddleStart]
 
+    def run_before(self):
+        return [SliceLikeToStridedSlice]
+
     def pattern(self):
         return dict(
             nodes=[
                 ('const', dict(op='Const')),
                 ('const_data', dict(kind='data')),
-                ('slice_like', dict(op='Crop')),
+                ('slice_like', dict(op='slice_like')),
                 ('slice_like_out', dict(kind='data')),
                 ('reshape', dict(op='Reshape')),
             ],

@@ -31,7 +31,7 @@ struct pad_parameters {
 PRETTY_PARAM(layoutPreference, vpu::LayoutPreference);
 PRETTY_PARAM(pad_mode, std::string);
 
-typedef myriadLayerTestBaseWithParam<std::tuple<DimsInput, pad_parameters, layoutPreference, pad_mode, IRVersion>> myriadLayerPad;
+typedef myriadLayerTestBaseWithParam<std::tuple<DimsInput, pad_parameters, layoutPreference, pad_mode, IRVersion>> myriadLayerPad_smoke;
 
 const float pad_value = 42.0f;
 
@@ -126,7 +126,7 @@ void ref_pad(const Blob::Ptr src,
     }
 }
 
-TEST_P(myriadLayerPad, Pad) {
+TEST_P(myriadLayerPad_smoke, Pad) {
     tensor_test_params input_dims = get<0>(GetParam());
     pad_parameters pad_parameter = get<1>(GetParam());
     auto layoutPreference = get<2>(GetParam());

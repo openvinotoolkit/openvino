@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
+from extensions.ops.slice_like import SliceLike
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
-from mo.ops.crop import Crop
 
 
 class SliceLikeFrontExtractor(FrontExtractorOp):
@@ -26,15 +26,11 @@ class SliceLikeFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
-        axes = attrs.tuple("axes", int, [])
-        offset = [0 for i in range(0, axes[-1])]
+        axes = list(attrs.tuple("axes", int, []))
         node_attrs = {
-            'axis': 1,
-            'offset': offset,
-            'dim': offset,
             'axes': axes
         }
 
         # update the attributes of the node
-        Crop.update_node_stat(node, node_attrs)
+        SliceLike.update_node_stat(node, node_attrs)
         return cls.enabled

@@ -749,7 +749,7 @@ def extract_node_attrs(graph: Graph, extractor: callable):
                 raise Error(
                     'Unexpected exception happened during extracting attributes for node {}.' +
                     '\nOriginal exception message: {}',
-                    new_attrs['name'] if 'name' in new_attrs else '<UNKNOWN>',
+                    node,
                     str(e)
                 ) from e
         if supported:

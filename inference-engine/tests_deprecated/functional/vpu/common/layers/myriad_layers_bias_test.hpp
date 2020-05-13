@@ -88,11 +88,11 @@ void ref_bias(const InferenceEngine::Blob::Ptr src1,
     }
 }
 
-class myriadLayersTestsBias_nightly: public myriadLayersTests_nightly,
+class myriadLayersTestsBias_smoke: public myriadLayersTests_nightly,
                              public testing::WithParamInterface<InferenceEngine::SizeVector> {
 };
 
-TEST_P(myriadLayersTestsBias_nightly, TestsBias) {
+TEST_P(myriadLayersTestsBias_smoke, TestsBias) {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
     auto input_dim = GetParam();
     InferenceEngine::SizeVector input_dim1;

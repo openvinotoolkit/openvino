@@ -10,7 +10,7 @@ memory_test_params memory_test_cases[] = {
 
 // FIXME
 //#if (defined INSTANTIATE_TESTS)
-//INSTANTIATE_TEST_CASE_P(BehaviorTest, MemoryLayerTest,
+//INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, MemoryLayerTest,
 //    ::testing::ValuesIn(memory_test_cases),
 //    getTestName<memory_test_params>);
 //#endif

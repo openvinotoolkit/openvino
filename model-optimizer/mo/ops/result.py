@@ -29,6 +29,7 @@ class Result(Op):
         super().__init__(graph, {
             'op': __class__.op,
             'type': __class__.op,
+            'version': 'opset1',
             'infer': lambda x: None,
             'value': None,
             'data_type': None,

@@ -16,9 +16,9 @@ struct SliceParams {
 
 PRETTY_PARAM(SliceTestParams, SliceParams);
 
-typedef myriadLayerTestBaseWithParam<SliceTestParams> myriadLayersTestsSlice_nightly;
+typedef myriadLayerTestBaseWithParam<SliceTestParams> myriadLayersTestsSlice_smoke;
 
-TEST_P(myriadLayersTestsSlice_nightly, Slice) {
+TEST_P(myriadLayersTestsSlice_smoke, Slice) {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
 
     const SliceParams testParams = GetParam();

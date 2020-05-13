@@ -30,7 +30,7 @@ PRETTY_PARAM(number_rois, uint32_t);
 
 using ROIFeatureExtractorTestParams = std::tuple<Dims, roi_feature_extractor_param, number_rois>;
 
-typedef myriadLayerTestBaseWithParam<ROIFeatureExtractorTestParams> myriadLayersTestsROIFeatureExtractor_nightly;
+typedef myriadLayerTestBaseWithParam<ROIFeatureExtractorTestParams> myriadLayersTestsROIFeatureExtractor_smoke;
 
 static void genROIs(InferenceEngine::Blob::Ptr rois,
                     const roi_feature_extractor_param& params,
@@ -55,7 +55,7 @@ static void genROIs(InferenceEngine::Blob::Ptr rois,
     }
 }
 
-TEST_P(myriadLayersTestsROIFeatureExtractor_nightly, ROIFeatureExtractor) {
+TEST_P(myriadLayersTestsROIFeatureExtractor_smoke, ROIFeatureExtractor) {
     tensor_test_params dims_layer_in = std::get<0>(GetParam());
     roi_feature_extractor_param test_params = std::get<1>(GetParam());
     const uint32_t num_rois = std::get<2>(GetParam());

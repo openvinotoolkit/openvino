@@ -37,6 +37,7 @@ class Pad(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
+            'version': 'opset1',
             'infer': __class__.infer,
             'in_ports_count': 4,
             'out_ports_count': 1,

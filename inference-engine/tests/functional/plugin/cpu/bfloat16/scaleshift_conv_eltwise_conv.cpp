@@ -27,7 +27,7 @@ namespace LayerTestsDefinitions {
 
 class ScaleshiftConvEltwiseConv : public BasicBF16Test {
 protected:
-    std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision)override {
+    std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
         //        scaleshift (FP32)     Conv (FP32)
         //                   \          /
         //              Eltwise (Fused into Conv)
@@ -37,7 +37,9 @@ protected:
 
         ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
         // multiply
-        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{1, 3, 40, 40});
+        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{inputShapes});
+        auto channelsCount = inputShapes[1];
+
         input1->set_friendly_name("Input_1");
         std::shared_ptr<ngraph::opset1::Constant> const1 = nullptr;
         if (netPrecision == Precision::FP32) {
@@ -59,15 +61,15 @@ protected:
 
         // convolution
         std::shared_ptr<ngraph::opset1::Constant> weightsNode = nullptr;
-        ngraph::Shape convFilterShape = { 3, 3, 3, 3 };  // out channel, /input channels, kernel h, kernel w
+        ngraph::Shape convFilterShape = { channelsCount, channelsCount, 3, 3 };  // out channel, /input channels, kernel h, kernel w
         if (netPrecision == Precision::FP32) {
             std::vector<float> weightValuesFP32;
-            weightValuesFP32.resize(3 * 3 * 3 * 3);
+            weightValuesFP32.resize(channelsCount * channelsCount * 3 * 3);
             BFloat16Helpers::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
             weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesFP32);
         } else {
             std::vector<short> weightValuesBF16;
-            weightValuesBF16.resize(3 * 3 * 3 * 3);
+            weightValuesBF16.resize(channelsCount * channelsCount * 3 * 3);
             BFloat16Helpers::fillInputsBySinValues(weightValuesBF16.data(), weightValuesBF16.size());
             weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesBF16.data());
         }
@@ -87,15 +89,15 @@ protected:
 
         // Convolution
         std::shared_ptr<ngraph::opset1::Constant> weightsNode2 = nullptr;
-        ngraph::Shape convFilterShape2 = { 3, 3, 3, 3 };  // out channel, /input channels, kernel h, kernel w
+        ngraph::Shape convFilterShape2 = { channelsCount, channelsCount, 3, 3 };  // out channel, /input channels, kernel h, kernel w
         if (netPrecision == Precision::FP32) {
             std::vector<float> weightValues2;
-            weightValues2.resize(3 * 3 * 3 * 3);
+            weightValues2.resize(channelsCount * channelsCount * 3 * 3);
             BFloat16Helpers::fillInputsBySinValues(weightValues2.data(), weightValues2.size());
             weightsNode2 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape2, weightValues2);
         } else {
             std::vector<short> weightValues2BF16;
-            weightValues2BF16.resize(3 * 3 * 3 * 3);
+            weightValues2BF16.resize(channelsCount * channelsCount * 3 * 3);
             BFloat16Helpers::fillInputsBySinValues(weightValues2BF16.data(), weightValues2BF16.size());
             weightsNode2 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape2, weightValues2BF16.data());
         }
@@ -112,12 +114,12 @@ protected:
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{convNode2}, ngraph::ParameterVector{input1});
     }
 
-    void SetUp()override {
+    void SetUp() override {
         std::tie(inputPrecision, netPrecision, inputShapes, newInputShapes, targetDevice) = this->GetParam();
         fnPtr = createGraph(netPrecision);
 
         // STAGE1:
-        threshold = 0.2f;  // max value in the latest tensor for FP32 network is 37.77
+        threshold = 1.0f;  // max value in the latest tensor for FP32 network is 37.77
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters

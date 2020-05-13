@@ -13,12 +13,15 @@ ie_coverage_capture(INFO_FILE "dldt"
 
 # Generate reports
 
-ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine_with_builders"
+ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine"
                     PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/inference_engine/*"
                              "${DLDT_COVERAGE_BASE_DIRECTORY}/plugin_api/*")
-ie_coverage_remove(INPUT "inference_engine_with_builders" OUTPUT "inference_engine"
-                   PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/inference_engine/builders/*")
 ie_coverage_genhtml(INFO_FILE "inference_engine"
+                    PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
+
+ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine_ir_reader"
+                    PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/ir_readers/*")
+ie_coverage_genhtml(INFO_FILE "inference_engine_ir_reader"
                     PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
 
 ie_coverage_extract(INPUT "dldt" OUTPUT "inference_engine_legacy"

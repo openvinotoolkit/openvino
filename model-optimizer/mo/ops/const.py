@@ -31,6 +31,7 @@ class Const(Op):
         super().__init__(graph, {
             'type': self.op,
             'op': self.op,
+            'version': 'opset1',
             'infer': self.infer,
             'value': None,
             'shape': None,

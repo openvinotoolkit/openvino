@@ -20,10 +20,19 @@ ParamsKey DeconvolutionKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
+
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableInputWeightsType(WeightsType::INT8);
+    k.EnableInputWeightsType(WeightsType::UINT8);
+
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::byxf);
@@ -38,6 +47,7 @@ ParamsKey DeconvolutionKernelRef::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
+
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBiasPerFeature();
@@ -47,6 +57,8 @@ ParamsKey DeconvolutionKernelRef::GetSupportedKey() const {
     k.EnableDepthwiseSeparableOpt();
     k.EnableGradient();
     k.EnableGroupedConvolution();
+    k.EnableDifferentTypes();
+    k.EnableDifferentInputWeightsTypes();
     return k;
 }
 
@@ -72,6 +84,19 @@ JitConstants DeconvolutionKernelRef::GetJitConstants(const deconvolution_params&
 
     if (params.output.Feature().v * params.output.Batch().v <= 16)
         jit.AddConstant(MakeJitConstant("DIM_ORDER_XYBF", 1));
+
+    if (!params.fused_ops.empty()) {
+        auto fused_dt = GetActivationType(params);
+        std::vector<std::string> idx_order;
+        if (params.output.Dimentions() <= 4) {
+            idx_order = { "batch_offset", "ofm_offset", "out_y", "out_x" };
+        } else {
+            idx_order = { "batch_offset", "ofm_offset", "out_z", "out_y", "out_x" };
+        }
+        FusedOpsConfiguration conf = { "", idx_order, "post_activation", fused_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED };
+
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+    }
 
     return jit;
 }

@@ -4,7 +4,7 @@
 
 #include "myriad_layers_squeeze_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC1,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC1_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_squeezeTensorsTC1),
         ::testing::ValuesIn(s_squeezeIndicesTC1),
@@ -13,7 +13,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC1,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC2,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC2_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_squeezeTensorsTC2),
         ::testing::ValuesIn(s_squeezeIndicesTC2),
@@ -22,7 +22,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC2,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC3,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC3_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_squeezeTensorsTC3),
         ::testing::ValuesIn(s_squeezeIndicesTC3),
@@ -31,7 +31,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC3,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC4,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC4_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_squeezeTensorsTC4),
         ::testing::ValuesIn(s_squeezeIndicesTC4),
@@ -40,7 +40,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC4,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC5,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsSqueezeTC5_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(s_squeezeTensorsTC5),
                                 ::testing::ValuesIn(s_squeezeIndicesTC5),

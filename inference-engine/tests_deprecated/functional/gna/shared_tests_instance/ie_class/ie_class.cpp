@@ -89,11 +89,10 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
    DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
    ::testing::Values("GNA", "MULTI:GNA", "HETERO:GNA"));
-//
-// TODO: this metric is not supported by the plugin
+
 INSTANTIATE_TEST_CASE_P(
-   DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
-   ::testing::Values("GNA", "MULTI:GNA", "HETERO:GNA"));
+   IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+   ::testing::Values("GNA"/*, "MULTI:GNA", "HETERO:GNA" */));
 
 INSTANTIATE_TEST_CASE_P(
     IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,

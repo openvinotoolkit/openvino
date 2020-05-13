@@ -5,24 +5,24 @@
 #include "myriad_layers_sigmoid_test.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-        accuracy, myriadLayersTestsSigmoid_nightly,
+        accuracy, myriadLayersTestsSigmoid_smoke,
         ::testing::ValuesIn(s_sigmoidParams));
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMaxPoolingWithSigmoid_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMaxPoolingWithSigmoid_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(g_poolingInput),
         ::testing::ValuesIn(g_poolingLayerParamsLite),
         ::testing::ValuesIn(g_poolingLayout))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsAvgPoolingWithSigmoid_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsAvgPoolingWithSigmoid_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(g_poolingInput),
         ::testing::ValuesIn(g_poolingLayerParamsLite),
         ::testing::ValuesIn(g_poolingLayout))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerConvolutionWithSigmoid_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerConvolutionWithSigmoid_smoke,
         ::testing::Combine(
             ::testing::ValuesIn(g_convolutionTensors)
           , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 3, 3))
@@ -35,7 +35,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerConvolutionWithSigmoid_nightly,
 );
 
 INSTANTIATE_TEST_CASE_P(
-    accuracy, myriadLayerFullyConnectedWithSigmoid_nightly,
+    accuracy, myriadLayerFullyConnectedWithSigmoid_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(g_fcTestParamsSubset),
         ::testing::Values(g_dimensionsFC[0]),

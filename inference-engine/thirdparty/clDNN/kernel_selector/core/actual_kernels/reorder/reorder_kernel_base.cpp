@@ -90,6 +90,10 @@ inline JitConstants MakeReorderWeightsJitConstants(const reorder_weights_params&
         MakeJitConstant("OUTPUT", output),
     };
 
+    if (params.rotate_180) {
+        jit.AddConstant(MakeJitConstant("REORDER_ROTATE", params.rotate_180));
+    }
+
     if (fp16Supported) {
         jit.Merge(MakeUnitTypeJitConstants(Datatype::F16));
     } else {

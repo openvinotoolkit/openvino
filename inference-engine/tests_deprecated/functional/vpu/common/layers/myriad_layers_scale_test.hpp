@@ -97,11 +97,11 @@ void ref_scale(const InferenceEngine::Blob::Ptr src,
 
 typedef std::tuple<SizeVector, bool> TestScaleShift;
 
-class myriadLayersTestsScale_nightly: public myriadLayersTests_nightly,
+class myriadLayersTestsScale_smoke: public myriadLayersTests_nightly,
                               public testing::WithParamInterface<TestScaleShift> {
 };
 
-TEST_P(myriadLayersTestsScale_nightly, TestsScale)
+TEST_P(myriadLayersTestsScale_smoke, TestsScale)
 {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
 

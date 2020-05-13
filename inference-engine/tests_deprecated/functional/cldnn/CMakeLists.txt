@@ -23,7 +23,6 @@ list(APPEND TEST_SRC ${CLDNN_TEST_SOURCES})
 list(APPEND CLDNN_LIBS
         IESharedTests
         inference_engine_lp_transformations
-        inference_engine_ir_readers
         ${CLDNN__IOCL_ICD_LIBPATH})
 
 # try to find VA libraries
@@ -69,5 +68,5 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${CLDNN_LIBS})
 
 add_dependencies(${TARGET_NAME} ${DEPENDENCIES})
 
-add_test(NAME ${TARGET_NAME}
-        COMMAND ${TARGET_NAME})
+add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
+set_property(TEST ${TARGET_NAME} PROPERTY LABELS GPU)

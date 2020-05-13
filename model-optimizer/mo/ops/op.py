@@ -297,6 +297,15 @@ class Op(object):
             node[k] = v
         node.update_node()
 
+    def get_opset(self):
+        """
+        Gets the operation set version where the operation was introduced.
+        If the version is not defined then consider it an extension
+        :return: the string with the opset name
+        """
+        return self.attrs.get('version', 'extension')
+
+
     @classmethod
     def update_node_stat(cls, node: Node, attrs: dict = None):
         if attrs is None:
