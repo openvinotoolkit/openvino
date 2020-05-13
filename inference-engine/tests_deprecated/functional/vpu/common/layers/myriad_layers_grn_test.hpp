@@ -43,46 +43,47 @@ static void refGRN(const Blob::Ptr src,
 }
 
 PRETTY_PARAM(Bias, float)
+PRETTY_PARAM(CustomConfig, std::string)
 
-typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Bias, std::string>> myriadLayersTestsGRN_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, Bias, IRVersion, CustomConfig>> myriadLayersTestsGRN_smoke;
 
-TEST_P(myriadLayersTestsGRN_nightly, GRN) {
-    tensor_test_params dims  = std::get<0>(GetParam());
-    float bias               = std::get<1>(GetParam());
-    std::string customConfig = std::get<2>(GetParam());
+TEST_P(myriadLayersTestsGRN_smoke, GRN) {
+    const SizeVector dims = std::get<0>(GetParam());
+	const float bias = std::get<1>(GetParam());
+	_irVersion = std::get<2>(GetParam());
+	const std::string customConfig = std::get<3>(GetParam());
 
-    if(!customConfig.empty() && !CheckMyriadX()) {
-        GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
+    if (!customConfig.empty() && !CheckMyriadX()) {
+        GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
     }
     _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
 
-    SetInputTensor(dims);
-    SetOutputTensor(dims);
+    SetInputTensors({dims});
+    SetOutputTensors({dims});
 
     std::map<std::string, std::string> params;
     params["bias"] = std::to_string(bias);
 
-    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("GRN").params(params)));
+    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("GRN").params(params),
+												   NetworkInitParams()
+												   .layoutPreference(vpu::LayoutPreference::ChannelMajor)
+												   .lockLayout(true)));
 
     ASSERT_TRUE(Infer());
 
-    ASSERT_NO_FATAL_FAILURE(refGRN(_inputMap.begin()->second, _refBlob, bias, false));
+    ASSERT_NO_FATAL_FAILURE(refGRN(_inputMap.begin()->second, _refBlob, bias, true));
 
     CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, ERROR_BOUND);
 }
 
-static std::vector<Dims> s_GRNTensors = {
-        {{1, 3, 16, 224}},
-        {{1, 24, 128, 224}},
-};
-
-static std::vector<Bias> s_GRN_bias = {
-        0.5f, 10.f
-};
-
-static std::vector<std::string> s_MVNCustomConfig = {
-    "" ,
+static std::vector<CustomConfig> s_CustomConfig = {
+	{""} ,
 #ifdef VPU_HAS_CUSTOM_KERNELS
     getIELibraryPath() + "/vpu_custom_kernels/customLayerBindings.xml"
 #endif
+};
+
+static std::vector<SizeVector> s_GRNInputs = {
+        {1, 3, 16, 224},
+        {1, 24, 128, 224},
 };

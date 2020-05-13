@@ -51,9 +51,9 @@ void ref_oneHot(const InferenceEngine::Blob::Ptr src,
     }
 }
 
-typedef myriadLayerTestBaseWithParam<oneHot_test_params> myriadLayerTestOneHot_nightly;
+typedef myriadLayerTestBaseWithParam<oneHot_test_params> myriadLayerTestOneHot_smoke;
 
-TEST_P(myriadLayerTestOneHot_nightly, OneHot) {
+TEST_P(myriadLayerTestOneHot_smoke, OneHot) {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
 
     OneHotParams testParams = GetParam();

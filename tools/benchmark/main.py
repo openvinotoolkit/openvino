@@ -4,19 +4,23 @@ from datetime import datetime
 
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
-from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, BIN_EXTENSION
+from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
+    GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, BIN_EXTENSION, BLOB_EXTENSION
 from openvino.tools.benchmark.utils.inputs_filling import set_inputs
 from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
 from openvino.tools.benchmark.utils.utils import next_step, config_network_inputs, get_number_iterations, \
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
-    get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, load_config, dump_config
+    get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, update_shapes, \
+    adjust_shapes_batch, load_config, dump_config
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
+
 
 def main():
     # ------------------------------ 1. Parsing and validating input arguments -------------------------------------
     next_step()
     run(parse_args())
+
 
 def run(args):
     statistics = None
@@ -43,6 +47,13 @@ def run(args):
         if args.load_config:
             load_config(args.load_config, config)
 
+        is_network_compiled = False
+        _, ext = os.path.splitext(args.path_to_model)
+
+        if ext == BLOB_EXTENSION:
+            is_network_compiled = True
+            print("Network is compiled")
+
         # ------------------------------ 2. Loading Inference Engine ---------------------------------------------------
         next_step(step_id=2)
 
@@ -67,33 +78,7 @@ def run(args):
 
         logger.info(version)
 
-        # --------------------- 3. Read the Intermediate Representation of the network ---------------------------------
-        next_step()
-
-        start_time = datetime.utcnow()
-        ie_network = benchmark.read_network(args.path_to_model)
-        duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
-        logger.info("Read network took {} ms".format(duration_ms))
-        if statistics:
-            statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                      [
-                                          ('read network time (ms)', duration_ms)
-                                      ])
-
-        # --------------------- 4. Resizing network to match image sizes and given batch -------------------------------
-
-        next_step()
-        if args.batch_size and args.batch_size != ie_network.batch_size:
-            benchmark.reshape(ie_network, args.batch_size)
-        batch_size = ie_network.batch_size
-        logger.info('Network batch size: {}'.format(ie_network.batch_size))
-
-        # --------------------- 5. Configuring input of the model ------------------------------------------------------
-        next_step()
-
-        config_network_inputs(ie_network)
-
-        # --------------------- 6. Setting device configuration --------------------------------------------------------
+        # --------------------- 3. Setting device configuration --------------------------------------------------------
         next_step()
 
         perf_counts = False
@@ -172,26 +157,94 @@ def run(args):
         perf_counts = perf_counts
 
         benchmark.set_config(config)
+        batch_size = args.batch_size
+        if not is_network_compiled:
+            # --------------------- 4. Read the Intermediate Representation of the network -----------------------------
+            next_step()
 
-        # --------------------- 7. Loading the model to the device -----------------------------------------------------
-        next_step()
+            start_time = datetime.utcnow()
+            ie_network = benchmark.read_network(args.path_to_model)
+            duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
+            logger.info("Read network took {} ms".format(duration_ms))
+            if statistics:
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ('read network time (ms)', duration_ms)
+                                          ])
 
-        start_time = datetime.utcnow()
-        exe_network = benchmark.load_network(ie_network)
-        duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
-        logger.info("Load network took {} ms".format(duration_ms))
-        if statistics:
-            statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                      [
-                                          ('load network time (ms)', duration_ms)
-                                      ])
-        ## Update number of streams
-        for device in device_number_streams.keys():
-            key = device + '_THROUGHPUT_STREAMS'
-            device_number_streams[device] = benchmark.ie.get_config(device, key)
+            # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
+            next_step()
+
+            shapes = {k: v.shape.copy() for k, v in ie_network.inputs.items()}
+            reshape = False
+            if args.shape:
+                reshape |= update_shapes(shapes, args.shape, ie_network.inputs)
+            if args.batch_size and args.batch_size != ie_network.batch_size:
+                reshape |= adjust_shapes_batch(shapes, args.batch_size, ie_network.inputs)
+
+            if reshape:
+                start_time = datetime.utcnow()
+                logger.info(
+                    'Reshaping network: {}'.format(', '.join("'{}': {}".format(k, v) for k, v in shapes.items())))
+                ie_network.reshape(shapes)
+                duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
+                logger.info("Reshape network took {} ms".format(duration_ms))
+                if statistics:
+                    statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                              [
+                                                  ('reshape network time (ms)', duration_ms)
+                                              ])
+
+            batch_size = ie_network.batch_size
+            logger.info('Network batch size: {}'.format(ie_network.batch_size))
+
+            # --------------------- 6. Configuring input of the model --------------------------------------------------
+            next_step()
+
+            config_network_inputs(ie_network)
+
+            # --------------------- 7. Loading the model to the device -------------------------------------------------
+            next_step()
+
+            start_time = datetime.utcnow()
+            exe_network = benchmark.load_network(ie_network)
+            duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
+            logger.info("Load network took {} ms".format(duration_ms))
+            if statistics:
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ('load network time (ms)', duration_ms)
+                                          ])
+        else:
+            next_step()
+            print("Skipping the step for compiled network")
+            next_step()
+            print("Skipping the step for compiled network")
+            next_step()
+            print("Skipping the step for compiled network")
+
+            # --------------------- 7. Loading the model to the device -------------------------------------------------
+            next_step()
+
+            start_time = datetime.utcnow()
+            exe_network = benchmark.import_network(args.path_to_model)
+            duration_ms = "{:.2f}".format((datetime.utcnow() - start_time).total_seconds() * 1000)
+            logger.info("Import network took {} ms".format(duration_ms))
+            if statistics:
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                          [
+                                              ('import network time (ms)', duration_ms)
+                                          ])
+            if batch_size == 0:
+                batch_size = 1
 
         # --------------------- 8. Setting optimal runtime parameters --------------------------------------------------
         next_step()
+
+        # Update number of streams
+        for device in device_number_streams.keys():
+            key = device + '_THROUGHPUT_STREAMS'
+            device_number_streams[device] = benchmark.ie.get_config(device, key)
 
         # Number of requests
         infer_requests = exe_network.requests
@@ -206,7 +259,7 @@ def run(args):
         if args.paths_to_input:
             for path in args.paths_to_input:
                 paths_to_input.append(os.path.abspath(*path) if args.paths_to_input else None)
-        set_inputs(paths_to_input, batch_size, ie_network.inputs, infer_requests)
+        set_inputs(paths_to_input, batch_size, exe_network.inputs, infer_requests)
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,

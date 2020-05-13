@@ -245,7 +245,7 @@ static const std::map<const char*, ReduceOpParams<int32_t>> refMapI32 =
                 {REDUCE_MEAN, {&refReduceMeanI32, 0.0f, RefReduceMean<int32_t>::generateData}},
         };
 
-using ReduceTestParams = std::tuple<SizeVector, SizeVector, Precision, bool>;
+using ReduceTestParams = std::tuple<std::pair<SizeVector, vpu::LayoutPreference>, SizeVector, Precision, bool>;
 
 static const Precision axesPrecision = Precision::I32;
 
@@ -349,24 +349,13 @@ public:
         for (int i : list)
         {
             if (i < 0) // handle negative indices
-                i = ndims - i;
+                i = ndims - std::abs(i);
             EXPECT_TRUE((i >= 0) && (i < ndims));
             mask |= (1 << i);
         }
         return mask;
     }
-    static Layout defaultLayout(int ndims)
-    {
-        switch (ndims)
-        {
-        case 5: return NCDHW;
-        case 4: return NCHW;
-        case 3: return CHW;
-        case 2: return NC;
-        case 1: return C;
-        }
-        return ANY;
-    }
+
     static void getAxesBlob(const SizeVector& axesList, TBlob<uint8_t>::Ptr& weightsBlob, TBlob<int32_t>::Ptr& axesBlob)
     {
         size_t axes_size = axesList.size();
@@ -400,10 +389,13 @@ protected:
         _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
 
         const auto params = GetParam();
-        const auto inputDims = std::get<0>(params);
-        const auto axesList = std::get<1>(params);
+        const auto inputPair = std::get<0>(params);
+        auto axesList = std::get<1>(params);
         const auto dataPrecision = std::get<2>(params);
         const int keepDims = std::get<3>(params) ? 1 : 0;
+
+        const auto inputDims = inputPair.first;
+        const auto layoutPreference = inputPair.second;
 
         const auto outputDims = ReduceUtils::calcOutputDims(inputDims, axesList, keepDims);
         const auto model = ReduceUtils::getModel(inputDims, axesList, outputDims, ReduceType, dataPrecision, keepDims);
@@ -412,19 +404,18 @@ protected:
         TBlob<int32_t>::Ptr axesBlob;
         ReduceUtils::getAxesBlob(axesList, weightsBlob, axesBlob);
         ASSERT_NE(weightsBlob, nullptr);
-
+ 
         ASSERT_NO_THROW(readNetwork(model, weightsBlob));
 
         const auto& network = _cnnNetwork;
 
         _inputsInfo = network.getInputsInfo();
         _inputsInfo["reduce_input"]->setPrecision(dataPrecision);
-        _inputsInfo["reduce_input"]->setLayout(ReduceUtils::defaultLayout(inputDims.size()));
+        _inputsInfo["reduce_input"]->setLayout(vpu::deviceLayout(TensorDesc::getLayoutByDims(inputDims), layoutPreference));
 
         _outputsInfo = network.getOutputsInfo();
         _outputsInfo["reduce"]->setPrecision(dataPrecision);
-        _outputsInfo["reduce"]->setLayout(ReduceUtils::defaultLayout(outputDims.size()));
-
+        _outputsInfo["reduce"]->setLayout(vpu::deviceLayout(TensorDesc::getLayoutByDims(outputDims), layoutPreference));
         StatusCode st = OK;
 
         ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, _config, &_resp));
@@ -457,87 +448,95 @@ protected:
 
             refBlob = make_shared_blob<ie_fp16>(outputBlob->getTensorDesc());
             refBlob->allocate();
-            ref_reduce(inputBlob, axesBlob, refBlob, keepDims, reduceOp);
+            ref_reduce(inputBlob, axesBlob, refBlob, keepDims, layoutPreference, reduceOp);
             CompareCommonAbsolute(outputBlob, refBlob, compareThreshold);
-        } else if (dataPrecision == Precision::I32) {
-            auto opIt = refMapI32.find(ReduceType);
-            ASSERT_TRUE(opIt != refMapI32.end());
-            auto reduceOp = opIt->second.op;
-            auto generateData = opIt->second.generateData;
-            generateData(inputBlob);
+       } else if (dataPrecision == Precision::I32) {
+           auto opIt = refMapI32.find(ReduceType);
+           ASSERT_TRUE(opIt != refMapI32.end());
+           auto reduceOp = opIt->second.op;
+           auto generateData = opIt->second.generateData;
+           generateData(inputBlob);
 
-            ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-            ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+           ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
+           ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
 
-            refBlob = make_shared_blob<int32_t>(outputBlob->getTensorDesc());
-            refBlob->allocate();
-            ref_reduce(inputBlob, axesBlob, refBlob, keepDims, reduceOp);
-            CompareCommonExact(outputBlob, refBlob);
-        }
+           refBlob = make_shared_blob<int32_t>(outputBlob->getTensorDesc());
+           refBlob->allocate();
+           ref_reduce(inputBlob, axesBlob, refBlob, keepDims, layoutPreference, reduceOp);
+           CompareCommonExact(outputBlob, refBlob);
+       }
     }
 };
 
-class myriadTestsReduceAnd_nightly: public ReduceTest<REDUCE_AND>
+class myriadTestsReduceAnd_smoke: public ReduceTest<REDUCE_AND>
 {
 };
 
-class myriadTestsReduceMin_nightly: public ReduceTest<REDUCE_MIN>
+class myriadTestsReduceMin_smoke: public ReduceTest<REDUCE_MIN>
 {
 };
 
-class myriadTestsReduceMax_nightly: public ReduceTest<REDUCE_MAX>
+class myriadTestsReduceMax_smoke: public ReduceTest<REDUCE_MAX>
 {
 };
 
-class myriadTestsReduceSum_nightly: public ReduceTest<REDUCE_SUM>
+class myriadTestsReduceSum_smoke: public ReduceTest<REDUCE_SUM>
 {
 };
 
-class myriadTestsReduceMean_nightly: public ReduceTest<REDUCE_MEAN>
+class myriadTestsReduceMean_smoke: public ReduceTest<REDUCE_MEAN>
 {
 };
 
 // Tests are disabled due to hang: #-28315
 
-TEST_P(myriadTestsReduceAnd_nightly, And)
+TEST_P(myriadTestsReduceAnd_smoke, And)
 {
     testReduce();
 }
-TEST_P(myriadTestsReduceMin_nightly, Min)
+TEST_P(myriadTestsReduceMin_smoke, Min)
 {
     testReduce();
 }
-TEST_P(myriadTestsReduceMax_nightly, Max)
+TEST_P(myriadTestsReduceMax_smoke, Max)
 {
     testReduce();
 }
-TEST_P(myriadTestsReduceSum_nightly, Sum)
+TEST_P(myriadTestsReduceSum_smoke, Sum)
 {
     testReduce();
 }
-TEST_P(myriadTestsReduceMean_nightly, Mean)
+TEST_P(myriadTestsReduceMean_smoke, Mean)
 {
     testReduce();
 }
 
-static const std::vector<SizeVector> s_input_dims =
+static const std::vector<std::pair<SizeVector, vpu::LayoutPreference>> s_input_pair =
         {
-                {1, 3, 2, 14, 32},
-                {2, 2, 2, 14, 32},
-                {3, 5, 4, 8, 16},
-                {4, 2, 16, 16, 8},
+                {{1, 3, 2, 14, 32}, vpu::LayoutPreference::ChannelMinor},
+                {{1, 3, 2, 14, 32}, vpu::LayoutPreference::ChannelMajor},
+                {{2, 2, 2, 14, 32}, vpu::LayoutPreference::ChannelMinor},
+                {{2, 2, 2, 14, 32}, vpu::LayoutPreference::ChannelMajor},
+                {{3, 5, 4, 8, 16}, vpu::LayoutPreference::ChannelMinor},
+                {{3, 5, 4, 8, 16}, vpu::LayoutPreference::ChannelMajor},
+                {{4, 2, 16, 16, 8}, vpu::LayoutPreference::ChannelMinor},
+                {{4, 2, 16, 16, 8}, vpu::LayoutPreference::ChannelMajor},
 
-                {3, 2, 14, 32},
-                {2, 2, 14, 32},
-                {5, 4, 8, 16},
-                {2, 16, 16, 8},
+                {{3, 2, 14, 32}, vpu::LayoutPreference::ChannelMinor},
+                {{3, 2, 14, 32}, vpu::LayoutPreference::ChannelMajor},
+                {{2, 2, 14, 32}, vpu::LayoutPreference::ChannelMinor},
+                {{2, 2, 14, 32}, vpu::LayoutPreference::ChannelMajor},
+                {{5, 4, 8, 16}, vpu::LayoutPreference::ChannelMinor},
+                {{5, 4, 8, 16}, vpu::LayoutPreference::ChannelMajor},
+                {{2, 16, 16, 8}, vpu::LayoutPreference::ChannelMinor},
+                {{2, 16, 16, 8}, vpu::LayoutPreference::ChannelMajor},
 
-                {3, 2, 14},
-                {2, 2, 14},
-                {5, 4, 8},
-                {2, 16, 16},
+                {{3, 2, 14}, vpu::LayoutPreference::ChannelMajor},
+                {{2, 2, 14}, vpu::LayoutPreference::ChannelMajor},
+                {{5, 4, 8}, vpu::LayoutPreference::ChannelMajor},
+                {{2, 16, 16}, vpu::LayoutPreference::ChannelMajor},
 
-                { 7, 3, 5, 1, 7, 11, 12},
+                {{7, 3, 5, 1, 7, 11, 12}, vpu::LayoutPreference::ChannelMajor},
         };
 
 static const std::vector<SizeVector> s_axes_list =

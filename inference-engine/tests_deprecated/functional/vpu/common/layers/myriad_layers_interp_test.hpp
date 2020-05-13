@@ -14,7 +14,7 @@ PRETTY_PARAM(layoutPreference, vpu::LayoutPreference)
 PRETTY_PARAM(SizeInputOutput, interp_test_params)
 PRETTY_PARAM(align_corners, bool)
 
-typedef myriadLayerTestBaseWithParam<tuple<interp_test_params, layoutPreference, align_corners>> myriadLayersTestsInterp_nightly;
+typedef myriadLayerTestBaseWithParam<tuple<interp_test_params, layoutPreference, align_corners>> myriadLayersTestsInterp_smoke;
 
 
 void ref_interp(const Blob::Ptr src,
@@ -103,7 +103,7 @@ void ref_interp(const Blob::Ptr src,
     }
 }
 
-TEST_P(myriadLayersTestsInterp_nightly, Interp)
+TEST_P(myriadLayersTestsInterp_smoke, Interp)
 {
     interp_test_params test_params = get<0>(GetParam());
     auto layoutPreference = get<1>(GetParam());

@@ -217,7 +217,7 @@ public:
      * @brief Gets reference to ICore interface
      * @return Reference to ICore interface
      */
-    virtual const ICore* GetCore() const noexcept = 0;
+    virtual ICore* GetCore() const noexcept = 0;
 
     /**
      * @brief      Queries a plugin about support layers in network

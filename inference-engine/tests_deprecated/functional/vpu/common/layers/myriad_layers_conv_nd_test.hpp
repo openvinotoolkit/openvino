@@ -752,8 +752,8 @@ private:
     }
 };
 
-class myriadLayersConvNDTest_nightly: public ConvNDTest {};
+class myriadLayersConvNDTest_smoke: public ConvNDTest {};
 
-TEST_P(myriadLayersConvNDTest_nightly, ConvND) {
+TEST_P(myriadLayersConvNDTest_smoke, ConvND) {
     testConvND();
 }

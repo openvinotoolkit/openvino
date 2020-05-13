@@ -23,6 +23,13 @@ using namespace mkldnn::impl::math;
 
 namespace mkldnn {
 
+static float bf16tof32(mkldnn_bfloat16_t bf16) {
+    union float_raw t = { 0 };
+    t.i[1] = bf16;
+    t.i[0] = 0;
+    return t.f;
+}
+
 template <typename data_t_src, typename data_t_wei,
           typename data_t_acc, typename data_t_dst>
 void compute_ref_conv_eltwise_fwd(const test_convolution_sizes_t &c,
@@ -31,6 +38,7 @@ void compute_ref_conv_eltwise_fwd(const test_convolution_sizes_t &c,
         float elt_alpha, float elt_beta)
 {
     data_t_src *src_data = (data_t_src *)src.get_data_handle();
+    memory::data_type data_type_src = data_traits<data_t_src>::data_type;
     data_t_wei *weights_data = (data_t_wei *)weights.get_data_handle();
     data_t_dst *bias_data
             = (data_t_dst *)(w_bias ? bias.get_data_handle() : nullptr);
@@ -75,8 +83,13 @@ void compute_ref_conv_eltwise_fwd(const test_convolution_sizes_t &c,
                     + oc * padded_ic_w / c.ng * c.kh * c.kw
                     + ic * c.kh * c.kw + kh * c.kw + kw;
 
-                dst_data[didx] += src_data[map_index(src_d, iidx)]
+                if (data_type_src == mkldnn_bf16) {
+                    dst_data[didx] += bf16tof32(src_data[map_index(src_d, iidx)])
+                        * bf16tof32(weights_data[map_index(weights_d, widx)]);
+                } else {
+                    dst_data[didx] += src_data[map_index(src_d, iidx)]
                         * weights_data[map_index(weights_d, widx)];
+                }
             }
 
             auto &d = dst_data[didx];
@@ -92,6 +105,7 @@ void compute_ref_conv_eltwise_fwd(const test_convolution_sizes_t &c,
             case eltwise_soft_relu: d = soft_relu_fwd(d); break;
             case eltwise_logistic: d = logistic_fwd(d); break;
             case eltwise_exp: d = exp_fwd(d); break;
+            case eltwise_gelu: d = gelu_fwd(d); break;
             case eltwise_clamp: d = clamp_fwd(d, elt_alpha, elt_beta); break;
             case eltwise_swish: d = swish_fwd(d, elt_alpha); break;
             default: assert(!"unknown alg_kind");

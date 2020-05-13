@@ -31,7 +31,7 @@ public:
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const deconvolution_params& p) const override {
-        if (p.output.GetLayout() == DataLayout::b_fs_yx_fsv16)
+        if (p.output.Dimentions() == 4)
             return WeightsLayout::is_os_yx_osv16_isv16;
         else
             return WeightsLayout::is_os_zyx_osv16_isv16;
@@ -39,5 +39,14 @@ protected:
     bool Validate(const Params& p, const optional_params& o) const override;
     CommonDispatchData SetDefault(const deconvolution_params& arg) const override;
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
+
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {
+            FusedOpType::ACTIVATION,
+            FusedOpType::ELTWISE,
+            FusedOpType::SCALE,
+            FusedOpType::QUANTIZE
+        };
+    }
 };
 }  // namespace kernel_selector

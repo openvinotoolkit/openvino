@@ -30,9 +30,9 @@ void dynamicToStaticShapeTranspose(std::shared_ptr<ngraph::Node> target) {
     const auto shape = dsr->input(1).get_source_output();
 
     const auto axis = std::make_shared<ngraph::opset3::Constant>(
-        ngraph::element::u64,
+        ngraph::element::i64,
         ngraph::Shape{std::initializer_list<std::size_t>{1}},
-        std::vector<std::size_t>{0});
+        std::vector<std::int64_t>{0});
     const auto scatterElementsUpdate = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(shape, transposition, shape, axis);
     ngraph::replace_node(std::move(target), std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, scatterElementsUpdate));
 }

@@ -64,13 +64,13 @@ using PermuteNDParams = std::tuple<InferenceEngine::SizeVector,  // input tensor
                                    IRVersion,
                                    InferenceEngine::Precision>;
 
-class myriadLayersPermuteNDTests_nightly:
+class myriadLayersPermuteNDTests_smoke:
     public myriadLayersTests_nightly,
     public testing::WithParamInterface<PermuteNDParams> {
 };
 
 
-TEST_P(myriadLayersPermuteNDTests_nightly, Permute) {
+TEST_P(myriadLayersPermuteNDTests_smoke, Permute) {
     const auto& testParams = GetParam();
     const auto& inputTensorSizes   = std::get<0>(testParams);
     const auto& permutationVector  = std::get<1>(testParams);

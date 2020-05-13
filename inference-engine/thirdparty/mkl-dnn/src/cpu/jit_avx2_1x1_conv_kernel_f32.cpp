@@ -589,7 +589,7 @@ status_t jit_avx2_1x1_conv_kernel_f32::init_conf(jit_1x1_conv_conf_t &jcp,
             if (post_op.is_eltwise()) {
                 if (post_op.eltwise.alg != alg_kind::eltwise_relu)
                     return status::unimplemented;
-            } else if (post_op.is_depthwise()) {
+            } else if (post_op.is_depthwise() || post_op.is_quantization()) {
                 return status::unimplemented;
             }
         }

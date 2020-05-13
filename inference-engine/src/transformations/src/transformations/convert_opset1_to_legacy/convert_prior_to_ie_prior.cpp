@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
 #include <ngraph_ops/prior_box_ie.hpp>
@@ -108,12 +109,31 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
             input_2 = convert2->input_value(0).get_node_shared_ptr();
         }
 
-        auto shape_of1 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf> (input_1);
-        auto shape_of2 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf> (input_2);
+        // the input can be either ShapeOf-1 or ShapeOf-3
+        std::shared_ptr<ngraph::op::Op> shape_of1 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf> (input_1);
+        std::shared_ptr<ngraph::op::Op> shape_of2 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf> (input_2);
 
+        if (!shape_of1 || !shape_of2) {
+            shape_of1 = std::dynamic_pointer_cast<ngraph::opset3::ShapeOf>(input_1);
+            shape_of2 = std::dynamic_pointer_cast<ngraph::opset3::ShapeOf>(input_2);
+        }
         if (!shape_of1 || !shape_of2) {
             return false;
         }
+        // keep this code for a while if will decide to run this transformation again in the opset1->legacy
+        // the input can be either ShapeOf or Convert(ShapeOf)
+//        if (!shape_of1 || !shape_of2) {
+//            auto shapeof1_convert = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_1);
+//            auto shapeof2_convert = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_2);
+//            if (!shapeof1_convert || !shapeof2_convert)
+//                return false;
+//            shape_of1 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf>(shapeof1_convert->input_value(0).get_node_shared_ptr());
+//            shape_of2 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf>(shapeof2_convert->input_value(0).get_node_shared_ptr());
+//            if (!shape_of1 || !shape_of2)
+//                return false;
+//            ops_to_replace.push_back(shapeof1_convert);
+//            ops_to_replace.push_back(shapeof2_convert);
+//        }
 
         ops_to_replace.push_back(shape_of1);
         ops_to_replace.push_back(shape_of2);
@@ -228,12 +248,31 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
             input_2 = convert2->input_value(0).get_node_shared_ptr();
         }
 
-        auto shape_of1 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf> (input_1);
-        auto shape_of2 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf> (input_2);
+        // the input can be either ShapeOf-1 or ShapeOf-3
+        std::shared_ptr<ngraph::op::Op> shape_of1 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf> (input_1);
+        std::shared_ptr<ngraph::op::Op> shape_of2 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf> (input_2);
 
+        if (!shape_of1 || !shape_of2) {
+            shape_of1 = std::dynamic_pointer_cast<ngraph::opset3::ShapeOf>(input_1);
+            shape_of2 = std::dynamic_pointer_cast<ngraph::opset3::ShapeOf>(input_2);
+        }
         if (!shape_of1 || !shape_of2) {
             return false;
         }
+        // keep this code for a while if will decide to run this transformation again in the opset1->legacy
+        // the input can be either ShapeOf or Convert(ShapeOf)
+//        if (!shape_of1 || !shape_of2) {
+//            auto shapeof1_convert = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_1);
+//            auto shapeof2_convert = std::dynamic_pointer_cast<ngraph::opset1::Convert> (input_2);
+//            if (!shapeof1_convert || !shapeof2_convert)
+//                return false;
+//            shape_of1 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf>(shapeof1_convert->input_value(0).get_node_shared_ptr());
+//            shape_of2 = std::dynamic_pointer_cast<ngraph::opset1::ShapeOf>(shapeof2_convert->input_value(0).get_node_shared_ptr());
+//            if (!shape_of1 || !shape_of2)
+//                return false;
+//            ops_to_replace.push_back(shapeof1_convert);
+//            ops_to_replace.push_back(shapeof2_convert);
+//        }
 
         ops_to_replace.push_back(shape_of1);
         ops_to_replace.push_back(shape_of2);

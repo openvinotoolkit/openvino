@@ -30,12 +30,12 @@ class clDNNEngine : public InferenceEngine::InferencePluginInternal,
 public:
     clDNNEngine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore * core, const InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
                                                                        const std::map<std::string, std::string> &config) override;
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore * core, const InferenceEngine::ICNNNetwork &network,
-                                                                        InferenceEngine::RemoteContext::Ptr context,
-                                                                        const std::map<std::string, std::string> &config) override;
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+                                                                       InferenceEngine::RemoteContext::Ptr context,
+                                                                       const std::map<std::string, std::string> &config) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;

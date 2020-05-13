@@ -84,6 +84,7 @@ Options:
     -stream_output            Optional. Print progress as a plain text. When specified, an interactive progress bar is replaced with a multiline output.
     -t                        Optional. Time in seconds to execute topology.
     -progress                 Optional. Show progress bar (can affect performance measurement). Default values is "false".
+    -shape                    Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
 
   CPU-specific performance options:
     -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU or/and GPU in throughput mode

@@ -5,10 +5,10 @@
 #include "behavior_test_plugin_unsupported.hpp"
 #include "vpu_test_data.hpp"
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestAllUnsupported, ValuesIn(allUnSupportedValues),
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestAllUnsupported, ValuesIn(allUnSupportedValues),
     getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestTypeUnsupported, ValuesIn(typeUnSupportedValues),
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestTypeUnsupported, ValuesIn(typeUnSupportedValues),
     getTestCaseName);
-    INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestBatchUnsupported, ValuesIn(batchUnSupportedValues),
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestBatchUnsupported, ValuesIn(batchUnSupportedValues),
         getTestCaseName);

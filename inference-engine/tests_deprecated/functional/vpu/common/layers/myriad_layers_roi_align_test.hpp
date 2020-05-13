@@ -35,7 +35,7 @@ PRETTY_PARAM(roi_align_mode, std::string);
 PRETTY_PARAM(number_rois, uint32_t);
 
 using ROIAlignTestParams = std::tuple<Dims, roi_align_param, number_rois, roi_align_mode>;
-typedef myriadLayerTestBaseWithParam<ROIAlignTestParams> myriadLayersTestsROIAlign_nightly;
+typedef myriadLayerTestBaseWithParam<ROIAlignTestParams> myriadLayersTestsROIAlign_smoke;
 
 const int roi_cols = 4;
 
@@ -161,7 +161,7 @@ static std::string getModel(const int batches, const int channels, const int hei
     return model;
 }
 
-TEST_P(myriadLayersTestsROIAlign_nightly, ROIAlign) {
+TEST_P(myriadLayersTestsROIAlign_smoke, ROIAlign) {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
 
     const tensor_test_params dims_layer_in = std::get<0>(GetParam());

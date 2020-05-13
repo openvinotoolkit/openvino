@@ -7,7 +7,7 @@
 
 // TODO: currently this tests are not applicable to myriadPlugin
 #if 0
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_CASE_P(smoke_
         BehaviorTest,
         BehaviorPluginTestExecGraphInfo,
         ValuesIn(supportedValues),

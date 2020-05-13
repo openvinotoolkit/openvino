@@ -12,7 +12,7 @@
 using namespace InferenceEngine;
 
 typedef std::vector<int32_t> IndicesVector;
-typedef myriadLayerTestBaseWithParam<std::tuple<InferenceEngine::SizeVector, IndicesVector>> myriadLayersTestsUnsqueeze;
+typedef myriadLayerTestBaseWithParam<std::tuple<InferenceEngine::SizeVector, IndicesVector>> myriadLayersTestsUnsqueeze_smoke;
 
 static void ref_unsqueeze(const InferenceEngine::Blob::Ptr src,
                         InferenceEngine::Blob::Ptr dst) {
@@ -44,7 +44,7 @@ static void ref_unsqueeze(const InferenceEngine::Blob::Ptr src,
     ie_memcpy(dst_data, dst_size * sizeof(ie_fp16), src_data, src_size * sizeof(ie_fp16));
 }
 
-TEST_P (myriadLayersTestsUnsqueeze, Unsqueeze){
+TEST_P(myriadLayersTestsUnsqueeze_smoke, Unsqueeze){
     auto input = std::get<0>(GetParam());
     auto indices = std::get<1>(GetParam());
 

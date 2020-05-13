@@ -34,6 +34,7 @@ class TensorIterator(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
             'input_port_map': [],  # a list of dicts with such attrs as external_port_id, etc.
             'output_port_map': [],  # a list of dicts with such attrs as external_port_id, etc.
             'back_edges': [],  # a list of dicts with such attrs as from_layer, from_port, etc.

@@ -21,6 +21,7 @@ namespace kernel_selector {
 
 class DeconvolutionKernel_bfyx_opt : public DeconvolutionKernelBase {
 public:
+    using Parent = DeconvolutionKernelBase;
     DeconvolutionKernel_bfyx_opt() : DeconvolutionKernelBase("deconvolution_gpu_bfyx_opt") {}
     virtual ~DeconvolutionKernel_bfyx_opt() {}
 
@@ -28,5 +29,15 @@ public:
 
 protected:
     CommonDispatchData SetDefault(const deconvolution_params& params) const override;
+    JitConstants GetJitConstants(const deconvolution_params& params) const override;
+
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {
+            FusedOpType::ACTIVATION,
+            FusedOpType::ELTWISE,
+            FusedOpType::SCALE,
+            FusedOpType::QUANTIZE
+        };
+    }
 };
 }  // namespace kernel_selector

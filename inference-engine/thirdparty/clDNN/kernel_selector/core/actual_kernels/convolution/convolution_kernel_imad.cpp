@@ -194,7 +194,7 @@ bool ConvolutionKernel_imad::Validate(const Params& params, const optional_param
     }
 
     auto& newParams = static_cast<const convolution_params&>(params);
-    if ((newParams.inputs[0].Feature().v / newParams.groups) % 4 != 0)
+    if (newParams.groups > 1 && newParams.weights.IFM().v % 4 != 0)
         return false;
 
     size_t min_block_size_x = (newParams.weights.X().v - 1) * newParams.dilation.x + 1;

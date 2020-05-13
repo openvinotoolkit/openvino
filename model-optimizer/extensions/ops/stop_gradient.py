@@ -25,7 +25,7 @@ class StopGradientOp(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
+            'type': None,
             'op': __class__.op,
             'identity': True,
             'in_ports_count': 1,

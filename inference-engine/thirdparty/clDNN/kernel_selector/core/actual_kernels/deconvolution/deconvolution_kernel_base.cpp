@@ -55,6 +55,11 @@ bool DeconvolutionKernelBase::Validate(const Params& p, const optional_params& o
         return false;
     }
 
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
     return true;
 }
 
@@ -68,14 +73,15 @@ JitConstants DeconvolutionKernelBase::GetJitConstants(const deconvolution_params
                                         (dp.filterSize.y - 1 + padding.y) * input.Y().pitch;
     input_offset_with_padding = std::max(input_offset_with_padding, (int64_t)0);
 
-    jit.AddConstants({MakeJitConstant("STRIDE", dp.stride),
-                      MakeJitConstant("PADDING", dp.padding),
-                      MakeJitConstant("DILATION", dp.dilation),
-                      MakeJitConstant("FILTER_ARRAY_NUM", dp.split),
-                      MakeJitConstant("INPUT0_OFFSET_WITH_PADDING", input_offset_with_padding),
-                      MakeJitConstant("DEPTHWISE_SEPARABLE_OPT", dp.depthwise_separable_opt),
-                      MakeJitConstant("FUSED_ELTWISE", dp.fused_eltwise),
-                      MakeJitConstant("GROUPED", (dp.groups > 1) ? 1 : 0)});
+    jit.AddConstants({ MakeJitConstant("STRIDE", dp.stride),
+                       MakeJitConstant("PADDING", dp.padding),
+                       MakeJitConstant("DILATION", dp.dilation),
+                       MakeJitConstant("FILTER_ARRAY_NUM", dp.split),
+                       MakeJitConstant("INPUT0_OFFSET_WITH_PADDING", input_offset_with_padding),
+                       MakeJitConstant("DEPTHWISE_SEPARABLE_OPT", dp.depthwise_separable_opt),
+                       MakeJitConstant("GROUPED", (dp.groups > 1) ? 1 : 0) });
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(dp), "ACCUMULATOR"));
+    jit.Merge(MakeTypeJitConstants(GetActivationType(dp), "ACTIVATION"));
 
     return jit;
 }
@@ -114,7 +120,12 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const 
     KernelData kd = KernelData::Default<deconvolution_params>(params);
     deconvolution_params& newParams = *static_cast<deconvolution_params*>(kd.params.get());
 
-    bool succeed = UpdateWeightsParams(newParams, options, GetPreferredWeightsLayout(newParams), kd.weightsReorderParams);
+    bool succeed = UpdateWeightsParams(newParams,
+                                       options,
+                                       GetPreferredWeightsLayout(newParams),
+                                       kd.weightsReorderParams,
+                                       GetSupportedKey(),
+                                       newParams.groups);
 
     if (!succeed) {
         return {};
@@ -133,13 +144,33 @@ KernelsData DeconvolutionKernelBase::GetKernelsData(const Params& params, const 
                      entry_point,
                      DEFAULT,
                      true,
-                     !newParams.bias.empty());
+                     !newParams.bias.empty(),
+                     1,
+                     GetFusedPrimitiveInputsCount(params));
     kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
-    if (orgParams.fused_eltwise)
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
 
     kd.estimatedTime = runInfo.efficiency;
 
     return {kd};
 }
+
+Datatype DeconvolutionKernelBase::GetAccumulatorType(const deconvolution_params& params) const {
+    if (params.inputs[0].GetDType() == Datatype::INT8 || params.inputs[0].GetDType() == Datatype::UINT8)
+        return Datatype::INT32;
+
+    // input is either fp32 or fp16
+    // for fp32->fp16 accumulate to fp16, otherwise accumulate to input type
+    if (params.output.GetDType() == Datatype::F16)
+        return Datatype::F16;
+
+    return params.inputs[0].GetDType();
+}
+
+Datatype DeconvolutionKernelBase::GetActivationType(const deconvolution_params& params) const {
+    auto accumulator_dt = GetAccumulatorType(params);
+    if (accumulator_dt == Datatype::INT32)
+        return Datatype::F32;
+    return accumulator_dt;
+}
+
 }  // namespace kernel_selector

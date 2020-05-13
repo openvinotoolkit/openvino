@@ -190,9 +190,7 @@ public:
      * @return A vector of Memory State objects
      */
     std::vector<MemoryState> QueryState() {
-        if (actual == nullptr) {
-            THROW_IE_EXCEPTION << "ExecutableNetwork wrapper was not initialized.";
-        }
+        if (actual == nullptr) THROW_IE_EXCEPTION << "ExecutableNetwork was not initialized.";
         IMemoryState::Ptr pState = nullptr;
         auto res = OK;
         std::vector<MemoryState> controller;

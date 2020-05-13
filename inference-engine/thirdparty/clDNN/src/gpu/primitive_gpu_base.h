@@ -53,6 +53,11 @@ struct typed_primitive_gpu_impl : public typed_primitive_impl<PType> {
           _outer(arg),
           _device_info(arg.get_program().get_engine().get_context()->get_device_info()),
           _kernel_data(kd) {
+        // weights reorder params got copied to parent, clear in _kernel_data to release shared ptr
+        _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
+        _kernel_data.weightsReorderParams.cpuKernel = nullptr;
+        _kernel_data.weightsReorderParams.clKernel = nullptr;
+
         _kernels.reserve(kd.kernels.size());
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
             gpu::kernel kernel(_outer.get_program().get_engine().get_context(),

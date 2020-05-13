@@ -44,6 +44,8 @@ public:
 
     void run(Task task) override;
 
+    void Execute(Task task) override;
+
     int GetStreamId() override;
 
     int GetNumaNodeId() override;

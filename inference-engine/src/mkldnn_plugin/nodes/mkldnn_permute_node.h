@@ -68,7 +68,7 @@ private:
         isApplicable isValidParams;
     };
 
-    static std::multimap<InferenceEngine::SizeVector, PermuteImpl> OptimizedCases;
+    static const std::multimap<InferenceEngine::SizeVector, PermuteImpl> OptimizedCases;
     std::shared_ptr<jit_uni_permute_kernel> permute_kernel;
 };
 

@@ -316,33 +316,28 @@ int main(int argc, char *argv[]) {
 
             // ----------------- 5. Resizing network to match image sizes and given batch ----------------------------------
             next_step();
-
             batchSize = cnnNetwork.getBatchSize();
-            if ((FLAGS_b != 0) && (batchSize != FLAGS_b)) {
-                ICNNNetwork::InputShapes shapes = cnnNetwork.getInputShapes();
-                bool reshape = false;
-                for (const InputsDataMap::value_type& item : inputInfo) {
-                    auto layout = item.second->getTensorDesc().getLayout();
-
-                    int batchIndex = -1;
-                    if ((layout == Layout::NCHW) || (layout == Layout::NCDHW) ||
-                        (layout == Layout::NHWC) || (layout == Layout::NDHWC) ||
-                        (layout == Layout::NC)) {
-                        batchIndex = 0;
-                    } else if (layout == CN) {
-                        batchIndex = 1;
-                    }
-                    if ((batchIndex != -1) && (shapes[item.first][batchIndex] != FLAGS_b)) {
-                        shapes[item.first][batchIndex] = FLAGS_b;
-                        reshape = true;
-                    }
-                }
-                if (reshape) {
-                    slog::info << "Resizing network to batch = " << FLAGS_b << slog::endl;
-                    cnnNetwork.reshape(shapes);
-                }
+            // Parse input shapes if specified
+            InferenceEngine::ICNNNetwork::InputShapes shapes = cnnNetwork.getInputShapes();
+            bool reshape = false;
+            if (!FLAGS_shape.empty()) {
+                reshape |= updateShapes(shapes, FLAGS_shape, inputInfo);
             }
-
+            if ((FLAGS_b != 0) && (batchSize != FLAGS_b)) {
+                reshape |= adjustShapesBatch(shapes, FLAGS_b, inputInfo);
+            }
+            if (reshape) {
+                slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
+                startTime = Time::now();
+                cnnNetwork.reshape(shapes);
+                auto duration_ms = double_to_string(get_total_ms_time(startTime));
+                slog::info << "Reshape network took " << duration_ms << " ms" << slog::endl;
+                if (statistics)
+                    statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                            {
+                                                    {"reshape network time (ms)", duration_ms}
+                                            });
+            }
             batchSize = cnnNetwork.getBatchSize();
             topology_name = cnnNetwork.getName();
             slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize << slog::endl;

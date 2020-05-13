@@ -24,7 +24,7 @@ using GatherTestParams = std::tuple<InputShape,
                                     Axis,
                                     Type>;
 
-class myriadLayerGather_nightly :
+class myriadLayerGather_smoke :
     public myriadLayerTestBaseWithParam<GatherTestParams> {
 protected:
 
@@ -305,6 +305,6 @@ private:
     }
 };
 
-TEST_P(myriadLayerGather_nightly, Gather) {
+TEST_P(myriadLayerGather_smoke, Gather) {
     testGather();
 }

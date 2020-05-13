@@ -41,8 +41,10 @@ void pre_replace_deconv::run(program_impl& p) {
             if (!p.get_options().get<build_option_type::optimize_data>()->enabled())
                 continue;
 
+            auto& deconv_node = node->as<deconvolution>();
+            auto& weights_node = deconv_node.weights();
             auto deconv_prim = node->as<deconvolution>().typed_desc();
-            tensor filter_size = { 1, 1, 1, 1, 1 };
+            tensor filter_size = weights_node.get_output_layout().size;
             auto weights = deconv_prim->weights;
 
             std::vector<primitive_id> weights_vec;
@@ -52,28 +54,33 @@ void pre_replace_deconv::run(program_impl& p) {
             for (auto& weights_id : weights_vec) {
                 auto weights_iter = p.nodes_map.find(weights_id);
                 if (weights_iter == p.nodes_map.end())  continue;
-
-                auto weights_node_ptr = weights_iter->second;
-                // get filter spatial sizes for input offset adjustment, perform this only once as all filters should
-                // have same size
-                if (weights_id == weights_vec[0])
-                    filter_size = weights_node_ptr->get_output_layout().size;
             }
 
             // limit optimization to stride = 1
-            if (deconv_prim->stride.spatial[0] == 1 && deconv_prim->stride.spatial[1] == 1 && !deconv_prim->gradient()) {
+            bool unit_stride = std::all_of(deconv_prim->stride.spatial.begin(),
+                                           deconv_prim->stride.spatial.end(),
+                                           [](tensor::value_type v) { return v == 1; });
+            if (unit_stride && !deconv_prim->gradient()) {
                 primitive_id deconv_id = node->id();
                 auto& input_node = node->get_dependency(0);
+                auto groups = deconv_node.get_groups();
 
-                // disable for 5D
-                if (cldnn::format::dimension(input_node.get_output_layout().format) == 5)
-                    continue;
+                bool perform_opt = false;
+                // fp16 and fp32 bfyx implementation supports transposed convolution
+                perform_opt |= cldnn::format::dimension(input_node.get_output_layout().format) == 4 &&
+                               (input_node.get_output_layout().data_type == data_types::f32 || input_node.get_output_layout().data_type == data_types::f16) &&
+                               !((_lo.get_optimization_attributes().b_fs_yx_fsv16_network || input_node.get_output_layout().format == format::b_fs_yx_fsv16) &&
+                                _lo.is_format_optimized(node->as<deconvolution>(), format::b_fs_yx_fsv16));
+                // int8/uint8 input
+                perform_opt |= (input_node.get_output_layout().data_type == data_types::i8 || input_node.get_output_layout().data_type == data_types::u8) &&
+                               // imad convolution kernel limitation for groups
+                               (groups == 1 || weights_node.get_output_layout().size.feature[0] % 4 == 0 ||
+                                groups == static_cast<uint32_t>(input_node.get_output_layout().size.feature[0])) &&
+                               // no uint8/int8 3D convolution support
+                               input_node.get_output_layout().format.dimension() == 4;
 
-                // Disable for blocked formats
-                if ((_lo.get_optimization_attributes().b_fs_yx_fsv16_network || input_node.get_output_layout().format == format::b_fs_yx_fsv16) &&
-                    _lo.is_format_optimized(node->as<deconvolution>(), format::b_fs_yx_fsv16)) {
+                if (!perform_opt)
                     continue;
-                }
 
                 primitive_id input_id = deconv_prim->input[0];
 
@@ -110,27 +117,35 @@ void pre_replace_deconv::run(program_impl& p) {
                     }
                 }
                 auto rename_id = deconv_id + "_tmp";
+                auto was_output = node->is_output();
+                if (was_output) {
+                    node->set_output(false);
+                    auto& outputs = p.get_outputs();
+                    outputs.erase(std::remove(outputs.begin(), outputs.end(), node.get()), outputs.end());
+                }
                 p.rename(*node, rename_id);
 
                 // create convolution primitive
                 if (biases.size() != 0) {
                     auto conv_prim = std::make_shared<convolution>(deconv_id,
-                        input_id,
-                        weights_vec,
-                        bias_vec,
-                        stride,
-                        input_offset,
-                        tensor{ 1, 1, 1, 1 },
-                        output_padding);
+                                                                   input_id,
+                                                                   weights_vec,
+                                                                   bias_vec,
+                                                                   groups,
+                                                                   stride,
+                                                                   input_offset,
+                                                                   tensor{ 1, 1, 1, 1 },
+                                                                   output_padding);
                     p.get_or_create(conv_prim);
                 } else {
                     auto conv_prim = std::make_shared<convolution>(deconv_id,
-                        input_id,
-                        weights_vec,
-                        stride,
-                        input_offset,
-                        tensor{ 1, 1, 1, 1 },
-                        output_padding);
+                                                                   input_id,
+                                                                   weights_vec,
+                                                                   groups,
+                                                                   stride,
+                                                                   input_offset,
+                                                                   tensor{ 1, 1, 1, 1 },
+                                                                   output_padding);
                     p.get_or_create(conv_prim);
                 }
 
@@ -170,8 +185,10 @@ void pre_replace_deconv::run(program_impl& p) {
                     p.nodes_map.erase(rename_id);
                 }
 
-                update_processing_order = true;
-
+                if (was_output) {
+                    conv_node->set_output(true);
+                    p.get_outputs().push_back(conv_node);
+                }
 
                 p.mark_if_data_flow(*conv_node);
                 conv_node->recalc_output_layout(true);

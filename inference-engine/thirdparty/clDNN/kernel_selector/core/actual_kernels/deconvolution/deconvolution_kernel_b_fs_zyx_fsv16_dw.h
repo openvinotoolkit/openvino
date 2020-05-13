@@ -39,6 +39,32 @@ protected:
     bool Validate(const Params& p, const optional_params& o) const override;
     CommonDispatchData SetDefault(const deconvolution_params& arg) const override;
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
-    size_t GetBlockSizeX(const deconvolution_params& params) const;
+
+    enum class weights_preload {
+        none,
+        line,
+        all
+    };
+    enum class input_preload {
+        none,
+        line
+    };
+
+    struct dispatch_params {
+        size_t block_size_x;
+        input_preload preload_input;
+        weights_preload preload_weights;
+    };
+    dispatch_params GetDispatchParams(const deconvolution_params& params) const;
+    float EstimateRegPressure(const deconvolution_params& params, const dispatch_params& disp_params) const;
+
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {
+            FusedOpType::ACTIVATION,
+            FusedOpType::ELTWISE,
+            FusedOpType::SCALE,
+            FusedOpType::QUANTIZE
+        };
+    }
 };
 }  // namespace kernel_selector

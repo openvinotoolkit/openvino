@@ -1,0 +1,426 @@
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <vpu/frontend/custom_kernel.hpp>
+#include <xml_parse_utils.h>
+#include <details/caseless.hpp>
+#include <vpu/utils/extra.hpp>
+
+namespace vpu {
+
+VPU_PACKED(Elf32Ehdr {
+    uint8_t  offs1[28];
+    uint32_t ePhoff;        // Program header offset
+    uint32_t eShoff;        // Section header offset
+    uint8_t  offs2[12];
+    uint16_t eShnum;        // Number of sections
+    uint16_t offs3;
+};)
+
+VPU_PACKED(Elf32Section {
+    uint32_t shName;
+    uint32_t shType;
+    uint32_t shFlags;
+    uint32_t shAddr;
+    uint32_t shOffset;
+    uint32_t shSize;
+    uint32_t shLink;
+    uint32_t shInfo;
+    uint32_t shAddralign;
+    uint32_t shEntsize;
+};)
+
+VPU_PACKED(Elf32Phdr {
+    uint32_t pType;       // Identifies program segment type
+    uint32_t pOffset;     // Segment file offset
+    uint32_t pVaddr;      // Segment virtual address
+    uint32_t pPaddr;      // Segment physical address
+    uint32_t pFilesz;     // Segment size in file
+    uint32_t pMemsz;      // Segment size in memory
+    uint32_t pFlags;      // Flags position from ELF standard spec
+    uint32_t pAlign;      // Segment alignment, file & memory
+};)
+
+VPU_PACKED(Elf32Sym {
+    uint32_t stName;
+    uint32_t stValue;
+    uint32_t stSize;
+    uint8_t  stInfo;
+    uint8_t  stOther;
+    uint16_t stShndx;
+};)
+
+VPU_PACKED(KernelHdr {
+    uint32_t address;       // Kernel address
+    uint32_t flags;         // Should be 0 for now
+    uint32_t sectionSize;   // Section size, offset to the next kernel
+    uint32_t argOffset;     // offset to arguments
+    uint32_t stackSize;     // Size of the stack required for kernel
+    uint32_t stackSizeWI;     // Size of the stack required for kernel per WI
+};)
+
+VPU_PACKED(KernelArgHdr {
+    uint32_t stringOffset;
+    uint32_t addressSpace;
+    uint32_t typeOffset;
+    uint32_t size;
+    uint32_t laneSize;
+};)
+
+std::pair<const Elf32Section*, const Elf32Section*> findSymbolTable(
+        const char* ELFData) {
+    const uint32_t SYMTAB = 2;  // Link editing symbol table
+    const uint32_t STRTAB = 3;  // A string table
+
+    IE_ASSERT(ELFData != nullptr);
+
+    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
+    auto shdr = reinterpret_cast<const Elf32Section*>(ELFData + ehdr->eShoff);
+
+    const Elf32Section* strShdr = nullptr;
+    const Elf32Section* symShdr = nullptr;
+    for (size_t i = 0; i < ehdr->eShnum; i++) {
+        if (shdr[i].shType == STRTAB && strShdr == nullptr) {
+            strShdr = &shdr[i];
+        } else if (shdr[i].shType == SYMTAB && symShdr == nullptr) {
+            symShdr = &shdr[i];
+        }
+
+        if (symShdr != nullptr && strShdr != nullptr)
+            break;
+    }
+    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
+
+    return std::make_pair(strShdr, symShdr);
+}
+
+SmallVector<std::string> deduceKernelParameters(
+        const char* ELFData,
+        uint32_t kernelAddress) {
+    IE_ASSERT(ELFData != nullptr);
+    const auto cmp = ie::details::CaselessEq<std::string>{};
+
+    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
+    auto phdr = reinterpret_cast<const Elf32Phdr*>(ELFData + ehdr->ePhoff);
+    auto shdr = reinterpret_cast<const Elf32Section*>(ELFData + ehdr->eShoff);
+
+    const Elf32Section* strShdr = nullptr;
+    const Elf32Section* symShdr = nullptr;
+    std::tie(strShdr, symShdr) = findSymbolTable(ELFData);
+    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
+
+    auto numSymEntries = symShdr->shSize / symShdr->shEntsize;
+    auto sym = reinterpret_cast<const Elf32Sym*>(ELFData + symShdr->shOffset);
+    auto firstStr = ELFData + strShdr->shOffset;
+
+    const char* kernelArgStrings = nullptr;
+    for (size_t i = 0; i < numSymEntries; i++) {
+        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.strings")) {
+            kernelArgStrings = ELFData + shdr[sym[i].stShndx].shOffset;
+            break;
+        }
+    }
+    IE_ASSERT(kernelArgStrings != nullptr);
+
+    SmallVector<std::string> parameters;
+    for (size_t i = 0; i < numSymEntries; i++) {
+        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.info")) {
+            auto ptr = ELFData + shdr[sym[i].stShndx].shOffset;
+            auto numKernels = *reinterpret_cast<const int*>(ptr);
+
+            auto metaOffset = sizeof(int);
+            for (int k = 0; k < numKernels; k++) {
+                auto kHdr = reinterpret_cast<const KernelHdr*>(ptr + metaOffset);
+
+                if (kHdr->address-phdr->pVaddr == kernelAddress) {
+                    auto aHdr = reinterpret_cast<const KernelArgHdr*>(
+                        reinterpret_cast<const char*>(&(kHdr->argOffset)) + sizeof(kHdr->argOffset) + kHdr->argOffset);
+
+                    auto numArgs = reinterpret_cast<const int*>(aHdr)[-1];
+                    for (int n = 0; n < numArgs; n++, aHdr++) {
+                        parameters.push_back(kernelArgStrings + aHdr->stringOffset);
+                    }
+
+                    break;
+                }
+
+                metaOffset += kHdr->sectionSize + sizeof(kHdr->address) + sizeof(kHdr->flags);
+            }
+        }
+    }
+
+    return parameters;
+}
+
+int32_t getKernelId(
+        const char* ELFData,
+        uint32_t kernelAddress) {
+    IE_ASSERT(ELFData != nullptr);
+    const auto cmp = ie::details::CaselessEq<std::string>{};
+
+    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
+    auto phdr = reinterpret_cast<const Elf32Phdr*>(ELFData + ehdr->ePhoff);
+    auto shdr = reinterpret_cast<const Elf32Section*>(ELFData + ehdr->eShoff);
+
+    const Elf32Section* strShdr = nullptr;
+    const Elf32Section* symShdr = nullptr;
+    std::tie(strShdr, symShdr) = findSymbolTable(ELFData);
+    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
+
+    auto numSymEntries = symShdr->shSize / symShdr->shEntsize;
+    auto sym = reinterpret_cast<const Elf32Sym*>(ELFData + symShdr->shOffset);
+    auto firstStr = ELFData + strShdr->shOffset;
+
+    const char* kernelArgStrings = nullptr;
+    for (size_t i = 0; i < numSymEntries; i++) {
+        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.strings")) {
+            kernelArgStrings = ELFData + shdr[sym[i].stShndx].shOffset;
+            break;
+        }
+    }
+    IE_ASSERT(kernelArgStrings != nullptr);
+
+    for (size_t i = 0; i < numSymEntries; i++) {
+        if (cmp(firstStr + sym[i].stName, "opencl.kernelArgs.info")) {
+            auto ptr = ELFData + shdr[sym[i].stShndx].shOffset;
+            auto numKernels = *reinterpret_cast<const int*>(ptr);
+
+            auto metaOffset = sizeof(int);
+            for (int k = 0; k < numKernels; k++) {
+                auto kHdr = reinterpret_cast<const KernelHdr*>(ptr + metaOffset);
+
+                if (kHdr->address-phdr->pVaddr == kernelAddress) {
+                    return k;
+                }
+
+                metaOffset += kHdr->sectionSize + sizeof(kHdr->address) + sizeof(kHdr->flags);
+            }
+        }
+    }
+
+    return -1;
+}
+
+uint32_t getKernelEntry(const char* ELFData, const std::string& kernelName) {
+    IE_ASSERT(ELFData != nullptr);
+    const auto cmp = ie::details::CaselessEq<std::string>{};
+
+    auto ehdr = reinterpret_cast<const Elf32Ehdr*>(ELFData);
+    auto phdr = reinterpret_cast<const Elf32Phdr*>(ELFData + ehdr->ePhoff);
+
+    const Elf32Section* strShdr = nullptr;
+    const Elf32Section* symShdr = nullptr;
+    std::tie(strShdr, symShdr) = findSymbolTable(ELFData);
+    IE_ASSERT(symShdr != nullptr && strShdr != nullptr);
+
+    auto numSymEntries = symShdr->shSize / symShdr->shEntsize;
+    auto sym = reinterpret_cast<const Elf32Sym*>(ELFData + symShdr->shOffset);
+    auto firstStr = ELFData + strShdr->shOffset;
+
+    for (size_t i = 0; i < numSymEntries; i++) {
+        if (cmp(firstStr + sym[i].stName, kernelName)) {
+            return sym[i].stValue - phdr->pVaddr;
+        }
+    }
+
+    THROW_IE_EXCEPTION << "Cannot find kernel entry point for custom kernel " << kernelName;
+}
+
+CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir): _configDir {std::move(configDir)} {
+    _maxShaves = XMLParseUtils::GetIntAttr(kernel, "max-shaves", 0);
+
+    for (auto source = kernel.child("Source"); !source.empty(); source = source.next_sibling("Source")) {
+        auto fileName = _configDir + "/" + XMLParseUtils::GetStrAttr(source, "filename", "");
+
+        std::ifstream inputFile(fileName, std::ios::binary);
+        if (!inputFile.is_open()) {
+            THROW_IE_EXCEPTION << "Couldn't open kernel file " << fileName;
+        }
+
+        std::ostringstream contentStream;
+        contentStream << inputFile.rdbuf();
+        _kernelBinary.append(contentStream.str());
+    }
+
+    const auto kernelEntryName = XMLParseUtils::GetStrAttr(kernel, "entry");
+    const auto kernelEntry = getKernelEntry(&_kernelBinary[0], kernelEntryName);
+    _parameters = deduceKernelParameters(&_kernelBinary[0], kernelEntry);
+    _kernelId = getKernelId(&_kernelBinary[0], kernelEntry);
+
+    processParametersNode(kernel);
+    processWorkSizesNode(kernel);
+
+    const auto isInputData = [&](const CustomKernel::KernelParam& param) {
+        return param.type == CustomParamType::Input || param.type == CustomParamType::InputBuffer ||
+               param.type == CustomParamType::Data;
+    };
+
+    _inputDataCount = std::count_if(begin(_kernelParams), end(_kernelParams), isInputData);
+}
+
+std::pair<CustomDimSource, int> parseDimSource(const std::string& dims) {
+    const auto cmp = ie::details::CaselessEq<std::string>{};
+    const auto pos = dims.find_first_of(',');
+    const auto source = dims.substr(0, pos);
+    const auto dimSource = [&] {
+        if (cmp(source, "input")) {
+            return CustomDimSource::Input;
+        } else if (cmp(source, "output")) {
+            return CustomDimSource::Output;
+        } else {
+            THROW_IE_EXCEPTION << "Invalid dim source argument" << source;
+        }
+    }();
+
+    const auto idx = [&] {
+        if (pos == std::string::npos) {
+            return -1;
+        }
+        const auto idxString = dims.substr(pos + 1, std::string::npos);
+        return std::stoi(idxString);
+    }();
+
+    return std::make_pair(dimSource, idx);
+}
+
+
+CustomDataFormat formatFromString(const std::string& str) {
+    static const ie::details::caseless_map<std::string, CustomDataFormat> FormatNameToType = {
+        { "BFYX" , CustomDataFormat::BFYX },
+        { "BYXF" , CustomDataFormat::BYXF },
+        { "FYX" , CustomDataFormat::FYX },
+        { "YXF" , CustomDataFormat::YXF },
+        { "BF" , CustomDataFormat::BF },
+        { "ANY"  , CustomDataFormat::Any }
+    };
+
+    auto it = FormatNameToType.find(str);
+    if (it != FormatNameToType.end()) {
+        return it->second;
+    }
+
+    THROW_IE_EXCEPTION << "Tensor node has an invalid format '" << str << "'";
+}
+
+SmallVector<std::string> parseSizeRule(const std::string& size) {
+    auto result = SmallVector<std::string>();
+    result.reserve(std::count(begin(size), end(size), ',') + 1);
+    std::stringstream sizeRules{size};
+    std::string bufferSize;
+
+    while (std::getline(sizeRules, bufferSize, ',')) {
+        result.push_back(bufferSize);
+    }
+
+    return result;
+}
+
+void CustomKernel::processParametersNode(const pugi::xml_node& node) {
+    const auto cmp = ie::details::CaselessEq<std::string> {};
+    const auto parameters = node.child("Parameters");
+
+    for (auto tensor = parameters.child("Tensor"); !tensor.empty(); tensor = tensor.next_sibling("Tensor")) {
+        KernelParam kp;
+
+        auto typeStr = XMLParseUtils::GetStrAttr(tensor, "type");
+        if (cmp(typeStr, "input")) {
+            kp.type = CustomParamType::Input;
+        } else if (cmp(typeStr, "output")) {
+            kp.type = CustomParamType::Output;
+        } else if (cmp(typeStr, "input_buffer")) {
+            kp.type = CustomParamType::InputBuffer;
+        } else if (cmp(typeStr, "output_buffer")) {
+            kp.type = CustomParamType::OutputBuffer;
+        } else if (cmp(typeStr, "data")) {
+            kp.type = CustomParamType::Data;
+        } else {
+            THROW_IE_EXCEPTION << "Tensor node has an invalid type '" << typeStr << "'";
+        }
+
+        if (kp.type == CustomParamType::InputBuffer || kp.type == CustomParamType::OutputBuffer) {
+            const auto sizeRule = XMLParseUtils::GetStrAttr(tensor, "size");
+            kp.bufferSizeRule = parseSizeRule(sizeRule)[0];
+
+            const auto dimString = XMLParseUtils::GetStrAttr(tensor, "dim");
+            std::tie(kp.dimSource, kp.dimIdx) = parseDimSource(dimString);
+        }
+
+        kp.format = formatFromString(XMLParseUtils::GetStrAttr(tensor, "format", "BFYX"));
+        kp.argName = XMLParseUtils::GetStrAttr(tensor, "arg-name");
+        kp.portIndex = XMLParseUtils::GetIntAttr(tensor, "port-index");
+
+        _kernelParams.push_back(std::move(kp));
+    }
+
+    for (auto data = parameters.child("Data"); !data.empty(); data = data.next_sibling("Data")) {
+        KernelParam kp;
+
+        auto typeStr = XMLParseUtils::GetStrAttr(data, "type");
+        if (cmp(typeStr, "data")) {
+            kp.type = CustomParamType::Data;
+        } else if (cmp(typeStr, "local_data")) {
+            kp.type = CustomParamType::LocalData;
+        } else {
+            THROW_IE_EXCEPTION << "Data node has an invalid type '" << typeStr << "'";
+        }
+
+        kp.argName = XMLParseUtils::GetStrAttr(data, "arg-name");
+
+        kp.irSource = XMLParseUtils::GetStrAttr(data, "source", "");
+        const auto dimString = XMLParseUtils::GetStrAttr(data, "dim", "");
+
+        if (kp.irSource.empty() && dimString.empty()) {
+            THROW_IE_EXCEPTION << "Data node has no source or dim";
+        }
+
+        if (!kp.irSource.empty() && !dimString.empty()) {
+            THROW_IE_EXCEPTION << "Data node can only have source or dim";
+        }
+
+        if (kp.type == CustomParamType::LocalData) {
+            const auto bufferSize = XMLParseUtils::GetStrAttr(data, "size", "");
+            kp.bufferSizeRule = bufferSize;
+
+            if (!dimString.empty()) {
+                std::tie(kp.dimSource, kp.dimIdx) = parseDimSource(dimString);
+            }
+        }
+
+        _kernelParams.push_back(std::move(kp));
+    }
+
+    for (auto scalar = parameters.child("Scalar"); !scalar.empty(); scalar = scalar.next_sibling("Scalar")) {
+        KernelParam kp;
+
+        const auto type = XMLParseUtils::GetStrAttr(scalar, "type");
+        if (cmp(type, "int")) {
+            kp.type = CustomParamType::Int;
+        } else if (cmp(type, "float")) {
+            kp.type = CustomParamType::Float;
+        } else {
+            THROW_IE_EXCEPTION << "Scalar node has an invalid type " << type;
+        }
+
+        kp.argName = XMLParseUtils::GetStrAttr(scalar, "arg-name");
+        kp.portIndex = XMLParseUtils::GetIntAttr(scalar, "port-index", -1);
+        kp.irSource = XMLParseUtils::GetStrAttr(scalar, "source", "");
+
+        _kernelParams.push_back(std::move(kp));
+    }
+}
+
+void CustomKernel::processWorkSizesNode(const pugi::xml_node& node) {
+    const auto workSizes = node.child("WorkSizes");
+
+    const auto dims = XMLParseUtils::GetStrAttr(workSizes, "dim");
+    std::tie(_wgDimSource, _wgDimIdx) = parseDimSource(dims);
+
+    const auto gwgs = XMLParseUtils::GetStrAttr(workSizes, "global");
+    _globalGridSizeRules = parseSizeRule(gwgs);
+
+    const auto lwgs = XMLParseUtils::GetStrAttr(workSizes, "local");
+    _localGridSizeRules = parseSizeRule(lwgs);
+}
+
+} // namespace vpu

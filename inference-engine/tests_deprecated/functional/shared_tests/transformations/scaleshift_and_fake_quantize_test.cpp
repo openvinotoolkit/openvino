@@ -29,7 +29,7 @@ std::string ScaleShiftAndFakeQuantizeTestModel::getModel(SingleLayerTransformati
 
     std::map<std::string, std::string> const_params = {};
     std::map<std::string, std::string> fake_quantize_params = {{"levels", "256"}};
-    std::map<std::string, std::string> power_params = {{"power", "1"}, {"scale", "1"}, {"shift", "0"}};
+    std::map<std::string, std::string> power_params = {{"power", "2"}, {"scale", "1"}, {"shift", "0"}};
 
     std::vector<std::pair<std::string, std::string>> edges = {
         {"0,0", "1,1"}, {"1,2", "6,7"}, // Power

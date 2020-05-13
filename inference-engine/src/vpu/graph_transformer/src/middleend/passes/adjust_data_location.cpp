@@ -327,7 +327,7 @@ void PassImpl::adjustModelForMemReqs(const Model& model) {
 
                     env.log->trace("Child data [%s] : mode [%v] offset [%v]", childData->name(), mode, offset);
 
-                    model->replaceParentData(childDataEdge, ddrCopy);
+                    model->replaceDataToDataParent(childDataEdge, ddrCopy);
 
                     loopOverData(childData, [](const Data& subData) {
                         subData->setMemReqs(MemoryType::DDR);

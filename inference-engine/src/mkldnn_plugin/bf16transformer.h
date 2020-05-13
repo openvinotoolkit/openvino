@@ -15,9 +15,12 @@ class BF16Transformer {
     const InferenceEngine::details::caseless_set<std::string> _initbf16 =
         { "convolution", "fullyconnected", "innerproduct" };
     const InferenceEngine::details::caseless_set<std::string> _complementbf16 =
-        { "relu", "pooling", "norm", "gather" };
+        { "relu", "tanh", "elu", "square", "abs", "sqrt", "linear", "bounded_relu", "soft_relu", "logistic",
+          "exp", "gelu", "clamp", "swish", "prelu", "pooling", "norm", "gather" };
     const InferenceEngine::details::caseless_set<std::string> _multiinput =
         { "concat", "eltwise" };
+    const InferenceEngine::details::caseless_set<std::string> _skipmarking =
+        { "const" };
 
     /**
     * Tries to mark tensor as FP32 by analyzing of local consumers of the tensor. Do not mark if

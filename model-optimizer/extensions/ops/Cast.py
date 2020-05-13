@@ -30,6 +30,7 @@ class Cast(Op):
         mandatory_props = {
             'op': __class__.op,
             'type': 'Convert',
+            'version': 'opset1',
             'infer': __class__.infer,
             'type_infer': __class__.type_infer,
             'dst_type': None,

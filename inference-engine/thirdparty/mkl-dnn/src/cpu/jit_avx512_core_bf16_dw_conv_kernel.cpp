@@ -164,11 +164,40 @@ void jit_avx512_dw_conv_fwd_kernel_bf16::apply_filter_unrolled(
     L(iter_exit_label);
 }
 
-void jit_avx512_dw_conv_fwd_kernel_bf16::apply_activation(
+void jit_avx512_dw_conv_fwd_kernel_bf16::apply_postprocess(
         int ur_ch_blocks, int ur_w) {
-    if (this->jcp.with_eltwise) {
-        eltwise_injector_->compute_vector_range(
-                acc_idx_start, ur_w * ur_ch_blocks + acc_idx_start);
+    int eltwise_inj_idx = 0;
+    int depthwise_inj_idx = 0;
+    const auto& p = attr_.post_ops_;
+
+    for (int i = 0; i < p.len_; i++) {
+        auto& post_op = p.entry_[i];
+        if (post_op.is_eltwise()) {
+            int start_idx = get_acc_reg(0).getIdx();
+            int end_idx = get_acc_reg(ur_w * ur_ch_blocks).getIdx();
+
+            eltwise_injectors[eltwise_inj_idx]->compute_vector_range(start_idx, end_idx);
+            eltwise_inj_idx++;
+        } else if (post_op.is_depthwise()) {
+            mov(reg_d_weights, reinterpret_cast<size_t>(post_op.depthwise.weights_data));
+            mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data));
+
+            add(reg_d_weights, ptr[this->param1 + GET_OFF(oc_off)]);
+            add(reg_d_bias, ptr[this->param1 + GET_OFF(oc_off)]);
+
+            for (int ch = 0; ch < ur_ch_blocks; ch++) {
+                int start_idx = get_acc_reg(ur_w * ch).getIdx();
+                int end_idx = get_acc_reg(ur_w * ch + ur_w).getIdx();
+
+                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(
+                    start_idx, end_idx, reg_d_weights, reg_d_bias);
+
+                add(reg_d_weights, jcp.ch_block * sizeof(float));
+                add(reg_d_bias, jcp.ch_block * sizeof(float));
+            }
+
+            depthwise_inj_idx++;
+        }
     }
 }
 
@@ -246,7 +275,7 @@ void jit_avx512_dw_conv_fwd_kernel_bf16::loop_ow(int ur_ch_blocks) {
 
         load_src(ur_ch_blocks, ur_w);
         apply_filter_unrolled(ur_ch_blocks, ur_w);
-        apply_activation(ur_ch_blocks, ur_w);
+        apply_postprocess(ur_ch_blocks, ur_w);
         store_dst(ur_ch_blocks, ur_w);
 
         add(reg_input, jcp.typesize_in * ur_w * jcp.ch_block * jcp.stride_w);
@@ -267,7 +296,7 @@ void jit_avx512_dw_conv_fwd_kernel_bf16::loop_ow(int ur_ch_blocks) {
 
         load_src(ur_ch_blocks, ur_w);
         apply_filter(ur_ch_blocks, ur_w);
-        apply_activation(ur_ch_blocks, ur_w);
+        apply_postprocess(ur_ch_blocks, ur_w);
         store_dst(ur_ch_blocks, ur_w);
 
         add(reg_input, jcp.typesize_in * ur_w * jcp.ch_block * jcp.stride_w);
@@ -281,6 +310,24 @@ void jit_avx512_dw_conv_fwd_kernel_bf16::loop_ow(int ur_ch_blocks) {
 }
 
 void jit_avx512_dw_conv_fwd_kernel_bf16::generate() {
+    const auto& p = attr_.post_ops_;
+    for (int i = 0; i < p.len_; i++) {
+        auto& post_op = p.entry_[i];
+        if (post_op.is_eltwise()) {
+            eltwise_injectors.push_back(new jit_uni_eltwise_injector_f32<avx512_common>(
+                this,
+                post_op.eltwise.alg,
+                post_op.eltwise.alpha,
+                post_op.eltwise.beta
+                ));
+        } else if (post_op.is_depthwise()) {
+            depthwise_injectors.push_back(new jit_uni_depthwise_injector_f32<avx512_common>(
+                this,
+                post_op.depthwise.alg
+                ));
+        }
+    }
+
     this->preamble();
 
     mov(reg_input, ptr[this->param1 + GET_OFF(src)]);
@@ -316,8 +363,8 @@ void jit_avx512_dw_conv_fwd_kernel_bf16::generate() {
 
     this->postamble();
 
-    if (jcp.with_eltwise)
-        eltwise_injector_->prepare_table();
+    for (auto& inj : eltwise_injectors)
+        inj->prepare_table();
 }
 
 inline void jit_avx512_dw_conv_bwd_data_kernel_bf16::load_ddst(

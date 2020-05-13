@@ -67,21 +67,23 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     invertVectorCopyUtoI(poolingLayer->_stride, stride);
     invertVectorCopyUtoI(poolingLayer->_kernel, kernel);
     auto allPads = getPaddings(*poolingLayer);
-    invertVectorCopyUtoI(allPads.begin, paddingL);
-    invertVectorCopyUtoI(allPads.end, paddingR);
+    invertVectorCopyUtoI(allPads.begin, data_pad_begin);
+    invertVectorCopyUtoI(allPads.end, data_pad_end);
+    effective_pad_begin = data_pad_begin;
+    effective_pad_end.resize(data_pad_end.size());
 
     auto parentDims = getParentEdgeAt(0)->getDims();
     auto childDims = getChildEdgeAt(0)->getDims();
     if ((parentDims.ndims() < 4) || (parentDims.ndims() > 5))
         THROW_IE_EXCEPTION << "Pooling layer. Unsupported mode. Only 4D and 5D blobs are supported as input.";
 
-    for (int i = 0; i < paddingR.size(); i++) {
+    for (int i = 0; i < effective_pad_end.size(); i++) {
         int krn = kernel[i];
         int src = getParentEdgeAt(0)->getDims()[2 + i];
         int dst = getChildEdgeAt(0)->getDims()[2 + i];
 
-        int calc_dst = (src - krn + paddingL[i]) / stride[i] + 1;
-        paddingR[i] = (dst - calc_dst) * stride[i];
+        int calc_dst = (src - krn + data_pad_begin[i]) / stride[i] + 1;
+        effective_pad_end[i] = (dst - calc_dst) * stride[i];
     }
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
         // i8 layers supports only ndhwc and nhwc layouts
@@ -138,13 +140,20 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
     algorithm alg;
     if (type == PoolingLayer::PoolType::AVG) {
         bool not_zero_l = false;
-        for (auto lr : paddingL) {
+        for (auto lr : data_pad_begin) {
             if (lr) {
                 not_zero_l = true;
                 break;
             }
         }
-        if (!exclude_pad && not_zero_l)
+        bool not_zero_r = false;
+        for (auto pr : data_pad_end) {
+            if (pr) {
+                not_zero_r = true;
+                break;
+            }
+        }
+        if (!exclude_pad && (not_zero_l || not_zero_r))
             alg = pooling_avg_include_padding;
         else
             alg = pooling_avg_exclude_padding;
@@ -158,24 +167,20 @@ void MKLDNNPoolingNode::createDescriptor(const std::vector<InferenceEngine::Tens
     std::shared_ptr<pooling_forward::desc> desc_ptr(
             new pooling_forward::desc(prop_kind::forward_scoring, alg,
                                       in_candidate, out_candidate,
-                                      stride, kernel, paddingL, paddingR,
+                                      stride, kernel, effective_pad_begin, effective_pad_end,
                                       mkldnn::padding_kind::zero));
 
-    bool not_zero_r = false;
-    for (auto pr : paddingR) {
-        if (pr) {
-            not_zero_r = true;
-            break;
-        }
-    }
-    if (alg == pooling_avg_include_padding && not_zero_r) {
+    if (alg == pooling_avg_include_padding) {
         // In case of AVG including paddings the norm coeff should be calculated
         // with tacking into account original pads. So we need to restore
-        // original values (R_padding = L_padding).
+        // original values for end paddings.
         //
         // WA. Because mkldnn uses different formula to calculate AVG norm coeff
         //     in compare with Caffe. In mkldnn coeff is always 1/(KH*KW)
-        for (int i = 0; i < paddingL.size(); i++) desc_ptr->data.padding[1][i] = paddingL[i];
+        for (int i = 0; i < data_pad_end.size(); i++) {
+            if (data_pad_end[i] != effective_pad_end[i])
+            desc_ptr->data.padding[1][i] = static_cast<ptrdiff_t>(data_pad_end[i]);
+        }
     }
 
     descs.emplace_back(desc_ptr);

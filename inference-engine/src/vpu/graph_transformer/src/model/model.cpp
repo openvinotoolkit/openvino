@@ -401,19 +401,12 @@ StageDependency ModelObj::addStageDependency(const Stage& stage, const Data& dat
 
     data->_dependentStagesEdges.push_back(edge);
 
-    VPU_THROW_UNLESS(data->usage() == DataUsage::Intermediate,
-        "Adding stage dependency for {} with type {} failed: only {} datas can be added as a dependency "
-        "while adding {} with usage {} was attempted",
-        stage->name(), stage->type(), DataUsage::Intermediate, data->name(), data->usage());
-
     VPU_THROW_UNLESS(data->_producerEdge != nullptr,
         "Adding stage dependency for {} with type {} failed: data {} with usage {} should have producer, "
         "but actually it doesn't", stage->name(), stage->type(), data->name(), data->usage());
 
-    if (data->_producerEdge != nullptr) {
-        ++data->_producerEdge->_producer->_nextStages[stage];
-        ++stage->_prevStages[data->_producerEdge->_producer];
-    }
+    ++data->_producerEdge->_producer->_nextStages[stage];
+    ++stage->_prevStages[data->_producerEdge->_producer];
 
     return edge;
 }
@@ -1392,7 +1385,7 @@ Stage getDataConnectionStage(
         // Check connection stage type and that parent has the largest buffer.
         //
 
-        if (connectionStage->type() == StageType::Concat ||
+        if (connectionStage->type() == StageType::StubConcat ||
             connectionStage->type() == StageType::Expand) {
             IE_ASSERT(producer == child);
             IE_ASSERT(consumer == parent);
@@ -1538,7 +1531,11 @@ DataToShapeAllocation ModelObj::connectDataWithShape(
     const auto& parentStage = parent->producer();
     const auto& childStage = child->producer();
 
-    if (parentStage && childStage && parentStage != childStage && parent->usage() == DataUsage::Intermediate) {
+    const auto& areStagesDifferent = [](const Stage& lhs, const Stage& rhs) {
+        return lhs && rhs && lhs != rhs;
+    };
+
+    if (areStagesDifferent(parentStage, childStage)) {
         // Shape and data are produced from different stages, make sure that shape is calculated before data
         addStageDependency(childStage, parent);
     }
@@ -1546,7 +1543,34 @@ DataToShapeAllocation ModelObj::connectDataWithShape(
     return edge;
 }
 
-void ModelObj::replaceParentData(
+void ModelObj::replaceDataToShapeParent(
+        const DataToShapeAllocation& edge,
+        const Data& newParent) {
+    auto oldParent = edge->parent();
+    auto child = edge->child();
+
+    oldParent->_childDataToShapeEdges.erase(edge);
+    edge->_parent = newParent;
+    newParent->_childDataToShapeEdges.push_back(edge);
+}
+
+void ModelObj::replaceDataToShapeChild(
+        const DataToShapeAllocation& edge,
+        const Data& newChild) {
+    auto parent = edge->parent();
+    auto oldChild = edge->child();
+
+    oldChild->_parentDataToShapeEdge = nullptr;
+    edge->_child = newChild;
+
+    VPU_THROW_UNLESS(newChild->_parentDataToShapeEdge == nullptr,
+        "replaceDataToShapeChild failed: newChild {} with usage {} already has parent {} with usage {}",
+        newChild->name(), newChild->usage(), newChild->_parentDataToShapeEdge->parent()->name(), newChild->_parentDataToShapeEdge->parent()->usage());
+
+    newChild->_parentDataToShapeEdge = edge;
+}
+
+void ModelObj::replaceDataToDataParent(
         const DataToDataAllocation& edge,
         const Data& newParent) {
     auto oldParent = edge->parent();
@@ -1571,7 +1595,7 @@ void ModelObj::replaceParentData(
     }
 }
 
-void ModelObj::replaceChildData(
+void ModelObj::replaceDataToDataChild(
         const DataToDataAllocation& edge,
         const Data& newChild) {
     auto parent = edge->parent();

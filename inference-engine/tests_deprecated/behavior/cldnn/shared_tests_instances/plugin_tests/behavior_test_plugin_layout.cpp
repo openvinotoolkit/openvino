@@ -14,8 +14,8 @@ layout_test_params conv_test_cases[] = {
     layout_test_params("GPU", "FP32", Layout::NCHW, power_params({ { 1, 3, 16, 16 } }, 1, 2, 2)),
 };
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, LayoutTestCanLoadPower,
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, LayoutTestCanLoadPower,
     ::testing::ValuesIn(power_test_cases), getTestName);
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, LayoutTestCanLoadConv,
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, LayoutTestCanLoadConv,
     ::testing::ValuesIn(conv_test_cases), getTestName);

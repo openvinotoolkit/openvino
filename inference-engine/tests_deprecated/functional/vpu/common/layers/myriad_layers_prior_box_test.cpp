@@ -267,7 +267,7 @@ void refPriorBox(Blob::Ptr dst, const PriorBoxParams &p) {
     }
 }
 
-class myriadLayersPriorBoxTests_nightly : public myriadLayersTests_nightly {
+class myriadLayersPriorBoxTests_smoke : public myriadLayersTests_nightly {
 public:
     Blob::Ptr getFp16Blob(const Blob::Ptr& in) {
         if (in->getTensorDesc().getPrecision() == Precision::FP16)
@@ -342,7 +342,7 @@ public:
     }
 };
 
-TEST_F(myriadLayersPriorBoxTests_nightly, NotLastLayer)
+TEST_F(myriadLayersPriorBoxTests_smoke, NotLastLayer)
 {
     std::string model = R"V0G0N(
         <net name="PriorBox" version="2" batch="1">
@@ -476,7 +476,7 @@ TEST_F(myriadLayersPriorBoxTests_nightly, NotLastLayer)
     RunOnModel(model, "priorbox_copy");
 }
 
-TEST_F(myriadLayersPriorBoxTests_nightly, LastLayer_FP16)
+TEST_F(myriadLayersPriorBoxTests_smoke, LastLayer_FP16)
 {
     std::string model = R"V0G0N(
         <net name="PriorBox" version="2" batch="1">
@@ -592,7 +592,7 @@ TEST_F(myriadLayersPriorBoxTests_nightly, LastLayer_FP16)
     RunOnModel(model, "priorbox", Precision::FP16);
 }
 
-TEST_F(myriadLayersPriorBoxTests_nightly, LastLayer_FP32)
+TEST_F(myriadLayersPriorBoxTests_smoke, LastLayer_FP32)
 {
     std::string model = R"V0G0N(
         <net name="PriorBox" version="2" batch="1">
@@ -1532,7 +1532,7 @@ TEST_F(myriadLayersTests_nightly, PriorBox_WithConcat)
     CompareCommonAbsolute(_refBlob, outputBlob, 0.0);
 }
 
-TEST_F(myriadLayersPriorBoxTests_nightly, FaceBoxLayer)
+TEST_F(myriadLayersPriorBoxTests_smoke, FaceBoxLayer)
 {
     std::string model = R"V0G0N(
         <net name="PriorBox" version="2" batch="1">
@@ -1664,7 +1664,7 @@ TEST_F(myriadLayersPriorBoxTests_nightly, FaceBoxLayer)
     RunOnModelWithParams(model, "priorbox", params, Precision::FP16);
 }
 
-TEST_F(myriadLayersPriorBoxTests_nightly, TwoPriorBoxLayersWithUnusedInput)
+TEST_F(myriadLayersPriorBoxTests_smoke, TwoPriorBoxLayersWithUnusedInput)
 {
     std::string model = R"V0G0N(
         <net name="PriorBox" version="2" batch="1">

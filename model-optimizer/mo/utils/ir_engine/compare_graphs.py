@@ -172,3 +172,4 @@ def values_are_equal(value, value_ref):
     else:
         eps = 1e-4
     return np.allclose(value_ref, value, rtol=eps, atol=eps)
+

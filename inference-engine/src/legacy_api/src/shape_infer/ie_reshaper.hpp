@@ -80,7 +80,7 @@ public:
 
     /**
      * @brief Perform shape inference for the given input shapes but not apply it.
-     * In case of cusses call apply() method.
+     * In case of success call apply() method.
      * @param inputShapes - Map of input names (data) to their input shapes.
      * @throws exception if shape infer failed without corruption of original shapes
      */

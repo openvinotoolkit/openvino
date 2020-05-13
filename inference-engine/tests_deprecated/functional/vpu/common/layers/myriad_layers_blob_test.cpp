@@ -10,7 +10,7 @@
 using namespace InferenceEngine;
 using namespace ::testing;
 
-typedef myriadLayerTestBaseWithParam<std::string> myriadBlobTests_nightly;
+typedef myriadLayerTestBaseWithParam<std::string> myriadBlobTests_smoke;
 
 std::vector<char> readBinFile(std::string filename)
 {
@@ -33,7 +33,7 @@ std::vector<char> readBinFile(std::string filename)
     return vec;
 }
 
-TEST_P(myriadBlobTests_nightly, CanGetSameBlobsOnSameIR) {
+TEST_P(myriadBlobTests_smoke, CanGetSameBlobsOnSameIR) {
     std::string HWConfigValue = GetParam();
 
     auto fnPtr = ngraph::builder::subgraph::makeSplitConvConcat();
@@ -64,20 +64,20 @@ TEST_P(myriadBlobTests_nightly, CanGetSameBlobsOnSameIR) {
     }
 }
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadBlobTests_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadBlobTests_smoke,
     ::testing::Values(CONFIG_VALUE(YES), CONFIG_VALUE(NO))
 );
 
-using myriadBlobExportTests_nightly = myriadLayersTests_nightly;
+using myriadBlobExportTests_smoke = myriadLayersTests_nightly;
 
 
-TEST_F(myriadBlobExportTests_nightly, CanNotDoImportOnNonExistFile)
+TEST_F(myriadBlobExportTests_smoke, CanNotDoImportOnNonExistFile)
 {
     InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr;
     ASSERT_EQ(StatusCode::NETWORK_NOT_READ, _vpuPluginPtr->ImportNetwork(importedNetworkPtr, "I_dont_exist.blob", {}, nullptr));
 }
 
-TEST_F(myriadBlobExportTests_nightly, CanInferImportedNetworkOnExportedBlob)
+TEST_F(myriadBlobExportTests_smoke, CanInferImportedNetworkOnExportedBlob)
 {
     auto fnPtr = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(_cnnNetwork = CNNNetwork(fnPtr));
@@ -95,7 +95,7 @@ TEST_F(myriadBlobExportTests_nightly, CanInferImportedNetworkOnExportedBlob)
     ASSERT_EQ(StatusCode::OK, inferRequest->Infer(&_resp)) << _resp.msg;
 }
 
-TEST_F(myriadBlobExportTests_nightly, CanGetPerfCountsImportedNetwork)
+TEST_F(myriadBlobExportTests_smoke, CanGetPerfCountsImportedNetwork)
 {
     auto fnPtr = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(_cnnNetwork = CNNNetwork(fnPtr));
@@ -125,7 +125,7 @@ TEST_F(myriadBlobExportTests_nightly, CanGetPerfCountsImportedNetwork)
     }
 }
 
-class myriadConfigsWithBlobImportTests_nightly: public myriadLayersTests_nightly {
+class myriadConfigsWithBlobImportTests_smoke: public myriadLayersTests_nightly {
 protected:
     // use this stream to redirect cout to it,
     // needs to be able check output on warnings
@@ -148,7 +148,7 @@ private:
 };
 
 
-TEST_F(myriadConfigsWithBlobImportTests_nightly, TryingToSetCompileOptionPrintsWarning)
+TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetCompileOptionPrintsWarning)
 {
     auto fnPtr = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(_cnnNetwork = CNNNetwork(fnPtr));
@@ -183,7 +183,7 @@ TEST_F(myriadConfigsWithBlobImportTests_nightly, TryingToSetCompileOptionPrintsW
     }
 }
 
-TEST_F(myriadConfigsWithBlobImportTests_nightly, TryingToSetRuntimeOptionDoesNotPrintWarning)
+TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetRuntimeOptionDoesNotPrintWarning)
 {
     auto fnPtr = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(_cnnNetwork = CNNNetwork(fnPtr));
@@ -215,9 +215,9 @@ TEST_F(myriadConfigsWithBlobImportTests_nightly, TryingToSetRuntimeOptionDoesNot
 }
 
 
-using myriadBlobExportAccuracyDifferentCountInAndOutTests_nightly = myriadLayerTestBaseWithParam<std::vector<size_t>>;
+using myriadBlobExportAccuracyDifferentCountInAndOutTests_smoke = myriadLayerTestBaseWithParam<std::vector<size_t>>;
 
-TEST_F(myriadBlobExportAccuracyDifferentCountInAndOutTests_nightly, IsResultOfImportedAndGeneratedModelSame)
+TEST_F(myriadBlobExportAccuracyDifferentCountInAndOutTests_smoke, IsResultOfImportedAndGeneratedModelSame)
 {
     SetSeed(DEFAULT_SEED_VALUE);
 
@@ -287,9 +287,9 @@ TEST_F(myriadBlobExportAccuracyDifferentCountInAndOutTests_nightly, IsResultOfIm
 }
 
 
-using myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_nightly = myriadLayerTestBaseWithParam<std::tuple<InferenceEngine::Precision, InferenceEngine::Precision>>;
+using myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_smoke = myriadLayerTestBaseWithParam<std::tuple<InferenceEngine::Precision, InferenceEngine::Precision>>;
 
-TEST_P(myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_nightly, IsResultOfImportedAndGeneratedModelSame)
+TEST_P(myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_smoke, IsResultOfImportedAndGeneratedModelSame)
 {
     SetSeed(DEFAULT_SEED_VALUE);
     InferenceEngine::Precision inputPrecision = std::get<0>(GetParam());
@@ -354,9 +354,9 @@ TEST_P(myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_nightly, IsResu
     CompareCommonAbsolute(importedOutputBlobPtr, outputBlobPtr, 0.f);
 }
 
-using myriadExtraTests_nightly = myriadLayersTests_nightly;
+using myriadExtraTests_smoke = myriadLayersTests_nightly;
 
-TEST_F(myriadExtraTests_nightly, ThereIsNoSegfaultOnZeroConvolutionWeights) {
+TEST_F(myriadExtraTests_smoke, ThereIsNoSegfaultOnZeroConvolutionWeights) {
     if (!CheckMyriadX()) {
         SKIP() << "Non-MyriadX device";
     }
@@ -414,5 +414,5 @@ static const std::vector<InferenceEngine::Precision> inputPrecisions = {Inferenc
 static const std::vector<InferenceEngine::Precision> outputPrecisions = {InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32};
 
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadBlobExportAccuracyDifferentPrecisionOfInAndOutTests_smoke,
                         ::testing::Combine(::testing::ValuesIn(inputPrecisions), ::testing::ValuesIn(outputPrecisions)));

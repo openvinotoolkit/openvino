@@ -31,9 +31,16 @@ static const char env_conf_message[] = "Optional. Path to an env config with pat
 /// env_conf is an optional parameter
 DEFINE_string(env_conf, OS_PATH_JOIN({"stress_tests_configs", "memcheck_tests", "env_config.xml"}), env_conf_message);
 
-/// @brief message for env_config argument
+/// @brief message for refs_config argument
 static const char refs_conf_message[] = "Optional. Path to a references config with values of memory consumption per test.";
 
 /// @brief Define parameter for set references' configuration <br>
 /// refs_conf is an optional parameter
 DEFINE_string(refs_conf, OS_PATH_JOIN({"stress_tests_configs", "memcheck_tests", "references_config.xml"}), refs_conf_message);
+
+/// @brief message for collect_results_only argument
+static const char collect_results_only_message[] = "Optional. Path to a references config with values of memory consumption per test.";
+
+/// @brief Define parameter for mode with collecting results only <br>
+/// collect_results_only is an optional parameter
+DEFINE_bool(collect_results_only, false, collect_results_only_message);

@@ -838,7 +838,7 @@ void checkDetectionObjectArrays(std::vector<DetectionObject> gold, std::vector<D
 
 }
 
-class myriadDetectionOutputTests_nightly : public myriadLayersTests_nightly {
+class myriadDetectionOutputTests_smoke : public myriadLayersTests_nightly {
 public:
     std::vector<float> gen_locations;
     std::vector<float> gen_confidence;
@@ -995,7 +995,7 @@ public:
     }
 };
 
-TEST_F(myriadDetectionOutputTests_nightly, NoConst) {
+TEST_F(myriadDetectionOutputTests_smoke, NoConst) {
     ASSERT_NO_FATAL_FAILURE(PrepareInput());
     ASSERT_NO_FATAL_FAILURE(CalcRefOutput(false));
 
@@ -1053,7 +1053,7 @@ TEST_F(myriadDetectionOutputTests_nightly, NoConst) {
     CheckResults();
 }
 
-TEST_F(myriadDetectionOutputTests_nightly, MxNet) {
+TEST_F(myriadDetectionOutputTests_smoke, MxNet) {
     ASSERT_NO_FATAL_FAILURE(PrepareInput());
     ASSERT_NO_FATAL_FAILURE(CalcRefOutput(true));
 
@@ -1109,7 +1109,7 @@ TEST_F(myriadDetectionOutputTests_nightly, MxNet) {
     CheckResults();
 }
 
-TEST_F(myriadDetectionOutputTests_nightly, WithConst) {
+TEST_F(myriadDetectionOutputTests_smoke, WithConst) {
     ASSERT_NO_FATAL_FAILURE(PrepareInput());
     ASSERT_NO_FATAL_FAILURE(CalcRefOutput(false));
 

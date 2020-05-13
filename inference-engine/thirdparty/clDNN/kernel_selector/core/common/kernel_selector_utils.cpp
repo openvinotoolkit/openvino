@@ -43,7 +43,8 @@ static WeightsType DataTypeToWeightsType(Datatype t) {
 static WeightsFormatSupportType CheckWeights(const weight_bias_params& newParams,
                                              WeightsType reqType,
                                              WeightsLayout reqLayouts,
-                                             const ParamsKey& paramsKey) {
+                                             const ParamsKey& paramsKey,
+                                             bool rotate) {
     // validate if weights type is image and if device supports requested sizes
     if (Tensor::IsImageType(reqLayouts)) {
         if (!CheckImageSize(newParams, reqLayouts))
@@ -59,8 +60,9 @@ static WeightsFormatSupportType CheckWeights(const weight_bias_params& newParams
     }
 
     reorderNeeded |= tensor.GetLayout() != reqLayouts;
+    reorderNeeded |= rotate;
 
-    if (reorderNeeded && !pitchesDifferFromLS) {
+    if (reorderNeeded && !pitchesDifferFromLS && !rotate) {
         reorderNeeded = !((reqLayouts == WeightsLayout::io && tensor.GetLayout() == WeightsLayout::iyxo) ||
                           (reqLayouts == WeightsLayout::oi && tensor.GetLayout() == WeightsLayout::oiyx));
     }
@@ -104,11 +106,12 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
                          WeightsLayout reqLayout,
                          WeightsReorderParams& weightsReorderParams,
                          const ParamsKey& paramsKey,
-                         size_t groups) {
+                         size_t groups,
+                         bool rotate) {
     const auto& optParams = static_cast<const weight_bias_optional_params&>(options);
     const auto inType = DataTypeToWeightsType(newParams.inputs[0].GetDType());
     const auto dtype = paramsKey.isEnabledDifferentInputWeightsTypes() ? newParams.weights.GetDType() : inType;
-    switch (CheckWeights(newParams, inType, reqLayout, paramsKey)) {
+    switch (CheckWeights(newParams, inType, reqLayout, paramsKey, rotate)) {
         case SUPPORTED:
             return true;
         case UNSUPPORTED:
@@ -124,6 +127,7 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
             r_params.layerID = newParams.layerID + "_reorder_";
             r_params.input = newParams.weights;
             r_params.output = newParams.weights.TransformIgnorePadding(reqLayout, dtype, groups, false);
+            r_params.rotate_180 = rotate;
             r_params.engineInfo = newParams.engineInfo;
 
             reorder_optional_params op;
@@ -132,7 +136,8 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
             if (kernels_data.empty()) {
                 throw std::runtime_error("No suitable kernel found for weights reorder from " +
                                          toString(r_params.input.GetLayout()) + " to " +
-                                         toString(r_params.output.GetLayout()));
+                                         toString(r_params.output.GetLayout()) +
+                                         (rotate ? " with rotate" : ""));
             }
 
             weightsReorderParams.engine = WeightsReorderParams::Engine::GPU;
@@ -228,13 +233,15 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
     if (params.inputs.size()) {
         no_pitch_same_dims = !params.inputs[0].PitchesDifferFromLogicalDims();
 
-        if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[0].Feature().v % 16 != 0)
+        if ((params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[0].Feature().v % 16 != 0) ||
+            (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && params.inputs[0].Feature().v % 16 != 0))
             return false;
 
         for (size_t i = 1; i < params.inputs.size(); i++) {
             no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.inputs[i]);
 
-            if (params.inputs[i].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[i].Feature().v % 16 != 0)
+            if ((params.inputs[i].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[i].Feature().v % 16 != 0) ||
+                (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && params.inputs[0].Feature().v % 16 != 0))
                 return false;
         }
 

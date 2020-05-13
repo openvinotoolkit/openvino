@@ -27,6 +27,7 @@ class AccumOp(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'extension',
             'top_height': 0,
             'top_width': 0,
             'size_divisible_by': 0,

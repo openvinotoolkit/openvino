@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 #include <map>
+#include <regex>
 
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
@@ -99,6 +100,77 @@ std::map<std::string, std::string> parseNStreamsValuePerDevice(const std::vector
         }
     }
     return result;
+}
+
+bool adjustShapesBatch(InferenceEngine::ICNNNetwork::InputShapes& shapes,
+                       const size_t batch_size, const InferenceEngine::InputsDataMap& input_info) {
+    bool updated = false;
+    for (auto& item : input_info) {
+        auto layout = item.second->getTensorDesc().getLayout();
+
+        int batch_index = -1;
+        if ((layout == InferenceEngine::Layout::NCHW) || (layout == InferenceEngine::Layout::NCDHW) ||
+            (layout == InferenceEngine::Layout::NHWC) || (layout == InferenceEngine::Layout::NDHWC) ||
+            (layout == InferenceEngine::Layout::NC)) {
+            batch_index = 0;
+        } else if (layout == InferenceEngine::Layout::CN) {
+            batch_index = 1;
+        }
+        if ((batch_index != -1) && (shapes.at(item.first).at(batch_index) != batch_size)) {
+            shapes[item.first][batch_index] = batch_size;
+            updated = true;
+        }
+    }
+    return updated;
+}
+
+bool updateShapes(InferenceEngine::ICNNNetwork::InputShapes& shapes,
+                  const std::string shapes_string, const InferenceEngine::InputsDataMap& input_info) {
+    bool updated = false;
+    std::string search_string = shapes_string;
+    auto start_pos = search_string.find_first_of('[');
+    while (start_pos != std::string::npos) {
+        auto end_pos = search_string.find_first_of(']');
+        if (end_pos == std::string::npos)
+            break;
+        auto input_name = search_string.substr(0, start_pos);
+        auto input_shape = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
+        std::vector<size_t> parsed_shape;
+        for (auto& dim : split(input_shape, ',')) {
+            parsed_shape.push_back(std::stoi(dim));
+        }
+        if (!input_name.empty()) {
+            shapes[input_name] = parsed_shape;
+            updated = true;
+        } else {
+            for (auto& item : input_info) {
+                shapes[item.first] = parsed_shape;
+            }
+            updated = true;
+        }
+        search_string = search_string.substr(end_pos + 1);
+        if (search_string.empty() || search_string.front() != ',')
+            break;
+        search_string = search_string.substr(1);
+        start_pos = search_string.find_first_of('[');
+    }
+    if (!search_string.empty())
+        throw std::logic_error("Can't parse `shape` parameter: " + shapes_string);
+    return updated;
+}
+
+std::string getShapesString(const InferenceEngine::ICNNNetwork::InputShapes& shapes) {
+    std::stringstream ss;
+    for (auto& shape : shapes) {
+        if (!ss.str().empty()) ss << ", ";
+        ss << "\'" << shape.first << "': [";
+        for (size_t i = 0; i < shape.second.size(); i++) {
+            if (i > 0) ss << ", ";
+            ss << shape.second.at(i);
+        }
+        ss << "]";
+    }
+    return ss.str();
 }
 
 #ifdef USE_OPENCV

@@ -9,6 +9,9 @@
 
 #include <iomanip> // std::setw
 
+#include <vpu/utils/ie_helpers.hpp>
+#include <graph_transformer/include/vpu/model/data_desc.hpp>
+
 typedef std::map<std::string, std::string> ParamsStruct;
 
 typedef float (*eltwise_kernel)(float a, float b, float c);
@@ -273,6 +276,7 @@ void ref_reduce(const InferenceEngine::Blob::Ptr& src,
                 const InferenceEngine::Blob::Ptr& axes,
                 InferenceEngine::Blob::Ptr& dst,
                 int keep_dims,
+                vpu::LayoutPreference layoutPreference,
                 IReduceKernel<DataType>* op);
 
 void ref_topk(const InferenceEngine::Blob::Ptr& srcValues,

@@ -54,6 +54,7 @@ struct quantize_fuse_params : fuse_params {
                          bool has_post_scale,
                          bool has_post_shift,
                          bool has_pre_shift,
+                         bool has_clamp,
                          bool per_tensor_input_range,
                          bool per_tensor_input_scale,
                          bool per_tensor_input_shift,
@@ -70,6 +71,7 @@ struct quantize_fuse_params : fuse_params {
     , has_post_scale(has_post_scale)
     , has_post_shift(has_post_shift)
     , has_pre_shift(has_pre_shift)
+    , has_clamp(has_clamp)
     , per_tensor_input_range(per_tensor_input_range)
     , per_tensor_input_scale(per_tensor_input_scale)
     , per_tensor_input_shift(per_tensor_input_shift)
@@ -86,6 +88,7 @@ struct quantize_fuse_params : fuse_params {
     bool has_post_scale;
     bool has_post_shift;
     bool has_pre_shift;
+    bool has_clamp;
 
     bool per_tensor_input_range;
     bool per_tensor_input_scale;

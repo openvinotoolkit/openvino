@@ -598,7 +598,7 @@ status_t jit_avx2_conv_fwd_kernel_f32::init_conf(jit_conv_conf_t &jcp,
             if (post_op.is_eltwise()) {
                 if (post_op.eltwise.alg != alg_kind::eltwise_relu)
                     return status::unimplemented;
-            } else if (post_op.is_depthwise()) {
+            } else if (post_op.is_depthwise() || post_op.is_quantization()) {
                 return status::unimplemented;
             }
         }
@@ -1054,7 +1054,7 @@ status_t jit_avx2_conv_bwd_data_kernel_f32::init_conf(jit_conv_conf_t &jcp,
     if (!mayiuse(avx2)) {
         for (int i = 0; i < p.len_; i++) {
             auto &post_op = p.entry_[i];
-            if (post_op.is_depthwise()) {
+            if (post_op.is_depthwise() || post_op.is_quantization()) {
                 return status::unimplemented;
             }
         }

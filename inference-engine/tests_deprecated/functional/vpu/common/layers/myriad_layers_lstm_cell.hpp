@@ -162,7 +162,7 @@ struct  lstmcell_test_params {
                   << ", state size = " << tst.state_size;
     };
 };
-typedef myriadLayerTestBaseWithParam<lstmcell_test_params> myriadLayersTestsLSTMCell_nightly;
+typedef myriadLayerTestBaseWithParam<lstmcell_test_params> myriadLayersTestsLSTMCell_smoke;
 
 #define f32Tof16 PrecisionUtils::f32tof16
 #define f16Tof32 PrecisionUtils::f16tof32
@@ -304,7 +304,7 @@ static void matrix_copy_transpose_repack(const ie_fp16 *psrc, ie_fp16 *pdst, int
     }
 }
 
-TEST_P(myriadLayersTestsLSTMCell_nightly, LSTMCell) {
+TEST_P(myriadLayersTestsLSTMCell_smoke, LSTMCell) {
     auto param = GetParam();
     lstmcell_test_params test_params = param;
 

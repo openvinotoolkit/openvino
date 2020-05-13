@@ -182,6 +182,280 @@ TEST(concat_gpu, mixed_input_types_5d) {
     }
 }
 
+TEST(concat_gpu, i8_optimization_with_pool) {
+    const auto& engine = get_test_engine();
+
+    auto input0 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 1, 8, 3}});
+    auto input1 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 1, 8, 3}});
+
+
+    set_values<int8_t>(input0, { 11, 12, 13,
+                         14, 12, 12,
+                         13, -14, 13,
+                         13, -13, 15,
+                         16, -16, -13,
+                         -14, 12, 11,
+                         16, -14, -13,
+                         18, -13, -15, });
+    set_values<int8_t>(input1, { 11, 12, 13,
+                         15, 12, 12,
+                         13, 14, 12,
+                         13, 13, 15,
+                         12, 14, 13,
+                         14, 17, 18,
+                         13, 14, 11,
+                         13, 13, 15 });
+
+
+    VF<int8_t> output_vec = {13, 13, 13, 13, 15, 15,
+                        16, 15, 16, 14, 13, 14,
+                        13, 14, 13, 18, 16, 18,
+                        16, 15, 16, 15, 18, 14,
+                        18, 14, -13, 15};
+
+    layout reorder_layout(data_types::i8, format::yxfb, {7, 2, 2, 1});
+    topology topology(input_layout("input0", input0.get_layout()),
+                      input_layout("input1", input1.get_layout()),
+                      pooling("pool0", "input0", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
+                      pooling("pool1", "input1", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
+                      concatenation("concat",
+                                    {"pool0", "pool1"},
+                                    concatenation::concatenation_axis::along_f,
+                                    data_types::i8,
+                                    padding{{0, 0, 0, 0}, 0}),
+                      reorder("reorder", "concat", reorder_layout));
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::optimize_data(true));
+    network network(engine, topology, options);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "reorder");
+
+    auto output_memory = outputs.at("reorder").get_memory();
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<int8_t>();
+
+    int y_size = output_layout.size.spatial[0];
+    int x_size = output_layout.size.spatial[1];
+    int f_size = output_layout.size.feature[0];
+    int b_size = output_layout.size.batch[0];
+    EXPECT_EQ(output_layout.format, format::yxfb);
+    EXPECT_EQ(y_size, 7);
+    EXPECT_EQ(x_size, 2);
+    EXPECT_EQ(f_size, 2);
+    EXPECT_EQ(b_size, 1);
+
+    for (size_t x = 0; x < output_layout.count(); ++x) {
+        EXPECT_EQ(output_vec[x], output_ptr[x]);
+    }
+}
+
+TEST(concat_gpu, i8_optimization_with_conv) {
+    //  Filter : 3x2x3
+    //  Stride : 2x1
+    //  Input1  : 4x5
+    //  Input2  : 4x5
+    //  Input3  : 4x5
+    //  Concat output  : 3x4x5
+    //  Conv input  : 3x4x5
+    //  Output : 2x3
+    //
+    //  Input0:
+    //  1  2  3  -4  5
+    //  2  2  3  4  -6
+    //  -3  3  3  5  1
+    //  -1  1  1  1  -1
+    //  Input1:
+    //  5  5  3  -4  5
+    //  2  -2  5  4  6
+    //  6  1  3  5  1
+    //  1  2  -3  -4  5
+    //  Input2:
+    //  -2  1  3  2  -5
+    //  1  2  -2  4  2
+    //  3  5  3  -3  1
+    //  5  4  3  2  1
+    //
+    //  Filter:
+    //  1  2  1     1  2  1     1  2  1
+    //  2  1  2     2  1  2     2  1  2
+    //
+    //  Output:
+    // 53  54  30
+    // 52  47  37
+    const auto& engine = get_test_engine();
+
+    auto input0 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 1, 5, 4}});
+    auto input1 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 1, 5, 4}});
+    auto input2 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 1, 5, 4}});
+    auto weights = memory::allocate(engine, { data_types::i8, format::bfyx, { 1, 3, 3, 2 } });
+
+    set_values<int8_t>(weights, { 1, 2, 1,
+                          2, 1, 2, 1, 2, 1,
+                          2, 1, 2, 1, 2, 1,
+                          2, 1, 2 });
+
+    set_values<int8_t>(input0, {  1, 2, 3, -4, 5,
+                          2, 2, 3, 4, -6,
+                          -3, 3, 3, 5, 1,
+                          -1, 1, 1, 1, -1 });
+    set_values<int8_t>(input1, { 5, 5, 3, -4, 5,
+                         2, -2, 5, 4, 6,
+                         6, 1, 3, 5, 1,
+                         1, 2, -3, -4, 5 });
+    set_values<int8_t>(input2, {  -2, 1, 3, 2, -5,
+                          1, 2, -2, 4, 2,
+                          3, 5, 3, -3, 1,
+                          5, 4, 3, 2, 1 });
+    
+    VF<int8_t> output_vec = { 53, 54, 30, 52, 47, 37 };
+
+    
+    layout reorder_layout(data_types::i8, format::bfyx, {1, 1, 2, 3});
+    topology topology(input_layout("input0", input0.get_layout()),
+                      input_layout("input1", input1.get_layout()),
+                      input_layout("input2", input2.get_layout()),
+                      concatenation("concat",
+                                    {"input0", "input1", "input2"},
+                                    concatenation::concatenation_axis::along_f,
+                                    data_types::i8,
+                                    padding{{0, 0, 0, 0}, 0}),
+                      data("weights", weights),
+                      convolution("conv", "concat", { "weights" }, { 1,1,1,2 }),
+                      reorder("output", "conv", reorder_layout));
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::optimize_data(true));
+    network network(engine, topology, options);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "output");
+
+    auto output_memory = outputs.at("output").get_memory();
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<int8_t>();
+
+    int y_size = output_layout.size.spatial[1];
+    int x_size = output_layout.size.spatial[0];
+    int f_size = output_layout.size.feature[0];
+    int b_size = output_layout.size.batch[0];
+    EXPECT_EQ(output_layout.format, format::bfyx);
+    EXPECT_EQ(y_size, 2);
+    EXPECT_EQ(x_size, 3);
+    EXPECT_EQ(f_size, 1);
+    EXPECT_EQ(b_size, 1);
+
+    for (size_t x = 0; x < output_layout.count(); ++x) {
+        EXPECT_EQ(output_vec[x], output_ptr[x]);
+    }
+}
+
+TEST(concat_gpu, i8_optimization_with_pool_conv) {
+    //  Filter : 32x2x1
+    //  Input offset : 0x0x-1x0
+    //  Stride : 1x1
+    //  Input0  : 16x3x2
+    //  Input1  : 16x3x2
+    //  Output : 1x1x3
+    //
+    //  Input0:
+    // -3 6 0 2 -1 -1 6 0 5 4 1 6 2 4 0 5 
+    // -2 -1 1 0 2 3 3 3 6 2 4 7 3 6 7 -1 
+    // 7 7 5 -3 1 -1 5 4 0 3 -2 6 2 5 2 4 
+    // 5 -1 3 6 2 0 -3 -1 0 3 0 -1 1 6 1 6 
+    // 5 -2 2 -1 5 6 3 4 1 0 6 6 7 2 6 3 
+    // 6 7 -1 5 5 6 -1 0 -1 5 5 2 3 -1 -3 4 
+    //
+    //  Input1:
+    //  4 -2 0 0 6 2 0 4 6 4 4 4 -3 -1 4 -3 
+    //  1 0 -1 5 -1 1 4 2 7 7 0 2 3 4 -1 3 
+    //  7 7 2 -3 -1 5 -2 2 6 -3 0 7 0 3 3 3 
+    //  -1 0 -2 -2 7 -3 -3 -1 5 0 3 4 0 -1 2 5 
+    //  2 -1 2 -3 0 -3 -3 2 4 3 3 5 5 7 5 1 
+    //  2 2 -3 6 6 7 1 -1 -2 5 1 -1 4 5 -3 -2 
+    //
+    // Filters:
+    // -1, 2, -2, 2, -2, 1, 1, 0, -1, 1, 2, -2, 2, 1, -2, 0,
+    // 0, -2, -2, -2, -2, -1, 2, 1, 2, -1, -1, 0, 2, -2, -2, 1,
+    // 0, -2, 0, 1, -2, -1, -2, 0, -1, -1, -2, 1, -2, 0, 1, 2,
+    // 2, 2, 2, -2, 0, 2, 1, -2, -1, -1, 0, -2, 2, -1, 2, -1
+    //
+    //  Output:
+    //  -14, -35, -10
+
+    const auto& engine = get_test_engine();
+
+    auto input0 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 16, 3, 2}});
+    auto input1 = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 16, 3, 2}});
+    auto weights = memory::allocate(engine, {data_types::i8, format::bfyx, {1, 32, 2, 1}});
+
+    set_values<int8_t>(weights, {-1, 2, -2, 2, -2, 1, 1, 0, -1, 1, 2, -2, 2, 1, -2, 0, 0, -2, -2, -2, -2, -1, 2, 1, 2, -1, -1, 0, 2, -2, -2, 1,
+                                0, -2, 0, 1, -2, -1, -2, 0, -1, -1, -2, 1, -2, 0, 1, 2, 2, 2, 2, -2, 0, 2, 1, -2, -1, -1, 0, -2, 2, -1, 2, -1});
+
+    set_values<int8_t>(input0, {-3, 6, 0, 2, -1, -1, 6, 0, 5, 4, 1, 6, 2, 4, 0, 5,
+                                -2, -1, 1, 0, 2, 3, 3, 3, 6, 2, 4, 7, 3, 6, 7, -1,
+                                7, 7, 5, -3, 1, -1, 5, 4, 0, 3, -2, 6, 2, 5, 2, 4,
+                                5, -1, 3, 6, 2, 0, -3, -1, 0, 3, 0, -1, 1, 6, 1, 6, 
+                                5, -2, 2, -1, 5, 6, 3, 4, 1, 0, 6, 6, 7, 2, 6, 3,
+                                6, 7, -1, 5, 5, 6, -1, 0, -1, 5, 5, 2, 3, -1, -3, 4 });
+
+    set_values<int8_t>(input1, { 4, -2, 0, 0, 6, 2, 0, 4, 6, 4, 4, 4, -3, -1, 4, -3,
+                                 1, 0, -1, 5, -1, 1, 4, 2, 7, 7, 0, 2, 3, 4, -1, 3,
+                                 7, 7, 2, -3, -1, 5, -2, 2, 6, -3, 0, 7, 0, 3, 3, 3,
+                                 -1, 0, -2, -2, 7, -3, -3, -1, 5, 0, 3, 4, 0, -1, 2, 5,
+                                 2, -1, 2, -3, 0, -3, -3, 2, 4, 3, 3, 5, 5, 7, 5, 1,
+                                 2, 2, -3, 6, 6, 7, 1, -1, -2, 5, 1, -1, 4, 5, -3, -2});
+    
+    VF<int8_t> output_vec = { -14, -35, -10 };
+
+    layout reorder_layout(data_types::i8, format::bfyx, {1, 1, 3, 1});
+    topology topology(input_layout("input0", input0.get_layout()),
+                      input_layout("input1", input1.get_layout()),
+                      pooling("pool0", "input0", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
+                      pooling("pool1", "input1", pooling_mode::max, {1, 1, 2, 2}, {1, 1, 1, 1}),
+                      concatenation("concat",
+                                    {"pool0", "pool1"},
+                                    concatenation::concatenation_axis::along_f,
+                                    data_types::i8,
+                                    padding{{0, 0, 0, 0}, 0}),
+                      data("weights", weights),
+                      convolution("conv", "concat", {"weights"}, {1, 1, 1, 1}, {0, 0, -1, 0}),
+                      reorder("output", "conv", reorder_layout) );
+    cldnn::build_options options;
+    options.set_option(cldnn::build_option::optimize_data(true));
+    network network(engine, topology, options);
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "output");
+
+    auto output_memory = outputs.at("output").get_memory();
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<int8_t>();
+
+    int y_size = output_layout.size.spatial[0];
+    int x_size = output_layout.size.spatial[1];
+    int f_size = output_layout.size.feature[0];
+    int b_size = output_layout.size.batch[0];
+    EXPECT_EQ(output_layout.format, format::bfyx);
+    EXPECT_EQ(y_size, 3);
+    EXPECT_EQ(x_size, 1);
+    EXPECT_EQ(f_size, 1);
+    EXPECT_EQ(b_size, 1);
+
+    for (size_t x = 0; x < output_layout.count(); ++x) {
+        EXPECT_EQ(output_vec[x], output_ptr[x]);
+    }
+}
+
 using TestParamType_concat = ::testing::tuple<size_t,   // 0 - Input Batch size
         std::vector<size_t>,                            // 1 - Inputs Features Sizes
         size_t,                                         // 2 - Input Y Size

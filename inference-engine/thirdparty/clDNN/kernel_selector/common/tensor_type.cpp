@@ -129,6 +129,12 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::gs_oi_yxs_gsv16_yxsv4,                       {  0,  1, -1,   2,   3, -1, -1,  4 } },
     { WeightsLayout::gs_oi_yxs_gsv32_yxsv4,                       {  0,  1, -1,   2,   3, -1, -1,  4 } },
     { WeightsLayout::g_os_is_yx_osv16_isv4,                       {  0,  1, -1,   2,   3, -1, -1,  4 } },
+    { WeightsLayout::g_os_zyx_is_osv16_isv4,                      {  1,  2,  3,   0,   4, -1, -1,  5 } },
+    { WeightsLayout::g_os_zyx_is_osv16_isv16,                     {  1,  2,  3,   0,   4, -1, -1,  5 } },
+    { WeightsLayout::g_os_zyx_is_osv16_isv32,                     {  1,  2,  3,   0,   4, -1, -1,  5 } },
+    { WeightsLayout::g_os_zyx_is_osv32_isv4,                      {  1,  2,  3,   0,   4, -1, -1,  5 } },
+    { WeightsLayout::g_os_zyx_is_osv32_isv16,                     {  1,  2,  3,   0,   4, -1, -1,  5 } },
+    { WeightsLayout::g_os_zyx_is_osv32_isv32,                     {  1,  2,  3,   0,   4, -1, -1,  5 } },
 }};
 
 NDims DataTensor::GetSimpleDims(const std::vector<size_t>& d, DataLayout l) {
@@ -638,6 +644,30 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
             newDims[2] = RoundUp(newDims[2], 4);
             newDims[3] = RoundUp(newDims[3], 16);
             break;
+        case g_os_zyx_is_osv16_isv4:
+            newDims[0] = RoundUp(newDims[0], 4);
+            newDims[4] = RoundUp(newDims[4], 16);
+            break;
+        case g_os_zyx_is_osv16_isv16:
+            newDims[0] = RoundUp(newDims[0], 16);
+            newDims[4] = RoundUp(newDims[4], 16);
+            break;
+        case g_os_zyx_is_osv16_isv32:
+            newDims[0] = RoundUp(newDims[0], 32);
+            newDims[4] = RoundUp(newDims[4], 16);
+            break;
+        case g_os_zyx_is_osv32_isv4:
+            newDims[0] = RoundUp(newDims[0], 4);
+            newDims[4] = RoundUp(newDims[4], 32);
+            break;
+        case g_os_zyx_is_osv32_isv16:
+            newDims[0] = RoundUp(newDims[0], 16);
+            newDims[4] = RoundUp(newDims[4], 32);
+            break;
+        case g_os_zyx_is_osv32_isv32:
+            newDims[0] = RoundUp(newDims[0], 32);
+            newDims[4] = RoundUp(newDims[4], 32);
+            break;
         default:
             break;
     }
@@ -760,6 +790,12 @@ WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType
         vec[Channelndex(l, WeightsChannelName::OFM)] = OFM().v;
         vec[Channelndex(l, WeightsChannelName::LX)] = LX().v;
         vec[Channelndex(l, WeightsChannelName::LY)] = LY().v;
+    } else if (src_channels == 4 && dst_channels == 5) {
+        vec[Channelndex(l, WeightsChannelName::X)] = X().v;
+        vec[Channelndex(l, WeightsChannelName::Y)] = Y().v;
+        vec[Channelndex(l, WeightsChannelName::Z)] = 1;
+        vec[Channelndex(l, WeightsChannelName::IFM)] = IFM().v;
+        vec[Channelndex(l, WeightsChannelName::OFM)] = OFM().v;
     } else {
         assert(0);
     }

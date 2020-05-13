@@ -62,13 +62,16 @@ if [ -e $INSTALLDIR/deployment_tools/inference_engine ]; then
     else
         export LD_LIBRARY_PATH=$HDDL_INSTALL_DIR/lib:$INSTALLDIR/deployment_tools/inference_engine/external/gna/lib:$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_lnx/lib:$INSTALLDIR/deployment_tools/inference_engine/external/tbb/lib:$IE_PLUGINS_PATH:$LD_LIBRARY_PATH
     fi
+
+    export KMB_INSTALL_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/hddl_unite
+    export LD_LIBRARY_PATH=$KMB_INSTALL_DIR/lib:$LD_LIBRARY_PATH
 fi
 
 if [ -e $INSTALLDIR/deployment_tools/ngraph ]; then
     export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/ngraph/lib:$LD_LIBRARY_PATH
     export ngraph_DIR=$INSTALLDIR/deployment_tools/ngraph/cmake
 fi
-    
+
 if [ -e "$INSTALLDIR/opencv" ]; then
     if [ -f "$INSTALLDIR/opencv/setupvars.sh" ]; then
         source "$INSTALLDIR/opencv/setupvars.sh"

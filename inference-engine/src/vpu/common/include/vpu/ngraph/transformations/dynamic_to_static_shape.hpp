@@ -16,7 +16,7 @@ using Transformations = std::unordered_map<ngraph::NodeTypeInfo, std::function<v
 class DynamicToStaticShape {
 public:
     explicit DynamicToStaticShape(const Transformations& specificTransformations = {});
-    void transform(ngraph::Function& function) const;
+    void transform(std::shared_ptr<ngraph::Function> function) const;
 
 private:
     Transformations transformations;

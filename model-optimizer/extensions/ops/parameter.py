@@ -28,6 +28,7 @@ class Parameter(Op):
         mandatory_props = {
             'op': self.op,
             'type': self.op,
+            'version': 'opset1',
 
             'infer': self.infer,
             'is_input': True,

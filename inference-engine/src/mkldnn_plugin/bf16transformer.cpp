@@ -55,6 +55,9 @@ void BF16Transformer::convertToBFloat16(InferenceEngine::CNNNetwork &network) {
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
     for (auto iter : sortedLayers) {
+        if (_skipmarking.find(iter->type) != _skipmarking.end()) {
+            continue;
+        }
         for (size_t o = 0; o < iter->outData.size(); o++) {
             if (inputs.find(iter->outData[o]->getName()) == inputs.end()
                 && outputs.find(iter->outData[o]->getName()) == outputs.end()
@@ -109,6 +112,9 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
     // 2b. go over all unknown layers for this algo and mark them as fp32 and add to the toAnalyzeTensors
     // 2c. go over all inputs to _initbf16 and if they are fp32 - add them to the toAnalyzeTensors
     for (auto iter : sortedLayers) {
+        if (_skipmarking.find(iter->type) != _skipmarking.end()) {
+            continue;
+        }
         if (_initbf16.find(iter->type) == _initbf16.end()
             && _complementbf16.find(iter->type) == _complementbf16.end()
             && _multiinput.find(iter->type) == _multiinput.end()) {

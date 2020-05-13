@@ -34,7 +34,6 @@ struct deconvolution_params : public weight_bias_params {
     uint32_t split = 1;
     uint32_t groups = 1;
     bool depthwise_separable_opt = false;
-    bool fused_eltwise = false;
 
     std::string to_string() const override;
 
@@ -89,5 +88,8 @@ protected:
             return (params.groups > 1) ? WeightsLayout::goizyx : WeightsLayout::oizyx;
     }
     bool Validate(const Params& p, const optional_params& o) const override;
+
+    virtual Datatype GetAccumulatorType(const deconvolution_params& params) const;
+    virtual Datatype GetActivationType(const deconvolution_params& params) const;
 };
 }  // namespace kernel_selector

@@ -5,7 +5,7 @@
 #include "myriad_layers_crop_test.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-    accuracy_Crop, myriadLayerCropOneInputAndDim_nightly,
+    accuracy_Crop, myriadLayerCropOneInputAndDim_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_tileTensors1),
         ::testing::ValuesIn(s_tileTensors2),
@@ -15,7 +15,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-    accuracy_Crop1, myriadLayerCropOneInput_nightly,
+    accuracy_Crop1, myriadLayerCropOneInput_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_tileTensors1),
         ::testing::ValuesIn(s_tileTensors2),
@@ -25,7 +25,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-    accuracy_Crop2, myriadLayerCropTwoInputs_nightly,
+    accuracy_Crop2, myriadLayerCropTwoInputs_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_tileTensors1),
         ::testing::ValuesIn(s_tileTensors2),

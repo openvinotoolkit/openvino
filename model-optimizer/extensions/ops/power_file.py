@@ -27,6 +27,7 @@ class PowerFileOp(Op):
         super().__init__(graph, {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'extension',
             'in_ports_count': 1,
             'out_ports_count': 1,
             'infer': copy_shape_infer

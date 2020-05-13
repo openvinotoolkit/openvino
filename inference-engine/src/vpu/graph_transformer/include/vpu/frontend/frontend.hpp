@@ -151,6 +151,8 @@ public:
     void parseExpTopKROIs(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseNonZero(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseROIAlign(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseOutShapeOfReshape(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseBroadcast(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
 
     //
     // Special layers
@@ -172,9 +174,11 @@ public:
     void parseLSTMCell(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
     void parseTensorIterator(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs);
 
-//
-// Utility
-//
+    //
+    // Utility
+    //
+
+    static CustomLayer::Ptr getSuitableCustomLayer(const std::vector<CustomLayer::Ptr>& customLayers, const ie::CNNLayerPtr&cnnLayer);
 
 private:
     Data getVpuData(const ie::DataPtr& ieData) const;

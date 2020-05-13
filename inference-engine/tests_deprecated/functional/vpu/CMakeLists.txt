@@ -41,7 +41,6 @@ addIeTarget(
         ${CMAKE_CURRENT_SOURCE_DIR}/common/regression/helpers
     LINK_LIBRARIES
         IESharedTests
-        inference_engine_ir_readers
         vpu_graph_transformer
         vpu_custom_kernels
     DEFINES
@@ -69,7 +68,6 @@ addIeTargetTest(
     LINK_LIBRARIES
         IESharedTests
         vpu_custom_kernels
-        inference_engine_ir_readers
     LINK_LIBRARIES_WHOLE_ARCHIVE
         myriadTestData
         VPUCommonTests

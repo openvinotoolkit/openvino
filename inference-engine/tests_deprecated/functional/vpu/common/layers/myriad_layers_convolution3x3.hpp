@@ -19,7 +19,7 @@ typedef struct {
 PRETTY_PARAM(hwAcceleration, std::string);
 PRETTY_PARAM(dimsConfig, dims_config_con3x3);
 
-typedef myriadLayerTestBaseWithParam<std::tuple<std::string, dims_config_con3x3>> myriadConvolution3x3LayerTests_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<std::string, dims_config_con3x3>> myriadConvolution3x3LayerTests_smoke;
 
 void refConvolution3x3(const Blob::Ptr src, InferenceEngine::TBlob<uint8_t>::Ptr weights, Blob::Ptr dst, int stride_x, int stride_y, int pad_x, int pad_y, int dilation_x, int dilation_y) {
     
@@ -102,7 +102,7 @@ void refConvolution3x3(const Blob::Ptr src, InferenceEngine::TBlob<uint8_t>::Ptr
     }
 }
 
-TEST_P(myriadConvolution3x3LayerTests_nightly, Convolution3x3) {
+TEST_P(myriadConvolution3x3LayerTests_smoke, Convolution3x3) {
     std::string model = R"V0G0N(
        <net name="Convolution3x3" version="2" batch="1">
            <layers>
@@ -117,7 +117,7 @@ TEST_P(myriadConvolution3x3LayerTests_nightly, Convolution3x3) {
                 </output>
             </layer>
             <layer id="2" name="conv3x3" precision="FP16" type="Convolution">
-                <data stride-x="@stride-x@" stride-y="@stride-y@" pad-x="1" pad-y="1" dilation-x="1" dilation-y="1" output="1" kernel-x="3" kernel-y="3"/>
+                <data stride="@stride-x@,@stride-y@" pads_begin="1,1" pads_end="1,1" dilation="1,1" output="1" kernel="3,3"/>
                 <input>
                     <port id="0">
                         <dim>@IB@</dim>

@@ -26,8 +26,10 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/op/fused/gelu.hpp>
 #include <generic_ie.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include "convert_function_to_cnn_network.hpp"
 
 #undef min
@@ -79,6 +81,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
+        ngraph::pass::CommonOptimizations().run_on_function(nGraphFunc);
+        ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
@@ -143,7 +147,7 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
     }
 };
 
-ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICore * /*core*/, const InferenceEngine::ICNNNetwork &network,
+ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
                                                                const std::map<std::string, std::string> &config) {
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs;
@@ -189,9 +193,9 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     return std::make_shared<CLDNNExecNetwork>(*CloneNetwork(network), context, conf);
 }
 
-ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICore * /*core*/, const InferenceEngine::ICNNNetwork &network,
-                                                                RemoteContext::Ptr context,
-                                                                const std::map<std::string, std::string> &config) {
+ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+                                                               RemoteContext::Ptr context,
+                                                               const std::map<std::string, std::string> &config) {
     InferenceEngine::InputsDataMap _networkInputs;
     network.getInputsInfo(_networkInputs);
     check_inputs(_networkInputs);

@@ -5,4 +5,4 @@
 #include "behavior_test_plugin_infer_request.hpp"
 #include "cldnn_test_data.hpp"
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInferRequest, ValuesIn(requestsSupportedValues), getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestInferRequest, ValuesIn(requestsSupportedValues), getTestCaseName);

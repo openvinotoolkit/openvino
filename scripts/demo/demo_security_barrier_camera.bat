@@ -87,8 +87,8 @@ if ERRORLEVEL 1 GOTO errorHandling
 set models_path=%BUILD_FOLDER%\openvino_models\ir
 set models_cache=%BUILD_FOLDER%\openvino_models\cache
 
-if not exist %models_cache% (
-  mkdir %models_cache%
+if not exist "%models_cache%" (
+  mkdir "%models_cache%"
 )
 
 set downloader_dir=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\downloader

@@ -5,5 +5,5 @@
 #include "myriad_layers_erf_test.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-        accuracy, myriadLayersTestsErf_nightly,
+        accuracy, myriadLayersTestsErf_smoke,
         ::testing::ValuesIn(s_ErfDims));

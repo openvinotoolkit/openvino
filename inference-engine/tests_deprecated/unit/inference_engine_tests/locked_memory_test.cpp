@@ -5,23 +5,13 @@
 #include "tests_common.hpp"
 #include "unit_test_utils/mocks/mock_allocator.hpp"
 
-using namespace std;
-
-class LockedMemoryTest : public TestsCommon {
-protected:
-    unique_ptr<MockAllocator> createMockAllocator() {
-        return unique_ptr<MockAllocator>(new MockAllocator());
-    }
-};
-
 using namespace InferenceEngine;
 using namespace ::testing;
 
+using LockedMemoryTest = testing::Test;
 
 TEST_F(LockedMemoryTest, canUnlockMemoryAfterUsage) {
-
-    auto allocator = createMockAllocator();
-
+    std::unique_ptr<MockAllocator> allocator(new MockAllocator());
     char array [] = {1,2,3};
 
     EXPECT_CALL(*allocator.get(), lock((void*)1, _)).WillRepeatedly(Return((void*)array));
@@ -34,11 +24,8 @@ TEST_F(LockedMemoryTest, canUnlockMemoryAfterUsage) {
     }
 }
 
-
 TEST_F(LockedMemoryTest, canReadFromLockedMemory) {
-
-    auto allocator = createMockAllocator();
-
+    std::unique_ptr<MockAllocator> allocator(new MockAllocator());
     char array [] = {1,2,3,4,5};
 
     EXPECT_CALL(*allocator.get(), lock((void*)1, _)).WillRepeatedly(Return((void*)array));
@@ -50,11 +37,8 @@ TEST_F(LockedMemoryTest, canReadFromLockedMemory) {
     }
 }
 
-
 TEST_F(LockedMemoryTest, canWriteToLockedMemory) {
-
-    auto allocator = createMockAllocator();
-
+    std::unique_ptr<MockAllocator> allocator(new MockAllocator());
     char array [] = {1,2,3,4,5};
 
     EXPECT_CALL(*allocator.get(), lock((void*)1, _)).WillRepeatedly(Return((void*)array));

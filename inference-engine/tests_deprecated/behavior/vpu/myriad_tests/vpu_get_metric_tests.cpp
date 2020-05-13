@@ -26,7 +26,7 @@ protected:
     }
 };
 
-TEST_F(VPUGetMetric, GetThermalStatsFromNetwork) {
+TEST_F(VPUGetMetric, smoke_GetThermalStatsFromNetwork) {
     const auto exe_network = loadNetworkOnDevice("MYRIAD");
 
     auto result = Parameter{};
@@ -36,7 +36,7 @@ TEST_F(VPUGetMetric, GetThermalStatsFromNetwork) {
     ASSERT_GT(result.as<float>(), 0);
 }
 
-TEST_F(VPUGetMetric, GetThermalStatsFromPlugin) {
+TEST_F(VPUGetMetric, smoke_GetThermalStatsFromPlugin) {
     std::vector<std::string> availableDevices;
     ASSERT_NO_THROW(availableDevices = getAvailableDevices());
     ASSERT_TRUE(!availableDevices.empty());
@@ -53,7 +53,7 @@ TEST_F(VPUGetMetric, GetThermalStatsFromPlugin) {
     }
 }
 
-TEST_F(VPUGetMetric, ThermalStatsFromPluginWithIncorrectID) {
+TEST_F(VPUGetMetric, smoke_ThermalStatsFromPluginWithIncorrectID) {
     std::vector<std::string> availableDevices;
     ASSERT_NO_THROW(availableDevices = getAvailableDevices());
     ASSERT_TRUE(!availableDevices.empty());
@@ -70,7 +70,7 @@ TEST_F(VPUGetMetric, ThermalStatsFromPluginWithIncorrectID) {
     ASSERT_TRUE(result.empty());
 }
 
-TEST_F(VPUGetMetric, ThermalStatsFromPluginWithoutLoadedNetwork) {
+TEST_F(VPUGetMetric, smoke_ThermalStatsFromPluginWithoutLoadedNetwork) {
     std::vector<std::string> availableDevices;
     ASSERT_NO_THROW(availableDevices = getAvailableDevices());
     ASSERT_TRUE(!availableDevices.empty());
@@ -83,7 +83,7 @@ TEST_F(VPUGetMetric, ThermalStatsFromPluginWithoutLoadedNetwork) {
     ASSERT_TRUE(result.empty());
 }
 
-TEST_F(VPUGetMetric, MyriadGetAvailableDevices) {
+TEST_F(VPUGetMetric, smoke_MyriadGetAvailableDevices) {
     std::vector<std::string> availableDevices;
     ASSERT_NO_THROW(availableDevices = getAvailableDevices());
     ASSERT_TRUE(!availableDevices.empty());

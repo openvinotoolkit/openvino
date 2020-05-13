@@ -425,7 +425,7 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
         (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) &&
         ((input_layout.size.feature[0] / conv->split()) % 16 == 0 || input_layout.size.feature[0] == 3) &&
         weights_layout.data_type == input_layout.data_type &&
-        (weights_layout.size.batch[0] % 16 == 0 || weights_layout.size.batch[0] % 8 == 0) &&
+        (weights_layout.size.batch[0] % 16 == 0 || (weights_layout.size.batch[0] == 8 && conv->groups > 1)) &&
         conv->dilation == tensor(1))
         return true;
     return false;
@@ -477,6 +477,12 @@ bool layout_optimizer::deconvolution_b_fs_zyx_fsv16_opt(layout const &input_layo
         (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) &&
         deconv->split() == 1)
         return true;
+
+    if (input_layout.format.dimension() == 5 &&
+        (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) &&
+        deconv->split() == 1)
+        return true;
+
     return false;
 }
 
@@ -489,6 +495,12 @@ bool layout_optimizer::deconvolution_b_fs_yx_fsv16_opt(layout const &input_layou
         deconv->split() == 1 &&
         (deconv->groups == 1 || (static_cast<int>(deconv->groups) == weights_layout.size.group[0])))
         return true;
+
+    if (input_layout.format.dimension() == 4 &&
+        (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8) &&
+        deconv->split() == 1)
+        return true;
+
     return false;
 }
 

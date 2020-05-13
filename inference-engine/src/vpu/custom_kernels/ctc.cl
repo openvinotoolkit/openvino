@@ -1,137 +1,173 @@
 // Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
 
-__kernel void ctc_ocl(__global half* probabilities,
-                     __global half* output_sequences,
-                     int C_)
-{
-    size_t t = get_global_id(0);
-
-    __global half* probs = probabilities + t * C_;
-
-    int max_class_idx = 0;
-    half max_prob = probs[0];
-    ++probs;
-    for (int c = 1 ; c < C_ ; c++, ++probs)
-    {
-        if (*probs > max_prob)
-        {
-            max_prob  = *probs;
-            max_class_idx = c;
+__global half *find(__global const half *begin, __global const half *end, half value) {
+    while (begin != end) {
+        if (*begin == value)  {
+            return begin;
         }
+        ++begin;
     }
-    output_sequences[t] = (half)max_class_idx;
+    return end;
 }
 
-__kernel void postProcess(__global half* input,
-                          __global half* output,
-                          __global half* seq_ind,
-                          int height,
-                          int width,
-                          int classes)
+#define USE_MANUAL_DMA
+
+#ifdef USE_MANUAL_DMA
+
+__kernel void __dma_preload_CTCDecoder(__global half *probabilities,
+                                       __global half *sequence_indicators,
+                                       __global half *output_sequences,
+                                       int width,
+                                       int height,
+                                       int channels,
+                                       __local half *local_src,
+                                       __local half *local_dst)
 {
-    int wr_index = 0;
-    int rd_index = 0;
-
-    half update_data;
-    int update_index;
-
-    for (int i = 0; i < classes; i++)
-    {
-        output[i] = (half)(-1);
-    }
-
-    for (int n = 0; n < height; ++n)
-    {
-        int prev_class_id = -1;
-        for (int t = 0; t < classes; ++t)
-        {
-            int class_id = (int)input[rd_index++];
-            update_index = wr_index;
-            update_data = output[update_index];
-
-            if ((class_id < (width - 1)) && !(1 && class_id == prev_class_id))
-            {
-                update_data = (half)class_id;
-                wr_index++;
-
-            }
-            output[update_index] = update_data;
-            prev_class_id = class_id;
-
-            if (seq_ind[t + 1] == 0 ) {
-                break;
-            }
-        }
-    }
+    WorkGroupDmaCreateStrideTransaction(
+        probabilities, // src
+        local_src, // dst
+        width * sizeof(half), // src_width,
+        width * sizeof(half), // dst_width,
+        width * height * sizeof(half), // src_stride,
+        width * sizeof(half), // dst_stride,
+        width * height * channels * sizeof(half), // size
+        0);
 }
 
-__kernel void ctc_ref_fp16(__global half* probabilities, __global half* seq_ind, __global half* output_sequences, int C, int H, int W)
+__kernel void __dma_postwrite_CTCDecoder(__global half *probabilities,
+                                         __global half *sequence_indicators,
+                                         __global half *output_sequences,
+                                         int width,
+                                         int height,
+                                         int channels,
+                                         __local half *local_src,
+                                         __local half *local_dst)
 {
-    int T_ = C;
-    int N_ = H;
-    int C_ = W;
+    WorkGroupDmaCreateStrideTransaction(
+        local_dst, // src
+        output_sequences, // dst
+        channels * sizeof(half), // src_width,
+        channels * sizeof(half), // dst_width,
+        channels * sizeof(half), // src_stride,
+        channels * sizeof(half), // dst_stride,
+        channels * height * sizeof(half), // size
+        0);
+}
 
-    // Fill output_sequences with -1
-    for (int i = 0; i < T_; i++)
+__kernel void CTCDecoder(__global half *probabilities,
+                         __global half *sequence_indicators,
+                         __global half *output_sequences,
+                         int width,
+                         int height,
+                         int channels,
+                         __local half *local_src,
+                         __local half *local_dst)
+{
+    const int T = channels;
+    const int B = height;
+    const int C = width;
+
+    for (int i = 0; i < B*T; i++)
     {
-        output_sequences[i] = (half)(-1.0);
+        local_dst[i] = -1.h;
     }
+
     int output_index = 0;
 
-    // Caffe impl
-    for(int n = 0; n < N_; ++n)
+    for (int b = 0; b < B; ++b)
     {
+        __global const half *seq_ind = sequence_indicators + b*T;
+        const int seq_len = find(seq_ind + 1, seq_ind + T, 0.h) - seq_ind;
+        const int time = min(seq_len, T);
+
         int prev_class_idx = -1;
 
-        for (int t = 0; t < T_; ++t)
+        for (int t = 0; t < time; ++t)
         {
-            // get maximum probability and its index
+            __local const half *probs = local_src + b*C + t*C*B;
             int max_class_idx = 0;
-            __global half* probs;
-            half max_prob;
+            half max_prob = probs[0];
 
-            probs = probabilities + t*C_;
-            max_prob = probs[0];
-            ++probs;
-
-            for (int c = 1; c < C_; ++c, ++probs)
+            for (int c = 1; c < C; ++c)
             {
-                if (*probs > max_prob)
+                const half prob = probs[c];
+                if (prob > max_prob)
                 {
                     max_class_idx = c;
-                    max_prob = *probs;
+                    max_prob = prob;
                 }
             }
 
-            //if (max_class_idx != blank_index_
-            //        && !(merge_repeated_&& max_class_idx == prev_class_idx))
-            if (max_class_idx < C_-1 && !(1 && max_class_idx == prev_class_idx))
+            if (max_class_idx < C-1 && max_class_idx != prev_class_idx)
             {
-                output_sequences[output_index] = (half)max_class_idx;
+                local_dst[b*T + output_index] = (half)max_class_idx;
                 output_index++;
             }
 
             prev_class_idx = max_class_idx;
-
-            // Assume sequence_indicators is always 1
-            if (seq_ind[t + 1] == 0)
-            {
-                break;
-            }
         }
     }
 }
+
+#else
+
+__kernel void CTCDecoder(__global half *probabilities,
+                         __global half *sequence_indicators,
+                         __global half *output_sequences,
+                         int width,
+                         int height,
+                         int channels,
+                         __local half *local_src,
+                         __local half *local_dst)
+{
+    const int T = channels;
+    const int B = height;
+    const int C = width;
+
+    for (int i = 0; i < B*T; i++)
+    {
+        output_sequences[i] = -1.h;
+    }
+
+    int output_index = 0;
+
+    for (int b = 0; b < B; ++b)
+    {
+        __global const half *seq_ind = sequence_indicators + b*T;
+        const int seq_len = find(seq_ind + 1, seq_ind + T, 0.h) - seq_ind;
+        const int time = min(seq_len, T);
+
+        int prev_class_idx = -1;
+
+        for (int t = 0; t < time; ++t)
+        {
+            __global const half *probs = probabilities + b*C + t*C*B;
+            int max_class_idx = 0;
+            half max_prob = probs[0];
+
+            for (int c = 1; c < C; ++c)
+            {
+                const half prob = probs[c];
+                if (prob > max_prob)
+                {
+                    max_class_idx = c;
+                    max_prob = prob;
+                }
+            }
+
+            if (max_class_idx < C-1 && max_class_idx != prev_class_idx)
+            {
+                output_sequences[b*T + output_index] = (half)max_class_idx;
+                output_index++;
+            }
+
+            prev_class_idx = max_class_idx;
+        }
+    }
+}
+
+#endif

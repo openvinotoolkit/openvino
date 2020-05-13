@@ -133,15 +133,15 @@ file(GLOB HEADERS
 addVersionDefines(mkldnn_plugin.cpp CI_BUILD_NUMBER MKL_VERSION)
 
 include_directories(
-        ${IE_MAIN_SOURCE_DIR}/include
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-        ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_BINARY_DIR}/include)
+
+include_directories(SYSTEM
         ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/common
         ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include
-        ${CMAKE_BINARY_DIR}/include/
-)
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include)
 
 if (GEMM STREQUAL "MKL")
     log_rpath_from_dir(MKL "${MKL}/lib")
@@ -167,8 +167,8 @@ add_library(mkldnn_plugin_layers_no_opt_s OBJECT ${CROSS_COMPILED_SOURCES})
 set_ie_threading_interface_for(mkldnn_plugin_layers_no_opt_s)
 target_compile_definitions(mkldnn_plugin_layers_no_opt_s PRIVATE "USE_STATIC_IE;IMPLEMENT_INFERENCE_ENGINE_PLUGIN")
 
-set(object_libraries mkldnn_plugin_layers_no_opt)
-set(mkldnn_plugin_object_libraries mkldnn_plugin_layers_no_opt_s)
+list(APPEND object_libraries mkldnn_plugin_layers_no_opt)
+list(APPEND mkldnn_plugin_object_libraries mkldnn_plugin_layers_no_opt_s)
 
 # SSE 4.2 optimized layers
 

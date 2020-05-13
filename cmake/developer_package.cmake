@@ -143,7 +143,10 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "")
     set(CMAKE_BUILD_TYPE "Release")
 endif()
 
-set(OUTPUT_ROOT ${OpenVINO_MAIN_SOURCE_DIR})
+# allow to override default OUTPUT_ROOT root
+if(NOT DEFINED OUTPUT_ROOT)
+    set(OUTPUT_ROOT ${OpenVINO_MAIN_SOURCE_DIR})
+endif()
 
 # Enable postfixes for Debug/Release builds
 set(IE_DEBUG_POSTFIX_WIN "d")
@@ -206,8 +209,10 @@ endif()
 # Use solution folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+set(CMAKE_POLICY_DEFAULT_CMP0054 NEW)
+
 include(sdl)
-include(os_flags NO_POLICY_SCOPE)
+include(os_flags)
 include(sanitizer)
 
 function(set_ci_build_number)

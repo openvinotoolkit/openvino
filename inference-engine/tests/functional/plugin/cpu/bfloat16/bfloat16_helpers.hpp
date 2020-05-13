@@ -130,7 +130,7 @@ typedef std::tuple<
  *
  * class ScaleshiftConv_x3_Eltwise : public BasicBF16Test {
  * protected:
- * void SetUp()override {
+ * void SetUp() override {
  *  fnPtr = std::make_shared<ngraph::Function>(ngraph::NodeVector{convNode3}, ngraph::ParameterVector{input1});
 
         // STAGE1:
@@ -253,12 +253,11 @@ public:
         //      BFloat16Helpers::getMaxAbsValue(lm1.as<const float *>(), mout1->size()) << std::endl;
         // std::cout << "Max in fp32 network by output " << outputNameFP32 << ": " <<
         //     BFloat16Helpers::getMaxAbsValue(lm2.as<const float *>(), mout2->size()) << std::endl;
-
         FuncTestUtils::compareRawBuffers(lm1.as<const float *>(),
                                          lm2.as<const float *>(),
                                          mout1->size(), mout2->size(),
+                                         FuncTestUtils::CompareType::ABS,
                                          threshold);
-
         // Stage2: verification of performance counters
         std::pair<std::string, std::string> wrongLayer =
             BFloat16Helpers::matchPerfCountPrecisionVsExpected(req1.GetPerformanceCounts(), expectedPrecisions);

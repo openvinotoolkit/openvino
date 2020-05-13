@@ -193,7 +193,7 @@ TEST_P(BehaviorPluginCorrectConfigTestInferRequestAPI, reusableCPUStreamsExecuto
             // for multi-device the number of Executors is not known (defined by the devices configuration)
         } else {
             ASSERT_EQ(0u, ExecutorManager::getInstance()->getExecutorsNumber());
-            ASSERT_GE(1u, ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
+            ASSERT_GE(2u, ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
         }
   }
     if (GetParam().device == CommonTestUtils::DEVICE_CPU) {

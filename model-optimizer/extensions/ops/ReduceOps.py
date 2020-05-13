@@ -90,6 +90,7 @@ class ReduceOp(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op_type,
+            'version': 'opset1',
             'infer': reduce_infer,
             'keep_dims': 0,
             'in_ports_count': 2,

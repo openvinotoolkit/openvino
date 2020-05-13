@@ -25,6 +25,8 @@ endforeach()
 message("")
 
 set(gflags_DIR "@gflags_BINARY_DIR@")
+# GNA lib dir
+set(GNA "@GNA@")
 
 # Targets
 
@@ -43,7 +45,7 @@ list(APPEND CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_MODULE_PATH "${IE_MAIN_SOURCE_DIR}/cmake")
 
 # generic stuff from developer package
-include(developer_package NO_POLICY_SCOPE)
+include(developer_package)
 include(developer_package_ie)
 
 # Don't threat deprecated API warnings as errors in 3rd party apps

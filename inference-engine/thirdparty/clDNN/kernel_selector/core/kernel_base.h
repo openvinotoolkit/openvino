@@ -50,6 +50,7 @@ public:
     virtual const std::string GetName() const { return kernelName; }
 
     static const primitive_db& get_db() { return db; }
+    static void ResetCounter() { counter = 0; }
 
 protected:
     static const primitive_db db;

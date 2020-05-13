@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
 from extensions.ops.topk import TopK
 from mo.front.extractor import FrontExtractorOp
@@ -25,7 +26,8 @@ class TopKExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         sort = 'value' if node.pb.attr['sorted'] else 'none'
-        TopK.update_node_stat(node, {'mode': 'max', 'axis': -1, 'sort': sort, 'k' : node.pb.attr['k'].i})
+        TopK.update_node_stat(node, {'mode': 'max', 'axis': -1, 'sort': sort, 'k': node.pb.attr['k'].i,
+                                     'index_element_type': np.int32})
 
         return cls.enabled
 
@@ -37,5 +39,5 @@ class TopKV2Extractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         sort = 'value' if node.pb.attr['sorted'] else 'none'
-        TopK.update_node_stat(node, {'mode': 'max', 'axis': -1, 'sort': sort})
+        TopK.update_node_stat(node, {'mode': 'max', 'axis': -1, 'sort': sort, 'index_element_type': np.int32})
         return cls.enabled

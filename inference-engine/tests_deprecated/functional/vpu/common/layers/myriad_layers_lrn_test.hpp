@@ -98,9 +98,9 @@ PRETTY_PARAM(k_val, float)
 PRETTY_PARAM(alpha, float)
 PRETTY_PARAM(beta,  float)
 
-typedef myriadLayerTestBaseWithParam<std::tuple<Dims, local_size, k_val, alpha, beta>> myriadLayersTestsLRN_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<Dims, local_size, k_val, alpha, beta>> myriadLayersTestsLRN_smoke;
 
-TEST_P(myriadLayersTestsLRN_nightly, LRN) {
+TEST_P(myriadLayersTestsLRN_smoke, LRN) {
     tensor_test_params dims = std::get<0>(GetParam());
     uint32_t local_v = std::get<1>(GetParam());
     float k          = std::get<2>(GetParam());
@@ -128,7 +128,7 @@ TEST_P(myriadLayersTestsLRN_nightly, LRN) {
     CompareCommonAbsolute(dst, _refBlob, ERROR_BOUND);
 }
 
-TEST_P(myriadLayersTestsLRN_nightly, InnerLRN) {
+TEST_P(myriadLayersTestsLRN_smoke, InnerLRN) {
     tensor_test_params dims = std::get<0>(GetParam());
     uint32_t local_v = std::get<1>(GetParam());
     float k          = std::get<2>(GetParam());

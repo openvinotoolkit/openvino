@@ -68,7 +68,7 @@ class SsdPatternDetectionOutputReplacer(FrontReplacementSubgraph):
             nodes=[
                 ('power', dict(op='Mul')),
                 ('anchor', dict(op='Const')),
-                ('slice_like', dict(op='Crop')),
+                ('slice_like', dict(op='slice_like')),
                 ('reshape1', dict(op='Reshape')),
                 ('reshape2', dict(op='Reshape')),
                 ('reshape3', dict(op='Reshape')),

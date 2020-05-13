@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "myriad_layers_tests.hpp"
+#include <vector>
+#include <array>
+#include <algorithm>
 
 using namespace InferenceEngine;
 
@@ -67,6 +72,7 @@ static void refQuantize(const Blob::Ptr src,
     int32_t W = 1;
     int32_t H = 1;
     int32_t C = 1;
+
     get_dims(src, W, H, C);
 
     for (int c = 0; c < C; c++) {
@@ -74,6 +80,10 @@ static void refQuantize(const Blob::Ptr src,
         float ihigh = PrecisionUtils::f16tof32(input_high->size()  == 1 ? input_high_data[0]  : input_high_data[c]);
         float olow  = PrecisionUtils::f16tof32(output_low->size()  == 1 ? output_low_data[0]  : output_low_data[c]);
         float ohigh = PrecisionUtils::f16tof32(output_high->size() == 1 ? output_high_data[0] : output_high_data[c]);
+
+        // emulate half math to be close to half float SHAVE implementation
+		float a = PrecisionUtils::f16tof32(PrecisionUtils::f32tof16((float)(levels - 1) / (ihigh - ilow)));
+		float b = PrecisionUtils::f16tof32(PrecisionUtils::f32tof16((ohigh - olow) / (float)(levels - 1)));
 
         for (int h = 0; h < H; h++) {
             for (int w = 0; w < W; w++) {
@@ -85,9 +95,15 @@ static void refQuantize(const Blob::Ptr src,
                     dst_val = olow;
                 } else if (src_val > ihigh) {
                     dst_val = ohigh;
-                } else {
-                    dst_val = round((src_val - ilow) * ((float)(levels - 1) / (ihigh - ilow))) * ((ohigh - olow) / (float)(levels - 1))+ olow;
-                    //dst_val = round((src_val - ilow) / (ihigh - ilow) * (levels - 1)) / (levels - 1) * (ohigh - olow) + olow;
+				} else {
+                	if(!(ihigh - ilow) || !(levels - 1)) {
+						dst_val = olow;
+					} else {
+						// quantization pass
+						float quantized = PrecisionUtils::f16tof32(PrecisionUtils::f32tof16((src_val - ilow) * a));
+						// de-quantization pass
+						dst_val = PrecisionUtils::f16tof32(PrecisionUtils::f32tof16(roundf(quantized) * b)) + olow;
+					}
                 }
 
                 dst_data[idx] = PrecisionUtils::f32tof16(dst_val);
@@ -308,6 +324,290 @@ static void refExperimentalDetectronPriorGridGenerator(
         }
     }
 }
+
+static void rearrange(const ie_fp16* in, ie_fp16* out, int num, int channels, int width, int height,
+               int widthheight, int padding, int pwidthheight)
+{
+    (void) height;
+    (void) pwidthheight;
+
+    ASSERT_TRUE(num == 1) << "batch is not supported for Myriad";
+
+    for (int xy = 0; xy < widthheight; xy++)
+    {
+        for (int ch = 0; ch < channels; ch++)
+        {
+            ie_fp16 value = in[ch * widthheight + xy];
+
+            int xpad  = (xy % width + padding);
+            int ypad  = (xy / width + padding);
+            int xypad = ypad * (width + 2 * padding) + xpad;
+
+            out[xypad * channels + ch] = value;
+        }
+    }
+}
+
+static void correlate(int nthreads, int num, int topwidth, int topheight, int topchannels, int topcount,
+                      int max_displacement, int neighborhood_grid_radius, int neighborhood_grid_width,
+                      int kernel_radius, int kernel_size, int stride1, int stride2,
+                      int bottomwidth, int bottomheight, int bottomchannels,
+                      const ie_fp16* bottom0, const ie_fp16* bottom1, ie_fp16* top)
+{
+    (void) nthreads;
+    (void) kernel_radius;
+    (void) topcount;
+    (void) bottomheight;
+    (void) num;
+
+    const int sumelems = kernel_size * kernel_size * bottomchannels;
+
+    auto patch_data = std::vector<ie_fp16>(sumelems);
+
+    for (int blockIdx_y = 0; blockIdx_y < topheight; blockIdx_y++)
+    {
+        for (int blockIdx_x = 0; blockIdx_x < topwidth; blockIdx_x++)
+        {
+            int x1 = blockIdx_x * stride1 + max_displacement;
+            int y1 = blockIdx_y * stride1 + max_displacement;
+            // Load 3D patch into shared memory
+            for (int j = 0; j < kernel_size; j++)
+            {
+                for (int i = 0; i < kernel_size; i++)
+                {
+                    int idx1 = (      j  * kernel_size      + i) * bottomchannels;
+                    int idx2 = ((y1 + j) * bottomwidth + x1 + i) * bottomchannels;
+
+                    for (int ch = 0; ch < bottomchannels; ch++)
+                        patch_data[idx1 + ch] = bottom0[idx2 + ch];
+                }
+            }
+
+            for (int top_channel = 0; top_channel < topchannels; top_channel++)
+            {
+                int x2 = x1 + (top_channel % neighborhood_grid_width - neighborhood_grid_radius) * stride2;
+                int y2 = y1 + (top_channel / neighborhood_grid_width - neighborhood_grid_radius) * stride2;
+
+                float sum = (0.0f);
+                for (int j = 0; j < kernel_size; j++)
+                {
+                    for (int i = 0; i < kernel_size; i++)
+                    {
+                        int idx1 = (      j  * kernel_size      + i) * bottomchannels;
+                        int idx2 = ((y2 + j) * bottomwidth + x2 + i) * bottomchannels;
+
+                        for (int ch = 0; ch < bottomchannels; ch++)
+                            sum += PrecisionUtils::f16tof32(patch_data[idx1 + ch]) * PrecisionUtils::f16tof32(bottom1[idx2 + ch]);
+                    }
+                }
+                top[top_channel * topheight * topwidth + blockIdx_y * topwidth + blockIdx_x]
+                    = PrecisionUtils::f32tof16(sum / (float)sumelems);
+            }
+        }
+    }
+}
+
+static void refCorrelate(const Blob::Ptr in0,
+                         const Blob::Ptr in1,
+                         Blob::Ptr out,
+                         int kernel_size, int max_displacement, int pad_size,
+                         int stride1, int stride2) {
+    // Correlation type = MULTIPLY
+    ASSERT_NE(in0, nullptr);
+    ASSERT_NE(in1, nullptr);
+    ASSERT_NE(out, nullptr);
+
+    const ie_fp16 *in0_data = in0->buffer();
+    const ie_fp16 *in1_data = in1->buffer();
+    ie_fp16 *out_data = out->buffer();
+    ASSERT_NE(in0_data, nullptr);
+    ASSERT_NE(in1_data, nullptr);
+    ASSERT_NE(out_data, nullptr);
+
+    int32_t IW0 = 1;
+    int32_t IH0 = 1;
+    int32_t IC0 = 1;
+    get_dims(in0, IW0, IH0, IC0);
+    int32_t IW1 = 1;
+    int32_t IH1 = 1;
+    int32_t IC1 = 1;
+    get_dims(in1, IW1, IH1, IC1);
+    ASSERT_EQ(IW0, IW1);
+    ASSERT_EQ(IH0, IH1);
+    ASSERT_EQ(IC0, IC1);
+
+    int32_t OW = 1;
+    int32_t OH = 1;
+    int32_t OC = 1;
+    get_dims(out, OW, OH, OC);
+
+    const int bottomchannels = IC0;
+
+    const int paddedbottomwidth  = IW0 + 2 * pad_size;
+    const int paddedbottomheight = IH0 + 2 * pad_size;
+
+    const int kernel_radius = kernel_size / 2; //size of unreachable border region (on each side)
+    const int border_size = max_displacement + kernel_radius; //size of unreachable border region (on each side)
+
+    const int top_width  = (int)ceilf((float)(paddedbottomwidth  - border_size * 2) / (float)stride1);
+    const int top_height = (int)ceilf((float)(paddedbottomheight - border_size * 2) / (float)stride1);
+
+    ASSERT_TRUE(top_width >= 1 && top_height >= 1)
+        << "Correlation cannot be done with current settings. Neighborhood and kernel don't fit in blob";
+
+    // Given a center position in image 1,
+    // how many displaced positions in -x / +x direction do we consider in image 2 (neighborhoodGridWidth):
+    const int neighborhood_grid_radius = max_displacement / stride2;
+    const int neighborhood_grid_width = 2 * neighborhood_grid_radius + 1;
+
+    const int top_channels = neighborhood_grid_width * neighborhood_grid_width;
+
+    ASSERT_TRUE(OC == top_channels && OH == top_height && OW == top_width)
+        << "input and output blobs have incompatible shapes";
+
+    auto rbot1 = std::vector<ie_fp16>(paddedbottomheight * paddedbottomwidth * bottomchannels);
+    auto rbot2 = std::vector<ie_fp16>(paddedbottomheight * paddedbottomwidth * bottomchannels);
+
+    const int bnum = 1;
+    const int topcount = top_width * top_height * top_channels;
+
+    const int pwidthheight = (IW0 + 2 * pad_size) * (IH0 + 2 * pad_size);
+
+    rearrange(in0_data, rbot1.data(), bnum, IC0, IW0, IH0, IW0 * IH0, pad_size, pwidthheight);
+    rearrange(in1_data, rbot2.data(), bnum, IC0, IW0, IH0, IW0 * IH0, pad_size, pwidthheight);
+
+    const int height = IH0 + 2 * pad_size;
+    const int width  = IW0  + 2 * pad_size;
+    correlate(topcount, bnum, top_width, top_height, top_channels, topcount,
+              max_displacement, neighborhood_grid_radius, neighborhood_grid_width,
+              kernel_radius, kernel_size, stride1, stride2, width, height, IC0,
+              rbot1.data(), rbot2.data(), out_data);
+}
+
+static float transform_forward_cpu(const ie_fp16* pic, const float px, const float py, int W, int H) {
+    float res = 0.0f;
+    float x = (px + 1) / 2 * H;
+    float y = (py + 1) / 2 * W;
+    int m, n, k, l;
+    float w;
+    k = (floorf(x));
+    l = (floorf(y));
+    m = floorf(x);
+    n = floorf(y);
+    w = 0;
+
+    if (k >= 0 && k < H && l >= 0 && l < W) {
+        w = fmaxf(0.0f, 1 - fabsf(x - m)) * fmaxf(0.0f, 1 - fabsf(y - n));
+        res += w * PrecisionUtils::f16tof32(pic[k * W + l]);
+    }
+
+    k = (floorf(x) + 1);
+    l = (floorf(y));
+    m = floorf(x) + 1;
+    n = floorf(y);
+
+    w = 0;
+    if (k >= 0 && k < H && l >= 0 && l < W) {
+        w = fmaxf(0.0f, 1 - fabsf(x - m)) * fmaxf(0.0f, 1 - fabsf(y - n));
+        res += w * PrecisionUtils::f16tof32(pic[k * W + l]);
+    }
+    k = (floorf(x));
+    l = (floorf(y) + 1);
+    m = floorf(x);
+    n = floorf(y) + 1;
+    w = 0;
+    if (k >= 0 && k < H && l >= 0 && l < W) {
+        w = fmaxf(0.0f, 1 - fabsf(x - m)) * fmaxf(0.0f, 1 - fabsf(y - n));
+        res += w * PrecisionUtils::f16tof32(pic[k * W + l]);
+    }
+    k = (floorf(x) + 1);
+    l = (floorf(y) + 1);
+    m = floorf(x) + 1;
+    n = floorf(y) + 1;
+    w = 0;
+
+    if (k >= 0 && k < H && l >= 0 && l < W) {
+        w = fmaxf(0.0f, 1 - fabsf(x - m)) * fmaxf(0.0f, 1 - fabsf(y - n));
+        res += w * PrecisionUtils::f16tof32(pic[k * W + l]);
+    }
+
+    return PrecisionUtils::f32tof16(res);
+}
+
+static void matrixMult(const std::vector<float>& A, const std::vector<float>& B, std::vector<float>& C,
+        const int m, const int n, const int k, const int transposeB) {
+    if (transposeB) {
+        for (int rowA = 0; rowA < m; rowA++) {
+            for (int rowB = 0; rowB < n; rowB++) {
+                float sum = 0;
+                for (int colA = 0; colA < k; colA++) {
+                    sum += A[rowA * k + colA] * B[rowB * k + colA];
+                }
+                C[rowA * n + rowB] = sum;
+            }
+        }
+    } else {
+        for (int rowA = 0; rowA < m; rowA++) {
+            for (int colB = 0; colB < n; colB++) {
+                float sum = 0;
+                for (int colA = 0; colA < k; colA++) {
+                    sum += A[rowA * k + colA] * B[colA * n + colB];
+                }
+                C[rowA * n + colB] = sum;
+            }
+        }
+    }
+}
+
+static void refSpatialTransform(const Blob::Ptr& src, const Blob::Ptr& theta, Blob::Ptr dst) {
+    ASSERT_NE(src, nullptr);
+    ASSERT_NE(theta, nullptr);
+    ASSERT_NE(dst, nullptr);
+
+    const ie_fp16 *src_data = src->buffer();
+    const ie_fp16 *theta_data = theta->buffer();
+    ie_fp16 *dst_data = dst->buffer();
+    ASSERT_NE(src_data, nullptr);
+    ASSERT_NE(theta_data, nullptr);
+    ASSERT_NE(dst_data, nullptr);
+    ASSERT_EQ(theta->size(), 6);
+
+    int C = src->getTensorDesc().getDims()[1];
+    int H = src->getTensorDesc().getDims()[2];
+    int W = src->getTensorDesc().getDims()[3];
+
+    auto input_grid_data = std::vector<float>(2*H*W);
+    auto output_grid_data = std::vector<float>(3*H*W);
+    auto theta_float = std::vector<float>(6);
+    for (size_t i = 0; i < 6; i++) {
+        theta_float[i] = PrecisionUtils::f16tof32(theta_data[i]);
+    }
+
+    for (int i = 0; i < H * W; ++i) {
+        output_grid_data[3 * i] = ((i / W) * 1.0f / H * 2.0f - 1.0f);
+        output_grid_data[3 * i + 1] = ((i % W) * 1.0f / W * 2.0f - 1.0f);
+        output_grid_data[3 * i + 2] = 1.0f;
+    }
+    // Actually execute
+    int M_size = H * W;
+    int N_size = 2;
+    int K_size = 3;
+    matrixMult(output_grid_data, theta_float, input_grid_data, M_size, N_size, K_size, 1);
+    for (int j = 0; j < C; ++j) {
+        for (int s = 0; s < H; ++s) {
+            for (int t = 0; t < W; ++t) {
+                int row_idx = W * s + t;
+                float px = input_grid_data[row_idx * 2 + 0];
+                float py = input_grid_data[row_idx * 2 + 1];
+
+                size_t dst_offset = (j * H + s) * W + t;
+                size_t src_offset = (j * H + 0) * W + 0;
+                dst_data[dst_offset] = transform_forward_cpu(src_data + src_offset, px, py, W, H);
+            }
+        }
+    }
+}
+
 static std::vector<std::string> s_CustomConfig = {
 #ifdef VPU_HAS_CUSTOM_KERNELS
     getIELibraryPath() + "/vpu_custom_kernels/customLayerBindings.xml"
@@ -321,15 +621,26 @@ PRETTY_PARAM(Dilations, int)
 PRETTY_PARAM(Kernel, param_size)
 PRETTY_PARAM(Strides, int)
 
-typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Group, std::string>> myriadLayersTestsShuffleChannel_nightly;
-typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Levels, std::string>> myriadLayersTestsQuantize_nightly;
-typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Levels, SwitchOut, std::string>> myriadLayersTestsQuantizeBinarize_nightly;
-typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Dilations, Group, Kernel, Strides, std::string>> myriadLayersTestsBinaryConvolution_nightly;
-typedef myriadLayerTestBaseWithParam<std::tuple<std::vector<size_t>, std::string>>
-myriadLayersTestsExperimentalDetectronPriorGridGenerator_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Group, std::string>> myriadLayersTestsShuffleChannel_smoke;
+typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Levels, IRVersion, std::string>> myriadLayersTestsFakeQuantize_smoke;
+typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Levels, SwitchOut, std::string>> myriadLayersTestsQuantizeBinarize_smoke;
+typedef myriadLayerTestBaseWithParam<std::tuple<Dims, Dilations, Group, Kernel, Strides, std::string>> myriadLayersTestsBinaryConvolution_smoke;
+typedef myriadLayerTestBaseWithParam<std::tuple<std::vector<size_t>, std::string>> myriadLayersTestsExperimentalDetectronPriorGridGenerator_smoke;
+typedef myriadLayerTestBaseWithParam<std::tuple<Dims, std::array<float, 6>, std::string>> myriadLayersTestsSpatialTransform_smoke;
 
-TEST_P(myriadLayersTestsShuffleChannel_nightly, ShuffleChannel) {
-    tensor_test_params dims  = std::get<0>(GetParam());
+struct CorrelateParams {
+    tensor_test_params dims;
+    int kernel_size;
+    int pad_size;
+    int max_displacement;
+    int stride1;
+    int stride2;
+};
+
+typedef myriadLayerTestBaseWithParam<std::tuple<CorrelateParams, std::string>> myriadLayersTestsCorrelate_smoke;
+
+TEST_P(myriadLayersTestsShuffleChannel_smoke, ShuffleChannel) {
+    tensor_test_params dims = std::get<0>(GetParam());
     int group                = std::get<1>(GetParam());
     std::string customConfig = std::get<2>(GetParam());
 
@@ -363,49 +674,65 @@ static std::vector<Group> s_ShuffleChannelGroup = {
     2
 };
 
-TEST_P(myriadLayersTestsQuantize_nightly, Quantize) {
+TEST_P(myriadLayersTestsFakeQuantize_smoke, FakeQuantize) {
     tensor_test_params dims  = std::get<0>(GetParam());
     int levels               = std::get<1>(GetParam());
-    std::string customConfig = std::get<2>(GetParam());
+    _irVersion               = std::get<2>(GetParam());
+    std::string customConfig = std::get<3>(GetParam());
 
-    if(!customConfig.empty() && !CheckMyriadX()) {
-        GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
+    if (!customConfig.empty() && !CheckMyriadX()) {
+        GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
     }
     _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
 
-    IN_OUT_desc inpt(5);
-    for (int i = 0; i < inpt.size(); ++i) {
-        inpt[i].resize(4);
-        inpt[i][0] = dims.n;
-        inpt[i][1] = 1;
-        inpt[i][2] = 1;
-        inpt[i][3] = 1;
-    }
-    inpt[0][1] = dims.c;
-    inpt[0][2] = dims.h;
-    inpt[0][3] = dims.w;
-    for (int i = 1; i < inpt.size(); ++i) {
-        if (rand()%2 > 0) {
-            inpt[i][1] = dims.c;
-        }
-    }
+    srand(42);
 
-    SetInputTensors(inpt);
+    const auto inputFqSize = rand() % 2 ? 1 : dims.c;
+    const auto outputFqSize = rand() % 2 ? 1 : dims.c;
+
+    const auto inputDims = IN_OUT_desc{dims.asVector(),
+        {1, inputFqSize, 1, 1},
+        {1, inputFqSize, 1, 1},
+        {1, outputFqSize, 1, 1},
+        {1, outputFqSize, 1, 1}
+    };
+
+    SetInputTensors(inputDims);
     SetOutputTensor(dims);
 
     std::map<std::string, std::string> params;
     params["levels"] = std::to_string(levels);
 
-    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("FakeQuantize").params(params)));
+    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(
+        LayerInitParams("FakeQuantize").params(params),
+        NetworkInitParams()
+             .layoutPreference(vpu::LayoutPreference::ChannelMajor)
+             .lockLayout(true)));
+
+    auto inputBlobs = std::vector<Blob::Ptr>{};
+    inputBlobs.reserve(5);
+    for (const auto& inputBlob : _inputMap) {
+        inputBlobs.push_back(inputBlob.second);
+    }
+
+    const auto generateQuantBounds = [](const Blob::Ptr& lowBlob, const Blob::Ptr& highBlob) {
+        IE_ASSERT(lowBlob->size() == highBlob->size());
+        IE_ASSERT(lowBlob->getTensorDesc().getDims() == highBlob->getTensorDesc().getDims());
+
+        const auto lowBound = lowBlob->buffer().as<ie_fp16 *>();
+        const auto highBound = highBlob->buffer().as<ie_fp16 *>();
+        for (std::size_t i = 0; i < lowBlob->size(); i++) {
+        	const float val1 = rand() % 256;
+        	const float val2 = 255.0f - fabs(val1);
+        	lowBound[i] = PrecisionUtils::f32tof16(std::min(val1, val2));
+        	highBound[i] = PrecisionUtils::f32tof16(std::max(val1, val2));
+        }
+    };
+
+    generateQuantBounds(inputBlobs[1], inputBlobs[2]);
+    generateQuantBounds(inputBlobs[3], inputBlobs[4]);
 
     ASSERT_TRUE(Infer());
-
-    std::vector<Blob::Ptr> inputBlobs(inpt.size());
-    auto inptIter = _inputMap.begin();
-    for (int i = 0; i < inpt.size(); i++) {
-        inputBlobs[i] = inptIter->second;
-        inptIter++;
-    }
 
     ASSERT_NO_FATAL_FAILURE(refQuantize(inputBlobs[0],
                                         inputBlobs[1],
@@ -413,12 +740,12 @@ TEST_P(myriadLayersTestsQuantize_nightly, Quantize) {
                                         inputBlobs[3],
                                         inputBlobs[4],
                                         _refBlob,
-                                        levels, false));
+                                        levels, true));
 
-    CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, 0.01f);
+    CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, 1.f);
 }
 
-TEST_P(myriadLayersTestsQuantizeBinarize_nightly, Quantize_Binarization) {
+TEST_P(myriadLayersTestsQuantizeBinarize_smoke, Quantize_Binarization) {
     std::string model = R"V0G0N(
        <net name="Quantize_Binarization" version="2" batch="1">
            <layers>
@@ -548,10 +875,10 @@ TEST_P(myriadLayersTestsQuantizeBinarize_nightly, Quantize_Binarization) {
     int OH = dims.h;
     int OW = dims.w;
 
-    int input_low_size = (rand()%2>0) ? dims.c : 1; 
-    int input_high_size = (levels == 2) ? input_low_size : ((rand()%2>0) ? dims.c : 1); 
-    int output_low_size = (rand()%2>0) ? dims.c : 1; 
-    int output_high_size = (levels == 2) ? output_low_size : ((rand()%2>0) ? dims.c : 1); 
+    int input_low_size = (rand()%2>0) ? dims.c : 1;
+    int input_high_size = (levels == 2) ? input_low_size : ((rand()%2>0) ? dims.c : 1);
+    int output_low_size = (rand()%2>0) ? dims.c : 1;
+    int output_high_size = (levels == 2) ? output_low_size : ((rand()%2>0) ? dims.c : 1);
 
     model.replace( model.find("@IB@"), sizeof("@IB@") -1, std::to_string(IB));
     model.replace( model.find("@IB@"), sizeof("@IB@") -1, std::to_string(IB));
@@ -717,7 +1044,7 @@ static std::vector<SwitchOut> s_QuantizeSwitchOut = {
     1
 };
 
-TEST_P(myriadLayersTestsBinaryConvolution_nightly, BinaryConvolution) {
+TEST_P(myriadLayersTestsBinaryConvolution_smoke, BinaryConvolution) {
     tensor_test_params dims  = std::get<0>(GetParam());
     int dilations            = std::get<1>(GetParam());
     int group                = std::get<2>(GetParam());
@@ -791,7 +1118,7 @@ static std::vector<Strides> s_BinaryConvolutionStrides = {
     1, 2
 };
 
-TEST_P(myriadLayersTestsExperimentalDetectronPriorGridGenerator_nightly,
+TEST_P(myriadLayersTestsExperimentalDetectronPriorGridGenerator_smoke,
        ExperimentalDetectronPriorGridGenerator) {
 
     // Setup parameters and configuration.
@@ -852,3 +1179,137 @@ s_ExperimentalDetectronPriorGridGeneratorImageDims = {
     {1, 128, 30, 30}
 };
 
+TEST_P(myriadLayersTestsCorrelate_smoke, Correlate) {
+    const auto test = std::get<0>(GetParam());
+    const auto dims = test.dims;
+    const int kernel_size = test.kernel_size;
+    const int pad_size = test.pad_size;
+    const int max_displacement = test.max_displacement;
+    const int stride1 = test.stride1;
+    const int stride2 = test.stride2;
+    const std::string customConfig = std::get<1>(GetParam());
+
+    if(!customConfig.empty() && !CheckMyriadX()) {
+        GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
+    }
+    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+
+    const int paddedbottomwidth  = dims.w + 2 * pad_size;
+    const int paddedbottomheight = dims.h + 2 * pad_size;
+
+    const int kernel_radius = kernel_size / 2; //size of unreachable border region (on each side)
+    const int border_size = max_displacement + kernel_radius; //size of unreachable border region (on each side)
+
+    const int neighborhood_grid_radius = max_displacement / stride2;
+    const int neighborhood_grid_width = 2 * neighborhood_grid_radius + 1;
+
+    const int top_width  = (int)ceilf((float) (paddedbottomwidth - border_size * 2) / (float) stride1);
+    const int top_height = (int)ceilf((float)(paddedbottomheight - border_size * 2) / (float)stride1);
+    const int top_channels = (test.max_displacement + 1) * (test.max_displacement + 1);// neighborhood_grid_width * neighborhood_grid_width;
+
+    const auto inputTensors = IN_OUT_desc{dims.asVector(), dims.asVector()};
+    const auto outputTensors = IN_OUT_desc{{1, (uint32_t)top_channels, (uint32_t)top_height, (uint32_t)top_width}};
+
+    SetInputTensors(inputTensors);
+    SetOutputTensors(outputTensors);
+
+    std::map<std::string, std::string> params = {
+        {"top_width", std::to_string(top_width)},
+        {"top_height", std::to_string(top_height)},
+        {"width", std::to_string(dims.w)},
+        {"height", std::to_string(dims.h)},
+        {"channels", std::to_string(dims.c)},
+        {"displacement", std::to_string(max_displacement)},
+        {"pad", std::to_string(pad_size)},
+        {"neighborhood_grid_radius", std::to_string(neighborhood_grid_radius)},
+        {"neighborhood_grid_width", std::to_string(neighborhood_grid_width)},
+        {"kernel_size", std::to_string(kernel_size)},
+        {"stride", std::to_string(stride1) + "," + std::to_string(stride2)},
+    };
+
+    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(
+                LayerInitParams("Correlate").params(params),
+                NetworkInitParams()
+                .layoutPreference(vpu::LayoutPreference::ChannelMajor)
+                .lockLayout(true)));
+
+    std::vector<Blob::Ptr> input_blobs{};
+    input_blobs.reserve(_inputMap.size());
+    for (auto& input : _inputMap) {
+        // generate input data
+        for (int i = 0; i < dims.c * dims.h * dims. w; i++) {
+            const float corr_min = -1.744443f;
+            const float corr_max = 11.167725f;
+            float val = (corr_min + (float) rand() / ((float) RAND_MAX / (corr_max - corr_min + 1.f) + 1.f));
+
+            auto buf = input.second->buffer().as<ie_fp16*>();
+            buf[i] = PrecisionUtils::f32tof16(val);
+        }
+
+        input_blobs.push_back(input.second);
+    }
+    const int output_size = top_width * top_height * top_channels;
+    for (int i = 0; i < output_size; i++) {
+        _outputMap.begin()->second->buffer().as<ie_fp16*>()[i] = 0;
+        _refBlob->buffer().as<ie_fp16*>()[i] = 0;
+    }
+
+    ASSERT_TRUE(Infer());
+
+    refCorrelate(input_blobs[0], input_blobs[1], _refBlob, kernel_size, max_displacement, pad_size, stride1, stride2);
+
+    CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, 0.1f);
+}
+
+static const std::vector<CorrelateParams> s_CorrelateParams = {
+    { {1, 64, 48, 64}, 1, 8, 8, 1, 2 },
+    { {1, 127, 12, 64}, 3, 8, 8, 1, 2 },
+    { {1, 256, 48, 64}, 1, 20, 20, 1, 2 }
+};
+
+TEST_P(myriadLayersTestsSpatialTransform_smoke, SpatialTransform) {
+    const tensor_test_params dims = std::get<0>(GetParam());
+    const std::array<float, 6> theta = std::get<1>(GetParam());
+    const std::string customConfig = std::get<2>(GetParam());
+
+    if(!customConfig.empty() && !CheckMyriadX()) {
+        GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
+    }
+    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+
+    SetInputTensors({dims.asVector(), {1, 1, 2, 3}});
+    SetOutputTensor(dims);
+
+    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(
+                LayerInitParams("SpatialTransform"),
+                NetworkInitParams()
+                    .layoutPreference(vpu::LayoutPreference::ChannelMajor)
+                    .lockLayout(true)));
+
+    auto theta_half = std::next(_inputMap.begin())->second;
+    for (int i = 0; i < 6; i++) {
+        theta_half->buffer().as<ie_fp16*>()[i] = PrecisionUtils::f32tof16(theta[i]);
+    }
+
+    ASSERT_TRUE(Infer());
+
+    ASSERT_NO_FATAL_FAILURE(refSpatialTransform(_inputMap.begin()->second,
+                            std::next(_inputMap.begin())->second,
+                            _refBlob));
+
+    CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, 0.001f);
+}
+
+static const std::vector<Dims> s_SpatialTransformInputs = {
+	{{ 1, 3,  24,  94 }},
+	{{ 1, 3,  96, 188 }},
+	{{ 1, 3,  97, 189 }},
+	{{ 1, 3,  98, 190 }},
+	{{ 1, 3, 384, 512 }},
+	{{ 1, 3,  24, 640 }},
+};
+
+static const std::vector<std::array<float, 6>> s_SpatialTransformTheta = {
+	{1.2f, 0.2f, -0.2f, 0.2f, 1.2f, -0.2f},
+	{1.f, 0.f, 0.f, 0.0f, 1.f, 0.f}
+};

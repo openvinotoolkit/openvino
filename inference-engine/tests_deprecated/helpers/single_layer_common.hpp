@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ie_blob.h>
+#include <ie_core.hpp>
 #include <ie_layers_property.hpp>
 #include <precision_utils.h>
 #include <common_test_utils/xml_net_builder/xml_net_builder.hpp>
@@ -75,9 +76,8 @@ struct MapStrStr {
 };
 
 template<int Version = 3>
-inline InferenceEngine::details::CNNNetworkImplPtr
-buildSingleLayerNetworkCommon(InferenceEngine::details::IFormatParser *parser,
-                              const std::string &layerType,
+inline InferenceEngine::CNNNetwork
+buildSingleLayerNetworkCommon(const std::string &layerType,
                               const CommonTestUtils::InOutShapes &inOutShapes,
                               std::map<std::string, std::string> *params,
                               const std::string &layerDataName = "data",
@@ -85,8 +85,6 @@ buildSingleLayerNetworkCommon(InferenceEngine::details::IFormatParser *parser,
                               size_t weightsSize = 0,
                               size_t biasesSize = 0,
                               const InferenceEngine::TBlob<uint8_t>::Ptr &weights = nullptr) {
-    IE_ASSERT(parser);
-    testing::XMLHelper xmlHelper(parser);
     std::string precisionStr = precision.name();
     auto netBuilder = CommonTestUtils::XmlNetBuilder<Version>::buildNetworkWithOneInput("Mock", inOutShapes.inDims[0],
                                                                                 precisionStr);
@@ -105,10 +103,9 @@ buildSingleLayerNetworkCommon(InferenceEngine::details::IFormatParser *parser,
     } else {
         testContent = netBuilder.finish();
     }
-    xmlHelper.loadContent(testContent);
-    auto result = xmlHelper.parseWithReturningNetwork();
-    if (weights) xmlHelper.setWeights(weights);
-    return result;
+
+    InferenceEngine::Core ie;
+    return ie.ReadNetwork(testContent, weights);
 }
 
 void GenRandomDataCommon(InferenceEngine::Blob::Ptr blob);

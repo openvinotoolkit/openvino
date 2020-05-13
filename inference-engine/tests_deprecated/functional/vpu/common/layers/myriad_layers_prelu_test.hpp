@@ -12,9 +12,9 @@ using std::get;
 using namespace InferenceEngine;
 
 PRETTY_PARAM(ChannelSharedPrelu, int);
-typedef myriadLayerTestBaseWithParam<tuple<SizeVector, ChannelSharedPrelu >> myriadLayerPReLU_nightly;
+typedef myriadLayerTestBaseWithParam<tuple<SizeVector, ChannelSharedPrelu >> myriadLayerPReLU_smoke;
 
-TEST_P(myriadLayerPReLU_nightly, PReLU) {
+TEST_P(myriadLayerPReLU_smoke, PReLU) {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
 
     SizeVector dims = get<0>(GetParam());
@@ -62,7 +62,7 @@ static std::vector<PReLULayerDef> s_PReluLayerParams = {
     {{{PRELU_PARAM, "1"}}}
 };
 
-class myriadLayerFullyConnectedWithPReLU_nightly: public FCTest<PReLULayerDef>{
+class myriadLayerFullyConnectedWithPReLU_smoke: public FCTest<PReLULayerDef>{
 };
 
 #define TEST_BODY \
@@ -89,7 +89,7 @@ class myriadLayerFullyConnectedWithPReLU_nightly: public FCTest<PReLULayerDef>{
              ref_PReLU_wrap);\
     ASSERT_TRUE(generateNetAndInfer(NetworkInitParams()));
 
-TEST_P(myriadLayerFullyConnectedWithPReLU_nightly, TestsFullyConnected)
+TEST_P(myriadLayerFullyConnectedWithPReLU_smoke, TestsFullyConnected)
 {
     auto p = ::testing::WithParamInterface<std::tuple<fcon_test_params, int32_t, int32_t, PReLULayerDef>>::GetParam();
     auto extraLayerParams = std::get<3>(p);
@@ -99,13 +99,13 @@ TEST_P(myriadLayerFullyConnectedWithPReLU_nightly, TestsFullyConnected)
 
 #define ERROR_BOUND_WITH_RELU (4.e-3f)
 
-class myriadLayersTestsMaxPoolingWithPReLU_nightly: public PoolingTest<POOLING_MAX, PReLULayerDef>{
+class myriadLayersTestsMaxPoolingWithPReLU_smoke: public PoolingTest<POOLING_MAX, PReLULayerDef>{
 };
 
-class myriadLayersTestsAvgPoolingWithPReLU_nightly: public PoolingTest<POOLING_AVG, PReLULayerDef>{
+class myriadLayersTestsAvgPoolingWithPReLU_smoke: public PoolingTest<POOLING_AVG, PReLULayerDef>{
 };
 
-TEST_P(myriadLayersTestsMaxPoolingWithPReLU_nightly, TestsMaxPoolingWithPReLU)
+TEST_P(myriadLayersTestsMaxPoolingWithPReLU_smoke, TestsMaxPoolingWithPReLU)
 {
     auto p = ::testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, pooling_layer_params, vpu::LayoutPreference, PReLULayerDef>>::GetParam();
     auto extraLayerParams = std::get<3>(p);
@@ -113,7 +113,7 @@ TEST_P(myriadLayersTestsMaxPoolingWithPReLU_nightly, TestsMaxPoolingWithPReLU)
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND_WITH_RELU);
 }
 
-TEST_P(myriadLayersTestsAvgPoolingWithPReLU_nightly, TestsAvgPoolingWithPReLU)
+TEST_P(myriadLayersTestsAvgPoolingWithPReLU_smoke, TestsAvgPoolingWithPReLU)
 {
     auto p = ::testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, pooling_layer_params, vpu::LayoutPreference, PReLULayerDef>>::GetParam();
     auto extraLayerParams = std::get<3>(p);
@@ -121,10 +121,10 @@ TEST_P(myriadLayersTestsAvgPoolingWithPReLU_nightly, TestsAvgPoolingWithPReLU)
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND_WITH_RELU);
 }
 
-class myriadLayerConvolutionWithPReLU_nightly: public ConvolutionTest<PReLULayerDef>{
+class myriadLayerConvolutionWithPReLU_smoke: public ConvolutionTest<PReLULayerDef>{
 };
 
-TEST_P(myriadLayerConvolutionWithPReLU_nightly, Convolution) {
+TEST_P(myriadLayerConvolutionWithPReLU_smoke, Convolution) {
     auto p = ::testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, param_size, param_size, param_size, uint32_t, uint32_t, PReLULayerDef>>::GetParam();
     auto extraLayerParams = std::get<6>(p);
     TEST_BODY;

@@ -97,6 +97,18 @@ inline uint FUNC(get_input_index)(uint g, uint o, uint i, uint z, uint y, uint x
     return GET_FILTER_GS_OI_YXS_GSV16_YXSV4_INDEX(INPUT0, g, o, i, y, x);
 #elif defined INPUT0_LAYOUT_GS_OI_YXS_GSV32_YXSV4
     return GET_FILTER_GS_OI_YXS_GSV32_YXSV4_INDEX(INPUT0, g, o, i, y, x);
+#elif defined INPUT0_LAYOUT_G_OS_ZYX_IS_OSV16_ISV4
+    return GET_FILTER_G_OS_ZYX_IS_OSV16_ISV4_INDEX(INPUT0, g, o, i, z, y, x);
+#elif defined INPUT0_LAYOUT_G_OS_ZYX_IS_OSV16_ISV16
+    return GET_FILTER_G_OS_ZYX_IS_OSV16_ISV16_INDEX(INPUT0, g, o, i, z, y, x);
+#elif defined INPUT0_LAYOUT_G_OS_ZYX_IS_OSV16_ISV32
+    return GET_FILTER_G_OS_ZYX_IS_OSV16_ISV32_INDEX(INPUT0, g, o, i, z, y, x);
+#elif defined INPUT0_LAYOUT_G_OS_ZYX_IS_OSV32_ISV4
+    return GET_FILTER_G_OS_ZYX_IS_OSV32_ISV4_INDEX(INPUT0, g, o, i, z, y, x);
+#elif defined INPUT0_LAYOUT_G_OS_ZYX_IS_OSV32_ISV16
+    return GET_FILTER_G_OS_ZYX_IS_OSV32_ISV16_INDEX(INPUT0, g, o, i, z, y, x);
+#elif defined INPUT0_LAYOUT_G_OS_ZYX_IS_OSV32_ISV32
+    return GET_FILTER_G_OS_ZYX_IS_OSV32_ISV32_INDEX(INPUT0, g, o, i, z, y, x);
 #else
 #error reorder_weights.cl: input format - not supported
 #endif
@@ -214,6 +226,18 @@ inline uint FUNC(get_output_index)(uint g, uint o, uint i, uint z, uint y, uint 
     return GET_FILTER_GS_OI_YXS_GSV32_YXSV4_INDEX(OUTPUT, g, o, i, y, x);
 #elif defined OUTPUT_LAYOUT_G_OS_IS_YX_OSV16_ISV4
     return GET_FILTER_G_OS_IS_YX_OSV16_ISV4_INDEX(OUTPUT, g, o, i, y, x);
+#elif defined OUTPUT_LAYOUT_G_OS_ZYX_IS_OSV16_ISV4
+    return GET_FILTER_G_OS_ZYX_IS_OSV16_ISV4_INDEX(OUTPUT, g, o, i, z, y, x);
+#elif defined OUTPUT_LAYOUT_G_OS_ZYX_IS_OSV16_ISV16
+    return GET_FILTER_G_OS_ZYX_IS_OSV16_ISV16_INDEX(OUTPUT, g, o, i, z, y, x);
+#elif defined OUTPUT_LAYOUT_G_OS_ZYX_IS_OSV16_ISV32
+    return GET_FILTER_G_OS_ZYX_IS_OSV16_ISV32_INDEX(OUTPUT, g, o, i, z, y, x);
+#elif defined OUTPUT_LAYOUT_G_OS_ZYX_IS_OSV32_ISV4
+    return GET_FILTER_G_OS_ZYX_IS_OSV32_ISV4_INDEX(OUTPUT, g, o, i, z, y, x);
+#elif defined OUTPUT_LAYOUT_G_OS_ZYX_IS_OSV32_ISV16
+    return GET_FILTER_G_OS_ZYX_IS_OSV32_ISV16_INDEX(OUTPUT, g, o, i, z, y, x);
+#elif defined OUTPUT_LAYOUT_G_OS_ZYX_IS_OSV32_ISV32
+    return GET_FILTER_G_OS_ZYX_IS_OSV32_ISV32_INDEX(OUTPUT, g, o, i, z, y, x);
 #else
 #error reorder_weights.cl: output format - not supported
 #endif
@@ -240,35 +264,26 @@ KERNEL (reorder_weights)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE
 #if OUTPUT_GROUPS_NUM > 1
     const unsigned g = (uint)get_global_id(0) / OUTPUT_OFM_NUM;
     const unsigned o = (uint)get_global_id(0) % OUTPUT_OFM_NUM;
-    const unsigned i = (uint)get_global_id(1);
-#if OUTPUT_DIMS == 5
-    const unsigned z = 0;
-    const unsigned y = (uint)get_global_id(2) / OUTPUT_SIZE_X;
-    const unsigned x = (uint)get_global_id(2) % OUTPUT_SIZE_X;
-#elif OUTPUT_DIMS == 6
-    const unsigned zyx = get_global_id(2);
-    const unsigned x = zyx % INPUT0_SIZE_X;
-    const unsigned y = (zyx / INPUT0_SIZE_X) % INPUT0_SIZE_Y;
-    const unsigned z = (zyx / INPUT0_SIZE_X) / INPUT0_SIZE_Y;
-#endif
 #else
-    const unsigned o = (uint)get_global_id(0);
-    const unsigned i = (uint)get_global_id(1);
     const unsigned g = 0;
-#if   OUTPUT_DIMS == 2
-    const unsigned z = 0;
-    const unsigned y = 0;
-    const unsigned x = 0;
-#elif OUTPUT_DIMS == 4
-    const unsigned z = 0;
-    const unsigned y = (uint)get_global_id(2) / INPUT0_SIZE_X;
-    const unsigned x = (uint)get_global_id(2) % INPUT0_SIZE_X;
-#elif OUTPUT_DIMS == 5
-    const unsigned zyx = get_global_id(2);
-    const unsigned x = zyx % INPUT0_SIZE_X;
-    const unsigned y = (zyx / INPUT0_SIZE_X) % INPUT0_SIZE_Y;
-    const unsigned z = (zyx / INPUT0_SIZE_X) / INPUT0_SIZE_Y;
+    const unsigned o = (uint)get_global_id(0);
 #endif
+
+    const unsigned i = (uint)get_global_id(1);
+
+#if   OUTPUT_DIMS == 2 || (OUTPUT_DIMS == 3 && OUTPUT_GROUPED)
+    const unsigned x = 0;
+    const unsigned y = 0;
+    const unsigned z = 0;
+#elif OUTPUT_DIMS == 4 || (OUTPUT_DIMS == 5 && OUTPUT_GROUPED)
+    const unsigned x = (uint)get_global_id(2) % OUTPUT_SIZE_X;
+    const unsigned y = (uint)get_global_id(2) / OUTPUT_SIZE_X;
+    const unsigned z = 0;
+#elif OUTPUT_DIMS == 5 || (OUTPUT_DIMS == 6 && OUTPUT_GROUPED)
+    const unsigned zyx = get_global_id(2);
+    const unsigned x = zyx % OUTPUT_SIZE_X;
+    const unsigned y = (zyx / OUTPUT_SIZE_X) % OUTPUT_SIZE_Y;
+    const unsigned z = (zyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y;
 #endif
 
 #if OUTPUT_GROUPS_NUM > 1 //  Add grouped macro instead this check
@@ -276,6 +291,14 @@ KERNEL (reorder_weights)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE
 #else
     uint8 ir = RESHAPE_WEIGHT_DIMS(OUTPUT, INPUT0, o, i, 0, z, y, x);
 #endif
-    output[FUNC_CALL(get_output_index)(g, o, i, z, y, x)] = TO_OUTPUT_TYPE(input[FUNC_CALL(get_input_index)(ir[0],ir[1],ir[2],ir[4],ir[5],ir[6])]);
+
+    uint input_idx = FUNC_CALL(get_input_index)(ir[0],ir[1],ir[2],ir[4],ir[5],ir[6]);
+#if !REORDER_ROTATE
+    uint output_idx = FUNC_CALL(get_output_index)(g, o, i, z, y, x);
+#else
+    uint output_idx = FUNC_CALL(get_output_index)(g, o, i, OUTPUT_SIZE_Z - z - 1, OUTPUT_SIZE_Y - y - 1, OUTPUT_SIZE_X - x - 1);
+#endif
+
+    output[output_idx] = TO_OUTPUT_TYPE(input[input_idx]);
 }
 #endif

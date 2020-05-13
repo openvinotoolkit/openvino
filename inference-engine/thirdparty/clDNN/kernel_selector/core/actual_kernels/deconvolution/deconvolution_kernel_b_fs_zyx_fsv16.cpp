@@ -52,13 +52,16 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDef
 
     const auto& out = params.output;
 
+    bool ver_bsv16_fsv16 = params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16
+        || params.output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16;
+
     auto x = out.X().v;
     auto y = out.Y().v;
     auto z = out.Z().v;
     auto f = Align(out.Feature().v, 16);
     auto b = out.Batch().v;
 
-    if (out.Batch().v % 16 == 0) {
+    if (ver_bsv16_fsv16) {
         if (params.depthwise_separable_opt) {
             kd.gws0 = x * y * z;
             kd.gws1 = f;
@@ -120,6 +123,17 @@ bool DeconvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optiona
     if (!DeconvolutionKernelBase::Validate(p, o)) {
         return false;
     }
+    auto& deconv_params = static_cast<const deconvolution_params&>(p);
+
+    if (deconv_params.output.GetLayout() != deconv_params.inputs[0].GetLayout())
+        return false;
+
+    const auto& params = static_cast<const deconvolution_params&>(p);
+    const auto feature_block_size = 16;
+
+    // Check that padding features doesn't miss-align the blocks
+    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.output.Feature().pad.before % feature_block_size != 0)
+        return false;
 
     return true;
 }
@@ -129,7 +143,10 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
     auto output = params.output;
     auto jit = Parent::GetJitConstants(params);
 
-    if (output.Batch().v % 16 == 0) {
+    bool ver_bsv16_fsv16 = params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16
+        || params.output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16;
+
+    if (ver_bsv16_fsv16) {
         jit.AddConstant(MakeJitConstant("VER_16MB16C", 1));
     } else {
         jit.AddConstant(MakeJitConstant("VER_8OW16C", 1));
@@ -150,7 +167,7 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
         icb /= 2;
     }
 
-    if (output.Batch().v % 16 == 0) {
+    if (ver_bsv16_fsv16) {
         mb_block = 16;
         jit.AddConstant(MakeJitConstant("MB_BLOCK", mb_block));
         jit.AddConstant(MakeJitConstant("IC_BLOCK", ic_block));
@@ -217,6 +234,47 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
     jit.AddConstant(MakeJitConstant("LWS_0", runInfo.lws0));
     jit.AddConstant(MakeJitConstant("LWS_1", runInfo.lws1));
     jit.AddConstant(MakeJitConstant("LWS_2", runInfo.lws2));
+
+    if (!params.fused_ops.empty()) {
+        auto fused_dt = GetActivationType(params);
+        std::vector<std::string> idx_order_block_c00;
+        std::vector<std::string> idx_order_block_c01;
+        std::vector<std::string> idx_order_block_ci;
+
+        if (params.output.Dimentions() <= 4) {
+            idx_order_block_c00 = { "mb", "(g * IC + gic * IC_BLOCK)", "ih", "iw" };
+            idx_order_block_c01 = { "(mb + 8)", "(g * IC + gic * IC_BLOCK)", "ih", "iw" };
+            idx_order_block_ci = { "mb", "(g * IC + gic * IC_BLOCK)", "ih", "(iw + i)" };
+        } else {
+            idx_order_block_c00 = { "mb", "(g * IC + gic * IC_BLOCK)", "id", "ih", "iw" };
+            idx_order_block_c01 = { "(mb + 8)", "(g * IC + gic * IC_BLOCK)", "id", "ih", "iw" };
+            idx_order_block_ci = { "mb", "(g * IC + gic * IC_BLOCK)", "id", "ih", "(iw + i)" };
+        }
+
+        FusedOpsConfiguration conf_c00 = {
+            "_BLOCK_C00",
+            idx_order_block_c00,
+            "blockC00",
+            fused_dt,
+            8,
+            LoadType::LT_ALIGNED_READ,
+            BoundaryCheck::ENABLED,
+            IndexType::TENSOR_COORD,
+            Tensor::DataChannelName::BATCH };
+        FusedOpsConfiguration conf_c01 = {
+            "_BLOCK_C01",
+            idx_order_block_c01,
+            "blockC01",
+            fused_dt,
+            8,
+            LoadType::LT_ALIGNED_READ,
+            BoundaryCheck::ENABLED,
+            IndexType::TENSOR_COORD,
+            Tensor::DataChannelName::BATCH };
+        FusedOpsConfiguration conf_ci = { "_BLOCK_CI", idx_order_block_ci, "blockC00[i]", fused_dt, 1, LoadType::LT_ALIGNED_READ };
+
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf_c00, conf_c01, conf_ci }));
+    }
 
     return jit;
 }

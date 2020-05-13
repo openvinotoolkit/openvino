@@ -164,6 +164,7 @@ class AttributedVariadicSplit(VariadicSplitBase):
         super().__init__(graph, {
             'op': self.op,
             'type': 'VariadicSplit',
+            'version': 'opset1',
 
             'infer': self.infer,
 
@@ -236,6 +237,7 @@ class Split(SplitBase):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
+            'version': 'opset1',
 
             'infer': self.infer,
 
@@ -261,6 +263,7 @@ class AttributedSplit(SplitBase):
         super().__init__(graph, {
             'op': self.op,
             'type': 'Split',
+            'version': 'opset1',
 
             'axis': 1,
 

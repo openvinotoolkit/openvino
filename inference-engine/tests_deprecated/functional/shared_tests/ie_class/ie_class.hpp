@@ -35,6 +35,15 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace InferenceEngine::PluginConfigParams;
 
+#define CHECK_MULTI() do { \
+                          try { \
+                              Core ie; \
+                              ie.GetVersions("MULTI"); \
+                          } catch (...) { \
+                            GTEST_SKIP(); \
+                          } \
+                      } while(false)\
+
 class IEClassBasicTest : public TestsCommon {
 public:
     void SetUp() override {
@@ -188,7 +197,9 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             GTEST_COUT << "Core created " << testIndex << std::endl;
             ASSERT_NO_THROW(ie.RegisterPlugins(wStringtoMBCSstringChar(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
-
+#if defined __linux__  && !defined(__APPLE__)
+            ASSERT_NO_THROW(ie.GetVersions("mock")); // from pluginXML
+#endif
             ASSERT_NO_THROW(ie.GetVersions(deviceName));
             GTEST_COUT << "Plugin created " << testIndex << std::endl;
 
@@ -344,8 +355,8 @@ TEST_F(IEClassBasicTest, smoke_ImportNetworkHeteroThrows) {
 }
 
 TEST_F(IEClassBasicTest, smoke_ImportNetworkMultiThrows) {
-    Core ie;
-
+    CHECK_MULTI();
+    InferenceEngine::Core ie;
     ASSERT_THROW(ie.ImportNetwork("model", "MULTI"), InferenceEngineException);
 }
 
@@ -465,6 +476,7 @@ TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
 }
 
 TEST_P(IEClassNetworkTestP, QueryNetworkMultiThrows) {
+    CHECK_MULTI();
     Core ie;
     ASSERT_THROW(ie.QueryNetwork(actualNetwork, "MULTI"), InferenceEngineException);
 }
@@ -1206,8 +1218,9 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROAndDeviceIDThrows) {
 //
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
-    Core ie;
+    CHECK_MULTI();
 
+    Core ie;
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
         std::string devices;
         auto availableDevices = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
@@ -1227,6 +1240,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
 }
 
 TEST_P(IEClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
+    CHECK_MULTI();
     Core ie;
 
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
@@ -1251,6 +1265,7 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
 //
 
 TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROwithMULTINoThrowv7) {
+    CHECK_MULTI();
     Core ie;
 
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
@@ -1279,6 +1294,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROwithMULTINoThrowv7) {
 }
 
 TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIwithHETERONoThrowv7) {
+    CHECK_MULTI();
     Core ie;
 
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
@@ -1307,6 +1323,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIwithHETERONoThrowv7) {
 }
 
 TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROwithMULTINoThrowv10) {
+    CHECK_MULTI();
     Core ie;
 
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
@@ -1335,6 +1352,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROwithMULTINoThrowv10) {
 }
 
 TEST_P(IEClassLoadNetworkTest, DISABLED_QueryNetworkMULTIwithHETERONoThrowv10) {
+    CHECK_MULTI();
     Core ie;
 
     if (supportsDeviceID(ie, deviceName) && supportsAvaliableDevices(ie, deviceName)) {
@@ -1393,8 +1411,9 @@ TEST_P(IEClassLoadNetworkTest, DISABLED_QueryNetworkMULTIwithHETERONoThrowv10) {
 using IEClassLoadNetworkAfterCoreRecreateTest = IEClassLoadNetworkTest;
 
 TEST_P(IEClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins) {
+    CHECK_MULTI();
+    Core ie;
     {
-        Core ie;
         auto versions = ie.GetVersions("MULTI:" + deviceName + ",CPU");
         ASSERT_EQ(3, versions.size());
     }

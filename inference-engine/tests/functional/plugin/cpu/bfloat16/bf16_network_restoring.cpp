@@ -27,7 +27,7 @@ namespace LayerTestsDefinitions {
 
 class BF16NetworkRestore1 : public BasicBF16Test  {
 protected:
-    std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision)override {
+    std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
         //   +   Power1(FP32)
         //        |
         //   +  AvgPooling1(FP32)
@@ -170,7 +170,7 @@ protected:
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{eltNode2}, ngraph::ParameterVector{input1});
     }
-    void SetUp()override {
+    void SetUp() override {
         std::tie(inputPrecision, netPrecision, inputShapes, newInputShapes, targetDevice) = this->GetParam();
         fnPtr = createGraph(netPrecision);
 

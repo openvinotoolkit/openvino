@@ -27,6 +27,7 @@ class PSROIPoolingOp(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset2',
             'mode': 'average',
             'in_ports_count': 2,
             'out_ports_count': 1,
@@ -83,6 +84,7 @@ class DeformablePSROIPoolingOp(PSROIPoolingOp):
         updated_attrs = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
             'mode': 'bilinear_deformable',
             'in_ports_count': 3,
             'trans_std': 0,

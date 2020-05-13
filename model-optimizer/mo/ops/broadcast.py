@@ -14,11 +14,12 @@
  limitations under the License.
 """
 
-import numpy as np
-
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
+from mo.utils.broadcasting import bi_directional_shape_broadcasting, uni_directional_shape_broadcasting, \
+    uni_directional_broadcasting, bi_directional_broadcasting
+from mo.utils.error import Error
 
 
 class Broadcast(Op):
@@ -27,7 +28,7 @@ class Broadcast(Op):
         Inputs:
             [0] - tensor to be broadcasted
             [1] - shape to be broadcast to
-            [2] - optional axis paramater that which axis are allowed to be broadcasted
+            [2] - optional axis parameter that which axis are allowed to be broadcasted
     """
 
     op = 'Broadcast'
@@ -35,9 +36,10 @@ class Broadcast(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset3',
+            'mode': 'numpy',
             'in_ports_count': 3,
             'out_ports_count': 1,
             'force_precision_in_ports':
@@ -47,17 +49,30 @@ class Broadcast(Op):
             'infer': __class__.infer,
         }, attrs)
 
+    def supported_attrs(self):
+        return ['mode']
+
     @staticmethod
     def infer(node: Node):
-        # TODO Add necessary checks and asserts
-        b_value = node.in_port(0).data.get_value()
-        b_shape = node.in_port(1).data.get_value()
-        assert b_shape is not None
-        node.out_port(0).data.set_shape(b_shape)
+        node_name = node.soft_get('name', node.id)
+
+        input_shape = node.in_port(0).data.get_shape()
+        input_value = node.in_port(0).data.get_value()
+        target_shape = node.in_port(1).data.get_value()
+        assert target_shape is not None, 'Output shape is not defined for node "{}"'.format(node_name)
+        assert node.has_and_set('mode'), 'Broadcasting mode is not defined for node "{}"'.format(node_name)
+
+        if node.mode == 'numpy':
+            node.out_port(0).data.set_shape(uni_directional_shape_broadcasting(input_shape, target_shape))
+        elif node.mode == 'bidirectional':
+            node.out_port(0).data.set_shape(bi_directional_shape_broadcasting(input_shape, target_shape))
+        else:
+            raise Error('The node "{}" has unsupported mode "{}"'.format(node_name, node.mode))
 
         PermuteInputs().set_input_permutation(node.in_node(1), node, 'output:0', 'shape')
 
-        if b_value is not None and not node.has_and_set('stop_value_propagation'):
-            new_value = np.broadcast_to(b_value, b_shape)
-            node.out_port(0).data.set_value(new_value)
-
+        if input_value is not None and not node.has_and_set('stop_value_propagation'):
+            if node.mode == 'numpy':
+                node.out_port(0).data.set_value(uni_directional_broadcasting(input_value, target_shape))
+            elif node.mode == 'bidirectional':
+                node.out_port(0).data.set_value(bi_directional_broadcasting(input_value, target_shape))

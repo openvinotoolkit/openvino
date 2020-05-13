@@ -24,7 +24,7 @@ protected:
     PassSet::Ptr _middleEnd = nullptr;
 };
 
-TEST_F(StageDependencyEdgeProcessingTests, AddStageDependencyAssertsOnOutputData) {
+TEST_F(StageDependencyEdgeProcessingTests, AddStageDependencyDoesNotAssertOnOutputData) {
     //
     //                    -> [Data] -> (Stage) -> [Output]
     // [Input] -> (Stage)                            |
@@ -43,7 +43,7 @@ TEST_F(StageDependencyEdgeProcessingTests, AddStageDependencyAssertsOnOutputData
 
     auto model = _testModel.getBaseModel();
 
-    ASSERT_ANY_THROW(model->addStageDependency(dependentStage, dependencyProducer->output(0)));
+    ASSERT_NO_THROW(model->addStageDependency(dependentStage, dependencyProducer->output(0)));
 }
 
 TEST_F(StageDependencyEdgeProcessingTests, NetWithTwoStagesHasCorrectExecOrder) {

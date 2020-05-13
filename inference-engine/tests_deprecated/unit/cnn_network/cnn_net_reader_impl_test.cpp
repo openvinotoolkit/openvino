@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include <parsers.h>
 #include <ie_cnn_net_reader_impl.h>
 #include <gmock/gmock-more-actions.h>
 #include "cnn_network_impl.hpp"

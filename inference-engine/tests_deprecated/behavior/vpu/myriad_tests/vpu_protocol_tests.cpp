@@ -26,7 +26,7 @@ TEST_P(MyriadProtocolTests, CanInferenceWithProtocol) {
     ASSERT_EQ(statusCode, StatusCode::OK) << resp.msg;
 }
 
-INSTANTIATE_TEST_CASE_P(VPUConfigProtocolTests,
+INSTANTIATE_TEST_CASE_P(smoke_VPUConfigProtocolTests,
                         MyriadProtocolTests,
                         ::testing::ValuesIn(myriadProtocols),
                         MyriadProtocolTests::getTestCaseName);

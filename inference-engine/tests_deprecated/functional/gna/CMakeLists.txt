@@ -50,10 +50,8 @@ target_include_directories(${TARGET_NAME}
 
 add_dependencies(${TARGET_NAME} ${DEPENDENCIES})
 
-add_test(NAME ${TARGET_NAME}
-        COMMAND ${TARGET_NAME})
-
-set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
+set_property(TEST ${TARGET_NAME} PROPERTY LABELS GNA)
 
 if(GNA_LIBRARY_VERSION STREQUAL "GNA1")
     target_compile_definitions(${TARGET_NAME} PRIVATE GNA1_LIB)

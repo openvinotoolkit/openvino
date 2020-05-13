@@ -6,7 +6,7 @@
 #include "gna_test_data.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-        BehaviorTest,
+        smoke_BehaviorTest,
         BehaviorPluginTestExecGraphInfo,
         ValuesIn(supportedValues),
         getTestCaseName);

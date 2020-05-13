@@ -1,7 +1,7 @@
 import sys,argparse
 from fnmatch import fnmatch
 
-from openvino.tools.benchmark.utils.constants import XML_EXTENSION_PATTERN
+from openvino.tools.benchmark.utils.constants import XML_EXTENSION_PATTERN, BLOB_EXTENSION_PATTERN
 from openvino.tools.benchmark.utils.utils import show_available_devices
 
 def str2bool(v):
@@ -18,8 +18,8 @@ def validate_args(args):
         raise Exception("Number of iterations should be positive (invalid -niter option value)")
     if args.number_infer_requests and args.number_infer_requests < 0:
         raise Exception("Number of inference requests should be positive (invalid -nireq option value)")
-    if not fnmatch(args.path_to_model, XML_EXTENSION_PATTERN):
-        raise Exception('Path {} is not xml file.')
+    if not (fnmatch(args.path_to_model, XML_EXTENSION_PATTERN) or fnmatch(args.path_to_model, BLOB_EXTENSION_PATTERN)):
+        raise Exception('Path {} is not xml or blob file.')
 
 
 class print_help(argparse.Action):
@@ -37,7 +37,8 @@ def parse_args():
                       help='Optional. '
                            'Path to a folder with images and/or binaries or to specific image or binary file.')
     args.add_argument('-m', '--path_to_model', type=str, required=True,
-                      help='Required. Path to an .xml file with a trained model.')
+                      help='Required. Path to an .xml file with a trained model or '
+                           'to a .blob file with a trained compiled model.')
     args.add_argument('-d', '--target_device', type=str, required=False, default='CPU',
                       help='Optional. Specify a target device to infer on (the list of available devices is shown below). '
                            'Default value is CPU. Use \'-d HETERO:<comma separated devices list>\' format to specify HETERO plugin. '
@@ -56,7 +57,7 @@ def parse_args():
                            'If not specified, the number of iterations is calculated depending on a device.')
     args.add_argument('-nireq', '--number_infer_requests', type=int, required=False, default=None,
                       help='Optional. Number of infer requests. Default value is determined automatically for device.')
-    args.add_argument('-b', '--batch_size', type=int, required=False, default=None,
+    args.add_argument('-b', '--batch_size', type=int, required=False, default=0,
                       help='Optional. ' +
                            'Batch size value. ' +
                            'If not specified, the batch size value is determined from Intermediate Representation')
@@ -69,6 +70,9 @@ def parse_args():
     args.add_argument('-progress', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. '
                            'Show progress bar (can affect performance measurement). Default values is \'False\'.')
+    args.add_argument('-shape', type=str, required=False, default='',
+                      help='Optional. '
+                           'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.')
     args.add_argument('-nstreams', '--number_streams', type=str, required=False, default=None,
                       help='Optional. Number of streams to use for inference on the CPU/GPU in throughput mode '
                            '(for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> '

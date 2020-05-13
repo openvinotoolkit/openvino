@@ -60,10 +60,9 @@ std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr
 
     auto outputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
     const auto &results = function->get_results();
-    std::transform(results.cbegin(), results.cend(), std::back_inserter(outputTensors),
-                   [&backend](const std::shared_ptr<op::Result> &result) {
-                       return backend->create_tensor(result->get_element_type(), result->get_shape());
-                   });
+    for (size_t i = 0; i <results.size(); ++i) {
+        outputTensors.push_back(std::make_shared<HostTensor>());
+    }
 
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);

@@ -12,47 +12,65 @@
 
 using namespace InferenceEngine;
 
+PRETTY_PARAM(CustomConfig, std::string);
+
 typedef std::pair<Precision, Precision> PrecisionPair;
-typedef std::tuple<InferenceEngine::SizeVector, PrecisionPair> ConvertIOTestParam;
+typedef std::tuple<SizeVector, PrecisionPair, CustomConfig> ConvertIOTestParam;
 typedef std::tuple<InferenceEngine::SizeVector, Precision> ConvertWithFP16TestParam;
 
-class myriadLayersTestsIOConvert_nightly: public myriadLayersTests_nightly,
-                                          public testing::WithParamInterface<ConvertIOTestParam> {
+static CustomConfig s_CustomConfig = {
+#ifdef VPU_HAS_CUSTOM_KERNELS
+    {getIELibraryPath() + "/vpu_custom_kernels/customLayerBindings.xml"}
+#endif
 };
 
-TEST_P(myriadLayersTestsIOConvert_nightly, TestsIOConvert)
-{
-    const auto& param = ::testing::WithParamInterface<ConvertIOTestParam>::GetParam();
-    const auto& inputDims = std::get<0>(param);
-    const auto& precisions = std::get<1>(param);
-    const auto& inputPrecision = precisions.first;
-    const auto& outputPrecision = precisions.second;
+typedef myriadLayerTestBaseWithParam<ConvertIOTestParam> myriadLayersTestsIOConvert_smoke;
 
-    SetInputTensors({inputDims});
-    SetOutputTensors({inputDims});
+TEST_P(myriadLayersTestsIOConvert_smoke, TestsIOConvert) {
+    const SizeVector& dims = std::get<0>(GetParam());
+    const PrecisionPair& precision = std::get<1>(GetParam());
+    const std::string& customConfig = std::get<2>(GetParam());
+    const auto& inputPrecision = precision.first;
+    const auto& outputPrecision = precision.second;
 
-    makeSingleLayerNetwork(LayerInitParams("Copy"),
-                NetworkInitParams()
-                .inputPrecision(inputPrecision)
-                .outputPrecision(outputPrecision));
+    if(!customConfig.empty() && !CheckMyriadX()) {
+        GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
+    }
+    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+
+    _config[VPU_CONFIG_KEY(DISABLE_CONVERT_STAGES)] = CONFIG_VALUE(YES);
+
+    SetInputTensors({dims});
+    SetOutputTensors({dims});
+
+    std::map<std::string, std::string> params = {
+        {"precision", std::to_string(outputPrecision)},
+        {"scale", std::to_string(1.0)},  // scale and bias are needed for custom layer
+        {"bias", std::to_string(0.0)}
+    };
+
+    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(
+        LayerInitParams("Convert")
+            .params(params)
+            .in({dims})
+            .out({dims})
+            .outPrecision(outputPrecision),
+        NetworkInitParams()
+            .layoutPreference(vpu::LayoutPreference::ChannelMajor)
+            .inputPrecision(inputPrecision)
+            .outputPrecision(outputPrecision)
+            .lockLayout(true)));
+
     ASSERT_TRUE(Infer());
 
-    auto tensorDesc = InferenceEngine::TensorDesc(
-        outputPrecision, _outputMap.begin()->second->getTensorDesc().getDims(),
-        _outputMap.begin()->second->getTensorDesc().getLayout());
-    auto refBlob = make_blob_with_precision(outputPrecision, tensorDesc);
-    refBlob->allocate();
+    ASSERT_NO_FATAL_FAILURE(ref_convert(_inputMap.begin()->second, _refBlob));
 
-    ref_convert(_inputMap.begin()->second, refBlob);
-
-    CompareCommonAbsolute(_outputMap.begin()->second, refBlob, ERROR_BOUND);
+    CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, ERROR_BOUND);
 }
 
-class myriadLayersTestsConvertWithFP16_nightly: public myriadLayersTests_nightly,
-                                        public testing::WithParamInterface<ConvertWithFP16TestParam> {
-};
+typedef myriadLayerTestBaseWithParam<ConvertWithFP16TestParam> myriadLayersTestsConvertWithFP16_smoke;
 
-TEST_P(myriadLayersTestsConvertWithFP16_nightly, TestsConvertWithFP16)
+TEST_P(myriadLayersTestsConvertWithFP16_smoke, TestsConvertWithFP16)
 {
     const auto& param = ::testing::WithParamInterface<ConvertWithFP16TestParam>::GetParam();
     const auto& inputDims = std::get<0>(param);
@@ -91,7 +109,7 @@ TEST_P(myriadLayersTestsConvertWithFP16_nightly, TestsConvertWithFP16)
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND);
 }
 
-std::vector<InferenceEngine::SizeVector> inputsDims = {
+std::vector<SizeVector> inputsDims = {
     {       224, 224 },
     {    3, 224, 224 },
     { 1, 1, 224, 224 },
@@ -102,6 +120,15 @@ std::vector<InferenceEngine::SizeVector> inputsDims = {
 
     // 5D case
     { 2, 2, 3, 224, 224 },
+};
+
+std::vector<SizeVector> inputsDims4D = {
+    {{ 1, 1, 224, 224 }},
+    {{ 1, 1, 416, 416 }},
+    {{ 1, 1,  62,  62 }},
+    {{ 1, 1, 227, 227 }},
+    {{ 1, 3, 224, 224 }},
+    {{ 1, 3, 360, 480 }},
 };
 
 std::vector<PrecisionPair> precisionsIO = {

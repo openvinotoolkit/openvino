@@ -13,12 +13,12 @@
 
 using namespace InferenceEngine;
 
-class myriadLayersTestsSigmoid_nightly: public myriadLayersTests_nightly,
+class myriadLayersTestsSigmoid_smoke: public myriadLayersTests_nightly,
                            public testing::WithParamInterface<InferenceEngine::SizeVector> {
 public:
 };
 
-TEST_P(myriadLayersTestsSigmoid_nightly, TestsSigmoid)
+TEST_P(myriadLayersTestsSigmoid_smoke, TestsSigmoid)
 {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
 
@@ -52,13 +52,13 @@ static std::vector<InferenceEngine::SizeVector> s_sigmoidParams = {
     {{1, 3, 277, 230}}
 };
 
-class myriadLayersTestsMaxPoolingWithSigmoid_nightly: public PoolingTest<POOLING_MAX>{
+class myriadLayersTestsMaxPoolingWithSigmoid_smoke: public PoolingTest<POOLING_MAX>{
 };
 
-class myriadLayersTestsAvgPoolingWithSigmoid_nightly: public PoolingTest<POOLING_AVG>{
+class myriadLayersTestsAvgPoolingWithSigmoid_smoke: public PoolingTest<POOLING_AVG>{
 };
 
-TEST_P(myriadLayersTestsMaxPoolingWithSigmoid_nightly, TestsMaxPoolingWithSigmoid)
+TEST_P(myriadLayersTestsMaxPoolingWithSigmoid_smoke, TestsMaxPoolingWithSigmoid)
 {
     _testNet.addLayer(LayerInitParams("Sigmoid")
              .in({_output_tensor})
@@ -68,7 +68,7 @@ TEST_P(myriadLayersTestsMaxPoolingWithSigmoid_nightly, TestsMaxPoolingWithSigmoi
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND_WITH_SIGMOID);
 }
 
-TEST_P(myriadLayersTestsAvgPoolingWithSigmoid_nightly, TestsAvgPoolingWithSigmoid)
+TEST_P(myriadLayersTestsAvgPoolingWithSigmoid_smoke, TestsAvgPoolingWithSigmoid)
 {
     _testNet.addLayer(LayerInitParams("Sigmoid")
              .in({_output_tensor})
@@ -78,10 +78,10 @@ TEST_P(myriadLayersTestsAvgPoolingWithSigmoid_nightly, TestsAvgPoolingWithSigmoi
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND_WITH_SIGMOID);
 }
 
-class myriadLayerConvolutionWithSigmoid_nightly: public ConvolutionTest<IRVersion>{
+class myriadLayerConvolutionWithSigmoid_smoke: public ConvolutionTest<IRVersion>{
 };
 
-TEST_P(myriadLayerConvolutionWithSigmoid_nightly, Convolution) {
+TEST_P(myriadLayerConvolutionWithSigmoid_smoke, Convolution) {
     _irVersion = std::get<6>(GetParam());
     _testNet.addLayer(LayerInitParams("Sigmoid")
              .in({_output_tensor})
@@ -97,10 +97,10 @@ TEST_P(myriadLayerConvolutionWithSigmoid_nightly, Convolution) {
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), maxerr);
 }
 
-class myriadLayerFullyConnectedWithSigmoid_nightly: public FCTest<>{
+class myriadLayerFullyConnectedWithSigmoid_smoke: public FCTest<>{
 };
 
-TEST_P(myriadLayerFullyConnectedWithSigmoid_nightly, TestsFullyConnected)
+TEST_P(myriadLayerFullyConnectedWithSigmoid_smoke, TestsFullyConnected)
 {
     _testNet.addLayer(LayerInitParams("Sigmoid")
              .in({_output_tensor})

@@ -71,14 +71,11 @@ public:
     ~Engine() override;
 
     InferenceEngine::ExecutableNetworkInternal::Ptr
-    LoadExeNetworkImpl(const InferenceEngine::ICore * core, const InferenceEngine::ICNNNetwork &network,
+    LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
                        const std::map<std::string, std::string> &config) override;
 
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
-    /**
-     * @deprecated
-     * @param config
-     */
+
     void SetConfig(const std::map<std::string, std::string> &config) override;
 
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;

@@ -7,7 +7,6 @@
 #include "hetero_async_infer_request.hpp"
 #include "ie_util_internal.hpp"
 #include "hetero_graph_splitter.hpp"
-#include "file_utils.h"
 #include "xml_parse_utils.h"
 
 #include <vector>
@@ -22,12 +21,9 @@
 #include <array>
 #include <cstdint>
 
-#include "details/caseless.hpp"
 #include "ie_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
-#include "cpp_interfaces/base/ie_inference_plugin_api.hpp"
 #include "hetero/hetero_plugin_config.hpp"
-#include "precision_utils.h"
 #include "hetero_plugin.hpp"
 #include "network_serializer.h"
 
@@ -141,10 +137,10 @@ void dumpGraph(InferenceEngine::ICNNNetwork &network,
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&  network_,
                                                  const Engine::Configs&         config,
-                                                 Engine*                        plugin):
+                                                 Engine*                        heteroPlugin):
     InferenceEngine::ExecutableNetworkThreadSafeDefault(
         nullptr, std::make_shared<InferenceEngine::ImmediateExecutor>()),
-    _plugin{plugin},
+    _heteroPlugin(heteroPlugin),
     _name{network_.getName()},
     _config{config} {
     auto networkPtr = cloneNet(network_);
@@ -171,7 +167,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetw
     if (allEmpty) {
         auto it = _config.find("TARGET_FALLBACK");
         if (it != _config.end()) {
-            plugin->SetAffinity(network, _config);
+            _heteroPlugin->SetAffinity(network, _config);
         } else {
             THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
         }
@@ -230,24 +226,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetw
     network.getOutputsInfo(externalOutputsData);
 
     auto subgraphs = splitGraph(network, getAffinities(network));
-
     sortSubgraphs(subgraphs);
-
-
-    std::vector<NetworkDesc> descs;
-    std::vector<CNNLayerPtr> tempLayers;
-
-    for (auto &&subgraph : subgraphs) {
-        assert(!subgraph.empty());
-        auto affinity = (*subgraph.begin())->affinity;
-        assert(!affinity.empty());
-        _affinities.push_back(affinity);
-        if (_plugin->_plugins.end() == _plugin->_plugins.find(affinity)) {
-            IE_SUPPRESS_DEPRECATED_START
-            _plugin->_plugins[affinity] = _plugin->GetDevicePlugin(affinity);
-            IE_SUPPRESS_DEPRECATED_END
-        }
-    }
 
     if (dumpDotFile) {
         std::stringstream stream(std::stringstream::out);
@@ -262,6 +241,8 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetw
         networkStats = nullptr;
     }
 
+    std::vector<NetworkDesc> descs;
+    std::vector<CNNLayerPtr> tempLayers;
     for (auto &&subgraph : subgraphs) {
         auto affinity = (*subgraph.begin())->affinity;
         tempLayers.assign(subgraph.begin(), subgraph.end());
@@ -289,11 +270,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetw
                 inp->second->getPreProcess() = it.second->getPreProcess();
             }
         }
+
         // go over all inputs/outputs and right now
         // set precision for intermediate data (not for external) to FP32
-        // later on we have to add Plugin::getPreferableInputPrecision(network) and
-        // Plugin::getPreferableOutputPrecision(network) and set precision based on this info
-        // TODO(amalyshe) add clever selectino of precision for intermediate blobs
         for (auto &&it : clonedInputs) {
             if (externalInputsData.find(it.first) == externalInputsData.end()) {
                 it.second->setPrecision(Precision::FP32);
@@ -327,36 +306,24 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetw
             }));
 
         auto cfg = _config;
-        cfg[PluginConfigInternalParams::KEY_SUBNETWORK_WITH_NETWORK_INPUTS] = isInputSubnetwork
-                                                                              ? CONFIG_VALUE(YES)
-                                                                              : CONFIG_VALUE(NO);
-        IE_SUPPRESS_DEPRECATED_START
-        auto plugin = _plugin->_plugins[d._device];
-        d._network = plugin._ref.LoadNetwork(d._clonedNetwork, Engine::GetSupportedConfig(plugin._config, cfg, plugin._ref));
-        IE_SUPPRESS_DEPRECATED_END
+        cfg[PluginConfigInternalParams::KEY_SUBNETWORK_WITH_NETWORK_INPUTS] =
+            isInputSubnetwork ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+
+        auto deviceName = d._device;
+        auto metaDevices = _heteroPlugin->GetDevicePlugins(deviceName, cfg);
+        assert(metaDevices.size() == 1);
+
+        auto loadConfig = metaDevices[deviceName];
+        d._network = _heteroPlugin->GetCore()->LoadNetwork(d._clonedNetwork, deviceName, loadConfig);
     }
 
     networks = std::move(descs);
 }
 
-namespace  {
-
-IE_SUPPRESS_DEPRECATED_START
-IInferencePluginAPI * getInferencePluginAPIInterface(IInferencePlugin * iplugin) {
-    return dynamic_cast<IInferencePluginAPI *>(iplugin);
-}
-
-IInferencePluginAPI * getInferencePluginAPIInterface(InferenceEnginePluginPtr iplugin) {
-    return getInferencePluginAPIInterface(static_cast<IInferencePlugin *>(iplugin.operator->()));
-}
-IE_SUPPRESS_DEPRECATED_END
-
-}  // namespace
-
 HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                               heteroModel,
                                                  const std::map<std::string, std::string>&   configs,
-                                                 Engine*                                     plugin) :
-    _plugin(plugin) {
+                                                 Engine*                                     heteroPlugin) :
+    _heteroPlugin(heteroPlugin) {
     std::string heteroXmlStr;
     std::getline(heteroModel, heteroXmlStr);
 
@@ -400,26 +367,17 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
     for (auto subnetworkNode = subnetworksNode.child("subnetwork"); !subnetworkNode.empty();
             subnetworkNode = subnetworkNode.next_sibling("subnetwork")) {
-        auto device = GetStrAttr(subnetworkNode, "device");
-        _affinities.push_back(device);
+        auto deviceName = GetStrAttr(subnetworkNode, "device");
 
-        if (_plugin->_plugins.end() == _plugin->_plugins.find(device)) {
-            IE_SUPPRESS_DEPRECATED_START
-            _plugin->_plugins[device] = _plugin->GetDevicePlugin(device);
-            IE_SUPPRESS_DEPRECATED_END
-        }
-
-        auto& plugin = _plugin->_plugins[device];
-        auto supportedConfig = Engine::GetSupportedConfig(plugin._config, importedConfigs, plugin._ref);
-        IE_SUPPRESS_DEPRECATED_START
-        auto pluginAPI = getInferencePluginAPIInterface(plugin._ref);
-        IE_SUPPRESS_DEPRECATED_END
+        auto metaDevices = _heteroPlugin->GetDevicePlugins(deviceName, importedConfigs);
+        assert(metaDevices.size() == 1);
+        auto& loadConfig = metaDevices[deviceName];
 
         InferenceEngine::ExecutableNetwork executableNetwork;
         CNNNetwork cnnnetwork;
         bool loaded = false;
         try {
-            executableNetwork = pluginAPI->ImportNetwork(heteroModel, supportedConfig);
+            executableNetwork = _heteroPlugin->GetCore()->ImportNetwork(heteroModel, deviceName, loadConfig);
         } catch(InferenceEngine::details::InferenceEngineException& ie_ex) {
             if (std::string::npos != std::string{ie_ex.what()}.find(NOT_IMPLEMENTED_str)) {
                 // read XML content
@@ -439,7 +397,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
                     heteroModel.read(dataBlob->buffer(), dataSize);
                 }
 
-                cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
+                cnnnetwork = _heteroPlugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
                 auto inputs = cnnnetwork.getInputsInfo();
                 auto inputsNode = subnetworkNode.child("inputs");
                 for (auto inputNode = inputsNode.child("input"); !inputNode.empty(); inputNode = inputNode.next_sibling("input")) {
@@ -455,9 +413,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
                 for (auto outputNode = outputsNode.child("output"); !outputNode.empty(); outputNode = outputNode.next_sibling("output")) {
                     outputs[GetStrAttr(outputNode, "name")]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
                 }
-                IE_SUPPRESS_DEPRECATED_START
-                executableNetwork = plugin._ref.LoadNetwork(cnnnetwork, supportedConfig);
-                IE_SUPPRESS_DEPRECATED_END
+                executableNetwork = _heteroPlugin->GetCore()->LoadNetwork(cnnnetwork, deviceName, loadConfig);
                 loaded = true;
             } else {
                 throw;
@@ -477,7 +433,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
         }
 
         descs.emplace_back(NetworkDesc{
-            device,
+            deviceName,
             loaded ? CNNNetwork{cloneNet(static_cast<InferenceEngine::ICNNNetwork&>(cnnnetwork))} : CNNNetwork{},
             executableNetwork,
         });
@@ -578,10 +534,10 @@ void HeteroExecutableNetwork::CreateInferRequest(IInferRequest::Ptr &asyncReques
     auto heteroInferRequest = std::dynamic_pointer_cast<HeteroInferRequest>(
             CreateInferRequestImpl(_networkInputs, _networkOutputs));
     heteroInferRequest->setPointerToExecutableNetworkInternal(shared_from_this());
-    auto asyncTreadSafeImpl = std::make_shared<HeteroAsyncInferRequest>(heteroInferRequest, _taskExecutor, _callbackExecutor);
-    asyncRequest.reset(new InferRequestBase<HeteroAsyncInferRequest>(asyncTreadSafeImpl),
+    auto asyncThreadSafeImpl = std::make_shared<HeteroAsyncInferRequest>(heteroInferRequest, _taskExecutor, _callbackExecutor);
+    asyncRequest.reset(new InferRequestBase<HeteroAsyncInferRequest>(asyncThreadSafeImpl),
                        [](IInferRequest *p) { p->Release(); });
-    asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+    asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
 }
 
 void HeteroExecutableNetwork::GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *) const {

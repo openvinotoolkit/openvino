@@ -228,6 +228,10 @@ void parsePool2D(const     Model      & model,
     int outputWidth = output->desc().dim(Dim::W);
     int outputHeight = output->desc().dim(Dim::H);
 
+    // kernelStrideY doesn't matter when kernelSizeY==InputSizeY, change it to try HW in 1D case
+    if (kernelSizeY == inputHeight + padTop + padBottom)
+        kernelStrideY = kernelStrideX;
+
     bool tryHW = canTryHW(poolType,
                           inputWidth,
                           inputHeight,

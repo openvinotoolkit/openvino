@@ -27,7 +27,6 @@ class SpaceToBatch(Op):
 
     def __init__(self, graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
             'op': self.op,
             'type': self.op,
             'in_ports_count': 3,

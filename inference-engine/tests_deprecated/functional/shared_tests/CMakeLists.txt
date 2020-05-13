@@ -11,7 +11,6 @@ list(APPEND SHARED_LIBRARIES
         ${NGRAPH_LIBRARIES}
         ie_tests
         ngraphFunctions
-        inference_engine_ir_readers
         )
 
 file(GLOB SHARED_TESTS_SRC
@@ -26,7 +25,7 @@ file(GLOB SHARED_TESTS_SRC
         )
 
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
-add_dependencies(${TARGET_NAME} inference_engine_preproc mock_engine)
+add_dependencies(${TARGET_NAME} inference_engine_preproc MultiDevicePlugin mock_engine)
 
 if(ENABLE_MKL_DNN)
     add_dependencies(${TARGET_NAME} MKLDNNPlugin)

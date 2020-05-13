@@ -89,6 +89,6 @@ TEST_F(VPU_EliminateCopyTest, OneInputTwoConcats) {
     ASSERT_EQ(hwOutput->parentData(), outputCopy1);
 
     ASSERT_EQ(hwOutput->numConsumers(), 2);
-    ASSERT_TRUE(contains(hwOutput->consumers(), [](const Stage& stage) { return stage->type() == StageType::Concat; }));
+    ASSERT_TRUE(contains(hwOutput->consumers(), [](const Stage& stage) { return stage->type() == StageType::StubConcat; }));
     ASSERT_TRUE(contains(hwOutput->consumers(), [](const Stage& stage) { return stage->type() == StageType::Copy; }));
 }

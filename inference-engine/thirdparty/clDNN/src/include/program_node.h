@@ -297,6 +297,7 @@ public:
     }
 
     const std::vector<fused_primitive_desc>& get_fused_primitives() const { return fused_prims; }
+    std::vector<fused_primitive_desc>& get_fused_primitives() { return fused_prims; }
 
     size_t get_fused_inputs_count() const {
         size_t count = 0;

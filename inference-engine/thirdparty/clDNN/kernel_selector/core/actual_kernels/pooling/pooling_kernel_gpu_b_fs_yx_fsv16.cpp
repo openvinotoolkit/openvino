@@ -99,6 +99,13 @@ bool PoolingKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_param
         return false;
     }
 
+    const auto& params = static_cast<const pooling_params&>(p);
+    const auto feature_block_size = 16;
+
+    // Check that padding features doesn't miss-align the blocks
+    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.output.Feature().pad.before % feature_block_size != 0)
+        return false;
+
     return true;
 }
 

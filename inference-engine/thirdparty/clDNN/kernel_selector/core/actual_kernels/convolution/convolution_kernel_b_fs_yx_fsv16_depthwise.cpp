@@ -55,6 +55,10 @@ bool ConvolutionKernel_b_fs_yx_fsv16_depthwise::Validate(const Params& p, const 
     if (cp.inputs[0].Feature().v != cp.groups || cp.output.Feature().v != cp.groups)
         return false;
 
+    // Check that padding features doesn't miss-align the blocks
+    if (cp.inputs[0].Feature().pad.before % feature_block_size != 0 || cp.output.Feature().pad.before % feature_block_size != 0)
+        return false;
+
     return true;
 }
 

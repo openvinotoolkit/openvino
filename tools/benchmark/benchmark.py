@@ -21,7 +21,6 @@ from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
 from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, BIN_EXTENSION
 from .utils.logging import logger
 from .utils.utils import get_duration_seconds
-from .utils.inputs_filling import get_blob_shape
 from .utils.statistics_report import StatisticsReport
 
 class Benchmark:
@@ -56,16 +55,6 @@ class Benchmark:
             version_string += '{: <9}{:.<24} {}\n'.format('', 'Build', version.build_number)
         return version_string
 
-    @staticmethod
-    def reshape(ie_network: IENetwork, batch_size: int):
-        new_shapes = {}
-        for input_layer_name, input_layer in ie_network.inputs.items():
-            new_shapes[input_layer_name] = get_blob_shape(input_layer, batch_size)
-
-        if new_shapes:
-            logger.info('Resizing network to batch = {}'.format(batch_size))
-            ie_network.reshape(new_shapes)
-
     def set_config(self, config = {}):
         for device in config.keys():
             self.ie.set_config(config[device], device)
@@ -92,6 +81,15 @@ class Benchmark:
         # Number of requests
         self.nireq = len(exe_network.requests)
 
+        return exe_network
+
+    def import_network(self, path_to_file : str, config = {}):
+        exe_network = self.ie.import_network(model_file=path_to_file,
+                                             device_name=self.device,
+                                             config=config,
+                                             num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
+        # Number of requests
+        self.nireq = len(exe_network.requests)
         return exe_network
 
     def infer(self, exe_network, batch_size, progress_bar=None):

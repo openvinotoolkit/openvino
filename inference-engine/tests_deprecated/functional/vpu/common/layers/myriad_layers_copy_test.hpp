@@ -14,9 +14,9 @@ using namespace InferenceEngine;
 
 PRETTY_PARAM(NDims, nd_tensor_test_params);
 
-typedef myriadLayerTestBaseWithParam<tuple<NDims, int>> myriadLayerCopy_nightly;
+typedef myriadLayerTestBaseWithParam<tuple<NDims, int>> myriadLayerCopy_smoke;
 
-TEST_P(myriadLayerCopy_nightly, Copy) {
+TEST_P(myriadLayerCopy_smoke, Copy) {
 
     nd_tensor_test_params input_dims = get<0>(GetParam());
     int ndims = get<1>(GetParam());

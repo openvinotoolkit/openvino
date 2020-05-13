@@ -58,8 +58,7 @@ INSTANTIATE_TEST_CASE_P(MaxPool_ExplicitPad_FloorRpunding, PoolingLayerTest,
 const auto maxPool_ExplicitPad_CeilRounding_Params = ::testing::Combine(
         ::testing::Values(ngraph::helpers::PoolingTypes::MAX),
         ::testing::ValuesIn(kernels),
-        // TODO: Non 1 strides fails in ngraph reference implementation with error "The end corner is out of bounds at axis 3" thrown in the test body.
-        ::testing::Values(std::vector<size_t>({1, 1})),
+        ::testing::ValuesIn(strides),
         ::testing::ValuesIn(padBegins),
         ::testing::ValuesIn(padEnds),
         ::testing::Values(ngraph::op::RoundingType::CEIL),
@@ -82,10 +81,9 @@ const auto avgPoolExplicitPadCeilRoundingParams = ::testing::Combine(
         ::testing::Values(ngraph::helpers::PoolingTypes::AVG),
         ::testing::ValuesIn(kernels),
         // TODO: Non 1 strides fails in ngraph reference implementation with error "The end corner is out of bounds at axis 3" thrown in the test body.
-        ::testing::Values(std::vector<size_t>({1, 1})),
-        // TODO: Non zero pads excluded because of accuracy mismatch
-        ::testing::Values(std::vector<size_t>({0, 0})),
-        ::testing::Values(std::vector<size_t>({0, 0})),
+        ::testing::ValuesIn(strides),
+        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{0, 0}, {1, 1}, {0, 1}})),
+        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{0, 0}, {1, 1}, {0, 1}})),
         ::testing::Values(ngraph::op::RoundingType::CEIL),
         ::testing::Values(ngraph::op::PadType::EXPLICIT),
         ::testing::Values(true, false)
@@ -98,14 +96,27 @@ INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         PoolingLayerTest::getTestCaseName);
+
+std::vector<poolSpecificParams> psParams({poolSpecificParams(ngraph::helpers::PoolingTypes::AVG, {2, 2}, {2, 2}, {0, 0}, {0, 0},
+                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false),
+    poolSpecificParams(ngraph::helpers::PoolingTypes::AVG, {7, 7}, {1, 1}, {0, 0}, {1, 1},
+                        ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false)});
+
+INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_CeilRounding_corner, PoolingLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(psParams),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(std::vector<size_t >({1, 1024, 6, 6})),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        PoolingLayerTest::getTestCaseName);
+
 /* +========== Explicit Pad Floor Rounding ========== */
 const auto avgPoolExplicitPadFloorRoundingParams = ::testing::Combine(
         ::testing::Values(ngraph::helpers::PoolingTypes::AVG),
         ::testing::ValuesIn(kernels),
         ::testing::ValuesIn(strides),
-        // TODO: Non zero pads excluded because of accuracy mismatch
-        ::testing::Values(std::vector<size_t>({0, 0})),
-        ::testing::Values(std::vector<size_t>({0, 0})),
+        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{0, 0}, {1, 1}})),
+        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{0, 0}, {1, 1}})),
         ::testing::Values(ngraph::op::RoundingType::FLOOR),
         ::testing::Values(ngraph::op::PadType::EXPLICIT),
         ::testing::Values(true, false)
@@ -145,3 +156,4 @@ INSTANTIATE_TEST_CASE_P(MAX_and_AVGPool_ValidPad, PoolingLayerTest,
 
 
 }  // namespace
+

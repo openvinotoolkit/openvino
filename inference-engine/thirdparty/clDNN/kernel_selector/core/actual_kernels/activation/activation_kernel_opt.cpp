@@ -28,6 +28,7 @@ ParamsKey ActivationKernelOpt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableDifferentTypes();
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
@@ -75,34 +76,33 @@ bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) co
         return false;
     }
 
-    if (params.gradient) {
-        if (params.inputs[0].GetLayout() != params.inputs[1].GetLayout())
-            return false;
-    }
+    if (params.output.GetLayout() != params.inputs[0].GetLayout())
+        return false;
 
-    // Opt kernel supports fused activations without extra inputs, since
-    // it can't calculate correct offset for tensors with different layout.
-    for (auto& op : params.fused_ops) {
-        if (!op.tensors.empty()) {
-            for (auto& t : op.tensors) {
-                if (!(t == params.inputs[0]))
-                    return false;
-            }
-        }
-    }
+    if (!params.fused_ops.empty() && params.output.GetLayout() != DataLayout::bfyx &&
+        params.output.GetLayout() != DataLayout::bfzyx)
+        return false;
 
     return true;
 }
 
 JitConstants ActivationKernelOpt::GetJitConstants(const activation_params& params, DispatchData kd) const {
     auto jit = ActivationKernelBase::GetJitConstants(params, kd);
+    auto input_dt = params.inputs[0].GetDType();
 
     jit.AddConstant(MakeJitConstant("NUM_COLS_WI", NUM_COLS_WI));
     if (!params.fused_ops.empty()) {
-        auto input_dt = GetUnitType(params);
-        FusedOpsConfiguration conf = {"", {"x"}, "v", input_dt, 4, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED, IndexType::LINEAR_OFFSET };
+        std::vector<std::string> idx_order;
+        if (params.inputs[0].GetDims().size() <= 4) {
+            idx_order = {"fo_b", "fo_f", "fo_y", "fo_x"};
+        } else if (params.inputs[0].GetDims().size() == 5) {
+            idx_order = {"fo_b", "fo_f", "fo_z", "fo_y", "fo_x"};
+        }
+        FusedOpsConfiguration conf =
+            {"", idx_order, "v", input_dt, 4, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED, IndexType::TENSOR_COORD};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
+    jit.Merge(MakeActivationJitConstants(params.activations, input_dt, "_KERNEL"));
 
     return jit;
 }

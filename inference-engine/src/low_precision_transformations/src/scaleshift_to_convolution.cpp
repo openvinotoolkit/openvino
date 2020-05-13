@@ -17,7 +17,7 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-static const std::unordered_set<std::string> defaultIgnoreWithParents = {
+static const char * defaultIgnoreWithParents[] = {
     "Convolution",
     "FakeQuantize"
 };
@@ -25,7 +25,8 @@ static const std::unordered_set<std::string> defaultIgnoreWithParents = {
 ScaleShiftToConvolutionTransformation::ScaleShiftToConvolutionTransformation(const Params& params) :
     WeightableLayerTransformation(params),
     groupSize(1ul),
-    ignoreWithParents(defaultIgnoreWithParents) {
+    ignoreWithParents(defaultIgnoreWithParents, defaultIgnoreWithParents +
+        sizeof(defaultIgnoreWithParents) / sizeof(defaultIgnoreWithParents[0])) {
 }
 
 void ScaleShiftToConvolutionTransformation::transform(TransformationContext& context, CNNLayer& layer) const {

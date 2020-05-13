@@ -57,6 +57,7 @@ public:
     const Version* GetVersion() {
         const Version* versionInfo = nullptr;
         IE_SUPPRESS_DEPRECATED_START
+        if (actual == nullptr) THROW_IE_EXCEPTION << "InferencePlugin wrapper was not initialized";
         actual->GetVersion(versionInfo);
         IE_SUPPRESS_DEPRECATED_END
         if (versionInfo == nullptr) {
@@ -153,6 +154,7 @@ public:
     void QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                       QueryNetworkResult& res) const {
         IE_SUPPRESS_DEPRECATED_START
+        if (actual == nullptr) THROW_IE_EXCEPTION << "InferencePlugin wrapper was not initialized";
         actual->QueryNetwork(network, config, res);
         IE_SUPPRESS_DEPRECATED_END
         if (res.rc != OK) THROW_IE_EXCEPTION << res.resp.msg;

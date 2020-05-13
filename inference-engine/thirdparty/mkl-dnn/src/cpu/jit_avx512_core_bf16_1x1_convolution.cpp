@@ -193,6 +193,7 @@ const {
         } else
             p.bcast_data = src + data_blk_off(src_d, n, _icb, ih, iw);
 
+        p.oc_off = _ocb * jcp.oc_block * sizeof(dst_data_t);
         kernel_->jit_ker(&p);
     };
 

@@ -3163,12 +3163,12 @@ void ScatterElementsUpdateValidator::checkShapes(const CNNLayer* layer, const ve
         THROW_IE_EXCEPTION << layer->name << " Incorrect number of 'updates' tensors dimension";
 
     Precision inIdxPrecision = layer->insData[INDICES].lock()->getTensorDesc().getPrecision();
-    if (inIdxPrecision != Precision::FP32 && inIdxPrecision != Precision::I32)
-        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Indices' precision. Only FP32 or I32 are supported!";
+    if (inIdxPrecision != Precision::FP32 && inIdxPrecision != Precision::I32 && inIdxPrecision != Precision::I64)
+        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Indices' precision. Only FP32 or I32 or I64 are supported!";
 
     Precision inAxisPrecision = layer->insData[AXIS].lock()->getTensorDesc().getPrecision();
-    if (inAxisPrecision != Precision::FP32 && inAxisPrecision != Precision::I32)
-        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Axis' precision. Only FP32 or I32 are supported!";
+    if (inAxisPrecision != Precision::FP32 && inAxisPrecision != Precision::I32 && inIdxPrecision != Precision::I64)
+        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Axis' precision. Only FP32 or I32 or I64 are supported!";
 
     if (layer->insData[DATA].lock()->getTensorDesc().getPrecision() !=
         layer->insData[UPDATES].lock()->getTensorDesc().getPrecision())

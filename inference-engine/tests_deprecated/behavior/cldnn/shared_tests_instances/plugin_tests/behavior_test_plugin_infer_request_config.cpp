@@ -5,5 +5,5 @@
 #include "behavior_test_plugin_infer_request_config.hpp"
 #include "cldnn_test_data.hpp"
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInferRequestConfigExclusiveAsync, ValuesIn(supportedValues),
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestInferRequestConfigExclusiveAsync, ValuesIn(supportedValues),
                         getConfigTestCaseName);

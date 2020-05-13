@@ -40,6 +40,7 @@ class ArgMaxToTopK(MiddleReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: dict):
         node = match['argmax']
+        node_name = node.soft_get('name', node.id)
 
         connected_ports = [port for port in node.in_ports().values() if not port.disconnected()]
         if len(connected_ports) == 2:
@@ -47,9 +48,11 @@ class ArgMaxToTopK(MiddleReplacementPattern):
         else:
             axis = node.axis
 
-        assert axis is not None, 'The "axis" should be defined for node "{}"'.format(node.soft_get('name'))
+        assert axis is not None, 'The "axis" should be defined for node "{}"'.format(node_name)
+        assert node.has_and_set('output_type'), 'The data type is not set for node "{}"'.format(node_name)
         topk_node = TopK(graph, {'axis': axis, 'mode': 'max', 'sort': 'index',
-                                 'remove_values_output': node.has_and_set('remove_values_output')}).create_node()
+                                 'remove_values_output': node.has_and_set('remove_values_output'),
+                                 'index_element_type': node.output_type}).create_node()
         node.in_port(0).get_connection().set_destination(topk_node.in_port(0))
         if node.has_and_set('out_max_val'):  # in this mode the ArgMax produces tuples (max_ind, max_value)
             concat_node = Concat(graph, {'axis': 1, 'name': node.name + '/Concat'}).create_node()

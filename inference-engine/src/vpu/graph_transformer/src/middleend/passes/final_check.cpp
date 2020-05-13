@@ -112,7 +112,7 @@ void PassImpl::run(const Model& model) {
                 //
 
                 if (dataEdge->connectionMode() == SharedConnectionMode::SINGLE_STAGE) {
-                    if (connectionStage->type() == StageType::Concat ||
+                    if (connectionStage->type() == StageType::StubConcat ||
                         connectionStage->type() == StageType::Expand) {
                         IE_ASSERT(producer == child);
                         IE_ASSERT(consumer == parent);

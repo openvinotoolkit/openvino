@@ -30,7 +30,6 @@ file(GLOB MKL_DNN_TEST_SOURCES
 list(APPEND MKL_DNN_LIBS
         IESharedTests
         inference_engine_lp_transformations
-        inference_engine_ir_readers
         ${Boost_REGEX_LIBRARY})
 
 list(APPEND TEST_SRC ${MKL_DNN_TEST_SOURCES})
@@ -63,5 +62,5 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${LIBRARIES})
 
 add_dependencies(${TARGET_NAME} ${DEPENDENCIES})
 
-add_test(NAME ${TARGET_NAME}
-         COMMAND ${TARGET_NAME})
+add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
+set_property(TEST ${TARGET_NAME} PROPERTY LABELS CPU)

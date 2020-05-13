@@ -143,7 +143,6 @@ public:
                         uint32_t split : 1;
                         uint32_t dilation : 1;
                         uint32_t depthwise_separable_opt : 1;
-                        uint32_t transposed : 1;
                         uint32_t local : 1;
                         uint32_t grouped : 1;
                         uint32_t deformable : 1;
@@ -186,6 +185,7 @@ public:
                     } resample;
                     struct reorder_t {
                         uint32_t winograd : 1;
+                        uint32_t rotate : 1;
                     } reorder;
                     struct eltwise_t {
                         uint32_t stride : 1;
@@ -317,7 +317,6 @@ public:
     void EnableDepthwiseSeparableOpt() { key.restrict.val.dedicated.conv.depthwise_separable_opt = 1; }
     void EnableLocalConvolution() { key.restrict.val.dedicated.conv.local = 1; }
     void EnableGroupedConvolution() { key.restrict.val.dedicated.conv.grouped = 1; }
-    void EnableTranspose() { key.restrict.val.dedicated.conv.transposed = 1; }
     void EnableInt8Quantization() { key.restrict.val.quantization = 1; }
     void EnableOutputCalibration() { key.restrict.val.output_calibration = 1; }
     void EnableDeformableMode() { key.restrict.val.dedicated.conv.deformable = 1; }
@@ -339,6 +338,7 @@ public:
     void EnableQuantizeScaleShiftOpt() { key.restrict.val.dedicated.quantize.scale_shift_opt = 1; }
 
     void EnableWinogradReorder() { key.restrict.val.dedicated.reorder.winograd = 1; }
+    void EnableRotateReorder() { key.restrict.val.dedicated.reorder.rotate = 1; }
     void EnableSoftmaxDim(SoftmaxDim d);
     void EnableConcatAxis(ConcatAxis a);
     void EnableReampleType(ResampleType a);

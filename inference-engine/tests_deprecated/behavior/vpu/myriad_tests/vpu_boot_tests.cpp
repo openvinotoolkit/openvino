@@ -112,4 +112,4 @@ const BehTestParams vpuValues[] = {
         BEH_MYRIAD,
 };
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, MYRIADBoot, ValuesIn(vpuValues), getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, MYRIADBoot, ValuesIn(vpuValues), getTestCaseName);

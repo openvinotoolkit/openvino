@@ -13,6 +13,7 @@ IE_SUPPRESS_DEPRECATED_START
 namespace InferenceEngine {
 
 Precision CNNNetwork::getPrecision() const {
+    if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
     return actual->getPrecision();
 }
 
@@ -41,7 +42,7 @@ StatusCode ICNNNetwork::AddExtension(const IShapeInferExtensionPtr& extension, R
 };
 
 void CNNNetwork::AddExtension(InferenceEngine::IShapeInferExtensionPtr extension) {
-        CALL_STATUS_FNC(AddExtension, extension);
+    CALL_STATUS_FNC(AddExtension, extension);
 }
 
 CNNLayer::CNNLayer(const LayerParams& prms)

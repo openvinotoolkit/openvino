@@ -4,7 +4,7 @@
 
 #include "myriad_layers_tests.hpp"
 
-typedef myriadLayerTestBaseWithParam<std::tuple<InferenceEngine::SizeVector, int32_t>> myriadLayersTestsFlatten_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<InferenceEngine::SizeVector, int32_t>> myriadLayersTestsFlatten_smoke;
 
 static void ref_flatten(const InferenceEngine::Blob::Ptr src,
                         InferenceEngine::Blob::Ptr dst) {
@@ -53,7 +53,7 @@ static void ref_flatten(const InferenceEngine::Blob::Ptr src,
     }
 }
 
-TEST_P(myriadLayersTestsFlatten_nightly, Flatten) {
+TEST_P(myriadLayersTestsFlatten_smoke, Flatten) {
     auto input = std::get<0>(GetParam());
     int32_t axis_val = std::get<1>(GetParam());
     IN_OUT_desc input_tensor;

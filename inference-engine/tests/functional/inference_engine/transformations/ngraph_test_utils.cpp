@@ -43,9 +43,9 @@ std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Fun
         }
 
         for (int i = 0; i < node1->inputs().size(); ++i) {
-            if (node1->input(i).get_shape() != node2->input(i).get_shape()) {
+            if (!node1->input(i).get_partial_shape().compatible(node2->input(i).get_partial_shape())) {
                 std::ostringstream out("Different shape detected");
-                out << node1->input(i).get_shape() << " and " << node2->input(i).get_shape();
+                out << node1->input(i).get_partial_shape() << " and " << node2->input(i).get_partial_shape();
                 return {false, out.str()};
             }
 

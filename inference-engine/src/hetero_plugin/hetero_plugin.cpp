@@ -3,9 +3,7 @@
 //
 
 #include "ie_metric_helpers.hpp"
-#include "ie_plugin_dispatcher.hpp"
 #include "hetero_plugin.hpp"
-#include "ie_util_internal.hpp"
 #include <memory>
 #include <vector>
 #include <map>
@@ -17,7 +15,6 @@
 #include "hetero/hetero_plugin_config.hpp"
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "hetero_executable_network.hpp"
-#include "cpp_interfaces/base/ie_inference_plugin_api.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
@@ -31,163 +28,88 @@ static Version heteroPluginDescription = {
         "heteroPlugin"  // plugin description message
 };
 
-void Engine::GetVersion(const Version *&versionInfo)noexcept {
-    versionInfo = &heteroPluginDescription;
-}
-
 Engine::Engine() {
     _pluginName = "HETERO";
-    _config[InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS] = "YES";
+    _config[KEY_EXCLUSIVE_ASYNC_REQUESTS] = YES;
     _config[HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)] = NO;
 }
 
-InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore*                     /*core*/,
-                                                                           const InferenceEngine::ICNNNetwork&    network,
-                                                                           const Configs&                   config) {
-    // TODO(amalyshe) do we need here verification of input precisions?
-    Configs tconfig;
-    tconfig = config;
+namespace {
 
-    // we must not override the parameter, but need to copy everything from plugin config
-    for (auto && c : _config) {
-        if (tconfig.find(c.first) == tconfig.end()) {
-            tconfig[c.first] = c.second;
-        }
+Engine::Configs mergeConfigs(Engine::Configs config, const Engine::Configs & local) {
+    for (auto && kvp : local) {
+        config[kvp.first] = kvp.second;
+    }
+    return config;
+}
+
+}  // namespace
+
+InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork&    network,
+                                                                           const Configs&                   config) {
+    if (GetCore() == nullptr) {
+        THROW_IE_EXCEPTION << "Please, work with HETERO device via InferencEngine::Core object";
     }
 
-    return std::make_shared<HeteroExecutableNetwork>(*cloneNet(network), tconfig, this);
+    return std::make_shared<HeteroExecutableNetwork>(*cloneNet(network), mergeConfigs(_config, config), this);
 }
 
 ExecutableNetwork Engine::ImportNetworkImpl(std::istream& heteroModel, const Configs& config) {
-    Configs tconfig;
-    tconfig = config;
-
-    // we must not override the parameter, but need to copy everything from plugin config
-    for (auto && c : _config) {
-        if (tconfig.find(c.first) == tconfig.end()) {
-            tconfig[c.first] = c.second;
-        }
+    if (GetCore() == nullptr) {
+        THROW_IE_EXCEPTION << "Please, work with HETERO device via InferencEngine::Core object";
     }
 
     IExecutableNetwork::Ptr executableNetwork;
-    // Use config provided by an user ignoring default config
     executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(
-                                std::make_shared<HeteroExecutableNetwork>(heteroModel, tconfig, this)),
+                                std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeConfigs(_config, config), this)),
                             [](InferenceEngine::details::IRelease *p) {p->Release();});
 
     return ExecutableNetwork{executableNetwork};
 }
 
-namespace  {
-
-IE_SUPPRESS_DEPRECATED_START
-
-IInferencePluginAPI * getInferencePluginAPIInterface(IInferencePlugin * iplugin) {
-    return dynamic_cast<IInferencePluginAPI *>(iplugin);
-}
-
-IInferencePluginAPI * getInferencePluginAPIInterface(InferenceEnginePluginPtr iplugin) {
-    return getInferencePluginAPIInterface(static_cast<IInferencePlugin *>(iplugin.operator->()));
-}
-
-IInferencePluginAPI * getInferencePluginAPIInterface(InferencePlugin plugin) {
-    return getInferencePluginAPIInterface(static_cast<InferenceEnginePluginPtr>(plugin));
-}
-
-}  // namespace
-
-Engine::Configs Engine::GetSupportedConfig(const Engine::Configs& globalConfig,
-                                           const Engine::Configs& localConfig,
-                                           const InferenceEngine::InferencePlugin& plugin) {
-    auto pluginApi = getInferencePluginAPIInterface(plugin);
-    std::vector<std::string> supportedConfigKeys = pluginApi->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
+Engine::Configs Engine::GetSupportedConfig(const Engine::Configs& config, const std::string & deviceName) const {
+    std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
     Engine::Configs supportedConfig;
     for (auto&& key : supportedConfigKeys) {
-        auto itKey = localConfig.find(key);
-        if (localConfig.end() != itKey) {
+        auto itKey = config.find(key);
+        if (config.end() != itKey) {
             supportedConfig[key] = itKey->second;
-        } else {
-            itKey = globalConfig.find(key);
-            if (globalConfig.end() != itKey) {
-                supportedConfig[key] = itKey->second;
-            }
         }
     }
     return supportedConfig;
 }
 
-Engine::PluginEntry Engine::GetDevicePlugin(const std::string& deviceWithID) const {
-    InferenceEngine::InferencePlugin plugin;
-    DeviceIDParser deviceParser(deviceWithID);
-    std::string deviceName = deviceParser.getDeviceName();
+Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& targetFallback,
+                                                          const Configs & localConfig) const {
+    auto getDeviceConfig = [&](const std::string & deviceWithID) {
+        DeviceIDParser deviceParser(deviceWithID);
+        std::string deviceName = deviceParser.getDeviceName();
+        Configs tconfig = mergeConfigs(_config, localConfig);
 
-    if (nullptr == _core) {
-        IE_SUPPRESS_DEPRECATED_START
-        // try to create plugin
-        PluginDispatcher dispatcher({file_name_t()});
-        plugin = dispatcher.getPluginByDevice(deviceName);
-        IE_SUPPRESS_DEPRECATED_END
-    } else {
-        plugin = InferencePlugin{_core->GetPluginByName(deviceName)};
-    }
-
-    try {
-        for (auto&& ext : _extensions) {
-            plugin.AddExtension(ext);
+        // set device ID if any
+        std::string deviceIDLocal = deviceParser.getDeviceID();
+        if (!deviceIDLocal.empty()) {
+            tconfig[KEY_DEVICE_ID] = deviceIDLocal;
         }
-    } catch (InferenceEngine::details::InferenceEngineException &) {}
 
-    Configs pluginConfig = GetSupportedConfig(_config, {}, plugin);
+        return GetSupportedConfig(tconfig, deviceName);
+    };
 
-    // set device ID if any
-    std::string deviceIDLocal = deviceParser.getDeviceID();
-    if (!deviceIDLocal.empty()) {
-        pluginConfig = GetSupportedConfig(pluginConfig, { { KEY_DEVICE_ID, deviceIDLocal } }, plugin);
-    }
-
-    return { plugin, pluginConfig };
-}
-
-IE_SUPPRESS_DEPRECATED_END
-
-Engine::Plugins Engine::GetDevicePlugins(const std::string& targetFallback) const {
-    auto devices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
-    Engine::Plugins plugins = _plugins;
-    for (auto&& device : devices) {
-        auto itPlugin = plugins.find(device);
-        if (plugins.end() == itPlugin) {
-            IE_SUPPRESS_DEPRECATED_START
-            plugins[device] = GetDevicePlugin(device);
-            IE_SUPPRESS_DEPRECATED_END
+    auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
+    Engine::DeviceMetaInformationMap metaDevices;
+    for (auto&& deviceName : fallbackDevices) {
+        auto itPlugin = metaDevices.find(deviceName);
+        if (metaDevices.end() == itPlugin) {
+            metaDevices[deviceName] = getDeviceConfig(deviceName);
         }
     }
-    return plugins;
-}
-
-Engine::Plugins Engine::GetDevicePlugins(const std::string& targetFallback) {
-    _plugins = const_cast<const Engine*>(this)->GetDevicePlugins(targetFallback);
-    return _plugins;
+    return metaDevices;
 }
 
 void Engine::SetConfig(const Configs &configs) {
     for (auto&& config : configs) {
         _config[config.first] = config.second;
     }
-
-    for (auto&& plugin : _plugins) {
-        plugin.second._config = GetSupportedConfig(plugin.second._config, configs, plugin.second._ref);
-    }
-}
-
-void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
-    _extensions.emplace_back(extension);
-    try {
-        for (auto&& plugin : _plugins) {
-            IE_SUPPRESS_DEPRECATED_START
-            plugin.second._ref.AddExtension(extension);
-            IE_SUPPRESS_DEPRECATED_END
-        }
-    } catch (InferenceEngine::details::InferenceEngineException &) {}
 }
 
 HeteroLayerColorer::HeteroLayerColorer(const std::vector<std::string>& devices) {
@@ -206,19 +128,8 @@ void HeteroLayerColorer::operator()(const CNNLayerPtr layer,
 }
 
 void Engine::SetAffinity(InferenceEngine::ICNNNetwork &network, const Configs &config) {
-    Configs tconfig = _config;
-    for (auto && value : config) {
-        tconfig[value.first] = value.second;
-    }
-
-    auto it = tconfig.find("TARGET_FALLBACK");
-    if (it == tconfig.end()) {
-        THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
-    }
-
-    GetDevicePlugins(it->second);
     QueryNetworkResult qr;
-    QueryNetwork(network, tconfig, qr);
+    QueryNetwork(network, config, qr);
 
     details::CNNNetworkIterator i(&network);
     while (i != details::CNNNetworkIterator()) {
@@ -230,7 +141,12 @@ void Engine::SetAffinity(InferenceEngine::ICNNNetwork &network, const Configs &c
         i++;
     }
 
-    if (YES == tconfig[HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)]) {
+    auto dumpDot = [](const Configs & config) {
+        auto it = config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
+        return it != config.end() ? it->second == YES : false;
+    };
+
+    if (dumpDot(config) || dumpDot(_config)) {
         std::unordered_set<std::string> devicesSet;
         details::CNNNetworkIterator i(&network);
         while (i != details::CNNNetworkIterator()) {
@@ -245,52 +161,49 @@ void Engine::SetAffinity(InferenceEngine::ICNNNetwork &network, const Configs &c
         stream << "hetero_affinity_" << network.getName() << ".dot";
 
         std::ofstream file(stream.str());
-
         saveGraphToDot(network, file, HeteroLayerColorer{devices});
     }
 }
 
 void Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config, QueryNetworkResult &qr) const {
-    auto it = config.find("TARGET_FALLBACK");
-    if (it == config.end()) {
-        it = _config.find("TARGET_FALLBACK");
-
-        if (it == _config.end()) {
-            THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
-        }
+    if (GetCore() == nullptr) {
+        THROW_IE_EXCEPTION << "Please, work with HETERO device via InferencEngine::Core object";
     }
 
-    Plugins plugins = GetDevicePlugins(it->second);
+    auto tconfig = mergeConfigs(_config, config);
+    auto it = tconfig.find("TARGET_FALLBACK");
+    if (it == tconfig.end()) {
+        THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+    }
 
-    qr.rc = StatusCode::OK;
+    std::string fallbackDevicesStr = it->second;
+    DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, tconfig);
 
     std::map<std::string, QueryNetworkResult> queryResults;
-    // go over devices, create appropriate plugins and
-    for (auto&& value : plugins) {
-        auto& device = value.first;
-        auto& plugin = value.second;
-        QueryNetworkResult r;
-        IE_SUPPRESS_DEPRECATED_START
-        plugin._ref.QueryNetwork(network, GetSupportedConfig(plugin._config, config, plugin._ref), r);
-        IE_SUPPRESS_DEPRECATED_END
-        queryResults[device] = r;
+    // go over devices and call query network
+    for (auto&& metaDevice : metaDevices) {
+        auto& deviceName = metaDevice.first;
+        queryResults[deviceName] = GetCore()->QueryNetwork(network, deviceName, metaDevice.second);
     }
 
     //  WARNING: Here is devices with user set priority
-    auto falbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(it->second);
+    auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(fallbackDevicesStr);
 
     details::CNNNetworkIterator i(&network);
     while (i != details::CNNNetworkIterator()) {
         CNNLayer::Ptr layer = *i;
-        for (auto&& device : falbackDevices) {
-            auto& deviceQueryResult = queryResults[device];
+        for (auto&& deviceName : fallbackDevices) {
+            auto& deviceQueryResult = queryResults[deviceName];
             if (deviceQueryResult.supportedLayersMap.find(layer->name) != deviceQueryResult.supportedLayersMap.end()) {
-                qr.supportedLayersMap[layer->name] = device;
+                qr.supportedLayersMap[layer->name] = deviceName;
                 break;
             }
         }
         i++;
     }
+
+    // set OK status
+    qr.rc = StatusCode::OK;
 }
 
 Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter> & /*options*/) const {
@@ -317,6 +230,13 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         IE_ASSERT(it != _config.end());
         bool dump = it->second == YES;
         return { dump };
+    } else if (name == "TARGET_FALLBACK") {
+        auto it = _config.find("TARGET_FALLBACK");
+        if (it == _config.end()) {
+            THROW_IE_EXCEPTION << "Value for TARGET_FALLBACK is not set";
+        } else {
+            return { it->second };
+        }
     } else {
         THROW_IE_EXCEPTION << "Unsupported config key: " << name;
     }

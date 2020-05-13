@@ -62,7 +62,7 @@ protected:
         eltwise->set_output_type(0, eltwise->get_input_element_type(0), ngraph::PartialShape::dynamic(eltwise->get_output_partial_shape(0).rank()));
 
         const auto transformations = vpu::Transformations{{eltwiseType, vpu::dynamicToStaticShapeBinaryEltwise}};
-        vpu::DynamicToStaticShape(transformations).transform(*function);
+        vpu::DynamicToStaticShape(transformations).transform(function);
         return function;
     }
 
@@ -200,7 +200,7 @@ protected:
         eltwise->set_output_type(0, eltwise->get_input_element_type(0), ngraph::PartialShape::dynamic(eltwise->get_output_partial_shape(0).rank()));
 
         const auto transformations = vpu::Transformations{{eltwiseType, vpu::dynamicToStaticShapeBinaryEltwise}};
-        vpu::DynamicToStaticShape(transformations).transform(*function);
+        vpu::DynamicToStaticShape(transformations).transform(function);
         return function;
     }
 

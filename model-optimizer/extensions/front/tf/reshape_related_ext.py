@@ -31,7 +31,7 @@ class RankFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
-        Rank.update_node_stat(node)
+        Rank.update_node_stat(node, {'output_type': np.int32})
         return cls.enabled
 
 
@@ -51,7 +51,7 @@ class ShapeExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
-        Shape.update_node_stat(node, {'data_type': tf_dtype_extractor(node.pb.attr['out_type'].type, np.int32)})
+        Shape.update_node_stat(node, {'output_type': tf_dtype_extractor(node.pb.attr['out_type'].type, np.int32)})
         return cls.enabled
 
 
@@ -61,7 +61,7 @@ class SizeFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        Size.update_node_stat(node)
+        Size.update_node_stat(node, {'output_type': tf_dtype_extractor(node.pb.attr['out_type'].type, np.int32)})
         return cls.enabled
 
 

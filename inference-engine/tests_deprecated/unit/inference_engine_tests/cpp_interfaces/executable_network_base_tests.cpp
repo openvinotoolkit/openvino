@@ -66,3 +66,65 @@ TEST_F(ExecutableNetworkBaseTests, canCatchUnknownErrorInExport) {
     EXPECT_CALL(*mock_impl.get(), Export(_)).WillOnce(Throw(5));
     ASSERT_EQ(UNEXPECTED, exeNetwork->Export({}, nullptr));
 }
+
+using ExecutableNetworkTests = ::testing::Test;
+
+TEST_F(ExecutableNetworkTests, throwsOnInitWithNull) {
+    std::shared_ptr<IExecutableNetwork> nlptr = nullptr;
+    ASSERT_THROW(ExecutableNetwork exec(nlptr), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(ExecutableNetworkTests, throwsOnUninitializedGetOutputsInfo) {
+    ExecutableNetwork exec;
+    ASSERT_THROW(exec.GetOutputsInfo(), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(ExecutableNetworkTests, throwsOnUninitializedGetInputsInfo) {
+    ExecutableNetwork exec;
+    ASSERT_THROW(exec.GetInputsInfo(), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(ExecutableNetworkTests, throwsOnUninitializedExport) {
+    ExecutableNetwork exec;
+    ASSERT_THROW(exec.Export(std::string()), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(ExecutableNetworkTests, throwsOnUninitializedExportStream) {
+    ExecutableNetwork exec;
+    ASSERT_THROW(exec.Export(std::cout), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(ExecutableNetworkTests, nothrowsOnUninitializedCast) {
+    ExecutableNetwork exec;
+    ASSERT_NO_THROW(auto & enet = static_cast<IExecutableNetwork::Ptr&>(exec));
+}
+
+TEST_F(ExecutableNetworkTests, throwsOnUninitializedGetExecGraphInfo) {
+    ExecutableNetwork exec;
+    ASSERT_THROW(exec.GetExecGraphInfo(), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(ExecutableNetworkTests, throwsOnUninitializedQueryState) {
+    ExecutableNetwork exec;
+    ASSERT_THROW(exec.QueryState(), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(ExecutableNetworkTests, throwsOnUninitializedSetConfig) {
+    ExecutableNetwork exec;
+    ASSERT_THROW(exec.SetConfig({{}}), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(ExecutableNetworkTests, throwsOnUninitializedGetConfig) {
+    ExecutableNetwork exec;
+    ASSERT_THROW(exec.GetConfig({}), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(ExecutableNetworkTests, throwsOnUninitializedGetMetric) {
+    ExecutableNetwork exec;
+    ASSERT_THROW(exec.GetMetric({}), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(ExecutableNetworkTests, throwsOnUninitializedGetContext) {
+    ExecutableNetwork exec;
+    ASSERT_THROW(exec.GetContext(), InferenceEngine::details::InferenceEngineException);
+}

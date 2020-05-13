@@ -28,6 +28,7 @@ class ExperimentalDetectronDetectionOutput(Op):
         mandatory_props = dict(
             type=__class__.op,
             op=__class__.op,
+            version='experimental',
             infer=__class__.infer,
             type_infer=self.type_infer,
             in_ports_count=4,

@@ -292,7 +292,7 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
 #else // OUTPUT_FEATURE_NUM > 16
         const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV + lid, y, x+i);
         if (x + i < OUTPUT_SIZE_X && fg*OSV + lid < OUTPUT_FEATURE_NUM) {
-            output[dst_index] = dst[ofm][i];
+            output[dst_index] = dst[0][i];
         }
 #endif // OUTPUT_FEATURE_NUM > 16
     }

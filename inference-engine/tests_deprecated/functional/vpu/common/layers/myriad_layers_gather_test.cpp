@@ -6,7 +6,7 @@
 
 using namespace testing;
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerGather_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerGather_smoke,
                         Values(GatherTestParams { {36549, 1024},   {16},           0, "FP16" },
                                GatherTestParams { {10},            {10},           0, "FP16" },
                                GatherTestParams { {36549, 1024},   {10},           0, "FP16" },

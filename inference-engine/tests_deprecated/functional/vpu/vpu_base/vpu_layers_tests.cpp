@@ -92,6 +92,15 @@ void vpuLayersTests::dumpPerformance() {
     }
 }
 
+bool vpuLayersTests::wasCustomLayerInferred() const {
+     auto perfMap = std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>{};
+    _inferRequest->GetPerformanceCounts(perfMap, nullptr);
+    const auto isCustomLayer = [&](const std::pair<std::string, InferenceEngine::InferenceEngineProfileInfo>& info) {
+        return !strcmp(info.second.exec_type, "Custom");
+    };
+    return std::any_of(begin(perfMap), end(perfMap), isCustomLayer);
+}
+
 namespace {
 
 template<class TensorDescriptor>
@@ -240,7 +249,11 @@ bool vpuLayersTests::Infer() {
         return false;
     const auto st = _inferRequest->Infer(&_resp);
     EXPECT_EQ(InferenceEngine::StatusCode::OK, st) << _resp.msg;
-    //dumpPerformance();
+//    dumpPerformance();
+    if (!_config[VPU_CONFIG_KEY(CUSTOM_LAYERS)].empty()) {
+        EXPECT_TRUE(wasCustomLayerInferred())
+            << "CustomBindings.xml has been provided but Custom layer was not inferred";
+    }
     return true;
 }
 

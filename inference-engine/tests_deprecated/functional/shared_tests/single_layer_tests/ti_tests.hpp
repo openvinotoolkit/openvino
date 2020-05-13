@@ -293,21 +293,24 @@ class TITest2Base: public PlgTest<ti_test_params> {
 
 protected:
     virtual void RunTITest(const std::map<std::string, std::string> & config = {}) {
-
         try {
             ti_test_params p = param();
             std::string model = getModel(p);
 
             auto weights = make_shared_blob<uint8_t>(TensorDesc {Precision::U8, {p.precision.size() * p.tensorSize}, C});
             weights->allocate();
-            auto weights_size = details::product(std::begin(weights->getTensorDesc().getDims()), std::end(weights->getTensorDesc().getDims()));
+
             if (p.precision == Precision::FP32) {
-                std::vector<float> weights_vector(weights_size, 1.0f);
-                ie_memcpy(weights->buffer().as<float *>(), sizeof(float), &weights_vector[0], weights_vector.size() * sizeof(float));
-            } else {
+                std::vector<float> weights_vector(p.tensorSize, 1.0f);
+                ie_memcpy(weights->buffer().as<float *>(), p.tensorSize * sizeof(float),
+                    &weights_vector[0], p.tensorSize * sizeof(float));
+            } else if (p.precision == Precision::FP16) {
                 //  FP16 case
-                std::vector<ie_fp16> weights_vector(weights_size, PrecisionUtils::f32tof16(1.0f));
-                ie_memcpy(weights->buffer().as<ie_fp16 *>(), sizeof(ie_fp16), &weights_vector[0], weights_vector.size() * sizeof(ie_fp16));
+                std::vector<ie_fp16> weights_vector(p.tensorSize, PrecisionUtils::f32tof16(1.0f));
+                ie_memcpy(weights->buffer().as<ie_fp16 *>(), p.tensorSize * sizeof(ie_fp16),
+                    &weights_vector[0], p.tensorSize * sizeof(ie_fp16));
+            } else {
+                ASSERT_TRUE(false);
             }
 
             Core ie;

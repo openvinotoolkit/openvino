@@ -13,8 +13,11 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
+
 from extensions.ops.argmax import ArgMaxOp
 from mo.front.extractor import FrontExtractorOp
+from mo.front.tf.extractors.utils import tf_dtype_extractor
 
 
 class ArgMaxFrontExtractor(FrontExtractorOp):
@@ -24,5 +27,7 @@ class ArgMaxFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         ArgMaxOp.update_node_stat(node, {'out_max_val': 0, 'top_k': 1, 'axis': None,
-                                         'dim_attrs': ['axis'], 'keepdims': 0, 'remove_values_output': True})
+                                         'dim_attrs': ['axis'], 'keepdims': 0, 'remove_values_output': True,
+                                         'output_type': tf_dtype_extractor(node.pb.attr['out_type'].type, np.int64),
+                                         })
         return cls.enabled

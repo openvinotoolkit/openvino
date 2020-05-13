@@ -5,7 +5,7 @@
 #include "myriad_layers_softmax_test.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-    accuracy, myriadLayersTestsSoftMax_nightly,    
+    accuracy, myriadLayersTestsSoftMax_smoke,    
     ::testing::Combine(
         ::testing::ValuesIn(s_softMaxTensors)
       , ::testing::Values<IRVersion>(IRVersion::v7, IRVersion::v10)

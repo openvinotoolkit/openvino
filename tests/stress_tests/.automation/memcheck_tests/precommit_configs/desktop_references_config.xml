@@ -1,21 +1,21 @@
 <?xml version="1.0"?>
 <attributes>
     <models>
-<model path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="create_exenetwork" device="CPU" vmsize="757218" vmpeak="901683" vmrss="73920" vmhwm="107866" />
-<model path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="create_exenetwork" device="GPU" vmsize="747815" vmpeak="860978" vmrss="401808" vmhwm="435358" />
-<model path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="infer_request_inference" device="CPU" vmsize="1001189" vmpeak="1001189" vmrss="116080" vmhwm="116080" />
-<model path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="infer_request_inference" device="GPU" vmsize="788752" vmpeak="860842" vmrss="435283" vmhwm="435283" />
-<model path="public/mtcnn-r/FP32/mtcnn-r.xml" test="create_exenetwork" device="CPU" vmsize="754806" vmpeak="803184" vmrss="15206" vmhwm="26532" />
-<model path="public/mtcnn-r/FP32/mtcnn-r.xml" test="create_exenetwork" device="GPU" vmsize="554650" vmpeak="644666" vmrss="207592" vmhwm="217720" />
-<model path="public/mtcnn-r/FP32/mtcnn-r.xml" test="infer_request_inference" device="CPU" vmsize="959257" vmpeak="959257" vmrss="26690" vmhwm="26690" />
-<model path="public/mtcnn-r/FP32/mtcnn-r.xml" test="infer_request_inference" device="GPU" vmsize="572576" vmpeak="644666" vmrss="215230" vmhwm="215230" />
-<model path="public/ssd300/FP32/ssd300.xml" test="create_exenetwork" device="CPU" vmsize="755224" vmpeak="1146142" vmrss="22246" vmhwm="370770" />
-<model path="public/ssd300/FP32/ssd300.xml" test="create_exenetwork" device="GPU" vmsize="747709" vmpeak="1031694" vmrss="401746" vmhwm="749962" />
-<model path="public/ssd300/FP32/ssd300.xml" test="infer_request_inference" device="CPU" vmsize="1343474" vmpeak="1415563" vmrss="314204" vmhwm="371131" />
-<model path="public/ssd300/FP32/ssd300.xml" test="infer_request_inference" device="GPU" vmsize="1088700" vmpeak="1160790" vmrss="739626" vmhwm="748008" />
-<model path="public/vgg16/FP32/vgg16.xml" test="create_exenetwork" device="CPU" vmsize="754050" vmpeak="2548532" vmrss="15593" vmhwm="1808765" />
-<model path="public/vgg16/FP32/vgg16.xml" test="create_exenetwork" device="GPU" vmsize="648912" vmpeak="3289101" vmrss="299327" vmhwm="3003457" />
-<model path="public/vgg16/FP32/vgg16.xml" test="infer_request_inference" device="CPU" vmsize="2257006" vmpeak="2548532" vmrss="1243448" vmhwm="1809143" />
-<model path="public/vgg16/FP32/vgg16.xml" test="infer_request_inference" device="GPU" vmsize="2413290" vmpeak="3289101" vmrss="2059780" vmhwm="3006845" />
+        <model path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="create_exenetwork" device="CPU" vmsize="740214" vmpeak="805110" vmrss="129308" vmhwm="129308" />
+        <model path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="create_exenetwork" device="GPU" vmsize="922147" vmpeak="922147" vmrss="587522" vmhwm="587522" />
+        <model path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="infer_request_inference" device="CPU" vmsize="1007890" vmpeak="1007890" vmrss="138652" vmhwm="138652" />
+        <model path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="infer_request_inference" device="GPU" vmsize="1006439" vmpeak="1091636" vmrss="587241" vmhwm="587241" />
+        <model path="public/mtcnn-r/FP32/mtcnn-r.xml" test="create_exenetwork" device="CPU" vmsize="691589" vmpeak="922864" vmrss="31054" vmhwm="31054" />
+        <model path="public/mtcnn-r/FP32/mtcnn-r.xml" test="create_exenetwork" device="GPU" vmsize="626194" vmpeak="626194" vmrss="290695" vmhwm="290695" />
+        <model path="public/mtcnn-r/FP32/mtcnn-r.xml" test="infer_request_inference" device="CPU" vmsize="958240" vmpeak="1043437" vmrss="31366" vmhwm="31366" />
+        <model path="public/mtcnn-r/FP32/mtcnn-r.xml" test="infer_request_inference" device="GPU" vmsize="708734" vmpeak="793930" vmrss="287877" vmhwm="287877" />
+        <model path="public/ssd300/FP32/ssd300.xml" test="create_exenetwork" device="CPU" vmsize="1046988" vmpeak="1179042" vmrss="307990" vmhwm="439457" />
+        <model path="public/ssd300/FP32/ssd300.xml" test="create_exenetwork" device="GPU" vmsize="1267775" vmpeak="1279647" vmrss="932672" vmhwm="944626" />
+        <model path="public/ssd300/FP32/ssd300.xml" test="infer_request_inference" device="CPU" vmsize="1321819" vmpeak="1321819" vmrss="374207" vmhwm="439748" />
+        <model path="public/ssd300/FP32/ssd300.xml" test="infer_request_inference" device="GPU" vmsize="1356565" vmpeak="1441762" vmrss="941418" vmhwm="947060" />
+        <model path="public/vgg16/FP32/vgg16.xml" test="create_exenetwork" device="CPU" vmsize="2133814" vmpeak="2836412" vmrss="1438049" vmhwm="2140533" />
+        <model path="public/vgg16/FP32/vgg16.xml" test="create_exenetwork" device="GPU" vmsize="2801422" vmpeak="3915366" vmrss="2465065" vmhwm="3578811" />
+        <model path="public/vgg16/FP32/vgg16.xml" test="infer_request_inference" device="CPU" vmsize="2401380" vmpeak="2836412" vmrss="1469832" vmhwm="2140377" />
+        <model path="public/vgg16/FP32/vgg16.xml" test="infer_request_inference" device="GPU" vmsize="2892432" vmpeak="3939166" vmrss="2472017" vmhwm="3602924" />
     </models>
 </attributes>

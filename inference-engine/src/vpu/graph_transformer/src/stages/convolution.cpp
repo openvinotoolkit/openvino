@@ -93,7 +93,14 @@ bool canTryHW(const int outputNumDims,
         tryHW = false;
     }
 
-    if (kernelSizeX > 15 || kernelSizeY > 15 || kernelStrideX > 8) {
+    // 1x16 convolution is split into two 1x8 convolutions in splitLargeKernelConv pass
+    const bool KernelSizeCantBeSplit = !(kernelSizeX == 16 && kernelSizeY == 1);
+    const bool KernelSizeTooLarge = (kernelSizeX > 15 || kernelSizeY > 15);
+    if (KernelSizeTooLarge && KernelSizeCantBeSplit) {
+        tryHW = false;
+    }
+
+    if (kernelStrideX > 8) {
         tryHW = false;
     }
 
@@ -138,6 +145,10 @@ void parseConv2D(const Model      & model,
     int dilationY = convLayer->_dilation_y;
 
     int groupSize = convLayer->_group;
+
+    // kernelStrideY doesn't matter when kernelSizeY==InputSizeY, change it to try HW in 1D case
+    if (kernelSizeY == input->desc().dim(Dim::H) + padTop + padBottom)
+        kernelStrideY = kernelStrideX;
 
     //
     // Check if HW is applicable

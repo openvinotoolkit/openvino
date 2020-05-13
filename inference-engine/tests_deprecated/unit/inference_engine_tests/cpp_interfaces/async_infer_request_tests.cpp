@@ -291,3 +291,76 @@ TEST_F(InferRequestTests, failToSetInputWithEmptyDimensions) {
     auto exceptionMessage = getExceptionMessage([&]() { InferRequest->SetInput(blobMap); });
     ASSERT_EQ(_inputDataIsEmptyError, exceptionMessage.substr(0, _inputDataIsEmptyError.size()));
 }
+
+using InferRequestCPPTests = ::testing::Test;
+
+TEST_F(InferRequestCPPTests, throwsOnInitWithNull) {
+    IInferRequest::Ptr nlptr = nullptr;
+    ASSERT_THROW(InferRequest req(nlptr), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedSetBlob) {
+    InferRequest req;
+    ASSERT_THROW(req.SetBlob({}, {}), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedGetBlob) {
+    InferRequest req;
+    ASSERT_THROW(req.GetBlob({}), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedSetBlobPreproc) {
+    InferRequest req;
+    ASSERT_THROW(req.SetBlob({}, {}, {}), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedGetPreProcess) {
+    InferRequest req;
+    ASSERT_THROW(req.GetPreProcess({}), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedInfer) {
+    InferRequest req;
+    ASSERT_THROW(req.Infer(), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedGetPerformanceCounts) {
+    InferRequest req;
+    ASSERT_THROW(req.GetPerformanceCounts(), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedSetInput) {
+    InferRequest req;
+    ASSERT_THROW(req.SetInput({{}}), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedSetOutput) {
+    InferRequest req;
+    ASSERT_THROW(req.SetOutput({{}}), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedSetBatch) {
+    InferRequest req;
+    ASSERT_THROW(req.SetBatch({}), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedStartAsync) {
+    InferRequest req;
+    ASSERT_THROW(req.StartAsync(), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedWait) {
+    InferRequest req;
+    ASSERT_THROW(req.Wait({}), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedSetCompletionCallback) {
+    InferRequest req;
+    std::function<void(InferRequest, StatusCode)> f;
+    ASSERT_THROW(req.SetCompletionCallback(f), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST_F(InferRequestCPPTests, throwsOnUninitializedCast) {
+    InferRequest req;
+    ASSERT_THROW(auto & ireq = static_cast<IInferRequest::Ptr&>(req), InferenceEngine::details::InferenceEngineException);
+}

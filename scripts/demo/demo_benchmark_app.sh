@@ -170,7 +170,7 @@ if [ ! -e "$ir_dir" ]; then
     printf "Install Model Optimizer dependencies\n\n"
     cd "${INTEL_OPENVINO_DIR}/deployment_tools/model_optimizer/install_prerequisites"
     . ./install_prerequisites.sh caffe
-    cd $cur_path
+    cd "$cur_path"
 
     # Step 3. Convert a model with Model Optimizer
     printf "${dashes}"

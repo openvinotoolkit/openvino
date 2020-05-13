@@ -3,7 +3,6 @@
 //
 
 #include "behavior_test_plugin.h"
-#include <test_assertions.hpp>
 
 using namespace std;
 using namespace ::testing;

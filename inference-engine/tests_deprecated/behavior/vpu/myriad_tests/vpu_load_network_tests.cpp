@@ -8,12 +8,12 @@
 #include "behavior_test_plugin.h"
 #include "helpers/myriad_load_network_case.hpp"
 
-TEST_F(MyriadLoadNetworkTestCase, ReloadPlugin) {
+TEST_F(MyriadLoadNetworkTestCase, smoke_ReloadPlugin) {
     ASSERT_NO_THROW(LoadNetwork());
     ASSERT_NO_THROW(LoadNetwork());
 }
 
-TEST_F(MyriadLoadNetworkTestCase, SimpleLoading) {
+TEST_F(MyriadLoadNetworkTestCase, smoke_SimpleLoading) {
     auto devices = getDevicesList();
     ASSERT_TRUE(devices.size());
 
@@ -28,7 +28,7 @@ TEST_F(MyriadLoadNetworkTestCase, SimpleLoading) {
     ASSERT_TRUE(!IsDeviceAvailable(device_to_load));
 }
 
-TEST_F(MyriadLoadNetworkTestCase, LoadingAtTheSameDevice) {
+TEST_F(MyriadLoadNetworkTestCase, smoke_LoadingAtTheSameDevice) {
     auto devices = getDevicesList();
     ASSERT_TRUE(devices.size());
 
@@ -46,7 +46,7 @@ TEST_F(MyriadLoadNetworkTestCase, LoadingAtTheSameDevice) {
                         ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
 }
 
-TEST_F(MyriadLoadNetworkTestCase, ThrowsExeptionWhenNameIsInvalid) {
+TEST_F(MyriadLoadNetworkTestCase, smoke_ThrowsExeptionWhenNameIsInvalid) {
     auto device_to_load = "SomeVeryBadName";
     std::map<std::string, std::string> config = {
         {KEY_DEVICE_ID, device_to_load},
@@ -56,7 +56,7 @@ TEST_F(MyriadLoadNetworkTestCase, ThrowsExeptionWhenNameIsInvalid) {
         ie->LoadNetwork(cnnNetwork, "MYRIAD", config));
 }
 
-TEST_F(MyriadLoadNetworkTestCase, ThrowsExeptionWhenPlatformConflictWithProtocol) {
+TEST_F(MyriadLoadNetworkTestCase, smoke_ThrowsExeptionWhenPlatformConflictWithProtocol) {
     std::string wrong_platform;
     auto devices = getDevicesList();
     ASSERT_TRUE(devices.size());

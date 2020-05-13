@@ -28,16 +28,18 @@ namespace LayerTestsDefinitions {
 
 class Faster100_5_1_1_Conv : public BasicBF16Test  {
 protected:
-    std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision)override {
+    std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
         //                     Power (FP32)
         //                       |
         //                     Convolution (BF16)
 
         // STAGE1: constructin og the GRAPH
+        auto channelsCount = inputShapes[1];
+
         // multiply
         ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
         // multiply
-        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{10, 5, 1, 1});
+        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{inputShapes});
         input1->set_friendly_name("Input_1");
         std::shared_ptr<ngraph::opset1::Constant> const1 = nullptr;
         if (netPrecision == Precision::FP32) {
@@ -59,10 +61,10 @@ protected:
 
         // problematic convolution: 100x5x1x1
         std::shared_ptr<ngraph::opset1::Constant> weightsNode = nullptr;
-        ngraph::Shape convFilterShape = { 5, 5, 1, 1 };  // out channel, /input channels, kernel h, kernel w
+        ngraph::Shape convFilterShape = { channelsCount, channelsCount, 1, 1 };  // out channel, /input channels, kernel h, kernel w
         if (netPrecision == Precision::FP32) {
             std::vector<float> weightValues;
-            weightValues.resize(5 * 5 * 1 * 1, 0.f);
+            weightValues.resize(channelsCount * channelsCount * 1 * 1, 0.f);
             weightValues[0] = 1.0f;
             weightValues[7] = 1.0f;
             weightValues[11] = 1.0f;
@@ -71,7 +73,7 @@ protected:
             weightsNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, convFilterShape, weightValues);
         } else {
             std::vector<short> weightValuesBF16;
-            weightValuesBF16.resize(5 * 5 * 1 * 1, BFloat16Helpers::reducePrecisionBitwiseS(0.0f));
+            weightValuesBF16.resize(channelsCount * channelsCount * 1 * 1, BFloat16Helpers::reducePrecisionBitwiseS(0.0f));
             weightValuesBF16[0] = BFloat16Helpers::reducePrecisionBitwiseS(1.0f);
             weightValuesBF16[7] = BFloat16Helpers::reducePrecisionBitwiseS(1.0f);
             weightValuesBF16[11] = BFloat16Helpers::reducePrecisionBitwiseS(1.0f);
@@ -96,7 +98,7 @@ protected:
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{reluNode}, ngraph::ParameterVector{input1});
     }
 
-    void SetUp()override {
+    void SetUp() override {
         std::tie(inputPrecision, netPrecision, inputShapes, newInputShapes, targetDevice) = this->GetParam();
         fnPtr = createGraph(netPrecision);
 

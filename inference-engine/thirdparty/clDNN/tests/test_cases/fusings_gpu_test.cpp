@@ -31,6 +31,7 @@
 #include "api/data.hpp"
 #include "api/resample.hpp"
 #include "api/mvn.hpp"
+#include "api/deconvolution.hpp"
 
 #include "test_utils/test_utils.h"
 
@@ -125,6 +126,17 @@ public:
 
         size_t reorders_count_fused = get_reorders_count(fused);
         size_t reorders_count_not_fused = get_reorders_count(not_fused);
+
+        std::stringstream description;
+        description << std::endl << "not fused: " << std::endl;
+        for (auto i : not_fused.get_primitives_info()) {
+            description << "  " << i.original_id << " " << i.kernel_id << std::endl;
+        }
+        description << "fused: " << std::endl;
+        for (auto i : fused.get_primitives_info()) {
+            description << "  " << i.original_id << " " << i.kernel_id << std::endl;
+        }
+        SCOPED_TRACE(description.str());
 
         // Subtract reorders count to handle execution in different layouts when input/output reorders can be added in the graph
         ASSERT_EQ(fused.get_executed_primitives().size() - reorders_count_fused, p.expected_fused_primitives);
@@ -350,6 +362,7 @@ public:
 #define CASE_CONV_FP32_10 {32, 16, 4, 5, 4}, {32, 32, 4, 5, 4}, {1, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_CONV_FP32_11 {1, 32, 4, 5, 4}, {1, 16, 2, 3, 2}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
 #define CASE_CONV_FP32_12 {1, 16, 4, 5, 4}, {1, 16, 2, 3, 2}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_FP32_13 {1, 16, 18, 5, 4}, {1, 16, 16, 3, 2}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
 
 #define CASE_CONV_FP16_1 {1, 15, 4, 5}, {1, 30, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_CONV_FP16_2 {1, 16, 4, 5}, {1, 32, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::os_is_yx_isv16_osv16, data_types::f16, format::bfyx
@@ -654,6 +667,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_eltwise_b_fs_zyx_fsv16,
                                 bc_test_params{CASE_CONV_FP32_9, 2, 3},
                                 bc_test_params{CASE_CONV_FP32_11, 2, 3},
                                 bc_test_params{CASE_CONV_FP32_12, 2, 3},
+                                // bc_test_params{CASE_CONV_FP32_13, 2, 3}, - leads to mvn_scale_activation_quantize_i8_eltwise_fp32_quantize_i8.basic/11 test failure
 
                                 bc_test_params{CASE_CONV_FP16_6, 2, 3},
                                 bc_test_params{CASE_CONV_FP16_7, 2, 3},
@@ -1478,6 +1492,67 @@ TEST_P(conv_int8_scale_quantize_i8, basic) {
 }
 
 INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale_quantize_i8,
+                        ::testing::ValuesIn(std::vector<bc_test_params>{
+                                bc_test_params{CASE_CONV_U8S8_1, 2, 4},
+                                bc_test_params{CASE_CONV_U8S8_2, 2, 4},
+                                bc_test_params{CASE_CONV_U8S8_3, 2, 4},
+                                bc_test_params{CASE_CONV_U8S8_4, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_1, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_2, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_3, 2, 4},
+                                bc_test_params{CASE_CONV_S8S8_4, 2, 4},
+
+                                bc_test_params{CASE_CONV3D_U8S8_1, 2, 4},
+                                bc_test_params{CASE_CONV3D_U8S8_2, 2, 4},
+                                bc_test_params{CASE_CONV3D_U8S8_3, 2, 4},
+                                bc_test_params{CASE_CONV3D_U8S8_4, 2, 4},
+                                bc_test_params{CASE_CONV3D_S8S8_1, 2, 4},
+                                bc_test_params{CASE_CONV3D_S8S8_2, 2, 4},
+                                bc_test_params{CASE_CONV3D_S8S8_3, 2, 4},
+                                bc_test_params{CASE_CONV3D_S8S8_4, 2, 4},
+                        }), );
+
+class conv_int8_relu_quantize : public ConvFusingTest {};
+TEST_P(conv_int8_relu_quantize, i8) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+                 data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+                 data("out_lo", get_mem(get_single_element_layout(p), -127)),
+                 data("out_hi", get_mem(get_single_element_layout(p), 127)),
+                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+                 activation("relu", "conv_prim", activation_func::relu),
+                 quantize("quantize", "relu", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::i8),
+                 reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+    // Output elements are in range [-127, 127]
+    // 1.0f difference is allowed, since quantize can return different values in ref and scale_shift kernels
+    // due to big error of division (in ref kernel).
+    tolerance = 1.0f;
+    execute(p);
+}
+
+TEST_P(conv_int8_relu_quantize, u8) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("in_lo", get_mem(get_per_channel_layout(p), 0)),
+                 data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+                 data("out_lo", get_mem(get_single_element_layout(p), 0)),
+                 data("out_hi", get_mem(get_single_element_layout(p), 255)),
+                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+                 activation("relu", "conv_prim", activation_func::relu),
+                 quantize("quantize", "relu", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
+                 reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+    tolerance = 1.0f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_relu_quantize,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_U8S8_1, 2, 4},
                                 bc_test_params{CASE_CONV_U8S8_2, 2, 4},
@@ -2842,3 +2917,650 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             lrn_test_params{CASE_LRN_FP16_5, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features"},
                         }), );
 
+
+/* ----------------------------------------------------------------------------------------------------- */
+/* -------------------------------- Activation cases --------------------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------- */
+struct activation_test_params {
+    tensor input_size;
+    data_types input_type;
+    format input_format;
+    activation_func activation_function;
+    activation_additional_params additional_params;
+    data_types default_type;
+    format default_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
+#define CASE_ACTIVATION_F32_1 {1, 16, 8, 8}, data_types::f32, format::bfyx, activation_func::hyperbolic_tan, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_2 {1, 16, 8, 8}, data_types::f32, format::bfyx, activation_func::hard_sigmoid, {1.f, 1.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_3 {1, 16, 8, 8}, data_types::f32, format::bfyx, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_4 {1, 16, 8, 8}, data_types::f32, format::b_fs_yx_fsv16, activation_func::hyperbolic_tan, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_5 {1, 16, 8, 8}, data_types::f32, format::b_fs_yx_fsv16, activation_func::hard_sigmoid, {1.f, 1.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_6 {1, 16, 8, 8}, data_types::f32, format::b_fs_yx_fsv16, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_3D_F32_1 {1, 16, 8, 8, 8}, data_types::f32, format::bfzyx, activation_func::hyperbolic_tan, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_3D_F32_2 {1, 16, 8, 8, 8}, data_types::f32, format::bfzyx, activation_func::hard_sigmoid, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_3D_F32_3 {1, 16, 8, 8, 8}, data_types::f32, format::bfzyx, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_1 {1, 16, 8, 8}, data_types::f16, format::bfyx, activation_func::hyperbolic_tan, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_2 {1, 16, 8, 8}, data_types::f16, format::bfyx, activation_func::hard_sigmoid, {1.f, 1.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_3 {1, 16, 8, 8}, data_types::f16, format::bfyx, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_4 {1, 16, 8, 8}, data_types::f16, format::b_fs_yx_fsv16, activation_func::hyperbolic_tan, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_5 {1, 16, 8, 8}, data_types::f16, format::b_fs_yx_fsv16, activation_func::hard_sigmoid, {1.f, 1.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_6 {1, 16, 8, 8}, data_types::f16, format::b_fs_yx_fsv16, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_3D_F16_1 {1, 16, 8, 8, 8}, data_types::f16, format::bfzyx, activation_func::hyperbolic_tan, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_3D_F16_2 {1, 16, 8, 8, 8}, data_types::f16, format::bfzyx, activation_func::hard_sigmoid, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_3D_F16_3 {1, 16, 8, 8, 8}, data_types::f16, format::bfzyx, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_U8_1 {1, 16, 8, 8}, data_types::u8, format::bfyx, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_U8_2 {1, 16, 8, 8}, data_types::u8, format::b_fs_yx_fsv16, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_3D_U8_1 {1, 16, 8, 8, 8}, data_types::u8, format::bfzyx, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
+
+class ActivationFusingTest : public ::BaseFusingTest<activation_test_params> {
+public:
+    void execute(activation_test_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
+
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+    }
+
+    layout get_input_layout(activation_test_params& p) { return layout{p.input_type, p.input_format, p.input_size}; }
+
+    layout get_per_channel_layout(activation_test_params& p) {
+        return layout{p.default_type, p.default_format, tensor{1, p.input_size.feature[0], 1, 1}};
+    }
+    activation_func get_activation_function(activation_test_params& p) { return p.activation_function; }
+    activation_additional_params get_activation_additional_params(activation_test_params& p) { return p.additional_params; }
+    format get_input_format(activation_test_params &p) { return p.input_format; }
+};
+
+class activation_quantize_i8 : public ActivationFusingTest {};
+TEST_P(activation_quantize_i8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      activation("act", "input", get_activation_function(p), get_activation_additional_params(p)),
+                      data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+                      data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+                      data("out_low", get_mem(get_single_element_layout(p), -127, 0)),
+                      data("out_high", get_mem(get_single_element_layout(p), 0, 127)),
+                      quantize("quant", "act", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
+                      reorder("reorder_bfyx", "quant", format::bfyx, data_types::f32));
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    activation_quantize_i8,
+    ::testing::ValuesIn(std::vector<activation_test_params>{
+        activation_test_params{CASE_ACTIVATION_F32_1, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F32_2, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F32_3, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F32_4, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F32_5, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F32_6, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F32_1, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F32_2, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F32_3, 2, 3}
+    }), );
+
+INSTANTIATE_TEST_CASE_P(
+    DISABLED_fusings_gpu,
+    activation_quantize_i8,
+    ::testing::ValuesIn(std::vector<activation_test_params>{
+        // fp16 cases
+        activation_test_params{CASE_ACTIVATION_F16_1, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F16_2, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F16_3, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F16_4, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F16_5, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F16_6, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F16_1, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F16_2, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F16_3, 2, 3},
+
+        // u8 cases
+        activation_test_params{CASE_ACTIVATION_U8_1, 2, 3},
+        activation_test_params{CASE_ACTIVATION_U8_2, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_U8_1, 2, 3}
+    }), );
+
+class activation_opt_quantize_i8 : public ActivationFusingTest {};
+TEST_P(activation_opt_quantize_i8, basic) {
+    auto p = GetParam();
+    implementation_desc activation_impl = {get_input_format(p), "activation_opt"};
+    this->bo_fused.set_option(build_option::force_implementations({{"act", activation_impl}}));
+
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      activation("act", "input", get_activation_function(p), get_activation_additional_params(p)),
+                      data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+                      data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+                      data("out_low", get_mem(get_single_element_layout(p), -127, 0)),
+                      data("out_high", get_mem(get_single_element_layout(p), 0, 127)),
+                      quantize("quant", "act", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
+                      reorder("reorder_bfyx", "quant", format::bfyx, data_types::f32));
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    activation_opt_quantize_i8,
+    ::testing::ValuesIn(std::vector<activation_test_params>{
+        activation_test_params{CASE_ACTIVATION_F32_1, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F32_2, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F32_3, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F32_1, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F32_2, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F32_3, 2, 3}
+    }), );
+
+INSTANTIATE_TEST_CASE_P(
+    DISABLED_fusings_gpu,
+    activation_opt_quantize_i8,
+    ::testing::ValuesIn(std::vector<activation_test_params>{
+        // fp16 cases
+        activation_test_params{CASE_ACTIVATION_F16_1, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F16_2, 2, 3},
+        activation_test_params{CASE_ACTIVATION_F16_3, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F16_1, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F16_2, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F16_3, 2, 3},
+
+        // u8 cases
+        activation_test_params{CASE_ACTIVATION_U8_1, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_U8_1, 2, 3}
+    }), );
+
+/* ----------------------------------------------------------------------------------------------------- */
+/* --------------------------------------- Deconvolution cases ----------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------- */
+using deconv_test_params = bc_test_params;
+
+// in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
+#define CASE_DECONV_FP32_1 {1, 15, 4, 5}, {1, 30, 6, 7}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_FP32_2 {1, 16, 4, 5}, {1, 32, 6, 7}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::is_os_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_DECONV_FP32_3 {1, 16, 4, 5}, {1, 32, 4, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::is_os_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_DECONV_FP32_4 {1, 32, 4, 5}, {1, 32, 4, 5}, {1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 32, data_types::f32, format::b_fs_yx_fsv16, data_types::f32,  format::gs_oiyx_gsv16, data_types::f32, format::bfyx
+#define CASE_DECONV_FP32_5 {1, 15, 4, 5}, {1, 30, 9, 11}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_FP32_6 {1, 16, 4, 5}, {1, 32, 9, 11}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::is_os_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_DECONV_FP32_7 {1, 16, 4, 5}, {1, 32, 7, 9}, {1, 1, 1, 1}, tensor{1, 1, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::is_os_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_DECONV_FP32_8 {1, 32, 4, 5}, {1, 32, 7, 9}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 32, data_types::f32, format::b_fs_yx_fsv16, data_types::f32,  format::gs_oiyx_gsv16, data_types::f32, format::bfyx
+
+#define CASE_DECONV_FP16_1 {1, 15, 4, 5}, {1, 30, 6, 7}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f16, format::bfyx
+#define CASE_DECONV_FP16_2 {1, 16, 4, 5}, {1, 32, 6, 7}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::is_os_yx_osv16_isv16, data_types::f16, format::bfyx
+#define CASE_DECONV_FP16_3 {1, 16, 4, 5}, {1, 32, 4, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::is_os_yx_osv16_isv16, data_types::f16, format::bfyx
+#define CASE_DECONV_FP16_4 {1, 32, 4, 5}, {1, 32, 4, 5}, {1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 32, data_types::f16, format::b_fs_yx_fsv16, data_types::f16,  format::gs_oiyx_gsv16, data_types::f16, format::bfyx
+#define CASE_DECONV_FP16_5 {1, 15, 4, 5}, {1, 30, 9, 11}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f16, format::bfyx
+#define CASE_DECONV_FP16_6 {1, 16, 4, 5}, {1, 32, 9, 11}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::is_os_yx_osv16_isv16, data_types::f16, format::bfyx
+#define CASE_DECONV_FP16_7 {1, 16, 4, 5}, {1, 32, 7, 9}, {1, 1, 1, 1}, tensor{1, 1, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::is_os_yx_osv16_isv16, data_types::f16, format::bfyx
+#define CASE_DECONV_FP16_8 {1, 32, 4, 5}, {1, 32, 7, 9}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 32, data_types::f16, format::b_fs_yx_fsv16, data_types::f16,  format::gs_oiyx_gsv16, data_types::f16, format::bfyx
+
+#define CASE_DECONV_S8S8_1 {1, 15, 4, 5}, {1, 30, 6, 7}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_S8S8_2 {1, 16, 4, 5}, {1, 32, 6, 7}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_S8S8_3 {1, 16, 4, 5}, {1, 32, 4, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_S8S8_4 {1, 32, 4, 5}, {1, 32, 4, 5}, {1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 32, data_types::i8, format::b_fs_yx_fsv16, data_types::i8,  format::goiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_S8S8_5 {1, 15, 4, 5}, {1, 30, 9, 11}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_S8S8_6 {1, 16, 4, 5}, {1, 32, 9, 11}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_S8S8_7 {1, 16, 4, 5}, {1, 32, 7, 9}, {1, 1, 1, 1}, tensor{1, 1, 2, 2}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_S8S8_8 {1, 32, 4, 5}, {1, 32, 7, 9}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 32, data_types::i8, format::b_fs_yx_fsv16, data_types::i8,  format::goiyx, data_types::f32, format::bfyx
+
+#define CASE_DECONV_U8S8_1 {1, 15, 4, 5}, {1, 30, 6, 7}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_U8S8_2 {1, 16, 4, 5}, {1, 32, 6, 7}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_yx_fsv16, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_U8S8_3 {1, 16, 4, 5}, {1, 32, 4, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_yx_fsv16, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_U8S8_4 {1, 32, 4, 5}, {1, 32, 4, 5}, {1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 32, data_types::u8, format::b_fs_yx_fsv16, data_types::i8,  format::goiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_U8S8_5 {1, 15, 4, 5}, {1, 30, 9, 11}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_U8S8_6 {1, 16, 4, 5}, {1, 32, 9, 11}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_yx_fsv16, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_U8S8_7 {1, 16, 4, 5}, {1, 32, 7, 9}, {1, 1, 1, 1}, tensor{1, 1, 2, 2}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_yx_fsv16, data_types::i8, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_U8S8_8 {1, 32, 4, 5}, {1, 32, 7, 9}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 32, data_types::u8, format::b_fs_yx_fsv16, data_types::i8,  format::goiyx, data_types::f32, format::bfyx
+
+// 3D
+// in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
+#define CASE_DECONV_FP32_3D_1 {1, 15, 4, 5, 3}, {1, 30, 6, 7, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_FP32_3D_2 {1, 16, 4, 5, 3}, {1, 32, 6, 7, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::is_os_zyx_osv16_isv16, data_types::f32, format::bfzyx
+#define CASE_DECONV_FP32_3D_3 {1, 16, 4, 5, 3}, {1, 32, 4, 5, 3}, {1, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::is_os_zyx_osv16_isv16, data_types::f32, format::bfzyx
+#define CASE_DECONV_FP32_3D_4 {1, 32, 4, 5, 3}, {1, 32, 4, 5, 3}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, -1}, tensor{1}, 32, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32,  format::gs_oizyx_gsv16, data_types::f32, format::bfzyx
+#define CASE_DECONV_FP32_3D_5 {1, 15, 4, 5, 3}, {1, 30, 9, 11, 7}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_FP32_3D_6 {1, 16, 4, 5, 3}, {1, 32, 9, 11, 7}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::is_os_zyx_osv16_isv16, data_types::f32, format::bfzyx
+#define CASE_DECONV_FP32_3D_7 {1, 16, 4, 5, 3}, {1, 32, 7, 9, 5}, {1, 1, 1, 1, 1}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::is_os_zyx_osv16_isv16, data_types::f32, format::bfzyx
+#define CASE_DECONV_FP32_3D_8 {1, 32, 4, 5, 3}, {1, 32, 7, 9, 5}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0, 0, -1, -1, -1}, tensor{1}, 32, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32,  format::gs_oizyx_gsv16, data_types::f32, format::bfzyx
+#define CASE_DECONV_FP32_3D_9 {16, 16, 4, 5, 3}, {16, 32, 7, 9, 5}, {1, 1, 1, 1, 1}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, data_types::f32, format::is_os_zyx_osv16_isv16, data_types::f32, format::bfzyx
+
+#define CASE_DECONV_FP16_3D_1 {1, 15, 4, 5, 3}, {1, 30, 6, 7, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::bfzyx, data_types::f16, format::oizyx, data_types::f16, format::bfzyx
+#define CASE_DECONV_FP16_3D_2 {1, 16, 4, 5, 3}, {1, 32, 6, 7, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::is_os_zyx_osv16_isv16, data_types::f16, format::bfzyx
+#define CASE_DECONV_FP16_3D_3 {1, 16, 4, 5, 3}, {1, 32, 4, 5, 3}, {1, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::is_os_zyx_osv16_isv16, data_types::f16, format::bfzyx
+#define CASE_DECONV_FP16_3D_4 {1, 32, 4, 5, 3}, {1, 32, 4, 5, 3}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, -1}, tensor{1}, 32, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16,  format::gs_oizyx_gsv16, data_types::f16, format::bfzyx
+#define CASE_DECONV_FP16_3D_5 {1, 15, 4, 5, 3}, {1, 30, 9, 11, 7}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f16, format::bfzyx, data_types::f16, format::oizyx, data_types::f16, format::bfzyx
+#define CASE_DECONV_FP16_3D_6 {1, 16, 4, 5, 3}, {1, 32, 9, 11, 7}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::is_os_zyx_osv16_isv16, data_types::f16, format::bfzyx
+#define CASE_DECONV_FP16_3D_7 {1, 16, 4, 5, 3}, {1, 32, 7, 9, 5}, {1, 1, 1, 1, 1}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::is_os_zyx_osv16_isv16, data_types::f16, format::bfzyx
+#define CASE_DECONV_FP16_3D_8 {1, 32, 4, 5, 3}, {1, 32, 7, 9, 5}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0, 0, -1, -1, -1}, tensor{1}, 32, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16,  format::gs_oizyx_gsv16, data_types::f16, format::bfzyx
+#define CASE_DECONV_FP16_3D_9 {16, 16, 4, 5, 3}, {16, 32, 7, 9, 5}, {1, 1, 1, 1, 1}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::f16, format::bs_fs_zyx_bsv16_fsv16, data_types::f16, format::is_os_zyx_osv16_isv16, data_types::f16, format::bfzyx
+
+#define CASE_DECONV_S8S8_3D_1 {1, 15, 4, 5, 3}, {1, 30, 6, 7, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_S8S8_3D_2 {1, 16, 4, 5, 3}, {1, 32, 6, 7, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_zyx_fsv16, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_S8S8_3D_3 {1, 16, 4, 5, 3}, {1, 32, 4, 5, 3}, {1, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_zyx_fsv16, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_S8S8_3D_4 {1, 32, 4, 5, 3}, {1, 32, 4, 5, 3}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, -1}, tensor{1}, 32, data_types::i8, format::b_fs_zyx_fsv16, data_types::i8,  format::goizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_S8S8_3D_5 {1, 15, 4, 5, 3}, {1, 30, 9, 11, 7}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_S8S8_3D_6 {1, 16, 4, 5, 3}, {1, 32, 9, 11, 7}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_zyx_fsv16, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_S8S8_3D_7 {1, 16, 4, 5, 3}, {1, 32, 7, 9, 5}, {1, 1, 1, 1, 1}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_zyx_fsv16, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_S8S8_3D_8 {1, 32, 4, 5, 3}, {1, 32, 7, 9, 5}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0, 0, -1, -1, -1}, tensor{1}, 32, data_types::i8, format::b_fs_zyx_fsv16, data_types::i8,  format::goizyx, data_types::f32, format::bfzyx
+
+#define CASE_DECONV_U8S8_3D_1 {1, 15, 4, 5, 3}, {1, 30, 6, 7, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_U8S8_3D_2 {1, 16, 4, 5, 3}, {1, 32, 6, 7, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_zyx_fsv16, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_U8S8_3D_3 {1, 16, 4, 5, 3}, {1, 32, 4, 5, 3}, {1, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_zyx_fsv16, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_U8S8_3D_4 {1, 32, 4, 5, 3}, {1, 32, 4, 5, 3}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, -1}, tensor{1}, 32, data_types::u8, format::b_fs_zyx_fsv16, data_types::i8,  format::goizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_U8S8_3D_5 {1, 15, 4, 5, 3}, {1, 30, 9, 11, 7}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_U8S8_3D_6 {1, 16, 4, 5, 3}, {1, 32, 9, 11, 7}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_zyx_fsv16, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_U8S8_3D_7 {1, 16, 4, 5, 3}, {1, 32, 7, 9, 5}, {1, 1, 1, 1, 1}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_zyx_fsv16, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_U8S8_3D_8 {1, 32, 4, 5, 3}, {1, 32, 7, 9, 5}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0, 0, -1, -1, -1}, tensor{1}, 32, data_types::u8, format::b_fs_zyx_fsv16, data_types::i8,  format::goizyx, data_types::f32, format::bfzyx
+
+class DeconvolutionFusingTest : public ::WeightsPrimitiveFusingTest {};
+
+class deconv_actv : public DeconvolutionFusingTest {};
+TEST_P(deconv_actv, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        deconvolution("deconv", "input", { "weights" }, p.groups, p.stride, p.pad),
+        activation("act", "deconv", activation_func::relu),
+        reorder("out", "act", p.default_format, data_types::f32)
+    );
+    // Need much higher tolerance because of deconvolution -> convolution optimization
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_actv,
+    ::testing::ValuesIn(std::vector<deconv_test_params>{
+        deconv_test_params{ CASE_DECONV_FP32_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_3, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_4, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_5, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_6, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_7, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_8, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_FP16_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_3, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_4, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_5, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_6, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_7, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_8, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_U8S8_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_4, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_5, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_6, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_7, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_8, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_S8S8_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_4, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_5, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_6, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_7, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_8, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_FP32_3D_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_3, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_4, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_5, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_6, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_7, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_8, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_9, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_FP16_3D_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_3, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_4, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_5, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_6, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_7, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_8, 2, 3 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_9, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_U8S8_3D_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_3, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_4, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_5, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_6, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_7, 2, 3 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_8, 2, 3 },
+
+        deconv_test_params{ CASE_DECONV_S8S8_3D_1, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_2, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_3, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_4, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_5, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_6, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_7, 2, 3 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_8, 2, 3 },
+}), );
+
+class deconv_actv_eltw_actv : public DeconvolutionFusingTest {};
+TEST_P(deconv_actv_eltw_actv, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("eltw_data", get_mem(get_output_layout(p))),
+        deconvolution("deconv", "input", { "weights" }, p.groups, p.stride, p.pad),
+        activation("act1", "deconv", activation_func::relu),
+        eltwise("eltw", {"act1", "eltw_data"}, eltwise_mode::sum),
+        activation("act2", "eltw", activation_func::relu),
+        reorder("out", "act2", p.default_format, data_types::f32)
+    );
+    // Need much higher tolerance because of deconvolution -> convolution optimization
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_actv_eltw_actv,
+    ::testing::ValuesIn(std::vector<deconv_test_params>{
+        // Some fusings disabled under deconvolution -> convolution optimization
+        deconv_test_params{ CASE_DECONV_FP32_1, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_2, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_4, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_5, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_6, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_7, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_8, 2, 5 },
+
+        deconv_test_params{ CASE_DECONV_FP16_1, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_2, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_4, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_5, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_6, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_7, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_8, 2, 5 },
+
+        deconv_test_params{ CASE_DECONV_U8S8_1, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_2, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_4, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_5, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_6, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_7, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_8, 2, 5 },
+
+        deconv_test_params{ CASE_DECONV_S8S8_1, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_2, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_4, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_5, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_6, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_7, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_8, 2, 5 },
+
+        deconv_test_params{ CASE_DECONV_FP32_3D_1, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_2, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_3, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_4, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_5, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_6, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_7, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_8, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_9, 2, 5 },
+
+        deconv_test_params{ CASE_DECONV_FP16_3D_1, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_2, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_3, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_4, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_5, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_6, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_7, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_8, 2, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_9, 2, 5 },
+
+        deconv_test_params{ CASE_DECONV_U8S8_3D_1, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_2, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_3, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_4, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_5, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_6, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_7, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_8, 2, 5 },
+
+        deconv_test_params{ CASE_DECONV_S8S8_3D_1, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_2, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_3, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_4, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_5, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_6, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_7, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_8, 2, 5 },
+}), );
+
+class deconv_scale_actv_quant_i8 : public DeconvolutionFusingTest {};
+TEST_P(deconv_scale_actv_quant_i8, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.f/p.kernel.count())),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        deconvolution("deconv", "input", { "weights" }, p.groups, p.stride, p.pad),
+        scale("scale", "deconv", "scale_data"),
+        activation("actv", "scale", activation_func::softsign),
+        quantize("quant", "actv", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        reorder("out", "quant", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_i8,
+    ::testing::ValuesIn(std::vector<deconv_test_params>{
+        // Some fusings disabled under deconvolution -> convolution optimization
+        // Quantize fusing disabled for fp16/fp32 for performance reasons
+        // deconv_test_params{ CASE_DECONV_FP32_1, 4, 5 }, FIXME Failure due to activation + quantization fusing
+        deconv_test_params{ CASE_DECONV_FP32_2, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_4, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_5, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_6, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_7, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_8, 3, 5 },
+
+        deconv_test_params{ CASE_DECONV_FP16_1, 4, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_2, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_4, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_5, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_6, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_7, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_8, 3, 5 },
+
+        deconv_test_params{ CASE_DECONV_U8S8_1, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_2, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_4, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_5, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_6, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_7, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_8, 2, 5 },
+
+        deconv_test_params{ CASE_DECONV_S8S8_1, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_2, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_4, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_5, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_6, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_7, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_8, 2, 5 },
+
+        deconv_test_params{ CASE_DECONV_FP32_3D_1, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_2, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_3, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_4, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_5, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_6, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_7, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_8, 3, 5 },
+        // FIXME no quantize implementation for bs_fs_yx_bsv16_fsv16 format AND add_required_reorders pass completely ruins data types
+        // add_required_reorders pass tries to reorder everything to output type if no format exists, this ruins fp32 -> int8 quantize
+        // deconv_test_params{ CASE_DECONV_FP32_3D_9, 3, 5 },
+
+        deconv_test_params{ CASE_DECONV_FP16_3D_1, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_2, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_3, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_4, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_5, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_6, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_7, 3, 5 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_8, 3, 5 },
+        // deconv_test_params{ CASE_DECONV_FP16_3D_9, 3, 5 },
+
+        deconv_test_params{ CASE_DECONV_U8S8_3D_1, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_2, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_3, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_4, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_5, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_6, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_7, 2, 5 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_8, 2, 5 },
+
+        deconv_test_params{ CASE_DECONV_S8S8_3D_1, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_2, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_3, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_4, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_5, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_6, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_7, 2, 5 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_8, 2, 5 },
+}), );
+
+class deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8 : public DeconvolutionFusingTest {};
+TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("scale1_data", get_mem(get_per_channel_layout(p), 1.f / p.kernel.count())),
+        data("in1_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in1_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out1_lo", get_mem(get_single_element_layout(p), 0)),
+        data("out1_hi", get_mem(get_single_element_layout(p), 255)),
+        data("eltw_data", get_mem(layout(p.default_type, p.input_format, p.out_shape))),
+        data("scale2_data", get_mem(get_per_channel_layout(p), 1.f / p.kernel.count())),
+        data("in2_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in2_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out2_lo", get_mem(get_single_element_layout(p), -127)),
+        data("out2_hi", get_mem(get_single_element_layout(p), 127)),
+        deconvolution("deconv", "input", { "weights" }, p.groups, p.stride, p.pad),
+        scale("scale1", "deconv", "scale1_data"),
+        activation("actv1", "scale1", activation_func::relu),
+        quantize("quant1", "actv1", "in1_lo", "in1_hi", "out1_lo", "out1_hi", 256, data_types::u8),
+        eltwise("eltw", {"quant1", "eltw_data"}, eltwise_mode::sum, p.default_type),
+        scale("scale2", "eltw", "scale2_data"),
+        activation("actv2", "scale2", activation_func::relu),
+        quantize("quant2", "actv2", "in2_lo", "in2_hi", "out2_lo", "out2_hi", 255, data_types::i8),
+        reorder("out", "quant2", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8,
+    ::testing::ValuesIn(std::vector<deconv_test_params>{
+        // Some fusings disabled under deconvolution -> convolution optimization
+        // Quantize fusing disabled for fp16/fp32 for performance reasons
+        // deconv_test_params{ CASE_DECONV_FP32_1, 7, 9 }, FIXME Failure due to activation + quantization fusing
+        deconv_test_params{ CASE_DECONV_FP32_2, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_3, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_4, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_5, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_6, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_7, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_8, 6, 9 },
+
+        deconv_test_params{ CASE_DECONV_FP16_1, 7, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_2, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_3, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_4, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_5, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_6, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_7, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_8, 6, 9 },
+
+        deconv_test_params{ CASE_DECONV_U8S8_1, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_2, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_3, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_4, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_5, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_6, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_7, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_8, 2, 9 },
+
+        deconv_test_params{ CASE_DECONV_S8S8_1, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_2, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_3, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_4, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_5, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_6, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_7, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_8, 2, 9 },
+
+        // deconv_test_params{ CASE_DECONV_FP32_3D_1, 6, 9 }, FIXME Failure due to activation + quantization fusing
+        deconv_test_params{ CASE_DECONV_FP32_3D_2, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_3, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_4, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_5, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_6, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_7, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP32_3D_8, 6, 9 },
+        // deconv_test_params{ CASE_DECONV_FP32_3D_9, 6, 9 },
+
+        deconv_test_params{ CASE_DECONV_FP16_3D_1, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_2, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_3, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_4, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_5, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_6, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_7, 6, 9 },
+        deconv_test_params{ CASE_DECONV_FP16_3D_8, 6, 9 },
+        // deconv_test_params{ CASE_DECONV_FP16_3D_9, 6, 9 },
+
+        deconv_test_params{ CASE_DECONV_U8S8_3D_1, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_2, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_3, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_4, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_5, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_6, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_7, 2, 9 },
+        deconv_test_params{ CASE_DECONV_U8S8_3D_8, 2, 9 },
+
+        deconv_test_params{ CASE_DECONV_S8S8_3D_1, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_2, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_3, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_4, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_5, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_6, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_7, 2, 9 },
+        deconv_test_params{ CASE_DECONV_S8S8_3D_8, 2, 9 },
+}), );

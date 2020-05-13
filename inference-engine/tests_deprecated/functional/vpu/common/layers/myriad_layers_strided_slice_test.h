@@ -25,7 +25,7 @@ struct strided_slice_test_param {
     InferenceEngine::SizeVector out_shape;
 };
 
-class myriadLayersTestsStridedSlice_nightly: public myriadLayersTests_nightly,
+class myriadLayersTestsStridedSlice_smoke: public myriadLayersTests_nightly,
                                              public testing::WithParamInterface<strided_slice_test_param> {
 public:
     std::string model_t = R"V0G0N(
@@ -222,7 +222,7 @@ std::string stridesEdge = R"V0G0N(
     }
 };
 
-TEST_P(myriadLayersTestsStridedSlice_nightly, TestsStridedSlice) {
+TEST_P(myriadLayersTestsStridedSlice_smoke, TestsStridedSlice) {
     auto p = ::testing::WithParamInterface<strided_slice_test_param>::GetParam();
 
     std::string model = getModel(p);

@@ -30,6 +30,7 @@ class DepthToSpaceOp(Op):
         mandatory_props = {
             'op': self.op,
             'type': self.op,
+            'version': 'opset1',
 
             'mode': 'blocks_first',
 

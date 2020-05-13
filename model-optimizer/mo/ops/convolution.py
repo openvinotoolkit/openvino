@@ -32,9 +32,9 @@ class Convolution(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
             'infer': __class__.infer,
             'multiplication_transparent': True,
             'multiplication_transparent_ports': [(0, 0), (1, 0)],

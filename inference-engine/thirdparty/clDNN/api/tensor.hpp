@@ -184,6 +184,7 @@ struct format {
         g_os_iyx_osv16,                               ///< format used for weights for 2D convolution
         g_os_iyx_osv32,                               ///< format used for weights for 2D convolution
         gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
+        gs_oizyx_gsv16,                               ///< format used for weights for 3D convolution
         gs_oiyx_gsv32,                                ///< format used for weights for 2D convolution
         g_is_os_zyx_osv16_isv16,                      ///< format used for grouped weights for blocked 3D deconvolution
         g_os_is_yx_osv16_isv4,
@@ -191,6 +192,12 @@ struct format {
         g_os_is_zyx_isv8_osv16_isv2,
         g_os_is_yx_isv8_osv16_isv2,
         g_os_is_zyx_isv16_osv16,
+        g_os_zyx_is_osv16_isv4,                       ///< format for imad deconvolution
+        g_os_zyx_is_osv16_isv16,                      ///< format for imad deconvolution
+        g_os_zyx_is_osv16_isv32,                      ///< format for imad deconvolution
+        g_os_zyx_is_osv32_isv4,                       ///< format for imad deconvolution
+        g_os_zyx_is_osv32_isv16,                      ///< format for imad deconvolution
+        g_os_zyx_is_osv32_isv32,                      ///< format for imad deconvolution
 
         format_num,  ///< number of format types
         any        = -1
@@ -264,6 +271,7 @@ struct format {
                 { os_is_yx_osv32_isv32p,                       { 1, 1, 1, 0, 0, "bfxy",   "bfxy?",      {}}},
                 { os_is_zyx_isv16_osv16,                       { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{0, 16}, {1, 16}}}},
                 { is_os_zyx_osv16_isv16,                       { 1, 1, 3, 0, 0, "fbzyx",  "bfxyz",      {{0, 16}, {1, 16}}}},
+                { is_os_yx_osv16_isv16,                        { 1, 1, 2, 0, 0, "fbyx",   "bfxyz",      {{0, 16}, {1, 16}}}},
                 { os_is_osv32_isv32_swizzled_by_4,             { 1, 1, 0, 0, 0, "bfxy",   "bfxy?",      {{0, 32}, {1, 32}}}},
                 { os_is_zyx_isv8_osv16_isv2,                   { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{1, 8}, {0, 16}, {1, 2}}}},
                 { os_zyxi_osv16,                               { 1, 1, 3, 0, 0, "bzyxf",  "bfxyz",      {{0, 16}}}},
@@ -275,6 +283,7 @@ struct format {
                 { g_os_iyx_osv16,                              { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{0, 16}}}},
                 { g_os_iyx_osv32,                              { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{0, 32}}}},
                 { gs_oiyx_gsv16,                               { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{8, 16}}}},
+                { gs_oizyx_gsv16,                              { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{8, 16}}}},
                 { gs_oiyx_gsv32,                               { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{8, 32}}}},
                 { gyxio,                                       { 1, 1, 2, 0, 1, "gyxfb",  "bfxy????g",  {}}},
                 { g_is_os_zyx_osv16_isv16,                     { 1, 1, 3, 0, 1, "gfbzyx", "bfxyz???g",  {{0, 16}, {1, 16}}}},
@@ -283,6 +292,12 @@ struct format {
                 { g_os_is_yx_isv8_osv16_isv2,                  { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{1, 8}, {0, 16}, {1, 2}}}},
                 { g_os_is_zyx_isv16_osv16,                     { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{0, 16}, {1, 16}}}},
                 { g_os_is_yx_osv16_isv4,                       { 1, 1, 2, 0, 1, "gbfxy",  "bfxy????g",  {{0, 16}, {1, 4}}}},
+                { g_os_zyx_is_osv16_isv4,                      { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 16}, {1, 4}}}},
+                { g_os_zyx_is_osv16_isv16,                     { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 16}, {1, 16}}}},
+                { g_os_zyx_is_osv16_isv32,                     { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 16}, {1, 32}}}},
+                { g_os_zyx_is_osv32_isv4,                      { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 32}, {1, 4}}}},
+                { g_os_zyx_is_osv32_isv16,                     { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 32}, {1, 16}}}},
+                { g_os_zyx_is_osv32_isv32,                     { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 32}, {1, 32}}}},
         };
         return traits.at(fmt);
     }

@@ -132,33 +132,33 @@ void BackEnd::serializeConstData(const Model& model, const mv_blob_header& blobH
 
 void BackEnd::serializeConstShapes(const Model& model, const mv_blob_header& blobHdr, std::vector<char>& blob) {
     for (const auto& data : model->datas()) {
-        const auto serializeToBlob = [&data, &blob, &blobHdr](const BlobSerializer& serializer, int offset) {
-            std::copy_n(serializer.data(), data->desc().numDims() * sizeof(uint32_t), blob.data() + blobHdr.const_data_section_offset + offset);
-        };
-
         const auto dimsOrder = data->desc().dimsOrder();
         const auto storedPerm = dimsOrder.toPermutation();
+
+        const auto serializeToBlob = [&data, &blob, &blobHdr, &storedPerm](const DimValues& values, int offset) {
+            BlobSerializer serializer;
+
+            for (const auto& d : storedPerm) {
+                serializer.append(checked_cast<uint32_t>(values[d]));
+            }
+
+            std::copy_n(serializer.data(), data->desc().numDims() * sizeof(uint32_t), blob.data() + blobHdr.const_data_section_offset + offset);
+        };
 
         const auto shapeLocation = data->shapeLocation();
 
         if (shapeLocation.dimsLocation == Location::Blob) {
-            BlobSerializer dimsSerializer;
-            const auto dims = data->desc().dims();
-
-            for (const auto& d : storedPerm) {
-                dimsSerializer.append(checked_cast<uint32_t>(dims[d]));
-            }
-            serializeToBlob(dimsSerializer, shapeLocation.dimsOffset);
+            serializeToBlob(data->desc().dims(), shapeLocation.dimsOffset);
+        } else if (data->usage() == DataUsage::Output) {
+            auto ioDimsUpperBoundOffset = data->attrs().get<int>("ioDimsUpperBoundOffset");
+            serializeToBlob(data->desc().dims(), ioDimsUpperBoundOffset);
         }
 
         if (shapeLocation.stridesLocation == Location::Blob) {
-            BlobSerializer stridesSerializer;
-            const auto strides = data->strides();
-
-            for (const auto& d : storedPerm) {
-                stridesSerializer.append(checked_cast<uint32_t>(strides[d]));
-            }
-            serializeToBlob(stridesSerializer, shapeLocation.stridesOffset);
+            serializeToBlob(data->strides(), shapeLocation.stridesOffset);
+        } else if (data->usage() == DataUsage::Output) {
+            auto ioStridesUpperBoundOffset = data->attrs().get<int>("ioStridesUpperBoundOffset");
+            serializeToBlob(data->strides(), ioStridesUpperBoundOffset);
         }
     }
 }

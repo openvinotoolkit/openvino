@@ -4,7 +4,7 @@
 
 #include "myriad_layers_concat_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsConcat_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsConcat_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_concatCores),
         ::testing::ValuesIn(s_axis),
@@ -14,7 +14,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsConcat_nightly,
                         getTestCaseName
 );
 
-TEST_F(myriadLayersTestsConcat_nightly, ConcatAfterNormalize) {
+TEST_F(myriadLayersTestsConcat_smoke, ConcatAfterNormalize) {
     const std::string model = R"V0G0N(
         <Net name="ConcatAfterNormalize" version="2" batch="1">
             <layers>

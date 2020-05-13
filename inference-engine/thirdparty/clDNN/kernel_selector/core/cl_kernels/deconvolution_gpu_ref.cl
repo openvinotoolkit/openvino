@@ -21,13 +21,13 @@ KERNEL(deconvolution_gpu_yxfb_ref)(
 #if BIAS_TERM
     const __global BIAS_TYPE* bias,
 #endif
-    uint split_idx
-#if FUSED_ELTWISE
-	, const __global UNIT_TYPE* fuse_input
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
 #endif
-	)
+    uint split_idx
+    )
 {
-    UNIT_TYPE result = UNIT_VAL_ZERO;
+    ACCUMULATOR_TYPE acc = ACCUMULATOR_VAL_ZERO;
 
 #if DIM_ORDER_XYBF == 1
     const uint out_x        = get_global_id(0);
@@ -99,42 +99,47 @@ KERNEL(deconvolution_gpu_yxfb_ref)(
                             uint fixed_input_offset_x = (uint)input_offset_x / STRIDE_SIZE_X;
                             uint fixed_input_offset_y = (uint)input_offset_y / STRIDE_SIZE_Y;
                             uint fixed_input_offset_z = (uint)input_offset_z / STRIDE_SIZE_Z;
-#if OUTPUT_LAYOUT_B_FS_ZYX_FSV16 || OUTPUT_LAYOUT_B_FS_YX_FSV16 || OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV16
+
                             uint input_idx;
-#else
-                            uint input_idx = input_offset + (uint)fixed_input_offset_x*INPUT0_X_PITCH + (uint)fixed_input_offset_y*INPUT0_Y_PITCH + (uint)fixed_input_offset_z*INPUT0_Z_PITCH;
+#if INPUT0_SIMPLE
+                            input_idx = input_offset + (uint)fixed_input_offset_x*INPUT0_X_PITCH + (uint)fixed_input_offset_y*INPUT0_Y_PITCH + (uint)fixed_input_offset_z*INPUT0_Z_PITCH;
 #endif
+
 #if GRADIENT
                             uint filter_idx = filter_offset + of*FILTER_IFM_PITCH + (FILTER_SIZE_Z - k - 1)*FILTER_Z_PITCH + (FILTER_SIZE_Y - i - 1)*FILTER_Y_PITCH + (FILTER_SIZE_X - j - 1)*FILTER_X_PITCH;
-                            for (uint h = 0; h < FILTER_OFM_NUM; h++)
-                            {
-#if INPUT0_LAYOUT_B_FS_ZYX_FSV16 || INPUT0_LAYOUT_BS_FS_ZYX_BSV16_FSV16
-                                input_idx = INPUT0_GET_INDEX(batch_offset, h + g*FILTER_IFM_NUM, fixed_input_offset_z, fixed_input_offset_y, fixed_input_offset_x);
-#elif INPUT0_LAYOUT_BS_FS_YX_FSV16
+                            for (uint h = 0; h < FILTER_OFM_NUM; h++) {
+#if !INPUT0_SIMPLE
+#   if INPUT0_DIMS <= 4
                                 input_idx = INPUT0_GET_INDEX(batch_offset, h + g*FILTER_IFM_NUM, fixed_input_offset_y, fixed_input_offset_x);
+#   elif INPUT0_DIMS == 5
+                                input_idx = INPUT0_GET_INDEX(batch_offset, h + g*FILTER_IFM_NUM, fixed_input_offset_z, fixed_input_offset_y, fixed_input_offset_x);
+#   endif
 #endif
-                                result = fma(input[input_idx], filter[filter_idx], result);
+
+                                acc += TO_ACCUMULATOR_TYPE(input[input_idx]) * TO_ACCUMULATOR_TYPE(filter[filter_idx]);
                                 filter_idx += FILTER_OFM_PITCH;
-#if !INPUT0_LAYOUT_B_FS_ZYX_FSV16 && !INPUT0_LAYOUT_BS_FS_ZYX_BSV16_FSV16 && !INPUT0_LAYOUT_B_FS_YX_FSV16
+#if INPUT0_SIMPLE
                                 input_idx += INPUT0_FEATURE_PITCH;
 #endif
                             }
-#else
+#else // GRADIENT
                             uint filter_idx = filter_offset + of*FILTER_OFM_PITCH + (FILTER_SIZE_Z - k - 1)*FILTER_Z_PITCH + (FILTER_SIZE_Y - i - 1)*FILTER_Y_PITCH + (FILTER_SIZE_X - j - 1)*FILTER_X_PITCH;
-                            for (uint h = 0; h < FILTER_IFM_NUM; h++)
-                            {
-#if OUTPUT_LAYOUT_B_FS_ZYX_FSV16 || OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV16
-                                input_idx = INPUT0_GET_INDEX(batch_offset, h + g*FILTER_IFM_NUM, fixed_input_offset_z, fixed_input_offset_y, fixed_input_offset_x);
-#elif OUTPUT_LAYOUT_B_FS_YX_FSV16
+                            for (uint h = 0; h < FILTER_IFM_NUM; h++) {
+#if !INPUT0_SIMPLE
+#   if INPUT0_DIMS <= 4
                                 input_idx = INPUT0_GET_INDEX(batch_offset, h + g*FILTER_IFM_NUM, fixed_input_offset_y, fixed_input_offset_x);
+#   elif INPUT0_DIMS == 5
+                                input_idx = INPUT0_GET_INDEX(batch_offset, h + g*FILTER_IFM_NUM, fixed_input_offset_z, fixed_input_offset_y, fixed_input_offset_x);
+#   endif
 #endif
-                                result = fma(input[input_idx], filter[filter_idx], result);
+
+                                acc += TO_ACCUMULATOR_TYPE(input[input_idx]) * TO_ACCUMULATOR_TYPE(filter[filter_idx]);
                                 filter_idx += FILTER_IFM_PITCH;
-#if !OUTPUT_LAYOUT_B_FS_ZYX_FSV16 && !OUTPUT_LAYOUT_B_FS_YX_FSV16 && !OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV16
+#if INPUT0_SIMPLE
                                 input_idx += INPUT0_FEATURE_PITCH;
 #endif
                             }
-#endif
+#endif // GRADIENT
                         }
                     }
                 }
@@ -142,35 +147,27 @@ KERNEL(deconvolution_gpu_yxfb_ref)(
         }
     }
 
+    ACTIVATION_TYPE pre_activation = TO_ACTIVATION_TYPE(acc);
 #if BIAS_TERM
-    result += bias[ofm_offset];
+    pre_activation += TO_ACTIVATION_TYPE(bias[ofm_offset]);
 #endif
-    const uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
-#if OUTPUT_LAYOUT_B_FS_ZYX_FSV16 || OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV16
-    const uint dst_index = OUTPUT_OFFSET + OUTPUT_GET_INDEX(batch_offset, g * FILTER_OFM_NUM + of, out_z, out_y, out_x);
-#elif OUTPUT_LAYOUT_B_FS_YX_FSV16
-    const uint dst_index = OUTPUT_OFFSET + OUTPUT_GET_INDEX(batch_offset, g * FILTER_OFM_NUM + of, out_y, out_x);
+    ACTIVATION_TYPE post_activation = ACTIVATION(pre_activation, ACTIVATION_PARAMS);
+
+    OUTPUT_TYPE result;
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    result = FUSED_OPS_RESULT;
 #else
-    const uint dst_index = OUTPUT_OFFSET + out_split_offset + batch_offset*OUTPUT_BATCH_PITCH + of*OUTPUT_FEATURE_PITCH + out_z*OUTPUT_Z_PITCH + out_y*OUTPUT_Y_PITCH + out_x*OUTPUT_X_PITCH;
-#endif
-#if FUSED_ELTWISE
-#if OUTPUT_LAYOUT_B_FS_ZYX_FSV16 || OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV16
-    const uint fused_index = INPUT1_OFFSET + INPUT1_GET_INDEX(batch_offset, g * FILTER_OFM_NUM + of, out_z, out_y, out_x);
-#elif OUTPUT_LAYOUT_B_FS_YX_FSV16
-    const uint fused_index = INPUT1_OFFSET + INPUT1_GET_INDEX(batch_offset, g * FILTER_OFM_NUM + of, out_y, out_x);
-#else
-    const uint fused_index = INPUT1_OFFSET + split_idx * INPUT1_FEATURE_PITCH * FILTER_OFM_NUM + batch_offset*INPUT1_BATCH_PITCH + of*INPUT1_FEATURE_PITCH + out_z*INPUT1_Z_PITCH + out_y*INPUT1_Y_PITCH + out_x*INPUT1_X_PITCH;
-#endif
-#if !GRADIENT
-	output[dst_index] = ACTIVATION(result + fuse_input[fused_index], ACTIVATION_PARAMS);
-#else
-	output[dst_index] = result + fuse_input[fused_index];
+    result = TO_OUTPUT_TYPE(post_activation);
 #endif
 
+#if OUTPUT_DIMS <= 4
+    const uint dst_index = OUTPUT_GET_INDEX(batch_offset, g * FILTER_OFM_NUM + of, out_y, out_x);
+#elif OUTPUT_DIMS == 5
+    const uint dst_index = OUTPUT_GET_INDEX(batch_offset, g * FILTER_OFM_NUM + of, out_z, out_y, out_x);
 #else
-    output[dst_index] = ACTIVATION(result, ACTIVATION_PARAMS);
+#   error deconvolution_gpu_ref.cl - Unsupported number of output dimensions.
 #endif
 
+    output[dst_index] = result;
 }
-
-#undef ACTIVATION

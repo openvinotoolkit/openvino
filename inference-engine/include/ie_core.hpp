@@ -38,7 +38,7 @@ struct QueryNetworkResult {
     StatusCode rc = OK;
 
     /**
-     * @brief Response mssage
+     * @brief Response message
      */
     ResponseDesc resp;
 };
@@ -61,7 +61,7 @@ public:
      * @param xmlConfigFile A path to .xml file with plugins to load from. If XML configuration file is not specified,
      * then default Inference Engine plugins are loaded from the default plugin.xml file.
      */
-    explicit Core(const std::string& xmlConfigFile = std::string());
+    explicit Core(const std::string& xmlConfigFile = {});
 
     /**
      * @brief Returns plugins version information
@@ -92,7 +92,7 @@ public:
      * if bin file with the same name was not found, will load IR without weights.
      * @return CNNNetwork
      */
-    CNNNetwork ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath = std::wstring()) const {
+    CNNNetwork ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath = {}) const {
         return ReadNetwork(details::wStringtoMBCSstringChar(modelPath), details::wStringtoMBCSstringChar(binPath));
     }
 #endif
@@ -104,7 +104,7 @@ public:
      * if bin file with the same name was not found, will load IR without weights.
      * @return CNNNetwork
      */
-    CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath = "") const;
+    CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath = {}) const;
     /**
      * @brief Reads IR xml and bin (with the same name) files
      * @param model string with IR
@@ -126,8 +126,8 @@ public:
      * @return An executable network reference
      */
     ExecutableNetwork LoadNetwork(
-        const CNNNetwork network, const std::string& deviceName,
-        const std::map<std::string, std::string>& config = std::map<std::string, std::string>());
+        const CNNNetwork& network, const std::string& deviceName,
+        const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Registers extension
@@ -141,11 +141,11 @@ public:
      * @param context Pointer to RemoteContext object
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation
-     * @return An executable network reference
+     * @return An executable network object
      */
     ExecutableNetwork LoadNetwork(
-        const CNNNetwork network, RemoteContext::Ptr context,
-        const std::map<std::string, std::string>& config = std::map<std::string, std::string>());
+        const CNNNetwork& network, RemoteContext::Ptr context,
+        const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Registers extension for the specified plugin
@@ -166,7 +166,7 @@ public:
      */
     ExecutableNetwork ImportNetwork(
         const std::string& modelFileName, const std::string& deviceName,
-        const std::map<std::string, std::string>& config = std::map<std::string, std::string>());
+        const std::map<std::string, std::string>& config = {});
 
     /**
      * @brief Creates an executable network from a previously exported network
@@ -199,11 +199,11 @@ public:
      * @param deviceName A name of a device to query
      * @param network Network object to query
      * @param config Optional map of pairs: (config parameter name, config parameter value)
-     * @return Pointer to the response message that holds a description of an error if any occurred
+     * @return An object containing a map of pairs a layer name -> a device name supporting this layer.
      */
     QueryNetworkResult QueryNetwork(
         const ICNNNetwork& network, const std::string& deviceName,
-        const std::map<std::string, std::string>& config = std::map<std::string, std::string>()) const;
+        const std::map<std::string, std::string>& config = {}) const;
 
     /**
      * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
@@ -213,7 +213,7 @@ public:
      *
      * @param config Map of pairs: (config parameter name, config parameter value)
      */
-    void SetConfig(const std::map<std::string, std::string>& config, const std::string& deviceName = std::string());
+    void SetConfig(const std::map<std::string, std::string>& config, const std::string& deviceName = {});
 
     /**
      * @brief Gets configuration dedicated to device behaviour.

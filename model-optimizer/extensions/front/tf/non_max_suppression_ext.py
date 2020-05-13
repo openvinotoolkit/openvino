@@ -15,6 +15,8 @@
 """
 import logging as log
 
+import numpy as np
+
 from extensions.ops.non_max_suppression import NonMaxSuppression
 from mo.front.extractor import FrontExtractorOp
 
@@ -25,7 +27,7 @@ class NonMaxSuppressionV3Extractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {'sort_result_descending': 1, 'center_point_box': 0}
+        attrs = {'sort_result_descending': 1, 'center_point_box': 0, 'output_type': np.int32}
         NonMaxSuppression.update_node_stat(node, attrs)
         return cls.enabled
 
@@ -40,7 +42,7 @@ class NonMaxSuppressionV4Extractor(FrontExtractorOp):
         if not pad_to_max_output_size:
             log.warning('The attribute "pad_to_max_output_size" of node {} is equal to False which is not supported.'
                         'Forcing it to be equal to True'.format(node.soft_get('name')))
-        attrs = {'sort_result_descending': 1, 'box_encoding': 'corner'}
+        attrs = {'sort_result_descending': 1, 'box_encoding': 'corner', 'output_type': np.int32}
         NonMaxSuppression.update_node_stat(node, attrs)
         return cls.enabled
 
@@ -55,6 +57,6 @@ class NonMaxSuppressionV5Extractor(FrontExtractorOp):
         if not pad_to_max_output_size:
             log.warning('The attribute "pad_to_max_output_size" of node {} is equal to False which is not supported.'
                         'Forcing it to be equal to True'.format(node.soft_get('name')))
-        attrs = {'sort_result_descending': 1, 'box_encoding': 'corner'}
+        attrs = {'sort_result_descending': 1, 'box_encoding': 'corner', 'output_type': np.int32}
         NonMaxSuppression.update_node_stat(node, attrs)
         return cls.enabled

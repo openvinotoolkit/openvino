@@ -445,8 +445,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             definitions.push_back({ safe_index_func_name, safe_index_func_val });
             definitions.push_back({ index_func_name, index_func_val });
         } else {
-            definitions.push_back({ safe_index_func_name, "f" });
-            definitions.push_back({ index_func_name, "f" });
+            definitions.push_back({ safe_index_func_name, "(f)" });
+            definitions.push_back({ index_func_name, "(f)" });
         }
     } else {
         definitions.push_back({ safe_index_func_name, safe_index_func_val });
@@ -1171,10 +1171,15 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             auto in_lo = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_lo), desc.tensors[0].GetDType(), vec_size) : GetInputVarName(0);
             auto in_hi = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_hi), desc.tensors[0].GetDType(), vec_size) : GetInputVarName(1);
 
-            op_decls += "\\\n\t" + tmp_type + " " + tmp_var + " = min(max(" + in_lo + ", " + in_converted + "), " + in_hi + ");";
+            if (p->has_clamp) {
+                op_decls += "\\\n\t" + tmp_type + " " + tmp_var + " = min(max(" + in_lo + ", " + in_converted + "), " + in_hi + ");";
+            } else {
+                op_decls += "\\\n\t" + tmp_type + " " + tmp_var + " = " + in_converted + ";";
+            }
             op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + "*" + pre_scale + ";";
             if (p->has_pre_shift)
                 op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
+
             op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
 
             bool need_round = (p->has_post_scale || p->has_post_shift) &&
@@ -1254,9 +1259,9 @@ std::string FusedOpsCodeGenerator::GetIdx(size_t input_id, idx_desc idx, bool sh
     }
 
     if (should_be_safe) {
-        return GetInputTensorName(input_id) + "_GET_INDEX_SAFE(" + idx_order +")";
+        return GetInputTensorName(input_id) + "_GET_INDEX_SAFE(" + idx_order + ")";
     } else {
-        return GetInputTensorName(input_id) + "_GET_INDEX(" + idx_order +")";
+        return GetInputTensorName(input_id) + "_GET_INDEX(" + idx_order + ")";
     }
 }
 
@@ -1349,11 +1354,10 @@ std::string FusedOpsCodeGenerator::GetInputVarName(size_t input_id) const {
 }
 
 std::string FusedOpsCodeGenerator::GetOutputVarName(std::string input_var) const {
-    static int i = 0;
     std::replace(input_var.begin(), input_var.end(), '[', '_');
     std::replace(input_var.begin(), input_var.end(), ']', '_');
     std::replace(input_var.begin(), input_var.end(), ' ', '_');
-    return input_var + "_" + std::to_string(i++);
+    return input_var + "_out";
 }
 
 std::string FusedOpsCodeGenerator::GetType(Datatype dt, size_t vec_size) const {
@@ -1396,7 +1400,7 @@ std::vector<size_t> FusedOpsCodeGenerator::GetRequiredInputs() const {
             auto p = std::dynamic_pointer_cast<quantize_fuse_params>(desc.op_params);
             if (p) {
                 std::vector<size_t> res = {};
-                if (!p->per_tensor_input_range) {
+                if (!p->per_tensor_input_range && p->has_clamp) {
                     res.push_back(0);
                     res.push_back(1);
                 }

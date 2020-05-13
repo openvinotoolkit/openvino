@@ -401,7 +401,7 @@ protected:
     }
 
     template<int Version = 3>
-    static details::CNNNetworkImplPtr
+    static InferenceEngine::CNNNetwork
     buildSingleLayerNetwork(const std::string &layerType,
                             const CommonTestUtils::InOutShapes &inOutShapes,
                             std::map<std::string, std::string> *params,
@@ -410,8 +410,7 @@ protected:
                             size_t weightsSize = 0,
                             size_t biasesSize = 0,
                             const TBlob<uint8_t>::Ptr &weights = nullptr) {
-        auto *parser = new details::FormatParser(Version);
-        return buildSingleLayerNetworkCommon<Version>(parser, layerType, inOutShapes, params, layerDataName, precision,
+        return buildSingleLayerNetworkCommon<Version>(layerType, inOutShapes, params, layerDataName, precision,
                                                       weightsSize, biasesSize, weights);
     }
 
@@ -441,10 +440,9 @@ TEST_P(CommonSingleLayerTest, inferAfterReshape) {
 
     auto weights = createWeights(elementSize, weightByteSize, biasByteSize);
 
-    auto networkImplPtr = buildSingleLayerNetwork<3>(layerHelper->getType(), initialShapes, &params, "data",
-                                                     pluginParams.precision, weightByteSize, biasByteSize, weights);
+    auto network = buildSingleLayerNetwork<3>(layerHelper->getType(), initialShapes, &params, "data",
+                                              pluginParams.precision, weightByteSize, biasByteSize, weights);
 
-    CNNNetwork network(networkImplPtr);
     std::tie(inputName, inputData) = (*network.getInputsInfo().begin());
     inputData->setPrecision(pluginParams.precision);
     inputData->setLayout(pluginParams.layout);

@@ -26,7 +26,6 @@ from mo.middle.passes.convert_data_type import data_type_str_to_np
 
 class ChangeCastOutputType(FrontReplacementSubgraph):
     """
-    Change the Cast to int64 to int32 since not all plugins support int64 data type.
     Change the Cast to fp64 to fp32 since not all plugins support fp64 data type.
     Change the Cast to fp32 to fp16 when generating IR for fp16.
     """
@@ -42,10 +41,6 @@ class ChangeCastOutputType(FrontReplacementSubgraph):
 
     def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
         node = match['cast']
-        if node.dst_type == np.int64:
-            log.warning('Change data type from {} to {} for node {}'.format(node.dst_type, np.int32, node.name))
-            node.dst_type = np.int32
-
         if node.dst_type == np.float64:
             log.warning('Change data type from {} to {} for node {}'.format(node.dst_type, np.float32, node.name))
             node.dst_type = np.float32

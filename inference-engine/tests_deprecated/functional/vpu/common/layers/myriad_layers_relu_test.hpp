@@ -11,7 +11,7 @@ using namespace InferenceEngine;
 
 const std::string relu_param = "negative_slope";
 
-class myriadLayersTestsReLUMergeWithBias_nightly : public myriadLayersTests_nightly {
+class myriadLayersTestsReLUMergeWithBias_smoke : public myriadLayersTests_nightly {
 public:
     void RunTest(const std::string& model, size_t num_weights, size_t num_bias) {
         StatusCode st;
@@ -65,9 +65,9 @@ static std::vector<ReLULayerDef> s_reluLayerParams = {
     {{{"negative_slope", "0.1"}}},
 };
 
-typedef myriadLayerTestBaseWithParam<std::tuple<InferenceEngine::SizeVector, ReLULayerDef>> myriadLayerReLU_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<InferenceEngine::SizeVector, ReLULayerDef>> myriadLayerReLU_smoke;
 
-TEST_P(myriadLayerReLU_nightly, ReLU) {
+TEST_P(myriadLayerReLU_smoke, ReLU) {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
     auto input_dims = std::get<0>(GetParam());
     auto extraLayerParams = std::get<1>(GetParam());
@@ -99,10 +99,10 @@ static std::vector<InferenceEngine::SizeVector> s_copyTensors = {
     },
 };
 
-class myriadLayerFullyConnectedWithReLU_nightly: public FCTest<ReLULayerDef>{
+class myriadLayerFullyConnectedWithReLU_smoke: public FCTest<ReLULayerDef>{
 };
 
-TEST_P(myriadLayerFullyConnectedWithReLU_nightly, TestsFullyConnected)
+TEST_P(myriadLayerFullyConnectedWithReLU_smoke, TestsFullyConnected)
 {
     auto p = ::testing::WithParamInterface<std::tuple<fcon_test_params, int32_t, int32_t, ReLULayerDef>>::GetParam();
     auto extraLayerParams = std::get<3>(p);
@@ -117,13 +117,13 @@ TEST_P(myriadLayerFullyConnectedWithReLU_nightly, TestsFullyConnected)
 
 #define ERROR_BOUND_WITH_RELU (4.e-3f)
 
-class myriadLayersTestsMaxPoolingWithReLU_nightly: public PoolingTest<POOLING_MAX, ReLULayerDef>{
+class myriadLayersTestsMaxPoolingWithReLU_smoke: public PoolingTest<POOLING_MAX, ReLULayerDef>{
 };
 
-class myriadLayersTestsAvgPoolingWithReLU_nightly: public PoolingTest<POOLING_AVG, ReLULayerDef>{
+class myriadLayersTestsAvgPoolingWithReLU_smoke: public PoolingTest<POOLING_AVG, ReLULayerDef>{
 };
 
-TEST_P(myriadLayersTestsMaxPoolingWithReLU_nightly, TestsMaxPoolingWithReLU)
+TEST_P(myriadLayersTestsMaxPoolingWithReLU_smoke, TestsMaxPoolingWithReLU)
 {
     auto p = ::testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, pooling_layer_params, vpu::LayoutPreference, ReLULayerDef>>::GetParam();
     auto extraLayerParams = std::get<3>(p);
@@ -136,7 +136,7 @@ TEST_P(myriadLayersTestsMaxPoolingWithReLU_nightly, TestsMaxPoolingWithReLU)
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND_WITH_RELU);
 }
 
-TEST_P(myriadLayersTestsAvgPoolingWithReLU_nightly, TestsAvgPoolingWithReLU)
+TEST_P(myriadLayersTestsAvgPoolingWithReLU_smoke, TestsAvgPoolingWithReLU)
 {
     auto p = ::testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, pooling_layer_params, vpu::LayoutPreference, ReLULayerDef>>::GetParam();
     auto extraLayerParams = std::get<3>(p);
@@ -149,10 +149,10 @@ TEST_P(myriadLayersTestsAvgPoolingWithReLU_nightly, TestsAvgPoolingWithReLU)
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND_WITH_RELU);
 }
 
-class myriadLayerConvolutionWithReLU_nightly: public ConvolutionTest<ReLULayerDef>{
+class myriadLayerConvolutionWithReLU_smoke: public ConvolutionTest<ReLULayerDef>{
 };
 
-TEST_P(myriadLayerConvolutionWithReLU_nightly, Convolution) {
+TEST_P(myriadLayerConvolutionWithReLU_smoke, Convolution) {
     auto p = ::testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, param_size, param_size, param_size, uint32_t, uint32_t, ReLULayerDef>>::GetParam();
     auto ReLUParam = std::get<6>(p);
     _testNet.addLayer(LayerInitParams("ReLU")

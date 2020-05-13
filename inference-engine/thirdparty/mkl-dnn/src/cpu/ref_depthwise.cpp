@@ -37,6 +37,32 @@ template <typename T> inline T prelu_fwd(T s_val, T w_val) {
     return s_val >= 0 ? s_val : s_val*w_val;
 }
 
+union float_raw {
+    float f;
+    unsigned short i[2];
+};
+
+static float bf16tof32(mkldnn_bfloat16_t bf16) {
+    union float_raw t = { 0 };
+    t.i[1] = bf16;
+    t.i[0] = 0;
+    return t.f;
+}
+
+static mkldnn_bfloat16_t f32tobf16(float f32) {
+    union float_raw t = { 0 };
+    t.f = f32;
+    return t.i[1];
+}
+
+inline mkldnn_bfloat16_t bf16_scale_shift_fwd(mkldnn_bfloat16_t s_val, mkldnn_bfloat16_t w_val, mkldnn_bfloat16_t b_val) {
+    return f32tobf16(bf16tof32(s_val) * bf16tof32(w_val) + bf16tof32(b_val));
+}
+
+inline mkldnn_bfloat16_t bf16_prelu_fwd(mkldnn_bfloat16_t s_val, mkldnn_bfloat16_t w_val) {
+    return s_val >= 0 ? s_val : f32tobf16(bf16tof32(s_val) * bf16tof32(w_val));
+}
+
 ref_depthwise_scalar_fwd_t::ref_depthwise_scalar_fwd_t(const alg_kind_t alg_)
         : alg(alg_) {
     using namespace alg_kind;
@@ -91,15 +117,24 @@ void ref_depthwise_fwd_t<data_type>::execute_forward() const {
         data_t b_val = bias ? bias[bias_d.off(wei_idx)] : (data_t)0;
         data_t &d_val = dst[data_off];
 
-        switch (alg_kind) {
-            case depthwise_scale_shift: d_val = scale_shift_fwd(s_val, w_val, b_val); break;
-            case depthwise_prelu: d_val = prelu_fwd(s_val, w_val); break;
-            default: assert(!"unknown depthwise alg_kind");
+        if (data_type == mkldnn_bf16) {
+            switch (alg_kind) {
+                case depthwise_scale_shift: d_val = bf16_scale_shift_fwd(s_val, w_val, b_val); break;
+                case depthwise_prelu: d_val = bf16_prelu_fwd(s_val, w_val); break;
+                default: assert(!"unknown depthwise alg_kind");
+            }
+        } else {
+            switch (alg_kind) {
+                case depthwise_scale_shift: d_val = scale_shift_fwd(s_val, w_val, b_val); break;
+                case depthwise_prelu: d_val = prelu_fwd(s_val, w_val); break;
+                default: assert(!"unknown depthwise alg_kind");
+            }
         }
     });
 }
 
 template struct ref_depthwise_fwd_t<data_type::f32>;
+template struct ref_depthwise_fwd_t<data_type::bf16>;
 
 }
 }

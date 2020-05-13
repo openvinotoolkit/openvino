@@ -816,10 +816,8 @@ TEST(ie_exec_network_set_config, setConfig) {
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    ie_core_versions_t ie_core_versions_multi;
     ie_param_t param;
-    if (ie_core_get_versions(core, "MULTI", &ie_core_versions_multi) != IEStatusCode::OK ||
-        ie_core_get_metric(core, "GPU", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
+    if (ie_core_get_metric(core, "GPU", "AVAILABLE_DEVICES", &param) != IEStatusCode::OK) {
         ie_core_free(&core);
         GTEST_SKIP();
     }
@@ -837,11 +835,10 @@ TEST(ie_exec_network_set_config, setConfig) {
     ie_config_t config_param = {"MULTI_DEVICE_PRIORITIES", "GPU,CPU", nullptr};
     IE_EXPECT_OK(ie_exec_network_set_config(exe_network, &config_param));
 
-    ie_core_versions_free(&ie_core_versions_multi);
-    ie_param_free(&param);
     ie_exec_network_free(&exe_network);
     ie_network_free(&network);
     ie_core_free(&core);
+    ie_param_free(&param);
 }
 
 TEST(ie_exec_network_get_metric, getMetric) {

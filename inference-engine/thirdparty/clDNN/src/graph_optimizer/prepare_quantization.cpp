@@ -145,9 +145,12 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                 return offset;
             };
 
+            bool has_negative_scales = false;
             bool need_post_scale = false;
             bool need_post_shift = false;
             bool need_pre_shift = false;
+            auto out_dt = quantize_node.get_output_layout().data_type;
+            bool need_clamp = levels != 256 || (out_dt != data_types::u8 && out_dt != data_types::i8);
             bool per_tensor_in_scale = true;
             bool per_tensor_in_shift = true;
             bool per_tensor_in_range = true;
@@ -192,6 +195,9 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                                     }
                                     if (data_output_shift[s_offset] != 0.0f) {
                                         need_post_shift = true;
+                                    }
+                                    if (data_input_scale[s_offset] < 0.0f) {
+                                        has_negative_scales = true;
                                     }
                                 }
                             }
@@ -255,6 +261,9 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                                     if (half_to_float(data_output_shift[s_offset]) != 0.0f) {
                                         need_post_shift = true;
                                     }
+                                    if (half_to_float(data_input_scale[s_offset]) < 0.0f) {
+                                        has_negative_scales = true;
+                                    }
                                 }
                             }
                         }
@@ -286,6 +295,10 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                 }
                 default:
                     throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
+            }
+
+            if (has_negative_scales) {
+                return;
             }
 
             layout dummy_layout(data_types::f32, format::bfyx, tensor(1, 1, 1, 1));
@@ -346,6 +359,10 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
             if (per_tensor_in_shift && need_pre_shift) {
                 quantize_node.set_per_tensor_input_shift();
                 quantize_node.set_input_shift_val(in_shift_val);
+            }
+
+            if (need_clamp) {
+                quantize_node.set_need_clamp();
             }
 
             if (per_tensor_in_range) {

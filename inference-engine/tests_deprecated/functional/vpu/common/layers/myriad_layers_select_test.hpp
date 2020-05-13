@@ -116,7 +116,7 @@ protected:
     }
 };
 
-class myriadTestsSelect_nightly: public SelectTest
+class myriadTestsSelect_smoke: public SelectTest
 {
     void SetUp() override {
         SelectTest::SetUp();
@@ -124,7 +124,7 @@ class myriadTestsSelect_nightly: public SelectTest
     }
 };
 
-TEST_P(myriadTestsSelect_nightly, Select)
+TEST_P(myriadTestsSelect_smoke, Select)
 {
     InitBody();
 }

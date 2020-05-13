@@ -27,7 +27,7 @@ std::string ScaleShiftToConvolutionAfterConcatTestModel::getModel(SingleLayerTra
         {"axis", "1"}
     };
     std::map<std::string, std::string> power_params = {
-        {"power", "1"}, {"scale", "1"}, {"shift", "0"}
+        {"power", "2"}, {"scale", "1"}, {"shift", "0"}
     };
 
     std::vector<std::pair<std::string, std::string>> edges = {

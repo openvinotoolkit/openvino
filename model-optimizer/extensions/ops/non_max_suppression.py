@@ -19,7 +19,9 @@ import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
+from mo.utils.error import Error
 
 
 class NonMaxSuppression(Op):
@@ -29,7 +31,9 @@ class NonMaxSuppression(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset3',
             'infer': __class__.infer,
+            'output_type': np.int64,
             'center_point_box': 0,
             'box_encoding': 'corner',
             'in_ports_count': 5,
@@ -43,15 +47,16 @@ class NonMaxSuppression(Op):
 
     def supported_attrs(self):
         if self.ir_version < 10:
-            return [
-                'center_point_box',
-            ]
+            return ['center_point_box']
         else:
-            return [
-                'sort_result_descending',
-                'box_encoding'
-            ]
-
+            version = self.get_opset()
+            if version == 'opset3':
+                return ['sort_result_descending', 'box_encoding',
+                        ('output_type', lambda node: np_data_type_to_destination_type(node.output_type))]
+            elif version == 'opset1':
+                return ['sort_result_descending', 'box_encoding']
+            else:
+                raise Error('Unsupported operation opset version "{}"'.format(version))
 
     @staticmethod
     def infer(node: Node):
@@ -76,5 +81,10 @@ class NonMaxSuppression(Op):
 
     @staticmethod
     def type_infer(node):
-        node.out_port(0).set_data_type(np.int64 if node.graph.graph['cmd_params'].generate_experimental_IR_V10 else
-                                       np.int32)
+        if not node.graph.graph['cmd_params'].generate_experimental_IR_V10:
+            node.out_port(0).set_data_type(np.int32)
+        else:
+            if node.get_opset() == 'opset3':
+                node.out_port(0).set_data_type(node.output_type)
+            else:
+                node.out_port(0).set_data_type(np.int64)

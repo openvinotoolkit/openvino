@@ -39,9 +39,9 @@ class SparseToDense(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'experimental',
             'type_infer': self.type_infer,
             'infer': self.infer,
             'in_ports_count': 4,

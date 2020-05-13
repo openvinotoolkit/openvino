@@ -647,7 +647,7 @@ static void refGlobalAvgPooling7x7Rfcn(const Blob::Ptr src,
     }
 }
 
-class myriadLayersRfcnTests_nightly: public myriadLayersTests_nightly {
+class myriadLayersRfcnTests_smoke: public myriadLayersTests_nightly {
 public:
     void GenROIs(InferenceEngine::Blob::Ptr rois,
                  const uint32_t in_width, const uint32_t in_height,
@@ -796,7 +796,7 @@ public:
     Blob::Ptr outputBlob;
 };
 
-TEST_F(myriadLayersRfcnTests_nightly, ReshapeRfcn)
+TEST_F(myriadLayersRfcnTests_smoke, ReshapeRfcn)
 {
     StatusCode st = GENERAL_ERROR;
 
@@ -812,7 +812,7 @@ TEST_F(myriadLayersRfcnTests_nightly, ReshapeRfcn)
     CompareCommonAbsolute(outputBlob, prior_network_output, 0.0f);
 }
 
-TEST_F(myriadLayersRfcnTests_nightly, SoftmaxRfcn)
+TEST_F(myriadLayersRfcnTests_smoke, SoftmaxRfcn)
 {
     StatusCode st = GENERAL_ERROR;
 
@@ -830,7 +830,7 @@ TEST_F(myriadLayersRfcnTests_nightly, SoftmaxRfcn)
     CompareCommonAbsolute(outputBlob, _refBlob, ERROR_BOUND);
 }
 
-TEST_F(myriadLayersRfcnTests_nightly, GlobalAvgPooling7x7Rfcn)
+TEST_F(myriadLayersRfcnTests_smoke, GlobalAvgPooling7x7Rfcn)
 {
     StatusCode st = GENERAL_ERROR;
 

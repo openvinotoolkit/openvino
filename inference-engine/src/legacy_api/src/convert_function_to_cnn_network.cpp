@@ -334,6 +334,15 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
         return res;
     });
+
+    addSpecificCreator({"ScatterElementsUpdate"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), node->description(),
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<ScatterElementsUpdateLayer>(attrs);
+        res->params = params;
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -599,8 +608,10 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         }
         size_t inputCount(0);
         for (size_t i = 0; i < layer->get_input_size(); i++) {
-            const auto &input = layer->get_inputs()[i];
-            if (isInternalLayer(input.get_output().get_node(), op_names, keep_constants)) continue;
+            const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(layer->get_inputs()[i].get_output().get_node());
+            if (constant && isInternalConstLayer(constant, layer, keep_constants)) {
+                continue;
+            }
             inputCount++;
         }
         cnnLayer->insData.resize(inputCount);

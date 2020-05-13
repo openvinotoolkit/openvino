@@ -5,5 +5,5 @@
 #include "myriad_layers_exp_test.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-        accuracy, myriadLayersTestsExp_nightly,
+        accuracy, myriadLayersTestsExp_smoke,
         ::testing::ValuesIn(s_expParams));

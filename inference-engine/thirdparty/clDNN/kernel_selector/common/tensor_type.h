@@ -147,6 +147,14 @@ enum WeightsLayout {
     gs_oi_yxs_gsv32_yxsv4,               // grouped weights for depthwise IMAD convolution (b_fs_yx_fsv32 format)
 
     g_os_is_yx_osv16_isv4,
+
+    g_os_zyx_is_osv16_isv4,
+    g_os_zyx_is_osv16_isv16,
+    g_os_zyx_is_osv16_isv32,
+    g_os_zyx_is_osv32_isv4,
+    g_os_zyx_is_osv32_isv16,
+    g_os_zyx_is_osv32_isv32,
+
     WeightsLayoutCount                   // NUMBER OF ELEMENTS IN ENUM
 };
 
@@ -212,32 +220,7 @@ inline bool SimpleLayout(DataLayout l) {
     }
 }
 
-inline bool GroupedLayout(WeightsLayout l) {
-    switch (l) {
-        case WeightsLayout::goiyx:
-        case WeightsLayout::goizyx:
-        case WeightsLayout::g_os_iyx_osv16:
-        case WeightsLayout::g_os_iyx_osv32:
-        case WeightsLayout::gs_oiyx_gsv16:
-        case WeightsLayout::gs_oizyx_gsv16:
-        case WeightsLayout::gs_oiyx_gsv32:
-        case WeightsLayout::g_os_iyx_osv16_rotate_180:
-        case WeightsLayout::gyxio:
-        case WeightsLayout::gi_yxs_os_yxsv2_osv16:
-        case WeightsLayout::g_is_os_zyx_osv16_isv16:
-        case WeightsLayout::g_is_os_yx_osv16_isv16:
-        case WeightsLayout::g_os_is_zyx_isv8_osv16_isv2:
-        case WeightsLayout::g_os_is_yx_isv8_osv16_isv2:
-        case WeightsLayout::g_os_is_zyx_isv16_osv16:
-        case WeightsLayout::giy_xs_os_xsv2_osv16__ao32:
-        case WeightsLayout::giy_xs_os_xsv2_osv8__ao32:
-        case WeightsLayout::gs_oi_yxs_gsv4_yxsv4:
-        case WeightsLayout::g_os_is_yx_osv16_isv4:
-            return true;
-        default:
-            return false;
-    }
-}
+inline bool GroupedLayout(WeightsLayout l);
 
 inline bool GroupedLayout(DataLayout) {
     return false;
@@ -588,5 +571,10 @@ private:
     static WeightsChannelArray weightsChannelArray;
     static NDims GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l);
 };
+
+inline bool GroupedLayout(WeightsLayout l) {
+    return WeightsTensor::DoesGroupDimExist(l);
+}
+
 }  // namespace Tensor
 }  // namespace kernel_selector

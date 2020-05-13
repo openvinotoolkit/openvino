@@ -89,7 +89,7 @@ def common_onnx_pool_extractor(node):
             node.soft_get('name', node.id), pads))
 
         # Try to convert slightly incorrect models with insufficient pad parameters
-        assert pads.size * 2 == kernel_shape.size
+        assert pads.size == kernel_shape.size
         pads = np.concatenate([pads, pads])
         log.warning('Extended pads to {}'.format(pads))
 

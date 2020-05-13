@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
 
 // Define if runtime supports it. MX runtime is compatible, KMB is in WIP state

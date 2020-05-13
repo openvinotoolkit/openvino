@@ -20,34 +20,8 @@ using namespace InferenceEngine;
 class ExtensionLibTests : public CommonTestUtils::TestsCommon {
 public:
     std::string getExtensionPath() {
-#ifdef _WIN32
-#ifdef __MINGW32__
-        const char pre[] = "lib";
-#else
-        const char pre[] = "";
-#endif
-#ifdef NDEBUG
-        const char ext[] = ".dll";
-#else
-        const char ext[] = "d.dll";
-#endif
-        const char FileSeparator[] = "\\";
-
-#else
-        const char FileSeparator[] = "/";
-#if defined __APPLE__
-#ifdef NDEBUG
-        const char ext[] = ".dylib";
-#else
-        const char ext[] = "d.dylib";
-#endif
-        const char pre[] = "lib";
-#else
-        const char pre[] = "lib";
-        const char ext[] = ".so";
-#endif
-#endif
-        return getIELibraryPath() + FileSeparator + pre + "extension_tests" + ext;
+        return FileUtils::makeSharedLibraryName<char>({},
+            std::string("extension_tests") + IE_BUILD_POSTFIX);
     }
 };
 

@@ -26,17 +26,14 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
     DispatchData runInfo;
     std::vector<size_t> global;
     std::vector<size_t> local;
-    if (out.GetLayout() == DataLayout::bfzyx) {
-        global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
-        local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
-    } else if (out.GetLayout() == DataLayout::yxfb) {
+    if (out.GetLayout() == DataLayout::yxfb) {
         global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v};
         local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
     } else if (out.GetLayout() == DataLayout::b_fs_yx_fsv16) {
         global = {Align(out.Feature().v, 16) * out.Batch().v, out.X().v, out.Y().v};
         local = {16, 1, 1};
     } else {
-        global = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
+        global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
         local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
     }
 
@@ -76,6 +73,12 @@ bool ActivationKernelBase::Validate(const Params& p, const optional_params& o) c
     if (p.GetType() != KernelType::ACTIVATION ||
         o.GetType() != KernelType::ACTIVATION) {
         return false;
+    }
+    const activation_params& orgParams = static_cast<const activation_params&>(p);
+
+    for (auto& fused_op : orgParams.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
     }
 
     return true;

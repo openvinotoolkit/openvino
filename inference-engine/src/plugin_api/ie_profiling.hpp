@@ -138,7 +138,7 @@ inline static void annotateEnd(IttTaskHandles& h, IttBlock&) {
 #define IE_STR(x) IE_STR_(x)
 #define IE_STR_(x) #x
 
-class ProfilingTask;
+struct ProfilingTask;
 
 struct IttStatic {};
 
@@ -179,8 +179,8 @@ struct ProfilingTask {
     }
 
 private:
-friend void annotateBegin(IttStatic&, IttProfilingTask& t);
-friend void annotateEnd(IttStatic&, IttProfilingTask& t);
+    friend void annotateBegin(IttStatic&, IttProfilingTask& t);
+    friend void annotateEnd(IttStatic&, IttProfilingTask& t);
 
     std::string name;
 #ifdef ENABLE_PROFILING_ITT

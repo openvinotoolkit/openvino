@@ -39,7 +39,7 @@ public:
     /**
     * @brief constructor
     */
-    HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&               network,
+    HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&         network,
                             const std::map<std::string, std::string>&   config,
                             Engine*                                     plugin);
 
@@ -71,9 +71,8 @@ private:
     };
     std::vector<NetworkDesc> networks;
 
-    Engine*                             _plugin;
+    Engine*                             _heteroPlugin;
     std::string                         _name;
-    std::vector<std::string>            _affinities;
     std::map<std::string, std::string>  _config;
 };
 

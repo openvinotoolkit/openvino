@@ -157,12 +157,8 @@ void FrontEnd::parseTopK(const Model& model, const ie::CNNLayerPtr& _layer, cons
         realOutputs = {outputValues};
     }
 
-    const bool isArgMaxPossible = outputsMode != TopKOutputs::All && mode == TopKMode::Max
-               && ((sort == TopKSort::Value && outputsMode == TopKOutputs::ValueOnly)
-                || (sort == TopKSort::Index && outputsMode == TopKOutputs::IndexOnly));
-
     auto stage = model->addNewStage<TopKStage>(layer->name,
-                                               isArgMaxPossible ? StageType::ArgMax : StageType::TopK,
+                                               StageType::TopK,
                                                layer, inputs, realOutputs);
 
     stage->attrs().set<Dim>("axis", axis);

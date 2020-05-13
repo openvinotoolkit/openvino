@@ -102,6 +102,9 @@ Options:
   -t TIME, --time TIME  Optional. Time in seconds to execute topology.
   -progress [PROGRESS]  Optional. Show progress bar (can affect performance
                         measurement). Default values is "False".
+  -shape SHAPE          Optional. Set shape for input. For example,
+                        "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in
+                        case of one input size.
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
                        Optional. Number of streams to use for inference on the CPU/GPU in throughput mode
                        (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).

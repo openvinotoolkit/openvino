@@ -3,12 +3,14 @@
 //
 
 #include <vpu/frontend/frontend.hpp>
+#include <vpu/model/data_desc.hpp>
 
 #include <vpu/model/data_contents/ie_blob_content.hpp>
 
 #include <algorithm>
 #include <memory>
 #include <set>
+#include <vector>
 #include <string>
 
 namespace vpu {
@@ -25,41 +27,33 @@ private:
     }
 
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
-         auto input0 = inputEdge(0)->input();
-         auto input1 = inputEdge(1)->input();
-         auto output = outputEdge(0)->output();
-
-         auto in0Desc = input0->desc();
-         auto in1Desc = input1->desc();
-         auto outDesc = output->desc();
-
-         auto in0Order = DimsOrder::fromNumDims(in0Desc.numDims());
-         auto in1Order = DimsOrder::fromNumDims(in1Desc.numDims());
-         auto outOrder = DimsOrder::fromNumDims(outDesc.numDims());
-
-         orderInfo.setInput(inputEdge(0), in0Order);
-         orderInfo.setInput(inputEdge(1), in1Order);
-         orderInfo.setOutput(outputEdge(0), outOrder);
+         orderInfo.setInput(inputEdge(0), input(0)->desc().dimsOrder());
+         orderInfo.setInput(inputEdge(1), input(1)->desc().dimsOrder());
+         orderInfo.setOutput(outputEdge(0), output(0)->desc().dimsOrder());
     }
 
     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
     }
 
     void finalizeDataLayoutImpl() override {
-        auto input0 = inputEdge(0)->input();
-        auto input1 = inputEdge(1)->input();
+        auto reductionAxes = input(1);
+        auto in0Desc = input(0)->desc();
+        auto in1Desc = reductionAxes->desc();
 
-        auto in0Desc = input0->desc();
-        auto in1Desc = input1->desc();
-
-        IE_ASSERT(input1->usage() == DataUsage::Const);
-
+        VPU_THROW_UNLESS(reductionAxes->usage() == DataUsage::Const,
+                        "Stage {} of type {} expects input with index {} ({}) to be {}, but it is {}",
+                        name(), type(), 1, reductionAxes->name(), DataUsage::Const, reductionAxes->usage());
         size_t ndims = in0Desc.numDims();
-        IE_ASSERT(in1Desc.numDims() == 1);
+        VPU_THROW_UNLESS(in1Desc.numDims() == 1,
+                        "Stage {} of type {} expects input with index {} ({}) to have dimensions number is {}, but it is {}",
+                        name(), type(), 1, reductionAxes->name(), 1, in1Desc.numDims());
         size_t indicesSize = in1Desc.totalDimSize();
-        IE_ASSERT(indicesSize <= ndims);
+        VPU_THROW_UNLESS(indicesSize <= ndims,
+                        "Stage {} of type {} expects input with index {} ({}) to have total size not greater than dimensions ",
+                        "number of input with index {} ({}), but it is {} > {}",
+                        name(), type(), 1, reductionAxes->name(), 0, input(0)->name(), indicesSize, ndims);
 
-        const auto oldIndices = input1->content()->get<int32_t>();
+        const auto oldIndices = reductionAxes->content()->get<int32_t>();
 
         auto newIndicesBlob = ie::make_shared_blob<int32_t>(InferenceEngine::TensorDesc(
             ie::Precision::I32,
@@ -69,28 +63,26 @@ private:
 
         auto newIndices = newIndicesBlob->buffer().as<int32_t*>();
 
-        const auto defDimsOrder = DimsOrder::fromNumDims(ndims);
-        const auto defPerm = defDimsOrder.toPermutation();
+        const auto defPerm = DimsOrder::fromNumDims(ndims).toPermutation();
+        const auto dimsOrder = in0Desc.dimsOrder();
         for (size_t i = 0; i < indicesSize; ++i) {
             auto irIndex = oldIndices[i];
             if (irIndex < 0) {
                 // handle negative indices
-                irIndex = ndims - irIndex;
+                irIndex = ndims - std::abs(irIndex);
             }
-            IE_ASSERT(irIndex < ndims);
+            VPU_THROW_UNLESS(irIndex < ndims,
+                            "Stage {} of type {} expects input with index {} ({}) include values less than ",
+                            "dimensions number of input with index {} ({}), but it is {} >= {}",
+                             name(), type(), 1, reductionAxes->name(), 0, input(0)->name(), irIndex, ndims);
 
-            const auto irRevIndex = ndims - 1 - irIndex;
-
-            const auto irDim = defPerm[irRevIndex];
-
-            const auto vpuDimInd = in0Desc.dimsOrder().dimInd(irDim);
-            newIndices[i] = vpuDimInd;
+            const auto reducedDim = defPerm[ndims - 1 - irIndex];
+            newIndices[i] = dimsOrder.dimInd(reducedDim);
         }
-
         std::sort(newIndices, newIndices + indicesSize);
 
         auto newList = model()->duplicateData(
-            input1,
+            reductionAxes,
             "",
             DataDesc(),
             ieBlobContent(newIndicesBlob, DataType::S32));
@@ -106,7 +98,10 @@ private:
     }
 
     void initialCheckImpl() const override {
-        IE_ASSERT(input(0)->desc().type() == output(0)->desc().type());
+        VPU_THROW_UNLESS(input(0)->desc().type() == output(0)->desc().type(),
+                         "Stage {} of type {} expects that data types of input with index {} ({}) ",
+                         "and output with index {} ({}) are the same, but it is {} and {}",
+                         name(), type(), 0, input(0)->name(), 0, output(0)->name(), input(0)->desc().type(), output(0)->desc().type());
         assertInputsOutputsTypes(this,
                                  {{DataType::FP16, DataType::S32}, {DataType::S32}},
                                  {{DataType::FP16, DataType::S32}});
@@ -133,10 +128,15 @@ private:
 
 void FrontEnd::parseReduce(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     auto layer = std::dynamic_pointer_cast<ie::ReduceLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
-
-    IE_ASSERT(inputs.size() == 2);
-    IE_ASSERT(outputs.size() == 1);
+    VPU_THROW_UNLESS(layer != nullptr,
+                     "Layer {} of type {} is nullptr",
+                     layer->name, layer->type);
+    VPU_THROW_UNLESS(inputs.size() == 2,
+                     "Layer {} of type {} expects {} inputs, but provided {}",
+                     layer->name, layer->type, 2, inputs.size());
+    VPU_THROW_UNLESS(outputs.size() == 1,
+                     "Layer {} of type {} expects {} output, but provided {}",
+                     layer->name, layer->type, 1, outputs.size());
 
     auto stageType = StageType::None;
     if (layer->type == "ReduceAnd") {

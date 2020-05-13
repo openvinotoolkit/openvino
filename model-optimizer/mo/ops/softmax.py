@@ -25,11 +25,11 @@ class Softmax(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'infer': Softmax.infer,
-            'kind': 'op',
-            'axis': 1,
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
+            'infer': Softmax.infer,
+            'axis': 1,
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
@@ -43,6 +43,22 @@ class Softmax(Op):
             node.axis = len(node.in_node().shape) + node.axis
         copy_shape_infer(node)
         PermuteAttrs.create_permute_attrs(node, attrs=[('axis', 'input:0')])
+
+
+class SoftmaxONNX(Op):
+    op = 'SoftMaxONNX'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'infer': None,
+            'axis': 1,
+            'type': None, # this operation will be replaced with a
+                          # Reshape(Softmax(Flatten(x, axis), -1), x.shape) sub-graph
+            'op': __class__.op,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+        }, attrs)
 
 
 class LogSoftmax(Op):

@@ -21,6 +21,7 @@ from .inputs_filling import is_image
 from .logging import logger
 
 import json
+import re
 
 def static_vars(**kwargs):
     def decorate(func):
@@ -36,10 +37,10 @@ def next_step(additional_info='', step_id=0):
     step_names = {
         1: "Parsing and validating input arguments",
         2: "Loading Inference Engine",
-        3: "Reading the Intermediate Representation network",
-        4: "Resizing network to match image sizes and given batch",
-        5: "Configuring input of the model",
-        6: "Setting device configuration",
+        3: "Setting device configuration",
+        4: "Reading the Intermediate Representation network",
+        5: "Resizing network to match image sizes and given batch",
+        6: "Configuring input of the model",
         7: "Loading the model to the device",
         8: "Setting optimal runtime parameters",
         9: "Creating infer requests and filling input blobs with images",
@@ -238,6 +239,34 @@ def get_command_line_arguments(argv):
     if arg_name is not '':
         parameters.append((arg_name, arg_value))
     return parameters
+
+def update_shapes(shapes, shapes_string: str, inputs_info):
+    updated = False
+    matches = re.findall(r'(.*?)\[(.*?)\],?', shapes_string)
+    if matches:
+        for match in matches:
+            input_name = match[0]
+            parsed_shape = [int(dim) for dim in match[1].split(',')]
+            if input_name != '':
+                shapes[input_name] = parsed_shape
+                updated = True
+            else:
+                shapes.update({ k:parsed_shape for k in shapes.keys() })
+                updated = True
+                break
+    else:
+        raise Exception("Can't parse `shape` parameter: {}".format(shapes_string))
+    return updated
+
+def adjust_shapes_batch(shapes, batch_size: int, inputs_info):
+    updated = False
+    for name, data in inputs_info.items():
+        layout = data.layout
+        batch_index = layout.index('N') if 'N' in layout else -1
+        if batch_index != -1 and shapes[name][batch_index] != batch_size:
+            shapes[name][batch_index] = batch_size
+            updated = True
+    return updated
 
 def show_available_devices():
     ie = IECore()

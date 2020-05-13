@@ -57,6 +57,12 @@ DECLARE_VPU_CONFIG_KEY(DUMP_ALL_PASSES);
 DECLARE_VPU_CONFIG_KEY(DISABLE_REORDER);
 
 /**
+ * @brief Used to disable convert stages in tests to be able to insert
+ * convert layer with desired precision.
+ */
+DECLARE_VPU_CONFIG_KEY(DISABLE_CONVERT_STAGES);
+
+/**
  * @brief Used to disable permute merging pass (with setting "NO") in tests to check it preserves behaviour. Default = "YES"
  */
 DECLARE_VPU_CONFIG_KEY(ENABLE_PERMUTE_MERGING);

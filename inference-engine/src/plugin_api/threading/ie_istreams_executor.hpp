@@ -121,6 +121,12 @@ public:
     * @return `ID` of current NUMA Node, or throws exceptions if called not from stream thread
     */
     virtual int  GetNumaNodeId() = 0;
+
+    /**
+    * @brief Execute the task in the current thread using streams executor configuration and constraints
+    * @param task A task to start
+    */
+    virtual void Execute(Task task) = 0;
 };
 
 

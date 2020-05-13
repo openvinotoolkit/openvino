@@ -6,9 +6,9 @@
 #include "behavior_test_plugins.hpp"
 #include "gna_test_data.hpp"
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTest, ValuesIn(supportedValues),
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTest, ValuesIn(supportedValues),
                         getTestCaseName);
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInput, ValuesIn(allInputSupportedValues),
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestInput, ValuesIn(allInputSupportedValues),
                         getTestCaseName);
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestOutput, ValuesIn(allOutputSupportedValues),
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestOutput, ValuesIn(allOutputSupportedValues),
                         getOutputTestCaseName);

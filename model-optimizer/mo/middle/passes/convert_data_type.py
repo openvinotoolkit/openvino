@@ -171,8 +171,5 @@ def convert_blobs(graph: Graph, data_type_str: str):
             try:
                 if node.value.dtype in [np.float32, np.float64, np.float16] and not node.has_and_set('correct_data_type'):
                     convert_node_blobs(graph, node, data_type_str_to_np(data_type_str))
-                # convert all I64 to I32 since plugins don't support I64:
-                if node.value.dtype == np.int64:
-                    convert_node_blobs(graph, node, np.int32)
             except Exception as e:
                 raise Error('Coudn\'t convert blob {}, details: {}', node.soft_get('name'), e) from e

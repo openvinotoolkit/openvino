@@ -48,13 +48,15 @@ post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bi
 template<typename T>
 void post_optimize_weights::optimize_weights(T& node, program_impl& p) {
     auto offsets = get_weights_bias_offset(node);
+    auto* impl = node.get_selected_impl().get();
+    auto output_layout = node.get_output_layout();
+    auto& weights_reorder_params = impl->_weights_reorder_params;
+
     for (auto i = offsets.weights_offset; i < offsets.bias_offset; i++) {
         auto& weights_node = node.get_dependency(i);
-        auto* impl = node.get_selected_impl().get();
-        auto output_layout = node.get_output_layout();
         auto weights_layout = weights_node.get_output_layout();
 
-        auto reorders = _rf.get_weights_reorder(weights_node.id(), weights_layout, impl->_weights_reorder_params);
+        auto reorders = _rf.get_weights_reorder(weights_node.id(), weights_layout, weights_reorder_params);
 
         for (auto& reorder : reorders) {
             // insert new generic_layer node to topology
@@ -64,9 +66,15 @@ void post_optimize_weights::optimize_weights(T& node, program_impl& p) {
             g_node.get_output_layout(false);
             g_node.selected_impl = g_node.type()->choose_impl(p.get_engine(), g_node);
         }
-        // set the old output layout and do not invalidate users as change of weights will not affect output layout
-        node.set_output_layout(output_layout, false);
     }
+
+    // Reset weights reorder params to not keep source code pointer
+    weights_reorder_params.engine = kernel_selector::generic_kernel_params::Engine::NONE;
+    weights_reorder_params.clKernel = nullptr;
+    weights_reorder_params.cpuKernel = nullptr;
+
+    // set the old output layout and do not invalidate users as change of weights will not affect output layout
+    node.set_output_layout(output_layout, false);
 }
 
 void post_optimize_weights::run(program_impl& p) {

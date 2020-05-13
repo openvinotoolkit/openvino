@@ -202,9 +202,7 @@ class WatchdogImpl {
 
     using Devices = std::list<wd_context_as_tuple>;
     Devices watchedDevices;
-    std::mutex devicesListAcc;
-    std::atomic<int> generation = {0};
-    std::atomic_bool threadRunning;
+    std::atomic_bool threadRunning {false};
 
     pthread_mutex_t routineLock;
     pthread_cond_t  wakeUpPingThread;
@@ -214,6 +212,17 @@ class WatchdogImpl {
     WatchdogImpl(WatchdogImpl&&) = delete;
     WatchdogImpl& operator = (const WatchdogImpl&) = delete;
     WatchdogImpl& operator = (WatchdogImpl&&) = delete;
+
+    class AutoScope {
+    public:
+        explicit AutoScope(const std::function<void()>& func) : _func(func) {}
+        ~AutoScope() { _func(); }
+
+        AutoScope(const AutoScope&) = delete;
+        AutoScope& operator=(const AutoScope&) = delete;
+    private:
+        std::function<void()> _func;
+    };
 
 private:
 
@@ -229,6 +238,10 @@ private:
         if (rc != 0) {
             throw std::runtime_error("failed to initialize condition variable attribute. rc: " + std::to_string(rc));
         }
+        AutoScope attrDestroy([&attr]{
+            if (pthread_condattr_destroy(&attr) != 0)
+                mvLog(MVLOG_ERROR, "Failed to destroy condition variable attribute.");
+        });
 
         rc = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
         if (rc != 0) {
@@ -372,14 +385,44 @@ public:
     }
 
  private:
+    /// @note: We are using here pthread_cond_timedwait as a replacement for condition_variable::wait_for,
+    /// as libstdc++ has bug not using monotonic clock. When GCC 10.x became minimum supported version,
+    /// that code could be removed.
+    void wait_for(const milliseconds sleepInterval) {
+        struct timespec timeToWait = {0, 0};
 
+        const auto sec = std::chrono::duration_cast<std::chrono::seconds>(sleepInterval);
+
+#if (defined(__APPLE__) || defined(_WIN32))
+        timeToWait.tv_sec = sec.count();
+        timeToWait.tv_nsec =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(sleepInterval).count() -
+            std::chrono::nanoseconds(sec).count();
+#else
+        clock_gettime(CLOCK_MONOTONIC, &timeToWait);
+        const auto secondInNanoSeconds = 1000000000L;
+        const auto nsecSum = std::chrono::duration_cast<std::chrono::nanoseconds>(sleepInterval).count() -
+                std::chrono::nanoseconds(sec).count() + timeToWait.tv_nsec;
+        timeToWait.tv_sec += sec.count() + nsecSum / secondInNanoSeconds;
+        timeToWait.tv_nsec = nsecSum % secondInNanoSeconds;
+#endif // (defined(__APPLE__) || defined(_WIN32))
+
+#if defined(__APPLE__)
+        const auto rc = pthread_cond_timedwait_relative_np(&wakeUpPingThread, &routineLock, &timeToWait);
+#else
+        const auto rc = pthread_cond_timedwait(&wakeUpPingThread, &routineLock, &timeToWait);
+#endif // defined(__APPLE__)
+        if (rc != 0 && rc != ETIMEDOUT) {
+            throw std::runtime_error("Failed to perform wait in a loop for " + std::to_string(sleepInterval.count()) + " ms. rc: " + std::to_string(rc));
+        }
+    }
 
     void watchdog_routine() noexcept {
         try {
             mvLog(MVLOG_INFO, "thread started\n");
 
             milliseconds sleepInterval;
-            struct timespec timeToWait = {0, 0};
+
             CustomUniqueLock lock {&routineLock};
 
             do {
@@ -416,29 +459,11 @@ public:
                 }
                 // TODO: no timer coalescing feature, to minimized thread wakes
                 sleepInterval = std::get<0>(*minInterval)->dueIn(currentTime);
+                if (sleepInterval.count() <= 0)
+                    continue;
+
                 mvLog(MVLOG_DEBUG, "sleep interval = %ld ms\n", sleepInterval.count());
-
-                auto sec = std::chrono::duration_cast<std::chrono::seconds>(sleepInterval);
-
-#if (defined(__APPLE__) || defined(_WIN32))
-                timeToWait.tv_sec = sec.count();
-                timeToWait.tv_nsec =
-                    std::chrono::duration_cast<std::chrono::nanoseconds>(sleepInterval).count() -
-                    std::chrono::nanoseconds(sec).count();
-#else
-                clock_gettime(CLOCK_MONOTONIC, &timeToWait);
-                timeToWait.tv_sec += sec.count();
-                timeToWait.tv_nsec +=
-                    std::chrono::duration_cast<std::chrono::nanoseconds>(sleepInterval).count() -
-                    std::chrono::nanoseconds(sec).count();
-#endif // (defined(__APPLE__) || defined(_WIN32))
-
-#if defined(__APPLE__)
-                pthread_cond_timedwait_relative_np(&wakeUpPingThread, &routineLock, &timeToWait);
-#else
-                pthread_cond_timedwait(&wakeUpPingThread, &routineLock, &timeToWait);
-#endif // defined(__APPLE__)
-
+                wait_for(sleepInterval);
 
                 mvLog(MVLOG_DEBUG, "waiting completed in  %ld ms\n",
                       duration_cast<std::chrono::milliseconds>(steady_clock::now() - currentTime).count());

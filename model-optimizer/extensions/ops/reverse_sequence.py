@@ -24,6 +24,7 @@ class ReverseSequence(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': __class__.op,
+            'version': 'opset1',
             'seq_axis': None,
             'batch_axis': 0,
             'op': __class__.op,

@@ -12,6 +12,7 @@
 #include "pool_ref.hpp"
 #include "ie_memcpy.h"
 #include <single_layer_common.hpp>
+#include <vpu/model/data_desc.hpp>
 #include "common_test_utils/common_layers_params.hpp"
 #include "vpu/utils/error.hpp"
 
@@ -1034,7 +1035,6 @@ namespace reduceImpl
             for (int i = 1; i < ndims; ++i)
                 offset = offset * dims[i] + indices[i];
         }
-
         return data[offset];
     }
 
@@ -1182,55 +1182,65 @@ namespace reduceImpl
     }
 }
 
-template<>
-void ref_reduce<ie_fp16>(const Blob::Ptr& in,
-                         const Blob::Ptr& axes,
-                         Blob::Ptr& out,
-                         int keep_dims,
-                         IReduceKernel<ie_fp16>* op)
+template void ref_reduce(const Blob::Ptr& in,
+                        const Blob::Ptr& axes,
+                        Blob::Ptr& out,
+                        int keep_dims,
+                        vpu::LayoutPreference layoutPreference,
+                        IReduceKernel<ie_fp16>* op);
+
+template void ref_reduce(const Blob::Ptr& in,
+                        const Blob::Ptr& axes,
+                        Blob::Ptr& out,
+                        int keep_dims,
+                        vpu::LayoutPreference layoutPreference,
+                        IReduceKernel<int32_t>* op);
+
+template<typename DataType>
+void ref_reduce(const Blob::Ptr& in,
+                const Blob::Ptr& axes,
+                Blob::Ptr& out,
+                int keep_dims,
+                vpu::LayoutPreference layoutPreference,
+                IReduceKernel<DataType>* op)
 {
     ASSERT_NE(in, nullptr);
     ASSERT_NE(axes, nullptr);
     ASSERT_NE(out, nullptr);
 
-    const int16_t* inData = in->cbuffer().as<const int16_t*>();
-    int16_t* outData = out->buffer().as<int16_t*>();
-
-    ASSERT_NE(inData, nullptr);
-    ASSERT_NE(outData, nullptr);
-
     const auto axesDims = axes->getTensorDesc().getDims();
     ASSERT_EQ(axesDims.size(), 1);
 
     const auto axesSize = axesDims[0];
-    const int32_t* axesData = axes->cbuffer().as<const int32_t*>();
-    ASSERT_TRUE(!(axesSize > 0) || (axesData != nullptr));
+    int32_t* axesData = axes->cbuffer().as<int32_t*>();
 
-    reduceImpl::refReduce(in, out, axesSize, axesData, keep_dims, op);
-}
+    if (layoutPreference == vpu::LayoutPreference::ChannelMinor) {
+        auto inDims = in->getTensorDesc().getDims();
+        const auto ndims = inDims.size();
+        auto newDims = inDims;
 
-template<>
-void ref_reduce<int32_t>(const Blob::Ptr& in,
-                         const Blob::Ptr& axes,
-                         Blob::Ptr& out,
-                         int keep_dims,
-                         IReduceKernel<int32_t>* op)
-{
-    ASSERT_NE(in, nullptr);
-    ASSERT_NE(axes, nullptr);
-    ASSERT_NE(out, nullptr);
+        const auto dimsOrder = vpu::DimsOrder::fromLayout(in->getTensorDesc().getLayout());
+        const auto defPerm = vpu::DimsOrder::fromNumDims(ndims).toPermutation();
 
-    const int32_t* inData = in->cbuffer().as<const int32_t*>();
-    int32_t* outData = out->buffer().as<int32_t*>();
+        for (int i = 0; i < ndims; ++i) {
+            auto newInd = ndims - 1 - dimsOrder.dimInd(defPerm[ndims - i - 1]);
+            newDims[newInd] = inDims[i];
+        }
 
-    ASSERT_NE(inData, nullptr);
-    ASSERT_NE(outData, nullptr);
+        in->getTensorDesc().setDims(newDims);
 
-    const auto axesDims = axes->getTensorDesc().getDims();
-    ASSERT_EQ(axesDims.size(), 1);
+        for (int i = 0; i < axesSize; ++i) {
+            axesData[i] = ndims - 1 - dimsOrder.dimInd(defPerm[ndims - axesData[i] - 1]);
+            newDims[axesData[i]] = keep_dims ? 1 : 0;
+        }
 
-    const auto axesSize = axesDims[0];
-    const int32_t* axesData = axes->cbuffer().as<const int32_t*>();
+        if (!keep_dims) {
+            newDims.erase(std::remove(newDims.begin(), newDims.end(), 0), newDims.end());
+        }
+
+        out->getTensorDesc().setDims(newDims);
+    }
+
     ASSERT_TRUE(!(axesSize > 0) || (axesData != nullptr));
 
     reduceImpl::refReduce(in, out, axesSize, axesData, keep_dims, op);

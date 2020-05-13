@@ -200,8 +200,8 @@ private:
     void fuse_sigmoid_mul_to_swish(program_impl &p);
     void fuse_reorders(program_impl& p);
     void fuse_activations(program_impl& p);
-    void fuse_skip_layers(program_impl& p);
     void fuse_simple_primitives(program_impl &p);
+    void optimize_fused_ops(program_impl &p);
     layout_optimizer& _lo;
 };
 

@@ -25,7 +25,7 @@ class Enter(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
+            'type': None,
             'op': __class__.op,
             'in_ports_count': 1,
             'infer': Enter.enter_infer,

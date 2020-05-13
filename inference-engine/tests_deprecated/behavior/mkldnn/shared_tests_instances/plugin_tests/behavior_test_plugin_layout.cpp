@@ -21,9 +21,9 @@ layout_test_params conv_neg_test_cases[] = {
     layout_test_params(CommonTestUtils::DEVICE_CPU, "FP32", Layout::CHW, power_params({ { 3, 32, 16 } }, 2, 2, 2)),
 };
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, LayoutTestCanLoadPower,
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, LayoutTestCanLoadPower,
     ::testing::ValuesIn(power_test_cases), getTestName);
-INSTANTIATE_TEST_CASE_P(BehaviorTest, LayoutTestCanLoadConv,
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, LayoutTestCanLoadConv,
     ::testing::ValuesIn(conv_test_cases), getTestName);
-INSTANTIATE_TEST_CASE_P(BehaviorTest, LayoutTestCanNotLoadConv,
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, LayoutTestCanNotLoadConv,
     ::testing::ValuesIn(conv_neg_test_cases), getTestName);

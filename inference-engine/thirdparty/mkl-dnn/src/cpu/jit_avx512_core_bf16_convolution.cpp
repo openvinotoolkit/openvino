@@ -117,6 +117,7 @@ void _jit_avx512_core_bf16_convolution_fwd_t<dst_type>::execute_forward_1d()
             auto src_w = src + src_d.blk_off(n, g_icb, iw_s);
             auto wht_w = weights + wht_blk_off(weights_d, g, ocb);
 
+            par_conv.oc_off = g_oc * sizeof(dst_data_t);
             par_conv.src = src_w;
             par_conv.dst = dst_w;
             par_conv.filt = wht_w;
@@ -219,6 +220,7 @@ void _jit_avx512_core_bf16_convolution_fwd_t<dst_type>::execute_forward_2d()
                 auto aux_src = src_w + i_t_overflow * dilate_h * src_h_stride;
                 auto aux_wht = wht_w + i_t_overflow * wht_h_stride;
 
+                par_conv.oc_off = g_oc * sizeof(dst_data_t);
                 par_conv.src = aux_src;
                 par_conv.dst = dst_w;
                 par_conv.filt = aux_wht;
@@ -337,6 +339,7 @@ void _jit_avx512_core_bf16_convolution_fwd_t<dst_type>::execute_forward_3d()
                 auto aux_src = src_w + i_t_overflow * dilate_h * src_h_stride;
                 auto aux_wht = wht_w + i_t_overflow * wht_h_stride;
 
+                par_conv.oc_off = g_oc * sizeof(dst_data_t);
                 par_conv.src = aux_src;
                 par_conv.dst = dst_w;
                 par_conv.filt = aux_wht;

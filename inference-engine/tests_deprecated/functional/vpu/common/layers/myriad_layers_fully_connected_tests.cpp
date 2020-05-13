@@ -4,18 +4,18 @@
 
 #include "myriad_layers_fully_connected_tests.hpp"
 INSTANTIATE_TEST_CASE_P(
-        accuracy, myriadLayersTestsFullyConnected_nightly,
+        accuracy, myriadLayersTestsFullyConnected_smoke,
         ::testing::ValuesIn(s_fcTestParams)
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsFullyConnectedBatch_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsFullyConnectedBatch_smoke,
         ::testing::Combine(
             ::testing::ValuesIn(s_fcTestBatchParams)
           , ::testing::ValuesIn(s_fcTestBatchOutSizes)
           )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsFullyConnectedPVA_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsFullyConnectedPVA_smoke,
         ::testing::Combine(
             ::testing::ValuesIn(s_fcTestPVAParams)
           , ::testing::ValuesIn(s_fcTestPVAOutSizes)

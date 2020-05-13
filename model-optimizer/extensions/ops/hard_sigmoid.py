@@ -28,6 +28,7 @@ class HardSigmoid(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
+            'version': 'opset1',
             'infer': self.infer,
             'in_ports_count': 3,
             'out_ports_count': 1,

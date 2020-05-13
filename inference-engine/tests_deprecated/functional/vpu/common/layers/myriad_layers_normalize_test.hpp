@@ -99,9 +99,9 @@ PRETTY_PARAM(AcrossSpatial, bool)
 PRETTY_PARAM(ChannelSharedNormalize, bool)
 PRETTY_PARAM(EPS, float)
 
-typedef myriadLayerTestBaseWithParam<std::tuple<Dims, AcrossSpatial, ChannelSharedNormalize, EPS>> myriadLayersTestsNormalize_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<Dims, AcrossSpatial, ChannelSharedNormalize, EPS>> myriadLayersTestsNormalize_smoke;
 
-TEST_P(myriadLayersTestsNormalize_nightly, Normalize) {
+TEST_P(myriadLayersTestsNormalize_smoke, Normalize) {
     tensor_test_params dims = std::get<0>(GetParam());
     int across_spatial = std::get<1>(GetParam());
     int channel_shared = std::get<2>(GetParam());

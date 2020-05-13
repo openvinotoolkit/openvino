@@ -28,6 +28,7 @@ class Bucketize(Op):
             'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'extension',
             'type_infer': self.type_infer,
             'infer': self.infer,
             'in_ports_count': 2,

@@ -22,7 +22,7 @@ static inline void PrintTo(const offset_test_params& param, ::std::ostream* os)
 }
 typedef std::tuple<InferenceEngine::SizeVector, InferenceEngine::SizeVector> PermuteParams;
 
-class myriadLayersPermuteTests_nightly: public myriadLayersTests_nightly, /*input tensor, order */
+class myriadLayersPermuteTests_smoke: public myriadLayersTests_nightly, /*input tensor, order */
                                         public testing::WithParamInterface<PermuteParams> {
 };
 
@@ -56,7 +56,7 @@ static void genRefData(InferenceEngine::Blob::Ptr blob) {
     }
 }
 
-TEST_P(myriadLayersPermuteTests_nightly, Permute) {
+TEST_P(myriadLayersPermuteTests_smoke, Permute) {
     std::map<std::string, std::string> params;
     InferenceEngine::SizeVector output_tensor;
     int32_t IW = 0;

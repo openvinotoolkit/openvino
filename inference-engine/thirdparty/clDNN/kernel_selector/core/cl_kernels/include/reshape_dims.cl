@@ -125,15 +125,16 @@ inline uint8 FUNC(reshape_6_to_4)(uint o, uint i, uint w, uint z, uint y, uint x
     return (uint8)(0, dst_b, dst_f, 0, 0, dst_y, dst_x, 0);
 }
 
-inline uint8 FUNC(reshape_grouped_to_simple)(uint g, uint o, uint i, uint z, uint y, uint x, uint src_size_groups, uint dst_size_ofm)
+inline uint8 FUNC(reshape_grouped)(uint g, uint o, uint i, uint z, uint y, uint x, uint src_size_ofm, uint dst_size_ofm)
 {
-    const uint ofm_per_group = dst_size_ofm / src_size_groups;
-    const uint dst_ofm = g * ofm_per_group + (o % ofm_per_group);
+    const uint flat_ofm = g * src_size_ofm + o;
+    const uint dst_ofm = flat_ofm % dst_size_ofm;
+    const uint dst_g = flat_ofm / dst_size_ofm;
     const uint dst_ifm = i;
     const uint dst_z = z;
     const uint dst_y = y;
     const uint dst_x = x;
-    return (uint8)(0, dst_ofm, dst_ifm, 0, dst_z, dst_y, dst_x, 0);
+    return (uint8)(dst_g, dst_ofm, dst_ifm, 0, dst_z, dst_y, dst_x, 0);
 }
 
 inline uint8 FUNC(reshape_dims)(
@@ -178,11 +179,15 @@ inline uint8 FUNC(reshape_dims_with_groups)(
 {
     if (src_dims == 5 && dst_dims == 4)  // goiyx -> oiyx
     {
-        return FUNC_CALL(reshape_grouped_to_simple)(g, o, i, 0, y, x, src_size_groups, dst_size_ofm);
+        return FUNC_CALL(reshape_grouped)(g, o, i, 0, y, x, src_size_ofm, dst_size_ofm);
     }
-    else if (src_dims == 6 && dst_dims == 5)  // goizyx -> oizyx
+    else if (src_dims == 6 && dst_dims == 5)  // goizyx -> oizyx or goizyx -> goiyx
     {
-        return FUNC_CALL(reshape_grouped_to_simple)(g, o, i, z, y, x, src_size_groups, dst_size_ofm);
+        return FUNC_CALL(reshape_grouped)(g, o, i, z, y, x, src_size_ofm, dst_size_ofm);
+    }
+    else if (src_dims == 6 && dst_dims == 4) // goizyx -> oiyx
+    {
+        return FUNC_CALL(reshape_grouped)(g, o, i, 0, y, x, src_size_ofm, dst_size_ofm);
     }
 
     return (uint8)(g, o, i, w, z, y, x, 0);

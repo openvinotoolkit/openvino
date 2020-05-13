@@ -241,18 +241,25 @@ public:
         friend ModelObj;
     };
 
-    inline DataToDataEdgeHelper connectDataWithData() {
-        return DataToDataEdgeHelper(this);
-    }
-
     DataToShapeAllocation connectDataWithShape(
             const Data& parent,
             const Data& child);
 
-    void replaceParentData(
+    void replaceDataToShapeParent(
+            const DataToShapeAllocation& edge,
+            const Data& newParent);
+    void replaceDataToShapeChild(
+            const DataToShapeAllocation& edge,
+            const Data& newChild);
+
+    inline DataToDataEdgeHelper connectDataWithData() {
+        return DataToDataEdgeHelper(this);
+    }
+
+    void replaceDataToDataParent(
             const DataToDataAllocation& edge,
             const Data& newParent);
-    void replaceChildData(
+    void replaceDataToDataChild(
             const DataToDataAllocation& edge,
             const Data& newChild);
 

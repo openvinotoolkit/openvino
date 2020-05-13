@@ -36,7 +36,7 @@ class MockPluginImpl {
     InferenceEngine::ExecutableNetwork ImportNetwork(const std::istream&, const std::map<std::string, std::string> &) {return {};}
     MOCK_QUALIFIED_METHOD0(GetName, const noexcept, std::string(void));
     MOCK_QUALIFIED_METHOD1(SetName, noexcept, void(const std::string &));
-    MOCK_QUALIFIED_METHOD0(GetCore, const noexcept, const InferenceEngine::ICore*(void));
+    MOCK_QUALIFIED_METHOD0(GetCore, const noexcept, InferenceEngine::ICore*(void));
     MOCK_QUALIFIED_METHOD1(SetCore, noexcept, void(InferenceEngine::ICore*));
 
     MOCK_CONST_METHOD2(GetConfig, InferenceEngine::Parameter(const std::string& name,

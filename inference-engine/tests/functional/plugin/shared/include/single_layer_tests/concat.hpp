@@ -16,6 +16,7 @@
 namespace LayerTestsDefinitions {
 
 using concatParamsTuple = typename std::tuple<
+        //TODO: according to specification axis have to be int, negative values are allowed
         size_t,                            // Concat axis
         std::vector<std::vector<size_t>>,  // Input shapes
         InferenceEngine::Precision,        // Network precision

@@ -306,7 +306,8 @@ public:
         std::string y;
         std::string x;
         size_t dims;
-        explicit idx_desc(std::vector<std::string> idx, DataTensor t) : b("0"), f("0"), z("0"), y("0"), x("0"), dims(0) {
+        explicit idx_desc(std::vector<std::string> idx, DataTensor t)
+            : b("0"), f("0"), z("0"), y("0"), x("0"), dims(0) {
             dims = idx.size();
             switch (dims) {
                 case 1: f = idx[0]; break;
