@@ -101,7 +101,7 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
                                  ('squeeze_axis', 'squeeze_to_scalar', {'in': 1}),
                                  ('squeeze_to_scalar', 'embedding_segments_sum', {'in': 3, 'out': 0}),
                                  ('input_params_table', 'embedding_segments_sum', {'in': 0}),
-                                 ('input_default_value', 'embedding_segments_sum', {'in': 5}),
+                                 ('input_default_value', 'embedding_segments_sum', {'in': 4}),
                                  ('embedding_segments_sum', 'last', {'in': 0}),],
                                  nodes_with_edges_only=True)
 
@@ -190,7 +190,7 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
                                  ('squeeze_axis', 'squeeze_to_scalar', {'in': 1}),
                                  ('squeeze_to_scalar', 'embedding_segments_sum', {'in': 3, 'out': 0}),
                                  ('input_params_table', 'embedding_segments_sum', {'in': 0}),
-                                 ('input_default_value', 'embedding_segments_sum', {'in': 5}),
+                                 ('input_default_value', 'embedding_segments_sum', {'in': 4}),
                                  ('embedding_segments_sum', 'last', {'in': 0}),],
                                 nodes_with_edges_only=True)
 

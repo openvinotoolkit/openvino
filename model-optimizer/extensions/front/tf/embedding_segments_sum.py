@@ -103,9 +103,9 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
         identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
         squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))
         embedding_segments_sum.in_port(3).connect(squeeze_to_scalar.out_port(0))
-        # no input port for per_sample_weight
         # connect default value
-        sparse_fill_empty_rows.in_port(3).get_connection().set_destination(embedding_segments_sum.in_port(5))
+        sparse_fill_empty_rows.in_port(3).get_connection().set_destination(embedding_segments_sum.in_port(4))
+        # no input port for per_sample_weight
 
         identity_spw.in_port(0).disconnect()
         gather0_1.in_port(0).disconnect()
@@ -203,10 +203,10 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
         # split and connect number of segments
         identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
         squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))
-        embedding_segments_sum.in_port(3).connect(squeeze_to_scalar.out_port(0))        
-        # no input port for per_sample_weight
+        embedding_segments_sum.in_port(3).connect(squeeze_to_scalar.out_port(0))
         # connect default value
-        sparse_fill_empty_rows.in_port(3).get_connection().set_destination(embedding_segments_sum.in_port(5))
+        sparse_fill_empty_rows.in_port(3).get_connection().set_destination(embedding_segments_sum.in_port(4))
+        # no input port for per_sample_weight
 
         identity_spw.in_port(0).disconnect()
         gather0_1.in_port(0).disconnect()
