@@ -41,7 +41,7 @@ using DataType  = std::string;  // "FP16", "I32"
 using ScatterElementsUpdateTestParams = std::tuple<DataShape,
                                                    DataType>;
 
-class myriadLayersScatterElementsUpdateTest_nightly :
+class myriadLayersScatterElementsUpdateTest_smoke :
     public myriadLayerTestBaseWithParam<ScatterElementsUpdateTestParams> {
 protected:
 
@@ -392,6 +392,6 @@ private:
     std::mt19937 m_gen;
 };
 
-TEST_P(myriadLayersScatterElementsUpdateTest_nightly, accuracy) {
+TEST_P(myriadLayersScatterElementsUpdateTest_smoke, accuracy) {
     testScatterElementsUpdate();
 }

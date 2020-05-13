@@ -43,7 +43,7 @@ using IndicesShape = SizeVector;
 using ScatterUpdateTestParams = std::tuple<IndicesShape,
                                            InputShape>;
 
-class myriadLayersScatterUpdateTest_nightly:
+class myriadLayersScatterUpdateTest_smoke:
     public myriadLayerTestBaseWithParam<ScatterUpdateTestParams>
 {
 protected:
@@ -459,6 +459,6 @@ private:
     }
 };
 
-TEST_P(myriadLayersScatterUpdateTest_nightly, accuracy) {
+TEST_P(myriadLayersScatterUpdateTest_smoke, accuracy) {
     testScatterUpdate();
 }

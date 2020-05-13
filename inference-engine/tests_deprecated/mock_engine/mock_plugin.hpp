@@ -14,6 +14,7 @@
 IE_SUPPRESS_DEPRECATED_START
 class MockPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::IInferencePlugin * _target = nullptr;
+    InferenceEngine::Version version;
 
 public:
     explicit MockPlugin(InferenceEngine::IInferencePlugin*target);

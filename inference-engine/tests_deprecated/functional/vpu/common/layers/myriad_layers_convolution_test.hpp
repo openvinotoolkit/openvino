@@ -22,12 +22,12 @@ PRETTY_PARAM(dilation_factor, param_size);
 PRETTY_PARAM(layoutPreference, vpu::LayoutPreference);
 
 typedef myriadLayerTestBaseWithParam<tuple<DimsInput, kernel, stride, pad
-        , out_channels, group, dilation_factor, layoutPreference >> myriadLayerConvolution_nightly;
+        , out_channels, group, dilation_factor, layoutPreference >> myriadLayerConvolution_smoke;
 
 typedef myriadLayerTestBaseWithParam<tuple<DimsInput, DimsOutput, kernel, stride, pad
-        , group, dilation_factor, layoutPreference >> myriadLayerConvolutionTensorFlow_nightly;
+        , group, dilation_factor, layoutPreference >> myriadLayerConvolutionTensorFlow_smoke;
 
-TEST_P(myriadLayerConvolution_nightly, Convolution) {
+TEST_P(myriadLayerConvolution_smoke, Convolution) {
     tensor_test_params input_dims = get<0>(GetParam());
     param_size kernel = get<1>(GetParam());
     param_size stride = get<2>(GetParam());
@@ -89,7 +89,7 @@ TEST_P(myriadLayerConvolution_nightly, Convolution) {
     CompareCommonAbsolute(outputBlob, _refBlob, maxerr);
 }
 
-TEST_P(myriadLayerConvolutionTensorFlow_nightly, Convolution) {
+TEST_P(myriadLayerConvolutionTensorFlow_smoke, Convolution) {
     tensor_test_params input_dims = get<0>(GetParam());
     tensor_test_params output_dims = get<1>(GetParam());
     param_size kernel = get<2>(GetParam());
@@ -173,10 +173,10 @@ void loadConstData(InferenceEngine::Blob::Ptr blob) {
     }
 }
 
-class myriadLayers_3X3X3_ConstInput_nightly: public ConvolutionTest<vpu::LayoutPreference>{
+class myriadLayers_3X3X3_ConstInput_smoke: public ConvolutionTest<vpu::LayoutPreference>{
 };
 
-TEST_P(myriadLayers_3X3X3_ConstInput_nightly, Convolution) {
+TEST_P(myriadLayers_3X3X3_ConstInput_smoke, Convolution) {
     auto p = ::testing::WithParamInterface<std::tuple<InferenceEngine::SizeVector, param_size, param_size, param_size, uint32_t, uint32_t, vpu::LayoutPreference>>::GetParam();
     const auto layoutPreference = std::get<6>(p);
 
@@ -215,11 +215,11 @@ TEST_P(myriadLayers_3X3X3_ConstInput_nightly, Convolution) {
 /* IR version 3 tests, main difference is a changes in padding parameters definitions */
 typedef std::tuple<InferenceEngine::SizeVector, param_size, param_size, param_size, param_size, uint32_t, uint32_t> IR3_params;
 
-class myriadLayers_IR3_ConvTests_nightly: public myriadLayersTests_nightly, /*input tensor, kernel, stride, pads_begin, pads_end, out_channel, group */
+class myriadLayers_IR3_ConvTests_smoke: public myriadLayersTests_nightly, /*input tensor, kernel, stride, pads_begin, pads_end, out_channel, group */
                                           public testing::WithParamInterface<IR3_params> {
 };
 
-TEST_P(myriadLayers_IR3_ConvTests_nightly, Conv) {
+TEST_P(myriadLayers_IR3_ConvTests_smoke, Conv) {
     std::map<std::string, std::string> params;
     InferenceEngine::SizeVector output_tensor;
     int32_t IW = 0;
@@ -280,11 +280,11 @@ TEST_P(myriadLayers_IR3_ConvTests_nightly, Conv) {
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), maxerr);
 }
 
-class myriadLayers_BatchTest_ConvTests_nightly: public myriadLayersTests_nightly, /*input tensor, kernel, stride, pads_begin, pads_end, out_channel, group */
+class myriadLayers_BatchTest_ConvTests_smoke: public myriadLayersTests_nightly, /*input tensor, kernel, stride, pads_begin, pads_end, out_channel, group */
                                                 public testing::WithParamInterface<IR3_params> {
 };
 
-class myriadLayers_BatchTest2_ConvTests_nightly: public myriadLayersTests_nightly, /*input tensor, kernel, stride, pads_begin, pads_end, out_channel, group */
+class myriadLayers_BatchTest2_ConvTests_smoke: public myriadLayersTests_nightly, /*input tensor, kernel, stride, pads_begin, pads_end, out_channel, group */
                                                  public testing::WithParamInterface<IR3_params> {
 };
 
@@ -335,7 +335,7 @@ static void genTestData(InferenceEngine::Blob::Ptr blob) {
     }
 }
 
-TEST_P(myriadLayers_BatchTest_ConvTests_nightly, Conv) {
+TEST_P(myriadLayers_BatchTest_ConvTests_smoke, Conv) {
     std::map<std::string, std::string> params;
     InferenceEngine::SizeVector output_tensor;
     int32_t IW = 0;
@@ -586,7 +586,7 @@ static const std::string MODEL_RFCNN = R"V0G0N(
     </net>
 )V0G0N";
 
-TEST_P(myriadLayers_BatchTest2_ConvTests_nightly, Conv) {
+TEST_P(myriadLayers_BatchTest2_ConvTests_smoke, Conv) {
     std::map<std::string, std::string> params;
     InferenceEngine::SizeVector output_tensor;
     int32_t IW = 0;

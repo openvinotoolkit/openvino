@@ -30,9 +30,9 @@ class Squeeze(Op):
 
     def __init__(self, graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
             'op': __class__.op,
             'type': __class__.op,
+            'version': 'opset1',
             'squeeze_dims': None,
             'reinterp_shape': True,
             'keep_at_least_1d': 0,

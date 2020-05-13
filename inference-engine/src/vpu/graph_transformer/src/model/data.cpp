@@ -178,26 +178,36 @@ void DataNode::setShapeAllocationInfo(const ShapeLocation& shapeLocation) {
 
 void DataNode::serializeBuffer(
         BlobSerializer& serializer) {
-    serializeDescImpl(serializer, _desc, this->strides());
+    serializeDescImpl(serializer, _desc, this->shapeLocation());
 
     serializer.append(checked_cast<uint32_t>(_dataLocation.location));
 
-    if (_dataLocation.location == Location::Input || _dataLocation.location == Location::Output) {
-        auto topParent = getTopParentData();
+    const auto serializeIOParams = [&serializer](const Data& parent) {
+        auto IOIdx = parent->attrs().get<int>("ioIdx");
+        serializer.append(checked_cast<uint32_t>(IOIdx));
 
-        auto ioIdx = topParent->attrs().get<int>("ioIdx");
-        serializer.append(checked_cast<uint32_t>(ioIdx));
-
-        auto parentByteSize = topParent->totalByteSize();
+        auto parentByteSize = parent->totalByteSize();
         serializer.append(checked_cast<uint32_t>(parentByteSize));
+    };
+
+    if (_dataLocation.location == Location::Input || _dataLocation.location == Location::Output) {
+        serializeIOParams(getTopParentData());
+    }
+
+    if (_shapeLocation.dimsLocation == Location::Output) {
+        serializeIOParams(parentDataToShapeEdge()->parent());
+    }
+
+    if (_shapeLocation.stridesLocation == Location::Output) {
+        serializeIOParams(parentDataToShapeEdge()->parent());
     }
 
     serializer.append(checked_cast<uint32_t>(_dataLocation.offset));
 }
 
 void DataNode::serializeIOInfo(BlobSerializer& serializer) const {
-    auto ioIdx = attrs().get<int>("ioIdx");
-    serializer.append(checked_cast<uint32_t>(ioIdx));
+    auto dataIOIdx = attrs().get<int>("ioIdx");
+    serializer.append(checked_cast<uint32_t>(dataIOIdx));
 
     auto ioBufferOffset = attrs().get<int>("ioBufferOffset");
     serializer.append(checked_cast<uint32_t>(ioBufferOffset));
@@ -213,13 +223,25 @@ void DataNode::serializeIOInfo(BlobSerializer& serializer) const {
         serializer.append(uint8_t(0));
     }
 
-    serializeDescImpl(serializer, _desc, strides());
+    auto resShapeLocation = shapeLocation();
+    if (resShapeLocation.dimsLocation != Location::Blob) {
+        auto ioDimsUpperBoundOffset = attrs().get<int>("ioDimsUpperBoundOffset");
+        resShapeLocation.dimsLocation = Location::Blob;
+        resShapeLocation.dimsOffset = ioDimsUpperBoundOffset;
+    }
+    if (resShapeLocation.stridesLocation != Location::Blob) {
+        auto ioStridesUpperBoundOffset = attrs().get<int>("ioStridesUpperBoundOffset");
+        resShapeLocation.stridesLocation = Location::Blob;
+        resShapeLocation.stridesOffset = ioStridesUpperBoundOffset;
+    }
+
+    serializeDescImpl(serializer, _desc, resShapeLocation);
 }
 
 void DataNode::serializeDescImpl(
         BlobSerializer& serializer,
         const DataDesc& storedDesc,
-        const DimValues& storedStrides) const {
+        const ShapeLocation& shapeLocation) const {
     IE_ASSERT(storedDesc.numDims() <= MAX_DIMS_32);
 
     auto storedDimsOrder = storedDesc.dimsOrder();
@@ -232,12 +254,10 @@ void DataNode::serializeDescImpl(
 
     serializer.append(checked_cast<uint32_t>(storedPerm.size()));
 
-    const auto& shape = shapeLocation();
-
-    serializer.append(checked_cast<uint32_t>(shape.dimsLocation));
-    serializer.append(checked_cast<uint32_t>(shape.dimsOffset));
-    serializer.append(checked_cast<uint32_t>(shape.stridesLocation));
-    serializer.append(checked_cast<uint32_t>(shape.stridesOffset));
+    serializer.append(checked_cast<uint32_t>(shapeLocation.dimsLocation));
+    serializer.append(checked_cast<uint32_t>(shapeLocation.dimsOffset));
+    serializer.append(checked_cast<uint32_t>(shapeLocation.stridesLocation));
+    serializer.append(checked_cast<uint32_t>(shapeLocation.stridesOffset));
 }
 
 void printTo(std::ostream& os, const Data& data) {

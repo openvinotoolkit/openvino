@@ -169,47 +169,47 @@ protected:
     }
 };
 
-class myriadLayersTestsSqueezeTC1 : public myriadLayersTestsSqueezeBase
+class myriadLayersTestsSqueezeTC1_smoke : public myriadLayersTestsSqueezeBase
 {
 };
 
-class myriadLayersTestsSqueezeTC2 : public myriadLayersTestsSqueezeBase
+class myriadLayersTestsSqueezeTC2_smoke : public myriadLayersTestsSqueezeBase
 {
 };
 
-class myriadLayersTestsSqueezeTC3 : public myriadLayersTestsSqueezeBase
+class myriadLayersTestsSqueezeTC3_smoke : public myriadLayersTestsSqueezeBase
 {
 };
 
-class myriadLayersTestsSqueezeTC4 : public myriadLayersTestsSqueezeBase
+class myriadLayersTestsSqueezeTC4_smoke : public myriadLayersTestsSqueezeBase
 {
 };
 
-class myriadLayersTestsSqueezeTC5 : public myriadLayersTestsSqueezeBase
+class myriadLayersTestsSqueezeTC5_smoke : public myriadLayersTestsSqueezeBase
 {
 };
 
-TEST_P(myriadLayersTestsSqueezeTC1, Squeeze) {
+TEST_P(myriadLayersTestsSqueezeTC1_smoke, Squeeze) {
     DISABLE_IF(!CheckMyriadX());
     InitBody();
 }
 
-TEST_P(myriadLayersTestsSqueezeTC2, Squeeze) {
+TEST_P(myriadLayersTestsSqueezeTC2_smoke, Squeeze) {
     DISABLE_IF(!CheckMyriadX());
     InitBody();
 }
 
-TEST_P(myriadLayersTestsSqueezeTC3, Squeeze) {
+TEST_P(myriadLayersTestsSqueezeTC3_smoke, Squeeze) {
     DISABLE_IF(!CheckMyriadX());
     InitBody();
 }
 
-TEST_P(myriadLayersTestsSqueezeTC4, Squeeze) {
+TEST_P(myriadLayersTestsSqueezeTC4_smoke, Squeeze) {
     DISABLE_IF(!CheckMyriadX());
     InitBody();
 }
 
-TEST_P(myriadLayersTestsSqueezeTC5, Squeeze) {
+TEST_P(myriadLayersTestsSqueezeTC5_smoke, Squeeze) {
     DISABLE_IF(!CheckMyriadX());
     InitBody();
 }

@@ -30,9 +30,9 @@ class Pooling(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
             'infer': __class__.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,

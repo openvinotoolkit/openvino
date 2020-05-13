@@ -15,35 +15,35 @@ extern const char POOLING_MAX[] = "max";
 extern const char POOLING_AVG[] = "avg";
 
 
-class myriadLayersTestsMax_nightly: public PoolingTest<POOLING_MAX>
+class myriadLayersTestsMax_smoke: public PoolingTest<POOLING_MAX>
 {
 };
 
-class myriadLayersTestsMaxOverlappedByKernel_nightly: public PoolingTestPad4<POOLING_MAX, true>
+class myriadLayersTestsMaxOverlappedByKernel_smoke: public PoolingTestPad4<POOLING_MAX, true>
 {
 };
 
-class myriadLayersTestsMaxPad4_nightly: public PoolingTestPad4<POOLING_MAX>
+class myriadLayersTestsMaxPad4_smoke: public PoolingTestPad4<POOLING_MAX>
 {
 };
 
-class myriadLayersTestsGlobalMax_nightly: public GlobalPoolingTest<POOLING_MAX>
+class myriadLayersTestsGlobalMax_smoke: public GlobalPoolingTest<POOLING_MAX>
 {
 };
 
-class myriadLayersTestsAvg_nightly: public PoolingTest<POOLING_AVG>
+class myriadLayersTestsAvg_smoke: public PoolingTest<POOLING_AVG>
 {
 };
 
-class myriadLayersTestsAvgOverlappedByKernel_nightly: public PoolingTestPad4<POOLING_AVG, true>
+class myriadLayersTestsAvgOverlappedByKernel_smoke: public PoolingTestPad4<POOLING_AVG, true>
 {
 };
 
-class myriadLayersTestsAvgPad4_nightly: public PoolingTestPad4<POOLING_AVG>
+class myriadLayersTestsAvgPad4_smoke: public PoolingTestPad4<POOLING_AVG>
 {
 };
 
-class myriadLayersTestsGlobalAvg_nightly: public GlobalPoolingTest<POOLING_AVG>
+class myriadLayersTestsGlobalAvg_smoke: public GlobalPoolingTest<POOLING_AVG>
 {
 };
 
@@ -51,7 +51,7 @@ class myriadLayersTestsGlobalAvg_nightly: public GlobalPoolingTest<POOLING_AVG>
 /*                   input tensor,               kernel,     stride,    pads_begin, pads_end,  auto_pad,     exclude_pad  method */
 typedef std::tuple<InferenceEngine::SizeVector, param_size, param_size, param_size, param_size, const char*, const char*, const char*> IR3_PoolParams;
 
-class myriadLayers_IR3_PoolingTests_nightly: public myriadLayersTests_nightly, /*input tensor, kernel, stride, pads_begin, pads_end, out_channel, group */
+class myriadLayers_IR3_PoolingTests_smoke: public myriadLayersTests_nightly, /*input tensor, kernel, stride, pads_begin, pads_end, out_channel, group */
                                              public testing::WithParamInterface<IR3_PoolParams> {
 };
 
@@ -90,7 +90,7 @@ static void genTestData(InferenceEngine::Blob::Ptr blob) {
 }
 
 
-TEST_P(myriadLayers_IR3_PoolingTests_nightly, Pooling) {
+TEST_P(myriadLayers_IR3_PoolingTests_smoke, Pooling) {
     std::map<std::string, std::string> params;
     InferenceEngine::SizeVector output_tensor;
     int32_t IW = 0;
@@ -166,11 +166,11 @@ TEST_P(myriadLayers_IR3_PoolingTests_nightly, Pooling) {
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), maxerr);
 }
 
-class myriadLayers_IR3_BatchPoolingTests_nightly: public myriadLayersTests_nightly, /*input tensor, kernel, stride, pads_begin, pads_end, out_channel, group */
+class myriadLayers_IR3_BatchPoolingTests_smoke: public myriadLayersTests_nightly, /*input tensor, kernel, stride, pads_begin, pads_end, out_channel, group */
                                                   public testing::WithParamInterface<IR3_PoolParams> {
 };
 
-TEST_P(myriadLayers_IR3_BatchPoolingTests_nightly, Pooling) {
+TEST_P(myriadLayers_IR3_BatchPoolingTests_smoke, Pooling) {
     std::map<std::string, std::string> params;
     InferenceEngine::SizeVector output_tensor;
     int32_t IW = 0;
@@ -259,52 +259,52 @@ static const std::vector<const char*> s_poolingMethod = {
         "max"
 };
 
-TEST_P(myriadLayersTestsMax_nightly, MaxPooling)
+TEST_P(myriadLayersTestsMax_smoke, MaxPooling)
 {
     ASSERT_TRUE(generateNetAndInfer(NetworkInitParams().layoutPreference(_layout_preference)));
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND);
 }
 
-TEST_P(myriadLayersTestsMaxOverlappedByKernel_nightly, MaxPooling)
+TEST_P(myriadLayersTestsMaxOverlappedByKernel_smoke, MaxPooling)
 {
     ASSERT_TRUE(generateNetAndInfer(NetworkInitParams().layoutPreference(_layout_preference)));
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND);
 }
 
-TEST_P(myriadLayersTestsMaxPad4_nightly, MaxPoolingPad4)
+TEST_P(myriadLayersTestsMaxPad4_smoke, MaxPoolingPad4)
 {
     ASSERT_TRUE(generateNetAndInfer(NetworkInitParams().layoutPreference(_layout_preference)));
     auto refBlob = getReferenceOutput();
     CompareCommonAbsolute(_outputMap.begin()->second, refBlob, ERROR_BOUND);
 }
 
-TEST_P(myriadLayersTestsAvg_nightly, AvgPooling)
+TEST_P(myriadLayersTestsAvg_smoke, AvgPooling)
 {
     ASSERT_TRUE(generateNetAndInfer(NetworkInitParams().layoutPreference(_layout_preference)));
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND);
 }
 
-TEST_P(myriadLayersTestsAvgOverlappedByKernel_nightly, AvgPooling)
+TEST_P(myriadLayersTestsAvgOverlappedByKernel_smoke, AvgPooling)
 {
     ASSERT_TRUE(generateNetAndInfer(NetworkInitParams().layoutPreference(_layout_preference)));
     CompareCommonAbsolute(_outputMap.begin()->second, getReferenceOutput(), ERROR_BOUND);
 }
 
-TEST_P(myriadLayersTestsAvgPad4_nightly, AvgPoolingPad4)
+TEST_P(myriadLayersTestsAvgPad4_smoke, AvgPoolingPad4)
 {
     ASSERT_TRUE(generateNetAndInfer(NetworkInitParams().layoutPreference(_layout_preference)));
     auto refBlob = getReferenceOutput();
     CompareCommonAbsolute(_outputMap.begin()->second, refBlob, ERROR_BOUND);
 }
 
-TEST_P(myriadLayersTestsGlobalMax_nightly, GlobalMaxPooling)
+TEST_P(myriadLayersTestsGlobalMax_smoke, GlobalMaxPooling)
 {
     ASSERT_TRUE(generateNetAndInfer(NetworkInitParams()));
     auto refBlob = getReferenceOutput();
     CompareCommonAbsolute(_outputMap.begin()->second, refBlob, ERROR_BOUND);
 }
 
-TEST_P(myriadLayersTestsGlobalAvg_nightly, GlobalAvgPooling)
+TEST_P(myriadLayersTestsGlobalAvg_smoke, GlobalAvgPooling)
 {
     if(_pad_val.x != 0 || _pad_val.y != 0) {
         GTEST_SKIP() << "paddings should not be exist for GlobalAvgPool";

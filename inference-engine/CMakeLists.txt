@@ -188,7 +188,7 @@ configure_file(
 # Coverage
 #
 
-if(COVERAGE)
+if(ENABLE_COVERAGE)
     include(coverage_ie)
 endif()
 

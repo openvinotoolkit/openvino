@@ -103,13 +103,13 @@ for /F "tokens=* usebackq" %%d in (
 set ir_dir=%irs_path%\%model_dir%\%target_precision%
 
 echo Download public %model_name% model
-echo python "%downloader_dir%\downloader.py" --name %model_name% --output_dir %models_path% --cache_dir %models_cache%
-python "%downloader_dir%\downloader.py" --name %model_name% --output_dir %models_path% --cache_dir %models_cache%
+echo python "%downloader_dir%\downloader.py" --name "%model_name%" --output_dir "%models_path%" --cache_dir "%models_cache%"
+python "%downloader_dir%\downloader.py" --name "%model_name%" --output_dir "%models_path%" --cache_dir "%models_cache%"
 echo %model_name% model downloading completed
 
 timeout 7
 
-if exist %ir_dir% (
+if exist "%ir_dir%" (
     echo.
     echo Target folder %ir_dir% already exists. Skipping IR generation with Model Optimizer.
     echo If you want to convert a model again, remove the entire %ir_dir% folder.
@@ -220,7 +220,7 @@ echo.
 echo ###############^|^| Build Inference Engine samples using MS Visual Studio (MSBuild.exe) ^|^|###############
 echo.
 timeout 3
-echo !MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:benchmark_app /clp:ErrorsOnly /m
+echo "!MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:benchmark_app /clp:ErrorsOnly /m
 "!MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:benchmark_app /clp:ErrorsOnly /m
 
 if ERRORLEVEL 1 GOTO errorHandling

@@ -131,10 +131,6 @@ if(ENABLE_PROFILING_ITT AND INTEL_ITT_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:ittnotify,INTERFACE_COMPILE_DEFINITIONS>)
 endif()
 
-if(ENABLE_IR_READER)
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE ENABLE_IR_READER)
-endif()
-
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(ENABLE_MKL_DNN)
@@ -172,7 +168,7 @@ endif()
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
+                    POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
 
 # Static library used for unit tests which are always built
 

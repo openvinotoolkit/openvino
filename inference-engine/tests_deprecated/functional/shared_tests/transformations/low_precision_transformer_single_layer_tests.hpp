@@ -852,6 +852,20 @@ public:
     std::string getModel(SingleLayerTransformationsTestParams& p) const override;
 };
 
+class PowerTestModel : public SingleLayerTestModel {
+public:
+    PowerTestModel(const float& power, const float& scale, const float& shift) : power(power), scale(scale), shift(shift) {}
+    void resetTransformation(CNNNetwork& network) const override;
+    std::string getName() const override;
+    bool transform(CNNNetwork& network, LayerTransformation::Params& params) const override;
+    std::string getModel(SingleLayerTransformationsTestParams& p) const override;
+
+private:
+    const float power;
+    const float scale;
+    const float shift;
+};
+
 class ConvolutionAndQuantizeOnWeightsWithMultiOutputIntervalsTestModel : public SingleLayerTestModel {
 public:
     std::string getModel(SingleLayerTransformationsTestParams& p) const override;

@@ -5,5 +5,5 @@
 #include "myriad_layers_log_test.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-        accuracy, myriadLayersTestsLog_nightly,
+        accuracy, myriadLayersTestsLog_smoke,
         ::testing::ValuesIn(s_logParams));

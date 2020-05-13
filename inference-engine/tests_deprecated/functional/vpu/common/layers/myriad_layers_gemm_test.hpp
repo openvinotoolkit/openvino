@@ -103,9 +103,9 @@ static void gemm_ref(int M, int N, int K,
     }
 }
 
-typedef myriadLayerTestBaseWithParam<tuple<gemm_parameters, layoutPreference, hasThreeInputs, transposeA, transposeB>> myriadLayerGEMM;
+typedef myriadLayerTestBaseWithParam<tuple<gemm_parameters, layoutPreference, hasThreeInputs, transposeA, transposeB>> myriadLayerGEMM_smoke;
 
-TEST_P(myriadLayerGEMM, GEMM) {
+TEST_P(myriadLayerGEMM_smoke, GEMM) {
     gemm_parameters gemm_parameter = get<0>(GetParam());
     auto layoutPreference = get<1>(GetParam());
     auto hasThreeInputs = get<2>(GetParam());

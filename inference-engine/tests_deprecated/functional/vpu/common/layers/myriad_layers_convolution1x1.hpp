@@ -20,7 +20,7 @@ PRETTY_PARAM(hwAcceleration, std::string);
 PRETTY_PARAM(dimsConfig, dims_config);
 PRETTY_PARAM(isHWC, int);
 
-typedef myriadLayerTestBaseWithParam<std::tuple<std::string, isHWC, dims_config>> myriadConvolution1x1LayerTests_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<std::string, isHWC, dims_config>> myriadConvolution1x1LayerTests_smoke;
 
 void refConvolution1x1(const Blob::Ptr src, InferenceEngine::TBlob<uint8_t>::Ptr weights, Blob::Ptr dst, int isHWC) {
     ie_fp16 *in = static_cast<ie_fp16*>(src->buffer());
@@ -39,7 +39,7 @@ void refConvolution1x1(const Blob::Ptr src, InferenceEngine::TBlob<uint8_t>::Ptr
     size_t IW = in_width;
     size_t IH = in_height;
     size_t IC = in_channels;
-    
+
     const auto& out_dims = dst->getTensorDesc().getDims();
     size_t out_width      = out_dims[out_dims.size() - 1];
     size_t out_height     = out_dims[out_dims.size() - 2];
@@ -67,16 +67,17 @@ void refConvolution1x1(const Blob::Ptr src, InferenceEngine::TBlob<uint8_t>::Ptr
                         continue;
                     }
                     uint32_t indx;
-                    if(isHWC == 1){
-                        indx = ic + iw * IC + ih * IC * IW;   
+                    if (isHWC == 1) {
+                        indx = ic + iw * IC + ih * IC * IW;
                         valYXZ = (valYXZ) + (PrecisionUtils::f16tof32(in[indx]) * PrecisionUtils::f16tof32(w[oc*IC + ic]));
                     }
-                    else {
+                    else
+                    {
                         indx = iw + ih * IW + ic * IW * IH;
                         valZYX = PrecisionUtils::f32tof16(PrecisionUtils::f16tof32(valZYX) + PrecisionUtils::f16tof32(PrecisionUtils::f32tof16(PrecisionUtils::f16tof32(in[indx]) * PrecisionUtils::f16tof32(w[oc*IC + ic]))));
                     }
                 }
-                if(isHWC == 1){                    
+                if (isHWC == 1) {
                     out[oc*OH*OW + oh*OW + ow] = PrecisionUtils::f32tof16(valYXZ);
                 }
                 else {
@@ -87,7 +88,7 @@ void refConvolution1x1(const Blob::Ptr src, InferenceEngine::TBlob<uint8_t>::Ptr
     }
 }
 
-TEST_P(myriadConvolution1x1LayerTests_nightly, Convolution1x1) {
+TEST_P(myriadConvolution1x1LayerTests_smoke, Convolution1x1) {
     std::string model = R"V0G0N(
        <net name="Convolution1x1" version="2" batch="1">
            <layers>
@@ -102,7 +103,7 @@ TEST_P(myriadConvolution1x1LayerTests_nightly, Convolution1x1) {
                 </output>
             </layer>
             <layer id="2" name="conv1x1" precision="FP16" type="Convolution">
-                <data isHWC="@isHWC@" stride-x="1" stride-y="1" pad-x="0" pad-y="0" kernel-x="1" kernel-y="1" output="48" group="1"/>
+                <data stride="1,1" pad="0,0" kernel="1,1" dilation="1,1" output="48" group="1"/>
                 <input>
                     <port id="0">
                         <dim>@IB@</dim>
@@ -133,6 +134,7 @@ TEST_P(myriadConvolution1x1LayerTests_nightly, Convolution1x1) {
     std::string HWConfigValue = std::get<0>(GetParam());
     int isHWC                 = std::get<1>(GetParam());
     dims_config customConfig  = std::get<2>(GetParam());
+    const auto layout = isHWC ? Layout::NHWC : Layout::NCHW;
 
     if(!customConfig.custom_config.empty() && !CheckMyriadX()) {
         GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
@@ -152,8 +154,6 @@ TEST_P(myriadConvolution1x1LayerTests_nightly, Convolution1x1) {
 
     size_t num_weights = IC * OC;
 
-    model.replace( model.find("@isHWC@"), sizeof("@isHWC@") -1, std::to_string(isHWC));
-
     model.replace( model.find("@IB@"), sizeof("@IB@") -1, std::to_string(IB));
     model.replace( model.find("@IB@"), sizeof("@IB@") -1, std::to_string(IB));
     model.replace( model.find("@IC@"), sizeof("@IC@") -1, std::to_string(IC));
@@ -171,7 +171,7 @@ TEST_P(myriadConvolution1x1LayerTests_nightly, Convolution1x1) {
     model.replace( model.find("@size_weights@"), sizeof("@size_weights@") -1, std::to_string(num_weights * sizeof(ie_fp16)));
 
     InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr = InferenceEngine::TBlob<uint8_t>::Ptr(GenWeights(num_weights));
-   
+
     StatusCode st;
 
     InferenceEngine::Core ie;
@@ -179,11 +179,11 @@ TEST_P(myriadConvolution1x1LayerTests_nightly, Convolution1x1) {
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["data"]->setPrecision(Precision::FP16);
-    (isHWC) ? _inputsInfo["data"]->setLayout(NHWC) : _inputsInfo["data"]->setLayout(NCHW);
+    _inputsInfo["data"]->setLayout(layout);
 
     _outputsInfo = network.getOutputsInfo();
     _outputsInfo["conv1x1"]->setPrecision(Precision::FP16);
-    _outputsInfo["conv1x1"]->setLayout(NCHW);
+    _outputsInfo["conv1x1"]->setLayout(layout);
 
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
                                                     {{VPU_CONFIG_KEY(CUSTOM_LAYERS), customConfig.custom_config}, {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), HWConfigValue}}, &_resp));

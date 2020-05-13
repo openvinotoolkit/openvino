@@ -38,7 +38,11 @@ public:
      * @brief The main constructor
      * @param loader Library to load from
      */
-    explicit SymbolLoader(std::shared_ptr<Loader> loader): _so_loader(loader) {}
+    explicit SymbolLoader(std::shared_ptr<Loader> loader): _so_loader(loader) {
+        if (_so_loader == nullptr) {
+            THROW_IE_EXCEPTION << "SymbolLoader cannot be created with nullptr";
+        }
+    }
 
     /**
      * @brief Calls a function from the library that creates an object and returns StatusCode

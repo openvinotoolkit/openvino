@@ -39,9 +39,9 @@ static void gen_ref_power(const InferenceEngine::Blob::Ptr src,
     }
 }
 
-typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, pwr_test_params>> myriadLayersTestsPowerParams_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, pwr_test_params>> myriadLayersTestsPowerParams_smoke;
 
-TEST_P(myriadLayersTestsPowerParams_nightly, TestsPower) {
+TEST_P(myriadLayersTestsPowerParams_smoke, TestsPower) {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
     auto param = GetParam();
     SizeVector tensor = std::get<0>(param);

@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
 
 ushort extract_weights(uchar val, int bit)

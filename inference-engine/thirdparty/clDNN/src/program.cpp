@@ -62,6 +62,8 @@
 
 #include "gpu/ocl_toolkit.h"
 
+#include "kernel_base.h"
+
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -95,6 +97,7 @@ program_impl::program_impl(engine_impl& engine_ref,
     : engine(&engine_ref),
       options(options),
       processing_order() {
+    kernel_selector::KernelBase::ResetCounter();
     set_options();
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
     prepare_nodes(topology);

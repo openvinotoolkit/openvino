@@ -43,6 +43,7 @@ class SparseFillEmptyRows(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'experimental',
             'infer': __class__.infer,
             'in_ports_count': 4,
             'out_ports_count': 3

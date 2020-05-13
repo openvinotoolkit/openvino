@@ -136,15 +136,16 @@ PRETTY_PARAM(AcrossChannels, int)
 PRETTY_PARAM(Normalize, int)
 PRETTY_PARAM(Epsilon, float)
 
-typedef myriadLayerTestBaseWithParam<std::tuple<Dims, AcrossChannels, Normalize, Epsilon, std::string>> myriadLayersTestsMVN_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<Dims, AcrossChannels, Normalize, Epsilon, IRVersion, std::string>> myriadLayersTestsMVN_smoke;
 
-TEST_P(myriadLayersTestsMVN_nightly, MVN)
+TEST_P(myriadLayersTestsMVN_smoke, MVN)
 {
     tensor_test_params dims  = std::get<0>(GetParam());
     int acrossChannels       = std::get<1>(GetParam());
     int normalize            = std::get<2>(GetParam());
     float eps                = std::get<3>(GetParam());
-    std::string customConfig = std::get<4>(GetParam());
+    _irVersion               = std::get<4>(GetParam());
+    std::string customConfig = std::get<5>(GetParam());
 
     if(!customConfig.empty() && !CheckMyriadX()) {
         GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";

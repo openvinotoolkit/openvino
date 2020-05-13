@@ -27,7 +27,7 @@ static inline void PrintTo(const PSROIPoolingParams& param, ::std::ostream* os)
 
 using PSROIPoolingTestParams = std::tuple<Dims, psroipooling_param, uint32_t>;
 
-class myriadLayersTestsPSROIPooling_nightly: public myriadLayerTestBaseWithParam<PSROIPoolingTestParams> {
+class myriadLayersTestsPSROIPooling_smoke: public myriadLayerTestBaseWithParam<PSROIPoolingTestParams> {
 public:
     void genROIs(InferenceEngine::Blob::Ptr rois,
                  const PSROIPoolingParams& params,
@@ -200,7 +200,7 @@ static std::vector<uint32_t> s_PSROIPoolingNumROIs = {
         1, 10, 30, 50, 100, 300
 };
 
-TEST_P(myriadLayersTestsPSROIPooling_nightly, PSROIPooling) {
+TEST_P(myriadLayersTestsPSROIPooling_smoke, PSROIPooling) {
 #if defined(_WIN32) || defined(WIN32)
     SKIP() << "Disabled for Windows. CVS-13239";
 #endif

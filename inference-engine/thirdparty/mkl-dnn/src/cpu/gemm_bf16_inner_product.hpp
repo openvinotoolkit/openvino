@@ -59,9 +59,7 @@ struct gemm_bf16_inner_product_fwd_t: public cpu_primitive_t {
                 && IMPLICATION(this->with_bias(), one_of(
                         desc()->bias_desc.data_type,
                         data_type::f32, data_type::bf16))
-                && attr()->post_ops_.len_ <= 1
-                && IMPLICATION(attr()->post_ops_.len_ == 1,
-                        attr()->post_ops_.entry_[0].is_eltwise())
+                && is_supported_post_ops()
                 && dense_gemm_consitency_check(src_pd(), weights_pd(),
                         dst_pd());
             if (!ok) return status::unimplemented;
@@ -71,6 +69,21 @@ struct gemm_bf16_inner_product_fwd_t: public cpu_primitive_t {
             init_scratchpad();
 
             return status::success;
+        }
+
+        virtual bool is_supported_post_ops() const {
+            const auto& p = this->attr()->post_ops_;
+
+            auto all_post_ops_supported = [&]() {
+                bool ok = true;
+
+                for (int i = 0; i < p.len_; i++) {
+                    ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::eltwise, primitive_kind::depthwise);
+                }
+                return ok;
+            };
+
+            return all_post_ops_supported();
         }
 
         bool dst_is_acc_;
@@ -92,10 +105,9 @@ struct gemm_bf16_inner_product_fwd_t: public cpu_primitive_t {
         , pp_kernel_(nullptr)
     {
         bool has_bias = pd()->with_bias(),
-             has_eltwise = pd()->attr()->post_ops_.len_ == 1,
-             has_scale = !pd()->attr()->output_scales_.has_default_values();
-        postops_in_ip_ = false
-                || !pd()->dst_is_acc_ || has_bias || has_eltwise || has_scale;
+            has_post_ops = pd()->attr()->post_ops_.len_ > 0,
+            has_scale = !pd()->attr()->output_scales_.has_default_values();
+        postops_in_ip_ = has_bias || has_post_ops || has_scale;
         if (postops_in_ip_) {
             if (mayiuse(avx512_core_bf16)) {
                 pp_kernel_ = new inner_product_utils::jit_pp_kernel_t<avx512_core_bf16, data_type::f32, dst_data_type>(apd);

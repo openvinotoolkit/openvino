@@ -4,7 +4,7 @@
 
 function(enable_fuzzing)
     # Enable (libFuzzer)[https://llvm.org/docs/LibFuzzer.html] if supported.
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT WIN32)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" AND NOT WIN32)
         # Communicate libfuzzer is enabled
         set(WITH_LIBFUZZER ON PARENT_SCOPE)
         add_compile_definitions(WITH_LIBFUZZER)

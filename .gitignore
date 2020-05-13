@@ -3,7 +3,7 @@ _*
 # but ensure we don't skip __init__.py
 !__init__.py
 # developer tools
-.idea
+*.idea
 .vscode
 cmake-build-debug
 cmake-build-release
@@ -18,7 +18,41 @@ build/
 doc/
 docs/build_documentation/work_dir/
 inference-engine/plugins/
+inference-engine/temp
+inference-engine/report
 .repo/
 docs/template_plugin/html/
 CMakeLists.txt.user
 docs/IE_PLUGIN_DG/html/
+
+*.project
+*.cproject
+*.pydevproject
+*.settings
+*/gen/
+__pycache__
+*.swp
+/config.xml
+
+# Python-specific
+*.env3
+*.pyc
+
+# Tests-specific
+*.coverage
+*htmlcov
+*pylint_report.txt
+*pylint_report_comments.txt
+
+# Artifacts
+/model-optimizer/*.bin
+/model-optimizer/*.xml
+/model-optimizer/*.json
+/model-optimizer/*.so
+/model-optimizer/*.txt
+/model-optimizer/*.pb
+/model-optimizer/*.pbtxt
+/model-optimizer/!CMakeLists.txt
+/model-optimizer/*.mapping
+/model-optimizer/*.dat
+/model-optimizer/*.svg

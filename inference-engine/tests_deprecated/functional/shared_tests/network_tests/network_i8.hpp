@@ -51,7 +51,7 @@ inline void checkLayerOuputPrecision(const ICNNNetwork& network, const std::stri
 }
 
 struct network_params {
-    std::string pluginName;
+    std::string deviceName;
     std::string modelFile;
     std::string imageName;
     std::string statFile;
@@ -87,20 +87,6 @@ struct network_params {
         result += statFile;
         return result;
     }
-
-    std::string plugin() { return pluginName + "Plugin"; }
-
-    std::string deviceName() {
-        if (pluginName == "MultiDevice") {
-            return "MULTI:CPU";
-        }
-        if (pluginName == "MKLDNN") {
-            return "CPU";
-        }
-
-        return "";
-    }
-
 };
 
 static LayerTransformation::Params createParam() {
@@ -254,7 +240,7 @@ public:
             const size_t classesCanBeChangedIndex = 9999,
             const bool compareRawValues = true,
             const std::unordered_set<std::string>& removedLayers = {}) :
-            pluginName(""),
+            deviceName(""),
             modelParams(ModelParams("", "", "", {})),
             batchSize(1ul),
             transformationsInPluginEnabled(transformationsInPluginEnabled),
@@ -266,7 +252,7 @@ public:
             removedLayers(removedLayers) {}
 
     TransformationsParams(
-            const std::string pluginName,
+            const std::string deviceName,
             const ModelParams modelParams,
             const size_t batchSize,
             const bool transformationsInPluginEnabled = true,
@@ -278,7 +264,7 @@ public:
             const std::unordered_set<std::string>& removedLayers = {},
             const std::vector<std::pair<std::string, std::vector<float>>> inputs = {},
             const std::vector<std::pair<std::string, std::shared_ptr<LayerTransformation>>> transformations = {}) :
-            pluginName(pluginName),
+            deviceName(deviceName),
             modelParams(modelParams),
             batchSize(batchSize),
             transformationsInPluginEnabled(transformationsInPluginEnabled),
@@ -289,7 +275,7 @@ public:
             compareRawValues(compareRawValues),
             removedLayers(removedLayers) {}
 
-    const std::string pluginName;
+    const std::string deviceName;
     const ModelParams modelParams;
     const size_t batchSize;
 
@@ -436,7 +422,7 @@ protected:
         //    transformationsParams.transformationsInPluginEnabled ? PluginConfigParams::YES : PluginConfigParams::NO);
 
         usedNetwork = cloneNet(network);
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(network, p.deviceName(), config);
+        ExecutableNetwork exeNetwork = ie.LoadNetwork(network, p.deviceName, config);
         InferRequest inferRequest = exeNetwork.CreateInferRequest();
         if (inputs.empty()) {
             Blob::Ptr src = readInput(p.image(), batch_size);
@@ -541,7 +527,7 @@ protected:
         }
 
         network_params p{
-                "MKLDNN",
+                "CPU",
                 transformationsParam.modelParams.irFilePath,
                 transformationsParam.modelParams.dataFilePath,
                 "",

@@ -29,6 +29,7 @@ class MVN(Op):
             'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset2',
             'eps': None,
             'across_channels': 0,
             'normalize_variance': 1,

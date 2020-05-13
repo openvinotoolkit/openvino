@@ -58,11 +58,11 @@ void ref_batch_normalization(const InferenceEngine::Blob::Ptr src,
     }
 }
 
-class myriadLayersTestsBatchNormalization_nightly: public myriadLayersTests_nightly,
+class myriadLayersTestsBatchNormalization_smoke: public myriadLayersTests_nightly,
                            public testing::WithParamInterface<bn_test_params> {
 };
 
-TEST_P(myriadLayersTestsBatchNormalization_nightly, TestsBatchNorm)
+TEST_P(myriadLayersTestsBatchNormalization_smoke, TestsBatchNorm)
 {
     bn_test_params p = ::testing::WithParamInterface<bn_test_params>::GetParam();
     size_t sz_weights = p.in.c;

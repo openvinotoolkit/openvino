@@ -24,5 +24,5 @@ class ExpandExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        Broadcast.update_node_stat(node)
+        Broadcast.update_node_stat(node, {'mode': 'bidirectional'})
         return cls.enabled

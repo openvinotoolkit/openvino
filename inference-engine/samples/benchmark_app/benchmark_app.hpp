@@ -97,6 +97,9 @@ static const char load_config_message[] = "Optional. Path to XML/YAML/JSON file 
 static const char dump_config_message[] = "Optional. Path to XML/YAML/JSON file to dump IE parameters, which were set by application.";
 #endif
 
+static const char shape_message[] = "Optional. Set shape for input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
+                                    " in case of one input size.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -178,6 +181,9 @@ DEFINE_string(load_config, "", load_config_message);
 DEFINE_string(dump_config, "", dump_config_message);
 #endif
 
+/// @brief Define flag for input shape <br>
+DEFINE_string(shape, "", shape_message);
+
 /**
 * @brief This function show a help message
 */
@@ -200,6 +206,7 @@ static void showUsage() {
     std::cout << "    -stream_output            " << stream_output_message << std::endl;
     std::cout << "    -t                        " << execution_time_message << std::endl;
     std::cout << "    -progress                 " << progress_message << std::endl;
+    std::cout << "    -shape                    " << shape_message << std::endl;
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;

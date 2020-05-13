@@ -15,6 +15,8 @@
 *******************************************************************************/
 
 #include "ocl_types.h"
+#include "include/fetch.cl"
+#include "include/data_types.cl"
 
 #if ID > 1
 #define CASE_3D 1
@@ -30,12 +32,16 @@ __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE))) // attr:no-format
 #endif
 KERNEL(gen9_common_conv_bwd_data_kernel)(
         const  __global DATA_T *diff_dst,
-        __global DATA_T *diff_src,
+        __global DATA_T * restrict diff_src,
         const __global DATA_T *wei,
 #if WITH_BIAS
         const __global DATA_T *bias,
 #endif
-        uint split_idx)
+#if HAS_FUSED_OPS_DECLS
+        FUSED_OPS_DECLS,
+#endif
+        uint split_idx
+        )
 {
     const int input_offset = (INPUT0_PAD_BEFORE_FEATURE_NUM / OC_BLOCK) * OD_FULL * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK +
                              (INPUT0_PAD_BEFORE_SIZE_Z) * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK +
@@ -235,6 +241,17 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
     blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
     blockC01 = ACTIVATION(blockC01, ACTIVATION_PARAMS);
 
+#if HAS_FUSED_OPS
+    {
+        FUSED_OPS_BLOCK_C00;
+        blockC00 = FUSED_OPS_RESULT_BLOCK_C00;
+    }
+    {
+        FUSED_OPS_BLOCK_C01;
+        blockC01 = FUSED_OPS_RESULT_BLOCK_C01;
+    }
+#endif
+
     SAVE_SRC_DIFF(blockC00, src_write0, 0);
     SAVE_SRC_DIFF(blockC01, src_write0, 8);
 
@@ -426,6 +443,10 @@ KERNEL(gen9_common_conv_bwd_data_kernel)(
     for (int i = 0; i < IW_BLOCK; i++) {
         blockC00[i] = ACTIVATION(blockC00[i], ACTIVATION_PARAMS);
         if (iw + i >= IW) continue;
+#if HAS_FUSED_OPS
+        FUSED_OPS_BLOCK_CI;
+        blockC00[i] = FUSED_OPS_RESULT_BLOCK_CI;
+#endif
         BLOCK_WRITE((__global BLOCK_DATA_T *)(&(src_write0)[i * IC_BLOCK]),
                 AS_BLOCK_DATA_T(blockC00[i]));
     }

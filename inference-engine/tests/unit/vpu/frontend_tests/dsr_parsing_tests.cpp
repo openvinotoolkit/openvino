@@ -24,6 +24,21 @@ protected:
         _testModel = CreateTestModel();
     }
 
+    void checkShapeConnection(const Data& parent, const Data& child) {
+        ASSERT_NE(child->parentDataToShapeEdge(), nullptr);
+        ASSERT_EQ(child->childDataToShapeEdges().size(), 0);
+        const auto& parentDataToShapeEdge = child->parentDataToShapeEdge();
+        ASSERT_EQ(parentDataToShapeEdge->parent(), parent);
+        ASSERT_EQ(parentDataToShapeEdge->child(), child);
+
+        ASSERT_EQ(parent->parentDataToShapeEdge(), nullptr);
+
+        const auto& childDataToShapeEdges = parent->childDataToShapeEdges();
+
+        const auto& it = std::find(childDataToShapeEdges.begin(), childDataToShapeEdges.end(), parentDataToShapeEdge);
+        ASSERT_NE(it, childDataToShapeEdges.end());
+    }
+
     ie::CNNLayerPtr createDSRLayer() {
         return std::make_shared<ie::CNNLayer>(ie::LayerParams{"DSR", "DynamicShapeResolver", ie::Precision::I32});
     }
@@ -97,25 +112,34 @@ TEST_F(DSRParsingTests, DSRParserDoesntAssertOnCorrectIO) {
                                        {inputStage->output(0), inputStage->output(1)}, _testModel.getOutputs()));
 }
 
-class DSRParsingFromNgraphTests : public DSRParsingTests {
-protected:
-    void checkShapeConnection(const Data& parent, const Data& child) {
-        ASSERT_NE(child->parentDataToShapeEdge(), nullptr);
-        ASSERT_EQ(child->childDataToShapeEdges().size(), 0);
-        const auto& parentDataToShapeEdge = child->parentDataToShapeEdge();
-        ASSERT_EQ(parentDataToShapeEdge->parent(), parent);
-        ASSERT_EQ(parentDataToShapeEdge->child(), child);
+TEST_F(DSRParsingTests, DSRParserPreservesConnectionsOnOutputDSR) {
+    _testModel.createInputs({_dataDesc});
+    _testModel.createOutputs({_dataDesc});
 
-        ASSERT_EQ(parent->parentDataToShapeEdge(), nullptr);
+    const auto& model = _testModel.getBaseModel();
 
-        const auto& childDataToShapeEdges = parent->childDataToShapeEdges();
-        ASSERT_EQ(childDataToShapeEdges.size(), 1);
+    const auto& inputStage = _testModel.addStage({InputInfo::fromNetwork(0)},
+                                                 {OutputInfo::intermediate(_dataDesc), OutputInfo::intermediate(_correstShapeDesc)});
 
-        ASSERT_EQ(childDataToShapeEdges.front(), parentDataToShapeEdge);
-    }
-};
+    model->connectDataWithShape(inputStage->output(1), inputStage->output(0));
 
-TEST_F(DSRParsingFromNgraphTests, DSRParserCreatesTwoOutputsOnOutputDSR) {
+    checkShapeConnection(inputStage->output(1), inputStage->output(0));
+
+    const auto& outputStage = _testModel.addStage({InputInfo::fromPrevStage(0)},
+                                                  {OutputInfo::intermediate(_dataDesc)});
+
+    const auto& dsrLayer = createDSRLayer();
+
+    ASSERT_NO_THROW(frontEnd->parseDSR(_testModel.getBaseModel(), dsrLayer,
+    {outputStage->output(0), inputStage->output(1)}, _testModel.getOutputs()));
+
+    checkShapeConnection(inputStage->output(1), inputStage->output(0));
+    checkShapeConnection(inputStage->output(1), outputStage->output(0));
+}
+
+typedef DSRParsingTests DSRParsingFromNgraphTests;
+
+TEST_F(DSRParsingFromNgraphTests, DSRParserCreatesAndConnectsTwoOutputsOnOutputDSR) {
     const auto& inPrecision = ::ngraph::element::Type(::ngraph::element::Type_t::i32);
 
     const auto& tensor = std::make_shared<ngraph::opset3::Parameter>(inPrecision, ngraph::Shape{1, 800});
@@ -139,6 +163,15 @@ TEST_F(DSRParsingFromNgraphTests, DSRParserCreatesTwoOutputsOnOutputDSR) {
         }
     }
     ASSERT_EQ(numOutputs, 2);
+
+    const auto& it = std::find_if(model->getStages().begin(), model->getStages().end(), [](const Stage& stage) {
+        return stage->type() == StageType::NonZero;
+    });
+
+    ASSERT_NE(it, model->getStages().end());
+    const auto& nonZeroStage = *it;
+
+    checkShapeConnection(nonZeroStage->output(1), nonZeroStage->output(0));
 }
 
 TEST_F(DSRParsingFromNgraphTests, DSRWithSingleProducerCreatesConnectionBetweenDataAndShape) {
@@ -159,16 +192,12 @@ TEST_F(DSRParsingFromNgraphTests, DSRWithSingleProducerCreatesConnectionBetweenD
     ModelPtr model;
     ASSERT_NO_THROW(model = frontEnd->buildInitialModel(cnnNet));
 
-    Stage nonZeroStage = nullptr;
+    const auto& it = std::find_if(model->getStages().begin(), model->getStages().end(), [](const Stage& stage) {
+        return stage->type() == StageType::NonZero;
+    });
 
-    for (const auto& stage : model->getStages()) {
-        if (stage->type() != StageType::NonZero) {
-            continue;
-        }
-        nonZeroStage = stage;
-    }
-
-    ASSERT_NE(nonZeroStage, nullptr);
+    ASSERT_NE(it, model->getStages().end());
+    const auto& nonZeroStage = *it;
 
     checkShapeConnection(nonZeroStage->output(1), nonZeroStage->output(0));
 }
@@ -193,16 +222,12 @@ TEST_F(DSRParsingFromNgraphTests, DSRWithTwoProducersCreatesConnectionBetweenDat
     ModelPtr model;
     ASSERT_NO_THROW(model = frontEnd->buildInitialModel(cnnNet));
 
-    Stage nonZeroStage = nullptr;
+    const auto& it = std::find_if(model->getStages().begin(), model->getStages().end(), [](const Stage& stage) {
+        return stage->type() == StageType::NonZero;
+    });
 
-    for (const auto& stage : model->getStages()) {
-        if (stage->type() != StageType::NonZero) {
-            continue;
-        }
-        nonZeroStage = stage;
-    }
-
-    ASSERT_NE(nonZeroStage, nullptr);
+    ASSERT_NE(it, model->getStages().end());
+    const auto& nonZeroStage = *it;
 
     const auto& stageReluData = nonZeroStage->output(0)->singleConsumer();
     const auto& stageReluShape = nonZeroStage->output(1)->singleConsumer();

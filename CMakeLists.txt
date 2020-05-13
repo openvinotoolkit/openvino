@@ -15,7 +15,6 @@ else()
     cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
 endif()
 
-
 project(OpenVINO)
 
 set(OpenVINO_MAIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
@@ -26,7 +25,7 @@ include(CTest)
 include(features)
 
 # include developer package
-include(developer_package NO_POLICY_SCOPE)
+include(developer_package)
 
 # These options are shared with 3rdparty plugins
 # by means of developer package
@@ -37,7 +36,7 @@ include(dependencies)
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
 message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
 message (STATUS "OpenVINO_MAIN_SOURCE_DIR .............. " ${OpenVINO_MAIN_SOURCE_DIR})
-message (STATUS "IE_MAIN_SOURCE_DIR .............. " ${IE_MAIN_SOURCE_DIR})
+message (STATUS "IE_MAIN_SOURCE_DIR .................... " ${IE_MAIN_SOURCE_DIR})
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
 message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID})
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
@@ -76,7 +75,7 @@ function(build_ngraph)
 
     if (NOT ANDROID)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE TRUE)
-        ngraph_set(NGRAPH_UNIT_TEST_OPENVINO_ENABLE TRUE)
+        ngraph_set(NGRAPH_IE_ENABLE TRUE)
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE TRUE)
     else()
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
@@ -85,7 +84,7 @@ function(build_ngraph)
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE FALSE)
     endif()
 
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         ie_add_compiler_flags(-Wno-error=uninitialized -Wno-error=literal-conversion)
     elseif(UNIX)
         ie_add_compiler_flags(-Wno-error=maybe-uninitialized -Wno-error=return-type -fPIC)

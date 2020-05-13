@@ -101,12 +101,15 @@ TEST_P(ActivationLayerTest, CompareWithRefs) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     convertFuncToF32(fnPtr, netPrecision);
     auto refOutData = ngraph::helpers::inferFnWithInterp<ngraph::element::Type_t::f32>(fnPtr, inRawData);
-    auto thr = FuncTestUtils::GetComparisonThreshold(netPrecision);
+    float thr1, thr2;
+    FuncTestUtils::GetComparisonThreshold(netPrecision, thr1, thr2);
+
     size_t outElementsCount = std::accumulate(begin(fnPtr->get_output_shape(0)), end(fnPtr->get_output_shape(0)), 1,
                                               std::multiplies<size_t>());
-    FuncTestUtils::compareRawBuffers(outBlob->cbuffer().as<float *>(), *refOutData[0], outElementsCount,
-                                     outElementsCount,
-                                     thr);
+    FuncTestUtils::compareRawBuffers(outBlob->cbuffer().as<float *>(), *refOutData[0],
+                                                     outElementsCount, outElementsCount,
+                                                     FuncTestUtils::CompareType::ABS_AND_REL,
+                                                     thr1, thr2);
     fnPtr.reset();
     if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
         PluginCache::get().reset();

@@ -9,11 +9,17 @@
 
 #include <gtest/gtest.h>
 
-#define checkRefVmValues()                                                                                             \
-    ASSERT_GT(test_refs.ref_vmsize, 0) << "Reference value of VmSize is less than 0. Value: " << test_refs.ref_vmsize;  \
-    ASSERT_GT(test_refs.ref_vmsize, 0) << "Reference value of VmPeak is less than 0. Value: " << test_refs.ref_vmpeak;  \
-    ASSERT_GT(test_refs.ref_vmrss, 0) << "Reference value of VmRSS is less than 0. Value: " << test_refs.ref_vmrss;     \
-    ASSERT_GT(test_refs.ref_vmrss, 0) << "Reference value of VmHWM is less than 0. Value: " << test_refs.ref_vmhwm;
+#define checkRefVmValues()                                                                          \
+    if (!Environment::Instance().getCollectResultsOnly()) {                                         \
+        ASSERT_GT(test_refs.ref_vmsize, 0) << "Reference value of VmSize is less than 0. Value: "   \
+                                           << test_refs.ref_vmsize;                                 \
+        ASSERT_GT(test_refs.ref_vmsize, 0) << "Reference value of VmPeak is less than 0. Value: "   \
+                                           << test_refs.ref_vmpeak;                                 \
+        ASSERT_GT(test_refs.ref_vmrss, 0) << "Reference value of VmRSS is less than 0. Value: "     \
+                                          << test_refs.ref_vmrss;                                   \
+        ASSERT_GT(test_refs.ref_vmrss, 0) << "Reference value of VmHWM is less than 0. Value: "     \
+                                          << test_refs.ref_vmhwm;                                   \
+    }
 
 class MemCheckTestSuite : public ::testing::TestWithParam<TestCase> {
 };

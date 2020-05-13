@@ -23,6 +23,7 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 
 #include "ngraph_ops/eltwise.hpp"
@@ -76,6 +77,10 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
 
 // WA: for cnnNetwork ngraph constructor
 CNNNetwork::CNNNetwork(const std::shared_ptr<const ngraph::Function>& graph) {
+    if (graph == nullptr) {
+        THROW_IE_EXCEPTION << "CNNNetwork was not initialized: 'graph' object is empty";
+    }
+
     // Copy nGraph function
     network = std::make_shared<CNNNetworkNGraphImpl>(copyFunction(graph, false, {}));
     actual = network.get();
@@ -141,8 +146,10 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         keep_input_info(*this, ptr);
     }
     for (auto& output : _outputData) {
-        // Convert precision into native format. Be consistent with possible convertation to CNNNetwork later.
-        if (output.second->getPrecision() != Precision::FP32 &&
+        // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
+        if (output.second->getPrecision() == Precision::I64) {
+            output.second->setPrecision(Precision::I32);
+        } else if (output.second->getPrecision() != Precision::FP32 &&
             output.second->getPrecision() != Precision::I32) {
             output.second->setPrecision(Precision::FP32);
         }
@@ -456,6 +463,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
         ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
         ::ngraph::pass::CommonOptimizations().run_on_function(graph);
+        ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
         ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
         ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
         network = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *this);
@@ -519,6 +527,7 @@ void CNNNetworkNGraphImpl::convertToCNNNetworkImpl() {
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
     ::ngraph::pass::CommonOptimizations().run_on_function(graph);
+    ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
     ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
     ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
     cnnNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *this);

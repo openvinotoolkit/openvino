@@ -5,5 +5,5 @@
 #include "myriad_layers_strided_slice_test.h"
 
 INSTANTIATE_TEST_CASE_P(
-    accuracy, myriadLayersTestsStridedSlice_nightly,
+    accuracy, myriadLayersTestsStridedSlice_smoke,
     ::testing::ValuesIn(s_stridedSliceParams));

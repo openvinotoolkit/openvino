@@ -30,7 +30,8 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
                          WeightsLayout layout,
                          WeightsReorderParams& weightsReorderParams,
                          const ParamsKey& paramsKey = ParamsKey(),
-                         size_t groups = 1);
+                         size_t groups = 1,
+                         bool rotate = false);
 JitConstants GetTensorFriendlyWorkGroupsJit(const DataTensor& t);
 std::vector<size_t> GetTensorFriendlyWorkGroups(const DataTensor& t);
 std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const EngineInfo& info);

@@ -775,8 +775,8 @@ private:
     }
 };
 
-class myriadLayersPoolNDTest_nightly: public PoolNDTest {};
+class myriadLayersPoolNDTest_smoke: public PoolNDTest {};
 
-TEST_P(myriadLayersPoolNDTest_nightly, PoolND) {
+TEST_P(myriadLayersPoolNDTest_smoke, PoolND) {
     testPoolND();
 }

@@ -31,6 +31,7 @@ ParamsKey ActivationKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableDifferentTypes();
     k.EnableActivationAdditionalParamsAsInput();
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
@@ -43,13 +44,20 @@ ParamsKey ActivationKernelRef::GetSupportedKey() const {
 
 JitConstants ActivationKernelRef::GetJitConstants(const activation_params& params, DispatchData kd) const {
     auto jit = ActivationKernelBase::GetJitConstants(params, kd);
+    auto input_dt = params.inputs[0].GetDType();
 
     if (!params.fused_ops.empty()) {
-        auto input_dt = GetUnitType(params);
-        FusedOpsConfiguration conf = {"", {"batch", "feature", "y", "x"}, "dst", input_dt, 1 };
+        std::vector<std::string> idx_order;
+        if (params.inputs[0].GetDims().size() <= 4) {
+            idx_order = {"batch", "feature", "y", "x"};
+        } else if (params.inputs[0].GetDims().size() == 5) {
+            idx_order = {"batch", "feature", "z", "y", "x"};
+        }
+        FusedOpsConfiguration conf = {"", idx_order, "dst", input_dt, 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
+    jit.Merge(MakeActivationJitConstants(params.activations, input_dt, "_KERNEL"));
     return jit;
 }
 

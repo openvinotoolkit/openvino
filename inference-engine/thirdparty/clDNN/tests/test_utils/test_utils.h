@@ -76,6 +76,8 @@ template<typename T>
 using VVVVF = std::vector<VVVF<T>>;    // batch of 3d feature maps
 template<typename T>
 using VVVVVF = std::vector<VVVVF<T>>;    // split of bfyx filters
+template<typename T>
+using VVVVVVF = std::vector<VVVVVF<T>>;    // split of bfyx filters
 
 template<typename T>
 inline VF<T> flatten_4d(cldnn::format input_format, VVVVF<T> &data) {
@@ -170,6 +172,14 @@ std::vector<std::vector<std::vector<std::vector<std::vector<T>>>>> generate_rand
     std::vector<std::vector<std::vector<std::vector<std::vector<T>>>>> v(a);
     for (size_t i = 0; i < a; ++i)
         v[i] = generate_random_4d<T>(b, c, d, e, min, max, k);
+    return v;
+}
+
+template<typename T>
+VVVVVVF<T> generate_random_6d(size_t a, size_t b, size_t c, size_t d, size_t e, size_t f, int min, int max, int k = 8) {
+    VVVVVVF<T> v(a);
+    for (size_t i = 0; i < a; ++i)
+        v[i] = generate_random_5d<T>(b, c, d, e, f, min, max, k);
     return v;
 }
 

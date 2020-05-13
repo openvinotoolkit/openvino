@@ -140,8 +140,7 @@ private:
                                                           const GenericLayerParams& layerParsePrms) = 0;
 
         bool shouldCreate(const std::string& nodeType) const;
-
-        std::shared_ptr<ngraph::Node> createOptionalParameter(const GenericLayerParams::LayerPortData& port);
+        virtual ngraph::NodeTypeInfo getNodeType() const = 0;
     };
 
     template <class T>
@@ -151,6 +150,9 @@ private:
         std::shared_ptr<ngraph::Node> createLayer(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
                                                   const Blob::CPtr& weights,
                                                   const GenericLayerParams& layerParsePrms) override;
+        ngraph::NodeTypeInfo getNodeType() const override {
+            return T::type_info;
+        }
     };
 
     std::shared_ptr<ngraph::Node> createNode(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
@@ -203,6 +205,12 @@ private:
                 std::vector<size_t> shape;
                 if (!getParameters<size_t>(node.child("data"), name, shape)) return;
                 static_cast<ngraph::Strides&>(*a) = ngraph::Strides(shape);
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKSortType>>(&adapter)) {
+                if (!getStrAttribute(node.child("data"), name, val)) return;
+                static_cast<ngraph::op::TopKSortType&>(*a) = ngraph::as_enum<ngraph::op::TopKSortType>(val);
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKMode>>(&adapter)) {
+                if (!getStrAttribute(node.child("data"), name, val)) return;
+                static_cast<ngraph::op::TopKMode&>(*a) = ngraph::as_enum<ngraph::op::TopKMode>(val);
             }
         }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {

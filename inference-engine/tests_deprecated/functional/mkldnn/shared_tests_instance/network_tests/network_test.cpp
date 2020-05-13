@@ -121,14 +121,14 @@ INSTANTIATE_TEST_CASE_P(
         smoke_Inception,
         ModelTransformationsTest,
         ::testing::Values(
-                TransformationsParams("MKLDNN", getModelParams("inception_v3_tf"), 1ul, false, false, createParam(), {}, 3ul),
-                TransformationsParams("MKLDNN", getModelParams("inception_v3_tf"), 1ul, false, true, createParamI8I8(), {}, 0, false),
-                TransformationsParams("MKLDNN", getModelParams("inception_v3_tf"), 1ul, false, true, createParamU8I8(), {}, 0),
-                TransformationsParams("MKLDNN", getModelParams("inception_v3_tf"), 1ul, false, true, createParamU8U8(), {}, 0),
-                TransformationsParams("MKLDNN", getModelParams("inception_v3_tf"), 1ul, false, true, createParamCpu().setQuantizedTensorAlignmentOnActivations(LayerTransformation::QuantizedTensorAlignment::UpdateLevel)),
-                TransformationsParams("MKLDNN", getModelParams("inception_v3_tf"), 1ul, false, true, createParamCpu().setQuantizedTensorAlignmentOnActivations(LayerTransformation::QuantizedTensorAlignment::UpdateIntervals)),
-                TransformationsParams("MKLDNN", getModelParams("inception_v3_tf"), 1ul, true, false, createParam()),
-                TransformationsParams("MKLDNN", getModelParams("inception_v3_tf"), 2ul, true, false, createParam())
+                TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, false, false, createParam(), {}, 3ul),
+                TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, false, true, createParamI8I8(), {}, 0, false),
+                TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, false, true, createParamU8I8(), {}, 0),
+                TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, false, true, createParamU8U8(), {}, 0),
+                TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, false, true, createParamCpu().setQuantizedTensorAlignmentOnActivations(LayerTransformation::QuantizedTensorAlignment::UpdateLevel)),
+                TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, false, true, createParamCpu().setQuantizedTensorAlignmentOnActivations(LayerTransformation::QuantizedTensorAlignment::UpdateIntervals)),
+                TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, true, false, createParam()),
+                TransformationsParams("CPU", getModelParams("inception_v3_tf"), 2ul, true, false, createParam())
         ),
         TransformationsParams::getLowPrecisionTransformerSingleLayerTestName);
 
@@ -136,14 +136,14 @@ INSTANTIATE_TEST_CASE_P(
         smoke_MobileNet,
         ModelTransformationsTest,
         ::testing::Values(
-                TransformationsParams("MKLDNN", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false),
+                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false),
 // TODO: eshoguli: fix this issue
-//                TransformationsParams("MKLDNN", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamI8I8()),
-//                TransformationsParams("MKLDNN", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamU8I8()),
-//                TransformationsParams("MKLDNN", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamU8U8(), {}, 2),
-//                TransformationsParams("MKLDNN", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamCpu(), { "464/Pool", "465/Pool" }),
-                TransformationsParams("MKLDNN", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, true),
-                TransformationsParams("MKLDNN", getModelParams("mobilenet_v2_tf_depthwise"), 2ul, true)
+//                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamI8I8()),
+//                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamU8I8()),
+//                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamU8U8(), {}, 2),
+//                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamCpu(), { "464/Pool", "465/Pool" }),
+                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, true),
+                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 2ul, true)
         ),
         TransformationsParams::getLowPrecisionTransformerSingleLayerTestName);
 
@@ -151,28 +151,28 @@ INSTANTIATE_TEST_CASE_P(
         smoke_ResNet,
         ModelTransformationsTest,
         ::testing::Values(
-                TransformationsParams("MKLDNN", getModelParams("resnet_50_tf"), 1ul, false),
-                TransformationsParams("MKLDNN", getModelParams("resnet_50_tf"), 1ul, false, true, createParamI8I8(), {
+                TransformationsParams("CPU", getModelParams("resnet_50_tf"), 1ul, false),
+                TransformationsParams("CPU", getModelParams("resnet_50_tf"), 1ul, false, true, createParamI8I8(), {
                         // TODO: remove when eltwise validation was added
                         "resnet_v1_50/block1/unit_2/bottleneck_v1/act_quant/FakeQuantWithMinMaxVars",
                         "resnet_v1_50/block2/unit_3/bottleneck_v1/act_quant/FakeQuantWithMinMaxVars"
                 }),
-                TransformationsParams("MKLDNN", getModelParams("resnet_50_tf"), 1ul, false, true, createParamU8I8(), {
+                TransformationsParams("CPU", getModelParams("resnet_50_tf"), 1ul, false, true, createParamU8I8(), {
 //            // TODO: remove when eltwise validation was added
                         "resnet_v1_50/block1/unit_2/bottleneck_v1/act_quant/FakeQuantWithMinMaxVars",
                         "resnet_v1_50/block2/unit_3/bottleneck_v1/act_quant/FakeQuantWithMinMaxVars"
                 }),
-                TransformationsParams("MKLDNN", getModelParams("resnet_50_tf"), 1ul, false, true, createParamU8U8(), {
+                TransformationsParams("CPU", getModelParams("resnet_50_tf"), 1ul, false, true, createParamU8U8(), {
                         // TODO: remove when eltwise validation was added
                         "resnet_v1_50/block1/unit_2/bottleneck_v1/act_quant/FakeQuantWithMinMaxVars",
                         "resnet_v1_50/block2/unit_3/bottleneck_v1/act_quant/FakeQuantWithMinMaxVars"
                 }),
-                TransformationsParams("MKLDNN", getModelParams("resnet_50_tf"), 1ul, false, true, createParamCpu(), {
+                TransformationsParams("CPU", getModelParams("resnet_50_tf"), 1ul, false, true, createParamCpu(), {
                         // TODO: remove when eltwise validation was added
                         "resnet_v1_50/block1/unit_2/bottleneck_v1/act_quant/FakeQuantWithMinMaxVars",
                         "resnet_v1_50/block2/unit_3/bottleneck_v1/act_quant/FakeQuantWithMinMaxVars"
                 }),
-                TransformationsParams("MKLDNN", getModelParams("resnet_50_tf"), 1ul, true),
-                TransformationsParams("MKLDNN", getModelParams("resnet_50_tf"), 2ul, true)
+                TransformationsParams("CPU", getModelParams("resnet_50_tf"), 1ul, true),
+                TransformationsParams("CPU", getModelParams("resnet_50_tf"), 2ul, true)
         ),
         TransformationsParams::getLowPrecisionTransformerSingleLayerTestName);

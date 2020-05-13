@@ -4,7 +4,7 @@
 
 #include "myriad_layers_roi_pooling_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsROIPooling_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsROIPooling_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_ROIPoolingLayerInput),
         ::testing::ValuesIn(s_ROIPoolingLayerParam),

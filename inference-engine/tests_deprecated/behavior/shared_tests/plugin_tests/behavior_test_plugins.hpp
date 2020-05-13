@@ -68,7 +68,7 @@ IE_SUPPRESS_DEPRECATED_END
 class BehaviorPluginTestInput : public BehaviorPluginTest { };
 class BehaviorPluginTestOutput : public BehaviorPluginTest { };
 
-TEST_F(BehaviorPluginTest, AllocateNullBlob) {
+TEST_F(BehaviorPluginTest, smoke_llocateNullBlob) {
     TensorDesc tdesc = TensorDesc(Precision::FP32, NCHW);
     InferenceEngine::TBlob<float> blob(tdesc);
     ASSERT_NO_THROW(blob.allocate());

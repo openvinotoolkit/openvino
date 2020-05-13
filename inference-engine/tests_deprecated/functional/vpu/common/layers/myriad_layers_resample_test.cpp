@@ -4,8 +4,13 @@
 
 #include "myriad_layers_resample_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(myriad, myriadResampleLayerTests_nightly,
-        ::testing::Combine(
-        ::testing::Values(CONFIG_VALUE(NO), CONFIG_VALUE(YES)),
-        ::testing::ValuesIn(s_ResampleCustomConfig),
-        ::testing::ValuesIn(s_ResampleAntialias)));
+// #-31522
+INSTANTIATE_TEST_CASE_P(
+	DISABLED_accuracy, myriadResampleLayerTests_smoke,
+	::testing::Combine(
+		::testing::ValuesIn(s_ResampleInput),
+		::testing::Values<Factor>(2.0f, 0.5f),
+		::testing::Values<Antialias>(false, true),
+		::testing::Values<HwOptimization>(false, true),
+		::testing::ValuesIn(s_CustomConfig))
+);

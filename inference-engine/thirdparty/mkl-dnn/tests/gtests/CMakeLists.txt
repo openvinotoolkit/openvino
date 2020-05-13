@@ -64,6 +64,7 @@ file(GLOB PRIM_TEST_CASES_SRC
                               test_convolution_forward_x8s8fp.cpp
                               test_convolution_forward_x8s8fp_3d.cpp
                               test_convolution_eltwise_forward_f32.cpp
+                              test_convolution_eltwise_forward_bf16.cpp
                               test_convolution_eltwise_forward_x8s8f32s32.cpp
                               test_convolution_backward_data_f32.cpp
                               test_convolution_backward_data_s16s16s32.cpp
@@ -77,6 +78,7 @@ file(GLOB PRIM_TEST_CASES_SRC
                               test_rnn_forward.cpp
                               test_roi_pooling_forward.cpp
                               test_convolution_depthwise_forward_f32.cpp
+                              test_convolution_depthwise_forward_bf16f32.cpp
                               test_convolution_depthwise_forward_x8s8f32s32.cpp
                               test_convolution_dw_conv_f32.cpp
                               test_convolution_dw_conv_u8s8s32.cpp

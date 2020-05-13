@@ -4,12 +4,13 @@
 
 #include "myriad_layers_mvn_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMVN_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMVN_smoke,
                         ::testing::Combine(
                                 ::testing::ValuesIn(s_MVNTensors),
                                 ::testing::ValuesIn(s_MVN_acrossChannels),
                                 ::testing::ValuesIn(s_MVN_normalize),
                                 ::testing::ValuesIn(s_MVN_epsilon),
+                                ::testing::Values(IRVersion::v7, IRVersion::v10),
                                 ::testing::ValuesIn(s_MVNCustomConfig)));
 
 TEST_F(myriadLayersTests_nightly, MVN_CHW_Input)

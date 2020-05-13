@@ -7,7 +7,7 @@
 using namespace InferenceEngine;
 
 using myriadConcatTestParams = std::tuple<InferenceEngine::SizeVector, int32_t, InferenceEngine::SizeVector, int32_t, int32_t >;
-typedef myriadLayerTestBaseWithParam<myriadConcatTestParams> myriadLayersTestsConcat_nightly;
+typedef myriadLayerTestBaseWithParam<myriadConcatTestParams> myriadLayersTestsConcat_smoke;
 
 void CheckOutput(const InferenceEngine::BlobMap& input, InferenceEngine::Blob::Ptr actual, int32_t axis) {
     int32_t OW = 1;
@@ -49,7 +49,7 @@ void CheckOutput(const InferenceEngine::BlobMap& input, InferenceEngine::Blob::P
     ASSERT_NE(n_checks, 0);
 }
 
-TEST_P(myriadLayersTestsConcat_nightly, Concat) {
+TEST_P(myriadLayersTestsConcat_smoke, Concat) {
     auto param   = GetParam();
     auto core    = std::get<0>(param);
     auto axis    = std::get<1>(param);

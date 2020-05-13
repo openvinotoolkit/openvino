@@ -14,7 +14,7 @@ if (ENABLE_SANITIZER)
     set(SANITIZER_LINKER_FLAGS "-fsanitize=address")
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=gold")
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT WIN32)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" AND NOT WIN32)
         set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=lld")
     endif()
 
@@ -26,9 +26,8 @@ if (ENABLE_SANITIZER)
 endif()
 
 if (ENABLE_THREAD_SANITIZER)
-    set(SANITIZER_COMPILER_FLAGS "-g -fsanitize=thread")
-
-    set(SANITIZER_LINKER_FLAGS "-fsanitize=thread")
+    set(SANITIZER_COMPILER_FLAGS "-g -fsanitize=thread -fno-omit-frame-pointer")
+    set(SANITIZER_LINKER_FLAGS "-fsanitize=thread -static-libsan")
 
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SANITIZER_COMPILER_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZER_COMPILER_FLAGS}")

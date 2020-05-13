@@ -30,6 +30,7 @@ class Gather(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
+            'version': 'opset1',
 
             'infer': self.infer,
 

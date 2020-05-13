@@ -35,6 +35,7 @@ class Elementwise(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op_type,
+            'version': 'opset1',
             'infer': lambda node: eltwise_infer(node, self.operation),
             'type_infer': self.type_infer,
             'can_be_bias': True,
@@ -202,6 +203,7 @@ class Round(Elementwise):
     enabled = False
     op = 'Round'
     op_type = None
+    version = 'extension'
     operation = staticmethod(lambda a: np.round(a))
 
 

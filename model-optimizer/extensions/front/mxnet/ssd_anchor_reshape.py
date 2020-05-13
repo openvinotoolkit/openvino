@@ -19,6 +19,7 @@ import numpy as np
 from extensions.front.mxnet.eltwise_scalar_replacers import MulScalarFrontReplacer
 from extensions.front.mxnet.ssd_detection_output_replacer import SsdPatternDetectionOutputReplacer
 from extensions.front.split_normalizer import AttributedSplitToSplit
+from extensions.ops.slice_like import SliceLike
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph, Node
 from mo.middle.pattern_match import find_pattern_matches
@@ -64,7 +65,7 @@ class SsdPatternAnchorReshape(FrontReplacementSubgraph):
             nodes=[
                 ('power', dict(op='Mul')),
                 ('anchor', dict(op='Const')),
-                ('slice_like', dict(op='Crop')),
+                ('slice_like', dict(op='slice_like')),
                 ('reshape1', dict(op='Reshape')),
                 ('reshape2', dict(op='Reshape')),
                 ('reshape3', dict(op='Reshape'))
@@ -91,10 +92,9 @@ class SsdPatternAnchorReshape(FrontReplacementSubgraph):
 
         variants = np.array([variants_dict['mul_scalar1x'], variants_dict['mul_scalar1y'],
                              variants_dict['mul_scalar2x'], variants_dict['mul_scalar2y']] * int(const.value.size / 4)).reshape(const.value.shape)
-        priorbox_variants = Const(graph, dict(value=variants, symbol_dict={'name': const.id + '/priorbox_variants'})).create_node()
-        variants_slice_like = Crop(graph, dict(axis=slice_like.axis, offset=slice_like.offset, dim=slice_like.dim, axes=slice_like.axes,
-                                               symbol_dict={'name': slice_like.id + '/variants_slice_like'})) \
-            .create_node()
+        priorbox_variants = Const(graph, dict(value=variants, name=const.id + '/priorbox_variants')).create_node()
+        variants_slice_like = SliceLike(graph, dict(axes=slice_like.axes,
+                                                    name=slice_like.id + '/variants_slice_like')).create_node()
         variants_slice_like.in_port(0).connect(priorbox_variants.out_port(0))
         variants_slice_like.in_port(1).connect(crop_shape.out_port(0))
 
