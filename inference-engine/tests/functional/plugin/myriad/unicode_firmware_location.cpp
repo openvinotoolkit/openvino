@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 //
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) || defined(_WIN32)
 
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
@@ -211,3 +212,5 @@ const auto basicCases = ::testing::Combine(
 INSTANTIATE_TEST_CASE_P(Environment, UnicodeLocationTest, basicCases);
 
 INSTANTIATE_TEST_CASE_P(Environment, UnicodeLocationTestUnexistent, basicCases);
+
+#endif

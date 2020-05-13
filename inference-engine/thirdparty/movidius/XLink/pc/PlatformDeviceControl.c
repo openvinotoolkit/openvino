@@ -105,8 +105,6 @@ int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPathUtf8
 
     if(file == NULL) {
         mvLog(MVLOG_ERROR, "Cannot open file by path: %s", binaryPathUtf8);
-        if(usb_loglevel)
-            perror(binaryPathUtf8);
         return -7;
     }
 
@@ -122,8 +120,6 @@ int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPathUtf8
     if(fread(image_buffer, 1, file_size, file) != file_size)
     {
         mvLog(MVLOG_ERROR, "cannot read file to image_buffer");
-        if(usb_loglevel)
-            perror(binaryPathUtf8);
         fclose(file);
         free(image_buffer);
         return -7;
