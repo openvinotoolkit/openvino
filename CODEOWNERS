@@ -1,0 +1,11 @@
+*  @openvinotoolkit/openvino-maintainers
+
+CODEOWNERS  @openvinotoolkit/openvino-admins
+
+# CI:
+azure-pipelines.yml  @openvinotoolkit/openvino-admins
+/.github/  @openvinotoolkit/openvino-admins
+
+# Tests:
+/tests/ vitaliy.urusovskij@intel.com irina.efode@intel.com
+/inference-engine/tests/  irina.efode@intel.com
