@@ -52,7 +52,7 @@ jobs:
   - task: CMake@1
     inputs:
       workingDirectory: dldt-build
-      cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
+      cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON
   - script: make -j3
     workingDirectory: dldt-build
     displayName: 'Build IE'
@@ -142,7 +142,7 @@ jobs:
     displayName: 'Create build directory'
   - script: |
       export PATH="/usr/local/opt/cython/bin:$PATH"
-      cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON
+      cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON
     workingDirectory: dldt-build
     displayName: 'CMake'
   - script: make -j3
@@ -151,7 +151,7 @@ jobs:
   - script: ls -al ../bin/intel64/$(BUILD_TYPE)/
     workingDirectory: dldt-build
     displayName: 'List files'
-  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
+  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
@@ -184,7 +184,7 @@ jobs:
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=-smoke_Inception/ModelTransformationsTest.LPT/inception_v3_tf_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=-*smoke_SingleLayerTransformationsTestFP16/SingleLayerTransformationsTest.LPT/PoolingTestModel*:*smoke_Inception/ModelTransformationsTest.LPT/inception_v3_tf_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
@@ -220,7 +220,7 @@ jobs:
   - task: CMake@1
     inputs:
       workingDirectory: C:\c-dldt-build
-      cmakeArgs: -G"Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_LTO=ON -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
+      cmakeArgs: -G"Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
   - script: cmake --build . --config $(BUILD_TYPE) -j3
     workingDirectory: C:\c-dldt-build
     displayName: 'Build IE VS2017'
@@ -323,7 +323,7 @@ jobs:
   - task: CMake@1
     inputs:
       workingDirectory: C:\c-dldt-build
-      cmakeArgs: -G"Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_LTO=ON -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
+      cmakeArgs: -G"Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
   - script: cmake --build . --config $(BUILD_TYPE) -j6
     workingDirectory: C:\c-dldt-build
     displayName: 'Build IE VS2019'
