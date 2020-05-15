@@ -48,7 +48,7 @@ public:
     std::vector<ncDeviceDescr_t> AvailableDevicesDesc() const override;
     std::vector<std::string> AvailableDevicesNames() const override;
 
-    static float GetThermal(ncDeviceHandle_t * deviceHandle);
+    static float GetThermal(ncDeviceHandle_t* deviceHandle);
 
     template<typename T>
     static std::vector<T> getGraphInfo(ncGraphHandle_t* graphHandle,

@@ -730,11 +730,11 @@ int deserializeInferPacket(xLinkEvent_t* event) {
     streamDesc_t* stream = getStreamById(event->deviceHandle.xLinkFD, event->header.streamId);
     ASSERT_XLINK(stream);
 
+    void* buffer = NULL;
     inferPacketDesc_t* inferPacket = malloc(sizeof(inferPacketDesc_t));
     int rc = XLinkPlatformRead(&event->deviceHandle, &inferPacket->id, sizeof(inferPacket->id));
     XLINK_OUT_WITH_LOG_IF(rc < 0, mvLog(MVLOG_ERROR,"Read failed %d\n", rc));
 
-    void* buffer = NULL;
     rc = readBuffer(stream, event, &buffer);
     XLINK_OUT_WITH_LOG_IF(rc < 0,  mvLog(MVLOG_ERROR, "Fail to read data from stream: %s", event->header.streamName));
 

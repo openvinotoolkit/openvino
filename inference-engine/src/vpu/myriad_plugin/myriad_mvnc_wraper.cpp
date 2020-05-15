@@ -44,7 +44,7 @@ std::vector<std::string> Mvnc::AvailableDevicesNames() const {
     return availableDevices;
 }
 
-float Mvnc::GetThermal(ncDeviceHandle_t * deviceHandle) {
+float Mvnc::GetThermal(ncDeviceHandle_t* deviceHandle) {
     unsigned int thermal_stats_len = NC_THERMAL_BUFFER_SIZE;
     static_assert(NC_THERMAL_BUFFER_SIZE % sizeof(float) == 0,
                   "NC_THERMAL_BUFFER_SIZE is not divisible by sizeof(float)");

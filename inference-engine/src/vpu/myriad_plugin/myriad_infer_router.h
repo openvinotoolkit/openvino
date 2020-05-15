@@ -45,36 +45,12 @@ struct TensorStreamDesc {
 };
 
 //------------------------------------------------------------------------------
-// class InferResultProvider
-//------------------------------------------------------------------------------
-
-class InferResultProvider {
-public:
-    using Ptr = std::unique_ptr<InferResultProvider>;
-
-    InferResultProvider(size_t id, const TensorBuffer& outTensorBuffer);
-
-    size_t id() const;
-    InferFuture getFuture();
-    InferPromise& getPromise();
-
-    void copyAndSetResult(const inferPacketDesc_t& resultPacket);
-
-private:
-    size_t m_id;
-    bool   m_isCompleted = false;
-
-    InferPromise m_promise;
-    TensorBuffer m_outputTensor;
-};
-
-//------------------------------------------------------------------------------
 // class MyriadInferRouter
 //------------------------------------------------------------------------------
 
 class MyriadInferRouter {
 public:
-    using Ptr = std::shared_ptr<MyriadInferRouter>;
+    using Ptr = std::unique_ptr<MyriadInferRouter>;
 
     MyriadInferRouter(
         const Logger::Ptr& log,
@@ -88,6 +64,9 @@ public:
         const TensorBuffer& outTensorBuffer);
 
 private:
+    class InferResultProvider;
+
+private:
     uint32_t getRequestID();
     void receiveInferResult();
 
@@ -96,9 +75,10 @@ private:
     GraphDesc        m_graphDesc;
     ncDeviceHandle_t m_deviceHandle;
 
-    bool              m_isRunning = true;
-    uint32_t          m_inferRequestCounter {0};
-    std::atomic_int   m_numInfersInProcessing {0};
+    bool     m_stop = false;
+    uint32_t m_inferRequestCounter {0};
+    int      m_numInfersInProcessing {0};
+
     std::future<void> m_receiveResultTask;
 
     TensorStreamDesc m_inputStreamDesc;
@@ -107,16 +87,16 @@ private:
     std::mutex m_sendRequestMutex;
     std::mutex m_inferResultsMapMutex;
 
-    std::unordered_map<size_t, InferResultProvider::Ptr> m_idToInferResultMap;
+    std::mutex m_receiveResultMutex;
+    std::condition_variable m_receiveResultCv;
 
-// Constants
-    const uint32_t m_stopSignal {0xdead};
-    const std::chrono::nanoseconds m_timeToWaitInferRequestNs {10};
+    std::unordered_map<size_t, std::unique_ptr<InferResultProvider>> m_idToInferResultMap;
 
-    // First, we open streams from the host side,
-    // but we can't open a "read-only" stream
-    // if the "write" stream did not open from device-side
-    const int m_writeSizeStub {8};
+    // It is impossible to open "read-only" stream from host, so we need to set some value for write size.
+    // It cannot be zero as well.
+    // Use this constant as write size to make an intention to open "read-only" stream.
+    static constexpr int m_writeSizeForReadOnlyStream {8};
+    static constexpr uint32_t m_stopSignal {0xdead};
 };
 
 }  // namespace MyriadPlugin

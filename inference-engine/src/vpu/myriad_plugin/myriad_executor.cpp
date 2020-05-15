@@ -113,8 +113,8 @@ void MyriadExecutor::allocateGraph(const std::vector<char> &graphFileContent,
 
     unsigned int numElements = (m_device->_platform == NC_MYRIAD_2 && executors == 1) ? 4 : 2 * executors;
 
-    m_infersRouter = std::make_shared<MyriadInferRouter>(
-        m_log, m_graphDesc, *m_device->_deviceHandle, numElements);
+    m_infersRouter = MyriadInferRouter::Ptr(
+        new MyriadInferRouter(m_log, m_graphDesc, *m_device->_deviceHandle, numElements));
 }
 
 void MyriadExecutor::deallocateGraph() {

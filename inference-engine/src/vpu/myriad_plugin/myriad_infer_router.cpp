@@ -21,39 +21,43 @@ using namespace MyriadPlugin;
 static std::atomic<uint32_t> g_channelsCounter {0};
 
 //------------------------------------------------------------------------------
-// class InferResultProvider
+// class MyriadInferRouter::InferResultProvider
 //------------------------------------------------------------------------------
 
-InferResultProvider::InferResultProvider(
-    size_t id, const TensorBuffer& outTensorBuffer):
-    m_id(id), m_outputTensor(outTensorBuffer) {}
+class MyriadInferRouter::InferResultProvider {
+public:
+    using Ptr = std::unique_ptr<InferResultProvider>;
 
-size_t InferResultProvider::id() const {
-    return m_id;
-}
+    explicit InferResultProvider(
+        const TensorBuffer& outTensorBuffer):
+        m_outputTensor(outTensorBuffer) {}
 
-InferFuture InferResultProvider::getFuture() {
-    return m_promise.get_future();
-}
-
-InferPromise& InferResultProvider::getPromise() {
-    return m_promise;
-}
-
-void InferResultProvider::copyAndSetResult(const inferPacketDesc_t& resultPacket) {
-    try {
-        VPU_THROW_UNLESS(!m_isCompleted, "Inference's result provider has already received the result.");
-        VPU_THROW_UNLESS(resultPacket.streamPacket.length == m_outputTensor.m_length,
-                         "Unexpected buffer size. Actual size: %zu; Expect size: %zu",
-                         resultPacket.streamPacket.length, m_outputTensor.m_length);
-
-        std::memcpy(m_outputTensor.m_data,
-            resultPacket.streamPacket.data, resultPacket.streamPacket.length);
-        m_promise.set_value();
-    } catch (...) {
-        m_promise.set_exception(std::current_exception());
+    InferFuture getFuture() {
+        return m_promise.get_future();
     }
-}
+
+    InferPromise& getPromise() {
+        return m_promise;
+    }
+
+    void copyAndSetResult(const inferPacketDesc_t& resultPacket) {
+        try {
+            VPU_THROW_UNLESS(resultPacket.streamPacket.length == m_outputTensor.m_length,
+                             "Unexpected buffer size. Actual size: {}; Expect size: {}",
+                             resultPacket.streamPacket.length, m_outputTensor.m_length);
+
+            std::memcpy(m_outputTensor.m_data,
+                        resultPacket.streamPacket.data, resultPacket.streamPacket.length);
+            m_promise.set_value();
+        } catch (...) {
+            m_promise.set_exception(std::current_exception());
+        }
+    }
+
+private:
+    InferPromise m_promise;
+    TensorBuffer m_outputTensor;
+};
 
 //------------------------------------------------------------------------------
 // class MyriadInferRouter
@@ -82,7 +86,7 @@ MyriadInferRouter::MyriadInferRouter(
     openStream(m_inputStreamDesc, m_deviceHandle.private_data->xlink->linkId,
         "Input tensor stream.", m_graphDesc._inputDesc.totalSize * numElements);
     openStream(m_outputStreamDesc, m_deviceHandle.private_data->xlink->linkId,
-        "Output tensor stream.", m_writeSizeStub);
+        "Output tensor stream.", m_writeSizeForReadOnlyStream);
 
     ncStatus_t nc_rc = ncIOBufferAllocate(m_inputStreamDesc.m_channelId, NC_WRITE,
         m_inputStreamDesc.m_name.c_str(), &m_deviceHandle, &m_graphDesc._inputDesc, numElements);
@@ -94,22 +98,28 @@ MyriadInferRouter::MyriadInferRouter(
     VPU_THROW_UNLESS(nc_rc == NC_OK,
                      "Fail to allocate buffer. Stream name: %s", m_inputStreamDesc.m_name);
 
-    m_receiveResultTask = std::async(std::launch::async, [=]() {
+    m_receiveResultTask = std::async(std::launch::async, [this]() {
         try {
-            while (m_isRunning) {
+            while (true) {
                 // XLink has only blocking operations (there are no "tryDoSomething"
                 // or "doSomething(timeout)" methods),
                 // so we need logic to know if data should arrive
-                if (m_numInfersInProcessing.load(std::memory_order_relaxed)) {
-                    m_numInfersInProcessing--;
-                    receiveInferResult();
-                } else {
-                    std::this_thread::sleep_for(m_timeToWaitInferRequestNs);
+                std::unique_lock<std::mutex> lockSendMutex(m_receiveResultMutex);
+                m_receiveResultCv.wait(lockSendMutex,
+                                       [&]{ return m_numInfersInProcessing != 0 || m_stop; });
+
+                if (m_stop) {
+                    break;
                 }
+
+                m_numInfersInProcessing--;
+                receiveInferResult();
             }
         } catch (...) {
-            std::lock_guard<std::mutex> lockSendMutex(m_sendRequestMutex);
-            m_isRunning = false;
+            {
+                std::lock_guard<std::mutex> lockSendMutex(m_sendRequestMutex);
+                m_stop = true;
+            }
 
             std::lock_guard<std::mutex> lockMapMutex(m_inferResultsMapMutex);
             for (const auto& providersMapIt : m_idToInferResultMap) {
@@ -122,7 +132,8 @@ MyriadInferRouter::MyriadInferRouter(
 }
 
 MyriadInferRouter::~MyriadInferRouter() {
-    m_isRunning = false;
+    m_stop = true;
+    m_receiveResultCv.notify_one();
     m_receiveResultTask.wait();
 
     inferPacketDesc_t packet = { m_stopSignal, {nullptr, 0}};
@@ -159,26 +170,36 @@ MyriadInferRouter::~MyriadInferRouter() {
 
 InferFuture MyriadInferRouter::sendInferAsync(
     const std::vector<uint8_t>& inTensor, const TensorBuffer& outTensorBuffer) {
-    std::lock_guard<std::mutex> lockSendMutex(m_sendRequestMutex);
+    uint32_t requestID = 0;
 
-    VPU_THROW_UNLESS(m_isRunning == true, "Myriad infer router was stopped");
+    {
+        std::lock_guard<std::mutex> lockSendMutex(m_sendRequestMutex);
 
-    uint32_t requestID = getRequestID();
-    inferPacketDesc_t packet = {
-        requestID,
-        {const_cast<uint8_t *>(inTensor.data()),
-        static_cast<uint32_t>(inTensor.size())} };
+        VPU_THROW_UNLESS(!m_stop, "Myriad infer router was stopped");
 
-    XLinkError_t rc = XLinkWriteInferPacket(m_inputStreamDesc.m_id, &packet);
-    VPU_THROW_UNLESS(rc == X_LINK_SUCCESS, "Failed to send tensor by stream %s", m_inputStreamDesc.m_name);
+        requestID = getRequestID();
+        inferPacketDesc_t packet = {
+            requestID,
+            { const_cast<uint8_t *>(inTensor.data()),
+              static_cast<uint32_t>(inTensor.size()) }};
 
-    ncStatus_t ncRc = ncGraphTrigger(m_graphDesc._graphHandle, m_inputStreamDesc.m_channelId, m_outputStreamDesc.m_channelId);
-    VPU_THROW_UNLESS(ncRc == NC_OK, "Failed to send graph trigger command. Graph name: %s", m_graphDesc._name);
+        XLinkError_t rc = XLinkWriteInferPacket(m_inputStreamDesc.m_id, &packet);
+        VPU_THROW_UNLESS(rc == X_LINK_SUCCESS, "Failed to send tensor by stream %s", m_inputStreamDesc.m_name);
+
+        ncStatus_t ncRc = ncGraphTrigger(m_graphDesc._graphHandle, m_inputStreamDesc.m_channelId, m_outputStreamDesc.m_channelId);
+        VPU_THROW_UNLESS(ncRc == NC_OK, "Failed to send graph trigger command. Graph name: %s", m_graphDesc._name);
+    }
 
     std::lock_guard<std::mutex> lockMapMutex(m_inferResultsMapMutex);
     m_idToInferResultMap[requestID] =
-        std::unique_ptr<InferResultProvider>(new InferResultProvider(requestID, outTensorBuffer));
-    m_numInfersInProcessing++;
+        InferResultProvider::Ptr(new InferResultProvider(outTensorBuffer));
+
+    {
+        std::unique_lock<std::mutex> lockSendMutex(m_receiveResultMutex);
+        m_numInfersInProcessing++;
+        m_receiveResultCv.notify_one();
+    }
+
 
     return m_idToInferResultMap[requestID]->getFuture();
 }
@@ -197,10 +218,10 @@ uint32_t MyriadInferRouter::getRequestID() {
 }
 
 void MyriadInferRouter::receiveInferResult() {
-    inferPacketDesc_t* inferPacket;
+    inferPacketDesc_t* inferPacket = nullptr;
     XLinkError_t rc = XLinkReadDataPacket(
         m_outputStreamDesc.m_id, reinterpret_cast<void**>(&inferPacket));
-    VPU_THROW_UNLESS(rc == X_LINK_SUCCESS, "Failed to release data from stream %s", m_outputStreamDesc.m_name);
+    VPU_THROW_UNLESS(rc == X_LINK_SUCCESS, "Failed to read data from stream %s", m_outputStreamDesc.m_name);
     uint32_t requestId = inferPacket->id;
 
     std::lock_guard<std::mutex> lockMapMutex(m_inferResultsMapMutex);
