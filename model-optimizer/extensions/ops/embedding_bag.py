@@ -52,7 +52,7 @@ class EmbeddingBagOffsetsSum(Op):
         offsets_shape = node.in_port(2).data.get_shape()
         assert offsets_shape is not None and len(offsets_shape) == 1
 
-        node.out_port(0).data.set_shape(np.concatenate((input_shape[:1], weights_shape[1:]), dtype=np.int64))
+        node.out_port(0).data.set_shape(np.concatenate((offsets_shape[:1], weights_shape[1:])).astype(np.int64))
 
 
 class EmbeddingBagPackedSum(Op):
@@ -84,7 +84,7 @@ class EmbeddingBagPackedSum(Op):
         input_shape = node.in_port(1).data.get_shape()
         assert input_shape is not None
 
-        node.out_port(0).data.set_shape(np.concatenate((input_shape[:1], weights_shape[1:]), dtype=np.int64))
+        node.out_port(0).data.set_shape(np.concatenate((input_shape[:1], weights_shape[1:])).astype(np.int64))
 
 
 class EmbeddingSegmentsSum(Op):
@@ -117,5 +117,5 @@ class EmbeddingSegmentsSum(Op):
         num_segments = node.in_port(3).data.get_value()
         assert num_segments is not None, "EmbeddingSegmentsSum should have a constant num_segments provided, but it " \
                                          "doesn't for node: `{}`.".format(name)
-        output_shape = int64_array([num_segments] + weights_shape[1:].tolist())
+        output_shape = np.concatenate(([num_segments], weights_shape[1:])).astype(np.int64)
         node.out_port(0).data.set_shape(output_shape)
