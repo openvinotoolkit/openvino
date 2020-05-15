@@ -31,8 +31,7 @@ class AtenToEmbeddingBag(FrontReplacementPattern):
                                                               'mode is supported for node {}.'.format(node.id)
             node_name = node.name
             rename_node(node, node_name + '/Old')
-            indices_shape = node.in_port(1).data.get_shape()
-            if len(indices_shape) == 2:
+            if node.in_port(2).disconnected():
                 embedding_bag = EmbeddingBagPackedSum(graph, {'name': node_name}).create_node()
                 per_sample_weights_port_id = 2
             else:

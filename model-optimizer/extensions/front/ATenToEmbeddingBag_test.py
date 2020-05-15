@@ -24,12 +24,11 @@ nodes_attributes = {
     'weights_inp': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'indices_inp': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'offsets_inp': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-    'aten': {'type': None, 'kind': 'op', 'op': 'ATen', 'mode': 0, 'operator': 'embedding_bag', 'name': 'my_aten',
-             'scale_grad_by_freq': 0},
+    'aten': {'type': None, 'kind': 'op', 'op': 'ATen', 'mode': 0, 'operator': 'embedding_bag', 'name': 'my_aten'},
     'result': {'type': 'Result', 'value': None, 'kind': 'op', 'op': 'Result'},
 
     # new EmbeddingBag layer
-    'emb_bag': {'type': None, 'kind': 'op', 'op': 'EmbeddingBag', 'mode': 0, 'scale_grad_by_freq': 0},
+    'emb_bag': {'type': 'EmbeddingBagOffsetsSum', 'kind': 'op', 'op': 'EmbeddingBagOffsetsSum'},
 }
 
 
@@ -54,9 +53,8 @@ class AtenToEmbeddingBagTest(unittest.TestCase):
         graph.graph['layout'] = 'NCHW'
         graph.stage = 'front'
 
-        replacer = AtenToEmbeddingBag()
-        replacer.find_and_replace_pattern(graph)
+        AtenToEmbeddingBag().find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(op='EmbeddingBag')[0]]['name'] == 'my_aten')
+        self.assertTrue(graph.node[graph.get_nodes_with_attributes(op='EmbeddingBagOffsetsSum')[0]]['name'] == 'my_aten')
