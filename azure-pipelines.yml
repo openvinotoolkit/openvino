@@ -59,7 +59,7 @@ jobs:
   - script: ls -al ../bin/intel64/$(BUILD_TYPE)/
     workingDirectory: dldt-build
     displayName: 'List files'
-  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
+  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
@@ -151,7 +151,7 @@ jobs:
   - script: ls -al ../bin/intel64/$(BUILD_TYPE)/
     workingDirectory: dldt-build
     displayName: 'List files'
-  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
+  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
@@ -184,7 +184,7 @@ jobs:
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=-smoke_Inception/ModelTransformationsTest.LPT/inception_v3_tf_batch1_inPluginDisabled_inTestDisabled_asymmetric.*
+      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=-smoke_Inception/ModelTransformationsTest.LPT/inception_v3_tf_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
@@ -229,7 +229,7 @@ jobs:
     displayName: 'List files'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
+      ..\bin\intel64\$(BUILD_TYPE)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
@@ -332,7 +332,7 @@ jobs:
     displayName: 'List files'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
+      ..\bin\intel64\$(BUILD_TYPE)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
