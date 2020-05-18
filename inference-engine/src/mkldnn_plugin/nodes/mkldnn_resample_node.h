@@ -65,7 +65,7 @@ struct jit_uni_resample_linear_kernel {
 
 class MKLDNNResampleNode : public MKLDNNNode {
 public:
-    MKLDNNResampleNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNResampleNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNResampleNode() override = default;
 
     void getSupportedDescriptors() override;

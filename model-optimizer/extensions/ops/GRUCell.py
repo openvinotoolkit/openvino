@@ -43,6 +43,9 @@ class GRUCell(Op):
             'infer': __class__.infer,
             'in_ports_count': 4,
             'out_ports_count': 1,
+            'version': 'opset3',
+            'wr_input_id': 2,
+            'gates_count': 3
         }
         super().__init__(graph, mandatory_props, attrs)
 

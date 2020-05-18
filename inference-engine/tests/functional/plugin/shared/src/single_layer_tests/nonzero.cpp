@@ -48,9 +48,5 @@ void NonZeroLayerTest::SetUp() {
 
 TEST_P(NonZeroLayerTest, CompareWithReference) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 }
 }  // namespace LayerTestsDefinitions

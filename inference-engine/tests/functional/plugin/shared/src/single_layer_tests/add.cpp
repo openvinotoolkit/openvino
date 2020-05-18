@@ -44,9 +44,5 @@ void AddLayerTest::SetUp() {
 
 TEST_P(AddLayerTest, CompareWithRefs) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 }
 }  // namespace LayerTestsDefinitions

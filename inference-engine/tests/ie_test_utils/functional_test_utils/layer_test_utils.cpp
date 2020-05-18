@@ -20,7 +20,7 @@ void LayerTestsCommon::Run() {
 }
 
 LayerTestsCommon::~LayerTestsCommon() {
-    if (!configuration.empty()) {
+    if (!configuration.empty() || targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
         PluginCache::get().reset();
     }
 }
@@ -135,18 +135,30 @@ void LayerTestsCommon::Validate() {
         const auto buffer = lockedMemory.as<const std::uint8_t *>();
         std::copy(buffer, buffer + inputSize, referenceInput.data());
     }
-    std::vector<std::vector<std::uint8_t>> expectedOutputs;
-    switch (refMode) {
-        case INTERPRETER:
-            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs);
-            break;
-        case CONSTANT_FOLDING:
-            const auto &foldedFunc =  ngraph::helpers::foldFunction(function, referenceInputs);
-            expectedOutputs = ngraph::helpers::getConstData(foldedFunc);
-            break;
-    }
 
     const auto &actualOutputs = GetOutputs();
+    const auto &convertType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(actualOutputs[0]->getTensorDesc().getPrecision());
+    std::vector<std::vector<std::uint8_t>> expectedOutputs;
+    switch (refMode) {
+        case INTERPRETER: {
+            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, convertType);
+            break;
+        }
+        case CONSTANT_FOLDING: {
+            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs);
+            expectedOutputs = ngraph::helpers::getConstData(foldedFunc, convertType);
+            break;
+        }
+        case IE: {
+            // reference inference on device with other options and nGraph function has to be implemented here
+            break;
+        }
+    }
+
+    if (expectedOutputs.empty()) {
+        return;
+    }
+
     IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
     << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 

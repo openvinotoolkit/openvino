@@ -50,9 +50,5 @@ void ReshapeLayerTest::SetUp() {
 
 TEST_P(ReshapeLayerTest, CompareWithRefsDynamicBath) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 }
 }  // namespace LayerTestsDefinitions

@@ -15,7 +15,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNQuantizeNode : public MKLDNNNode {
 public:
-    MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, int socket);
+    MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNQuantizeNode() override = default;
 
     void initSupportedPrimitiveDescriptors() override;
@@ -48,10 +48,10 @@ public:
     void setOutputScale(std::vector<float> newOutputScale) { outputScale = std::move(newOutputScale); }
     void setOutputShift(std::vector<float> newOutputShift) { outputShift = std::move(newOutputShift); }
 
-    const bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
-    const bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
-    const bool isOutputLowBroadcast() const { return isOutputLowBroadcasted; }
-    const bool isOutputHighBroadcast() const { return isOutputHighBroadcasted; }
+    bool isInputLowBroadcast() const { return isInputLowBroadcasted; }
+    bool isInputHighBroadcast() const { return isInputHighBroadcasted; }
+    bool isOutputLowBroadcast() const { return isOutputLowBroadcasted; }
+    bool isOutputHighBroadcast() const { return isOutputHighBroadcasted; }
 
     InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }

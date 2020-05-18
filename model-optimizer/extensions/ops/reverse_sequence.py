@@ -31,8 +31,6 @@ class ReverseSequence(Op):
             'in_ports_count': 2,
             'out_ports_count': 1,
             'infer': __class__.infer,
-            'in_ports_count': 2,
-            'out_ports_count': 1,
         }
         super().__init__(graph, mandatory_props, attrs)
 

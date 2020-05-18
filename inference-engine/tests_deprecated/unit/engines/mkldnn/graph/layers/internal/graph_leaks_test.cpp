@@ -19,8 +19,6 @@ using namespace mkldnn;
 
 class MKLDNNTestExecNetwork: public MKLDNNPlugin::MKLDNNExecNetwork {
 public:
-    MKLDNNTestExecNetwork(InferenceEngine::ICNNNetwork &network, const MKLDNNPlugin::Config &cfg)
-            : MKLDNNExecNetwork(network, cfg, {}) {}
     MKLDNNPlugin::MKLDNNGraph& getGraph() {
         return *(_graphs.begin()->get());
     }

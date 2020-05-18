@@ -13,6 +13,7 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/validation_util.hpp>
+#include <ngraph/rt_info.hpp>
 
 
 namespace ngraph {
@@ -54,16 +55,15 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                 return false;
             }
 
-            auto input = reduce->input(0).get_source_output().get_node_shared_ptr();
+            auto input = reduce->input_value(0);
 
-            auto axes_node = reduce->input(1).get_source_output().get_node_shared_ptr();
-            if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(axes_node)) {
+            auto axes_node = reduce->input_value(1).get_node_shared_ptr();
+            if (!axes_node->is_constant()) {
                 return false;
             }
 
-            auto axes_vector = std::dynamic_pointer_cast<ngraph::opset1::Constant>(axes_node)->template get_vector<int64_t>();
-            auto input_shape = reduce->input(0).get_shape();
-            auto input_rank = input_shape.size();
+            auto axes_vector = std::dynamic_pointer_cast<ngraph::opset1::Constant>(axes_node)->template cast_vector<int64_t>();
+            const auto input_rank = input.get_partial_shape().rank().get_length();
             // Transform negative axes into non-negative ones
             for (size_t i = 0; i < axes_vector.size(); ++i) {
                 if (axes_vector[i] < 0) {
@@ -74,7 +74,25 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
 
             // If axes are empty we just remove Reduction operation
             if (axes_vector.empty()) {
-                replace_node(reduce, input);
+                return replace_output_update_name(reduce->output(0), input);
+            }
+
+            // As this transformation requires static input shape we should guaranty it
+            if (input.get_partial_shape().is_dynamic()) {
+                return false;
+            }
+            auto input_shape = input.get_shape();
+
+            // If Reduce op reduces only 1 dims we replace it with Reshape
+            if (std::all_of(axes_vector.begin(), axes_vector.end(),
+                    [&input_shape](const int64_t & axis) { return input_shape[axis] == 1; })) {
+                const auto reshape_shape = reduce->output(0).get_shape();
+                auto reshape = std::make_shared<ngraph::opset1::Reshape>(input,
+                        ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{reshape_shape.size()}, reshape_shape), true);
+
+                reshape->set_friendly_name(reduce->get_friendly_name());
+                copy_runtime_info(reduce, reshape);
+                replace_node(reduce, reshape);
                 return true;
             }
 
@@ -83,11 +101,6 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                 if (axes_vector[i] - axes_vector[i-1] != 1) {
                     return false;
                 }
-            }
-
-            // As this transformation requires static input shape we should guaranty it
-            if (reduce->input(0).get_partial_shape().is_dynamic()) {
-                return false;
             }
 
             // Check either reduction applies to spatial dimensions or not
@@ -167,10 +180,10 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
              */
             NodeVector new_ops;
 
-            if (!shape_begin.empty() && shape_begin != input->output(0).get_shape()) {
+            if (!shape_begin.empty() && shape_begin != input.get_shape()) {
                 input = std::make_shared<ngraph::opset1::Reshape>(input, opset1::Constant::create(element::i64, Shape{shape_begin.size()}, shape_begin), true);
-                input->set_friendly_name(reduce->get_friendly_name() + "/reshape_begin");
-                new_ops.push_back(input);
+                input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/reshape_begin");
+                new_ops.push_back(input.get_node_shared_ptr());
             }
 
             if (std::is_same<T, ngraph::opset1::ReduceMean>()) {
@@ -182,8 +195,8 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                                                                   true,
                                                                   op::RoundingType::FLOOR);
 
-                input->set_friendly_name(reduce->get_friendly_name() + "/pool");
-                new_ops.push_back(input);
+                input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
+                new_ops.push_back(input.get_node_shared_ptr());
             } else if (std::is_same<T, ngraph::opset1::ReduceMax>()) {
                 input = std::make_shared<ngraph::opset1::MaxPool>(input,
                                                                   strides,
@@ -192,8 +205,8 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                                                                   kernel,
                                                                   op::RoundingType::FLOOR);
 
-                input->set_friendly_name(reduce->get_friendly_name() + "/pool");
-                new_ops.push_back(input);
+                input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
+                new_ops.push_back(input.get_node_shared_ptr());
             } else if (std::is_same<T, ngraph::opset1::ReduceSum>()) {
                 input = std::make_shared<ngraph::opset1::AvgPool>(input,
                                                                   strides,
@@ -203,24 +216,24 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                                                                   true,
                                                                   op::RoundingType::FLOOR);
 
-                input->set_friendly_name(reduce->get_friendly_name() + "/pool");
-                new_ops.push_back(input);
+                input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/pool");
+                new_ops.push_back(input.get_node_shared_ptr());
 
                 input = std::make_shared<ngraph::opset1::Multiply>(input,
                         opset1::Constant::create(reduce->input(0).get_element_type(), Shape{1}, {reduction_dims_count}));
-                input->set_friendly_name(reduce->get_friendly_name() + "/mul");
-                new_ops.push_back(input);
+                input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name() + "/mul");
+                new_ops.push_back(input.get_node_shared_ptr());
             } else {
                 return false;
             }
 
-            if (!shape_end.empty() && shape_end != input->output(0).get_shape()) {
+            if (!shape_end.empty() && shape_end != input.get_shape()) {
                 input = std::make_shared<ngraph::opset1::Reshape>(input, opset1::Constant::create(element::i64, Shape{shape_end.size()}, shape_end), true);
-                new_ops.push_back(input);
+                new_ops.push_back(input.get_node_shared_ptr());
             }
-            input->set_friendly_name(reduce->get_friendly_name());
+            input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name());
             copy_runtime_info(reduce, new_ops);
-            replace_node(reduce, input);
+            reduce->output(0).replace(input);
             return true;
         };
 
