@@ -299,7 +299,7 @@ jobs:
 - job: IE_Win_self
   timeoutInMinutes: 0
   pool:
-    name: Self-Hosted-Azure
+    name: WIN_VMSS
     demands:
       - Agent.OS -equals Windows_NT
   variables:
