@@ -353,8 +353,8 @@ private:
     }
 };
 
-MKLDNNEltwiseNode::MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
-        MKLDNNNode(layer, eng, socket), eltiwse_fq_kernel(nullptr) {
+MKLDNNEltwiseNode::MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(layer, eng, cache), eltiwse_fq_kernel(nullptr) {
     op = EltwiseLayer::Sum;
 }
 

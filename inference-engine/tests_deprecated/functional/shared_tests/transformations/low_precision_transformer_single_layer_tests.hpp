@@ -1680,6 +1680,32 @@ private:
     const std::vector<size_t> constInputDimentions;
 };
 
+class ConcatWithPoolingTestModel : public SingleLayerTestModel {
+public:
+    ConcatWithPoolingTestModel(
+        const bool multiChannel,
+        const bool signedIntervals,
+        const bool shift,
+        const float dequantizationIntervalsDifference) :
+        SingleLayerTestModel(),
+        multiChannel(multiChannel),
+        signedIntervals(signedIntervals),
+        shift(shift),
+        dequantizationIntervalsDifference(dequantizationIntervalsDifference) {}
+
+    std::string getModel(SingleLayerTransformationsTestParams& p) const override;
+    std::string getName() const override;
+    bool transform(CNNNetwork& network, LayerTransformation::Params& params) const override;
+    void resetTransformation(CNNNetwork& network) const override;
+    float getThreshold(const std::string& pluginName, const Precision precision, LayerTransformation::Params& params) const override;
+
+private:
+    const bool multiChannel;
+    const bool signedIntervals;
+    const bool shift;
+    const float dequantizationIntervalsDifference;
+};
+
 class ConcatMultiChannelTestModel : public SingleLayerTestModel {
 public:
     std::string getModel(SingleLayerTransformationsTestParams& p) const override;

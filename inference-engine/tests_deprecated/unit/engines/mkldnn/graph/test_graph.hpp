@@ -197,12 +197,14 @@ public:
         return graphNodes;
     }
 
-    void CreateGraph(InferenceEngine::ICNNNetwork &network, const MKLDNNPlugin::MKLDNNExtensionManager::Ptr& extMgr) {
-        MKLDNNGraph::CreateGraph(network, extMgr);
+    void CreateGraph(InferenceEngine::ICNNNetwork &network, const MKLDNNPlugin::MKLDNNExtensionManager::Ptr& extMgr,
+            MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache = {}) {
+        MKLDNNGraph::CreateGraph(network, extMgr, cache);
     }
 
     void CreateGraph(InferenceEngine::ICNNNetwork &network) {
-        CreateGraph(network, extensionManager);
+        MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache;
+        MKLDNNGraph::CreateGraph(network, extensionManager, cache);
     }
 
     void checkDynBatch(InferenceEngine::BlobMap& srcs, InferenceEngine::BlobMap& outputBlobs, int batch, size_t MB,

@@ -25,9 +25,9 @@ public:
         CNNLayerPtr layer,
         std::vector<std::string>& childNameOurAfterQuantizeLayers,
         std::vector<CNNLayerPtr>& quantizeLayers,
-        std::vector<std::vector<CNNLayerPtr>>& intermediateLayers,
+        std::vector<std::vector<std::pair<CNNLayerPtr, CNNLayerPtr> > >& intermediateLayers,
         std::vector<CNNLayerPtr>& concatLayers,
-        std::string childName,
+        CNNLayerPtr child,
         std::vector<CNNLayerPtr>& sideOutputLayers,
         std::vector<std::string>& childrenNameSideOutputLayers);
 };

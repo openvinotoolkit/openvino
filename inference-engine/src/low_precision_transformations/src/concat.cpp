@@ -3,11 +3,6 @@
 //
 
 #include "low_precision_transformations/concat.hpp"
-#include "low_precision_transformations/network_helper.hpp"
-#include "low_precision_transformations/quantization_details.hpp"
-
-#include <details/ie_cnn_network_tools.h>
-#include <ie_common.h>
 
 #include <algorithm>
 #include <blob_factory.hpp>
@@ -20,8 +15,14 @@
 #include <utility>
 #include <vector>
 
+#include <ie_common.h>
+#include <details/ie_cnn_network_tools.h>
 #include "cnn_network_impl.hpp"
 #include "ie_util_internal.hpp"
+
+#include "low_precision_transformations/common/ie_lpt_exception.hpp"
+#include "low_precision_transformations/network_helper.hpp"
+#include "low_precision_transformations/quantization_details.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -30,27 +31,29 @@ bool ConcatTransformation::getQuantizeLayers(
     CNNLayerPtr layer,
     std::vector<std::string>& childNameOurAfterQuantizeLayers,
     std::vector<CNNLayerPtr>& quantizeLayers,
-    std::vector<std::vector<CNNLayerPtr>>& intermediateLayers,
+    std::vector<std::vector<std::pair<CNNLayerPtr, CNNLayerPtr>>>& intermediateLayers,
     std::vector<CNNLayerPtr>& concatLayers,
-    std::string childName,
+    CNNLayerPtr child,
     std::vector<CNNLayerPtr>& sideOutputLayers,
     std::vector<std::string>& childrenNameSideOutputLayers) {
     if (!CaselessEq<std::string>()(layer->type, "FakeQuantize") &&
         !CaselessEq<std::string>()(layer->type, "Quantize")) {
         do {
-            if (CaselessEq<std::string>()(layer->type, "Pooling")) {
-                intermediateLayers.back().push_back(layer);
-                childName = layer->name;
+            if (CaselessEq<std::string>()(layer->type, "Pooling") || CaselessEq<std::string>()(layer->type, "Resample")) {
+                intermediateLayers.back().push_back(std::pair<CNNLayerPtr, CNNLayerPtr>(
+                    layer,
+                    concatLayers.empty() ? child : concatLayers.back()));
+                child = layer;
                 layer = CNNNetworkHelper::getParent(*layer, 0);
             } else if (CaselessEq<std::string>()(layer->type, "Concat")) {
                 concatLayers.push_back(layer);
 
                 if (layer->outData[0]->getInputTo().size() != 1) {
                     sideOutputLayers.push_back(layer);
-                    childrenNameSideOutputLayers.push_back(childName);
+                    childrenNameSideOutputLayers.push_back(child->name);
                 }
                 int size = layer->insData.size();
-                childName = layer->name;
+                child = layer;
                 for (int i = 0; i < size; i++) {
                     CNNLayerPtr layer1 = CNNNetworkHelper::getParent(*layer, i);
                     intermediateLayers.push_back({});
@@ -60,7 +63,7 @@ bool ConcatTransformation::getQuantizeLayers(
                         quantizeLayers,
                         intermediateLayers,
                         concatLayers,
-                        childName,
+                        child,
                         sideOutputLayers,
                         childrenNameSideOutputLayers)) {
                         return false;
@@ -74,7 +77,7 @@ bool ConcatTransformation::getQuantizeLayers(
                  !CaselessEq<std::string>()(layer->type, "Quantize"));
     }
 
-    childNameOurAfterQuantizeLayers.push_back(childName);
+    childNameOurAfterQuantizeLayers.push_back(child->name);
     quantizeLayers.push_back(layer);
     return true;
 }
@@ -97,12 +100,12 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
     }
 
     std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(concat);
-    if (CNNNetworkHelper::IsChild(children, {"Concat"}, {"Pooling"})) {
+    if (CNNNetworkHelper::IsChild(children, { "Concat" }, { "Pooling", "Resample" })) {
         return;
     }
 
     std::vector<CNNLayerPtr> quantizeLayers;
-    std::vector<std::vector<CNNLayerPtr>> intermediateLayers;
+    std::vector<std::vector<std::pair<CNNLayerPtr, CNNLayerPtr>>> intermediateLayers;
     std::vector<CNNLayerPtr> concatLayers;
     const auto inputDataNumber = concat.insData.size();
     std::vector<std::string> childNameOurAfterQuantizeLayers;
@@ -122,7 +125,7 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
             quantizeLayers,
             intermediateLayers,
             concatLayers,
-            concat.name,
+            std::make_shared<CNNLayer>(concat),
             sideOutputLayers,
             childrenNameSideOutputLayers)) {
             return;
@@ -143,6 +146,9 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
     if (dataPrecision.precision == Precision::UNSPECIFIED) {
         return;
     }
+
+    const QuantizationDetails& quantizationDetails1 = QuantizationDetails::getDetails(*quantizeLayers[0]);
+    const QuantizationDetails& quantizationDetails2 = QuantizationDetails::getDetails(*quantizeLayers[1]);
 
     size_t quantizationLevels = 0lu;
     for (int i = 0; i < quantizeLayers.size(); i++) {
@@ -184,8 +190,9 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
     dequantizationScales.resize(outputChannelsCount);
     dequantizationShifts.resize(outputChannelsCount);
     const auto parentsCount = quantizeLayers.size();
-    std::vector<std::vector<float>> dequantizationShiftsLayers;
-    dequantizationShiftsLayers.resize(parentsCount);
+
+    std::unordered_map<std::string, std::vector<float>> dequantizationScalesLayers;
+    std::unordered_map<std::string, std::vector<float>> dequantizationShiftsLayers;
 
     if ((quantizationLayersDetails[0].inputHighValues.size() == 1)) {
         float outputLowValue = quantizationLayersDetails[0].outputLowValues[0];
@@ -216,7 +223,14 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
             }
         }
 
-        const float generalScaleDequantize = maxOutputInterval / (dataPrecision.max - dataPrecision.min);
+
+        const float dequantizationScale = maxOutputInterval / (dataPrecision.max - dataPrecision.min);
+        const float max = maxOutputInterval / ((dataPrecision.max - dataPrecision.min) / dataPrecision.max);
+        const float min = maxOutputInterval / ((dataPrecision.max - dataPrecision.min) / dataPrecision.min);
+        const float dequantizationShift = outputLowValue - min;
+
+        const float quantizationScale = 1.f / dequantizationScale;
+        const float quantizationShift = - dequantizationShift * quantizationScale;
 
         for (int index = 0; index < parentsCount; index++) {
             if (quantizeLayers[index] == nullptr)
@@ -224,35 +238,25 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
             CNNLayer& fakeQuantizeLayer = *quantizeLayers[index];
             const QuantizationDetails quantizationDetails = quantizationLayersDetails[index];
 
-            // TODO: copy/paste, refactor: extract to MultiBranchTransformation::updateQuantizationRange
             switch (quantizedTensorAlignmentOnActivations) {
             case QuantizedTensorAlignment::None: {
-                const float quantizationScale = (dataPrecision.max - dataPrecision.min) / maxOutputInterval;
-
-                // if there is negative part then calculation is based on `outputLowValue` if not then on `outputHighValue` only
-                const float updatedOutputLowValue = dataPrecision.precision.isSigned() ?
-                    (outputLowValue != 0.f ?
-                    (quantizationDetails.outputLowValues[0] / outputLowValue) * dataPrecision.min :
-                        (quantizationDetails.outputLowValues[0] / outputHighValue) * dataPrecision.max) :
-                        (quantizationDetails.outputLowValues[0] + fabs(outputLowValue)) * quantizationScale;
+                const float updatedOutputLowValue = quantizationDetails.outputLowValues[0] * quantizationScale + quantizationShift;
                 CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 3, updatePrecisions ? roundf(updatedOutputLowValue) : updatedOutputLowValue);
 
-                // if there is positive part then calculation is based on `outputHighValue` if not then on `outputLowValue` only
-                const float updatedOutputHighValue = dataPrecision.precision.isSigned() ?
-                    (outputHighValue != 0.f ?
-                    (quantizationDetails.outputHighValues[0] / outputHighValue) * dataPrecision.max :
-                        (quantizationDetails.outputHighValues[0] / outputLowValue) * dataPrecision.min) :
-                        (quantizationDetails.outputHighValues[0] + fabs(outputLowValue)) * quantizationScale;
+                const float updatedOutputHighValue = quantizationDetails.outputHighValues[0] * quantizationScale + quantizationShift;
                 CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 4, updatePrecisions ? roundf(updatedOutputHighValue) : updatedOutputHighValue);
+
                 break;
             }
             case QuantizedTensorAlignment::UpdateIntervals: {
-                const float inputLowValue = quantizationDetails.outputLowValues[0] != 0.f ?
-                    (quantizationDetails.inputLowValues[0] * (outputLowValue / quantizationDetails.outputLowValues[0])) :
-                    outputLowValue;
-                const float inputHighValue = quantizationDetails.outputHighValues[0] != 0.f ?
-                    (quantizationDetails.inputHighValues[0] * (outputHighValue / quantizationDetails.outputHighValues[0])) :
-                    outputHighValue;
+                const float inputLowValue = quantizationDetails.outputLowValues[0] != 0.0
+                                                ? (quantizationDetails.inputLowValues[0] *
+                                                   (outputLowValue / quantizationDetails.outputLowValues[0]))
+                                                : outputLowValue;
+                const float inputHighValue = quantizationDetails.outputHighValues[0] != 0.0
+                                                 ? (quantizationDetails.inputHighValues[0] *
+                                                    (outputHighValue / quantizationDetails.outputHighValues[0]))
+                                                 : outputHighValue;
 
                 CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 1, inputLowValue);
                 CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 2, inputHighValue);
@@ -261,22 +265,10 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
                 break;
             }
             case QuantizedTensorAlignment::UpdateLevel: {
-                const float quantizationScale = (dataPrecision.max - dataPrecision.min) / maxOutputInterval;
-
-                // if there is negative part then calculation is based on `outputLowValue` if not then on `outputHighValue` only
-                const float updatedOutputLowValue = dataPrecision.precision.isSigned() ?
-                    (outputLowValue != 0.f ?
-                        (quantizationDetails.outputLowValues[0] / outputLowValue) * dataPrecision.min :
-                        (quantizationDetails.outputLowValues[0] / outputHighValue) * dataPrecision.max) :
-                    (quantizationDetails.outputLowValues[0] + fabs(outputLowValue)) * quantizationScale;
+                const float updatedOutputLowValue = quantizationDetails.outputLowValues[0] * quantizationScale + quantizationShift;
                 CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 3, updatePrecisions ? roundf(updatedOutputLowValue) : updatedOutputLowValue);
 
-                // if there is positive part then calculation is based on `outputHighValue` if not then on `outputLowValue` only
-                const float updatedOutputHighValue = dataPrecision.precision.isSigned() ?
-                    (outputHighValue != 0.f ?
-                        (quantizationDetails.outputHighValues[0] / outputHighValue) * dataPrecision.max :
-                        (quantizationDetails.outputHighValues[0] / outputLowValue) * dataPrecision.min) :
-                    (quantizationDetails.outputHighValues[0] + fabs(outputLowValue)) * quantizationScale;
+                const float updatedOutputHighValue = quantizationDetails.outputHighValues[0] * quantizationScale + quantizationShift;
                 CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 4, updatePrecisions ? roundf(updatedOutputHighValue) : updatedOutputHighValue);
 
                 const int levels = static_cast<int>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
@@ -296,66 +288,43 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
 
             if (updatePrecisions) {
                 CNNNetworkHelper::setOutDataPrecision(fakeQuantizeLayer, dataPrecision.precision);
-
-                const std::vector<CNNLayerPtr>& intermediateLayersList = intermediateLayers[index];
-                for (const CNNLayerPtr intermediateLayer : intermediateLayersList) {
-                    CNNNetworkHelper::setOutDataPrecision(*intermediateLayer, dataPrecision.precision);
-                }
             }
 
-            dequantizationShiftsLayers[index].push_back(outputLowValue);
+            const size_t fakeQuantizeOutputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(fakeQuantizeLayer);
+
+            const std::vector<float> fakeQuantizeDequantizationScales(fakeQuantizeOutputChannelsCount, dequantizationScale);
+            dequantizationScalesLayers[fakeQuantizeLayer.name] = fakeQuantizeDequantizationScales;
+
+            const std::vector<float> fakeQuantizeDequantizationShifts(fakeQuantizeOutputChannelsCount, dequantizationShift);
+            dequantizationShiftsLayers[fakeQuantizeLayer.name] = fakeQuantizeDequantizationShifts;
         }
 
         dequantizationScales.resize(outputChannelsCount);
-        std::fill(dequantizationScales.begin(), dequantizationScales.end(), generalScaleDequantize);
+        std::fill(dequantizationScales.begin(), dequantizationScales.end(), dequantizationScale);
 
         dequantizationShifts.resize(outputChannelsCount);
-        // assumption: if interval is signed then shift is not required
-        std::fill(dequantizationShifts.begin(), dequantizationShifts.end(), dataPrecision.precision.isSigned() ? 0.f : outputLowValue);
+        std::fill(dequantizationShifts.begin(), dequantizationShifts.end(), dequantizationShift);
     } else {
         return;
     }
 
-    // Add scaleshift at other outputs of the Quantize layer
-    for (int index = 0; index < parentsCount; index++) {
-        context.quantizedFakeQuantizeNames.insert(quantizeLayers[index]->name);
-        if (quantizeLayers[index]->outData[0]->getInputTo().size() != 1) {
-            std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*quantizeLayers[index], childNameOurAfterQuantizeLayers[index]);
-
-            for (int i = 0; i < children.size(); i++) {
-                const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(*quantizeLayers[index]);
-                const std::vector<float> branchDequantizationScales(outputChannelsCount, dequantizationScales[0]);
-                const std::vector<float> branchDequantizationShifts(outputChannelsCount, dequantizationShiftsLayers[index][0]);
-                CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                    context,
-                    std::make_shared<CNNLayer>(*quantizeLayers[index]),
-                    children[i],
-                    DequantizationDetails(branchDequantizationScales, branchDequantizationShifts, outputChannelsCount));
-                context.dequantizationLayersNames.insert(dequantizationLayer->name);
-            }
-        }
-
-        const std::vector<CNNLayerPtr>& intermediateLayersList = intermediateLayers[index];
-        for (size_t i = 0ul; i < intermediateLayersList.size(); ++i) {
-            const CNNLayerPtr intermediateLayer = intermediateLayersList[i];
-            const CNNLayer& nextIntermediateLayer = (i + 1) < intermediateLayersList.size() ? *intermediateLayersList[i] : concat;
-            std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*intermediateLayer, nextIntermediateLayer.name);
-
-            for (int i = 0; i < children.size(); i++) {
-                const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(*quantizeLayers[index]);
-                const std::vector<float> branchDequantizationScales(outputChannelsCount, dequantizationScales[0]);
-                const std::vector<float> branchDequantizationShifts(outputChannelsCount, dequantizationShiftsLayers[index][0]);
-                CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                    context,
-                    intermediateLayer,
-                    children[i],
-                    DequantizationDetails(branchDequantizationScales, branchDequantizationShifts, outputChannelsCount));
-                context.dequantizationLayersNames.insert(dequantizationLayer->name);
-            }
-        }
-    }
+    addDequantizationForQuantize(
+        context,
+        concat,
+        quantizeLayers,
+        intermediateLayers,
+        childNameOurAfterQuantizeLayers,
+        dequantizationScalesLayers,
+        dequantizationShiftsLayers);
 
     if (updatePrecisions) {
+        for (const std::vector<std::pair<CNNLayerPtr, CNNLayerPtr>>& intermediateLayersList : intermediateLayers) {
+            for (const std::pair<CNNLayerPtr, CNNLayerPtr>& pair : intermediateLayersList) {
+                CNNLayerPtr intermediateLayer = pair.first;
+                CNNNetworkHelper::setOutDataPrecision(*intermediateLayer, dataPrecision.precision);
+            }
+        }
+
         CNNNetworkHelper::setOutDataPrecision(concat, dataPrecision.precision);
         for (const CNNLayerPtr& concatLayer : concatLayers) {
             // TODO: check if the same precision is used: U8 or S8 for all concat layers
@@ -399,6 +368,92 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
                 children[i],
                 DequantizationDetails(dequantizationScales1, dequantizationShifts1, outputChannelsCount));
             context.dequantizationLayersNames.insert(dequantizationLayer->name);
+        }
+    }
+}
+
+void ConcatTransformation::addDequantizationForQuantize(
+    TransformationContext& context,
+    const CNNLayer& concat,
+    const std::vector<CNNLayerPtr>& quantizeLayers,
+    const std::vector<std::vector<std::pair<CNNLayerPtr, CNNLayerPtr>>>& intermediateLayers,
+    const std::vector<std::string>& childNameOurAfterQuantizeLayers,
+    const std::unordered_map<std::string, std::vector<float>>& dequantizationScalesLayers,
+    const std::unordered_map<std::string, std::vector<float>>& dequantizationShiftsLayers) const {
+    const size_t parentsCount = quantizeLayers.size();
+    for (int index = 0; index < parentsCount; index++) {
+        CNNLayer& fakeQuantize = *quantizeLayers[index];
+        context.quantizedFakeQuantizeNames.insert(quantizeLayers[index]->name);
+        if (quantizeLayers[index]->outData[0]->getInputTo().size() != 1) {
+            std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*quantizeLayers[index], childNameOurAfterQuantizeLayers[index]);
+
+            for (int i = 0; i < children.size(); i++) {
+                const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(*quantizeLayers[index]);
+
+                auto dequantizationScalesIt = dequantizationScalesLayers.find(fakeQuantize.name);
+                if (dequantizationScalesIt == dequantizationScalesLayers.end()) {
+                    THROW_IE_EXCEPTION << "dequantization scales not found for layer " << fakeQuantize.name;
+                }
+
+                auto dequantizationShiftIt = dequantizationShiftsLayers.find(fakeQuantize.name);
+                if (dequantizationShiftIt == dequantizationShiftsLayers.end()) {
+                    THROW_IE_EXCEPTION << "dequantization shifts not found for layer " << fakeQuantize.name;
+                }
+
+                CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
+                    context,
+                    std::make_shared<CNNLayer>(*quantizeLayers[index]),
+                    children[i],
+                    DequantizationDetails(dequantizationScalesIt->second, dequantizationShiftIt->second, outputChannelsCount));
+                context.dequantizationLayersNames.insert(dequantizationLayer->name);
+            }
+        }
+    }
+
+    for (const std::vector<std::pair<CNNLayerPtr, CNNLayerPtr>>& intermediateLayersList : intermediateLayers) {
+        for (auto it = intermediateLayersList.rbegin(); it != intermediateLayersList.rend(); ++it) {
+            const std::pair<CNNLayerPtr, CNNLayerPtr> intermediateLayerPair = *it;
+            const CNNLayerPtr intermediateLayer = intermediateLayerPair.first;
+            const CNNLayerPtr concatLayer = intermediateLayerPair.second;
+
+            const CNNLayerPtr nextIntermediateLayer = (it + 1) != intermediateLayersList.rend() ? (*(it + 1)).first : concatLayer;
+            const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*intermediateLayer, nextIntermediateLayer->name);
+            if (!children.empty()) {
+                CNNLayerPtr layer = intermediateLayer;
+                while (layer->type != "FakeQuantize") {
+                    std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParents(*layer);
+                    if (parents.empty()) {
+                        THROW_IE_LPT_EXCEPTION(*intermediateLayer) << "intermediate layer doesn't have parents";
+                    }
+                    if (parents.size() > 1ul) {
+                        THROW_IE_LPT_EXCEPTION(*intermediateLayer) << "intermediate layer has several parents";
+                    }
+
+                    layer = parents[0];
+                }
+                const CNNLayerPtr fakeQuantize = layer;
+
+                for (int childIndex = 0; childIndex < children.size(); childIndex++) {
+                    const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(*intermediateLayer);
+
+                    const auto dequantizationScalesIt = dequantizationScalesLayers.find(fakeQuantize->name);
+                    if (dequantizationScalesIt == dequantizationScalesLayers.end()) {
+                        THROW_IE_EXCEPTION << "dequantization scales not found for layer " << fakeQuantize->name;
+                    }
+
+                    const auto dequantizationShiftIt = dequantizationShiftsLayers.find(fakeQuantize->name);
+                    if (dequantizationShiftIt == dequantizationShiftsLayers.end()) {
+                        THROW_IE_EXCEPTION << "dequantization shifts not found for layer " << fakeQuantize->name;
+                    }
+
+                    CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
+                        context,
+                        intermediateLayer,
+                        children[childIndex],
+                        DequantizationDetails(dequantizationScalesIt->second, dequantizationShiftIt->second, outputChannelsCount));
+                    context.dequantizationLayersNames.insert(dequantizationLayer->name);
+                }
+            }
         }
     }
 }

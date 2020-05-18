@@ -30,7 +30,7 @@ public:
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
 
     MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network, const Config &cfg,
-                      const MKLDNNExtensionManager::Ptr& extMgr);
+                      const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing);
 
     ~MKLDNNExecNetwork() override = default;
 

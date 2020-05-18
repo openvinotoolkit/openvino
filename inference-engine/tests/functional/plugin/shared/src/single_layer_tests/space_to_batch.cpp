@@ -51,10 +51,6 @@ void SpaceToBatchLayerTest::SetUp() {
 
 TEST_P(SpaceToBatchLayerTest, CompareWithRefs) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 }
 
 }  // namespace LayerTestsDefinitions

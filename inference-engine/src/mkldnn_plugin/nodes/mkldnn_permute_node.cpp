@@ -130,8 +130,8 @@ private:
     Xbyak::Xmm xmm = Xbyak::Xmm(0);
 };
 
-MKLDNNPermuteNode::MKLDNNPermuteNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
-        : MKLDNNNode(layer, eng, socket) {}
+MKLDNNPermuteNode::MKLDNNPermuteNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNPermuteNode::getSupportedDescriptors() {
     if (getParentEdges().size() != 1)

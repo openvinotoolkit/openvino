@@ -8,6 +8,7 @@
 #include <string>
 #include <algorithm>
 #include <vector>
+#include <type_traits>
 
 #include <gtest/gtest.h>
 #include "blob_factory.hpp"
@@ -16,7 +17,12 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 
+
 namespace FuncTestUtils {
+namespace Bf16TestUtils {
+static float reducePrecisionBitwise(const float in);
+static short reducePrecisionBitwiseS(const float in);
+}  // namespace Bf16TestUtils
 
 enum CompareType{
     ABS,
@@ -38,7 +44,7 @@ enum CompareType{
  * @param thr2 Second threshold of difference
  * @param printData A flag if data printing is demanded
  */
- template<typename dType>
+template<typename dType>
 static void inline compareRawBuffers(const dType *res, const dType *ref,
                                      size_t resSize, size_t refSize,
                                      CompareType compareType, float thr1 = 0.01, float thr2 = 0.01,
@@ -491,4 +497,78 @@ InferenceEngine::Blob::Ptr inline convertBlobLayout(const InferenceEngine::Blob:
     return out;
 }
 
+template<typename dType>
+static void fillInputsBySinValues(dType* data, size_t size) {
+    if (std::is_same<dType, float>::value) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = sin(static_cast<float>(i));
+        }
+    } else if (std::is_same<dType, short>::value) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(sin(static_cast<float>(i)));
+        }
+    }
+}
+
+template<typename dType>
+static void fillInputsByCosValues(dType* data, size_t size) {
+    if (std::is_same<dType, float>::value) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = sin(static_cast<float>(i));
+        }
+    } else if (std::is_same<dType, short>::value) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(sin(static_cast<float>(i)));
+        }
+    }
+}
+
+static int fillInputsBySinValues(InferenceEngine::Blob::Ptr blob) {
+    InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+    if (!mblob) {
+        return -1;
+    }
+    if (mblob->getTensorDesc().getPrecision() != InferenceEngine::Precision::FP32) {
+        return -2;
+    }
+    auto lm = mblob->rwmap();
+    fillInputsBySinValues(lm.as<float*>(), mblob->size());
+    return 0;
+}
+
+static int fillInputsByCosValues(InferenceEngine::Blob::Ptr blob) {
+    InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+    if (!mblob) {
+        return -1;
+    }
+    if (mblob->getTensorDesc().getPrecision() != InferenceEngine::Precision::FP32) {
+        return -2;
+    }
+    auto lm = mblob->rwmap();
+    fillInputsByCosValues(lm.as<float*>(), mblob->size());
+    return 0;
+}
+
+
+namespace Bf16TestUtils {
+static float reducePrecisionBitwise(const float in) {
+    float f = in;
+    int* i = reinterpret_cast<int*>(&f);
+    int t2 = *i & 0xFFFF0000;
+    float ft1 = *(reinterpret_cast<float*>(&t2));
+    if ((*i & 0x8000) && (*i & 0x007F0000) != 0x007F0000) {
+        t2 += 0x10000;
+        ft1 = *(reinterpret_cast<float*>(&t2));
+    }
+    return ft1;
+}
+
+static short reducePrecisionBitwiseS(const float in) {
+    float f = reducePrecisionBitwise(in);
+    int intf = *reinterpret_cast<int*>(&f);
+    intf = intf >> 16;
+    short s = intf;
+    return s;
+}
+}  // namespace Bf16TestUtils
 }  // namespace FuncTestUtils

@@ -44,25 +44,46 @@ if (ENABLE_MYRIAD)
 endif()
 
 ## enable cblas_gemm from OpenBLAS package
-if (GEMM STREQUAL "OPENBLAS")
+if (ENABLE_MKL_DNN AND GEMM STREQUAL "OPENBLAS")
+    if(AARCH64)
+        reset_deps_cache(OpenBLAS_DIR)
+
+        RESOLVE_DEPENDENCY(OpenBLAS
+                ARCHIVE_LIN "keembay/openblas_0.3.7_yocto_kmb.tar.xz"
+                TARGET_PATH "${TEMP}/openblas_0.3.7_yocto_kmb"
+                ENVIRONMENT "OpenBLAS_DIR")
+
+        update_deps_cache(OpenBLAS_DIR "${OpenBLAS}/lib/cmake/openblas" "Path to OpenBLAS package folder")
+
+        find_package(OpenBLAS QUIET)
+
+        if(OpenBLAS_FOUND)
+            set(BLAS_FOUND TRUE)
+            set(BLAS_INCLUDE_DIRS ${OpenBLAS_INCLUDE_DIRS})
+            set(BLAS_LIBRARIES ${OpenBLAS_LIBRARIES})
+        endif()
+    endif()
+
     if(NOT BLAS_LIBRARIES OR NOT BLAS_INCLUDE_DIRS)
         find_package(BLAS REQUIRED)
+
         if(BLAS_FOUND)
             find_path(BLAS_INCLUDE_DIRS cblas.h)
         else()
             message(ERROR "OpenBLAS not found: install OpenBLAS or set -DBLAS_INCLUDE_DIRS=<path to dir with cblas.h> and -DBLAS_LIBRARIES=<path to libopenblas.so or openblas.lib>")
         endif()
     endif()
+
     debug_message(STATUS "openblas=" ${BLAS_LIBRARIES})
 endif ()
 
-#MKL-ml package
+## MKL-ML package
 if (GEMM STREQUAL "MKL")
-if(NOT MKLROOT)
-    message(FATAL_ERROR "MKLROOT not found: install MKL and set -DMKLROOT=<path_to_MKL>")
-endif()
-set(MKL ${MKLROOT})
-debug_message(STATUS "mkl_ml=" ${MKLROOT})
+    if(NOT MKLROOT)
+        message(FATAL_ERROR "MKLROOT not found: install MKL and set -DMKLROOT=<path_to_MKL>")
+    endif()
+    set(MKL ${MKLROOT})
+    debug_message(STATUS "mkl_ml=" ${MKLROOT})
 endif ()
 
 ## Intel OMP package
@@ -117,6 +138,11 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                     ARCHIVE_LIN "tbb2020_20200327_lin_strip.tgz"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT")
+        elseif(LINUX AND AARCH64)
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_LIN "tbb2020_38404_kmb.tgz"
+                    TARGET_PATH "${TEMP}/tbb_yocto"
+                    ENVIRONMENT "TBBROOT")
         elseif(APPLE AND X86_64)
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_MAC "tbb2020_20191023_mac.tgz"
@@ -150,35 +176,64 @@ if (ENABLE_OPENCV)
 
     set(OPENCV_VERSION "4.3.0")
     set(OPENCV_BUILD "060")
-    if (WIN32 AND X86_64)
-        RESOLVE_DEPENDENCY(OPENCV
-                ARCHIVE_WIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}.txz"
-                TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
-                ENVIRONMENT "OpenCV_DIR"
-                VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    elseif(APPLE AND X86_64)
-        RESOLVE_DEPENDENCY(OPENCV
-                ARCHIVE_MAC "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
-                TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx/opencv"
-                ENVIRONMENT "OpenCV_DIR"
-                VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
-    elseif(LINUX)
-        if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "armv7l")
-            set(OPENCV_SUFFIX "debian9arm")
-        elseif (${LINUX_OS_NAME} STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
-            set(OPENCV_SUFFIX "centos7")
-        elseif (${LINUX_OS_NAME} STREQUAL "Ubuntu 16.04")
-            set(OPENCV_SUFFIX "ubuntu16")
-        elseif (${LINUX_OS_NAME} STREQUAL "Ubuntu 18.04")
-            set(OPENCV_SUFFIX "ubuntu18")
+    set(OPENCV_BUILD_YOCTO "073")
+
+    if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+        if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+            set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+        elseif(DEFINED THIRDPARTY_SERVER_PATH)
+            set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
         else()
-            message(FATAL_ERROR "OpenCV is not available on current platform")
+            message(WARNING "OpenCV is not found!")
         endif()
-        RESOLVE_DEPENDENCY(OPENCV
-                ARCHIVE_LIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
-                TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
-                ENVIRONMENT "OpenCV_DIR"
-                VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+
+        if(DEFINED IE_PATH_TO_DEPS)
+            set(OPENCV_SUFFIX "yocto_kmb")
+            set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
+
+            RESOLVE_DEPENDENCY(OPENCV
+                    ARCHIVE_LIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
+                    TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
+                    ENVIRONMENT "OpenCV_DIR"
+                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+
+            unset(IE_PATH_TO_DEPS)
+        endif()
+    else()
+        if (WIN32 AND X86_64)
+            RESOLVE_DEPENDENCY(OPENCV
+                    ARCHIVE_WIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}.txz"
+                    TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
+                    ENVIRONMENT "OpenCV_DIR"
+                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+        elseif(APPLE AND X86_64)
+            RESOLVE_DEPENDENCY(OPENCV
+                    ARCHIVE_MAC "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
+                    TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx/opencv"
+                    ENVIRONMENT "OpenCV_DIR"
+                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+        elseif(LINUX)
+            if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+                set(OPENCV_SUFFIX "yocto_kmb")
+                set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
+            elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "armv7l")
+                set(OPENCV_SUFFIX "debian9arm")
+            elseif (${LINUX_OS_NAME} STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
+                set(OPENCV_SUFFIX "centos7")
+            elseif (${LINUX_OS_NAME} STREQUAL "Ubuntu 16.04")
+                set(OPENCV_SUFFIX "ubuntu16")
+            elseif (${LINUX_OS_NAME} STREQUAL "Ubuntu 18.04")
+                set(OPENCV_SUFFIX "ubuntu18")
+            else()
+                message(FATAL_ERROR "OpenCV is not available on current platform")
+            endif()
+            RESOLVE_DEPENDENCY(OPENCV
+                    ARCHIVE_LIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
+                    TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
+                    ENVIRONMENT "OpenCV_DIR"
+                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
+        endif()
+
     endif()
 
     if(ANDROID)

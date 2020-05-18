@@ -13,8 +13,8 @@
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 
-MKLDNNReorderNode::MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
-        MKLDNNNode(layer, eng, socket) {
+MKLDNNReorderNode::MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
+        MKLDNNNode(layer, eng, w_cache) {
 }
 
 void MKLDNNReorderNode::getSupportedDescriptors() {

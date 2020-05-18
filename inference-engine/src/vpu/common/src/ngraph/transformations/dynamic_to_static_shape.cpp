@@ -6,12 +6,14 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_concat.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_unary_elementwise.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_roialign.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_topk.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_transpose.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_variadic_split.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_non_max_suppression.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_nonzero.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_binary_elementwise.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_strided_slice.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_squeeze.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_unsqueeze.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_gather.hpp"
@@ -63,6 +65,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::Power::type_info, dynamicToStaticShapeBinaryEltwise},
         {ngraph::opset3::NonMaxSuppression::type_info, dynamicToStaticNonMaxSuppression},
         {ngraph::opset3::NonZero::type_info,   dynamicToStaticShapeNonZero},
+        {ngraph::opset3::TopK::type_info, dynamicToStaticShapeTopK},
         {ngraph::opset3::Transpose::type_info, dynamicToStaticShapeTranspose},
         {ngraph::opset3::Concat::type_info,    dynamicToStaticShapeConcat},
         {ngraph::opset3::Convert::type_info,   dynamicToStaticUnaryElementwise},
@@ -73,6 +76,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::ScatterUpdate::type_info, dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Sigmoid::type_info,   dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Sqrt::type_info,      dynamicToStaticUnaryElementwise},
+        {ngraph::opset3::StridedSlice::type_info,   dynamicToStaticShapeStridedSlice},
         {ngraph::opset3::Squeeze::type_info,   dynamicToStaticShapeSqueeze},
         {ngraph::opset3::Gather::type_info,    dynamicToStaticShapeGather},
         {ngraph::opset3::Unsqueeze::type_info, dynamicToStaticShapeUnsqueeze},

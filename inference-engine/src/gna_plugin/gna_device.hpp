@@ -117,6 +117,7 @@ public:
         return Gna2DeviceVersionSoftwareEmulation != detectedGnaDevVersion;
     }
     static void checkGna2Status(Gna2Status status);
+    static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
 #endif
     void wait(uint32_t id);
 
@@ -157,6 +158,11 @@ public:
     void close();
 #if GNA_LIB_VER == 1
     void checkStatus() const;
+#else
+    static const std::map <Gna2ItemType, const std::string> errorTypes;
+    static const std::map <Gna2ErrorType, const std::string> errorReasons;
+    static const std::map <Gna2OperationType, const std::string> operationTypes;
+    static const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string > operandTypes;
 #endif
     void setOMPThreads(uint8_t const n_threads);
 

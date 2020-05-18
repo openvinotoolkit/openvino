@@ -99,7 +99,8 @@ caseless_map<std::string, std::function<void(GenericLayer*, mkldnn::algorithm&, 
         }},
 };
 
-MKLDNNActivationNode::MKLDNNActivationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) : MKLDNNNode(layer, eng, socket) {
+MKLDNNActivationNode::MKLDNNActivationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+        MKLDNNWeightsSharing::Ptr &cache) : MKLDNNNode(layer, eng, cache) {
     GenericLayer* activationLayer = getCnnLayer().get();
     if (activationLayer == nullptr)
         THROW_IE_EXCEPTION << "Cannot get CNNLayer.";

@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+include(ProcessorCount)
+
 #
 # Disables deprecated warnings generation
 # Defines ie_c_cxx_deprecated varaible which contains C / C++ compiler flags
@@ -125,7 +127,22 @@ endfunction()
 # Enables Link Time Optimization compilation
 #
 macro(ie_enable_lto)
-    if(UNIX)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" AND OFF)
+        ProcessorCount(N)
+        if(UNIX)
+            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ipo")
+            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ipo")
+            set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -ipo-jobs${N}")
+            set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -ipo-jobs${N}")
+            set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} -ipo-jobs${N}")
+        else()
+            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Qipo")
+            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Qipo")
+            set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /Qipo-jobs:${N}")
+            set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /Qipo-jobs:${N}")
+            set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /Qipo-jobs:${N}")
+        endif()
+    elseif(UNIX)
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto")
         # LTO causes issues with gcc 4.8.5 during cmake pthread check
         if(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
@@ -137,14 +154,12 @@ macro(ie_enable_lto)
             set(CMAKE_AR  "gcc-ar")
             set(CMAKE_RANLIB "gcc-ranlib")
         endif()
-    elseif(WIN32)
-        if(CMAKE_BUILD_TYPE STREQUAL "Release")
-#            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /GL")
-#            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /GL")
-#            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LTCG:STATUS")
-#            set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /LTCG:STATUS")
-#            set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /LTCG:STATUS")
-        endif()
+    elseif(MSVC AND OFF)
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL")
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /GL")
+        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG:STATUS")
+        set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG:STATUS")
+        set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /LTCG:STATUS")
     endif()
 endmacro()
 
@@ -262,6 +277,8 @@ else()
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_add_compiler_flags(-diag-disable=remark)
+        # noisy warnings from Intel Compiler 19.1.1.217 20200306
+        ie_add_compiler_flags(-diag-disable=2196)
     endif()
 
     # Linker flags

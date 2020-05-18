@@ -66,6 +66,6 @@ protected:
     virtual JitConstants MakeFusedOpsDeclsJitConstants(const base_params &params, const std::vector<FusedOpsConfiguration> &conf) const;
 
 private:
-    static size_t counter;
+    static thread_local size_t counter;
 };
 }  // namespace kernel_selector

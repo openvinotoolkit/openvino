@@ -40,7 +40,8 @@ MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap network
 
 MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network,
                                      const Config &cfg,
-                                     const MKLDNNExtensionManager::Ptr& extMgr) :
+                                     const MKLDNNExtensionManager::Ptr& extMgr,
+                                     NumaNodesWeights &numaNodesWeights) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{nullptr, nullptr},
     extensionManager(extMgr),
     _cfg{cfg},
@@ -160,7 +161,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
         if (nullptr != streamExecutor) {
             numaNode = streamExecutor->GetNumaNodeId();
         }
-        graph->CreateGraph(static_cast<ICNNNetwork&>(*localNetwork), extensionManager, numaNode);
+        graph->CreateGraph(static_cast<ICNNNetwork&>(*localNetwork), extensionManager, numaNodesWeights[numaNode]);
         return graph;
     }};
 

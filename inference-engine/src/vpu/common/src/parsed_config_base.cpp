@@ -86,9 +86,9 @@ IE_SUPPRESS_DEPRECATED_END
 
 const std::unordered_set<std::string>& ParsedConfigBase::getDeprecatedOptions() const {
     IE_SUPPRESS_DEPRECATED_START
-        static const std::unordered_set<std::string> options = {
-            VPU_CONFIG_KEY(LOG_LEVEL)
-        };
+    static const std::unordered_set<std::string> options = {
+        VPU_CONFIG_KEY(LOG_LEVEL)
+    };
     IE_SUPPRESS_DEPRECATED_END
 
     return options;

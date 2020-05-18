@@ -115,8 +115,13 @@ endfunction()
 # compilation with c++17
 ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx17 CXX_STANDARD 17)
 
-if(UNIX)    
-    ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
+if(UNIX)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        ie_headers_compilation_with_custom_flags(TEST_SUFFIX WarningsAreErrors
+                                                 FLAGS "-Werror-all -Werror -Wall")
+    else()
+        ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
+    endif()
 else()
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX WindowsAreErrors
                                              FLAGS "/we4996 /W4 /WX")

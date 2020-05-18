@@ -29,7 +29,8 @@ TEST_F(MKLDNNGraphReorderTests, cannotCreatePrimitiveDescriprorsWithoutOtherLaye
     mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));
 
     InferenceEngine::CNNLayerPtr layer(new InferenceEngine::CNNLayer({"TestReorder", "Reorder", InferenceEngine::Precision::FP32}));
-    node.reset(MKLDNNPlugin::MKLDNNNode::CreateNode(layer, eng, {}));
+    MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache;
+    node.reset(MKLDNNPlugin::MKLDNNNode::CreateNode(layer, eng, {}, cache));
     ASSERT_EQ(MKLDNNPlugin::Type::Reorder, node->getType());
 
     ASSERT_THROW(node->getSupportedDescriptors(), InferenceEngine::details::InferenceEngineException);

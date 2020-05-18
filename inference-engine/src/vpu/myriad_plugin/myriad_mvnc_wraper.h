@@ -35,19 +35,9 @@ public:
 
 class Mvnc : public IMvnc {
 public:
-    // Constructor
-    Mvnc();
-
     // Operations
     std::vector<ncDeviceDescr_t> AvailableDevicesDesc() const override;
     std::vector<std::string> AvailableDevicesNames() const override;
-
-    // Destructor
-    ~Mvnc() override = default;
-
-private:
-    // Data section
-    std::unique_ptr<struct ncDeviceDescr_t[]> _devicesPtr;
 };
 
 }  // namespace MyriadPlugin

@@ -111,9 +111,6 @@ TEST_P(ActivationLayerTest, CompareWithRefs) {
                                                      FuncTestUtils::CompareType::ABS_AND_REL,
                                                      thr1, thr2);
     fnPtr.reset();
-    if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
-        PluginCache::get().reset();
-    }
 }
 
 }  // namespace LayerTestsDefinitions

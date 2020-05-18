@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNReorderNode : public MKLDNNNode {
 public:
-    MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNReorderNode() override = default;
 
     void getSupportedDescriptors() override;

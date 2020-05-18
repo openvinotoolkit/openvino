@@ -30,37 +30,6 @@ namespace LayerTestsDefinitions {
  */
 class BFloat16Helpers {
 public:
-    static void fillInputsBySinValues(float* data, size_t size) {
-        for (size_t i = 0; i < size; i++) {
-            data[i] = sin(static_cast<float>(i));
-        }
-    }
-
-    static void fillInputsBySinValues(short *data, size_t size) {
-        for (size_t i = 0; i < size; i++) {
-            data[i] = reducePrecisionBitwiseS(sin(static_cast<float>(i)));
-        }
-    }
-
-    static void fillInputsByCosValues(float* data, size_t size) {
-        for (size_t i = 0; i < size; i++) {
-            data[i] = cos(static_cast<float>(i));
-        }
-    }
-
-    static int fillInputsBySinValues(InferenceEngine::Blob::Ptr blob) {
-        InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
-        if (!mblob) {
-            return -1;
-        }
-        if (mblob->getTensorDesc().getPrecision() != InferenceEngine::Precision::FP32) {
-            return -2;
-        }
-        auto lm = mblob->rwmap();
-        fillInputsBySinValues(lm.as<float*>(), mblob->size());
-        return 0;
-    }
-
     static std::pair<std::string, std::string> matchPerfCountPrecisionVsExpected(
         const std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfCounts,
         const std::map<std::string, std::string>& expected) {
@@ -221,7 +190,7 @@ public:
         auto req1 = exec_net1.CreateInferRequest();
 
         InferenceEngine::Blob::Ptr inBlob1 = req1.GetBlob(inputName);
-        BFloat16Helpers::fillInputsBySinValues(inBlob1);
+        FuncTestUtils::fillInputsBySinValues(inBlob1);
 
         req1.Infer();
         auto outBlobBF16 = req1.GetBlob(outputName);

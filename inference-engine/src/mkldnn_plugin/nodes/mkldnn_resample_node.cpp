@@ -283,8 +283,8 @@ private:
 };
 
 
-MKLDNNResampleNode::MKLDNNResampleNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
-        : MKLDNNNode(layer, eng, socket) {}
+MKLDNNResampleNode::MKLDNNResampleNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNResampleNode::getSupportedDescriptors() {
     if (!descs.empty())

@@ -6,6 +6,7 @@
 #include "mkldnn_plugin.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_layers_dispatcher.hpp"
+#include "mkldnn_weights_cache.hpp"
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
@@ -23,7 +24,6 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/op/fused/gelu.hpp>
-#include <ngraph_ops/fully_connected.hpp>
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -37,17 +37,6 @@
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
-
-NumaNodesWeights create_shared_weights_per_socket() {
-    NumaNodesWeights _weightsSharing;
-    std::vector<int> sockets = InferenceEngine::getAvailableNUMANodes();
-    for (auto s : sockets)
-        _weightsSharing[s] = std::make_shared<MKLDNNWeightsSharing>();
-    return _weightsSharing;
-}
-
-NumaNodesWeights Engine::weightsSharing = create_shared_weights_per_socket();
-const SimpleDataHash MKLDNNWeightsSharing::simpleCRC;
 
 Engine::Engine() {
     _pluginName = "CPU";
@@ -115,7 +104,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
         transformator.fullTrim();
     }
 
-    return std::make_shared<MKLDNNExecNetwork>(*clonedNetwork, conf, extensionManager);
+    return std::make_shared<MKLDNNExecNetwork>(*clonedNetwork, conf, extensionManager, weightsSharing);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -215,8 +204,10 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     while (i != details::CNNNetworkIterator()) {
         try {
             mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));
+            MKLDNNWeightsSharing::Ptr fake_w_cache;
+
             // if we can create and have not thrown exception, then layer is supported
-            std::unique_ptr <MKLDNNNode>(MKLDNNNode::CreateNode(*i, eng, extensionManager));
+            std::unique_ptr <MKLDNNNode>(MKLDNNNode::CreateNode(*i, eng, extensionManager, fake_w_cache));
             res.supportedLayersMap.insert({ (*i)->name, GetName() });
         } catch (InferenceEngine::details::InferenceEngineException&) {
         }

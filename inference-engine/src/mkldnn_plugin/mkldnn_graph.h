@@ -22,14 +22,14 @@ namespace MKLDNNPlugin {
 class MKLDNNGraph {
 public:
     typedef std::shared_ptr<MKLDNNGraph> Ptr;
-    int socket;
+    MKLDNNWeightsSharing::Ptr weightsCache;
 
     enum Status {
         NotReady = 0,
         Ready = 1,
     };
 
-    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)), socket(0) {}
+    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)) {}
 
     Status GetStatus() {
         return status;
@@ -49,7 +49,7 @@ public:
     template<typename NET>
     void CreateGraph(const NET &network,
                      const MKLDNNExtensionManager::Ptr& extMgr,
-                     int socket = 0);
+                     MKLDNNWeightsSharing::Ptr &w_cache);
 
     bool hasMeanImageFor(const std::string& name) {
         return _meanImages.find(name) != _meanImages.end();

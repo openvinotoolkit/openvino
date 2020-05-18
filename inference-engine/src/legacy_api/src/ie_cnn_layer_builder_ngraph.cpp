@@ -23,6 +23,7 @@
 #include "ngraph_ops/fully_connected.hpp"
 #include "ngraph_ops/gather_ie.hpp"
 #include "ngraph_ops/gather_tree_ie.hpp"
+#include "ngraph_ops/gru_cell_ie.hpp"
 #include "ngraph_ops/interp.hpp"
 #include "ngraph_ops/lrn_ie.hpp"
 #include <ngraph_ops/lstm_cell_ie.hpp>
@@ -40,6 +41,7 @@
 #include "ngraph_ops/tile_ie.hpp"
 #include "ngraph_ops/topk_ie.hpp"
 #include "ngraph_ops/strided_slice_ie.hpp"
+#include "ngraph_ops/rnn_cell_ie.hpp"
 #include "ngraph_ops/hard_sigmoid_ie.hpp"
 #include "generic_ie.hpp"
 

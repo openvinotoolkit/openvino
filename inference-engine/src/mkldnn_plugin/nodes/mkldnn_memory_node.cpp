@@ -13,8 +13,8 @@ using namespace InferenceEngine;
 
 std::mutex MKLDNNMemoryNodeVirtualEdge::holderMutex;
 
-MKLDNNMemoryOutputNode::MKLDNNMemoryOutputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
-        : MKLDNNNode(layer, eng, socket) , MKLDNNMemoryNode(layer) {
+MKLDNNMemoryOutputNode::MKLDNNMemoryOutputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache) , MKLDNNMemoryNode(layer) {
     if (created()) {
         holder = MKLDNNMemoryNodeVirtualEdge::registerOutput(this);
     }
@@ -63,8 +63,8 @@ void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
 }
 
 #if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
-MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
-        : MKLDNNInputNode(layer, eng, socket), MKLDNNMemoryNode(layer) {
+MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNInputNode(layer, eng, cache), MKLDNNMemoryNode(layer) {
     if (created()) {
         holder = MKLDNNMemoryNodeVirtualEdge::registerInput(this);
     }

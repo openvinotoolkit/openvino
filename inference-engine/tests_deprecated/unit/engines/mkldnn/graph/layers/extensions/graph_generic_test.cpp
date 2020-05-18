@@ -492,7 +492,8 @@ TEST_F(MKLDNNGraphGenericTests, canGetPrimitiveDescriptorsList) {
     layerPtr->outData.push_back(dataPtr);
 
     mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));
-    node.reset(MKLDNNPlugin::MKLDNNNode::CreateNode(layerPtr, eng, extMgr));
+    MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache;
+    node.reset(MKLDNNPlugin::MKLDNNNode::CreateNode(layerPtr, eng, extMgr, cache));
     ASSERT_EQ(MKLDNNPlugin::Type::Generic, node->getType());
 
     ASSERT_NO_THROW(node->getSupportedDescriptors());

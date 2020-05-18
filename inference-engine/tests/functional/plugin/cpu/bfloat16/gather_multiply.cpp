@@ -49,7 +49,7 @@ protected:
         if (netPrecision == Precision::FP32) {
             addConst = opset1::Constant::create(ntype, Shape{1}, { 2.0f });
         } else {
-            addConst = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(2.0f)) });
+            addConst = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
         auto addNode0 = std::make_shared<opset1::Multiply>(input1, addConst);
         addNode0->set_friendly_name("Add_1");
@@ -60,7 +60,7 @@ protected:
             matmulConst0 = opset1::Constant::create(ntype, Shape{inputSize, inputSize}, { 2.0f });
         } else {
             matmulConst0 = opset1::Constant::create(ntype, Shape{inputSize, inputSize},
-                                                    { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(2.0f)) });
+                                                    { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
         auto matmulNode = std::make_shared<opset1::MatMul>(addNode0, matmulConst0);
         matmulNode->set_friendly_name("Matmul_0");
@@ -80,7 +80,8 @@ protected:
         if (netPrecision == Precision::FP32) {
             mulConst = opset1::Constant::create(ntype, Shape{inputShapes}, { 2.0f });
         } else {
-            mulConst = opset1::Constant::create(ntype, Shape{inputShapes}, { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(2.0f)) });
+            mulConst = opset1::Constant::create(ntype, Shape{inputShapes},
+                    { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
         auto mulNode = std::make_shared<opset1::Multiply>(gatherNode, mulConst);
         mulNode->set_friendly_name("Mul_1");

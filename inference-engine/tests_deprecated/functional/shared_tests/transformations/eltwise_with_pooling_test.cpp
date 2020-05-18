@@ -112,63 +112,65 @@ bool EltwiseWithPoolingTestModel::transform(CNNNetwork& network, LayerTransforma
     LowPrecisionTransformer transformer(transformations);
     transformer.transform(network);
 
-    if (params.quantizeOutputs && params.updatePrecisions) {
-        // INT8 way
-        const CNNLayerPtr fakeQuantize11 = getLayer(network, "FakeQuantize11");
-        if ((fakeQuantize11->outData[0]->getPrecision() != Precision::U8) && (fakeQuantize11->outData[0]->getPrecision() != Precision::I8)) {
-            THROW_IE_EXCEPTION <<
-                "layer " << fakeQuantize11->type << " " << fakeQuantize11->name <<
-                " was not quantized " << fakeQuantize11->outData[0]->getPrecision();
-        }
-
-        const CNNLayerPtr pooling12 = getLayer(network, "Pooling16");
-        if ((pooling12->outData[0]->getPrecision() != Precision::U8) && (pooling12->outData[0]->getPrecision() != Precision::I8)) {
-            THROW_IE_EXCEPTION <<
-                "layer " << pooling12->type << " " << pooling12->name <<
-                " was not quantized " << pooling12->outData[0]->getPrecision();
-        }
-
-        const CNNLayerPtr pooling16 = getLayer(network, "Pooling16");
-        if ((pooling16->outData[0]->getPrecision() != Precision::U8) && (pooling16->outData[0]->getPrecision() != Precision::I8)) {
-            THROW_IE_EXCEPTION <<
-                "layer " << pooling16->type << " " << pooling16->name <<
-                " was not quantized " << pooling16->outData[0]->getPrecision();
-        }
-
-        if (operation == "sum") {
-            const CNNLayerPtr eltwise = getLayer(network, "Eltwise17_original");
-            if (eltwise->type != "Eltwise") {
-                THROW_IE_EXCEPTION << "layer type " << eltwise->type << " " << eltwise->name << " is not correct";
+    if (params.quantizeOutputs) {
+        if (params.updatePrecisions) {
+            // INT8 way
+            const CNNLayerPtr fakeQuantize11 = getLayer(network, "FakeQuantize11");
+            if ((fakeQuantize11->outData[0]->getPrecision() != Precision::U8) && (fakeQuantize11->outData[0]->getPrecision() != Precision::I8)) {
+                THROW_IE_EXCEPTION <<
+                    "layer " << fakeQuantize11->type << " " << fakeQuantize11->name <<
+                    " was not quantized " << fakeQuantize11->outData[0]->getPrecision();
             }
 
-            if ((eltwise->outData[0]->getPrecision() != Precision::FP32) && (eltwise->outData[0]->getPrecision() != Precision::FP16)) {
-                THROW_IE_EXCEPTION << "layer " << eltwise->type << " " << eltwise->name << " output port precision is not correct";
+            const CNNLayerPtr pooling12 = getLayer(network, "Pooling16");
+            if ((pooling12->outData[0]->getPrecision() != Precision::U8) && (pooling12->outData[0]->getPrecision() != Precision::I8)) {
+                THROW_IE_EXCEPTION <<
+                    "layer " << pooling12->type << " " << pooling12->name <<
+                    " was not quantized " << pooling12->outData[0]->getPrecision();
             }
 
-            const CNNLayerPtr dequantizationScaleShift = getLayer(network, "Eltwise17");
-            if (dequantizationScaleShift == nullptr) {
-                THROW_IE_EXCEPTION << "dequantization layer was not found";
+            const CNNLayerPtr pooling16 = getLayer(network, "Pooling16");
+            if ((pooling16->outData[0]->getPrecision() != Precision::U8) && (pooling16->outData[0]->getPrecision() != Precision::I8)) {
+                THROW_IE_EXCEPTION <<
+                    "layer " << pooling16->type << " " << pooling16->name <<
+                    " was not quantized " << pooling16->outData[0]->getPrecision();
             }
 
-            Blob::Ptr shiftsBlob = CNNNetworkHelper::getBlob(dequantizationScaleShift, "biases");
-            const auto shiftsBuffer = CNNNetworkHelper::getFloatData(shiftsBlob);
-            const size_t shiftsBlobSize = shiftsBlob->size();
-            for (size_t i = 0; i < shiftsBlobSize; ++i) {
-                if (shiftsBuffer.get()[i] != 0.f) {
-                    THROW_IE_EXCEPTION << "unexpected shift value " << shiftsBuffer.get()[i] << " for dequantization layer";
+            if (operation == "sum") {
+                const CNNLayerPtr eltwise = getLayer(network, "Eltwise17_original");
+                if (eltwise->type != "Eltwise") {
+                    THROW_IE_EXCEPTION << "layer type " << eltwise->type << " " << eltwise->name << " is not correct";
                 }
-            }
-        } else if ((operation == "mul") || (operation == "prod")) {
-            const CNNLayerPtr eltwise = getLayer(network, "Eltwise17");
-            if (eltwise->type != "Eltwise") {
-                THROW_IE_EXCEPTION << "layer type " << eltwise->type << " " << eltwise->name << " is not correct";
-            }
 
-            const CNNLayerPtr dequantizationScaleShift = getLayer(network, "Eltwise17_original");
-            if (dequantizationScaleShift != nullptr) {
-                THROW_IE_EXCEPTION
-                    << "dequantization layer " << dequantizationScaleShift->type << " " << dequantizationScaleShift->name
-                    << " has to be absent (moved to full path branch)";
+                if ((eltwise->outData[0]->getPrecision() != Precision::FP32) && (eltwise->outData[0]->getPrecision() != Precision::FP16)) {
+                    THROW_IE_EXCEPTION << "layer " << eltwise->type << " " << eltwise->name << " output port precision is not correct";
+                }
+
+                const CNNLayerPtr dequantizationScaleShift = getLayer(network, "Eltwise17");
+                if (dequantizationScaleShift == nullptr) {
+                    THROW_IE_EXCEPTION << "dequantization layer was not found";
+                }
+
+                Blob::Ptr shiftsBlob = CNNNetworkHelper::getBlob(dequantizationScaleShift, "biases");
+                const auto shiftsBuffer = CNNNetworkHelper::getFloatData(shiftsBlob);
+                const size_t shiftsBlobSize = shiftsBlob->size();
+                for (size_t i = 0; i < shiftsBlobSize; ++i) {
+                    if (shiftsBuffer.get()[i] != 0.f) {
+                        THROW_IE_EXCEPTION << "unexpected shift value " << shiftsBuffer.get()[i] << " for dequantization layer";
+                    }
+                }
+            } else if ((operation == "mul") || (operation == "prod")) {
+                const CNNLayerPtr eltwise = getLayer(network, "Eltwise17");
+                if (eltwise->type != "Eltwise") {
+                    THROW_IE_EXCEPTION << "layer type " << eltwise->type << " " << eltwise->name << " is not correct";
+                }
+
+                const CNNLayerPtr dequantizationScaleShift = getLayer(network, "Eltwise17_original");
+                if (dequantizationScaleShift != nullptr) {
+                    THROW_IE_EXCEPTION
+                        << "dequantization layer " << dequantizationScaleShift->type << " " << dequantizationScaleShift->name
+                        << " has to be absent (moved to full path branch)";
+                }
             }
         }
     } else {

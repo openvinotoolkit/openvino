@@ -24,8 +24,8 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 MKLDNNBinaryConvolutionNode::MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer,
-                                                         const mkldnn::engine& eng, int socket)
-        : MKLDNNNode(layer, eng, socket) {
+                                                         const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
     });

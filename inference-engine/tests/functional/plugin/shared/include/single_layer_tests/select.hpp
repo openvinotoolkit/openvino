@@ -6,10 +6,9 @@
 
 #include <tuple>
 #include <string>
-#include <vector>
 #include <functional_test_utils/layer_test_utils.hpp>
 
-#include "ngraph_functions/select.hpp"
+#include "ngraph_functions/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -17,14 +16,10 @@ typedef std::tuple<
         std::vector<std::vector<size_t>>,  // mask, then, else shapes
         InferenceEngine::Precision,        // then, else precision
         ngraph::op::AutoBroadcastSpec,     // broadcast
-        std::string> selectTestParams;   // Device name
+        std::string> selectTestParams;     // device name
 
-class SelectLayerTest : public LayerTestsUtils::LayerTestsCommonDeprecated<selectTestParams> {
+class SelectLayerTest : public testing::WithParamInterface<selectTestParams>, public LayerTestsUtils::LayerTestsCommon {
 public:
-    NGraphFunctions::Select layer;
-    std::vector<std::vector<size_t>> inputShapes;
-    ngraph::op::AutoBroadcastSpec broadcast;
-
     static std::string getTestCaseName(const testing::TestParamInfo <selectTestParams> &obj);
 
 protected:

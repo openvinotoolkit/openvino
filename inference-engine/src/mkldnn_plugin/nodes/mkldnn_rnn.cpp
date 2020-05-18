@@ -49,8 +49,8 @@ static algorithm ie2mkl(RNNCellBase::CellType cell_type) {
     }
 }
 
-MKLDNNRNN::MKLDNNRNN(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) :
-        MKLDNNNode(layer, eng, socket) {
+MKLDNNRNN::MKLDNNRNN(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(layer, eng, cache) {
     is_cell = one_of(layer->type, "LSTMCell", "GRUCell", "RNNCell");
 }
 

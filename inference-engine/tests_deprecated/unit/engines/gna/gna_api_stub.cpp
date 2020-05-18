@@ -83,6 +83,10 @@ GNA2_API enum Gna2Status Gna2ModelRelease(
     return Gna2StatusSuccess;
 }
 
+GNA2_API enum Gna2Status Gna2ModelGetLastError(struct Gna2ModelError* error) {
+    return Gna2StatusSuccess;
+}
+
 GNA2_API enum Gna2Status Gna2RequestConfigCreate(
     uint32_t modelId,
     uint32_t * requestConfigId) {

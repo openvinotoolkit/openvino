@@ -51,7 +51,7 @@ struct jit_uni_eltwise_fq_kernel {
 
 class MKLDNNEltwiseNode : public MKLDNNNode {
 public:
-    MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNEltwiseNode() override = default;
 
     void getSupportedDescriptors() override;

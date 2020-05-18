@@ -48,7 +48,7 @@ protected:
         if (netPrecision == Precision::FP32) {
             powerConst = opset1::Constant::create(ntype, Shape{1}, { 2.0f });
         } else {
-            powerConst = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(2.0f)) });
+            powerConst = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
         auto powerNode0 = std::make_shared<opset1::Multiply>(input1, powerConst);
         powerNode0->set_friendly_name("Power_0");
@@ -61,16 +61,16 @@ protected:
             std::vector<float> weightValuesFP32_0, weightValuesFP32_1;
             weightValuesFP32_0.resize(conv0OutputChannels * channelsCount * 3 * 3);
             weightValuesFP32_1.resize(1 * conv0OutputChannels * 3 * 3);
-            BFloat16Helpers::fillInputsBySinValues(weightValuesFP32_0.data(), weightValuesFP32_0.size());
-            BFloat16Helpers::fillInputsBySinValues(weightValuesFP32_1.data(), weightValuesFP32_1.size());
+            FuncTestUtils::fillInputsBySinValues(weightValuesFP32_0.data(), weightValuesFP32_0.size());
+            FuncTestUtils::fillInputsBySinValues(weightValuesFP32_1.data(), weightValuesFP32_1.size());
             weightsNode0 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape0, weightValuesFP32_0);
             weightsNode1 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape1, weightValuesFP32_1);
         } else {
             std::vector<short> weightValuesBF16_0, weightValuesBF16_1;
             weightValuesBF16_0.resize(conv0OutputChannels * channelsCount * 3 * 3);
             weightValuesBF16_1.resize(1 * conv0OutputChannels * 3 * 3);
-            BFloat16Helpers::fillInputsBySinValues(weightValuesBF16_0.data(), weightValuesBF16_0.size());
-            BFloat16Helpers::fillInputsBySinValues(weightValuesBF16_1.data(), weightValuesBF16_1.size());
+            FuncTestUtils::fillInputsBySinValues(weightValuesBF16_0.data(), weightValuesBF16_0.size());
+            FuncTestUtils::fillInputsBySinValues(weightValuesBF16_1.data(), weightValuesBF16_1.size());
             weightsNode0 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape0, weightValuesBF16_0.data());
             weightsNode1 = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape1, weightValuesBF16_1.data());
         }
@@ -93,7 +93,7 @@ protected:
             maxConst = opset1::Constant::create(ntype, Shape{batchSize, conv0OutputChannels, heightSize, widthSize}, { 2.0f });
         } else {
             maxConst = opset1::Constant::create(ntype, Shape{batchSize, conv0OutputChannels, heightSize, widthSize},
-                    { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(2.0f)) });
+                    { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
         maxConst->set_friendly_name("Max_const");
         auto eltMaxNode = std::make_shared<opset1::Maximum>(convNode0, maxConst);

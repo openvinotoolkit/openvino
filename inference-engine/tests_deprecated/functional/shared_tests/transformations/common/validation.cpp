@@ -4,6 +4,7 @@
 
 #include "validation.hpp"
 
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <string>
 #include <vector>
@@ -266,9 +267,15 @@ void LowPrecisionTransformationValidation::validatePrecision(
         } else if ((layer->type == "Concat") || (layer->type == "Pooling")) {
             for (const DataPtr data : layer->outData) {
                 if (params.updatePrecisions && (!CNNNetworkHelper::onWeights(*layer))) {
-                    ASSERT_TRUE((data->getPrecision() == Precision::U8) || (data->getPrecision() == Precision::I8)) <<
-                        layer->type << " layer, name '" <<
-                        layer->name << "' out data has unexpected precision " << data->getPrecision();
+                    const std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParentsRecursivelyExceptTypes(*layer, { "Pooling" });
+                    if (std::all_of(
+                        parents.begin(),
+                        parents.end(),
+                        [](const CNNLayerPtr parent) { return (parent->type != "FakeQuantize") || QuantizationDetails::outputLayoutIsSupported(*parent); })) {
+                        ASSERT_TRUE((data->getPrecision() == Precision::U8) || (data->getPrecision() == Precision::I8)) <<
+                            layer->type << " layer, name '" <<
+                            layer->name << "' out data has unexpected precision " << data->getPrecision();
+                    }
                 }
                 // ASSERT_EQ(params.updatePrecisions ? Precision::U8 : Precision::FP32, data->getPrecision()) << " " << layer->type << " out data has unexpected precision " << data->getPrecision();
             }

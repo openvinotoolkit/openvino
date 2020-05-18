@@ -100,7 +100,7 @@ ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
 
 ie_option (ENABLE_C "enables ie c bridge build" ON)
 
-ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT APPLE;NOT ANDROID" OFF)
+ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT ANDROID" OFF)
 
 ie_dependent_option(ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 

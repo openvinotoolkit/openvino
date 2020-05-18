@@ -79,7 +79,8 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId) {
 uint32_t GNADeviceHelper::createModel(const Gna2Model& gnaModel) const {
     uint32_t modelId;
     const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelId);
-    checkGna2Status(status);
+
+    checkGna2Status(status, gnaModel);
     return modelId;
 }
 
@@ -104,6 +105,58 @@ uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
     return reqConfId;
 }
 
+void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaModel) {
+    if (!Gna2StatusIsSuccessful(status)) {
+        std::vector<char> gna2StatusBuffer(1024);
+        const auto s = Gna2StatusGetMessage(status, gna2StatusBuffer.data(), gna2StatusBuffer.size());
+        if (!Gna2StatusIsSuccessful(s))
+            snprintf(gna2StatusBuffer.data(), gna2StatusBuffer.size(), "Gna2StatusGetMessage(%d) returned (%d)",
+                static_cast<int>(status), static_cast<int>(s));
+        if (status == Gna2StatusDeviceIngoingCommunicationError ||
+            status == Gna2StatusDeviceOutgoingCommunicationError) {
+            THROW_GNA_EXCEPTION << "Unsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data() << ", consider updating the GNA driver";
+        }
+
+        Gna2ModelError error;
+        Gna2ModelGetLastError(&error);
+
+        std::stringstream ss;
+        ss << "\n GNA Library Error:\n";
+        const Gna2ItemType type = error.Source.Type;
+        const std::string errorType = errorTypes.find(type) != errorTypes.end()
+                                      ? errorTypes.at(type)
+                                      : "Unknown Error Type";
+
+        ss << "   Type (" << std::to_string(type) << "): " << errorType << "\n";
+
+        if (error.Source.OperationIndex != GNA2_DISABLED) {
+            const Gna2OperationType opTypeIndex = gnaModel.Operations[error.Source.OperationIndex].Type;
+            const std::string operationType = operationTypes.find(opTypeIndex) != operationTypes.end()
+                                              ? operationTypes.at(opTypeIndex)
+                                              : "Unknown Operation Type";
+            const std::string operandType = operandTypes.find({ opTypeIndex, error.Source.OperandIndex }) != operandTypes.end()
+                                              ? operandTypes.at({ opTypeIndex, error.Source.OperandIndex })
+                                              : "Unknown Operand Type";
+
+            ss << "   OperationIndex (" << std::to_string(error.Source.OperationIndex) << "): "
+                << operationType << "\n";
+            ss << "   OperandIndex(" << std::to_string(error.Source.OperandIndex) << "): "
+                << operandType << "\n";
+            ss << "   ParamIndex (" << std::to_string(error.Source.ParameterIndex) << ")\n";
+            ss << "   DimIndex (" << std::to_string(error.Source.ShapeDimensionIndex) << ")\n";
+        }
+
+        const Gna2ErrorType reason = error.Reason;
+        const std::string errorReason = errorReasons.find(reason) != errorReasons.end()
+                                        ? errorReasons.at(reason)
+                                        : "Unknown Error Reason";
+        ss << "   Reason (" << std::to_string(reason) << "): " << errorReason << "\n";
+        ss << "   Value (0x" << std::hex << std::to_string(error.Value) << ")";
+
+        THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data() << ss.str();
+    }
+}
+
 void GNADeviceHelper::checkGna2Status(Gna2Status status) {
     if (!Gna2StatusIsSuccessful(status)) {
         std::vector<char> gna2StatusBuffer(1024);
@@ -118,6 +171,94 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status) {
         THROW_GNA_EXCEPTION << "Unsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data();
     }
 }
+
+const std::map <Gna2ItemType, const std::string> GNADeviceHelper::errorTypes = {
+            {Gna2ItemTypeNone, "Model context is not applicable or unnecessary"},
+            {Gna2ItemTypeModelNumberOfOperations, "Gna2Model::NumberOfOperations"},
+            {Gna2ItemTypeModelOperations, "Gna2Model::Operations array"},
+            {Gna2ItemTypeOperationType, "Gna2Model::Operations[x]->Gna2Operation::Type"},
+            {Gna2ItemTypeOperationOperands, "Gna2Model::Operations[x]->Gna2Operation::Operands array"},
+            {Gna2ItemTypeOperationNumberOfOperands, "Gna2Model::Operations[x]->Gna2Operation::NumberOfOperands"},
+            {Gna2ItemTypeOperationParameters, "Gna2Model::Operations[x]->Gna2Operation::Parameters array"},
+            {Gna2ItemTypeOperationNumberOfParameters, "Gna2Model::Operations[x]->Gna2Operation::NumberOfParameters"},
+            {Gna2ItemTypeOperandMode, "Gna2Model::Operations[x]->Gna2Operation::Operands[y]->Gna2Tensor::Mode"},
+            {Gna2ItemTypeOperandLayout, "Gna2Model::Operations[x]->Gna2Operation::Operands[y]->Gna2Tensor::Layout"},
+            {Gna2ItemTypeOperandType, "Gna2Model::Operations[x]->Gna2Operation::Operands[y]->Gna2Tensor::Type"},
+            {Gna2ItemTypeOperandData, "Gna2Model::Operations[x]->Gna2Operation::Operands[y]->Gna2Tensor::Data"},
+            {Gna2ItemTypeParameter, "Gna2Model::Operations[x]->Gna2Operation::Parameters[z]->Parameter, can be of type Gna2Shape, enumeration or integer"},
+            {Gna2ItemTypeShapeNumberOfDimensions, "Gna2Model::Operations[x]->{Gna2Tensor}, Parameter}->Gna2Shape::NumberOfDimensions"},
+            {Gna2ItemTypeShapeDimensions, "Gna2Model::Operations[x]->{Gna2Tensor}, Parameter}->Gna2Shape::Dimensions"},
+            {Gna2ItemTypeInternal, "Internal model item, that is a derivative of other model parameters"}
+};
+
+const std::map <Gna2ErrorType, const std::string> GNADeviceHelper::errorReasons = {
+            { Gna2ErrorTypeNone, "No error detected"},
+            { Gna2ErrorTypeNotTrue, "Item value was expected to be true"},
+            { Gna2ErrorTypeNotFalse, "Item value was expected to be false"},
+            { Gna2ErrorTypeNullNotAllowed, "Item value was expected to be not null"},
+            { Gna2ErrorTypeNullRequired, "Item value was expected to be null"},
+            { Gna2ErrorTypeBelowRange, "Item value was below supported range"},
+            { Gna2ErrorTypeAboveRange, "Item value was above supported range"},
+            { Gna2ErrorTypeNotEqual, "Item value was not equal supported one"},
+            { Gna2ErrorTypeNotGtZero, "Item value was below zero"},
+            { Gna2ErrorTypeNotZero, "Item value was not equal zero"},
+            { Gna2ErrorTypeNotOne, "Item value was not equal one"},
+            { Gna2ErrorTypeNotInSet, "Item value was not in supported set of values"},
+            { Gna2ErrorTypeNotMultiplicity, "Item value was not multiple of supported value"},
+            { Gna2ErrorTypeNotSuccess, "Item value was invalid, no detailed information available"},
+            { Gna2ErrorTypeNotAligned, "Item value was not aligned to supported value"},
+            { Gna2ErrorTypeArgumentMissing, "Some operation argument was not provided"},
+            { Gna2ErrorTypeArgumentInvalid, "Given operation argument was invalid or unexpected"},
+            { Gna2ErrorTypeRuntime, "Runtime error occurred during model creation"},
+            { Gna2ErrorTypeOther, "Unable to determine the root cause of the issue"}
+};
+
+const std::map <Gna2OperationType, const std::string> GNADeviceHelper::operationTypes = {
+            { Gna2OperationTypeNone, "None"},
+            { Gna2OperationTypeConvolution, "Convolution"},
+            { Gna2OperationTypeCopy, "Copy"},
+            { Gna2OperationTypeFullyConnectedAffine, "FullyConnectedAffine"},
+            { Gna2OperationTypeElementWiseAffine, "ElementWiseAffine"},
+            { Gna2OperationTypeGmm, "GMM"},
+            { Gna2OperationTypeRecurrent, "Recurrent"},
+            { Gna2OperationTypeTransposition, "Transpose"},
+            { Gna2OperationTypeThreshold, "Threshold"}
+};
+
+const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> GNADeviceHelper::operandTypes = {
+            {{Gna2OperationTypeConvolution, 0}, "Input"},
+            {{Gna2OperationTypeConvolution, 1}, "Output"},
+            {{Gna2OperationTypeConvolution, 2}, "Filters"},
+            {{Gna2OperationTypeConvolution, 3}, "Biases"},
+            {{Gna2OperationTypeConvolution, 4}, "Activation"},
+            {{Gna2OperationTypeCopy, 0}, "Input"},
+            {{Gna2OperationTypeCopy, 1}, "Output"},
+            {{Gna2OperationTypeFullyConnectedAffine, 0}, "Input"},
+            {{Gna2OperationTypeFullyConnectedAffine, 1}, "Output"},
+            {{Gna2OperationTypeFullyConnectedAffine, 2}, "Weights"},
+            {{Gna2OperationTypeFullyConnectedAffine, 3}, "Biases"},
+            {{Gna2OperationTypeFullyConnectedAffine, 4}, "Activation"},
+            {{Gna2OperationTypeFullyConnectedAffine, 5}, "WeightScaleFactors"},
+            {{Gna2OperationTypeElementWiseAffine, 0}, "Input"},
+            {{Gna2OperationTypeElementWiseAffine, 1}, "Output"},
+            {{Gna2OperationTypeElementWiseAffine, 2}, "Weights"},
+            {{Gna2OperationTypeElementWiseAffine, 3}, "Biases"},
+            {{Gna2OperationTypeElementWiseAffine, 4}, "Activation"},
+            {{Gna2OperationTypeGmm, 0}, "Input"},
+            {{Gna2OperationTypeGmm, 1}, "Output"},
+            {{Gna2OperationTypeGmm, 2}, "Means"},
+            {{Gna2OperationTypeGmm, 3}, "InverseCovariances"},
+            {{Gna2OperationTypeGmm, 4}, "Constants"},
+            {{Gna2OperationTypeRecurrent, 0}, "Input"},
+            {{Gna2OperationTypeRecurrent, 1}, "Output"},
+            {{Gna2OperationTypeRecurrent, 2}, "Weights"},
+            {{Gna2OperationTypeRecurrent, 3}, "Biases"},
+            {{Gna2OperationTypeRecurrent, 4}, "Activation"},
+            {{Gna2OperationTypeTransposition, 0}, "Input"},
+            {{Gna2OperationTypeTransposition, 1}, "Output"},
+            {{Gna2OperationTypeThreshold, 0}, "Input"},
+            {{Gna2OperationTypeThreshold, 1}, "Output"}
+};
 #endif
 
 void GNADeviceHelper::wait(uint32_t reqId) {

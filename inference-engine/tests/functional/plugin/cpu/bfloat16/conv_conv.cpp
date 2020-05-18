@@ -54,12 +54,12 @@ protected:
         if (netPrecision == Precision::FP32) {
             std::vector<float> weightValuesFP32;
             weightValuesFP32.resize(channelsCount * channelsCount * 3 * 3);
-            BFloat16Helpers::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
+            FuncTestUtils::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
             weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesFP32);
         } else {
             std::vector<short> weightValuesBF16;
             weightValuesBF16.resize(channelsCount * channelsCount * 3 * 3);
-            BFloat16Helpers::fillInputsBySinValues(weightValuesBF16.data(), weightValuesBF16.size());
+            FuncTestUtils::fillInputsBySinValues(weightValuesBF16.data(), weightValuesBF16.size());
             weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesBF16.data());
         }
 
@@ -76,7 +76,7 @@ protected:
         ngraph::Shape convFilterShape2 = { channelsCount, channelsCount, 3, 3 };  // out channel, /input channels, kernel h, kernel w
         std::vector<float> weightValues2;
         weightValues2.resize(channelsCount * channelsCount * 3 * 3);
-        BFloat16Helpers::fillInputsBySinValues(weightValues2.data(), weightValues2.size());
+        FuncTestUtils::fillInputsBySinValues(weightValues2.data(), weightValues2.size());
         auto weightsNode2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, convFilterShape2, weightValues2);
         std::shared_ptr<ngraph::Node> convNode2 = std::make_shared<ngraph::opset1::Convolution>(
             convNode1, weightsNode2,

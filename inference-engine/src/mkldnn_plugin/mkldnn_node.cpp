@@ -45,7 +45,7 @@
 #include <nodes/mkldnn_tensoriterator_node.h>
 #include <mkldnn_types.h>
 #include "mkldnn_extension_utils.h"
-#include "mkldnn_plugin.h"
+
 #include "ie_memcpy.h"
 #include "mkldnn_debug.h"
 
@@ -137,10 +137,11 @@ void MKLDNNNode::AddNode(const std::string& name, CreatorByLayerFunction factory
     GetNodesHolder()->nodes[name] = factory;
 }
 
-MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int _socket)
+MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+        MKLDNNWeightsSharing::Ptr &w_cache)
         : cnnLayer(layer), name(layer->name), typeStr(layer->type), type(TypeFromName(layer->type)), engine(eng),
           selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          profilingTask(name), socket(_socket) {
+          profilingTask(name), weightCache(w_cache) {
     if (!layer->outData.empty()) {
         for (const auto& outData : layer->outData) {
             outDims.emplace_back(outData->getDims());
@@ -238,18 +239,18 @@ void MKLDNNNode::remove() {
 }
 
 MKLDNNNode* MKLDNNNode::CreateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                                   const MKLDNNExtensionManager::Ptr& extMgr, int socket) {
+                                   const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
     MKLDNNNode *newNode = nullptr;
     auto nodesHolder = GetNodesHolder();
 
     if (nodesHolder->nodes.find("Generic") != nodesHolder->nodes.end()) {
-        std::unique_ptr<MKLDNNNode> ol(nodesHolder->nodes["Generic"](layer, eng, socket));
+        std::unique_ptr<MKLDNNNode> ol(nodesHolder->nodes["Generic"](layer, eng, w_cache));
         if (ol != nullptr && ol->created(extMgr))
             newNode = ol.release();
     }
     if (newNode == nullptr) {
         for (auto maker : nodesHolder->nodes) {
-            std::unique_ptr<MKLDNNNode> ol(maker.second(layer, eng, socket));
+            std::unique_ptr<MKLDNNNode> ol(maker.second(layer, eng, w_cache));
             if (ol != nullptr && ol->created(extMgr)) {
                 newNode = ol.release();
                 break;
@@ -765,15 +766,15 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
         };
 
         MKLDNNMemoryPtr ptr;
-        if (weight_caching) {
-            const uint64_t data_hash = Engine::GetWeightsSharing(socket)->GetHashFunc().hash(
+        if (weightCache != nullptr) {
+            const uint64_t data_hash = weightCache->GetHashFunc().hash(
                     internalBlob->buffer(), internalBlob->byteSize());
 
             const std::string string_hash = name + "_" + std::to_string(i)
                                             + "_" + std::to_string(internalBlob->byteSize())
                                             + "_" + std::to_string(data_hash);
 
-            ptr = Engine::GetWeightsSharing(socket)->findOrCreate(string_hash, create);
+            ptr = weightCache->findOrCreate(string_hash, create);
         } else {
             ptr = create();
         }

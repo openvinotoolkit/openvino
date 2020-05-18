@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+disable_deprecated_warnings()
+
 set(TARGET_NAME funcTestUtils)
 
-list(APPEND EXPORT_DEPENDENCIES commonTestUtils inference_engine)
+list(APPEND EXPORT_DEPENDENCIES commonTestUtils inference_engine inference_engine_lp_transformations)
 
 addIeTarget(
     NAME ${TARGET_NAME}

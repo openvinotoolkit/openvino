@@ -23,8 +23,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNConvolutionNode::MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
-        : MKLDNNNode(layer, eng, socket), withBiases(false), withSum(false),  dw_conv_iw(0), dw_conv_ih(0),
+MKLDNNConvolutionNode::MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache), withBiases(false), withSum(false),  dw_conv_iw(0), dw_conv_ih(0),
         dw_conv_oc(0), dw_conv_in_dt(memory::data_type::data_undef), isDW(false), isMerged(false), withActivation(false),
         isGrouped(false), baseInputsNumber(1), eltwisePrecision(Precision::FP32), withDWConv(false), groupNum(1lu) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {

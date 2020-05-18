@@ -15,8 +15,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-MKLDNNPowerNode::MKLDNNPowerNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
-        : MKLDNNNode(layer, eng, socket), scale(1.0f), shift(1.0f), power(1.0f) {}
+MKLDNNPowerNode::MKLDNNPowerNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache), scale(1.0f), shift(1.0f), power(1.0f) {}
 
 void MKLDNNPowerNode::getSupportedDescriptors() {
     auto * powerLayer = dynamic_cast<PowerLayer*>(getCnnLayer().get());
