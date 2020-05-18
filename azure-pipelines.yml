@@ -299,7 +299,7 @@ jobs:
 - job: IE_Win_self
   timeoutInMinutes: 0
   pool:
-    name: WIN_VMSS
+    name: WIN_VMSS_VENV
     demands:
       - Agent.OS -equals Windows_NT
   variables:
