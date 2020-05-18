@@ -42,7 +42,7 @@ protected:
 
         ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
         auto channelsCount = inputShapes[1];
-        const int intermediateChannelsCount = 16;
+        const size_t intermediateChannelsCount = 16;
 
         // multiply
         auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{inputShapes});

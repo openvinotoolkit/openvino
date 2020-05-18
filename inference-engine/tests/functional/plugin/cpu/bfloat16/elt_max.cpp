@@ -39,7 +39,7 @@ protected:
         // STAGE1: construction of the GRAPH
         ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
         auto channelsCount = inputShapes[1];
-        const int conv0OutputChannels = 1;
+        const size_t conv0OutputChannels = 1;
 
         // add
         auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{inputShapes});
