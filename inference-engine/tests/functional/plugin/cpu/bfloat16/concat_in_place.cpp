@@ -25,7 +25,7 @@ using namespace InferenceEngine;
 
 namespace LayerTestsDefinitions {
 namespace {
-    static const int inputSize = 2, concatAxe = 1;
+    static const size_t inputSize = 2, concatAxe = 1;
     static std::vector<SizeVector> paramVector = {
             SizeVector({ 1, 1, inputSize, inputSize }),
             SizeVector({ 1, 2, inputSize, inputSize }),
