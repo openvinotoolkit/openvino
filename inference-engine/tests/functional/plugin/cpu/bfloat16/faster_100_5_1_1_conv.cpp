@@ -45,7 +45,7 @@ protected:
         if (netPrecision == Precision::FP32) {
             const1 = opset1::Constant::create(ntype, Shape{1}, { 2.0f });
         } else {
-            const1 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(2.0f)) });
+            const1 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
         auto mulNode = std::make_shared<opset1::Multiply>(input1, const1);
 
@@ -54,7 +54,7 @@ protected:
         if (netPrecision == Precision::FP32) {
             const2 = opset1::Constant::create(ntype, Shape{1}, { 1.0f });
         } else {
-            const2 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(1.0f)) });
+            const2 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f)) });
         }
         auto addNode = std::make_shared<opset1::Add>(mulNode, const2);
         addNode->set_friendly_name("Add_4");
@@ -73,12 +73,12 @@ protected:
             weightsNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, convFilterShape, weightValues);
         } else {
             std::vector<short> weightValuesBF16;
-            weightValuesBF16.resize(channelsCount * channelsCount * 1 * 1, BFloat16Helpers::reducePrecisionBitwiseS(0.0f));
-            weightValuesBF16[0] = BFloat16Helpers::reducePrecisionBitwiseS(1.0f);
-            weightValuesBF16[7] = BFloat16Helpers::reducePrecisionBitwiseS(1.0f);
-            weightValuesBF16[11] = BFloat16Helpers::reducePrecisionBitwiseS(1.0f);
-            weightValuesBF16[19] = BFloat16Helpers::reducePrecisionBitwiseS(1.0f);
-            weightValuesBF16[23] = BFloat16Helpers::reducePrecisionBitwiseS(1.0f);
+            weightValuesBF16.resize(channelsCount * channelsCount * 1 * 1, FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(0.0f));
+            weightValuesBF16[0] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f);
+            weightValuesBF16[7] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f);
+            weightValuesBF16[11] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f);
+            weightValuesBF16[19] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f);
+            weightValuesBF16[23] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f);
             weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesBF16.data());
         }
 

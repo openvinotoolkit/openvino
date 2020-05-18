@@ -30,5 +30,7 @@ std::vector<std::string> disabledTestPatterns() {
             ".*BehaviorPluginTestInferRequest\\.returnDeviceBusyOnStartInferAfterAsyncInfer.*",
             ".*BehaviorPluginTestInferRequest\\.returnDeviceBusyOnGetUserDataAfterAsyncInfer.*",
             ".*BehaviorPluginTestInferRequest\\.returnDeviceBusyOnSetUserDataAfterAsyncInfer.*",
+            // TODO: FIX BUG 31661
+            ".*BehaviorPluginTestInferRequest\\.canStartSeveralAsyncInsideCompletionCallbackNoSafeDtorWithoutWait.*",
     };
 }

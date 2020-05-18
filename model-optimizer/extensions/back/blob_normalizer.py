@@ -63,8 +63,10 @@ class BlobNormalizer(BackReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         if graph.graph['cmd_params'].generate_experimental_IR_V10:
             for node in graph.get_op_nodes():
-                if node.soft_get('type').lower() not in OpVersioning.opset_1_types:
+                if node.soft_get('type').lower() not in OpVersioning.opset_1_types and \
+                        not node.soft_get('version') in ["opset2", "opset3"]:
                     continue
+
                 for _, d in node.in_edges().items():
                     if 'bin' in d:
                         del d['bin']

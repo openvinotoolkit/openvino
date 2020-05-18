@@ -54,7 +54,7 @@ bool isCascade(const std::vector<CNNLayerPtr>& concatLayers) {
         const CNNLayerPtr childConcatLayer = concatLayers[index];
         const CNNLayerPtr parentConcatLayer = concatLayers[index + 1];
         std::vector<CNNLayerPtr> parents =
-            CNNNetworkHelper::getParentsRecursivelyExceptTypes(*childConcatLayer, {"Pooling"});
+            CNNNetworkHelper::getParentsRecursivelyExceptTypes(*childConcatLayer, {"Pooling", "Resample"});
 
         bool parentConcatLayerWasFound = false;
         for (const CNNLayerPtr& parent : parents) {
@@ -73,7 +73,7 @@ bool isCascade(const std::vector<CNNLayerPtr>& concatLayers) {
 
 bool isMultiChannel(const std::vector<CNNLayerPtr>& concatLayers) {
     for (const CNNLayerPtr& concat : concatLayers) {
-        const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildrenRecursivelyExceptTypes(*concat, {"Pooling"});
+        const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildrenRecursivelyExceptTypes(*concat, {"Pooling", "Resample"});
         if (CNNNetworkHelper::IsChild(children, {"Convolution"})) {
             return false;
         }
@@ -85,38 +85,40 @@ bool ConcatMultiChannelsTransformation::getQuantizeLayers(
     CNNLayerPtr layer,
     std::vector<std::string>& childNameOurAfterQuantizeLayers,
     std::vector<CNNLayerPtr>& quantizeLayers,
-    std::vector<std::vector<CNNLayerPtr>>& intermediateLayers,
+    std::vector<std::vector<std::pair<CNNLayerPtr, CNNLayerPtr> > > &intermediateLayers,
     std::vector<CNNLayerPtr>& concatLayers,
-    std::string childName,
+    CNNLayerPtr child,
     std::vector<CNNLayerPtr>& sideOutputLayers,
     std::vector<std::string>& childrenNameSideOutputLayers) {
     if (!CaselessEq<std::string>()(layer->type, "FakeQuantize") &&
         !CaselessEq<std::string>()(layer->type, "Quantize")) {
         do {
-            if (CaselessEq<std::string>()(layer->type, "Pooling")) {
-                intermediateLayers.back().push_back(layer);
-                std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildrenRecursivelyExceptTypes(*layer, {"Pooling"});
-                std::string concatName;
+            if ((CaselessEq<std::string>()(layer->type, "Pooling")) || (CaselessEq<std::string>()(layer->type, "Resample"))) {
+                intermediateLayers.back().push_back(std::pair<CNNLayerPtr, CNNLayerPtr>(
+                    layer,
+                    concatLayers.empty() ? child : concatLayers.back()));
+                std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildrenRecursivelyExceptTypes(*layer, {"Pooling", "Resample"});
+                CNNLayerPtr concat;
                 for (const CNNLayerPtr& child : children) {
                     if (child->type == "Concat") {
-                        if (!concatName.empty()) {
+                        if (concat != nullptr) {
                             THROW_IE_EXCEPTION << "several concat children layers are not supported";
                         }
-                        concatName = child->name;
+                        concat = child;
                     }
                 }
 
-                childName = concatName;
+                child = concat;
                 layer = CNNNetworkHelper::getParent(*layer, 0);
             } else if (CaselessEq<std::string>()(layer->type, "Concat")) {
                 concatLayers.push_back(layer);
 
                 if (layer->outData[0]->getInputTo().size() != 1) {
                     sideOutputLayers.push_back(layer);
-                    childrenNameSideOutputLayers.push_back(childName);
+                    childrenNameSideOutputLayers.push_back(child->name);
                 }
                 int size = layer->insData.size();
-                childName = layer->name;
+                child = layer;
                 for (int i = 0; i < size; i++) {
                     CNNLayerPtr layer1 = CNNNetworkHelper::getParent(*layer, i);
                     intermediateLayers.push_back({});
@@ -126,7 +128,7 @@ bool ConcatMultiChannelsTransformation::getQuantizeLayers(
                         quantizeLayers,
                         intermediateLayers,
                         concatLayers,
-                        childName,
+                        child,
                         sideOutputLayers,
                         childrenNameSideOutputLayers)) {
                         return false;
@@ -140,7 +142,7 @@ bool ConcatMultiChannelsTransformation::getQuantizeLayers(
                  !CaselessEq<std::string>()(layer->type, "Quantize"));
     }
 
-    childNameOurAfterQuantizeLayers.push_back(childName);
+    childNameOurAfterQuantizeLayers.push_back(child->name);
     quantizeLayers.push_back(layer);
     return true;
 }
@@ -163,12 +165,12 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
     }
 
     std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(concat);
-    if (CNNNetworkHelper::IsChild(children, {"Concat"}, {"Pooling"})) {
+    if (CNNNetworkHelper::IsChild(children, {"Concat"}, {"Pooling", "Resample"})) {
         return;
     }
 
     std::vector<CNNLayerPtr> quantizeLayers;
-    std::vector<std::vector<CNNLayerPtr>> intermediateLayers;
+    std::vector<std::vector<std::pair<CNNLayerPtr, CNNLayerPtr> > > intermediateLayers;
     std::vector<CNNLayerPtr> concatLayers;
     std::vector<std::string> childNameOurAfterQuantizeLayers;
     std::vector<CNNLayerPtr> sideOutputLayers;
@@ -187,7 +189,7 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
             quantizeLayers,
             intermediateLayers,
             concatLayers,
-            concat.name,
+            std::make_shared<CNNLayer>(concat),
             sideOutputLayers,
             childrenNameSideOutputLayers)) {
             return;
@@ -227,8 +229,9 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
     for (int index = (concatLayers.size() - 1); index >= 0; --index) {
         const CNNLayerPtr concatLayer = concatLayers[index];
 
-        const std::vector<CNNLayerPtr> parents =
-            CNNNetworkHelper::getParentsRecursivelyExceptTypes(*concatLayer, {"Pooling"});
+        const std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParentsRecursivelyExceptTypes(
+            *concatLayer,
+            { "Pooling", "Resample" });
         for (const CNNLayerPtr& parent : parents) {
             if ((parent->type != "FakeQuantize") && (parent->type != "Concat")) {
                 // TODO: handle
@@ -269,63 +272,28 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
 
                 if (updatePrecisions) {
                     CNNNetworkHelper::setOutDataPrecision(*fakeQuantizeLayer, dataPrecision.precision);
-
-                    const std::vector<CNNLayerPtr>& intermediateLayersList = intermediateLayers[index];
-                    for (const CNNLayerPtr intermediateLayer : intermediateLayersList) {
-                        CNNNetworkHelper::setOutDataPrecision(*intermediateLayer, dataPrecision.precision);
-                    }
                 }
             }
         }
     }
 
-    // Add scaleshift at other outputs of the Quantize layer
-    for (int index = 0; index < parentsCount; index++) {
-        const CNNLayer& fakeQuantize = *quantizeLayers[index];
-        context.quantizedFakeQuantizeNames.insert(fakeQuantize.name);
-
-        std::vector<CNNLayerPtr> children =
-            CNNNetworkHelper::getChildrenRecursivelyExceptTypes(fakeQuantize, {"Pooling"});
-        for (auto it = children.begin(); it != children.end(); ++it) {
-            CNNLayerPtr child = *it;
-            if (index < childNameOurAfterQuantizeLayers.size()
-                    && child->name == childNameOurAfterQuantizeLayers[index]) {
-                children.erase(it, it + 1);
-                break;
-            }
-        }
-
-        for (const CNNLayerPtr& child : children) {
-            const std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParents(*child);
-
-            auto dequantizationScalesIt = dequantizationScalesLayers.find(fakeQuantize.name);
-            if (dequantizationScalesIt == dequantizationScalesLayers.end()) {
-                THROW_IE_EXCEPTION << "dequantization scales not found for layer " << fakeQuantize.name;
-            }
-
-            auto dequantizationShiftIt = dequantizationShiftsLayers.find(fakeQuantize.name);
-            if (dequantizationShiftIt == dequantizationShiftsLayers.end()) {
-                THROW_IE_EXCEPTION << "dequantization shifts not found for layer " << fakeQuantize.name;
-            }
-
-            const size_t fakeQuantizeOutputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(fakeQuantize);
-            CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                context,
-                quantizeLayers[index],
-                child,
-                DequantizationDetails(dequantizationScalesIt->second, dequantizationShiftIt->second, fakeQuantizeOutputChannelsCount));
-            context.dequantizationLayersNames.insert(dequantizationLayer->name);
-
-            if (updatePrecisions &&
-                QuantizationDetails::isSupportedLevel(QuantizationDetails::getDetails(fakeQuantize).levels)) {
-                CNNNetworkHelper::setOutDataPrecision(
-                    CNNNetworkHelper::getLayers(fakeQuantize, *dequantizationLayer),
-                    dataPrecision.precision);
-            }
-        }
-    }
+    addDequantizationForQuantize(
+        context,
+        concat,
+        quantizeLayers,
+        intermediateLayers,
+        childNameOurAfterQuantizeLayers,
+        dequantizationScalesLayers,
+        dequantizationShiftsLayers);
 
     if (updatePrecisions) {
+        for (const std::vector<std::pair<CNNLayerPtr, CNNLayerPtr>>& intermediateLayersList : intermediateLayers) {
+            for (const std::pair<CNNLayerPtr, CNNLayerPtr>& pair : intermediateLayersList) {
+                CNNLayerPtr intermediateLayer = pair.first;
+                CNNNetworkHelper::setOutDataPrecision(*intermediateLayer, dataPrecision.precision);
+            }
+        }
+
         CNNNetworkHelper::setOutDataPrecision(concat, dataPrecision.precision);
         for (const CNNLayerPtr& concatLayer : concatLayers) {
             if (concatLayer->name == concat.name) {

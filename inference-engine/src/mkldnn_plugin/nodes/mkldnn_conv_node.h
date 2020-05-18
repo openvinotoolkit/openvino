@@ -16,7 +16,7 @@ class MKLDNNEltwiseNode;
 
 class MKLDNNConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNConvolutionNode() override = default;
 
     void getSupportedDescriptors() override;

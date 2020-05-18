@@ -66,7 +66,9 @@ TEST(MKLDNNLayersTests, DumpSimpleGraph) {
     auto net = NetGen().net();
     MKLDNNGraph graph;
     MKLDNNExtensionManager::Ptr extMgr;
-    graph.CreateGraph(net, extMgr);
+    MKLDNNWeightsSharing::Ptr cache;
+
+    graph.CreateGraph(net, extMgr, cache);
 
     auto dump_net = dump_graph_as_ie_net(graph);
     auto layers = details::CNNNetSortTopologically(*dump_net);
@@ -82,7 +84,8 @@ TEST(MKLDNNLayersTests, DumpSimpleGraphToDot) {
     auto net = NetGen().net();
     MKLDNNGraph graph;
     MKLDNNExtensionManager::Ptr extMgr;
-    graph.CreateGraph(net, extMgr);
+    MKLDNNWeightsSharing::Ptr cache;
+    graph.CreateGraph(net, extMgr, cache);
 
     std::stringstream buff;
     dump_graph_as_dot(graph, buff);

@@ -6,7 +6,6 @@
 
 #include <vector>
 #include <memory>
-#include <string>
 
 #include <ie_api.h>
 
@@ -15,17 +14,17 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertLSTMCellToLSTMCellIE);
+class INFERENCE_ENGINE_API_CLASS(Reshape1DOps);
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertLSTMCellToLSTMCellIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::Reshape1DOps: public ngraph::pass::GraphRewrite {
 public:
-    ConvertLSTMCellToLSTMCellIE() : GraphRewrite() {
-        convert_lstm_cell();
+    Reshape1DOps() : GraphRewrite() {
+        reshape_ops();
     }
 
 private:
-    void convert_lstm_cell();
+    void reshape_ops();
 };

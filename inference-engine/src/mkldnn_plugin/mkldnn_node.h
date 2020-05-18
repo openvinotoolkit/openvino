@@ -22,6 +22,7 @@
 #include "mkldnn/iml_type_mapper.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_primitive.h"
+#include "mkldnn_weights_cache.hpp"
 #include "mkldnn.hpp"
 
 namespace MKLDNNPlugin {
@@ -29,7 +30,8 @@ namespace MKLDNNPlugin {
 using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
 using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
 
-using CreatorByLayerFunction = std::function<MKLDNNNode *(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)>;
+using CreatorByLayerFunction = std::function<MKLDNNNode *(const InferenceEngine::CNNLayerPtr& layer,
+        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)>;
 struct MKLDNNNodesHolder {
     std::map<std::string, CreatorByLayerFunction> nodes;
 };
@@ -222,7 +224,7 @@ public:
     static std::shared_ptr<MKLDNNNodesHolder> GetNodesHolder();
 
     static MKLDNNNode* CreateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                                  const MKLDNNExtensionManager::Ptr& extMgr, int socket = 0);
+                                  const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache);
 
     ~MKLDNNNode() override = default;
 
@@ -437,9 +439,10 @@ public:
     public:
         explicit Register(const std::string& type) {
             MKLDNNNode::AddNode(type,
-                    [](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
+                    [](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+                            MKLDNNWeightsSharing::Ptr &w_cache)
                     -> MKLDNNNode* {
-                        return new To(layer, eng, socket);
+                        return new To(layer, eng, w_cache);
                     });
         }
     };
@@ -480,7 +483,7 @@ protected:
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
-    MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache);
 
     int selectedPrimitiveDescriptorIndex = -1;
     bool permanent = false;
@@ -499,6 +502,7 @@ protected:
     std::vector<MKLDNNDescriptor> descs;
 
     InferenceEngine::Blob::Ptr ext_scales;
+    MKLDNNWeightsSharing::Ptr weightCache;
 
     friend class MKLDNNEdge;
     friend class MKLDNNGraph;
@@ -513,14 +517,6 @@ protected:
 
     std::vector<mkldnn::memory::format> getAvailableFormatsForDims(const MKLDNNDims& dims) const;
     int batchToProcess();
-    int whichSocket() { return socket; }
-
-    // TODO: While CPU plugin has no ease way to clone graph object we use weight
-    //       caching in global Engine context to avoid tensor duplication. Just to
-    //       improve memory consumption in case of throughput streams when we have
-    //       duplicate of graph for single input ICNNNetwork.
-    //       Remove this flag when graph clone functionality will be added.
-    void enableWeightCaching(bool val) { weight_caching = val; }
 
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, bool weights, bool is_grouped = false);
 
@@ -537,8 +533,6 @@ private:
     const std::string typeStr;
     Type type;
     int execIndex = -1;
-    int socket;
-    bool weight_caching = false;
 
     std::string typeToStr(Type type);
 

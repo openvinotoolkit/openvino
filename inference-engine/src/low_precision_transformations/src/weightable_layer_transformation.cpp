@@ -109,6 +109,13 @@ bool WeightableLayerTransformation::isQuantized(const CNNLayer& layer) const noe
         return false;
     }
 
+    if (parentOnWeights->type != "FakeQuantize") {
+        const Precision precision = parentOnWeights->outData[0]->getPrecision();
+        if ((precision != Precision::I8) && (precision != Precision::U8)) {
+            return false;
+        }
+    }
+
     return true;
 }
 

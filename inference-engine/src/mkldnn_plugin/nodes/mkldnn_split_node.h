@@ -12,7 +12,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNSplitNode : public MKLDNNNode {
 public:
-    MKLDNNSplitNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNSplitNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNSplitNode() override = default;
 
     void getSupportedDescriptors() override;

@@ -12,8 +12,8 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine::details;
 
-MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
-        : MKLDNNNode(layer, eng, socket) {
+MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache) {
     constant = ConstantType::NoConst;
     if (layer && CaselessEq<std::string>()(layer->type, "const")) {
         constant = ConstantType::Const;

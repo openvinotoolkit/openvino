@@ -18,7 +18,10 @@ using namespace ::testing;
 using namespace std;
 using namespace mkldnn;
 
-class MKLDNNGraphStructureTests: public TestsCommon {};
+class MKLDNNGraphStructureTests: public TestsCommon {
+protected:
+    MKLDNNPlugin::NumaNodesWeights cache;
+};
 
 TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReorders) {
     std::string model = R"V0G0N(
@@ -1198,7 +1201,7 @@ TEST_F(MKLDNNGraphStructureTests, TestOutputAfterInplacePlusConcat) {
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
-    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}));
+    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}, cache));
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
@@ -1714,7 +1717,7 @@ TEST_F(MKLDNNGraphStructureTests, TestResnetPart) {
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
-    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}));
+    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}, cache));
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
@@ -1864,7 +1867,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatAfterConcat) {
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
-    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}));
+    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}, cache));
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
@@ -2045,7 +2048,7 @@ TEST_F(MKLDNNGraphStructureTests, Test2ConcatFromConcat) {
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
-    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}));
+    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}, cache));
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
@@ -2377,7 +2380,7 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithConstLayer) {
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
-    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}));
+    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}, cache));
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
@@ -2525,7 +2528,7 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithEltwiseBeforeConcat) {
     InferenceEngine::CNNNetwork network;
     ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
-    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}));
+    MKLDNNPlugin::MKLDNNExecNetwork::Ptr execNetwork(new MKLDNNPlugin::MKLDNNExecNetwork(network, {}, {}, cache));
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);

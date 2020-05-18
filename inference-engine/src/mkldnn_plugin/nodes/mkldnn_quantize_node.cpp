@@ -19,8 +19,8 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-MKLDNNQuantizeNode::MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, int socket) :
-        MKLDNNNode(layer, eng, socket) {}
+MKLDNNQuantizeNode::MKLDNNQuantizeNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNQuantizeNode::init() {
     auto* quantizeLayer = dynamic_cast<QuantizeLayer*>(getCnnLayer().get());

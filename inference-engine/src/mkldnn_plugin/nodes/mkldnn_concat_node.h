@@ -13,7 +13,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNConcatNode : public MKLDNNNode {
 public:
-    MKLDNNConcatNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNConcatNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNConcatNode() override = default;
 
     void getSupportedDescriptors() override;

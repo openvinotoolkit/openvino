@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNROIPoolingNode : public MKLDNNNode {
 public:
-    MKLDNNROIPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNROIPoolingNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNROIPoolingNode() override = default;
 
     void getSupportedDescriptors() override;

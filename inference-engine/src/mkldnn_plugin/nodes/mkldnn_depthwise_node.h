@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNDepthwiseNode : public MKLDNNNode {
 public:
-    MKLDNNDepthwiseNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, int socket);
+    MKLDNNDepthwiseNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNDepthwiseNode() override = default;
 
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
