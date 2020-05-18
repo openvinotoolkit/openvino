@@ -11,6 +11,7 @@ extensions/back/__init__.py
 extensions/back/ActivationsNormalizer.py
 extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
+extensions/back/CellNormalizer.py
 extensions/back/compress_quantized_weights.py
 extensions/back/ConvolutionNormalizer.py
 extensions/back/CorrectName.py
@@ -32,7 +33,6 @@ extensions/back/kaldi_remove_memory_output.py
 extensions/back/LeakyReLUMutation.py
 extensions/back/LeakyReluToReluWithNegativeSlope.py
 extensions/back/LRNToNorm.py
-extensions/back/LSTMCellNormalizer.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
 extensions/back/NonMaximumSuppressionNormalize.py
@@ -284,6 +284,7 @@ extensions/front/onnx/priorbox_clustered_ext.py
 extensions/front/onnx/priorbox_ext.py
 extensions/front/onnx/priorgridgenerator_ext.py
 extensions/front/onnx/proposal_ext.py
+extensions/front/onnx/quantize_dequantize_linear.py
 extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/reduce_max_ext.py
 extensions/front/onnx/reduce_mean_ext.py
