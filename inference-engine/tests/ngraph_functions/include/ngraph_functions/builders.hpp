@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,5 +112,9 @@ std::shared_ptr<ngraph::Node> makeProposal(const ngraph::Output<Node> &class_pro
                                            float box_size_scale,
                                            float box_coordinate_scale,
                                            std::string framework);
+
+std::shared_ptr<ngraph::Node> makeSelect(std::vector<ngraph::Output<Node>> &in,
+                                         const ngraph::op::AutoBroadcastSpec& auto_broadcast);
+
 }  // namespace builder
 }  // namespace ngraph

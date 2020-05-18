@@ -230,6 +230,18 @@ private:
             adapter.set(value);
         }
 
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+            std::vector<float> value;
+            if (!getParameters<float>(node.child("data"), name, value)) return;
+            adapter.set(value);
+        }
+
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+            std::vector<std::string> value;
+            if (!getParameters<std::string>(node.child("data"), name, value)) return;
+            adapter.set(value);
+        }
+
     private:
         const pugi::xml_node node;
 

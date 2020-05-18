@@ -9,11 +9,11 @@
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <transformations/convert_divide.hpp>
 #include <transformations/convert_mod.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_gathertree_to_gathertree_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_lstm_cell_to_lstm_cell_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
 #include <transformations/convert_minimum_to_power_and_max.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
@@ -41,7 +41,7 @@
 #include <transformations/mul_add_squence_fusion.hpp>
 #include <transformations/mul_add_verification.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_fc_fusion.hpp>
-#include <transformations/convert_opset1_to_legacy/reshape_1d_convolutions.hpp>
+#include <transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
 #include <transformations/pull_transpose_through_fq.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_strided_slice_to_strided_slice_ie.hpp>

@@ -75,6 +75,9 @@ std::string ConcatTestModel::getName() const {
 }
 
 bool ConcatTestModel::transform(CNNNetwork& network, LayerTransformation::Params& params) const {
+    // TODO: remove when updatePrecisions is configurable
+    params.updatePrecisions = true;
+
     LowPrecisionTransformations transformations = getLowPrecisionTransformations(params);
 
     if (!multiChannel) {
@@ -163,5 +166,5 @@ float ConcatTestModel::getThreshold(const std::string& device_name, const Precis
         }
     }
 
-    return precision == Precision::FP16 ? 0.0005f : 0.0003f;
+    return SingleLayerTestModel::getThreshold(device_name, precision, params);
 }

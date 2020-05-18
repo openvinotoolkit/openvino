@@ -65,7 +65,7 @@ class MKLDNNMemoryNodeVirtualEdge {
 
 class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
  public:
-    MKLDNNMemoryOutputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNMemoryOutputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNMemoryOutputNode() override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -91,7 +91,7 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
 #if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 class MKLDNNMemoryInputNode : public MKLDNNInputNode, public MKLDNNMemoryNode {
 public:
-    MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNMemoryInputNode() override;
 
     bool created() const override {

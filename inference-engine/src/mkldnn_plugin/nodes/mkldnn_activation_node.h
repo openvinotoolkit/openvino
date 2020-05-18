@@ -15,7 +15,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNActivationNode : public MKLDNNNode {
 public:
-    MKLDNNActivationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNActivationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNActivationNode() override = default;
 
     void getSupportedDescriptors() override;

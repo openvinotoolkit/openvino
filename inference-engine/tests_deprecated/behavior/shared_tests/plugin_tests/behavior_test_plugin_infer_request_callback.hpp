@@ -5,6 +5,7 @@
 #include "behavior_test_plugin.h"
 #include <mutex>
 #include <condition_variable>
+#include <atomic>
 
 using namespace std;
 using namespace ::testing;
@@ -117,21 +118,23 @@ TEST_P(BehaviorPluginTestInferRequestCallback, canStartAsyncInsideCompletionCall
 
 // test that can wait all callbacks on dtor
 TEST_P(BehaviorPluginTestInferRequestCallback, canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) {
-    TestEnv::Ptr testEnv;
-    ASSERT_NO_FATAL_FAILURE(_createAndCheckInferRequest(GetParam(), testEnv));
     const int NUM_ITER = 10;
     struct TestUserData {
         int numIter = NUM_ITER;
         bool startAsyncOK = true;
         bool getDataOK = true;
-        int numIsCalled = 0;
+        std::atomic<int> numIsCalled{0};
         std::mutex mutex_block_emulation;
         std::condition_variable cv_block_emulation;
         bool isBlocked = true;
         string device;
     };
     TestUserData data;
+
+    TestEnv::Ptr testEnv;
+    ASSERT_NO_FATAL_FAILURE(_createAndCheckInferRequest(GetParam(), testEnv));
     data.device = GetParam().device;
+
     testEnv->inferRequest->SetUserData(&data, nullptr);
     testEnv->inferRequest->SetCompletionCallback(
             [](InferenceEngine::IInferRequest::Ptr request, StatusCode status) {
@@ -153,7 +156,7 @@ TEST_P(BehaviorPluginTestInferRequestCallback, canStartSeveralAsyncInsideComplet
                 userData->numIsCalled++;
                 if (!userData->numIter) {
                     userData->isBlocked = false;
-                    userData->cv_block_emulation.notify_all();
+                    userData->cv_block_emulation.notify_one();
                 }
             });
 
@@ -173,21 +176,22 @@ TEST_P(BehaviorPluginTestInferRequestCallback, canStartSeveralAsyncInsideComplet
 }
 
 // test that can wait all callbacks on dtor
-// FIXME: CVS-8956, dll is unloaded before finishing infer request
-TEST_P(BehaviorPluginTestInferRequestCallback, DISABLED_canStartSeveralAsyncInsideCompletionCallbackNoSafeDtor) {
-    TestEnv::Ptr testEnv;
-    ASSERT_NO_FATAL_FAILURE(_createAndCheckInferRequest(GetParam(), testEnv));
+TEST_P(BehaviorPluginTestInferRequestCallback, canStartSeveralAsyncInsideCompletionCallbackNoSafeDtor) {
     const int NUM_ITER = 10;
     struct TestUserData {
         int numIter = NUM_ITER;
         bool startAsyncOK = true;
         bool getDataOK = true;
-        int numIsCalled = 0;
+        std::atomic<int> numIsCalled{0};
         std::mutex mutex_block_emulation;
         std::condition_variable cv_block_emulation;
         bool isBlocked = true;
     };
     TestUserData data;
+
+    TestEnv::Ptr testEnv;
+    ASSERT_NO_FATAL_FAILURE(_createAndCheckInferRequest(GetParam(), testEnv));
+
     testEnv->inferRequest->SetUserData(&data, nullptr);
     testEnv->inferRequest->SetCompletionCallback(
             [](InferenceEngine::IInferRequest::Ptr request, StatusCode status) {
@@ -207,7 +211,7 @@ TEST_P(BehaviorPluginTestInferRequestCallback, DISABLED_canStartSeveralAsyncInsi
                 userData->numIsCalled++;
                 if (!userData->numIter) {
                     userData->isBlocked = false;
-                    userData->cv_block_emulation.notify_all();
+                    userData->cv_block_emulation.notify_one();
                 }
             });
 
@@ -228,21 +232,23 @@ TEST_P(BehaviorPluginTestInferRequestCallback, DISABLED_canStartSeveralAsyncInsi
 }
 
 // test that can wait all callbacks on dtor
-// FIXME: CVS-8956, dll is unloaded before finishing infer request
-TEST_P(BehaviorPluginTestInferRequest, DISABLED_canStartSeveralAsyncInsideCompletionCallbackNoSafeDtorWithoutWait) {
-    TestEnv::Ptr testEnv;
-    ASSERT_NO_FATAL_FAILURE(_createAndCheckInferRequest(GetParam(), testEnv));
+TEST_P(BehaviorPluginTestInferRequest, canStartSeveralAsyncInsideCompletionCallbackNoSafeDtorWithoutWait) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     const int NUM_ITER = 1;
     struct TestUserData {
         int numIter = NUM_ITER;
         bool startAsyncOK = true;
         bool getDataOK = true;
-        int numIsCalled = 0;
+        std::atomic<int> numIsCalled{0};
         std::mutex mutex_block_emulation;
         std::condition_variable cv_block_emulation;
         bool isBlocked = true;
     };
     TestUserData data;
+
+    TestEnv::Ptr testEnv;
+    ASSERT_NO_FATAL_FAILURE(_createAndCheckInferRequest(GetParam(), testEnv));
+
     testEnv->inferRequest->SetUserData(&data, nullptr);
     testEnv->inferRequest->SetCompletionCallback(
             [](InferenceEngine::IInferRequest::Ptr request, StatusCode status) {
@@ -262,11 +268,12 @@ TEST_P(BehaviorPluginTestInferRequest, DISABLED_canStartSeveralAsyncInsideComple
                 userData->numIsCalled++;
                 if (!userData->numIter) {
                     userData->isBlocked = false;
-                    userData->cv_block_emulation.notify_all();
+                    userData->cv_block_emulation.notify_one();
                 }
             });
 
     sts = testEnv->inferRequest->StartAsync(nullptr);
+    auto cppRequest = testEnv->actualInferRequest; // need a request / plugin instance at least
     testEnv->inferRequest = nullptr;
     testEnv = nullptr;
 
@@ -336,8 +343,7 @@ TEST_P(BehaviorPluginTestInferRequestCallback, DISABLED_canStartSeveralAsyncInsi
     ASSERT_TRUE(data.waitOK);
 }
 
-// TODO: no, this is not correct test. callback throw exception and plugin shouldn't fail? user have to process this by himself.
-TEST_P(BehaviorPluginTestInferRequestCallback, DISABLED_returnGeneralErrorIfCallbackThrowException) {
+TEST_P(BehaviorPluginTestInferRequestCallback, returnGeneralErrorIfCallbackThrowException) {
     TestEnv::Ptr testEnv;
     ASSERT_NO_FATAL_FAILURE(_createAndCheckInferRequest(GetParam(), testEnv));
     testEnv->inferRequest->SetCompletionCallback(
@@ -377,6 +383,7 @@ TEST_P(BehaviorPluginTestInferRequestCallback, inferDoesNotCallCompletionCallbac
     ASSERT_FALSE(data.isCalled);
 }
 
+// ilavreno: test is invalid
 // TODO: develop test that request not released until request is done itself? (to check wait in dtor?)
 TEST_P(BehaviorPluginTestInferRequestCallback, DISABLED_requestNotReleasedUntilCallbackAreDone) {
     TestEnv::Ptr testEnv;

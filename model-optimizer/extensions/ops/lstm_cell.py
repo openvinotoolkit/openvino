@@ -46,6 +46,8 @@ class LSTMCell(Op):
             'infer': __class__.infer,
             'in_ports_count': 5,
             'out_ports_count': 2,
+            'wr_input_id': 3,
+            'gates_count': 4
         }
         super().__init__(graph, mandatory_props, attrs)
 

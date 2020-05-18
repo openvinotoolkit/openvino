@@ -222,7 +222,8 @@ using TargetDevice = std::string;
 
 enum RefMode {
     INTERPRETER,
-    CONSTANT_FOLDING
+    CONSTANT_FOLDING,
+    IE
 };
 
 class LayerTestsCommon : public CommonTestUtils::TestsCommon {

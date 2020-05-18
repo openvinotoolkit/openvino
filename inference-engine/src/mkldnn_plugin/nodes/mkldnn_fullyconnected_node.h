@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNFullyConnectedNode : public MKLDNNNode {
 public:
-    MKLDNNFullyConnectedNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNFullyConnectedNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNFullyConnectedNode() override = default;
 
     void getSupportedDescriptors() override;

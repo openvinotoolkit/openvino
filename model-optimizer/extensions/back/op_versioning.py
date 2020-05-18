@@ -137,8 +137,6 @@ class OpVersioning(BackReplacementPattern):
     ]))
 
     opset_1_experimental_ops = set(map(lambda s: s.lower(), [
-        "RNNCell",
-        "GRUCell",
         "SimplerNMS",
         "SpatialTransformer",
         "ExperimentalDetectronGenerateProposalsSingleImage",

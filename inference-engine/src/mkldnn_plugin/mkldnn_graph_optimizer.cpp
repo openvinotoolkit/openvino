@@ -629,7 +629,7 @@ void MKLDNNGraphOptimizer::MergeSigmoidAndMultiplyToSwish(MKLDNNGraph& graph) {
         CNNLayerPtr swishLayer(new CNNLayer(*activationNode->getCnnLayer().get()));
         swishLayer->name = activationNode->getName() + "_Swish";
         swishLayer->type = "Swish";
-        MKLDNNNodePtr swishNode(new MKLDNNActivationNode(swishLayer, graph.getEngine(), graph.socket));
+        MKLDNNNodePtr swishNode(new MKLDNNActivationNode(swishLayer, graph.getEngine(), graph.weightsCache));
 
         //  4. Create edges Parent-Swish and Swish-Eltwise, connect to Swish node, add edges to graph
         MKLDNNEdgePtr beforeSwishEdge(new MKLDNNEdge(parentNode, swishNode, iIndex, 0));
@@ -1965,7 +1965,7 @@ void MKLDNNGraphOptimizer::DropDoubleReorders(MKLDNNGraph &graph) {
             CNNLayerPtr layer(new CNNLayer({layerName,
                                             "Reorder",
                                             n->getInput().getPrecision()}));
-            MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layer, graph.getEngine(), graph.socket));
+            MKLDNNNodePtr newReorder(new MKLDNNReorderNode(layer, graph.getEngine(), graph.weightsCache));
             auto *reorderPtr = dynamic_cast<MKLDNNReorderNode *>(newReorder.get());
             if (reorderPtr) {
                 reorderPtr->setDescs(n->getInput(), nn->getOutput());
