@@ -197,103 +197,103 @@ jobs:
     continueOnError: true
 
 #IE_Win
-- job: IE_Win
-  timeoutInMinutes: 0
-  pool:
-    vmImage: 'vs2017-win2016'
-  variables:
-    BUILD_TYPE: Release
-  steps:
-  - script: |
-      set
-      wmic cpu list
-      wmic logicaldisk get description,name
-      wmic VOLUME list
-    displayName: 'System properties'
-  - script: git submodule update --init --recursive
-    displayName: 'Clone submodules'
-  - script: |
-      mkdir C:\c-dldt-build\bin
-      mkdir dldt-build
-      cd dldt-build
-    displayName: 'Create build directory'
-  - task: CMake@1
-    inputs:
-      workingDirectory: C:\c-dldt-build
-      cmakeArgs: -G"Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
-  - script: cmake --build . --config $(BUILD_TYPE) -j3
-    workingDirectory: C:\c-dldt-build
-    displayName: 'Build IE VS2017'
-  - script: dir ..\bin\intel64\$(BUILD_TYPE)\
-    workingDirectory: dldt-build
-    displayName: 'List files'
-  - script: |
-      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
-    workingDirectory: dldt-build
-    displayName: 'nGraph UT'
-    continueOnError: true
-  - script: |
-      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\InferenceEngineUnitTests
-    workingDirectory: dldt-build
-    displayName: 'IE UT old'
-    continueOnError: true
-  - script: |
-      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\ieUnitTests
-    workingDirectory: dldt-build
-    displayName: 'IE UT'
-    continueOnError: true
-  - script: |
-      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\cpuUnitTests
-    workingDirectory: dldt-build
-    displayName: 'CPU UT'
-    continueOnError: true
-  - script: |
-      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\gnaUnitTests
-    workingDirectory: dldt-build
-    displayName: 'GNA UT'
-    continueOnError: true
-  - script: |
-      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\vpuUnitTests
-    workingDirectory: dldt-build
-    displayName: 'VPU UT'
-    continueOnError: true
-  - script: |
-      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\ieFuncTests
-    workingDirectory: dldt-build
-    displayName: 'IE FuncTests'
-    continueOnError: true
-  - script: |
-      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\MklDnnBehaviorTests
-    workingDirectory: dldt-build
-    displayName: 'MklDnnBehaviorTests'
-    continueOnError: true
-  - script: git clone https://github.com/openvinotoolkit/testdata.git
-    workingDirectory: C:\c-dldt-build
-    displayName: 'Clone testdata'
-  - script: |
-      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
-      set DATA_PATH=C:\c-dldt-build\testdata
-      set MODELS_PATH=C:\c-dldt-build\testdata
-      ..\bin\intel64\$(BUILD_TYPE)\MklDnnFunctionalTests
-    workingDirectory: dldt-build
-    displayName: 'MklDnnFunctionalTests'
-    continueOnError: true
-  - script: |
-      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
-      set DATA_PATH=C:\c-dldt-build\testdata
-      set MODELS_PATH=C:\c-dldt-build\testdata
-      ..\bin\intel64\$(BUILD_TYPE)\InferenceEngineCAPITests
-    workingDirectory: dldt-build
-    displayName: 'IE CAPITests'
-    continueOnError: true
+#- job: IE_Win
+#  timeoutInMinutes: 0
+#  pool:
+#    vmImage: 'vs2017-win2016'
+#  variables:
+#    BUILD_TYPE: Release
+#  steps:
+#  - script: |
+#      set
+#      wmic cpu list
+#      wmic logicaldisk get description,name
+#      wmic VOLUME list
+#    displayName: 'System properties'
+#  - script: git submodule update --init --recursive
+#    displayName: 'Clone submodules'
+#  - script: |
+#      mkdir C:\c-dldt-build\bin
+#      mkdir dldt-build
+#      cd dldt-build
+#    displayName: 'Create build directory'
+#  - task: CMake@1
+#    inputs:
+#      workingDirectory: C:\c-dldt-build
+#      cmakeArgs: -G"Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
+#  - script: cmake --build . --config $(BUILD_TYPE) -j3
+#    workingDirectory: C:\c-dldt-build
+#    displayName: 'Build IE VS2017'
+#  - script: dir ..\bin\intel64\$(BUILD_TYPE)\
+#    workingDirectory: dldt-build
+#    displayName: 'List files'
+#  - script: |
+#      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+#      ..\bin\intel64\$(BUILD_TYPE)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
+#    workingDirectory: dldt-build
+#    displayName: 'nGraph UT'
+#    continueOnError: true
+#  - script: |
+#      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+#      ..\bin\intel64\$(BUILD_TYPE)\InferenceEngineUnitTests
+#    workingDirectory: dldt-build
+#    displayName: 'IE UT old'
+#    continueOnError: true
+#  - script: |
+#      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+#      ..\bin\intel64\$(BUILD_TYPE)\ieUnitTests
+#    workingDirectory: dldt-build
+#    displayName: 'IE UT'
+#    continueOnError: true
+#  - script: |
+#      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+#      ..\bin\intel64\$(BUILD_TYPE)\cpuUnitTests
+#    workingDirectory: dldt-build
+#    displayName: 'CPU UT'
+#    continueOnError: true
+#  - script: |
+#      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+#      ..\bin\intel64\$(BUILD_TYPE)\gnaUnitTests
+#    workingDirectory: dldt-build
+#    displayName: 'GNA UT'
+#    continueOnError: true
+#  - script: |
+#      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+#      ..\bin\intel64\$(BUILD_TYPE)\vpuUnitTests
+#    workingDirectory: dldt-build
+#    displayName: 'VPU UT'
+#    continueOnError: true
+#  - script: |
+#      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+#      ..\bin\intel64\$(BUILD_TYPE)\ieFuncTests
+#    workingDirectory: dldt-build
+#    displayName: 'IE FuncTests'
+#    continueOnError: true
+#  - script: |
+#      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+#      ..\bin\intel64\$(BUILD_TYPE)\MklDnnBehaviorTests
+#    workingDirectory: dldt-build
+#    displayName: 'MklDnnBehaviorTests'
+#    continueOnError: true
+#  - script: git clone https://github.com/openvinotoolkit/testdata.git
+#    workingDirectory: C:\c-dldt-build
+#    displayName: 'Clone testdata'
+#  - script: |
+#      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
+#      set DATA_PATH=C:\c-dldt-build\testdata
+#      set MODELS_PATH=C:\c-dldt-build\testdata
+#      ..\bin\intel64\$(BUILD_TYPE)\MklDnnFunctionalTests
+#    workingDirectory: dldt-build
+#    displayName: 'MklDnnFunctionalTests'
+#    continueOnError: true
+#  - script: |
+#      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
+#      set DATA_PATH=C:\c-dldt-build\testdata
+#      set MODELS_PATH=C:\c-dldt-build\testdata
+#      ..\bin\intel64\$(BUILD_TYPE)\InferenceEngineCAPITests
+#    workingDirectory: dldt-build
+#    displayName: 'IE CAPITests'
+#    continueOnError: true
 
 #IE_Win_self
 - job: IE_Win_self
@@ -324,7 +324,7 @@ jobs:
     inputs:
       workingDirectory: C:\c-dldt-build
       cmakeArgs: -G"Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
-  - script: cmake --build . --config $(BUILD_TYPE) -j6
+  - script: cmake --build . --config $(BUILD_TYPE) -j8
     workingDirectory: C:\c-dldt-build
     displayName: 'Build IE VS2019'
   - script: dir ..\bin\intel64\$(BUILD_TYPE)\
