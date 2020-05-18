@@ -61,6 +61,7 @@ if not "%OPENCV%"=="" (
 		powershell -command "iwr -outf '%DL_SDK_TEMP%\test_dependencies\OPENCV\_%OPENCV_FILENAME%' %OPENCV%"
 		mkdir "%DL_SDK_TEMP%\test_dependencies\OPENCV\%OPENCV_FILENAME%"
 		call "C:\Program Files\7-Zip\7z.exe" x -y %DL_SDK_TEMP%\test_dependencies\OPENCV\_%OPENCV_FILENAME% -o%DL_SDK_TEMP%\test_dependencies\OPENCV\%OPENCV_FILENAME%
+        call "C:\Program Files\7-Zip\7z.exe" x -y %DL_SDK_TEMP%\test_dependencies\OPENCV\%OPENCV_FILENAME%\_%OPENCV_FILENAME:txz=tar% -o%DL_SDK_TEMP%\test_dependencies\OPENCV\%OPENCV_FILENAME%
 		del "%DL_SDK_TEMP%\test_dependencies\OPENCV\_%OPENCV_FILENAME%" /F /Q
 	)
 )
