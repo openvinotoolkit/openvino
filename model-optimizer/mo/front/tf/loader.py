@@ -23,6 +23,8 @@ from mo.utils.utils import refer_to_faq_msg
 
 try:
     import tensorflow.compat.v1 as tf_v1
+    import tensorflow as tf
+    from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 except ImportError:
     import tensorflow as tf_v1
 
@@ -221,12 +223,27 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                 return graph_def, variables_values
         if model_dir:
             # saved model directory
-            tags = saved_model_tags if saved_model_tags is not None else [tf_v1.saved_model.tag_constants.SERVING]
-            with tf_v1.Session() as sess:
-                meta_graph_def = tf_v1.saved_model.loader.load(sess, tags, model_dir)
-                outputs = get_output_node_names_list(meta_graph_def.graph_def, user_output_node_names_list)
-                graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, meta_graph_def.graph_def, outputs)
+            try:
+                # code to extract GraphDef for TF 2.0 SavedModel format
+                # tf.saved_model.load function throws TypeError for TF 1.x SavedModel format in case TF 1.x installed
+                imported = tf.saved_model.load(model_dir, saved_model_tags) # pylint: disable=E1120
+                # to get a signature by key throws KeyError for TF 1.x SavedModel format in case TF 2.x installed
+                concrete_func = imported.signatures[tf.saved_model.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+                frozen_func = convert_variables_to_constants_v2(concrete_func, lower_control_flow=False) # pylint: disable=E1123
+                graph_def = frozen_func.graph.as_graph_def(add_shapes=True)
+                # disable eager execution to dump a graph for tensorboard
+                tf_v1.disable_eager_execution()                
                 return graph_def, variables_values
+            except (TypeError, KeyError):
+                # code to extract GraphDef for TF 1.0 SavedModel format
+                tags = saved_model_tags if saved_model_tags is not None else [tf_v1.saved_model.tag_constants.SERVING]
+                with tf_v1.Session() as sess:
+                    meta_graph_def = tf_v1.saved_model.loader.load(sess, tags, model_dir)
+                    outputs = get_output_node_names_list(meta_graph_def.graph_def, user_output_node_names_list)
+                    graph_def = tf_v1.graph_util.convert_variables_to_constants(sess, meta_graph_def.graph_def, outputs)
+                    return graph_def, variables_values
+            except Exception as e:
+                raise FrameworkError('SavedModel format load failure: {}', e) from e
     except Exception as e:
         raise FrameworkError('Cannot load input model: {}', e) from e
     raise Error("Unknown configuration of input model parameters")

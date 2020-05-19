@@ -103,8 +103,10 @@ class UpsampleToResample(MiddleReplacementPattern):
         end = Const(graph, {'value': int64_array([get_width_dim(layout, input_shape_rank) + 1])}).create_node()
 
         stride = Const(graph, {'value': int64_array([1])}).create_node()
-        ss = StridedSlice(graph, {'name': upsample.name + '/ss_0_port', 'begin_mask': np.array([1]),
-                                  'end_mask': np.array([0]), 'new_axis_mask': np.array([0]),
+        ss = StridedSlice(graph, {'name': upsample.name + '/ss_0_port',
+                                  'begin_mask': int64_array([1]),
+                                  'end_mask': int64_array([1]),
+                                  'new_axis_mask': int64_array([0]),
                                   'shrink_axis_mask': int64_array([0]),
                                   'ellipsis_mask': int64_array([0])}).create_node()
 

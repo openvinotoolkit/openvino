@@ -47,6 +47,7 @@
 #include "transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
+#include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -407,6 +408,15 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
         return res;
     });
+
+    addSpecificCreator({"ScatterUpdate"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), node->description(),
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<ScatterUpdateLayer>(attrs);
+        res->params = params;
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -653,9 +663,8 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         if (isInternalLayer(layer, op_names, keep_constants)) continue;
 
         // TODO: remove this rt info when all blobs will be inputs
-        InferenceEngine::Parameter attr(keep_constants);
         auto &rt_info = layer->get_rt_info();
-        rt_info["keep_constants"] = attr.asVariant();
+        rt_info["keep_constants"] = std::make_shared<::ngraph::VariantWrapper<int64_t>> (keep_constants);
 
         CNNLayerPtr cnnLayer = createCNNLayer(layer);
 
@@ -665,15 +674,23 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
             cnnLayer->params["originalLayersNames"] = originalNames;
         }
 
+        std::string primitivesPriority = ::ngraph::getPrimitivesPriority(layer);
+        if (!primitivesPriority.empty()) {
+            cnnLayer->params["PrimitivesPriority"] = primitivesPriority;
+        }
+
+        // Copy runtime info attributes from Nodes to CNNLayers if they have VariantWrapper<std::string> type
+        using VariantString = ::ngraph::VariantWrapper<std::string>;
         for (const auto &rt : rt_info) {
-            Parameter param(rt.second);
-            if (param.empty()) continue;
-            if (details::CaselessEq<std::string>()(rt.first, "affinity")) {
-                cnnLayer->affinity = param.as<std::string>();
-            } else if (param.is<std::string>()) {
-                cnnLayer->params[rt.first] = param.as<std::string>();
+            if (auto str_attr = std::dynamic_pointer_cast<VariantString>(rt.second)) {
+                if (details::CaselessEq<std::string>()(rt.first, "affinity")) {
+                    cnnLayer->affinity = str_attr->get();
+                } else {
+                    cnnLayer->params[rt.first] = str_attr->get();
+                }
             }
         }
+
         size_t inputCount(0);
         for (size_t i = 0; i < layer->get_input_size(); i++) {
             const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(layer->get_inputs()[i].get_output().get_node());

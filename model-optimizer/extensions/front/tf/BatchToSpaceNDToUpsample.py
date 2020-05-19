@@ -97,6 +97,12 @@ class BatchToSpaceToUpsample(FrontReplacementSubgraph):
                       'transformation.'.format(batch_to_space_nd.name))
             return
 
+        crops = _input_node_value(batch_to_space_nd, 2)
+        if crops is None or np.count_nonzero(crops) != 0:
+            log.debug('Crops for node {} are non zero. Cannot apply BatchToSpaceToUpsample '
+                      'transformation.'.format(batch_to_space_nd.name))
+            return
+
         transpose_back = match['transpose_back']
         transpose_back_order = _input_node_value(transpose_back, 1)
         if transpose_back_order is None or not np.all(np.equal(transpose_back_order, int64_array([3, 0, 1, 2]))):

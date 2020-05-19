@@ -6,6 +6,7 @@ set(TARGET_NAME ngraphFunctions)
 
 list(APPEND EXPORT_DEPENDENCIES
         ${NGRAPH_LIBRARIES}
+        ngraph_backend
         interpreter_backend
         )
 

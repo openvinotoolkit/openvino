@@ -32,10 +32,9 @@ void ngraph::pass::ConvertConvolutions::convert_convolution() {
         auto conv_ie = std::make_shared<ngraph::op::ConvolutionIE>(conv->input_value(0),
                                                                    conv->input_value(1),
                                                                    conv->get_strides(),
+                                                                   conv->get_dilations(),
                                                                    conv->get_pads_begin(),
                                                                    conv->get_pads_end(),
-                                                                   conv->get_dilations(),
-                                                                   conv->output(0).get_shape(),
                                                                    1 /* groups */,
                                                                    conv->get_auto_pad());
         ngraph::copy_runtime_info(conv, conv_ie);
@@ -82,13 +81,11 @@ void ngraph::pass::ConvertConvolutions::convert_group_convolution() {
         auto conv_ie = std::make_shared<ngraph::op::ConvolutionIE>(gconv->input_value(0),
                                                                    weights,
                                                                    gconv->get_strides(),
+                                                                   gconv->get_dilations(),
                                                                    gconv->get_pads_begin(),
                                                                    gconv->get_pads_end(),
-                                                                   gconv->get_dilations(),
-                                                                   gconv->output(0).get_shape(),
                                                                    group,
                                                                    gconv->get_auto_pad());
-        conv_ie->get_rt_info() = gconv->get_rt_info();
         conv_ie->set_friendly_name(gconv->get_friendly_name());
         ngraph::copy_runtime_info(gconv, conv_ie);
         ngraph::replace_node(gconv, conv_ie);

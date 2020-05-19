@@ -35,7 +35,6 @@ struct ExtensionsHolder {
     std::map<std::string, IShapeInferImpl::Ptr> si_list;
 };
 
-template<mkldnn::impl::cpu::cpu_isa_t Type>
 class MKLDNNExtensions : public IExtension {
 public:
     StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
@@ -109,15 +108,12 @@ private:
 
 IE_SUPPRESS_DEPRECATED_END
 
-template<mkldnn::impl::cpu::cpu_isa_t T, typename Ext>
+template<typename Ext>
 class ExtRegisterBase {
 public:
-    explicit ExtRegisterBase(const std::string& type, mkldnn::impl::cpu::cpu_isa_t cpu_id) {
-        if (!mkldnn::impl::cpu::mayiuse(cpu_id))
-            return;
-
+    explicit ExtRegisterBase(const std::string& type) {
         IE_SUPPRESS_DEPRECATED_START
-        MKLDNNExtensions<T>::AddExt(type,
+        MKLDNNExtensions::AddExt(type,
                               [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
                                   return new Ext(layer);
                               });
@@ -126,10 +122,7 @@ public:
 };
 
 #define REG_FACTORY_FOR(__prim, __type) \
-static ExtRegisterBase<mkldnn::impl::cpu::cpu_isa_t::isa_any, __prim> __reg__##__type(#__type, mkldnn::impl::cpu::cpu_isa_t::isa_any)
-
-#define REG_FACTORY_FOR_TYPE(__platform, __prim, __type) \
-static ExtRegisterBase<mkldnn::impl::cpu::cpu_isa_t::__platform, __prim> __reg__##__type(#__type, mkldnn::impl::cpu::cpu_isa_t::__platform)
+static ExtRegisterBase<__prim> __reg__##__type(#__type)
 
 }  // namespace Cpu
 }  // namespace Extensions

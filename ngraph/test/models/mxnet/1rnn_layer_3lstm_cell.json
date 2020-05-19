@@ -1,0 +1,889 @@
+[{
+  "name" : "Function_0",
+  "ops" : [
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_0",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_0_0"],
+      "shape" : [ 10, 50 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_7",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_7_0"],
+      "shape" : [ 10, 50 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_20",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_20_0"],
+      "shape" : [400]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_19",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_19_0"],
+      "shape" : [ 400, 100 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_2",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_2_0"],
+      "shape" : [400]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_1",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_1_0"],
+      "shape" : [ 400, 50 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_12",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_12_0"],
+      "shape" : [ 10, 50 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_17",
+      "op" : "Constant",
+      "outputs" : ["Constant_17_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_44",
+      "op" : "Constant",
+      "outputs" : ["Constant_44_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_40",
+      "op" : "Constant",
+      "outputs" : ["Constant_40_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_34",
+      "op" : "Constant",
+      "outputs" : ["Constant_34_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_27",
+      "op" : "Constant",
+      "outputs" : ["Constant_27_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_77",
+      "op" : "Constant",
+      "outputs" : ["Constant_77_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_69",
+      "op" : "Constant",
+      "outputs" : ["Constant_69_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_62",
+      "op" : "Constant",
+      "outputs" : ["Constant_62_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_110",
+      "op" : "Constant",
+      "outputs" : ["Constant_110_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_102",
+      "op" : "Constant",
+      "outputs" : ["Constant_102_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_95",
+      "op" : "Constant",
+      "outputs" : ["Constant_95_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_20"],
+      "name" : "Broadcast_23",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_23_0"],
+      "shape" : [ 10, 400 ]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_20"],
+      "name" : "Broadcast_58",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_58_0"],
+      "shape" : [ 10, 400 ]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_20"],
+      "name" : "Broadcast_91",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_91_0"],
+      "shape" : [ 10, 400 ]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Parameter_19"],
+      "name" : "Reshape_21",
+      "op" : "Reshape",
+      "output_shape" : [ 100, 400 ],
+      "outputs" : ["Reshape_21_0"]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Parameter_19"],
+      "name" : "Reshape_56",
+      "op" : "Reshape",
+      "output_shape" : [ 100, 400 ],
+      "outputs" : ["Reshape_56_0"]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Parameter_19"],
+      "name" : "Reshape_89",
+      "op" : "Reshape",
+      "output_shape" : [ 100, 400 ],
+      "outputs" : ["Reshape_89_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_2"],
+      "name" : "Broadcast_5",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_5_0"],
+      "shape" : [ 10, 400 ]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_2"],
+      "name" : "Broadcast_10",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_10_0"],
+      "shape" : [ 10, 400 ]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_2"],
+      "name" : "Broadcast_15",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_15_0"],
+      "shape" : [ 10, 400 ]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Parameter_1"],
+      "name" : "Reshape_3",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 400 ],
+      "outputs" : ["Reshape_3_0"]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Parameter_1"],
+      "name" : "Reshape_8",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 400 ],
+      "outputs" : ["Reshape_8_0"]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Parameter_1"],
+      "name" : "Reshape_13",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 400 ],
+      "outputs" : ["Reshape_13_0"]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_17"],
+      "name" : "Broadcast_18",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_18_0"],
+      "shape" : [ 10, 100 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_44"],
+      "name" : "Broadcast_45",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_45_0"],
+      "shape" : [ 10, 100 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_40"],
+      "name" : "Broadcast_41",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_41_0"],
+      "shape" : [ 10, 100 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_34"],
+      "name" : "Broadcast_35",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_35_0"],
+      "shape" : [ 10, 100 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_27"],
+      "name" : "Broadcast_28",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_28_0"],
+      "shape" : [ 10, 100 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_77"],
+      "name" : "Broadcast_78",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_78_0"],
+      "shape" : [ 10, 100 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_69"],
+      "name" : "Broadcast_70",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_70_0"],
+      "shape" : [ 10, 100 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_62"],
+      "name" : "Broadcast_63",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_63_0"],
+      "shape" : [ 10, 100 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_110"],
+      "name" : "Broadcast_111",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_111_0"],
+      "shape" : [ 10, 100 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_102"],
+      "name" : "Broadcast_103",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_103_0"],
+      "shape" : [ 10, 100 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_95"],
+      "name" : "Broadcast_96",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_96_0"],
+      "shape" : [ 10, 100 ]
+    },
+    {
+      "inputs" : [ "Parameter_0", "Reshape_3" ],
+      "name" : "Dot_4",
+      "op" : "Dot",
+      "outputs" : ["Dot_4_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Parameter_7", "Reshape_8" ],
+      "name" : "Dot_9",
+      "op" : "Dot",
+      "outputs" : ["Dot_9_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Parameter_12", "Reshape_13" ],
+      "name" : "Dot_14",
+      "op" : "Dot",
+      "outputs" : ["Dot_14_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Broadcast_18", "Reshape_21" ],
+      "name" : "Dot_22",
+      "op" : "Dot",
+      "outputs" : ["Dot_22_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Dot_4", "Broadcast_5" ],
+      "name" : "Add_6",
+      "op" : "Add",
+      "outputs" : ["Add_6_0"]
+    },
+    {
+      "inputs" : [ "Dot_9", "Broadcast_10" ],
+      "name" : "Add_11",
+      "op" : "Add",
+      "outputs" : ["Add_11_0"]
+    },
+    {
+      "inputs" : [ "Dot_14", "Broadcast_15" ],
+      "name" : "Add_16",
+      "op" : "Add",
+      "outputs" : ["Add_16_0"]
+    },
+    {
+      "inputs" : [ "Dot_22", "Broadcast_23" ],
+      "name" : "Add_24",
+      "op" : "Add",
+      "outputs" : ["Add_24_0"]
+    },
+    {
+      "inputs" : [ "Add_16", "Add_24" ],
+      "name" : "Add_25",
+      "op" : "Add",
+      "outputs" : ["Add_25_0"]
+    },
+    {
+      "inputs" : ["Add_25"],
+      "lower_bounds" : [ 0, 300 ],
+      "name" : "Slice_26",
+      "op" : "Slice",
+      "outputs" : ["Slice_26_0"],
+      "strides" : [ 1, 1 ],
+      "upper_bounds" : [ 10, 400 ]
+    },
+    {
+      "inputs" : ["Add_25"],
+      "lower_bounds" : [ 0, 100 ],
+      "name" : "Slice_33",
+      "op" : "Slice",
+      "outputs" : ["Slice_33_0"],
+      "strides" : [ 1, 1 ],
+      "upper_bounds" : [ 10, 200 ]
+    },
+    {
+      "inputs" : ["Add_25"],
+      "lower_bounds" : [ 0, 0 ],
+      "name" : "Slice_43",
+      "op" : "Slice",
+      "outputs" : ["Slice_43_0"],
+      "strides" : [ 1, 1 ],
+      "upper_bounds" : [ 10, 100 ]
+    },
+    {
+      "inputs" : ["Add_25"],
+      "lower_bounds" : [ 0, 200 ],
+      "name" : "Slice_50",
+      "op" : "Slice",
+      "outputs" : ["Slice_50_0"],
+      "strides" : [ 1, 1 ],
+      "upper_bounds" : [ 10, 300 ]
+    },
+    {
+      "inputs" : ["Slice_26"],
+      "name" : "Negative_29",
+      "op" : "Negative",
+      "outputs" : ["Negative_29_0"]
+    },
+    {
+      "inputs" : ["Slice_33"],
+      "name" : "Negative_36",
+      "op" : "Negative",
+      "outputs" : ["Negative_36_0"]
+    },
+    {
+      "inputs" : ["Slice_43"],
+      "name" : "Negative_46",
+      "op" : "Negative",
+      "outputs" : ["Negative_46_0"]
+    },
+    {
+      "inputs" : ["Slice_50"],
+      "name" : "Tanh_51",
+      "op" : "Tanh",
+      "outputs" : ["Tanh_51_0"]
+    },
+    {
+      "inputs" : ["Negative_29"],
+      "name" : "Exp_30",
+      "op" : "Exp",
+      "outputs" : ["Exp_30_0"]
+    },
+    {
+      "inputs" : ["Negative_36"],
+      "name" : "Exp_37",
+      "op" : "Exp",
+      "outputs" : ["Exp_37_0"]
+    },
+    {
+      "inputs" : ["Negative_46"],
+      "name" : "Exp_47",
+      "op" : "Exp",
+      "outputs" : ["Exp_47_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_28", "Exp_30" ],
+      "name" : "Add_31",
+      "op" : "Add",
+      "outputs" : ["Add_31_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_35", "Exp_37" ],
+      "name" : "Add_38",
+      "op" : "Add",
+      "outputs" : ["Add_38_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_45", "Exp_47" ],
+      "name" : "Add_48",
+      "op" : "Add",
+      "outputs" : ["Add_48_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_28", "Add_31" ],
+      "name" : "Divide_32",
+      "op" : "Divide",
+      "outputs" : ["Divide_32_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_35", "Add_38" ],
+      "name" : "Divide_39",
+      "op" : "Divide",
+      "outputs" : ["Divide_39_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_45", "Add_48" ],
+      "name" : "Divide_49",
+      "op" : "Divide",
+      "outputs" : ["Divide_49_0"]
+    },
+    {
+      "inputs" : [ "Divide_39", "Broadcast_41" ],
+      "name" : "Multiply_42",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_42_0"]
+    },
+    {
+      "inputs" : [ "Divide_49", "Tanh_51" ],
+      "name" : "Multiply_52",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_52_0"]
+    },
+    {
+      "inputs" : [ "Multiply_42", "Multiply_52" ],
+      "name" : "Add_53",
+      "op" : "Add",
+      "outputs" : ["Add_53_0"]
+    },
+    {
+      "inputs" : ["Add_53"],
+      "name" : "Tanh_54",
+      "op" : "Tanh",
+      "outputs" : ["Tanh_54_0"]
+    },
+    {
+      "inputs" : [ "Divide_32", "Tanh_54" ],
+      "name" : "Multiply_55",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_55_0"]
+    },
+    {
+      "inputs" : [ "Multiply_55", "Reshape_56" ],
+      "name" : "Dot_57",
+      "op" : "Dot",
+      "outputs" : ["Dot_57_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Dot_57", "Broadcast_58" ],
+      "name" : "Add_59",
+      "op" : "Add",
+      "outputs" : ["Add_59_0"]
+    },
+    {
+      "inputs" : [ "Add_11", "Add_59" ],
+      "name" : "Add_60",
+      "op" : "Add",
+      "outputs" : ["Add_60_0"]
+    },
+    {
+      "inputs" : ["Add_60"],
+      "lower_bounds" : [ 0, 300 ],
+      "name" : "Slice_61",
+      "op" : "Slice",
+      "outputs" : ["Slice_61_0"],
+      "strides" : [ 1, 1 ],
+      "upper_bounds" : [ 10, 400 ]
+    },
+    {
+      "inputs" : ["Add_60"],
+      "lower_bounds" : [ 0, 100 ],
+      "name" : "Slice_68",
+      "op" : "Slice",
+      "outputs" : ["Slice_68_0"],
+      "strides" : [ 1, 1 ],
+      "upper_bounds" : [ 10, 200 ]
+    },
+    {
+      "inputs" : ["Add_60"],
+      "lower_bounds" : [ 0, 0 ],
+      "name" : "Slice_76",
+      "op" : "Slice",
+      "outputs" : ["Slice_76_0"],
+      "strides" : [ 1, 1 ],
+      "upper_bounds" : [ 10, 100 ]
+    },
+    {
+      "inputs" : ["Add_60"],
+      "lower_bounds" : [ 0, 200 ],
+      "name" : "Slice_83",
+      "op" : "Slice",
+      "outputs" : ["Slice_83_0"],
+      "strides" : [ 1, 1 ],
+      "upper_bounds" : [ 10, 300 ]
+    },
+    {
+      "inputs" : ["Slice_61"],
+      "name" : "Negative_64",
+      "op" : "Negative",
+      "outputs" : ["Negative_64_0"]
+    },
+    {
+      "inputs" : ["Slice_68"],
+      "name" : "Negative_71",
+      "op" : "Negative",
+      "outputs" : ["Negative_71_0"]
+    },
+    {
+      "inputs" : ["Slice_76"],
+      "name" : "Negative_79",
+      "op" : "Negative",
+      "outputs" : ["Negative_79_0"]
+    },
+    {
+      "inputs" : ["Slice_83"],
+      "name" : "Tanh_84",
+      "op" : "Tanh",
+      "outputs" : ["Tanh_84_0"]
+    },
+    {
+      "inputs" : ["Negative_64"],
+      "name" : "Exp_65",
+      "op" : "Exp",
+      "outputs" : ["Exp_65_0"]
+    },
+    {
+      "inputs" : ["Negative_71"],
+      "name" : "Exp_72",
+      "op" : "Exp",
+      "outputs" : ["Exp_72_0"]
+    },
+    {
+      "inputs" : ["Negative_79"],
+      "name" : "Exp_80",
+      "op" : "Exp",
+      "outputs" : ["Exp_80_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_63", "Exp_65" ],
+      "name" : "Add_66",
+      "op" : "Add",
+      "outputs" : ["Add_66_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_70", "Exp_72" ],
+      "name" : "Add_73",
+      "op" : "Add",
+      "outputs" : ["Add_73_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_78", "Exp_80" ],
+      "name" : "Add_81",
+      "op" : "Add",
+      "outputs" : ["Add_81_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_63", "Add_66" ],
+      "name" : "Divide_67",
+      "op" : "Divide",
+      "outputs" : ["Divide_67_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_70", "Add_73" ],
+      "name" : "Divide_74",
+      "op" : "Divide",
+      "outputs" : ["Divide_74_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_78", "Add_81" ],
+      "name" : "Divide_82",
+      "op" : "Divide",
+      "outputs" : ["Divide_82_0"]
+    },
+    {
+      "inputs" : [ "Divide_74", "Add_53" ],
+      "name" : "Multiply_75",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_75_0"]
+    },
+    {
+      "inputs" : [ "Divide_82", "Tanh_84" ],
+      "name" : "Multiply_85",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_85_0"]
+    },
+    {
+      "inputs" : [ "Multiply_75", "Multiply_85" ],
+      "name" : "Add_86",
+      "op" : "Add",
+      "outputs" : ["Add_86_0"]
+    },
+    {
+      "inputs" : ["Add_86"],
+      "name" : "Tanh_87",
+      "op" : "Tanh",
+      "outputs" : ["Tanh_87_0"]
+    },
+    {
+      "inputs" : [ "Divide_67", "Tanh_87" ],
+      "name" : "Multiply_88",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_88_0"]
+    },
+    {
+      "inputs" : [ "Multiply_88", "Reshape_89" ],
+      "name" : "Dot_90",
+      "op" : "Dot",
+      "outputs" : ["Dot_90_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Dot_90", "Broadcast_91" ],
+      "name" : "Add_92",
+      "op" : "Add",
+      "outputs" : ["Add_92_0"]
+    },
+    {
+      "inputs" : [ "Add_6", "Add_92" ],
+      "name" : "Add_93",
+      "op" : "Add",
+      "outputs" : ["Add_93_0"]
+    },
+    {
+      "inputs" : ["Add_93"],
+      "lower_bounds" : [ 0, 300 ],
+      "name" : "Slice_94",
+      "op" : "Slice",
+      "outputs" : ["Slice_94_0"],
+      "strides" : [ 1, 1 ],
+      "upper_bounds" : [ 10, 400 ]
+    },
+    {
+      "inputs" : ["Add_93"],
+      "lower_bounds" : [ 0, 100 ],
+      "name" : "Slice_101",
+      "op" : "Slice",
+      "outputs" : ["Slice_101_0"],
+      "strides" : [ 1, 1 ],
+      "upper_bounds" : [ 10, 200 ]
+    },
+    {
+      "inputs" : ["Add_93"],
+      "lower_bounds" : [ 0, 0 ],
+      "name" : "Slice_109",
+      "op" : "Slice",
+      "outputs" : ["Slice_109_0"],
+      "strides" : [ 1, 1 ],
+      "upper_bounds" : [ 10, 100 ]
+    },
+    {
+      "inputs" : ["Add_93"],
+      "lower_bounds" : [ 0, 200 ],
+      "name" : "Slice_116",
+      "op" : "Slice",
+      "outputs" : ["Slice_116_0"],
+      "strides" : [ 1, 1 ],
+      "upper_bounds" : [ 10, 300 ]
+    },
+    {
+      "inputs" : ["Slice_94"],
+      "name" : "Negative_97",
+      "op" : "Negative",
+      "outputs" : ["Negative_97_0"]
+    },
+    {
+      "inputs" : ["Slice_101"],
+      "name" : "Negative_104",
+      "op" : "Negative",
+      "outputs" : ["Negative_104_0"]
+    },
+    {
+      "inputs" : ["Slice_109"],
+      "name" : "Negative_112",
+      "op" : "Negative",
+      "outputs" : ["Negative_112_0"]
+    },
+    {
+      "inputs" : ["Slice_116"],
+      "name" : "Tanh_117",
+      "op" : "Tanh",
+      "outputs" : ["Tanh_117_0"]
+    },
+    {
+      "inputs" : ["Negative_97"],
+      "name" : "Exp_98",
+      "op" : "Exp",
+      "outputs" : ["Exp_98_0"]
+    },
+    {
+      "inputs" : ["Negative_104"],
+      "name" : "Exp_105",
+      "op" : "Exp",
+      "outputs" : ["Exp_105_0"]
+    },
+    {
+      "inputs" : ["Negative_112"],
+      "name" : "Exp_113",
+      "op" : "Exp",
+      "outputs" : ["Exp_113_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_96", "Exp_98" ],
+      "name" : "Add_99",
+      "op" : "Add",
+      "outputs" : ["Add_99_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_103", "Exp_105" ],
+      "name" : "Add_106",
+      "op" : "Add",
+      "outputs" : ["Add_106_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_111", "Exp_113" ],
+      "name" : "Add_114",
+      "op" : "Add",
+      "outputs" : ["Add_114_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_96", "Add_99" ],
+      "name" : "Divide_100",
+      "op" : "Divide",
+      "outputs" : ["Divide_100_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_103", "Add_106" ],
+      "name" : "Divide_107",
+      "op" : "Divide",
+      "outputs" : ["Divide_107_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_111", "Add_114" ],
+      "name" : "Divide_115",
+      "op" : "Divide",
+      "outputs" : ["Divide_115_0"]
+    },
+    {
+      "inputs" : [ "Divide_107", "Add_86" ],
+      "name" : "Multiply_108",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_108_0"]
+    },
+    {
+      "inputs" : [ "Divide_115", "Tanh_117" ],
+      "name" : "Multiply_118",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_118_0"]
+    },
+    {
+      "inputs" : [ "Multiply_108", "Multiply_118" ],
+      "name" : "Add_119",
+      "op" : "Add",
+      "outputs" : ["Add_119_0"]
+    },
+    {
+      "inputs" : ["Add_119"],
+      "name" : "Tanh_120",
+      "op" : "Tanh",
+      "outputs" : ["Tanh_120_0"]
+    },
+    {
+      "inputs" : [ "Divide_100", "Tanh_120" ],
+      "name" : "Multiply_121",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_121_0"]
+    },
+    {
+      "inputs" : ["Multiply_121"],
+      "name" : "Result_122",
+      "op" : "Result",
+      "outputs" : ["Result_122_0"]
+    },
+    {
+      "inputs" : ["Add_86"],
+      "name" : "Result_123",
+      "op" : "Result",
+      "outputs" : ["Result_123_0"]
+    }
+  ],
+  "parameters" : [
+    "Parameter_12", "Parameter_1", "Parameter_2", "Parameter_19",
+    "Parameter_20", "Parameter_7", "Parameter_0"
+  ],
+  "result" : ["Result_122", "Result_123"]
+}]

@@ -88,7 +88,7 @@ void BehaviorPluginTestInferRequest::_createAndCheckInferRequest(
          testEnv->exeNetwork = testEnv->core.LoadNetwork(testEnv->network, param.device, full_config);
      } catch (InferenceEngineException ex) {
          std::cout << "LoadNetwork failed. Status: " << ex.getStatus() << ", Response: " << ex.what();
-         throw;
+         throw ex;
      } catch (std::exception ex) {
          std::cout << "LoadNetwork failed. Exception: " << typeid(ex).name() << ", what(): " << ex.what() << std::endl;
          throw;
