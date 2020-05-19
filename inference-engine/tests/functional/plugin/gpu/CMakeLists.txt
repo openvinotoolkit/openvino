@@ -19,4 +19,4 @@ addIeTargetTest(
         LABELS
             GPU
 )
-target_include_directories(${TARGET_NAME} PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
+target_include_directories(${TARGET_NAME} PRIVATE ${CLDNN__IOCL_ICD_INCDIRS} ${CMAKE_CURRENT_SOURCE_DIR})

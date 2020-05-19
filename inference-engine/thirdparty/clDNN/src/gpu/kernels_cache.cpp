@@ -173,7 +173,7 @@ kernels_cache::kernel_id kernels_cache::set_kernel_source(
     // same kernel_string == same kernel
     const auto key = kernel_string.get()->get_hash();
 
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
 
     const auto it = _kernels_code.find(key);
 
@@ -283,7 +283,7 @@ void kernels_cache::build_all() {
     if (!_pending_compilation)
         return;
 
-    std::lock_guard<std::mutex> lock(_mutex);
+    std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
 
     auto sorted_program_code = get_program_source(_kernels_code);
 

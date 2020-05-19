@@ -21,7 +21,7 @@ namespace ngraph {
  *     all operation names that was fully or partially fused into node
  */
 
-class FusedNames {
+class INFERENCE_ENGINE_API_CLASS(FusedNames) {
 private:
     std::set<std::string> fused_names;
 
@@ -43,7 +43,7 @@ public:
 };
 
 template<>
-class VariantWrapper<FusedNames> : public VariantImpl<FusedNames> {
+class INFERENCE_ENGINE_API_CLASS(VariantWrapper<FusedNames>) : public VariantImpl<FusedNames> {
 public:
     static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::FusedNames", 0};
 

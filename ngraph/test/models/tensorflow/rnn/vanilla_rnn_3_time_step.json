@@ -1,0 +1,587 @@
+[
+    {
+        "name": "Function_5",
+        "ops": [
+            {
+                "cacheable": false,
+                "element_type": "float",
+                "friendly_name": "rnn/basic_rnn_cell/kernel",
+                "name": "Parameter_4535",
+                "op": "Parameter",
+                "op_version": 0,
+                "outputs": [
+                    "Parameter_4535_0"
+                ],
+                "shape": [
+                    34,
+                    2
+                ],
+                "type_info": {
+                    "name": "Parameter",
+                    "version": 0
+                }
+            },
+            {
+                "cacheable": false,
+                "element_type": "float",
+                "friendly_name": "rnn/basic_rnn_cell/bias",
+                "name": "Parameter_4536",
+                "op": "Parameter",
+                "op_version": 0,
+                "outputs": [
+                    "Parameter_4536_0"
+                ],
+                "shape": [
+                    2
+                ],
+                "type_info": {
+                    "name": "Parameter",
+                    "version": 0
+                }
+            },
+            {
+                "cacheable": false,
+                "element_type": "float",
+                "friendly_name": "_arg_x_0_0",
+                "name": "Parameter_4537",
+                "op": "Parameter",
+                "op_version": 0,
+                "outputs": [
+                    "Parameter_4537_0"
+                ],
+                "shape": [
+                    64,
+                    3,
+                    32
+                ],
+                "type_info": {
+                    "name": "Parameter",
+                    "version": 0
+                }
+            },
+            {
+                "friendly_name": "unstack",
+                "inputs": [
+                    "Parameter_4537"
+                ],
+                "lower_bounds": [
+                    0,
+                    0,
+                    0
+                ],
+                "name": "Slice_4538",
+                "op": "Slice",
+                "op_version": 0,
+                "outputs": [
+                    "Slice_4538_0"
+                ],
+                "strides": [
+                    1,
+                    1,
+                    1
+                ],
+                "type_info": {
+                    "name": "Slice",
+                    "version": 0
+                },
+                "upper_bounds": [
+                    64,
+                    1,
+                    32
+                ]
+            },
+            {
+                "friendly_name": "unstack",
+                "input_order": [
+                    0,
+                    1,
+                    2
+                ],
+                "inputs": [
+                    "Slice_4538"
+                ],
+                "name": "Reshape_4539",
+                "op": "Reshape",
+                "op_version": 0,
+                "output_shape": [
+                    64,
+                    32
+                ],
+                "outputs": [
+                    "Reshape_4539_0"
+                ],
+                "type_info": {
+                    "name": "Reshape",
+                    "version": 0
+                }
+            },
+            {
+                "element_type": "float",
+                "friendly_name": "rnn/BasicRNNCellZeroState/zeros",
+                "name": "Constant_4544",
+                "op": "Constant",
+                "op_version": 0,
+                "outputs": [
+                    "Constant_4544_0"
+                ],
+                "shape": [
+                    64,
+                    2
+                ],
+                "type_info": {
+                    "name": "Constant",
+                    "version": 0
+                },
+                "value": [
+                    "0"
+                ]
+            },
+            {
+                "axis": 1,
+                "friendly_name": "rnn/basic_rnn_cell/concat",
+                "inputs": [
+                    "Reshape_4539",
+                    "Constant_4544"
+                ],
+                "name": "Concat_4546",
+                "op": "Concat",
+                "op_version": 0,
+                "outputs": [
+                    "Concat_4546_0"
+                ],
+                "type_info": {
+                    "name": "Concat",
+                    "version": 0
+                }
+            },
+            {
+                "friendly_name": "rnn/basic_rnn_cell/BiasAdd",
+                "inputs": [
+                    "Concat_4546",
+                    "Parameter_4535"
+                ],
+                "name": "Dot_4547",
+                "op": "Dot",
+                "op_version": 0,
+                "outputs": [
+                    "Dot_4547_0"
+                ],
+                "reduction_axes_count": 1,
+                "type_info": {
+                    "name": "Dot",
+                    "version": 0
+                }
+            },
+            {
+                "axes": [
+                    0
+                ],
+                "friendly_name": "rnn/basic_rnn_cell/BiasAdd",
+                "inputs": [
+                    "Parameter_4536"
+                ],
+                "name": "Broadcast_4548",
+                "op": "Broadcast",
+                "op_version": 0,
+                "outputs": [
+                    "Broadcast_4548_0"
+                ],
+                "shape": [
+                    64,
+                    2
+                ],
+                "type_info": {
+                    "name": "Broadcast",
+                    "version": 0
+                }
+            },
+            {
+                "friendly_name": "rnn/basic_rnn_cell/BiasAdd",
+                "inputs": [
+                    "Dot_4547",
+                    "Broadcast_4548"
+                ],
+                "name": "Add_4549",
+                "op": "Add",
+                "op_version": 0,
+                "outputs": [
+                    "Add_4549_0"
+                ],
+                "type_info": {
+                    "name": "Add",
+                    "version": 0
+                }
+            },
+            {
+                "friendly_name": "rnn/basic_rnn_cell/Tanh",
+                "inputs": [
+                    "Add_4549"
+                ],
+                "name": "Tanh_4550",
+                "op": "Tanh",
+                "op_version": 0,
+                "outputs": [
+                    "Tanh_4550_0"
+                ],
+                "type_info": {
+                    "name": "Tanh",
+                    "version": 0
+                }
+            },
+            {
+                "inputs": [
+                    "Tanh_4550"
+                ],
+                "name": "Result_4561",
+                "needs_default_layout": true,
+                "op": "Result",
+                "op_version": 0,
+                "outputs": [
+                    "Result_4561_0"
+                ],
+                "type_info": {
+                    "name": "Result",
+                    "version": 0
+                }
+            },
+            {
+                "friendly_name": "unstack",
+                "inputs": [
+                    "Parameter_4537"
+                ],
+                "lower_bounds": [
+                    0,
+                    1,
+                    0
+                ],
+                "name": "Slice_4540",
+                "op": "Slice",
+                "op_version": 0,
+                "outputs": [
+                    "Slice_4540_0"
+                ],
+                "strides": [
+                    1,
+                    1,
+                    1
+                ],
+                "type_info": {
+                    "name": "Slice",
+                    "version": 0
+                },
+                "upper_bounds": [
+                    64,
+                    2,
+                    32
+                ]
+            },
+            {
+                "friendly_name": "unstack",
+                "input_order": [
+                    0,
+                    1,
+                    2
+                ],
+                "inputs": [
+                    "Slice_4540"
+                ],
+                "name": "Reshape_4541",
+                "op": "Reshape",
+                "op_version": 0,
+                "output_shape": [
+                    64,
+                    32
+                ],
+                "outputs": [
+                    "Reshape_4541_0"
+                ],
+                "type_info": {
+                    "name": "Reshape",
+                    "version": 0
+                }
+            },
+            {
+                "axis": 1,
+                "friendly_name": "rnn/basic_rnn_cell/concat_1",
+                "inputs": [
+                    "Reshape_4541",
+                    "Tanh_4550"
+                ],
+                "name": "Concat_4551",
+                "op": "Concat",
+                "op_version": 0,
+                "outputs": [
+                    "Concat_4551_0"
+                ],
+                "type_info": {
+                    "name": "Concat",
+                    "version": 0
+                }
+            },
+            {
+                "friendly_name": "rnn/basic_rnn_cell/BiasAdd_1",
+                "inputs": [
+                    "Concat_4551",
+                    "Parameter_4535"
+                ],
+                "name": "Dot_4552",
+                "op": "Dot",
+                "op_version": 0,
+                "outputs": [
+                    "Dot_4552_0"
+                ],
+                "reduction_axes_count": 1,
+                "type_info": {
+                    "name": "Dot",
+                    "version": 0
+                }
+            },
+            {
+                "axes": [
+                    0
+                ],
+                "friendly_name": "rnn/basic_rnn_cell/BiasAdd_1",
+                "inputs": [
+                    "Parameter_4536"
+                ],
+                "name": "Broadcast_4553",
+                "op": "Broadcast",
+                "op_version": 0,
+                "outputs": [
+                    "Broadcast_4553_0"
+                ],
+                "shape": [
+                    64,
+                    2
+                ],
+                "type_info": {
+                    "name": "Broadcast",
+                    "version": 0
+                }
+            },
+            {
+                "friendly_name": "rnn/basic_rnn_cell/BiasAdd_1",
+                "inputs": [
+                    "Dot_4552",
+                    "Broadcast_4553"
+                ],
+                "name": "Add_4554",
+                "op": "Add",
+                "op_version": 0,
+                "outputs": [
+                    "Add_4554_0"
+                ],
+                "type_info": {
+                    "name": "Add",
+                    "version": 0
+                }
+            },
+            {
+                "friendly_name": "rnn/basic_rnn_cell/Tanh_1",
+                "inputs": [
+                    "Add_4554"
+                ],
+                "name": "Tanh_4555",
+                "op": "Tanh",
+                "op_version": 0,
+                "outputs": [
+                    "Tanh_4555_0"
+                ],
+                "type_info": {
+                    "name": "Tanh",
+                    "version": 0
+                }
+            },
+            {
+                "inputs": [
+                    "Tanh_4555"
+                ],
+                "name": "Result_4562",
+                "needs_default_layout": true,
+                "op": "Result",
+                "op_version": 0,
+                "outputs": [
+                    "Result_4562_0"
+                ],
+                "type_info": {
+                    "name": "Result",
+                    "version": 0
+                }
+            },
+            {
+                "friendly_name": "unstack",
+                "inputs": [
+                    "Parameter_4537"
+                ],
+                "lower_bounds": [
+                    0,
+                    2,
+                    0
+                ],
+                "name": "Slice_4542",
+                "op": "Slice",
+                "op_version": 0,
+                "outputs": [
+                    "Slice_4542_0"
+                ],
+                "strides": [
+                    1,
+                    1,
+                    1
+                ],
+                "type_info": {
+                    "name": "Slice",
+                    "version": 0
+                },
+                "upper_bounds": [
+                    64,
+                    3,
+                    32
+                ]
+            },
+            {
+                "friendly_name": "unstack",
+                "input_order": [
+                    0,
+                    1,
+                    2
+                ],
+                "inputs": [
+                    "Slice_4542"
+                ],
+                "name": "Reshape_4543",
+                "op": "Reshape",
+                "op_version": 0,
+                "output_shape": [
+                    64,
+                    32
+                ],
+                "outputs": [
+                    "Reshape_4543_0"
+                ],
+                "type_info": {
+                    "name": "Reshape",
+                    "version": 0
+                }
+            },
+            {
+                "axis": 1,
+                "friendly_name": "rnn/basic_rnn_cell/concat_2",
+                "inputs": [
+                    "Reshape_4543",
+                    "Tanh_4555"
+                ],
+                "name": "Concat_4556",
+                "op": "Concat",
+                "op_version": 0,
+                "outputs": [
+                    "Concat_4556_0"
+                ],
+                "type_info": {
+                    "name": "Concat",
+                    "version": 0
+                }
+            },
+            {
+                "friendly_name": "rnn/basic_rnn_cell/BiasAdd_2",
+                "inputs": [
+                    "Concat_4556",
+                    "Parameter_4535"
+                ],
+                "name": "Dot_4557",
+                "op": "Dot",
+                "op_version": 0,
+                "outputs": [
+                    "Dot_4557_0"
+                ],
+                "reduction_axes_count": 1,
+                "type_info": {
+                    "name": "Dot",
+                    "version": 0
+                }
+            },
+            {
+                "axes": [
+                    0
+                ],
+                "friendly_name": "rnn/basic_rnn_cell/BiasAdd_2",
+                "inputs": [
+                    "Parameter_4536"
+                ],
+                "name": "Broadcast_4558",
+                "op": "Broadcast",
+                "op_version": 0,
+                "outputs": [
+                    "Broadcast_4558_0"
+                ],
+                "shape": [
+                    64,
+                    2
+                ],
+                "type_info": {
+                    "name": "Broadcast",
+                    "version": 0
+                }
+            },
+            {
+                "friendly_name": "rnn/basic_rnn_cell/BiasAdd_2",
+                "inputs": [
+                    "Dot_4557",
+                    "Broadcast_4558"
+                ],
+                "name": "Add_4559",
+                "op": "Add",
+                "op_version": 0,
+                "outputs": [
+                    "Add_4559_0"
+                ],
+                "type_info": {
+                    "name": "Add",
+                    "version": 0
+                }
+            },
+            {
+                "friendly_name": "rnn/basic_rnn_cell/Tanh_2",
+                "inputs": [
+                    "Add_4559"
+                ],
+                "name": "Tanh_4560",
+                "op": "Tanh",
+                "op_version": 0,
+                "outputs": [
+                    "Tanh_4560_0"
+                ],
+                "type_info": {
+                    "name": "Tanh",
+                    "version": 0
+                }
+            },
+            {
+                "inputs": [
+                    "Tanh_4560"
+                ],
+                "name": "Result_4563",
+                "needs_default_layout": true,
+                "op": "Result",
+                "op_version": 0,
+                "outputs": [
+                    "Result_4563_0"
+                ],
+                "type_info": {
+                    "name": "Result",
+                    "version": 0
+                }
+            }
+        ],
+        "parameters": [
+            "Parameter_4535",
+            "Parameter_4536",
+            "Parameter_4537"
+        ],
+        "result": [
+            "Result_4561",
+            "Result_4562",
+            "Result_4563"
+        ]
+    }
+]

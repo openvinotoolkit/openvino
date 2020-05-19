@@ -32,14 +32,6 @@ public:
     virtual std::shared_ptr<ITaskExecutor> GetTaskExecutor() const = 0;
 
     /**
-     * @deprecated Use ICore::GetMetric, ICore::LoadNetwork, ICore::QueryNetwork instead
-     * @brief Returns reference to plugin by a device name
-     * @param deviceName - a name of device
-     * @return Reference to plugin
-     */
-    virtual InferenceEnginePluginPtr GetPluginByName(const std::string& deviceName) const = 0;
-
-    /**
      * @brief Reads IR xml and bin (with the same name) files
      * @param model string with IR
      * @param weights shared pointer to constant blob with weights

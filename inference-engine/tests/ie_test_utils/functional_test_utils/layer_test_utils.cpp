@@ -99,40 +99,23 @@ void LayerTestsCommon::Infer() {
     inferRequest.Infer();
 }
 
-std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
-    auto outputs = std::vector<InferenceEngine::Blob::Ptr>{};
-    for (const auto &output : cnnNetwork.getOutputsInfo()) {
-        const auto &name = output.first;
-        outputs.push_back(inferRequest.GetBlob(name));
-    }
-    return outputs;
-}
-
-void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>>& expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
-    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
-        const auto &expected = expectedOutputs[outputIndex];
-        const auto &actual = actualOutputs[outputIndex];
-        Compare(expected, actual);
-    }
-}
-
-void LayerTestsCommon::Validate() {
+std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
     // nGraph interpreter does not support f16
     // IE converts f16 to f32
     ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(function);
     function->validate_nodes_and_infer_types();
     auto referenceInputs = std::vector<std::vector<std::uint8_t>>(inputs.size());
     for (std::size_t i = 0; i < inputs.size(); ++i) {
-        const auto &input = inputs[i];
-        const auto &inputSize = input->byteSize();
+        const auto& input = inputs[i];
+        const auto& inputSize = input->byteSize();
 
-        auto &referenceInput = referenceInputs[i];
+        auto& referenceInput = referenceInputs[i];
         referenceInput.resize(inputSize);
 
         auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(input);
         IE_ASSERT(memory);
         const auto lockedMemory = memory->wmap();
-        const auto buffer = lockedMemory.as<const std::uint8_t *>();
+        const auto buffer = lockedMemory.as<const std::uint8_t*>();
         std::copy(buffer, buffer + inputSize, referenceInput.data());
     }
 
@@ -155,12 +138,36 @@ void LayerTestsCommon::Validate() {
         }
     }
 
+    return expectedOutputs;
+}
+
+std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
+    auto outputs = std::vector<InferenceEngine::Blob::Ptr>{};
+    for (const auto &output : cnnNetwork.getOutputsInfo()) {
+        const auto &name = output.first;
+        outputs.push_back(inferRequest.GetBlob(name));
+    }
+    return outputs;
+}
+
+void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>>& expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
+    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
+        const auto& expected = expectedOutputs[outputIndex];
+        const auto& actual = actualOutputs[outputIndex];
+        Compare(expected, actual);
+    }
+}
+
+void LayerTestsCommon::Validate() {
+    auto expectedOutputs = CalculateRefs();
+    const auto& actualOutputs = GetOutputs();
+
     if (expectedOutputs.empty()) {
         return;
     }
 
     IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
-    << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+        << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
     Compare(expectedOutputs, actualOutputs);
 }

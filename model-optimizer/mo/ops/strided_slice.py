@@ -113,7 +113,7 @@ class StridedSlice(Op):
                                                                    len(out_shape), list(old_value),
                                                                    int(i_port.idx == 3)))
             # set_value additionally set_shape and propagate value to Const node
-            if np.all(new_value != old_value):
+            if not np.array_equal(new_value, old_value):
                 i_port.data.set_value(new_value)
 
         # extend masks before removing ellipsis

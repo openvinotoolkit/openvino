@@ -189,7 +189,7 @@ TEST_P(ConvolutionLayerTest, CanNotLoadConvLayer) {
     auto param = GetParam();
     string ref_error = (param.device == CommonTestUtils::DEVICE_FPGA) ?
                        "Graph is not supported on FPGA" : "Unsupported layer: Convolution1:Convolution";
-    
+
     InferenceEngine::Core core;
     auto network = core.ReadNetwork(getModel(param), GetNetworkWeights(param));
 
@@ -288,7 +288,7 @@ TEST_P(PoolingLayerTest, CanNotLoadPoolLayer) {
     auto param = GetParam();
     string ref_error = (param.device == CommonTestUtils::DEVICE_FPGA) ?
                        "Graph is not supported on FPGA" : "Unsupported layer: Pooling1:Pooling";
-    
+
     InferenceEngine::Core core;
     std::string model = getModel(param);
     CNNNetwork network = core.ReadNetwork(model, Blob::CPtr());
@@ -307,7 +307,7 @@ TEST_P(ROIPoolingLayerTest, CanNotLoadROIPoolLayer) {
             (param.device == CommonTestUtils::DEVICE_FPGA) ?
                 "Graph is not supported on FPGA" :
                 "Unsupported layer: ROIPooling2:ROIPooling";
-                
+
     InferenceEngine::Core core;
     std::string model = getROIPoolingModel(param);
     CNNNetwork network = core.ReadNetwork(model, Blob::CPtr());
@@ -392,7 +392,7 @@ TEST_P(ActivationLayerTest, CanNotLoadActivationLayer) {
     auto param = GetParam();
     string ref_error = (param.device == CommonTestUtils::DEVICE_FPGA) ?
                        "Graph is not supported on FPGA" : "Unsupported primitive of type: Activation name: Activation1";
-    
+
     InferenceEngine::Core core;
     std::string model = getModel(param);
     CNNNetwork network = core.ReadNetwork(model, Blob::CPtr());
@@ -414,7 +414,7 @@ TEST_P(ReLULayerTest, CanNotLoadReLULayer) {
     string ref_error = (param.device == CommonTestUtils::DEVICE_FPGA) ? "Graph is not supported on FPGA" :
                        (param.device == CommonTestUtils::DEVICE_CPU)  ? "channels mismatch between mea" :
                        "Unsupported layer: ReLU1:ReLU";
-    
+
     InferenceEngine::Core core;
     std::string model = getModel(param);
     CNNNetwork network = core.ReadNetwork(model, Blob::CPtr());
@@ -434,7 +434,7 @@ TEST_P(ClampLayerTest, CanNotLoadClampLayer) {
     auto param = GetParam();
     string ref_error = (param.device == CommonTestUtils::DEVICE_FPGA) ?
                        "Graph is not supported on FPGA" : "Unsupported layer: Clamp1:Clamp";
-    
+
     InferenceEngine::Core core;
     std::string model = getModel(param);
     CNNNetwork network = core.ReadNetwork(model, Blob::CPtr());
@@ -501,7 +501,7 @@ TEST_P(NormalizeLayerTest, CanNotLoadNormalizeLayer) {
     auto param = GetParam();
     string ref_error = (param.device == CommonTestUtils::DEVICE_FPGA) ?
                        "Graph is not supported on FPGA" : "Unsupported layer: Normalize1:Normalize";
-    
+
     InferenceEngine::Core core;
     auto network = core.ReadNetwork(getModel(param), GetNetworkWeights(param));
 
@@ -595,7 +595,7 @@ TEST_P(ScalingLayerTest, CanNotLoadScaleShiftLayer) {
         ref_error = "[GNAPlugin] in function operator(): "
                 "Incorrect weight value for ScaleShift1:ScaleShift";
     }
-    
+
     InferenceEngine::Core core;
     std::string model = getScaleShiftModel(param);
     CNNNetwork network = core.ReadNetwork(model, Blob::CPtr());
@@ -612,7 +612,7 @@ TEST_P(ScalingLayerTest, CanNotLoadSoftMaxLayer) {
     auto param = GetParam();
     string ref_error = (param.device == CommonTestUtils::DEVICE_FPGA) ? "Graph is not supported on FPGA" :
                        (param.device == CommonTestUtils::DEVICE_CPU) ? "Incorrect axis!" : "Unsupported layer: SoftMax1:SoftMax";
-    
+
     InferenceEngine::Core core;
     std::string model = getSoftMaxModel(param);
     CNNNetwork network = core.ReadNetwork(model, Blob::CPtr());
@@ -713,7 +713,7 @@ TEST_P(ShapingLayerTest, CanNotLoadFlattenLayer) {
     auto param = GetParam();
     string ref_error = (param.device == CommonTestUtils::DEVICE_FPGA) ?
                        "Graph is not supported on FPGA" : "Unsupported layer: Flatten1:Flatten";
-    
+
     InferenceEngine::Core core;
     std::string model = getFlattenModel(param);
     CNNNetwork network = core.ReadNetwork(model, Blob::CPtr());
@@ -730,7 +730,7 @@ TEST_P(ShapingLayerTest, CanNotLoadReshapeLayer) {
     auto param = GetParam();
     string ref_error = (param.device == CommonTestUtils::DEVICE_FPGA) ?
                        "Graph is not supported on FPGA" : "Unsupported layer: Reshape1:Reshape";
-    
+
     InferenceEngine::Core core;
     std::string model = getFlattenModel(param);
     CNNNetwork network = core.ReadNetwork(model, Blob::CPtr());
@@ -747,7 +747,7 @@ TEST_P(ShapingLayerTest, CanNotLoadCropLayer) {
     auto param = GetParam();
     string ref_error = (param.device == CommonTestUtils::DEVICE_FPGA) ?
                        "Graph is not supported on FPGA" : "Unsupported layer: Crop1:Crop";
-    
+
     InferenceEngine::Core core;
     std::string model = getFlattenModel(param);
     CNNNetwork network = core.ReadNetwork(model, Blob::CPtr());
@@ -859,7 +859,7 @@ TEST_P(ObjectDetectionLayerTest, CanNotLoadPermuteLayer) {
     auto param = GetParam();
     string ref_error = (param.device == CommonTestUtils::DEVICE_FPGA) ?
                        "Graph is not supported on FPGA" : "Unsupported layer: Permute1:Permute";
-    
+
     InferenceEngine::Core core;
     CNNNetwork network = core.ReadNetwork(getPermuteModel(param), Blob::CPtr());
 

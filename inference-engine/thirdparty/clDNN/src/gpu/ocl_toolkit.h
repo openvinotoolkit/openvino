@@ -127,6 +127,8 @@ public:
     void add_program(uint32_t prog_id);
     void remove_program(uint32_t prog_id);
 
+    std::mutex& get_cache_mutex() { return cache_mutex; }
+
 private:
     configuration _configuration;
     device_impl::cptr _device;
@@ -149,6 +151,11 @@ private:
 
     gpu_queue& get_command_queue(uint32_t id);
     gpu_program_state& get_program_state(uint32_t id);
+
+    std::mutex toolkit_mutex;
+    // mutex for kernels_cache must be static to ensure that all threads run program build in a thread-safe fashion
+    // including the case when multiple IE cores are created.
+    static std::mutex cache_mutex;
 };
 
 }  // namespace gpu

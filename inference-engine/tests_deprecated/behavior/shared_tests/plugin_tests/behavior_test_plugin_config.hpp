@@ -86,8 +86,6 @@ TEST_P(BehaviorPluginIncorrectConfigTestInferRequestAPI, SetConfigWithNoExisting
     }
 }
 
-IE_SUPPRESS_DEPRECATED_START
-
 TEST_P(BehaviorPluginCorrectConfigTestInferRequestAPI, canSetExclusiveAsyncRequests) {
     ASSERT_EQ(0u, ExecutorManager::getInstance()->getExecutorsNumber());
     auto param = GetParam();

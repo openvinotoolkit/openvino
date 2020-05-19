@@ -467,9 +467,6 @@ TEST_F(BlobTests, canCreateBlobOnExistedMemory) {
     }
 }
 
-TEST_F(BlobTests, preAllocatorWillnotWorkIfPtrNotAlocated) {
-   ASSERT_ANY_THROW(TBlob<float>({ Precision::FP32, {1}, C }, nullptr));
-}
 
 TEST_F(BlobTests, canModifyDataInRangedFor) {
 

@@ -184,8 +184,11 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
                context_config.device_id == current_config.device_id;
     };
 
-    if (!canReuseDefaultContext()) {
-        m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), ParamMap(), conf));
+    {
+        std::lock_guard<std::mutex> lock(engine_mutex);
+        if (!canReuseDefaultContext()) {
+            m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), ParamMap(), conf));
+        }
     }
 
     context = m_defaultContext;

@@ -22,6 +22,7 @@
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/variant.hpp>
 
 #include "cnn_network_impl.hpp"
 #include "details/caseless.hpp"
@@ -433,9 +434,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     if (dn) {
         const auto pr_data = dn.attribute("PrimitivesPriority");
         if (pr_data) {
-            std::string value = pr_data.value();
-            InferenceEngine::Parameter rt(value);
-            rtInfo["PrimitivesPriority"] = rt.asVariant();
+            rtInfo["PrimitivesPriority"] = std::make_shared<::ngraph::VariantWrapper<std::string> >(pr_data.value());
         }
     }
 
