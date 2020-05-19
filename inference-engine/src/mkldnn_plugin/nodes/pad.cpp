@@ -133,38 +133,60 @@ inline void parallel_step(size_t size, std::vector<size_t> &counters, std::vecto
 }
 
 void PadImpl::pad_constant(const float *src_data, float* dst_data) {
-    int offset = 0;
-    for (size_t i = 0; i < srcStrides.size(); ++i)
-        offset += pads_begin[i] * srcStrides[i];
+    bool optCase = src_dims[0] != dst_dims[0];
+    for (int i = 1; i < dst_dims.size(); i++) {
+        optCase = optCase && src_dims[i] == dst_dims[i];
+    }
 
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
-        SizeVector counters(dst_dims.size(), 0);
-        splitter(work_amount, nthr, ithr, start, end);
-
-        parallel_init(start, dst_dims.size(), counters, dst_dims);
-        for (size_t iwork = start; iwork < end; ++iwork) {
-            int srcIdx = 1;
-            int dstIdx = 0;
-            for (size_t i = 0; i < dstStrides.size(); ++i)
-                dstIdx += counters[i] * dstStrides[i];
-
-            for (size_t i = 0; i < counters.size(); ++i) {
-                if (counters[i] < pads_begin[i] || counters[i] >= src_o_dms[i]) {
-                    dst_data[dstIdx] = pad_value;
-                    srcIdx = 0;
-                    break;
-                }
-            }
-            if (srcIdx) {
-                int srcIdx = 0;
-                for (size_t i = 0; i < srcStrides.size(); ++i)
-                    srcIdx += counters[i] * srcStrides[i];
-                dst_data[dstIdx] = src_data[srcIdx - offset];
-            }
-            parallel_step(dst_dims.size(), counters, dst_dims);
+    if (optCase) {
+        size_t leftBoundIdx = pads_begin[0] * dstStrides[0];
+        size_t rightBoundIdx = (pads_begin[0] + src_dims[0]) * dstStrides[0];
+        size_t endIdx = dst_dims[0] * dstStrides[0];
+        for (size_t dstIdx = 0; dstIdx < leftBoundIdx; dstIdx++) {
+            dst_data[dstIdx] = pad_value;
         }
-    });
+
+        for (size_t dstIdx = leftBoundIdx, srcIdx = 0; dstIdx < rightBoundIdx; dstIdx++, srcIdx++) {
+            dst_data[dstIdx] = src_data[srcIdx];
+        }
+
+        for (size_t dstIdx = rightBoundIdx; dstIdx < endIdx; dstIdx++) {
+            dst_data[dstIdx] = pad_value;
+        }
+    } else {
+        int offset = 0;
+        for (size_t i = 0; i < srcStrides.size(); ++i)
+            offset += pads_begin[i] * srcStrides[i];
+
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t start = 0, end = 0;
+            SizeVector counters(dst_dims.size(), 0);
+            splitter(work_amount, nthr, ithr, start, end);
+
+            parallel_init(start, dst_dims.size(), counters, dst_dims);
+            for (size_t iwork = start; iwork < end; ++iwork) {
+                int srcIdx = 1;
+                int dstIdx = 0;
+                for (size_t i = 0; i < dstStrides.size(); ++i)
+                    dstIdx += counters[i] * dstStrides[i];
+
+                for (size_t i = 0; i < counters.size(); ++i) {
+                    if (counters[i] < pads_begin[i] || counters[i] >= src_o_dms[i]) {
+                        dst_data[dstIdx] = pad_value;
+                        srcIdx = 0;
+                        break;
+                    }
+                }
+                if (srcIdx) {
+                    int srcIdx = 0;
+                    for (size_t i = 0; i < srcStrides.size(); ++i)
+                        srcIdx += counters[i] * srcStrides[i];
+                    dst_data[dstIdx] = src_data[srcIdx - offset];
+                }
+                parallel_step(dst_dims.size(), counters, dst_dims);
+            }
+        });
+    }
 }
 
 void PadImpl::pad_edge(const float *src_data, float* dst_data) {
