@@ -2,7 +2,3 @@
 	path = inference-engine/thirdparty/ade
 	url = https://github.com/opencv/ade.git
 	ignore = dirty
-[submodule "ngraph"]
-	path = ngraph
-	url = https://github.com/NervanaSystems/ngraph.git
-	ignore = dirty
