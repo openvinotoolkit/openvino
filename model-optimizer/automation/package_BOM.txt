@@ -516,7 +516,6 @@ extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
 extensions/middle/EltwiseInputNormalization.py
 extensions/middle/EltwiseInputReshape.py
-extensions/middle/EmbeddingBagResolver.py
 extensions/middle/FakeSplitOutputs.py
 extensions/middle/FusedBatchNormNonConstant.py
 extensions/middle/FusedBatchNormTraining.py
@@ -680,7 +679,6 @@ extensions/ops/sparse_segment_mean.py
 extensions/ops/sparse_segment_sqrtn.py
 extensions/ops/sparse_segment_sum.py
 extensions/ops/sparse_to_dense.py
-extensions/ops/sparse_weighted_sum.py
 extensions/ops/spatial_transformer.py
 extensions/ops/splice.py
 extensions/ops/split.py
