@@ -95,6 +95,8 @@ void register_implementations_gpu() {
     REGISTER_GPU(gather_tree);
     REGISTER_GPU(resample);
     REGISTER_GPU(non_max_suppression);
+    REGISTER_GPU(grn);
+    REGISTER_GPU(ctc_greedy_decoder);
 }
 
 }  // namespace gpu

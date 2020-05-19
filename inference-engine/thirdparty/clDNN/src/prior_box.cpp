@@ -44,12 +44,15 @@ void calculate_prior_box_output(memory_impl& output_mem, layout const& input_lay
     const int img_height = argument.img_size.spatial[1];
     float step_w = argument.step_width;
     float step_h = argument.step_height;
-    if (step_w == 0 || step_h == 0) {
+    if (!argument.is_clustered() && (step_w == 0 || step_h == 0)) {
         step_w = static_cast<float>(img_width) / layer_width;
         step_h = static_cast<float>(img_height) / layer_height;
     }
     const float offset = argument.offset;
-    int num_priors = output_mem.get_layout().size.spatial[1] / 4 / layer_width / layer_height;
+    int num_priors = argument.is_clustered() ?
+        static_cast<int>(argument.widths.size()) :
+        output_mem.get_layout().size.spatial[1] / 4 / layer_width / layer_height;
+    int var_size = static_cast<int>(argument.variance.size());
 
     mem_lock<dtype> lock{output_mem};
     auto out_ptr = lock.begin();
@@ -67,6 +70,23 @@ void calculate_prior_box_output(memory_impl& output_mem, layout const& input_lay
                 center_y = (h + offset) * step_h;
             }
             float box_width, box_height;
+
+            if (argument.is_clustered()) {
+                for (int s = 0; s < num_priors; ++s) {
+                    box_width = argument.widths[s];
+                    box_height = argument.heights[s];
+                    idx = h * layer_width * num_priors * 4 + w * num_priors * 4 + s * 4;
+                    // xmin
+                    out_ptr[idx++] = (dtype)((center_x - box_width / 2.f) / img_width);
+                    // ymin
+                    out_ptr[idx++] = (dtype)((center_y - box_height / 2.f) / img_height);
+                    // xmax
+                    out_ptr[idx++] = (dtype)((center_x + box_width / 2.f) / img_width);
+                    // ymax
+                    out_ptr[idx++] = (dtype)((center_y + box_height / 2.f) / img_height);
+                }
+                continue;
+            }
 
             for (size_t fs = 0; fs < argument.fixed_size.size(); ++fs) {
                 auto fixed_size = static_cast<size_t>(argument.fixed_size[fs]);
@@ -197,13 +217,13 @@ void calculate_prior_box_output(memory_impl& output_mem, layout const& input_lay
 
     // set the variance.
     int count = output_mem.get_layout().size.spatial[0] * output_mem.get_layout().size.spatial[1];
+    int var_loop_count = argument.is_clustered() ? var_size : 4;
     for (int h = 0; h < layer_height; ++h) {
         for (int w = 0; w < layer_width; ++w) {
             for (int i = 0; i < num_priors; ++i) {
-                for (int j = 0; j < 4; ++j) {
-                    out_ptr[count] =
-                        (dtype)((argument.variance.size() == 1) ? argument.variance[0] : argument.variance[j]);
-                    ++count;
+                for (int j = 0; j < var_loop_count; ++j) {
+                out_ptr[count] = (dtype)((var_size == 1) ? argument.variance[0] : argument.variance[j]);
+                ++count;
                 }
             }
         }
@@ -224,13 +244,22 @@ void prior_box_node::calc_result() {
     // Check arguments
     bool fixed_size_path = !argument.fixed_size.empty() && !argument.density.empty();
 
-    if (!fixed_size_path) {
+    if (!argument.is_clustered() && !fixed_size_path) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(id(),
                                        "Argument min size",
                                        argument.min_sizes.size(),
                                        "not proper size",
                                        0,
                                        "Must provide at least one min size or fixed_size and density.");
+    }
+
+    if (argument.is_clustered()) {
+        CLDNN_ERROR_NOT_EQUAL(id(),
+            "widths size",
+            argument.widths.size(),
+            "heights size",
+            argument.heights.size(),
+            "Clustered prior box requires to have width and height sizes to be equal.");
     }
 
     for (size_t i = 0; i < argument.min_sizes.size(); i++) {
@@ -345,7 +374,8 @@ layout prior_box_inst::calc_output_layout(prior_box_node const& node) {
     const int layer_width = input_layout.size.spatial[0];
     const int layer_height = input_layout.size.spatial[1];
 
-    int num_priors =
+    int num_priors = node.is_clustered() ?
+        static_cast<int>(desc->widths.size()) :
         desc->scale_all_sizes
             ? static_cast<int>(desc->aspect_ratios.size()) * static_cast<int>(desc->min_sizes.size()) + static_cast<int>(desc->max_sizes.size())
             : static_cast<int>(desc->aspect_ratios.size()) + static_cast<int>(desc->min_sizes.size()) + static_cast<int>(desc->max_sizes.size()) - 1;
@@ -420,9 +450,15 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
     step_info.add("offset", desc->offset);
     prior_info.add("step", step_info);
 
+    if (node.is_clustered()) {
+        json_composite clustered_info;
+        step_info.add("widths", desc->widths);
+        step_info.add("heights", desc->heights);
+        prior_info.add("clustered info", clustered_info);
+    }
+
     node_info->add("prior box info", prior_info);
     node_info->dump(primitive_description);
-
     return primitive_description.str();
 }
 

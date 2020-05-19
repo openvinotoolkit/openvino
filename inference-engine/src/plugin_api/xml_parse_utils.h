@@ -260,24 +260,28 @@ static parse_result ParseXml(const char* file_path) {
     const char* resolvedFilepath = file_path;
 #endif
 
-    auto xml = std::unique_ptr<pugi::xml_document> {new pugi::xml_document {}};
-    const auto load_result = xml->load_file(resolvedFilepath);
+    try {
+        auto xml = std::unique_ptr<pugi::xml_document> {new pugi::xml_document {}};
+        const auto load_result = xml->load_file(resolvedFilepath);
 
-    const auto error_msg = [&]() -> std::string {
-        if (load_result.status == pugi::status_ok) return {};
+        const auto error_msg = [&]() -> std::string {
+            if (load_result.status == pugi::status_ok) return {};
 
-        std::ifstream file_stream(file_path);
-        const auto file = std::string(std::istreambuf_iterator<char> {file_stream}, std::istreambuf_iterator<char> {});
+            std::ifstream file_stream(file_path);
+            const auto file = std::string(std::istreambuf_iterator<char> {file_stream}, std::istreambuf_iterator<char> {});
 
-        const auto error_offset = std::next(file.rbegin(), file.size() - load_result.offset);
-        const auto line_begin = std::find(error_offset, file.rend(), '\n');
-        const auto line = 1 + std::count(line_begin, file.rend(), '\n');
-        const auto pos = std::distance(error_offset, line_begin);
+            const auto error_offset = std::next(file.rbegin(), file.size() - load_result.offset);
+            const auto line_begin = std::find(error_offset, file.rend(), '\n');
+            const auto line = 1 + std::count(line_begin, file.rend(), '\n');
+            const auto pos = std::distance(error_offset, line_begin);
 
-        std::stringstream ss;
-        ss << "Error loading XML file: " << file_path << ":" << line << ":" << pos << ": " << load_result.description();
-        return ss.str();
-    }();
+            std::stringstream ss;
+            ss << "Error loading XML file: " << file_path << ":" << line << ":" << pos << ": " << load_result.description();
+            return ss.str();
+        }();
 
-    return {std::move(xml), error_msg};
+        return {std::move(xml), error_msg};
+    } catch(std::exception& e) {
+        return {std::move(nullptr), std::string("Error loading XML file: ") + e.what()};
+    }
 }

@@ -80,7 +80,8 @@ struct prior_box : public primitive_base<prior_box> {
           scale_all_sizes(scale_all_sizes),
           fixed_ratio(fixed_ratio),
           fixed_size(fixed_size),
-          density(density) {
+          density(density),
+          clustered(false) {
         this->aspect_ratios.push_back(1.f);
         for (auto new_aspect_ratio : aspect_ratios) {
             bool already_exist = false;
@@ -112,6 +113,30 @@ struct prior_box : public primitive_base<prior_box> {
         }
     }
 
+    /// @brief Constructs prior-box primitive, which executes clustered version.
+    prior_box(const primitive_id& id,
+              const primitive_id& input,
+              const tensor& img_size,
+              const bool clip,
+              const std::vector<float>& variance,
+              const float step_width,
+              const float step_height,
+              const float offset,
+              const std::vector<float>& widths,
+              const std::vector<float>& heights,
+              const padding& output_padding = padding())
+        : primitive_base(id, {input}, output_padding),
+          img_size(img_size),
+          clip(clip),
+          variance(variance),
+          step_width(step_width),
+          step_height(step_height),
+          offset(offset),
+          widths(widths),
+          heights(heights),
+          clustered(true) {
+    }
+
     /// @brief Image width and height.
     tensor img_size;
     /// @brief  Minimum box sizes in pixels.
@@ -132,12 +157,22 @@ struct prior_box : public primitive_base<prior_box> {
     float step_height;
     /// @brief Offset to the top left corner of each cell.
     float offset;
-    /// @broef If false, only first min_size is scaled by aspect_ratios
+    /// @brief If false, only first min_size is scaled by aspect_ratios
     bool scale_all_sizes;
 
     std::vector<float> fixed_ratio;
     std::vector<float> fixed_size;
     std::vector<float> density;
+
+    /// @brief Required for clustered version.
+    std::vector<float> widths;
+    /// @brief Required for clustered version.
+    std::vector<float> heights;
+
+    bool is_clustered() const { return clustered; }
+
+private:
+    bool clustered;
 };
 /// @}
 /// @}

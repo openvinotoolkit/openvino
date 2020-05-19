@@ -55,7 +55,7 @@ std::vector<ngraph::PartialShape> testDynamicShapes {
 };
 
 std::vector<ngraph::element::Type> testNGraphNumericTypes {
-        ngraph::element::dynamic,
+        ngraph::element::boolean,
         ngraph::element::bf16,
         ngraph::element::f16,
         ngraph::element::f32,
@@ -107,7 +107,7 @@ TEST_P(StaticShapeNonZeroTestsNegativeInputDataType, ThrowsOnInvalidInputType) {
 }
 
 INSTANTIATE_TEST_CASE_P(NGraph, StaticShapeNonZeroTestsNegativeInputDataType, testing::Combine(
-        testing::Values(ngraph::element::boolean),
+        testing::Values(ngraph::element::dynamic),
         testing::ValuesIn(testStaticShapes),
         testing::ValuesIn(outputTypes))
 );

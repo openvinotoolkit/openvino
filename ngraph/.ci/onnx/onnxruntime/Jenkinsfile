@@ -1,0 +1,133 @@
+// ******************************************************************************
+// Copyright 2017-2020 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// ******************************************************************************
+
+try{ if(LABEL.trim() == "") {throw new Exception();} }catch(Exception e){LABEL="onnx && ci"}; echo "${LABEL}"
+
+NGRPAH_REPOSITORY = "https://github.com/NervanaSystems/ngraph.git"
+NGRAPH_COMMIT_HASH = "${ghprbActualCommit}" // particular nGraph PR commit hash 
+
+ONNX_REPOSITORY = "https://github.com/NervanaSystems/onnxruntime.git"
+ONNX_RUNTIME_BRANCH = "release"
+
+def main(){
+    timeout(activity: true, time: 15) {
+        try{
+            stage("CloneRepos"){
+                CloneRepos()
+            }
+            stage("Apply Patch"){
+                ApplyPatch()
+            }
+            stage("Onnx Models"){
+                BuildAndTest()
+            }            
+        }
+        catch(e) {
+            // Set result to ABORTED if exception contains exit code of a process interrupted by SIGTERM
+            if ("$e".contains("143")) {
+                currentBuild.result = "ABORTED"
+            } else {
+                currentBuild.result = "FAILURE"
+            }
+        }
+        stage("Clean"){
+            Clean()
+        }
+    }
+}
+
+
+def CloneRepos() {
+    dir("ngraph"){
+        checkout([
+            $class: 'GitSCM',
+            branches: [[name: "${NGRAPH_COMMIT_HASH}"]],
+            doGenerateSubmoduleConfigurations: false,
+            extensions: [[
+                $class: 'SubmoduleOption',
+                disableSubmodules: false,
+                parentCredentials: true,
+                recursiveSubmodules: true,
+                reference: '',
+                trackingSubmodules: false,
+                timeout: 15
+            ]],
+            submoduleCfg: [],
+            userRemoteConfigs: [[
+                refspec: '+refs/pull/*:refs/remotes/origin/pr/*',
+                url: "${NGRPAH_REPOSITORY}"
+            ]]
+        ])
+    }
+    dir("onnxruntime") {
+        checkout([
+            $class: 'GitSCM',
+            branches: [[name: "${ONNX_RUNTIME_BRANCH}"]],
+            doGenerateSubmoduleConfigurations: false,
+            extensions: [[
+                $class: 'SubmoduleOption',
+                disableSubmodules: false,
+                parentCredentials: true,
+                recursiveSubmodules: true,
+                reference: '',
+                trackingSubmodules: false,
+                timeout: 15
+            ]],
+            submoduleCfg: [],
+            userRemoteConfigs: [[                    
+                url: "${ONNX_REPOSITORY}"
+            ]]
+        ])
+    }
+}
+
+def ApplyPatch(){
+    dir("onnxruntime"){
+        echo "Update cmake/external/ngraph.cmake with ${NGRAPH_COMMIT_HASH}"
+        sh """
+            sed -i 's/set(ngraph_TAG ".*")/set(ngraph_TAG "${NGRAPH_COMMIT_HASH}")/g' cmake/external/ngraph.cmake 
+            grep -q "${NGRAPH_COMMIT_HASH}" cmake/external/ngraph.cmake 
+        """
+        echo "Add proxy to tools/ci_build/github/linux/docker/Dockerfile.ubuntu"
+        sh """
+            sed -i 's|{HTTP_PROXY}|${env.http_proxy}|g' ../ngraph/.ci/onnx/onnxruntime/proxy.patch
+            sed -i 's|{SOCKS_PROXY}|${env.socks_proxy}|g' ../ngraph/.ci/onnx/onnxruntime/proxy.patch
+            grep -q "${env.http_proxy}" ../ngraph/.ci/onnx/onnxruntime/proxy.patch
+            git apply ../ngraph/.ci/onnx/onnxruntime/proxy.patch
+        """
+    }
+}
+
+def BuildAndTest(){
+    dir("onnxruntime"){
+        sh "mkdir -p `pwd`/build/models && chmod 777 `pwd`/build/models"
+        sh """
+            //!/bin/bash
+            ./tools/ci_build/github/linux/run_dockerbuild.sh \
+                -o ubuntu16.04 \
+                -d ngraph \
+                -r `pwd`/build -x '--use_ngraph --use_full_protobuf --test_data_url https://onnxruntimetestdata.blob.core.windows.net/models/20190327.zip --test_data_checksum 45166d81c021c8aae212b53c92101792'
+        """
+    }
+}
+
+def Clean(){
+    deleteDir()
+}
+
+node(LABEL) {
+    main()
+}

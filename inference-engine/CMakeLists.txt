@@ -25,12 +25,6 @@ if (ENABLE_FUZZING)
     enable_fuzzing()
 endif()
 
-find_package(ngraph QUIET)
-if(NOT ngraph_FOUND)
-    set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
-endif()
-find_package(ngraph REQUIRED)
-
 find_package(Threads REQUIRED)
 
 unset(IEDeveloperPackageTargets CACHE)

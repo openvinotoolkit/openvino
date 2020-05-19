@@ -1,0 +1,23 @@
+diff --git a/tools/ci_build/github/linux/docker/Dockerfile.ubuntu b/tools/ci_build/github/linux/docker/Dockerfile.ubuntu
+index bdff95e1..cd9c0008 100644
+--- a/tools/ci_build/github/linux/docker/Dockerfile.ubuntu
++++ b/tools/ci_build/github/linux/docker/Dockerfile.ubuntu
+@@ -3,6 +3,18 @@ FROM ubuntu:${OS_VERSION}
+ 
+ ARG PYTHON_VERSION=3.5
+ 
++ENV http_proxy={HTTP_PROXY}
++ENV socks_proxy={SOCKS_PROXY}
++ENV https_proxy={HTTP_PROXY}
++ENV ftp_proxy={HTTP_PROXY}
++ENV rsync_proxy={HTTP_PROXY}
++ENV no_proxy=intel.com,.intel.com,localhost
++ENV HTTP_PROXY={HTTP_PROXY}
++ENV HTTPS_PROXY={HTTP_PROXY}
++ENV FTP_PROXY={HTTP_PROXY}
++ENV SOCKS_PROXY={SOCKS_PROXY}
++ENV NO_PROXY=intel.com,.intel.com,localhost
++
+ ADD scripts /tmp/scripts
+ RUN /tmp/scripts/install_ubuntu.sh -p ${PYTHON_VERSION} && /tmp/scripts/install_deps.sh && rm -rf /tmp/scripts
+ 

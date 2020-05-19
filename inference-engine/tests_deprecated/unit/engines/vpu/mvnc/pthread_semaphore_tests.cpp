@@ -83,6 +83,9 @@ TEST_F(PThreadSemaphoreTest, CanNotInitSemaWithBigCounter) {
 TEST_F(PThreadSemaphoreTest, CanInitSemaWithMaxCounter) {
     ASSERT_EQ(0, pthread_sem_init(&sem, 0, SEM_VALUE_MAX));
     ASSERT_EQ(errno, 0);
+
+    ASSERT_EQ(0, pthread_sem_destroy(&sem));
+    ASSERT_EQ(errno, 0);
 }
 
 #ifdef ANDROID
@@ -95,6 +98,9 @@ TEST_F(PThreadSemaphoreTest, CanNotPostSemaWithMaxCounter) {
 
     ASSERT_EQ(-1, pthread_sem_post(&sem));
     ASSERT_EQ(EOVERFLOW, errno);
+
+    ASSERT_EQ(0, pthread_sem_destroy(&sem));
+    ASSERT_EQ(errno, 0);
 }
 
 TEST_F(PThreadSemaphoreTest, CanNotInitSemaWithSystemNonZero) {

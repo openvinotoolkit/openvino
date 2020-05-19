@@ -51,19 +51,22 @@ void PowerTransformation::transform(TransformationContext& context, CNNLayer& la
         THROW_IE_LPT_EXCEPTION(layer) << "unexpected Power layer type";
     }
 
+    auto scale_and_shift_blob = [] (Blob::Ptr &&blob, float scale, float shift) {
+        auto float_data = CNNNetworkHelper::getFloatData(blob);
+        auto float_data_ptr = float_data.get();
+        auto float_data_size = blob->size();
+
+        for (size_t i = 0ul; i < float_data_size; i++) {
+            float_data_ptr[i] = float_data_ptr[i] * scale + shift;
+        }
+
+        CNNNetworkHelper::fillBlobByFP32(blob, float_data_ptr);
+    };
+
     const CNNLayerPtr parent = CNNNetworkHelper::getParent(layer, 0);
 
-    Blob::Ptr weightsBlob = CNNNetworkHelper::getBlob(parent, "weights");
-    auto wBuffer = weightsBlob->buffer().as<float*>();
-    for (size_t channel = 0ul; channel < weightsBlob->size(); ++channel) {
-        wBuffer[channel] = wBuffer[channel] * powerLayer->scale;
-    }
-
-    Blob::Ptr shiftsBlob = CNNNetworkHelper::getBlob(parent, "biases");
-    auto sBuffer = shiftsBlob->buffer().as<float*>();
-    for (size_t channel = 0ul; channel < shiftsBlob->size(); ++channel) {
-        sBuffer[channel] = sBuffer[channel] * powerLayer->scale + powerLayer->offset;
-    }
+    scale_and_shift_blob(CNNNetworkHelper::getBlob(parent, "weights"), powerLayer->scale, 0.0f);
+    scale_and_shift_blob(CNNNetworkHelper::getBlob(parent, "biases") , powerLayer->scale, powerLayer->offset);
 
     const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(layer);
     CNNNetworkHelper::removeLayer(context.network, std::make_shared<CNNLayer>(layer));

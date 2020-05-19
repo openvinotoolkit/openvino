@@ -79,7 +79,9 @@ enum class KernelType {
     LSTM_DYNAMIC_TIMELOOP,
     REDUCE,
     GATHER_TREE,
-    SPACE_TO_DEPTH
+    SPACE_TO_DEPTH,
+    GRN,
+    CTC_GREEDY_DECODER
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

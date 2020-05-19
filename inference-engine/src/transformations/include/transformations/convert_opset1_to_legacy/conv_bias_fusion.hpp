@@ -59,18 +59,13 @@ void ngraph::pass::ConvFusion::fuse_convolution_with() {
     static_assert(std::is_same<Conv, ngraph::op::ConvolutionIE>() || std::is_same<Conv, ngraph::op::DeconvolutionIE>(),
                   "This transformation works only with ngraph::op::ConvolutionIE and ngraph::op::DeconvolutionIE");
 
-    auto data_batch = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto filters = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto bias = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
+    auto conv = std::make_shared<pattern::op::Label>(element::f32, Shape{},
+            [](const std::shared_ptr<Node> & node) -> bool {
+                return std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) ||
+                       std::dynamic_pointer_cast<ngraph::op::DeconvolutionIE>(node);
+    });
 
-    auto conv = std::make_shared<Conv>(data_batch,
-                                       filters,
-                                       Strides{1, 1},
-                                       CoordinateDiff{0, 0},
-                                       CoordinateDiff{0, 0},
-                                       Strides{1, 1},
-                                       Shape{1, 1, 1, 1});
-    auto last = std::make_shared<Eltwise>(conv, bias);
+    auto last = std::make_shared<Eltwise>(conv, std::make_shared<pattern::op::Label>(element::f32, Shape{1}));
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(last, "ConvFusion");
     this->add_matcher(m, get_callback<Conv>(), PassProperty::CHANGE_DYNAMIC_STATE);
@@ -115,7 +110,7 @@ ngraph::graph_rewrite_callback ngraph::pass::ConvFusion::get_callback() {
             } else {
                 new_bias = std::make_shared<op::v1::Add>(constant, m_conv->input_value(2));
             }
-            new_conv = m_conv->copy({m_conv->input_value(0), m_conv->input_value(1), new_bias});
+            new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), m_conv->input_value(1), new_bias});
         } else if (std::is_same<Conv, op::ConvolutionIE>() && std::dynamic_pointer_cast<op::v1::Multiply>(eltwise)) {
             // Fuse: ConvolutionIE->Mul
             auto weights_shape = m_conv->input(1).get_shape();
@@ -127,11 +122,11 @@ ngraph::graph_rewrite_callback ngraph::pass::ConvFusion::get_callback() {
                                                                    op::Constant::create(element::i64, Shape{const_shape.size()}, const_shape), true);
             new_weights = std::make_shared<op::v1::Multiply> (m_conv->input_value(1), const_reshape);
             if (m_conv->inputs().size() == 2) {
-                new_conv = m_conv->copy({m_conv->input_value(0), new_weights});
+                new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), new_weights});
             } else {
                 auto bias_reshape = std::make_shared<op::v1::Reshape>(constant, op::Constant::create(element::i64, Shape{1}, {weights_shape[0]}), true);
                 new_bias = std::make_shared<op::v1::Multiply>(bias_reshape, constant);
-                new_conv = m_conv->copy({m_conv->input_value(0), new_weights, new_bias});
+                new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), new_weights, new_bias});
             }
         } else {
             return false;

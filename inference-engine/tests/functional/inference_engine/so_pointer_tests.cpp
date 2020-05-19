@@ -117,6 +117,8 @@ TEST_F(SymbolLoaderTests, instantiateSymbol) {
     std::shared_ptr<SharedObjectLoader> sharedLoader(new SharedObjectLoader(name.c_str()));
     SymbolLoader<SharedObjectLoader> loader(sharedLoader);
     IE_SUPPRESS_DEPRECATED_START
-    ASSERT_NE(nullptr, loader.instantiateSymbol<IInferencePlugin>(SOCreatorTrait<IInferencePlugin>::name));
+    IInferencePlugin * value = nullptr;
+    ASSERT_NE(nullptr, value = loader.instantiateSymbol<IInferencePlugin>(SOCreatorTrait<IInferencePlugin>::name));
+    value->Release();
     IE_SUPPRESS_DEPRECATED_END
 }

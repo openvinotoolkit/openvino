@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <ngraph/variant.hpp>
 #include "network_serializer.h"
 #include "ie_system_conf.h"
 
@@ -105,13 +106,13 @@ std::map<std::string, std::shared_ptr<ngraph::Variant>> setCPUInfo(std::vector<c
     std::map<std::string, std::shared_ptr<ngraph::Variant>> cpuInfo;
 
     if (!inFmts.empty()) {
-        cpuInfo.insert({"InputMemoryFormats", InferenceEngine::Parameter(fmts2str(inFmts)).asVariant()});
+        cpuInfo.insert({"InputMemoryFormats", std::make_shared<ngraph::VariantWrapper<std::string>>(fmts2str(inFmts))});
     }
     if (!outFmts.empty()) {
-        cpuInfo.insert({"OutputMemoryFormats", InferenceEngine::Parameter(fmts2str(outFmts)).asVariant()});
+        cpuInfo.insert({"OutputMemoryFormats", std::make_shared<ngraph::VariantWrapper<std::string>>(fmts2str(outFmts))});
     }
     if (!priority.empty()) {
-        cpuInfo.insert({"PrimitivesPriority", InferenceEngine::Parameter(impls2str(priority)).asVariant()});
+        cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
     }
 
     return cpuInfo;
