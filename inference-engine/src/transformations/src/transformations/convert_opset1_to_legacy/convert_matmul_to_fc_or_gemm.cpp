@@ -107,7 +107,7 @@ void ngraph::pass::ConvertMatMulToFCorGemm::convert_matmul() {
              std::dynamic_pointer_cast<opset1::FakeQuantize>(fc_input_b.get_node_shared_ptr())) &&
             std::count_if(shape_b.begin(), shape_b.end(), [](size_t x) {
                 return x != 1;
-            }) <= 2) {
+            }) <= 2 && !matmul->get_transpose_a()) {
             Shape shape_a_aligned, shape_b_aligned;
             std::tie(shape_a_aligned, shape_b_aligned) = get_aligned_shapes();
 
