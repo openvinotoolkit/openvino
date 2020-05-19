@@ -35,7 +35,7 @@ std::string FakeQuantizeReshapePoolingTestModelWithoutConstants::getModel(Single
     std::vector<size_t> biasesConvolutionConstDims = { conv.out_c };
     std::map<std::string, std::string> const_params = {};
     std::map<std::string, std::string> fakeQuantizeParams = {{ "levels", "256" }};
-    std::map<std::string, std::string> power_params = {{"power", "1"}, {"scale", "1"}, {"shift", "0"}};
+    std::map<std::string, std::string> power_params = {{"power", "2"}, {"scale", "1"}, {"shift", "0"}};
     std::map<std::string, std::string> poolingParams = { {"kernel", "7,1"}, { "pool-method", "avg" }, { "strides", "1,1" } };
 
     std::vector<std::pair<std::string, std::string>> edges = {

@@ -105,7 +105,7 @@ void PassImpl::run(const Model& model) {
             continue;
         }
 
-        if (stage->type() == StageType::Concat) {
+        if (stage->type() == StageType::StubConcat) {
             _processor.processConcat(model, stage);
         } else if (stage->type() == StageType::Split) {
             _processor.processSplit(model, stage);

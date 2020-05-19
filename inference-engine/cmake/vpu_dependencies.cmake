@@ -112,16 +112,16 @@ endif()
 #
 
 if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
-    if(DEFINED ENV{VPU_OCL_COMPILER_PATH})
-        set(IE_PATH_TO_DEPS "$ENV{VPU_OCL_COMPILER_PATH}")
-    elseif(DEFINED VPU_OCL_COMPILER_PATH)
-        set(IE_PATH_TO_DEPS "${VPU_OCL_COMPILER_PATH}")
+    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+    elseif(DEFINED THIRDPARTY_SERVER_PATH)
+        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
     else()
         message(WARNING "VPU_OCL_COMPILER is not found. Some tests will skipped")
     endif()
 
     if(DEFINED IE_PATH_TO_DEPS)
-        message(STATUS "VPU_OCL_COMPILER_PATH=${IE_PATH_TO_DEPS}")
+        message(STATUS "THIRDPARTY_SERVER_PATH=${IE_PATH_TO_DEPS}")
 
         reset_deps_cache(VPU_CLC_MA2X8X_ROOT)
         reset_deps_cache(VPU_CLC_MA2X8X_COMMAND)

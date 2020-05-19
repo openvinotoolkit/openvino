@@ -16,9 +16,9 @@ struct SplitParams {
 
 PRETTY_PARAM(SplitTestParams, SplitParams);
 
-typedef myriadLayerTestBaseWithParam<SplitTestParams> myriadLayersTestsSplit_nightly;
+typedef myriadLayerTestBaseWithParam<SplitTestParams> myriadLayersTestsSplit_smoke;
 
-TEST_P(myriadLayersTestsSplit_nightly, Split) {
+TEST_P(myriadLayersTestsSplit_smoke, Split) {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
 
     const SplitParams testParams = GetParam();

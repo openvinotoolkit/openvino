@@ -10,8 +10,6 @@
 #include <set>
 #include <stack>
 #include <map>
-#include <stdexcept>
-#include <utility>
 #include <functional>
 
 #include <vpu/utils/error.hpp>
@@ -20,102 +18,109 @@ namespace vpu {
 
 namespace {
 
-const std::set<char> whitespaces = {
-    ' ',
-    '\t',
+using ValueType = details::IntOrFloat;
+
+struct Operator {
+    int priority;
+    std::function<ValueType(ValueType, ValueType)> op;
 };
 
-// priority, function
-using Operator = std::pair<int, std::function<int(int, int)>>;
-
-const std::map<char, Operator> operators = {
-    { '+', { 0, std::plus<int>() } },
-    { '-', { 0, std::minus<int>() } },
-    { '*', { 1, std::multiplies<int>() } },
-    { '/', { 1, std::divides<int>()  } },
-    { '%', { 1, std::modulus<int>()  } },
+static const std::map<std::string, Operator> operators = {
+    { "+", { 0, std::plus<ValueType>() }},
+    { "-", { 0, std::minus<ValueType>() }},
+    { "*", { 1, std::multiplies<ValueType>() }},
+    { "/", { 1, std::divides<ValueType>() }},
+    { "%", { 1, std::modulus<ValueType>() }}
 };
+
+static const std::map<std::string, std::function<ValueType(ValueType)>> function = {
+        {"floor", [](ValueType x) { return ValueType{std::floor(x.toFloat())}; }},
+        {"ceil" , [](ValueType x) { return ValueType{std::ceil(x.toFloat())}; }},
+        {"round", [](ValueType x) { return ValueType{std::round(x.toFloat())}; }},
+        {"abs"  , [](ValueType x) { return ValueType{std::abs(x.toFloat())}; }},
+        {"sqrt" , [](ValueType x) { return ValueType{std::sqrt(x.toFloat())}; }}
+};
+
+bool isFunction(const std::string& token) {
+    return function.find(token) != function.end();
+}
+bool isOperator(const std::string& token) {
+    return operators.find(token) != operators.end();
+}
+int opPriority(const std::string& token) {
+    return operators.at(token).priority;
+}
 
 }  // namespace
 
-void SimpleMathExpression::parse(const std::string& expression) {
+void MathExpression::parse(const std::string& expression) {
     _parsedTokens.clear();
+    std::stack<std::string> tokenStack;
 
-    std::stack<char> operatorStack;
-
-    // While there are tokens to be read.
-    for (size_t i = 0; i != expression.length(); i++) {
-        // Ignore whitespaces;
-        while (whitespaces.find(expression[i]) != whitespaces.end()) {
-            i++;
+    for (auto it = begin(expression); it != end(expression); ++it) {
+        if (*it == ' ' || *it == '\t') {
+            continue;
         }
 
-        // Read a token.
-        auto curr = expression[i];
-
-        // If the token is a number, then push it to the output queue.
-        if (std::isdigit(curr)) {
+        // parse number
+        if (std::isdigit(*it)) {
             size_t len = 0;
-            auto value = std::stoi(expression.substr(i), &len);
+            const auto value = std::stof(&*it, &len);
 
-            _parsedTokens.emplace_back(Token(Token::Value, value, 0));
+            _parsedTokens.emplace_back(TokenType::Value, ValueType{value}, "");
 
-            i += (len - 1);
-
+            std::advance(it, len - 1);
             continue;
         }
 
-        // If the token is a variable, then push it's value to the output queue.
-        if (_vars.find(curr) != _vars.end()) {
-            _parsedTokens.emplace_back(Token(Token::Value, _vars.at(curr), 0));
+        // parse variable/function
+        if (std::isalpha(*it)) {
+            const auto end_token = std::find_if_not(it, end(expression),
+                [](char c) { return std::isalnum(c) || c == '_'; });
+            const auto token = std::string(it, end_token);
+            std::advance(it, token.length() - 1);
 
-            continue;
+            if (isFunction(token)) {
+                tokenStack.push(token);
+                continue;
+            }
+            if (_vars.find(token) != _vars.end()) {
+                _parsedTokens.emplace_back(TokenType::Value, ValueType{_vars.at(token)}, "");
+                continue;
+            }
         }
 
-        // If the token is an operator, then:
-        if (operators.find(curr) != operators.end()) {
-            // While there is an operator at the top of the operator stack with
-            //   greater than or equal to precedence:
-            //     pop operators from the operator stack, onto the output queue;
-            while (!operatorStack.empty() &&
-                   (operators.find(operatorStack.top()) != operators.end()) &&
-                   (operators.at(operatorStack.top()).first >= operators.at(curr).first)) {
-                auto op = operatorStack.top();
-                operatorStack.pop();
-
-                _parsedTokens.emplace_back(Token(Token::Operator, 0, op));
+        // parse operator
+        if (isOperator(std::string(1, *it))) {
+            while (!tokenStack.empty()
+                   && (isFunction(tokenStack.top())
+                       || (isOperator(tokenStack.top())
+                           && opPriority(tokenStack.top()) >= opPriority(std::string(1, *it))))) {
+                const auto tokenType = isOperator(tokenStack.top()) ? TokenType::Operator
+                                                                    : TokenType::Function;
+                _parsedTokens.emplace_back(tokenType, ValueType{0}, tokenStack.top());
+                tokenStack.pop();
             }
 
-            //     push the read operator onto the operator stack.
-            operatorStack.push(curr);
-
+            tokenStack.push(std::string(1, *it));
             continue;
         }
 
-        // If the token is a left bracket (i.e. "("), then:
-        //   push it onto the operator stack.
-        if (curr == '(') {
-            operatorStack.push(curr);
-
+        if (*it == '(') {
+            tokenStack.push("(");
             continue;
         }
 
-        // If the token is a right bracket (i.e. ")"), then:
-        if (curr == ')') {
-            // While the operator at the top of the operator stack is not a left bracket:
-            //   pop operators from the operator stack onto the output queue;
-            while (!operatorStack.empty() &&
-                   operatorStack.top() != '(') {
-                _parsedTokens.emplace_back(Token(Token::Operator, 0, operatorStack.top()));
-
-                operatorStack.pop();
+        if (*it == ')') {
+            while (!tokenStack.empty() && tokenStack.top() != "(") {
+                const auto tokenType = isOperator(tokenStack.top()) ? TokenType::Operator
+                                                                    : TokenType::Function;
+                _parsedTokens.emplace_back(tokenType, ValueType{0}, tokenStack.top());
+                tokenStack.pop();
             }
 
-            //   pop the left bracket from the stack.
-            // If the stack runs out without finding a left bracket, then there are mismatched parentheses.
-            if (!operatorStack.empty() &&
-                operatorStack.top() == '(') {
-                operatorStack.pop();
+            if (!tokenStack.empty()) {
+                tokenStack.pop();
             } else {
                 VPU_THROW_EXCEPTION << "Mismatched parentheses in " << expression;
             }
@@ -123,51 +128,54 @@ void SimpleMathExpression::parse(const std::string& expression) {
             continue;
         }
 
-        // Unknown token
-        VPU_THROW_EXCEPTION << "Unknown token " << curr << " in " << expression;
+        VPU_THROW_EXCEPTION << "Unknown token " << *it << " in " << expression;
     }
 
-    // If there are no more tokens to read:
-    //   while there are still operator tokens on the stack:
-    //     if the operator token on the top of the stack is a bracket, then
-    //       there are mismatched parentheses;
-    //     pop the operator onto the output queue.
-    while (!operatorStack.empty()) {
-        if (operatorStack.top() == '(') {
+    while (!tokenStack.empty()) {
+        if (tokenStack.top() == "(") {
             VPU_THROW_EXCEPTION << "Mismatched parentheses in " << expression;
         }
-
-        _parsedTokens.emplace_back(Token(Token::Operator, 0, operatorStack.top()));
-
-        operatorStack.pop();
+        const auto tokenType = isOperator(tokenStack.top()) ? TokenType::Operator
+                                                            : TokenType::Function;
+        _parsedTokens.emplace_back(tokenType, ValueType{0}, tokenStack.top());
+        tokenStack.pop();
     }
 }
 
-int SimpleMathExpression::evaluate() const {
-    std::stack<int> values;
-    for (const auto& t : _parsedTokens) {
-        switch (t.type) {
-        case Token::Value:
-            values.push(t.value);
-            break;
-        case Token::Operator: {
-            if (values.size() < 2) {
-                VPU_THROW_EXCEPTION << "Illegal expression: not enough values for operator evaluation";
+int MathExpression::evaluate() const {
+    std::stack<ValueType> values;
+
+    for (const auto& token : _parsedTokens) {
+        switch (token.type) {
+            case TokenType::Value:
+                values.push(token.value);
+                break;
+            case TokenType::Operator: {
+                if (values.size() < 2) {
+                    VPU_THROW_EXCEPTION << "Illegal expression: not enough values for operator evaluation";
+                }
+
+                auto val2 = values.top();
+                values.pop();
+
+                auto val1 = values.top();
+                values.pop();
+
+                values.push(operators.at(token.opName).op(val1, val2));
+                break;
             }
+            case TokenType::Function: {
+                if (values.empty()) {
+                    VPU_THROW_EXCEPTION << "Illegal expression: not enough values for function evaluation";
+                }
+                auto val1 = values.top();
+                values.pop();
 
-            // pop last 2 values and apply operand
-            auto val2 = values.top();
-            values.pop();
-
-            auto val1 = values.top();
-            values.pop();
-
-            values.push(operators.at(t.op).second(val1, val2));
-
-            break;
-        }
-        default:
-            VPU_THROW_EXCEPTION << "Illegal expression: unhandled token";
+                values.push(function.at(token.opName)(val1));
+                break;
+            }
+            default:
+                VPU_THROW_EXCEPTION << "Illegal expression: unhandled token";
         }
     }
 
@@ -175,7 +183,7 @@ int SimpleMathExpression::evaluate() const {
         VPU_THROW_EXCEPTION << "Illegal expression: not enough operators";
     }
 
-    return values.top();
+    return values.top().toFloat();
 }
 
 }  // namespace vpu

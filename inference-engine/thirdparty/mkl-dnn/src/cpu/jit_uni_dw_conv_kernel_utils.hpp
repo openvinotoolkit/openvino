@@ -74,34 +74,21 @@ template <cpu_isa_t isa, data_type_t kernel_dt>
 bool jit_uni_dw_conv_fwd_kernel<isa, kernel_dt>::post_ops_ok(
         jit_conv_conf_t &jcp, const primitive_attr_t &attr, bool is_bf16) {
     const auto &p = attr.post_ops_;
+    auto all_post_ops_supported = [&]() {
+        bool ok = true;
 
-    if (is_bf16) {
-        auto is_eltwise = [&](int idx) { return p.entry_[idx].is_eltwise(); };
-        auto is_sum = [&](int idx) { return p.entry_[idx].is_sum(); };
-
-        switch (p.len_) {
-            case 0: return true; // no post_ops
-            case 1: return is_eltwise(0) || is_sum(0); // sum OR eltwise
-            case 2: return is_sum(0) && is_eltwise(1); // sum -> eltwise
-            default: return false;
+        for (int i = 0; i < p.len_; i++) {
+            ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise);
         }
-    } else {
-        auto all_post_ops_supported = [&]() {
-            bool ok = true;
+        return ok;
+    };
+    auto contain = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind) != -1; };
+    auto position = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind); };
+    auto count = [&](mkldnn::impl::primitive_kind_t kind) { return p.count(kind); };
 
-            for (int i = 0; i < p.len_; i++) {
-                ok = ok && utils::one_of(p.entry_[i].kind, primitive_kind::sum, primitive_kind::eltwise, primitive_kind::depthwise, primitive_kind::quantization);
-            }
-            return ok;
-        };
-        auto contain = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind) != -1; };
-        auto position = [&](mkldnn::impl::primitive_kind_t kind) { return p.find(kind); };
-        auto count = [&](mkldnn::impl::primitive_kind_t kind) { return p.count(kind); };
-
-        return all_post_ops_supported() &&
-               count(primitive_kind::sum) <= 1 &&
-               IMPLICATION(contain(primitive_kind::sum), position(primitive_kind::sum) == 0);
-    }
+    return all_post_ops_supported() &&
+           count(primitive_kind::sum) <= 1 &&
+           IMPLICATION(contain(primitive_kind::sum), position(primitive_kind::sum) == 0);
 
     return false;
 }

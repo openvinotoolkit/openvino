@@ -30,7 +30,7 @@ struct reverse_sequence_test_params {
 };
 
 PRETTY_PARAM(ReverseSequence, reverse_sequence_test_params);
-typedef myriadLayerTestBaseWithParam<std::tuple<ReverseSequence, IRVersion>> myriadLayerReverseSequence_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<ReverseSequence, IRVersion>> myriadLayerReverseSequence_smoke;
 
 static int nchw_to_nhwc(InferenceEngine::SizeVector dims, int ind)
 {
@@ -104,7 +104,7 @@ static void ref_reverse_sequence(
     }
 }
 
-TEST_P(myriadLayerReverseSequence_nightly, ReverseSequence) {
+TEST_P(myriadLayerReverseSequence_smoke, ReverseSequence) {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
 
     reverse_sequence_test_params input_dims = std::get<0>(GetParam());

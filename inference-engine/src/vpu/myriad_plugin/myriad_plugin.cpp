@@ -16,6 +16,7 @@
 #include <vpu/parsed_config.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
 
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include "generic_ie.hpp"
@@ -28,7 +29,6 @@ using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-        const ICore* /*core*/,
         const ICNNNetwork& network,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
@@ -39,7 +39,8 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     auto clonedNetwork = cloneNetwork(network);
     if (auto function = clonedNetwork->getFunction()) {
         ngraph::op::GenericIE::DisableReshape noReshape(function);
-        vpu::DynamicToStaticShape().transform(*function);
+        ngraph::pass::CommonOptimizations().run_on_function(function);
+        vpu::DynamicToStaticShape().transform(function);
     }
 
     return std::make_shared<ExecutableNetwork>(*clonedNetwork, _devicePool, parsedConfigCopy);

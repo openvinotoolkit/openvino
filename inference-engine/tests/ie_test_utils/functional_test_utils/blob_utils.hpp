@@ -8,6 +8,7 @@
 #include <string>
 #include <algorithm>
 #include <vector>
+#include <type_traits>
 
 #include <gtest/gtest.h>
 #include "blob_factory.hpp"
@@ -16,11 +17,38 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 
+
 namespace FuncTestUtils {
+namespace Bf16TestUtils {
+static float reducePrecisionBitwise(const float in);
+static short reducePrecisionBitwiseS(const float in);
+}  // namespace Bf16TestUtils
+
+enum CompareType{
+    ABS,
+    REL,
+    ABS_AND_REL  //  if absolute and relative differences are too high, an exception is thrown
+};
+/**
+ * @brief Checks values of two blobs according to given algorithm and thresholds.
+ * In ABS and REL cases thr1 corresponds to the single threshold,
+ * In ABS_AND_REL case thr1 and thr2 mean absolute and relative threshold
+ *
+ * @tparam dType Type of blob data
+ * @param res Pointer to considered blob
+ * @param ref Pointer to reference blob
+ * @param resSize Size of considered blob
+ * @param refSize Size of reference blob
+ * @param compareType Defines an algorithm of comparision
+ * @param thr1 First threshold of difference
+ * @param thr2 Second threshold of difference
+ * @param printData A flag if data printing is demanded
+ */
 template<typename dType>
-void inline compareRawBuffers(const dType *res, const dType *ref,
-                              size_t resSize, size_t refSize,
-                              float max_diff = 0.01, bool printData = false) {
+static void inline compareRawBuffers(const dType *res, const dType *ref,
+                                     size_t resSize, size_t refSize,
+                                     CompareType compareType, float thr1 = 0.01, float thr2 = 0.01,
+                                     bool printData = false) {
     if (printData) {
         std::cout << "Reference results: " << std::endl;
         for (size_t i = 0; i < refSize; i++) {
@@ -34,42 +62,143 @@ void inline compareRawBuffers(const dType *res, const dType *ref,
         std::cout << std::endl;
     }
 
-    for (size_t i = 0; i < refSize; i++) {
-        float absDiff = std::abs(res[i] - ref[i]);
-        if (absDiff > max_diff) {
-            float relDiff = absDiff / std::max(res[i], ref[i]);
-            ASSERT_LT(relDiff, max_diff) << "Relative comparison of values ref: " << ref[i] << " and res: "
-                                         << res[i] << " , index in blobs: " << i << " failed!";
-        }
+    switch (compareType) {
+        case CompareType::ABS:
+            for (size_t i = 0; i < refSize; i++) {
+                float absDiff = std::abs(res[i] - ref[i]);
+                ASSERT_LT(absDiff, thr1) << "Relative comparison of values ref: " << ref[i] << " and res: "
+                                               << res[i] << " , index in blobs: " << i << " failed!";
+            }
+            break;
+        case CompareType::REL:
+            for (size_t i = 0; i < refSize; i++) {
+                float absDiff = std::abs(res[i] - ref[i]);
+                float relDiff = absDiff / std::max(res[i], ref[i]);
+                ASSERT_LT(relDiff, thr2) << "Relative comparison of values ref: " << ref[i] << " and res: "
+                                               << res[i] << " , index in blobs: " << i << " failed!";
+            }
+            break;
+        case CompareType::ABS_AND_REL:
+            for (size_t i = 0; i < refSize; i++) {
+                float absDiff = std::abs(res[i] - ref[i]);
+                if (absDiff > thr1) {
+                    float relDiff = absDiff / std::max(res[i], ref[i]);
+                    ASSERT_LT(relDiff, thr2) << "Comparison of values ref: " << ref[i] << " and res: "
+                                                   << res[i] << " , index in blobs: " << i << " failed!";
+                }
+            }
+            break;
     }
 }
-
+/**
+ * @brief Checks absolute and relative difference of blob values according to given threshold.
+ *
+ * @tparam dType Type of blob data
+ * @param res Pointer to considered blob
+ * @param ref Pointer to reference blob
+ * @param resSize Size of considered blob
+ * @param refSize Size of reference blob
+ * @param thr Threshold of difference, absolute and relative simultaneously
+ * @param printData Flag if data printing is demanded
+ */
 template<typename dType>
-void inline compareRawBuffers(const std::vector<dType *> res, const std::vector<dType *> ref,
+static void inline compareRawBuffers(const dType *res, const dType *ref,
+                                     size_t resSize, size_t refSize,
+                                     float thr = 0.01,
+                                     bool printData = false) {
+    compareRawBuffers(res, ref, resSize, refSize, CompareType::ABS_AND_REL, thr, thr, printData);
+}
+/**
+ * @brief Checks values of two blobs according to given algorithm and thresholds.
+ * In ABS and REL cases thr1 corresponds to the single threshold,
+ * In ABS_AND_REL case thr1 and thr2 mean absolute and relative threshold
+ *
+ * @tparam dType Type of blob data
+ * @param res Vector of considered blob values
+ * @param ref Vector of reference blob values
+ * @param resSize Size of considered blob
+ * @param refSize Size of reference blob
+ * @param compareType Defines an algorithm of comparision
+ * @param thr1 First threshold of difference
+ * @param thr2 Second threshold of difference
+ * @param printData A flag if data printing is demanded
+ */
+template<typename dType>
+static void inline compareRawBuffers(const std::vector<dType *> res, const std::vector<dType *> ref,
                               const std::vector<size_t> &resSizes, const std::vector<size_t> &refSizes,
-                              float max_diff = 0.01, bool printData = false) {
+                              CompareType compareType,
+                              float thr1 = 0.01, float thr2 = 0.01, bool printData = false) {
     ASSERT_TRUE(res.size() == ref.size()) << "Reference and Results vector have to be same length";
     ASSERT_TRUE(res.size() == resSizes.size()) << "Results vector and elements count vector have to be same length";
     ASSERT_TRUE(ref.size() == refSizes.size()) << "Reference vector and elements count vector have to be same length";
     for (size_t i = 0; i < res.size(); i++) {
         if (printData) std::cout << "BEGIN CHECK BUFFER [" << i << "]" << std::endl;
-        compareRawBuffers(res[i], ref[i], resSizes[i], refSizes[i], max_diff, printData);
+        compareRawBuffers(res[i], ref[i], resSizes[i], refSizes[i], compareType, thr1, thr2, printData);
         if (printData) std::cout << "END CHECK BUFFER [" << i << "]" << std::endl;
     }
 }
-
+/**
+ * @brief Checks absolute and relative difference of blob values according to given threshold.
+ *
+ * @tparam dType Type of blob data
+ * @param res Vector of considered blob values
+ * @param ref Vector of reference blob values
+ * @param resSize Size of considered blob
+ * @param refSize Size of reference blob
+ * @param thr Threshold of difference, absolute and relative simultaneously
+ * @param printData A flag if data printing is demanded
+ */
 template<typename dType>
-void inline compareRawBuffers(const std::vector<dType *> res, const std::vector<std::shared_ptr<dType *>> ref,
+static void inline compareRawBuffers(const std::vector<dType *> res, const std::vector<dType *> ref,
+                                     const std::vector<size_t> &resSizes, const std::vector<size_t> &refSizes,
+                                     float thr = 0.01, bool printData = false) {
+    compareRawBuffers(res, ref, resSizes, refSizes, CompareType::ABS_AND_REL, thr, thr, printData);
+}
+/**
+ * @brief Checks values of two blobs according to given algorithm and thresholds.
+ * In ABS and REL cases thr1 corresponds to the single threshold,
+ * In ABS_AND_REL case thr1 and thr2 mean absolute and relative threshold
+ *
+ * @tparam dType Type of blob data
+ * @param res Vector of considered blob values
+ * @param ref Vector of reference blob values
+ * @param resSize Size of considered blob
+ * @param refSize Size of reference blob
+ * @param compareType Defines an algorithm of comparision
+ * @param thr1 First threshold of difference
+ * @param thr2 Second threshold of difference
+ * @param printData A flag if data printing is demanded
+ */
+template<typename dType>
+static void inline compareRawBuffers(const std::vector<dType *> res, const std::vector<std::shared_ptr<dType *>> ref,
                               const std::vector<size_t> &resSizes, const std::vector<size_t> &refSizes,
-                              float max_diff = 0.01, bool printData = false) {
+                              CompareType compareType,
+                              float thr1 = 0.01, float thr2 = 0.01, bool printData = false) {
     ASSERT_TRUE(res.size() == ref.size()) << "Reference and Results vector have to be same length";
     ASSERT_TRUE(res.size() == resSizes.size()) << "Results vector and elements count vector have to be same length";
     ASSERT_TRUE(ref.size() == refSizes.size()) << "Reference vector and elements count vector have to be same length";
     for (size_t i = 0; i < res.size(); i++) {
         if (printData) std::cout << "BEGIN CHECK BUFFER [" << i << "]" << std::endl;
-        compareRawBuffers(res[i], *ref[i], resSizes[i], refSizes[i], max_diff, printData);
+        compareRawBuffers(res[i], *ref[i], resSizes[i], refSizes[i], compareType, thr1, thr2, printData);
         if (printData) std::cout << "END CHECK BUFFER [" << i << "]" << std::endl;
     }
+}
+/**
+ * @brief Checks absolute and relative difference of blob values according to given threshold.
+ *
+ * @tparam dType Type of blob data
+ * @param res Vector of considered blob values
+ * @param ref Vector of reference blob values
+ * @param resSize Size of considered blob
+ * @param refSize Size of reference blob
+ * @param thr Threshold of difference, absolute and relative simultaneously
+ * @param printData A flag if data printing is demanded
+ */
+template<typename dType>
+static void inline compareRawBuffers(const std::vector<dType *> res, const std::vector<std::shared_ptr<dType *>> ref,
+                                     const std::vector<size_t> &resSizes, const std::vector<size_t> &refSizes,
+                                     float thr = 0.01, bool printData = false) {
+    compareRawBuffers(res, ref, resSizes, refSizes, CompareType::ABS_AND_REL, thr, thr, printData);
 }
 
 template<InferenceEngine::Precision::ePrecision PRC>
@@ -154,19 +283,28 @@ compareBlobs(const InferenceEngine::Blob::Ptr &res, const InferenceEngine::Blob:
     }
 }
 
-float inline GetComparisonThreshold(InferenceEngine::Precision prc) {
+void inline GetComparisonThreshold(InferenceEngine::Precision prc, float &absoluteThreshold, float &relativeThreshold) {
     switch (prc) {
         case InferenceEngine::Precision::FP32:
-            return 1e-4;
+            absoluteThreshold = relativeThreshold = 1e-4;
+            break;
         case InferenceEngine::Precision::FP16:
-            return 1e-2;
+            absoluteThreshold = relativeThreshold = 1e-2;
+            break;
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::I8:
         case InferenceEngine::Precision::U8:
-            return 1;
+            absoluteThreshold = relativeThreshold = 1;
+            break;
         default:
             THROW_IE_EXCEPTION << "Unhandled precision " << prc << " passed to the GetComparisonThreshold()";
     }
+}
+
+float inline GetComparisonThreshold(InferenceEngine::Precision prc) {
+    float res;
+    GetComparisonThreshold(prc, res, res);
+    return res;
 }
 
 // Copy from net_pass.h
@@ -238,6 +376,82 @@ InferenceEngine::Blob::Ptr inline copyBlobWithCast(const InferenceEngine::Blob::
     return newBlob;
 }
 
+InferenceEngine::Blob::Ptr inline createAndFillBlobFloatNormalDistribution(const InferenceEngine::TensorDesc &td,
+                                                                           const float mean,
+                                                                           const float stddev,
+                                                                           const int32_t seed = 1) {
+    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
+    blob->allocate();
+    switch (td.getPrecision()) {
+#define CASE(X) case X: CommonTestUtils::fill_data_normal_random_float<X>(blob, mean, stddev, seed); break;
+        CASE(InferenceEngine::Precision::FP32)
+        CASE(InferenceEngine::Precision::FP16)
+        CASE(InferenceEngine::Precision::U8)
+        CASE(InferenceEngine::Precision::U16)
+        CASE(InferenceEngine::Precision::I8)
+        CASE(InferenceEngine::Precision::I16)
+        CASE(InferenceEngine::Precision::I64)
+        CASE(InferenceEngine::Precision::BIN)
+        CASE(InferenceEngine::Precision::I32)
+        CASE(InferenceEngine::Precision::BOOL)
+#undef CASE
+        default:
+            THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();
+    }
+    return blob;
+}
+
+InferenceEngine::Blob::Ptr inline createAndFillBlobFloat(const InferenceEngine::TensorDesc &td,
+        const uint32_t range = 10,
+        const int32_t start_from = 0,
+        const int32_t resolution = 1,
+        const int32_t seed = 1) {
+    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
+
+    blob->allocate();
+    switch (td.getPrecision()) {
+#define CASE(X) case X: CommonTestUtils::fill_data_random_float<X>(blob, range, start_from, resolution, seed); break;
+        CASE(InferenceEngine::Precision::FP32)
+        CASE(InferenceEngine::Precision::FP16)
+        CASE(InferenceEngine::Precision::U8)
+        CASE(InferenceEngine::Precision::U16)
+        CASE(InferenceEngine::Precision::I8)
+        CASE(InferenceEngine::Precision::I16)
+        CASE(InferenceEngine::Precision::I64)
+        CASE(InferenceEngine::Precision::BIN)
+        CASE(InferenceEngine::Precision::I32)
+        CASE(InferenceEngine::Precision::BOOL)
+#undef CASE
+        default:
+            THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();
+    }
+    return blob;
+}
+
+InferenceEngine::Blob::Ptr inline createAndFillBlobWithFloatArray(const InferenceEngine::TensorDesc &td,
+                                                                  const float values[],
+                                                                  const int size) {
+    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
+    blob->allocate();
+    switch (td.getPrecision()) {
+#define CASE(X) case X: CommonTestUtils::fill_data_float_array<X>(blob, values, size); break;
+        CASE(InferenceEngine::Precision::FP32)
+        CASE(InferenceEngine::Precision::FP16)
+        CASE(InferenceEngine::Precision::U8)
+        CASE(InferenceEngine::Precision::U16)
+        CASE(InferenceEngine::Precision::I8)
+        CASE(InferenceEngine::Precision::I16)
+        CASE(InferenceEngine::Precision::I64)
+        CASE(InferenceEngine::Precision::BIN)
+        CASE(InferenceEngine::Precision::I32)
+        CASE(InferenceEngine::Precision::BOOL)
+#undef CASE
+        default:
+            THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();
+    }
+    return blob;
+}
+
 InferenceEngine::Blob::Ptr inline createAndFillBlob(const InferenceEngine::TensorDesc &td,
         const uint32_t range = 10,
         const int32_t start_from = 0,
@@ -283,4 +497,78 @@ InferenceEngine::Blob::Ptr inline convertBlobLayout(const InferenceEngine::Blob:
     return out;
 }
 
+template<typename dType>
+static void fillInputsBySinValues(dType* data, size_t size) {
+    if (std::is_same<dType, float>::value) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = sin(static_cast<float>(i));
+        }
+    } else if (std::is_same<dType, short>::value) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(sin(static_cast<float>(i)));
+        }
+    }
+}
+
+template<typename dType>
+static void fillInputsByCosValues(dType* data, size_t size) {
+    if (std::is_same<dType, float>::value) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = sin(static_cast<float>(i));
+        }
+    } else if (std::is_same<dType, short>::value) {
+        for (size_t i = 0; i < size; i++) {
+            data[i] = FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(sin(static_cast<float>(i)));
+        }
+    }
+}
+
+static int fillInputsBySinValues(InferenceEngine::Blob::Ptr blob) {
+    InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+    if (!mblob) {
+        return -1;
+    }
+    if (mblob->getTensorDesc().getPrecision() != InferenceEngine::Precision::FP32) {
+        return -2;
+    }
+    auto lm = mblob->rwmap();
+    fillInputsBySinValues(lm.as<float*>(), mblob->size());
+    return 0;
+}
+
+static int fillInputsByCosValues(InferenceEngine::Blob::Ptr blob) {
+    InferenceEngine::MemoryBlob::Ptr mblob = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+    if (!mblob) {
+        return -1;
+    }
+    if (mblob->getTensorDesc().getPrecision() != InferenceEngine::Precision::FP32) {
+        return -2;
+    }
+    auto lm = mblob->rwmap();
+    fillInputsByCosValues(lm.as<float*>(), mblob->size());
+    return 0;
+}
+
+
+namespace Bf16TestUtils {
+static float reducePrecisionBitwise(const float in) {
+    float f = in;
+    int* i = reinterpret_cast<int*>(&f);
+    int t2 = *i & 0xFFFF0000;
+    float ft1 = *(reinterpret_cast<float*>(&t2));
+    if ((*i & 0x8000) && (*i & 0x007F0000) != 0x007F0000) {
+        t2 += 0x10000;
+        ft1 = *(reinterpret_cast<float*>(&t2));
+    }
+    return ft1;
+}
+
+static short reducePrecisionBitwiseS(const float in) {
+    float f = reducePrecisionBitwise(in);
+    int intf = *reinterpret_cast<int*>(&f);
+    intf = intf >> 16;
+    short s = intf;
+    return s;
+}
+}  // namespace Bf16TestUtils
 }  // namespace FuncTestUtils

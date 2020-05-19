@@ -16,7 +16,6 @@ namespace details {
 IE_SUPPRESS_DEPRECATED_START
 
 class INFERENCE_ENGINE_API_CLASS(ConcatTransformation) : public LayerTransformation {
-private:
 public:
     ConcatTransformation(const Params& params) : LayerTransformation(params) {}
     ~ConcatTransformation() override {};
@@ -25,11 +24,21 @@ public:
         CNNLayerPtr layer,
         std::vector<std::string>& childNameOurAfterQuantizeLayers,
         std::vector<CNNLayerPtr>& quantizeLayers,
-        std::vector<std::vector<CNNLayerPtr>>& intermediateLayers,
+        std::vector<std::vector<std::pair<CNNLayerPtr, CNNLayerPtr>>>& intermediateLayers,
         std::vector<CNNLayerPtr>& concatLayers,
-        std::string childName,
+        CNNLayerPtr child,
         std::vector<CNNLayerPtr>& sideOutputLayers,
         std::vector<std::string>& childrenNameSideOutputLayers);
+
+protected:
+    void addDequantizationForQuantize(
+        TransformationContext& context,
+        const CNNLayer& concat,
+        const std::vector<CNNLayerPtr>& quantizeLayers,
+        const std::vector<std::vector<std::pair<CNNLayerPtr, CNNLayerPtr>>>& intermediateLayers,
+        const std::vector<std::string>& childNameOurAfterQuantizeLayers,
+        const std::unordered_map<std::string, std::vector<float>>& dequantizationScalesLayers,
+        const std::unordered_map<std::string, std::vector<float>>& dequantizationShiftsLayers) const;
 
 private:
     size_t getMinQuantizationLevels(

@@ -17,6 +17,7 @@
 import numpy as np
 
 from extensions.middle.AnchorToPriorBox import AnchorToPriorBoxes
+from extensions.middle.SliceLikeToStridedSlice import SliceLikeToStridedSlice
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
@@ -32,6 +33,9 @@ class SsdAnchorsMiddleReplacer(MiddleReplacementPattern):
 
     def run_after(self):
         return [AnchorToPriorBoxes]
+
+    def run_before(self):
+        return [SliceLikeToStridedSlice]
 
 
     def pattern(self):

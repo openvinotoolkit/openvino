@@ -1,113 +1,89 @@
 jobs:
+
 #IE_MAC
 - job: IE_MAC
   timeoutInMinutes: 0
   pool:
-      vmImage: 'macOS-10.15'
+    vmImage: 'macOS-10.15'
   variables:
-      CC: gcc
-      CXX: g++
-      BIN_DIR: ../bin/intel64/Debug
-      #Server: $[dependencies.Name.outputs['SetVariableJob.Server']]
+    CC: gcc
+    CXX: g++
+    BUILD_TYPE: Debug
   steps:
-  #- task: SSH@0
-    #inputs:
-      #sshEndpoint: '${Server}'
-      #runOptions: inline
-      #commands: # Required when runOptions == Commands
-      #scriptPath: # Required when runOptions == Script
-      #inline: 'echo ${Server}'
-      #args: # Optional
-      #failOnStdErr: true # Optional
   - task: UsePythonVersion@0
     inputs:
-        versionSpec: '3.7'
+      versionSpec: '3.7'
   - script: |
-        #echo Server: $(Server)
-        whoami
-        uname -a
-        gcc --version
-        env
-        xcrun --sdk macosx --show-sdk-version
-        sysctl -a | grep machdep.cpu
+      whoami
+      uname -a
+      gcc --version
+      env
+      xcrun --sdk macosx --show-sdk-version
+      sysctl -a | grep machdep.cpu
     displayName: 'System properties'
   - script: |
-        brew install ninja
-        brew install cython
-        brew install automake
+      brew install ninja
+      brew install cython
+      brew install automake
     displayName: 'Install dependencies'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
-        mkdir dldt-build
-        cd dldt-build
+      mkdir dldt-build
+      cd dldt-build
     displayName: 'Create build directory'
   - script: |
-        export PATH="/usr/local/opt/cython/bin:$PATH"
-        cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=Debug -DENABLE_PYTHON=ON -DENABLE_LTO=ON -DENABLE_TESTS=ON -DENABLE_AVX2=OFF
+      export PATH="/usr/local/opt/cython/bin:$PATH"
+      cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON
     workingDirectory: dldt-build
     displayName: 'CMake'
-  - script: make -j2
+  - script: make -j3
     workingDirectory: dldt-build
     displayName: 'Build IE'
-  - script: ls -al $(BIN_DIR)
+  - script: ls -al ../bin/intel64/$(BUILD_TYPE)/
     workingDirectory: dldt-build
     displayName: 'List files'
-  - script: |
-        $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported
+  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
-  - script: |
-        $(BIN_DIR)/InferenceEngineUnitTests
+  - script: ../bin/intel64/$(BUILD_TYPE)/InferenceEngineUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: true
-  - script: |
-        $(BIN_DIR)/ieUnitTests
+  - script: ../bin/intel64/$(BUILD_TYPE)/ieUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT'
     continueOnError: true
-  - script: |
-        $(BIN_DIR)/cpuUnitTests
+  - script: ../bin/intel64/$(BUILD_TYPE)/cpuUnitTests
     workingDirectory: dldt-build
     displayName: 'CPU UT'
     continueOnError: true
-  - script: |
-        $(BIN_DIR)/vpuUnitTests
+  - script: ../bin/intel64/$(BUILD_TYPE)/vpuUnitTests
     workingDirectory: dldt-build
     displayName: 'VPU UT'
     continueOnError: true
-  - script: |
-        $(BIN_DIR)/ieFuncTests
+  - script: ../bin/intel64/$(BUILD_TYPE)/ieFuncTests
     workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: true
-  - script: |
-        $(BIN_DIR)/MklDnnBehaviorTests
+  - script: ../bin/intel64/$(BUILD_TYPE)/MklDnnBehaviorTests
     workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
   - script: git clone https://github.com/openvinotoolkit/testdata.git
     displayName: 'Clone testdata'
   - script: |
-        export DATA_PATH=`pwd`/../testdata
-        export MODELS_PATH=`pwd`/../testdata
-        $(BIN_DIR)/MklDnnFunctionalTests
+      export DATA_PATH=`pwd`/../testdata
+      export MODELS_PATH=`pwd`/../testdata
+      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=-*smoke_SingleLayerTransformationsTestFP16/SingleLayerTransformationsTest.LPT/PoolingTestModel*:*smoke_Inception/ModelTransformationsTest.LPT/inception_v3_tf_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
-        export DATA_PATH=`pwd`/../testdata
-        export MODELS_PATH=`pwd`/../testdata
-        sudo DATA_PATH=`pwd`/../testdata MODELS_PATH=`pwd`/../testdata dtruss -s $(BIN_DIR)/MklDnnFunctionalTests
-    workingDirectory: dldt-build
-    displayName: 'MklDnnFunctionalTests dtruss'
-    continueOnError: true
-  - script: |
-        export DATA_PATH=`pwd`/../testdata
-        export MODELS_PATH=`pwd`/../testdata
-        $(BIN_DIR)/InferenceEngineCAPITests
+      export DATA_PATH=`pwd`/../testdata
+      export MODELS_PATH=`pwd`/../testdata
+      ../bin/intel64/$(BUILD_TYPE)/InferenceEngineCAPITests
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: true

@@ -20,6 +20,36 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Values(
         SingleLayerTransformationsTestParams(
             "CPU",
+            PowerTestModel::Ptr(new PowerTestModel(1.f, 1.f, 0)),
+            { { 1, 3, 299, 299 } },
+            { { 1, 3, 299, 299 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            PowerTestModel::Ptr(new PowerTestModel(1.f, 2.89f, 64)),
+            { { 1, 3, 299, 299 } },
+            { { 1, 3, 299, 299 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            PowerTestModel::Ptr(new PowerTestModel(1.f, -32.f, 0)),
+            { { 1, 3, 299, 299 } },
+            { { 1, 3, 299, 299 } }),
+            
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            PowerTestModel::Ptr(new PowerTestModel(1.f, 1.f, -64.f)),
+            { { 1, 3, 299, 299 } },
+            { { 1, 3, 299, 299 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            PowerTestModel::Ptr(new PowerTestModel(3.5f, 1.f, 0)),
+            { { 1, 3, 299, 299 } },
+            { { 1, 3, 299, 299 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
             SingleLayerTestModel::Ptr(new ResampleTestModel()),
             { { 1, 32, 149, 149 } },
             { { 1, 32, 147, 147 } }),
@@ -386,7 +416,55 @@ INSTANTIATE_TEST_CASE_P(
             "CPU",
             SingleLayerTestModel::Ptr(new ConcatTestModel(false, true, false, { 100, 1 })),
             { { 100, 1 }, { 100, 1 } },
-            { { 100, 2 } })
+            { { 100, 2 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            SingleLayerTestModel::Ptr(new ConcatWithPoolingTestModel(false, false, false, 2.0)),
+            { { 1, 3, 299, 299 }, { 1, 3, 299, 299 } },
+            { { 1, 6, 299, 299 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            SingleLayerTestModel::Ptr(new ConcatWithPoolingTestModel(false, true, false, 2.0)),
+            { { 1, 3, 299, 299 }, { 1, 3, 299, 299 } },
+            { { 1, 6, 299, 299 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            SingleLayerTestModel::Ptr(new ConcatWithPoolingTestModel(true, false, false, 2.0)),
+            { { 1, 3, 299, 299 }, { 1, 3, 299, 299 } },
+            { { 1, 6, 299, 299 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            SingleLayerTestModel::Ptr(new ConcatWithPoolingTestModel(true, true, false, 2.0)),
+            { { 1, 3, 299, 299 }, { 1, 3, 299, 299 } },
+            { { 1, 6, 299, 299 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            SingleLayerTestModel::Ptr(new ConcatWithPoolingTestModel(false, false, true, 2.0)),
+            { { 1, 3, 299, 299 }, { 1, 3, 299, 299 } },
+            { { 1, 6, 299, 299 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            SingleLayerTestModel::Ptr(new ConcatWithPoolingTestModel(false, true, true, 2.0)),
+            { { 1, 3, 299, 299 }, { 1, 3, 299, 299 } },
+            { { 1, 6, 299, 299 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            SingleLayerTestModel::Ptr(new ConcatWithPoolingTestModel(true, false, true, 2.0)),
+            { { 1, 3, 299, 299 }, { 1, 3, 299, 299 } },
+            { { 1, 6, 299, 299 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            SingleLayerTestModel::Ptr(new ConcatWithPoolingTestModel(true, true, true, 2.0)),
+            { { 1, 3, 299, 299 }, { 1, 3, 299, 299 } },
+            { { 1, 6, 299, 299 } })
     ),
     SingleLayerTransformationsTestParams::getLowPrecisionTransformerSingleLayerTestName);
 

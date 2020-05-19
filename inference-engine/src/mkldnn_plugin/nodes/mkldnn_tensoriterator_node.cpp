@@ -151,8 +151,8 @@ public:
 
 }  // namespace MKLDNNPlugin
 
-MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, int socket) :
-        MKLDNNNode(layer, eng, socket) {}
+MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
+        MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
     auto *ti = dynamic_cast<class TensorIterator*>(getCnnLayer().get());
@@ -161,7 +161,7 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
 
     n_iter = getNumIteration(*ti);
     MKLDNNGraph::ApplyUnrollPasses(ti->body);
-    sub_graph.CreateGraph(ti->body, ext_mng, this->whichSocket());
+    sub_graph.CreateGraph(ti->body, ext_mng, weightCache);
 
     // Try to detect inputs and outputs by indexes
     std::map<std::string, MKLDNNNodePtr> in_map, out_map;

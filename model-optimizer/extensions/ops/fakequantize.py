@@ -43,6 +43,7 @@ class FakeQuantize(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
             'levels': None,
             'is_eltwise': True,
             # flag to switch between dumping FakeQuantize as statistics and keeping it as layer in IR

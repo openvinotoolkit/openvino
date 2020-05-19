@@ -28,7 +28,7 @@ private:
     }
 
 public:
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore * core,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
                                                 const InferenceEngine::ICNNNetwork &network,
                                                 const std::map<std::string, std::string> &config) override {
         Config updated_config(defaultConfig);

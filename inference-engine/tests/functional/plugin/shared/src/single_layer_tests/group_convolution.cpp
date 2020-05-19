@@ -70,9 +70,5 @@ void GroupConvolutionLayerTest::SetUp() {
 
 TEST_P(GroupConvolutionLayerTest, CompareWithRefs) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 }
 }  // namespace LayerTestsDefinitions

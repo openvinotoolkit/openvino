@@ -6,5 +6,5 @@
 #include "gna_test_data.hpp"
 
 // TODO: support InferRequestCallback in GNAPlugin
-//INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInferRequestCallback, ValuesIn(requestsSupportedValues),
+//INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestInferRequestCallback, ValuesIn(requestsSupportedValues),
 //                        getTestCaseName);

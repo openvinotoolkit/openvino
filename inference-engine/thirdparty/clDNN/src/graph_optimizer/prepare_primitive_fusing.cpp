@@ -60,7 +60,7 @@ void prepare_primitive_fusing::run(program_impl& p) {
     fuse_sigmoid_mul_to_swish(p);
     fuse_simple_primitives(p);
     fuse_activations(p);
-    fuse_skip_layers(p);
+    optimize_fused_ops(p);
 }
 
 void prepare_primitive_fusing::fuse_sigmoid_mul_to_swish(program_impl &p) {
@@ -230,45 +230,6 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
     }
 }
 
-void prepare_primitive_fusing::fuse_skip_layers(program_impl& p) {
-    // This loop tries fusing eltwise (sum) with deconvolution
-    auto itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
-        auto node_itr = itr++;
-        auto& node = (*node_itr);
-
-        program_helpers::do_for_types<eltwise>(*node, [&p](eltwise_node& node) {
-            if (node.get_primitive()->mode != eltwise_mode::sum || node.inputs_count() != 2)
-                return;
-
-            // both inputs should be deconvolutions
-            if (!(node.input(0).is_type<deconvolution>() && node.input(1).is_type<deconvolution>())) {
-                return;
-            }
-
-            auto& to_fuse_with = node.input(0);
-            int to_fuse_index = 1;
-
-            // remove dependencies and users of elwtise that is going to be extracted
-            p.add_connection(node.input(to_fuse_index), to_fuse_with);
-            p.remove_connection(node.input(to_fuse_index), node);
-
-            p.get_processing_order().erase(&to_fuse_with);
-            p.get_processing_order().insert(&node, &to_fuse_with);
-
-            if (!node.get_fused_activations_funcs().empty()) {
-                for (size_t i = 0; i < node.get_fused_activations_funcs().size(); i++) {
-                    to_fuse_with.add_fused_activation(node.get_fused_activations_funcs()[i],
-                                                      node.get_fused_activations_params()[i]);
-                }
-            }
-            to_fuse_with.set_output_padding(node.get_output_layout().data_padding);
-
-            p.extract_and_remove(node);
-        });
-    }
-}
-
 void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
     bool recalc_processing_order = false;
 
@@ -389,6 +350,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<mvn>();
 
+            should_fuse |= input_data.is_type<deconvolution>();
+
             if (!should_fuse)
                 return;
 
@@ -423,6 +386,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<resample>();
 
             should_fuse |= input_data.is_type<mvn>() && mvn_supports_fusings(input_data.as<mvn>());
+
+            should_fuse |= input_data.is_type<deconvolution>();
 
             if (!should_fuse)
                 return;
@@ -488,6 +453,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<mvn>() && mvn_supports_fusings(input_data.as<mvn>()) &&
                            quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<activation>() && quantize_node.get_scale_shift_opt();
+
+            should_fuse |= input_data.is_type<deconvolution>() && quantize_node.get_scale_shift_opt() &&
+                            // fp16/fp32 optimized kernels don't support chaning data type
+                           (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
+                            input_data.get_dependency(0).get_output_layout().data_type == data_types::i8 ||
+                            input_data.get_output_layout().data_type == out_layout.data_type);
+
             if (!should_fuse)
                 return;
 
@@ -507,10 +480,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             auto parent2 = parents[1];
 
             bool can_fuse_parent1 = (parent1->is_type<convolution>() && conv_supports_fusings(parent1->as<convolution>())) ||
-                                    (parent1->is_type<mvn>() && mvn_supports_fusings(parent1->as<mvn>()));
+                                    (parent1->is_type<mvn>() && mvn_supports_fusings(parent1->as<mvn>())) ||
+                                    (parent1->is_type<deconvolution>());
 
             bool can_fuse_parent2 = (parent2->is_type<convolution>() && conv_supports_fusings(parent2->as<convolution>())) ||
-                                    (parent2->is_type<mvn>() && mvn_supports_fusings(parent2->as<mvn>()));
+                                    (parent2->is_type<mvn>() && mvn_supports_fusings(parent2->as<mvn>())) ||
+                                    (parent2->is_type<deconvolution>());
 
             std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 
@@ -575,6 +550,49 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
     // than fused node one
     if (recalc_processing_order)
         p.get_processing_order().calc_processing_order(p);
+}
+
+void prepare_primitive_fusing::optimize_fused_ops(program_impl& p) {
+    auto itr = p.get_processing_order().begin();
+    while (itr != p.get_processing_order().end()) {
+        auto node_itr = itr++;
+        auto& node = (*node_itr);
+
+        if (!node->has_fused_primitives())
+            continue;
+
+        // TODO: try more optimizations:
+        // 1. clamp optimization
+        // 2. fuse conv bias to quantize shift
+        auto& fused_prims = node->get_fused_primitives();
+
+        // Drop relu if the next fused op is quantize with u8 output and no in_shift
+        auto fp_itr = fused_prims.begin();
+        while (fp_itr != fused_prims.end()) {
+            auto curr_itr = fp_itr++;
+            if (fp_itr == fused_prims.end())
+                break;
+
+            auto& fp = *curr_itr;
+            auto& fp_next = *fp_itr;
+
+            if (fp.node->is_type<activation>() && fp_next.node->is_type<quantize>()) {
+                auto& activation_node = fp.node->as<activation>();
+                auto& quantize_node = fp_next.node->as<quantize>();
+                bool can_skip = activation_node.get_primitive()->activation_function == activation_func::relu &&
+                                activation_node.get_primitive()->additional_params.a == 0.0f &&
+                                fp.deps.empty() &&
+                                (quantize_node.get_output_layout().data_type == data_types::u8 ||
+                                 quantize_node.get_output_layout().data_type == data_types::i8) &&
+                                quantize_node.get_scale_shift_opt() &&
+                                !quantize_node.get_need_pre_shift();
+
+                if (can_skip) {
+                    fused_prims.erase(curr_itr);
+                }
+            }
+        }
+    }
 }
 
 void prepare_conv_eltw_fusing::fuse_conv_depth_to_space(program_impl& p, program_node* node) {

@@ -34,6 +34,10 @@ function (add_models_repo add_to_fetcher model_name)
 endfunction()
 
 function(add_lfs_repo name prefix url tag)
+    if(TARGET ${name})
+        return()
+    endif()
+
     ExternalProject_Add(${name}
         PREFIX ${prefix}
         GIT_REPOSITORY ${url}

@@ -27,6 +27,7 @@ class OneHot(Op):
         mandatory_props = {
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'opset1',
             'axis': -1,
             'infer': __class__.infer,
             'on_value': None,

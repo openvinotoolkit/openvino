@@ -35,10 +35,12 @@ public:
     program_node& input(size_t index = 0) const { return get_dependency(index); }
     size_t inputs_count() const { return get_dependencies().size(); }
     bool get_scale_shift_opt() const { return scale_shift_opt; }
+    bool get_need_pre_shift() { return need_pre_shift; }
     void set_scale_shift_opt() { scale_shift_opt = true; }
     void set_need_post_scale() { need_post_scale = true; }
     void set_need_post_shift() { need_post_shift = true; }
     void set_need_pre_shift() { need_pre_shift = true; }
+    void set_need_clamp() { need_clamp = true; }
     void set_per_tensor_input_scale() { per_tensor_input_scale = true; }
     void set_per_tensor_input_shift() { per_tensor_input_shift = true; }
     void set_per_tensor_input_range() { per_tensor_input_range = true; }
@@ -57,6 +59,7 @@ public:
                                                                        need_post_scale,
                                                                        need_post_shift,
                                                                        need_pre_shift,
+                                                                       need_clamp,
                                                                        per_tensor_input_range,
                                                                        per_tensor_input_scale,
                                                                        per_tensor_input_shift,
@@ -79,6 +82,7 @@ private:
     bool need_post_scale = false;
     bool need_post_shift = false;
     bool need_pre_shift = false;
+    bool need_clamp = false;
 
     bool per_tensor_input_range = false;
     bool per_tensor_input_scale = false;

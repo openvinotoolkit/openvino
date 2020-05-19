@@ -1,0 +1,20 @@
+*  @openvinotoolkit/openvino-maintainers
+
+CODEOWNERS  @openvinotoolkit/openvino-admins
+
+# CI:
+azure-pipelines.yml  @openvinotoolkit/openvino-admins
+/.github/  @openvinotoolkit/openvino-admins
+
+# Tests:
+/tests/  @openvinotoolkit/openvino-tests-maintainers
+/inference-engine/tests/  @openvinotoolkit/openvino-tests-maintainers
+
+# IE:
+/inference-engine/  @openvinotoolkit/openvino-ie-maintainers
+
+# MO:
+/model-optimizer/  @openvinotoolkit/openvino-mo-maintainers
+
+# ngraph:
+/ngraph/  @openvinotoolkit/openvino-mo-maintainers

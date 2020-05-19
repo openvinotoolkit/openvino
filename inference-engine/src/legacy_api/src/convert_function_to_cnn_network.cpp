@@ -16,6 +16,7 @@
 #include "ngraph_ops/fully_connected.hpp"
 #include "ngraph_ops/gather_ie.hpp"
 #include "ngraph_ops/gather_tree_ie.hpp"
+#include "ngraph_ops/gru_cell_ie.hpp"
 #include "ngraph_ops/interp.hpp"
 #include "ngraph_ops/lrn_ie.hpp"
 #include "ngraph_ops/lstm_cell_ie.hpp"
@@ -34,6 +35,7 @@
 #include "ngraph_ops/crop_ie.hpp"
 #include "ngraph_ops/selu_ie.hpp"
 #include "ngraph_ops/strided_slice_ie.hpp"
+#include "ngraph_ops/rnn_cell_ie.hpp"
 #include "ngraph_ops/topk_ie.hpp"
 #include "generic_ie.hpp"
 
@@ -334,6 +336,77 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
         return res;
     });
+
+    addSpecificCreator({"RNNCell"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                            const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        THROW_IE_EXCEPTION << "RNNCell operation has a form that is not supported." << node->get_friendly_name()
+                           << " should be converted to RNNCellIE operation";
+        return nullptr;
+    });
+
+    addSpecificCreator({"GRUCell"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                            const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        THROW_IE_EXCEPTION << "GRUCell operation has a form that is not supported." << node->get_friendly_name()
+                           << " should be converted to GRUCellIE operation";
+        return nullptr;
+    });
+
+    addSpecificCreator({"RNNCellIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                      const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "RNNCell",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<RNNCell>(attrs);
+        res->params = params;
+
+        Builder::NodeConverter<ngraph::op::Constant> converter;
+        const auto weightsNode = node->input_value(2).get_node_shared_ptr();
+        if (converter.canCreate(weightsNode)) {
+            const auto& weights = converter.createLayer(weightsNode);
+            res->blobs["weights"] = weights->blobs["custom"];
+            res->_weights = weights->blobs["custom"];
+        }
+
+        const auto biasNode = node->input_value(3).get_node_shared_ptr();
+        if (converter.canCreate(biasNode)) {
+            const auto& bias = converter.createLayer(biasNode);
+            res->blobs["biases"] = bias->blobs["custom"];
+            res->_biases = bias->blobs["custom"];
+        }
+        return res;
+    });
+
+    addSpecificCreator({"GRUCellIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                         const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "GRUCell",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<GRUCell>(attrs);
+        res->params = params;
+
+        Builder::NodeConverter<ngraph::op::Constant> converter;
+        const auto weightsNode = node->input_value(2).get_node_shared_ptr();
+        if (converter.canCreate(weightsNode)) {
+            const auto& weights = converter.createLayer(weightsNode);
+            res->blobs["weights"] = weights->blobs["custom"];
+            res->_weights = weights->blobs["custom"];
+        }
+
+        const auto biasNode = node->input_value(3).get_node_shared_ptr();
+        if (converter.canCreate(biasNode)) {
+            const auto& bias = converter.createLayer(biasNode);
+            res->blobs["biases"] = bias->blobs["custom"];
+            res->_biases = bias->blobs["custom"];
+        }
+        return res;
+    });
+
+    addSpecificCreator({"ScatterElementsUpdate"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), node->description(),
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<ScatterElementsUpdateLayer>(attrs);
+        res->params = params;
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -495,7 +568,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                                          const std::shared_ptr<::ngraph::Node> &consumerLayer,
                                          bool keep_constants) -> bool {
         if (((::ngraph::as_type_ptr<::ngraph::op::ConvolutionIE>(consumerLayer) ||
-              ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer)) && !keep_constants) ||
+            ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer)) && !keep_constants) ||
             ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::DeconvolutionIE>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::v1::DeformableConvolution>(consumerLayer) ||
@@ -505,10 +578,14 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
             ::ngraph::as_type_ptr<::ngraph::op::v1::Split>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::VariadicSplit>(consumerLayer) ||
             ::ngraph::as_type_ptr<::ngraph::op::ScaleShiftIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::Transpose>(consumerLayer)) {
+            ::ngraph::as_type_ptr<::ngraph::op::Transpose>(consumerLayer) ||
+            ::ngraph::as_type_ptr<::ngraph::op::RNNCellIE>(consumerLayer) ||
+            ::ngraph::as_type_ptr<::ngraph::op::GRUCellIE>(consumerLayer)) {
             // Check that all input nodes except zero input are Constants for all ops except DeformableConvolutions
             // for which the input with index 1 is also dynamic
-            size_t inputID = ::ngraph::as_type_ptr<::ngraph::op::v1::DeformableConvolution>(consumerLayer) ? 2 : 1;
+            size_t inputID = ::ngraph::as_type_ptr<::ngraph::op::v1::DeformableConvolution>(consumerLayer) ||
+                             ::ngraph::as_type_ptr<::ngraph::op::GRUCellIE>(consumerLayer) ||
+                             ::ngraph::as_type_ptr<::ngraph::op::RNNCellIE>(consumerLayer)? 2 : 1;
             for (; inputID < consumerLayer->inputs().size(); ++inputID) {
                 auto inputLayer = consumerLayer->input(inputID).get_source_output().get_node_shared_ptr();
                 if (inputLayer == constLayer) {
@@ -599,8 +676,10 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         }
         size_t inputCount(0);
         for (size_t i = 0; i < layer->get_input_size(); i++) {
-            const auto &input = layer->get_inputs()[i];
-            if (isInternalLayer(input.get_output().get_node(), op_names, keep_constants)) continue;
+            const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(layer->get_inputs()[i].get_output().get_node());
+            if (constant && isInternalConstLayer(constant, layer, keep_constants)) {
+                continue;
+            }
             inputCount++;
         }
         cnnLayer->insData.resize(inputCount);

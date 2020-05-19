@@ -4,168 +4,168 @@
 
 #include "myriad_layers_eltwise_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseMax_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseMax_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSum_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSum_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSub_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSub_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseMul_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseMul_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSumWithCoeff_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSumWithCoeff_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSumWithBroadcast_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSumWithBroadcast_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseInputs),
         ::testing::Values<int>(4))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSubWithCoeff_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSubWithCoeff_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSubWithBroadcast_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSubWithBroadcast_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::Values<int>(4))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseDiv_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseDiv_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseMin_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseMin_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSqDiff_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseSqDiff_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwisePow_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwisePow_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseFloorMod_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseFloorMod_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseEqual_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseEqual_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseNotEqual_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseNotEqual_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseGreater_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseGreater_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseGreaterEqual_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseGreaterEqual_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseLess_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseLess_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseLessEqual_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseLessEqual_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseLogicalNot_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseLogicalNot_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyOneInput),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseLogicalAnd_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseLogicalAnd_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseLogicalOr_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseLogicalOr_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseLogicalXor_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseLogicalXor_smoke,
         ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseInputs),
         ::testing::ValuesIn(s_eltwiseDims))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseMean_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseMean_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_eltwiseTensors),
         ::testing::ValuesIn(s_eltwiseOnlyTwoInputs),

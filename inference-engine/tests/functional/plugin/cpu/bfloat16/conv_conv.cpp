@@ -27,15 +27,16 @@ namespace LayerTestsDefinitions {
 
 class ConvConv : public BasicBF16Test {
 protected:
-    std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision)override {
+    std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
         //     ScaleShift (FP32)
         //          |
         //        Conv (BF16)
         //          |
         //        Conv (BF16)
 
+        ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
         // multiply
-        auto input1 = std::make_shared<opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 40, 40});
+        auto input1 = std::make_shared<opset1::Parameter>(ngraph::element::f32, ngraph::Shape{inputShapes});
         auto const1 = opset1::Constant::create(ngraph::element::f32, Shape{1}, { 2.0f });
         auto mulNode = std::make_shared<opset1::Multiply>(input1, const1);
 
@@ -45,11 +46,22 @@ protected:
         addNode->set_friendly_name("ADD_1");
 
         // convolution
-        ngraph::Shape convFilterShape = { 3, 3, 3, 3 };  // out channel, /input channels, kernel h, kernel w
-        std::vector<float> weightValues;
-        weightValues.resize(3 * 3 * 3 * 3);
-        BFloat16Helpers::fillInputsBySinValues(weightValues.data(), weightValues.size());
-        auto weightsNode = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, convFilterShape, weightValues);
+        std::shared_ptr<ngraph::opset1::Constant> weightsNode = nullptr;
+
+        auto channelsCount = inputShapes[1];
+
+        ngraph::Shape convFilterShape = { channelsCount, channelsCount, 3, 3 };  // out channel, /input channels, kernel h, kernel w
+        if (netPrecision == Precision::FP32) {
+            std::vector<float> weightValuesFP32;
+            weightValuesFP32.resize(channelsCount * channelsCount * 3 * 3);
+            FuncTestUtils::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
+            weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesFP32);
+        } else {
+            std::vector<short> weightValuesBF16;
+            weightValuesBF16.resize(channelsCount * channelsCount * 3 * 3);
+            FuncTestUtils::fillInputsBySinValues(weightValuesBF16.data(), weightValuesBF16.size());
+            weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesBF16.data());
+        }
 
         std::shared_ptr<ngraph::Node> convNode1 = std::make_shared<ngraph::opset1::Convolution>(
             addNode, weightsNode,
@@ -61,10 +73,10 @@ protected:
         convNode1->set_friendly_name("CONV_1");
 
         // Convolution
-        ngraph::Shape convFilterShape2 = { 3, 3, 3, 3 };  // out channel, /input channels, kernel h, kernel w
+        ngraph::Shape convFilterShape2 = { channelsCount, channelsCount, 3, 3 };  // out channel, /input channels, kernel h, kernel w
         std::vector<float> weightValues2;
-        weightValues2.resize(3 * 3 * 3 * 3);
-        BFloat16Helpers::fillInputsBySinValues(weightValues2.data(), weightValues2.size());
+        weightValues2.resize(channelsCount * channelsCount * 3 * 3);
+        FuncTestUtils::fillInputsBySinValues(weightValues2.data(), weightValues2.size());
         auto weightsNode2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, convFilterShape2, weightValues2);
         std::shared_ptr<ngraph::Node> convNode2 = std::make_shared<ngraph::opset1::Convolution>(
             convNode1, weightsNode2,
@@ -77,13 +89,12 @@ protected:
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{convNode2}, ngraph::ParameterVector{input1});
     }
-    void SetUp()override {
+    void SetUp() override {
         std::tie(inputPrecision, netPrecision, inputShapes, newInputShapes, targetDevice) = this->GetParam();
         fnPtr = createGraph(netPrecision);
 
         // STAGE1:
-        // the maximum values in the latest tensor for this test is 24.4. It would be safe to set threshold eq to 0.1
-        threshold = 0.3f;
+        threshold = 1.0f;  // Max in fp32 network by output CONV_2: 49.3427
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters

@@ -14,7 +14,7 @@
 #include <gna/gna_config.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <cpp_interfaces/exception2status.hpp>
-#include <tests_utils.hpp>
+#include <common_test_utils/test_assertions.hpp>
 #include <memory>
 #include <fstream>
 

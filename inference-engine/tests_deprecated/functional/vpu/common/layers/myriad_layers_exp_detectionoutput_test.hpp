@@ -381,11 +381,11 @@ protected:
         }
 };
 
-class myriadTestsExpDetectionOutput_nightly: public ExpDetectionOutputTest
+class myriadTestsExpDetectionOutput_smoke: public ExpDetectionOutputTest
 {
 };
 
-TEST_P(myriadTestsExpDetectionOutput_nightly, ExpDetectionOutput)
+TEST_P(myriadTestsExpDetectionOutput_smoke, ExpDetectionOutput)
 {
     testExpDetectionOutput();
 }

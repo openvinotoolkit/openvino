@@ -11,8 +11,10 @@ extensions/back/__init__.py
 extensions/back/ActivationsNormalizer.py
 extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
+extensions/back/CellNormalizer.py
 extensions/back/compress_quantized_weights.py
 extensions/back/ConvolutionNormalizer.py
+extensions/back/CorrectName.py
 extensions/back/CropToStridedSlice.py
 extensions/back/CutMemory.py
 extensions/back/disable_unsupported_ND_operations.py
@@ -31,7 +33,6 @@ extensions/back/kaldi_remove_memory_output.py
 extensions/back/LeakyReLUMutation.py
 extensions/back/LeakyReluToReluWithNegativeSlope.py
 extensions/back/LRNToNorm.py
-extensions/back/LSTMCellNormalizer.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
 extensions/back/NonMaximumSuppressionNormalize.py
@@ -133,6 +134,7 @@ extensions/front/FillToBroadcast.py
 extensions/front/flatten_to_reshape.py
 extensions/front/freeze_placeholder_value.py
 extensions/front/GeLUMerger_Erf.py
+extensions/front/GeLUMerger_Tanh.py
 extensions/front/global_pooling_to_reduce.py
 extensions/front/image_scaler.py
 extensions/front/input_cut.py
@@ -282,6 +284,7 @@ extensions/front/onnx/priorbox_clustered_ext.py
 extensions/front/onnx/priorbox_ext.py
 extensions/front/onnx/priorgridgenerator_ext.py
 extensions/front/onnx/proposal_ext.py
+extensions/front/onnx/quantize_dequantize_linear.py
 extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/reduce_max_ext.py
 extensions/front/onnx/reduce_mean_ext.py
@@ -299,6 +302,7 @@ extensions/front/onnx/scatter_ext.py
 extensions/front/onnx/shape_ext.py
 extensions/front/onnx/slice_ext.py
 extensions/front/onnx/softmax_ext.py
+extensions/front/onnx/softmaxONNX_to_softmax.py
 extensions/front/onnx/split_ext.py
 extensions/front/onnx/squeeze_ext.py
 extensions/front/onnx/top_k_ext.py
@@ -549,6 +553,7 @@ extensions/middle/RNNSequenceNormalizeToIE.py
 extensions/middle/ScaleInput.py
 extensions/middle/SharedWeightsDuplication.py
 extensions/middle/SliceConverter.py
+extensions/middle/SliceLikeToStridedSlice.py
 extensions/middle/space_to_depth.py
 extensions/middle/sparse_reshape.py
 extensions/middle/ssd_anchors_to_const.py
@@ -566,7 +571,6 @@ extensions/middle/UnsqueezeTileReshapeBlockToInterpolate.py
 extensions/middle/UpsampleToResample.py
 extensions/middle/UselessMerge.py
 extensions/middle/UselessSplitEraser.py
-extensions/middle/UselessStridedSlice.py
 extensions/middle/wights_permute_normalizer.py
 extensions/ops/__init__.py
 extensions/ops/accum.py
@@ -594,7 +598,6 @@ extensions/ops/elementwise.py
 extensions/ops/embedding_bag.py
 extensions/ops/Enter.py
 extensions/ops/Exit.py
-extensions/ops/exp.py
 extensions/ops/fakequantize.py
 extensions/ops/gather.py
 extensions/ops/GatherNd.py
@@ -608,7 +611,6 @@ extensions/ops/identity.py
 extensions/ops/instance_normalization.py
 extensions/ops/interp.py
 extensions/ops/interpolate.py
-extensions/ops/Log.py
 extensions/ops/LSTM.py
 extensions/ops/lstm_cell.py
 extensions/ops/lstm_sequence.py
@@ -656,6 +658,7 @@ extensions/ops/select.py
 extensions/ops/shufflechannel.py
 extensions/ops/simplernms.py
 extensions/ops/size.py
+extensions/ops/slice_like.py
 extensions/ops/space_to_depth.py
 extensions/ops/sparse_fill_empty_rows.py
 extensions/ops/sparse_reshape.py
@@ -695,6 +698,9 @@ install_prerequisites/install_prerequisites_onnx.bat
 install_prerequisites/install_prerequisites_onnx.sh
 install_prerequisites/install_prerequisites_tf.bat
 install_prerequisites/install_prerequisites_tf.sh
+install_prerequisites/protobuf-3.6.1-py3.5-win-amd64.egg
+install_prerequisites/protobuf-3.6.1-py3.6-win-amd64.egg
+install_prerequisites/protobuf-3.6.1-py3.7-win-amd64.egg
 mo.py
 mo/__init__.py
 mo/back/__init__.py
@@ -898,12 +904,14 @@ mo/pipeline/__init__.py
 mo/pipeline/common.py
 mo/pipeline/unified.py
 mo/utils/__init__.py
+mo/utils/broadcasting.py
 mo/utils/class_registration.py
 mo/utils/cli_parser.py
 mo/utils/custom_replacement_config.py
 mo/utils/dsu.py
 mo/utils/error.py
 mo/utils/find_inputs.py
+mo/utils/get_ov_update_message.py
 mo/utils/graph.py
 mo/utils/guess_framework.py
 mo/utils/import_extensions.py
@@ -922,6 +930,7 @@ mo/utils/ir_reader/extenders/fakequantize_extender.py
 mo/utils/ir_reader/extenders/GRUCell_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
 mo/utils/ir_reader/extenders/LSTMCell_extender.py
+mo/utils/ir_reader/extenders/non_max_suppression_extender.py
 mo/utils/ir_reader/extenders/non_zero_extender.py
 mo/utils/ir_reader/extenders/pad_extender.py
 mo/utils/ir_reader/extenders/parameter_extender.py
@@ -930,6 +939,7 @@ mo/utils/ir_reader/extenders/priorbox_clustered_extender.py
 mo/utils/ir_reader/extenders/priorbox_extender.py
 mo/utils/ir_reader/extenders/reorg_yolo_extender.py
 mo/utils/ir_reader/extenders/RNNCell_extender.py
+mo/utils/ir_reader/extenders/shape_of_extender.py
 mo/utils/ir_reader/extenders/strided_slice_extender.py
 mo/utils/ir_reader/extenders/tensoriterator_extender.py
 mo/utils/ir_reader/extenders/topk_extender.py

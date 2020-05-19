@@ -1,4 +1,4 @@
- // Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,7 @@
 #include "single_layer_tests/select.hpp"
 
 namespace LayerTestsDefinitions {
+    enum { CONDITION, THEN, ELSE, numOfInputs };
 
     std::string SelectLayerTest::getTestCaseName(const testing::TestParamInfo<selectTestParams> &obj) {
         std::vector<std::vector<size_t>> dataShapes(3);
@@ -27,73 +28,43 @@ namespace LayerTestsDefinitions {
         std::string targetDevice;
         std::tie(dataShapes, dataType, broadcast, targetDevice) = obj.param;
         std::ostringstream result;
-        result << "COND=BOOL_" << CommonTestUtils::vec2str(dataShapes[0]);
-        result << "_THEN=" << dataType.name() << "_" << CommonTestUtils::vec2str(dataShapes[1]);
-        result << "_ELSE=" << dataType.name() << "_" << CommonTestUtils::vec2str(dataShapes[2]);
+        result << "COND=BOOL_" << CommonTestUtils::vec2str(dataShapes[CONDITION]);
+        result << "_THEN=" << dataType.name() << "_" << CommonTestUtils::vec2str(dataShapes[THEN]);
+        result << "_ELSE=" << dataType.name() << "_" << CommonTestUtils::vec2str(dataShapes[ELSE]);
         result << "_" << broadcast.m_type;
         result << "_targetDevice=" << targetDevice;
         return result.str();
     }
 
     void SelectLayerTest::SetUp() {
-        inputShapes.resize(NGraphFunctions::Select::numOfInputs);
+        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
+
+        std::vector<std::vector<size_t>> inputShapes(numOfInputs);
+        InferenceEngine::Precision inputPrecision;
+        ngraph::op::AutoBroadcastSpec broadcast;
         std::tie(inputShapes, inputPrecision, broadcast, targetDevice) = this->GetParam();
-        layer = NGraphFunctions::Select(FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision), inputShapes, broadcast);
+
+        ngraph::ParameterVector paramNodesVector;
+        auto paramNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::boolean, ngraph::Shape(inputShapes[CONDITION]));
+        paramNodesVector.push_back(paramNode);
+        auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
+        for (size_t i = 1; i < inputShapes.size(); i++) {
+            paramNode = std::make_shared<ngraph::opset1::Parameter>(inType, ngraph::Shape(inputShapes[i]));
+            paramNodesVector.push_back(paramNode);
+        }
+        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramNodesVector));
+
+        auto select = std::dynamic_pointer_cast<ngraph::opset1::Select>(ngraph::builder::makeSelect(paramOuts, broadcast));
+        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(select)};
+        function = std::make_shared<ngraph::Function>(results, paramNodesVector, "select");
     }
 
     TEST_P(SelectLayerTest, CompareWithRefImpl) {
-        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        Run();
 
-        InferenceEngine::CNNNetwork cnnNet(layer.fnPtr);
-
-        auto outputName = cnnNet.getOutputsInfo().begin()->first;
-
-        auto ie = PluginCache::get().ie();
-        auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
-        auto req = execNet.CreateInferRequest();
-
-        std::vector<InferenceEngine::Blob::Ptr> inBlobs;
-
-        std::vector<uint32_t> range = {2, 30, 30};
-        std::vector<int32_t> startFrom = {0, 0, 30};
-        int i = 0;
-        for (const auto &inputItem : cnnNet.getInputsInfo()) {
-            auto currentBlob = FuncTestUtils::createAndFillBlob(inputItem.second->getTensorDesc(), range[i], startFrom[i]);
-            req.SetBlob(inputItem.first, currentBlob);
-            inBlobs.push_back(currentBlob);
-            i++;
+        if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+            PluginCache::get().reset();
         }
-
-        std::vector<InferenceEngine::Blob::Ptr> castedBlobs = inBlobs;
-        std::vector<const float *> inRawData;
-        for (size_t i = 0; i < castedBlobs.size(); i++) {
-            castedBlobs[i] = FuncTestUtils::copyBlobWithCast<InferenceEngine::Precision::FP32>(inBlobs[i]);
-            inRawData.push_back(castedBlobs[i]->cbuffer().as<float *>());
-        }
-
-        req.Infer();
-
-        auto outBlob = req.GetBlob(outputName);
-        auto resShape = outBlob->getTensorDesc().getDims();
-        const auto& outPrecision = outBlob->getTensorDesc().getPrecision();
-
-        size_t outElementsCount = std::accumulate(begin(resShape), end(resShape), 1, std::multiplies<size_t>());
-        std::vector<float> refOutData = layer.RefImpl<float>(inRawData, inputShapes, resShape);
-
-        if (outPrecision != InferenceEngine::Precision::I32 && outPrecision != InferenceEngine::Precision::FP32)
-            THROW_IE_EXCEPTION << "Test for select layer doesn't support output precision different from I32 or FP32";
-
-        if (outPrecision == InferenceEngine::Precision::I32) {
-            std::vector<int32_t> convRefOutData(outElementsCount);
-            for (size_t i = 0; i < outElementsCount; i++)
-                convRefOutData[i] = static_cast<int32_t>(refOutData[i]);
-            FuncTestUtils::compareRawBuffers(outBlob->cbuffer().as<int32_t *>(), convRefOutData.data(), outElementsCount, outElementsCount);
-        } else {
-            auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
-            FuncTestUtils::compareRawBuffers(outBlob->cbuffer().as<float *>(), refOutData.data(), outElementsCount, outElementsCount, thr);
-        }
-
-        layer.fnPtr.reset();
     }
 
 }  // namespace LayerTestsDefinitions

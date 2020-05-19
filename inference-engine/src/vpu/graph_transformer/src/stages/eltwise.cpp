@@ -53,7 +53,7 @@ StageType onlyThreeInputs(ie::EltwiseLayer::eOperation op, size_t input_size) {
     return T;
 }
 
-const std::map<ie::EltwiseLayer::eOperation, std::function<StageType(ie::EltwiseLayer::eOperation, size_t)>> eltwise_map = {
+static const std::map<ie::EltwiseLayer::eOperation, std::function<StageType(ie::EltwiseLayer::eOperation, size_t)>> eltwise_map = {
         MAP_ELEMENTS(Sum,           moreThanOneInput),
         MAP_ELEMENTS(Prod,          moreThanOneInput),
         MAP_ELEMENTS(Max,           moreThanOneInput),

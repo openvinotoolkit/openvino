@@ -26,12 +26,12 @@ void ref_erf(const InferenceEngine::Blob::Ptr src,
     }
 }
 
-class myriadLayersTestsErf_nightly: public myriadLayersTests_nightly,
+class myriadLayersTestsErf_smoke: public myriadLayersTests_nightly,
                                     public testing::WithParamInterface<SizeVector> {
 public:
 };
 
-TEST_P(myriadLayersTestsErf_nightly, TestsErf)
+TEST_P(myriadLayersTestsErf_smoke, TestsErf)
 {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
     auto p = ::testing::WithParamInterface<SizeVector>::GetParam();

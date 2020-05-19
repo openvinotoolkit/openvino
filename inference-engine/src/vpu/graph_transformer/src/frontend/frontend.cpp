@@ -17,6 +17,13 @@
 #include <map>
 #include <vector>
 #include <utility>
+#include <string>
+
+#include <convert_function_to_cnn_network.hpp>
+#include <generic_ie.hpp>
+#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 
 namespace vpu {
 
@@ -105,6 +112,8 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
         {"StaticShapeNonZero",                                 LAYER_PARSER(parseNonZero)},
         {"ROIAlign",                                           LAYER_PARSER(parseROIAlign)},
         {"DynamicShapeResolver",                               LAYER_PARSER(parseDSR)},
+        {"OutShapeOfReshape",                                  LAYER_PARSER(parseOutShapeOfReshape)},
+        {"StaticShapeBroadcast",                               LAYER_PARSER(parseBroadcast)},
     }} {}
 
 ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
@@ -149,38 +158,110 @@ namespace {
 
 std::atomic<int> g_counter(0);
 
-bool hasSuitableCustom(
-        const std::vector<CustomLayer::Ptr>& customLayers,
-        const ie::CNNLayerPtr& layer) {
-    const auto& env = CompileEnv::get();
-    ie::details::CaselessEq<std::string> cmp;
+}  // namespace
 
-    env.log->trace("Check for suitable custom implementation for layer %s:%s", layer->name, layer->type);
+CustomLayer::Ptr FrontEnd::getSuitableCustomLayer(const std::vector<CustomLayer::Ptr>& customLayers,
+                                                  const ie::CNNLayerPtr& cnnLayer) {
+    const auto& env = CompileEnv::get();
+    env.log->trace("Check for suitable custom implementation for layer %s:%s",
+                   cnnLayer->name, cnnLayer->type);
     VPU_LOGGER_SECTION(env.log);
 
-    for (const auto& customLayer : customLayers) {
-        env.log->trace("Check next custom layer : %v", customLayer->whereParams());
+    const auto cnnInputs = [&] {
+        auto inputs = SmallVector<CustomDataFormat>{};
+        inputs.reserve(cnnLayer->insData.size());
+        for (const auto& input : cnnLayer->insData) {
+            const auto layout = input.lock()->getLayout();
+            const auto format = CustomLayer::formatFromLayout(layout);
+            inputs.push_back(format);
+        }
+        return inputs;
+    }();
+
+    const auto cnnOutputs = [&] {
+        auto outputs = SmallVector<CustomDataFormat>{};
+        outputs.reserve(cnnLayer->outData.size());
+        for (const auto& output : cnnLayer->outData) {
+            const auto layout = output->getLayout();
+            const auto format = CustomLayer::formatFromLayout(layout);
+            outputs.push_back(format);
+        }
+        return outputs;
+    }();
+
+    const auto isSuitableLayer = [&env, &cnnLayer](const CustomLayer::Ptr& customLayer) {
+        env.log->trace("Check next custom layer : %v", customLayer->layerName());
         VPU_LOGGER_SECTION(env.log);
 
-        bool suitable = true;
-        for (const auto& whereParam : customLayer->whereParams()) {
-            const auto iter = layer->params.find(whereParam.first);
-            if (iter == layer->params.end() || !cmp(iter->second, whereParam.second)) {
-                suitable = false;
-                break;
+        if (!customLayer->meetsWhereRestrictions(cnnLayer->params)) {
+            env.log->trace("Where restrictions are not met");
+            return false;
+        }
+
+        for (const auto& kernel : customLayer->kernels()) {
+            const auto& gws = kernel.globalGridSizeRules();
+            const auto& lws = kernel.localGridSizeRules();
+
+            const auto validSizeRule = [&](const std::string& rule) {
+                return CustomLayer::isLegalSizeRule(rule, cnnLayer->params);
+            };
+
+            const auto validGridSizes = std::all_of(begin(gws), end(gws), validSizeRule) &&
+                                        std::all_of(begin(lws), end(lws), validSizeRule);
+
+            if (!validGridSizes) {
+                env.log->trace("Work group grid sizes are not valid");
+                return false;
             }
         }
 
-        if (suitable) {
-            env.log->trace("Matches");
-            return true;
+        return true;
+    };
+
+    auto suitableCustomLayers = SmallVector<CustomLayer::Ptr>{};
+
+    std::copy_if(begin(customLayers), end(customLayers),
+        back_inserter(suitableCustomLayers), isSuitableLayer);
+
+    if (suitableCustomLayers.empty()) {
+      return nullptr;
+    }
+
+    const auto inputsLayoutMatch = [&](const SmallVector<CustomDataFormat>& cnnEdges,
+                                       const std::map<int, CustomDataFormat>& clEdges) {
+        for (const auto clEdge : clEdges) {
+            const auto port = clEdge.first;
+            VPU_THROW_UNLESS(port < cnnEdges.size(),
+                "Can't bind custom layer edge with port '%s' to CNNNetwork layer", port);
+
+            const auto clFormat = clEdge.second;
+            const auto cnnFormat = cnnEdges[port];
+            if (cnnFormat != clFormat &&
+                cnnFormat != CustomDataFormat::Any &&
+                clFormat != CustomDataFormat::Any) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+
+    for (const auto& customLayer : suitableCustomLayers) {
+        const auto clInputs = customLayer->inputs();
+
+        if (inputsLayoutMatch(cnnInputs, clInputs)) {
+            env.log->trace("Found suitable '%s' custom layer", customLayer->layerName());
+            return customLayer;
         }
     }
 
-    return false;
+    const auto firstGoodLayer = suitableCustomLayers.front();
+    env.log->trace("Found suitable custom layer '%s', but input layouts "
+                   "have not matched with what CNNNetwork expected",
+                   firstGoodLayer->layerName());
+    return firstGoodLayer;
 }
 
-}  // namespace
 
 void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) {
     parseLayer(model, layer, inputs, outputs,
@@ -191,12 +272,8 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
 
 void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                           const FrontEnd::UnsupportedLayerCallback& onUnsupported, const FrontEnd::SupportedLayerCallback& onSupported) {
-    const auto customLayerByType  = _customLayers.find(layer->type);
-    const auto customLayerAsStage = _customLayers.find(layer->type + "@stage_0");
-
-    const bool isCustomLayer =
-        ((customLayerByType != _customLayers.end()) && hasSuitableCustom(customLayerByType->second, layer)) ||
-        ((customLayerAsStage != _customLayers.end()) && hasSuitableCustom(customLayerAsStage->second, layer));
+    const auto customLayer = _customLayers.find(layer->type);
+    const bool isCustomLayer = customLayer != _customLayers.end() && getSuitableCustomLayer(customLayer->second, layer);
 
     const auto& type = isCustomLayer ? "Custom" : layer->type;
     if (parsers.count(type) == 0) {
@@ -235,6 +312,15 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network) {
 
 
 ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLayerCallback& unsupportedLayer, const SupportedLayerCallback& supportedLayer) {
+    // NGraph -> CNN conversion may be called in 2 different moments: at
+    // the beginning if conversion was forced by configuration or after detect
+    // network batch and precision conversions. Conversion utility
+    // returns std::shared_ptr. ICNNNetwork is neither copyable nor movable.
+    // As a result, it is impossible to overwrite given "network" argument.
+    // Do not use network parameter in this function to avoid using wrong network
+    // reference (e.g. original instead of converted).
+    auto* originalOrConvertNetwork = &network;
+
     const auto& env = CompileEnv::get();
 
     //
@@ -268,7 +354,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
     // Create new VPU model
     //
 
-    const auto model = std::make_shared<ModelObj>(network.getName());
+    const auto model = std::make_shared<ModelObj>(originalOrConvertNetwork->getName());
 
     model->attrs().set<int>("index", g_counter.fetch_add(1));
     model->attrs().set<Resources>("resources", env.resources);
@@ -276,7 +362,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
     if (!env.config.ignoreIRStatistic) {
         ie::ICNNNetworkStats* stats = nullptr;
         // V10 IRs doesn't contain stats
-        if (network.getStats(&stats, nullptr) == InferenceEngine::OK && !stats->isEmpty()) {
+        if (originalOrConvertNetwork->getStats(&stats, nullptr) == InferenceEngine::OK && !stats->isEmpty()) {
             env.log->trace("Use node statistics from the IR");
             model->setNodesStats(stats->getNodesStats());
         }
@@ -286,40 +372,50 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
     // Update IE Network
     //
 
+    std::shared_ptr<ie::ICNNNetwork> convertedNetwork;
+
     {
         env.log->trace("Update IE Network");
         VPU_LOGGER_SECTION(env.log);
 
-        IE_SUPPRESS_DEPRECATED_START
-        // If we have NGraph network, but CNN compatibility is enabled, enforce conversion
-        if (network.getFunction() && env.config.forceDeprecatedCnnConversion)
-            network.addLayer(nullptr);
-        IE_SUPPRESS_DEPRECATED_END
+        auto convertNetwork = [&convertedNetwork, &originalOrConvertNetwork]() {
+            auto nGraphFunc = originalOrConvertNetwork->getFunction();
+            // Disable shape inference (WA for generic operations)
+            ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-        detectNetworkBatch(network, model);
+            ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(nGraphFunc);
+            ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
+            ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
+            convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *originalOrConvertNetwork);
+            originalOrConvertNetwork = convertedNetwork.get();
+        };
 
-        ie::NetPass::ConvertPrecision(network, ie::Precision::I64, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(network, ie::Precision::U64, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(network, ie::Precision::BOOL, ie::Precision::I32);
+        if (originalOrConvertNetwork->getFunction() && env.config.forceDeprecatedCnnConversion) {
+            convertNetwork();
+        }
 
-        IE_SUPPRESS_DEPRECATED_START
-        // force conversion to CNNNetwork
-        if (network.getFunction())
-            network.addLayer(nullptr);
-        IE_SUPPRESS_DEPRECATED_END
+        detectNetworkBatch(*originalOrConvertNetwork, model);
 
-        moveConstInputsToBlobs(network);
+        if (originalOrConvertNetwork->getFunction()) {
+            convertNetwork();
+        }
 
-        removeConstLayers(network);
+        ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::I64, ie::Precision::I32);
+        ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::U64, ie::Precision::I32);
+        ie::NetPass::ConvertPrecision(*originalOrConvertNetwork, ie::Precision::BOOL, ie::Precision::I32);
 
-        unrollLoops(network);
+        moveConstInputsToBlobs(*originalOrConvertNetwork);
+
+        removeConstLayers(*originalOrConvertNetwork);
+
+        unrollLoops(*originalOrConvertNetwork);
     }
 
     //
     // Parse IR Network
     //
 
-    _ieParsedNetwork = parseNetwork(network);
+    _ieParsedNetwork = parseNetwork(*originalOrConvertNetwork);
 
     //
     // Process internal VPU Model
@@ -331,7 +427,9 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
 
         parseInputAndOutputData(model);
 
-        addDataTypeConvertStages(model);
+        if (!CompileEnv::get().config.disableConvertStages) {
+            addDataTypeConvertStages(model);
+        }
 
         addPreProcessStages(model);
     }

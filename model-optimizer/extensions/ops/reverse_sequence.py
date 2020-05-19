@@ -24,14 +24,13 @@ class ReverseSequence(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': __class__.op,
+            'version': 'opset1',
             'seq_axis': None,
             'batch_axis': 0,
             'op': __class__.op,
             'in_ports_count': 2,
             'out_ports_count': 1,
             'infer': __class__.infer,
-            'in_ports_count': 2,
-            'out_ports_count': 1,
         }
         super().__init__(graph, mandatory_props, attrs)
 

@@ -15,8 +15,8 @@
         <value>GPU</value>
     </devices>
     <models>
-        <value>caffe/FP32/alexnet/alexnet.xml</value>
-        <value>tf/1.14.0/FP32/inception_v3/inception_v3.xml</value>
-        <value>tf/1.14.0/FP32/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco.xml</value>
+        <value>public/alexnet/FP32/alexnet.xml</value>
+        <value>public/mobilenet-ssd/FP32/mobilenet-ssd.xml</value>
+        <value>public/mtcnn-r/FP32/mtcnn-r.xml</value>
     </models>
 </attributes>

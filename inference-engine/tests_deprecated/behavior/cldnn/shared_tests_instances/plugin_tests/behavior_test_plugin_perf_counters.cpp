@@ -7,7 +7,7 @@
 
 // Disabled due to a bug on CentOS that leads to segmentation fault of application on exit
 // when perf counters are enabled
-//INSTANTIATE_TEST_CASE_P(
+//INSTANTIATE_TEST_CASE_P(smoke_
 //        BehaviorTest,
 //        BehaviorPluginTestPerfCounters,
 //        ValuesIn(supportedValues),

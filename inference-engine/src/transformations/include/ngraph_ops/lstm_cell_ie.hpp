@@ -26,9 +26,7 @@ public:
                 const std::vector<std::string>& activations,
                 const std::vector<float>& activations_alpha,
                 const std::vector<float>& activations_beta,
-                float clip,
-                const Shape& hidden_state_output,
-                const Shape& cell_state_output);
+                float clip);
 
     static constexpr NodeTypeInfo type_info{"LSTMCellIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -45,9 +43,7 @@ public:
     float get_clip() {return m_clip;}
 
 protected:
-    std::size_t m_hidden_size{};
-    Shape m_hidden_state_output;
-    Shape m_cell_state_output;
+    int64_t m_hidden_size{};
 
     const std::vector<std::string> m_activations;
     const std::vector<float> m_activations_alpha;

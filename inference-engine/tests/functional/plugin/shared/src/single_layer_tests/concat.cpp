@@ -21,7 +21,7 @@
 namespace LayerTestsDefinitions {
 
 std::string ConcatLayerTest::getTestCaseName(const testing::TestParamInfo<concatParamsTuple> &obj) {
-    size_t axis;
+    int axis;
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
     std::string targetName;
@@ -35,7 +35,7 @@ std::string ConcatLayerTest::getTestCaseName(const testing::TestParamInfo<concat
 }
 
 void ConcatLayerTest::SetUp() {
-    size_t axis;
+    int axis;
     std::vector<std::vector<size_t>> inputShape;
     InferenceEngine::Precision netPrecision;
     std::tie(axis, inputShape, netPrecision, targetDevice) = this->GetParam();
@@ -51,9 +51,5 @@ void ConcatLayerTest::SetUp() {
 
 TEST_P(ConcatLayerTest, CompareWithRefs) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 };
 }  // namespace LayerTestsDefinitions

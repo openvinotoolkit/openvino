@@ -852,6 +852,20 @@ public:
     std::string getModel(SingleLayerTransformationsTestParams& p) const override;
 };
 
+class PowerTestModel : public SingleLayerTestModel {
+public:
+    PowerTestModel(const float& power, const float& scale, const float& shift) : power(power), scale(scale), shift(shift) {}
+    void resetTransformation(CNNNetwork& network) const override;
+    std::string getName() const override;
+    bool transform(CNNNetwork& network, LayerTransformation::Params& params) const override;
+    std::string getModel(SingleLayerTransformationsTestParams& p) const override;
+
+private:
+    const float power;
+    const float scale;
+    const float shift;
+};
+
 class ConvolutionAndQuantizeOnWeightsWithMultiOutputIntervalsTestModel : public SingleLayerTestModel {
 public:
     std::string getModel(SingleLayerTransformationsTestParams& p) const override;
@@ -1664,6 +1678,32 @@ private:
     const bool symmetricInterval;
     const bool multiChannel;
     const std::vector<size_t> constInputDimentions;
+};
+
+class ConcatWithPoolingTestModel : public SingleLayerTestModel {
+public:
+    ConcatWithPoolingTestModel(
+        const bool multiChannel,
+        const bool signedIntervals,
+        const bool shift,
+        const float dequantizationIntervalsDifference) :
+        SingleLayerTestModel(),
+        multiChannel(multiChannel),
+        signedIntervals(signedIntervals),
+        shift(shift),
+        dequantizationIntervalsDifference(dequantizationIntervalsDifference) {}
+
+    std::string getModel(SingleLayerTransformationsTestParams& p) const override;
+    std::string getName() const override;
+    bool transform(CNNNetwork& network, LayerTransformation::Params& params) const override;
+    void resetTransformation(CNNNetwork& network) const override;
+    float getThreshold(const std::string& pluginName, const Precision precision, LayerTransformation::Params& params) const override;
+
+private:
+    const bool multiChannel;
+    const bool signedIntervals;
+    const bool shift;
+    const float dequantizationIntervalsDifference;
 };
 
 class ConcatMultiChannelTestModel : public SingleLayerTestModel {

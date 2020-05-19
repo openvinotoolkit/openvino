@@ -11,5 +11,5 @@ addIeTargetTest(
             unitTestUtils
         ADD_CPPLINT
         LABELS
-            INFERENCE_ENGINE
+            IE
 )

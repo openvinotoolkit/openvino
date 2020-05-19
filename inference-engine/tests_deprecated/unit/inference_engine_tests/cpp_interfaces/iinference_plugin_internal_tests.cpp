@@ -61,7 +61,7 @@ protected:
         mockNotEmptyNet.getOutputsInfo(outputsInfo);
         mockInferRequestInternal = make_shared<MockInferRequestInternal>(inputsInfo, outputsInfo);
         mockExeNetworkTS = make_shared<MockExecutableNetworkThreadSafe>();
-        EXPECT_CALL(*mock_plugin_impl.get(), LoadExeNetworkImpl(_, _, _)).WillOnce(Return(mockExeNetworkTS));
+        EXPECT_CALL(*mock_plugin_impl.get(), LoadExeNetworkImpl(_, _)).WillOnce(Return(mockExeNetworkTS));
         EXPECT_CALL(*mockExeNetworkTS.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
         sts = plugin->LoadNetwork(exeNetwork, mockNotEmptyNet, {}, &dsc);
         ASSERT_EQ((int) StatusCode::OK, sts) << dsc.msg;

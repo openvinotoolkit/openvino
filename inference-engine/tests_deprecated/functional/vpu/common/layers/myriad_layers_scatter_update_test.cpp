@@ -14,7 +14,7 @@ using namespace testing;
 
 INSTANTIATE_TEST_CASE_P(
     nd_tensors,
-    myriadLayersScatterUpdateTest_nightly,
+    myriadLayersScatterUpdateTest_smoke,
     Values(
         //  1-dimensional `indices`
         ScatterUpdateTestParams { { 1000 }, { 100000 } },
@@ -51,7 +51,7 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
     use_cases,
-    myriadLayersScatterUpdateTest_nightly,
+    myriadLayersScatterUpdateTest_smoke,
     Values(
         // use case from Mask R-CNN: N = 1000, C = 256, HxW = 7x7
         ScatterUpdateTestParams { { 32 },      { 1000, 256, 7, 7} },

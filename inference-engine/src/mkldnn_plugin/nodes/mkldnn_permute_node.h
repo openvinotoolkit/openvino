@@ -43,7 +43,7 @@ struct jit_uni_permute_kernel {
 
 class MKLDNNPermuteNode : public MKLDNNNode {
 public:
-    MKLDNNPermuteNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNPermuteNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNPermuteNode() override = default;
 
     void getSupportedDescriptors() override;
@@ -68,7 +68,7 @@ private:
         isApplicable isValidParams;
     };
 
-    static std::multimap<InferenceEngine::SizeVector, PermuteImpl> OptimizedCases;
+    static const std::multimap<InferenceEngine::SizeVector, PermuteImpl> OptimizedCases;
     std::shared_ptr<jit_uni_permute_kernel> permute_kernel;
 };
 

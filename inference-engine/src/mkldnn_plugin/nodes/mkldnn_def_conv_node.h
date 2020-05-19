@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNDeformableConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNDeformableConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNDeformableConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNDeformableConvolutionNode() override = default;
 
     void getSupportedDescriptors() override;

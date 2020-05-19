@@ -39,7 +39,7 @@ struct jit_uni_resample_nearest_kernel_f32 : public jit_uni_resample_nearest_ker
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_resample_nearest_kernel_f32)
 
     explicit jit_uni_resample_nearest_kernel_f32(jit_resample_config_params jcp, const mkldnn_primitive_attr &attr)
-    : jit_uni_resample_nearest_kernel(jcp, attr), jit_generator() {
+            : jit_uni_resample_nearest_kernel(jcp, attr), jit_generator() {
         const auto &p = attr_.post_ops_;
         for (int i = 0; i < p.len_; i++) {
             auto &post_op = p.entry_[i];
@@ -283,8 +283,8 @@ private:
 };
 
 
-MKLDNNResampleNode::MKLDNNResampleNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket)
-        : MKLDNNNode(layer, eng, socket) {}
+MKLDNNResampleNode::MKLDNNResampleNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
+        : MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNResampleNode::getSupportedDescriptors() {
     if (!descs.empty())
@@ -319,6 +319,14 @@ void MKLDNNResampleNode::initSupportedPrimitiveDescriptors() {
         if (lastFusedLayer) {
             outputPrecision = lastFusedLayer->outData[0]->getPrecision();
         }
+    }
+
+    if (inputPrecision == Precision::BF16) {
+        inputPrecision = Precision::FP32;
+    }
+
+    if (outputPrecision == Precision::BF16) {
+        outputPrecision = Precision::FP32;
     }
 
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
@@ -587,7 +595,7 @@ void MKLDNNResampleNode::execute(mkldnn::stream strm) {
 
 // f32 and no fused, f32->input is f32, no fuse->output is f32
 void MKLDNNResampleNode::NearestNeighbor_PLN(const float *in_ptr_, float *out_ptr_, int B, int C, int ID, int IH, int IW,
-                                          float fx, float fy, float fz, int OD, int OH, int OW) {
+                                             float fx, float fy, float fz, int OD, int OH, int OW) {
     std::vector<int> index_buffer(OD * OH * OW);
     for (int oz = 0; oz < OD; oz++) {
         float iz = oz * fz;
@@ -640,7 +648,7 @@ void MKLDNNResampleNode::NearestNeighbor_PLN(const float *in_ptr_, float *out_pt
 // int8->input may be int8, fused->output may be int8
 template <typename in_data_t, typename out_data_t>
 void MKLDNNResampleNode::NearestNeighbor_BLK(const in_data_t *in_ptr_, out_data_t *out_ptr_, int B, int C, int ID, int IH, int IW,
-                                          float fx, float fy, float fz, int OD, int OH, int OW) {
+                                             float fx, float fy, float fz, int OD, int OH, int OW) {
     std::vector<int> index_d(OD);
     std::vector<int> index_h(OH);
     std::vector<int> index_w(OW);
@@ -792,7 +800,7 @@ static inline float triangleCoeff(float x) {
 
 template <typename in_data_t, typename out_data_t>
 void MKLDNNResampleNode::LinearInterpolation(const in_data_t *in_ptr_, out_data_t *out_ptr_, int B, int C, int ID, int IH, int IW,
-                                          float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias) {
+                                             float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias) {
     if (IW == OW && IH == OH && ID == OD) {
         size_t size = B * C * ID * IH * IW;
         if (input_prec == Precision::FP32) {

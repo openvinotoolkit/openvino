@@ -12,12 +12,12 @@
 
 using namespace InferenceEngine;
 
-class myriadLayersTestsLog_nightly: public myriadLayersTests_nightly,
+class myriadLayersTestsLog_smoke: public myriadLayersTests_nightly,
                            public testing::WithParamInterface<Dims> {
 public:
 };
 
-TEST_P(myriadLayersTestsLog_nightly, TestsLog)
+TEST_P(myriadLayersTestsLog_smoke, TestsLog)
 {
     auto p = ::testing::WithParamInterface<Dims>::GetParam();
     SetInputTensor(p);

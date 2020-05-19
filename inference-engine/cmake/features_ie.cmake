@@ -62,8 +62,6 @@ if (ENABLE_GNA)
     endif()
 endif()
 
-ie_option (ENABLE_IR_READER "Compile with IR readers / parsers" ON)
-
 ie_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON)
 
 ie_dependent_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_VPU" OFF)
@@ -72,7 +70,7 @@ ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot"
 
 ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
-ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" OFF "ENABLE_TESTS" OFF)
+ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" ON "ENABLE_TESTS" OFF)
 
 ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_GAPI_TESTS" OFF)
 
@@ -84,7 +82,7 @@ ie_dependent_option (ENABLE_SAME_BRANCH_FOR_MODELS "uses same branch for models 
 
 ie_dependent_option (ENABLE_BEH_TESTS "tests oriented to check inference engine API corecteness" ON "ENABLE_TESTS" OFF)
 
-ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS;ENABLE_IR_READER" OFF)
+ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS" OFF)
 
 ie_dependent_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON "NOT MINGW" OFF)
 
@@ -98,18 +96,15 @@ ie_option (ENABLE_ALTERNATIVE_TEMP "in case of dependency conflict, to avoid mod
 
 ie_option (ENABLE_OPENCV "enables OpenCV" ON)
 
-ie_option (ENABLE_DEBUG_SYMBOLS "generates symbols for debugging" OFF)
-
 ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
-
-ie_option (ENABLE_CPP_CCT "enables C++ version of Cross Check Tool" OFF)
 
 ie_option (ENABLE_C "enables ie c bridge build" ON)
 
-ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" OFF "UNIX;NOT APPLE;NOT ANDROID" OFF)
+ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT ANDROID" OFF)
+
 ie_dependent_option(ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
 
-ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" OFF)
+ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON)
 
 set(IE_EXTRA_PLUGINS "" CACHE STRING "Extra paths for plugins to include into DLDT build tree")
 

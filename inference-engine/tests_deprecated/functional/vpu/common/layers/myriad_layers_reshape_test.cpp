@@ -5,7 +5,7 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "myriad_layers_reshape_test.hpp"
 
-TEST_F(myriadEliminateReshapeTests_nightly, SplitConvConcat) {
+TEST_F(myriadEliminateReshapeTests_smoke, SplitConvConcat) {
     ASSERT_NO_THROW(_cnnNetwork = InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
 
     StatusCode st;
@@ -265,7 +265,7 @@ TEST_F(myriadLayersTests_nightly, ReshapeAfterConcat_Eliminate) {
     EXPECT_EQ(InferenceEngineProfileInfo::NOT_RUN, layerInfo.status);
 }
 
-TEST_F(myriadLayerReshapeFasterRCNN_nightly, Reshape) {
+TEST_F(myriadLayerReshapeFasterRCNN_smoke, Reshape) {
     InferenceEngine::SizeVector input_tensor = {1, 14, 14, 24};
     InferenceEngine::SizeVector output_tensor = {1, 2352, 2};
     std::map<std::string, std::string> layer_params = {
@@ -281,13 +281,13 @@ TEST_F(myriadLayerReshapeFasterRCNN_nightly, Reshape) {
     ASSERT_TRUE(generateNetAndInfer(NetworkInitParams().useHWOpt( CheckMyriadX())));
 }
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerReshape_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerReshape_smoke,
     ::testing::Combine(
         ::testing::ValuesIn(s_reshapeInParams),
         ::testing::ValuesIn(s_reshapeOutParams))
 );
 
-INSTANTIATE_TEST_CASE_P(fc_to_conv_case, myriadLayerReshape_nightly,
+INSTANTIATE_TEST_CASE_P(fc_to_conv_case, myriadLayerReshape_smoke,
     ::testing::Values(
         std::make_tuple(
             SizeVector{400, 12544},
@@ -308,11 +308,11 @@ INSTANTIATE_TEST_CASE_P(fc_to_conv_case, myriadLayerReshape_nightly,
     )
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsReshapeBeforeFC_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsReshapeBeforeFC_smoke,
         ::testing::Values(CONFIG_VALUE(YES), CONFIG_VALUE(NO))
 );
 
-INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsReshapeFasterRCNN_nightly,
+INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsReshapeFasterRCNN_smoke,
         ::testing::Combine(
             ::testing::ValuesIn(s_convTensor)
           , ::testing::Values<param_size>(MAKE_STRUCT(param_size, 1, 1))

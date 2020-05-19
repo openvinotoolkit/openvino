@@ -5,13 +5,13 @@
 #include "behavior_test_plugin_config.hpp"
 #include "gna_test_data.hpp"
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginIncorrectConfigTest, ValuesIn(withIncorrectConfValues),
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginIncorrectConfigTest, ValuesIn(withIncorrectConfValues),
                         getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginIncorrectConfigTestInferRequestAPI,
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginIncorrectConfigTestInferRequestAPI,
                         ValuesIn(withIncorrectConfKeys),
                         getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginCorrectConfigTestInferRequestAPI,
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginCorrectConfigTestInferRequestAPI,
                         ValuesIn(supportedValues),
                         getTestCaseName);

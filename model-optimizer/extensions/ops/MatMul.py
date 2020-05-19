@@ -69,6 +69,7 @@ class MatMul(Op):
         mandatory_props = {
             'type': self.op,
             'op': self.op,
+            'version': 'opset1',
             'transpose_a': False,
             'transpose_b': False,
             'infer': __class__.infer,

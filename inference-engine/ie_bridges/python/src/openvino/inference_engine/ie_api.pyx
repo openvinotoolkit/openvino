@@ -1439,7 +1439,7 @@ cdef class IENetwork:
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  input_layer = next(iter(net.inputs))
     #  n, c, h, w = net.inputs[input_layer]
-    #  net.reshape({input_layer: (n, c, h*2, w*2)}]
+    #  net.reshape({input_layer: (n, c, h*2, w*2)})
     #  ```
     def reshape(self, input_shapes: dict):
         cdef map[string, vector[size_t]] c_input_shapes;

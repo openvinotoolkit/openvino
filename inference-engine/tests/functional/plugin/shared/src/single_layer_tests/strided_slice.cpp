@@ -63,10 +63,6 @@ void StridedSliceLayerTest::SetUp() {
 
 TEST_P(StridedSliceLayerTest, CompareWithRefs) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 }
 
 }  // namespace LayerTestsDefinitions

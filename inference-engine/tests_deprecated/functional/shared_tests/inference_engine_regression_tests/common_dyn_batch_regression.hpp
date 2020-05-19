@@ -69,10 +69,14 @@ TEST_P(TestNoRegressionDynBatchFP32, dynBatch) {
     auto refOutData = ngraph::helpers::inferFnWithInterp<ngraph::element::Type_t::f32>(fnPtr,
                                                                                        {blob->cbuffer().as<float *>()});
 
-    auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32);
+    float thr1, thr2;
+    FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP32, thr1, thr2);
+
     std::vector<size_t> inShapeLimited{size_t(bsz), 4, 20, 20};
     size_t outElementsCount = std::accumulate(begin(inShapeLimited), end(inShapeLimited), 1, std::multiplies<size_t>());
-    FuncTestUtils::compareRawBuffers(outRawData, *refOutData[0], outElementsCount, outElementsCount, thr);
+    FuncTestUtils::compareRawBuffers(outRawData, *refOutData[0], outElementsCount, outElementsCount,
+                                                     FuncTestUtils::CompareType::ABS_AND_REL,
+                                                     thr1, thr2);
     if (GetParam().deviceName.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
         PluginCache::get().reset();
     }

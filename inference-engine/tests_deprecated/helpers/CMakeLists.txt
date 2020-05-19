@@ -37,7 +37,14 @@ function(add_helpers target_name)
 endfunction()
 
 add_helpers(${TARGET_NAME})
+
 target_link_libraries(${TARGET_NAME} PUBLIC commonTestUtils)
 
 add_helpers(${TARGET_NAME}_s USE_STATIC_IE)
+
 target_link_libraries(${TARGET_NAME}_s PUBLIC commonTestUtils_s)
+
+if (ENABLE_DATA)
+    add_dependencies(${TARGET_NAME} data)
+    add_dependencies(${TARGET_NAME}_s data)
+endif()

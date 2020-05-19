@@ -25,15 +25,14 @@ class ExperimentalSparseWeightedSum(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'kind': 'op',
             'type': __class__.op,
             'op': __class__.op,
+            'version': 'experimental',
             'reduce_op': None,
             'type_infer': self.type_infer,
             'infer': self.infer,
             'in_ports_count': 6,
             'out_ports_count': 1,
-            'version': 'experimental',
         }, attrs)
 
     def supported_attrs(self):

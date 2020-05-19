@@ -5,7 +5,6 @@
 #include <utility>
 #include <memory>
 #include "hetero_async_infer_request.hpp"
-#include <ie_util_internal.hpp>
 #include <ie_profiling.hpp>
 
 using namespace HeteroPlugin;

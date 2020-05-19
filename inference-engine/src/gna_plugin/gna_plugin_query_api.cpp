@@ -24,6 +24,10 @@ Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::stri
     const std::unordered_map<std::string, std::function<Parameter()>> queryApiSupported = {
         {METRIC_KEY(AVAILABLE_DEVICES), [this]() {return GetAvailableDevices();}},
         {METRIC_KEY(SUPPORTED_CONFIG_KEYS), [this]() {return config.GetSupportedKeys();}},
+        {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS), [this]() {
+            uint32_t nireq = 1;
+            return nireq;
+        }},
         {METRIC_KEY(FULL_DEVICE_NAME), [&options, this]() {
             auto availableDevices = GetAvailableDevices().as<std::vector<std::string>>();
 

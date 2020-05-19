@@ -1,4 +1,6 @@
 #!/bin/bash
+# Copyright (C) 2018-2020 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 command -v realpath >/dev/null 2>&1 || { echo >&2 "cpplint require realpath executable but it's not installed.  Aborting."; exit 1; }

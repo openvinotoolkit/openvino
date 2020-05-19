@@ -88,9 +88,7 @@ public:
                           InferenceEngine::details::SharedObjectLoader::Ptr splg = {}):
                           actual(request), plg(splg) {
         //  plg can be null, but not the actual
-        if (actual == nullptr) {
-            THROW_IE_EXCEPTION << "InferRequest wrapper was not initialized.";
-        }
+        if (actual == nullptr) THROW_IE_EXCEPTION << "InferRequest was not initialized.";
     }
 
     /**
@@ -230,9 +228,7 @@ public:
      */
     StatusCode Wait(int64_t millis_timeout) {
         ResponseDesc resp;
-        if (actual == nullptr) {
-            THROW_IE_EXCEPTION << "InferRequest wrapper was not initialized.";
-        }
+        if (actual == nullptr) THROW_IE_EXCEPTION << "InferRequest was not initialized.";
         auto res = actual->Wait(millis_timeout, &resp);
         if (res != OK && res != RESULT_NOT_READY && res != INFER_NOT_STARTED) {
             InferenceEngine::details::extract_exception(res, resp.msg);
@@ -259,6 +255,7 @@ public:
      * @return A shared pointer to underlying IInferRequest interface
      */
     operator IInferRequest::Ptr&() {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "InferRequest was not initialized.";
         return actual;
     }
 

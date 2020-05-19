@@ -14,7 +14,7 @@ namespace MKLDNNPlugin {
 
 class MKLDNNBinaryConvolutionNode : public MKLDNNNode {
 public:
-    MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket);
+    MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNBinaryConvolutionNode() override = default;
 
     void getSupportedDescriptors() override;

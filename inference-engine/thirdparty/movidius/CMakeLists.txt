@@ -20,4 +20,7 @@ if (ENABLE_MYRIAD)
         "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc"
         "${CMAKE_BINARY_DIR}/thirdparty/movidius/mvnc")
 
+    if(ENABLE_TESTS)
+        add_subdirectory(tests)
+    endif()
 endif()

@@ -11,7 +11,7 @@
 
 using namespace InferenceEngine;
 
-class myriadLayerTestNonZero_nightly: public myriadLayersTests_nightly,
+class myriadLayerTestNonZero_smoke: public myriadLayersTests_nightly,
                                       public testing::WithParamInterface<SizeVector> {
 public:
     void testNonZero(vpu::LayoutPreference preference, Precision precision);
@@ -71,7 +71,7 @@ protected:
     }
 };
 
-void myriadLayerTestNonZero_nightly::testNonZero(vpu::LayoutPreference preference, Precision precision) {
+void myriadLayerTestNonZero_smoke::testNonZero(vpu::LayoutPreference preference, Precision precision) {
     _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
 
     const auto& inputDims = GetParam();
@@ -111,19 +111,19 @@ void myriadLayerTestNonZero_nightly::testNonZero(vpu::LayoutPreference preferenc
     CompareNonZero(outputIndicesBlob, refIndicesBlob, outputDimsBlob, refDimsBlob);
 }
 
-TEST_P(myriadLayerTestNonZero_nightly, NonZero) {
+TEST_P(myriadLayerTestNonZero_smoke, NonZero) {
     testNonZero(vpu::LayoutPreference::ChannelMajor, Precision::FP16);
 }
 
-TEST_P(myriadLayerTestNonZero_nightly, NonZeroNHWC) {
+TEST_P(myriadLayerTestNonZero_smoke, NonZeroNHWC) {
     testNonZero(vpu::LayoutPreference::ChannelMinor, Precision::FP16);
 }
 
-TEST_P(myriadLayerTestNonZero_nightly, NonZeroI32) {
+TEST_P(myriadLayerTestNonZero_smoke, NonZeroI32) {
     testNonZero(vpu::LayoutPreference::ChannelMajor, Precision::I32);
 }
 
-TEST_P(myriadLayerTestNonZero_nightly, NonZeroU8) {
+TEST_P(myriadLayerTestNonZero_smoke, NonZeroU8) {
     testNonZero(vpu::LayoutPreference::ChannelMajor, Precision::U8);
 }
 

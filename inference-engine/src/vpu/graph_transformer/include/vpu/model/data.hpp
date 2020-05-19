@@ -264,7 +264,7 @@ private:
     void serializeDescImpl(
             BlobSerializer& serializer,
             const DataDesc& storedDesc,
-            const DimValues& storedStrides) const;
+            const ShapeLocation& shapeLocation) const;
 
 private:
     inline DataNode() :

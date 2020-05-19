@@ -27,7 +27,7 @@ namespace LayerTestsDefinitions {
 
 class Scaleshift_x3_ConvEltwiseRelu : public BasicBF16Test {
 protected:
-    std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision)override {
+    std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
         //
         //   scaleshift (FP32)
         //        |
@@ -42,14 +42,15 @@ protected:
         //       scaleshift  (FP32)
 
         ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
+        auto channelsCount = inputShapes[1];
 
         // multiply
-        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{1, 3, 40, 40});
+        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{inputShapes});
         std::shared_ptr<ngraph::opset1::Constant> const1 = nullptr;
         if (netPrecision == Precision::FP32) {
             const1 = opset1::Constant::create(ntype, Shape{1}, { 2.0f });
         } else {
-            const1 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(2.0f)) });
+            const1 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
         auto mulNode = std::make_shared<opset1::Multiply>(input1, const1);
 
@@ -58,23 +59,23 @@ protected:
         if (netPrecision == Precision::FP32) {
             const2 = opset1::Constant::create(ntype, Shape{1}, { 1.0f });
         } else {
-            const2 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(1.0f)) });
+            const2 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(1.0f)) });
         }
         auto addNode = std::make_shared<opset1::Add>(mulNode, const2);
         addNode->set_friendly_name("Add_1");
 
         // convolution
         std::shared_ptr<ngraph::opset1::Constant> weightsNode = nullptr;
-        ngraph::Shape convFilterShape = { 3, 3, 3, 3 };  // out channel, /input channels, kernel h, kernel w
+        ngraph::Shape convFilterShape = { channelsCount, channelsCount, 3, 3 };  // out channel, /input channels, kernel h, kernel w
         if (netPrecision == Precision::FP32) {
             std::vector<float> weightValuesFP32;
-            weightValuesFP32.resize(3 * 3 * 3 * 3);
-            BFloat16Helpers::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
+            weightValuesFP32.resize(channelsCount * channelsCount * 3 * 3);
+            FuncTestUtils::fillInputsBySinValues(weightValuesFP32.data(), weightValuesFP32.size());
             weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesFP32);
         } else {
             std::vector<short> weightValuesBF16;
-            weightValuesBF16.resize(3 * 3 * 3 * 3);
-            BFloat16Helpers::fillInputsBySinValues(weightValuesBF16.data(), weightValuesBF16.size());
+            weightValuesBF16.resize(channelsCount * channelsCount * 3 * 3);
+            FuncTestUtils::fillInputsBySinValues(weightValuesBF16.data(), weightValuesBF16.size());
             weightsNode = std::make_shared<ngraph::opset1::Constant>(ntype, convFilterShape, weightValuesBF16.data());
         }
 
@@ -92,7 +93,7 @@ protected:
         if (netPrecision == Precision::FP32) {
             const3 = opset1::Constant::create(ntype, Shape{1}, { 3.0f });
         } else {
-            const3 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(3.0f)) });
+            const3 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(3.0f)) });
         }
         auto mulNode2 = std::make_shared<opset1::Multiply>(input1, const3);
 
@@ -101,7 +102,7 @@ protected:
         if (netPrecision == Precision::FP32) {
             const4 = opset1::Constant::create(ntype, Shape{1}, { 2.0f });
         } else {
-            const4 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(2.0f)) });
+            const4 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
         auto addNode2 = std::make_shared<opset1::Add>(mulNode2, const4);
         addNode2->set_friendly_name("Add_2");
@@ -119,7 +120,7 @@ protected:
         if (netPrecision == Precision::FP32) {
             const5 = opset1::Constant::create(ntype, Shape{1}, { 4.0f });
         } else {
-            const5 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(4.0f)) });
+            const5 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(4.0f)) });
         }
         auto mulNode3 = std::make_shared<opset1::Multiply>(reluNode, const5);
 
@@ -128,7 +129,7 @@ protected:
         if (netPrecision == Precision::FP32) {
             const6 = opset1::Constant::create(ntype, Shape{1}, { 3.0f });
         } else {
-            const6 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(BFloat16Helpers::reducePrecisionBitwiseS(3.0f)) });
+            const6 = opset1::Constant::create(ntype, Shape{1}, { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(3.0f)) });
         }
         auto addNode3 = std::make_shared<opset1::Add>(mulNode3, const6);
         addNode3->set_friendly_name("Add_3");
@@ -136,7 +137,7 @@ protected:
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{addNode3}, ngraph::ParameterVector{input1});
     }
 
-    void SetUp()override {
+    void SetUp() override {
         std::tie(inputPrecision, netPrecision, inputShapes, newInputShapes, targetDevice) = this->GetParam();
         fnPtr = createGraph(netPrecision);
 
@@ -155,9 +156,9 @@ protected:
     }
 };
 
-    TEST_P(Scaleshift_x3_ConvEltwiseRelu, CompareWithRefImpl) {
-        test();
-    };
+TEST_P(Scaleshift_x3_ConvEltwiseRelu, CompareWithRefImpl) {
+    test();
+};
 
 INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Scaleshift_x3_ConvEltwiseRelu,
                         ::testing::Combine(

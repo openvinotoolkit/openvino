@@ -20,7 +20,7 @@ void LayerTestsCommon::Run() {
 }
 
 LayerTestsCommon::~LayerTestsCommon() {
-    if (!configuration.empty()) {
+    if (!configuration.empty() || targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
         PluginCache::get().reset();
     }
 }
@@ -84,6 +84,9 @@ void LayerTestsCommon::LoadNetwork() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice);
+}
+
+void LayerTestsCommon::Infer() {
     inferRequest = executableNetwork.CreateInferRequest();
 
     for (const auto &input : cnnNetwork.getInputsInfo()) {
@@ -93,9 +96,6 @@ void LayerTestsCommon::LoadNetwork() {
         inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
     }
-}
-
-void LayerTestsCommon::Infer() {
     inferRequest.Infer();
 }
 
@@ -106,6 +106,14 @@ std::vector<InferenceEngine::Blob::Ptr> LayerTestsCommon::GetOutputs() {
         outputs.push_back(inferRequest.GetBlob(name));
     }
     return outputs;
+}
+
+void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>>& expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
+    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
+        const auto &expected = expectedOutputs[outputIndex];
+        const auto &actual = actualOutputs[outputIndex];
+        Compare(expected, actual);
+    }
 }
 
 void LayerTestsCommon::Validate() {
@@ -127,26 +135,34 @@ void LayerTestsCommon::Validate() {
         const auto buffer = lockedMemory.as<const std::uint8_t *>();
         std::copy(buffer, buffer + inputSize, referenceInput.data());
     }
-    std::vector<std::vector<std::uint8_t>> expectedOutputs;
-    switch (refMode) {
-        case INTERPRETER:
-            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs);
-            break;
-        case CONSTANT_FOLDING:
-            const auto &foldedFunc =  ngraph::helpers::foldFunction(function, referenceInputs);
-            expectedOutputs = ngraph::helpers::getConstData(foldedFunc);
-            break;
-    }
 
     const auto &actualOutputs = GetOutputs();
+    const auto &convertType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(actualOutputs[0]->getTensorDesc().getPrecision());
+    std::vector<std::vector<std::uint8_t>> expectedOutputs;
+    switch (refMode) {
+        case INTERPRETER: {
+            expectedOutputs = ngraph::helpers::interpreterFunction(function, referenceInputs, convertType);
+            break;
+        }
+        case CONSTANT_FOLDING: {
+            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs);
+            expectedOutputs = ngraph::helpers::getConstData(foldedFunc, convertType);
+            break;
+        }
+        case IE: {
+            // reference inference on device with other options and nGraph function has to be implemented here
+            break;
+        }
+    }
+
+    if (expectedOutputs.empty()) {
+        return;
+    }
+
     IE_ASSERT(actualOutputs.size() == expectedOutputs.size())
     << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
 
-    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
-        const auto &expected = expectedOutputs[outputIndex];
-        const auto &actual = actualOutputs[outputIndex];
-        Compare(expected, actual);
-    }
+    Compare(expectedOutputs, actualOutputs);
 }
 
 void LayerTestsCommon::SetRefMode(RefMode mode) {

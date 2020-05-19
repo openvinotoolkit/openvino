@@ -112,9 +112,9 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
         __attribute__((opencl_unroll_hint(INPUT_BLOCK_SIZE)))
         for (int i = 0; i < INPUT_BLOCK_SIZE; i++)
         {
-            const uint in_elem = i * SUB_GROUP_SIZE + lid;
-            const uint xb = in_elem % INPUT_LINE_SIZE;
-            const uint yb = in_elem / INPUT_LINE_SIZE;
+            const int in_elem = i * SUB_GROUP_SIZE + lid;
+            const int xb = in_elem % INPUT_LINE_SIZE;
+            const int yb = in_elem / INPUT_LINE_SIZE;
             if (input_y + yb >= 0 && input_y + yb < INPUT0_SIZE_Y &&
                 input_x + xb >= 0 && input_x + xb < INPUT0_SIZE_X)
                 line_cache[ic * INPUT_BLOCK_SIZE + i] = input[input_offset +

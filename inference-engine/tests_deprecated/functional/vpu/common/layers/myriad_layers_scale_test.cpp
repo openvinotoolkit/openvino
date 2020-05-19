@@ -5,7 +5,7 @@
 #include "myriad_layers_scale_test.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-        accuracy, myriadLayersTestsScale_nightly,
+        accuracy, myriadLayersTestsScale_smoke,
         ::testing::Combine(
             ::testing::ValuesIn(s_inputScaleTensors),
             ::testing::ValuesIn(s_inputBiasScale)));
