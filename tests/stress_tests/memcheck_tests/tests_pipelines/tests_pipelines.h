@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "../tests_utils.h"
 #include "../../common/tests_utils.h"
 #include "../../common/utils.h"
 
@@ -11,7 +12,7 @@
 
 // tests_pipelines/tests_pipelines.cpp
 TestResult test_create_exenetwork(const std::string &model_name, const std::string &model_path, const std::string &target_device,
-                                  const long &ref_vmsize, const long &ref_vmpeak, const long &ref_vmrss, const long &ref_vmhwm);
+                                  const std::array<long, MeasureValueMax> &references);
 TestResult test_infer_request_inference(const std::string &model_name, const std::string &model_path, const std::string &target_device,
-                                        const long &ref_vmsize, const long &ref_vmpeak, const long &ref_vmrss, const long &ref_vmhwm);
+                                        const std::array<long, MeasureValueMax> &references);
 // tests_pipelines/tests_pipelines.cpp

@@ -11,130 +11,235 @@
 #include <inference_engine.hpp>
 
 #define REPORTING_THRESHOLD 1.3
+// delimiter used for measurements print. Should be compatible with script parses tests logs
+#define MEMCHECK_DELIMITER "\t\t"
 
 using namespace InferenceEngine;
 
-#define getAlignedVmValues(vmsize, vmpeak, vmrss, vmhwm, vmsize_to_align, vmrss_to_align)   \
-        getVmValues(test_cur_vmsize, test_cur_vmpeak, test_cur_vmrss, test_cur_vmhwm);      \
-        test_cur_vmsize -= vmsize_before_test;                                              \
-        test_cur_vmpeak -= vmsize_before_test;                                              \
-        test_cur_vmrss -= vmrss_before_test;                                                \
-        test_cur_vmhwm -= vmrss_before_test;
 
-#define log_debug_ref_record_for_test(test_name)                                                            \
-        log_debug("Record to update reference config: "                                                           \
-                  << "<model path=\"" + model_name + "\"" + " test=\"" + test_name + "\" device=\"" +       \
-                  target_device +                                                                           \
-                  "\" vmsize=\"" + std::to_string((int) (test_cur_vmsize * REPORTING_THRESHOLD)) +          \
-                  "\" vmpeak=\"" + std::to_string((int) (test_cur_vmpeak * REPORTING_THRESHOLD)) +          \
-                  "\" vmrss=\"" + std::to_string((int) (test_cur_vmrss * REPORTING_THRESHOLD)) +            \
-                  "\" vmhwm=\"" + std::to_string((int) (test_cur_vmhwm * REPORTING_THRESHOLD)) + "\" />");
+/**
+ * @brief Class response for encapsulating measure and measurements printing
+ *
+ * Current class measures only in scope of it's lifetime. In this case need
+ * to note that deletion of objects created before class creation may lead
+ * to negative values because of alignment on starting values.
+ * Also deletion  of objects created in scope of class lifetime may decrease
+ * values computed on previous measure.
+ */
+class MemCheckPipeline {
+private:
+    std::array<std::string, MeasureValueMax> measures_headers = {{"VMRSS", "VMHWM", "VMSIZE", "VMPEAK"}};
+    std::array<long, MeasureValueMax> measures;            // current measures
+    std::array<long, MeasureValueMax> start_measures;      // measures before run (will be used as baseline)
+public:
+    /**
+     * @brief Constructs MemCheckPipeline object and
+     *        measure values to use as baseline
+     */
+    MemCheckPipeline() {
+        start_measures[VMRSS] = (long) getVmRSSInKB();
+        start_measures[VMHWM] = start_measures[VMRSS];
+        start_measures[VMSIZE] = (long) getVmSizeInKB();
+        start_measures[VMPEAK] = start_measures[VMSIZE];
 
-#define log_info_ref_mem_usage()                                                                \
-        log_info("Reference values of virtual memory consumption:");                            \
-        log_info("VMRSS\t\tVMHWM\t\tVMSIZE\t\tVMPEAK");                                               \
-        log_info(ref_vmrss << "\t\t" << ref_vmhwm << "\t\t" << ref_vmsize << "\t\t" << ref_vmpeak);
+        std::copy(start_measures.begin(), start_measures.end(), measures.begin());
+    }
 
-#define log_info_cur_mem_usage()                                                                                    \
-        log_info("Current values of virtual memory consumption:");                                                  \
-        log_info("VMRSS\t\tVMHWM\t\tVMSIZE\t\tVMPEAK");                                                                   \
-        log_info(test_cur_vmrss << "\t\t" << test_cur_vmhwm << "\t\t" << test_cur_vmsize << "\t\t" << test_cur_vmpeak);
+    /**
+     * @brief Destructs MemCheckPipeline object and prints the latest measurements
+     */
+    ~MemCheckPipeline() {
+        // message required for DB data upload
+        log_info("Current values of virtual memory consumption:");
+        print_measures();
+    }
 
-TestResult
-test_create_exenetwork(const std::string &model_name, const std::string &model_path, const std::string &target_device,
-                       const long &ref_vmsize, const long &ref_vmpeak, const long &ref_vmrss, const long &ref_vmhwm) {
-    log_info("Create ExecutableNetwork from network: \"" << model_path
-                                                         << "\" for device: \"" << target_device << "\"");
-    long vmsize_before_test = 0, vmrss_before_test = 0,
-            test_cur_vmsize = 0, test_cur_vmpeak = 0,
-            test_cur_vmrss = 0, test_cur_vmhwm = 0;
+    /**
+     * @brief Measures values at the current point of time
+     */
+    void do_measures() {
+        measures[VMRSS] = (long) getVmRSSInKB();
+        measures[VMHWM] = (long) getVmHWMInKB();
+        measures[VMSIZE] = (long) getVmSizeInKB();
+        measures[VMPEAK] = (long) getVmPeakInKB();
+    }
 
-    vmsize_before_test = (long) getVmSizeInKB();
-    vmrss_before_test = (long) getVmRSSInKB();
+    /**
+     * @brief Returns measurements aligned on a baseline
+     */
+    std::array<long, MeasureValueMax> get_measures() {
+        std::array<long, MeasureValueMax> temp;
+        std::transform(std::begin(measures), std::end(measures), std::begin(start_measures), std::begin(temp),
+                       [](long measure, long start_measure) -> long {
+                           return measure - start_measure;
+                       });
+        return temp;
+    }
 
-    Core ie;
-    CNNNetwork cnnNetwork = ie.ReadNetwork(model_path);
-    ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
+    /**
+     * @brief Returns measurements as string separated within hardcoded delimiter
+     */
+    std::string get_measures_as_str() {
+        std::array<long, MeasureValueMax> temp = get_measures();
+        std::string str = std::to_string(*temp.begin());
+        for (auto it = temp.begin() + 1; it != temp.end(); it++)
+            str += MEMCHECK_DELIMITER + std::to_string(*it);
+        return str;
+    }
 
-    getAlignedVmValues(test_cur_vmsize, test_cur_vmpeak, test_cur_vmrss, test_cur_vmhwm,
-                       vmsize_before_test, vmrss_before_test);
+    std::string get_measures_headers_as_str() {
+        std::string str = *measures_headers.begin();
+        for (auto it = measures_headers.begin() + 1; it != measures_headers.end(); it++) {
+            str += MEMCHECK_DELIMITER + *it;
+        }
+        return str;
+    }
 
-    log_debug_ref_record_for_test("create_exenetwork");
-    log_info_ref_mem_usage();
-    log_info_cur_mem_usage();
+    /**
+     * @brief Prints headers and corresponding measurements using hardcoded delimiter
+     */
+    void print_measures() {
+        log_info(get_measures_headers_as_str());
+        log_info(get_measures_as_str());
+    }
 
-    if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmrss > ref_vmrss))
+    /**
+     * @brief Prepares string used for fast generation of file with references
+     */
+    std::string get_reference_record_for_test(std::string test_name, std::string model_name,
+                                              std::string target_device) {
+        std::stringstream ss;
+        ss << "Record to update reference config: "
+           << "<model path=\"" << model_name << "\"" <<
+           " test=\"" << test_name << "\" device=\"" << target_device <<
+           "\" vmsize=\"" << (int) (measures[VMSIZE] * REPORTING_THRESHOLD) <<
+           "\" vmpeak=\"" << (int) (measures[VMPEAK] * REPORTING_THRESHOLD) <<
+           "\" vmrss=\"" << (int) (measures[VMRSS] * REPORTING_THRESHOLD) <<
+           "\" vmhwm=\"" << (int) (measures[VMHWM] * REPORTING_THRESHOLD) << "\" />";
+        return ss.str();
+    }
+};
+
+TestResult common_test_pipeline(const std::function<std::array<long, MeasureValueMax>()>& test_pipeline,
+                                const std::array<long, MeasureValueMax> &references) {
+
+    std::array<long, MeasureValueMax> measures = test_pipeline();
+
+    if ((!Environment::Instance().getCollectResultsOnly()) && (measures[VMRSS] > references[VMRSS]))
         return TestResult(TestStatus::TEST_FAILED,
                           "Test failed: RSS virtual memory consumption became greater than reference.\n"
-                          "Reference RSS memory consumption: " + std::to_string(ref_vmrss) + " KB.\n" +
-                          "Current RSS memory consumption: " + std::to_string(test_cur_vmrss) + " KB.\n");
+                          "Reference RSS memory consumption: " + std::to_string(references[VMRSS]) + " KB.\n" +
+                          "Current RSS memory consumption: " + std::to_string(measures[VMRSS]) + " KB.\n");
 
-    if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmhwm > ref_vmhwm))
+    if ((!Environment::Instance().getCollectResultsOnly()) && (measures[VMHWM] > references[VMHWM]))
         return TestResult(TestStatus::TEST_FAILED,
                           "Test failed: HWM (peak of RSS) virtual memory consumption is greater than reference.\n"
-                          "Reference HWM of memory consumption: " + std::to_string(ref_vmhwm) + " KB.\n" +
-                          "Current HWM of memory consumption: " + std::to_string(test_cur_vmhwm) + " KB.\n");
+                          "Reference HWM of memory consumption: " + std::to_string(references[VMHWM]) + " KB.\n" +
+                          "Current HWM of memory consumption: " + std::to_string(measures[VMHWM]) + " KB.\n");
 
     return TestResult(TestStatus::TEST_OK, "");
 }
 
+
+TestResult
+test_create_exenetwork(const std::string &model_name, const std::string &model_path, const std::string &target_device,
+                       const std::array<long, MeasureValueMax> &references) {
+    log_info("Create ExecutableNetwork from network: \"" << model_path
+                                                         << "\" for device: \"" << target_device << "\"");
+
+    auto test_pipeline = [&]{
+        MemCheckPipeline memCheckPipeline;
+
+        log_info("Reference values of virtual memory consumption:");
+        log_info(memCheckPipeline.get_measures_headers_as_str());
+        log_info(references[VMRSS] << "\t\t" << references[VMHWM] << "\t\t" << references[VMSIZE] << "\t\t"
+                                   << references[VMPEAK] << "\t\t");
+
+        log_info("Memory consumption before run:");
+        memCheckPipeline.do_measures();
+        memCheckPipeline.print_measures();
+
+        Core ie;
+        log_info("Memory consumption after Core creation:");
+        memCheckPipeline.do_measures();
+        memCheckPipeline.print_measures();
+
+        ie.GetVersions(target_device);
+        log_info("Memory consumption after GetCPPPluginByName (via GetVersions):");
+        memCheckPipeline.do_measures();
+        memCheckPipeline.print_measures();
+
+        CNNNetwork cnnNetwork = ie.ReadNetwork(model_path);
+        log_info("Memory consumption after ReadNetwork:");
+        memCheckPipeline.do_measures();
+        memCheckPipeline.print_measures();
+
+        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
+        log_info("Memory consumption after LoadNetwork:");
+        memCheckPipeline.do_measures();
+        memCheckPipeline.print_measures();
+
+        log_debug(memCheckPipeline.get_reference_record_for_test("create_exenetwork", model_name, target_device));
+        return memCheckPipeline.get_measures();
+    };
+
+    return common_test_pipeline(test_pipeline, references);
+}
+
 TestResult
 test_infer_request_inference(const std::string &model_name, const std::string &model_path,
-                             const std::string &target_device,
-                             const long &ref_vmsize, const long &ref_vmpeak, const long &ref_vmrss,
-                             const long &ref_vmhwm) {
+                             const std::string &target_device, const std::array<long, MeasureValueMax> &references) {
     log_info("Inference of InferRequest from network: \"" << model_path
                                                           << "\" for device: \"" << target_device << "\"");
-    long vmsize_before_test = 0, vmrss_before_test = 0,
-            test_cur_vmsize = 0, test_cur_vmpeak = 0,
-            test_cur_vmrss = 0, test_cur_vmhwm = 0;
-    std::chrono::system_clock::time_point t_start, t_end;
-    std::chrono::duration<double> t_diff;
 
-    vmsize_before_test = (long) getVmSizeInKB();
-    vmrss_before_test = (long) getVmRSSInKB();
+    auto test_pipeline = [&]{
+        MemCheckPipeline memCheckPipeline;
 
-    Core ie;
-    CNNNetwork cnnNetwork = ie.ReadNetwork(model_path);
-    ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
-    InferRequest infer_request = exeNetwork.CreateInferRequest();
+        log_info("Reference values of virtual memory consumption:");
+        log_info(memCheckPipeline.get_measures_headers_as_str());
+        log_info(references[VMRSS] << "\t\t" << references[VMHWM] << "\t\t" << references[VMSIZE] << "\t\t"
+                                   << references[VMPEAK] << "\t\t");
 
-    log_info_ref_mem_usage();
+        log_info("Memory consumption before run:");
+        memCheckPipeline.do_measures();
+        memCheckPipeline.print_measures();
 
-    t_start = std::chrono::system_clock::now();
-    int seconds = 1;
-    do {
-        infer_request.Infer();
+        Core ie;
+        log_info("Memory consumption after Core creation:");
+        memCheckPipeline.do_measures();
+        memCheckPipeline.print_measures();
+
+        ie.GetVersions(target_device);
+        log_info("Memory consumption after GetCPPPluginByName (via GetVersions):");
+        memCheckPipeline.do_measures();
+        memCheckPipeline.print_measures();
+
+        CNNNetwork cnnNetwork = ie.ReadNetwork(model_path);
+        log_info("Memory consumption after ReadNetwork:");
+        memCheckPipeline.do_measures();
+        memCheckPipeline.print_measures();
+
+        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
+        log_info("Memory consumption after LoadNetwork:");
+        memCheckPipeline.do_measures();
+        memCheckPipeline.print_measures();
+
+        InferRequest inferRequest = exeNetwork.CreateInferRequest();
+        log_info("Memory consumption after CreateInferRequest:");
+        memCheckPipeline.do_measures();
+        memCheckPipeline.print_measures();
+
+        inferRequest.Infer();
         OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
         for (auto &output : output_info)
-            Blob::Ptr outputBlob = infer_request.GetBlob(output.first);
-        t_end = std::chrono::system_clock::now();
-        t_diff = t_end - t_start;
+            Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
+        log_info("Memory consumption after Inference:");
+        memCheckPipeline.do_measures();
+        memCheckPipeline.print_measures();
 
-        getAlignedVmValues(test_cur_vmsize, test_cur_vmpeak, test_cur_vmrss, test_cur_vmhwm,
-                           vmsize_before_test, vmrss_before_test);
+        log_debug(memCheckPipeline.get_reference_record_for_test("infer_request_inference", model_name, target_device));
+        return memCheckPipeline.get_measures();
+    };
 
-        if (t_diff.count() > (double) (seconds)) {
-            log_info("Current values of virtual memory consumption after " << seconds << " seconds:");
-            log_info("VMRSS\t\tVMHWM\t\tVMSIZE\t\tVMPEAK");
-            log_info(test_cur_vmrss << "\t\t" << test_cur_vmhwm << "\t\t" << test_cur_vmsize << "\t\t" << test_cur_vmpeak);
-            seconds++;
-        }
-    } while (t_diff.count() < 5);
-
-    log_debug_ref_record_for_test("infer_request_inference");
-
-    if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmrss > ref_vmrss))
-        return TestResult(TestStatus::TEST_FAILED,
-                          "Test failed: RSS virtual memory consumption became greater than reference.\n"
-                          "Reference RSS memory consumption: " + std::to_string(ref_vmrss) + " KB.\n" +
-                          "Current RSS memory consumption: " + std::to_string(test_cur_vmrss) + " KB.\n");
-
-    if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmhwm > ref_vmhwm))
-        return TestResult(TestStatus::TEST_FAILED,
-                          "Test failed: HWM (peak of RSS) virtual memory consumption is greater than reference.\n"
-                          "Reference HWM of memory consumption: " + std::to_string(ref_vmhwm) + " KB.\n" +
-                          "Current HWM of memory consumption: " + std::to_string(test_cur_vmhwm) + " KB.\n");
-
-    return TestResult(TestStatus::TEST_OK, "");
+    return common_test_pipeline(test_pipeline, references);
 }

@@ -9,16 +9,16 @@
 
 #include <gtest/gtest.h>
 
-#define checkRefVmValues()                                                                          \
-    if (!Environment::Instance().getCollectResultsOnly()) {                                         \
-        ASSERT_GT(test_refs.ref_vmsize, 0) << "Reference value of VmSize is less than 0. Value: "   \
-                                           << test_refs.ref_vmsize;                                 \
-        ASSERT_GT(test_refs.ref_vmsize, 0) << "Reference value of VmPeak is less than 0. Value: "   \
-                                           << test_refs.ref_vmpeak;                                 \
-        ASSERT_GT(test_refs.ref_vmrss, 0) << "Reference value of VmRSS is less than 0. Value: "     \
-                                          << test_refs.ref_vmrss;                                   \
-        ASSERT_GT(test_refs.ref_vmrss, 0) << "Reference value of VmHWM is less than 0. Value: "     \
-                                          << test_refs.ref_vmhwm;                                   \
+#define checkRefVmValues()                                                                                  \
+    if (!Environment::Instance().getCollectResultsOnly()) {                                                 \
+        ASSERT_GT(test_refs.references[VMSIZE], 0) << "Reference value of VmSize is less than 0. Value: "   \
+                                           << test_refs.references[VMSIZE];                                 \
+        ASSERT_GT(test_refs.references[VMPEAK], 0) << "Reference value of VmPeak is less than 0. Value: "   \
+                                           << test_refs.references[VMPEAK];                                 \
+        ASSERT_GT(test_refs.references[VMRSS], 0) << "Reference value of VmRSS is less than 0. Value: "     \
+                                          << test_refs.references[VMRSS];                                   \
+        ASSERT_GT(test_refs.references[VMHWM], 0) << "Reference value of VmHWM is less than 0. Value: "     \
+                                          << test_refs.references[VMHWM];                                   \
     }
 
 class MemCheckTestSuite : public ::testing::TestWithParam<TestCase> {
@@ -31,12 +31,10 @@ TEST_P(MemCheckTestSuite, create_exenetwork) {
 
     TestReferences test_refs;
     test_refs.collect_vm_values_for_test(test_name, test_params);
-
     checkRefVmValues();
 
     TestResult res = test_create_exenetwork(test_params.model_name, test_params.model, test_params.device,
-                                            test_refs.ref_vmsize, test_refs.ref_vmpeak, test_refs.ref_vmrss,
-                                            test_refs.ref_vmhwm);
+                                            test_refs.references);
     EXPECT_EQ(res.first, TestStatus::TEST_OK) << res.second;
 }
 
@@ -50,8 +48,7 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
     checkRefVmValues();
 
     TestResult res = test_infer_request_inference(test_params.model_name, test_params.model, test_params.device,
-                                                  test_refs.ref_vmsize, test_refs.ref_vmpeak, test_refs.ref_vmrss,
-                                                  test_refs.ref_vmhwm);
+                                                  test_refs.references);
     EXPECT_EQ(res.first, TestStatus::TEST_OK) << res.second;
 }
 // tests_pipelines/tests_pipelines.cpp
