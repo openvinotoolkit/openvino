@@ -1,0 +1,594 @@
+[{
+  "name" : "Function_10",
+  "ops" : [
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_849",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_849_0"],
+      "shape" : [ 50, 16, 16, 32 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_848",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_848_0"],
+      "shape" : [ 50, 8, 8, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_847",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_847_0"],
+      "shape" : [ 50, 18, 18, 32 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_846",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_846_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_845",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_845_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_844",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_844_0"],
+      "shape" : [ 3, 3, 64, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_843",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_843_0"],
+      "shape" : [ 50, 16, 16, 32 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_842",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_842_0"],
+      "shape" : [ 50, 8, 8, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_841",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_841_0"],
+      "shape" : [ 50, 16, 16, 32 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_840",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_840_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_839",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_839_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_838",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_838_0"],
+      "shape" : [ 64, 10 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_837",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_837_0"],
+      "shape" : [10]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_836",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_836_0"],
+      "shape" : [ 1, 1, 16, 32 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_835",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_835_0"],
+      "shape" : [ 1, 1, 32, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_834",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_834_0"],
+      "shape" : [ 3, 3, 32, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_833",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_833_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_832",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_832_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_831",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_831_0"],
+      "shape" : [ 3, 3, 64, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_830",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_830_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_829",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_829_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_828",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_828_0"],
+      "shape" : [ 64, 10 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_827",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_827_0"],
+      "shape" : [10]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_826",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_826_0"],
+      "shape" : []
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_851",
+      "op" : "Constant",
+      "outputs" : ["Constant_851_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Parameter_848"],
+      "name" : "Reshape_854",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 64, 8, 8 ],
+      "outputs" : ["Reshape_854_0"]
+    },
+    {
+      "input_order" : [ 3, 0, 1, 2 ],
+      "inputs" : ["Parameter_848"],
+      "name" : "Reshape_888",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 50, 8, 8 ],
+      "outputs" : ["Reshape_888_0"]
+    },
+    {
+      "input_order" : [ 3, 0, 1, 2 ],
+      "inputs" : ["Parameter_847"],
+      "name" : "Reshape_887",
+      "op" : "Reshape",
+      "output_shape" : [ 32, 50, 18, 18 ],
+      "outputs" : ["Reshape_887_0"]
+    },
+    {
+      "input_order" : [ 3, 0, 1, 2 ],
+      "inputs" : ["Parameter_842"],
+      "name" : "Reshape_897",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 50, 8, 8 ],
+      "outputs" : ["Reshape_897_0"]
+    },
+    {
+      "input_order" : [ 3, 0, 1, 2 ],
+      "inputs" : ["Parameter_841"],
+      "name" : "Reshape_896",
+      "op" : "Reshape",
+      "output_shape" : [ 32, 50, 16, 16 ],
+      "outputs" : ["Reshape_896_0"]
+    },
+    {
+      "input_order" : [ 3, 2, 0, 1 ],
+      "inputs" : ["Parameter_834"],
+      "name" : "Reshape_855",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 32, 3, 3 ],
+      "outputs" : ["Reshape_855_0"]
+    },
+    {
+      "input_order" : [],
+      "inputs" : ["Parameter_826"],
+      "name" : "Reshape_850",
+      "op" : "Reshape",
+      "output_shape" : [],
+      "outputs" : ["Reshape_850_0"]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_851"],
+      "name" : "Broadcast_852",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_852_0"],
+      "shape" : [ 50, 16, 16, 32 ]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Reshape_887", "Reshape_888" ],
+      "name" : "Convolution_889",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_889_0"],
+      "padding_above" : [ -1, -1 ],
+      "padding_below" : [ 0, 0 ],
+      "window_dilation_strides" : [ 2, 2 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Reshape_896", "Reshape_897" ],
+      "name" : "Convolution_898",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_898_0"],
+      "padding_above" : [ -1, -1 ],
+      "padding_below" : [ 0, 0 ],
+      "window_dilation_strides" : [ 2, 2 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "data_batch_shape" : [ 50, 32, 18, 18 ],
+      "data_dilation_strides_forward" : [ 1, 1 ],
+      "inputs" : [ "Reshape_855", "Reshape_854" ],
+      "name" : "ConvolutionBackpropData_856",
+      "op" : "ConvolutionBackpropData",
+      "outputs" : ["ConvolutionBackpropData_856_0"],
+      "padding_above_forward" : [ 0, 0 ],
+      "padding_below_forward" : [ 0, 0 ],
+      "window_dilation_strides_forward" : [ 1, 1 ],
+      "window_movement_strides_forward" : [ 2, 2 ]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Reshape_850"],
+      "name" : "Broadcast_873",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_873_0"],
+      "shape" : [64]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_850"],
+      "name" : "Broadcast_876",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_876_0"],
+      "shape" : [ 3, 3, 64, 64 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Reshape_850"],
+      "name" : "Broadcast_867",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_867_0"],
+      "shape" : [ 64, 10 ]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Reshape_850"],
+      "name" : "Broadcast_879",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_879_0"],
+      "shape" : [64]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_850"],
+      "name" : "Broadcast_885",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_885_0"],
+      "shape" : [ 3, 3, 32, 64 ]
+    },
+    {
+      "input_order" : [],
+      "inputs" : ["Reshape_850"],
+      "name" : "Reshape_893",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 1 ],
+      "outputs" : ["Reshape_893_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Reshape_850"],
+      "name" : "Broadcast_864",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_864_0"],
+      "shape" : [10]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Reshape_850"],
+      "name" : "Broadcast_882",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_882_0"],
+      "shape" : [64]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Reshape_850"],
+      "name" : "Broadcast_870",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_870_0"],
+      "shape" : [64]
+    },
+    {
+      "input_order" : [],
+      "inputs" : ["Reshape_850"],
+      "name" : "Reshape_861",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 1 ],
+      "outputs" : ["Reshape_861_0"]
+    },
+    {
+      "inputs" : [ "Parameter_849", "Broadcast_852" ],
+      "name" : "Greater_853",
+      "op" : "Greater",
+      "outputs" : ["Greater_853_0"]
+    },
+    {
+      "input_order" : [ 1, 2, 3, 0 ],
+      "inputs" : ["Convolution_889"],
+      "name" : "Reshape_890",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 3, 3, 32 ],
+      "outputs" : ["Reshape_890_0"]
+    },
+    {
+      "input_order" : [ 1, 2, 3, 0 ],
+      "inputs" : ["Convolution_898"],
+      "name" : "Reshape_899",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 1, 1, 32 ],
+      "outputs" : ["Reshape_899_0"]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["ConvolutionBackpropData_856"],
+      "name" : "Reshape_857",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 18, 18, 32 ],
+      "outputs" : ["Reshape_857_0"]
+    },
+    {
+      "inputs" : [ "Parameter_830", "Broadcast_873" ],
+      "name" : "Multiply_874",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_874_0"]
+    },
+    {
+      "inputs" : [ "Parameter_831", "Broadcast_876" ],
+      "name" : "Multiply_877",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_877_0"]
+    },
+    {
+      "inputs" : [ "Parameter_828", "Broadcast_867" ],
+      "name" : "Multiply_868",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_868_0"]
+    },
+    {
+      "inputs" : [ "Parameter_832", "Broadcast_879" ],
+      "name" : "Multiply_880",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_880_0"]
+    },
+    {
+      "inputs" : [ "Parameter_834", "Broadcast_885" ],
+      "name" : "Multiply_886",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_886_0"]
+    },
+    {
+      "axes" : [ 2, 3 ],
+      "inputs" : ["Reshape_893"],
+      "name" : "Broadcast_894",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_894_0"],
+      "shape" : [ 1, 1, 32, 64 ]
+    },
+    {
+      "inputs" : [ "Parameter_827", "Broadcast_864" ],
+      "name" : "Multiply_865",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_865_0"]
+    },
+    {
+      "inputs" : [ "Parameter_833", "Broadcast_882" ],
+      "name" : "Multiply_883",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_883_0"]
+    },
+    {
+      "inputs" : [ "Parameter_829", "Broadcast_870" ],
+      "name" : "Multiply_871",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_871_0"]
+    },
+    {
+      "axes" : [ 2, 3 ],
+      "inputs" : ["Reshape_861"],
+      "name" : "Broadcast_862",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_862_0"],
+      "shape" : [ 1, 1, 16, 32 ]
+    },
+    {
+      "input_order" : [ 1, 2, 3, 0 ],
+      "inputs" : ["Reshape_890"],
+      "name" : "Reshape_891",
+      "op" : "Reshape",
+      "output_shape" : [ 3, 3, 32, 64 ],
+      "outputs" : ["Reshape_891_0"]
+    },
+    {
+      "input_order" : [ 1, 2, 3, 0 ],
+      "inputs" : ["Reshape_899"],
+      "name" : "Reshape_900",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 1, 32, 64 ],
+      "outputs" : ["Reshape_900_0"]
+    },
+    {
+      "inputs" : ["Reshape_857"],
+      "lower_bounds" : [ 0, 1, 1, 0 ],
+      "name" : "Slice_858",
+      "op" : "Slice",
+      "outputs" : ["Slice_858_0"],
+      "strides" : [ 1, 1, 1, 1 ],
+      "upper_bounds" : [ 50, 17, 17, 32 ]
+    },
+    {
+      "inputs" : [ "Multiply_874", "Parameter_839" ],
+      "name" : "Add_875",
+      "op" : "Add",
+      "outputs" : ["Add_875_0"]
+    },
+    {
+      "inputs" : [ "Multiply_877", "Parameter_844" ],
+      "name" : "Add_878",
+      "op" : "Add",
+      "outputs" : ["Add_878_0"]
+    },
+    {
+      "inputs" : [ "Multiply_868", "Parameter_838" ],
+      "name" : "Add_869",
+      "op" : "Add",
+      "outputs" : ["Add_869_0"]
+    },
+    {
+      "inputs" : [ "Multiply_880", "Parameter_846" ],
+      "name" : "Add_881",
+      "op" : "Add",
+      "outputs" : ["Add_881_0"]
+    },
+    {
+      "inputs" : [ "Parameter_835", "Broadcast_894" ],
+      "name" : "Multiply_895",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_895_0"]
+    },
+    {
+      "inputs" : [ "Multiply_865", "Parameter_837" ],
+      "name" : "Add_866",
+      "op" : "Add",
+      "outputs" : ["Add_866_0"]
+    },
+    {
+      "inputs" : [ "Multiply_883", "Parameter_845" ],
+      "name" : "Add_884",
+      "op" : "Add",
+      "outputs" : ["Add_884_0"]
+    },
+    {
+      "inputs" : [ "Multiply_871", "Parameter_840" ],
+      "name" : "Add_872",
+      "op" : "Add",
+      "outputs" : ["Add_872_0"]
+    },
+    {
+      "inputs" : [ "Parameter_836", "Broadcast_862" ],
+      "name" : "Multiply_863",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_863_0"]
+    },
+    {
+      "inputs" : [ "Multiply_886", "Reshape_891" ],
+      "name" : "Add_892",
+      "op" : "Add",
+      "outputs" : ["Add_892_0"]
+    },
+    {
+      "inputs" : [ "Parameter_843", "Slice_858" ],
+      "name" : "Add_859",
+      "op" : "Add",
+      "outputs" : ["Add_859_0"]
+    },
+    {
+      "inputs" : [ "Multiply_895", "Reshape_900" ],
+      "name" : "Add_901",
+      "op" : "Add",
+      "outputs" : ["Add_901_0"]
+    },
+    {
+      "inputs" : [ "Greater_853", "Add_859", "Broadcast_852" ],
+      "name" : "Select_860",
+      "op" : "Select",
+      "outputs" : ["Select_860_0"]
+    }
+  ],
+  "parameters" : [
+    "Parameter_826", "Parameter_827", "Parameter_828", "Parameter_829",
+    "Parameter_830", "Parameter_831", "Parameter_832", "Parameter_833",
+    "Parameter_834", "Parameter_835", "Parameter_836", "Parameter_837",
+    "Parameter_838", "Parameter_839", "Parameter_840", "Parameter_841",
+    "Parameter_842", "Parameter_843", "Parameter_844", "Parameter_845",
+    "Parameter_846", "Parameter_847", "Parameter_848", "Parameter_849"
+  ],
+  "result" : [
+    "Reshape_850", "Select_860", "Multiply_863", "Add_866", "Add_869",
+    "Add_872", "Add_875", "Add_878", "Add_881", "Add_884", "Add_892",
+    "Add_901"
+  ]
+}]

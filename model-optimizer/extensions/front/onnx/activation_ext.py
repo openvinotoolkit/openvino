@@ -13,8 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.activation_ops import Abs, Acos, Asin, Atan, Ceiling, Cos, Cosh, Elu, Erf, Exp, Floor, ReLU, \
-    LeakyReLU, Log, LogicalNot, Sin, Sinh, Tan, Tanh, Sigmoid
+from extensions.ops.activation_ops import *
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 
@@ -181,6 +180,16 @@ class SigmoidExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         Sigmoid.update_node_stat(node)
+        return cls.enabled
+
+
+class SignExtractor(FrontExtractorOp):
+    op = 'Sign'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Sign.update_node_stat(node)
         return cls.enabled
 
 

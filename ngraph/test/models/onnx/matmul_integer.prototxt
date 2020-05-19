@@ -1,0 +1,88 @@
+ir_version: 5
+producer_name: "nGraph ONNX Importer"
+graph {
+  node {
+    input: "a"
+    input: "b"
+    input: "a_zero_point"
+    input: "b_zero_point"
+    output: "y"
+    name: "node1"
+    op_type: "MatMulInteger"
+    doc_string: "MatMulInteger"
+    domain: ""
+  }
+  name: "test"
+  input {
+    name: "a"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "b"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "a_zero_point"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "b_zero_point"
+    type {
+      tensor_type {
+        elem_type: 2
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 4
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 10
+}

@@ -49,7 +49,6 @@ Blob::Ptr BehaviorPluginTest::makeNotAllocatedBlob(Precision eb, Layout l, const
     throw std::runtime_error("unexpected");
 }
 
-IE_SUPPRESS_DEPRECATED_START
 void BehaviorPluginTest::setInputNetworkPrecision(CNNNetwork &network, InputsDataMap &inputs_info,
     Precision input_precision) {
     inputs_info = network.getInputsInfo();
@@ -63,7 +62,6 @@ void BehaviorPluginTest::setOutputNetworkPrecision(CNNNetwork &network, OutputsD
     ASSERT_EQ(outputs_info.size(), 1u);
     outputs_info.begin()->second->setPrecision(output_precision);
 }
-IE_SUPPRESS_DEPRECATED_END
 
 class BehaviorPluginTestInput : public BehaviorPluginTest { };
 class BehaviorPluginTestOutput : public BehaviorPluginTest { };
@@ -133,18 +131,18 @@ bool static compare_two_files_lexicographically(const std::string& name_a, const
 TEST_P(BehaviorPluginTest, pluginDoesNotChangeOriginalNetwork) {
     const std::string name_a = "a.xml";
     const std::string name_b = "b.xml";
-    IE_SUPPRESS_DEPRECATED_START
     auto param = GetParam();
 
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network = core.ReadNetwork(param.model_xml_str, param.weights_blob);
     network.serialize(name_a);
-    IE_SUPPRESS_DEPRECATED_END
 
     ASSERT_NO_THROW(core.LoadNetwork(network, param.device, param.config));
     network.serialize(name_b);
 
     ASSERT_NO_THROW(compare_two_files_lexicographically(name_a, name_b));
+    EXPECT_EQ(0, std::remove(name_a.c_str()));
+    EXPECT_EQ(0, std::remove(name_b.c_str()));
 }
 
 TEST_P(BehaviorPluginTestInput, canSetInputPrecisionForNetwork) {
@@ -181,7 +179,6 @@ TEST_P(BehaviorPluginTestInput, canSetInputPrecisionForNetwork) {
 
 TEST_P(BehaviorPluginTestOutput, canSetOutputPrecisionForNetwork) {
     auto param = GetParam();
-    IE_SUPPRESS_DEPRECATED_START
     OutputsDataMap outputs_info;
 
     InferenceEngine::Core ie;

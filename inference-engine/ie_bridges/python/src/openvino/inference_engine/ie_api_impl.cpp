@@ -182,6 +182,7 @@ InferenceEnginePython::IENetwork::IENetwork(const std::string &model, const std:
 
 InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork> &cnn_network)
         : actual(cnn_network) {
+    if (actual == nullptr) THROW_IE_EXCEPTION << "IENetwork was not initialized.";
     name = actual->getName();
     batch_size = actual->getBatchSize();
     IE_SUPPRESS_DEPRECATED_START

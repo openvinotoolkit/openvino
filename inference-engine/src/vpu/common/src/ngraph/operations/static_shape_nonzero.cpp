@@ -26,8 +26,8 @@ void StaticShapeNonZero::validate_and_infer_types() {
 
     const auto& input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          input_et.is_integral_number() || input_et.is_real(),
-                          "StaticShapeNonZero input data type needs to be a numeric type. Got: ",
+                          input_et.is_static() && (input_et.is_integral_number() || input_et.is_real() || input_et == ngraph::element::boolean),
+                          "StaticShapeNonZero input data type needs to be a static numeric type. Got: ",
                           input_et);
 
     NODE_VALIDATION_CHECK(this,

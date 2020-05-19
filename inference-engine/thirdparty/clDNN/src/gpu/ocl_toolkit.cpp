@@ -81,6 +81,8 @@ namespace gpu {
 ocl_error::ocl_error(cl::Error const& err)
     : std::runtime_error(err.what() + std::string(", error code: ") + std::to_string(err.err())) {}
 
+std::mutex gpu_toolkit::cache_mutex;
+
 std::shared_ptr<gpu_toolkit> gpu_toolkit::create(const device_impl& device, const configuration& cfg) {
     struct make_shared_wa : public gpu_toolkit {
         explicit make_shared_wa(const device_impl& device, const configuration& cfg)
@@ -140,14 +142,17 @@ gpu_queue& gpu_toolkit::get_command_queue(uint32_t id) {
 }
 
 gpu_program_state& gpu_toolkit::get_program_state(uint32_t id) {
+    std::lock_guard<std::mutex> lock(toolkit_mutex);
     return *_program_states.at(id);
 }
 
 void gpu_toolkit::add_program(uint32_t prog_id) {
+    std::lock_guard<std::mutex> lock(toolkit_mutex);
     _program_states.emplace(std::make_pair(prog_id, std::make_shared<gpu_program_state>(*this, prog_id)));
 }
 
 void gpu_toolkit::remove_program(uint32_t prog_id) {
+    std::lock_guard<std::mutex> lock(toolkit_mutex);
     auto state_iter = _program_states.find(prog_id);
 
     if (state_iter != _program_states.end()) {
@@ -164,6 +169,7 @@ void gpu_toolkit::store_binaries(kernels_binaries_vector binaries, uint32_t prog
 }
 
 void gpu_toolkit::add_network(uint32_t net_id) {
+    std::lock_guard<std::mutex> lock(toolkit_mutex);
     command_queues_builder queue_builder(context(), device(), _device->get_platform());
     queue_builder.set_profiling(_configuration.enable_profiling);
     queue_builder.set_out_of_order((_configuration.host_out_of_order && _neo_driver));
@@ -182,6 +188,7 @@ void gpu_toolkit::add_network(uint32_t net_id) {
 }
 
 void gpu_toolkit::remove_network(uint32_t net_id) {
+    std::lock_guard<std::mutex> lock(toolkit_mutex);
     auto net_iter = _command_queues_w.find(net_id);
     if (net_iter != _command_queues_w.end()) {
         // net_iter->second.release_pending_memory();

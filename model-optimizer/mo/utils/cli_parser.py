@@ -495,7 +495,8 @@ def get_tf_cli_parser(parser: argparse.ArgumentParser = None):
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_file)
     tf_group.add_argument('--saved_model_dir', default=None,
-                          help="TensorFlow*: directory representing non frozen model",
+                          help='TensorFlow*: directory with a model in SavedModel format'
+                               'of TensorFlow 1.x or 2.x version.',
                           action=CanonicalizePathCheckExistenceAction,
                           type=readable_dirs)
     tf_group.add_argument('--saved_model_tags', type=str, default=None,

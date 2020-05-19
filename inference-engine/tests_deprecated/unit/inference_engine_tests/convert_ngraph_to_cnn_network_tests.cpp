@@ -51,10 +51,9 @@ TEST_F(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
         auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1});
         auto convolution = std::make_shared<ngraph::op::ConvolutionIE>(param1, param2,
                                                                   ngraph::Strides{1, 1},
-                                                                  ngraph::CoordinateDiff{0, 0},
-                                                                  ngraph::CoordinateDiff{0, 0},
                                                                   ngraph::Strides{1, 1},
-                                                                  ngraph::Shape{1, 3, 64, 64});
+                                                                  ngraph::CoordinateDiff{0, 0},
+                                                                  ngraph::CoordinateDiff{0, 0});
         convolution->set_friendly_name("convolution");
         auto result = std::make_shared<ngraph::op::Result>(convolution);
 

@@ -1,0 +1,1707 @@
+[{
+  "name" : "Function_8",
+  "ops" : [
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_507",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_507_0"],
+      "shape" : [ 50, 8, 8, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_506",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_506_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_505",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_505_0"],
+      "shape" : [ 3, 3, 3, 16 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_504",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_504_0"],
+      "shape" : [16]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_503",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_503_0"],
+      "shape" : [16]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_502",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_502_0"],
+      "shape" : [ 1, 1, 16, 16 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_501",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_501_0"],
+      "shape" : [ 3, 3, 16, 16 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_500",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_500_0"],
+      "shape" : [16]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_499",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_499_0"],
+      "shape" : [16]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_498",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_498_0"],
+      "shape" : [ 3, 3, 16, 16 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_497",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_497_0"],
+      "shape" : [16]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_496",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_496_0"],
+      "shape" : [16]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_495",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_495_0"],
+      "shape" : [ 1, 1, 16, 32 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_494",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_494_0"],
+      "shape" : [ 3, 3, 16, 32 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_493",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_493_0"],
+      "shape" : [32]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_492",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_492_0"],
+      "shape" : [32]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_491",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_491_0"],
+      "shape" : [ 3, 3, 32, 32 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_490",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_490_0"],
+      "shape" : [32]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_489",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_489_0"],
+      "shape" : [32]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_488",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_488_0"],
+      "shape" : [ 1, 1, 32, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_487",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_487_0"],
+      "shape" : [ 3, 3, 32, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_486",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_486_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_485",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_485_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_484",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_484_0"],
+      "shape" : [ 3, 3, 64, 64 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_483",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_483_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_482",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_482_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_481",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_481_0"],
+      "shape" : [ 64, 10 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_480",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_480_0"],
+      "shape" : [10]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_514",
+      "op" : "Constant",
+      "outputs" : ["Constant_514_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_509",
+      "op" : "Constant",
+      "outputs" : ["Constant_509_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_508",
+      "op" : "Constant",
+      "outputs" : ["Constant_508_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_540",
+      "op" : "Constant",
+      "outputs" : ["Constant_540_0"],
+      "shape" : [],
+      "value" : ["1"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_518",
+      "op" : "Constant",
+      "outputs" : ["Constant_518_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_711",
+      "op" : "Constant",
+      "outputs" : ["Constant_711_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_706",
+      "op" : "Constant",
+      "outputs" : ["Constant_706_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_701",
+      "op" : "Constant",
+      "outputs" : ["Constant_701_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_696",
+      "op" : "Constant",
+      "outputs" : ["Constant_696_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_691",
+      "op" : "Constant",
+      "outputs" : ["Constant_691_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_686",
+      "op" : "Constant",
+      "outputs" : ["Constant_686_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_681",
+      "op" : "Constant",
+      "outputs" : ["Constant_681_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_676",
+      "op" : "Constant",
+      "outputs" : ["Constant_676_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_671",
+      "op" : "Constant",
+      "outputs" : ["Constant_671_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_666",
+      "op" : "Constant",
+      "outputs" : ["Constant_666_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_661",
+      "op" : "Constant",
+      "outputs" : ["Constant_661_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_656",
+      "op" : "Constant",
+      "outputs" : ["Constant_656_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_651",
+      "op" : "Constant",
+      "outputs" : ["Constant_651_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_646",
+      "op" : "Constant",
+      "outputs" : ["Constant_646_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_641",
+      "op" : "Constant",
+      "outputs" : ["Constant_641_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_636",
+      "op" : "Constant",
+      "outputs" : ["Constant_636_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_631",
+      "op" : "Constant",
+      "outputs" : ["Constant_631_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_626",
+      "op" : "Constant",
+      "outputs" : ["Constant_626_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_621",
+      "op" : "Constant",
+      "outputs" : ["Constant_621_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_616",
+      "op" : "Constant",
+      "outputs" : ["Constant_616_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_611",
+      "op" : "Constant",
+      "outputs" : ["Constant_611_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_606",
+      "op" : "Constant",
+      "outputs" : ["Constant_606_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_601",
+      "op" : "Constant",
+      "outputs" : ["Constant_601_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_596",
+      "op" : "Constant",
+      "outputs" : ["Constant_596_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_591",
+      "op" : "Constant",
+      "outputs" : ["Constant_591_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_587",
+      "op" : "Constant",
+      "outputs" : ["Constant_587_0"],
+      "shape" : [],
+      "value" : ["2"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_584",
+      "op" : "Constant",
+      "outputs" : ["Constant_584_0"],
+      "shape" : [],
+      "value" : ["0.0002"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_574",
+      "op" : "Constant",
+      "outputs" : ["Constant_574_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_550",
+      "op" : "Constant",
+      "outputs" : ["Constant_550_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_548",
+      "op" : "Constant",
+      "outputs" : ["Constant_548_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Parameter_506"],
+      "name" : "Reshape_516",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 10 ],
+      "outputs" : ["Reshape_516_0"]
+    },
+    {
+      "inputs" : [ "Parameter_505", "Parameter_505" ],
+      "name" : "Multiply_585",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_585_0"]
+    },
+    {
+      "inputs" : [ "Parameter_504", "Parameter_504" ],
+      "name" : "Multiply_589",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_589_0"]
+    },
+    {
+      "inputs" : [ "Parameter_503", "Parameter_503" ],
+      "name" : "Multiply_594",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_594_0"]
+    },
+    {
+      "inputs" : [ "Parameter_502", "Parameter_502" ],
+      "name" : "Multiply_599",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_599_0"]
+    },
+    {
+      "inputs" : [ "Parameter_501", "Parameter_501" ],
+      "name" : "Multiply_604",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_604_0"]
+    },
+    {
+      "inputs" : [ "Parameter_500", "Parameter_500" ],
+      "name" : "Multiply_609",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_609_0"]
+    },
+    {
+      "inputs" : [ "Parameter_499", "Parameter_499" ],
+      "name" : "Multiply_614",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_614_0"]
+    },
+    {
+      "inputs" : [ "Parameter_498", "Parameter_498" ],
+      "name" : "Multiply_619",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_619_0"]
+    },
+    {
+      "inputs" : [ "Parameter_497", "Parameter_497" ],
+      "name" : "Multiply_624",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_624_0"]
+    },
+    {
+      "inputs" : [ "Parameter_496", "Parameter_496" ],
+      "name" : "Multiply_629",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_629_0"]
+    },
+    {
+      "inputs" : [ "Parameter_495", "Parameter_495" ],
+      "name" : "Multiply_634",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_634_0"]
+    },
+    {
+      "inputs" : [ "Parameter_494", "Parameter_494" ],
+      "name" : "Multiply_639",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_639_0"]
+    },
+    {
+      "inputs" : [ "Parameter_493", "Parameter_493" ],
+      "name" : "Multiply_644",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_644_0"]
+    },
+    {
+      "inputs" : [ "Parameter_492", "Parameter_492" ],
+      "name" : "Multiply_649",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_649_0"]
+    },
+    {
+      "inputs" : [ "Parameter_491", "Parameter_491" ],
+      "name" : "Multiply_654",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_654_0"]
+    },
+    {
+      "inputs" : [ "Parameter_490", "Parameter_490" ],
+      "name" : "Multiply_659",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_659_0"]
+    },
+    {
+      "inputs" : [ "Parameter_489", "Parameter_489" ],
+      "name" : "Multiply_664",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_664_0"]
+    },
+    {
+      "inputs" : [ "Parameter_488", "Parameter_488" ],
+      "name" : "Multiply_669",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_669_0"]
+    },
+    {
+      "inputs" : [ "Parameter_487", "Parameter_487" ],
+      "name" : "Multiply_674",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_674_0"]
+    },
+    {
+      "inputs" : [ "Parameter_486", "Parameter_486" ],
+      "name" : "Multiply_679",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_679_0"]
+    },
+    {
+      "inputs" : [ "Parameter_485", "Parameter_485" ],
+      "name" : "Multiply_684",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_684_0"]
+    },
+    {
+      "inputs" : [ "Parameter_484", "Parameter_484" ],
+      "name" : "Multiply_689",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_689_0"]
+    },
+    {
+      "inputs" : [ "Parameter_483", "Parameter_483" ],
+      "name" : "Multiply_694",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_694_0"]
+    },
+    {
+      "inputs" : [ "Parameter_482", "Parameter_482" ],
+      "name" : "Multiply_699",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_699_0"]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Parameter_481"],
+      "name" : "Reshape_577",
+      "op" : "Reshape",
+      "output_shape" : [ 10, 64 ],
+      "outputs" : ["Reshape_577_0"]
+    },
+    {
+      "inputs" : [ "Parameter_481", "Parameter_481" ],
+      "name" : "Multiply_704",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_704_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_480"],
+      "name" : "Broadcast_526",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_526_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "inputs" : [ "Parameter_480", "Parameter_480" ],
+      "name" : "Multiply_709",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_709_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Constant_509"],
+      "name" : "Broadcast_510",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_510_0"],
+      "shape" : [50]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Constant_508"],
+      "name" : "Broadcast_511",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_511_0"],
+      "shape" : [50]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Constant_540"],
+      "name" : "Broadcast_541",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_541_0"],
+      "shape" : [50]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Constant_540"],
+      "name" : "Broadcast_559",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_559_0"],
+      "shape" : [50]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_518"],
+      "name" : "Broadcast_519",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_519_0"],
+      "shape" : [ 50, 8, 8, 64 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_574"],
+      "name" : "Broadcast_575",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_575_0"],
+      "shape" : [ 50, 8, 8, 64 ]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Constant_548"],
+      "name" : "Broadcast_549",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_549_0"],
+      "shape" : [50]
+    },
+    {
+      "inputs" : ["Reshape_516"],
+      "name" : "Negative_517",
+      "op" : "Negative",
+      "outputs" : ["Negative_517_0"]
+    },
+    {
+      "inputs" : ["Multiply_585"],
+      "name" : "Sum_586",
+      "op" : "Sum",
+      "outputs" : ["Sum_586_0"],
+      "reduction_axes" : [ 0, 1, 2, 3 ]
+    },
+    {
+      "inputs" : ["Multiply_589"],
+      "name" : "Sum_590",
+      "op" : "Sum",
+      "outputs" : ["Sum_590_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_594"],
+      "name" : "Sum_595",
+      "op" : "Sum",
+      "outputs" : ["Sum_595_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_599"],
+      "name" : "Sum_600",
+      "op" : "Sum",
+      "outputs" : ["Sum_600_0"],
+      "reduction_axes" : [ 0, 1, 2, 3 ]
+    },
+    {
+      "inputs" : ["Multiply_604"],
+      "name" : "Sum_605",
+      "op" : "Sum",
+      "outputs" : ["Sum_605_0"],
+      "reduction_axes" : [ 0, 1, 2, 3 ]
+    },
+    {
+      "inputs" : ["Multiply_609"],
+      "name" : "Sum_610",
+      "op" : "Sum",
+      "outputs" : ["Sum_610_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_614"],
+      "name" : "Sum_615",
+      "op" : "Sum",
+      "outputs" : ["Sum_615_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_619"],
+      "name" : "Sum_620",
+      "op" : "Sum",
+      "outputs" : ["Sum_620_0"],
+      "reduction_axes" : [ 0, 1, 2, 3 ]
+    },
+    {
+      "inputs" : ["Multiply_624"],
+      "name" : "Sum_625",
+      "op" : "Sum",
+      "outputs" : ["Sum_625_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_629"],
+      "name" : "Sum_630",
+      "op" : "Sum",
+      "outputs" : ["Sum_630_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_634"],
+      "name" : "Sum_635",
+      "op" : "Sum",
+      "outputs" : ["Sum_635_0"],
+      "reduction_axes" : [ 0, 1, 2, 3 ]
+    },
+    {
+      "inputs" : ["Multiply_639"],
+      "name" : "Sum_640",
+      "op" : "Sum",
+      "outputs" : ["Sum_640_0"],
+      "reduction_axes" : [ 0, 1, 2, 3 ]
+    },
+    {
+      "inputs" : ["Multiply_644"],
+      "name" : "Sum_645",
+      "op" : "Sum",
+      "outputs" : ["Sum_645_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_649"],
+      "name" : "Sum_650",
+      "op" : "Sum",
+      "outputs" : ["Sum_650_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_654"],
+      "name" : "Sum_655",
+      "op" : "Sum",
+      "outputs" : ["Sum_655_0"],
+      "reduction_axes" : [ 0, 1, 2, 3 ]
+    },
+    {
+      "inputs" : ["Multiply_659"],
+      "name" : "Sum_660",
+      "op" : "Sum",
+      "outputs" : ["Sum_660_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_664"],
+      "name" : "Sum_665",
+      "op" : "Sum",
+      "outputs" : ["Sum_665_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_669"],
+      "name" : "Sum_670",
+      "op" : "Sum",
+      "outputs" : ["Sum_670_0"],
+      "reduction_axes" : [ 0, 1, 2, 3 ]
+    },
+    {
+      "inputs" : ["Multiply_674"],
+      "name" : "Sum_675",
+      "op" : "Sum",
+      "outputs" : ["Sum_675_0"],
+      "reduction_axes" : [ 0, 1, 2, 3 ]
+    },
+    {
+      "inputs" : ["Multiply_679"],
+      "name" : "Sum_680",
+      "op" : "Sum",
+      "outputs" : ["Sum_680_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_684"],
+      "name" : "Sum_685",
+      "op" : "Sum",
+      "outputs" : ["Sum_685_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_689"],
+      "name" : "Sum_690",
+      "op" : "Sum",
+      "outputs" : ["Sum_690_0"],
+      "reduction_axes" : [ 0, 1, 2, 3 ]
+    },
+    {
+      "inputs" : ["Multiply_694"],
+      "name" : "Sum_695",
+      "op" : "Sum",
+      "outputs" : ["Sum_695_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_699"],
+      "name" : "Sum_700",
+      "op" : "Sum",
+      "outputs" : ["Sum_700_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : ["Multiply_704"],
+      "name" : "Sum_705",
+      "op" : "Sum",
+      "outputs" : ["Sum_705_0"],
+      "reduction_axes" : [ 0, 1 ]
+    },
+    {
+      "inputs" : ["Multiply_709"],
+      "name" : "Sum_710",
+      "op" : "Sum",
+      "outputs" : ["Sum_710_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : [ "Broadcast_511", "Broadcast_510" ],
+      "name" : "Multiply_512",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_512_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_519", "Parameter_507" ],
+      "name" : "Maximum_520",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_520_0"]
+    },
+    {
+      "inputs" : [ "Sum_586", "Constant_587" ],
+      "name" : "Divide_588",
+      "op" : "Divide",
+      "outputs" : ["Divide_588_0"]
+    },
+    {
+      "inputs" : [ "Sum_590", "Constant_591" ],
+      "name" : "Divide_592",
+      "op" : "Divide",
+      "outputs" : ["Divide_592_0"]
+    },
+    {
+      "inputs" : [ "Sum_595", "Constant_596" ],
+      "name" : "Divide_597",
+      "op" : "Divide",
+      "outputs" : ["Divide_597_0"]
+    },
+    {
+      "inputs" : [ "Sum_600", "Constant_601" ],
+      "name" : "Divide_602",
+      "op" : "Divide",
+      "outputs" : ["Divide_602_0"]
+    },
+    {
+      "inputs" : [ "Sum_605", "Constant_606" ],
+      "name" : "Divide_607",
+      "op" : "Divide",
+      "outputs" : ["Divide_607_0"]
+    },
+    {
+      "inputs" : [ "Sum_610", "Constant_611" ],
+      "name" : "Divide_612",
+      "op" : "Divide",
+      "outputs" : ["Divide_612_0"]
+    },
+    {
+      "inputs" : [ "Sum_615", "Constant_616" ],
+      "name" : "Divide_617",
+      "op" : "Divide",
+      "outputs" : ["Divide_617_0"]
+    },
+    {
+      "inputs" : [ "Sum_620", "Constant_621" ],
+      "name" : "Divide_622",
+      "op" : "Divide",
+      "outputs" : ["Divide_622_0"]
+    },
+    {
+      "inputs" : [ "Sum_625", "Constant_626" ],
+      "name" : "Divide_627",
+      "op" : "Divide",
+      "outputs" : ["Divide_627_0"]
+    },
+    {
+      "inputs" : [ "Sum_630", "Constant_631" ],
+      "name" : "Divide_632",
+      "op" : "Divide",
+      "outputs" : ["Divide_632_0"]
+    },
+    {
+      "inputs" : [ "Sum_635", "Constant_636" ],
+      "name" : "Divide_637",
+      "op" : "Divide",
+      "outputs" : ["Divide_637_0"]
+    },
+    {
+      "inputs" : [ "Sum_640", "Constant_641" ],
+      "name" : "Divide_642",
+      "op" : "Divide",
+      "outputs" : ["Divide_642_0"]
+    },
+    {
+      "inputs" : [ "Sum_645", "Constant_646" ],
+      "name" : "Divide_647",
+      "op" : "Divide",
+      "outputs" : ["Divide_647_0"]
+    },
+    {
+      "inputs" : [ "Sum_650", "Constant_651" ],
+      "name" : "Divide_652",
+      "op" : "Divide",
+      "outputs" : ["Divide_652_0"]
+    },
+    {
+      "inputs" : [ "Sum_655", "Constant_656" ],
+      "name" : "Divide_657",
+      "op" : "Divide",
+      "outputs" : ["Divide_657_0"]
+    },
+    {
+      "inputs" : [ "Sum_660", "Constant_661" ],
+      "name" : "Divide_662",
+      "op" : "Divide",
+      "outputs" : ["Divide_662_0"]
+    },
+    {
+      "inputs" : [ "Sum_665", "Constant_666" ],
+      "name" : "Divide_667",
+      "op" : "Divide",
+      "outputs" : ["Divide_667_0"]
+    },
+    {
+      "inputs" : [ "Sum_670", "Constant_671" ],
+      "name" : "Divide_672",
+      "op" : "Divide",
+      "outputs" : ["Divide_672_0"]
+    },
+    {
+      "inputs" : [ "Sum_675", "Constant_676" ],
+      "name" : "Divide_677",
+      "op" : "Divide",
+      "outputs" : ["Divide_677_0"]
+    },
+    {
+      "inputs" : [ "Sum_680", "Constant_681" ],
+      "name" : "Divide_682",
+      "op" : "Divide",
+      "outputs" : ["Divide_682_0"]
+    },
+    {
+      "inputs" : [ "Sum_685", "Constant_686" ],
+      "name" : "Divide_687",
+      "op" : "Divide",
+      "outputs" : ["Divide_687_0"]
+    },
+    {
+      "inputs" : [ "Sum_690", "Constant_691" ],
+      "name" : "Divide_692",
+      "op" : "Divide",
+      "outputs" : ["Divide_692_0"]
+    },
+    {
+      "inputs" : [ "Sum_695", "Constant_696" ],
+      "name" : "Divide_697",
+      "op" : "Divide",
+      "outputs" : ["Divide_697_0"]
+    },
+    {
+      "inputs" : [ "Sum_700", "Constant_701" ],
+      "name" : "Divide_702",
+      "op" : "Divide",
+      "outputs" : ["Divide_702_0"]
+    },
+    {
+      "inputs" : [ "Sum_705", "Constant_706" ],
+      "name" : "Divide_707",
+      "op" : "Divide",
+      "outputs" : ["Divide_707_0"]
+    },
+    {
+      "inputs" : [ "Sum_710", "Constant_711" ],
+      "name" : "Divide_712",
+      "op" : "Divide",
+      "outputs" : ["Divide_712_0"]
+    },
+    {
+      "inputs" : ["Multiply_512"],
+      "name" : "Sum_513",
+      "op" : "Sum",
+      "outputs" : ["Sum_513_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : [ "Maximum_520", "Broadcast_575" ],
+      "name" : "Greater_576",
+      "op" : "Greater",
+      "outputs" : ["Greater_576_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Maximum_520"],
+      "name" : "Reshape_521",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 64, 8, 8 ],
+      "outputs" : ["Reshape_521_0"]
+    },
+    {
+      "inputs" : [ "Divide_588", "Divide_592" ],
+      "name" : "Add_593",
+      "op" : "Add",
+      "outputs" : ["Add_593_0"]
+    },
+    {
+      "inputs" : [ "Sum_513", "Constant_514" ],
+      "name" : "Equal_544",
+      "op" : "Equal",
+      "outputs" : ["Equal_544_0"]
+    },
+    {
+      "inputs" : [ "Sum_513", "Constant_514" ],
+      "name" : "Greater_515",
+      "op" : "Greater",
+      "outputs" : ["Greater_515_0"]
+    },
+    {
+      "include_padding_in_avg_computation" : false,
+      "inputs" : ["Reshape_521"],
+      "name" : "AvgPool_522",
+      "op" : "AvgPool",
+      "outputs" : ["AvgPool_522_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 1, 1 ],
+      "window_shape" : [ 8, 8 ]
+    },
+    {
+      "inputs" : [ "Add_593", "Divide_597" ],
+      "name" : "Add_598",
+      "op" : "Add",
+      "outputs" : ["Add_598_0"]
+    },
+    {
+      "inputs" : [ "Equal_544", "Constant_508", "Sum_513" ],
+      "name" : "Select_545",
+      "op" : "Select",
+      "outputs" : ["Select_545_0"]
+    },
+    {
+      "inputs" : [ "Greater_515", "Constant_508", "Constant_550" ],
+      "name" : "Select_551",
+      "op" : "Select",
+      "outputs" : ["Select_551_0"]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["AvgPool_522"],
+      "name" : "Reshape_523",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 1, 1, 64 ],
+      "outputs" : ["Reshape_523_0"]
+    },
+    {
+      "inputs" : [ "Add_598", "Divide_602" ],
+      "name" : "Add_603",
+      "op" : "Add",
+      "outputs" : ["Add_603_0"]
+    },
+    {
+      "inputs" : [ "Select_551", "Select_545" ],
+      "name" : "Divide_552",
+      "op" : "Divide",
+      "outputs" : ["Divide_552_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_523"],
+      "name" : "Reshape_524",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 64 ],
+      "outputs" : ["Reshape_524_0"]
+    },
+    {
+      "inputs" : [ "Add_603", "Divide_607" ],
+      "name" : "Add_608",
+      "op" : "Add",
+      "outputs" : ["Add_608_0"]
+    },
+    {
+      "input_order" : [],
+      "inputs" : ["Divide_552"],
+      "name" : "Reshape_553",
+      "op" : "Reshape",
+      "output_shape" : [],
+      "outputs" : ["Reshape_553_0"]
+    },
+    {
+      "inputs" : [ "Reshape_524", "Parameter_481" ],
+      "name" : "Dot_525",
+      "op" : "Dot",
+      "outputs" : ["Dot_525_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Reshape_524"],
+      "name" : "Reshape_572",
+      "op" : "Reshape",
+      "output_shape" : [ 64, 50 ],
+      "outputs" : ["Reshape_572_0"]
+    },
+    {
+      "inputs" : [ "Add_608", "Divide_612" ],
+      "name" : "Add_613",
+      "op" : "Add",
+      "outputs" : ["Add_613_0"]
+    },
+    {
+      "input_order" : [],
+      "inputs" : ["Reshape_553"],
+      "name" : "Reshape_554",
+      "op" : "Reshape",
+      "output_shape" : [],
+      "outputs" : ["Reshape_554_0"]
+    },
+    {
+      "inputs" : [ "Dot_525", "Broadcast_526" ],
+      "name" : "Add_527",
+      "op" : "Add",
+      "outputs" : ["Add_527_0"]
+    },
+    {
+      "inputs" : [ "Add_613", "Divide_617" ],
+      "name" : "Add_618",
+      "op" : "Add",
+      "outputs" : ["Add_618_0"]
+    },
+    {
+      "input_order" : [],
+      "inputs" : ["Reshape_554"],
+      "name" : "Reshape_555",
+      "op" : "Reshape",
+      "output_shape" : [1],
+      "outputs" : ["Reshape_555_0"]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Add_527"],
+      "name" : "Reshape_528",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 10 ],
+      "outputs" : ["Reshape_528_0"]
+    },
+    {
+      "inputs" : [ "Add_618", "Divide_622" ],
+      "name" : "Add_623",
+      "op" : "Add",
+      "outputs" : ["Add_623_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Reshape_555"],
+      "name" : "Reshape_556",
+      "op" : "Reshape",
+      "output_shape" : [],
+      "outputs" : ["Reshape_556_0"]
+    },
+    {
+      "inputs" : ["Reshape_528"],
+      "name" : "Max_529",
+      "op" : "Max",
+      "outputs" : ["Max_529_0"],
+      "reduction_axes" : [1]
+    },
+    {
+      "inputs" : [ "Add_623", "Divide_627" ],
+      "name" : "Add_628",
+      "op" : "Add",
+      "outputs" : ["Add_628_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Reshape_556"],
+      "name" : "Broadcast_557",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_557_0"],
+      "shape" : [50]
+    },
+    {
+      "axes" : [1],
+      "inputs" : ["Max_529"],
+      "name" : "Broadcast_530",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_530_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "inputs" : [ "Add_628", "Divide_632" ],
+      "name" : "Add_633",
+      "op" : "Add",
+      "outputs" : ["Add_633_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_549", "Broadcast_557" ],
+      "name" : "Add_558",
+      "op" : "Add",
+      "outputs" : ["Add_558_0"]
+    },
+    {
+      "inputs" : [ "Reshape_528", "Broadcast_530" ],
+      "name" : "Subtract_531",
+      "op" : "Subtract",
+      "outputs" : ["Subtract_531_0"]
+    },
+    {
+      "inputs" : [ "Add_633", "Divide_637" ],
+      "name" : "Add_638",
+      "op" : "Add",
+      "outputs" : ["Add_638_0"]
+    },
+    {
+      "inputs" : [ "Add_558", "Broadcast_559" ],
+      "name" : "Multiply_560",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_560_0"]
+    },
+    {
+      "inputs" : ["Subtract_531"],
+      "name" : "Exp_532",
+      "op" : "Exp",
+      "outputs" : ["Exp_532_0"]
+    },
+    {
+      "inputs" : [ "Add_638", "Divide_642" ],
+      "name" : "Add_643",
+      "op" : "Add",
+      "outputs" : ["Add_643_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Multiply_560"],
+      "name" : "Reshape_561",
+      "op" : "Reshape",
+      "output_shape" : [50],
+      "outputs" : ["Reshape_561_0"]
+    },
+    {
+      "inputs" : ["Exp_532"],
+      "name" : "Sum_533",
+      "op" : "Sum",
+      "outputs" : ["Sum_533_0"],
+      "reduction_axes" : [1]
+    },
+    {
+      "inputs" : [ "Add_643", "Divide_647" ],
+      "name" : "Add_648",
+      "op" : "Add",
+      "outputs" : ["Add_648_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Reshape_561"],
+      "name" : "Reshape_562",
+      "op" : "Reshape",
+      "output_shape" : [50],
+      "outputs" : ["Reshape_562_0"]
+    },
+    {
+      "axes" : [1],
+      "inputs" : ["Sum_533"],
+      "name" : "Broadcast_564",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_564_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "inputs" : ["Sum_533"],
+      "name" : "Log_534",
+      "op" : "Log",
+      "outputs" : ["Log_534_0"]
+    },
+    {
+      "inputs" : [ "Add_648", "Divide_652" ],
+      "name" : "Add_653",
+      "op" : "Add",
+      "outputs" : ["Add_653_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Reshape_562"],
+      "name" : "Reshape_563",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 1 ],
+      "outputs" : ["Reshape_563_0"]
+    },
+    {
+      "inputs" : [ "Exp_532", "Broadcast_564" ],
+      "name" : "Divide_565",
+      "op" : "Divide",
+      "outputs" : ["Divide_565_0"]
+    },
+    {
+      "axes" : [1],
+      "inputs" : ["Log_534"],
+      "name" : "Broadcast_535",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_535_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "inputs" : [ "Add_653", "Divide_657" ],
+      "name" : "Add_658",
+      "op" : "Add",
+      "outputs" : ["Add_658_0"]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Reshape_563"],
+      "name" : "Reshape_567",
+      "op" : "Reshape",
+      "output_shape" : [50],
+      "outputs" : ["Reshape_567_0"]
+    },
+    {
+      "inputs" : [ "Divide_565", "Reshape_516" ],
+      "name" : "Subtract_566",
+      "op" : "Subtract",
+      "outputs" : ["Subtract_566_0"]
+    },
+    {
+      "inputs" : [ "Subtract_531", "Broadcast_535" ],
+      "name" : "Subtract_536",
+      "op" : "Subtract",
+      "outputs" : ["Subtract_536_0"]
+    },
+    {
+      "inputs" : [ "Add_658", "Divide_662" ],
+      "name" : "Add_663",
+      "op" : "Add",
+      "outputs" : ["Add_663_0"]
+    },
+    {
+      "axes" : [1],
+      "inputs" : ["Reshape_567"],
+      "name" : "Broadcast_568",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_568_0"],
+      "shape" : [ 50, 10 ]
+    },
+    {
+      "inputs" : [ "Negative_517", "Subtract_536" ],
+      "name" : "Multiply_537",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_537_0"]
+    },
+    {
+      "inputs" : [ "Add_663", "Divide_667" ],
+      "name" : "Add_668",
+      "op" : "Add",
+      "outputs" : ["Add_668_0"]
+    },
+    {
+      "inputs" : [ "Broadcast_568", "Subtract_566" ],
+      "name" : "Multiply_569",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_569_0"]
+    },
+    {
+      "inputs" : ["Multiply_537"],
+      "name" : "Sum_538",
+      "op" : "Sum",
+      "outputs" : ["Sum_538_0"],
+      "reduction_axes" : [1]
+    },
+    {
+      "inputs" : [ "Add_668", "Divide_672" ],
+      "name" : "Add_673",
+      "op" : "Add",
+      "outputs" : ["Add_673_0"]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Multiply_569"],
+      "name" : "Reshape_570",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 10 ],
+      "outputs" : ["Reshape_570_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Sum_538"],
+      "name" : "Reshape_539",
+      "op" : "Reshape",
+      "output_shape" : [50],
+      "outputs" : ["Reshape_539_0"]
+    },
+    {
+      "inputs" : [ "Add_673", "Divide_677" ],
+      "name" : "Add_678",
+      "op" : "Add",
+      "outputs" : ["Add_678_0"]
+    },
+    {
+      "inputs" : [ "Reshape_570", "Reshape_577" ],
+      "name" : "Dot_578",
+      "op" : "Dot",
+      "outputs" : ["Dot_578_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Reshape_572", "Reshape_570" ],
+      "name" : "Dot_573",
+      "op" : "Dot",
+      "outputs" : ["Dot_573_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : ["Reshape_570"],
+      "name" : "Sum_571",
+      "op" : "Sum",
+      "outputs" : ["Sum_571_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : [ "Reshape_539", "Broadcast_541" ],
+      "name" : "Multiply_542",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_542_0"]
+    },
+    {
+      "inputs" : [ "Add_678", "Divide_682" ],
+      "name" : "Add_683",
+      "op" : "Add",
+      "outputs" : ["Add_683_0"]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Dot_578"],
+      "name" : "Reshape_579",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 1, 1, 64 ],
+      "outputs" : ["Reshape_579_0"]
+    },
+    {
+      "inputs" : ["Multiply_542"],
+      "name" : "Sum_543",
+      "op" : "Sum",
+      "outputs" : ["Sum_543_0"],
+      "reduction_axes" : [0]
+    },
+    {
+      "inputs" : [ "Add_683", "Divide_687" ],
+      "name" : "Add_688",
+      "op" : "Add",
+      "outputs" : ["Add_688_0"]
+    },
+    {
+      "input_order" : [ 0, 3, 1, 2 ],
+      "inputs" : ["Reshape_579"],
+      "name" : "Reshape_580",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 64, 1, 1 ],
+      "outputs" : ["Reshape_580_0"]
+    },
+    {
+      "inputs" : [ "Sum_543", "Select_545" ],
+      "name" : "Divide_546",
+      "op" : "Divide",
+      "outputs" : ["Divide_546_0"]
+    },
+    {
+      "inputs" : [ "Add_688", "Divide_692" ],
+      "name" : "Add_693",
+      "op" : "Add",
+      "outputs" : ["Add_693_0"]
+    },
+    {
+      "forward_arg_shape" : [ 50, 64, 8, 8 ],
+      "include_padding_in_avg_computation" : false,
+      "inputs" : ["Reshape_580"],
+      "name" : "AvgPoolBackprop_581",
+      "op" : "AvgPoolBackprop",
+      "outputs" : ["AvgPoolBackprop_581_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 1, 1 ],
+      "window_shape" : [ 8, 8 ]
+    },
+    {
+      "inputs" : [ "Greater_515", "Divide_546", "Constant_514" ],
+      "name" : "Select_547",
+      "op" : "Select",
+      "outputs" : ["Select_547_0"]
+    },
+    {
+      "inputs" : [ "Add_693", "Divide_697" ],
+      "name" : "Add_698",
+      "op" : "Add",
+      "outputs" : ["Add_698_0"]
+    },
+    {
+      "input_order" : [ 0, 2, 3, 1 ],
+      "inputs" : ["AvgPoolBackprop_581"],
+      "name" : "Reshape_582",
+      "op" : "Reshape",
+      "output_shape" : [ 50, 8, 8, 64 ],
+      "outputs" : ["Reshape_582_0"]
+    },
+    {
+      "inputs" : [ "Add_698", "Divide_702" ],
+      "name" : "Add_703",
+      "op" : "Add",
+      "outputs" : ["Add_703_0"]
+    },
+    {
+      "inputs" : [ "Greater_576", "Reshape_582", "Broadcast_575" ],
+      "name" : "Select_583",
+      "op" : "Select",
+      "outputs" : ["Select_583_0"]
+    },
+    {
+      "inputs" : [ "Add_703", "Divide_707" ],
+      "name" : "Add_708",
+      "op" : "Add",
+      "outputs" : ["Add_708_0"]
+    },
+    {
+      "inputs" : [ "Add_708", "Divide_712" ],
+      "name" : "Add_713",
+      "op" : "Add",
+      "outputs" : ["Add_713_0"]
+    },
+    {
+      "inputs" : [ "Constant_584", "Add_713" ],
+      "name" : "Multiply_714",
+      "op" : "Multiply",
+      "outputs" : ["Multiply_714_0"]
+    },
+    {
+      "inputs" : [ "Select_547", "Multiply_714" ],
+      "name" : "Add_715",
+      "op" : "Add",
+      "outputs" : ["Add_715_0"]
+    }
+  ],
+  "parameters" : [
+    "Parameter_480", "Parameter_481", "Parameter_482", "Parameter_483",
+    "Parameter_484", "Parameter_485", "Parameter_486", "Parameter_487",
+    "Parameter_488", "Parameter_489", "Parameter_490", "Parameter_491",
+    "Parameter_492", "Parameter_493", "Parameter_494", "Parameter_495",
+    "Parameter_496", "Parameter_497", "Parameter_498", "Parameter_499",
+    "Parameter_500", "Parameter_501", "Parameter_502", "Parameter_503",
+    "Parameter_504", "Parameter_505", "Parameter_506", "Parameter_507"
+  ],
+  "result" : [
+    "Select_547", "Add_527", "Sum_571", "Dot_573", "Select_583", "Add_715",
+    "Select_547"
+  ]
+}]

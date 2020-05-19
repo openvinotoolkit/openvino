@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake/download" ${CMAKE_MODULE_PATH})
+list(APPEND CMAKE_MODULE_PATH
+        "${OpenVINO_MAIN_SOURCE_DIR}/cmake/download"
+        "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cross_compile"
+        )
 
 include(CPackComponent)
 unset(IE_CPACK_COMPONENTS_ALL CACHE)
@@ -214,6 +217,7 @@ set(CMAKE_POLICY_DEFAULT_CMP0054 NEW)
 include(sdl)
 include(os_flags)
 include(sanitizer)
+include(cross_compiled_func)
 
 function(set_ci_build_number)
     set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_SOURCE_DIR}")

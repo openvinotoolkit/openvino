@@ -29,8 +29,7 @@ DynamicToStaticShapeShapeOf::DynamicToStaticShapeShapeOf() : GraphRewrite() {
             return false;
         }
 
-        ngraph::replace_node(shapeOfNode, dsr->input_value(1).get_node_shared_ptr());
-
+        shapeOfNode->output(0).replace(dsr->input_value(1));
         return true;
     };
 

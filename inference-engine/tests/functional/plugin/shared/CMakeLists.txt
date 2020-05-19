@@ -20,6 +20,9 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         ADD_CPPLINT
         DEVELOPER_PACKAGE
+        DEPENDENCIES
+            HeteroPlugin
+            MultiDevicePlugin
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}
 )
@@ -31,4 +34,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
 target_link_libraries(${TARGET_NAME}
         PUBLIC
         ${EXPORT_DEPENDENCIES}
+
+        PRIVATE
+        inference_engine_transformations
         )

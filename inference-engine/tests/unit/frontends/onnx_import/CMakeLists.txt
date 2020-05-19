@@ -9,8 +9,10 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             ngraph
+            onnx_importer
         LINK_LIBRARIES
             unitTestUtils
+            onnx_importer
         DEFINES
             ONNX_MODELS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"
         ADD_CPPLINT

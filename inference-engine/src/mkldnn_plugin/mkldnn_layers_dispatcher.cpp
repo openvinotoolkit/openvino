@@ -15,20 +15,7 @@ void addDefaultExtensions(MKLDNNExtensionManager::Ptr mngr) {
     if (!mngr)
         THROW_IE_EXCEPTION << "Cannot add default extensions! Extension manager is empty.";
 
-    if (mkldnn::impl::cpu::mayiuse(mkldnn::impl::cpu::cpu_isa_t::avx512_common)) {
-        auto platformExtensions = std::make_shared<Extensions::Cpu::MKLDNNExtensions<mkldnn::impl::cpu::cpu_isa_t::avx512_common>>();
-        mngr->AddExtension(platformExtensions);
-    }
-    if (mkldnn::impl::cpu::mayiuse(mkldnn::impl::cpu::cpu_isa_t::avx2)) {
-        auto platformExtensions = std::make_shared<Extensions::Cpu::MKLDNNExtensions<mkldnn::impl::cpu::cpu_isa_t::avx2>>();
-        mngr->AddExtension(platformExtensions);
-    }
-    if (mkldnn::impl::cpu::mayiuse(mkldnn::impl::cpu::cpu_isa_t::sse42)) {
-        auto platformExtensions = std::make_shared<Extensions::Cpu::MKLDNNExtensions<mkldnn::impl::cpu::cpu_isa_t::sse42>>();
-        mngr->AddExtension(platformExtensions);
-    }
-
-    auto defaultExtensions = std::make_shared<Extensions::Cpu::MKLDNNExtensions<mkldnn::impl::cpu::cpu_isa_t::isa_any>>();
+    auto defaultExtensions = std::make_shared<Extensions::Cpu::MKLDNNExtensions>();
     mngr->AddExtension(defaultExtensions);
 }
 

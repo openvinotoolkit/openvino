@@ -17,7 +17,7 @@ namespace CommonTestUtils {
 static void fill_data(float *data, size_t size, size_t duty_ratio = 10) {
     for (size_t i = 0; i < size; i++) {
         if ((i / duty_ratio) % 2 == 1) {
-            data[i] = 0.0;
+            data[i] = 0.0f;
         } else {
             data[i] = sin(static_cast<float>(i));
         }
@@ -45,25 +45,25 @@ static void fill_data_bbox(float *data, size_t size, int height, int width, floa
     float center_w = (width - 1.0f) / 2;
     for (size_t i = 0; i < size; i = i + 5) {
         data[i] = 0.0f;
-        data[i + 1] = center_w + width * 0.6 * sin(static_cast<float>(i+1) * omega);
-        data[i + 3] = center_w + width * 0.6 * sin(static_cast<float>(i+3) * omega);
+        data[i + 1] = center_w + width * 0.6f * sin(static_cast<float>(i+1) * omega);
+        data[i + 3] = center_w + width * 0.6f * sin(static_cast<float>(i+3) * omega);
         if (data[i + 3] < data[i + 1]) {
             std::swap(data[i + 1], data[i + 3]);
         }
         if (data[i + 1] < 0)
             data[i + 1] = 0;
         if (data[i + 3] > width - 1)
-            data[i + 3] = width - 1;
+            data[i + 3] = static_cast<float>(width - 1);
 
-        data[i + 2] = center_h + height * 0.6 * sin(static_cast<float>(i+2) * omega);
-        data[i + 4] = center_h + height * 0.6 * sin(static_cast<float>(i+4) * omega);
+        data[i + 2] = center_h + height * 0.6f * sin(static_cast<float>(i+2) * omega);
+        data[i + 4] = center_h + height * 0.6f * sin(static_cast<float>(i+4) * omega);
         if (data[i + 4] < data[i + 2]) {
             std::swap(data[i + 2], data[i + 4]);
         }
         if (data[i + 2] < 0)
             data[i + 2] = 0;
         if (data[i + 4] > height - 1)
-            data[i + 4] = height - 1;
+            data[i + 4] = static_cast<float>(height - 1);
     }
 }
 

@@ -1,0 +1,207 @@
+[{
+  "name" : "Function_0",
+  "ops" : [
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_1",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_1_0"],
+      "shape" : [ 3, 3, 2 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_0",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_0_0"],
+      "shape" : [ 3, 4, 2 ]
+    },
+    {
+      "inputs" : ["Parameter_1"],
+      "lower_bounds" : [ 1, 0, 0 ],
+      "name" : "Slice_11",
+      "op" : "Slice",
+      "outputs" : ["Slice_11_0"],
+      "strides" : [ 1, 1, 1 ],
+      "upper_bounds" : [ 2, 3, 2 ]
+    },
+    {
+      "inputs" : ["Parameter_1"],
+      "lower_bounds" : [ 2, 0, 0 ],
+      "name" : "Slice_18",
+      "op" : "Slice",
+      "outputs" : ["Slice_18_0"],
+      "strides" : [ 1, 1, 1 ],
+      "upper_bounds" : [ 3, 3, 2 ]
+    },
+    {
+      "inputs" : ["Parameter_1"],
+      "lower_bounds" : [ 0, 0, 0 ],
+      "name" : "Slice_4",
+      "op" : "Slice",
+      "outputs" : ["Slice_4_0"],
+      "strides" : [ 1, 1, 1 ],
+      "upper_bounds" : [ 1, 3, 2 ]
+    },
+    {
+      "inputs" : ["Parameter_0"],
+      "lower_bounds" : [ 1, 0, 0 ],
+      "name" : "Slice_9",
+      "op" : "Slice",
+      "outputs" : ["Slice_9_0"],
+      "strides" : [ 1, 1, 1 ],
+      "upper_bounds" : [ 2, 4, 2 ]
+    },
+    {
+      "inputs" : ["Parameter_0"],
+      "lower_bounds" : [ 2, 0, 0 ],
+      "name" : "Slice_16",
+      "op" : "Slice",
+      "outputs" : ["Slice_16_0"],
+      "strides" : [ 1, 1, 1 ],
+      "upper_bounds" : [ 3, 4, 2 ]
+    },
+    {
+      "inputs" : ["Parameter_0"],
+      "lower_bounds" : [ 0, 0, 0 ],
+      "name" : "Slice_2",
+      "op" : "Slice",
+      "outputs" : ["Slice_2_0"],
+      "strides" : [ 1, 1, 1 ],
+      "upper_bounds" : [ 1, 4, 2 ]
+    },
+    {
+      "input_order" : [ 0, 1, 2 ],
+      "inputs" : ["Slice_11"],
+      "name" : "Reshape_12",
+      "op" : "Reshape",
+      "output_shape" : [ 3, 2 ],
+      "outputs" : ["Reshape_12_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2 ],
+      "inputs" : ["Slice_18"],
+      "name" : "Reshape_19",
+      "op" : "Reshape",
+      "output_shape" : [ 3, 2 ],
+      "outputs" : ["Reshape_19_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2 ],
+      "inputs" : ["Slice_4"],
+      "name" : "Reshape_5",
+      "op" : "Reshape",
+      "output_shape" : [ 3, 2 ],
+      "outputs" : ["Reshape_5_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2 ],
+      "inputs" : ["Slice_9"],
+      "name" : "Reshape_10",
+      "op" : "Reshape",
+      "output_shape" : [ 4, 2 ],
+      "outputs" : ["Reshape_10_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2 ],
+      "inputs" : ["Slice_16"],
+      "name" : "Reshape_17",
+      "op" : "Reshape",
+      "output_shape" : [ 4, 2 ],
+      "outputs" : ["Reshape_17_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2 ],
+      "inputs" : ["Slice_2"],
+      "name" : "Reshape_3",
+      "op" : "Reshape",
+      "output_shape" : [ 4, 2 ],
+      "outputs" : ["Reshape_3_0"]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Reshape_12"],
+      "name" : "Reshape_13",
+      "op" : "Reshape",
+      "output_shape" : [ 2, 3 ],
+      "outputs" : ["Reshape_13_0"]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Reshape_19"],
+      "name" : "Reshape_20",
+      "op" : "Reshape",
+      "output_shape" : [ 2, 3 ],
+      "outputs" : ["Reshape_20_0"]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Reshape_5"],
+      "name" : "Reshape_6",
+      "op" : "Reshape",
+      "output_shape" : [ 2, 3 ],
+      "outputs" : ["Reshape_6_0"]
+    },
+    {
+      "inputs" : [ "Reshape_10", "Reshape_13" ],
+      "name" : "Dot_14",
+      "op" : "Dot",
+      "outputs" : ["Dot_14_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Reshape_17", "Reshape_20" ],
+      "name" : "Dot_21",
+      "op" : "Dot",
+      "outputs" : ["Dot_21_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Reshape_3", "Reshape_6" ],
+      "name" : "Dot_7",
+      "op" : "Dot",
+      "outputs" : ["Dot_7_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Dot_14"],
+      "name" : "Reshape_15",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 4, 3 ],
+      "outputs" : ["Reshape_15_0"]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Dot_21"],
+      "name" : "Reshape_22",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 4, 3 ],
+      "outputs" : ["Reshape_22_0"]
+    },
+    {
+      "input_order" : [ 0, 1 ],
+      "inputs" : ["Dot_7"],
+      "name" : "Reshape_8",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 4, 3 ],
+      "outputs" : ["Reshape_8_0"]
+    },
+    {
+      "axis" : 0,
+      "inputs" : [ "Reshape_8", "Reshape_15", "Reshape_22" ],
+      "name" : "Concat_23",
+      "op" : "Concat",
+      "outputs" : ["Concat_23_0"]
+    },
+    {
+      "inputs" : ["Concat_23"],
+      "name" : "Result_24",
+      "op" : "Result",
+      "outputs" : ["Result_24_0"]
+    }
+  ],
+  "parameters" : [ "Parameter_0", "Parameter_1" ],
+  "result" : ["Result_24"]
+}]

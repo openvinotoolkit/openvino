@@ -27,6 +27,7 @@
 #include <ngraph/op/result.hpp>
 
 #include "common_test_utils/file_utils.hpp"
+#include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -162,8 +163,7 @@ TEST_F(CNNNGraphImplTests, TestSaveAffinity) {
         auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
         auto relu = std::make_shared<ngraph::op::Relu>(param);
         auto& rtInfo = relu->get_rt_info();
-        InferenceEngine::Parameter rt(testAffinity);
-        rtInfo["affinity"] = rt.asVariant();
+        rtInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>> (testAffinity);
         relu->set_friendly_name("testReLU");
         auto result = std::make_shared<ngraph::op::Result>(relu);
 
@@ -384,13 +384,6 @@ TEST_F(CNNNGraphImplTests, SavePrimitivesPriority) {
         Blob::Ptr weights;
 
         auto network = ie.ReadNetwork(model, weights);
-        auto nGraph = network.getFunction();
-        ASSERT_TRUE(nGraph);
-        auto rt_info = nGraph->get_parameters()[0]->get_rt_info();
-        ASSERT_NE(rt_info.find("PrimitivesPriority"), rt_info.end());
-        Parameter param(rt_info["PrimitivesPriority"]);
-        ASSERT_EQ("cpu:avx2", param.as<std::string>());
-
         auto inputInfo = network.getInputsInfo();
         auto cnnLayer = inputInfo.begin()->second->getInputData()->getCreatorLayer().lock();
         ASSERT_TRUE(cnnLayer);

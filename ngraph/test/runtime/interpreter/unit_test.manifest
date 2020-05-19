@@ -1,0 +1,15 @@
+tile_3d_small_data_rank
+tile_3d_few_repeats
+fake_quantize_pdpd
+convert_float32_bf16
+convert_bf16_float32
+
+INTERPRETER.onnx_model_quant_conv_linear
+INTERPRETER.onnx_top_k_opset_10
+
+reduce_sum_large_1d_to_scalar
+reduce_sum_keep_large_1d_to_scalar
+
+#ONNX Flatten with dynamic reshape
+onnx_dyn_shapes_flatten_axis
+onnx_dyn_shapes_flatten_neg_axis

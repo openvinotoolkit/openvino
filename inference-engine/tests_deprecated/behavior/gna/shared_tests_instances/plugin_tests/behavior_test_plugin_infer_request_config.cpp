@@ -26,15 +26,23 @@ TEST_P(BehaviorPluginTestInferRequestWithGnaHw, CanInferOrFailWithGnaHw) {
     TestEnv::Ptr testEnv;
     std::map<std::string, std::string> config = GetParam().config;
 
-    ASSERT_NO_FATAL_FAILURE(_createAndCheckInferRequest(GetParam(), testEnv, config));
-    sts = testEnv->inferRequest->Infer(&response);
-
     if (CheckGnaHw()) {
+        ASSERT_NO_FATAL_FAILURE(_createAndCheckInferRequest(GetParam(), testEnv, config));
+        sts = testEnv->inferRequest->Infer(&response);
         ASSERT_EQ(StatusCode::OK, sts) << response.msg;
     } else {
+        try {
+            _createAndCheckInferRequest(GetParam(), testEnv, config);
+        } catch (InferenceEngineException ex) {
+            ASSERT_TRUE(strContains(ex.what(), "Unsuccessful Gna2Status"));
+            return;
+        } catch (...) {
+            FAIL();
+        }
+
+        sts = testEnv->inferRequest->Infer(&response);
         ASSERT_EQ(StatusCode::GENERAL_ERROR, sts);
-        ASSERT_TRUE(strContains(response.msg, "Bad GNA status") ||         // GNA1 message
-                    strContains(response.msg, "Unsuccessful Gna2Status")); // GNA2 message
+        ASSERT_TRUE(strContains(response.msg, "Bad GNA status"));
     }
 }
 

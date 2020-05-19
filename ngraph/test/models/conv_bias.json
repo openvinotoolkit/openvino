@@ -1,0 +1,901 @@
+[{
+  "name" : "Function_4",
+  "ops" : [
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_747",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_747_0"],
+      "shape" : [1000]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_746",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_746_0"],
+      "shape" : [ 1000, 4096 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_738",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_738_0"],
+      "shape" : [4096]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_737",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_737_0"],
+      "shape" : [ 4096, 4096 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_729",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_729_0"],
+      "shape" : [4096]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_728",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_728_0"],
+      "shape" : [ 4096, 25088 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_717",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_717_0"],
+      "shape" : [512]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_716",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_716_0"],
+      "shape" : [ 512, 512, 3, 3 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_707",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_707_0"],
+      "shape" : [512]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_706",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_706_0"],
+      "shape" : [ 512, 512, 3, 3 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_696",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_696_0"],
+      "shape" : [512]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_695",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_695_0"],
+      "shape" : [ 512, 512, 3, 3 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_686",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_686_0"],
+      "shape" : [512]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_685",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_685_0"],
+      "shape" : [ 512, 256, 3, 3 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_675",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_675_0"],
+      "shape" : [256]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_674",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_674_0"],
+      "shape" : [ 256, 256, 3, 3 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_665",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_665_0"],
+      "shape" : [256]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_664",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_664_0"],
+      "shape" : [ 256, 128, 3, 3 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_654",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_654_0"],
+      "shape" : [128]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_653",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_653_0"],
+      "shape" : [ 128, 64, 3, 3 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_643",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_643_0"],
+      "shape" : [64]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_642",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_642_0"],
+      "shape" : [ 64, 3, 3, 3 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Parameter_641",
+      "op" : "Parameter",
+      "outputs" : ["Parameter_641_0"],
+      "shape" : [ 32, 3, 224, 224 ]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_743",
+      "op" : "Constant",
+      "outputs" : ["Constant_743_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_734",
+      "op" : "Constant",
+      "outputs" : ["Constant_734_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_723",
+      "op" : "Constant",
+      "outputs" : ["Constant_723_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_713",
+      "op" : "Constant",
+      "outputs" : ["Constant_713_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_702",
+      "op" : "Constant",
+      "outputs" : ["Constant_702_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_692",
+      "op" : "Constant",
+      "outputs" : ["Constant_692_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_681",
+      "op" : "Constant",
+      "outputs" : ["Constant_681_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_671",
+      "op" : "Constant",
+      "outputs" : ["Constant_671_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_660",
+      "op" : "Constant",
+      "outputs" : ["Constant_660_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "element_type" : "float",
+      "inputs" : [],
+      "name" : "Constant_649",
+      "op" : "Constant",
+      "outputs" : ["Constant_649_0"],
+      "shape" : [],
+      "value" : ["0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_747"],
+      "name" : "Broadcast_750",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_750_0"],
+      "shape" : [ 32, 1000 ]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Parameter_746"],
+      "name" : "Reshape_748",
+      "op" : "Reshape",
+      "output_shape" : [ 4096, 1000 ],
+      "outputs" : ["Reshape_748_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_738"],
+      "name" : "Broadcast_741",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_741_0"],
+      "shape" : [ 32, 4096 ]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Parameter_737"],
+      "name" : "Reshape_739",
+      "op" : "Reshape",
+      "output_shape" : [ 4096, 4096 ],
+      "outputs" : ["Reshape_739_0"]
+    },
+    {
+      "axes" : [0],
+      "inputs" : ["Parameter_729"],
+      "name" : "Broadcast_732",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_732_0"],
+      "shape" : [ 32, 4096 ]
+    },
+    {
+      "input_order" : [ 1, 0 ],
+      "inputs" : ["Parameter_728"],
+      "name" : "Reshape_730",
+      "op" : "Reshape",
+      "output_shape" : [ 25088, 4096 ],
+      "outputs" : ["Reshape_730_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Parameter_717"],
+      "name" : "Reshape_719",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 512, 1, 1 ],
+      "outputs" : ["Reshape_719_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Parameter_707"],
+      "name" : "Reshape_709",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 512, 1, 1 ],
+      "outputs" : ["Reshape_709_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Parameter_696"],
+      "name" : "Reshape_698",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 512, 1, 1 ],
+      "outputs" : ["Reshape_698_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Parameter_686"],
+      "name" : "Reshape_688",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 512, 1, 1 ],
+      "outputs" : ["Reshape_688_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Parameter_675"],
+      "name" : "Reshape_677",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 256, 1, 1 ],
+      "outputs" : ["Reshape_677_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Parameter_665"],
+      "name" : "Reshape_667",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 256, 1, 1 ],
+      "outputs" : ["Reshape_667_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Parameter_654"],
+      "name" : "Reshape_656",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 128, 1, 1 ],
+      "outputs" : ["Reshape_656_0"]
+    },
+    {
+      "input_order" : [0],
+      "inputs" : ["Parameter_643"],
+      "name" : "Reshape_645",
+      "op" : "Reshape",
+      "output_shape" : [ 1, 64, 1, 1 ],
+      "outputs" : ["Reshape_645_0"]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Parameter_641", "Parameter_642" ],
+      "name" : "Convolution_644",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_644_0"],
+      "padding_above" : [ 1, 1 ],
+      "padding_below" : [ 1, 1 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_743"],
+      "name" : "Broadcast_744",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_744_0"],
+      "shape" : [ 32, 4096 ]
+    },
+    {
+      "axes" : [ 0, 1 ],
+      "inputs" : ["Constant_734"],
+      "name" : "Broadcast_735",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_735_0"],
+      "shape" : [ 32, 4096 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_723"],
+      "name" : "Broadcast_724",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_724_0"],
+      "shape" : [ 32, 512, 14, 14 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_713"],
+      "name" : "Broadcast_714",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_714_0"],
+      "shape" : [ 32, 512, 14, 14 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_702"],
+      "name" : "Broadcast_703",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_703_0"],
+      "shape" : [ 32, 512, 28, 28 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_692"],
+      "name" : "Broadcast_693",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_693_0"],
+      "shape" : [ 32, 512, 28, 28 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_681"],
+      "name" : "Broadcast_682",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_682_0"],
+      "shape" : [ 32, 256, 56, 56 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_671"],
+      "name" : "Broadcast_672",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_672_0"],
+      "shape" : [ 32, 256, 56, 56 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_660"],
+      "name" : "Broadcast_661",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_661_0"],
+      "shape" : [ 32, 128, 112, 112 ]
+    },
+    {
+      "axes" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Constant_649"],
+      "name" : "Broadcast_650",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_650_0"],
+      "shape" : [ 32, 64, 224, 224 ]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_719"],
+      "name" : "Reshape_720",
+      "op" : "Reshape",
+      "output_shape" : [512],
+      "outputs" : ["Reshape_720_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_709"],
+      "name" : "Reshape_710",
+      "op" : "Reshape",
+      "output_shape" : [512],
+      "outputs" : ["Reshape_710_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_698"],
+      "name" : "Reshape_699",
+      "op" : "Reshape",
+      "output_shape" : [512],
+      "outputs" : ["Reshape_699_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_688"],
+      "name" : "Reshape_689",
+      "op" : "Reshape",
+      "output_shape" : [512],
+      "outputs" : ["Reshape_689_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_677"],
+      "name" : "Reshape_678",
+      "op" : "Reshape",
+      "output_shape" : [256],
+      "outputs" : ["Reshape_678_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_667"],
+      "name" : "Reshape_668",
+      "op" : "Reshape",
+      "output_shape" : [256],
+      "outputs" : ["Reshape_668_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_656"],
+      "name" : "Reshape_657",
+      "op" : "Reshape",
+      "output_shape" : [128],
+      "outputs" : ["Reshape_657_0"]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["Reshape_645"],
+      "name" : "Reshape_646",
+      "op" : "Reshape",
+      "output_shape" : [64],
+      "outputs" : ["Reshape_646_0"]
+    },
+    {
+      "axes" : [ 0, 2, 3 ],
+      "inputs" : ["Reshape_720"],
+      "name" : "Broadcast_721",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_721_0"],
+      "shape" : [ 32, 512, 14, 14 ]
+    },
+    {
+      "axes" : [ 0, 2, 3 ],
+      "inputs" : ["Reshape_710"],
+      "name" : "Broadcast_711",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_711_0"],
+      "shape" : [ 32, 512, 14, 14 ]
+    },
+    {
+      "axes" : [ 0, 2, 3 ],
+      "inputs" : ["Reshape_699"],
+      "name" : "Broadcast_700",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_700_0"],
+      "shape" : [ 32, 512, 28, 28 ]
+    },
+    {
+      "axes" : [ 0, 2, 3 ],
+      "inputs" : ["Reshape_689"],
+      "name" : "Broadcast_690",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_690_0"],
+      "shape" : [ 32, 512, 28, 28 ]
+    },
+    {
+      "axes" : [ 0, 2, 3 ],
+      "inputs" : ["Reshape_678"],
+      "name" : "Broadcast_679",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_679_0"],
+      "shape" : [ 32, 256, 56, 56 ]
+    },
+    {
+      "axes" : [ 0, 2, 3 ],
+      "inputs" : ["Reshape_668"],
+      "name" : "Broadcast_669",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_669_0"],
+      "shape" : [ 32, 256, 56, 56 ]
+    },
+    {
+      "axes" : [ 0, 2, 3 ],
+      "inputs" : ["Reshape_657"],
+      "name" : "Broadcast_658",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_658_0"],
+      "shape" : [ 32, 128, 112, 112 ]
+    },
+    {
+      "axes" : [ 0, 2, 3 ],
+      "inputs" : ["Reshape_646"],
+      "name" : "Broadcast_647",
+      "op" : "Broadcast",
+      "outputs" : ["Broadcast_647_0"],
+      "shape" : [ 32, 64, 224, 224 ]
+    },
+    {
+      "inputs" : [ "Convolution_644", "Broadcast_647" ],
+      "name" : "Add_648",
+      "op" : "Add",
+      "outputs" : ["Add_648_0"]
+    },
+    {
+      "inputs" : [ "Add_648", "Broadcast_650" ],
+      "name" : "Maximum_651",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_651_0"]
+    },
+    {
+      "inputs" : ["Maximum_651"],
+      "name" : "MaxPool_652",
+      "op" : "MaxPool",
+      "outputs" : ["MaxPool_652_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 2, 2 ],
+      "window_shape" : [ 2, 2 ]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "MaxPool_652", "Parameter_653" ],
+      "name" : "Convolution_655",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_655_0"],
+      "padding_above" : [ 1, 1 ],
+      "padding_below" : [ 1, 1 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "inputs" : [ "Convolution_655", "Broadcast_658" ],
+      "name" : "Add_659",
+      "op" : "Add",
+      "outputs" : ["Add_659_0"]
+    },
+    {
+      "inputs" : [ "Add_659", "Broadcast_661" ],
+      "name" : "Maximum_662",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_662_0"]
+    },
+    {
+      "inputs" : ["Maximum_662"],
+      "name" : "MaxPool_663",
+      "op" : "MaxPool",
+      "outputs" : ["MaxPool_663_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 2, 2 ],
+      "window_shape" : [ 2, 2 ]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "MaxPool_663", "Parameter_664" ],
+      "name" : "Convolution_666",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_666_0"],
+      "padding_above" : [ 1, 1 ],
+      "padding_below" : [ 1, 1 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "inputs" : [ "Convolution_666", "Broadcast_669" ],
+      "name" : "Add_670",
+      "op" : "Add",
+      "outputs" : ["Add_670_0"]
+    },
+    {
+      "inputs" : [ "Add_670", "Broadcast_672" ],
+      "name" : "Maximum_673",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_673_0"]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Maximum_673", "Parameter_674" ],
+      "name" : "Convolution_676",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_676_0"],
+      "padding_above" : [ 1, 1 ],
+      "padding_below" : [ 1, 1 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "inputs" : [ "Convolution_676", "Broadcast_679" ],
+      "name" : "Add_680",
+      "op" : "Add",
+      "outputs" : ["Add_680_0"]
+    },
+    {
+      "inputs" : [ "Add_680", "Broadcast_682" ],
+      "name" : "Maximum_683",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_683_0"]
+    },
+    {
+      "inputs" : ["Maximum_683"],
+      "name" : "MaxPool_684",
+      "op" : "MaxPool",
+      "outputs" : ["MaxPool_684_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 2, 2 ],
+      "window_shape" : [ 2, 2 ]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "MaxPool_684", "Parameter_685" ],
+      "name" : "Convolution_687",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_687_0"],
+      "padding_above" : [ 1, 1 ],
+      "padding_below" : [ 1, 1 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "inputs" : [ "Convolution_687", "Broadcast_690" ],
+      "name" : "Add_691",
+      "op" : "Add",
+      "outputs" : ["Add_691_0"]
+    },
+    {
+      "inputs" : [ "Add_691", "Broadcast_693" ],
+      "name" : "Maximum_694",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_694_0"]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Maximum_694", "Parameter_695" ],
+      "name" : "Convolution_697",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_697_0"],
+      "padding_above" : [ 1, 1 ],
+      "padding_below" : [ 1, 1 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "inputs" : [ "Convolution_697", "Broadcast_700" ],
+      "name" : "Add_701",
+      "op" : "Add",
+      "outputs" : ["Add_701_0"]
+    },
+    {
+      "inputs" : [ "Add_701", "Broadcast_703" ],
+      "name" : "Maximum_704",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_704_0"]
+    },
+    {
+      "inputs" : ["Maximum_704"],
+      "name" : "MaxPool_705",
+      "op" : "MaxPool",
+      "outputs" : ["MaxPool_705_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 2, 2 ],
+      "window_shape" : [ 2, 2 ]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "MaxPool_705", "Parameter_706" ],
+      "name" : "Convolution_708",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_708_0"],
+      "padding_above" : [ 1, 1 ],
+      "padding_below" : [ 1, 1 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "inputs" : [ "Convolution_708", "Broadcast_711" ],
+      "name" : "Add_712",
+      "op" : "Add",
+      "outputs" : ["Add_712_0"]
+    },
+    {
+      "inputs" : [ "Add_712", "Broadcast_714" ],
+      "name" : "Maximum_715",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_715_0"]
+    },
+    {
+      "data_dilation_strides" : [ 1, 1 ],
+      "inputs" : [ "Maximum_715", "Parameter_716" ],
+      "name" : "Convolution_718",
+      "op" : "Convolution",
+      "outputs" : ["Convolution_718_0"],
+      "padding_above" : [ 1, 1 ],
+      "padding_below" : [ 1, 1 ],
+      "window_dilation_strides" : [ 1, 1 ],
+      "window_movement_strides" : [ 1, 1 ]
+    },
+    {
+      "inputs" : [ "Convolution_718", "Broadcast_721" ],
+      "name" : "Add_722",
+      "op" : "Add",
+      "outputs" : ["Add_722_0"]
+    },
+    {
+      "inputs" : [ "Add_722", "Broadcast_724" ],
+      "name" : "Maximum_725",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_725_0"]
+    },
+    {
+      "inputs" : ["Maximum_725"],
+      "name" : "MaxPool_726",
+      "op" : "MaxPool",
+      "outputs" : ["MaxPool_726_0"],
+      "padding_above" : [ 0, 0 ],
+      "padding_below" : [ 0, 0 ],
+      "window_movement_strides" : [ 2, 2 ],
+      "window_shape" : [ 2, 2 ]
+    },
+    {
+      "input_order" : [ 0, 1, 2, 3 ],
+      "inputs" : ["MaxPool_726"],
+      "name" : "Reshape_727",
+      "op" : "Reshape",
+      "output_shape" : [ 32, 25088 ],
+      "outputs" : ["Reshape_727_0"]
+    },
+    {
+      "inputs" : [ "Reshape_727", "Reshape_730" ],
+      "name" : "Dot_731",
+      "op" : "Dot",
+      "outputs" : ["Dot_731_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Dot_731", "Broadcast_732" ],
+      "name" : "Add_733",
+      "op" : "Add",
+      "outputs" : ["Add_733_0"]
+    },
+    {
+      "inputs" : [ "Add_733", "Broadcast_735" ],
+      "name" : "Maximum_736",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_736_0"]
+    },
+    {
+      "inputs" : [ "Maximum_736", "Reshape_739" ],
+      "name" : "Dot_740",
+      "op" : "Dot",
+      "outputs" : ["Dot_740_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Dot_740", "Broadcast_741" ],
+      "name" : "Add_742",
+      "op" : "Add",
+      "outputs" : ["Add_742_0"]
+    },
+    {
+      "inputs" : [ "Add_742", "Broadcast_744" ],
+      "name" : "Maximum_745",
+      "op" : "Maximum",
+      "outputs" : ["Maximum_745_0"]
+    },
+    {
+      "inputs" : [ "Maximum_745", "Reshape_748" ],
+      "name" : "Dot_749",
+      "op" : "Dot",
+      "outputs" : ["Dot_749_0"],
+      "reduction_axes_count" : 1
+    },
+    {
+      "inputs" : [ "Dot_749", "Broadcast_750" ],
+      "name" : "Add_751",
+      "op" : "Add",
+      "outputs" : ["Add_751_0"]
+    }
+  ],
+  "parameters" : [
+    "Parameter_641", "Parameter_642", "Parameter_643", "Parameter_653",
+    "Parameter_654", "Parameter_664", "Parameter_665", "Parameter_674",
+    "Parameter_675", "Parameter_685", "Parameter_686", "Parameter_695",
+    "Parameter_696", "Parameter_706", "Parameter_707", "Parameter_716",
+    "Parameter_717", "Parameter_728", "Parameter_729", "Parameter_737",
+    "Parameter_738", "Parameter_746", "Parameter_747"
+  ],
+  "result" : ["Add_751"]
+}]

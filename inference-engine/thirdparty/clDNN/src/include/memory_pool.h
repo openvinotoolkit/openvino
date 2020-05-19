@@ -111,7 +111,7 @@ class memory_pool {
     std::multimap<uint64_t, memory_record> _no_reusable_pool;
     engine_impl* _engine;
     std::atomic<uint64_t> _temp_memory_used;
-    uint64_t _max_peak_memory_used;
+    std::atomic<uint64_t> _max_peak_memory_used;
 
 public:
     explicit memory_pool(engine_impl& engine);

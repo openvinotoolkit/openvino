@@ -390,6 +390,7 @@ extensions/front/tf/nearest_neighbor_upsampling.py
 extensions/front/tf/next_iteration_ext.py
 extensions/front/tf/non_max_suppression_ext.py
 extensions/front/tf/non_max_suppression_normalize.py
+extensions/front/tf/noop.py
 extensions/front/tf/ObjectDetectionAPI.py
 extensions/front/tf/one_hot_ext.py
 extensions/front/tf/pad_ext.py

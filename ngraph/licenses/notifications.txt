@@ -1,0 +1,5 @@
+The MPL 2.0 license used by the eigen library used by this ngraph core
+component requires distribution of the following information:
+
+          Eigen source code can be viewed or downloaded from here:
+          http://eigen.tuxfamily.org

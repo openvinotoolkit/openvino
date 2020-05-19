@@ -12,13 +12,10 @@
 #include <vector>
 #include <memory>
 
-#include <ngraph/runtime/interpreter/int_backend_visibility.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/runtime/backend_manager.hpp>
-#include <ngraph/runtime/backend.hpp>
 #include <ngraph/runtime/tensor.hpp>
-
-extern "C" INTERPRETER_BACKEND_API void ngraph_register_interpreter_backend();
+#include <backend_manager.hpp>
+#include <backend.hpp>
 
 namespace ngraph {
 namespace helpers {
@@ -112,8 +109,6 @@ inferFnWithInterp(const std::shared_ptr<ngraph::Function> &fn,
                   std::vector<const typename ngraph::helpers::nGraphTypesTrait<type>::value_type *> inData) {
     using stdType = typename ngraph::helpers::nGraphTypesTrait<type>::value_type;
     ngraph::runtime::Backend::set_backend_shared_library_search_directory("");
-
-    ngraph_register_interpreter_backend();
 
     auto backend = ngraph::runtime::Backend::create("INTERPRETER");
 

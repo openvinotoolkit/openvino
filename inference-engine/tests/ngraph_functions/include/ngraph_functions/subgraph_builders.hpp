@@ -11,6 +11,30 @@
 namespace ngraph {
 namespace builder {
 namespace subgraph {
+static std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> inputShape = {1, 1, 32, 32},
+                                                      InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32) {
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params.front(),
+                                                          ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4},
+                                                                                           ngraph::Shape{1, 32, 1, 32}), false);
+    auto conv1 = ngraph::builder::makeConvolution(reshape1, ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
+                                                  ngraph::op::PadType::EXPLICIT, 4);
+    auto paramOuts = ngraph::helpers::convert2OutputVector(
+            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    std::vector<size_t> stride{1, 1}, padB{0, 0}, padE = padB, kernel{1, 2};
+    auto pool1 = std::make_shared<ngraph::opset1::MaxPool>(conv1, stride, padB, padE, kernel,
+                                                               ngraph::op::RoundingType::FLOOR,
+                                                               ngraph::op::PadType::EXPLICIT);
+    auto relu1 = std::make_shared<ngraph::opset1::Relu>(pool1);
+    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(relu1,
+                                                              ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2},
+                                                                                               ngraph::Shape{1, 116}), false);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape2)};
+    std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
+    return fnPtr;
+}
+
 static std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
                                                             InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
@@ -137,6 +161,7 @@ static std::shared_ptr<ngraph::Function> makeSingleConv(std::vector<size_t> inpu
                                                         InferenceEngine::Precision prc = InferenceEngine::Precision::FP32) {
     ngraph::element::Type type = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
     auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
+
     auto conv1 = ngraph::builder::makeConvolution(param0, type, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
     auto result = std::make_shared<ngraph::opset1::Result>(conv1);

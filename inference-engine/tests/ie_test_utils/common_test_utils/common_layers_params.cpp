@@ -169,7 +169,7 @@ void get_common_dims(const InferenceEngine::Blob &blob,
                      int32_t &dimx,
                      int32_t &dimy,
                      int32_t &dimz) {
-    std::vector<size_t> dims = blob.getTensorDesc().getDims();
+    std::vector<int32_t> dims(blob.getTensorDesc().getDims().begin(), blob.getTensorDesc().getDims().end());
     if (dims.size() == 2) {
         dimz = 1;
         dimy = dims[0];
@@ -190,7 +190,7 @@ void get_common_dims(const InferenceEngine::Blob &blob,
                      int32_t &dimy,
                      int32_t &dimz,
                      int32_t &dimn) {
-    std::vector<size_t> dims = blob.getTensorDesc().getDims();
+    std::vector<int32_t> dims(blob.getTensorDesc().getDims().begin(), blob.getTensorDesc().getDims().end());
     dimn = 1;
     if (dims.size() == 2) {
         dimz = 1;

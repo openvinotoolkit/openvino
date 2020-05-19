@@ -10,6 +10,7 @@
 #include <limits>
 #include <cmath>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/variant.hpp>
 #include <set>
 #include <sstream>
 #include <utility>
@@ -27,6 +28,7 @@
 #include "ngraph_ops/interp.hpp"
 #include "ngraph_ops/lrn_ie.hpp"
 #include <ngraph_ops/lstm_cell_ie.hpp>
+#include <transformations/rt_info/primitives_priority_attribute.hpp>
 #include "ngraph_ops/normalize_ie.hpp"
 #include "ngraph_ops/nms_ie.hpp"
 #include "ngraph_ops/onehot_ie.hpp"
@@ -768,21 +770,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ConvolutionIE>::createLayer(
     res->params["kernel"] = value;
 
     auto & rt_info = layer->get_rt_info();
-    InferenceEngine::Parameter attr(rt_info["keep_constants"]);
-    bool keep_constants = attr.as<bool>();
-
-    //  These params added for CPU tests
-    if (rt_info.find("PrimitivesPriority") != rt_info.end()) {
-        attr = rt_info["PrimitivesPriority"];
-        res->params["PrimitivesPriority"] = attr.as<std::string>();
-    }
-    if (rt_info.find("InputMemoryFormats") != rt_info.end()) {
-        attr = rt_info["InputMemoryFormats"];
-        res->params["InputMemoryFormats"] = attr.as<std::string>();
-    }
-    if (rt_info.find("OutputMemoryFormats") != rt_info.end()) {
-        attr = rt_info["OutputMemoryFormats"];
-        res->params["OutputMemoryFormats"] = attr.as<std::string>();
+    bool keep_constants(false);
+    if (auto attr = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rt_info["keep_constants"])) {
+        keep_constants = attr->get();
     }
 
     NodeConverter<ngraph::op::Constant> converter;
@@ -1828,8 +1818,10 @@ CNNLayer::Ptr NodeConverter<ngraph::op::FullyConnected>::createLayer(const std::
     res->params["out-size"] = asString(castedLayer->get_out_size());
 
     auto & rt_info = layer->get_rt_info();
-    InferenceEngine::Parameter attr(rt_info["keep_constants"]);
-    bool keep_constants = attr.as<bool>();
+    bool keep_constants(false);
+    if (auto attr = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rt_info["keep_constants"])) {
+        keep_constants = attr->get();
+    }
 
     NodeConverter<ngraph::op::Constant> converter;
 

@@ -7,9 +7,9 @@
 namespace {
 
 const Params params[] = {
-    std::tuple<Device, Config> { "CPU", { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) } } },
-    std::tuple<Device, Config> { "HETERO", { { "TARGET_FALLBACK", "CPU" } } },
-    std::tuple<Device, Config> { "MULTI", { { MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , "CPU" } } }
+    std::tuple<Device, Config> { CommonTestUtils::DEVICE_CPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) } } },
+    std::tuple<Device, Config> { CommonTestUtils::DEVICE_HETERO, { { "TARGET_FALLBACK", "CPU" } } },
+    std::tuple<Device, Config> { CommonTestUtils::DEVICE_MULTI, { { MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , "CPU" } } }
 };
 
 const Params paramsStreams[] = {

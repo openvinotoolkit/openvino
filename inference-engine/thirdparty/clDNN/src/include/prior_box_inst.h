@@ -31,6 +31,7 @@ struct typed_program_node<prior_box> : typed_program_node_base<prior_box> {
 
     program_node& input() const { return get_dependency(0); }
 
+    bool is_clustered() const { return get_primitive()->is_clustered(); }
     void calc_result();
     memory_impl::ptr get_result_buffer() const { return result; }
 

@@ -102,9 +102,8 @@ void StaticShapeBroadcast::validate_and_infer_types() {
                               "doesn't support ", m_mode.m_type, " mode");
     }
 
-    ::ngraph::op::util::BroadcastBase::validate_and_infer_types();
-
     if (get_output_partial_shape(0).is_dynamic()) {
+        ::ngraph::op::util::BroadcastBase::validate_and_infer_types();
         // Try to evaluate output shape. After some transformations further, we may not be able
         // to evaluate the target shape again, then we will leave the evaluated shape unchanged.
         // For example, DynamicToStaticShapeShapeOf remove ShapeOf and pass the second input of DSR.

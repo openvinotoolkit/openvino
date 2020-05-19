@@ -36,19 +36,13 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<op::Con
     auto weights = op::util::reshapeTo(node->input_value(1), new_weights_shape);
     new_ops.push_back(weights);
 
-    // Due to Convolution can not infer shapes we have to update them manually
-    auto output_shape = node->output(0).get_shape();
-    output_shape.insert(output_shape.begin() + 2, 1);
-
-
     if (node->inputs().size() == 2) {
         return std::make_shared<op::ConvolutionIE>(data,
                                                    weights,
                                                    new_strides,
+                                                   new_dilations,
                                                    new_pads_begin,
                                                    new_pad_end,
-                                                   new_dilations,
-                                                   output_shape,
                                                    node->get_group(),
                                                    node->get_auto_pad());
     } else {
@@ -56,10 +50,9 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<op::Con
                                                    weights,
                                                    node->input_value(2),
                                                    new_strides,
+                                                   new_dilations,
                                                    new_pads_begin,
                                                    new_pad_end,
-                                                   new_dilations,
-                                                   output_shape,
                                                    node->get_group(),
                                                    node->get_auto_pad());
     }

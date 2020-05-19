@@ -174,6 +174,7 @@ public:
      * @return vector of strings
      */
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
+        if (node == nullptr) THROW_IE_EXCEPTION << "Provided ngraph::Node pointer is nullptr.";
         return actual->getImplTypes(node);
     }
 
@@ -184,6 +185,7 @@ public:
      * @return shared pointer to implementation
      */
     ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
+        if (node == nullptr) THROW_IE_EXCEPTION << "Provided ngraph::Node pointer is nullptr.";
         return actual->getImplementation(node, implType);
     }
 

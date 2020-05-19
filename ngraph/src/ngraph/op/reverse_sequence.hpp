@@ -1,0 +1,70 @@
+//*****************************************************************************
+// Copyright 2017-2020 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//*****************************************************************************
+
+#pragma once
+
+#include "ngraph/op/op.hpp"
+
+namespace ngraph
+{
+    namespace op
+    {
+        namespace v0
+        {
+            class NGRAPH_API ReverseSequence : public Op
+            {
+            public:
+                static constexpr NodeTypeInfo type_info{"ReverseSequence", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                ReverseSequence() = default;
+                /// \brief Constructs a ReverseSequence operation.
+                ///
+                /// \param arg         tensor with input data to reverse
+                /// \param seq_lengths 1D tensor of integers with sequence lengths in the input
+                /// tensor.
+                /// \param batch_axis  index of the batch dimension.
+                /// \param seq_axis    index of the sequence dimension.
+                ReverseSequence(const Output<Node>& arg,
+                                const Output<Node>& seq_lengths,
+                                int64_t batch_axis,
+                                int64_t seq_axis);
+
+                bool visit_attributes(AttributeVisitor& visitor) override;
+                void validate_and_infer_types() override;
+
+                virtual std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                size_t get_batch_axis() const { return m_normalized_batch_axis; }
+                int64_t get_origin_batch_axis() const { return m_batch_axis; }
+                void set_batch_axis(int64_t batch_axis) { m_batch_axis = batch_axis; }
+                size_t get_sequence_axis() const { return m_normalized_seq_axis; }
+                int64_t get_origin_sequence_axis() const { return m_seq_axis; }
+                void set_sequence_axis(int64_t sequence_axis) { m_seq_axis = sequence_axis; }
+            protected:
+                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
+                                               const OutputVector& deltas) override;
+
+            private:
+                int64_t m_batch_axis;
+                int64_t m_seq_axis;
+                size_t m_normalized_batch_axis;
+                size_t m_normalized_seq_axis;
+            };
+        }
+        using v0::ReverseSequence;
+    }
+}

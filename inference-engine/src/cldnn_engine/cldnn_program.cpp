@@ -60,6 +60,8 @@
 #include <api/pyramid_roi_align.hpp>
 #include <api/non_max_suppression.hpp>
 #include <api/select.hpp>
+#include <api/grn.hpp>
+#include <api/ctc_greedy_decoder.hpp>
 
 #include <chrono>
 #include <cmath>
@@ -589,7 +591,10 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         // Implementation is disabled, since it doesn't match layer's semantic
         // { "ExperimentalDetectronROIFeatureExtractor", ExperimentalDetectronROIFeatureExtractor },
         { "NonMaxSuppression", NonMaxSuppression },
-        { "Select", Select}
+        { "Select", Select },
+        { "GRN", GRN },
+        { "CTCGreedyDecoder", CTCGreedyDecoder },
+        { "PriorBoxClustered", PriorBoxClustered },
     };
     auto it = LayerNameToType.find(str);
     if (it != LayerNameToType.end())
@@ -1263,6 +1268,12 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case NonMaxSuppression: CreateNonMaxSuppressionPrimitive(topology, layer);
             break;
         case Select: CreateSelectPrimitive(topology, layer);
+            break;
+        case GRN: CreateGRNPrimitive(topology, layer);
+            break;
+        case CTCGreedyDecoder: CreateCTCGreedyDecoderPrimitive(topology, layer);
+            break;
+        case PriorBoxClustered: CreatePriorBoxClusteredPrimitive(topology, layer);
             break;
         default: THROW_CLDNN_EXCEPTION("Unknown Layer Type: " << layer->type);
     }
@@ -4307,6 +4318,93 @@ void Program::CreateSelectPrimitive(cldnn::topology& topology, InferenceEngine::
     AddPrimitiveToProfiler(selectLayerName, layer);
 }
 
+void Program::CreateGRNPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, 1);
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto layerName = layer_type_name_ID(layer);
+    auto grn = as<InferenceEngine::GRNLayer*>(layer);
+    float bias = grn->bias;
+
+    auto primitive = cldnn::grn(
+        layerName,
+        inputPrimitives[0],
+        bias,
+        DataTypeFromPrecision(grn->outData[0]->getTensorDesc().getPrecision()));
+
+    topology.add(primitive);
+    AddPrimitiveToProfiler(layerName, layer);
+}
+
+void Program::CreateCTCGreedyDecoderPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, 2);
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto layerName = layer_type_name_ID(layer);
+    auto ctcGreedyDecoder = as<InferenceEngine::GenericLayer*>(layer);
+    float mergeRepeated = ctcGreedyDecoder->GetParamAsBool("ctc_merge_repeated");
+
+    auto primitive = cldnn::ctc_greedy_decoder(
+        layerName,
+        inputPrimitives[0],
+        inputPrimitives[1],
+        mergeRepeated,
+        DataTypeFromPrecision(ctcGreedyDecoder->outData[0]->getTensorDesc().getPrecision()),
+        CldnnTensorFromIEDims(layer->outData[0]->getDims()));
+
+    topology.add(primitive);
+    AddPrimitiveToProfiler(layerName, layer);
+}
+
+void Program::CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, 2);
+    auto pbcLayer = as<InferenceEngine::GenericLayer*>(layer);
+
+    // params
+    std::vector<float> width = pbcLayer->GetParamAsFloats("width", { 0.0f });
+    std::vector<float> height = pbcLayer->GetParamAsFloats("height", { 0.0f });
+    std::vector<float> variance = pbcLayer->GetParamAsFloats("variance", { 0.1f });
+    float offset = pbcLayer->GetParamAsFloat("offset", 0.5f);
+    bool clip    = pbcLayer->GetParamAsBool("clip", false);
+
+    IE_ASSERT(layer->insData[0].lock());
+    auto inp_dims = layer->insData[0].lock()->getTensorDesc().getDims();
+    IE_ASSERT(layer->insData[1].lock());
+    auto img_dims = layer->insData[1].lock()->getTensorDesc().getDims();
+
+    int img_w = pbcLayer->GetParamAsInt("img_w", 0);
+    int img_h = pbcLayer->GetParamAsInt("img_h", 0);
+    img_w = img_w == 0 ? static_cast<int>(img_dims.back()) : img_w;
+    img_h = img_h == 0 ? static_cast<int>(img_dims.at(img_dims.size() - 2)) : img_h;
+    cldnn::tensor img_size = (cldnn::tensor) cldnn::spatial(TensorValue(img_w), TensorValue(img_h));
+
+    auto step_w = pbcLayer->GetParamAsFloat("step_w", 0.0f);
+    auto step_h = pbcLayer->GetParamAsFloat("step_h", 0.0f);
+    auto step = pbcLayer->GetParamAsFloat("step", 0.0f);
+
+    step_w = step_w == 0.0f ? step : step_w;
+    step_h = step_h == 0.0f ? step : step_h;
+    if (step_w == 0.0f && step_h == 0.0f) {
+        step_w = static_cast<float>(img_w) / inp_dims.back();
+        step_h = static_cast<float>(img_h) / inp_dims.at(img_dims.size() - 2);
+    }
+
+    std::vector<cldnn::primitive_id> inputPrimitives = GetPrevLayersPrimitives(layer);
+    // second input isn't used by value - only dimensions taken from the layer input
+    std::string priorBoxLayerName = layer_type_name_ID(layer);
+    auto priorBoxPrim = cldnn::prior_box(
+        priorBoxLayerName,
+        inputPrimitives[0],
+        img_size,
+        clip,
+        variance,
+        step_w,
+        step_h,
+        offset,
+        width,
+        height);
+
+    topology.add(priorBoxPrim);
+    AddPrimitiveToProfiler(priorBoxLayerName, layer);
+}
 bool Program::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitLayer) const {
     if (splitLayer->outData.size() != 2) return false;  // split into 2
 

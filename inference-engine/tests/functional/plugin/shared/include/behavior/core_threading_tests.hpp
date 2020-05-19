@@ -196,3 +196,23 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork) {
         (void)ie.LoadNetwork(networks[(counter++) % networks.size()], deviceName);
     }, numIterations, numThreads);
 }
+
+// tested function: ReadNetwork, SetConfig, LoadNetwork, AddExtension
+TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_MultipleIECores) {
+    std::atomic<unsigned int> counter{0u};
+
+    // TODO: replace with subgraph builders after fixing *-31414
+    const std::vector<FuncTestUtils::TestModel::TestModel> models = {
+        FuncTestUtils::TestModel::convReluNormPoolFcModelFP32,
+        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16
+    };
+
+    runParallel([&] () {
+        auto value = counter++;
+        InferenceEngine::Core ie;
+        ie.SetConfig(config, deviceName);
+        auto model = models[(counter++) % models.size()];
+        auto network = ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+        (void)ie.LoadNetwork(network, deviceName);
+    }, numIterations, numThreads);
+}

@@ -63,6 +63,12 @@ test_create_exenetwork(const std::string &model_name, const std::string &model_p
     log_info_ref_mem_usage();
     log_info_cur_mem_usage();
 
+    if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmrss > ref_vmrss))
+        return TestResult(TestStatus::TEST_FAILED,
+                          "Test failed: RSS virtual memory consumption became greater than reference.\n"
+                          "Reference RSS memory consumption: " + std::to_string(ref_vmrss) + " KB.\n" +
+                          "Current RSS memory consumption: " + std::to_string(test_cur_vmrss) + " KB.\n");
+
     if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmhwm > ref_vmhwm))
         return TestResult(TestStatus::TEST_FAILED,
                           "Test failed: HWM (peak of RSS) virtual memory consumption is greater than reference.\n"
@@ -108,15 +114,6 @@ test_infer_request_inference(const std::string &model_name, const std::string &m
         getAlignedVmValues(test_cur_vmsize, test_cur_vmpeak, test_cur_vmrss, test_cur_vmhwm,
                            vmsize_before_test, vmrss_before_test);
 
-        if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmrss > ref_vmrss)) {
-            log_debug_ref_record_for_test("infer_request_inference");
-            return TestResult(TestStatus::TEST_FAILED,
-                              "Test failed: RSS virtual memory consumption became greater than reference "
-                              "after " + std::to_string(t_diff.count()) + " sec of inference.\n"
-                              "Reference RSS memory consumption: " + std::to_string(ref_vmrss) + " KB.\n" +
-                              "Current RSS memory consumption: " + std::to_string(test_cur_vmrss) + " KB.\n");
-        }
-
         if (t_diff.count() > (double) (seconds)) {
             log_info("Current values of virtual memory consumption after " << seconds << " seconds:");
             log_info("VMRSS\t\tVMHWM\t\tVMSIZE\t\tVMPEAK");
@@ -124,7 +121,20 @@ test_infer_request_inference(const std::string &model_name, const std::string &m
             seconds++;
         }
     } while (t_diff.count() < 5);
+
     log_debug_ref_record_for_test("infer_request_inference");
+
+    if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmrss > ref_vmrss))
+        return TestResult(TestStatus::TEST_FAILED,
+                          "Test failed: RSS virtual memory consumption became greater than reference.\n"
+                          "Reference RSS memory consumption: " + std::to_string(ref_vmrss) + " KB.\n" +
+                          "Current RSS memory consumption: " + std::to_string(test_cur_vmrss) + " KB.\n");
+
+    if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmhwm > ref_vmhwm))
+        return TestResult(TestStatus::TEST_FAILED,
+                          "Test failed: HWM (peak of RSS) virtual memory consumption is greater than reference.\n"
+                          "Reference HWM of memory consumption: " + std::to_string(ref_vmhwm) + " KB.\n" +
+                          "Current HWM of memory consumption: " + std::to_string(test_cur_vmhwm) + " KB.\n");
 
     return TestResult(TestStatus::TEST_OK, "");
 }

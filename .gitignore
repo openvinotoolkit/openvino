@@ -2,11 +2,11 @@
 _*
 # but ensure we don't skip __init__.py
 !__init__.py
+
 # developer tools
 *.idea
 .vscode
-cmake-build-debug
-cmake-build-release
+cmake-build-*
 .DS_Store
 **/tags
 compile_commands.json

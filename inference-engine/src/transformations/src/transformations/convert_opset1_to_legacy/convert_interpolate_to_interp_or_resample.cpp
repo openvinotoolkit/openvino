@@ -40,6 +40,23 @@ void ngraph::pass::ConvertInterpolateToInterpOrResample::convert_interpolate_to_
         if (num_of_spatial_vars != 2 && num_of_spatial_vars != 3) {
             return false;
         }
+
+        if (interpolate_attrs.pads_begin.empty())
+            interpolate_attrs.pads_begin = std::vector<size_t>{0};
+        if (interpolate_attrs.pads_end.empty())
+            interpolate_attrs.pads_end =  std::vector<size_t>{0};
+
+        std::vector<size_t> useless_axes;
+        for (const auto & axis : interpolate_axes)
+            if (input_shape[axis] == out_spatial_shape[axis] && axis < 2)
+                // keeping only those not spatial dimensions that are going to be changed
+                useless_axes.push_back(axis);
+        std::reverse(useless_axes.begin(), useless_axes.end());
+        for (const auto & axis : useless_axes) {
+            interpolate_axes.erase(axis);
+            out_spatial_shape.erase(out_spatial_shape.begin() + axis);
+        }
+
         // Interpolate can be converted when interpolation is performed over spatial dimensions only
         if (num_of_spatial_vars == 2 && interpolate_axes != AxisSet{2, 3}) {
             return false;

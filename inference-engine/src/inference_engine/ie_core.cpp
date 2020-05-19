@@ -446,16 +446,6 @@ public:
     }
 
     /**
-     * @deprecated Use ICore::LoadNetwork, ICore::QueryNetwork, ICore::GetMetric instead
-     * @brief Returns reference to plugin by a device name
-     * @param deviceName A name of device
-     * @return Reference to a plugin
-     */
-    InferenceEnginePluginPtr GetPluginByName(const std::string& deviceName) const override {
-        return static_cast<InferenceEnginePluginPtr>(GetCPPPluginByName(deviceName));
-    }
-
-    /**
      * @deprecated
      * @brief Returns reference to CPP plugin wrapper by a device name
      * @param deviceName A name of device

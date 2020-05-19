@@ -519,7 +519,9 @@ public:
      * @param alloc An allocator
      */
     TBlob(const TensorDesc& tensorDesc, const std::shared_ptr<IAllocator>& alloc)
-        : MemoryBlob(tensorDesc), _allocator(alloc) {}
+        : MemoryBlob(tensorDesc), _allocator(alloc) {
+        if (_allocator == nullptr) THROW_IE_EXCEPTION << "TBlob allocator was not initialized.";
+    }
 
     /**
      * @brief The copy constructor data is reallocated and copied from the source to the target blob.

@@ -148,6 +148,7 @@ TEST_P(BehaviorPluginTestExecGraphInfo, CheckExecGraphInfoSerialization) {
         CNNNetwork execGraph;
         ASSERT_NO_THROW(execGraph = exeNetwork.GetExecGraphInfo());
         execGraph.serialize("exeNetwork.xml", "exeNetwork.bin");
+        ASSERT_EQ(0, std::remove("exeNetwork.xml"));
     } else {
         // Not implemented for other plugins
         ASSERT_THROW(exeNetwork.GetExecGraphInfo(), InferenceEngineException);

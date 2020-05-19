@@ -69,7 +69,6 @@ public:
 
 private:
     gpu_toolkit& _context;
-    std::mutex _mutex;
     kernels_code _kernels_code;
     std::atomic<bool> _pending_compilation{false};
     std::map<std::string, kernel_type> _kernels;

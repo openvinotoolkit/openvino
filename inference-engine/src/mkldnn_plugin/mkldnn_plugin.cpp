@@ -176,6 +176,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         if (hasAVX512())
             capabilities.push_back(METRIC_VALUE(WINOGRAD));
         capabilities.push_back(METRIC_VALUE(FP32));
+        capabilities.push_back(METRIC_VALUE(FP16));
         capabilities.push_back(METRIC_VALUE(INT8));
         capabilities.push_back(METRIC_VALUE(BIN));
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);

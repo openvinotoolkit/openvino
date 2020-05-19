@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# ******************************************************************************
+# Copyright 2017-2020 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ******************************************************************************
+
+set -e
+
+export PYBIND_HEADERS_PATH=@CMAKE_CURRENT_BINARY_DIR@/pybind11
+export NGRAPH_CPP_BUILD_PATH=@CMAKE_CURRENT_BINARY_DIR@/_install/@CMAKE_INSTALL_PREFIX@/@NGRAPH_COMPONENT_PREFIX@
+export NGRAPH_ONNX_IMPORT_ENABLE=@NGRAPH_ONNX_IMPORT_ENABLE@
+export NGRAPH_VERSION=@NGRAPH_WHEEL_VERSION@
+
+SOURCE_DIR=@CMAKE_CURRENT_SOURCE_DIR@
+BUILD_DIR=@CMAKE_CURRENT_BINARY_DIR@
+
+! PYTHON2_DETECTED=$(($(python -c 'import sys; print(sys.version_info.major)' 2> /dev/null) == 2))
+! PYTHON3_DETECTED=$(($(python3 -c 'import sys; print(sys.version_info.major)' 2> /dev/null) == 3))
+
+mkdir -p build
+
+if [ "${PYTHON2_DETECTED}" == 1 ]; then
+    echo "Building wheel for Python 2"
+    python --version
+    cd ${BUILD_DIR}
+    virtualenv -p "$(command -v python)" build/venv2
+    source build/venv2/bin/activate
+    pip install --upgrade setuptools pip wheel
+    python ${SOURCE_DIR}/setup.py bdist_wheel
+    deactivate
+fi
+
+if [ "${PYTHON3_DETECTED}" == 1  ]; then
+    echo "Building wheel for Python 3"
+    python3 --version
+    cd ${BUILD_DIR}
+    virtualenv -p "$(command -v python3)" build/venv3
+    source build/venv3/bin/activate
+    pip install --upgrade setuptools pip wheel
+    python ${SOURCE_DIR}/setup.py bdist_wheel
+    python ${SOURCE_DIR}/setup.py sdist
+    deactivate
+fi

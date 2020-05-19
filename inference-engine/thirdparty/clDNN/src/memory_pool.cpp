@@ -379,7 +379,7 @@ void memory_pool::color_graph(const program_impl& program) {
 void memory_pool::add_memory_used(size_t value) {
     _temp_memory_used += value;
     if (_temp_memory_used > _max_peak_memory_used) {
-        _max_peak_memory_used = _temp_memory_used;
+        _max_peak_memory_used = _temp_memory_used.load();
     }
 }
 
