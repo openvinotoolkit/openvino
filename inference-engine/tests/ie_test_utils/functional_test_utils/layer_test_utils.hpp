@@ -280,8 +280,11 @@ protected:
     InferenceEngine::Precision inPrc = InferenceEngine::Precision::UNSPECIFIED;
     InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED;
     InferenceEngine::ExecutableNetwork executableNetwork;
+    std::vector<InferenceEngine::Blob::Ptr> inputs;
 
     virtual void Validate();
+
+    virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
 
 private:
     void ConfigureNetwork() const;
@@ -293,7 +296,6 @@ private:
     InferenceEngine::Core *core = nullptr;
     InferenceEngine::CNNNetwork cnnNetwork;
     InferenceEngine::InferRequest inferRequest;
-    std::vector<InferenceEngine::Blob::Ptr> inputs;
     RefMode refMode = RefMode::INTERPRETER;
 };
 

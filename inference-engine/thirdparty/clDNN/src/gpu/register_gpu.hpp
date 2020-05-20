@@ -86,6 +86,8 @@
 #include "api_extension/lstm_dynamic_timeloop.hpp"
 #include "generic_layer.hpp"
 #include "api/non_max_suppression.hpp"
+#include "api/grn.hpp"
+#include "api/ctc_greedy_decoder.hpp"
 
 
 namespace cldnn { namespace gpu {
@@ -170,6 +172,8 @@ REGISTER_GPU(generic_layer);
 REGISTER_GPU(gather_tree);
 REGISTER_GPU(resample);
 REGISTER_GPU(non_max_suppression);
+REGISTER_GPU(grn);
+REGISTER_GPU(ctc_greedy_decoder);
 
 #undef REGISTER_GPU
 

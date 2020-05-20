@@ -65,4 +65,5 @@ TEST_F(SharedObjectLoaderTests, canCallExistedMethod) {
     IInferencePlugin* ptr = nullptr;
     ResponseDesc resp;
     EXPECT_NO_THROW(factory(ptr, &resp));
+    ptr->Release();
 }

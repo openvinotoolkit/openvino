@@ -1,0 +1,9 @@
+# Required to build the main components of nGraph-C++
+build-essential
+cmake
+git
+
+# Required to build the documentation of nGraph-C++
+doxygen
+sphinx-build
+

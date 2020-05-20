@@ -26,7 +26,7 @@ public:
         Child
     };
     MKLDNNGraphTestClass(): MKLDNNPlugin::MKLDNNGraph() {
-        auto defaultExtensions = std::make_shared<InferenceEngine::Extensions::Cpu::MKLDNNExtensions<mkldnn::impl::cpu::cpu_isa_t::isa_any>>();
+        auto defaultExtensions = std::make_shared<InferenceEngine::Extensions::Cpu::MKLDNNExtensions>();
         extensionManager->AddExtension(defaultExtensions);
 
     }

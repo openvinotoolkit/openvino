@@ -37,6 +37,8 @@ if(IE_MAIN_SOURCE_DIR)
     set(IE_MAIN_SAMPLES_DIR ${OpenVINO_MAIN_SOURCE_DIR})
     # hint for find_package(InferenceEngine in the samples folder)
     set(InferenceEngine_DIR "${CMAKE_BINARY_DIR}")
+    # hint for find_package(ngraph in the samples folder)
+    set(ngraph_DIR ${CMAKE_BINARY_DIR}/ngraph)
 else()
     # in case if samples are built out of IE repo
     set(IE_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})

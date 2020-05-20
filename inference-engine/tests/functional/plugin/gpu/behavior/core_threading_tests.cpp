@@ -1,0 +1,55 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <behavior/core_threading_tests.hpp>
+#include <remote_blob_tests/remote_blob_helpers.hpp>
+
+using namespace InferenceEngine;
+using namespace InferenceEngine::gpu;
+
+namespace {
+
+Params params[] = {
+    std::tuple<Device, Config> { CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) } } },
+    std::tuple<Device, Config> { CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO) } } },
+};
+
+}  // namespace
+
+// tested function: CreateContext, LoadNetwork, AddExtension
+TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
+    InferenceEngine::Core ie;
+    std::atomic<unsigned int> counter{0u};
+
+    const FuncTestUtils::TestModel::TestModel models[] = {
+        FuncTestUtils::TestModel::convReluNormPoolFcModelFP32,
+        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16
+    };
+    std::vector<InferenceEngine::CNNNetwork> networks;
+    for (auto & model : models) {
+        networks.emplace_back(ie.ReadNetwork(model.model_xml_str, model.weights_blob));
+    }
+
+    // TODO: uncomment after fixing *-31414
+    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
+    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
+    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
+    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
+    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
+
+    auto ocl_instance = std::make_shared<OpenCL>();
+    ie.SetConfig(config, deviceName);
+    runParallel([&] () {
+        auto value = counter++;
+        auto remote_context = make_shared_context(ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_context.get());
+        (void)ie.LoadNetwork(networks[(counter++) % networks.size()], remote_context);
+    }, numIterations, numThreads);
+}
+
+INSTANTIATE_TEST_CASE_P(GPU, CoreThreadingTests, testing::ValuesIn(params));
+
+INSTANTIATE_TEST_CASE_P(GPU, CoreThreadingTestsWithIterations,
+    testing::Combine(testing::ValuesIn(params),
+                     testing::Values(4),
+                     testing::Values(20)));
