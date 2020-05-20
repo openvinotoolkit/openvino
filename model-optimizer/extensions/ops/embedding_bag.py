@@ -20,21 +20,34 @@ from mo.ops.op import Op
 import numpy as np
 
 
-class EmbeddingBagOffsetsSum(Op):
-    op = 'EmbeddingBagOffsetsSum'
-    enabled = True
+class EmbeddingBagBase(Op):
+    enabled = False
+
+    op = op_type = None
+    version = None
+    in_ports_count = None
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'op': self.op,
-            'type': self.op,
-            'version': 'opset3',
+            'type': self.op_type,
+            'version': self.version,
 
             'infer': self.infer,
 
-            'in_ports_count': 5,
+            'in_ports_count': self.in_ports_count,
             'out_ports_count': 1,
         }, attrs)
+
+    @staticmethod
+    def infer(node: Node):
+        raise NotImplementedError('Please use specialized EmbeddingBag operation class, EmbeddingBagBase is base class')
+
+
+class EmbeddingBagOffsetsSum(EmbeddingBagBase):
+    op = op_type = 'EmbeddingBagOffsetsSum'
+    version = 'opset3'
+    in_ports_count = 5
 
     @staticmethod
     def infer(node: Node):
@@ -55,21 +68,10 @@ class EmbeddingBagOffsetsSum(Op):
         node.out_port(0).data.set_shape(np.concatenate((offsets_shape[:1], weights_shape[1:])).astype(np.int64))
 
 
-class EmbeddingBagPackedSum(Op):
-    op = 'EmbeddingBagPackedSum'
-    enabled = True
-
-    def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'op': self.op,
-            'type': self.op,
-            'version': 'opset3',
-
-            'infer': self.infer,
-
-            'in_ports_count': 3,
-            'out_ports_count': 1,
-        }, attrs)
+class EmbeddingBagPackedSum(EmbeddingBagBase):
+    op = op_type = 'EmbeddingBagPackedSum'
+    version = 'opset3'
+    in_ports_count = 3
 
     @staticmethod
     def infer(node: Node):
@@ -88,21 +90,10 @@ class EmbeddingBagPackedSum(Op):
         node.out_port(0).data.set_shape(np.concatenate((input_shape[:1], weights_shape[1:])).astype(np.int64))
 
 
-class EmbeddingSegmentsSum(Op):
-    op = 'EmbeddingSegmentsSum'
-    enabled = True
-
-    def __init__(self, graph: Graph, attrs: dict):
-        super().__init__(graph, {
-            'op': self.op,
-            'type': self.op,
-            'version': 'opset3',
-
-            'infer': self.infer,
-
-            'in_ports_count': 6,
-            'out_ports_count': 1,
-        }, attrs)
+class EmbeddingSegmentsSum(EmbeddingBagBase):
+    op = op_type = 'EmbeddingSegmentsSum'
+    version = 'opset3'
+    in_ports_count = 6
 
     @staticmethod
     def infer(node: Node):
