@@ -108,6 +108,94 @@ jobs:
     displayName: 'IE CAPITests'
     continueOnError: true
 
+#IE_Lin
+- job: IE_Lin_self
+  timeoutInMinutes: 0
+  pool:
+    name: LIN_VMSS_VENV
+  variables:
+    BUILD_TYPE: Release
+  steps:
+  - script: |
+      whoami
+      uname -a
+      lsb_release
+      gcc --version
+      env
+      cat /proc/cpuinfo
+      cat /proc/meminfo
+      vmstat -s
+      df
+    displayName: 'System properties'
+  - script: |
+      sudo apt --assume-yes install libusb-1.0-0-dev
+      python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+    displayName: 'Install dependencies'
+  - script: git submodule update --init --recursive
+    displayName: 'Clone submodules'
+  - script: |
+      mkdir dldt-build
+      cd dldt-build
+    displayName: 'Create build directory'
+  - task: CMake@1
+    inputs:
+      workingDirectory: dldt-build
+      cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON
+  - script: make -j3
+    workingDirectory: dldt-build
+    displayName: 'Build IE'
+  - script: ls -al ../bin/intel64/$(BUILD_TYPE)/
+    workingDirectory: dldt-build
+    displayName: 'List files'
+  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
+    workingDirectory: dldt-build
+    displayName: 'nGraph UT'
+    continueOnError: true
+  - script: ../bin/intel64/$(BUILD_TYPE)/InferenceEngineUnitTests
+    workingDirectory: dldt-build
+    displayName: 'IE UT old'
+    continueOnError: true
+  - script: ../bin/intel64/$(BUILD_TYPE)/ieUnitTests
+    workingDirectory: dldt-build
+    displayName: 'IE UT'
+    continueOnError: true
+  - script: ../bin/intel64/$(BUILD_TYPE)/cpuUnitTests
+    workingDirectory: dldt-build
+    displayName: 'CPU UT'
+    continueOnError: true
+  - script: ../bin/intel64/$(BUILD_TYPE)/gnaUnitTests
+    workingDirectory: dldt-build
+    displayName: 'GNA UT'
+    continueOnError: true
+  - script: ../bin/intel64/$(BUILD_TYPE)/vpuUnitTests
+    workingDirectory: dldt-build
+    displayName: 'VPU UT'
+    continueOnError: true
+  - script: ../bin/intel64/$(BUILD_TYPE)/ieFuncTests
+    workingDirectory: dldt-build
+    displayName: 'IE FuncTests'
+    continueOnError: true
+  - script: ../bin/intel64/$(BUILD_TYPE)/MklDnnBehaviorTests
+    workingDirectory: dldt-build
+    displayName: 'MklDnnBehaviorTests'
+    continueOnError: true
+  - script: git clone https://github.com/openvinotoolkit/testdata.git
+    displayName: 'Clone testdata'
+  - script: |
+      export DATA_PATH=`pwd`/../testdata
+      export MODELS_PATH=`pwd`/../testdata
+      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests
+    workingDirectory: dldt-build
+    displayName: 'MklDnnFunctionalTests'
+    continueOnError: true
+  - script: |
+      export DATA_PATH=`pwd`/../testdata
+      export MODELS_PATH=`pwd`/../testdata
+      ../bin/intel64/$(BUILD_TYPE)/InferenceEngineCAPITests
+    workingDirectory: dldt-build
+    displayName: 'IE CAPITests'
+    continueOnError: true
+
 #IE_MAC
 - job: IE_MAC
   timeoutInMinutes: 0
