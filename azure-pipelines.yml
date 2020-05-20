@@ -76,7 +76,7 @@ jobs:
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=-*smoke_SingleLayerTransformationsTestFP16/SingleLayerTransformationsTest.LPT/PoolingTestModel*:*smoke_Inception/ModelTransformationsTest.LPT/inception_v3_tf_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=-*smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*:*smoke_SingleLayerTransformationsTestFP16/SingleLayerTransformationsTest.LPT/PoolingTestModel*:*smoke_Inception/ModelTransformationsTest.LPT/inception_v3_tf_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
