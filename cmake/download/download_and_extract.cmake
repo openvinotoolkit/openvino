@@ -156,7 +156,7 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
   elseif(DEFINED ENV{IE_PATH_TO_DEPS})
     set(URL "$ENV{IE_PATH_TO_DEPS}/${RELATIVE_URL}")
   else()
-    set(URL "https://download.01.org/opencv/2020/openvinotoolkit/2020.2/inference_engine/${RELATIVE_URL}")
+    set(URL "https://download.01.org/opencv/master/openvinotoolkit/2020/inference_engine/${RELATIVE_URL}")
   endif()
 
   #no message on recursive calls
