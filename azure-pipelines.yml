@@ -108,7 +108,7 @@ jobs:
     displayName: 'IE CAPITests'
     continueOnError: true
 
-#IE_Lin
+#IE_Lin_self
 - job: IE_Lin_self
   timeoutInMinutes: 0
   pool:
@@ -141,7 +141,7 @@ jobs:
     inputs:
       workingDirectory: dldt-build
       cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON
-  - script: make -j3
+  - script: make -j12
     workingDirectory: dldt-build
     displayName: 'Build IE'
   - script: ls -al ../bin/intel64/$(BUILD_TYPE)/
