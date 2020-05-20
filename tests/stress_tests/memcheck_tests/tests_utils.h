@@ -10,7 +10,7 @@
 
 // Measure values
 enum MeasureValue {
-    VMRSS = 0, VMHWM, VMSIZE, VMPEAK, MeasureValueMax
+    VMRSS = 0, VMHWM, VMSIZE, VMPEAK, THREADS, MeasureValueMax
 };
 
 class MemCheckEnvironment {

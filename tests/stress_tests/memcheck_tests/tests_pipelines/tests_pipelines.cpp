@@ -28,7 +28,7 @@ using namespace InferenceEngine;
  */
 class MemCheckPipeline {
 private:
-    std::array<std::string, MeasureValueMax> measures_headers = {{"VMRSS", "VMHWM", "VMSIZE", "VMPEAK"}};
+    std::array<std::string, MeasureValueMax> measures_headers = {{"VMRSS", "VMHWM", "VMSIZE", "VMPEAK", "THREADS"}};
     std::array<long, MeasureValueMax> measures;            // current measures
     std::array<long, MeasureValueMax> start_measures;      // measures before run (will be used as baseline)
 public:
@@ -41,6 +41,7 @@ public:
         start_measures[VMHWM] = start_measures[VMRSS];
         start_measures[VMSIZE] = (long) getVmSizeInKB();
         start_measures[VMPEAK] = start_measures[VMSIZE];
+        start_measures[THREADS] = (long) getThreadsNum();
 
         std::copy(start_measures.begin(), start_measures.end(), measures.begin());
     }
@@ -62,6 +63,7 @@ public:
         measures[VMHWM] = (long) getVmHWMInKB();
         measures[VMSIZE] = (long) getVmSizeInKB();
         measures[VMPEAK] = (long) getVmPeakInKB();
+        measures[THREADS] = (long) getThreadsNum();     // TODO: resolve *-32295
     }
 
     /**
@@ -153,7 +155,7 @@ test_create_exenetwork(const std::string &model_name, const std::string &model_p
         log_info("Reference values of virtual memory consumption:");
         log_info(memCheckPipeline.get_measures_headers_as_str());
         log_info(references[VMRSS] << "\t\t" << references[VMHWM] << "\t\t" << references[VMSIZE] << "\t\t"
-                                   << references[VMPEAK] << "\t\t");
+                                   << references[VMPEAK] << "\t\t" << references[THREADS]);
 
         log_info("Memory consumption before run:");
         memCheckPipeline.do_measures();
@@ -198,7 +200,7 @@ test_infer_request_inference(const std::string &model_name, const std::string &m
         log_info("Reference values of virtual memory consumption:");
         log_info(memCheckPipeline.get_measures_headers_as_str());
         log_info(references[VMRSS] << "\t\t" << references[VMHWM] << "\t\t" << references[VMSIZE] << "\t\t"
-                                   << references[VMPEAK] << "\t\t");
+                                   << references[VMPEAK] << "\t\t" << references[THREADS]);
 
         log_info("Memory consumption before run:");
         memCheckPipeline.do_measures();
