@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -29,6 +28,7 @@ class EmbeddingBagOffsetsSum(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
+            'version': 'opset3',
 
             'infer': self.infer,
 
@@ -63,6 +63,7 @@ class EmbeddingBagPackedSum(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
+            'version': 'opset3',
 
             'infer': self.infer,
 
@@ -95,6 +96,7 @@ class EmbeddingSegmentsSum(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
+            'version': 'opset3',
 
             'infer': self.infer,
 

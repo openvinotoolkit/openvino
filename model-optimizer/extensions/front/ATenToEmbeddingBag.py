@@ -27,8 +27,8 @@ class AtenToEmbeddingBag(FrontReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(op='ATen', operator='embedding_bag'):
-            assert node.has_valid('mode') and node.mode == 0, 'ATen::embedding_bag has unsupported mode, only "sum" ' \
-                                                              'mode is supported for node {}.'.format(node.id)
+            assert node.soft_get('mode') == 0, 'ATen::embedding_bag has unsupported mode, only "sum" ' \
+                                               'mode is supported for node {}.'.format(node.id)
             node_name = node.name
             rename_node(node, node_name + '/Old')
             if node.in_port(2).disconnected():
@@ -43,4 +43,3 @@ class AtenToEmbeddingBag(FrontReplacementPattern):
             node.out_port(0).get_connection().set_source(embedding_bag.out_port(0))
             if len(node.in_ports()) == 4 and not node.in_port(3).disconnected():
                 node.in_port(3).get_connection().set_destination(embedding_bag.in_port(per_sample_weights_port_id))
-
