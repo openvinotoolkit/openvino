@@ -17,6 +17,7 @@
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/eltwise.hpp"
 #include "low_precision_transformations/fully_connected.hpp"
+#include "low_precision_transformations/interp.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 #include "low_precision_transformations/transformer.hpp"
 #include <threading/ie_cpu_streams_executor.hpp>
@@ -67,6 +68,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                                                     true);  // supportAsymmetricQuantization
         LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
             add<ConvolutionTransformation>(LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }), "Convolution").
+            add<InterpTransformation>(LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }), "Interp").
             addCleanup<ScaleShiftToConvolutionTransformation>(
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
                 "ScaleShift"));

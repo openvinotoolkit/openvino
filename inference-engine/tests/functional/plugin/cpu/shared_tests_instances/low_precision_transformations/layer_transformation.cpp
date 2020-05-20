@@ -37,7 +37,7 @@
 #include "low_precision_transformations/transformer.hpp"
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
-
+#include "low_precision_transformations/interp.hpp"
 
 namespace LayerTestsUtils {
 
@@ -46,6 +46,8 @@ InferenceEngine::details::LowPrecisionTransformations LayerTransformation::getLo
     return InferenceEngine::details::LowPrecisionTransformer::getAllTransformations(params).
         add<InferenceEngine::details::ConvolutionTransformation>(InferenceEngine::details::LayerTransformation::Params(params).
             setPrecisionsOnActivations({ InferenceEngine::Precision::U8 }), "Convolution").
+        add<InferenceEngine::details::InterpTransformation>(InferenceEngine::details::LayerTransformation::Params(params).
+            setPrecisionsOnActivations({ InferenceEngine::Precision::U8 }), "Interp").
         addCleanup<InferenceEngine::details::ScaleShiftToConvolutionTransformation>(
             InferenceEngine::details::LayerTransformation::Params(params).setPrecisionsOnActivations({ InferenceEngine::Precision::U8 }),
             "ScaleShift");

@@ -42,6 +42,7 @@
 #include "low_precision_transformations/squeeze.hpp"
 #include "low_precision_transformations/eltwise.hpp"
 #include "low_precision_transformations/normalize.hpp"
+#include "low_precision_transformations/interp.hpp"
 
 // uncomment to display precision info during low precision transformations
 // #define DISPLAY_PECISION
@@ -208,7 +209,8 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
             { "resample", LayerTransformationPtr(new ResampleTransformation(params)) },
             { "power", LayerTransformationPtr(new PowerTransformation(params)) },
             { "depthtospace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) },
-            { "normalize", LayerTransformationPtr(new NormalizeTransformation(params)) }
+            { "normalize", LayerTransformationPtr(new NormalizeTransformation(params)) },
+            { "interp", LayerTransformationPtr(new InterpTransformation(params)) }
         }),
         std::map<std::string, LayerTransformationPtr>({
             { "fakequantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },
@@ -362,7 +364,7 @@ void LowPrecisionTransformer::transform(ICNNNetwork& network) {
             continue;
         }
 
-        bool transformed;
+        bool transformed = false;
 
         std::string type = layer->type;
         std::transform(type.begin(), type.end(), type.begin(), ::tolower);
