@@ -474,4 +474,7 @@ void MKLDNNQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
 bool MKLDNNQuantizeNode::created() const {
     return getType() == Quantize;
 }
+
+#if GraphGen(Gen_Quantize)
 REG_MKLDNN_PRIM_FOR(MKLDNNQuantizeNode, Quantize);
+#endif

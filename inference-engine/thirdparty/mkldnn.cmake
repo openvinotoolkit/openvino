@@ -21,8 +21,11 @@
 
 set(version_cmake_included true)
 
-set(TARGET mkldnn)
-set(MKLDNN_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/mkl-dnn)
+if(NOT TARGET)
+    set(TARGET mkldnn)
+endif()
+
+set(MKLDNN_ROOT ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn)
 
 string(REPLACE "." ";" VERSION_LIST "0.18.0")
 list(GET VERSION_LIST 0 MKLDNN_VERSION_MAJOR)
@@ -42,10 +45,12 @@ if(NOT GIT_FOUND OR RESULT)
     set(MKLDNN_VERSION_HASH "N/A")
 endif()
 
-configure_file(
-    "${MKLDNN_ROOT}/include/mkldnn_version.h.in"
-    "${CMAKE_BINARY_DIR}/include/mkldnn_version.h"
-)
+if(NOT EXISTS "${CMAKE_BINARY_DIR}/include/mkldnn_version.h")
+    configure_file(
+        "${MKLDNN_ROOT}/include/mkldnn_version.h.in"
+        "${CMAKE_BINARY_DIR}/include/mkldnn_version.h"
+    )
+endif()
 
 function(detect_mkl LIBNAME)
     unset(MKLLIB CACHE)

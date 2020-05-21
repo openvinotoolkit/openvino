@@ -155,4 +155,6 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
     }
 }
 
+#if GraphGen(Gen_Input)
 REG_MKLDNN_PRIM_FOR(MKLDNNInputNode, Input);
+#endif

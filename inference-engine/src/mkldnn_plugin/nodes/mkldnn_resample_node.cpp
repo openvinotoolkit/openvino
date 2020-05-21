@@ -930,4 +930,6 @@ bool MKLDNNResampleNode::created() const {
     return getType() == Resample;
 }
 
+#if GraphGen(Gen_Resample)
 REG_MKLDNN_PRIM_FOR(MKLDNNResampleNode, Resample);
+#endif

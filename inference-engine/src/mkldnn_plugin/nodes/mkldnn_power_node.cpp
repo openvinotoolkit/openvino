@@ -120,4 +120,7 @@ void MKLDNNPowerNode::execute(mkldnn::stream strm) {
 bool MKLDNNPowerNode::created() const {
     return getType() == Power;
 }
+
+#if GraphGen(Gen_Power)
 REG_MKLDNN_PRIM_FOR(MKLDNNPowerNode, Power);
+#endif

@@ -112,4 +112,7 @@ void MKLDNNROIPoolingNode::createDescriptor(const std::vector<InferenceEngine::T
                                           spatial_scale)));
     descs.push_back(desc);
 }
+
+#if GraphGen(Gen_RoiPooling)
 REG_MKLDNN_PRIM_FOR(MKLDNNROIPoolingNode, RoiPooling);
+#endif

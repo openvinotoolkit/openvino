@@ -303,4 +303,6 @@ MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::getDstMemDesc(mkldnn::primitive_d
                                                             desc.getBlockingDesc()));
 }
 
+#if GraphGen(Gen_BatchNormalization)
 REG_MKLDNN_PRIM_FOR(MKLDNNBatchNormalizationNode, BatchNormalization);
+#endif

@@ -88,7 +88,6 @@ private:
     float stride_h_;
 };
 
-
 REG_FACTORY_FOR(ExperimentalDetectronPriorGridGeneratorImpl, ExperimentalDetectronPriorGridGenerator);
 
 }  // namespace Cpu

@@ -252,4 +252,7 @@ void MKLDNNTensorIteratorNode::execute(mkldnn::stream strm) {
 bool MKLDNNTensorIteratorNode::created() const {
     return getType() == TensorIterator;
 }
+
+#if GraphGen(Gen_TensorIterator)
 REG_MKLDNN_PRIM_FOR(MKLDNNTensorIteratorNode, TensorIterator);
+#endif

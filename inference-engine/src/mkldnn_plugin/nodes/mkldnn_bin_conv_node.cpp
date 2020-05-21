@@ -531,4 +531,6 @@ void MKLDNNBinaryConvolutionNode::initDescriptor(const InferenceEngine::LayerCon
     selectedPD->getConfig() = rightConfig;
 }
 
+#if GraphGen(Gen_BinaryConvolution)
 REG_MKLDNN_PRIM_FOR(MKLDNNBinaryConvolutionNode, BinaryConvolution);
+#endif

@@ -92,4 +92,7 @@ void MKLDNNLrnNode::createDescriptor(const std::vector<InferenceEngine::TensorDe
             new lrn_forward::desc(prop_kind::forward_scoring, alg, in_candidate, size, alpha, beta, k)));
     descs.push_back(desc);
 }
+
+#if GraphGen(Gen_LRN)
 REG_MKLDNN_PRIM_FOR(MKLDNNLrnNode, LRN);
+#endif

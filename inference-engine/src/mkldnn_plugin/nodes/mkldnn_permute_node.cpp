@@ -941,4 +941,7 @@ void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
 bool MKLDNNPermuteNode::created() const {
     return getType() == Permute;
 }
+
+#if GraphGen(Gen_Permute)
 REG_MKLDNN_PRIM_FOR(MKLDNNPermuteNode, Permute);
+#endif

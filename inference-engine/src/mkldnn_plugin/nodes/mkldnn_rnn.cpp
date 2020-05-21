@@ -513,5 +513,8 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
         strm.submit({exec_after.begin(), exec_after.end()});
 }
 
+#if GraphGen(Gen_RNN)
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNN);
+#endif
+
 }  // namespace MKLDNNPlugin

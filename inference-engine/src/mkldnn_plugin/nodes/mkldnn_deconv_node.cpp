@@ -253,4 +253,6 @@ const mkldnn::memory& MKLDNNDeconvolutionNode::getWeights() const {
     return getParentEdges().size() > 1 ? getParentEdgeAt(1)->getMemory().GetPrimitive() : internalBlobMemory[0]->GetPrimitive();
 }
 
+#if GraphGen(Gen_Deconvolution)
 REG_MKLDNN_PRIM_FOR(MKLDNNDeconvolutionNode, Deconvolution);
+#endif

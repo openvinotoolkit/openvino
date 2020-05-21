@@ -69,4 +69,7 @@ void MKLDNNReshapeNode::createPrimitive() {
 bool MKLDNNReshapeNode::created() const {
     return getType() == Reshape || getType() == Flatten;
 }
+
+#if GraphGen(Gen_Reshape)
 REG_MKLDNN_PRIM_FOR(MKLDNNReshapeNode, Reshape);
+#endif

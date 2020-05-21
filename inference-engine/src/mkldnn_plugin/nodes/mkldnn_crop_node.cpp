@@ -214,4 +214,7 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
 bool MKLDNNCropNode::created() const {
     return getType() == Crop;
 }
+
+#if GraphGen(Gen_Crop)
 REG_MKLDNN_PRIM_FOR(MKLDNNCropNode, Crop);
+#endif

@@ -124,6 +124,7 @@ StatusCode RangeImpl::range(data_t start, data_t limit, data_t delta, Blob::Ptr 
     });
     return OK;
 }
+
 REG_FACTORY_FOR(RangeImpl, Range);
 
 }  // namespace Cpu

@@ -136,4 +136,7 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
 bool MKLDNNTileNode::created() const {
     return getType() == Tile;
 }
+
+#if GraphGen(Gen_Tile)
 REG_MKLDNN_PRIM_FOR(MKLDNNTileNode, Tile);
+#endif

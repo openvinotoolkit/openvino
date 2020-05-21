@@ -265,4 +265,7 @@ int MKLDNNGemmNode::getMaxBatch() {
         return outDims[0][0];
     return 0;
 }
+
+#if GraphGen(Gen_Gemm)
 REG_MKLDNN_PRIM_FOR(MKLDNNGemmNode, Gemm);
+#endif

@@ -146,7 +146,6 @@ private:
     const size_t GATHER_INDEXES = 1;
 };
 
-
 REG_FACTORY_FOR(GatherImpl, Gather);
 
 }  // namespace Cpu

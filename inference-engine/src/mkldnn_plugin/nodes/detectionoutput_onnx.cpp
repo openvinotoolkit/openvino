@@ -389,8 +389,6 @@ private:
     std::vector<float> deltas_weights_;
 };
 
-
-
 REG_FACTORY_FOR(ExperimentalDetectronDetectionOutputImpl, ExperimentalDetectronDetectionOutput);
 
 }  // namespace Cpu

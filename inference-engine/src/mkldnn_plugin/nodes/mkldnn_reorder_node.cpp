@@ -189,4 +189,7 @@ void MKLDNNReorderNode::setDynamicBatchLim(int lim) {
         createReorderPrimitive(src_d, src_data_hdl, dst_d, dst_data_hdl);
     }
 }
+
+#if GraphGen(Gen_Reorder)
 REG_MKLDNN_PRIM_FOR(MKLDNNReorderNode, Reorder);
+#endif

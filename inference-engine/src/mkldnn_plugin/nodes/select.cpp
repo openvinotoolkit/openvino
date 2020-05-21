@@ -221,6 +221,7 @@ private:
 };
 
 REG_FACTORY_FOR(SelectImpl, Select);
+
 }  // namespace Cpu
 }  // namespace Extensions
 }  // namespace InferenceEngine

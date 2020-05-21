@@ -1378,4 +1378,6 @@ bool MKLDNNMVNNode::created() const {
     return getType() == MVN;
 }
 
+#if GraphGen(Gen_MVN)
 REG_MKLDNN_PRIM_FOR(MKLDNNMVNNode, MVN);
+#endif

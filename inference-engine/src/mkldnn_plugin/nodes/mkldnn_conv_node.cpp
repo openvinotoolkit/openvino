@@ -929,4 +929,6 @@ const mkldnn::memory& MKLDNNConvolutionNode::getBias() const {
     return baseInputsNumber > 2 ? getParentEdgeAt(2)->getMemory().GetPrimitive() : internalBlobMemory[1]->GetPrimitive();
 }
 
+#if GraphGen(Gen_Convolution)
 REG_MKLDNN_PRIM_FOR(MKLDNNConvolutionNode, Convolution);
+#endif

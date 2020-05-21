@@ -281,4 +281,7 @@ void MKLDNNDeformableConvolutionNode::initDescriptor(const InferenceEngine::Laye
     }
     selectedPD->getConfig() = rightConfig;
 }
+
+#if GraphGen(Gen_DeformableConvolution)
 REG_MKLDNN_PRIM_FOR(MKLDNNDeformableConvolutionNode, DeformableConvolution);
+#endif

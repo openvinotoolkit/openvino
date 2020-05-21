@@ -235,4 +235,6 @@ MKLDNNMemoryDesc MKLDNNActivationNode::getDstMemDesc(mkldnn::primitive_desc_iter
                                                             {blocked_dims, order, offset, dimOffsets, strides}));
 }
 
+#if GraphGen(Gen_Activation)
 REG_MKLDNN_PRIM_FOR(MKLDNNActivationNode, Activation);
+#endif

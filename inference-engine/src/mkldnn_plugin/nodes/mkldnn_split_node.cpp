@@ -529,4 +529,7 @@ void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
         prim.setBatchLimit(batchToProcess(), getParentEdges().size(), getChildEdges().size());
     }
 }
+
+#if GraphGen(Gen_Split)
 REG_MKLDNN_PRIM_FOR(MKLDNNSplitNode, Split);
+#endif
