@@ -73,7 +73,6 @@ extensions/back/TransposeToPermute.py
 extensions/back/UselessConcatRemoval.py
 extensions/front/__init__.py
 extensions/front/ArgMaxSqueeze.py
-extensions/front/ATenToEmbeddingBag.py
 extensions/front/AttributedClampNormalizer.py
 extensions/front/AttributedGatherNormalizer.py
 extensions/front/AttributedPadToPad.py
@@ -493,6 +492,7 @@ extensions/middle/AnchorToPriorBox.py
 extensions/middle/ApplyNHWCtoNCHWpermutation.py
 extensions/middle/ApplyPermutations.py
 extensions/middle/ArgMaxToTopK.py
+extensions/middle/ATenToEmbeddingBag.py
 extensions/middle/AttributedTileNormalizer.py
 extensions/middle/BiasAddBroadcasting.py
 extensions/middle/BinarizeWeightsM1P1.py
