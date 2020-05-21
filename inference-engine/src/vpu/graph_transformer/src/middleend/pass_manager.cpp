@@ -93,16 +93,6 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(convertShapeNotation);
     ADD_DUMP_PASS("convertShapeNotation");
 
-    //
-    // Replace Global AvgPooling with ReduceMean
-    //
-
-    if (env.config.enableReplaceWithReduceMean) {
-        ADD_PASS(replaceWithReduceMean);
-        ADD_DUMP_PASS("replaceWithReduceMean");
-    }
-
-
     if (!env.config.disableReorder && !env.config.hwOptimization) {
         ADD_PASS(reorderInputsToChannelMinor);
         ADD_DUMP_PASS("reorderInputsToChannelMinor");
@@ -248,7 +238,18 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(swConvAdaptation);
     ADD_PASS(swDeconvAdaptation);
+
+    //
+    // Replace Global AvgPooling with ReduceMean
+    //
+    // this stage should be executed after "hwPoolTiling"
+    // and before "swPoolAdaptation"
+    if (env.config.enableReplaceWithReduceMean) {
+        ADD_PASS(replaceWithReduceMean);
+        ADD_DUMP_PASS("replaceWithReduceMean");
+    }
     ADD_PASS(swPoolAdaptation);
+
     ADD_PASS(swFullyConnectedAdaptation);
     ADD_DUMP_PASS("swAdaptation");
 

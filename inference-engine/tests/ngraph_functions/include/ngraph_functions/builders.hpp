@@ -242,5 +242,15 @@ std::shared_ptr<Node> makeShuffleChannels(const ngraph::Output<Node> &in,
 std::shared_ptr<Node> makeMatMul(const Output<Node>& A,
                                  const Output<Node>& B);
 
+std::shared_ptr<Node> makePooling(const ngraph::Output<Node> &in,
+                                  const std::vector<size_t> &strides,
+                                  const std::vector<size_t> &padsBegin,
+                                  const std::vector<size_t> &padsEnd,
+                                  const std::vector<size_t> &kernel,
+                                  const op::RoundingType &roundingType,
+                                  const op::PadType &padType,
+                                  bool excludePad,
+                                  const ngraph::helpers::PoolingTypes &poolType);
+
 }  // namespace builder
 }  // namespace ngraph
