@@ -7,7 +7,7 @@ include ("download_and_check")
 
 function (GetNameAndUrlToDownload name url archive_name_unified archive_name_win archive_name_lin archive_name_mac archive_name_android)
   if (archive_name_unified)
-    set (${url} "${archive_name_unified}" PARENT_SCOPE)
+    set (${url} "thirdparty/unified/${archive_name_unified}" PARENT_SCOPE)
     set (${name} ${archive_name_unified} PARENT_SCOPE)
   else()
     if(archive_name_lin)
@@ -27,7 +27,7 @@ function (GetNameAndUrlToDownload name url archive_name_unified archive_name_win
     endif()
 
     set (${name} ${archive_name} PARENT_SCOPE)
-    set (${url}  "${archive_name}" PARENT_SCOPE)
+    set (${url}  "thirdparty/${PLATFORM_FOLDER}/${archive_name}" PARENT_SCOPE)
   endif()
 endfunction(GetNameAndUrlToDownload)
 
@@ -156,7 +156,7 @@ function (CheckOrDownloadAndExtract component RELATIVE_URL archive_name unpacked
   elseif(DEFINED ENV{IE_PATH_TO_DEPS})
     set(URL "$ENV{IE_PATH_TO_DEPS}/${RELATIVE_URL}")
   else()
-    set(URL "https://download.01.org/opencv/master/openvinotoolkit/2020/inference_engine/${RELATIVE_URL}")
+    set(URL "https://download.01.org/opencv/master/openvinotoolkit/${RELATIVE_URL}")
   endif()
 
   #no message on recursive calls
