@@ -38,7 +38,7 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
     reset_deps_cache(VPU_FIRMWARE_${firmware_name_upper}_FILE)
 
     RESOLVE_DEPENDENCY(VPU_FIRMWARE_${firmware_name_upper}
-        ARCHIVE_UNIFIED firmware_${firmware_name}_${FIRMWARE_PACKAGE_VERSION}.zip
+        ARCHIVE_UNIFIED VPU/${firmware_name}/firmware_${firmware_name}_${FIRMWARE_PACKAGE_VERSION}.zip
         TARGET_PATH "${TEMP}/vpu/firmware/${firmware_name}"
         ENVIRONMENT "VPU_FIRMWARE_${firmware_name_upper}_FILE"
         FOLDER)
