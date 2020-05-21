@@ -10,6 +10,7 @@
 #include <ie_api.h>
 
 #include <ngraph/pass/graph_rewrite.hpp>
+#include "transformations/utils/pass_param.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -19,9 +20,9 @@ namespace pass {
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::DepthToSpaceFusion: public ngraph::pass::GraphRewrite {
+class ngraph::pass::DepthToSpaceFusion: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam {
 public:
-    DepthToSpaceFusion() : GraphRewrite() {
+    DepthToSpaceFusion() : GraphRewrite(), PassParam() {
         depth_to_space_fusion();
     }
 
