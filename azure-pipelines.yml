@@ -1,6 +1,6 @@
 jobs:
 
-#IE_MAC
+# IE_MAC
 - job: IE_MAC
   timeoutInMinutes: 0
   pool:
