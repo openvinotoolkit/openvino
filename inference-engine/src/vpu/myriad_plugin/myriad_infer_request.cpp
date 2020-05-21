@@ -141,6 +141,42 @@ void MyriadInferRequest::InferAsync() {
                               _inputInfo.totalSize, nullptr, 0);
 }
 
+static void copyBlobAccordingUpperBound(
+    const Blob::Ptr& in,
+    const Blob::Ptr& out) {
+    const auto inLayout = in->getTensorDesc().getLayout();
+    const auto outLayout = out->getTensorDesc().getLayout();
+
+    const auto& inDims = in->getTensorDesc().getDims();
+    const auto& outDims = out->getTensorDesc().getDims();
+
+    IE_ASSERT(inLayout == outLayout);
+
+    auto inPtr = in->cbuffer().as<uint8_t *>();
+    IE_ASSERT(inPtr != nullptr);
+
+    auto outPtr = out->cbuffer().as<uint8_t *>();
+    IE_ASSERT(outPtr != nullptr);
+
+    if (inDims.size() == 1) {
+        std::copy_n(
+            in->cbuffer().as<uint8_t*>(),
+            in->byteSize(),
+            out->buffer().as<uint8_t*>());
+    } else if (inDims.size() == 2) {
+        size_t inLineSize = inDims[1] * in->element_size();
+        size_t outLineSize = outDims[1] * out->element_size();
+        for (size_t n = 0; n < outDims[0]; n++) {
+            std::copy_n(
+                in->cbuffer().as<uint8_t*>() + n * inLineSize,
+                outLineSize,
+                out->buffer().as<uint8_t*>() + n * outLineSize);
+        }
+    } else {
+        VPU_THROW_EXCEPTION << "Copying of blobs with dynamic shape and num dims greater than 2 unsupported yet";
+    }
+}
+
 void MyriadInferRequest::GetResult() {
     VPU_PROFILE(GetResult);
 
@@ -184,23 +220,50 @@ void MyriadInferRequest::GetResult() {
 
         const auto& ieOutDesc = ieBlob->getTensorDesc();
         const auto& ieOutPrc = ieOutDesc.getPrecision();
+
         auto ieOutDims = ieOutDesc.getDims();
+
         // Eject dynamic output shape (suffix "@shape") and copy it to vector of dimensions in reverse order
         const auto& shapeInfo = _outputInfo.offset.find(ieBlobName + "@shape");
+        // if (isDynamic)
         if (shapeInfo != _outputInfo.offset.end()) {
-            const auto shapeOffset = resultOffset(shapeInfo->first);
-            const auto shapePtr = reinterpret_cast<const int32_t*>(resultBuffer.data() + shapeOffset);
+            auto outData = networkOutputs[ieBlobName];
+            const auto& descFromPlugin = _outputInfo.descFromPlugin.find(ieBlobName);
+            VPU_THROW_UNLESS(descFromPlugin != _outputInfo.descFromPlugin.end(),
+                "Can not find tensor descriptor by plugin for {} output", ieBlobName);
+            const auto& dynOutputDesc = descFromPlugin->second;
 
-            const auto shapeRank = ieOutDims.size();
+            if (ieBlob->getTensorDesc().getLayout() != dynOutputDesc.getLayout()) {
+                ieBlob->deallocate();
+                ieBlob->getTensorDesc().reshape(dynOutputDesc.getDims(), dynOutputDesc.getLayout());
+                ieBlob->allocate();
+                outData->reshape(dynOutputDesc.getDims(), dynOutputDesc.getLayout());
+            }
+
+            const auto shapeResultOffset = resultOffset(shapeInfo->first);
+            const auto shapePtr = reinterpret_cast<const int32_t*>(resultBuffer.data() + shapeResultOffset);
+
+            auto shapeRank = dynOutputDesc.getDims().size();
+            ieOutDims.resize(shapeRank);
             for (size_t idx = 0; idx < shapeRank; ++idx) {
                 ieOutDims[idx] = shapePtr[shapeRank - idx - 1];
             }
-        }
-        // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
-        const auto tempTensorDesc = ie::TensorDesc{ieOutPrc, ieOutDims, getVpuLayout(ieBlobName)};
-        const auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset(ieBlobName));
 
-        copyBlob(tmpBlob, ieBlob);
+            outData->setDims(ieOutDims);
+            ieBlob->getTensorDesc().setDims(ieOutDims);
+
+            // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
+            const auto tempTensorDesc = ie::TensorDesc{ieOutPrc, dynOutputDesc.getDims(), dynOutputDesc.getLayout()};
+            const auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset(ieBlobName));
+
+            copyBlobAccordingUpperBound(tmpBlob, ieBlob);
+        } else {
+            // TODO: TensorDesc doesn't update internal BlockingDesc and strides when setLayout is called
+            const auto tempTensorDesc = ie::TensorDesc{ieOutPrc, ieOutDims, getVpuLayout(ieBlobName)};
+            const auto tmpBlob = make_blob_with_precision(tempTensorDesc, resultBuffer.data() + resultOffset(ieBlobName));
+
+            copyBlob(tmpBlob, ieBlob);
+        }
     }
 }
 

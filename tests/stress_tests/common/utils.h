@@ -37,6 +37,7 @@ size_t getVmSizeInKB();
 size_t getVmPeakInKB();
 size_t getVmRSSInKB();
 size_t getVmHWMInKB();
+size_t getThreadsNum();
 
 template<typename Function, typename ... Args>
 int run_in_processes(const int &numprocesses, Function const &function, Args ... args) {

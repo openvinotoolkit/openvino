@@ -46,20 +46,6 @@ namespace
         {
         }
 
-        virtual void on_attribute(const std::string& name, std::string& value) override
-        {
-            if (m_attributes.contains(name))
-            {
-                value = m_attributes[name.c_str()].cast<std::string>();
-            }
-        }
-        virtual void on_attribute(const std::string& name, bool& value) override
-        {
-            if (m_attributes.contains(name))
-            {
-                value = m_attributes[name.c_str()].cast<bool>();
-            }
-        }
         virtual void on_adapter(const std::string& name,
                                 ngraph::ValueAccessor<void>& adapter) override
         {
@@ -67,6 +53,14 @@ namespace
             {
                 NGRAPH_CHECK(
                     false, "No AttributeVisitor support for accessing attribute named: ", name);
+            }
+        }
+        virtual void on_adapter(const std::string& name,
+                                ngraph::ValueAccessor<bool>& adapter) override
+        {
+            if (m_attributes.contains(name))
+            {
+                adapter.set(m_attributes[name.c_str()].cast<bool>());
             }
         }
         virtual void on_adapter(const std::string& name,

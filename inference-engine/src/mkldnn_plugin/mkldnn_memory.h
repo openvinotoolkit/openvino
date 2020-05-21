@@ -87,6 +87,7 @@ public:
     }
 
     size_t GetSize() const;
+    size_t GetElementsCount() const;
 
     mkldnn::memory::format GetFormat() const {
         return static_cast<mkldnn::memory::format>(prim->get_primitive_desc().desc().data.format);

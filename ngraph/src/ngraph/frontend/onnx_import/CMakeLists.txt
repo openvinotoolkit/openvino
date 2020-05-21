@@ -247,16 +247,18 @@ add_library(onnx_importer SHARED
 
 set(ONNX_IMPORT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE INTERNAL "")
 
-target_link_libraries(onnx_importer PRIVATE ngraph onnx onnx_proto)
+target_link_libraries(onnx_importer PRIVATE onnx onnx_proto)
+target_link_libraries(onnx_importer PUBLIC  ngraph)
 
 set_target_properties(onnx_importer PROPERTIES
                       CXX_VISIBILITY_PRESET hidden
                       C_VISIBILITY_PRESET hidden
                       VISIBILITY_INLINES_HIDDEN ON
                       POSITION_INDEPENDENT_CODE ON)
-target_include_directories(onnx_importer SYSTEM PUBLIC ${ONNX_IMPORT_INCLUDE_DIR})
+target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_IMPORT_INCLUDE_DIR}>
+                                                       $<INSTALL_INTERFACE:include/ngraph/frontend/onnx_import>)
 target_include_directories(onnx_importer SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH}
-    SYSTEM PRIVATE ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIR})
+        ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIR})
 
 target_compile_definitions(onnx_importer PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
@@ -268,4 +270,7 @@ endif()
 
 target_compile_definitions(onnx_importer PRIVATE ONNX_IMPORTER_DLL_EXPORTS)
 
-install(TARGETS onnx_importer DESTINATION ${NGRAPH_INSTALL_LIB})
+install(TARGETS onnx_importer EXPORT ngraphTargets
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)

@@ -280,6 +280,10 @@ void prepare_buffer_fusing::run(program_impl& p) {
                     if (usr_layout.format == format::b_fs_yx_fsv16 &&
                         (opt_lower_pad % 16 != 0 || opt_upper_pad % 16 != 0))
                         return;
+                    if (input_layout.data_padding.lower_size().batch[0] != 0 || input_layout.data_padding.upper_size().batch[0] != 0 ||
+                        input_layout.data_padding.lower_size().spatial[0] != 0 || input_layout.data_padding.upper_size().spatial[0] != 0 ||
+                        input_layout.data_padding.lower_size().spatial[1] != 0 || input_layout.data_padding.upper_size().spatial[1] != 0)
+                        return;
                 }
 
                 if (format == format::bfyx && crop_size.batch[0] == input_layout.size.batch[0] &&

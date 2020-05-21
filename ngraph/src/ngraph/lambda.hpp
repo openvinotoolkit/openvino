@@ -26,9 +26,11 @@ namespace ngraph
     class NGRAPH_API Lambda
     {
     public:
+        virtual ~Lambda() {}
         static constexpr DiscreteTypeInfo type_info{"Lamdba", 0};
         const DiscreteTypeInfo& get_type_info() const { return type_info; }
         /// Return the function parameters
+        virtual bool visit_attributes(AttributeVisitor& visitor);
         const ParameterVector& get_parameters() const { return m_parameters; };
         /// Index for parameter, or -1
         int64_t get_parameter_index(const std::shared_ptr<op::Parameter>& parameter) const;
@@ -43,10 +45,25 @@ namespace ngraph
                       const HostTensorVector& input_tensors);
 
     protected:
+        Lambda() = default;
         Lambda(const ResultVector& results, const ParameterVector& parameters);
         Lambda(const OutputVector& results, const ParameterVector& parameters);
 
         ResultVector m_results;
         ParameterVector m_parameters;
+    };
+
+    template <>
+    class NGRAPH_API AttributeAdapter<std::shared_ptr<Lambda>> : public VisitorAdapter
+    {
+    public:
+        AttributeAdapter(std::shared_ptr<Lambda>& ref);
+
+        bool visit_attributes(AttributeVisitor& visitor) override;
+
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<shared_ptr<Lambda>>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        std::shared_ptr<Lambda>& m_ref;
     };
 }

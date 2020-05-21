@@ -55,7 +55,7 @@ public:
     /// \param backend_constructor A BackendConstructor which will be called to
     ////     construct an instance of the registered backend.
     static BACKEND_API void register_backend(const std::string& name,
-                                            BackendConstructor backend_constructor);
+                                             BackendConstructor backend_constructor);
 
     /// \brief Query the list of registered devices
     /// \returns A vector of all registered devices.

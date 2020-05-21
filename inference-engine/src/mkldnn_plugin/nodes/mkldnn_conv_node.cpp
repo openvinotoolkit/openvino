@@ -279,8 +279,10 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 getParentEdgeAt(0)->getDims().ndims() == 5 ? memory::ndhwc : memory::nhwc);
         createDescriptor({in_candidate}, {out_candidate});
     } else {
-        inputDataType = convLayer->input()->getPrecision() == Precision::BF16 ? memory::bf16 : memory::f32;
-        outputDataType = convLayer->outData[0]->getPrecision() == Precision::BF16 ? memory::bf16 : memory::f32;
+        inputDataType = (convLayer->input()->getPrecision() == Precision::BF16
+        && !(isGrouped && getParentEdgeAt(0)->getDims().ndims() == 5)) ? memory::bf16 : memory::f32;
+        outputDataType = (convLayer->outData[0]->getPrecision() == Precision::BF16
+        && !(isGrouped && getParentEdgeAt(0)->getDims().ndims() == 5)) ? memory::bf16 : memory::f32;
         eltwisePrecision = Precision::FP32;
         for (int i = 0; i < fusedWith.size(); i++) {
             auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());

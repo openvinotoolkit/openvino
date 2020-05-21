@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -129,7 +128,7 @@ private:
     std::string precision;
 };
 
-REG_FACTORY_FOR(ImplFactory<ConvertImpl>, Convert);
+REG_FACTORY_FOR(ConvertImpl, Convert);
 
 }  // namespace Cpu
 }  // namespace Extensions

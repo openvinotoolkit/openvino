@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <mutex>
+#include <algorithm>
 
 #include <cnn_network_ngraph_impl.hpp>
 #include "blob_factory.hpp"
@@ -228,6 +229,12 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
     return remainingConstLayers;
 }
 
+static std::vector<std::string> skipConstInfer = {
+    "FakeQuantize",
+    "Quantize",
+    "CumSum"        // Const inference function for CumSum is not implemented!
+};
+
 const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) {
     std::map<std::string, bool> mapConstLayers;
     // collect all const layers, which inputs are const layers.
@@ -235,7 +242,7 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
         // Layers with "Shape" and "Const" type are Const by definition
         if (layer->type == "Shape" || layer->type == "Const") {
             mapConstLayers[layer->name] = false;
-        } else if ((layer->type != "FakeQuantize") && (layer->type != "Quantize") && (!isForFakeQuantzie(*layer))) {
+        } else if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end() && !isForFakeQuantzie(*layer)) {
             bool isAllInputsConst = true;
             for (auto const& data : layer->insData) {
                 auto creator = data.lock()->getCreatorLayer().lock();
@@ -336,7 +343,7 @@ const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& 
     };
 
     for (const auto& layer : sortedLayers) {
-        if (layer->type == "FakeQuantize" || layer->type == "Quantize") {
+        if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) != skipConstInfer.end()) {
             continue;
         }
 
@@ -346,13 +353,13 @@ const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& 
 
             auto implPtr = holder.getConstInferImpl(layer->type);
             if (!implPtr && !isForShape)
-                if (layer->type != "FakeQuantize" && layer->type != "Quantize")
+                if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end())
                     THROW_IE_EXCEPTION << "Failed to find reference implementation for `" + layer->name +
                                               "` Layer with `" + layer->type + "` Type on constant propagation";
             if (!isForShape) {
                 auto outputBlobs = getOutputBlobs(layer->outData);
                 auto inp = getInputBlobs(layer->insData, isForShape);
-                if (layer->type != "FakeQuantize" && layer->type != "Quantize")
+                if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end())
                     implPtr->infer(inp, layer->params, layer->blobs, outputBlobs);
                 for (int i = 0; i < layer->outData.size(); i++) {
                     std::string dataName = layer->outData[i]->getName();

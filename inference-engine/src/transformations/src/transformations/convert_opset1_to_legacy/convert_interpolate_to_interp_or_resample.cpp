@@ -47,10 +47,16 @@ void ngraph::pass::ConvertInterpolateToInterpOrResample::convert_interpolate_to_
             interpolate_attrs.pads_end =  std::vector<size_t>{0};
 
         std::vector<size_t> useless_axes;
-        for (const auto & axis : interpolate_axes)
-            if (input_shape[axis] == out_spatial_shape[axis] && axis < 2)
-                // keeping only those not spatial dimensions that are going to be changed
-                useless_axes.push_back(axis);
+        size_t axis_idx = 0;
+        for (auto axis = 0; axis < input_shape.size(); ++axis) {
+            if (interpolate_axes.count(axis)) {
+                if (input_shape[axis] == out_spatial_shape[axis_idx] && axis < 2)
+                    // keeping only those not spatial dimensions that are going to be changed
+                    useless_axes.push_back(axis);
+                ++axis_idx;
+            }
+        }
+
         std::reverse(useless_axes.begin(), useless_axes.end());
         for (const auto & axis : useless_axes) {
             interpolate_axes.erase(axis);

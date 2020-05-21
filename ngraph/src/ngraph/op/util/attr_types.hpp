@@ -263,7 +263,7 @@ namespace ngraph
     {
         enum class TopKSortType
         {
-            // Returned values are not sorted
+            // Returned values are not sorte
             NONE,
             // Sort result based on element indices
             SORT_INDICES,
@@ -355,17 +355,19 @@ namespace ngraph
     }
 
     template <>
-    class NGRAPH_API AttributeAdapter<op::AutoBroadcastSpec>
-        : public ValueReference<op::AutoBroadcastSpec>, public ValueAccessor<void>
+    class AttributeAdapter<op::AutoBroadcastSpec> : public VisitorAdapter
     {
     public:
         AttributeAdapter(op::AutoBroadcastSpec& value)
-            : ValueReference<op::AutoBroadcastSpec>(value)
+            : m_ref(value)
         {
         }
+        bool visit_attributes(AttributeVisitor& visitor) override;
 
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::AutoBroadcastSpec>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        op::AutoBroadcastSpec& m_ref;
     };
 
     namespace op
@@ -402,17 +404,20 @@ namespace ngraph
             }
         };
     }
+
     template <>
-    class NGRAPH_API AttributeAdapter<op::BroadcastModeSpec>
-        : public ValueReference<op::BroadcastModeSpec>, public ValueAccessor<void>
+    class AttributeAdapter<op::BroadcastModeSpec> : public VisitorAdapter
     {
     public:
         AttributeAdapter(op::BroadcastModeSpec& value)
-            : ValueReference<op::BroadcastModeSpec>(value)
+            : m_ref(value)
         {
         }
+        bool visit_attributes(AttributeVisitor& visitor) override;
 
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::BroadcastModeSpec>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        op::BroadcastModeSpec& m_ref;
     };
 }

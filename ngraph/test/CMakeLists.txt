@@ -254,17 +254,16 @@ endif()
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
     NGRAPH_INCLUDES="${PROJECT_SOURCE_DIR}/src/ngraph")
 
-# if (NGRAPH_IE_ENABLE)
-#     if (ENABLE_MKL_DNN)
-#         message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
-#         set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
-#     endif()
-
-#     if (ENABLE_CLDNN)
-#         message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
-#         set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
-#     endif()
-# endif()
+if (NGRAPH_IE_ENABLE)
+    if (ENABLE_MKL_DNN)
+        message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
+        set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
+    endif()
+     if (ENABLE_CLDNN)
+        message(STATUS "NGRAPH_TESTS: IE:GPU enabled")
+        set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:GPU")
+    endif()
+endif()
 
 if (NGRAPH_INTERPRETER_ENABLE)
     list(APPEND SRC

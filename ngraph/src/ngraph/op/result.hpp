@@ -64,4 +64,18 @@ namespace ngraph
         using v0::Result;
     }
     using ResultVector = std::vector<std::shared_ptr<op::Result>>;
+
+    template <>
+    class NGRAPH_API AttributeAdapter<ResultVector> : public VisitorAdapter
+    {
+    public:
+        AttributeAdapter(ResultVector& ref);
+
+        bool visit_attributes(AttributeVisitor& visitor) override;
+
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<ResultVector>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        ResultVector& m_ref;
+    };
 }

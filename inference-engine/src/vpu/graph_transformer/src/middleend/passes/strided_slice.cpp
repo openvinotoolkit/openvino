@@ -45,28 +45,39 @@ private:
 };
 
 StridedSliceParams PassImpl::parseInputParams(const Stage& stage) {
-    const auto beginInput   = stage->input(1);
-    const auto endInput     = stage->input(2);
-    const auto num_input_dims = stage->input(0)->desc().numDims();
+    const auto input          = stage->input(0);
+    const auto beginInput     = stage->input(1);
+    const auto endInput       = stage->input(2);
+    const auto num_input_dims = input->desc().numDims();
     StridedSliceParams params;
 
     IE_ASSERT(beginInput->content() != nullptr);
     IE_ASSERT(endInput->content() != nullptr);
 
-    auto vectorToDimValues = [](const std::vector<int>& v) {
-        auto dims = DimsOrder::fromNumDims(v.size()).toIndices();
-        int idx = v.size();
+    const auto numpyIdxVectorToDimValues = [&input](const std::vector<int>& values) {
+        auto dims = DimsOrder::fromNumDims(values.size()).toIndices();
+
+        // IE notation to GT notation
+        std::vector<int> revertedValues(values.size());
+        std::reverse_copy(values.begin(), values.end(), revertedValues.begin());
+
+        int idx = 0;
         for (auto& dim : dims) {
-            idx--;
-            dim.second = v[idx];
+            auto value = revertedValues[idx++];
+            if (value < 0) {
+                value = std::max(input->desc().dim(dim.first) + value + 1, 0);
+            }
+            value = std::min(input->desc().dim(dim.first), value);
+            dim.second = value;
         }
+
         return dims;
     };
 
-    params.begin = vectorToDimValues(
+    params.begin = numpyIdxVectorToDimValues(
         std::vector<int>(beginInput->content()->get<int>(),
                          beginInput->content()->get<int>() + beginInput->desc().dims().get(Dim::C, 0)));
-    params.end = vectorToDimValues(
+    params.end = numpyIdxVectorToDimValues(
         std::vector<int>(endInput->content()->get<int>(),
                          endInput->content()->get<int>() + endInput->desc().dims().get(Dim::C, 0)));
 
@@ -74,11 +85,11 @@ StridedSliceParams PassImpl::parseInputParams(const Stage& stage) {
     if (stage->numInputs() == 4) {
         const auto stridesInput = stage->input(3);
         IE_ASSERT(stridesInput->content() != nullptr);
-        params.strides = vectorToDimValues(
+        params.strides = numpyIdxVectorToDimValues(
             std::vector<int>(stridesInput->content()->get<int>(),
                              stridesInput->content()->get<int>() + stridesInput->desc().dims().get(Dim::C, 0)));
     } else {
-        params.strides = vectorToDimValues(std::vector<int>(num_input_dims, 1));
+        params.strides = numpyIdxVectorToDimValues(std::vector<int>(num_input_dims, 1));
     }
 
     IE_ASSERT(params.begin.size() == num_input_dims);
@@ -117,8 +128,8 @@ StridedSliceParams PassImpl::parseInputParams(const Stage& stage) {
         IE_ASSERT(c != '1') << "VPU doesn't support shrink_axis_mask for StridedSlice";
     }
 
-    params.begin_mask = vectorToDimValues(begin_mask_values);
-    params.end_mask = vectorToDimValues(end_mask_values);
+    params.begin_mask = numpyIdxVectorToDimValues(begin_mask_values);
+    params.end_mask = numpyIdxVectorToDimValues(end_mask_values);
 
     return params;
 }
@@ -135,20 +146,14 @@ StridedSliceInternalParams PassImpl::computeInternalParams(const Stage& stage, S
         m_params.strides_dms.set(dim, 1);
     }
 
-    auto clip = [](int value, int min, int max) {
-        return std::min(std::max(min, value), max);
-    };
-
     for (const auto& dim : input->desc().dimsOrder().toPermutation()) {
         m_params.strides_dms.set(dim, params.strides[dim]);
 
         IE_ASSERT(params.begin_mask[dim] == 1 || params.begin_mask[dim] == 0);
         IE_ASSERT(params.end_mask[dim] == 1 || params.end_mask[dim] == 0);
 
-        m_params.begin_dms.set(dim,
-            params.begin_mask[dim] ? clip(params.begin[dim], 0, input->desc().dim(dim)) : 0);
-        m_params.end_dms.set(dim,
-            params.end_mask[dim] ? clip(params.end[dim], 0, input->desc().dim(dim)) : input->desc().dim(dim));
+        m_params.begin_dms.set(dim, params.begin_mask[dim] ? params.begin[dim] : 0);
+        m_params.end_dms.set(dim, params.end_mask[dim] ? params.end[dim] : input->desc().dim(dim));
 
         IE_ASSERT(dim != Dim::N || numDims < 4 || m_params.strides_dms[dim] == 1)
             << "VPU doesn't support batch strides for StridedSlice";
@@ -295,6 +300,10 @@ void PassImpl::run(const Model& model) {
 
             input = intermediateOutputData;
         }
+
+        VPU_INTERNAL_CHECK(input->desc().dims() == output->desc().dims(),
+                           "StridedSlice pass: result tensor dims (%v) must be equal to output "
+                           "tensor dims (%v)", input->desc().dims(), output->desc().dims());
 
         _stageBuilder->addCopyStage(
             model,

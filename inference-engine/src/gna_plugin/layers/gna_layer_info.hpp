@@ -153,6 +153,15 @@ class LayerInfo {
         return dynamic_cast<const InferenceEngine::EltwiseLayer *>(layer)->_operation ==
                InferenceEngine::EltwiseLayer::Sum;
     }
+    bool isEltwiseSub() const noexcept {
+        IS_VALID();
+        if (!isEltwise()) return false;
+        // dynamic_cast<const InferenceEngine::EltwiseLayer *>(layer) is validated in isEltwise function
+        // coverity[var_deref_op]
+        return dynamic_cast<const InferenceEngine::EltwiseLayer *>(layer)->_operation ==
+            InferenceEngine::EltwiseLayer::Sub;
+    }
+
     bool isEltwiseMul() const noexcept {
         IS_VALID();
         if (!isEltwise()) return false;

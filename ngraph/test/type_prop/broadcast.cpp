@@ -699,3 +699,34 @@ TEST(type_prop, broadcast_v3_incorrect_target_shape_2)
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
+
+TEST(type_prop, broadcast_v3_output_rank_not_deduced)
+{
+    const auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
+
+    const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
+
+    ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+}
+
+TEST(type_prop, broadcast_v3_output_rank_deduced_from_arg)
+{
+    const auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    const auto shape = op::Constant::create(element::i64, {3}, {8, 6, 4});
+    const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
+
+    const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
+    ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(4)));
+}
+
+TEST(type_prop, broadcast_v3_output_rank_deduced_from_new_shape_input)
+{
+    const auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    const auto shape = op::Constant::create(element::i64, {5}, {8, 6, 1, 5, 1});
+    const auto broadcast_spec = op::BroadcastType::BIDIRECTIONAL;
+
+    const auto broadcast_v3 = make_shared<op::v3::Broadcast>(arg, shape, broadcast_spec);
+    ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).same_scheme(PartialShape::dynamic(5)));
+}

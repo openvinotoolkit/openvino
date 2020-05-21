@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -142,7 +141,7 @@ private:
     size_t ownStrides[CNTR_SIZE];
 };
 
-REG_FACTORY_FOR(ImplFactory<ShuffleChannelsImpl>, ShuffleChannels);
+REG_FACTORY_FOR(ShuffleChannelsImpl, ShuffleChannels);
 
 }  // namespace Cpu
 }  // namespace Extensions

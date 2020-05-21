@@ -4,8 +4,21 @@
 
 #pragma once
 
-#include <nodes/list.hpp>
+// WA for windows.h
+#ifdef _WIN32
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif
+# ifndef _WINSOCKAPI_
+#  define _WINSOCKAPI_
+# endif
+# ifndef _WINSOCK2API_
+#  define _WINSOCK2API_
+# endif
+#endif
+
 #include <gtest/gtest.h>
+#include <nodes/list.hpp>
 #include <mkldnn_graph.h>
 #include <mkldnn_memory.h>
 #include <mkldnn_extension_utils.h>

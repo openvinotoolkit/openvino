@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
+#include "../test_graph.hpp"
 #include "mkldnn_exec_network.h"
 
-#include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
-#include "../test_graph.hpp"
-#include <ie_ir_reader.hpp>
 #include <ie_core.hpp>
-#include <ie_system_conf.h>
 
 #include <ngraph/ngraph.hpp>
 

@@ -34,8 +34,15 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
         layer->name, layer->type, 1, shape->name());
 
     model->replaceStageOutput(dataProducerEdge, dataOutput);
-    if (const auto& dataToShapeEdge = data->parentDataToShapeEdge()) {
-        model->replaceDataToShapeChild(dataToShapeEdge, dataOutput);
+    if (auto dataToShapeEdge = data->parentDataToShapeEdge()) {
+        const auto& parent = dataToShapeEdge->parent();
+        VPU_THROW_UNLESS(parent == shape, "Myriad plugin encountered layer of type \"{}\" and name \"{}\" with input #{} (data input with name \"{}\") that "
+            "already has parent in terms of data to shape connection. The parent is expected to be input #{} (shape input with name \"{}\") of the layer, so "
+            "it's a \"{}\" with already connected inputs, but actual parent is other data object with name \"{}\". The case of connected inputs is considered "
+            "as \"{}\" that goes directly to \"{}\" as a result of some optimization (operation between them has been optimized out). Other cases, when some "
+            "input already has a connection, but with other data object are prohibited.",
+            layer->type, layer->name, 0, data->name(), 1, shape->name(), layer->type, parent->name(), layer->type, layer->type);
+        model->disconnectDatas(dataToShapeEdge);
     }
     model->removeUnusedData(data);
 

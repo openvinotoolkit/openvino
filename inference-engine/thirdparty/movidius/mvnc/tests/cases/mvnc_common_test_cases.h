@@ -33,6 +33,8 @@ public:
     mvLog_t ncLogLevel              = MVLOG_INFO;
     int     watchdogInterval        = 1000;
     int     availableDevices_       = 0;
+    WatchdogHndl_t* m_watchdogHndl = nullptr;
+    ncDeviceOpenParams_t m_ncDeviceOpenParams = {};
 
     ~MvncTestsCommon() override = default;
     MvncTestsCommon();

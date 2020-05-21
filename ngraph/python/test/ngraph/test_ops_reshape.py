@@ -155,15 +155,15 @@ def test_tile():
 
 
 def test_strided_slice():
-    input_tensor = np.arange(2 * 3 * 4).reshape((2, 3, 4))
-    begin = np.array([1, 0])
-    end = np.array([0, 0])
-    strides = np.array([1, 1])
-    begin_mask = np.array([0, 0, 0])
-    end_mask = np.array([0, 0, 0])
-    new_axis_mask = np.array([0, 1, 0])
-    shrink_axis_mask = np.array([1, 0, 0])
-    ellipsis_mask = np.array([0, 0, 0])
+    input_tensor = np.arange(2 * 3 * 4, dtype=np.float32).reshape((2, 3, 4))
+    begin = np.array([1, 0], dtype=np.int64)
+    end = np.array([0, 0], dtype=np.int64)
+    strides = np.array([1, 1], dtype=np.int64)
+    begin_mask = np.array([0, 0, 0], dtype=np.int64)
+    end_mask = np.array([0, 0, 0], dtype=np.int64)
+    new_axis_mask = np.array([0, 1, 0], dtype=np.int64)
+    shrink_axis_mask = np.array([1, 0, 0], dtype=np.int64)
+    ellipsis_mask = np.array([0, 0, 0], dtype=np.int64)
 
     result = run_op_node(
         [input_tensor, begin, end, strides],
@@ -175,7 +175,8 @@ def test_strided_slice():
         ellipsis_mask,
     )
 
-    expected = np.array([12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]).reshape((1, 3, 4))
+    expected = np.array([12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
+                        dtype=np.float32).reshape((1, 3, 4))
 
     assert np.allclose(result, expected)
 

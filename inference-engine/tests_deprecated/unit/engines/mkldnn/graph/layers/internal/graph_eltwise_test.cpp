@@ -6,12 +6,10 @@
 #define NOMINMAX
 #endif
 
-#include <ie_plugin_config.hpp>
-#include "common_test_utils/data_utils.hpp"
-#include "mkldnn_graph.h"
-
 #include "test_graph.hpp"
 
+#include <ie_plugin_config.hpp>
+#include "common_test_utils/data_utils.hpp"
 #include "single_layer_common.hpp"
 #include <mkldnn_extension_utils.h>
 #include <cnn_network_impl.hpp>

@@ -450,6 +450,37 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
                                                                                                         element::Type(toPrecision).get_type_name());
             }
         }
+        case element::Type_t::boolean: {
+            switch (toPrecision) {
+            case element::Type_t::u8: {
+                return convertPrecision<bool, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
+            }
+            case element::Type_t::u16: {
+                return convertPrecision<bool, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
+            }
+            case element::Type_t::i8: {
+                return convertPrecision<bool, int8_t>(output, elementsCount, element::Type(toPrecision).size());
+            }
+            case element::Type_t::i16: {
+                return convertPrecision<bool, int16_t>(output, elementsCount, element::Type(toPrecision).size());
+            }
+            case element::Type_t::i32: {
+                return convertPrecision<bool, int32_t>(output, elementsCount, element::Type(toPrecision).size());
+            }
+            case element::Type_t::i64: {
+                return convertPrecision<bool, int64_t>(output, elementsCount, element::Type(toPrecision).size());
+            }
+            case element::Type_t::f32: {
+                return convertPrecision<bool, float>(output, elementsCount, element::Type(toPrecision).size());
+            }
+            case element::Type_t::u64: {
+                return convertPrecision<bool, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
+            }
+            default:
+                throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
+                                         element::Type(toPrecision).get_type_name());
+            }
+        }
         default:
             throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " precision");
     }

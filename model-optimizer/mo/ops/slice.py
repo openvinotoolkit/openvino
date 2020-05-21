@@ -40,6 +40,7 @@ class Slice(Op):
 
     @staticmethod
     def infer(node: Node):
+        input_shape = node.in_port(0).data.get_shape()
         axis = None
         steps = None
         if len(node.in_nodes()) == 1:
@@ -90,6 +91,11 @@ class Slice(Op):
                     end = start + size
                     axis = None
 
+                    # Check for situation when size[i] == -1 in TF
+                    for i in range(start.size):
+                        if end[i] < start[i]:
+                            end[i] = input_shape[i]
+
                     # Delete edges to start, size nodes
                     node.graph.remove_edge(node.in_node(1).id, node.id)
                     node.graph.remove_edge(node.in_node(2).id, node.id)
@@ -104,16 +110,11 @@ class Slice(Op):
             log.warning('Incorrect number of input nodes in slice operation')
             return
 
-        input_shape = node.in_node(0).shape
-        # Check for situation when size[i] == -1 in TF
-        for i in range(start.size):
-            if end[i] < start[i]:
-                end[i] = input_shape[i]
         # Update end param
         node.end = end
         value = node.in_node(0).value
 
-        # If value is None create dummy vaue for shape propogation
+        # If value is None create dummy value for shape propagation
         if value is None:
             value = np.zeros(input_shape)
 
@@ -131,7 +132,6 @@ class Slice(Op):
             # Ranged for output value for specified axis
             slice_idx[axis[id]] = slice(start[id], end[id], steps[id])
 
-        # TODO: check whether this check is really important
         for axis, s in enumerate(slice_idx):
             if s is None:
                 slice_idx[axis] = slice(0, input_shape[axis], 1)

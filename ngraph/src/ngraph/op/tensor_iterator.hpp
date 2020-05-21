@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include "ngraph/factory_adapter.hpp"
 #include "ngraph/lambda.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/fused_op.hpp"
@@ -34,6 +35,7 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"TensorIterator", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
+                bool visit_attributes(AttributeVisitor& visitor) override;
                 // Forward declarations
                 class SliceInputDescription;
                 class MergedInputDescription;
@@ -45,8 +47,9 @@ namespace ngraph
                 class NGRAPH_API BodyLambda : public Lambda
                 {
                 public:
-                    static constexpr DiscreteTypeInfo type_info{"BodyLamdba", 0};
-                    const DiscreteTypeInfo& get_type_info() const { return type_info; }
+                    using type_info_t = DiscreteTypeInfo;
+                    static constexpr type_info_t type_info{"BodyLamdba", 0};
+                    const type_info_t& get_type_info() const { return type_info; }
                     BodyLambda(const OutputVector& outputs, const ParameterVector& parameters)
                         : Lambda(outputs, parameters)
                     {
@@ -55,6 +58,8 @@ namespace ngraph
                         : Lambda(results, parameters)
                     {
                     }
+                    BodyLambda() = default;
+                    virtual bool visit_attributes(AttributeVisitor& visitor);
                 };
 
                 /// \brief Describes a connection between a TensorIterator input and the body.
@@ -64,15 +69,18 @@ namespace ngraph
                     /// \param input_index Position of the TensorIterator input
                     /// \param body_parameter Body parameter to receive input
                     InputDescription(uint64_t input_index, uint64_t body_parameter_index);
+                    InputDescription() = default;
 
                 public:
+                    using type_info_t = DiscreteTypeInfo;
                     virtual ~InputDescription() {}
                     virtual std::shared_ptr<InputDescription> copy() const = 0;
 
-                    virtual const DiscreteTypeInfo& get_type_info() const = 0;
+                    virtual const type_info_t& get_type_info() const = 0;
+                    virtual bool visit_attributes(AttributeVisitor& visitor);
 
-                    uint64_t m_input_index;
-                    uint64_t m_body_parameter_index;
+                    uint64_t m_input_index{0};
+                    uint64_t m_body_parameter_index{0};
                 };
 
                 /// \brief Describes a body input formed from slices of an input to
@@ -80,8 +88,8 @@ namespace ngraph
                 class NGRAPH_API SliceInputDescription : public InputDescription
                 {
                 public:
-                    static constexpr DiscreteTypeInfo type_info{"SliceInputDescription", 0};
-                    const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+                    static constexpr type_info_t type_info{"SliceInputDescription", 0};
+                    const type_info_t& get_type_info() const override { return type_info; }
                     /// \param input_index Position of the TensorIterator input
                     /// \param body_parameter_index Body parameter position to receive input
                     /// \param start First index for slices
@@ -96,13 +104,14 @@ namespace ngraph
                                           int64_t part_size,
                                           int64_t end,
                                           int64_t axis);
+                    SliceInputDescription() = default;
                     std::shared_ptr<InputDescription> copy() const override;
-
-                    int64_t m_start;
-                    int64_t m_stride;
-                    int64_t m_part_size;
-                    int64_t m_end;
-                    int64_t m_axis;
+                    bool visit_attributes(AttributeVisitor& visitor) override;
+                    int64_t m_start{0};
+                    int64_t m_stride{0};
+                    int64_t m_part_size{0};
+                    int64_t m_end{0};
+                    int64_t m_axis{0};
                 };
 
                 /// \brief Describes a body input initialized from a TensorIterator input on the
@@ -111,8 +120,8 @@ namespace ngraph
                 class NGRAPH_API MergedInputDescription : public InputDescription
                 {
                 public:
-                    static constexpr DiscreteTypeInfo type_info{"MergedInputDescription", 0};
-                    const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+                    static constexpr type_info_t type_info{"MergedInputDescription", 0};
+                    const type_info_t& get_type_info() const override { return type_info; }
                     /// \param input_index Position of the TensorIterator input supplying a
                     /// value to
                     /// body_parameter
@@ -124,18 +133,21 @@ namespace ngraph
                     MergedInputDescription(uint64_t input_index,
                                            uint64_t body_parameter_index,
                                            uint64_t body_value_index);
+                    MergedInputDescription() = default;
                     std::shared_ptr<InputDescription> copy() const override;
-
-                    uint64_t m_body_value_index;
+                    bool visit_attributes(AttributeVisitor& visitor) override;
+                    uint64_t m_body_value_index{0};
                 };
 
                 class NGRAPH_API InvariantInputDescription : public InputDescription
                 {
                 public:
-                    static constexpr DiscreteTypeInfo type_info{"InvariantInputDescription", 0};
-                    const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+                    static constexpr type_info_t type_info{"InvariantInputDescription", 0};
+                    const type_info_t& get_type_info() const override { return type_info; }
                     InvariantInputDescription(uint64_t input_index, uint64_t body_parameter_index);
+                    InvariantInputDescription() = default;
                     std::shared_ptr<InputDescription> copy() const override;
+                    bool visit_attributes(AttributeVisitor& visitor) override;
                 };
 
                 // Forward declarations
@@ -149,22 +161,25 @@ namespace ngraph
                     /// \param body_value_index A body value that produces the output
                     /// \param output_index The TensorIterator output index
                     OutputDescription(uint64_t body_value_index, uint64_t output_index);
+                    OutputDescription() = default;
 
                 public:
+                    using type_info_t = DiscreteTypeInfo;
                     virtual ~OutputDescription() {}
                     virtual std::shared_ptr<OutputDescription> copy() const = 0;
-                    virtual const DiscreteTypeInfo& get_type_info() const = 0;
+                    virtual bool visit_attributes(AttributeVisitor& visitor);
+                    virtual const type_info_t& get_type_info() const = 0;
 
-                    uint64_t m_body_value_index;
-                    uint64_t m_output_index;
+                    uint64_t m_body_value_index{0};
+                    uint64_t m_output_index{0};
                 };
 
                 /// \brief Produces an output by concatenating an output from each iteration
                 class NGRAPH_API ConcatOutputDescription : public OutputDescription
                 {
                 public:
-                    static constexpr DiscreteTypeInfo type_info{"ConcatOutputDescription", 0};
-                    const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+                    static constexpr type_info_t type_info{"ConcatOutputDescription", 0};
+                    const type_info_t& get_type_info() const override { return type_info; }
                     /// \param body_value_index A body value that produces the output
                     /// \param output_index The TensorIterator output index
                     /// \param start First index for slices
@@ -179,22 +194,23 @@ namespace ngraph
                                             int64_t part_size,
                                             int64_t end,
                                             int64_t axis);
+                    ConcatOutputDescription() = default;
 
                     virtual std::shared_ptr<OutputDescription> copy() const override;
-
-                    int64_t m_start;
-                    int64_t m_stride;
-                    int64_t m_part_size;
-                    int64_t m_end;
-                    int64_t m_axis;
+                    bool visit_attributes(AttributeVisitor& visitor) override;
+                    int64_t m_start{0};
+                    int64_t m_stride{0};
+                    int64_t m_part_size{0};
+                    int64_t m_end{0};
+                    int64_t m_axis{0};
                 };
 
                 /// \brief Produces an output from a specific iteration
                 class NGRAPH_API BodyOutputDescription : public OutputDescription
                 {
                 public:
-                    static constexpr DiscreteTypeInfo type_info{"BodyOutputDescription", 0};
-                    const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+                    static constexpr type_info_t type_info{"BodyOutputDescription", 0};
+                    const type_info_t& get_type_info() const override { return type_info; }
                     /// \param body_value_index A body value that produces the output
                     /// \param output_index The TensorIterator output index
                     /// \param iteration which iteration (typically -1, final) will supply the
@@ -202,9 +218,10 @@ namespace ngraph
                     BodyOutputDescription(uint64_t body_value_index,
                                           uint64_t output_index,
                                           int64_t iteration);
+                    BodyOutputDescription() = default;
                     std::shared_ptr<OutputDescription> copy() const override;
-
-                    int64_t m_iteration;
+                    bool visit_attributes(AttributeVisitor& visitor) override;
+                    int64_t m_iteration{0};
                 };
 
                 /// \brief Indicate that a body parameter comes from slices of a value
@@ -316,4 +333,69 @@ namespace ngraph
         }
         using v0::TensorIterator;
     }
+    template class NGRAPH_API FactoryRegistry<op::v0::TensorIterator::InputDescription>;
+
+    template <>
+    class NGRAPH_API AttributeAdapter<std::shared_ptr<op::TensorIterator::InputDescription>>
+        : public FactoryAttributeAdapter<op::TensorIterator::InputDescription>
+    {
+    public:
+        using FactoryAttributeAdapter::FactoryAttributeAdapter;
+        static constexpr DiscreteTypeInfo type_info{
+            "AttributeAdapter<std::shared_ptr<op::TensorIterator::InputDescription>>"
+            ">>",
+            0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
+
+    template <>
+    class NGRAPH_API
+        AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>>
+        : public VisitorAdapter
+    {
+    public:
+        AttributeAdapter(std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>& ref);
+
+        bool visit_attributes(AttributeVisitor& visitor) override;
+        static constexpr DiscreteTypeInfo type_info{
+            "AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>"
+            ">>",
+            0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>& m_ref;
+    };
+
+    template class NGRAPH_API FactoryRegistry<op::v0::TensorIterator::OutputDescription>;
+
+    template <>
+    class NGRAPH_API AttributeAdapter<std::shared_ptr<op::TensorIterator::OutputDescription>>
+        : public FactoryAttributeAdapter<op::TensorIterator::OutputDescription>
+    {
+    public:
+        using FactoryAttributeAdapter::FactoryAttributeAdapter;
+        static constexpr DiscreteTypeInfo type_info{
+            "AttributeAdapter<std::shared_ptr<op::TensorIterator::OutputDescription>>"
+            ">>",
+            0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
+
+    template <>
+    class NGRAPH_API
+        AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>>
+        : public VisitorAdapter
+    {
+    public:
+        AttributeAdapter(std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>& ref);
+
+        bool visit_attributes(AttributeVisitor& visitor) override;
+        static constexpr DiscreteTypeInfo type_info{
+            "AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>"
+            ">>",
+            0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>& m_ref;
+    };
 }
