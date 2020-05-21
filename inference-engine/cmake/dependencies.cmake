@@ -140,7 +140,7 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                     ENVIRONMENT "TBBROOT")
         elseif(LINUX AND AARCH64)
             RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "tbb2020_38404_kmb.tgz"
+                    ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
                     TARGET_PATH "${TEMP}/tbb_yocto"
                     ENVIRONMENT "TBBROOT")
         elseif(APPLE AND X86_64)
@@ -192,7 +192,7 @@ if (ENABLE_OPENCV)
             set(OPENCV_BUILD "${OPENCV_BUILD_YOCTO}")
 
             RESOLVE_DEPENDENCY(OPENCV
-                    ARCHIVE_LIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
+                    ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
@@ -202,13 +202,13 @@ if (ENABLE_OPENCV)
     else()
         if (WIN32 AND X86_64)
             RESOLVE_DEPENDENCY(OPENCV
-                    ARCHIVE_WIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}.txz"
+                    ARCHIVE_WIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}.txz"
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
         elseif(APPLE AND X86_64)
             RESOLVE_DEPENDENCY(OPENCV
-                    ARCHIVE_MAC "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
+                    ARCHIVE_MAC "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_osx.txz"
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_osx/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
@@ -228,7 +228,7 @@ if (ENABLE_OPENCV)
                 message(FATAL_ERROR "OpenCV is not available on current platform")
             endif()
             RESOLVE_DEPENDENCY(OPENCV
-                    ARCHIVE_LIN "opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
+                    ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
                     TARGET_PATH "${TEMP}/opencv_${OPENCV_VERSION}_${OPENCV_SUFFIX}/opencv"
                     ENVIRONMENT "OpenCV_DIR"
                     VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+).*")
@@ -267,17 +267,17 @@ if (ENABLE_GNA)
             libGNA_LIBRARIES_BASE_PATH)
     if (GNA_LIBRARY_VERSION STREQUAL "GNA1")
         RESOLVE_DEPENDENCY(GNA
-                ARCHIVE_UNIFIED "gna_20181120.zip"
+                ARCHIVE_UNIFIED "GNA/gna_20181120.zip"
                 TARGET_PATH "${TEMP}/gna")
     else()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA1_1401")
             set(GNA_VERSION "01.00.00.1401")
         endif()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "02.00.00.0654")
+            set(GNA_VERSION "02.00.00.0925")
         endif()
         RESOLVE_DEPENDENCY(GNA
-                ARCHIVE_UNIFIED "GNA_${GNA_VERSION}.zip"
+                ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*")
     endif()
