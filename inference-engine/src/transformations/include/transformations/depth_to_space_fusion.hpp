@@ -14,19 +14,19 @@
 namespace ngraph {
 namespace pass {
 
-    class INFERENCE_ENGINE_API_CLASS(FusedDepthToSpace);
+    class INFERENCE_ENGINE_API_CLASS(DepthToSpaceFusion);
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::FusedDepthToSpace: public ngraph::pass::GraphRewrite {
+class ngraph::pass::DepthToSpaceFusion: public ngraph::pass::GraphRewrite {
 public:
-    FusedDepthToSpace() : GraphRewrite() {
-        fused_depth_to_space();
+    DepthToSpaceFusion() : GraphRewrite() {
+        depth_to_space_fusion();
     }
 
 private:
-    void fused_depth_to_space();
+    void depth_to_space_fusion();
     static bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
                            const AxisVector& permutation, const ngraph::Shape& shape_reshape_after, size_t& possible_block_size);
     static bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,

@@ -10,11 +10,11 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 
-bool ngraph::pass::FusedDepthToSpace::check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
-        const AxisVector& permutation, const ngraph::Shape& shape_reshape_after, size_t& possible_block_size) {
+bool ngraph::pass::DepthToSpaceFusion::check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
+                                                         const AxisVector& permutation, const ngraph::Shape& shape_reshape_after, size_t& possible_block_size) {
     bool is_transformation_valid = true;
     uint64_t spatial_dims = shape_input.size() - 2;
-    possible_block_size = shape_reshape_before[2];
+    possible_block_size = shape_reshape_before[1];
     if (possible_block_size == 0)
         return false;
     uint64_t c_dim = shape_input[1] / std::pow(possible_block_size, spatial_dims);
@@ -45,11 +45,11 @@ bool ngraph::pass::FusedDepthToSpace::check_block_first(const ngraph::Shape& sha
     return is_transformation_valid;
 }
 
-bool ngraph::pass::FusedDepthToSpace::check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
-                                                        const AxisVector& permutation, const ngraph::Shape& shape_reshape_after, size_t& possible_block_size) {
+bool ngraph::pass::DepthToSpaceFusion::check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
+                                                         const AxisVector& permutation, const ngraph::Shape& shape_reshape_after, size_t& possible_block_size) {
     bool is_transformation_valid = true;
     uint64_t spatial_dims = shape_input.size() - 2;
-    possible_block_size = shape_reshape_before[1];
+    possible_block_size = shape_reshape_before[2];
     if (possible_block_size == 0)
         return false;
     uint64_t c_dim = shape_input[1] / std::pow(possible_block_size, spatial_dims);
@@ -79,11 +79,11 @@ bool ngraph::pass::FusedDepthToSpace::check_depth_first(const ngraph::Shape& sha
     return is_transformation_valid;
 }
 
-void ngraph::pass::FusedDepthToSpace::fused_depth_to_space() {
+void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto input1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto input2 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto input3 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
+    auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
+    auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
+    auto input3 = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
     auto reshape_before = std::make_shared<ngraph::opset1::Reshape> (input0, input1, false);
     auto permute = std::make_shared<ngraph::opset1::Transpose> (reshape_before, input2);
     auto reshape_after = std::make_shared<ngraph::opset1::Reshape> (permute, input3, false);
@@ -99,7 +99,7 @@ void ngraph::pass::FusedDepthToSpace::fused_depth_to_space() {
             return false;
         }
 
-        auto reshape_before = std::dynamic_pointer_cast<ngraph::opset1::Transpose>(permute->input_value(0).get_node_shared_ptr());
+        auto reshape_before = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(permute->input_value(0).get_node_shared_ptr());
         if (!reshape_before) {
             return false;
         }
@@ -150,10 +150,10 @@ void ngraph::pass::FusedDepthToSpace::fused_depth_to_space() {
                 std::make_shared<ngraph::opset1::DepthToSpace>(reshape_before->input_value(0).get_node_shared_ptr(), mode, block_size);
         depth_to_space->set_friendly_name(reshape_before->get_friendly_name());
         ngraph::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
-        ngraph::replace_node(reshape_before, depth_to_space);
+        ngraph::replace_node(reshape_after, depth_to_space);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, "FusedDepthToSpace");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, "DepthToSpaceFusion");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }
