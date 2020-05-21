@@ -1445,22 +1445,29 @@ void ref_strided_slice(const InferenceEngine::Blob::Ptr& src,
     _begin_mask.insert(_begin_mask.end(), num_dims - _begin_mask.size(), 1);
     _end_mask.insert(_end_mask.end(), num_dims - _end_mask.size(), 1);
 
-    auto clip = [](int value, int min, int max) {
-        return std::min(std::max(min, value), max);
+    const auto numpyIdxVectorToIdxVector = [&num_dims, &src_dims](const std::vector<int32_t>& values) {
+        std::vector<int32_t> convertedDims(num_dims);
+        for (size_t i = 0; i < num_dims; i++) {
+            auto value = values[i];
+            if (value < 0) {
+                value = std::max<int32_t>(src_dims[i] + value + 1, 0);
+            }
+            value = std::min<int32_t>(src_dims[i], value);
+            convertedDims[i] = value;
+        }
+
+        return convertedDims;
     };
 
-    auto begin_dms = begin;
-    auto end_dms = end;
+    auto begin_dms = numpyIdxVectorToIdxVector(begin);
+    auto end_dms = numpyIdxVectorToIdxVector(end);
 
     for (size_t i = 0; i < num_dims; i++) {
         IE_ASSERT(_begin_mask[i] == 1 || _begin_mask[i] == 0);
         IE_ASSERT(_end_mask[i] == 1 || _end_mask[i] == 0);
 
-        begin_dms[i] = _begin_mask[i] ? begin[i] : 0;
-        begin_dms[i] = clip(begin_dms[i], 0, src_dims[i]);
-
-        end_dms[i] = _end_mask[i] ? end[i] : src_dims[i];
-        end_dms[i] = clip(end_dms[i], 0, src_dims[i]);
+        begin_dms[i] = _begin_mask[i] ? begin_dms[i] : 0;
+        end_dms[i] = _end_mask[i] ? end_dms[i] : src_dims[i];
 
         IE_ASSERT(begin_dms[i] >= 0 && begin_dms[i] < end_dms[i]);
         IE_ASSERT(end_dms[i] <= src_dims[i]);

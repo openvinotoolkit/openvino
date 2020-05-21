@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Memcheck report{% endblock %}
+{% block head %}
+    {{ super() }}
+<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="w3-container">
+<h2>Memcheck report</h2>
+    {% for timeline in timelines %}
+    <button onclick="show('{{timeline['_id'][0]|e}}-details')"
+            class="w3-button w3-block w3-border w3-left-align">
+        <h4> {{ timeline['device'][0]|e }} {{ timeline['model'][0]|e }} {{ timeline['test_name'][0]|e }} </h4> 
+        <div class="w3-text-green">
+            PASS
+        </div>
+    
+        <div id="{{timeline['_id'][0]|e}}-details" class="w3-hide w3-container">
+
+            <div class="w3-container">
+                Test timeline:
+            <canvas id="{{timeline['_id'][0]|e}}-chart" height="100"></canvas>
+            <script>
+            var ctx = document.getElementById("{{timeline['_id'][0]|e}}-chart").getContext('2d');
+            var myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [
+{% for point in timeline['commit_date'] %} "{{point}}", {% endfor %}
+                    ],
+                    datasets: [{
+                        label: 'vmrss',
+                        borderColor: 'red',
+                        lineTension: 0,
+                        data: [
+{% for point in timeline['metrics']['vmrss'] %} {{point}}, {% endfor %}
+                        ],
+                    },
+                    {
+                        label: 'vmhwm',
+                        borderColor: 'blue',
+                        lineTension: 0,
+                        data: [
+{% for point in timeline['metrics']['vmhwm'] %} {{point}}, {% endfor %}
+                        ],
+                    }
+                    ]
+                },
+                options: {
+                annotation: {
+                    annotations: [{
+                        type: 'line',
+                        mode: 'horizontal',
+                        scaleID: 'y-axis-0',
+                        value: '{{ timeline['ref_metrics']['vmrss'][-1]|e }}',
+                        borderColor: 'black',
+                        borderWidth: 3,
+                        label: {
+                            backgroundColor: "red",
+                            content: "vmrss waterline",
+                            enabled: true,
+                        },
+                
+                    },
+                    {
+                        type: 'line',
+                        mode: 'horizontal',
+                        scaleID: 'y-axis-0',
+                        value: '{{ timeline['ref_metrics']['vmhwm'][-1]|e }}',
+                        borderColor: 'black',
+                        borderWidth: 3,
+                        label: {
+                            backgroundColor: "blue",
+                            content: "vmhwm waterline",
+                            enabled: true,
+                        },
+                
+                    }],
+                    drawTime: "afterDraw" // (default)
+                },
+                scales: {
+                    xAxes: [{
+                        type: 'time',
+                        distribution: 'series',
+                        time:       {
+                            format: 'YYYY-MM-DD hh:mm:ss',
+                            displayFormats: {
+                                'millisecond': 'MMM DD hh:mm',
+                                'second': 'MMM DD hh:mm',
+                                'minute': 'MMM DD hh:mm',
+                                'hour': 'MMM DD hh:mm',
+                                'day': 'MMM DD hh:mm',
+                                'week': 'MMM DD hh:mm',
+                                'month': 'MMM DD hh:mm',
+                                'quarter': 'MMM DD hh:mm',
+                                'year': 'MMM DD hh:mm',
+                            },
+
+                        },
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Commit Time'
+                        }
+                    }]
+                }
+                }
+            });
+            </script>
+            </div>
+        </div>
+
+    </button>
+    {% endfor %}
+</div>
+<script>
+function show(id) {
+    var x = document.getElementById(id);
+    if (x.className.indexOf("w3-show") == -1) {
+        x.className += " w3-show";
+    } else {
+        x.className = x.className.replace(" w3-show", "");
+    }
+}
+</script>
+{% endblock %}

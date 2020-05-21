@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -123,7 +122,7 @@ private:
     bool with_bins = false;
 };
 
-REG_FACTORY_FOR(ImplFactory<BucketizeImpl>, Bucketize);
+REG_FACTORY_FOR(BucketizeImpl, Bucketize);
 
 }  // namespace Cpu
 }  // namespace Extensions

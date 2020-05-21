@@ -357,10 +357,10 @@ constexpr DiscreteTypeInfo AttributeAdapter<element::Type_t>::type_info;
 
 const std::string& AttributeAdapter<element::Type>::get()
 {
-    return as_string(static_cast<element::Type_t>(ValueReference<element::Type>::m_value));
+    return as_string(static_cast<element::Type_t>(m_ref));
 }
 
 void AttributeAdapter<element::Type>::set(const std::string& value)
 {
-    ValueReference<element::Type>::m_value = as_enum<element::Type_t>(value);
+    m_ref = as_enum<element::Type_t>(value);
 }

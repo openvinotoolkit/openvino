@@ -38,6 +38,16 @@ nodes_attributes = {
         'shape': None,
         'value': None,
     },
+    'starts': {
+        'kind': 'data',
+        'shape': None,
+        'value': None,
+    },
+    'ends': {
+        'kind': 'data',
+        'shape': None,
+        'value': None,
+    },
     'slice': {
         'op': 'Slice',
         'axis': None,
@@ -96,7 +106,7 @@ class TestSliceOp(unittest.TestCase):
         self.assertTrue(np.array_equal(slice_node['slices'], np.array([slice(1, 4, 1), slice(2, 3, 1), slice(0, 6, 1)])))
 
     def test_slice_infer_multiply_params(self):
-        # Test case when size[i] == -1 (that means all
+        # Test case for TF when size[i] == -1 (that means all
         # remaining elements in dimension i are included in the slice)
         graph = build_graph(nodes_attributes,
                             [('data_1', 'slice'),
@@ -115,3 +125,25 @@ class TestSliceOp(unittest.TestCase):
         self.assertTrue(np.array_equal(slice_node.out_node().value, None))
         self.assertTrue(np.array_equal(slice_node.out_node().shape, np.array([3, 3, 6])))
         self.assertTrue(np.array_equal(slice_node['slices'], np.array([slice(1, 4, 1), slice(2, 5, 1), slice(0, 6, 1)])))
+
+    def test_slice_onnx_10_opset_case(self):
+        # check for negative end value in the case of ONNX 10 opset
+        input = np.array([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]])
+        starts = np.array([0, 1])
+        ends = np.array([3, -2])
+        expected_values = np.array([[5], [3], [6]])
+
+        graph = build_graph(nodes_attributes,
+                            [('data_1', 'slice'),
+                             ('starts', 'slice'),
+                             ('ends', 'slice'),
+                             ('slice', 'data_2')],
+                            {'data_1': {'value': input, 'shape': input.shape},
+                             'starts': {'value': starts, 'shape': starts.shape},
+                             'ends': {'value': ends, 'shape': ends.shape},
+                             'slice': {'format': 'onnx'}})
+
+        slice_node = Node(graph, 'slice')
+
+        Slice.infer(slice_node)
+        self.assertTrue(np.array_equal(slice_node.out_node().value, expected_values))

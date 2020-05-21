@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -150,7 +149,7 @@ private:
     InferenceEngine::Precision precision;
 };
 
-REG_FACTORY_FOR(ImplFactory<GatherTreeImpl>, GatherTree);
+REG_FACTORY_FOR(GatherTreeImpl, GatherTree);
 
 }  // namespace Cpu
 }  // namespace Extensions

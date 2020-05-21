@@ -38,6 +38,7 @@ extern "C" void initialize_usb_boot();
 
 class AOTBehaviorTests : public BehaviorPluginTest {
  public:
+    WatchdogHndl_t* m_watchdogHndl = nullptr;
     typedef std::chrono::high_resolution_clock Time;
     typedef std::chrono::milliseconds ms;
 
@@ -48,6 +49,12 @@ class AOTBehaviorTests : public BehaviorPluginTest {
 
     void SetUp() override {
         initialize_usb_boot();
+
+        ASSERT_EQ(WD_ERRNO, watchdog_create(&m_watchdogHndl));
+    }
+
+    void TearDown() override {
+        watchdog_destroy(m_watchdogHndl);
     }
 
     void dumpBlob() {
@@ -136,10 +143,15 @@ class AOTBehaviorTests : public BehaviorPluginTest {
         deviceDesc.protocol = NC_ANY_PROTOCOL;
         deviceDesc.platform = NC_ANY_PLATFORM;
 
-        statusOpen = ncDeviceOpen(&device, deviceDesc, 1000, pathToFw);
+        ncDeviceOpenParams_t deviceOpenParams = {};
+        deviceOpenParams.watchdogHndl = m_watchdogHndl;
+        deviceOpenParams.watchdogInterval = 1000;
+        deviceOpenParams.customFirmwareDirectory = pathToFw;
+
+        statusOpen = ncDeviceOpen(&device, deviceDesc, deviceOpenParams);
 
         if (statusOpen != NC_OK) {
-            ncDeviceClose(&device);
+            ncDeviceClose(&device, m_watchdogHndl);
             return false;
         }
 
@@ -174,7 +186,7 @@ TEST_P(AOTBehaviorTests, canLoadGraphWithoutPlugin) {
                                sizeof(ElfN_Ehdr) + sizeof(mv_blob_header));
 
     ncGraphDestroy(&graphHandle);
-    ncDeviceClose(&device);
+    ncDeviceClose(&device, m_watchdogHndl);
 
     ASSERT_EQ(NC_OK, res);
 }
@@ -195,7 +207,7 @@ TEST_P(AOTBehaviorTests, deviceSideErrorImportingIfVersionIncorrect) {
                                sizeof(ElfN_Ehdr) + sizeof(mv_blob_header));
 
     ncGraphDestroy(&graphHandle);
-    ncDeviceClose(&device);
+    ncDeviceClose(&device, m_watchdogHndl);
 
     ASSERT_NE(NC_OK, res);
 }

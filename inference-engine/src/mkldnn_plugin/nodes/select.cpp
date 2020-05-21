@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <string>
@@ -221,7 +220,7 @@ private:
     }
 };
 
-REG_FACTORY_FOR(ImplFactory<SelectImpl>, Select);
+REG_FACTORY_FOR(SelectImpl, Select);
 }  // namespace Cpu
 }  // namespace Extensions
 }  // namespace InferenceEngine

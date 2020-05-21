@@ -43,7 +43,7 @@ size_t getVmSizeInKB() {
                 return pmc.WorkingSetSize;
 	    }
 #else
-size_t getVirtualMemoryInKB(char *name){
+size_t getSystemDataByName(char *name){
     FILE* file = fopen("/proc/self/status", "r");
     size_t result = 0;
     if (file != nullptr) {
@@ -60,10 +60,11 @@ size_t getVirtualMemoryInKB(char *name){
     return result;
 }
 
-size_t getVmSizeInKB() {return getVirtualMemoryInKB((char*) "VmSize:");}
-size_t getVmPeakInKB() {return getVirtualMemoryInKB((char*) "VmPeak:");}
-size_t getVmRSSInKB() {return getVirtualMemoryInKB((char*) "VmRSS:");}
-size_t getVmHWMInKB() {return getVirtualMemoryInKB((char*) "VmHWM:");}
+size_t getVmSizeInKB() {return getSystemDataByName((char*) "VmSize:");}
+size_t getVmPeakInKB() {return getSystemDataByName((char*) "VmPeak:");}
+size_t getVmRSSInKB() {return getSystemDataByName((char*) "VmRSS:");}
+size_t getVmHWMInKB() {return getSystemDataByName((char*) "VmHWM:");}
+size_t getThreadsNum() {return getSystemDataByName((char*) "Threads:");}
 
 #endif
 

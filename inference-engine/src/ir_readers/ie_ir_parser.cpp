@@ -392,7 +392,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         auto blobs = node.child("blobs");
         if (!blobs.empty()) {
             for (pugi::xml_node blob = blobs.first_child(); !blob.empty(); blob = blob.next_sibling()) {
-                size_t size = GetUIntAttr(blob, "size", 0);
+                size_t size = GetUInt64Attr(blob, "size", 0);
                 uint64_t offset = GetUInt64Attr(blob, "offset", 0);
                 Precision precision(Precision::U8);
                 const std::string& preStr = GetStrAttr(blob, "precision", "");
@@ -787,7 +787,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::LSTMCell>::cre
     std::vector<float> activations_beta = getParameters<float>(dn, "activations_beta", {});
     float clip = GetFloatAttr(dn, "clip", 0.f);
     return std::make_shared<ngraph::op::LSTMCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5],
-                                                  GetUIntAttr(dn, "hidden_size"), ngraph::op::LSTMWeightsFormat::IFCO,
+                                                  GetUInt64Attr(dn, "hidden_size"), ngraph::op::LSTMWeightsFormat::IFCO,
                                                   activations, activations_alpha, activations_beta, clip);
 }
 
@@ -1365,8 +1365,8 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Constant>::cre
     if (dn.empty())
         THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
 
-    size_t offset = GetUIntAttr(dn, "offset");
-    size_t size = GetUIntAttr(dn, "size");
+    size_t offset = GetUInt64Attr(dn, "offset");
+    size_t size = GetUInt64Attr(dn, "size");
 
     if (!weights || weights->cbuffer() == nullptr)
         THROW_IE_EXCEPTION << "Cannot read network! The model requires weights data! "

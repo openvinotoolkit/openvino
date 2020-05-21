@@ -17,5 +17,6 @@
 NGRAPH_PASS(ConvertBroadcast3, ::ngraph::pass)
 NGRAPH_PASS(ConvertNMS3, ::ngraph::pass)
 NGRAPH_PASS(ConvertShapeOf3, ::ngraph::pass)
+NGRAPH_PASS(ConvertShuffleChannels3, ::ngraph::pass)
 NGRAPH_PASS(ConvertTopK3, ::ngraph::pass)
 

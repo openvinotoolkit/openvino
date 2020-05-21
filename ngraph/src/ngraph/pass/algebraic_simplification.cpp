@@ -576,7 +576,7 @@ template <typename T>
 static shared_ptr<Node>
     multiply_by(element::Type type, size_t multiplier, shared_ptr<op::Constant> cnst)
 {
-    T sum_cnst = static_cast<T>(cnst->get_vector<T>().at(0) * multiplier);
+    T sum_cnst = static_cast<T>(cnst->get_data_ptr<T>()[0] * multiplier);
     return op::Constant::create<T>(type, Shape{}, {sum_cnst});
 }
 
@@ -584,7 +584,7 @@ template <typename T>
 static shared_ptr<Node> pow_by(element::Type type, size_t multiplier, shared_ptr<op::Constant> cnst)
 {
     T prod = static_cast<T>(1);
-    T val = cnst->get_vector<T>().at(0);
+    T val = cnst->get_data_ptr<T>()[0];
     for (size_t i = 0; i < multiplier; i++)
     {
         prod *= val;

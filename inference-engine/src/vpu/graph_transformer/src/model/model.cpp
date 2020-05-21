@@ -1557,10 +1557,7 @@ void ModelObj::replaceDataToShapeParent(
 void ModelObj::replaceDataToShapeChild(
         const DataToShapeAllocation& edge,
         const Data& newChild) {
-    auto parent = edge->parent();
-    auto oldChild = edge->child();
-
-    oldChild->_parentDataToShapeEdge = nullptr;
+    edge->_child->_parentDataToShapeEdge = nullptr;
     edge->_child = newChild;
 
     VPU_THROW_UNLESS(newChild->_parentDataToShapeEdge == nullptr,
@@ -1632,6 +1629,17 @@ void ModelObj::disconnectDatas(const DataToDataAllocation& edge) {
     if (parent->usage() != DataUsage::Intermediate) {
         getAllocator().setNeedToAllocNonIntermData();
     }
+}
+
+void ModelObj::disconnectDatas(const DataToShapeAllocation& edge) {
+    auto parent = edge->parent();
+    auto child = edge->child();
+
+    child->_parentDataToShapeEdge = nullptr;
+    parent->_childDataToShapeEdges.erase(edge);
+
+    IE_ASSERT(edge->_ptrPosInModel != _shapeEdgePtrList.end());
+    _shapeEdgePtrList.erase(edge->_ptrPosInModel);
 }
 
 void ModelObj::disconnectStage(const Stage& stage) {

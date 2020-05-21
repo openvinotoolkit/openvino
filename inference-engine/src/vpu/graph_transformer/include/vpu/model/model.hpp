@@ -264,6 +264,7 @@ public:
             const Data& newChild);
 
     void disconnectDatas(const DataToDataAllocation& edge);
+    void disconnectDatas(const DataToShapeAllocation& edge);
 
     //
     // Nodes removal

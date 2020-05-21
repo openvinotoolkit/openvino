@@ -10,6 +10,8 @@ extern "C"
 {
 #endif
 
+#include "watchdog/watchdog.h"
+
 #define NC_THERMAL_BUFFER_SIZE 100
 #define NC_DEBUG_BUFFER_SIZE   120
 #define NC_MAX_DEVICES         (32)
@@ -159,6 +161,12 @@ struct ncDeviceDescr_t {
     char name[NC_MAX_NAME_SIZE];
 };
 
+typedef struct ncDeviceOpenParams {
+    WatchdogHndl_t* watchdogHndl;
+    int watchdogInterval;
+    const char* customFirmwareDirectory;
+} ncDeviceOpenParams_t;
+
 typedef enum {
     NC_FIFO_HOST_RO = 0, // fifo can be read through the API but can not be
                          // written ( graphs can read and write data )
@@ -201,7 +209,7 @@ MVNC_EXPORT_API ncStatus_t ncSetDeviceConnectTimeout(int deviceConnectTimeoutSec
  *          If NULL or empty, default path searching behavior will be used.
  */
 MVNC_EXPORT_API ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
-    struct ncDeviceDescr_t in_ncDeviceDesc, int watchdogInterval, const char* customFirmwareDirectory);
+    struct ncDeviceDescr_t in_ncDeviceDesc, ncDeviceOpenParams_t deviceOpenParams);
 
 /**
  * @brief Returns a description of all available devices in the system
@@ -215,7 +223,7 @@ MVNC_EXPORT_API ncStatus_t ncAvailableDevices(struct ncDeviceDescr_t *deviceDesc
 /**
  * @brief Close device and destroy handler
  */
-MVNC_EXPORT_API ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandle);
+MVNC_EXPORT_API ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandle, WatchdogHndl_t* watchdogHndl);
 
 // Graph
 MVNC_EXPORT_API ncStatus_t ncGraphCreate(const char* name, struct ncGraphHandle_t **graphHandle);

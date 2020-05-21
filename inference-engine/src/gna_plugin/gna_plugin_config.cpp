@@ -248,8 +248,6 @@ void Config::AdjustKeyMapValues() {
     key_config_map[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =
             gnaFlags.exclusive_async_requests ? PluginConfigParams::YES: PluginConfigParams::NO;
     key_config_map[GNA_CONFIG_KEY(PRECISION)] = gnaPrecision.name();
-    key_config_map[CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)] =
-            gnaFlags.exclusive_async_requests ? PluginConfigParams::YES: PluginConfigParams::NO;
     key_config_map[GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN)] =
             gnaFlags.uniformPwlDesign ? PluginConfigParams::YES: PluginConfigParams::NO;
     key_config_map[CONFIG_KEY(PERF_COUNT)] =

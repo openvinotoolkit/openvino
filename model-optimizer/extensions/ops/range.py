@@ -23,52 +23,50 @@ from mo.ops.op import Op
 
 
 class Range(Op):
+    """
+    Some notes on the automatic result data type infer. The tf.range does is differently than np.arange. Numpy
+    by default creates array with elements of type int64 and float64, but TF does not widen data types and
+    keep them int32 and float32.
+    Compare:
+
+    >>> tf.range(1, 5, 0.5)
+    <tf.Tensor 'range_1:0' shape = (8,) dtype = float32>
+    >>> tf.range(1, 5, 2)
+    <tf.Tensor 'range_2:0' shape = (2,) dtype = int32>
+
+    >>> np.array([0.5], dtype=np.float32)
+    array([0.5], dtype=float32)
+    >>> np.arange(np.array([1], dtype=np.int32), np.array([5], dtype=np.int32), np.array([2], dtype=np.int32)).dtype
+    dtype('int64')
+    >>> np.arange(np.array([1], dtype=np.int32), np.array([5], dtype=np.int32), np.array([0.5], dtype=np.float32)).dtype
+    dtype('float64')
+    """
     op = 'Range'
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
+
             'version': 'opset1',
+            'infer': self.infer,
+
             'in_ports_count': 3,
             'out_ports_count': 1,
-            'infer': __class__.infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
     @staticmethod
     def infer(node: Node):
-        start = node.in_node(0)
-        limit = node.in_node(1)
-        delta = node.in_node(2)
-        output = node.out_node()
+        name = node.soft_get('name', node.id)
+        connected_input_ports = [in_port.idx for in_port in node.in_ports().values() if not in_port.disconnected()]
+        assert len(connected_input_ports) == 3 and [0, 1, 2] == sorted(connected_input_ports), \
+            'Range operation should have 3 inputs, {} found for {}'.format(len(connected_input_ports), name)
 
-        if not start.has_valid('value') or not limit.has_valid('value') or not delta.has_valid('value'):
-            log.error("Range operation is supported with constant inputs only")
-            return
-        if node.has_valid('pb') and 'type' in node.pb.attr:
-            from mo.front.tf.extractors.utils import tf_dtype_extractor
-            result_data_type = tf_dtype_extractor(node.pb.attr["type"].type)
-        elif node.has_valid('dtype'):
-            result_data_type = node.dtype
-        else:
-            result_data_type = start.value.dtype
-        output.value = np.arange(start.value, limit.value, delta.value, dtype=result_data_type)
-        output.shape = np.array(output.value.shape, dtype=np.int64)
+        start = node.in_port(0).data.get_value()
+        limit = node.in_port(1).data.get_value()
+        delta = node.in_port(2).data.get_value()
 
-        # Some notes on the automatic result data type infer. The tf.range does is differently than np.arange. Numpy
-        # by default creates array with elements of type int64 and float64, but TF does not widen data types and keep them
-        # int32 and float32.
-        # Compare:
-
-        # >>> tf.range(1, 5, 0.5)
-        # <tf.Tensor 'range_1:0' shape = (8,) dtype = float32>
-        # >>> tf.range(1, 5, 2)
-        # <tf.Tensor 'range_2:0' shape = (2,) dtype = int32>
-
-        # >>> np.array([0.5], dtype=np.float32)
-        # array([0.5], dtype=float32)
-        # >>> np.arange(np.array([1], dtype=np.int32), np.array([5], dtype=np.int32), np.array([2], dtype=np.int32)).dtype
-        # dtype('int64')
-        # >>> np.arange(np.array([1], dtype=np.int32), np.array([5], dtype=np.int32), np.array([0.5], dtype=np.float32)).dtype
-        # dtype('float64')
+        assert start is not None and limit is not None and delta is not None, \
+            'Range operation {} with dynamic inputs is not supported'.format(name)
+        node.out_port(0).data.set_value(np.arange(start, limit, delta, dtype=node.soft_get('dtype', start.dtype)))

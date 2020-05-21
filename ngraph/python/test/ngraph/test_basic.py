@@ -240,9 +240,8 @@ def test_constant_get_data_floating_point(data_type):
 @pytest.mark.parametrize("data_type", [np.int64, np.int32, np.int16, np.int8])
 def test_constant_get_data_signed_integer(data_type):
     np.random.seed(133391)
-    input_data = np.random.randint(
-        np.iinfo(data_type).min, np.iinfo(data_type).max, [2, 3, 4]
-    ).astype(data_type)
+    input_data = np.random.randint(np.iinfo(data_type).min, np.iinfo(data_type).max,
+                                   size=[2, 3, 4], dtype=data_type)
     node = ng.constant(input_data, dtype=data_type)
     retrieved_data = node.get_data()
     assert np.allclose(input_data, retrieved_data)

@@ -36,9 +36,10 @@ using namespace vpu;
 
 static std::mutex device_mutex;
 
-MyriadExecutor::MyriadExecutor(bool forceReset, const LogLevel& vpuLogLevel, const Logger::Ptr& log) : _log(log) {
+MyriadExecutor::MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
+    const LogLevel& vpuLogLevel, const Logger::Ptr& log) : _log(log), _mvnc(std::move(mvnc)) {
     VPU_PROFILE(MyriadExecutor);
-    _mvnc = std::make_shared<Mvnc>();
+    VPU_THROW_UNLESS(_mvnc, "mvnc is null");
     int ncResetAll = forceReset;
     auto status = ncGlobalSetOption(NC_RW_RESET_ALL, &ncResetAll, sizeof(ncResetAll));
     if (status != NC_OK) {
@@ -136,12 +137,17 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
         return statusOpen;
     }
 
+    ncDeviceOpenParams_t deviceOpenParams = {};
+    deviceOpenParams.watchdogHndl = _mvnc->watchdogHndl();
+    deviceOpenParams.watchdogInterval = config.watchdogInterval().count();
+    deviceOpenParams.customFirmwareDirectory = dirName.c_str();
+
     // Open new device with specific path to FW folder
     statusOpen = ncDeviceOpen(&device._deviceHandle,
-        in_deviceDesc, config.watchdogInterval().count(), dirName.c_str());
+        in_deviceDesc, deviceOpenParams);
 
     if (statusOpen != NC_OK) {
-        ncDeviceClose(&device._deviceHandle);
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return statusOpen;
     }
 
@@ -154,7 +160,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
                                           reinterpret_cast<void*>(&device._platform), &dataLength);
     if (status != NC_OK || dataLength != sizeof(device._platform)) {
         _log->warning("Failed to get device platform");
-        ncDeviceClose(&device._deviceHandle);
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status != NC_OK ? status : NC_ERROR;     // for dataLength error
     }
 
@@ -163,7 +169,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
                                reinterpret_cast<void*>(&device._protocol), &dataLength);
     if (status != NC_OK || dataLength != sizeof(device._protocol)) {
         _log->warning("Failed to get device protocol");
-        ncDeviceClose(&device._deviceHandle);
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status != NC_OK ? status : NC_ERROR;     // for dataLength error
     }
 
@@ -173,7 +179,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
                                reinterpret_cast<void*>(&device._maxGraphNum), &dataLength);
     if (status != NC_OK || dataLength != sizeof(device._maxGraphNum)) {
         _log->warning("Failed to get maximum supported number of graphs");
-        ncDeviceClose(&device._deviceHandle);
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status != NC_OK ? status : NC_ERROR;     // for dataLength error
     }
 
@@ -184,7 +190,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
                                reinterpret_cast<void*>(&deviceName), &dataLength);
     if (status != NC_OK || dataLength > NC_MAX_NAME_SIZE) {
         _log->warning("Failed to get name of booted device");
-        ncDeviceClose(&device._deviceHandle);
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status != NC_OK ? status : NC_ERROR;     // for dataLength error
     } else {
         device._name = deviceName;
@@ -194,7 +200,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
 
     if (status != NC_OK) {
         _log->warning("Failed to set configuration for Power Manager");
-        ncDeviceClose(&device._deviceHandle);
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status;
     }
 
@@ -283,12 +289,12 @@ VPU_PACKED(bin_header {
     uint32_t frequency;
 };)
 
-void MyriadExecutor::closeDevices(std::vector<DevicePtr> &devicePool) {
+void MyriadExecutor::closeDevices(std::vector<DevicePtr> &devicePool, std::shared_ptr<IMvnc> mvnc) {
     VPU_PROFILE(closeDevices);
     std::lock_guard<std::mutex> lock(device_mutex);
     for (auto &device : devicePool) {
         if (device->_deviceHandle != nullptr) {
-            auto res = ncDeviceClose(&(device->_deviceHandle));
+            auto res = ncDeviceClose(&(device->_deviceHandle), mvnc->watchdogHndl());
             if (res != NC_OK)
                 printf("ncDeviceClose failed (%d)\n", static_cast<int>(res));
             device->_deviceHandle = nullptr;

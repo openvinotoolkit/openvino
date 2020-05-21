@@ -53,18 +53,17 @@ namespace ngraph
     };
 
     template <>
-    class NGRAPH_API AttributeAdapter<Shape> : public ValueReference<Shape>,
-                                               public ValueAccessor<std::vector<int64_t>>
+    class NGRAPH_API AttributeAdapter<Shape>
+        : public IndirectVectorValueAccessor<Shape, std::vector<int64_t>>
+
     {
     public:
         AttributeAdapter(Shape& value)
-            : ValueReference<Shape>(value)
+            : IndirectVectorValueAccessor<Shape, std::vector<int64_t>>(value)
         {
         }
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Shape>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-        const std::vector<int64_t>& get() override;
-        void set(const std::vector<int64_t>& value) override;
     };
 
     /// Number of elements in spanned by a shape

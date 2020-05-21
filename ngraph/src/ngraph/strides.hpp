@@ -51,18 +51,17 @@ namespace ngraph
     };
 
     template <>
-    class NGRAPH_API AttributeAdapter<Strides> : public ValueReference<Strides>,
-                                                 public ValueAccessor<std::vector<int64_t>>
+    class NGRAPH_API AttributeAdapter<Strides>
+        : public IndirectVectorValueAccessor<Strides, std::vector<int64_t>>
+
     {
     public:
         AttributeAdapter(Strides& value)
-            : ValueReference<Strides>(value)
+            : IndirectVectorValueAccessor<Strides, std::vector<int64_t>>(value)
         {
         }
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Strides>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-        const std::vector<int64_t>& get() override;
-        void set(const std::vector<int64_t>& value) override;
     };
 
     NGRAPH_API

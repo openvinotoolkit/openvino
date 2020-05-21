@@ -41,12 +41,12 @@ namespace ngraph
                 ///               that the index should be calculated from the back of the input
                 ///               data
                 ///               shape.
-                /// \param groups - number of groups the channel dimension specified by axis should
+                /// \param group - number of group the channel dimension specified by axis should
                 /// be
                 ///                 split into
                 ShuffleChannels(const Output<Node>& data,
-                                const int axis = 1,
-                                const size_t groups = 1UL);
+                                const int64_t axis = 1,
+                                const int64_t group = 1);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 size_t get_zero_based_axis() const;
@@ -58,8 +58,8 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                int get_axis() const { return m_axis; }
-                size_t get_groups() const { return m_groups; }
+                int64_t get_axis() const { return m_axis; }
+                int64_t get_group() const { return m_group; }
             private:
                 /// \brief Generates a shape required to permute the data
                 ///
@@ -67,8 +67,8 @@ namespace ngraph
                 /// \return A 4D tensor to be used to reshape the input data before shuffling it
                 Shape get_pre_shuffle_shape(const Shape& data_shape) const;
 
-                int m_axis;
-                size_t m_groups;
+                int64_t m_axis;
+                int64_t m_group;
             };
         }
         using v0::ShuffleChannels;

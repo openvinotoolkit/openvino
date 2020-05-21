@@ -33,7 +33,7 @@ shared_ptr<op::Constant> fold_constant_convert_helper1(shared_ptr<op::Constant> 
     TO* data_ptr = buffer.get_ptr<TO>();
 
     runtime::reference::convert<TI, TO>(
-        constant->get_vector<TI>().data(), data_ptr, shape_size(out_shape));
+        constant->get_data_ptr<TI>(), data_ptr, shape_size(out_shape));
 
     return make_shared<op::Constant>(output_element_type, out_shape, data_ptr);
 }

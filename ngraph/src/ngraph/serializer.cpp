@@ -112,22 +112,13 @@ public:
         : m_json(j)
     {
     }
-
-    void on_attribute(const std::string& name, std::string& value) override
-    {
-        m_json[name] = value;
-    }
-    void on_attribute(const std::string& name, bool& value) override { m_json[name] = value; }
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override
     {
-        if (auto a = as_type<AttributeAdapter<element::Type>>(&adapter))
-        {
-            m_json[name] = write_element_type(static_cast<element::Type&>(*a));
-        }
-        else if (auto a = as_type<AttributeAdapter<PartialShape>>(&adapter))
-        {
-            m_json[name] = write_partial_shape(static_cast<PartialShape&>(*a));
-        }
+        NGRAPH_CHECK(false, "Adapter ", adapter.get_type_info().name, " is not handled");
+    }
+    void on_adapter(const std::string& name, ValueAccessor<bool>& adapter) override
+    {
+        m_json[name] = adapter.get();
     }
     void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override
     {
@@ -142,6 +133,10 @@ public:
         m_json[name] = adapter.get();
     }
     void on_adapter(const std::string& name, ValueAccessor<std::vector<int64_t>>& adapter) override
+    {
+        m_json[name] = adapter.get();
+    }
+    void on_adapter(const std::string& name, ValueAccessor<std::vector<uint64_t>>& adapter) override
     {
         m_json[name] = adapter.get();
     }
@@ -198,34 +193,9 @@ public:
         : m_json(j)
     {
     }
-    void on_attribute(const std::string& name, std::string& value) override
-    {
-        if (has_key(m_json, name))
-        {
-            value = m_json.at(name).get<std::string>();
-        }
-    }
-    void on_attribute(const std::string& name, bool& value) override
-    {
-        if (has_key(m_json, name))
-        {
-            value = m_json.at(name).get<bool>();
-        }
-    }
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override
     {
-        if (has_key(m_json, name))
-        {
-            if (auto a = as_type<AttributeAdapter<element::Type>>(&adapter))
-            {
-                static_cast<element::Type&>(*a) =
-                    read_element_type(m_json.at(name).get<std::string>());
-            }
-            else if (auto a = as_type<AttributeAdapter<PartialShape>>(&adapter))
-            {
-                static_cast<PartialShape&>(*a) = read_partial_shape(m_json.at(name));
-            }
-        }
+        NGRAPH_CHECK(false, "Adapter ", adapter.get_type_info().name, " is not handled");
     }
     void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override
     {
@@ -234,6 +204,14 @@ public:
             adapter.set(m_json.at(name).get<std::string>());
         }
     }
+    void on_adapter(const std::string& name, ValueAccessor<bool>& adapter) override
+    {
+        if (has_key(m_json, name))
+        {
+            adapter.set(m_json.at(name).get<bool>());
+        }
+    }
+
     void on_adapter(const std::string& name, ValueAccessor<int64_t>& adapter) override
     {
         if (has_key(m_json, name))
@@ -254,6 +232,13 @@ public:
         if (has_key(m_json, name))
         {
             adapter.set(m_json.at(name).get<std::vector<int64_t>>());
+        }
+    }
+    void on_adapter(const std::string& name, ValueAccessor<std::vector<uint64_t>>& adapter) override
+    {
+        if (has_key(m_json, name))
+        {
+            adapter.set(m_json.at(name).get<std::vector<uint64_t>>());
         }
     }
     void on_adapter(const std::string& name, ValueAccessor<std::vector<float>>& adapter) override
@@ -3604,7 +3589,7 @@ json JSONSerializer::serialize_node(const Node& n)
     {
         const auto tmp = static_cast<const op::ShuffleChannels*>(&n);
         node["axis"] = tmp->get_axis();
-        node["groups"] = tmp->get_groups();
+        node["groups"] = tmp->get_group();
         break;
     }
     case OP_TYPEID::Sigmoid: { break;

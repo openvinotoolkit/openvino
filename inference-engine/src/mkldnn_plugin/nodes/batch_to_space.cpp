@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -219,7 +218,7 @@ private:
     std::vector<size_t> _crops_end;
 };
 
-REG_FACTORY_FOR(ImplFactory<BatchToSpaceImpl>, BatchToSpace);
+REG_FACTORY_FOR(BatchToSpaceImpl, BatchToSpace);
 
 }  // namespace Cpu
 }  // namespace Extensions

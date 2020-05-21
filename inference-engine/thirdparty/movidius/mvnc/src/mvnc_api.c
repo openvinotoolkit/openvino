@@ -36,6 +36,7 @@
 #include "XLinkMacros.h"
 #include "XLinkStringUtils.h"
 #include "watchdog.h"
+#include "xlink_device.h"
 
 #define THERMAL_BUFFER_SIZE 100
 #define THERMAL_THROTTLING_BUFFER_SIZE (THERMAL_BUFFER_SIZE + sizeof(int))
@@ -660,7 +661,7 @@ ncStatus_t ncSetDeviceConnectTimeout(int deviceConnectTimeoutSec) {
 }
 
 ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
-    struct ncDeviceDescr_t in_ncDeviceDesc, int watchdogInterval, const char* customFirmwareDirectory) {
+    struct ncDeviceDescr_t in_ncDeviceDesc, ncDeviceOpenParams_t deviceOpenParams) {
 
     //----------------------------------------------------------
     //      Check input
@@ -669,7 +670,11 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     deviceDesc_t in_deviceDesc = {0};
     copyNcDeviceDescrToXLink(&in_ncDeviceDesc, &in_deviceDesc);
 
+    int watchdogInterval = deviceOpenParams.watchdogInterval;
+    const char* customFirmwareDirectory = deviceOpenParams.customFirmwareDirectory;
+
     CHECK_HANDLE_CORRECT_RC(deviceHandlePtr, NC_INVALID_PARAMETERS);
+    CHECK_HANDLE_CORRECT_RC(deviceOpenParams.watchdogHndl, NC_INVALID_PARAMETERS);
     if (watchdogInterval < 0) {
         mvLog(MVLOG_ERROR, "Invalid watchdogInterval");
         return NC_INVALID_PARAMETERS;
@@ -1094,8 +1099,12 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     d->device_mon_stream_id = deviceMonitorStreamId;
 
 #if !(defined(NO_BOOT))
-    watchdog_init_context(&d->watchdog_ctx);
-    watchdog_register_device(&d->watchdog_ctx, d);
+    wd_error_t wd_rc = xlink_device_create(&d->watchdog_device, d);
+    if (wd_rc) {
+        mvLog(MVLOG_WARN, "watchdog is not started for device %p", d->xlink);
+    } else {
+        watchdog_register_device(deviceOpenParams.watchdogHndl, d->watchdog_device);
+    }
 #endif
 
     getDevAttributes(d);
@@ -1110,7 +1119,10 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     CHECK_STREAM_ID(graphMonitorStreamId, {
         printfOverXLinkClose(d);
         // TODO NO_BOOT case
-        watchdog_unregister_device(&d->watchdog_ctx);
+        if (d->watchdog_device != NULL) {
+            watchdog_unregister_device(deviceOpenParams.watchdogHndl, d->watchdog_device);
+            xlink_device_destroy(d->watchdog_device);
+        }
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_data_m));
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_stream_m));
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->graph_stream_m));
@@ -1124,7 +1136,10 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
 #else
     CHECK_STREAM_ID(graphMonitorStreamId, {
         // TODO NO_BOOT case
-        watchdog_unregister_device(&d->watchdog_ctx);
+        if (d->watchdog_device != NULL) {
+            watchdog_unregister_device(deviceOpenParams.watchdogHndl, d->watchdog_device);
+            xlink_device_destroy(d->watchdog_device);
+        }
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_data_m));
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->dev_stream_m));
         CHECK_MUTEX_SUCCESS(pthread_mutex_destroy(&d->graph_stream_m));
@@ -1654,7 +1669,7 @@ static ncStatus_t destroyDeviceHandle(struct ncDeviceHandle_t **deviceHandlePtr)
 }
 
 
-ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr) {
+ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr, WatchdogHndl_t* watchdogHndl) {
     int found = 0;
     XLinkError_t rc = X_LINK_SUCCESS;
 
@@ -1732,7 +1747,10 @@ ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr) {
 #endif
 
 #if !defined(NO_BOOT)
-    watchdog_unregister_device(&d->watchdog_ctx);
+    if (d->watchdog_device != NULL) {
+        watchdog_unregister_device(watchdogHndl, d->watchdog_device);
+        xlink_device_destroy(d->watchdog_device);
+    }
 #endif
 
     // Save all devices before reset

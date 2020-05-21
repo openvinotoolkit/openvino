@@ -293,16 +293,22 @@ namespace ngraph
     std::ostream& operator<<(std::ostream& str, const PartialShape& shape);
 
     template <>
-    class NGRAPH_API AttributeAdapter<PartialShape> : public ValueReference<PartialShape>,
-                                                      public ValueAccessor<void>
+    class NGRAPH_API AttributeAdapter<PartialShape> : public ValueAccessor<std::vector<int64_t>>
     {
     public:
         AttributeAdapter(PartialShape& value)
-            : ValueReference<PartialShape>(value)
+            : m_ref(value)
         {
         }
 
+        const std::vector<int64_t>& get() override;
+        void set(const std::vector<int64_t>& value) override;
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<PartialShape>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+        operator PartialShape&() { return m_ref; }
+    protected:
+        PartialShape& m_ref;
+        std::vector<int64_t> m_buffer;
+        bool m_buffer_valid{false};
     };
 }

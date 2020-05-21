@@ -21,8 +21,25 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
 
+#include "util/visitor.hpp"
+
 using namespace std;
 using namespace ngraph;
+using ngraph::test::NodeBuilder;
+using ngraph::test::ValueMap;
+
+TEST(attributes, value_map)
+{
+    ValueMap value_map;
+    bool a = true;
+    int8_t b = 2;
+    value_map.insert("a", a);
+    value_map.insert("b", b);
+    bool g_a = value_map.get<bool>("a");
+    int8_t g_b = value_map.get<int8_t>("b");
+    EXPECT_EQ(a, g_a);
+    EXPECT_EQ(b, g_b);
+}
 
 enum class TuringModel
 {
@@ -54,7 +71,45 @@ namespace ngraph
     };
 
     constexpr DiscreteTypeInfo AttributeAdapter<TuringModel>::type_info;
-} // namespace ngraph
+
+    struct Position
+    {
+        float x;
+        float y;
+        float z;
+        bool operator==(const Position& p) const { return x == p.x && y == p.y && z == p.z; }
+        Position& operator=(const Position& p)
+        {
+            x = p.x;
+            y = p.y;
+            z = p.z;
+            return *this;
+        }
+    };
+
+    template <>
+    class AttributeAdapter<Position> : public VisitorAdapter
+    {
+    public:
+        AttributeAdapter(Position& value)
+            : m_ref(value)
+        {
+        }
+        bool visit_attributes(AttributeVisitor& visitor) override
+        {
+            visitor.on_attribute("x", m_ref.x);
+            visitor.on_attribute("y", m_ref.y);
+            visitor.on_attribute("z", m_ref.z);
+            return true;
+        }
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<Position>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        Position& m_ref;
+    };
+
+    constexpr DiscreteTypeInfo AttributeAdapter<Position>::type_info;
+}
 
 // Given a Turing machine program and data, return scalar 1 if the program would
 // complete, 1 if it would not.
@@ -78,6 +133,7 @@ public:
            int16_t val_int16_t,
            int32_t val_int32_t,
            int64_t val_int64_t,
+           size_t val_size_t,
            const std::vector<std::string>& vec_string,
            const std::vector<float>& vec_float,
            const std::vector<double>& vec_double,
@@ -88,7 +144,13 @@ public:
            const std::vector<int8_t>& vec_int8_t,
            const std::vector<int16_t>& vec_int16_t,
            const std::vector<int32_t>& vec_int32_t,
-           const std::vector<int64_t>& vec_int64_t)
+           const std::vector<int64_t>& vec_int64_t,
+           const std::vector<size_t>& vec_size_t,
+           const Position& position,
+           const shared_ptr<Node>& node,
+           const NodeVector& node_vector,
+           const ParameterVector& parameter_vector,
+           const ResultVector& result_vector)
         : Op({program, data})
         , m_turing_model(turing_model)
         , m_element_type(element_type)
@@ -105,6 +167,7 @@ public:
         , m_val_int16_t(val_int16_t)
         , m_val_int32_t(val_int32_t)
         , m_val_int64_t(val_int64_t)
+        , m_val_size_t(val_size_t)
         , m_vec_string(vec_string)
         , m_vec_float(vec_float)
         , m_vec_double(vec_double)
@@ -116,6 +179,12 @@ public:
         , m_vec_int16_t(vec_int16_t)
         , m_vec_int32_t(vec_int32_t)
         , m_vec_int64_t(vec_int64_t)
+        , m_vec_size_t(vec_size_t)
+        , m_position(position)
+        , m_node(node)
+        , m_node_vector(node_vector)
+        , m_parameter_vector(parameter_vector)
+        , m_result_vector(result_vector)
     {
     }
 
@@ -138,6 +207,7 @@ public:
     int64_t get_val_int16_t() const { return m_val_int16_t; }
     int64_t get_val_int32_t() const { return m_val_int32_t; }
     int64_t get_val_int64_t() const { return m_val_int64_t; }
+    size_t get_val_size_t() const { return m_val_size_t; }
     const vector<uint8_t>& get_vec_uint8_t() const { return m_vec_uint8_t; }
     const vector<uint16_t>& get_vec_uint16_t() const { return m_vec_uint16_t; }
     const vector<uint32_t>& get_vec_uint32_t() const { return m_vec_uint32_t; }
@@ -149,6 +219,12 @@ public:
     const vector<string>& get_vec_string() const { return m_vec_string; }
     const vector<float>& get_vec_float() const { return m_vec_float; }
     const vector<double>& get_vec_double() const { return m_vec_double; }
+    const vector<size_t>& get_vec_size_t() const { return m_vec_size_t; }
+    const Position& get_position() const { return m_position; }
+    const shared_ptr<Node>& get_node() const { return m_node; }
+    const NodeVector& get_node_vector() const { return m_node_vector; }
+    const ParameterVector& get_parameter_vector() const { return m_parameter_vector; }
+    const ResultVector& get_result_vector() const { return m_result_vector; }
     shared_ptr<Node> clone_with_new_inputs(const OutputVector& args) const override
     {
         return make_shared<Oracle>(args[0],
@@ -168,6 +244,7 @@ public:
                                    m_val_int16_t,
                                    m_val_int32_t,
                                    m_val_int64_t,
+                                   m_val_size_t,
                                    m_vec_string,
                                    m_vec_float,
                                    m_vec_double,
@@ -178,7 +255,13 @@ public:
                                    m_vec_int8_t,
                                    m_vec_int16_t,
                                    m_vec_int32_t,
-                                   m_vec_int64_t);
+                                   m_vec_int64_t,
+                                   m_vec_size_t,
+                                   m_position,
+                                   m_node,
+                                   m_node_vector,
+                                   m_parameter_vector,
+                                   m_result_vector);
     }
 
     void validate_and_infer_types() override { set_output_type(0, element::i64, {}); }
@@ -199,6 +282,7 @@ public:
         visitor.on_attribute("val_int16_t", m_val_int16_t);
         visitor.on_attribute("val_int32_t", m_val_int32_t);
         visitor.on_attribute("val_int64_t", m_val_int64_t);
+        visitor.on_attribute("val_size_t", m_val_size_t);
         visitor.on_attribute("vec_string", m_vec_string);
         visitor.on_attribute("vec_float", m_vec_float);
         visitor.on_attribute("vec_double", m_vec_double);
@@ -210,6 +294,12 @@ public:
         visitor.on_attribute("vec_int16_t", m_vec_int16_t);
         visitor.on_attribute("vec_int32_t", m_vec_int32_t);
         visitor.on_attribute("vec_int64_t", m_vec_int64_t);
+        visitor.on_attribute("vec_size_t", m_vec_size_t);
+        visitor.on_attribute("position", m_position);
+        visitor.on_attribute("node", m_node);
+        visitor.on_attribute("node_vector", m_node_vector);
+        visitor.on_attribute("parameter_vector", m_parameter_vector);
+        visitor.on_attribute("result_vector", m_result_vector);
         return true;
     }
 
@@ -229,6 +319,7 @@ protected:
     int16_t m_val_int16_t;
     int32_t m_val_int32_t;
     int64_t m_val_int64_t;
+    size_t m_val_size_t{23};
     vector<string> m_vec_string;
     vector<float> m_vec_float;
     vector<double> m_vec_double;
@@ -240,290 +331,22 @@ protected:
     vector<int16_t> m_vec_int16_t;
     vector<int32_t> m_vec_int32_t;
     vector<int64_t> m_vec_int64_t;
+    vector<size_t> m_vec_size_t;
+    Position m_position;
+    shared_ptr<Node> m_node;
+    NodeVector m_node_vector;
+    ParameterVector m_parameter_vector;
+    ResultVector m_result_vector;
 };
 
 constexpr NodeTypeInfo Oracle::type_info;
-
-class NodeSaver : public AttributeVisitor
-{
-public:
-    NodeSaver(shared_ptr<Node> node)
-        : m_node_type_info(node->get_type_info())
-    {
-        node->visit_attributes(*this);
-    }
-    const NodeTypeInfo& get_node_type_info() { return m_node_type_info; }
-    string& get_string(const string& name) { return m_strings.at(name); }
-    bool get_bool(const string& name) { return m_bools.at(name); }
-    float get_float(const string& name) { return m_doubles.at(name); }
-    double get_double(const string& name) { return m_doubles.at(name); }
-    int64_t get_signed(const string& name) { return m_signeds.at(name); }
-    uint64_t get_unsigned(const string& name) { return m_unsigneds.at(name); }
-    vector<float>& get_float_vector(const string& name) { return m_float_vectors.at(name); }
-    vector<double>& get_double_vector(const string& name) { return m_double_vectors.at(name); }
-    vector<int8_t>& get_int8_t_vector(const string& name) { return m_int8_t_vectors.at(name); }
-    vector<int16_t>& get_int16_t_vector(const string& name) { return m_int16_t_vectors.at(name); }
-    vector<int32_t>& get_int32_t_vector(const string& name) { return m_int32_t_vectors.at(name); }
-    vector<int64_t>& get_int64_t_vector(const string& name) { return m_int64_t_vectors.at(name); }
-    vector<uint8_t>& get_uint8_t_vector(const string& name) { return m_uint8_t_vectors.at(name); }
-    vector<uint16_t>& get_uint16_t_vector(const string& name)
-    {
-        return m_uint16_t_vectors.at(name);
-    }
-    vector<uint32_t>& get_uint32_t_vector(const string& name)
-    {
-        return m_uint32_t_vectors.at(name);
-    }
-    vector<uint64_t>& get_uint64_t_vector(const string& name)
-    {
-        return m_uint64_t_vectors.at(name);
-    }
-
-    vector<string>& get_string_vector(const string& name) { return m_string_vectors.at(name); }
-    HostTensorPtr get_host_tensor(const string& name) { return m_host_tensors.at(name); }
-    void set_string(const string& name, const string& value) { m_strings[name] = value; }
-    void set_bool(const string& name, bool value) { m_bools[name] = value; }
-    void set_double(const string& name, double value) { m_doubles[name] = value; }
-    void set_signed(const string& name, int64_t value) { m_signeds[name] = value; }
-    void set_float_vector(const string& name, const vector<float>& value)
-    {
-        m_float_vectors[name] = value;
-    }
-    void set_double_vector(const string& name, const vector<double>& value)
-    {
-        m_double_vectors[name] = value;
-    }
-    void set_int8_t_vector(const string& name, const vector<int8_t>& value)
-    {
-        m_int8_t_vectors[name] = value;
-    }
-    void set_int16_t_vector(const string& name, const vector<int16_t>& value)
-    {
-        m_int16_t_vectors[name] = value;
-    }
-    void set_int32_t_vector(const string& name, const vector<int32_t>& value)
-    {
-        m_int32_t_vectors[name] = value;
-    }
-    void set_int64_t_vector(const string& name, const vector<int64_t>& value)
-    {
-        m_int64_t_vectors[name] = value;
-    }
-    void set_uint8_t_vector(const string& name, const vector<uint8_t>& value)
-    {
-        m_uint8_t_vectors[name] = value;
-    }
-    void set_uint16_t_vector(const string& name, const vector<uint16_t>& value)
-    {
-        m_uint16_t_vectors[name] = value;
-    }
-    void set_uint32_t_vector(const string& name, const vector<uint32_t>& value)
-    {
-        m_uint32_t_vectors[name] = value;
-    }
-    void set_uint64_t_vector(const string& name, const vector<uint64_t>& value)
-    {
-        m_uint64_t_vectors[name] = value;
-    }
-    void set_string_vector(const string& name, const vector<string>& value)
-    {
-        m_string_vectors[name] = value;
-    }
-    void set_host_tensor(const string& name, const HostTensorPtr& value)
-    {
-        m_host_tensors[name] = value;
-    }
-
-    void on_attribute(const string& name, string& value) override { set_string(name, value); };
-    void on_attribute(const string& name, bool& value) override { set_bool(name, value); }
-    void on_adapter(const string& name, ValueAccessor<void>& adapter) override
-    {
-        NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
-    }
-    // The remaining adapter methods fall back on the void adapter if not implemented
-    void on_adapter(const string& name, ValueAccessor<string>& adapter) override
-    {
-        set_string(name, adapter.get());
-    };
-    void on_adapter(const string& name, ValueAccessor<int64_t>& adapter) override
-    {
-        set_signed(name, adapter.get());
-    }
-    void on_adapter(const string& name, ValueAccessor<double>& adapter) override
-    {
-        set_double(name, adapter.get());
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<string>>& adapter) override
-    {
-        set_string_vector(name, adapter.get());
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<float>>& adapter) override
-    {
-        set_float_vector(name, adapter.get());
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<double>>& adapter) override
-    {
-        set_double_vector(name, adapter.get());
-    }
-
-    void on_adapter(const string& name, ValueAccessor<vector<int8_t>>& adapter) override
-    {
-        set_int8_t_vector(name, adapter.get());
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<int16_t>>& adapter) override
-    {
-        set_int16_t_vector(name, adapter.get());
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<int32_t>>& adapter) override
-    {
-        set_int32_t_vector(name, adapter.get());
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<int64_t>>& adapter) override
-    {
-        set_int64_t_vector(name, adapter.get());
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<uint8_t>>& adapter) override
-    {
-        set_uint8_t_vector(name, adapter.get());
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<uint16_t>>& adapter) override
-    {
-        set_uint16_t_vector(name, adapter.get());
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<uint32_t>>& adapter) override
-    {
-        set_uint32_t_vector(name, adapter.get());
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<uint64_t>>& adapter) override
-    {
-        set_uint64_t_vector(name, adapter.get());
-    }
-    void on_attribute(const std::string& name, void* constant_data, size_t size) override
-    {
-        HostTensorPtr data = make_shared<HostTensor>(element::u8, Shape{size});
-        data->write(constant_data, size);
-        set_host_tensor(name, data);
-    }
-
-protected:
-    NodeTypeInfo m_node_type_info;
-    map<string, string> m_strings;
-    map<string, bool> m_bools;
-    map<string, double> m_doubles;
-    map<string, int64_t> m_signeds;
-    map<string, uint64_t> m_unsigneds;
-    map<string, vector<int8_t>> m_int8_t_vectors;
-    map<string, vector<int16_t>> m_int16_t_vectors;
-    map<string, vector<int32_t>> m_int32_t_vectors;
-    map<string, vector<int64_t>> m_int64_t_vectors;
-    map<string, vector<uint8_t>> m_uint8_t_vectors;
-    map<string, vector<uint16_t>> m_uint16_t_vectors;
-    map<string, vector<uint32_t>> m_uint32_t_vectors;
-    map<string, vector<uint64_t>> m_uint64_t_vectors;
-    map<string, vector<float>> m_float_vectors;
-    map<string, vector<double>> m_double_vectors;
-    map<string, vector<std::string>> m_string_vectors;
-    map<string, HostTensorPtr> m_host_tensors;
-};
-
-class NodeBuilder : public AttributeVisitor
-{
-public:
-    NodeBuilder(const shared_ptr<Node>& node)
-        : m_values(node)
-    {
-    }
-
-    // Does not validate, since inputs aren't set
-    shared_ptr<Node> create()
-    {
-        shared_ptr<Node> node(FactoryRegistry<Node>::get().create(m_values.get_node_type_info()));
-        node->visit_attributes(*this);
-        return node;
-    }
-
-    void on_attribute(const string& name, string& value) override
-    {
-        value = m_values.get_string(name);
-    };
-    void on_attribute(const string& name, bool& value) override { value = m_values.get_bool(name); }
-    void on_adapter(const string& name, ValueAccessor<void>& adapter) override
-    {
-        NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
-    }
-    // The remaining adapter methods fall back on the void adapter if not implemented
-    void on_adapter(const string& name, ValueAccessor<string>& adapter) override
-    {
-        adapter.set(m_values.get_string(name));
-    };
-    void on_adapter(const string& name, ValueAccessor<int64_t>& adapter) override
-    {
-        adapter.set(m_values.get_signed(name));
-    }
-    void on_adapter(const string& name, ValueAccessor<double>& adapter) override
-    {
-        adapter.set(m_values.get_double(name));
-    }
-
-    void on_adapter(const string& name, ValueAccessor<vector<int8_t>>& adapter) override
-    {
-        adapter.set(m_values.get_int8_t_vector(name));
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<int16_t>>& adapter) override
-    {
-        adapter.set(m_values.get_int16_t_vector(name));
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<int32_t>>& adapter) override
-    {
-        adapter.set(m_values.get_int32_t_vector(name));
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<int64_t>>& adapter) override
-    {
-        adapter.set(m_values.get_int64_t_vector(name));
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<uint8_t>>& adapter) override
-    {
-        adapter.set(m_values.get_uint8_t_vector(name));
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<uint16_t>>& adapter) override
-    {
-        adapter.set(m_values.get_uint16_t_vector(name));
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<uint32_t>>& adapter) override
-    {
-        adapter.set(m_values.get_uint32_t_vector(name));
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<uint64_t>>& adapter) override
-    {
-        adapter.set(m_values.get_uint64_t_vector(name));
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<string>>& adapter) override
-    {
-        adapter.set(m_values.get_string_vector(name));
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<float>>& adapter) override
-    {
-        adapter.set(m_values.get_float_vector(name));
-    }
-    void on_adapter(const string& name, ValueAccessor<vector<double>>& adapter) override
-    {
-        adapter.set(m_values.get_double_vector(name));
-    }
-    void on_attribute(const std::string& name, void* constant_data, size_t size) override
-    {
-        HostTensorPtr data = m_values.get_host_tensor(name);
-        data->read(constant_data, size);
-    }
-
-protected:
-    NodeSaver m_values;
-};
 
 TEST(attributes, user_op)
 {
     FactoryRegistry<Node>::get().register_factory<Oracle>();
     auto program = make_shared<op::Parameter>(element::i32, Shape{200});
     auto data = make_shared<op::Parameter>(element::i32, Shape{200});
+    auto result = make_shared<op::Result>(data);
     auto oracle = make_shared<Oracle>(program,
                                       data,
                                       TuringModel::XL1200,
@@ -541,6 +364,7 @@ TEST(attributes, user_op)
                                       -2,
                                       -4,
                                       -8,
+                                      34,
                                       vector<string>{"Hello", "World"},
                                       vector<float>{1.0f, 2.0f},
                                       vector<double>{1.0, 2.0},
@@ -551,8 +375,25 @@ TEST(attributes, user_op)
                                       vector<int8_t>{1, 2, 4, 8},
                                       vector<int16_t>{1, 2, 4, 8},
                                       vector<int32_t>{1, 2, 4, 8},
-                                      vector<int64_t>{1, 2, 4, 8});
-    NodeBuilder builder(oracle);
+                                      vector<int64_t>{1, 2, 4, 8},
+                                      vector<size_t>{1, 3, 8, 4, 2},
+                                      Position{1.3f, 5.1f, 2.3f},
+                                      data,
+                                      NodeVector{program, result, data},
+                                      ParameterVector{data, data, program},
+                                      ResultVector{result});
+    NodeBuilder builder;
+    AttributeVisitor& saver = builder.get_node_saver();
+    AttributeVisitor& loader = builder.get_node_loader();
+    loader.register_node(program, "program");
+    ASSERT_EQ(loader.get_registered_node("program"), program);
+    ASSERT_EQ(loader.get_registered_node_id(program), "program");
+    loader.register_node(data, "data");
+    loader.register_node(result, "result");
+    saver.register_node(program, "program");
+    saver.register_node(data, "data");
+    saver.register_node(result, "result");
+    builder.save_node(oracle);
     auto g_oracle = as_type_ptr<Oracle>(builder.create());
 
     EXPECT_EQ(g_oracle->get_turing_model(), oracle->get_turing_model());
@@ -570,6 +411,7 @@ TEST(attributes, user_op)
     EXPECT_EQ(g_oracle->get_val_int16_t(), oracle->get_val_int16_t());
     EXPECT_EQ(g_oracle->get_val_int32_t(), oracle->get_val_int32_t());
     EXPECT_EQ(g_oracle->get_val_int64_t(), oracle->get_val_int64_t());
+    EXPECT_EQ(g_oracle->get_val_size_t(), oracle->get_val_size_t());
     EXPECT_EQ(g_oracle->get_vec_uint8_t(), oracle->get_vec_uint8_t());
     EXPECT_EQ(g_oracle->get_vec_uint16_t(), oracle->get_vec_uint16_t());
     EXPECT_EQ(g_oracle->get_vec_uint32_t(), oracle->get_vec_uint32_t());
@@ -581,6 +423,12 @@ TEST(attributes, user_op)
     EXPECT_EQ(g_oracle->get_vec_string(), oracle->get_vec_string());
     EXPECT_EQ(g_oracle->get_vec_float(), oracle->get_vec_float());
     EXPECT_EQ(g_oracle->get_vec_double(), oracle->get_vec_double());
+    EXPECT_EQ(g_oracle->get_vec_size_t(), oracle->get_vec_size_t());
+    EXPECT_EQ(g_oracle->get_position(), oracle->get_position());
+    EXPECT_EQ(g_oracle->get_node(), oracle->get_node());
+    EXPECT_EQ(g_oracle->get_node_vector(), oracle->get_node_vector());
+    EXPECT_EQ(g_oracle->get_parameter_vector(), oracle->get_parameter_vector());
+    EXPECT_EQ(g_oracle->get_result_vector(), oracle->get_result_vector());
 }
 
 TEST(attributes, matmul_op)
@@ -598,6 +446,43 @@ TEST(attributes, matmul_op)
 
     EXPECT_EQ(g_matmul->get_transpose_a(), matmul->get_transpose_a());
     EXPECT_EQ(g_matmul->get_transpose_b(), matmul->get_transpose_b());
+}
+
+TEST(attributes, partial_shape)
+{
+    NodeBuilder builder;
+    AttributeVisitor& loader = builder.get_node_loader();
+    AttributeVisitor& saver = builder.get_node_saver();
+
+    PartialShape dyn = PartialShape::dynamic();
+    saver.on_attribute("dyn", dyn);
+    PartialShape g_dyn;
+    loader.on_attribute("dyn", g_dyn);
+    EXPECT_EQ(dyn, g_dyn);
+
+    PartialShape scalar{};
+    saver.on_attribute("scalar", scalar);
+    PartialShape g_scalar;
+    loader.on_attribute("scalar", g_scalar);
+    EXPECT_EQ(scalar, g_scalar);
+
+    PartialShape dyn_vector{Dimension::dynamic()};
+    saver.on_attribute("dyn_vector", dyn_vector);
+    PartialShape g_dyn_vector;
+    loader.on_attribute("dyn_vector", g_dyn_vector);
+    EXPECT_EQ(dyn_vector, g_dyn_vector);
+
+    PartialShape stat_vector{7};
+    saver.on_attribute("stat_vector", stat_vector);
+    PartialShape g_stat_vector;
+    loader.on_attribute("stat_vector", g_stat_vector);
+    EXPECT_EQ(stat_vector, g_stat_vector);
+
+    PartialShape general{7, Dimension::dynamic(), 2, Dimension::dynamic(), 4};
+    saver.on_attribute("general", general);
+    PartialShape g_general;
+    loader.on_attribute("general", g_general);
+    EXPECT_EQ(general, g_general);
 }
 
 TEST(attributes, max_pool_op)
@@ -1275,7 +1160,7 @@ TEST(attributes, shuffle_channels_op)
     auto g_shuffle_channels = as_type_ptr<opset1::ShuffleChannels>(builder.create());
 
     EXPECT_EQ(g_shuffle_channels->get_axis(), shuffle_channels->get_axis());
-    EXPECT_EQ(g_shuffle_channels->get_groups(), shuffle_channels->get_groups());
+    EXPECT_EQ(g_shuffle_channels->get_group(), shuffle_channels->get_group());
 }
 
 TEST(attributes, softmax_op)

@@ -30,7 +30,7 @@ static shared_ptr<op::Constant> fold_constant_reverse_helper(shared_ptr<op::Cons
     T* data_ptr = buffer.get_ptr<T>();
 
     runtime::reference::reverse<T>(
-        constant->get_vector<T>().data(), data_ptr, out_shape, out_shape, reversed_axes);
+        constant->get_data_ptr<T>(), data_ptr, out_shape, out_shape, reversed_axes);
 
     return make_shared<op::Constant>(constant->get_output_element_type(0), out_shape, data_ptr);
 }

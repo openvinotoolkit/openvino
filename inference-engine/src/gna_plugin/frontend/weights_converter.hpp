@@ -7,22 +7,28 @@
 #include "quantized_layer_params.hpp"
 #include "precision_utils.h"
 
+inline InferenceEngine::Blob::Ptr make_fp32_blob(InferenceEngine::Blob::Ptr fp16_blob) {
+    auto fp32_blob = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32,
+         fp16_blob->getTensorDesc().getDims(), fp16_blob->getTensorDesc().getLayout() });
+    fp32_blob->allocate();
+
+    int i = 0;
+    for (auto& f32Value : *fp32_blob) {
+        auto f16Value = fp16_blob->buffer().template as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type*>()[i++];
+        f32Value = InferenceEngine::PrecisionUtils::f16tof32(f16Value);
+    }
+
+    return static_cast<InferenceEngine::Blob::Ptr>(fp32_blob);
+}
+
 inline void fp16_to_fp32(InferenceEngine::WeightableLayer *lp) {
     InferenceEngine::BlobMap newBlobs;
     for (auto& blob : lp->blobs) {
         if (blob.second->getTensorDesc().getPrecision() != InferenceEngine::Precision::FP16) {
             THROW_GNA_EXCEPTION << "Unsupported precision. Layer: " << lp->name << " , Blob: " << blob.first;
         }
-        auto tmp =
-                InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32,
-                    blob.second->getTensorDesc().getDims(), InferenceEngine::Layout::C });
-        tmp->allocate();
-        int i = 0;
-        for (auto& f32Value : *tmp) {
-            auto f16Value = blob.second->buffer().template as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type*>()[i++];
-            f32Value = InferenceEngine::PrecisionUtils::f16tof32(f16Value);
-        }
-        newBlobs[blob.first] = tmp;
+        auto fp32_blob = make_fp32_blob(blob.second);
+        newBlobs[blob.first] = fp32_blob;
     }
     lp->_biases = newBlobs["biases"];
     lp->_weights = newBlobs["weights"];
@@ -44,6 +50,18 @@ inline bool convertWeights(InferenceEngine::CNNLayer* lp) {
     for (auto& dataItem : lp->outData) {
         dataItem->setPrecision(InferenceEngine::Precision::FP32);
     }
+    InferenceEngine::BlobMap newBlobs;
+    for (auto& blob_pair : lp->blobs) {
+        auto blob_name = blob_pair.first;
+        auto blob_ptr = blob_pair.second;
+        if (blob_ptr->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
+            auto new_blob = make_fp32_blob(blob_ptr);
+            newBlobs[blob_name] = new_blob;
+        } else {
+            newBlobs[blob_name] = blob_ptr;
+        }
+    }
+
     return true;
 }
 

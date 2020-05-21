@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include "proposal_imp.hpp"
@@ -179,7 +178,7 @@ private:
     bool store_prob;  // store blob with proposal probabilities
 };
 
-REG_FACTORY_FOR(ImplFactory<ProposalImpl>, Proposal);
+REG_FACTORY_FOR(ProposalImpl, Proposal);
 
 }  // namespace Cpu
 }  // namespace Extensions

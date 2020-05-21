@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -376,7 +375,7 @@ void StridedSliceImpl::strided_slice_p(const float *src_data, float* dst_data) {
     });
 }
 
-REG_FACTORY_FOR(ImplFactory<StridedSliceImpl>, StridedSlice);
+REG_FACTORY_FOR(StridedSliceImpl, StridedSlice);
 
 }  // namespace Cpu
 }  // namespace Extensions

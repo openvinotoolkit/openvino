@@ -91,6 +91,7 @@ namespace ngraph
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
 
                 /// \return The order in which to iterate over input axes.
                 const AxisVector& get_input_order() const { return m_input_order; }
