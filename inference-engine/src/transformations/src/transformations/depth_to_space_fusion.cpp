@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/fused_depth_to_space.hpp"
+#include "transformations/depth_to_space_fusion.hpp"
 
 #include <memory>
 #include <vector>
