@@ -381,7 +381,7 @@ setup(
     long_description=open(os.path.join(PYNGRAPH_ROOT_DIR, "README.md")).read(),
     long_description_content_type="text/markdown",
     ext_modules=ext_modules,
-    package_dir={"": "src"},
+    package_dir={'': PYNGRAPH_SRC_DIR},
     packages=packages,
     cmdclass={"build_ext": BuildExt},
     data_files=data_files,

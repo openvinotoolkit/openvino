@@ -63,12 +63,8 @@ public:
 
     CNNLayerPtr create();
 
-    void on_attribute(const std::string& name, std::string& value) override {
-        params[name] = value;
-    }
-
-    void on_attribute(const std::string& name, bool& value) override {
-        params[name] = value ? "true" : "false";
+    void on_adapter(const std::string& name, ::ngraph::ValueAccessor<bool> &value) override {
+        params[name] = value.get() ? "true" : "false";
     }
 
     void addSpecificCreator(const std::vector<std::string>& forTypes, const CreatorFor& creator) {
@@ -417,6 +413,15 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
         return res;
     });
+
+    addSpecificCreator({"StaticShapeTopK"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "TopK",
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<TopKLayer>(attrs);
+        res->params = params;
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -530,7 +535,6 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Sign>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Sinh>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::SquaredDifference>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Select>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Softmax>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Split>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),

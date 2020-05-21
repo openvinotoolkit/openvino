@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -125,7 +124,7 @@ StatusCode RangeImpl::range(data_t start, data_t limit, data_t delta, Blob::Ptr 
     });
     return OK;
 }
-REG_FACTORY_FOR(ImplFactory<RangeImpl>, Range);
+REG_FACTORY_FOR(RangeImpl, Range);
 
 }  // namespace Cpu
 }  // namespace Extensions

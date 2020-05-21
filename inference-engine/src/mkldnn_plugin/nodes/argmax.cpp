@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include "argmax_imp.hpp"
@@ -49,7 +48,7 @@ private:
     argmax_conf conf;
 };
 
-REG_FACTORY_FOR(ImplFactory<ArgMaxImpl>, ArgMax);
+REG_FACTORY_FOR(ArgMaxImpl, ArgMax);
 
 }  // namespace Cpu
 }  // namespace Extensions

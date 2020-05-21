@@ -424,20 +424,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_concat_negative_axis)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_flatten)
-{
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/flatten.prototxt"));
-
-    auto input = test::NDArray<float, 4>({{{{1, 2}, {3, 4}}, {{5, 6}, {7, 8}}}}).get_vector();
-    auto expected_output = test::NDArray<float, 3>({{{1, 2, 3, 4}, {5, 6, 7, 8}}}).get_vector();
-
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
-    test_case.add_input(input);
-    test_case.add_expected_output(expected_output);
-    test_case.run();
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_split_equal_parts_default)
 {
     auto function = onnx_import::import_onnx_model(

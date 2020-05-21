@@ -76,3 +76,20 @@ runtime::AlignedBuffer& runtime::AlignedBuffer::operator=(AlignedBuffer&& other)
     }
     return *this;
 }
+
+namespace ngraph
+{
+    constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::type_info;
+
+    AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::AttributeAdapter(
+        shared_ptr<runtime::AlignedBuffer>& value)
+        : m_ref(value)
+    {
+    }
+
+    void* AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::get_ptr()
+    {
+        return m_ref->get_ptr();
+    }
+    size_t AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::size() { return m_ref->size(); }
+}

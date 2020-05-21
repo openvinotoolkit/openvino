@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include <gmock/gmock-spec-builders.h>
-#include "mkldnn_graph.h"
+#include "../test_graph.hpp"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_extension_utils.h>
 #include <mkldnn_extension_mngr.h>
 #include "tests_common.hpp"
 #include <ie_core.hpp>
-#include "../test_graph.hpp"
 
 
 using namespace ::testing;

@@ -71,20 +71,22 @@ const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::AxisSet>::get()
 {
     if (!m_buffer_valid)
     {
-        for (auto elt : m_value)
+        m_buffer.clear();
+        for (auto elt : m_ref)
         {
             m_buffer.push_back(elt);
         }
+        m_buffer_valid = true;
     }
     return m_buffer;
 }
 
 void ngraph::AttributeAdapter<ngraph::AxisSet>::set(const std::vector<int64_t>& value)
 {
-    m_value = AxisSet();
+    m_ref = AxisSet();
     for (auto elt : value)
     {
-        m_value.insert(elt);
+        m_ref.insert(elt);
     }
     m_buffer_valid = false;
 }

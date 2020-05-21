@@ -17,6 +17,16 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <ie_layers_internal.hpp>
+
+// WA for xbyak.h
+#ifdef _WIN32
+# ifndef _WINSOCKAPI_
+#  define _WINSOCKAPI_
+# endif
+# ifndef _WINSOCK2API_
+#  define _WINSOCK2API_
+# endif
+#endif
 #include "cpu_isa_traits.hpp"
 
 using namespace mkldnn;

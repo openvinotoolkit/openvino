@@ -2632,25 +2632,6 @@ def result(data: NodeInput, name: Optional[str] = None) -> Node:
 
 
 @nameable_op
-def scatter_nd_update(
-    data: NodeInput, indices: NodeInput, updates: NodeInput, name: str = None
-) -> Node:
-    """Return a node which produces a ScatterNDUpdate operation.
-
-    ScatterNDUpdate creates a copy of the first input tensor
-    with updated elements specified with second and third input tensors.
-
-    :param data:    The input tensor to be updated.
-    :param indices: The tensor with indexes which will be updated.
-    :param updates: The tensor with update values.
-    :param name:    Optional name for output node.
-    :return: ScatterNDUpdate node
-    """
-    node_inputs = as_nodes(data, indices, updates)
-    return _get_node_factory().create("ScatterNDUpdate", node_inputs)
-
-
-@nameable_op
 def scatter_update(
     data: Node, indices: NodeInput, updates: NodeInput, axis: NodeInput, name: Optional[str] = None
 ) -> Node:

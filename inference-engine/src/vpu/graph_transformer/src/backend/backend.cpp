@@ -26,6 +26,7 @@ void BackEnd::extractDataInfo(
             auto ioBufferOffset = data->attrs().get<int>("ioBufferOffset");
             IE_ASSERT(ioBufferOffset + data->totalByteSize() <= inputInfo.totalSize);
 
+            inputInfo.descFromPlugin[data->name()] = data->desc().toTensorDesc();
             inputInfo.offset[data->name()] = ioBufferOffset;
         } else if (DataUsage::Output == data->usage()) {
             IE_ASSERT(outputInfo.offset.count(data->name()) == 0);
@@ -33,6 +34,7 @@ void BackEnd::extractDataInfo(
             auto ioBufferOffset = data->attrs().get<int>("ioBufferOffset");
             IE_ASSERT(ioBufferOffset + data->totalByteSize() <= outputInfo.totalSize);
 
+            outputInfo.descFromPlugin[data->name()] = data->desc().toTensorDesc();
             outputInfo.offset[data->name()] = ioBufferOffset;
         }
     }

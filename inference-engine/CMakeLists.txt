@@ -159,6 +159,17 @@ if(ENABLE_PYTHON)
             COMPONENT python_samples)
 endif()
 
+# install speech demo files
+
+if(SPEECH_LIBS_AND_DEMOS)
+    ie_cpack_add_component(speech_demo_files REQUIRED)
+
+    install(DIRECTORY ${TEMP}/deployment_tools
+                      ${TEMP}/data_processing
+            DESTINATION .
+            COMPONENT speech_demo_files)
+endif()
+
 #
 # Developer package
 #

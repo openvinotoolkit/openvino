@@ -675,5 +675,43 @@ TestModel getConvReluNormPoolFcModel(InferenceEngine::Precision netPrc) {
             convWeigthsSize + convBiasesSize + fcWeigthsSize + fcBiasesSize));
 }
 
+
+TestModel getModelWithMemory(InferenceEngine::Precision netPrc) {
+    CommonTestUtils::IRBuilder_v6 test_model_builder("model");
+
+    auto Memory_1_layer =
+            test_model_builder.AddLayer("Memory_1", "Memory", netPrc, {{"id",    "r_1-3"},
+                                                                       {"index", "1"},
+                                                                       {"size",  "2"}})
+                    .AddOutPort({1, 200})
+                    .getLayer();
+    auto Input_2_layer = test_model_builder.AddLayer("Input_2", "input", netPrc).AddOutPort({1, 200}).getLayer();
+    auto Eltwise_3_layer = test_model_builder.AddLayer("Eltwise_3", "Eltwise", netPrc, {{"operation", "mul"}})
+            .AddInPort({1, 200})
+            .AddInPort({1, 200})
+            .AddOutPort({1, 200})
+            .getLayer();
+
+    auto Activation_4_layer =
+            test_model_builder.AddLayer("Activation_4", "Activation", netPrc, {{"type", "sigmoid"}})
+                    .AddInPort({1, 200})
+                    .AddOutPort({1, 200})
+                    .getLayer();
+    auto Memory_5_layer =
+            test_model_builder.AddLayer("Memory_5", "Memory", netPrc, {{"id",    "r_1-3"},
+                                                                       {"index", "0"},
+                                                                       {"size",  "2"}})
+                    .AddInPort({1, 200})
+                    .getLayer();
+
+    test_model_builder.AddEdge(Memory_1_layer.out(0), Eltwise_3_layer.in(0));
+    test_model_builder.AddEdge(Input_2_layer.out(0), Eltwise_3_layer.in(1));
+    test_model_builder.AddEdge(Eltwise_3_layer.out(0), Activation_4_layer.in(0));
+    test_model_builder.AddEdge(Activation_4_layer.out(0), Memory_5_layer.in(0));
+
+    auto serial = test_model_builder.serialize();
+
+    return TestModel(serial, CommonTestUtils::getWeightsBlob(0));
+}
 }  // namespace TestModel
 }  // namespace FuncTestUtils

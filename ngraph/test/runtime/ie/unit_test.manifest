@@ -131,6 +131,10 @@ expand_5_dyn_shape
 expand_6_dyn_shape
 expand_uint16_dyn_shape
 minimum_int64
+floor_int64
+ceiling_int64
+matmul_2x2x3_2x3x1_int64
+matmul_2x2x3_2x1x3_transpose_int64
 
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
@@ -296,7 +300,7 @@ dyn_slice_106
 dyn_slice_109
 dyn_slice_114
 reduce_sum_keep_dynamic
-reduce_sum_keep_stable_simple_double 
+reduce_sum_keep_stable_simple_double
 reduce_sum_keep_stable_acc_double
 reduce_sum_keep_stable_acc
 reduce_sum_keep_3d_eliminate_zero_dim
@@ -386,6 +390,9 @@ dyn_slice_180
 tile_3d_small_data_rank
 tile_3d_few_repeats
 
+# Error of validate layer: MatMul_683292 with type: Gemm. Gemm input shapes must have at least 2 dimensions
+matmul_2_2
+
 # Result mismatch
 sum_large_1d_to_scalar
 sum_stable_acc
@@ -420,6 +427,77 @@ max_to_scalar_int8
 gather_4d_indices_no_axis_uint8
 tensor_constant_with_op
 constant_equality_bool
+reduce_product_matrix_rows
+reduce_product_3d_to_matrix_most_sig
+reduce_product_3d_to_matrix_least_sig
+reduce_product_keep_matrix_columns
+reduce_product_keep_matrix_rows
+reduce_product_keep_3d_to_matrix_most_sig
+reduce_product_keep_3d_to_matrix_least_sig
+reduce_product_matrix_columns_dynamic
+reduce_product_matrix_rows_dynamic
+reduce_product_keep_matrix_columns_dynamic
+reduce_product_keep_matrix_rows_dynamic
+reduce_min_matrix_columns
+reduce_min_matrix_rows
+reduce_min_matrix_rows_int32
+reduce_min_3d_to_matrix_most_sig
+reduce_min_3d_to_matrix_least_sig
+reduce_min_keep_matrix_columns
+reduce_min_keep_matrix_rows
+reduce_min_keep_matrix_rows_int32
+reduce_min_keep_3d_to_matrix_most_sig
+reduce_min_keep_3d_to_matrix_least_sig
+reduce_min_matrix_columns_dynamic
+reduce_min_matrix_rows_dynamic
+reduce_min_keep_matrix_columns_dynamic
+reduce_min_keep_matrix_rows_dynamic
+
+# zero dimension / result mismatch
+reduce_product_matrix_rows_zero
+reduce_product_matrix_cols_zero
+reduce_product_vector_zero
+reduce_product_matrix_to_scalar_zero_by_zero
+reduce_product_3d_eliminate_zero_dim
+reduce_product_to_scalar_int8
+reduce_product_keep_matrix_rows_zero
+reduce_product_keep_matrix_cols_zero
+reduce_product_keep_vector_zero
+reduce_product_keep_matrix_to_scalar_zero_by_zero
+reduce_product_keep_3d_eliminate_zero_dim
+reduce_product_keep_to_scalar_int8
+reduce_min_to_scalar_int8
+reduce_min_matrix_rows_zero
+reduce_min_matrix_cols_zero
+reduce_min_vector_zero
+reduce_min_matrix_to_scalar_zero_by_zero
+reduce_min_3d_eliminate_zero_dim
+reduce_min_keep_to_scalar_int8
+reduce_min_keep_matrix_rows_zero
+reduce_min_keep_matrix_cols_zero
+reduce_min_keep_vector_zero
+reduce_min_keep_matrix_to_scalar_zero_by_zero
+reduce_min_keep_3d_eliminate_zero_dim
+reduce_mean_to_scalar_int8
+reduce_mean_matrix_rows_int32
+reduce_mean_keep_to_scalar_int8
+reduce_mean_keep_matrix_rows_int32
+reduce_max_to_scalar_int8
+reduce_max_matrix_rows_zero
+reduce_max_matrix_rows_zero_int32
+reduce_max_matrix_cols_zero
+reduce_max_vector_zero
+reduce_max_matrix_to_scalar_zero_by_zero
+reduce_max_3d_to_scalar_double
+reduce_max_3d_eliminate_zero_dim
+reduce_max_keep_to_scalar_int8
+reduce_max_keep_matrix_rows_zero
+reduce_max_keep_matrix_rows_zero_int32
+reduce_max_keep_matrix_cols_zero
+reduce_max_keep_vector_zero
+reduce_max_keep_matrix_to_scalar_zero_by_zero
+reduce_max_keep_3d_to_scalar_double
+reduce_max_keep_3d_eliminate_zero_dim
 
 # Incorrect precision f64!
 sum_trivial_in_double
@@ -1194,7 +1272,7 @@ shape_of_matrix_v3
 shape_of_5d_v0
 shape_of_5d_v3
 
-# Need use evaluate, only applicable to INTERPRETER 
+# Need use evaluate, only applicable to INTERPRETER
 non_zero
 non_zero_all_1s
 non_zero_all_0s
@@ -1239,6 +1317,33 @@ IE_CPU.backwards_log
 # Unsupported op detected
 IE_CPU.backwards_batchmatmultranspose_tensor2_tensor2
 IE_CPU.fuse_batch_mat_mul_transpose_forward
+IE_CPU.round_int64
+
+# Can't convert type f16 to IE Precision!
+IE_CPU.fused_clamp_float16
+
+# [NOT_IMPLEMENTED] Input image format BF16 is not supported yet...
+IE_CPU.fused_clamp_bfloat16
+
+# Operations were removed from opset
+IE_CPU.atanh
+IE_CPU.asinh
+IE_CPU.acosh
+
+# Dynamic backend wrapper stops being used for IE
+IE_CPU.onnx_dyn_shapes_model_acosh_1_3
+IE_CPU.onnx_dyn_shapes_model_acosh_3_2
+IE_CPU.onnx_dyn_shapes_model_asinh_1_3
+IE_CPU.onnx_dyn_shapes_model_asinh_3_2
+IE_CPU.onnx_dyn_shapes_model_atanh_1_3
+IE_CPU.onnx_dyn_shapes_model_atanh_3_2
+IE_CPU.onnx_dyn_shapes_avg_pool_dyn_shape
+IE_CPU.onnx_dyn_shapes_max_pool_dyn_shape
+IE_CPU.onnx_dyn_shapes_global_avg_pool_dyn_shape
+IE_CPU.onnx_dyn_shapes_global_max_pool_dyn_shape
+IE_CPU.onnx_dyn_shapes_model_flatten
+IE_CPU.onnx_dyn_shapes_slice_10_default_axes
+IE_CPU.fused_clamp_float
 
 #-------------------------------------------------------------------------------
 #

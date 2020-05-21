@@ -138,14 +138,15 @@ void op::util::BroadcastBase::validate_and_infer_types()
     }
 
     PartialShape result_shape{PartialShape::dynamic()};
-
+    auto input_rank = input_value(0).get_partial_shape().rank();
+    auto output_rank = input_value(1).get_partial_shape();
+    if (input_rank.is_static() && output_rank.is_static() && output_rank[0].is_static())
+    {
+        result_shape = PartialShape::dynamic(std::max(input_rank.get_length(), output_rank[0].get_length()));
+    }
     const auto shape_constant = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
 
-    if (shape_constant)
-    {
-        result_shape = shape_constant->get_shape_val();
-    }
-    else if (auto concat = as_type_ptr<op::v0::Concat>(input_value(1).get_node_shared_ptr()))
+    if (auto concat = as_type_ptr<op::v0::Concat>(input_value(1).get_node_shared_ptr()))
     {
         auto concat_inputs = concat->inputs();
 
@@ -171,6 +172,10 @@ void op::util::BroadcastBase::validate_and_infer_types()
 
     if (m_mode.m_type == BroadcastType::NONE)
     {
+        if (shape_constant)
+        {
+            result_shape = shape_constant->get_shape_val();
+        }
         // Validate axes_mapping
         if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static() &&
             get_input_partial_shape(2).is_static())

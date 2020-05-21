@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include "mkldnn_graph.h"
-
 #include "test_graph.hpp"
 
 #include <ie_iextension.h>
 #include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
-#include <mkldnn_extension_mngr.h>
 #include "tests_common.hpp"
 
 #include "unit_test_utils/mocks/mock_error_listener.hpp"

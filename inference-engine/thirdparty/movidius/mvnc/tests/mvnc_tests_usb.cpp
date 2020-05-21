@@ -27,13 +27,13 @@ TEST_F(MvncOpenUSBDevice, ShouldOpenDeviceAfterChangeConnectTimeoutFromZero) {
     deviceDesc.platform = NC_ANY_PLATFORM;
 
     ASSERT_NO_ERROR(ncSetDeviceConnectTimeout(0));
-    ASSERT_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
     std::this_thread::sleep_for(3_sec);
     ASSERT_NO_ERROR(ncDeviceResetAll());
 
     ASSERT_NO_ERROR(ncSetDeviceConnectTimeout(30));
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
 
     ASSERT_NO_ERROR(ncDeviceResetAll());
 }
@@ -44,8 +44,8 @@ TEST_F(MvncOpenUSBDevice, WithCustomFirmware) {
         GTEST_SKIP();
 
     // Use custom firmware dir path as parameter for ncDeviceOpen
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, watchdogInterval, firmwarePath));
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_, m_watchdogHndl));
 }
 
 /**
@@ -58,10 +58,10 @@ TEST_F(MvncOpenUSBDevice, AllAvailableDevices) {
     ncDeviceHandle_t * deviceHandles[MAX_DEVICES] = {nullptr};
 
     for (int index = 0; index < availableDevices_; ++index) {
-        ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandles[index], deviceDesc_, watchdogInterval, firmwarePath));
+        ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandles[index], deviceDesc_, m_ncDeviceOpenParams));
     }
     for (int index = 0; index < availableDevices_; ++index) {
-        ASSERT_NO_ERROR(ncDeviceClose(&deviceHandles[index]));
+        ASSERT_NO_ERROR(ncDeviceClose(&deviceHandles[index], m_watchdogHndl));
     }
 }
 
@@ -78,7 +78,7 @@ TEST_F(MvncOpenUSBDevice, AllAvailableMultiThreads) {
 
     for (int i = 0; i < availableDevices_; ++i) {
         requests[i] = std::thread([i, &rc, &deviceHandle, this]() {
-            rc[i] = ncDeviceOpen(&deviceHandle[i], deviceDesc_, watchdogInterval, firmwarePath);
+            rc[i] = ncDeviceOpen(&deviceHandle[i], deviceDesc_, m_ncDeviceOpenParams);
         });
     }
 
@@ -88,7 +88,7 @@ TEST_F(MvncOpenUSBDevice, AllAvailableMultiThreads) {
     }
 
     for (int i = 0; i < availableDevices_; ++i) {
-        ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle[i]));
+        ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle[i], m_watchdogHndl));
     }
 }
 
@@ -102,7 +102,8 @@ TEST_F(MvncOpenUSBDevice, WithInvalidFirmwarePath) {
     const char invalidPath[MAX_PATH] = "./InvalidPath/";
 
     // Use custom firmware dir path as parameter for ncDeviceOpen
-    ASSERT_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, watchdogInterval, invalidPath));
+    m_ncDeviceOpenParams.customFirmwareDirectory = invalidPath;
+    ASSERT_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
 
     ASSERT_EQ(deviceHandle_, nullptr);
 }
@@ -119,12 +120,12 @@ TEST_F(MvncOpenUSBDevice, OpenAvailableDeviceByName) {
     ASSERT_TRUE(availableDevices.size());
     strncpy(deviceDesc_.name, availableDevices[0].c_str(), NC_MAX_NAME_SIZE);
 
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle_, NC_RO_DEVICE_NAME,
                                       dev_addr_open, &data_lenght));
 
     ASSERT_TRUE(strncmp(dev_addr_open, deviceDesc_.name, NC_MAX_NAME_SIZE) == 0);
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_, m_watchdogHndl));
 }
 
 TEST_F(MvncOpenUSBDevice, ErrorWhenWrongDeviceName) {
@@ -138,7 +139,7 @@ TEST_F(MvncOpenUSBDevice, ErrorWhenWrongDeviceName) {
     auto availableDevices = getDevicesList();
     ASSERT_TRUE(availableDevices.size());
 
-    ASSERT_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, watchdogInterval, firmwarePath));
+    ASSERT_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
 }
 
 TEST_F(MvncOpenUSBDevice, OpenTwiceSameHandlerByName) {
@@ -156,16 +157,16 @@ TEST_F(MvncOpenUSBDevice, OpenTwiceSameHandlerByName) {
     ASSERT_TRUE(availableDevices.size());
     strncpy(deviceDesc_.name, availableDevices[0].c_str(), NC_MAX_NAME_SIZE);
 
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle_, NC_RO_DEVICE_NAME,
                                       dev_addr_first_open, &data_lenght_first));
 
     // Second open, get device name
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle_, NC_RO_DEVICE_NAME,
                                       dev_addr_second_open, &data_lenght_second));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_, m_watchdogHndl));
     // Should be the same device
     ASSERT_STREQ(dev_addr_first_open, dev_addr_second_open);
 }
@@ -188,7 +189,7 @@ TEST_F(MvncOpenUSBDevice, CheckErrorWhenPlatformConflictWithName) {
     strncpy(deviceDesc_.name, availableDevices[0].c_str(), NC_MAX_NAME_SIZE);
     deviceDesc_.platform = wrongPlatform;
 
-    ASSERT_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, watchdogInterval, firmwarePath));
+    ASSERT_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
 }
 
 //------------------------------------------------------------------------------
@@ -200,7 +201,7 @@ TEST_F(MvncCloseUSBDevice, USBDeviceWillBeAvailableRightAfterClosing) {
         GTEST_SKIP();
 
     ASSERT_NO_ERROR(ncDeviceOpen(
-            &deviceHandle_, deviceDesc_, watchdogInterval, firmwarePath));
+            &deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
 
     ASSERT_TRUE(deviceHandle_);
 
@@ -210,7 +211,7 @@ TEST_F(MvncCloseUSBDevice, USBDeviceWillBeAvailableRightAfterClosing) {
     };
     strcpy(deviceDesc_.name, deviceHandle_->private_data->dev_addr);
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_, m_watchdogHndl));
 
     deviceDesc_t foundDevice = {};
     XLinkError_t rc = XLinkFindFirstSuitableDevice(
@@ -229,7 +230,7 @@ TEST_P(MvncDevicePlatform, OpenAndClose) {
     if (available_myriad2_ == 0 || available_myriadX_ == 0)
         GTEST_SKIP();
 
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_, deviceDesc_, m_ncDeviceOpenParams));
 
     char deviceName[MAX_DEV_NAME];
     unsigned int size = MAX_DEV_NAME;
@@ -237,7 +238,7 @@ TEST_P(MvncDevicePlatform, OpenAndClose) {
 
     EXPECT_TRUE(isSamePlatformUSBDevice(deviceName, devicePlatform_));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_, m_watchdogHndl));
 
 }
 

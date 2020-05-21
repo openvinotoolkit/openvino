@@ -4,6 +4,7 @@
 
 #include "argmax_imp.hpp"
 
+#include <cstring>
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -181,7 +182,7 @@ void argmax_many_classes_has_axis(const float* src_data, float* dst_data, Shape 
             vmask_type vmask;
             int s_index = i0 * dim * after_num + ib1 * block_size;
 
-            memset(reinterpret_cast<void*>(&vmax_values[0]), 0, sizeof(vmax_values));
+            std::memset(reinterpret_cast<void*>(&vmax_values[0]), 0, sizeof(vmax_values));
 
             auto vswap_func = [&](int index1, int index2) {
                 vtmp = vmax_values[index1];

@@ -2,32 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include "common_test_utils/data_utils.hpp"
-#include <gmock/gmock-spec-builders.h>
-#include "mkldnn_graph.h"
-
 #include "test_graph.hpp"
+
+#include "common_test_utils/data_utils.hpp"
 #include "ir_gen_helper.hpp"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 #include <ie_core.hpp>
 
 #include <nodes/base.hpp>
-#include <cpu_isa_traits.hpp>
+#include <ie_system_conf.h>
 
 
 using namespace InferenceEngine;
 using namespace ::testing;
 using namespace std;
-using namespace mkldnn;
 using namespace single_layer_tests;
 
 using namespace Extensions;
 using namespace ::Cpu;
-using namespace mkldnn::impl;
 
 struct normalize_test_params {
     struct {
@@ -367,7 +361,7 @@ public:
             InferenceEngine::Precision precision = data_desc.getPrecision();
             Layout layout;
             if (is_blocked) {
-                int blk_size = cpu::mayiuse(cpu::avx512_common) ? 16 : 8;
+                int blk_size = InferenceEngine::with_cpu_x86_avx512f() ? 16 : 8;
 
                 std::vector<size_t> blocks = data_dims;
                 std::vector<size_t> order(blocks.size());
@@ -396,8 +390,6 @@ public:
         return OK;
     }
 };
-
-REG_FACTORY_FOR(Cpu::ImplFactory<FakeLayerImpl_Normalize>, FakeLayer_Normalize);
 
 class MKLDNNCPUExtNormalizeTests_Blocked: public TestsCommon, public WithParamInterface<normalize_test_params> {
     std::string model_t = R"V0G0N(
@@ -516,7 +508,16 @@ protected:
             ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(network);
+            auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
+            {
+                auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
+                defaultExt->AddExt("FakeLayer_Normalize",
+                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
+                                    return new Cpu::ImplFactory<FakeLayerImpl_Normalize>(layer);
+                                });
+                manager->AddExtension(defaultExt);
+            }
+            graph.CreateGraph(network, manager);
 
             auto& nodes = graph.getNodes();
             nodes = graph.getNodes();

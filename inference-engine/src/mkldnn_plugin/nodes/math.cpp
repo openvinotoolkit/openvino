@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -272,29 +271,29 @@ private:
     float gamma = 0.0f;
 };
 
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Abs);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Acos);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Acosh);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Asin);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Asinh);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Atan);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Atanh);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Ceil);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Cos);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Cosh);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Erf);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Floor);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, HardSigmoid);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Log);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Neg);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Reciprocal);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Selu);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Sign);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Sin);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Sinh);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Softplus);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Softsign);
-REG_FACTORY_FOR(ImplFactory<MathImpl>, Tan);
+REG_FACTORY_FOR(MathImpl, Abs);
+REG_FACTORY_FOR(MathImpl, Acos);
+REG_FACTORY_FOR(MathImpl, Acosh);
+REG_FACTORY_FOR(MathImpl, Asin);
+REG_FACTORY_FOR(MathImpl, Asinh);
+REG_FACTORY_FOR(MathImpl, Atan);
+REG_FACTORY_FOR(MathImpl, Atanh);
+REG_FACTORY_FOR(MathImpl, Ceil);
+REG_FACTORY_FOR(MathImpl, Cos);
+REG_FACTORY_FOR(MathImpl, Cosh);
+REG_FACTORY_FOR(MathImpl, Erf);
+REG_FACTORY_FOR(MathImpl, Floor);
+REG_FACTORY_FOR(MathImpl, HardSigmoid);
+REG_FACTORY_FOR(MathImpl, Log);
+REG_FACTORY_FOR(MathImpl, Neg);
+REG_FACTORY_FOR(MathImpl, Reciprocal);
+REG_FACTORY_FOR(MathImpl, Selu);
+REG_FACTORY_FOR(MathImpl, Sign);
+REG_FACTORY_FOR(MathImpl, Sin);
+REG_FACTORY_FOR(MathImpl, Sinh);
+REG_FACTORY_FOR(MathImpl, Softplus);
+REG_FACTORY_FOR(MathImpl, Softsign);
+REG_FACTORY_FOR(MathImpl, Tan);
 
 }  // namespace Cpu
 }  // namespace Extensions

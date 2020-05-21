@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -202,9 +201,9 @@ private:
     ReducedOp reduction_op;
 };
 
-REG_FACTORY_FOR(ImplFactory<SparseSegmentReduceImpl>, SparseSegmentMean);
-REG_FACTORY_FOR(ImplFactory<SparseSegmentReduceImpl>, SparseSegmentSqrtN);
-REG_FACTORY_FOR(ImplFactory<SparseSegmentReduceImpl>, SparseSegmentSum);
+REG_FACTORY_FOR(SparseSegmentReduceImpl, SparseSegmentMean);
+REG_FACTORY_FOR(SparseSegmentReduceImpl, SparseSegmentSqrtN);
+REG_FACTORY_FOR(SparseSegmentReduceImpl, SparseSegmentSum);
 
 }  // namespace Cpu
 }  // namespace Extensions

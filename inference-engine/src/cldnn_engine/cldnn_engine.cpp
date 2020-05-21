@@ -24,6 +24,7 @@
 #include "details/caseless.hpp"
 #include <details/ie_cnn_network_tools.h>
 #include <ngraph/opsets/opset2.hpp>
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
 #include <generic_ie.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -73,7 +74,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
     std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
     if (network.getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-            return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) != nullptr;
+            return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node);
         };
         CNNNetwork net(network.getFunction());
         auto nGraphFunc = net.getFunction();

@@ -15,18 +15,11 @@
 
 #include "network_i8.hpp"
 
-#define XBYAK_NO_OP_NAMES
-#define XBYAK_UNDEF_JNL
-#include "../../../../thirdparty/mkl-dnn/src/cpu/xbyak/xbyak_util.h"
-
 /*************************************************
  * !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!!
  * All ref values was obtained from Caffe scoring
  * !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!!
  *************************************************/
-#ifndef ENABLE_MKL_DNN
-#include "disable_tests.hpp"
-#endif
 
 TEST_P(ModelTransformationsTest, LPT) {}
 

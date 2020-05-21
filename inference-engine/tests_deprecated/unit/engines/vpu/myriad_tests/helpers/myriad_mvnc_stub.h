@@ -20,5 +20,7 @@ public:
     MOCK_QUALIFIED_METHOD0(AvailableDevicesNames, const, std::vector<std::string>());
     MOCK_QUALIFIED_METHOD0(AvailableDevicesDesc, const, std::vector<ncDeviceDescr_t>());
 
+    MOCK_METHOD0(watchdogHndl, WatchdogHndl_t*());
+
     ~MvncStub() = default;
 };

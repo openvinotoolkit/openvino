@@ -166,12 +166,12 @@ private:
     class XmlDeserializer : public ngraph::AttributeVisitor {
     public:
         explicit XmlDeserializer(const pugi::xml_node& node): node(node) {}
-        void on_attribute(const std::string& name, std::string& value) override {
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val)) return;
-            value = val;
+            value.set(val);
         }
-        void on_attribute(const std::string& name, bool& value) override {
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& value) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val)) return;
             std::transform(val.begin(), val.end(), val.begin(), [](char ch) {
@@ -184,7 +184,7 @@ private:
             bool is_false = false_names.find(val) != false_names.end();
 
             if (!is_true && !is_false) return;
-            value = is_true;
+            value.set(is_true);
         }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
             std::string val;

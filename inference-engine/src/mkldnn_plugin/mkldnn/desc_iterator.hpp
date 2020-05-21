@@ -51,7 +51,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
 
     memory::primitive_desc fetch() const {
         memory::primitive_desc adesc;
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
 
         cdesc = mkldnn_primitive_desc_iterator_fetch(get());
 
@@ -72,7 +72,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
     memory::primitive_desc src_primitive_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
         cdesc_elem.reset(mkldnn_primitive_desc_iterator_fetch(get()));
         const_mkldnn_primitive_desc_t const_cdesc =
                 mkldnn_primitive_desc_query_pd(cdesc_elem.get(),
@@ -86,7 +86,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
     memory::primitive_desc dst_primitive_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
         cdesc_elem.reset(mkldnn_primitive_desc_iterator_fetch(get()));
         const_mkldnn_primitive_desc_t const_cdesc =
                 mkldnn_primitive_desc_query_pd(cdesc_elem.get(),
@@ -101,7 +101,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
     memory::primitive_desc diff_src_primitive_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
         cdesc_elem.reset(mkldnn_primitive_desc_iterator_fetch(get()));
         const_mkldnn_primitive_desc_t const_cdesc =
                 mkldnn_primitive_desc_query_pd(cdesc_elem.get(),
@@ -115,7 +115,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
     memory::primitive_desc weights_primitive_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
         cdesc_elem.reset(mkldnn_primitive_desc_iterator_fetch(get()));
         const_mkldnn_primitive_desc_t const_cdesc =
                 mkldnn_primitive_desc_query_pd(cdesc_elem.get(),
@@ -129,7 +129,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
     memory::primitive_desc diff_dst_primitive_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
         cdesc_elem.reset(mkldnn_primitive_desc_iterator_fetch(get()));
         const_mkldnn_primitive_desc_t const_cdesc =
                 mkldnn_primitive_desc_query_pd(cdesc_elem.get(),
@@ -152,7 +152,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
 
     template <typename T>
     void getPrimitiveDescriptor(T& pdesc) const {
-        mkldnn_primitive_desc_t cdesc;
+        mkldnn_primitive_desc_t cdesc = nullptr;
 
         memory::primitive_desc cdescpd;
 

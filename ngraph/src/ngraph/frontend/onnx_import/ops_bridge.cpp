@@ -191,7 +191,7 @@ namespace ngraph
             auto dm = m_map.find(domain);
             if (dm == std::end(m_map))
             {
-                NGRAPH_WARN << "Domain '" << domain << "' not recognized by nGraph";
+                NGRAPH_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
                 return OperatorSet{};
             }
             if (domain == "" && version > OperatorsBridge::LATEST_SUPPORTED_ONNX_OPSET_VERSION)

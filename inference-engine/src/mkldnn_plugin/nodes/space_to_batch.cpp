@@ -4,7 +4,6 @@
 
 #include "base.hpp"
 #include "ie_parallel.hpp"
-#include "list.hpp"
 
 #include <cmath>
 #include <string>
@@ -222,7 +221,7 @@ private:
     std::vector<size_t> _pads_end;
 };
 
-REG_FACTORY_FOR(ImplFactory<SpaceToBatchImpl>, SpaceToBatch);
+REG_FACTORY_FOR(SpaceToBatchImpl, SpaceToBatch);
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -3,6 +3,7 @@ import os
 import pytest
 import warnings
 import threading
+from datetime import datetime
 
 from openvino.inference_engine import ie_api as ie
 from conftest import model_path, image_path
@@ -195,11 +196,25 @@ def test_async_infer_wait_finish(device):
 def test_async_infer_wait_time(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
-    exec_net = ie_core.load_network(net, device, num_requests=1)
+    exec_net = ie_core.load_network(net, device, num_requests=2)
     img = read_image()
     request = exec_net.requests[0]
     request.async_infer({'data': img})
-    request.wait(100)
+    start_time = datetime.utcnow()
+    status = request.wait(ie.WaitMode.RESULT_READY)
+    assert status == ie.StatusCode.OK
+    time_delta = datetime.utcnow() - start_time
+    latency_ms = (time_delta.microseconds / 1000) + (time_delta.seconds * 1000)
+    timeout = max(100, latency_ms)
+    request = exec_net.requests[1]
+    request.async_infer({'data': img})
+    max_repeat = 10
+    status = ie.StatusCode.REQUEST_BUSY
+    i = 0
+    while i < max_repeat and status != ie.StatusCode.OK:
+        status = request.wait(timeout)
+        i += 1
+    assert status == ie.StatusCode.OK
     res = request.output_blobs['fc_out'].buffer
     assert np.argmax(res) == 2
     del exec_net

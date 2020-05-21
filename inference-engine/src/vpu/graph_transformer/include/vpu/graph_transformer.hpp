@@ -125,6 +125,7 @@ struct CompilationConfig final {
 
 struct DataInfo final {
     std::unordered_map<std::string, int> offset;
+    std::unordered_map<std::string, ie::TensorDesc> descFromPlugin;
     int totalSize = 0;
 };
 

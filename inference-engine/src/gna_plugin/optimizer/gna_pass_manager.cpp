@@ -150,6 +150,7 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
         auto prev1 = PrevFunctionalLayer(l, 1);
 
         switch (eltwise->_operation) {
+            case EltwiseLayer::Sub:
             case EltwiseLayer::Sum:
                 if (!LayerInfo(prev0).has32BOutput() || !LayerInfo(prev1).has32BOutput()) {
                     return prevLayers;
@@ -227,7 +228,7 @@ void InsertDiagonalLayerPass::run() {
             // for e mul if we have 2-4 - inputs we need to insert identity to put 4 bytes input into weights
             // for e mul if we have 4-4 - inputs we need to insert 2 identities to put both 4 bytes input into weights
 
-            if (eltwise->_operation != EltwiseLayer::Sum)
+            if (eltwise->_operation != EltwiseLayer::Sum && eltwise->_operation != EltwiseLayer::Sub)
                 continue;
 
             auto prevLayer1 = CNNNetPrevLayerSkipCertain(l, 1, [](CNNLayerPtr ptr) {

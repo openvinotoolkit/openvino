@@ -1017,12 +1017,17 @@ void MKLDNNNode::initOptimalPrimitiveDescriptor() {
     auto config = selected_pd->getConfig();
     if (!isInitConfig(config)) {
         for (size_t i = 0; i < config.inConfs.size(); i++) {
-            config.inConfs[i].desc = getConfiguredInputDesc(config, i);
+            // TensorDescriptor constructor which is called inside getConfiguredInputDesc incorrectly computes offset field.
+            // What's why MKLDNNMemoryDesc routine is used to reinitialize TD with expected offset values.
+            config.inConfs[i].desc = MKLDNNMemoryDesc(getConfiguredInputDesc(config, i));
         }
 
         for (size_t i = 0; i < config.outConfs.size(); i++) {
-            config.outConfs[i].desc = getConfiguredOutputDesc(config, i);
+            // TensorDescriptor constructor which is called inside getConfiguredOutputDesc incorrectly computes offset field.
+            // What's why MKLDNNMemoryDesc routine is used to reinitialize TD with expected offset values.
+            config.outConfs[i].desc = MKLDNNMemoryDesc(getConfiguredOutputDesc(config, i));
         }
+
         initDescriptor(config);
     } else if (getType() != RNNSeq && getType() != RNNCell) {
         initDescriptor(config);

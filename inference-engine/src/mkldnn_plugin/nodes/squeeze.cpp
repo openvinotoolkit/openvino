@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -57,7 +56,7 @@ public:
     }
 };
 
-REG_FACTORY_FOR(ImplFactory<SqueezeImpl>, Squeeze);
+REG_FACTORY_FOR(SqueezeImpl, Squeeze);
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "mvn_kernel_b_fs_yx_fsv16_imad.hpp"
 #include "common/common_tools.h"
 
@@ -28,6 +27,7 @@ static constexpr size_t pref_work_groups = 16;
 
 ParamsKey MVNKernel_b_fs_yx_fsv16_imad::GetSupportedKey() const {
     ParamsKey k;
+
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
@@ -36,6 +36,8 @@ ParamsKey MVNKernel_b_fs_yx_fsv16_imad::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableDifferentTypes();
@@ -44,6 +46,7 @@ ParamsKey MVNKernel_b_fs_yx_fsv16_imad::GetSupportedKey() const {
     // k.EnableMVNMode(MVNMode::ACROSS_CHANNELS);
     k.EnableMVNMode(MVNMode::WITHIN_CHANNELS);
     k.EnableMVNNormalizeVariance();
+
     return k;
 }
 
@@ -54,7 +57,8 @@ bool MVNKernel_b_fs_yx_fsv16_imad::Validate(const Params& p, const optional_para
     auto params = static_cast<const mvn_params&>(p);
 
     // TODO Add support for input padding via iterating over y (parallel or in kernel).
-    if (params.inputs[0].X().pad.Total() != 0 || params.inputs[0].Y().pad.Total() != 0)
+    if (params.inputs[0].X().pad.Total() != 0 || params.inputs[0].Y().pad.Total() != 0 ||
+        params.inputs[0].Z().pad.Total() != 0)
         return false;
 
     return true;
@@ -63,7 +67,7 @@ bool MVNKernel_b_fs_yx_fsv16_imad::Validate(const Params& p, const optional_para
 MVNKernelBase::DispatchData MVNKernel_b_fs_yx_fsv16_imad::SetDefault(const mvn_params& params) const {
     auto kd = Parent::SetDefault(params);
 
-    auto items_num = params.output.X().v * params.output.Y().v;
+    auto items_num = params.output.X().v * params.output.Y().v * params.output.Z().v;
     auto max_wg = params.engineInfo.maxWorkGroupSize;
     auto slm_per_sg = fsv * 4;
     auto max_slm = params.engineInfo.maxLocalMemSize;
@@ -98,17 +102,31 @@ JitConstants MVNKernel_b_fs_yx_fsv16_imad::GetJitConstants(const mvn_params& par
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
-        idx_order = { "b", "(f + set_idx)", "(output_spatial / OUTPUT_SIZE_X)", "(output_spatial % OUTPUT_SIZE_X)" };
+
+        if (params.inputs[0].GetDims().size() <= 4) {
+            idx_order = {"b",
+                         "(f + set_idx)",
+                         "(output_spatial / OUTPUT_SIZE_X)",
+                         "(output_spatial % OUTPUT_SIZE_X)"};
+        } else if (params.inputs[0].GetDims().size() == 5) {
+            idx_order = {"b",
+                         "(f + set_idx)",
+                         "(output_spatial / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y))",
+                         "((output_spatial / OUTPUT_SIZE_X) % OUTPUT_SIZE_Y)",
+                         "(output_spatial % OUTPUT_SIZE_X)"};
+        }
+
         auto conf = FusedOpsConfiguration("", idx_order, "normalized", activation_dt);
-        jits.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        jits.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
     return jits;
 }
 
-MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::SetDefaultForMulti(const mvn_params& params) const {
+MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::SetDefaultForMulti(
+    const mvn_params& params) const {
     MultiDispatchData md;
 
-    auto items_num = params.output.X().v * params.output.Y().v;
+    auto items_num = params.output.X().v * params.output.Y().v * params.output.Z().v;
     auto max_wg = params.engineInfo.maxWorkGroupSize;
     auto slm_per_sg = fsv * 4;
     auto max_slm = params.engineInfo.maxLocalMemSize;
@@ -158,7 +176,9 @@ MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::Se
     return md;
 }
 
-KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_params& params, const optional_params& options, float estimated_time) const {
+KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_params& params,
+                                                                   const optional_params& options,
+                                                                   float estimated_time) const {
     if (!Validate(params, options))
         return {};
 
@@ -190,10 +210,10 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          0,
                          0);
         kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 0 });
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
-        kd.internalBufferSizes.push_back(
-            params.output.Batch().v * Align(params.output.Feature().v, fsv) * runInfo.item_groups * intermidiate_bytes);
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
+                                         runInfo.item_groups * intermidiate_bytes);
     }
     {
         // Mean second stage
@@ -214,9 +234,10 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          0,
                          0);
         kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
-        kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) * intermidiate_bytes);
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
+                                         intermidiate_bytes);
     }
     if (params.mvnNormalizeVariance) {
         // Variance first stage
@@ -237,9 +258,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          0,
                          0);
         kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 0 });
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
     }
     if (params.mvnNormalizeVariance) {
         // Variance second stage
@@ -260,9 +281,10 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          0,
                          0);
         kernel.arguments.clear();  // Clear original output argument
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
-        kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) * intermidiate_bytes);
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        kd.internalBufferSizes.push_back(params.output.Batch().v * Align(params.output.Feature().v, fsv) *
+                                         intermidiate_bytes);
     }
     {  // Final
         auto cldnn_jit = GetJitConstants(orgParams, runInfo.stage_final);
@@ -283,17 +305,16 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
                          false,
                          1,
                          GetFusedPrimitiveInputsCount(params));
-        kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         if (params.mvnNormalizeVariance) {
-            kernel.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
+            kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         }
     }
     kd.intenralBufferDataType = Datatype::F32;
     kd.estimatedTime = estimated_time;
 
-    return { kd };
+    return {kd};
 }
-
 
 KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetKernelsData(const Params& params, const optional_params& optParams) const {
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
@@ -301,7 +322,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetKernelsData(const Params& params, c
     auto max_slm = params.engineInfo.maxLocalMemSize;
     auto slm_per_sg = fsv * 4;
     auto max_lws = params.engineInfo.maxWorkGroupSize;
-    auto items_num = orgParams.output.X().v * orgParams.output.Y().v;
+    auto items_num = orgParams.output.X().v * orgParams.output.Y().v * orgParams.output.Z().v;
 
     auto enough_slm = max_lws / simd * simd * slm_per_sg <= max_slm;
     auto enough_lws = max_lws / simd >= 1;

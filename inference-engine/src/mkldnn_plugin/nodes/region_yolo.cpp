@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 #include "common/defs.h"
 #include "common/softmax.h"
@@ -304,7 +303,7 @@ private:
     }
 };
 
-REG_FACTORY_FOR(ImplFactory<RegionYoloImpl>, RegionYolo);
+REG_FACTORY_FOR(RegionYoloImpl, RegionYolo);
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -6,7 +6,7 @@
 
 #include <ie_iextension.h>
 #include "ie_util_internal.hpp"
-#include "list.hpp"
+#include "nodes/list.hpp"
 
 #include <string>
 #include <vector>
@@ -175,6 +175,21 @@ protected:
 };
 
 IE_SUPPRESS_DEPRECATED_END
+
+template <typename __prim>
+inline void extRegister(MKLDNNExtensions * extInstance, const char * __type) {
+    IE_SUPPRESS_DEPRECATED_START
+    extInstance->AddExt(__type,
+                [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
+                    return new __prim(layer);
+                });
+    IE_SUPPRESS_DEPRECATED_END
+}
+
+#define REG_FACTORY_FOR(__prim, __type) \
+    void __prim ## __type(MKLDNNExtensions * extInstance) { \
+        extRegister<ImplFactory<__prim>>(extInstance, #__type); \
+    }
 
 }  // namespace Cpu
 }  // namespace Extensions
