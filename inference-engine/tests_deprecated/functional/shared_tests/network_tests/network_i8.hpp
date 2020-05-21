@@ -24,10 +24,7 @@
 #include "ie_util_internal.hpp"
 
 #include "cnn_network_ngraph_impl.hpp"
-
-#define XBYAK_NO_OP_NAMES
-#define XBYAK_UNDEF_JNL
-#include "../../../../thirdparty/mkl-dnn/src/cpu/xbyak/xbyak_util.h"
+#include <ie_system_conf.h>
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -512,7 +509,7 @@ protected:
             if (transformationsParam.modelParams.referenceOutputDataWithTransformations.size() == 1) {
                 referenceValues = transformationsParam.modelParams.referenceOutputDataWithTransformations[0];
             } else {
-                referenceValues = Xbyak::util::Cpu().has(Xbyak::util::Cpu::tAVX512F) ?
+                referenceValues = InferenceEngine::with_cpu_x86_avx512f() ?
                                   transformationsParam.modelParams.referenceOutputDataWithTransformations[1] :
                                   transformationsParam.modelParams.referenceOutputDataWithTransformations[0];
             }
@@ -520,7 +517,7 @@ protected:
             if (transformationsParam.modelParams.referenceOutputDataWithoutTransformations.size() == 1) {
                 referenceValues = transformationsParam.modelParams.referenceOutputDataWithoutTransformations[0];
             } else {
-                referenceValues = Xbyak::util::Cpu().has(Xbyak::util::Cpu::tAVX512F) ?
+                referenceValues = InferenceEngine::with_cpu_x86_avx512f() ?
                                   transformationsParam.modelParams.referenceOutputDataWithoutTransformations[1] :
                                   transformationsParam.modelParams.referenceOutputDataWithoutTransformations[0];
             }

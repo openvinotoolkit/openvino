@@ -37,11 +37,18 @@ extern "C" void initialize_usb_boot();
 class MYRIADWatchdog :  public BehaviorPluginTest,
                         public MyriadDevicesInfo {
  public:
+    WatchdogHndl_t* m_watchdogHndl = nullptr;
     typedef std::chrono::high_resolution_clock Time;
     typedef std::chrono::milliseconds ms;
 
     void SetUp() override {
         initialize_usb_boot();
+
+        ASSERT_EQ(WD_ERRNO, watchdog_create(&m_watchdogHndl));
+    }
+
+    void TearDown() override {
+        watchdog_destroy(m_watchdogHndl);
     }
 
     struct DevicesState {
@@ -59,7 +66,7 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
 
     ncDeviceHandle_t *device = nullptr;
     void resetOneDevice() {
-        ncDeviceClose(&device);
+        ncDeviceClose(&device, m_watchdogHndl);
         device = nullptr;
     }
 
@@ -77,10 +84,15 @@ class MYRIADWatchdog :  public BehaviorPluginTest,
         deviceDesc.protocol = NC_ANY_PROTOCOL;
         deviceDesc.platform = NC_ANY_PLATFORM;
 
-        statusOpen = ncDeviceOpen(&device, deviceDesc, watchdogInterval, pathToFw);
+        ncDeviceOpenParams_t deviceOpenParams = {};
+        deviceOpenParams.watchdogHndl = m_watchdogHndl;
+        deviceOpenParams.watchdogInterval = watchdogInterval;
+        deviceOpenParams.customFirmwareDirectory = pathToFw;
+
+        statusOpen = ncDeviceOpen(&device, deviceDesc, deviceOpenParams);
 
         if (statusOpen != NC_OK) {
-            ncDeviceClose(&device);
+            ncDeviceClose(&device, m_watchdogHndl);
         }
     }
 };
@@ -175,7 +187,7 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
         ExecutableNetwork ret;
         ctime = Time::now();
         ASSERT_THROW(ret = core.LoadNetwork(network, GetParam().device, {
-            {KEY_LOG_LEVEL, LOG_DEBUG}}),
+            {KEY_LOG_LEVEL, LOG_INFO}}),
             InferenceEngine::details::InferenceEngineException);
 
         ASSERT_BOOTED_DEVICES_ONE_MORE();
@@ -208,7 +220,7 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
         ExecutableNetwork ret;
         ctime = Time::now();
         ASSERT_THROW(ret = core.LoadNetwork(network, GetParam().device, {
-            {KEY_LOG_LEVEL, LOG_DEBUG},
+            {KEY_LOG_LEVEL, LOG_INFO},
             {KEY_VPU_MYRIAD_WATCHDOG, NO}}),
             InferenceEngine::details::InferenceEngineException);
 

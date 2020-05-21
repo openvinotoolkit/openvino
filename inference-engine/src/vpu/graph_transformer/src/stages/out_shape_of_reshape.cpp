@@ -96,7 +96,7 @@ void FrontEnd::parseOutShapeOfReshape(
             inputs,
             outputs);
 
-    auto specialZero = layer->GetParamAsInt("special_zero", 0);
+    auto specialZero = layer->GetParamAsBool("special_zero", false);
     outShapeOfReshapeStage->attrs().set<bool>("specialZero", specialZero);
 }
 

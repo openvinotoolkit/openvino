@@ -715,7 +715,9 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
     setPostOps(attr, true);
 
     Precision inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
+    inputPrecision = inputPrecision == Precision::BF16 ? Precision(Precision::FP32) : inputPrecision;
     Precision outputPrecision = getCnnLayer()->outData[0]->getPrecision();
+    outputPrecision = outputPrecision == Precision::BF16 ? Precision(Precision::FP32) : outputPrecision;
 
     if (!fusedWith.empty()) {
         auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();

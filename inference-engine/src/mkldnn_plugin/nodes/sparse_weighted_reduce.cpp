@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -226,7 +225,7 @@ private:
     Precision input_default_value_precision;
 };
 
-REG_FACTORY_FOR(ImplFactory<ExperimentalSparseWeightedReduceImpl>, ExperimentalSparseWeightedSum);
+REG_FACTORY_FOR(ExperimentalSparseWeightedReduceImpl, ExperimentalSparseWeightedSum);
 
 }  // namespace Cpu
 }  // namespace Extensions

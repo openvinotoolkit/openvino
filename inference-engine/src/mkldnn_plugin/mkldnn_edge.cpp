@@ -151,7 +151,9 @@ void MKLDNNEdge::allocate(const void* mem_ptr) {
     auto inputDesc = getInputDesc();
     auto outputDesc = getOutputDesc();
     if (!MKLDNNExtensionUtils::initTensorsAreEqual(outputDesc, inputDesc) ||
-            (inputDesc.getDims().size() > 0 && inputDesc.getDims()[0] != 1 && inputDesc != outputDesc))
+            (inputDesc.getDims().size() > 0 && inputDesc.getDims()[0] != 1 &&
+            (inputDesc.getPrecision() != outputDesc.getPrecision() ||
+             inputDesc.getBlockingDesc() != outputDesc.getBlockingDesc())))
         THROW_IE_EXCEPTION << "Cannot allocate memory. Nodes have primitive descriptors with different formats.";
     if (inputDesc.getLayout() == InferenceEngine::Layout::ANY)
         THROW_IE_EXCEPTION << "Cannot get input descriptor!";

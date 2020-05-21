@@ -92,6 +92,28 @@ enum ActivationTypes {
     Gelu
 };
 
+enum QuantizationGranularity {
+    Pertensor,
+    Perchannel
+};
+
+inline std::string quantizationGranularityToString(const QuantizationGranularity& granularity) {
+    static std::map<QuantizationGranularity, std::string> names = {
+        {Pertensor, "Pertensor"},
+        {Perchannel, "Perchannel"},
+    };
+
+    auto i = names.find(granularity);
+    if (i != names.end())
+        return i->second;
+    else
+        throw std::runtime_error("Unsupported QuantizationGranularity type");
+}
+
+inline std::ostream& operator<<(std::ostream& out, const QuantizationGranularity& granularity) {
+    return out << quantizationGranularityToString(granularity);
+}
+
 ngraph::OutputVector convert2OutputVector(const std::vector<std::shared_ptr<ngraph::Node>> &nodes);
 
 template<class opType>

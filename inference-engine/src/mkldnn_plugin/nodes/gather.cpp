@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -148,7 +147,7 @@ private:
 };
 
 
-REG_FACTORY_FOR(ImplFactory<GatherImpl>, Gather);
+REG_FACTORY_FOR(GatherImpl, Gather);
 
 }  // namespace Cpu
 }  // namespace Extensions

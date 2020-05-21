@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -129,7 +128,7 @@ private:
     const size_t BROADCAST_SHAPE = 1;
 };
 
-REG_FACTORY_FOR(ImplFactory<BroadcastImpl>, Broadcast);
+REG_FACTORY_FOR(BroadcastImpl, Broadcast);
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -33,14 +33,17 @@ public:
     typedef std::shared_ptr<ExecutableNetwork> Ptr;
 
     explicit ExecutableNetwork(InferenceEngine::ICNNNetwork &network,
+                               std::shared_ptr<IMvnc> mvnc,
                                std::vector<DevicePtr> &devicePool,
                                const MyriadConfig& config);
 
     explicit ExecutableNetwork(std::istream& strm,
+                               std::shared_ptr<IMvnc> mvnc,
                                std::vector<DevicePtr> &devicePool,
                                const MyriadConfig& config);
 
     explicit ExecutableNetwork(const std::string &blobFilename,
+                               std::shared_ptr<IMvnc> mvnc,
                                std::vector<DevicePtr> &devicePool,
                                const MyriadConfig& config);
 
@@ -126,8 +129,9 @@ private:
     const size_t _maxTaskExecutorGetResultCount = 1;
     std::queue<std::string> _taskExecutorGetResultIds;
 
-    ExecutableNetwork(std::vector<DevicePtr> &devicePool,
-                      const MyriadConfig& config);
+    ExecutableNetwork(std::shared_ptr<IMvnc> mvnc,
+        std::vector<DevicePtr> &devicePool,
+        const MyriadConfig& config);
 
     InferenceEngine::ITaskExecutor::Ptr getNextTaskExecutor() {
         std::string id = _taskExecutorGetResultIds.front();

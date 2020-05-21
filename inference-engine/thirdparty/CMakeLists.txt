@@ -59,11 +59,11 @@ function(build_with_lto)
         ie_developer_export_targets(pugixml_mt)
         set_target_properties(pugixml_mt PROPERTIES FOLDER thirdparty)
     endif()
+
+    if(ENABLE_MKL_DNN)
+        set(SDL_cmake_included ON)
+        include(mkldnn.cmake)
+    endif()
 endfunction()
 
 build_with_lto()
-
-if(ENABLE_MKL_DNN)
-    set(SDL_cmake_included ON)
-    include(mkldnn.cmake)
-endif()

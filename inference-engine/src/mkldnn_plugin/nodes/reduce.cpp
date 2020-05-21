@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -388,18 +387,18 @@ void ReduceImpl::reduce(
     }
 }
 
-REG_FACTORY_FOR(ImplFactory<ReduceImpl>, ReduceAnd);
-REG_FACTORY_FOR(ImplFactory<ReduceImpl>, ReduceL1);
-REG_FACTORY_FOR(ImplFactory<ReduceImpl>, ReduceL2);
-REG_FACTORY_FOR(ImplFactory<ReduceImpl>, ReduceLogSum);
-REG_FACTORY_FOR(ImplFactory<ReduceImpl>, ReduceLogSumExp);
-REG_FACTORY_FOR(ImplFactory<ReduceImpl>, ReduceMax);
-REG_FACTORY_FOR(ImplFactory<ReduceImpl>, ReduceMean);
-REG_FACTORY_FOR(ImplFactory<ReduceImpl>, ReduceMin);
-REG_FACTORY_FOR(ImplFactory<ReduceImpl>, ReduceOr);
-REG_FACTORY_FOR(ImplFactory<ReduceImpl>, ReduceProd);
-REG_FACTORY_FOR(ImplFactory<ReduceImpl>, ReduceSum);
-REG_FACTORY_FOR(ImplFactory<ReduceImpl>, ReduceSumSquare);
+REG_FACTORY_FOR(ReduceImpl, ReduceAnd);
+REG_FACTORY_FOR(ReduceImpl, ReduceL1);
+REG_FACTORY_FOR(ReduceImpl, ReduceL2);
+REG_FACTORY_FOR(ReduceImpl, ReduceLogSum);
+REG_FACTORY_FOR(ReduceImpl, ReduceLogSumExp);
+REG_FACTORY_FOR(ReduceImpl, ReduceMax);
+REG_FACTORY_FOR(ReduceImpl, ReduceMean);
+REG_FACTORY_FOR(ReduceImpl, ReduceMin);
+REG_FACTORY_FOR(ReduceImpl, ReduceOr);
+REG_FACTORY_FOR(ReduceImpl, ReduceProd);
+REG_FACTORY_FOR(ReduceImpl, ReduceSum);
+REG_FACTORY_FOR(ReduceImpl, ReduceSumSquare);
 
 }  // namespace Cpu
 }  // namespace Extensions

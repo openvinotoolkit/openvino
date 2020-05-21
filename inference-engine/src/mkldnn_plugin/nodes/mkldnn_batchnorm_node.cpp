@@ -108,7 +108,7 @@ void MKLDNNBatchNormalizationNode::getSupportedDescriptors() {
 
 MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetVarianceDesc(const memory::primitive_desc &primitive_desc) const {
     memory::primitive_desc aprimitive_desc;
-    mkldnn_primitive_desc_t bndesc;
+    mkldnn_primitive_desc_t bndesc = nullptr;
     mkldnn_batch_normalization_desc_t *p;
     error::wrap_c_api(mkldnn_primitive_desc_query(
             primitive_desc.get(), mkldnn::convert_to_c(batch_normalization_d), 0, &p),
@@ -128,7 +128,7 @@ MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetVarianceDesc(const memory::pri
 
 MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetMeanDesc(const memory::primitive_desc &primitive_desc) const {
     memory::primitive_desc aprimitive_desc;
-    mkldnn_primitive_desc_t bndesc;
+    mkldnn_primitive_desc_t bndesc = nullptr;
     mkldnn_batch_normalization_desc_t *p;
     error::wrap_c_api(mkldnn_primitive_desc_query(
             primitive_desc.get(), mkldnn::convert_to_c(batch_normalization_d), 0, &p),
@@ -148,7 +148,7 @@ MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetMeanDesc(const memory::primiti
 
 MKLDNNMemoryDesc MKLDNNBatchNormalizationNode::GetScaleShiftWeightsDesc(const memory::primitive_desc &primitive_desc) const {
     memory::primitive_desc adesc;
-    mkldnn_primitive_desc_t bndesc;
+    mkldnn_primitive_desc_t bndesc = nullptr;
     const_mkldnn_primitive_desc_t const_bndesc =
             mkldnn_primitive_desc_query_pd(primitive_desc.get(),
                                            mkldnn::convert_to_c(weights_pd), 0);

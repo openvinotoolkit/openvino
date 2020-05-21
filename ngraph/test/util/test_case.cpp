@@ -23,18 +23,23 @@ ngraph::test::NgraphTestCase::NgraphTestCase(const std::shared_ptr<Function>& fu
                                              const std::string& backend_name,
                                              const BackendMode mode)
     : m_function(function)
-    , m_backend(ngraph::runtime::Backend::create(backend_name, mode == BackendMode::DYNAMIC))
 {
     if (mode == BackendMode::STATIC)
     {
         NGRAPH_CHECK(!m_function->is_dynamic(),
                      "For dynamic function using dynamic backend is expected.");
     }
+
+    // IE backend test should not be run with dynamic backend wrapper
+    const bool use_dynamic =
+        mode == BackendMode::DYNAMIC && backend_name.find("IE") == std::string::npos;
+
+    m_backend = ngraph::runtime::Backend::create(backend_name, use_dynamic);
     m_executable = m_backend->compile(m_function);
     for (auto i = 0; i < m_function->get_output_size(); ++i)
     {
         const auto& output_tensor =
-            (mode == BackendMode::DYNAMIC)
+            (use_dynamic)
                 ? m_backend->create_dynamic_tensor(m_function->get_output_element_type(i),
                                                    m_function->get_output_partial_shape(i))
                 : m_backend->create_tensor(m_function->get_output_element_type(i),

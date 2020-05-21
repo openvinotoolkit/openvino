@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cfloat>
@@ -604,7 +603,7 @@ void DetectionOutputImpl::nms_mx(const float* conf_data,
     }
 }
 
-REG_FACTORY_FOR(ImplFactory<DetectionOutputImpl>, DetectionOutput);
+REG_FACTORY_FOR(DetectionOutputImpl, DetectionOutput);
 
 }  // namespace Cpu
 }  // namespace Extensions

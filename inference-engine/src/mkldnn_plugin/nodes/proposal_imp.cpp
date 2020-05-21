@@ -4,6 +4,7 @@
 
 #include "proposal_imp.hpp"
 
+#include <cstring>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -137,7 +138,7 @@ static void nms_cpu(const int num_boxes, int is_dead[],
     const float* x1 = boxes + 2 * num_proposals;
     const float* y1 = boxes + 3 * num_proposals;
 
-    memset(is_dead, 0, num_boxes * sizeof(int));
+    std::memset(is_dead, 0, num_boxes * sizeof(int));
 
 #if defined(HAVE_AVX2)
     __m256  vc_fone = _mm256_set1_ps(coordinates_offset);

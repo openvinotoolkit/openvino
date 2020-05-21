@@ -6,18 +6,11 @@
 #define NOMINMAX
 #endif
 
-#include <ie_plugin_config.hpp>
-
-#include <gtest/gtest.h>
-#include <gmock/gmock-spec-builders.h>
-#include "mkldnn_graph.h"
-
 #include "test_graph.hpp"
 
+#include <ie_plugin_config.hpp>
 #include "single_layer_common.hpp"
 #include <ie_layers.h>
-#include <mkldnn_extension_utils.h>
-#include <cnn_network_impl.hpp>
 #include "tests_common.hpp"
 #include "ir_gen_helper.hpp"
 #include <math.h>

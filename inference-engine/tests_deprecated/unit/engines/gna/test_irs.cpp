@@ -2980,6 +2980,60 @@ std::string cropWithOffsetModel() {
     )V0G0N";
 }
 
+std::string cropWithOffsetAndSecondDimModel() {
+    return R"V0G0N(
+<Net Name="cropWithOffsetModel" version="2" precision="FP32" batch="1">
+    <layers>
+        <layer name="input_1" type="input" id="0" precision="FP32">
+            <output>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>20</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="Crop1" type="Crop" id="1" precision="FP32">
+            <data axis="0,1" dim="1,10" offset="0,5"/>
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>20</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="FullyConnected1" id="2" type="InnerProduct" precision="FP32">
+            <fc out-size="10" />
+            <biases offset="0" size="40" />
+            <weights offset="40" size="400" />
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>10</dim>
+                </port>
+            </output>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
+    </edges>
+</Net>
+)V0G0N";
+}
+
+
 std::string cropWithMaxOffsetModel() {
     return R"V0G0N(
     <Net Name="cropWithOffsetModel" version="2" precision="FP32" batch="1">
@@ -4734,10 +4788,10 @@ std::string TIModelWithLSTMCell1WithoutScaleShift() {
 								<dim>32</dim>
 							</port>
 						</output>
-						<blobs>
-							<weights offset="1724" size="32768"/>
-							<biases offset="34492" size="4096"/>
-						</blobs>
+                        <blobs>
+                            <weights offset="1724" size="32768"/>
+                            <biases offset="34492" size="512"/>
+                        </blobs>
 					</layer>
 				</layers>
 				<edges>
@@ -4868,7 +4922,7 @@ std::string TIModelWithLSTMCell1WithoutScaleShift() {
 				</port>
 			</output>
 			<port_map>
-				<input axis="0" external_port_id="0" internal_layer_id="0" internal_port_id="0" start="0"/>
+				<input axis="1" external_port_id="0" internal_layer_id="0" internal_port_id="0" start="0"/>
 				<input external_port_id="1" internal_layer_id="1" internal_port_id="1"/>
 				<input external_port_id="2" internal_layer_id="1" internal_port_id="2"/>
 				<output external_port_id="3" internal_layer_id="1" internal_port_id="5"/>

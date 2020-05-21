@@ -126,7 +126,6 @@ from ngraph.ops import rnn_cell
 from ngraph.ops import roi_align
 from ngraph.ops import roi_pooling
 from ngraph.ops import scatter_elements_update
-from ngraph.ops import scatter_nd_update
 from ngraph.ops import scatter_update
 from ngraph.ops import select
 from ngraph.ops import selu

@@ -7,7 +7,6 @@
 // https://github.com/facebookresearch/maskrcnn-benchmark/blob/master/maskrcnn_benchmark/csrc/cpu/ROIAlign_cpu.cpp
 //
 
-#include "list.hpp"
 #include "base.hpp"
 #include <cassert>
 #include <cmath>
@@ -406,7 +405,7 @@ private:
     int nw = 0;
 };
 
-REG_FACTORY_FOR(ImplFactory<ExperimentalDetectronROIFeatureExtractorImpl>, ExperimentalDetectronROIFeatureExtractor);
+REG_FACTORY_FOR(ExperimentalDetectronROIFeatureExtractorImpl, ExperimentalDetectronROIFeatureExtractor);
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
 #include <ie_iextension.h>
 #include <ie_core.hpp>
 #include <ie_common.h>
 #include <ie_layers.h>
-#include <tests_common.hpp>
-#include <mkldnn_extension_mngr.h>
 #include "graph/test_graph.hpp"
+#include <tests_common.hpp>
 
 using namespace ::testing;
 

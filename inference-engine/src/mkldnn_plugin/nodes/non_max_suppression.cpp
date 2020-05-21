@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -242,7 +241,7 @@ private:
     bool sort_result_descending = true;
 };
 
-REG_FACTORY_FOR(ImplFactory<NonMaxSuppressionImpl>, NonMaxSuppression);
+REG_FACTORY_FOR(NonMaxSuppressionImpl, NonMaxSuppression);
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 #include <vector>
 
@@ -64,7 +63,7 @@ private:
     int stride;
 };
 
-REG_FACTORY_FOR(ImplFactory<ReorgYoloImpl>, ReorgYolo);
+REG_FACTORY_FOR(ReorgYoloImpl, ReorgYolo);
 
 }  // namespace Cpu
 }  // namespace Extensions

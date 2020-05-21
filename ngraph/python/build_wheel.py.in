@@ -66,6 +66,8 @@ try:
 except subprocess.CalledProcessError as err:
     print("Could not complete the wheel building process")
     print("Command that failed: ", err.cmd)
-    print("Command std output: ", err.stdout.decode('utf-8'))
-    print("Command err output: ", err.stderr.decode('utf-8'))
+    if err.stdout is not None:
+        print("Command std output: ", err.stdout.decode('utf-8'))
+    if err.stderr is not None:
+        print("Command err output: ", err.stderr.decode('utf-8'))
     sys.exit(1)

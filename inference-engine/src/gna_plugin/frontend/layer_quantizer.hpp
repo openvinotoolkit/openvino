@@ -17,6 +17,8 @@
 #include "blob_factory.hpp"
 #include "precision_ex.hpp"
 #include "layers/gna_layer_info.hpp"
+#include "weights_converter.hpp"
+#include "layer_transform.hpp"
 
 namespace GNAPluginNS {
 namespace frontend {
@@ -136,6 +138,48 @@ class Quant<QuantI8> {
         QuantizeAffine8(std::forward<Args>(args)...);
     }
 };
+
+template <typename T>
+inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::Ptr fp32_blob, InferenceEngine::Precision precision, float scale_factor) {
+    auto prec_blob = InferenceEngine::make_shared_blob<T>({ precision,
+        fp32_blob->getTensorDesc().getDims(), fp32_blob->getTensorDesc().getLayout() });
+    prec_blob->allocate();
+
+    int i = 0;
+    for (auto& precValue : *prec_blob) {
+        auto f32Value = fp32_blob->buffer().template as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>()[i++] * scale_factor;
+        if (f32Value > std::numeric_limits<T>::max()) {
+            precValue = std::numeric_limits<T>::max();
+        } else if (f32Value < std::numeric_limits<T>::min()) {
+            precValue = std::numeric_limits<T>::min();
+        } else {
+            precValue = static_cast<T>(f32Value);
+        }
+    }
+
+    return  static_cast<InferenceEngine::Blob::Ptr>(prec_blob);
+}
+
+inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::Ptr fp32_blob, InferenceEngine::Precision precision, float scale_factor) {
+    InferenceEngine::Blob::Ptr result_ptr = nullptr;
+    switch (precision) {
+    case InferenceEngine::Precision::FP32:
+        result_ptr = fp32_to_precision_blob<float>(fp32_blob, precision, scale_factor);
+        break;
+    case InferenceEngine::Precision::I32:
+        result_ptr = fp32_to_precision_blob<int32_t>(fp32_blob, precision, scale_factor);
+        break;
+    case InferenceEngine::Precision::I16:
+        result_ptr = fp32_to_precision_blob<int16_t>(fp32_blob, precision, scale_factor);
+        break;
+    case InferenceEngine::Precision::I8:
+        result_ptr = fp32_to_precision_blob<int8_t>(fp32_blob, precision, scale_factor);
+        break;
+    default:
+        THROW_GNA_EXCEPTION << "FP32 to " << precision << " not supported";
+    }
+    return result_ptr;
+}
 
 template<class QuantDesc, class QuantFunc>
 inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
@@ -388,6 +432,18 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
             }
         }
         cnnLayer->precision = Desc::mandatory().getInputPrecision();
+
+        if (cnnLayer->type == "Const") {
+            if (cnnLayer->blobs["custom"]->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
+                cnnLayer->blobs["custom"] = make_fp32_blob(cnnLayer->blobs["custom"]);
+            }
+            auto const_scale_factor = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer)->_dst_quant.scale;
+            auto new_const_blob = InferenceEngine::Blob::CreateFromData(cnnLayer->outData[0]);
+            auto const_blob = cnnLayer->blobs["custom"];
+            if (const_blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
+                cnnLayer->blobs["custom"] = fp32_to_precision_blob(const_blob, cnnLayer->outData[0]->getPrecision(), const_scale_factor);
+            }
+        }
 
         return true;
     }

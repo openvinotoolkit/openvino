@@ -43,7 +43,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         vpu::DynamicToStaticShape().transform(function);
     }
 
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork, _devicePool, parsedConfigCopy);
+    return std::make_shared<ExecutableNetwork>(*clonedNetwork, _mvnc, _devicePool, parsedConfigCopy);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -103,9 +103,7 @@ void Engine::QueryNetwork(
 Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
         _mvnc(std::move(mvnc)),
         _metrics(std::make_shared<MyriadMetrics>()) {
-    if (!_mvnc) {
-        THROW_IE_EXCEPTION << "mvnc is invalid";
-    }
+    VPU_THROW_UNLESS(_mvnc, "mvnc is null");
 
     _pluginName = "MYRIAD";
 
@@ -134,7 +132,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
 
     const auto executableNetwork =
             std::make_shared<ExecutableNetwork>(
-                model, _devicePool, parsedConfigCopy);
+                model, _mvnc, _devicePool, parsedConfigCopy);
 
     return InferenceEngine::ExecutableNetwork{IExecutableNetwork::Ptr(
         new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),

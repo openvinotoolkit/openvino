@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -86,7 +85,7 @@ public:
     }
 };
 
-REG_FACTORY_FOR(ImplFactory<CTCGreedyDecoderImpl>, CTCGreedyDecoder);
+REG_FACTORY_FOR(CTCGreedyDecoderImpl, CTCGreedyDecoder);
 
 }  // namespace Cpu
 }  // namespace Extensions

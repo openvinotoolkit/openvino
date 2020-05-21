@@ -65,20 +65,4 @@ ngraph::Strides& ngraph::Strides::operator=(Strides&& v) noexcept
     return *this;
 }
 
-const vector<int64_t>& AttributeAdapter<Strides>::get()
-{
-    if (!m_buffer_valid)
-    {
-        m_buffer = copy_from<vector<int64_t>>(m_value);
-        m_buffer_valid = true;
-    }
-    return m_buffer;
-}
-
-void AttributeAdapter<Strides>::set(const vector<int64_t>& value)
-{
-    m_value = copy_from<Strides>(value);
-    m_buffer_valid = false;
-}
-
 constexpr DiscreteTypeInfo AttributeAdapter<Strides>::type_info;

@@ -53,19 +53,18 @@ namespace ngraph
     };
 
     template <>
-    class NGRAPH_API AttributeAdapter<CoordinateDiff> : public ValueReference<CoordinateDiff>,
-                                                        public ValueAccessor<std::vector<int64_t>>
+    class NGRAPH_API AttributeAdapter<CoordinateDiff>
+        : public IndirectVectorValueAccessor<CoordinateDiff, std::vector<int64_t>>
+
     {
     public:
         AttributeAdapter(CoordinateDiff& value)
-            : ValueReference<CoordinateDiff>(value)
+            : IndirectVectorValueAccessor<CoordinateDiff, std::vector<int64_t>>(value)
         {
         }
 
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<CoordinateDiff>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-        const std::vector<int64_t>& get() override;
-        void set(const std::vector<int64_t>& value) override;
     };
 
     NGRAPH_API

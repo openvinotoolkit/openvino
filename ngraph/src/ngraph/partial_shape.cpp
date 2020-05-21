@@ -438,4 +438,45 @@ Dimension& PartialShape::operator[](size_t i)
     return m_dimensions[i];
 }
 
+const std::vector<int64_t>& ngraph::AttributeAdapter<ngraph::PartialShape>::get()
+{
+    if (!m_buffer_valid)
+    {
+        m_buffer.clear();
+        if (m_ref.rank().is_dynamic())
+        {
+            m_buffer.push_back(-2);
+        }
+        else
+        {
+            for (size_t i = 0; i < m_ref.rank().get_length(); ++i)
+            {
+                auto& elt = m_ref[i];
+                m_buffer.push_back(elt.is_dynamic() ? -1 : elt.get_length());
+            }
+        }
+        m_buffer_valid = true;
+    }
+    return m_buffer;
+}
+
+void ngraph::AttributeAdapter<ngraph::PartialShape>::set(const std::vector<int64_t>& value)
+{
+    m_ref = PartialShape();
+    if (value.size() == 1 && value[0] == -2)
+    {
+        m_ref = PartialShape::dynamic();
+    }
+    else
+    {
+        std::vector<Dimension> dims;
+        for (auto elt : value)
+        {
+            dims.push_back(elt == -1 ? Dimension::dynamic() : elt);
+        }
+        m_ref = PartialShape(dims);
+    }
+    m_buffer_valid = false;
+}
+
 NGRAPH_API constexpr DiscreteTypeInfo AttributeAdapter<PartialShape>::type_info;

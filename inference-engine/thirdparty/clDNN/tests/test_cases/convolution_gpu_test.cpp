@@ -8318,6 +8318,8 @@ INSTANTIATE_TEST_CASE_P(
         .all_test_params(format::b_fs_yx_fsv16)
         .add(convolution_random_test_all_params{
             1, 89, 3, { 1, 1 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 1, 1 }, true, 1, format::b_fs_yx_fsv4, false, false, false })
+        .add(convolution_random_test_all_params{
+            1, 16, 32, { 3, 3 }, { 17, 17 }, { 1, 1 }, { -8, -8 }, { 1, 1 }, true, 1, format::b_fs_yx_fsv16, false, false, true })
     ),
     to_string_convolution_all_params
 );

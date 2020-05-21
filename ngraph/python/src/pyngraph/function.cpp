@@ -41,12 +41,14 @@ void regclass_pyngraph_Function(py::module m)
     function.def("get_output_op", &ngraph::Function::get_output_op);
     function.def("get_output_element_type", &ngraph::Function::get_output_element_type);
     function.def("get_output_shape", &ngraph::Function::get_output_shape);
+    function.def("get_output_partial_shape", &ngraph::Function::get_output_partial_shape);
     function.def("get_parameters", &ngraph::Function::get_parameters);
     function.def("get_results", &ngraph::Function::get_results);
     function.def("get_result", &ngraph::Function::get_result);
     function.def("get_unique_name", &ngraph::Function::get_name);
     function.def("get_name", &ngraph::Function::get_friendly_name);
     function.def("set_friendly_name", &ngraph::Function::set_friendly_name);
+    function.def("is_dynamic", &ngraph::Function::is_dynamic);
     function.def("__repr__", [](const ngraph::Function& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
         std::string shape =

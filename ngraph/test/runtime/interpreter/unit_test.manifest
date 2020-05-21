@@ -9,7 +9,3 @@ INTERPRETER.onnx_top_k_opset_10
 
 reduce_sum_large_1d_to_scalar
 reduce_sum_keep_large_1d_to_scalar
-
-#ONNX Flatten with dynamic reshape
-onnx_dyn_shapes_flatten_axis
-onnx_dyn_shapes_flatten_neg_axis

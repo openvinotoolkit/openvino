@@ -43,63 +43,63 @@ static shared_ptr<op::Constant>
 
     if (auto max = as_type_ptr<op::Max>(reduction_node))
     {
-        runtime::reference::max<T>(constant->get_vector<T>().data(),
+        runtime::reference::max<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
                                    max->get_reduction_axes());
     }
     else if (auto reduce_max = as_type_ptr<op::v1::ReduceMax>(reduction_node))
     {
-        runtime::reference::max<T>(constant->get_vector<T>().data(),
+        runtime::reference::max<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
                                    reduce_max->get_reduction_axes());
     }
     else if (auto min = as_type_ptr<op::Min>(reduction_node))
     {
-        runtime::reference::min<T>(constant->get_vector<T>().data(),
+        runtime::reference::min<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
                                    min->get_reduction_axes());
     }
     else if (auto reduce_min = as_type_ptr<op::v1::ReduceMin>(reduction_node))
     {
-        runtime::reference::min<T>(constant->get_vector<T>().data(),
+        runtime::reference::min<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
                                    reduce_min->get_reduction_axes());
     }
     else if (auto prod = as_type_ptr<op::Product>(reduction_node))
     {
-        runtime::reference::product<T>(constant->get_vector<T>().data(),
+        runtime::reference::product<T>(constant->get_data_ptr<T>(),
                                        data_ptr,
                                        constant->get_output_shape(0),
                                        prod->get_reduction_axes());
     }
     else if (auto reduce_prod = as_type_ptr<op::v1::ReduceProd>(reduction_node))
     {
-        runtime::reference::product<T>(constant->get_vector<T>().data(),
+        runtime::reference::product<T>(constant->get_data_ptr<T>(),
                                        data_ptr,
                                        constant->get_output_shape(0),
                                        reduce_prod->get_reduction_axes());
     }
     else if (auto sum = as_type_ptr<op::Sum>(reduction_node))
     {
-        runtime::reference::sum<T>(constant->get_vector<T>().data(),
+        runtime::reference::sum<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
                                    sum->get_reduction_axes());
     }
     else if (auto reduce_sum = as_type_ptr<op::v1::ReduceSum>(reduction_node))
     {
-        runtime::reference::sum<T>(constant->get_vector<T>().data(),
+        runtime::reference::sum<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
                                    reduce_sum->get_reduction_axes());
     }
     else if (auto reduce_mean = as_type_ptr<op::v1::ReduceMean>(reduction_node))
     {
-        runtime::reference::mean<T>(constant->get_vector<T>().data(),
+        runtime::reference::mean<T>(constant->get_data_ptr<T>(),
                                     data_ptr,
                                     constant->get_output_shape(0),
                                     reduce_mean->get_reduction_axes());

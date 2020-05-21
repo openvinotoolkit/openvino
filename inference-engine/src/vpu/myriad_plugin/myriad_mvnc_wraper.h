@@ -4,14 +4,18 @@
 
 #pragma once
 
+#include <mvnc.h>
+#include <watchdog.h>
+
 #include <functional>
 #include <vector>
 #include <memory>
 #include <string>
-#include <mvnc.h>
 
 namespace vpu {
 namespace MyriadPlugin {
+
+using WatchdogUniquePtr = std::unique_ptr<WatchdogHndl_t, std::function<void(WatchdogHndl_t*)>>;
 
 //------------------------------------------------------------------------------
 // class IMvnc
@@ -24,6 +28,8 @@ public:
     virtual std::vector<ncDeviceDescr_t> AvailableDevicesDesc() const = 0;
     virtual std::vector<std::string> AvailableDevicesNames() const = 0;
 
+    virtual WatchdogHndl_t* watchdogHndl() = 0;
+
     // Destructor
     virtual ~IMvnc() = default;
 };
@@ -35,9 +41,19 @@ public:
 
 class Mvnc : public IMvnc {
 public:
+    Mvnc();
+    ~Mvnc() override = default;
+
     // Operations
     std::vector<ncDeviceDescr_t> AvailableDevicesDesc() const override;
     std::vector<std::string> AvailableDevicesNames() const override;
+
+    WatchdogHndl_t* watchdogHndl() override {
+        return m_watcdogPtr.get();
+    }
+
+private:
+    WatchdogUniquePtr m_watcdogPtr;
 };
 
 }  // namespace MyriadPlugin

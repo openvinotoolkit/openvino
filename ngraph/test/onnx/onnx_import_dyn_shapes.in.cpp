@@ -816,6 +816,20 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_neg_axis)
     }
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_flatten)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/flatten.prototxt"));
+
+    std::vector<float> data{1, 2, 3, 4, 5, 6, 7, 8};
+    auto test_case =
+        ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}", BackendMode::DYNAMIC);
+    test_case.add_input<float>(Shape{1, 2, 2, 2}, data);
+    test_case.add_expected_output<float>(Shape{1, 8}, data);
+
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_global_lp_dynamic_hw)
 {
     auto function = onnx_import::import_onnx_model(
@@ -1057,4 +1071,79 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes)
     test_case.add_input<int64_t>({1, 1, 1});
     test_case.add_input<int64_t>({2, 2, 2});
     test_case.add_expected_output<float>(Shape{1, 1, 1}, {9});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_hardmax)
+{
+    auto hardmax_fn = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/hardmax.prototxt"));
+
+    auto test_case =
+        ngraph::test::NgraphTestCase(hardmax_fn, "${BACKEND_NAME}", BackendMode::DYNAMIC);
+    test_case.add_input<float>(
+        {-2.02458119f, 0.00126542f,  -0.58045743f, -0.75186814f, 0.9406899f,
+         -0.513188f,   0.85887463f,  1.61444086f,  0.23801147f,  -0.26816885f,
+         0.6597208f,   1.43889519f,  0.28798895f,  1.44769952f,  -1.99466756f,
+         0.41386644f,  0.69389555f,  1.46118255f,  -1.67628606f, 1.49697552f,
+
+         0.06337166f,  -1.15740783f, 0.8792142f,   -0.95352717f, -1.87895792f,
+         -0.74066102f, -0.27131459f, 0.2219685f,   0.31831001f,  0.52495901f,
+         0.60283089f,  0.60397976f,  0.92401468f,  0.29565101f,  -1.14443776f,
+         -1.07399045f, -0.92266259f, 0.24017731f,  -0.30105675f, 1.18513269f,
+
+         0.55494542f,  1.12119279f,  -0.43156474f, 0.15101668f,  -1.460439f,
+         0.96375129f,  1.10411785f,  -0.30272771f, -0.48855848f, 0.12103213f,
+         -0.71388492f, 1.38398178f,  0.21924434f,  0.93105052f,  -0.21074303f,
+         0.48213503f,  -1.37810638f, 8.99060285f,  0.54794592f,  -0.46820172f});
+
+    // values for hardmax with axis==2
+    test_case.add_expected_output<float>(
+        Shape{3, 4, 5}, {0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                         0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+
+                         0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+                         0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+
+                         0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+                         0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_axis_2.prototxt"));
+
+    const std::vector<float> input = {
+        2.75793882,  -0.50841322, 0.82013929,  -0.62409912, -0.96136118, 0.21004745,  1.38337255,
+        1.19030397,  2.0940445,   -0.03551657, -0.78686039, 1.992782,    0.04300319,  -0.29230777,
+        -0.56797112, -1.26732165, -0.61935399, 0.57670432,  0.92844898,  2.82469233,
+
+        0.98721677,  -0.05100663, -1.21178917, -0.17530157, 1.40051805,  -0.13259761, -1.14313018,
+        0.2673723,   -0.87996154, 1.29053106,  1.55,        0.8396538,   1.20729817,  0.23727845,
+        -0.89113606, -1.70909842, 0.26460363,  -0.70566808, 2.383518,    1.07024615,
+
+        -1.21722605, 0.82919357,  0.55765697,  0.12657686,  0.63432172,  0.75425957,  -2.43721014,
+        -1.24478184, 2.65316853,  1.19509542,  -0.95523998, 0.5149006,   -0.01151649, 0.68327026,
+        -0.4589638,  -0.46554745, 0.21055324,  0.39266729,  2.05098086,  1.83207919};
+
+    auto test_case =
+        ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}", BackendMode::DYNAMIC);
+    test_case.add_input<float>(input);
+
+    test_case.add_expected_output<float>(
+        {0.80619486, 0.03075257, 0.1161086,  0.027393,   0.01955098, 0.07012682, 0.22670066,
+         0.18689779, 0.4614171,  0.05485763, 0.04486172, 0.72286838, 0.10286818, 0.07356265,
+         0.05583908, 0.01280724, 0.02448298, 0.08096658, 0.11509768, 0.76664552,
+
+         0.30399806, 0.1076406,  0.03371745, 0.0950595,  0.4595844,  0.13369873, 0.04866969,
+         0.19944906, 0.06332151, 0.55486101, 0.39101105, 0.19217177, 0.27755913, 0.10521588,
+         0.03404216, 0.01150354, 0.08279411, 0.03137732, 0.68902071, 0.18530432,
+
+         0.0402528,  0.31156222, 0.23747503, 0.1543129,  0.25639705, 0.10627912, 0.00436928,
+         0.01439711, 0.70979614, 0.16515835, 0.06798343, 0.2957175,  0.17468555, 0.34994439,
+         0.11166912, 0.03615172, 0.07108136, 0.08527994, 0.44775794, 0.35972905});
+
+    test_case.run(4);
 }

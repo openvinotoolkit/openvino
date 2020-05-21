@@ -13,6 +13,7 @@
 #include <inference_engine.hpp>
 #include <vpu/vpu_plugin_config.hpp>
 #include <cldnn/cldnn_config.hpp>
+#include <gna/gna_config.hpp>
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
@@ -274,6 +275,14 @@ int main(int argc, char *argv[]) {
                 }
             } else if (device == "MYRIAD") {
                 device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
+            } else if (device == "GNA") {
+                if (FLAGS_qb == 8)
+                    device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";
+                else
+                    device_config[GNA_CONFIG_KEY(PRECISION)] = "I16";
+
+                if (isFlagSetInCommandLine("nthreads"))
+                    device_config[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(FLAGS_nthreads);
             }
         }
 

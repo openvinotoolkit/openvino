@@ -2,29 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include "mkldnn_graph.h"
-
 #include "test_graph.hpp"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_extension_utils.h>
 #include "tests_common.hpp"
 #include "ir_gen_helper.hpp"
 #include <ie_core.hpp>
 
 #include <nodes/base.hpp>
-#include <cpu_isa_traits.hpp>
 
 using namespace InferenceEngine;
 using namespace ::testing;
 using namespace std;
-using namespace mkldnn;
 using namespace single_layer_tests;
 
 using namespace Extensions;
 using namespace ::Cpu;
-using namespace mkldnn::impl;
 
 struct resample_test_params {
     std::vector<size_t> in_dims;

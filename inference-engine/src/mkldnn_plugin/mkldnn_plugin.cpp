@@ -5,7 +5,6 @@
 #include "ie_metric_helpers.hpp"
 #include "mkldnn_plugin.h"
 #include "mkldnn_extension_mngr.h"
-#include "mkldnn_layers_dispatcher.hpp"
 #include "mkldnn_weights_cache.hpp"
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -15,6 +14,7 @@
 #include <tuple>
 #include <ie_system_conf.h>
 #include <generic_ie.hpp>
+#include <nodes/list.hpp>
 
 #include "convert_function_to_cnn_network.hpp"
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -23,6 +23,7 @@
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -40,7 +41,7 @@ using namespace InferenceEngine;
 
 Engine::Engine() {
     _pluginName = "CPU";
-    addDefaultExtensions(extensionManager);
+    extensionManager->AddExtension(std::make_shared<Extensions::Cpu::MKLDNNExtensions>());
 }
 
 Engine::~Engine() {
@@ -83,7 +84,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
                 std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
-                std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node);
+                std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node) ||
+                std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node);
         };
         auto nGraphFunc = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)

@@ -370,7 +370,10 @@ public:
             if (srcDescs.empty() || selectedDescs.empty())
                 return false;
             for (size_t i = 0; i < srcDescs.size() && i < selectedDescs.size(); i++) {
-                if (srcDescs[i] != selectedDescs[i].desc && srcDescs[i].getLayout() != InferenceEngine::Layout::ANY)
+                if (!(srcDescs[i].getBlockingDesc() == selectedDescs[i].desc.getBlockingDesc() &&
+                      srcDescs[i].getPrecision() == selectedDescs[i].desc.getPrecision() &&
+                      srcDescs[i].getDims() == selectedDescs[i].desc.getDims()) &&
+                      srcDescs[i].getLayout() != InferenceEngine::Layout::ANY)
                     return false;
             }
             return true;

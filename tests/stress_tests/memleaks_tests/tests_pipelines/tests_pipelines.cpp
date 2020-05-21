@@ -28,7 +28,7 @@ using namespace InferenceEngine;
 #define THRESHOLD 0.1
 
 // Measure values
-enum MeasureValue { VMRSS = 0, VMHWM, VMSIZE, VMPEAK, MeasureValueMax };
+enum MeasureValue { VMRSS = 0, VMHWM, VMSIZE, VMPEAK, THREADS, MeasureValueMax };
 
 namespace util {
 template <typename In, typename Out, typename Func>
@@ -58,16 +58,17 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
     past.resize(std::min(n / 2, MAX_AVERAGE));
 
     log_info("Warming up for " << WARMUP_STEPS << " iterations");
-    log_info("i\tVMRSS\tVMHWM\tVMSIZE\tVMPEAK");
+    log_info("i\tVMRSS\tVMHWM\tVMSIZE\tVMPEAK\tTHREADS");
     int measure_count = n;
     for (size_t iteration = 0; measure_count > 0; iteration++) {
         // Warm up to take reference values
         test_pipeline();
         getVmValues(cur[VMSIZE], cur[VMPEAK], cur[VMRSS], cur[VMHWM]);
+        cur[THREADS] = getThreadsNum();
         past[iteration % past.size()] = cur;
         progress_str = std::to_string(iteration + 1) + "\t" + std::to_string(cur[VMRSS]) + "\t" +
                        std::to_string(cur[VMHWM]) + "\t" + std::to_string(cur[VMSIZE]) + "\t" +
-                       std::to_string(cur[VMPEAK]);
+                       std::to_string(cur[VMPEAK]) + "\t" + std::to_string(cur[THREADS]);
 
         // measure
         if (iteration >= WARMUP_STEPS) {

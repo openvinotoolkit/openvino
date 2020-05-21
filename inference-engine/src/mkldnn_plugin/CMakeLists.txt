@@ -4,6 +4,10 @@
 
 set(TARGET_NAME "MKLDNNPlugin")
 
+if(ENABLE_LTO)
+    ie_enable_lto()
+endif()
+
 if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
@@ -41,6 +45,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_resample_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_normalize_node.cpp
 
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/batch_to_space.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/broadcast.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/convert.cpp
@@ -93,6 +98,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/topk.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_imp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/cum_sum.cpp
 )
 
 foreach(LAYER ${LAYERS})

@@ -22,6 +22,7 @@ namespace vpu {
 namespace MyriadPlugin {
 
 ExecutableNetwork::ExecutableNetwork(
+        std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
         const MyriadConfig& config) :
             _config(config) {
@@ -32,7 +33,7 @@ ExecutableNetwork::ExecutableNetwork(
         _config.logLevel(),
         defaultOutput(_config.pluginLogFilePath()));
 
-    _executor = std::make_shared<MyriadExecutor>(_config.forceReset(), _config.logLevel(), _log);
+    _executor = std::make_shared<MyriadExecutor>(_config.forceReset(), std::move(mvnc), _config.logLevel(), _log);
     _device = _executor->openDevice(devicePool, _config);
 
     const auto& compileConfig = config.compileConfig();
@@ -49,9 +50,11 @@ ExecutableNetwork::ExecutableNetwork(
 }
 
 ExecutableNetwork::ExecutableNetwork(
-        ICNNNetwork& network, std::vector<DevicePtr>& devicePool,
+        ICNNNetwork& network,
+        std::shared_ptr<IMvnc> mvnc,
+        std::vector<DevicePtr>& devicePool,
         const MyriadConfig& config) :
-            ExecutableNetwork(devicePool, config) {
+            ExecutableNetwork(std::move(mvnc), devicePool, config) {
     VPU_PROFILE(ExecutableNetwork);
 
     const auto compilerLog = std::make_shared<Logger>(
@@ -141,18 +144,20 @@ void ExecutableNetwork::Import(std::istream& strm,
 }
 
 ExecutableNetwork::ExecutableNetwork(std::istream& strm,
+                               std::shared_ptr<IMvnc> mvnc,
                                std::vector<DevicePtr> &devicePool,
                                const MyriadConfig& config) :
-    ExecutableNetwork(devicePool, config) {
+    ExecutableNetwork(std::move(mvnc), devicePool, config) {
     VPU_PROFILE(ExecutableNetwork);
     Import(strm, devicePool, config);
 }
 
 ExecutableNetwork::ExecutableNetwork(
         const std::string& blobFilename,
+        std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
         const MyriadConfig& config) :
-    ExecutableNetwork(devicePool, config) {
+    ExecutableNetwork(std::move(mvnc), devicePool, config) {
     VPU_PROFILE(ExecutableNetwork);
     std::ifstream blobFile{blobFilename, std::ios::binary};
     Import(blobFile, devicePool, config);

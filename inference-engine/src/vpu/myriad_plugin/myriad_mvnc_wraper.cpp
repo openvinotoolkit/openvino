@@ -11,6 +11,17 @@ using namespace vpu::MyriadPlugin;
 // Implementation of methods of class Mvnc
 //------------------------------------------------------------------------------
 
+Mvnc::Mvnc() {
+    WatchdogHndl_t* watchdogHndl = nullptr;
+    if (watchdog_create(&watchdogHndl) != WD_ERRNO) {
+        THROW_IE_EXCEPTION << "Cannot create watchdog.";
+    }
+
+    m_watcdogPtr = WatchdogUniquePtr(watchdogHndl, [](WatchdogHndl_t* watchdogHndl) {
+        watchdog_destroy(watchdogHndl);
+    });
+}
+
 std::vector<ncDeviceDescr_t> Mvnc::AvailableDevicesDesc() const {
     int deviceCount = 0;
     std::vector<ncDeviceDescr_t> availableDevices(NC_MAX_DEVICES);

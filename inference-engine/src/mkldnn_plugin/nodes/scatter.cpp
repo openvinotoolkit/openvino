@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -182,7 +181,7 @@ private:
     const size_t SCATTER_UPDATES = 2;
 };
 
-REG_FACTORY_FOR(ImplFactory<ScatterImpl>, ScatterUpdate);
+REG_FACTORY_FOR(ScatterImpl, ScatterUpdate);
 
 }  // namespace Cpu
 }  // namespace Extensions

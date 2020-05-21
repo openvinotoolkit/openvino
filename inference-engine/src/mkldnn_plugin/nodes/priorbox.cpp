@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <vector>
@@ -338,7 +337,7 @@ private:
     int _num_priors = 0;
 };
 
-REG_FACTORY_FOR(ImplFactory<PriorBoxImpl>, PriorBox);
+REG_FACTORY_FOR(PriorBoxImpl, PriorBox);
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cassert>
@@ -392,7 +391,7 @@ private:
 
 
 
-REG_FACTORY_FOR(ImplFactory<ExperimentalDetectronDetectionOutputImpl>, ExperimentalDetectronDetectionOutput);
+REG_FACTORY_FOR(ExperimentalDetectronDetectionOutputImpl, ExperimentalDetectronDetectionOutput);
 
 }  // namespace Cpu
 }  // namespace Extensions

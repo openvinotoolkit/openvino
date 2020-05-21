@@ -183,6 +183,13 @@ shared_ptr<Node> op::Reshape::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<Reshape>(new_args.at(0), m_input_order, m_output_shape);
 }
 
+bool op::Reshape::visit_attributes(AttributeVisitor& visitor)
+{
+    visitor.on_attribute("input_order", m_input_order);
+    visitor.on_attribute("output_shape", m_output_shape);
+    return true;
+}
+
 void op::Reshape::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
 {
     auto delta = deltas.at(0);
@@ -244,6 +251,7 @@ void op::v1::Reshape::validate_and_infer_types()
         this, pattern_et.is_integral_number(), "Pattern must be an integral number.");
 
     // check shapes
+    const PartialShape& input_pshape = get_input_partial_shape(0);
     const PartialShape& pattern_shape = get_input_partial_shape(1);
     NODE_VALIDATION_CHECK(this,
                           pattern_shape.rank().compatible(1),
@@ -290,22 +298,33 @@ void op::v1::Reshape::validate_and_infer_types()
         else
         {
             std::vector<Dimension> partial_shape(output_rank.get_length());
-            // Replace zeros and negatives with Dynamic dimensions as needed
-            std::transform(out_shape_val.begin(),
-                           out_shape_val.end(),
-                           partial_shape.begin(),
-                           [&](const int64_t& v) {
-                               return (v < 0) ? Dimension()
-                                              : ((v == 0 && m_special_zero) ? Dimension()
-                                                                            : Dimension(v));
-                           });
+            // Replace zeros with Dynamic dimensions as needed
+            for (size_t i = 0; i < out_shape_val.size(); ++i)
+            {
+                const auto& v = out_shape_val[i];
+                if (v < 0)
+                {
+                    partial_shape[i] = Dimension();
+                }
+                else if (v == 0 && m_special_zero)
+                {
+                    partial_shape[i] = ((input_pshape.rank().is_static() &&
+                                         input_pshape.rank().get_length() == out_shape_val.size())
+                                            ? input_pshape[i]
+                                            : Dimension());
+                }
+                else
+                {
+                    partial_shape[i] = Dimension(v);
+                }
+            }
 
-            if (get_input_partial_shape(0).is_static())
+            if (input_pshape.is_static())
             {
                 size_t output_elements = 1;
                 int negative_dim = -1;
 
-                auto input_shape = get_input_partial_shape(0).to_shape();
+                auto input_shape = input_pshape.to_shape();
                 size_t input_elements = shape_size(input_shape);
                 for (size_t i = 0; i < output_rank.get_length(); i++)
                 {

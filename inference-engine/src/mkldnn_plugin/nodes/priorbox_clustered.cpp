@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 #include <algorithm>
 #include <vector>
@@ -117,7 +116,7 @@ private:
     float offset_;
 };
 
-REG_FACTORY_FOR(ImplFactory<PriorBoxClusteredImpl>, PriorBoxClustered);
+REG_FACTORY_FOR(PriorBoxClusteredImpl, PriorBoxClustered);
 
 }  // namespace Cpu
 }  // namespace Extensions

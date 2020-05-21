@@ -323,18 +323,8 @@ namespace ngraph
                 template <typename T>
                 std::vector<T> get_vector() const
                 {
-                    if (sizeof(T) > m_element_type.size() && shape_size(m_shape) > 0)
-                    {
-                        throw ngraph_error("Buffer over-read");
-                    }
-
-                    std::vector<T> rc;
-                    const T* p = static_cast<const T*>(get_data_ptr());
-                    for (size_t i = 0; i < shape_size(m_shape); i++)
-                    {
-                        rc.push_back(p[i]);
-                    }
-                    return rc;
+                    const T* p = get_data_ptr<T>();
+                    return std::vector<T>(p, p + shape_size(m_shape));
                 }
 
                 /// \brief Return the Constant's value as a vector cast to type T
@@ -435,6 +425,11 @@ namespace ngraph
                 template <typename T>
                 const T* get_data_ptr() const
                 {
+                    if (sizeof(T) > m_element_type.size() && shape_size(m_shape) > 0)
+                    {
+                        throw ngraph_error("Buffer over-read");
+                    }
+
                     return static_cast<const T*>(get_data_ptr());
                 }
 

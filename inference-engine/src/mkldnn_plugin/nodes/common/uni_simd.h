@@ -14,8 +14,16 @@ namespace Cpu {
 
 #if defined(HAVE_AVX512F)
 namespace AVX512F {
+    static inline __m512 _mm_uni_any_ps() {
+        return __m512{};
+    }
+
+    static inline __m512i _mm_uni_any_epi32() {
+        return __m512i{};
+    }
+
     static inline __m512 _mm_uni_loadu_ps(const float* psrc) {
-        return _mm512_loadu_ps(psrc);
+        return _mm512_mask_loadu_ps(_mm_uni_any_ps(), (__mmask16)-1, psrc);
     }
 
     static inline void _mm_uni_storeu_ps(float* pdst, const __m512& vec) {
@@ -62,8 +70,12 @@ namespace AVX512F {
         return _mm512_castsi512_ps(_mm512_or_epi32(_mm512_castps_si512(vec0), _mm512_castps_si512(vec1)));
     }
 
+    static inline __m512i _mm_uni_set1_epi32(int value) {
+        return _mm512_mask_set1_epi32(_mm_uni_any_epi32(), (__mmask16)-1, value);
+    }
+
     static inline __m512 _mm_uni_blendv_ps(__m512 vec0, __m512 vec1, __m512 vmask) {
-        return _mm512_mask_blend_ps(_mm512_cmpneq_epi32_mask(_mm512_castps_si512(vmask), _mm512_set1_epi32(0)), vec0, vec1);
+        return _mm512_mask_blend_ps(_mm512_cmpneq_epi32_mask(_mm512_castps_si512(vmask), _mm_uni_set1_epi32(0)), vec0, vec1);
     }
 
     static inline __m512 _mm_uni_blendv_ps(__m512 vec0, __m512 vec1, __mmask16 vmask) {
@@ -88,10 +100,6 @@ namespace AVX512F {
 
     static inline __m512i _mm_uni_add_epi32(__m512i vec0, __m512i vec1) {
         return _mm512_add_epi32(vec0, vec1);
-    }
-
-    static inline __m512i _mm_uni_set1_epi32(int value) {
-        return _mm512_set1_epi32(value);
     }
 
     static inline __m512i _mm_uni_slli_epi32(__m512i vec, int value) {
@@ -119,7 +127,7 @@ namespace AVX512F {
     }
 
     static inline __m512 _mm_uni_cvtepi32_ps(__m512i vec) {
-        return _mm512_cvtepi32_ps(vec);
+        return _mm512_mask_cvtepi32_ps(_mm_uni_any_ps(), (__mmask16)-1, vec);
     }
 }  // namespace AVX512F
 #elif defined(HAVE_AVX2)

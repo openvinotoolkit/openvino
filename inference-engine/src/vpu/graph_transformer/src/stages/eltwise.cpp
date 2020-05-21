@@ -137,10 +137,12 @@ private:
     void initialCheckImpl() const override {
         const auto& operation = type();
         const auto& dataTypeInput0 = input(0)->desc().type();
+        const auto& dataTypeOutput = output(0)->desc().type();
 
         {
             auto supportedDataTypesInput0 = EnumSet<DataType>{DataType::FP16};
-            if (operation == StageType::Sum || operation == StageType::Greater_equal || operation == StageType::Select ||
+            if (operation == StageType::Sum || operation == StageType::Greater_equal ||
+                operation == StageType::Equal || operation == StageType::Select ||
                 operation == StageType::Prod || operation == StageType::Max) {
                 supportedDataTypesInput0.insert(DataType::S32);
             }
@@ -150,16 +152,18 @@ private:
                 static_cast<Handle<StageNode>>(this), dataTypeInput0, supportedDataTypesInput0);
         }
 
-        if (operation != StageType::Select || dataTypeInput0 == DataType::FP16) {
-            assertInputsOutputsTypes(this, {{dataTypeInput0}, {dataTypeInput0}, {dataTypeInput0}}, {{dataTypeInput0}});
-        } else {
+        if (operation == StageType::Select && dataTypeInput0 == DataType::S32) {
             auto supportedDataTypesInput1 = EnumSet<DataType>{DataType::FP16, DataType::S32};
             const auto& dataTypeInput1 = input(1)->desc().type();
             VPU_THROW_UNLESS(supportedDataTypesInput1.count(dataTypeInput1) != 0,
-                "Stage node %v types check error: input #1 has type %v, but one of %v is expected",
-                static_cast<Handle<StageNode>>(this), dataTypeInput1, supportedDataTypesInput1);
+                             "Stage node %v types check error: input #1 has type %v, but one of %v is expected",
+                             static_cast<Handle<StageNode>>(this), dataTypeInput1, supportedDataTypesInput1);
 
             assertInputsOutputsTypes(this, {{dataTypeInput0}, {dataTypeInput1}, {dataTypeInput1}}, {{dataTypeInput1}});
+        } else if (operation == StageType::Greater && dataTypeInput0 != dataTypeOutput) {
+            assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}}, {{DataType::S32}});
+        } else {
+            assertInputsOutputsTypes(this, {{dataTypeInput0}, {dataTypeInput0}, {dataTypeInput0}}, {{dataTypeInput0}});
         }
     }
 

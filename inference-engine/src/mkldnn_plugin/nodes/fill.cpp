@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -121,7 +120,7 @@ private:
     const size_t FILL_VALUE = 1;
 };
 
-REG_FACTORY_FOR(ImplFactory<FillImpl>, Fill);
+REG_FACTORY_FOR(FillImpl, Fill);
 
 }  // namespace Cpu
 }  // namespace Extensions

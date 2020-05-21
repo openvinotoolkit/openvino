@@ -2,15 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include <gmock/gmock-spec-builders.h>
-#include "mkldnn_graph.h"
-
 #include "test_graph.hpp"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_extension_utils.h>
-#include <cnn_network_impl.hpp>
 #include "tests_common.hpp"
 #include <nodes/base.hpp>
 
@@ -96,8 +90,6 @@ public:
         return OK;
     }
 };
-
-REG_FACTORY_FOR(Cpu::ImplFactory<FakeLayerImpl_permute>, FakeLayer_permute);
 
 static std::string precToStr (Precision prec) {
     return prec == Precision::I8 ? "I8" : "FP32";
@@ -260,7 +252,16 @@ protected:
             ASSERT_NO_THROW(network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
 
             MKLDNNGraphTestClass graph;
-            graph.CreateGraph(network);
+            auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
+            {
+                auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
+                defaultExt->AddExt("FakeLayer_permute",
+                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
+                                    return new Cpu::ImplFactory<FakeLayerImpl_permute>(layer);
+                                });
+                manager->AddExtension(defaultExt);
+            }
+            graph.CreateGraph(network, manager);
             auto& nodes = graph.getNodes();
             for (int i = 0; i < nodes.size(); i++) {
                 if (nodes[i]->getType() == MKLDNNPlugin::Permute) {
@@ -556,9 +557,18 @@ protected:
             InferenceEngine::StatusCode sts  = implNet->setBatchSizeReshape(MB, &resp);
             ASSERT_EQ((int)InferenceEngine::StatusCode::OK, sts) << resp.msg;
 
+            auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
+            {
+                auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
+                defaultExt->AddExt("FakeLayer_permute",
+                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
+                                    return new Cpu::ImplFactory<FakeLayerImpl_permute>(layer);
+                                });
+                manager->AddExtension(defaultExt);
+            }
             MKLDNNGraphTestClass graph;
             graph.setProperty({{InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED, InferenceEngine::PluginConfigParams::YES}});
-            graph.CreateGraph(network);
+            graph.CreateGraph(network, manager);
 
             InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, p.dims, InferenceEngine::TensorDesc::getLayoutByDims(p.dims)});
             src->allocate();

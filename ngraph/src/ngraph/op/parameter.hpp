@@ -84,4 +84,18 @@ namespace ngraph
         using v0::Parameter;
     }
     using ParameterVector = std::vector<std::shared_ptr<op::Parameter>>;
+
+    template <>
+    class NGRAPH_API AttributeAdapter<ParameterVector> : public VisitorAdapter
+    {
+    public:
+        AttributeAdapter(ParameterVector& ref);
+
+        bool visit_attributes(AttributeVisitor& visitor) override;
+
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<ParameterVector>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        ParameterVector& m_ref;
+    };
 }

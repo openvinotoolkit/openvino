@@ -33,6 +33,11 @@ void regclass_pyngraph_runtime_Executable(py::module m)
                        const std::vector<std::shared_ptr<ngraph::runtime::Tensor>>&,
                        const std::vector<std::shared_ptr<ngraph::runtime::Tensor>>&)) &
                        ngraph::runtime::Executable::call);
+    executable.def("call_with_validate",
+                   (bool (ngraph::runtime::Executable::*)(
+                       const std::vector<std::shared_ptr<ngraph::runtime::Tensor>>&,
+                       const std::vector<std::shared_ptr<ngraph::runtime::Tensor>>&)) &
+                       ngraph::runtime::Executable::call_with_validate);
     executable.def(
         "get_performance_data",
         (std::vector<ngraph::runtime::PerformanceCounter>(ngraph::runtime::Executable::*)()) &

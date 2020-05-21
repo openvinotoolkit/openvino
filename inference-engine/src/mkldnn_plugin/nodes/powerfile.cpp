@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -57,7 +56,7 @@ private:
     std::vector<int> shift_;
 };
 
-REG_FACTORY_FOR(ImplFactory<PowerFileImpl>, PowerFile);
+REG_FACTORY_FOR(PowerFileImpl, PowerFile);
 
 }  // namespace Cpu
 }  // namespace Extensions

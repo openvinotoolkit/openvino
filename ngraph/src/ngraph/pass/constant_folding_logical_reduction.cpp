@@ -48,7 +48,7 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
 
     if (auto all = as_type_ptr<::ngraph::op::All>(reduction_node))
     {
-        runtime::reference::all(constant->get_vector<char>().data(),
+        runtime::reference::all(constant->get_data_ptr<char>(),
                                 data_ptr,
                                 constant->get_output_shape(0),
                                 reduction_node->get_shape(),
@@ -56,7 +56,7 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
     }
     else if (auto any = as_type_ptr<::ngraph::op::Any>(reduction_node))
     {
-        runtime::reference::any(constant->get_vector<char>().data(),
+        runtime::reference::any(constant->get_data_ptr<char>(),
                                 data_ptr,
                                 constant->get_output_shape(0),
                                 reduction_node->get_shape(),
@@ -67,7 +67,7 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
         const auto reduction_axes = reduce_and->get_reduction_axes();
         const auto input_shape = reduce_and->get_input_shape(0);
 
-        runtime::reference::all(constant->get_vector<char>().data(),
+        runtime::reference::all(constant->get_data_ptr<char>(),
                                 data_ptr,
                                 constant->get_output_shape(0),
                                 get_shape_no_keep_dims(reduction_axes, input_shape),
@@ -78,7 +78,7 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
         const auto reduction_axes = reduce_or->get_reduction_axes();
         const auto input_shape = reduce_or->get_input_shape(0);
 
-        runtime::reference::any(constant->get_vector<char>().data(),
+        runtime::reference::any(constant->get_data_ptr<char>(),
                                 data_ptr,
                                 constant->get_output_shape(0),
                                 get_shape_no_keep_dims(reduction_axes, input_shape),

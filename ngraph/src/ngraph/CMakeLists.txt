@@ -19,6 +19,7 @@ set (SRC
     assertion.hpp
     attribute_adapter.cpp
     attribute_adapter.hpp
+    attribute_visitor.cpp
     attribute_visitor.hpp
     autodiff/adjoints.cpp
     autodiff/adjoints.hpp
@@ -91,6 +92,7 @@ set (SRC
     except.hpp
     factory.cpp
     factory.hpp
+    factory_adapter.hpp 
     file_util.cpp
     file_util.hpp
     function.cpp

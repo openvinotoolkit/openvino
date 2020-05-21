@@ -93,7 +93,7 @@ TEST_F(MvncTestsCommon, OpenUSBThenPCIEAndClose) {
     deviceDesc.protocol = NC_USB;
     deviceDesc.platform = NC_ANY_PLATFORM;
 
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_USB, deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_USB, deviceDesc, m_ncDeviceOpenParams));
 
     actDeviceName = deviceHandle_USB->private_data->dev_addr;
     ASSERT_TRUE(actDeviceName.size());
@@ -101,15 +101,15 @@ TEST_F(MvncTestsCommon, OpenUSBThenPCIEAndClose) {
 
     // Open PCIe device
     deviceDesc.protocol = NC_PCIE;
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_PCIe, deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_PCIe, deviceDesc, m_ncDeviceOpenParams));
 
     actDeviceName = deviceHandle_PCIe->private_data->dev_addr;
     ASSERT_TRUE(actDeviceName.size());
     ASSERT_TRUE(isMyriadPCIeDevice(actDeviceName));
 
     // Close all
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_PCIe));
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_USB));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_PCIe, m_watchdogHndl));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_USB, m_watchdogHndl));
 }
 
 /**
@@ -129,8 +129,7 @@ TEST_F(MvncTestsCommon, OpenPCIEThenUSBAndClose) {
     deviceDesc.platform = NC_ANY_PLATFORM;
 
     // Open PCIe device
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_PCIe, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_PCIe, deviceDesc, m_ncDeviceOpenParams));
 
     actDeviceName = deviceHandle_PCIe->private_data->dev_addr;
     ASSERT_TRUE(actDeviceName.size());
@@ -138,8 +137,7 @@ TEST_F(MvncTestsCommon, OpenPCIEThenUSBAndClose) {
 
     // Open USB device
     deviceDesc.protocol = NC_USB;
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_USB, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle_USB, deviceDesc, m_ncDeviceOpenParams));
 
     actDeviceName = deviceHandle_USB->private_data->dev_addr;
     ASSERT_TRUE(actDeviceName.size());
@@ -147,8 +145,8 @@ TEST_F(MvncTestsCommon, OpenPCIEThenUSBAndClose) {
 
 
     // Close all
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_PCIe));
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_USB));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_PCIe, m_watchdogHndl));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle_USB, m_watchdogHndl));
 }
 
 //------------------------------------------------------------------------------
@@ -167,7 +165,7 @@ TEST_P(MvncOpenDevice, OpenAndClose) {
     deviceDesc.protocol = _deviceProtocol;
     deviceDesc.platform = NC_ANY_PLATFORM;
 
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
     ASSERT_TRUE(deviceHandle != nullptr);
     ASSERT_TRUE(deviceHandle->private_data != nullptr);
@@ -178,7 +176,7 @@ TEST_P(MvncOpenDevice, OpenAndClose) {
 
     ASSERT_TRUE(isSameProtocolDevice(deviceName, _deviceProtocol));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
 }
 
 /**
@@ -193,8 +191,7 @@ TEST_P(MvncOpenDevice, AllHandleFieldsInitialized) {
     deviceDesc.protocol = _deviceProtocol;
     deviceDesc.platform = NC_ANY_PLATFORM;
 
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc,
-                                 watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
     ASSERT_TRUE(deviceHandle != nullptr);
 
@@ -204,7 +201,7 @@ TEST_P(MvncOpenDevice, AllHandleFieldsInitialized) {
     ASSERT_TRUE(device->dev_addr_booted != nullptr);
     ASSERT_TRUE(device->xlink != nullptr);
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
 }
 
 /**
@@ -228,16 +225,16 @@ TEST_P(MvncOpenDevice, OpenTwiceSameHandler) {
     unsigned int data_lenght_second = MAX_DEV_NAME;
 
     // First open, get device name
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle, NC_RO_DEVICE_NAME,
                                       dev_addr_first_open, &data_lenght_first));
 
     // Second open, get device name
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
     ASSERT_NO_ERROR(ncDeviceGetOption(deviceHandle, NC_RO_DEVICE_NAME,
                                       dev_addr_second_open, &data_lenght_second));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
     // Should be the same device
     ASSERT_STREQ(dev_addr_first_open, dev_addr_second_open);
 }
@@ -258,14 +255,12 @@ TEST_P(MvncOpenDevice, DISABLED_OpenSameDeviceTwiceDifferentHandlers) {
     deviceDesc.protocol = _deviceProtocol;
     deviceDesc.platform = NC_ANY_PLATFORM;
 
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle1, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle1, deviceDesc, m_ncDeviceOpenParams));
 
     // Till we don't have multiple device support, this function would try to open same device
-    ASSERT_ERROR(ncDeviceOpen(&deviceHandle2, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_ERROR(ncDeviceOpen(&deviceHandle2, deviceDesc, m_ncDeviceOpenParams));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle1));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle1, m_watchdogHndl));
 }
 
 
@@ -284,22 +279,20 @@ TEST_P(MvncOpenDevice, OpenTwiceWithOneXLinkInitializion) {
     deviceDesc.protocol = _deviceProtocol;
     deviceDesc.platform = NC_ANY_PLATFORM;
 
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
     actDeviceName = deviceHandle->private_data->dev_addr;
     ASSERT_TRUE(isSameProtocolDevice(actDeviceName, _deviceProtocol));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
 
     // Second open
-    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc,
-            watchdogInterval, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandle, deviceDesc, m_ncDeviceOpenParams));
 
     actDeviceName = deviceHandle->private_data->dev_addr;
     ASSERT_TRUE(isSameProtocolDevice(actDeviceName, _deviceProtocol));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
 }
 
 //------------------------------------------------------------------------------
@@ -312,7 +305,7 @@ TEST_P(MvncLoggingTests, ShouldNotPrintErrorMessagesIfCanNotOpenDevice) {
     setLogLevel(MVLOG_INFO);
     ncDeviceHandle_t * deviceHandle = nullptr;
 
-    ASSERT_ERROR(ncDeviceOpen(&deviceHandle, _deviceDesc, watchdogInterval, firmwarePath));
+    ASSERT_ERROR(ncDeviceOpen(&deviceHandle, _deviceDesc, m_ncDeviceOpenParams));
 
     std::string content(buff);
     for (int i = MVLOG_WARN; i < MVLOG_LAST; i++) {
@@ -416,7 +409,7 @@ TEST_P(MvncGraphAllocations, DISABLED_AllocateGraphsOn2DevicesParallel) {
 */
 TEST_F(MvncCloseDevice, EmptyDeviceHandler) {
     ncDeviceHandle_t *deviceHandle = nullptr;
-    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle));
+    ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
 }
 
 /**
@@ -441,7 +434,7 @@ TEST_F(MvncCloseDevice, EmptyFieldsOfDeviceHandle) {
         deviceHandlePtr = dH.get();
     }
 
-    ASSERT_EQ(ncDeviceClose(&deviceHandlePtr), NC_INVALID_PARAMETERS);
+    ASSERT_EQ(ncDeviceClose(&deviceHandlePtr, m_watchdogHndl), NC_INVALID_PARAMETERS);
 }
 
 //------------------------------------------------------------------------------
@@ -509,7 +502,7 @@ TEST_P(MvncInference, DISABLED_DoOneIterationOfInference) {
 
     ASSERT_NO_ERROR(ncGraphDestroy(&_graphHandle[0]));
 
-    ASSERT_NO_ERROR(ncDeviceClose(&_deviceHandle[0]));
+    ASSERT_NO_ERROR(ncDeviceClose(&_deviceHandle[0], m_watchdogHndl));
 }
 
 

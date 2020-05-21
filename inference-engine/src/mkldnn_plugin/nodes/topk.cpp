@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -578,7 +577,7 @@ private:
     }
 };
 
-REG_FACTORY_FOR(ImplFactory<TopKImpl>, TopK);
+REG_FACTORY_FOR(TopKImpl, TopK);
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -43,6 +43,7 @@ std::string TFSoftsignUnfoldedModel();
 std::string cropWithoutOffsetModel();
 std::string cropWithAlignedOffsetModel();
 std::string cropWithOffsetModel();
+std::string cropWithOffsetAndSecondDimModel();
 std::string cropWithMaxOffsetModel();
 std::string cropWithOffsetExtendedModel();
 std::string twoCropsModel();

@@ -2,21 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-#include <gmock/gmock-spec-builders.h>
-#include "mkldnn_graph.h"
-
 #include "test_graph.hpp"
 
 #include "single_layer_common.hpp"
-#include <mkldnn_extension_utils.h>
 #include <cnn_network_impl.hpp>
 #include "tests_common.hpp"
 #include <ie_core.hpp>
-
-#define XBYAK_NO_OP_NAMES
-#define XBYAK_UNDEF_JNL
-#include "../../../../../../../thirdparty/mkl-dnn/src/cpu/xbyak/xbyak_util.h"
+#include <ie_system_conf.h>
 
 using namespace InferenceEngine;
 using namespace ::testing;
@@ -278,11 +270,8 @@ protected:
                         p.comp.at(j)(node->getSupportedPrimitiveDescriptors().at(j));
                     }
                     ASSERT_NE(nullptr, node->getSelectedPrimitiveDescriptor());
-                    Xbyak::util::Cpu cpu;
-                    if (cpu.has(Xbyak::util::Cpu::tAVX512F)
-                            && cpu.has(Xbyak::util::Cpu::tAVX512BW)
-                            && cpu.has(Xbyak::util::Cpu::tAVX512VL)
-                            && cpu.has(Xbyak::util::Cpu::tAVX512DQ)
+                    if (InferenceEngine::with_cpu_x86_avx512f() &&
+                            InferenceEngine::with_cpu_x86_avx512_core()
                             && !p.preferTypes.empty()
                             && p.preferTypes[0] == MKLDNNPlugin::impl_desc_type::jit_avx512_winograd) {
                         isWino = true;

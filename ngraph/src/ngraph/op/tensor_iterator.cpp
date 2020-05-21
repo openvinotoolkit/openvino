@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/tensor_iterator.hpp"
+#include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/pass/get_output_element_elimination.hpp"
 #include "ngraph/specialize_function.hpp"
@@ -22,93 +23,135 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::TensorIterator::type_info;
+constexpr NodeTypeInfo op::v0::TensorIterator::type_info;
 
-constexpr DiscreteTypeInfo op::TensorIterator::SliceInputDescription::type_info;
-constexpr DiscreteTypeInfo op::TensorIterator::MergedInputDescription::type_info;
-constexpr DiscreteTypeInfo op::TensorIterator::InvariantInputDescription::type_info;
+constexpr DiscreteTypeInfo op::v0::TensorIterator::SliceInputDescription::type_info;
+constexpr DiscreteTypeInfo op::v0::TensorIterator::MergedInputDescription::type_info;
+constexpr DiscreteTypeInfo op::v0::TensorIterator::InvariantInputDescription::type_info;
 
-constexpr DiscreteTypeInfo op::TensorIterator::BodyOutputDescription::type_info;
-constexpr DiscreteTypeInfo op::TensorIterator::ConcatOutputDescription::type_info;
+constexpr DiscreteTypeInfo op::v0::TensorIterator::BodyOutputDescription::type_info;
+constexpr DiscreteTypeInfo op::v0::TensorIterator::ConcatOutputDescription::type_info;
 
-constexpr DiscreteTypeInfo op::TensorIterator::BodyLambda::type_info;
+constexpr DiscreteTypeInfo op::v0::TensorIterator::BodyLambda::type_info;
 
-op::TensorIterator::TensorIterator(const OutputVector& values)
+bool op::v0::TensorIterator::BodyLambda::visit_attributes(AttributeVisitor& visitor)
+{
+    return true;
+}
+
+op::v0::TensorIterator::TensorIterator(const OutputVector& values)
     : op::util::FusedOp(values)
 {
 }
 
-op::TensorIterator::InputDescription::InputDescription(uint64_t input_index,
-                                                       uint64_t body_parameter_index)
+op::v0::TensorIterator::InputDescription::InputDescription(uint64_t input_index,
+                                                           uint64_t body_parameter_index)
     : m_input_index(input_index)
     , m_body_parameter_index(body_parameter_index)
 {
 }
 
-op::TensorIterator::SliceInputDescription::SliceInputDescription(uint64_t input_index,
-                                                                 uint64_t body_parameter_index,
-                                                                 int64_t start,
-                                                                 int64_t stride,
-                                                                 int64_t part_size,
-                                                                 int64_t end,
-                                                                 int64_t axis)
-    : InputDescription(input_index, body_parameter_index)
-    , m_start(start)
-    , m_stride(stride)
-    , m_part_size(part_size)
-    , m_end(end)
-    , m_axis(axis)
+bool op::v0::TensorIterator::InputDescription::visit_attributes(AttributeVisitor& visitor)
 {
+    visitor.on_attribute("input_index", m_input_index);
+    visitor.on_attribute("body_parameter_index", m_body_parameter_index);
+    return true;
 }
 
-shared_ptr<op::TensorIterator::InputDescription>
-    op::TensorIterator::SliceInputDescription::copy() const
-{
-    return make_shared<SliceInputDescription>(
-        m_input_index, m_body_parameter_index, m_start, m_stride, m_part_size, m_end, m_axis);
-}
-
-op::TensorIterator::MergedInputDescription::MergedInputDescription(uint64_t input_index,
-                                                                   uint64_t body_parameter_index,
-                                                                   uint64_t body_value_index)
-    : InputDescription(input_index, body_parameter_index)
-    , m_body_value_index(body_value_index)
-{
-}
-
-shared_ptr<op::TensorIterator::InputDescription>
-    op::TensorIterator::MergedInputDescription::copy() const
-{
-    return make_shared<MergedInputDescription>(
-        m_input_index, m_body_parameter_index, m_body_value_index);
-}
-
-op::TensorIterator::InvariantInputDescription::InvariantInputDescription(
-    uint64_t input_index, uint64_t body_parameter_index)
-    : InputDescription(input_index, body_parameter_index)
-{
-}
-
-shared_ptr<op::TensorIterator::InputDescription>
-    op::TensorIterator::InvariantInputDescription::copy() const
-{
-    return make_shared<InvariantInputDescription>(m_input_index, m_body_parameter_index);
-}
-
-op::TensorIterator::OutputDescription::OutputDescription(uint64_t body_value_index,
-                                                         uint64_t output_index)
-    : m_body_value_index(body_value_index)
-    , m_output_index(output_index)
-{
-}
-
-op::TensorIterator::ConcatOutputDescription::ConcatOutputDescription(uint64_t body_value_index,
-                                                                     uint64_t output_index,
+op::v0::TensorIterator::SliceInputDescription::SliceInputDescription(uint64_t input_index,
+                                                                     uint64_t body_parameter_index,
                                                                      int64_t start,
                                                                      int64_t stride,
                                                                      int64_t part_size,
                                                                      int64_t end,
                                                                      int64_t axis)
+    : InputDescription(input_index, body_parameter_index)
+    , m_start(start)
+    , m_stride(stride)
+    , m_part_size(part_size)
+    , m_end(end)
+    , m_axis(axis)
+{
+}
+
+shared_ptr<op::v0::TensorIterator::InputDescription>
+    op::v0::TensorIterator::SliceInputDescription::copy() const
+{
+    return make_shared<SliceInputDescription>(
+        m_input_index, m_body_parameter_index, m_start, m_stride, m_part_size, m_end, m_axis);
+}
+
+bool op::v0::TensorIterator::SliceInputDescription::visit_attributes(AttributeVisitor& visitor)
+{
+    InputDescription::visit_attributes(visitor);
+    visitor.on_attribute("start", m_start);
+    visitor.on_attribute("stride", m_stride);
+    visitor.on_attribute("part_size", m_part_size);
+    visitor.on_attribute("end", m_end);
+    visitor.on_attribute("axis", m_axis);
+    return true;
+}
+
+op::v0::TensorIterator::MergedInputDescription::MergedInputDescription(
+    uint64_t input_index, uint64_t body_parameter_index, uint64_t body_value_index)
+    : InputDescription(input_index, body_parameter_index)
+    , m_body_value_index(body_value_index)
+{
+}
+
+shared_ptr<op::v0::TensorIterator::InputDescription>
+    op::v0::TensorIterator::MergedInputDescription::copy() const
+{
+    return make_shared<MergedInputDescription>(
+        m_input_index, m_body_parameter_index, m_body_value_index);
+}
+
+bool op::v0::TensorIterator::MergedInputDescription::visit_attributes(AttributeVisitor& visitor)
+{
+    InputDescription::visit_attributes(visitor);
+    visitor.on_attribute("body_value_index", m_body_value_index);
+    return true;
+}
+
+op::v0::TensorIterator::InvariantInputDescription::InvariantInputDescription(
+    uint64_t input_index, uint64_t body_parameter_index)
+    : InputDescription(input_index, body_parameter_index)
+{
+}
+
+shared_ptr<op::v0::TensorIterator::InputDescription>
+    op::v0::TensorIterator::InvariantInputDescription::copy() const
+{
+    return make_shared<InvariantInputDescription>(m_input_index, m_body_parameter_index);
+}
+
+bool op::v0::TensorIterator::InvariantInputDescription::visit_attributes(AttributeVisitor& visitor)
+{
+    InputDescription::visit_attributes(visitor);
+    return true;
+}
+
+op::v0::TensorIterator::OutputDescription::OutputDescription(uint64_t body_value_index,
+                                                             uint64_t output_index)
+    : m_body_value_index(body_value_index)
+    , m_output_index(output_index)
+{
+}
+
+bool op::v0::TensorIterator::OutputDescription::visit_attributes(AttributeVisitor& visitor)
+{
+    visitor.on_attribute("body_value_index", m_body_value_index);
+    visitor.on_attribute("output_index", m_output_index);
+    return true;
+}
+
+op::v0::TensorIterator::ConcatOutputDescription::ConcatOutputDescription(uint64_t body_value_index,
+                                                                         uint64_t output_index,
+                                                                         int64_t start,
+                                                                         int64_t stride,
+                                                                         int64_t part_size,
+                                                                         int64_t end,
+                                                                         int64_t axis)
     : OutputDescription(body_value_index, output_index)
     , m_start(start)
     , m_stride(stride)
@@ -118,41 +161,180 @@ op::TensorIterator::ConcatOutputDescription::ConcatOutputDescription(uint64_t bo
 {
 }
 
-shared_ptr<op::TensorIterator::OutputDescription>
-    op::TensorIterator::ConcatOutputDescription::copy() const
+bool op::v0::TensorIterator::ConcatOutputDescription::visit_attributes(AttributeVisitor& visitor)
+{
+    OutputDescription::visit_attributes(visitor);
+    visitor.on_attribute("start", m_start);
+    visitor.on_attribute("stride", m_stride);
+    visitor.on_attribute("part_size", m_part_size);
+    visitor.on_attribute("end", m_end);
+    visitor.on_attribute("axis", m_axis);
+    return true;
+}
+
+shared_ptr<op::v0::TensorIterator::OutputDescription>
+    op::v0::TensorIterator::ConcatOutputDescription::copy() const
 {
     return make_shared<ConcatOutputDescription>(
         m_body_value_index, m_output_index, m_start, m_stride, m_part_size, m_end, m_axis);
 }
 
-op::TensorIterator::BodyOutputDescription::BodyOutputDescription(uint64_t body_value_index,
-                                                                 uint64_t output_index,
-                                                                 int64_t iteration)
+op::v0::TensorIterator::BodyOutputDescription::BodyOutputDescription(uint64_t body_value_index,
+                                                                     uint64_t output_index,
+                                                                     int64_t iteration)
     : OutputDescription(body_value_index, output_index)
     , m_iteration(iteration)
 {
 }
 
-shared_ptr<op::TensorIterator::OutputDescription>
-    op::TensorIterator::BodyOutputDescription::copy() const
+shared_ptr<op::v0::TensorIterator::OutputDescription>
+    op::v0::TensorIterator::BodyOutputDescription::copy() const
 {
     return make_shared<BodyOutputDescription>(m_body_value_index, m_output_index, m_iteration);
 }
 
-Input<Node> op::TensorIterator::input_for_value(const Output<Node>& value)
+bool op::v0::TensorIterator::BodyOutputDescription::visit_attributes(AttributeVisitor& visitor)
+{
+    OutputDescription::visit_attributes(visitor);
+    visitor.on_attribute("iteration", m_iteration);
+    return true;
+}
+
+namespace
+{
+}
+
+namespace ngraph
+{
+    template <>
+    FactoryRegistry<op::v0::TensorIterator::InputDescription>&
+        FactoryRegistry<op::v0::TensorIterator::InputDescription>::get()
+    {
+        static FactoryRegistry<op::v0::TensorIterator::InputDescription> registry;
+        static mutex init_guard;
+        if (registry.m_factory_map.size() == 0)
+        {
+            lock_guard<mutex> guard(init_guard);
+            if (registry.m_factory_map.size() == 0)
+            {
+                registry.register_factory<op::v0::TensorIterator::SliceInputDescription>();
+                registry.register_factory<op::v0::TensorIterator::MergedInputDescription>();
+                registry.register_factory<op::v0::TensorIterator::InvariantInputDescription>();
+            }
+        }
+        return registry;
+    }
+
+    constexpr DiscreteTypeInfo
+        AttributeAdapter<std::shared_ptr<op::TensorIterator::InputDescription>>::type_info;
+
+    constexpr DiscreteTypeInfo AttributeAdapter<
+        std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>>::type_info;
+
+    AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>>::
+        AttributeAdapter(std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>& ref)
+        : m_ref(ref)
+    {
+    }
+
+    bool AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>>::
+        visit_attributes(AttributeVisitor& visitor)
+    {
+        int64_t size = m_ref.size();
+        visitor.on_attribute("size", size);
+        if (size != m_ref.size())
+        {
+            m_ref.resize(size);
+        }
+        ostringstream index;
+        for (int64_t i = 0; i < size; i++)
+        {
+            index.str("");
+            index << i;
+            visitor.on_attribute(index.str(), m_ref[i]);
+        }
+        return true;
+    }
+
+    template <>
+    FactoryRegistry<op::v0::TensorIterator::OutputDescription>&
+        FactoryRegistry<op::v0::TensorIterator::OutputDescription>::get()
+    {
+        static FactoryRegistry<op::v0::TensorIterator::OutputDescription> registry;
+        static mutex init_guard;
+        // TODO: Add a lock
+        if (registry.m_factory_map.size() == 0)
+        {
+            lock_guard<mutex> guard(init_guard);
+            if (registry.m_factory_map.size() == 0)
+            {
+                registry.register_factory<op::v0::TensorIterator::ConcatOutputDescription>();
+                registry.register_factory<op::v0::TensorIterator::BodyOutputDescription>();
+            }
+        }
+        return registry;
+    }
+
+    constexpr DiscreteTypeInfo AttributeAdapter<
+        std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>>::type_info;
+
+    constexpr DiscreteTypeInfo
+        AttributeAdapter<std::shared_ptr<op::TensorIterator::OutputDescription>>::type_info;
+
+    AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>>::
+        AttributeAdapter(std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>& ref)
+        : m_ref(ref)
+    {
+    }
+
+    bool AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>>::
+        visit_attributes(AttributeVisitor& visitor)
+    {
+        int64_t size = m_ref.size();
+        visitor.on_attribute("size", size);
+        if (size != m_ref.size())
+        {
+            m_ref.resize(size);
+        }
+        ostringstream index;
+        for (int64_t i = 0; i < size; i++)
+        {
+            index.str("");
+            index << i;
+            visitor.on_attribute(index.str(), m_ref[i]);
+        }
+        return true;
+    }
+}
+
+bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
+{
+    if (!m_body)
+    {
+        m_body = make_shared<BodyLambda>();
+    }
+    shared_ptr<Lambda> lambda = m_body;
+    visitor.on_attribute("body", lambda);
+    visitor.on_attribute("input_descriptions", m_input_descriptions);
+    visitor.on_attribute("output_descriptions", m_output_descriptions);
+
+    return false;
+}
+
+Input<Node> op::v0::TensorIterator::input_for_value(const Output<Node>& value)
 {
     auto input_index = get_input_size();
     set_argument(input_index, value);
     return Input<Node>(this, input_index);
 }
 
-void op::TensorIterator::set_sliced_input(const std::shared_ptr<op::Parameter>& body_parameter,
-                                          const Output<Node>& value,
-                                          int64_t start,
-                                          int64_t stride,
-                                          int64_t part_size,
-                                          int64_t end,
-                                          int64_t axis)
+void op::v0::TensorIterator::set_sliced_input(const std::shared_ptr<op::Parameter>& body_parameter,
+                                              const Output<Node>& value,
+                                              int64_t start,
+                                              int64_t stride,
+                                              int64_t part_size,
+                                              int64_t end,
+                                              int64_t axis)
 {
     m_input_descriptions.push_back(
         make_shared<SliceInputDescription>(input_for_value(value).get_index(),
@@ -164,9 +346,9 @@ void op::TensorIterator::set_sliced_input(const std::shared_ptr<op::Parameter>& 
                                            axis));
 }
 
-void op::TensorIterator::set_merged_input(const std::shared_ptr<Parameter>& body_parameter,
-                                          const Output<Node>& initial_value,
-                                          const Output<Node>& successive_value)
+void op::v0::TensorIterator::set_merged_input(const std::shared_ptr<Parameter>& body_parameter,
+                                              const Output<Node>& initial_value,
+                                              const Output<Node>& successive_value)
 {
     m_input_descriptions.push_back(
         make_shared<MergedInputDescription>(input_for_value(initial_value).get_index(),
@@ -174,14 +356,15 @@ void op::TensorIterator::set_merged_input(const std::shared_ptr<Parameter>& body
                                             m_body->get_result_index(successive_value)));
 }
 
-void op::TensorIterator::set_invariant_input(const std::shared_ptr<Parameter>& body_parameter,
-                                             const Output<Node>& value)
+void op::v0::TensorIterator::set_invariant_input(const std::shared_ptr<Parameter>& body_parameter,
+                                                 const Output<Node>& value)
 {
     m_input_descriptions.push_back(make_shared<InvariantInputDescription>(
         input_for_value(value).get_index(), m_body->get_parameter_index(body_parameter)));
 }
 
-Output<Node> op::TensorIterator::get_iter_value(const Output<Node>& body_value, int64_t iteration)
+Output<Node> op::v0::TensorIterator::get_iter_value(const Output<Node>& body_value,
+                                                    int64_t iteration)
 {
     auto output_index = get_output_size();
     m_output_descriptions.push_back(make_shared<BodyOutputDescription>(
@@ -190,12 +373,12 @@ Output<Node> op::TensorIterator::get_iter_value(const Output<Node>& body_value, 
     return Output<Node>(shared_from_this(), output_index);
 }
 
-Output<Node> op::TensorIterator::get_concatenated_slices(const Output<Node>& body_value,
-                                                         int64_t start,
-                                                         int64_t stride,
-                                                         int64_t part_size,
-                                                         int64_t end,
-                                                         int64_t axis)
+Output<Node> op::v0::TensorIterator::get_concatenated_slices(const Output<Node>& body_value,
+                                                             int64_t start,
+                                                             int64_t stride,
+                                                             int64_t part_size,
+                                                             int64_t end,
+                                                             int64_t axis)
 {
     auto output_index = get_output_size();
     m_output_descriptions.push_back(make_shared<ConcatOutputDescription>(
@@ -204,13 +387,13 @@ Output<Node> op::TensorIterator::get_concatenated_slices(const Output<Node>& bod
     return Output<Node>(shared_from_this(), output_index);
 }
 
-NodeVector op::TensorIterator::decompose_op() const
+NodeVector op::v0::TensorIterator::decompose_op() const
 {
     // Stub
     return NodeVector{};
 }
 
-void op::TensorIterator::revalidate_and_infer_types_for_body_ops()
+void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
 {
     std::stack<std::shared_ptr<Node>, std::vector<std::shared_ptr<Node>>> nodes_to_do;
     std::unordered_set<std::shared_ptr<Node>> nodes_done;
@@ -224,7 +407,7 @@ void op::TensorIterator::revalidate_and_infer_types_for_body_ops()
         auto node = nodes_to_do.top();
         if (nodes_done.count(node) == 0)
         {
-            NGRAPH_CHECK(as_type_ptr<op::TensorIterator>(node) == nullptr,
+            NGRAPH_CHECK(as_type_ptr<op::v0::TensorIterator>(node) == nullptr,
                          "No nested TensorIterator");
             bool can_add = true;
             size_t arg_count = node->get_input_size();
@@ -254,7 +437,7 @@ void op::TensorIterator::revalidate_and_infer_types_for_body_ops()
     }
 }
 
-void op::TensorIterator::validate_and_infer_types()
+void op::v0::TensorIterator::validate_and_infer_types()
 {
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == m_input_descriptions.size(),
@@ -429,9 +612,10 @@ void op::TensorIterator::validate_and_infer_types()
     }
 }
 
-std::shared_ptr<Node> op::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const
+std::shared_ptr<Node>
+    op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    auto op = make_shared<op::TensorIterator>(new_args);
+    auto op = make_shared<op::v0::TensorIterator>(new_args);
     op->set_output_size(m_output_descriptions.size());
 
     std::vector<::ngraph::element::Type> types(m_body->get_parameters().size());
@@ -451,7 +635,8 @@ std::shared_ptr<Node> op::TensorIterator::clone_with_new_inputs(const OutputVect
                 if (new_shapes[input_description->m_body_parameter_index].is_static())
                 {
                     if (auto slice_in = ::ngraph::as_type_ptr<
-                            ngraph::op::TensorIterator::SliceInputDescription>(input_description))
+                            ngraph::op::v0::TensorIterator::SliceInputDescription>(
+                            input_description))
                     {
                         new_shapes[slice_in->m_body_parameter_index][slice_in->m_axis] =
                             slice_in->m_part_size;
@@ -484,4 +669,8 @@ std::shared_ptr<Node> op::TensorIterator::clone_with_new_inputs(const OutputVect
         op->m_output_descriptions.push_back(output_description->copy());
     }
     return move(op);
+}
+
+namespace ngraph
+{
 }

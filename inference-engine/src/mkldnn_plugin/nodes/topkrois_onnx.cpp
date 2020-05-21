@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 #include <algorithm>
 #include <cassert>
@@ -71,7 +70,7 @@ private:
     int max_rois_num_;
 };
 
-REG_FACTORY_FOR(ImplFactory<ExperimentalDetectronTopKROIsImpl>, ExperimentalDetectronTopKROIs);
+REG_FACTORY_FOR(ExperimentalDetectronTopKROIsImpl, ExperimentalDetectronTopKROIs);
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -49,6 +49,55 @@ std::shared_ptr<ngraph::Node> makeGroupConvolution(const ngraph::Output<Node> &i
                                                    const std::vector<float> &filterWeights = {},
                                                    const std::vector<float> &biasesWeights = {});
 
+std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in,
+                                                          const element::Type &type,
+                                                          const std::vector<size_t> &filterSize,
+                                                          const std::vector<size_t> &strides,
+                                                          const std::vector<ptrdiff_t> &padsBegin,
+                                                          const std::vector<ptrdiff_t> &padsEnd,
+                                                          const std::vector<size_t> &dilations,
+                                                          const op::PadType &autoPad,
+                                                          size_t numOutChannels,
+                                                          bool addBiases = false,
+                                                          const std::vector<float> &filterWeights = {},
+                                                          const std::vector<float> &biasesWeights = {});
+
+std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in,
+                                                          const ngraph::Output<Node> &weights,
+                                                          const element::Type &type,
+                                                          const std::vector<size_t> &strides,
+                                                          const std::vector<ptrdiff_t> &padsBegin,
+                                                          const std::vector<ptrdiff_t> &padsEnd,
+                                                          const std::vector<size_t> &dilations,
+                                                          const op::PadType &autoPad,
+                                                          bool addBiases = false,
+                                                          const std::vector<float> &biasesWeights = {});
+
+std::shared_ptr<ngraph::Node> makeGroupConvolutionBackpropData(const ngraph::Output<Node> &in,
+                                                               const element::Type &type,
+                                                               const std::vector<size_t> &filterSize,
+                                                               const std::vector<size_t> &strides,
+                                                               const std::vector<ptrdiff_t> &padsBegin,
+                                                               const std::vector<ptrdiff_t> &padsEnd,
+                                                               const std::vector<size_t> &dilations,
+                                                               const op::PadType &autoPad,
+                                                               size_t numOutChannels,
+                                                               size_t numGroups,
+                                                               bool addBiases = false,
+                                                               const std::vector<float> &filterWeights = {},
+                                                               const std::vector<float> &biasesWeights = {});
+
+std::shared_ptr<ngraph::Node> makeGroupConvolutionBackpropData(const ngraph::Output<Node> &in,
+                                                               const ngraph::Output<Node> &weights,
+                                                               const element::Type &type,
+                                                               const std::vector<size_t> &strides,
+                                                               const std::vector<ptrdiff_t> &padsBegin,
+                                                               const std::vector<ptrdiff_t> &padsEnd,
+                                                               const std::vector<size_t> &dilations,
+                                                               const op::PadType &autoPad,
+                                                               bool addBiases = false,
+                                                               const std::vector<float> &biasesWeights = {});
+
 std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
                                         const element::Type &type,
                                         size_t numSplits,
@@ -115,6 +164,25 @@ std::shared_ptr<ngraph::Node> makeProposal(const ngraph::Output<Node> &class_pro
 
 std::shared_ptr<ngraph::Node> makeSelect(std::vector<ngraph::Output<Node>> &in,
                                          const ngraph::op::AutoBroadcastSpec& auto_broadcast);
+
+std::shared_ptr<Node> makeFakeQuantize(const ngraph::Output<Node> &in,
+                                       const element::Type &type,
+                                       std::size_t levels,
+                                       std::vector<size_t> constShapes,
+                                       const std::vector<float> &inputLowData,
+                                       const std::vector<float> &inputHighData,
+                                       const std::vector<float> &outputLowData,
+                                       const std::vector<float> &outputHighData);
+
+std::shared_ptr<Node> makeFakeQuantize(const ngraph::Output<Node> &in,
+                                       const element::Type &type,
+                                       std::size_t levels,
+                                       std::vector<size_t> constShapes);
+
+std::shared_ptr<ngraph::Node> makeCumSum(const ngraph::Output<Node> &in,
+                                         const ngraph::Output<Node> &axis,
+                                         bool exclusive,
+                                         bool reverse);
 
 }  // namespace builder
 }  // namespace ngraph

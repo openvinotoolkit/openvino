@@ -74,6 +74,7 @@ extensions/front/ATenToEmbeddingBag.py
 extensions/front/AttributedGatherNormalizer.py
 extensions/front/AttributedPadToPad.py
 extensions/front/binary_quantize_normalization.py
+extensions/front/broadcast_with_range.py
 extensions/front/caffe/__init__.py
 extensions/front/caffe/accum_ext.py
 extensions/front/caffe/argmax_ext.py
@@ -114,7 +115,6 @@ extensions/front/caffe/relu_ext.py
 extensions/front/caffe/reorgyolo_ext.py
 extensions/front/caffe/resample_ext.py
 extensions/front/caffe/reshape.py
-extensions/front/caffe/ShuffleChannel.py
 extensions/front/caffe/shufflechannel_ext.py
 extensions/front/caffe/sigmoid.py
 extensions/front/caffe/simplernms_ext.py
@@ -173,6 +173,8 @@ extensions/front/mxnet/clip_ext.py
 extensions/front/mxnet/conv_ext.py
 extensions/front/mxnet/copy_ext.py
 extensions/front/mxnet/crop_ext.py
+extensions/front/mxnet/cumsum.py
+extensions/front/mxnet/cumsum_ext.py
 extensions/front/mxnet/custom.py
 extensions/front/mxnet/custom_rpn_proposal.py
 extensions/front/mxnet/deformable_conv_ext.py
@@ -245,6 +247,7 @@ extensions/front/onnx/constant_of_shape_ext.py
 extensions/front/onnx/constant_of_shape_to_broadcast.py
 extensions/front/onnx/conv_ext.py
 extensions/front/onnx/crop_ext.py
+extensions/front/onnx/cumsum_ext.py
 extensions/front/onnx/deformable_conv_ext.py
 extensions/front/onnx/detection_output.py
 extensions/front/onnx/detectionoutput_ext.py
@@ -286,6 +289,7 @@ extensions/front/onnx/priorgridgenerator_ext.py
 extensions/front/onnx/proposal_ext.py
 extensions/front/onnx/quantize_dequantize_linear.py
 extensions/front/onnx/quantize_ext.py
+extensions/front/onnx/range_ext.py
 extensions/front/onnx/reduce_max_ext.py
 extensions/front/onnx/reduce_mean_ext.py
 extensions/front/onnx/reduce_min_ext.py
@@ -350,6 +354,7 @@ extensions/front/tf/crop_and_resize_ext.py
 extensions/front/tf/CropAndResizeReplacement.py
 extensions/front/tf/CTCGreedyDecoder.py
 extensions/front/tf/CTCGreedyDecoder_ext.py
+extensions/front/tf/cumsum_ext.py
 extensions/front/tf/deconv_ext.py
 extensions/front/tf/depth_to_space.py
 extensions/front/tf/elementwise_ext.py
@@ -399,6 +404,7 @@ extensions/front/tf/placeholder_ext.py
 extensions/front/tf/placeholder_with_default_ext.py
 extensions/front/tf/pooling_ext.py
 extensions/front/tf/prelu.py
+extensions/front/tf/range_ext.py
 extensions/front/tf/reduce_ext.py
 extensions/front/tf/reshape_related_ext.py
 extensions/front/tf/resize_bilinear.py
@@ -448,6 +454,7 @@ extensions/front/tf/unique_ext.py
 extensions/front/tf/UnpackPackReverseInputChannels.py
 extensions/front/tf/variable_ext.py
 extensions/front/tf/variables_values_freezing.py
+extensions/front/tf/WhereDecomposition.py
 extensions/front/tf/yolo_v1.json
 extensions/front/tf/yolo_v1_tiny.json
 extensions/front/tf/yolo_v2.json
@@ -591,6 +598,7 @@ extensions/ops/constant_fill.py
 extensions/ops/copyop.py
 extensions/ops/correlation.py
 extensions/ops/ctc_greedy_decoder.py
+extensions/ops/cumsum.py
 extensions/ops/data_augmentation.py
 extensions/ops/depth_to_space.py
 extensions/ops/DetectionOutput.py

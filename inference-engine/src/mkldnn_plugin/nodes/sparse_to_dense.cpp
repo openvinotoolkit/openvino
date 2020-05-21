@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -152,7 +151,7 @@ private:
     bool with_default_value = false;
 };
 
-REG_FACTORY_FOR(ImplFactory<SparseToDenseImpl>, SparseToDense);
+REG_FACTORY_FOR(SparseToDenseImpl, SparseToDense);
 
 }  // namespace Cpu
 }  // namespace Extensions

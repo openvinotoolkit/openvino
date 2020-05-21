@@ -17,6 +17,7 @@ import os
 import re
 import sys
 import argparse
+from inspect import getsourcefile
 from glob import glob
 import xml.etree.ElementTree as ET
 import hashlib
@@ -36,14 +37,11 @@ PRECISSIONS = ('FP32', 'FP16', 'INT8')
 KEY_FIELDS = ('test_name', 'model', 'device', 'build_url')
 
 
-def globber(paths):
-    """Generator extending paths with wildcards"""
-    for path in paths:
-        if any(magic in path for magic in ['*', '?', '!', '[', ']']):
-            for resolved in glob(path, recursive=True):
-                yield resolved
-        else:
-            yield path
+def abs_path(relative_path):
+    """Return absolute path given path relative to the current file.
+    """
+    return os.path.realpath(
+        os.path.join(os.path.dirname(getsourcefile(lambda: 0)), relative_path))
 
 
 def parse_memcheck_log(log_path):
@@ -116,6 +114,79 @@ def upload_memcheck_records(records, db_url, db_collection):
     collection = client[DATABASE][db_collection]
     for record in records:
         collection.replace_one({'_id': record['_id']}, record, upsert=True)
+
+
+def _transpose_dicts(items, template=None):
+    """ Build dictionary of arrays from array of dictionaries
+    Example:
+    > in = [{'a':1, 'b':3}, {'a':2}]
+    > _transpose_dicts(in, template=in[0])
+    {'a':[1,2], 'b':[3, None]}
+    """
+    result = {}
+    if not items:
+        return result
+    if not template:
+        template = items[0]
+    for key, template_val in template.items():
+        if isinstance(template_val, dict):
+            result[key] = _transpose_dicts(
+                [item[key] for item in items if key in item], template_val)
+        else:
+            result[key] = [item.get(key, None) for item in items]
+    return result
+
+
+TIMELINE_SIMILARITY = ('test_name', 'model', 'device', 'target_branch')
+
+
+def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIMELINE_SIMILARITY):
+    """ Query database for similar memcheck items committed previously
+    """
+    client = MongoClient(db_url)
+    collection = client[DATABASE][db_collection]
+    result = []
+    for record in records:
+        query = dict((key, record[key]) for key in similarity)
+        query['commit_date'] = {'$lt': record['commit_date']}
+        pipeline = [
+            {'$match': query},
+            {'$addFields': {'commit_date': {'$dateFromString': {'dateString': '$commit_date'}}}},
+            {'$sort': {'commit_date': -1}},
+            {'$limit': max_items},
+            {'$sort': {'commit_date': 1}},
+        ]
+        items = list(collection.aggregate(pipeline)) + [record]
+        timeline = _transpose_dicts(items, template=record)
+        result += [timeline]
+    return result
+
+
+def create_memcheck_report(records, db_url, db_collection, output_path):
+    """ Create memcheck timeline HTML report for records.
+    """
+    if db_collection == 'pre_commit':
+        db_collection = 'commit'  # pre-commit jobs building report from past commits
+    records.sort(
+        key=lambda item: f"{item['status']}{item['device']}{item['model']}{item['test_name']}")
+    timelines = query_timeline(records, db_url, db_collection)
+    import jinja2  # pylint: disable=import-outside-toplevel
+    env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(
+            searchpath=os.path.join(abs_path('.'), 'memcheck-template')),
+        autoescape=False)
+    template = env.get_template('timeline_report.html')
+    template.stream(records=records, timelines=timelines).dump(output_path)
+
+
+def globber(paths):
+    """Generator extending paths with wildcards"""
+    for path in paths:
+        if any(magic in path for magic in ['*', '?', '!', '[', ']']):
+            for resolved in glob(path, recursive=True):
+                yield resolved
+        else:
+            yield path
 
 
 def main():

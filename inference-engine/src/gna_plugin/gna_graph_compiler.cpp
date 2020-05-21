@@ -185,17 +185,16 @@ void  GNAGraphCompiler::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) 
     if (constLayer->blobs.find("custom") == constLayer->blobs.end()) {
         THROW_GNA_EXCEPTION << "const layer: " << constLayer->name << "doesn't have custom in blobs section";
     }
-    auto constBlob = constLayer->blobs["custom"];
+    auto const_blob = constLayer->blobs["custom"];
 
-    void* ptr_for_const_blob = &ptr_for_const_blob;
-    connectOutput(constLayer, ptr_for_const_blob, constBlob->size());
+    const_connections[constLayer->name] = &const_connections[constLayer->name];
+    void* ptr_for_const_blob = &const_connections[constLayer->name];
 
-    const_connections[constLayer->name] = ptr_for_const_blob;
-
+    connectOutput(constLayer, ptr_for_const_blob, const_blob->byteSize());
     // TODO: segment type for bind, bind initializer not used - need refactor to separate bind and allocation requests
     // dont see practical use case when bind storage type need to be different that allocation type
-    gnamem->readonly().bind_initializer(ptr_for_const_blob, [constBlob](void* data, size_t size) {
-        ie_memcpy(data, size, constBlob->buffer(), constBlob->byteSize());
+    gnamem->readonly().bind_initializer(ptr_for_const_blob, [const_blob](void* data, size_t size) {
+        ie_memcpy(data, size, const_blob->buffer(), const_blob->byteSize());
         });
 }
 
@@ -602,15 +601,35 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
     if (cropLayer == nullptr) {
         return;
     }
-    if (cropLayer->axis.size() > 1) {
+
+    IE_ASSERT(!layer->insData.empty());
+    auto inputs = layer->insData.begin()->lock();
+
+    IE_ASSERT(!cropLayer->axis.empty());
+    IE_ASSERT(cropLayer->axis.size() == cropLayer->dim.size());
+    IE_ASSERT(cropLayer->axis.size() == cropLayer->offset.size());
+
+    std::vector<int> axis, dim, offset;
+    for (int n = 0; n < cropLayer->axis.size(); n++) {
+        uint32_t input_dim = FROM_IR_DIM(inputs, inputs->getDims().size() - cropLayer->axis[n]);
+        // Exclude crop layer components that do nothing
+        if (cropLayer->offset[n] == 0 && cropLayer->dim[n] == input_dim) {
+            continue;
+        }
+        axis.push_back(cropLayer->axis[n]);
+        dim.push_back(cropLayer->dim[n]);
+        offset.push_back(cropLayer->offset[n]);
+    }
+
+    if (axis.size() > 1) {
         THROW_GNA_EXCEPTION <<
-            "Crop layer does not support the number of cropped dimensions = "
-            << cropLayer->axis.size() << ".";
+            "Crop layer does not support the number of (non-trivial) cropped dimensions more than 1, provided: "
+            << axis.size() << ".";
     }
 
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-    size_t cropOffset = cropLayer->offset.back() * cropLayer->precision.size();
-    size_t cropOutputSize = cropLayer->dim.back() * cropLayer->precision.size();
+    size_t cropOffset = offset.front() * cropLayer->precision.size();
+    size_t cropOutputSize = dim.front() * cropLayer->precision.size();
 
     if (ALIGN64(cropOffset) == cropOffset) {
         // leave crop as it is
@@ -637,20 +656,18 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
     } else {
         gnalog() << "Crop " << layer->name << " is being replaced by Affine layer...\n";
         IE_ASSERT(!layer->outData.empty());
-        IE_ASSERT(!layer->insData.empty());
         auto outputs = *layer->outData.begin();
-        auto inputs = layer->insData.begin()->lock();
 
         // only 1D crops supported
-        if (cropLayer->axis.size() != 1) {
+        if (axis.size() != 1) {
             THROW_GNA_EXCEPTION << "only 1D crop layer supported: " << cropLayer->name;
         }
 
         // TODO: add unit tests for 4d crops blobs
-        uint32_t num_rows_in = FROM_IR_DIM(inputs, inputs->getDims().size() - cropLayer->axis[0]);
+        uint32_t num_rows_in = FROM_IR_DIM(inputs, inputs->getDims().size() - axis.front());
         uint32_t num_columns_in = 1;
 
-        uint32_t num_rows_out = FROM_IR_DIM(outputs, inputs->getDims().size() - cropLayer->axis[0]);
+        uint32_t num_rows_out = FROM_IR_DIM(outputs, inputs->getDims().size() - axis.front());
         uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
 
         void* ptr_inputs = nullptr;
@@ -686,7 +703,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
         connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
-        FillWeightOfAligningFilter(layer, ptr_weights, cropLayer->offset.back(), (quantized == nullptr) ? false : true);
+        FillWeightOfAligningFilter(layer, ptr_weights, offset.front(), (quantized == nullptr) ? false : true);
 
         (quantized == nullptr) ?
             gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64) :
@@ -713,17 +730,27 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     int biasesLayerIdx = 1;
 
     if (quantized) {
-        if (eltwise._operation == EltwiseLayer::Sum) {
+        switch (eltwise._operation) {
+        case InferenceEngine::EltwiseLayer::Sum:
+        case InferenceEngine::EltwiseLayer::Sub:
+        {
             if (inputs4Bytes->getPrecision().size() != 4) {
                 std::swap(inputs4Bytes, inputs2Bytes);
                 biasesLayerIdx = 0;
             }
             GNA_LAYER_ASSERT(layer, inputs2Bytes->getPrecision().size() == 2);
             GNA_LAYER_ASSERT(layer, inputs4Bytes->getPrecision().size() == 4);
-        } else {
+            break;
+        }
+        case InferenceEngine::EltwiseLayer::Prod:
+        {
             // for mul both inputs should be 2 bytes precision
             GNA_LAYER_ASSERT(layer, inputs2Bytes->getPrecision().size() == 2);
             GNA_LAYER_ASSERT(layer, inputs4Bytes->getPrecision().size() == 2);
+            break;
+        }
+        default:
+            THROW_GNA_EXCEPTION << "Unsupported eltwise operation for quantization: " << eltwise._operation;
         }
     }
 
@@ -767,6 +794,18 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 1 - biasesLayerIdx);
 
     switch (eltwise._operation) {
+    case EltwiseLayer::Sub:
+        if (quantized == nullptr) {
+            gnamem->readonly().push_value(ptr_weights, -1.0f, num_rows_out, 64);
+        } else {
+            auto scaledIdentity = -quantized->_weights_quant.scale;
+
+            auto quantizedIdentity = FLOAT_TO_INT16(std::min(scaledIdentity, static_cast<float>(INT16_MAX)));
+
+            gnamem->readonly().push_value<int16_t>(ptr_weights, quantizedIdentity, num_rows_out, 64);
+        }
+        connectInput(layer, ptr_biases, num_data_bytes_in, 0, biasesLayerIdx);
+        break;
     case EltwiseLayer::Sum:
         if (quantized == nullptr) {
             gnamem->readonly().push_value(ptr_weights, 1.0f, num_rows_out, 64);

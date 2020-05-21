@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.shufflechannel import ShuffleChannelOp
+from extensions.ops.shufflechannel import ShuffleChannels
 from mo.front.caffe.collect_attributes import collect_attributes
 from mo.front.common.extractors.utils import layout_attrs
 from mo.front.extractor import FrontExtractorOp
@@ -29,5 +29,5 @@ class ShuffleChannelFrontExtractor(FrontExtractorOp):
         mapping_rule.update(layout_attrs())
 
         # update the attributes of the node
-        ShuffleChannelOp.update_node_stat(node, mapping_rule)
+        ShuffleChannels.update_node_stat(node, mapping_rule)
         return cls.enabled

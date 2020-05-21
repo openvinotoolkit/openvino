@@ -58,6 +58,6 @@ FIND_PACKAGE_HANDLE_STANDARD_ARGS( Cython REQUIRED_VARS CYTHON_EXECUTABLE )
 
 # Find Cython version
 execute_process(COMMAND ${CYTHON_EXECUTABLE} -V ERROR_VARIABLE CYTHON_OUTPUT OUTPUT_QUIET)
-string(REGEX REPLACE "^Cython version ([0-9]+\\.[0-9]+\\.[0-9]+).*" "\\1" CYTHON_VERSION "${CYTHON_OUTPUT}")
+string(REGEX REPLACE "^Cython version ([0-9]+\\.[0-9]+(\\.[0-9]+)?).*" "\\1" CYTHON_VERSION "${CYTHON_OUTPUT}")
 
 mark_as_advanced( CYTHON_EXECUTABLE CYTHON_VERSION )

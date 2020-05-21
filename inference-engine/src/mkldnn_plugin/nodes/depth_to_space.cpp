@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -118,7 +117,7 @@ private:
     size_t ownStrides[CNTR_SIZE];
 };
 
-REG_FACTORY_FOR(ImplFactory<DepthToSpaceImpl>, DepthToSpace);
+REG_FACTORY_FOR(DepthToSpaceImpl, DepthToSpace);
 
 }  // namespace Cpu
 }  // namespace Extensions

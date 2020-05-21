@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 #include "ie_parallel.hpp"
 
@@ -103,7 +102,7 @@ private:
     Precision input_precision;
 };
 
-REG_FACTORY_FOR(ImplFactory<OneHotImpl>, OneHot);
+REG_FACTORY_FOR(OneHotImpl, OneHot);
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -75,8 +75,6 @@ if (ENABLE_MKL_DNN)
             MKLDNN_TESTS_INCLUDE engines/mkldnn/graph/*.hpp)
     include_directories(
             ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/common
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu
             engines/mkldnn/graph
             ${CMAKE_BINARY_DIR}/include/)
 

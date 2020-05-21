@@ -154,6 +154,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     auto next_output_layout = next.get_output_layout();
     auto prev_dt = prev.get_output_layout().data_type;
 
+    auto is_input_idx = [&](size_t idx) -> bool {
+        if (&next.get_dependency(idx) == &prev)
+            return true;
+        if (next.get_dependency(idx).is_type<reorder>() && &next.get_dependency(idx).get_dependency(0) == &prev)
+            return true;
+        return false;
+    };
+
     if (next.is_type<reorder>())
         return true;
 
@@ -188,6 +196,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         return true;
 
     if (next.is_type<convolution>() && fmt_prev == format::b_fs_yx_fsv4 && fmt_next == format::byxf_af32 && next.as<convolution>().get_groups() == 1)
+        return true;
+
+    if (next.is_type<convolution>() && fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv4 && is_input_idx(0))
         return true;
 
     if (next.is_type<quantize>() && fmt_prev == format::bfyx && prev.is_input() && prev_dt == data_types::u8)

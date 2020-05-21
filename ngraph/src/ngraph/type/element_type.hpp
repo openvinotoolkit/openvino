@@ -201,12 +201,11 @@ namespace ngraph
     };
 
     template <>
-    class NGRAPH_API AttributeAdapter<element::Type> : public ValueReference<element::Type>,
-                                                       public ValueAccessor<std::string>
+    class NGRAPH_API AttributeAdapter<element::Type> : public ValueAccessor<std::string>
     {
     public:
         AttributeAdapter(element::Type& value)
-            : ValueReference<element::Type>(value)
+            : m_ref(value)
         {
         }
 
@@ -215,6 +214,9 @@ namespace ngraph
 
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<element::Type>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+        operator element::Type&() { return m_ref; }
+    protected:
+        element::Type& m_ref;
     };
 
     /// \brief Return the number of bytes in the compile-time representation of the element type.

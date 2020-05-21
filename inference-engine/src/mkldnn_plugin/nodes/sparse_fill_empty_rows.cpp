@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -225,7 +224,7 @@ private:
     size_t outMaxNumValues = 0;
 };
 
-REG_FACTORY_FOR(ImplFactory<SparseFillEmptyRowsImpl>, SparseFillEmptyRows);
+REG_FACTORY_FOR(SparseFillEmptyRowsImpl, SparseFillEmptyRows);
 
 }  // namespace Cpu
 }  // namespace Extensions

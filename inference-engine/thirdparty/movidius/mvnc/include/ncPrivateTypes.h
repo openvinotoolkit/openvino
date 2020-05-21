@@ -54,7 +54,7 @@ struct _devicePrivate_t {
     deviceCapabilities_t dev_attr;
     ncDeviceState_t state;
     uint32_t device_id;
-    wd_context watchdog_ctx;
+    WdDeviceHndl_t* watchdog_device;
     int wd_interval;
 };
 

@@ -12,17 +12,6 @@
 #include <memory>
 #include <algorithm>
 
-// WA for xbyak.h
-#ifdef _WIN32
-# ifndef _WINSOCKAPI_
-#  define _WINSOCKAPI_
-# endif
-# ifndef _WINSOCK2API_
-#  define _WINSOCK2API_
-# endif
-#endif
-#include <cpu_isa_traits.hpp>
-
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
@@ -37,14 +26,16 @@ struct ExtensionsHolder {
 
 class MKLDNNExtensions : public IExtension {
 public:
+    MKLDNNExtensions();
+
     StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
-        collectTypes(types, size, MKLDNNExtensions::GetExtensionsHolder()->list);
+        collectTypes(types, size, extensionsHolder->list);
         return OK;
     }
 
     StatusCode
     getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer, ResponseDesc* resp) noexcept override {
-        auto& factories = MKLDNNExtensions::GetExtensionsHolder()->list;
+        auto& factories = extensionsHolder->list;
         if (factories.find(cnnLayer->type) == factories.end()) {
             std::string errorMsg = std::string("Factory for ") + cnnLayer->type + " wasn't found!";
             errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
@@ -78,21 +69,13 @@ public:
         delete this;
     }
 
-    static void AddExt(std::string name, ext_factory factory) {
-        auto extensionsHolder = GetExtensionsHolder();
-        if (extensionsHolder != nullptr)
-            extensionsHolder->list[name] = factory;
-    }
-
-    static std::shared_ptr<ExtensionsHolder> GetExtensionsHolder() {
-        static std::shared_ptr<ExtensionsHolder> localHolder;
-        if (localHolder == nullptr) {
-            localHolder = std::make_shared<ExtensionsHolder>();
-        }
-        return localHolder;
+    void AddExt(std::string name, ext_factory factory) {
+        extensionsHolder->list[name] = factory;
     }
 
 private:
+    std::shared_ptr<ExtensionsHolder> extensionsHolder = std::make_shared<ExtensionsHolder>();
+
     template<class T>
     void collectTypes(char**& types, unsigned int& size, const std::map<std::string, T> &factories) {
         types = new char *[factories.size()];
@@ -107,22 +90,6 @@ private:
 };
 
 IE_SUPPRESS_DEPRECATED_END
-
-template<typename Ext>
-class ExtRegisterBase {
-public:
-    explicit ExtRegisterBase(const std::string& type) {
-        IE_SUPPRESS_DEPRECATED_START
-        MKLDNNExtensions::AddExt(type,
-                              [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                  return new Ext(layer);
-                              });
-        IE_SUPPRESS_DEPRECATED_END
-    }
-};
-
-#define REG_FACTORY_FOR(__prim, __type) \
-static ExtRegisterBase<__prim> __reg__##__type(#__type)
 
 }  // namespace Cpu
 }  // namespace Extensions

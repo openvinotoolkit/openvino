@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <mkldnn_plugin.h>
-#include <gtest/gtest.h>
-#include <gmock/gmock-spec-builders.h>
-#include "mkldnn_graph.h"
-#include "mkldnn_exec_network.h"
-#include <ie_core.hpp>
-
 #include "test_graph.hpp"
 
+#include <mkldnn_plugin.h>
+#include "mkldnn_exec_network.h"
+#include <ie_core.hpp>
 #include <mkldnn_extension_utils.h>
 #include <config.h>
 

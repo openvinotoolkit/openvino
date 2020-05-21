@@ -16,6 +16,7 @@ build/
 .gdb_history
 .vimspector.json
 doc/
+!ngraph/doc
 docs/build_documentation/work_dir/
 inference-engine/plugins/
 inference-engine/temp
@@ -56,3 +57,15 @@ __pycache__
 /model-optimizer/*.mapping
 /model-optimizer/*.dat
 /model-optimizer/*.svg
+
+# ngraph
+ngraph/src/CPackConfig.cmake
+ngraph/src/CPackSourceConfig.cmake
+ngraph/src/VERSION
+ngraph/src/gtest/
+ngraph/src/json/
+ngraph/src/ngraphConfig.cmake
+ngraph/src/ngraphConfigVersion.cmake
+ngraph/src/protobuf/
+ngraph/src/src/
+ngraph/src/test/

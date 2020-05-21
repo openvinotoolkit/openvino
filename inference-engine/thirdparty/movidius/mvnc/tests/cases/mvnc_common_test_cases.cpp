@@ -20,10 +20,17 @@ void MvncTestsCommon::SetUp() {
     initialize_usb_boot();
     ASSERT_NO_ERROR(setLogLevel(ncLogLevel));
     availableDevices_ = getAmountOfDevices();
+
+    ASSERT_EQ(WD_ERRNO, watchdog_create(&m_watchdogHndl));
+
+    m_ncDeviceOpenParams.watchdogInterval = watchdogInterval;
+    m_ncDeviceOpenParams.customFirmwareDirectory = firmwarePath;
+    m_ncDeviceOpenParams.watchdogHndl = m_watchdogHndl;
 }
 
 void MvncTestsCommon::TearDown() {
     ncDeviceResetAll();
+    watchdog_destroy(m_watchdogHndl);
 }
 
 int MvncTestsCommon::setLogLevel(const mvLog_t logLevel) {
@@ -53,7 +60,7 @@ void MvncTestsCommon::openDevices(const int devicesToBoot, ncDeviceHandle_t **de
     ncDeviceDesc.platform = NC_ANY_PLATFORM;
 
     for (int index = 0; index < devicesToBoot; ++index) {
-        ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandlers[index], ncDeviceDesc, watchdogInterval, firmwarePath));
+        ASSERT_NO_ERROR(ncDeviceOpen(&deviceHandlers[index], ncDeviceDesc, m_ncDeviceOpenParams));
         ASSERT_TRUE(deviceHandlers[index] != nullptr);
         ++amountOfBooted;
     }
@@ -87,7 +94,7 @@ void MvncLoggingTests::SetUp() {
     _deviceDesc.platform = NC_ANY_PLATFORM;
 
     for (int index = 0; index < availableDevices_; ++index) {
-        ASSERT_NO_ERROR(ncDeviceOpen(&_deviceHandles[index], _deviceDesc, watchdogInterval, firmwarePath));
+        ASSERT_NO_ERROR(ncDeviceOpen(&_deviceHandles[index], _deviceDesc, m_ncDeviceOpenParams));
     }
 
     setbuf(stdout, buff);
@@ -97,7 +104,7 @@ void MvncLoggingTests::SetUp() {
 void MvncLoggingTests::TearDown() {
     setbuf(stdout, NULL);
     for (int index = 0; index < availableDevices_; ++index) {
-        ASSERT_NO_ERROR(ncDeviceClose(&_deviceHandles[index]));
+        ASSERT_NO_ERROR(ncDeviceClose(&_deviceHandles[index], m_watchdogHndl));
     }
 }
 
@@ -116,7 +123,7 @@ void MvncGraphAllocations::SetUp() {
 
 void MvncGraphAllocations::TearDown() {
     for (int index = 0; index < _bootedDevices; ++index) {
-        ASSERT_NO_ERROR(ncDeviceClose(&_deviceHandle[index]));
+        ASSERT_NO_ERROR(ncDeviceClose(&_deviceHandle[index], m_watchdogHndl));
     }
     _bootedDevices = 0;
 }

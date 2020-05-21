@@ -7,136 +7,93 @@
 #include <tests_common.hpp>
 #include <watchdog/watchdog.h>
 #include <watchdog/watchdogPrivate.hpp>
-#include <mvnc/include/ncPrivateTypes.h>
 #include <thread>
 
 using namespace ::testing;
 using namespace InferenceEngine;
 
+using ms = std::chrono::milliseconds;
+
 class MockWatchdogDevice : public Watchdog::IDevice {
  public:
     using time_point  = Watchdog::IDevice::time_point;
-    MOCK_QUALIFIED_METHOD1(setInterval, noexcept, void(const std::chrono::milliseconds));
     MOCK_QUALIFIED_METHOD1(keepAlive, noexcept, void(const time_point &));
     MOCK_QUALIFIED_METHOD1(dueIn, const noexcept, std::chrono::milliseconds (const time_point &current_time));
     MOCK_QUALIFIED_METHOD0(isTimeout, const noexcept, bool ());
     MOCK_QUALIFIED_METHOD0(getHandle, const noexcept, void* ());
 };
 
-struct wd_context_opaque_private {
-    void * magic = reinterpret_cast<void *> (0xdeadbeaf);
-    Watchdog::IDevice * actual = nullptr;
-    bool   destroyed = false;
-};
-
-
 class MVNCWatchdogTests: public TestsCommon {
  protected:
-    devicePrivate_t d;
-    wd_context ctx, ctx1;
+    WatchdogHndl_t* m_watchdogHndl = nullptr;
+    WdDeviceHndl_t deviceHndl, deviceHndl1;
     StrictMock<MockWatchdogDevice> mockWatchee, mockWatchee1;
-    wd_context_opaque_private opaque, opaque1;
 
     void SetUp() override {
-        opaque.actual = &mockWatchee;
-        ctx.opaque = &opaque;
+        deviceHndl.m_device = &mockWatchee;
+        deviceHndl1.m_device = &mockWatchee1;
 
-        opaque1.actual = &mockWatchee1;
-        ctx1.opaque = &opaque1;
-
-        pthread_mutex_init(&d.dev_stream_m, nullptr);
+        ASSERT_EQ(WD_ERRNO, watchdog_create(&m_watchdogHndl));
     }
+
     void TearDown() override {
-        pthread_mutex_destroy(&d.dev_stream_m);
+        watchdog_destroy(m_watchdogHndl);
+    }
+
+    void setExpectations(StrictMock<MockWatchdogDevice>& mock){
+        EXPECT_CALL(mock, keepAlive(_)).Times(AtLeast(0));
+        EXPECT_CALL(mock, dueIn(_)).WillRepeatedly(Return(ms(20000)));
+        EXPECT_CALL(mock, isTimeout()).WillRepeatedly(Return(false));
+        EXPECT_CALL(mock, getHandle()).WillRepeatedly(Return(&mock));
     }
 };
-using ms = std::chrono::milliseconds;
 
 TEST_F(MVNCWatchdogTests, canRegisterExternalWatchee) {
+    setExpectations(mockWatchee);
 
-    int handle = 1;
-    EXPECT_CALL(mockWatchee, getHandle()).WillRepeatedly(Return(&handle));
-    // do not expect that  any ping happened before we remove the thread
-    // this can be changed for example registering succeed only if first ping succeed
-    EXPECT_CALL(mockWatchee, keepAlive(_)).Times(AtLeast(0));
-    EXPECT_CALL(mockWatchee, setInterval(ms(1))).Times(1);
-    EXPECT_CALL(mockWatchee, isTimeout()).WillRepeatedly(Return(false));
-    EXPECT_CALL(mockWatchee, dueIn(_)).WillRepeatedly(Return(ms(20000)));
-
-    d.wd_interval = 1;
-
-    ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx, &d));
+    ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl));
     // allowing thread spin
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx));
+
+    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl));
 }
 
-// TODO: implement logic
-TEST_F(MVNCWatchdogTests, DISABLED_removeDeviceIfXLINKSessionNotIninitialized) {
-
-    d.wd_interval = 10;
-    ASSERT_EQ(WD_ERRNO, watchdog_init_context(&ctx));
-    ASSERT_NE(WD_ERRNO, watchdog_register_device(&ctx, &d));
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-}
-
-#if defined(__APPLE__) && !defined(NDEBUG)
-TEST_F(MVNCWatchdogTests, DISABLED_canNotBeRegisteredTwice) {
-#else
 TEST_F(MVNCWatchdogTests, canNotBeRegisteredTwice) {
-#endif
+    setExpectations(mockWatchee);
 
-    d.wd_interval = 10;
+    ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl));
+    ASSERT_NE(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl));
 
-    ASSERT_EQ(WD_ERRNO, watchdog_init_context(&ctx));
-    ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx, &d));
-    ASSERT_NE(WD_ERRNO, watchdog_register_device(&ctx, &d));
     // allowing thread spin
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx));
+    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl));
 }
 
-TEST_F(MVNCWatchdogTests, canUnRegisterNotInitialized) {
+TEST_F(MVNCWatchdogTests, canNotUnRegisterNotInitialized) {
+    EXPECT_CALL(mockWatchee, getHandle()).WillRepeatedly(Return(&mockWatchee));
 
-    ASSERT_EQ(WD_ERRNO, watchdog_init_context(&ctx));
-    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx));
+    ASSERT_NE(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl));
 }
 
-TEST_F(MVNCWatchdogTests, canUnRegisterIfInterval0) {
-
-    d.wd_interval = 0;
-
-    ASSERT_EQ(WD_ERRNO, watchdog_init_context(&ctx));
-    ASSERT_NE(WD_ERRNO, watchdog_register_device(&ctx, &d));
-    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx));
-}
-
-#if defined(__APPLE__) && !defined(NDEBUG)
-TEST_F(MVNCWatchdogTests, DISABLED_failUnRegisterTwice) {
-#else
 TEST_F(MVNCWatchdogTests, failUnRegisterTwice) {
-#endif
+    setExpectations(mockWatchee);
 
-    d.wd_interval = 10;
+    ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl));
 
-    ASSERT_EQ(WD_ERRNO, watchdog_init_context(&ctx));
-    ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx, &d));
     // allowing thread spin
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx));
-    ASSERT_NE(WD_ERRNO, watchdog_unregister_device(&ctx));
+
+    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl));
+    ASSERT_NE(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl));
 }
 
 TEST_F(MVNCWatchdogTests, canRemoveOneDeviceFromQueueInCaseOfTimeout) {
-    int handle = 1;
     int x = 0;
     int y = 0;
     int z = 0;
-    EXPECT_CALL(mockWatchee, getHandle()).WillRepeatedly(Return(&handle));
+    EXPECT_CALL(mockWatchee, getHandle()).WillRepeatedly(Return(&mockWatchee));
     EXPECT_CALL(mockWatchee, keepAlive(_)).Times(AtLeast(1));
-    EXPECT_CALL(mockWatchee, setInterval(ms(10))).Times(1);
     EXPECT_CALL(mockWatchee, isTimeout()).WillRepeatedly(Invoke([&z, &y]() {
         // will sleep at least 100 ms and avoid second keep alive call
         y = 100;
@@ -151,9 +108,8 @@ TEST_F(MVNCWatchdogTests, canRemoveOneDeviceFromQueueInCaseOfTimeout) {
         return std::chrono::milliseconds(y);
     }));
 
-    EXPECT_CALL(mockWatchee1, getHandle()).WillRepeatedly(Return(&handle));
+    EXPECT_CALL(mockWatchee1, getHandle()).WillRepeatedly(Return(&mockWatchee1));
     EXPECT_CALL(mockWatchee1, keepAlive(_)).Times(AtLeast(2));
-    EXPECT_CALL(mockWatchee1, setInterval(ms(10))).Times(1);
     EXPECT_CALL(mockWatchee1, isTimeout()).WillRepeatedly(Invoke([&x]() {
         // allow every second time to wait
         x = x == 0 ? 100 : 0;
@@ -163,201 +119,134 @@ TEST_F(MVNCWatchdogTests, canRemoveOneDeviceFromQueueInCaseOfTimeout) {
         return std::chrono::milliseconds(x);
     }));
 
-
-    d.wd_interval = 10;
-
-    ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx, &d));
-    ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx1, &d));
+    ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl));
+    ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl1));
 
     std::this_thread::sleep_for(ms(1000));
 
-    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx));
-    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx1));
-}
-
-TEST_F(MVNCWatchdogTests, canNotStartWatchdogIfIntervalInvalid) {
-
-    opaque.actual = &mockWatchee;
-
-    int handle = 1;
-
-    EXPECT_CALL(mockWatchee, getHandle()).WillRepeatedly(Return(&handle));
-
-    d.wd_interval = 0;
-    ASSERT_NE(WD_ERRNO, watchdog_register_device(&ctx, &d));
-
-    d.wd_interval = -1;
-    ASSERT_NE(WD_ERRNO, watchdog_register_device(&ctx, &d));
-
-    // if fo some reason thread started we will get unxpected updatePongInterval calls
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl));
+    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl1));
 }
 
 TEST_F(MVNCWatchdogTests, canGetPingsOnRegularBasis) {
-
-    int handle = 1;
     int x = 0;
-    EXPECT_CALL(mockWatchee, getHandle()).WillRepeatedly(Return(&handle));
+    EXPECT_CALL(mockWatchee, getHandle()).WillRepeatedly(Return(&mockWatchee));
     // since interval is small keepAlive can happen several times once
     EXPECT_CALL(mockWatchee, keepAlive(_)).Times(AtLeast(2));
-    EXPECT_CALL(mockWatchee, setInterval(ms(10))).Times(1);
     EXPECT_CALL(mockWatchee, isTimeout()).WillRepeatedly(Return(false));
     EXPECT_CALL(mockWatchee, dueIn(_)).WillRepeatedly(Invoke([&x](const MockWatchdogDevice::time_point &current_time){
         x = x == 0 ? 100 : 0;
         return std::chrono::milliseconds(x);
     }));
 
-
-    d.wd_interval = 10;
-
-    ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx, &d));
+    ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl));
 
     std::this_thread::sleep_for(ms(1000));
 
-    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx));
+    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl));
 }
 
 TEST_F(MVNCWatchdogTests, canWakeUpWatchdogWhenAddAndRemoveDevice) {
-
-    int handle = 1, handle1 = 2;
-
-    EXPECT_CALL(mockWatchee, getHandle()).WillRepeatedly(Return(&handle));
+    EXPECT_CALL(mockWatchee, getHandle()).WillRepeatedly(Return(&mockWatchee));
     EXPECT_CALL(mockWatchee, keepAlive(_)).Times(1);
-    EXPECT_CALL(mockWatchee, setInterval(ms(10))).Times(1);
     EXPECT_CALL(mockWatchee, isTimeout()).WillRepeatedly(Return(false));
     // without wake this will sleep for ever
     EXPECT_CALL(mockWatchee, dueIn(_)).WillRepeatedly(Return(ms(20000)));
 
-    EXPECT_CALL(mockWatchee1, getHandle()).WillRepeatedly(Return(&handle1));
+    EXPECT_CALL(mockWatchee1, getHandle()).WillRepeatedly(Return(&mockWatchee1));
     EXPECT_CALL(mockWatchee1, keepAlive(_)).Times(1);
-    EXPECT_CALL(mockWatchee1, setInterval(ms(10))).Times(1);
     EXPECT_CALL(mockWatchee1, isTimeout()).WillRepeatedly(Return(false));
     EXPECT_CALL(mockWatchee1, dueIn(_)).WillRepeatedly(Return(ms(20000)));
 
-
-    d.wd_interval = 10;
-
-    ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx, &d));
-
+    ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl));
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
-    ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx1, &d));
-
+    ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl1));
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
-    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx));
-    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx1));
+    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl));
+    ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl1));
 }
 
 TEST_F(MVNCWatchdogTests, stressWatchDog) {
-
     const int num_watchdog_device = 10;
-
-    watchdog_init_context(nullptr);
-
     StrictMock<MockWatchdogDevice> mockWatchee[num_watchdog_device];
-    int handle[num_watchdog_device];
-    wd_context ctx[num_watchdog_device];
-    wd_context_opaque_private opaque[num_watchdog_device];
+    WdDeviceHndl_t deviceHndl[num_watchdog_device];
 
     for (int i = 0; i != num_watchdog_device; i++) {
-        handle[i] = i;
-
-        EXPECT_CALL(mockWatchee[i], getHandle()).WillRepeatedly(Return(handle + i));
+        EXPECT_CALL(mockWatchee[i], getHandle()).WillRepeatedly(Return(&mockWatchee[i]));
         // since interval is big keepAlive happens only once
         EXPECT_CALL(mockWatchee[i], keepAlive(_)).Times(1);
 
-        EXPECT_CALL(mockWatchee[i], setInterval(ms(10))).Times(1);
         EXPECT_CALL(mockWatchee[i], isTimeout()).WillRepeatedly(Return(false));
         EXPECT_CALL(mockWatchee[i], dueIn(_)).WillRepeatedly(Return(ms(20000)));
+
+        deviceHndl[i].m_device = &mockWatchee[i];
     }
 
-    d.wd_interval = 10;
-
     for (int k = 0; k != num_watchdog_device; k++) {
-        opaque[k].actual = &mockWatchee[k];
-        ctx[k].opaque = &opaque[k];
-        ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx[k], &d));
+        ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl[k]));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     for (int k = 0; k != num_watchdog_device; k++) {
-        ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx[k]));
+        ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl[k]));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
 TEST_F(MVNCWatchdogTests, stressWatchDog1) {
-
     const int num_watchdog_device = 10;
     const int num_watchdog_device_half = num_watchdog_device / 2;
 
-    watchdog_init_context(nullptr);
-
     StrictMock<MockWatchdogDevice> mockWatchee[num_watchdog_device];
-    int handle[num_watchdog_device];
-    wd_context ctx[num_watchdog_device];
-    wd_context_opaque_private opaque[num_watchdog_device];
+    WdDeviceHndl_t deviceHndl[num_watchdog_device];
 
     for (int i = 0; i != num_watchdog_device; i++) {
-        handle[i] = i;
-
-        EXPECT_CALL(mockWatchee[i], getHandle()).WillRepeatedly(Return(handle + i));
+        EXPECT_CALL(mockWatchee[i], getHandle()).WillRepeatedly(Return(&mockWatchee[i]));
         // since interval is big keepAlive happens only once
         EXPECT_CALL(mockWatchee[i], keepAlive(_)).Times(1);
 
-        EXPECT_CALL(mockWatchee[i], setInterval(ms(10))).Times(1);
         EXPECT_CALL(mockWatchee[i], isTimeout()).WillRepeatedly(Return(false));
         EXPECT_CALL(mockWatchee[i], dueIn(_)).WillRepeatedly(Return(ms(20000)));
-    }
 
-    d.wd_interval = 10;
-    for (int k = 0; k != num_watchdog_device; k++) {
-        opaque[k].actual = &mockWatchee[k];
-        ctx[k].opaque = &opaque[k];
+        deviceHndl[i].m_device = &mockWatchee[i];
     }
 
     for (int k = 0; k != num_watchdog_device_half; k++) {
-        ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx[k], &d));
+        ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl[k]));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     for (int k = 0; k != num_watchdog_device_half; k++) {
-        ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx[k + num_watchdog_device_half], &d));
+        ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl[k + num_watchdog_device_half]));
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx[k]));
+        ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl[k]));
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     for (int k = 0; k != num_watchdog_device_half; k++) {
-        ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx[k + num_watchdog_device_half]));
+        ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl[k + num_watchdog_device_half]));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 }
 
 TEST_F(MVNCWatchdogTests, stressWatchDog2) {
-
     const int num_watchdog_device = 30;
     const int num_watchdog_device_half1 = num_watchdog_device / 3;
     const int num_watchdog_device_half2 = 2 * num_watchdog_device / 3;
 
-    watchdog_init_context(nullptr);
-
     StrictMock<MockWatchdogDevice> mockWatchee[num_watchdog_device];
-    int handle[num_watchdog_device];
-    wd_context ctx[num_watchdog_device];
-    wd_context_opaque_private opaque[num_watchdog_device];
+    WdDeviceHndl_t deviceHndl[num_watchdog_device];
 
     for (int i = 0; i != num_watchdog_device; i++) {
-        handle[i] = i;
-
-        EXPECT_CALL(mockWatchee[i], getHandle()).WillRepeatedly(Return(handle + i));
+        EXPECT_CALL(mockWatchee[i], getHandle()).WillRepeatedly(Return(&mockWatchee[i]));
 
         // since interval is big keepAlive happens only once
         if (i >= num_watchdog_device_half2) {
@@ -366,41 +255,36 @@ TEST_F(MVNCWatchdogTests, stressWatchDog2) {
             EXPECT_CALL(mockWatchee[i], keepAlive(_)).Times(1);
         }
 
-        EXPECT_CALL(mockWatchee[i], setInterval(ms(10))).Times(1);
         EXPECT_CALL(mockWatchee[i], isTimeout()).WillRepeatedly(Return(false));
         EXPECT_CALL(mockWatchee[i], dueIn(_)).WillRepeatedly(Return(ms(20000)));
-    }
 
-    d.wd_interval = 10;
-    for (int k = 0; k != num_watchdog_device; k++) {
-        opaque[k].actual = &mockWatchee[k];
-        ctx[k].opaque = &opaque[k];
+        deviceHndl[i].m_device = &mockWatchee[i];
     }
 
     for (int k = 0; k != num_watchdog_device_half1; k++) {
-        ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx[k], &d));
+        ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl[k]));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     for (int k = 0; k != num_watchdog_device_half1; k++) {
-        ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx[k]));
+        ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl[k]));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 
     for (int k = num_watchdog_device_half1; k != num_watchdog_device_half2; k++) {
-        ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx[k], &d));
+        ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl[k]));
         //this might lead to UB, for example thread might restart but after that device get removed, so giving more time
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx[k]));
+        ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl[k]));
     }
 
     for (int k = num_watchdog_device_half2; k != num_watchdog_device; k++) {
-        ASSERT_EQ(WD_ERRNO, watchdog_register_device(&ctx[k], &d));
+        ASSERT_EQ(WD_ERRNO, watchdog_register_device(m_watchdogHndl,  &deviceHndl[k]));
         //this might lead to UB, for example thread might restart but after that device get removed, so giving more time
         //so our expectations for number of calls are not set for last third
-        ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(&ctx[k]));
+        ASSERT_EQ(WD_ERRNO, watchdog_unregister_device(m_watchdogHndl,  &deviceHndl[k]));
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(3000));

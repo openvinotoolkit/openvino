@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 
 #include <cmath>
@@ -58,7 +57,7 @@ private:
     float bias = 1.0f;
 };
 
-REG_FACTORY_FOR(ImplFactory<GRNImpl>, GRN);
+REG_FACTORY_FOR(GRNImpl, GRN);
 
 }  // namespace Cpu
 }  // namespace Extensions

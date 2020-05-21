@@ -7,7 +7,6 @@
 #include <map>
 #include <memory>
 #include <algorithm>
-#include "nodes/list.hpp"
 #include "nodes/base.hpp"
 
 using namespace InferenceEngine;
@@ -92,7 +91,7 @@ class FakeExtensions : public IExtension {
     }
 };
 
- class FakeLayerPLNImpl: public Cpu::ExtLayerBase {
+class FakeLayerPLNImpl: public Cpu::ExtLayerBase {
 public:
     explicit FakeLayerPLNImpl(const CNNLayer* layer) {
         try {

@@ -5,48 +5,42 @@
 #ifndef MVNC_WATCHDOG_H
 #define MVNC_WATCHDOG_H
 
-#include <mvnc.h>
 #ifdef __cplusplus
-# define WD_API  extern "C"
-# else
-# define WD_API
+extern "C"
+{
 #endif
 
-/**
-* @brief default ping interval is 1 second
-*/
-#define WATCHDOG_PING_INTERVAL_MS 1000
+typedef struct _WatchdogHndl_t WatchdogHndl_t;
 
-typedef struct wd_context_tag {
-    void * opaque;
-} wd_context;
+typedef struct _WdDeviceHndl_t {
+    void* m_device;
+} WdDeviceHndl_t;
 
 typedef enum {
     WD_ERRNO = 0,
     WD_NOTINITIALIZED,
-    WD_DUPLICATE,
     WD_FAIL
 } wd_error_t;
 
-/**
- * @brief initializes watchdog context, required to be called before any other WD API calls
- * @return
- */
-WD_API wd_error_t watchdog_init_context(wd_context *ctx);
+wd_error_t watchdog_create(WatchdogHndl_t** out_watchdogHndl);
+void watchdog_destroy(WatchdogHndl_t* watchdogHndl);
 
 /**
  * @brief Creates watchdog thread, if not created, and registers new watchee device, and initialise opaque handle to it.
  *        To avoid a memory leak, the registered device must be unregister with watchdog_unregister_device().
- * @param d - newly connected device descriptor
+ * @param deviceHandle - newly connected device descriptor
  * @return
  */
-WD_API wd_error_t watchdog_register_device(wd_context *ctx, devicePrivate_t *d);
+wd_error_t watchdog_register_device(WatchdogHndl_t* watchdogHndl, WdDeviceHndl_t* deviceHandle);
 
 /**
  * @brief remove watch_dog device from the list, and might stop watchdog worker thread
  * @return result of operation
  */
-WD_API wd_error_t watchdog_unregister_device(wd_context *ctx);
+wd_error_t watchdog_unregister_device(WatchdogHndl_t* watchdogHndl, WdDeviceHndl_t* deviceHandle);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // MVNC_WATCHDOG_H

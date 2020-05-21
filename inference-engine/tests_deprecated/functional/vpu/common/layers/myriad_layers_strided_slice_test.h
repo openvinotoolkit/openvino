@@ -26,7 +26,7 @@ struct strided_slice_test_param {
 };
 
 class myriadLayersTestsStridedSlice_smoke: public myriadLayersTests_nightly,
-                                             public testing::WithParamInterface<strided_slice_test_param> {
+                                           public testing::WithParamInterface<strided_slice_test_param> {
 public:
     std::string model_t = R"V0G0N(
 <net Name="StridedSlice_net" version="2" precision="FP16" batch="1">
@@ -241,7 +241,7 @@ TEST_P(myriadLayersTestsStridedSlice_smoke, TestsStridedSlice) {
     // Load network.
     StatusCode st = GENERAL_ERROR;
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(
-        _exeNetwork, network, { {VPU_CONFIG_KEY(PERF_REPORT_MODE), VPU_CONFIG_VALUE(PER_STAGE)} },
+        _exeNetwork, network, { {VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO)} },
         &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
@@ -297,4 +297,8 @@ static std::vector<strided_slice_test_param> s_stridedSliceParams = {
     strided_slice_test_param{ { 2, 8, 32, 32}, 4, { 0, 0, 0, 2 }, { 2, 8, 32, 32 }, { 1, 1, 1, 3 }, {}, {}, {}, {}, {}, { 2, 8, 32, 10 } },
     strided_slice_test_param{ { 1, 32, 128, 128 }, 4, {0, 0, 0, 0 }, { 1, 32, 128, 128 }, { 1, 2, 4, 8 }, {}, {}, {}, {}, {}, { 1, 16, 32, 16 } },
     strided_slice_test_param{ { 1, 32, 128, 128 }, 4, {0, 16, 0, 0 }, { 1, 32, 128, 128 }, {}, {}, {}, {}, {}, {}, { 1, 16, 128, 128 } },
+
+    strided_slice_test_param{ { 4, 1000 }, 2, { 0, 0 }, { 4, 9999 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 4, 1000 } },
+    strided_slice_test_param{ { 4, 1000 }, 2, { 0, 0 }, { 4, -1 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 4, 1000 } },
+    strided_slice_test_param{ { 4, 1000 }, 2, { 0, 0 }, { 4, -3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 4, 998 } },
 };

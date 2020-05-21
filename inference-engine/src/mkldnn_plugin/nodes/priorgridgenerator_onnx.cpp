@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "list.hpp"
 #include "base.hpp"
 #include <algorithm>
 #include <cassert>
@@ -90,7 +89,7 @@ private:
 };
 
 
-REG_FACTORY_FOR(ImplFactory<ExperimentalDetectronPriorGridGeneratorImpl>, ExperimentalDetectronPriorGridGenerator);
+REG_FACTORY_FOR(ExperimentalDetectronPriorGridGeneratorImpl, ExperimentalDetectronPriorGridGenerator);
 
 }  // namespace Cpu
 }  // namespace Extensions

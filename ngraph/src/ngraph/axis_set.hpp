@@ -48,19 +48,22 @@ namespace ngraph
     };
 
     template <>
-    class NGRAPH_API AttributeAdapter<AxisSet> : public ValueReference<AxisSet>,
-                                                 public ValueAccessor<std::vector<int64_t>>
+    class NGRAPH_API AttributeAdapter<AxisSet> : public ValueAccessor<std::vector<int64_t>>
     {
     public:
         AttributeAdapter(AxisSet& value)
-            : ValueReference<AxisSet>(value)
+            : m_ref(value)
         {
         }
 
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<AxisSet>", 0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
         const std::vector<int64_t>& get() override;
         void set(const std::vector<int64_t>& value) override;
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<AxisSet>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        AxisSet& m_ref;
+        std::vector<int64_t> m_buffer;
+        bool m_buffer_valid{false};
     };
 
     NGRAPH_API

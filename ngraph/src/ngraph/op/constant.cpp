@@ -338,26 +338,26 @@ string op::Constant::convert_value_to_string(size_t index) const
 #endif
     switch (get_element_type())
     {
-    case element::Type_t::boolean: rc = to_string(get_vector<char>()[index]); break;
+    case element::Type_t::boolean: rc = to_string(get_data_ptr<char>()[index]); break;
     case element::Type_t::bf16:
-        rc = to_cpp_string(static_cast<float>(get_vector<bfloat16>()[index]));
+        rc = to_cpp_string(static_cast<float>(get_data_ptr<bfloat16>()[index]));
         break;
     case element::Type_t::f16:
-        rc = to_cpp_string(static_cast<float>(get_vector<float16>()[index]));
+        rc = to_cpp_string(static_cast<float>(get_data_ptr<float16>()[index]));
         break;
-    case element::Type_t::f32: rc = to_cpp_string(get_vector<float>()[index]); break;
-    case element::Type_t::f64: rc = to_cpp_string(get_vector<double>()[index]); break;
-    case element::Type_t::i8: rc = to_string(get_vector<int8_t>()[index]); break;
-    case element::Type_t::i16: rc = to_string(get_vector<int16_t>()[index]); break;
-    case element::Type_t::i32: rc = to_string(get_vector<int32_t>()[index]); break;
-    case element::Type_t::i64: rc = to_string(get_vector<int64_t>()[index]); break;
+    case element::Type_t::f32: rc = to_cpp_string(get_data_ptr<float>()[index]); break;
+    case element::Type_t::f64: rc = to_cpp_string(get_data_ptr<double>()[index]); break;
+    case element::Type_t::i8: rc = to_string(get_data_ptr<int8_t>()[index]); break;
+    case element::Type_t::i16: rc = to_string(get_data_ptr<int16_t>()[index]); break;
+    case element::Type_t::i32: rc = to_string(get_data_ptr<int32_t>()[index]); break;
+    case element::Type_t::i64: rc = to_string(get_data_ptr<int64_t>()[index]); break;
     case element::Type_t::u1:
-        rc = to_string((get_vector<uint8_t>()[index / 8] >> (7 - (index % 8))) & 1);
+        rc = to_string((get_data_ptr<uint8_t>()[index / 8] >> (7 - (index % 8))) & 1);
         break;
-    case element::Type_t::u8: rc = to_string(get_vector<uint8_t>()[index]); break;
-    case element::Type_t::u16: rc = to_string(get_vector<uint16_t>()[index]); break;
-    case element::Type_t::u32: rc = to_string(get_vector<uint32_t>()[index]); break;
-    case element::Type_t::u64: rc = to_string(get_vector<uint64_t>()[index]); break;
+    case element::Type_t::u8: rc = to_string(get_data_ptr<uint8_t>()[index]); break;
+    case element::Type_t::u16: rc = to_string(get_data_ptr<uint16_t>()[index]); break;
+    case element::Type_t::u32: rc = to_string(get_data_ptr<uint32_t>()[index]); break;
+    case element::Type_t::u64: rc = to_string(get_data_ptr<uint64_t>()[index]); break;
     case element::Type_t::undefined: throw runtime_error("unsupported type");
     case element::Type_t::dynamic: throw runtime_error("unsupported type");
     }
@@ -623,7 +623,7 @@ bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
         // Filling in a fresh constant
         allocate_buffer();
     }
-    visitor.on_attribute("value", get_data_ptr_nc(), shape_size(m_shape) * m_element_type.size());
+    visitor.on_attribute("value", m_data);
     return true;
 }
 
