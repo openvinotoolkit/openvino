@@ -28,6 +28,7 @@
 
 #include "ngraph_ops/eltwise.hpp"
 #include "graph_tools.hpp"
+#include "exec_graph_info.hpp"
 #include "graph_transformer.h"
 #include "ie_util_internal.hpp"
 #include "ie_ngraph_utils.hpp"
@@ -460,6 +461,29 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
                                            ResponseDesc* resp) const noexcept {
     auto network = cnnNetwork;
     if (!network) {
+        // TODO: once Serialization::Serialize supports true IR v10
+        // remove this conversion and WA for execution graph
+        try {
+            bool isExecutionGraph = true;
+            for (const auto & op : _ngraph_function->get_ops()) {
+                auto & rtInfo = op->get_rt_info();
+                if (rtInfo.find(ExecGraphInfoSerialization::PERF_COUNTER) == rtInfo.end()) {
+                    isExecutionGraph = false;
+                    break;
+                }
+            }
+            if (isExecutionGraph) {
+                Serialization::Serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
+                return OK;
+            }
+        } catch (const InferenceEngineException& e) {
+            return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+        } catch (const std::exception& e) {
+            return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+        } catch (...) {
+            return DescriptionBuffer(UNEXPECTED, resp);
+        }
+
         auto graph = cloneFunction();
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
