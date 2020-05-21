@@ -285,6 +285,36 @@ if (ENABLE_GNA)
     debug_message(STATUS "gna=" ${GNA})
 endif()
 
+if (ENABLE_SPEECH_DEMO)
+    reset_deps_cache(SPEECH_LIBS_AND_DEMOS)
+    if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+        set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+    elseif(DEFINED THIRDPARTY_SERVER_PATH)
+        set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+    else()
+        message(WARNING "Unable to locate Speech Demo")
+    endif()
+    if(DEFINED IE_PATH_TO_DEPS)
+        if (WIN32 AND X86_64)
+            RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
+                    ARCHIVE_WIN "speech_demo_1.0.0.740_windows.zip"
+                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.740")
+            debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
+        elseif (LINUX AND X86_64)
+            RESOLVE_DEPENDENCY(SPEECH_LIBS_AND_DEMOS
+                    ARCHIVE_LIN "speech_demo_1.0.0.740_linux.tgz"
+                    VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
+                    TARGET_PATH "${TEMP}/speech_demo_1.0.0.740")
+            debug_message(STATUS "speech_libs_and_demos=" ${SPEECH_LIBS_AND_DEMOS})
+        else()
+            message(FATAL_ERROR "Speech Demo is not available on current platform")
+        endif()
+        unset(IE_PATH_TO_DEPS)
+    endif()
+    update_deps_cache(SPEECH_LIBS_AND_DEMOS "${SPEECH_LIBS_AND_DEMOS}" "Path to SPEECH_LIBS_AND_DEMOS root folder")
+endif()
+
 configure_file(
         "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig.cmake.in"
         "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
