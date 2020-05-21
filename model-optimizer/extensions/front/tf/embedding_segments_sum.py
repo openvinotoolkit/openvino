@@ -87,6 +87,7 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
         log.debug('Found EmbeddingSegmentsSum pattern after {} with name {}'.format(sparse_fill_empty_rows.op, sparse_fill_empty_rows.name))
 
         split_for_indices = create_op_with_const_inputs(graph, Split, {1: int64_array(1)}, {'num_splits': 2})
+        squeeze_for_indices = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([1])})
         split_for_dense_shape = create_op_with_const_inputs(graph, Split, {1: int64_array(0)}, {'num_splits': 2})
         squeeze_to_scalar = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([0])})
         embedding_segments_sum = EmbeddingSegmentsSum(graph, {'name': output_node_name}).create_node()
@@ -98,7 +99,8 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
         greaterequal0.in_port(0).get_connection().set_destination(embedding_segments_sum.in_port(1))
         # split and connect segment ids
         gather0_1.in_port(0).get_connection().set_destination(split_for_indices.in_port(0))
-        embedding_segments_sum.in_port(2).connect(split_for_indices.out_port(0))
+        squeeze_for_indices.in_port(0).connect(split_for_indices.out_port(0))
+        embedding_segments_sum.in_port(2).connect(squeeze_for_indices.out_port(0))
         # split and connect number of segments
         identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
         squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))
@@ -186,6 +188,7 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
         split_for_indices = create_op_with_const_inputs(graph, Split, {1: int64_array(1)},
                                                         {'num_splits': 2,
                                                          'name': output_node_name + '/SplitForIndices'})
+        squeeze_for_indices = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([1])})
         split_for_dense_shape = create_op_with_const_inputs(graph, Split, {1: int64_array(0)},
                                                             {'num_splits': 2,
                                                              'name': output_node_name + '/SplitForDenseShape'})
@@ -199,7 +202,8 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
         greaterequal0.in_port(0).get_connection().set_destination(embedding_segments_sum.in_port(1))
         # split and connect segment ids
         gather0_1.in_port(0).get_connection().set_destination(split_for_indices.in_port(0))
-        embedding_segments_sum.in_port(2).connect(split_for_indices.out_port(0))
+        squeeze_for_indices.in_port(0).connect(split_for_indices.out_port(0))
+        embedding_segments_sum.in_port(2).connect(squeeze_for_indices.out_port(0))
         # split and connect number of segments
         identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
         squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))

@@ -48,6 +48,7 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
             'select': {'kind': 'op', 'op': 'Select'},
 
             'split_for_indices': {'kind': 'op', 'op': 'Split'},
+            'squeeze_for_indices': {'kind': 'op', 'op': 'Squeeze'},
             'split_for_dense_shape': {'kind': 'op', 'op': 'Split'},
             'squeeze_to_scalar': {'kind': 'op', 'op': 'Squeeze'},
             'embedding_segments_sum': {'kind': 'op', 'op': 'EmbeddingSegmentsSum'},
@@ -55,6 +56,7 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
             **const('split_for_indices_axis', int64_array(1)),
             **const('split_for_dense_shape_axis', int64_array(0)),
             **const('squeeze_axis', int64_array([0])),
+            **const('squeeze_for_indices_axis', int64_array([1])),
 
             'last': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
         }
@@ -93,7 +95,9 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
         graph_ref = build_graph(nodes_attributes,
                                 [('input_indices', 'split_for_indices', {'in': 0}),
                                  ('split_for_indices_axis', 'split_for_indices', {'in': 1}),
-                                 ('split_for_indices', 'embedding_segments_sum', {'in': 2, 'out': 0}),
+                                 ('split_for_indices', 'squeeze_for_indices', {'in': 0}),
+                                 ('squeeze_for_indices_axis', 'squeeze_for_indices', {'in': 1}),
+                                 ('squeeze_for_indices', 'embedding_segments_sum', {'in': 2, 'out': 0}),
                                  ('input_values', 'embedding_segments_sum', {'in': 1}),
                                  ('input_dense_shape', 'split_for_dense_shape', {'in': 0}),
                                  ('split_for_dense_shape_axis', 'split_for_dense_shape', {'in': 1}),
@@ -135,6 +139,7 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
             'select': {'kind': 'op', 'op': 'Select'},
 
             'split_for_indices': {'kind': 'op', 'op': 'Split'},
+            'squeeze_for_indices': {'kind': 'op', 'op': 'Squeeze'},
             'split_for_dense_shape': {'kind': 'op', 'op': 'Split'},
             'squeeze_to_scalar': {'kind': 'op', 'op': 'Squeeze'},
             'embedding_segments_sum': {'kind': 'op', 'op': 'EmbeddingSegmentsSum'},
@@ -142,6 +147,7 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
             **const('split_for_indices_axis', int64_array(1)),
             **const('split_for_dense_shape_axis', int64_array(0)),
             **const('squeeze_axis', int64_array([0])),
+            **const('squeeze_for_indices_axis', int64_array([1])),
 
             'last': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
         }
@@ -182,7 +188,9 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
         graph_ref = build_graph(nodes_attributes,
                                 [('input_indices', 'split_for_indices', {'in': 0}),
                                  ('split_for_indices_axis', 'split_for_indices', {'in': 1}),
-                                 ('split_for_indices', 'embedding_segments_sum', {'in': 2, 'out': 0}),
+                                 ('split_for_indices', 'squeeze_for_indices', {'in': 0}),
+                                 ('squeeze_for_indices_axis', 'squeeze_for_indices', {'in': 1}),
+                                 ('squeeze_for_indices', 'embedding_segments_sum', {'in': 2, 'out': 0}),
                                  ('input_values', 'embedding_segments_sum', {'in': 1}),
                                  ('input_dense_shape', 'split_for_dense_shape', {'in': 0}),
                                  ('split_for_dense_shape_axis', 'split_for_dense_shape', {'in': 1}),
