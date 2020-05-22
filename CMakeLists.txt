@@ -105,6 +105,8 @@ build_ngraph()
 
 add_subdirectory(inference-engine)
 
+add_subdirectory(docs)
+
 # cpack
 
 # install setupvars
