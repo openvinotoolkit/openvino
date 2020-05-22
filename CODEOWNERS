@@ -3,6 +3,7 @@
 CODEOWNERS  @openvinotoolkit/openvino-admins @openvinotoolkit/openvino-maintainers
 
 # CI:
+Jenkinsfile  @openvinotoolkit/openvino-admins
 azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /.github/  @openvinotoolkit/openvino-admins
 
