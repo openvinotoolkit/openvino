@@ -102,12 +102,18 @@ namespace ngraph
                 bool get_compute_max() const { return m_compute_max; }
                 SortType get_sort() const { return m_sort; }
                 size_t get_default_output_index() const override { return no_default_index(); }
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) override;
+
             protected:
                 element::Type m_index_element_type;
                 bool m_compute_max{false};
                 SortType m_sort{SortType::NONE};
                 virtual void generate_adjoints(autodiff::Adjoints& adjoints,
                                                const OutputVector& deltas) override;
+                Shape compute_output_shape(const Shape input_shape,
+                                           const int64_t k,
+                                           const size_t axis);
             };
         } // namespace v0
 
@@ -181,6 +187,9 @@ namespace ngraph
                 size_t get_k() const;
                 void set_k(size_t k);
                 size_t get_default_output_index() const override { return no_default_index(); }
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) override;
+
             protected:
                 int64_t m_axis;
                 uint64_t m_normalized_axis;
@@ -196,6 +205,10 @@ namespace ngraph
 
                 template <typename T>
                 size_t validate_and_get_k(const std::shared_ptr<op::Constant>& k_constant) const;
+                Shape compute_output_shape(const std::string& node_description,
+                                           const PartialShape input_partial_shape,
+                                           const int64_t k);
+                void set_axis(const Rank input_rank, const int64_t axis);
             };
         } // namespace v1
 
@@ -239,6 +252,9 @@ namespace ngraph
                 void validate_and_infer_types() override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) override;
 
             protected:
                 virtual size_t

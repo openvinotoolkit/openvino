@@ -187,7 +187,7 @@ namespace ngraph
                 add_expected_output<T>(expected_shape, value);
             }
 
-            void run(size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS);
+            ::testing::AssertionResult run(size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS);
 
         private:
             template <typename T>

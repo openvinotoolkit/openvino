@@ -85,7 +85,7 @@ std::shared_ptr<ngraph::Function> V10Parser::parse(const pugi::xml_node& root, c
             THROW_IE_EXCEPTION << "Invalid IR! " << node_param.name << " name is not unique!";
         opName.insert(node_param.name);
         params[node_param.layerId] = {node, node_param};
-        if (node_param.type == "Result") {
+        if (node_param.type == "Result" || node_param.type == "Assign") {
             outputs.push_back(node_param.layerId);
         }
     }
@@ -118,7 +118,9 @@ std::shared_ptr<ngraph::Function> V10Parser::parse(const pugi::xml_node& root, c
 
     ngraph::ParameterVector parameter_nodes;
     ngraph::ResultVector result_nodes;
-    std::vector<std::shared_ptr<ngraph::Node>> allNodes;
+    ngraph::NodeVector allNodes;
+    std::vector<std::shared_ptr<ngraph::op::Assign>> assign_nodes;
+    std::map<std::string, std::shared_ptr<ngraph::Node>> variable_id_to_read_value;
 
     //  Following topological order create nGraph operations
     for (auto& layer_id : order) {
@@ -159,12 +161,28 @@ std::shared_ptr<ngraph::Function> V10Parser::parse(const pugi::xml_node& root, c
         if (auto result_node = std::dynamic_pointer_cast<ngraph::op::Result>(node)) {
             result_nodes.emplace_back(result_node);
         }
+
+        if (auto assign_node = std::dynamic_pointer_cast<ngraph::op::Assign>(node)) {
+            assign_nodes.emplace_back(assign_node);
+        }
+
+        if (auto read_value_node = std::dynamic_pointer_cast<ngraph::op::ReadValue>(node)) {
+            variable_id_to_read_value[read_value_node->get_variable_id()] = read_value_node;
+        }
         allNodes.emplace_back(node);
     }
 
     ::ngraph::op::GenericIE::DisableReshape noReshape(allNodes);
-
-    return std::make_shared<ngraph::Function>(result_nodes, parameter_nodes, GetStrAttr(root, "name", ""));
+    auto function = std::make_shared<ngraph::Function>(result_nodes, parameter_nodes, GetStrAttr(root, "name", ""));
+    if (!result_nodes.empty()) {
+        for (const auto& assign : assign_nodes) {
+            assign->add_control_dependency(variable_id_to_read_value.at(assign->get_variable_id()));
+            // often Assign node is a leaf of the graph, we add control_dependency for one of the results
+            // to make Assign node visible for traversals get_ops(), get_ordered_ops()
+            result_nodes[0]->add_control_dependency(assign);
+        }
+    }
+    return function;
 }
 
 V10Parser::GenericLayerParams V10Parser::parseGenericParams(const pugi::xml_node& node) {

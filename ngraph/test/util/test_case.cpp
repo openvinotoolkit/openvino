@@ -49,7 +49,7 @@ ngraph::test::NgraphTestCase::NgraphTestCase(const std::shared_ptr<Function>& fu
     }
 }
 
-void ngraph::test::NgraphTestCase::run(size_t tolerance_bits)
+::testing::AssertionResult ngraph::test::NgraphTestCase::run(size_t tolerance_bits)
 {
     m_tolerance_bits = tolerance_bits;
     const auto& function_results = m_function->get_results();
@@ -85,6 +85,7 @@ void ngraph::test::NgraphTestCase::run(size_t tolerance_bits)
     m_output_index = 0;
     m_expected_outputs.clear();
     m_input_tensors.clear();
+    return ::testing::AssertionSuccess();
 }
 
 ngraph::test::NgraphTestCase& ngraph::test::NgraphTestCase::dump_results(bool dump)

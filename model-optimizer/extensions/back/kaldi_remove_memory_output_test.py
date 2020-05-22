@@ -26,7 +26,7 @@ class KaldiRemoveMemoryOutputTest(unittest.TestCase):
             'kind': 'data'
         },
         'memory_node': {
-            'op': 'Memory',
+            'op': 'Assign',
             'kind': 'op'
         },
         'output_node': {

@@ -22,7 +22,7 @@ from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Node, Graph
 from mo.ops.concat import Concat
 from mo.ops.const import Const
-from mo.ops.eltwise import Eltwise
+from extensions.ops.elementwise import Add, Mul
 from mo.ops.scale_shift import ScaleShiftOp
 
 
@@ -41,19 +41,19 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
     def replace_op(self, graph: Graph, node: Node):
         # split input to (i_part, f_part, c_part, o_part, ct_1)
         split_node_axis = Const(graph, {'value': np.int64(1)}).create_node()
-        split_node = Split(graph, {'name': graph.unique_id(prefix='Split_lstm_input_'),
+        split_node = Split(graph, {'name': 'Split_lstm_input_',
                                    'num_splits': 5}).create_node()
         node.in_port(0).get_connection().set_destination(split_node.in_port(0))
         split_node.in_port(1).connect(split_node_axis.out_port(0))
 
         # i_t = Sigmoid(i_part + w_ic*ct_1)
-        i_scale_attrs = {'name': graph.unique_id(prefix='i_scaleshift'),
+        i_scale_attrs = {'name': 'i_scaleshift',
                          'bias_term': False}
         i_scale = ScaleShiftOp(graph, i_scale_attrs).create_node()
         input_as_const(i_scale, i_scale_attrs, 1, 'weights', node.i_weights)
         split_node.out_port(4).connect(i_scale.in_port(0))
 
-        sum_i_c = Eltwise(graph, {'name': graph.unique_id(prefix='sum_i_c_'), 'operation': 'sum'}).create_node()
+        sum_i_c = Add(graph, {'name': 'sum_i_c_'}).create_node()
         split_node.out_port(0).connect(sum_i_c.in_port(0))
         i_scale.out_port(0).connect(sum_i_c.in_port(1))
 
@@ -61,13 +61,13 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         sum_i_c.out_port(0).connect(i_sigmoid.in_port(0))
 
         # f_t = Sigmoid(f_part + w_fc*ct_1)
-        f_scale_attrs = {'name': graph.unique_id(prefix='f_scaleshift'),
+        f_scale_attrs = {'name': 'f_scaleshift',
                          'bias_term': False}
         f_scale = ScaleShiftOp(graph, f_scale_attrs).create_node()
         input_as_const(f_scale, f_scale_attrs, 1, 'weights', node.f_weights)
         split_node.out_port(4).connect(f_scale.in_port(0))
 
-        sum_f_c = Eltwise(graph, {'name': graph.unique_id(prefix='sum_f_c_'), 'operation': 'sum'}).create_node()
+        sum_f_c = Add(graph, {'name': 'sum_f_c_'}).create_node()
         split_node.out_port(1).connect(sum_f_c.in_port(0))
         f_scale.out_port(0).connect(sum_f_c.in_port(1))
 
@@ -78,28 +78,26 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         c_tanh = Tanh(graph, {'name': 'c_tanh'}).create_node()
         split_node.out_port(2).connect(c_tanh.in_port(0))
 
-        prod_i_c_tanh = Eltwise(graph, {'name': graph.unique_id(prefix='prod_i_c_tanh_'),
-                                        'operation': 'mul'}).create_node()
+        prod_i_c_tanh = Mul(graph, {'name': 'prod_i_c_tanh_'}).create_node()
         i_sigmoid.out_port(0).connect(prod_i_c_tanh.in_port(0))
         c_tanh.out_port(0).connect(prod_i_c_tanh.in_port(1))
 
-        prod_f_ct_1 = Eltwise(graph, {'name': graph.unique_id(prefix='prod_f_ct_1_'),
-                                      'operation': 'mul'}).create_node()
+        prod_f_ct_1 = Mul(graph, {'name': 'prod_f_ct_1_'}).create_node()
         f_sigmoid.out_port(0).connect(prod_f_ct_1.in_port(0))
         split_node.out_port(4).connect(prod_f_ct_1.in_port(1))
 
-        sum_f_i = Eltwise(graph, {'name': graph.unique_id(prefix='sum_f_i_'), 'operation': 'sum'}).create_node()
+        sum_f_i = Add(graph, {'name': 'sum_f_i_'}).create_node()
         prod_f_ct_1.out_port(0).connect(sum_f_i.in_port(0))
         prod_i_c_tanh.out_port(0).connect(sum_f_i.in_port(1))
 
         #  o_t = Sigmoid(o_part + w_oc*c_t)
-        o_scale_attrs = {'name': graph.unique_id(prefix='o_scaleshift'),
+        o_scale_attrs = {'name': 'o_scaleshift',
                          'bias_term': False}
         o_scale = ScaleShiftOp(graph, o_scale_attrs).create_node()
         input_as_const(o_scale, o_scale_attrs, 1, 'weights', node.o_weights)
         sum_f_i.out_port(0).connect(o_scale.in_port(0))
 
-        sum_o_c = Eltwise(graph, {'name': graph.unique_id(prefix='sum_o_c_'), 'operation': 'sum'}).create_node()
+        sum_o_c = Add(graph, {'name': 'sum_o_c_'}).create_node()
         split_node.out_port(3).connect(sum_o_c.in_port(0))
         o_scale.out_port(0).connect(sum_o_c.in_port(1))
 
@@ -110,13 +108,12 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
         c_t_tanh = Tanh(graph, {'name': 'c_t_tanh'}).create_node()
         sum_f_i.out_port(0).connect(c_t_tanh.in_port(0))
 
-        prod_o_c_t_tanh = Eltwise(graph, {'name': graph.unique_id(prefix='prod_o_c_t_tanh_'),
-                                          'operation': 'mul'}).create_node()
+        prod_o_c_t_tanh = Mul(graph, {'name': 'prod_o_c_t_tanh_'}).create_node()
         o_sigmoid.out_port(0).connect(prod_o_c_t_tanh.in_port(0))
         c_t_tanh.out_port(0).connect(prod_o_c_t_tanh.in_port(1))
 
         # add concat to create 1 output
-        concat = Concat(graph, {'name': graph.unique_id(prefix='Concat_c_m')}).create_node()
+        concat = Concat(graph, {'name': 'Concat_c_m'}).create_node()
         concat.add_sequence_of_ports('in', range(2))
         sum_f_i.out_port(0).connect(concat.in_port(0))
         prod_o_c_t_tanh.out_port(0).connect(concat.in_port(1))

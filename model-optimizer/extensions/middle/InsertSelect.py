@@ -15,15 +15,18 @@
 """
 import numpy as np
 
+from extensions.front.kaldi.replace_lstm_node_pattern import create_zero_value_with_batch_from_input
+from extensions.ops.elementwise import Equal
 from extensions.ops.select import Select
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.middle.pattern_match import find_pattern_matches, inverse_dict
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.assign import Assign
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.crop import Crop
-from mo.ops.memory import Memory
+from mo.ops.read_value import ReadValue
 from mo.ops.result import Result
 from mo.utils.error import Error
 from mo.utils.graph import invert_sub_graph_between_nodes
@@ -48,7 +51,7 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
     @staticmethod
     def pattern():
         return dict(
-            nodes=[('op', dict(op='Memory', index=0))],
+            nodes=[('op', dict(op='Assign'))],
             edges=[])
 
     @staticmethod
@@ -93,9 +96,8 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
         select_node.in_port(2).connect(zero_else.out_port(0))
 
         # check if we have already appropriate iteration counter
-        existing_counters = find_pattern_matches(graph, nodes=[('mem_in', dict(op='Memory', index=1,
-                                                                               shape=int64_array([context_len]))),
-                                                               ('mem_in_data', dict()),
+        existing_counters = find_pattern_matches(graph, nodes=[('mem_in', dict(op='ReadValue')),
+                                                               ('mem_in_data', dict(shape=int64_array([context_len]))),
                                                                ('crop_mem_in', dict(op='Crop', axis=int64_array([1]),
                                                                                     offset=int64_array([1]),
                                                                                     dim=int64_array([context_len-1]))),
@@ -104,8 +106,7 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
                                                                ('concat_data', dict()),
                                                                ('const_1', dict(op='Const')),
                                                                ('const_1_data', dict()),
-                                                               ('mem_out', dict(op='Memory', index=0,
-                                                                                shape=int64_array([context_len]))),
+                                                               ('mem_out', dict(op='Assign')),
                                                                ('crop_out', dict(op='Crop', axis=int64_array([1]),
                                                                                  offset=int64_array([0]),
                                                                                  dim=int64_array([1]))),
@@ -122,12 +123,13 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
                                                         ('crop_out_data', 'select')])
         counter_match = next(existing_counters, None)
         if counter_match is not None:
+            ones = Node(graph, inverse_dict(counter_match)['const_1'])
             input_port = Node(graph, inverse_dict(counter_match)['crop_out']).out_port(0)
         else:
-            mem_out = Memory(graph, {'name': 'iteration_number', 'size': 2,
-                                     'index': 1, 'id': 'iteration_' + node.name,
-                                     'shape': int64_array([context_len]),
-                                     'dst_type': np.int32}).create_node()
+            init_value_mem_out = create_zero_value_with_batch_from_input(in_node_port, context_len, np.int32)
+            mem_out = ReadValue(graph, {'name': 'iteration_number',
+                                        'variable_id': 'iteration_'+node.name}).create_node()
+            mem_out.in_port(0).connect(init_value_mem_out.out_port(0))
             cut_first = Crop(graph, {'name': 'cut_first', 'axis': int64_array([1]),
                                      'offset': int64_array([1]), 'dim': int64_array([context_len-1])}).create_node()
             cut_first.in_port(0).connect(mem_out.out_port(0))
@@ -135,9 +137,8 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
             concat = Concat(graph, {'name': 'concat_ones', 'in_ports_count': 2, 'axis': 1}).create_node()
             concat.in_port(0).connect(cut_first.out_port(0))
             concat.in_port(1).connect(ones.out_port(0))
-            mem_in = Memory(graph, {'name': 'iteration_number_out', 'size': 2,
-                                    'index': 0, 'id': 'iteration_' + node.name,
-                                    'shape': int64_array([context_len])}).create_node()
+            mem_in = Assign(graph, {'name': 'iteration_number_out',
+                                    'variable_id': 'iteration_'+node.name}).create_node()
             mem_in.in_port(0).connect(concat.out_port(0))
             res = Result(graph, {}).create_node()
             mem_in.out_port(0).connect(res.in_port(0))
@@ -146,6 +147,12 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
             cut_last.in_port(0).connect(concat.out_port(0))
             input_port = cut_last.out_port(0)
 
-        select_node.in_port(0).connect(input_port)
+        # Check if data from memory is 1
+        # if it is True, we have correct data and should proceed with saving it to memory
+        # else we have not gathered context and have garbage here, shouldn't change initial state of memory
+        cast_in = Equal(graph, {'name': input_port.node.name + '/cast_to_bool'}).create_node()
+        cast_in.in_port(0).connect(ones.out_port(0))
+        cast_in.in_port(1).connect(input_port)
+        select_node.in_port(0).connect(cast_in.out_port(0))
         select_node.out_port(0).connect(node.in_port(0))
         select_node.out_port(0).data.set_shape(in_node_shape)

@@ -84,6 +84,136 @@ class RemoveUselessCropsPatternTests(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, ref_graph, 'placeholder')
         self.assertTrue(flag, resp)
 
+    def test_useless_crops_type2(self):
+        graph = build_graph({'placeholder_in': {'kind': 'op', 'op': 'Parameter'},
+                             'in_node': {'kind': 'data', 'shape': [1, 130]},
+                             'crop1': {'kind': 'op', 'op': 'Crop', 'offset': 0, 'dim': 26, 'axis': -1},
+                             'crop_data_1': {'kind': 'data', 'shape': [1, 26]},
+                             'const_26': {'kind': 'op', 'op': 'Const', 'value': 26},
+                             'const_26_data': {'kind': 'data', 'value': 26},
+                             'crop2': {'kind': 'op', 'op': 'Crop', 'offset': 26, 'axis': -1},
+                             'crop_data_2': {'kind': 'data', 'shape': [1, 26]},
+                             'crop3': {'kind': 'op', 'op': 'Crop', 'offset': 52, 'dim': 26, 'axis': -1},
+                             'crop_data_3': {'kind': 'data', 'shape': [1, 26]},
+                             'crop4': {'kind': 'op', 'op': 'Crop', 'offset': 78, 'dim': 26, 'axis': -1},
+                             'crop_data_4': {'kind': 'data', 'shape': [1, 26]},
+                             'crop5': {'kind': 'op', 'op': 'Crop', 'offset': 104, 'dim': 26, 'axis': -1},
+                             'crop_data_5': {'kind': 'data', 'shape': [1, 26]},
+                             'concat': {'kind': 'op', 'op': 'Concat'},
+                             'concat_data': {'kind': 'data', 'shape': [1, 130]},
+                             'placeholder': {'kind': 'op', 'op': 'Parameter'},
+                             },
+                            [('placeholder_in', 'in_node'),
+                             ('in_node', 'crop1'), ('crop1', 'crop_data_1'),
+                             ('in_node', 'crop2', {'in': 0}), ('const_26', 'const_26_data'),
+                             ('const_26_data', 'crop2', {'in': 1}), ('crop2', 'crop_data_2'),
+                             ('in_node', 'crop3'), ('crop3', 'crop_data_3'),
+                             ('in_node', 'crop4'), ('crop4', 'crop_data_4'),
+                             ('in_node', 'crop5'), ('crop5', 'crop_data_5'),
+                             ('crop_data_1', 'concat'),
+                             ('crop_data_2', 'concat'),
+                             ('crop_data_3', 'concat'),
+                             ('crop_data_4', 'concat'),
+                             ('crop_data_5', 'concat'),
+                             ('concat', 'concat_data'),
+                             ('concat_data', 'placeholder')])
+        RemoveUselessCropsPattern().find_and_replace_pattern(graph)
+        ref_graph = build_graph({'placeholder_in': {'kind': 'op', 'op': 'Parameter'},
+                                 'in_node': {'kind': 'data', 'shape': [1, 130]},
+                                 'crop1': {'kind': 'op', 'op': 'Crop', 'offset': 0, 'dim': 26, 'axis': -1},
+                                 'crop_data_1': {'kind': 'data', 'shape': [1, 26]},
+                                 'const_26': {'kind': 'op', 'op': 'Const', 'value': 26},
+                                 'const_26_data': {'kind': 'data', 'value': 26},
+                                 'crop2': {'kind': 'op', 'op': 'Crop', 'offset': 26, 'dim': 26, 'axis': -1},
+                                 'crop_data_2': {'kind': 'data', 'shape': [1, 26]},
+                                 'crop3': {'kind': 'op', 'op': 'Crop', 'offset': 52, 'dim': 26, 'axis': -1},
+                                 'crop_data_3': {'kind': 'data', 'shape': [1, 26]},
+                                 'crop4': {'kind': 'op', 'op': 'Crop', 'offset': 78, 'dim': 26, 'axis': -1},
+                                 'crop_data_4': {'kind': 'data', 'shape': [1, 26]},
+                                 'crop5': {'kind': 'op', 'op': 'Crop', 'offset': 104, 'dim': 26, 'axis': -1},
+                                 'crop_data_5': {'kind': 'data', 'shape': [1, 26]},
+                                 'concat': {'kind': 'op', 'op': 'Concat'},
+                                 'concat_data': {'kind': 'data', 'shape': [1, 130]},
+                                 'placeholder': {'kind': 'op', 'op': 'Parameter'},
+                                 },
+                                [
+                                    ('placeholder_in', 'in_node'),
+                                    ('in_node', 'crop1'), ('crop1', 'crop_data_1'),
+                                    ('in_node', 'crop2', {'in': 0}), ('const_26', 'const_26_data'),
+                                    ('const_26_data', 'crop2', {'in': 1}), ('crop2', 'crop_data_2'),
+                                    ('in_node', 'crop3'), ('crop3', 'crop_data_3'),
+                                    ('in_node', 'crop4'), ('crop4', 'crop_data_4'),
+                                    ('in_node', 'crop5'), ('crop5', 'crop_data_5'),
+                                    ('concat', 'concat_data'),
+                                    ('in_node', 'placeholder')
+                                ]
+                                )
+
+        (flag, resp) = compare_graphs(graph, ref_graph, 'placeholder')
+        self.assertTrue(flag, resp)
+
+    def test_useless_crops_type3(self):
+        graph = build_graph({'placeholder_in': {'kind': 'op', 'op': 'Parameter'},
+                             'in_node': {'kind': 'data', 'shape': [1, 130]},
+                             'crop1': {'kind': 'op', 'op': 'Crop', 'offset': 0, 'dim': 26, 'axis': -1},
+                             'crop_data_1': {'kind': 'data', 'shape': [1, 26]},
+                             'crop2': {'kind': 'op', 'op': 'Crop', 'crop_begin': 26, 'crop_end': 52, 'axis': -1},
+                             'crop_data_2': {'kind': 'data', 'shape': [1, 26]},
+                             'crop3': {'kind': 'op', 'op': 'Crop', 'offset': 52, 'dim': 26, 'axis': -1},
+                             'crop_data_3': {'kind': 'data', 'shape': [1, 26]},
+                             'crop4': {'kind': 'op', 'op': 'Crop', 'offset': 78, 'dim': 26, 'axis': -1},
+                             'crop_data_4': {'kind': 'data', 'shape': [1, 26]},
+                             'crop5': {'kind': 'op', 'op': 'Crop', 'offset': 104, 'dim': 26, 'axis': -1},
+                             'crop_data_5': {'kind': 'data', 'shape': [1, 26]},
+                             'concat': {'kind': 'op', 'op': 'Concat'},
+                             'concat_data': {'kind': 'data', 'shape': [1, 130]},
+                             'placeholder': {'kind': 'op', 'op': 'Parameter'},
+                             },
+                            [('placeholder_in', 'in_node'),
+                             ('in_node', 'crop1'), ('crop1', 'crop_data_1'),
+                             ('in_node', 'crop2'), ('crop2', 'crop_data_2'),
+                             ('in_node', 'crop3'), ('crop3', 'crop_data_3'),
+                             ('in_node', 'crop4'), ('crop4', 'crop_data_4'),
+                             ('in_node', 'crop5'), ('crop5', 'crop_data_5'),
+                             ('crop_data_1', 'concat'),
+                             ('crop_data_2', 'concat'),
+                             ('crop_data_3', 'concat'),
+                             ('crop_data_4', 'concat'),
+                             ('crop_data_5', 'concat'),
+                             ('concat', 'concat_data'),
+                             ('concat_data', 'placeholder')])
+        RemoveUselessCropsPattern().find_and_replace_pattern(graph)
+        ref_graph = build_graph({'placeholder_in': {'kind': 'op', 'op': 'Parameter'},
+                                 'in_node': {'kind': 'data', 'shape': [1, 130]},
+                                 'crop1': {'kind': 'op', 'op': 'Crop', 'offset': 0, 'dim': 26, 'axis': -1},
+                                 'crop_data_1': {'kind': 'data', 'shape': [1, 26]},
+                                 'crop2': {'kind': 'op', 'op': 'Crop', 'crop_begin': 26, 'crop_end': 52, 'axis': -1},
+                                 'crop_data_2': {'kind': 'data', 'shape': [1, 26]},
+                                 'crop3': {'kind': 'op', 'op': 'Crop', 'offset': 52, 'dim': 26, 'axis': -1},
+                                 'crop_data_3': {'kind': 'data', 'shape': [1, 26]},
+                                 'crop4': {'kind': 'op', 'op': 'Crop', 'offset': 78, 'dim': 26, 'axis': -1},
+                                 'crop_data_4': {'kind': 'data', 'shape': [1, 26]},
+                                 'crop5': {'kind': 'op', 'op': 'Crop', 'offset': 104, 'dim': 26, 'axis': -1},
+                                 'crop_data_5': {'kind': 'data', 'shape': [1, 26]},
+                                 'concat': {'kind': 'op', 'op': 'Concat'},
+                                 'concat_data': {'kind': 'data', 'shape': [1, 130]},
+                                 'placeholder': {'kind': 'op', 'op': 'Parameter'},
+                                 },
+                                [
+                                    ('placeholder_in', 'in_node'),
+                                    ('in_node', 'crop1'), ('crop1', 'crop_data_1'),
+                                    ('in_node', 'crop2'), ('crop2', 'crop_data_2'),
+                                    ('in_node', 'crop3'), ('crop3', 'crop_data_3'),
+                                    ('in_node', 'crop4'), ('crop4', 'crop_data_4'),
+                                    ('in_node', 'crop5'), ('crop5', 'crop_data_5'),
+                                    ('concat', 'concat_data'),
+                                    ('in_node', 'placeholder')
+                                ]
+                                )
+
+        (flag, resp) = compare_graphs(graph, ref_graph, 'placeholder')
+        self.assertTrue(flag, resp)
+
     def test_useful_crops(self):
         graph = build_graph({'placeholder_in': {'kind': 'op', 'op': 'Parameter'},
                              'in_node': {'kind': 'data', 'shape': [1, 130]},

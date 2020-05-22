@@ -13,12 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from extensions.ops.elementwise import Add, Mul
 from extensions.ops.split import Split
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Node, Graph
-from mo.ops.eltwise import Eltwise
 from mo.ops.eltwise_n import EltwiseN
 from mo.utils.error import Error
 
@@ -43,8 +43,12 @@ class ReplaceEltwiseNin1NodePattern(FrontReplacementOp):
         edge_attrs = inp[0][1]
         graph.add_edge(in_node, ss_node.id, **edge_attrs)
         if ss_node.num_splits == 2:
-            eltwise_node = Eltwise(graph, attrs={'name': 'Eltwise_' + node.name,
-                                                 'operation': node['operation']}).create_node()
+            if node['operation'] == 'mul':
+                eltwise_node = Mul(graph, attrs={'name': 'Eltwise_' + node.name}).create_node()
+            elif node['operation'] == 'sum':
+                eltwise_node = Add(graph, attrs={'name': 'Eltwise_' + node.name}).create_node()
+            else:
+                raise Error('Error on replacing Kaldi eltwise: unknown type ' + node['operation'])
         elif ss_node.num_splits > 2:
             eltwise_node = EltwiseN(graph, attrs={'name': 'Eltwise_' + node.name,
                                                   'operation': node['operation']}).create_node()

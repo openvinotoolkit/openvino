@@ -142,7 +142,8 @@ void op::util::BroadcastBase::validate_and_infer_types()
     auto output_rank = input_value(1).get_partial_shape();
     if (input_rank.is_static() && output_rank.is_static() && output_rank[0].is_static())
     {
-        result_shape = PartialShape::dynamic(std::max(input_rank.get_length(), output_rank[0].get_length()));
+        result_shape =
+            PartialShape::dynamic(std::max(input_rank.get_length(), output_rank[0].get_length()));
     }
     const auto shape_constant = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
 

@@ -33,7 +33,7 @@ class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
     def pattern():
         return dict(
             nodes=[
-                ('memory_node', dict(op='Memory')),
+                ('memory_node', dict(op='Assign')),
                 ('data_node', dict(kind='data')),
                 ('op_output', dict(op='Result'))
             ],
@@ -63,6 +63,8 @@ class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
         """
         memory = match['memory_node']
         data = match['data_node']
+        op_output = match['op_output']
 
         graph.remove_edge(memory.id, data.id)
         graph.remove_node(data.id)
+        graph.remove_node(op_output.id)

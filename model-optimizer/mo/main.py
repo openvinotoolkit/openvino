@@ -113,9 +113,6 @@ def prepare_ir(argv: argparse.Namespace):
     elif (is_kaldi or is_onnx) and not argv.input_model:
         raise Error('Path to input model is required: use --input_model.')
 
-    if is_kaldi:
-        argv.generate_experimental_IR_V10 = False
-
     log.debug(str(argv))
     log.debug("Model Optimizer started")
 

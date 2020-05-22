@@ -334,6 +334,28 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
+    addSpecificCreator({"Assign"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                            const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Memory",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<CNNLayer>(attrs);
+        res->params["id"] = params.at("variable_id");
+        res->params["index"] = "0";
+        res->params["size"] = "2";
+        return res;
+    });
+
+    addSpecificCreator({"ReadValue"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                            const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Memory",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<CNNLayer>(attrs);
+        res->params["id"] = params.at("variable_id");
+        res->params["index"] = "1";
+        res->params["size"] = "2";
+        return res;
+    });
+
     addSpecificCreator({"RNNCell"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                             const std::map<std::string, std::string> params) -> CNNLayerPtr {
         THROW_IE_EXCEPTION << "RNNCell operation has a form that is not supported." << node->get_friendly_name()
@@ -656,14 +678,16 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     // Collect all names from current graph
     // It is necessary in order to differentiate outputs from constant layers when we share constants
     // (Constant operations contains outputs for converted and original functions)
+    const ngraph::NodeVector& nodes = graph->get_ops();
+
     std::unordered_set<std::string> op_names;
-    for (const auto &layer : graph->get_ops())
+    for (const auto &layer : nodes)
         op_names.insert(layer->get_name());
 
     bool keep_constants = ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
 
     // Create layers and output data
-    for (const auto &layer : graph->get_ops()) {
+    for (const auto &layer : nodes) {
         if (isInternalLayer(layer, op_names, keep_constants)) continue;
 
         // TODO: remove this rt info when all blobs will be inputs
@@ -703,8 +727,18 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
             }
             inputCount++;
         }
+
+        if (cnnLayer->type == "Memory" && cnnLayer->params["index"] == "1") {
+            inputCount = 0;
+        }
+
         cnnLayer->insData.resize(inputCount);
+
         for (size_t i = 0; i < layer->get_output_size(); i++) {
+            if (cnnLayer->type == "Memory" && cnnLayer->params["index"] == "0") {
+                cnnLayer->outData.clear();
+                continue;
+            }
             std::string outName = layer->get_friendly_name();
             if (layer->get_output_size() != 1) outName += "." + std::to_string(i);
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
@@ -747,6 +781,8 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
 
     // Set input data
     for (const auto &layer : graph->get_ordered_ops()) {
+        if (std::dynamic_pointer_cast<::ngraph::op::ReadValue>(layer))
+            continue;
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
             IE_ASSERT(layer->get_inputs().size() == 1);
             const auto &input = layer->input_value(0);

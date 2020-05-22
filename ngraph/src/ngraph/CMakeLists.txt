@@ -137,6 +137,8 @@ set (SRC
     op/asin.hpp
     op/asinh.cpp
     op/asinh.hpp
+    op/assign.cpp
+    op/assign.hpp
     op/atan.cpp
     op/atan.hpp
     op/atanh.cpp
@@ -314,6 +316,8 @@ set (SRC
     op/proposal.cpp
     op/psroi_pooling.hpp
     op/psroi_pooling.cpp
+    op/read_value.hpp
+    op/read_value.cpp
     op/reduce_logical_and.cpp
     op/reduce_logical_and.hpp
     op/reduce_logical_or.cpp
@@ -518,6 +522,7 @@ set (SRC
     op/util/scatter_base.hpp
     op/util/unary_elementwise_arithmetic.cpp
     op/util/unary_elementwise_arithmetic.hpp
+    op/util/variable.hpp
     ops.hpp
     opsets/opset.cpp
     partial_shape.cpp
