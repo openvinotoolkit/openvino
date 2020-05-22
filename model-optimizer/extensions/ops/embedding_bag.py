@@ -107,6 +107,9 @@ class EmbeddingSegmentsSum(EmbeddingBagBase):
 
         weights_shape = node.in_port(0).data.get_shape()
         assert len(weights_shape) >= 2
+        indices_shape = node.in_port(1).data.get_shape()
+        segment_ids = node.in_port(2).data.get_shape()
+        assert len(indices_shape) == 1 and len(segment_ids) == 1 and indices_shape == segment_ids
         num_segments = node.in_port(3).data.get_value()
         assert num_segments is not None, "EmbeddingSegmentsSum should have a constant num_segments provided, but it " \
                                          "doesn't for node: `{}`.".format(name)

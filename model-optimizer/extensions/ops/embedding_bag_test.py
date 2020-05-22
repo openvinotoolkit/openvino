@@ -48,7 +48,7 @@ nodes = {
 }
 
 
-class TestEmbeddingXXXInfer(unittest.TestCase):
+class TestEmbeddingInfer(unittest.TestCase):
     def test_embedding_bag_offsets_sum(self):
         graph = build_graph(nodes, [
             *connect('data', '0:embedding_bag_offsets'),
