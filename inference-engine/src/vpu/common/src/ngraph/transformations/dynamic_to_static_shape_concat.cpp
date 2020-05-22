@@ -86,7 +86,7 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
                              "DynamicToStaticShape transformation for {} of type {} expects static "
                              "shape on inputs without DSR", target->get_friendly_name(),
                              target->get_type_info().name);
-            accumulatedStaticShapeValue[axis] += static_cast<size_t>(staticInputPartialShape[axis]);
+            accumulatedStaticShapeValue[axis] += staticInputPartialShape[axis].get_length();
         }
         return accumulatedStaticShapeValue;
     };
