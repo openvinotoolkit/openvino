@@ -339,9 +339,9 @@ void op::v1::GroupConvolutionBackpropData::pre_validate_and_infer_types()
         if (filters_pshape[0].is_static() && filters_pshape[1].is_static() &&
             data_pshape[1].is_static())
         {
-            size_t groups{filters_pshape[0]};
-            size_t input_channels{filters_pshape[1]};
-            size_t n_data_channels{data_pshape[1]};
+            auto groups = filters_pshape[0].get_length();
+            auto input_channels = filters_pshape[1].get_length();
+            auto n_data_channels = data_pshape[1].get_length();
 
             NODE_VALIDATION_CHECK(this,
                                   n_data_channels % groups == 0,
