@@ -9,8 +9,8 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 
 # Tests:
 /tests/  @openvinotoolkit/openvino-tests-maintainers
-/inference-engine/tests/  @openvinotoolkit/openvino-tests-maintainers
-/inference-engine/tests_deprecated/  @openvinotoolkit/openvino-tests-maintainers
+/inference-engine/tests/  @openvinotoolkit/openvino-ie-tests-maintainers
+/inference-engine/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers
 
 # IE in general:
 /inference-engine/  @openvinotoolkit/openvino-ie-maintainers
