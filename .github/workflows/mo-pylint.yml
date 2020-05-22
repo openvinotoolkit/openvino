@@ -1,4 +1,4 @@
-name: pylint
+name: Pylint
 on:
   push:
     paths:
@@ -7,7 +7,7 @@ on:
     paths:
       - 'model-optimizer/**'
 jobs:
-  pylint:
+  MO:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
