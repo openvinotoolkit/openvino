@@ -217,6 +217,7 @@ function(register_extra_plugins)
 
     # automatically import plugins from the 'plugins' folder
     file(GLOB local_extra_plugins "plugins/*")
+    list(APPEND local_extra_plugins "${OpenVINO_MAIN_SOURCE_DIR}/docs/template_plugin")
 
     foreach(plugin_path IN LISTS IE_EXTRA_PLUGINS local_extra_plugins)
         get_filename_component(plugin_dir "${plugin_path}" NAME)
