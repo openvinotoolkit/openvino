@@ -13,6 +13,10 @@ InferenceEngine::CNNNetwork getTargetNetwork() {
     auto ie = PluginCache::get().ie();
     return ie->ReadNetwork(model.model_xml_str, model.weights_blob);
 }
-addOutputsParams testCases[] = {addOutputsParams(getTargetNetwork(), {"Memory_1"}, CommonTestUtils::DEVICE_GNA)};
+std::vector<addOutputsParams> testCases = {
+        addOutputsParams(getTargetNetwork(), {"Memory_1"}, CommonTestUtils::DEVICE_GNA)
+};
 
-INSTANTIATE_TEST_CASE_P(AddOutputBasic, AddOutputsTest, ::testing::ValuesIn(testCases), AddOutputsTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(AddOutputBasic, AddOutputsTest,
+        ::testing::ValuesIn(testCases),
+        AddOutputsTest::getTestCaseName);
