@@ -46,6 +46,7 @@ extensions/back/ParameterToPlaceholder.py
 extensions/back/pass_separator.py
 extensions/back/priorbox_mutation.py
 extensions/back/ProposalMutation.py
+extensions/back/ReadValueAssignToMemory.py
 extensions/back/ReduceToPooling.py
 extensions/back/ReduceTransposeDimensions.py
 extensions/back/remove_last_softmax_pattern.py
@@ -872,6 +873,7 @@ mo/middle/pattern_match.py
 mo/middle/replacement.py
 mo/ops/__init__.py
 mo/ops/activation.py
+mo/ops/assign.py
 mo/ops/broadcast.py
 mo/ops/clamp.py
 mo/ops/concat.py
@@ -897,6 +899,7 @@ mo/ops/pad.py
 mo/ops/permute.py
 mo/ops/pooling.py
 mo/ops/power.py
+mo/ops/read_value.py
 mo/ops/reshape.py
 mo/ops/result.py
 mo/ops/roipooling.py

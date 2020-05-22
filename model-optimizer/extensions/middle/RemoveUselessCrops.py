@@ -59,7 +59,18 @@ class RemoveUselessCropsPattern(MiddleReplacementPattern):
             if out['op'] == 'Crop' and out['axis'] == axis and \
                len(out.out_port(0).get_destinations()) == 1 and \
                out.out_port(0).get_destination().node == concat_node:
-                offsets_dims.append((out['offset'], out['dim']))
+                # crop type 1
+                if 'dim' in out:
+                    offsets_dims.append((out['offset'], out['dim']))
+                # crop type 3
+                elif 'crop_begin' in out and 'crop_end' in out:
+                    offsets_dims.append((out['crop_begin'], out['crop_end']-out['crop_begin']))
+                # crop type 2 with const dim
+                elif not out.in_port(1).disconnected() and out.in_port(1).data.get_value() is not None:
+                    offsets_dims.append((out['offset'], out.in_port(1).data.get_value()))
+                # crop type 2 with non-const dim or strange type of crop
+                else:
+                    return
                 crop_list.append(out)
 
         offsets_dims.sort(key=lambda off_dim: off_dim[0])
