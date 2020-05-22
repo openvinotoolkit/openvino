@@ -72,12 +72,6 @@ namespace ngraph
             }
             return m_dimension.get_min_val();
         }
-
-        /// \brief Convert this dimension to `size_t`. This dimension must be static and
-        ///        non-negative.
-        /// \throws std::invalid_argument If this dimension is dynamic or negative.
-        explicit operator size_t() const NGRAPH_DEPRECATED("use get_length() instead");
-
         /// \brief Convert this dimension to `value_type`. This dimension must be static and
         ///        non-negative.
         /// \throws std::invalid_argument If this dimension is dynamic or negative.

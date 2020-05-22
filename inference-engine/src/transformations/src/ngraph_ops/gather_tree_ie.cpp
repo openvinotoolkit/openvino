@@ -34,30 +34,30 @@ void op::GatherTreeIE::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this,
                           step_ids_rank.rank().is_dynamic() ||
-                          static_cast<size_t>(step_ids_rank.rank()) == 3,
+                          step_ids_rank.rank().get_length() == 3,
                           "step_ids input rank must equal to 3 (step_ids rank: ",
-                          static_cast<size_t>(step_ids_rank.rank()),
+                          step_ids_rank.rank().get_length(),
                           ")");
 
     NODE_VALIDATION_CHECK(this,
                           parent_idx_rank.rank().is_dynamic() ||
-                          static_cast<size_t>(parent_idx_rank.rank()) == 3,
+                          parent_idx_rank.rank().get_length() == 3,
                           "parent_idx input rank must equal to 3 (parent_idx rank: ",
-                          static_cast<size_t>(parent_idx_rank.rank()),
+                          parent_idx_rank.rank().get_length(),
                           ")");
 
     NODE_VALIDATION_CHECK(this,
                           max_seq_len_rank.rank().is_dynamic() ||
-                          static_cast<size_t>(max_seq_len_rank.rank()) == 1,
+                          max_seq_len_rank.rank().get_length() == 1,
                           "max_seq_len input rank must equal to 1 (max_seq_len rank: ",
-                          static_cast<size_t>(max_seq_len_rank.rank()),
+                          max_seq_len_rank.rank().get_length(),
                           ")");
 
     NODE_VALIDATION_CHECK(this,
                           end_token_rank.rank().is_dynamic() ||
-                          static_cast<size_t>(end_token_rank.rank()) == 1,
+                          end_token_rank.rank().get_length() == 1,
                           "end_token input rank must be scalar (end_token rank: ",
-                          static_cast<size_t>(end_token_rank.rank()),
+                          end_token_rank.rank().get_length(),
                           ")");
 
     const auto& step_ids_et = get_input_element_type(0);

@@ -150,17 +150,3 @@ Dimension::value_type Dimension::get_min_length() const
 {
     return dimension_length(m_dimension.get_min_val());
 }
-
-Dimension::operator size_t() const
-{
-    if (is_dynamic())
-    {
-        throw std::invalid_argument("Cannot convert dynamic dimension to size_t");
-    }
-    auto result = m_dimension.get_min_val();
-    if (result > std::numeric_limits<size_t>::max())
-    {
-        throw std::invalid_argument("Dimension to large for size_t");
-    }
-    return result;
-}
