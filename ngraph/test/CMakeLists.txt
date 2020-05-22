@@ -114,6 +114,7 @@ set(SRC
     tensor.cpp
     type_prop/all.cpp
     type_prop/any.cpp
+    type_prop/assign.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_mat_mul.cpp
     type_prop/batch_mat_mul_transpose.cpp
@@ -178,6 +179,7 @@ set(SRC
     type_prop/quantized_dot.cpp
     type_prop/random_uniform.cpp
     type_prop/range.cpp
+    type_prop/read_value.cpp
     type_prop/replace_slice.cpp
     type_prop/reshape.cpp
     type_prop/reverse.cpp

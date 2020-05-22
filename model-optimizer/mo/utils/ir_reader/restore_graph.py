@@ -22,6 +22,7 @@ from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConst
 from extensions.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
 from extensions.back.TopKNormalizer import TopKNormalizer
 from extensions.back.blob_normalizer import BlobNormalizer
+from extensions.back.kaldi_remove_memory_output import KaldiRemoveMemoryOutputBackReplacementPattern
 from mo.graph.graph import Graph
 from mo.middle.passes.convert_data_type import data_type_str_to_precision
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
@@ -77,6 +78,7 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
         PackBinaryWeights,
         BlobNormalizer,
         ConvolutionNormalizer,
+        KaldiRemoveMemoryOutputBackReplacementPattern,
     ]
 
     # We need to run some specific passes from MO back stage.
