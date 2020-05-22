@@ -12,7 +12,7 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /inference-engine/tests/  @openvinotoolkit/openvino-tests-maintainers
 
 # IE in general:
-/inference-engine/  @openvinotoolkit/openvino-ie-other-maintainers
+/inference-engine/  @openvinotoolkit/openvino-ie-maintainers
 
 # IE CPU:
 /inference-engine/src/mkldnn_plugin/  @openvinotoolkit/openvino-ie-cpu-maintainers
@@ -37,12 +37,6 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 # IE MULTI:
 /inference-engine/src/multi_device/  @openvinotoolkit/openvino-ie-multi-maintainers
 /inference-engine/include/multi-device/  @openvinotoolkit/openvino-ie-multi-maintainers
-
-# IE Other:
-/inference-engine/src/hetero_plugin/  @openvinotoolkit/openvino-ie-other-maintainers
-/inference-engine/include/hetero/  @openvinotoolkit/openvino-ie-other-maintainers
-/inference-engine/include/cpp/  @openvinotoolkit/openvino-ie-other-maintainers
-/inference-engine/include/details/  @openvinotoolkit/openvino-ie-other-maintainers
 
 # MO:
 /model-optimizer/  @openvinotoolkit/openvino-mo-maintainers
