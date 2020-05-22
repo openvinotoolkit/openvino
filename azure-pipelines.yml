@@ -297,20 +297,20 @@ jobs:
     displayName: 'MklDnnBehaviorTests'
     continueOnError: true
   - script: git clone https://github.com/openvinotoolkit/testdata.git
-    workingDirectory: C:\c-dldt-build
+    workingDirectory: $(BUILD_DIR)
     displayName: 'Clone testdata'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
-      set DATA_PATH=C:\c-dldt-build\testdata
-      set MODELS_PATH=C:\c-dldt-build\testdata
+      set DATA_PATH=$(BUILD_DIR)\testdata
+      set MODELS_PATH=$(BUILD_DIR)\testdata
       ..\bin\intel64\$(BUILD_TYPE)\MklDnnFunctionalTests
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
-      set DATA_PATH=C:\c-dldt-build\testdata
-      set MODELS_PATH=C:\c-dldt-build\testdata
+      set DATA_PATH=$(BUILD_DIR)\testdata
+      set MODELS_PATH=$(BUILD_DIR)\testdata
       ..\bin\intel64\$(BUILD_TYPE)\InferenceEngineCAPITests
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
