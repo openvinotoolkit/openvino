@@ -31,6 +31,16 @@ IeParsedNetwork parseNetwork(const ie::ICNNNetwork& network) {
     IE_ASSERT(!out.networkInputs.empty());
     IE_ASSERT(!out.networkOutputs.empty());
 
+    {
+        auto firstInput = out.networkInputs.begin();
+        auto firstOutput = out.networkOutputs.begin();
+
+        VPU_THROW_UNLESS(firstInput->second->getInputData() != firstOutput->second,
+            "instance of ie::ICNNNetwork has the same data for input and output");
+        VPU_THROW_UNLESS(firstInput->first != firstOutput->first,
+                         "instance of ie::ICNNNetwork has the same name");
+    }
+
     env.log->trace("Perform topological sort");
     const auto sortedLayers = ie::details::CNNNetSortTopologically(network);
     IE_ASSERT(!sortedLayers.empty());

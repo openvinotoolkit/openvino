@@ -6,6 +6,19 @@
 
 namespace LayerTestsUtils {
 
+std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj) {
+    InferenceEngine::Precision netPrecision;
+    InferenceEngine::SizeVector inputShapes, newInputShapes;
+    std::string targetDevice;
+    std::tie(netPrecision, inputShapes, targetDevice) = obj.param;
+
+    std::ostringstream result;
+    result << "inputShapes=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "netPrecision=" << netPrecision.name() << "_";
+    result << "targetDevice=" << targetDevice;
+    return result.str();
+}
+
 LayerTestsCommon::LayerTestsCommon() {
     core = PluginCache::get().ie(targetDevice).get();
 }

@@ -786,6 +786,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
             IE_ASSERT(layer->get_inputs().size() == 1);
             const auto &input = layer->input_value(0);
+            // Here the same name is assigned for output as for input: "Parameter_0" instead of "Result" or something else
             std::string outName = input.get_node_shared_ptr()->get_friendly_name();
             if (input.get_node_shared_ptr()->get_output_size() != 1)
                 outName += "." + std::to_string(input.get_index());

@@ -34,6 +34,8 @@ typedef std::tuple<
         std::string                  // Target Device
 > basicParams;
 
+std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj);
+
 template<typename paramType>
 class LayerTestsCommonDeprecated : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<paramType> {
 public:
