@@ -5,18 +5,12 @@
 #include "plugin_cache.hpp"
 
 #include <cstdlib>
-
 #include <unordered_map>
-#include <mutex>
 
 #include <gtest/gtest.h>
 #include <ie_plugin_config.hpp>
 
 namespace {
-
-std::shared_ptr<InferenceEngine::Core> ie_core;
-std::mutex g_mtx;
-
 class TestListener : public testing::EmptyTestEventListener {
 public:
     void OnTestEnd(const testing::TestInfo &testInfo) override {
@@ -27,7 +21,6 @@ public:
         }
     }
 };
-
 }  // namespace
 
 PluginCache &PluginCache::get() {
@@ -35,7 +28,7 @@ PluginCache &PluginCache::get() {
     return instance;
 }
 
-std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &deviceToCheck) const {
+std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &deviceToCheck) {
     std::lock_guard<std::mutex> lock(g_mtx);
     if (std::getenv("DISABLE_PLUGIN_CACHE") != nullptr) {
 #ifndef NDEBUG
