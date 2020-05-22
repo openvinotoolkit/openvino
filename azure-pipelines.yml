@@ -258,12 +258,12 @@ jobs:
     workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: false
-#  - script: |
-#      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-#      ..\bin\intel64\$(BUILD_TYPE)\cpuFuncTests
-#    workingDirectory: dldt-build
-#    displayName: 'CPU FuncTests'
-#    continueOnError: false
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+      ..\bin\intel64\$(BUILD_TYPE)\cpuFuncTests
+    workingDirectory: dldt-build
+    displayName: 'CPU FuncTests'
+    continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
       ..\bin\intel64\$(BUILD_TYPE)\MklDnnBehaviorTests
