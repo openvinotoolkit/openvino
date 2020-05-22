@@ -16,6 +16,7 @@
 
 #include "ngraph/specialize_function.hpp"
 #include <pass/constant_folding.hpp>
+#include "ngraph/op/assign.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/tensor_iterator.hpp"
 
@@ -84,7 +85,18 @@ std::shared_ptr<Function>
         }
         else
         {
-            m[old_node.get()] = old_node->copy_with_new_inputs(new_args);
+            NodeVector cloned_dependencies;
+            for (auto& dependency : old_node->get_control_dependencies())
+            {
+                std::shared_ptr<Node> dependent = m.at(dependency.get());
+                if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
+                    cloned_dependencies.end())
+                {
+                    cloned_dependencies.push_back(dependent);
+                }
+            }
+            m[old_node.get()] = old_node->copy_with_new_inputs(new_args, cloned_dependencies);
+
             //  TODO: workaround for shape inference, delete it after fix
             if (::ngraph::as_type_ptr<ngraph::op::TensorIterator>(m[old_node.get()]))
             {

@@ -62,9 +62,9 @@ void ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::convert_normalize_l2_
                                                                        across_spatial,
                                                                        channel_shared);
 
-        normalize_ie->set_friendly_name(normalize->get_friendly_name());
-        ngraph::copy_runtime_info(normalize, normalize_ie);
-        ngraph::replace_node(normalize, normalize_ie);
+        normalize_ie->set_friendly_name(mul->get_friendly_name());
+        ngraph::copy_runtime_info({normalize, mul}, normalize_ie);
+        ngraph::replace_node(mul, normalize_ie);
         return true;
     };
 
