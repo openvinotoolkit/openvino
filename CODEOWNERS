@@ -23,7 +23,7 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 # IE GPU:
 /inference-engine/src/cldnn_engine/  @openvinotoolkit/openvino-ie-gpu-maintainers
 /inference-engine/include/gpu/  @openvinotoolkit/openvino-ie-gpu-maintainers
-/inference-engine/thirdparty/clDNN/  @openvinotoolkit/openvino-ie-cpu-maintainers
+/inference-engine/thirdparty/clDNN/  @openvinotoolkit/openvino-ie-gpu-maintainers
 
 # IE VPU:
 /inference-engine/src/vpu/  @openvinotoolkit/openvino-ie-vpu-maintainers
