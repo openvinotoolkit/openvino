@@ -15,13 +15,17 @@
 
 #include "network_i8.hpp"
 
+#include "functional_test_utils/skip_tests_config.hpp"
+
 /*************************************************
  * !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!!
  * All ref values was obtained from Caffe scoring
  * !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!!
  *************************************************/
 
-TEST_P(ModelTransformationsTest, LPT) {}
+TEST_P(ModelTransformationsTest, LPT) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+}
 
 ModelParams getModelParams(const std::string modelName) {
 std::map<std::string, ModelParams> modelParams = {
