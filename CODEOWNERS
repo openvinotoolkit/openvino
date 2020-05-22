@@ -1,6 +1,6 @@
 *  @openvinotoolkit/openvino-maintainers
 
-CODEOWNERS  @openvinotoolkit/openvino-admins
+CODEOWNERS  @openvinotoolkit/openvino-admins @openvinotoolkit/openvino-maintainers
 
 # CI:
 azure-pipelines.yml  @openvinotoolkit/openvino-admins
@@ -16,5 +16,8 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 # MO:
 /model-optimizer/  @openvinotoolkit/openvino-mo-maintainers
 
-# ngraph:
+# nGraph:
 /ngraph/  @openvinotoolkit/openvino-mo-maintainers
+
+# Tools
+/tools/  @openvinotoolkit/@openvino-tools-maintainers
