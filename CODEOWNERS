@@ -7,10 +7,8 @@ Jenkinsfile  @openvinotoolkit/openvino-admins
 azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /.github/  @openvinotoolkit/openvino-admins
 
-# Tests:
+# QA Tests:
 /tests/  @openvinotoolkit/openvino-tests-maintainers
-/inference-engine/tests/  @openvinotoolkit/openvino-ie-tests-maintainers
-/inference-engine/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers
 
 # IE in general:
 /inference-engine/  @openvinotoolkit/openvino-ie-maintainers
@@ -39,6 +37,10 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /inference-engine/src/multi_device/  @openvinotoolkit/openvino-ie-multi-maintainers
 /inference-engine/include/multi-device/  @openvinotoolkit/openvino-ie-multi-maintainers
 
+# IE Tests:
+/inference-engine/tests/  @openvinotoolkit/openvino-ie-tests-maintainers
+/inference-engine/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers
+
 # MO:
 /model-optimizer/  @openvinotoolkit/openvino-mo-maintainers
 
@@ -46,4 +48,4 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /ngraph/  @openvinotoolkit/openvino-mo-maintainers
 
 # Tools
-/tools/  @openvinotoolkit/@openvino-tools-maintainers
+/tools/  @openvinotoolkit/openvino-tools-maintainers
