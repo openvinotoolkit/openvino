@@ -46,5 +46,5 @@ void op::TopKIE::validate_and_infer_types() {
     set_output_size(2);
     set_output_type(0, get_input_element_type(0), topk->get_output_partial_shape(0));
     // TODO: v1::TopK supports element type for second output
-    set_output_type(1, element::i32, topk->get_output_partial_shape(0));
+    set_output_type(1, element::i32, topk->get_output_partial_shape(1));
 }
