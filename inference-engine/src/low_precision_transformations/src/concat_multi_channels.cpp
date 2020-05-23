@@ -65,7 +65,7 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
         }
     }
 
-    if ((!subgraph.isCascade()) || (!isMultiChannel(subgraph.concatLayers))) {
+    if (!isMultiChannel(subgraph.concatLayers)) {
         ConcatTransformation::transform(context, concat);
         return;
     }
@@ -95,11 +95,11 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
         std::vector<float> dequantizationShifts(channelsCount);
         for (size_t i = 0ul; i < channelsCount; ++i) {
             dequantizationScales[i] = QuantizationDetails::isSupportedLevel(quantizationDetails.levels) ?
-                (quantizationDetails.outputHighValues[0] - quantizationDetails.outputLowValues[0]) / (dataPrecision.max - dataPrecision.min) :
+                (quantizationDetails.getOutputHighValue(i) - quantizationDetails.getOutputLowValue(i)) / (dataPrecision.max - dataPrecision.min) :
                 1.0;
 
             dequantizationShifts[i] = QuantizationDetails::isSupportedLevel(quantizationDetails.levels) ?
-                (quantizationDetails.outputHighValues[0] - (quantizationDetails.outputHighValues[0] - quantizationDetails.outputLowValues[0]) *
+                (quantizationDetails.getOutputHighValue(i) - (quantizationDetails.getOutputHighValue(i) - quantizationDetails.getOutputLowValue(i)) *
                 (dataPrecision.max / (dataPrecision.max - dataPrecision.min))) :
                 0.f;
         }
@@ -144,7 +144,11 @@ void ConcatMultiChannelsTransformation::fillDequantization(
     std::vector<float>& dequantizationScales,
     std::vector<float>& dequantizationShifts) {
     std::vector<CNNLayerPtr> fakeQuantizes;
-    fillQuantization(layer, fakeQuantizes);
+    if (layer.type == "FakeQuantize") {
+        fakeQuantizes.push_back(std::make_shared<CNNLayer>(layer));
+    } else {
+        fillQuantization(layer, fakeQuantizes);
+    }
 
     for (const CNNLayerPtr fakeQuantize : fakeQuantizes) {
         {

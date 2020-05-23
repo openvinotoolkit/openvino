@@ -32,28 +32,6 @@ static const std::unordered_set<std::string> intermediateLayers{
     "Resample"
 };
 
-bool Subgraph::isCascade() const {
-    for (size_t index = 0ul; index < (concatLayers.size() - 1); ++index) {
-        const CNNLayerPtr childConcatLayer = concatLayers[index];
-        const CNNLayerPtr parentConcatLayer = concatLayers[index + 1];
-        std::vector<CNNLayerPtr> parents =
-            CNNNetworkHelper::getParentsRecursivelyExceptTypes(*childConcatLayer, intermediateLayers);
-
-        bool parentConcatLayerWasFound = false;
-        for (const CNNLayerPtr& parent : parents) {
-            if (parent->name == parentConcatLayer->name) {
-                parentConcatLayerWasFound = true;
-                break;
-            }
-        }
-
-        if (!parentConcatLayerWasFound) {
-            return false;
-        }
-    }
-    return true;
-}
-
 bool Subgraph::fillSubgraphForQuantization(const CNNLayerPtr& fakeQuantize, std::unordered_set<std::string>& handledLayers) {
     if (fakeQuantize->type != "FakeQuantize") {
         THROW_IE_EXCEPTION << "unexpected layer type " << fakeQuantize->type;

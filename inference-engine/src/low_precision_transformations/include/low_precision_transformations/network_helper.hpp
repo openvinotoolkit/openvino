@@ -25,7 +25,6 @@ class INFERENCE_ENGINE_API_CLASS(Subgraph) {
 public:
     bool fillSubgraphForConcat(const CNNLayerPtr& concat, std::unordered_set<std::string>& handledLayers);
     bool empty() const;
-    bool isCascade() const;
 
     std::vector<CNNLayerPtr> quantizationLayers;
     std::vector<CNNLayerPtr> concatLayers;
