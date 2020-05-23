@@ -996,6 +996,10 @@ Config MKLDNNGraph::getProperty() {
     return config;
 }
 
+Config MKLDNNGraph::getProperty() const {
+    return config;
+}
+
 void MKLDNNGraph::getInputBlobs(InferenceEngine::BlobMap &resp) {
     for (auto &it : inputNodes) {
         MKLDNNInputNode* node = dynamic_cast<MKLDNNInputNode*>(it.second.get());

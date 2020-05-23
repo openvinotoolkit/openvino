@@ -45,8 +45,6 @@ public:
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
 
-    InferenceEngine::ThreadLocal<MKLDNNGraph::Ptr>  _graphs;
-
 protected:
     friend class MKLDNNInferRequest;
     MKLDNNExtensionManager::Ptr extensionManager;
@@ -56,7 +54,17 @@ protected:
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};
     std::string                                 _name;
+    struct Graph : public MKLDNNGraph {
+        std::mutex  _mutex;
+        struct Lock : public std::unique_lock<std::mutex> {
+            explicit Lock(Graph& graph) : std::unique_lock<std::mutex>(graph._mutex), _graph(graph) {}
+            Graph&                          _graph;
+        };
+    };
+    std::deque<Graph>                           _graphs;
+    NumaNodesWeights&                           _numaNodesWeights;
 
+    Graph::Lock GetGraph();
 
     bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
 };
