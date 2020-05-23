@@ -23,43 +23,70 @@
 
 
 namespace LayerTestsUtils {
-    InferenceEngine::details::LowPrecisionTransformations LayerTransformation::getLowPrecisionTransformations(
-        const InferenceEngine::details::LayerTransformation::Params& params) const {
-        if (targetDevice == "CPU") {
-            return InferenceEngine::details::LowPrecisionTransformer::getAllTransformations(params).
-                add<InferenceEngine::details::ConvolutionTransformation>(InferenceEngine::details::LayerTransformation::Params(params).
-                    setPrecisionsOnActivations({ InferenceEngine::Precision::U8 }), "Convolution").
-                addCleanup<InferenceEngine::details::ScaleShiftToConvolutionTransformation>(
-                    InferenceEngine::details::LayerTransformation::Params(params).setPrecisionsOnActivations({ InferenceEngine::Precision::U8 }),
-                    "ScaleShift");
-        } else if (targetDevice == "GPU") {
-            return InferenceEngine::details::LowPrecisionTransformer::getAllTransformations(params);
-        } else {
-            THROW_IE_EXCEPTION << "unknown target device " << targetDevice;
-        }
-    }
+InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsFactory::createParamU8I8() {
+    return InferenceEngine::details::LayerTransformation::Params(
+        false,
+        true,
+        true,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        false,
+        true,
+        true,
+        { InferenceEngine::Precision::U8 },
+        { InferenceEngine::Precision::I8 });
+}
 
-    InferenceEngine::details::LowPrecisionTransformer LayerTransformation::getLowPrecisionTransformer(
-        const InferenceEngine::details::LayerTransformation::Params& params) const {
-        InferenceEngine::details::LowPrecisionTransformer transformer(getLowPrecisionTransformations(params));
-        return transformer;
-    }
+InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsFactory::createParamU8U8() {
+    return InferenceEngine::details::LayerTransformation::Params(
+        false,
+        true,
+        true,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        false,
+        true,
+        true,
+        { InferenceEngine::Precision::U8 },
+        { InferenceEngine::Precision::U8 });
+}
 
-    InferenceEngine::CNNNetwork LayerTransformation::transform() {
-        InferenceEngine::details::CNNNetworkImplPtr cnnNetworkImp = cloneNet(InferenceEngine::CNNNetwork(function));
+InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsFactory::createParamI8I8() {
+    return InferenceEngine::details::LayerTransformation::Params(
+        false,
+        true,
+        true,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        false,
+        true,
+        true,
+        { InferenceEngine::Precision::I8 },
+        { InferenceEngine::Precision::I8 });
+}
 
-        InferenceEngine::details::LayerTransformation::Params params = InferenceEngine::details::LayerTransformation::Params(
-            true,  // updatePrecisions
-            true,  // quantizeOutputs
-            true,  // weightsToConst
-            InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-            InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-            true,  // roundQuantizedValues
-            true,  // updateBiases
-            true); // supportAsymmetricQuantization
-        auto transformer = getLowPrecisionTransformer(params);
-        transformer.transform(*cnnNetworkImp);
+InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsFactory::createParamCpu() {
+    return InferenceEngine::details::LayerTransformation::Params(
+        true,
+        true,
+        true,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        true,
+        true,
+        true);
+}
 
-        return InferenceEngine::CNNNetwork(cnnNetworkImp);
-    }
+InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsFactory::createParamGpu() {
+    // not completed
+    return InferenceEngine::details::LayerTransformation::Params(
+        true,
+        true,
+        true,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        true,
+        true,
+        true);
+}
 }  // namespace LayerTestsUtils
