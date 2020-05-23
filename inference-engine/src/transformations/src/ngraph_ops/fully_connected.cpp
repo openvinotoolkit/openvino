@@ -17,8 +17,7 @@ using namespace ngraph;
 constexpr NodeTypeInfo op::FullyConnected::type_info;
 
 op::FullyConnected::FullyConnected(const Output<Node>& A, const Output<Node>& B, const Output<Node>& C, const Shape & output_shape)
-    : m_output_shape(output_shape),
-      Op({A, B, C}) {
+    : Op({A, B, C}), m_output_shape(output_shape) {
     constructor_validate_and_infer_types();
 }
 
