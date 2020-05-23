@@ -36,4 +36,4 @@ enum class CONVERSION_RESULT {
 };
 
 INFERENCE_ENGINE_API_CPP(CONVERSION_RESULT)
-check_constant(const std::shared_ptr<ngraph::op::Constant> & constant, const ngraph::Shape & shape);
+check_constant(const std::shared_ptr<ngraph::op::Constant> & constant, const ngraph::PartialShape & shape);

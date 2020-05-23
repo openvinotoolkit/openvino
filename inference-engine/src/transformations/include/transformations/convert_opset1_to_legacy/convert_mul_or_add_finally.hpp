@@ -70,9 +70,12 @@ ngraph::graph_rewrite_callback get_callback() {
                       "Unsupported template parameter. Only Add or Multiply allowed!");
 
         auto lin_op = std::dynamic_pointer_cast<T> (m.get_match_root());
-        if (!lin_op) {
+        if (!lin_op || lin_op->output(0).get_partial_shape().rank().is_dynamic()) {
             return false;
         }
+
+        const auto output_shape = lin_op->output(0).get_partial_shape();
+        const auto output_shape_rank = output_shape.rank().get_length();
 
         if (!lin_op->get_element_type().is_real()) {
             return convert_to_eltwise<T>(lin_op,
@@ -123,9 +126,9 @@ ngraph::graph_rewrite_callback get_callback() {
         }
 
 
-        auto res = check_constant(const_node, data_node.get_shape());
+        auto res = check_constant(const_node, data_node.get_partial_shape());
 
-        if (res == CONVERSION_RESULT::NONE || (res == CONVERSION_RESULT::SCALE_SHIFT && lin_op->get_shape().size() < 4)) {
+        if (res == CONVERSION_RESULT::NONE || (res == CONVERSION_RESULT::SCALE_SHIFT && output_shape_rank < 4)) {
             return convert_to_eltwise<T>(lin_op,
                                          lin_op->input(0).get_source_output(),
                                          lin_op->input(1).get_source_output());
@@ -140,12 +143,12 @@ ngraph::graph_rewrite_callback get_callback() {
             std::shared_ptr<ngraph::op::ScaleShiftIE> scaleshift;
             if (std::is_same<T, ngraph::opset1::Add>()) {
                 auto weights = ngraph::opset1::Constant::create(weights_et, weights_shape, {1});
-                scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, ngraph::op::util::normalize_constant(weights, lin_op->get_shape()),
-                                                                                   ngraph::op::util::normalize_constant(const_node, lin_op->get_shape()));
+                scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, ngraph::op::util::normalize_constant(weights, output_shape),
+                                                                                   ngraph::op::util::normalize_constant(const_node, output_shape));
             } else {
                 auto bias = ngraph::opset1::Constant::create(weights_et, weights_shape, {0});
-                scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, ngraph::op::util::normalize_constant(const_node, lin_op->get_shape()),
-                                                                                   ngraph::op::util::normalize_constant(bias, lin_op->get_shape()));
+                scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, ngraph::op::util::normalize_constant(const_node, output_shape),
+                                                                                   ngraph::op::util::normalize_constant(bias, output_shape));
             }
 
             scaleshift->set_friendly_name(lin_op->get_friendly_name());

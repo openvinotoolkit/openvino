@@ -1,0 +1,294 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <gtest/gtest.h>
+
+#include "common_test_utils/test_common.hpp"
+#include <string>
+#include <sstream>
+#include <fstream>
+#include <memory>
+#include <queue>
+#include <map>
+
+#include <ngraph/function.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pass/constant_folding.hpp>
+#include <transformations/utils/utils.hpp>
+#include <transformations/init_node_info.hpp>
+#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
+#include <ngraph/pass/visualize_tree.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
+#include <ngraph_ops/power.hpp>
+#include <ngraph_ops/scaleshift.hpp>
+
+#include "ngraph_test_utils.hpp"
+
+using namespace testing;
+
+using InputShape = ngraph::PartialShape;
+using MulConstant = std::shared_ptr<ngraph::opset1::Constant>;
+using AddConstant = std::shared_ptr<ngraph::opset1::Constant>;
+using RefFunction = std::function<std::shared_ptr<ngraph::Function>(const InputShape&, const MulConstant&, const AddConstant&)>;
+
+class MulAddConversionTests: public CommonTestUtils::TestsCommon,
+public testing::WithParamInterface<std::tuple<std::tuple<InputShape, MulConstant, AddConstant>, RefFunction> > {
+public:
+    std::shared_ptr<ngraph::Function> f, f_ref;
+
+    void SetUp() override {
+        const auto& attrs = std::get<0>(GetParam());
+        const auto& input_shape = std::get<0>(attrs);
+        const auto& mul_const = std::get<1>(attrs);
+        const auto& add_const = std::get<2>(attrs);
+        const auto& get_ref_function = std::get<1>(GetParam());
+
+        f = get_initial_function(input_shape, mul_const, add_const);
+        f_ref = get_ref_function(input_shape, mul_const, add_const);
+    }
+
+    static
+    std::shared_ptr<ngraph::Function> get_initial_function(const InputShape& input_shape,
+                                                           const MulConstant& mul_const,
+                                                           const AddConstant& add_const) {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        ngraph::Output<ngraph::Node> last = input;
+        if (mul_const) {
+            last = std::make_shared<ngraph::opset1::Multiply>(last, mul_const);
+        }
+        if (add_const) {
+            last = std::make_shared<ngraph::opset1::Add>(last, add_const);
+        }
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{last.get_node_shared_ptr()}, ngraph::ParameterVector{input});
+    }
+
+    static
+    std::shared_ptr<ngraph::Function> get_scale_shift_reference(const InputShape&  input_shape,
+                                                                const MulConstant& mul_const,
+                                                                const AddConstant& add_const) {
+        if (!mul_const && !add_const) {
+            throw ngraph::ngraph_error("Invalid arguments");
+        }
+
+        auto shape = (mul_const ? mul_const->get_shape() : add_const->get_shape());
+
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto scsh = std::make_shared<ngraph::op::ScaleShiftIE>(input, (mul_const ? mul_const : create_constant(shape, 1)),
+                                                                      (add_const ? add_const : create_constant(shape, 0)));
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{scsh}, ngraph::ParameterVector{input});
+    }
+
+    static
+    std::shared_ptr<ngraph::Function> get_power_reference(const InputShape&  input_shape,
+                                                          const MulConstant& mul_const,
+                                                          const AddConstant& add_const) {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        float scale(1), shift(0);
+        if (mul_const)
+            ngraph::op::util::get_single_value(mul_const, scale);
+        if (add_const)
+            ngraph::op::util::get_single_value(add_const, shift);
+        auto pow = std::make_shared<ngraph::op::PowerIE>(input, 1., scale, shift);
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{pow}, ngraph::ParameterVector{input});
+    }
+
+    static
+    std::shared_ptr<ngraph::Function> get_eltwise_add_reference(const InputShape&  input_shape,
+                                                                const MulConstant& mul_const,
+                                                                const AddConstant& add_const) {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto add = std::make_shared<ngraph::op::Eltwise>(input, add_const, ELTWISE_TYPE::Sum);
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input});
+    }
+
+    static
+    std::shared_ptr<ngraph::Function> get_eltwise_mul_reference(const InputShape&  input_shape,
+                                                                const MulConstant& mul_const,
+                                                                const AddConstant& add_const) {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
+        auto add = std::make_shared<ngraph::op::Eltwise>(input, mul_const, ELTWISE_TYPE::Prod);
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input});
+    }
+
+    static
+    std::shared_ptr<ngraph::opset1::Constant> create_constant(const ngraph::Shape & shape, float init_value) {
+        return ngraph::opset1::Constant::create(ngraph::element::f32, shape, {init_value});
+    }
+};
+
+class MulOrAddConversionTests: public MulAddConversionTests {};
+
+TEST_P(MulAddConversionTests, CompareFunctions) {
+    ngraph::pass::InitNodeInfo().run_on_function(f);
+    ngraph::pass::ConvertMulAddToScaleShiftOrPower().run_on_function(f);
+    ASSERT_NO_THROW(check_rt_info(f));
+    ngraph::pass::ConstantFolding().run_on_function(f);
+    f->validate_nodes_and_infer_types();
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST_P(MulOrAddConversionTests, CompareFunctions) {
+    ngraph::pass::InitNodeInfo().run_on_function(f);
+    ngraph::pass::ConvertMulOrAddFinally().run_on_function(f);
+    ASSERT_NO_THROW(check_rt_info(f));
+    ngraph::pass::ConstantFolding().run_on_function(f);
+    f->validate_nodes_and_infer_types();
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+#define CONST(A, B) MulAddConversionTests::create_constant(A, B)
+#define SCALESHIFT MulAddConversionTests::get_scale_shift_reference
+#define POWER MulAddConversionTests::get_power_reference
+#define SAME MulAddConversionTests::get_initial_function
+#define ELTWISE_SUM MulAddConversionTests::get_eltwise_add_reference
+#define ELTWISE_PROD MulAddConversionTests::get_eltwise_mul_reference
+
+INSTANTIATE_TEST_CASE_P(MulAddToScaleShift, MulAddConversionTests, testing::Combine(
+        testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5)),
+                        std::make_tuple(InputShape{DYN, 3, DYN, 64},
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5)),
+                        std::make_tuple(InputShape{DYN, 3, DYN, DYN},
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5))),
+        testing::Values(SCALESHIFT)));
+
+INSTANTIATE_TEST_CASE_P(MulToScaleShift, MulOrAddConversionTests, testing::Combine(
+        testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
+                                        nullptr),
+                        std::make_tuple(InputShape{DYN, 3, DYN, 64},
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
+                                        nullptr),
+                        std::make_tuple(InputShape{DYN, 3, DYN, DYN},
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
+                                        nullptr)),
+        testing::Values(SCALESHIFT)));
+
+INSTANTIATE_TEST_CASE_P(AddToScaleShift, MulOrAddConversionTests, testing::Combine(
+        testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
+                                        nullptr,
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5)),
+                        std::make_tuple(InputShape{DYN, 3, DYN, 64},
+                                        nullptr,
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5)),
+                        std::make_tuple(InputShape{DYN, 3, DYN, DYN},
+                                        nullptr,
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5))),
+        testing::Values(SCALESHIFT)));
+
+INSTANTIATE_TEST_CASE_P(MulAddToPower, MulAddConversionTests, testing::Combine(
+        testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
+                                        CONST(ngraph::Shape({1}), 0.5),
+                                        CONST(ngraph::Shape({1}), 0.5)),
+                        std::make_tuple(InputShape{DYN, 3, DYN, 64},
+                                        CONST(ngraph::Shape({1}), 0.5),
+                                        CONST(ngraph::Shape({1}), 0.5)),
+                        std::make_tuple(InputShape{DYN, 3, DYN, DYN},
+                                        CONST(ngraph::Shape({1}), 0.5),
+                                        CONST(ngraph::Shape({1}), 0.5))),
+        testing::Values(POWER)));
+
+INSTANTIATE_TEST_CASE_P(MulToPower, MulOrAddConversionTests, testing::Combine(
+        testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
+                                        CONST(ngraph::Shape({1}), 0.5),
+                                        nullptr),
+                        std::make_tuple(InputShape{DYN, 3, DYN, 64},
+                                        CONST(ngraph::Shape({1}), 0.5),
+                                        nullptr),
+                        std::make_tuple(InputShape{DYN, 3, DYN, DYN},
+                                        CONST(ngraph::Shape({1}), 0.5),
+                                        nullptr)),
+        testing::Values(POWER)));
+
+INSTANTIATE_TEST_CASE_P(AddToPower, MulOrAddConversionTests, testing::Combine(
+        testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
+                                        nullptr,
+                                        CONST(ngraph::Shape({1}), 0.5)),
+                        std::make_tuple(InputShape{DYN, 3, DYN, 64},
+                                        nullptr,
+                                        CONST(ngraph::Shape({1}), 0.5)),
+                        std::make_tuple(InputShape{DYN, 3, DYN, DYN},
+                                        nullptr,
+                                        CONST(ngraph::Shape({1}), 0.5))),
+        testing::Values(POWER)));
+
+
+INSTANTIATE_TEST_CASE_P(MulAddNegative, MulAddConversionTests, testing::Combine(
+        testing::Values(std::make_tuple(InputShape{DYN, 3, 64},
+                                        CONST(ngraph::Shape({1, 3, 1}), 0.5),
+                                        CONST(ngraph::Shape({1, 3, 1}), 0.5)/*ScaleShift must always be 4D*/),
+                        std::make_tuple(InputShape{DYN, 3, DYN},
+                                        CONST(ngraph::Shape({1, 1, 3, 1}), 0.5),
+                                        CONST(ngraph::Shape({3, 1}), 0.5)/*detect broadcast case*/),
+                        std::make_tuple(InputShape{DYN, 3, DYN},
+                                        CONST(ngraph::Shape({3, 1}), 0.5),
+                                        CONST(ngraph::Shape({1, 1, 3, 1}), 0.5)/*detect broadcast case*/),
+                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN},
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5)),
+                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN},
+                                        CONST(ngraph::Shape({1, 3, 2, 1}), 0.5),
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5)),
+                        std::make_tuple(InputShape{1, 3, 2},
+                                        CONST(ngraph::Shape({1, 3, 1}), 0.5),
+                                        CONST(ngraph::Shape({1, 3, 2}), 0.5)),
+                        std::make_tuple(InputShape{1, DYN, 64, 64},
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5))),
+        testing::Values(SAME)));
+
+INSTANTIATE_TEST_CASE_P(MulToEltwise, MulOrAddConversionTests, testing::Combine(
+        testing::Values(std::make_tuple(InputShape{DYN, 3, 64},
+                                        CONST(ngraph::Shape({1, 1, 64}), 0.5),
+                                        nullptr),
+                        std::make_tuple(InputShape{DYN, 3, DYN},
+                                        CONST(ngraph::Shape({1, 1, 3, 1}), 0.5),
+                                        nullptr),
+                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN},
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
+                                        nullptr),
+                        std::make_tuple(InputShape{DYN, 3, DYN, DYN},
+                                        CONST(ngraph::Shape({1, 3, 2, 1}), 0.5),
+                                        nullptr),
+                        std::make_tuple(InputShape{1, 3, 2},
+                                        CONST(ngraph::Shape({1, 3, 2}), 0.5),
+                                        nullptr),
+                        std::make_tuple(InputShape{1, DYN, 64, 64},
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
+                                        nullptr)),
+        testing::Values(ELTWISE_PROD)));
+
+INSTANTIATE_TEST_CASE_P(AddToEltwise, MulOrAddConversionTests, testing::Combine(
+        testing::Values(std::make_tuple(InputShape{DYN, 3, 64},
+                                        nullptr,
+                                        CONST(ngraph::Shape({1, 1, 64}), 0.5)),
+                        std::make_tuple(InputShape{DYN, 3, DYN},
+                                        nullptr,
+                                        CONST(ngraph::Shape({1, 1, 3, 1}), 0.5)),
+                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN},
+                                        nullptr,
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5)),
+                        std::make_tuple(InputShape{DYN, 3, DYN, DYN},
+                                        nullptr,
+                                        CONST(ngraph::Shape({1, 3, 2, 1}), 0.5)),
+                        std::make_tuple(InputShape{1, 3, 2},
+                                        nullptr,
+                                        CONST(ngraph::Shape({1, 3, 2}), 0.5)),
+                        std::make_tuple(InputShape{1, DYN, 64, 64},
+                                        nullptr,
+                                        CONST(ngraph::Shape({1, 3, 1, 1}), 0.5))),
+        testing::Values(ELTWISE_SUM)));
+
+#undef CONST
+#undef SCALESHIFT
+#undef POWER
+#undef SAME
+#undef ELTWISE_PROD
+#undef ELTWISE_SUM
