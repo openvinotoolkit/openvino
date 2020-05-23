@@ -21,11 +21,29 @@ namespace details {
 
 IE_SUPPRESS_DEPRECATED_START
 
+class INFERENCE_ENGINE_API_CLASS(Subgraph) {
+public:
+    bool fillSubgraphForConcat(const CNNLayerPtr& concat, std::unordered_set<std::string>& handledLayers);
+    bool empty() const;
+    bool isCascade() const;
+
+    std::vector<CNNLayerPtr> quantizationLayers;
+    std::vector<CNNLayerPtr> concatLayers;
+    std::unordered_map<std::string, CNNLayer*> layers;
+
+private:
+    bool fillSubgraphForQuantization(const CNNLayerPtr& fakeQuantize, std::unordered_set<std::string>& handledLayers);
+    bool fillSubgraphForIntermediate(const CNNLayerPtr& intermediate, std::unordered_set<std::string>& handledLayers);
+    bool fill(const CNNLayerPtr& concat, std::unordered_set<std::string>& handledLayers);
+};
+
 /**
     * @brief CNNNetworkHelper class encapsulates manipulations with CNN Network.
     */
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkHelper) {
 public:
+    static Subgraph getSubgraph(const CNNLayer& concat);
+
     static CNNLayerPtr getLayer(const ICNNNetwork& network, const std::string& layerName);
 
     static Blob::Ptr makeNewBlobPtr(const TensorDesc& desc);

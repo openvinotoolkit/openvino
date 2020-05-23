@@ -16,12 +16,12 @@
 
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-#include "low_precision_transformations/concat_transformation.hpp"
+#include "low_precision_transformations/concat_neighboring_graph_transformation.hpp"
 
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
+std::string ConcatNeighboringGraphTransformation::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
@@ -33,7 +33,7 @@ std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<LayerTe
     return result.str();
 }
 
-void ConcatTransformation::SetUp() {
+void ConcatNeighboringGraphTransformation::SetUp() {
     SetRefMode(LayerTestsUtils::RefMode::IE);
 
     InferenceEngine::SizeVector inputShape;
@@ -45,34 +45,37 @@ void ConcatTransformation::SetUp() {
     const auto paramNode1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
     const auto fakeQuantize1 = makeFakeQuantize(ngPrecision, paramNode1->output(0));
 
-    const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2] / 2, inputShape[3] / 2 };
-    const auto paramNode2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
-
+    const auto paramNode2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
     const auto fakeQuantize2 = makeFakeQuantize(ngPrecision, paramNode2->output(0));
-    const auto interpolateShape = std::make_shared<ngraph::op::Constant>(
-        ngraph::element::i64,
-        ngraph::Shape{ 2 },
-        std::vector<int64_t>({ static_cast<int64_t>(inputShape[2]), static_cast<int64_t>(inputShape[3]) }));
-    ngraph::op::InterpolateAttrs interpolateAttrs;
-    interpolateAttrs.align_corners = false;
-    interpolateAttrs.antialias = false;
-    interpolateAttrs.axes = ngraph::AxisSet{2, 3};
-    interpolateAttrs.mode = "nearest";
-    interpolateAttrs.pads_begin = { 0 };
-    interpolateAttrs.pads_end = { 0 };
-    const auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(fakeQuantize2->output(0), interpolateShape, interpolateAttrs);
 
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
-        ngraph::OutputVector{ fakeQuantize1->output(0), interpolate->output(0)}, 1);
+    const auto paramNode3 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+    const auto fakeQuantize3 = makeFakeQuantize(ngPrecision, paramNode3->output(0));
 
-    ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(concat)};
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { paramNode1, paramNode2 }, "ConcatTransformation");
+    const std::shared_ptr<ngraph::opset1::Concat> concat1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{
+        fakeQuantize1->output(0),
+        fakeQuantize2->output(0) },
+        1ull);
+
+    const std::shared_ptr<ngraph::opset1::Concat> concat2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{
+        fakeQuantize2->output(0),
+        fakeQuantize3->output(0) },
+        1ull);
+
+    const ngraph::ResultVector results {
+        std::make_shared<ngraph::opset1::Result>(concat1),
+        std::make_shared<ngraph::opset1::Result>(concat2)
+    };
+
+    function = std::make_shared<ngraph::Function>(
+        results,
+        ngraph::ParameterVector { paramNode1, paramNode2, paramNode3 },
+        "ConcatNeighboringGraphTransformation");
 
     // TODO: move to some another place
     validate();
 }
 
-void ConcatTransformation::validate() {
+void ConcatNeighboringGraphTransformation::validate() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
@@ -83,17 +86,20 @@ void ConcatTransformation::validate() {
     IE_SUPPRESS_DEPRECATED_START
 
     InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
+    EXPECT_EQ(2, outputs.size());
 
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = it->second->getCreatorLayer().lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ("ScaleShift", outputLayer->type);
+    for (const auto it : outputs) {
+        const InferenceEngine::CNNLayerPtr outputLayer = it.second->getCreatorLayer().lock();
+        EXPECT_TRUE(outputLayer != nullptr);
+        EXPECT_EQ("ScaleShift", outputLayer->type);
+    }
 
-    IE_SUPPRESS_DEPRECATED_END
+    // check quantized FQ layers map: should includes all FQ
+
+    IE_SUPPRESS_DEPRECATED_START
 }
 
-TEST_P(ConcatTransformation, CompareWithRefImpl) {
+TEST_P(ConcatNeighboringGraphTransformation, CompareWithRefImpl) {
     Run();
 
     if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {

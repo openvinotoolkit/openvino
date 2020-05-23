@@ -11,7 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
-class ConcatTransformation : public LayerTestsUtils::LayerTransformation<LayerTestsUtils::LayerTransformationParams> {
+class ConcatNeighboringGraphTransformation : public LayerTestsUtils::LayerTransformation<LayerTestsUtils::LayerTransformationParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj);
 
