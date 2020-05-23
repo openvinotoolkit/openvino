@@ -1682,8 +1682,37 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TopKIE>::createLayer(const std::shared_p
     auto castedLayer = ngraph::as_type_ptr<ngraph::op::TopKIE>(layer);
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
-    res->params["mode"] = castedLayer->get_mode();
-    res->params["sort"] = castedLayer->get_sort_type();
+    auto mode = castedLayer->get_mode();
+    std::string str_mode;
+    switch (mode) {
+    case ngraph::op::v1::TopK::Mode::MIN:
+        str_mode = "min";
+        break;
+    case ngraph::op::v1::TopK::Mode::MAX:
+        str_mode = "max";
+        break;
+    default:
+        THROW_IE_EXCEPTION << "Unsupported TopK mode";
+    }
+
+    auto sort = castedLayer->get_sort_type();
+    std::string str_sort;
+    switch (sort) {
+    case ngraph::op::v1::TopK::SortType::NONE:
+        str_sort = "none";
+        break;
+    case ngraph::op::v1::TopK::SortType::SORT_VALUES:
+        str_sort = "value";
+        break;
+    case ngraph::op::v1::TopK::SortType::SORT_INDICES:
+        str_sort = "index";
+        break;
+    default:
+        THROW_IE_EXCEPTION << "Unsupported TopK sort type";
+    }
+
+    res->params["mode"] = str_mode;
+    res->params["sort"] = str_sort;
     res->params["axis"] = asString(castedLayer->get_axis());
 
     return res;
