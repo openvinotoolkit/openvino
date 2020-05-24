@@ -28,7 +28,7 @@ void ngraph::pass::ConvertTopKToTopKIE::convert_topk_to_topk_ie() {
                                                                         opset1::Constant::create(element::i64, Shape{1}, {0}));
 
         auto new_topk = std::make_shared<ngraph::op::TopKIE>(topk->input_value(0), unsqueezed_k, topk->get_axis(), topk->get_mode(),
-                                                             topk->get_sort_type(), topk->get_index_element_type());
+                                                             topk->get_sort_type());
         new_topk->set_friendly_name(topk->get_friendly_name());
         ngraph::copy_runtime_info(topk, {unsqueezed_k, new_topk});
         ngraph::replace_node(topk, new_topk);

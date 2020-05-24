@@ -24,8 +24,7 @@ public:
            const Output<Node>& k,
            const int64_t axis,
            const ngraph::op::TopKMode mode,
-           const ngraph::op::TopKSortType sort,
-           const element::Type& index_element_type = element::i32);
+           const ngraph::op::TopKSortType sort);
 
     void validate_and_infer_types() override;
 
@@ -41,7 +40,6 @@ private:
     int64_t m_axis;
     ngraph::op::TopKMode m_mode;
     ngraph::op::TopKSortType m_sort_type;
-    element::Type m_index_element_type;
 };
 
 }  // namespace op
