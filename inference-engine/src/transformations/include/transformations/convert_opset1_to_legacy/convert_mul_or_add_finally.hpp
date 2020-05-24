@@ -96,9 +96,39 @@ ngraph::graph_rewrite_callback get_callback() {
             }
         }
 
-        // Check that eltwise is not useless otherwise we remove it
-        if ((std::is_same<T, ngraph::opset1::Add>() && ngraph::op::util::constantIsEqualTo(const_node, 0)) ||
-            (std::is_same<T, ngraph::opset1::Multiply>() && ngraph::op::util::constantIsEqualTo(const_node, 1))) {
+        auto do_not_broadcast_output = [](std::shared_ptr<ngraph::Node> eltwise) -> bool {
+            const auto input_shape0 = eltwise->input(0).get_partial_shape();
+            const auto input_shape1 = eltwise->input(1).get_partial_shape();
+            // FIX 
+
+            // if one of the ranks is dynamic or they are not equal we can not check broadcast property
+            if (input_shape0.rank().is_static() || input_shape1.rank().is_static() ||
+               (input_shape0.rank() != input_shape1.rank())) {
+                return false;
+            }
+
+            const size_t rank = input_shape0.rank().get_length();
+            // 1. if both dims are dynamic we can't check broadcast property
+            // 2. if one of dims is static and == 1 then other dim must be also static and == 1
+            for (size_t dim = 0; dim < rank; ++dim) {
+                const auto dim0 = input_shape0[dim];
+                const auto dim1 = input_shape1[dim];
+                if (dim0.is_dynamic() && dim1.is_dynamic()) {
+                    return false;
+                }
+
+                if ((dim0.is_static() && dim0.get_length() == 1 && (dim1.is_dynamic() || dim1.get_length() != 1)) ||
+                    (dim1.is_static() && dim1.get_length() == 1 && (dim0.is_dynamic() || dim0.get_length() != 1))) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        // Check that eltwise is not useless and do not broadcast output otherwise we remove it
+        if (((std::is_same<T, ngraph::opset1::Add>() && ngraph::op::util::constantIsEqualTo(const_node, 0)) ||
+            (std::is_same<T, ngraph::opset1::Multiply>() && ngraph::op::util::constantIsEqualTo(const_node, 1))) &&
+            do_not_broadcast_output(lin_op)) {
             bool has_result_output = false;
             for (const auto & output : lin_op->output(0).get_target_inputs()) {
                 if (dynamic_cast<ngraph::op::Result*>(output.get_node())) {

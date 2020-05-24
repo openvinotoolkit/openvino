@@ -61,6 +61,7 @@ public:
         if (add_const) {
             last = std::make_shared<ngraph::opset1::Add>(last, add_const);
         }
+        last = std::make_shared<ngraph::opset1::Relu>(last);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{last.get_node_shared_ptr()}, ngraph::ParameterVector{input});
     }
 
@@ -77,7 +78,8 @@ public:
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
         auto scsh = std::make_shared<ngraph::op::ScaleShiftIE>(input, (mul_const ? mul_const : create_constant(shape, 1)),
                                                                       (add_const ? add_const : create_constant(shape, 0)));
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{scsh}, ngraph::ParameterVector{input});
+        auto relu = std::make_shared<ngraph::opset1::Relu>(scsh);
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
     static
@@ -91,7 +93,8 @@ public:
         if (add_const)
             ngraph::op::util::get_single_value(add_const, shift);
         auto pow = std::make_shared<ngraph::op::PowerIE>(input, 1., scale, shift);
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{pow}, ngraph::ParameterVector{input});
+        auto relu = std::make_shared<ngraph::opset1::Relu>(pow);
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
     static
@@ -100,7 +103,8 @@ public:
                                                                 const AddConstant& add_const) {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
         auto add = std::make_shared<ngraph::op::Eltwise>(input, add_const, ELTWISE_TYPE::Sum);
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input});
+        auto relu = std::make_shared<ngraph::opset1::Relu>(add);
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
     static
@@ -108,8 +112,9 @@ public:
                                                                 const MulConstant& mul_const,
                                                                 const AddConstant& add_const) {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto add = std::make_shared<ngraph::op::Eltwise>(input, mul_const, ELTWISE_TYPE::Prod);
-        return std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input});
+        auto mul = std::make_shared<ngraph::op::Eltwise>(input, mul_const, ELTWISE_TYPE::Prod);
+        auto relu = std::make_shared<ngraph::opset1::Relu>(mul);
+        return std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
 
     static
@@ -262,6 +267,12 @@ INSTANTIATE_TEST_CASE_P(MulToEltwise, MulOrAddConversionTests, testing::Combine(
                                         nullptr),
                         std::make_tuple(InputShape{1, DYN, 64, 64},
                                         CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
+                                        nullptr),
+                        std::make_tuple(InputShape{64, 1, 64},
+                                        CONST(ngraph::Shape({64, 64, 64}), 1),
+                                        nullptr),
+                        std::make_tuple(InputShape{DYN, 1, 64},
+                                        CONST(ngraph::Shape({1, 1, 64}), 1),
                                         nullptr)),
         testing::Values(ELTWISE_PROD)));
 
