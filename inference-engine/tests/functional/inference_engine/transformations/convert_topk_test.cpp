@@ -40,7 +40,7 @@ TEST(TransformationTests, ConvertTopKToTopKIEStatic) {
         auto k = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {10});
         //auto unsqueezed_k = std::make_shared<ngraph::opset1::Unsqueeze>(k, ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
         auto topk = std::make_shared<ngraph::op::TopKIE>(input, k, 1, ngraph::op::TopKMode::MIN,
-                ngraph::op::TopKSortType::SORT_VALUES, ngraph::element::i32);
+                ngraph::op::TopKSortType::SORT_VALUES);
         // due to the 'compare_functions' limitation we will check only one output
         f_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
     }
@@ -69,7 +69,7 @@ TEST(TransformationTests, ConvertTopKToTopKIEDynamic1) {
         auto k = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {10});
         //auto unsqueezed_k = std::make_shared<ngraph::opset1::Unsqueeze>(k, ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
         auto topk = std::make_shared<ngraph::op::TopKIE>(input, k, 1, ngraph::op::TopKMode::MIN,
-                ngraph::op::TopKSortType::SORT_VALUES, ngraph::element::i32);
+                ngraph::op::TopKSortType::SORT_VALUES);
         // due to the 'compare_functions' limitation we will check only one output
         f_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
     }
@@ -98,7 +98,7 @@ TEST(TransformationTests, ConvertTopKToTopKIEDynamic2) {
         auto k = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {10});
         //auto unsqueezed_k = std::make_shared<ngraph::opset1::Unsqueeze>(k, ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
         auto topk = std::make_shared<ngraph::op::TopKIE>(input, k, 1, ngraph::op::TopKMode::MIN,
-                ngraph::op::TopKSortType::SORT_VALUES, ngraph::element::i32);
+                ngraph::op::TopKSortType::SORT_VALUES);
         // due to the 'compare_functions' limitation we will check only one output
         f_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
     }
@@ -127,7 +127,7 @@ TEST(TransformationTests, ConvertTopKToTopKIEDynamic3) {
         auto k = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {10});
         //auto unsqueezed_k = std::make_shared<ngraph::opset1::Unsqueeze>(k, ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
         auto topk = std::make_shared<ngraph::op::TopKIE>(input, k, 1, ngraph::op::TopKMode::MIN,
-                ngraph::op::TopKSortType::SORT_VALUES, ngraph::element::i32);
+                ngraph::op::TopKSortType::SORT_VALUES);
         // due to the 'compare_functions' limitation we will check only one output
         f_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
     }
