@@ -56,6 +56,7 @@
 #include "ngraph/runtime/reference/embedding_lookup.hpp"
 #include "ngraph/runtime/reference/erf.hpp"
 #include "ngraph/runtime/reference/exp.hpp"
+#include "ngraph/runtime/reference/extract_image_patches.hpp"
 #include "ngraph/runtime/reference/floor.hpp"
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/runtime/reference/gather_nd.hpp"
@@ -725,6 +726,17 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::erf<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
+            break;
+        }
+        case OP_TYPEID::ExtractImagePatches_v3:
+        {
+            const op::ExtractImagePatches* extImgPatches = static_cast<const op::ExtractImagePatches*>(&node);
+            reference::extractImagePatches<T, size_t>(
+                                       extImgPatches,
+                                       args[0]->get_data_ptr<const T>(),
+                                       out[0]->get_data_ptr<T>(),
+                                       extImgPatches->get_input_shape(0),
+                                       extImgPatches->get_shape());
             break;
         }
         case OP_TYPEID::Exp:

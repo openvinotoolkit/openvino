@@ -53,6 +53,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/depth_to_space.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput_onnx.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/extract_image_patches.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/fill.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_tree.cpp
