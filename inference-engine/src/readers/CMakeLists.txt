@@ -8,7 +8,7 @@ add_library(${TARGET_NAME} INTERFACE)
 
 target_include_directories(${TARGET_NAME} INTERFACE
     "${CMAKE_CURRENT_SOURCE_DIR}/reader_api"
-    ${PUBLIC_HEADERS_DIR})
+    $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
 
 file(GLOB_RECURSE reader_api_src "${CMAKE_CURRENT_SOURCE_DIR}/reader_api/*.hpp"
                                  "${CMAKE_CURRENT_SOURCE_DIR}/reader_api/*.h")
