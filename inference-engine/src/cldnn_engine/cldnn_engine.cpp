@@ -149,7 +149,8 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
         auto input_precision = ii.second->getTensorDesc().getPrecision();
         if (input_precision != InferenceEngine::Precision::FP16 && input_precision != InferenceEngine::Precision::I16
             && input_precision != InferenceEngine::Precision::FP32 && input_precision != InferenceEngine::Precision::U8
-            && input_precision != InferenceEngine::Precision::I32 && input_precision != InferenceEngine::Precision::BOOL) {
+            && input_precision != InferenceEngine::Precision::I32 && input_precision != InferenceEngine::Precision::I64
+            && input_precision != InferenceEngine::Precision::BOOL) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                 << "Input image format " << input_precision << " is not supported yet...";
         }

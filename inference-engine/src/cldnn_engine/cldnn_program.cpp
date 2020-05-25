@@ -1377,8 +1377,13 @@ void Program::CreateProposalPrimitive(cldnn::topology& topology, InferenceEngine
     const bool for_deformable = layer->GetParamAsBool("for_deformable", 0);
 
     if (layer->outData.size() == 2) {
+        auto mutable_precision = layer->outData[1]->getPrecision();
+        if (mutable_precision == Precision::I64) {
+            mutable_precision = Precision::I32;
+        }
+
         cldnn::layout mutableLayout = cldnn::layout(
-                DataTypeFromPrecision(layer->outData[1]->getPrecision()),
+                DataTypeFromPrecision(mutable_precision),
                 m_defaultFormat,
                 CldnnTensorFromIEDims(layer->outData[1]->getDims()));
 
@@ -3252,8 +3257,13 @@ void Program::CreateTopKPrimitive(cldnn::topology& topology, InferenceEngine::CN
     }
 
     if (layer->outData.size() == 2) {
+        auto mutable_precision = layer->outData[1]->getPrecision();
+        if (mutable_precision == Precision::I64) {
+            mutable_precision = Precision::I32;
+        }
+
         cldnn::layout mutableLayout = cldnn::layout(
-                DataTypeFromPrecision(layer->outData[1]->getPrecision()),
+                DataTypeFromPrecision(mutable_precision),
                 defaultFormatForDims(layer->outData[1]->getDims().size()),
                 CldnnTensorFromIEDims(layer->outData[1]->getDims()));
 
