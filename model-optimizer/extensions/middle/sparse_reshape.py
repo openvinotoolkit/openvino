@@ -74,8 +74,8 @@ class SparseReshapeMiddleReplacer(MiddleReplacementPattern):
         graph.remove_nodes_from([sparse_reshape.id, input_data_node1.id, input_data_node2.id])
 
         # TODO: investigate why this second way does not work
-        #sparse_reshape.out_port(0).get_connection().set_source(sparse_reshape.in_port(0).get_source())
-        #sparse_reshape.out_port(1).get_connection().set_source(sparse_reshape.in_port(1).get_source())
-        #sparse_reshape.in_port(0).get_connection().set_destination(sparse_reshape.in_port(0)
-        #sparse_reshape.in_port(2).disconnect()
-        #graph.remove_nodes_from([sparse_reshape.id])
+        # sparse_reshape.out_port(0).get_connection().set_source(sparse_reshape.in_port(0).get_source())
+        # sparse_reshape.out_port(1).get_connection().set_source(sparse_reshape.in_port(1).get_source())
+        # sparse_reshape.in_port(0).get_connection().set_destination(sparse_reshape.in_port(0)
+        # sparse_reshape.in_port(2).disconnect()
+        # graph.remove_nodes_from([sparse_reshape.id])

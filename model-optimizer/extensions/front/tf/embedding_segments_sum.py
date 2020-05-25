@@ -84,7 +84,8 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
         gather = match['gather']
         select = match['select']
         output_node_name = select.soft_get('name', select.id)
-        log.debug('Found EmbeddingSegmentsSum pattern after {} with name {}'.format(sparse_fill_empty_rows.op, sparse_fill_empty_rows.name))
+        log.debug('Found EmbeddingSegmentsSum pattern after {} with name {}'.format(sparse_fill_empty_rows.op,
+                                                                                    sparse_fill_empty_rows.name))
 
         split_for_indices = create_op_with_const_inputs(graph, Split, {1: int64_array(1)}, {'num_splits': 2})
         squeeze_for_indices = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([1])})
@@ -183,7 +184,8 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
         select = match['select']
         output_node_name = select.soft_get('name', select.id)
 
-        log.debug('Found EmbeddingSegmentsSum2 pattern after {} with name {}'.format(sparse_fill_empty_rows.op, sparse_fill_empty_rows.name))
+        log.debug('Found EmbeddingSegmentsSum2 pattern after {} with name {}'.format(sparse_fill_empty_rows.op,
+                                                                                     sparse_fill_empty_rows.name))
 
         split_for_indices = create_op_with_const_inputs(graph, Split, {1: int64_array(1)},
                                                         {'num_splits': 2,
