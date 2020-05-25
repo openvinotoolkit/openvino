@@ -379,6 +379,7 @@ extensions/front/tf/gather_ext.py
 extensions/front/tf/GatherTree_ext.py
 extensions/front/tf/GNMT_DynamicSequenceLengths.py
 extensions/front/tf/identity_ext.py
+extensions/front/tf/identityN_to_identity.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
 extensions/front/tf/LoopCond_ext.py
