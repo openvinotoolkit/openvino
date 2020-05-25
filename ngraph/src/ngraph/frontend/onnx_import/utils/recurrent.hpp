@@ -51,7 +51,7 @@ namespace ngraph
             };
 
             ///
-            /// \brief      { struct_description }
+            /// \brief      This structure aggregates operator's inptus in a key-value map.
             ///
             struct NGRAPH_API OpInputMap
             {
@@ -69,6 +69,9 @@ namespace ngraph
 
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ATTRIBUTES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+            ///
+            /// \brief      This structure aggregates operator's attributes.
+            ///
             struct NGRAPH_API OpAttributes
             {
                 explicit OpAttributes(const Node& node);
@@ -97,7 +100,17 @@ namespace ngraph
                 const OpInputMap&, const Output<ngraph::Node>&, const Output<ngraph::Node>)>;
 
             ///
-            /// \brief      This class describes a recurrent sequence.
+            /// \brief      This class describes a recurrent (RNN-like) sequence operation.
+            ///
+            /// \paragraph  Outline. This class takes care of orchestration of computations carried
+            ///                      out on data sequence. Use have to only provide kernel function
+            ///                      which would be executed on current time-step input data and the
+            ///                      sequence direction mode.
+            ///
+            /// \paragraph Assumptions. This class assumes the RNN-like sequence operation. This
+            ///                         means that the operator should have inputs and outputs
+            ///                         the same as RNN operator. Especially the cell/kernel should
+            ///                         have input related to hidden cell state.
             ///
             class NGRAPH_API RecurrentSequence
             {
