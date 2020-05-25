@@ -568,7 +568,7 @@ extensions/middle/SliceConverter.py
 extensions/middle/SliceLikeToStridedSlice.py
 extensions/middle/space_to_depth.py
 extensions/middle/sparse_reshape.py
-extensions/middle/ssd_anchors_to_const.py
+extensions/middle/ssd_anchors_middle_replacer.py
 extensions/middle/SwapAxesMiddleReplacer.py
 extensions/middle/TensorIterator_utils.py
 extensions/middle/TensorIteratorBackEdge.py
