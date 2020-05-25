@@ -1,0 +1,42 @@
+# Copyright (C) 2020 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(TARGET_NAME "inference_engine_onnx_reader")
+
+if(ENABLE_LTO)
+    ie_enable_lto()
+endif()
+
+set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/")
+
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/*.h ${PUBLIC_HEADERS_DIR}/*.hpp)
+
+# Create named folders for the sources within the .vcproj
+# Empty name lists them directly under the .vcproj
+
+source_group("src" FILES ${LIBRARY_SRC})
+source_group("include" FILES ${PUBLIC_HEADERS})
+
+# Create shared library
+
+add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+
+target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR})
+target_include_directories(${TARGET_NAME} PRIVATE "${IE_MAIN_SOURCE_DIR}/src/inference_engine")
+
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_READER_API)
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api onnx_importer inference_engine)
+
+# code style
+
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+
+# install
+
+install(TARGETS ${TARGET_NAME}
+        RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
+        ARCHIVE DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+

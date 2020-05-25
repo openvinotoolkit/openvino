@@ -221,7 +221,9 @@ protected:
         // This model contains layers with float attributes.
         // Conversion from string may be affected by locale.
         std::string model = isLSTM ? _model_LSTM : getModel();
-        auto net = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+        auto blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {3360}, Layout::C));
+        blob->allocate();
+        auto net = core.ReadNetwork(model, blob);
 
         if (!isLSTM) {
             auto power_layer = dynamic_pointer_cast<PowerLayer>(net.getLayerByName("power"));

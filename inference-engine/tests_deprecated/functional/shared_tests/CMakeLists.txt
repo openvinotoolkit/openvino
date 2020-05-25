@@ -11,6 +11,7 @@ list(APPEND SHARED_LIBRARIES
         ${NGRAPH_LIBRARIES}
         ie_tests
         ngraphFunctions
+        inference_engine_ir_readers
         )
 
 file(GLOB SHARED_TESTS_SRC

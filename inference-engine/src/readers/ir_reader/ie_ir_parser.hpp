@@ -27,24 +27,30 @@ class IParser {
 public:
     using Ptr = std::shared_ptr<IParser>;
     virtual ~IParser() = default;
-    virtual std::shared_ptr<ngraph::Function> parse(const pugi::xml_node& root, const Blob::CPtr& weights) = 0;
+    virtual std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream) = 0;
 };
 
 class IRParser {
 public:
     explicit IRParser(size_t version);
     IRParser(size_t version, const std::vector<InferenceEngine::IExtensionPtr>& exts);
-    std::shared_ptr<ngraph::Function> parse(const pugi::xml_node& root, const Blob::CPtr& weights);
+    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream);
     virtual ~IRParser() = default;
 
 private:
     IParser::Ptr parser;
 };
 
+class CNNParser : public IParser {
+public:
+    CNNParser() = default;
+    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream) override;
+};
+
 class V10Parser : public IParser {
 public:
     explicit V10Parser(const std::vector<IExtensionPtr>& exts);
-    std::shared_ptr<ngraph::Function> parse(const pugi::xml_node& root, const Blob::CPtr& weights) override;
+    std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream) override;
 
 private:
     std::map<std::string, ngraph::OpSet> opsets;
@@ -136,7 +142,7 @@ private:
     public:
         virtual ~LayerBaseCreator() {}
         virtual std::shared_ptr<ngraph::Node> createLayer(const ngraph::OutputVector& inputs,
-                                                          const pugi::xml_node& node, const Blob::CPtr& weights,
+                                                          const pugi::xml_node& node, std::istream& binStream,
                                                           const GenericLayerParams& layerParsePrms) = 0;
 
         bool shouldCreate(const std::string& nodeType) const;
@@ -148,7 +154,7 @@ private:
     public:
         explicit LayerCreator(const std::string& type): LayerBaseCreator(type) {}
         std::shared_ptr<ngraph::Node> createLayer(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
-                                                  const Blob::CPtr& weights,
+                                                  std::istream& binStream,
                                                   const GenericLayerParams& layerParsePrms) override;
         ngraph::NodeTypeInfo getNodeType() const override {
             return T::type_info;
@@ -156,7 +162,7 @@ private:
     };
 
     std::shared_ptr<ngraph::Node> createNode(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
-                                             const Blob::CPtr& weights, const GenericLayerParams& params);
+                                             std::istream& binStream, const GenericLayerParams& params);
 
     GenericLayerParams parseGenericParams(const pugi::xml_node& node);
 

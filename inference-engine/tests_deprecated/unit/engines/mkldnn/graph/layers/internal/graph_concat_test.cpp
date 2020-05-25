@@ -1102,8 +1102,8 @@ protected:
             std::string model = getModel(p);
 
             InferenceEngine::Core core;
-            ASSERT_THROW(core.ReadNetwork(model, InferenceEngine::Blob::CPtr()), 
-                         InferenceEngine::details::InferenceEngineException);
+            ASSERT_THROW(core.ReadNetwork(model, InferenceEngine::Blob::CPtr()),
+                         std::exception);
         } catch (const InferenceEngine::details::InferenceEngineException &e) {
             FAIL() << e.what();
         }

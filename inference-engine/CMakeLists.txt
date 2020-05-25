@@ -174,6 +174,7 @@ endif()
 # Developer package
 #
 
+ie_developer_export_targets(inference_engine_reader_api)
 ie_developer_export_targets(format_reader)
 ie_developer_export_targets(${NGRAPH_LIBRARIES})
 
