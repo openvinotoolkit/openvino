@@ -117,7 +117,6 @@ void checkTensorShapes(const vpu::Data& input,
     VPU_THROW_UNLESS(outputNDims > 0, "output tensor must not be 0-dimensional");
     VPU_THROW_UNLESS(indicesNDims > 0, "indices tensor must not be 0-dimensional");
     VPU_THROW_UNLESS(updatesNDims > 0, "updates tensor must not be 0-dimensional");
-    VPU_THROW_UNLESS(axisNDims > 0, "axis tensor must not be 0-dimensional");
 
     VPU_THROW_UNLESS(inputNDims == outputNDims,
                      "input and output have different shapes: inputNDims={}, outputNDims={}",
@@ -131,8 +130,8 @@ void checkTensorShapes(const vpu::Data& input,
                      "input and updates have different shapes: inputNDims={}, updatesNDims={}",
                      inputNDims, updatesNDims);
 
-    VPU_THROW_UNLESS(axisNDims == 1,
-                     "axis tensor must be 1-dimensional, but axisNDims={}",
+    VPU_THROW_UNLESS(axisNDims == 0 || axisNDims == 1,
+                     "axis tensor must be 0- or 1-dimensional, but axisNDims={}",
                      axisNDims);
 
     const DimsOrder inputDimsOrder = inputDesc.dimsOrder();
@@ -183,10 +182,10 @@ void checkTensorShapes(const vpu::Data& input,
 
     // Note, that for a 1D tensor the layout is "C"
     VPU_THROW_UNLESS(axisDimsOrder == DimsOrder::C,
-                     "axis must be 1D tensor, but its dims order is {}",
+                     "axis must be 0D or 1D tensor, but its dims order is {}",
                      axisDimsOrder);
     VPU_THROW_UNLESS(axisDims[Dim::C] == 1,
-                     "axis tensor must be 1D array of 1 element, but axis length = %d",
+                     "axis tensor must be a scalar or a 1D array of 1 element, but axis length = %d",
                      axisDims[Dim::C]);
 }
 
