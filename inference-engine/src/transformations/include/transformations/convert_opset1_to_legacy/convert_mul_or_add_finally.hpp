@@ -96,39 +96,43 @@ ngraph::graph_rewrite_callback get_callback() {
             }
         }
 
-        auto do_not_broadcast_output = [](std::shared_ptr<ngraph::Node> eltwise) -> bool {
-            const auto input_shape0 = eltwise->input(0).get_partial_shape();
-            const auto input_shape1 = eltwise->input(1).get_partial_shape();
-            // FIX 
-
-            // if one of the ranks is dynamic or they are not equal we can not check broadcast property
-            if (input_shape0.rank().is_static() || input_shape1.rank().is_static() ||
-               (input_shape0.rank() != input_shape1.rank())) {
-                return false;
+        auto constant_broadcast_output = [](ngraph::PartialShape data_pshape, ngraph::Shape const_shape) -> bool {
+            if (data_pshape.rank().is_dynamic() || const_shape.size() > data_pshape.rank().get_length()) {
+                return true;
             }
 
-            const size_t rank = input_shape0.rank().get_length();
-            // 1. if both dims are dynamic we can't check broadcast property
-            // 2. if one of dims is static and == 1 then other dim must be also static and == 1
-            for (size_t dim = 0; dim < rank; ++dim) {
-                const auto dim0 = input_shape0[dim];
-                const auto dim1 = input_shape1[dim];
-                if (dim0.is_dynamic() && dim1.is_dynamic()) {
-                    return false;
+            std::vector<ngraph::Dimension> data_shape(data_pshape);
+
+            auto const_shape_it = const_shape.rbegin();
+            auto data_shape_it = data_shape.rbegin();
+
+            while (const_shape_it != const_shape.rend()) {
+                auto data_dim = *data_shape_it;
+                auto const_dim = *const_shape_it;
+
+                /* DATA DIM - CONST DIM - CONSTANT BROADCAST OUTPUT
+                   DYN      - 64        - TRUE
+                   DYN      - 1         - FALSE
+                   64       - 1         - FALSE
+                   1        - 64        - TRUE
+                   64       - 64        - FALSE
+                */
+                if ((data_dim.is_dynamic() && const_dim != 1) ||
+                    (data_dim.is_static() && data_dim.get_length() == 1 && const_dim != 1)) {
+                    return true;
                 }
 
-                if ((dim0.is_static() && dim0.get_length() == 1 && (dim1.is_dynamic() || dim1.get_length() != 1)) ||
-                    (dim1.is_static() && dim1.get_length() == 1 && (dim0.is_dynamic() || dim0.get_length() != 1))) {
-                    return false;
-                }
+                ++const_shape_it;
+                ++data_shape_it;
             }
-            return true;
+
+            return false;
         };
 
         // Check that eltwise is not useless and do not broadcast output otherwise we remove it
         if (((std::is_same<T, ngraph::opset1::Add>() && ngraph::op::util::constantIsEqualTo(const_node, 0)) ||
             (std::is_same<T, ngraph::opset1::Multiply>() && ngraph::op::util::constantIsEqualTo(const_node, 1))) &&
-            do_not_broadcast_output(lin_op)) {
+            !constant_broadcast_output(data_node.get_partial_shape(), const_node->get_shape())) {
             bool has_result_output = false;
             for (const auto & output : lin_op->output(0).get_target_inputs()) {
                 if (dynamic_cast<ngraph::op::Result*>(output.get_node())) {

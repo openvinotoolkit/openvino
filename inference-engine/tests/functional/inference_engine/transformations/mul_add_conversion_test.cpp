@@ -271,8 +271,11 @@ INSTANTIATE_TEST_CASE_P(MulToEltwise, MulOrAddConversionTests, testing::Combine(
                         std::make_tuple(InputShape{64, 1, 64},
                                         CONST(ngraph::Shape({64, 64, 64}), 1),
                                         nullptr),
-                        std::make_tuple(InputShape{DYN, 1, 64},
+                        std::make_tuple(InputShape{64, 64, 1},
                                         CONST(ngraph::Shape({1, 1, 64}), 1),
+                                        nullptr),
+                        std::make_tuple(InputShape{DYN, 1, 64},
+                                        CONST(ngraph::Shape({64, 1, 64}), 1),
                                         nullptr)),
         testing::Values(ELTWISE_PROD)));
 
