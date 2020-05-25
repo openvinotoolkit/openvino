@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <string>
 #include <utility>
 
@@ -32,9 +33,15 @@ namespace ngraph
         /// Converts strings to enum values
         static EnumType as_enum(const std::string& name)
         {
+            auto to_lower = [](const std::string& s)
+            {
+                std::string rc = s;
+                std::transform(rc.begin(), rc.end(), rc.begin(), ::tolower);
+                return rc;
+            };
             for (auto p : get().m_string_enums)
             {
-                if (p.first == name)
+                if (to_lower(p.first) == to_lower(name))
                 {
                     return p.second;
                 }
