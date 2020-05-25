@@ -26,7 +26,7 @@ class AnchorToPriorBoxes(MiddleReplacementPattern):
     """
     Crop anchors consts before replacing subgraph with all anchors
     """
-    enabled = True
+    enabled = False
     force_clean_up = True
     graph_condition = [lambda graph: graph.graph['fw'] == 'mxnet' and graph.graph['cmd_params'].enable_ssd_gluoncv]
 
