@@ -25,11 +25,13 @@
 #include "exceptions.hpp"
 #include "lstm.hpp"
 #include "ngraph/builder/split.hpp"
+#include "ngraph/enum_names.hpp"
 #include "ngraph/frontend/onnx_import/op/lstm.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/fused/lstm_sequence.hpp"
 #include "ngraph/op/get_output_element.hpp"
+#include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/opsets/opset0.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -185,26 +187,12 @@ namespace ngraph
                         m_clip_threshold = std::abs(m_clip_threshold);
                         std::string direction = ngraph::to_lower(
                             node.get_attribute_value<std::string>("direction", "forward"));
-                        NGRAPH_CHECK(direction == "bidirectional" || direction == "forward" ||
-                                         direction == "reverse",
-                                     "Provided direction: ",
-                                     direction,
-                                     " is invalid");
-                        if (direction == "forward")
-                        {
-                            m_direction = default_opset::LSTMSequence::direction::FORWARD;
-                        }
-                        else if (direction == "reverse")
-                        {
-                            m_direction = default_opset::LSTMSequence::direction::REVERSE;
-                        }
-                        else // (direction == "bidirectional")
-                        {
-                            m_direction = default_opset::LSTMSequence::direction::BIDIRECTIONAL;
-                        }
+
+                        m_direction =
+                            ngraph::as_enum<ngraph::op::RecurrentSequenceDirection>(direction);
                     }
 
-                    ngraph::op::LSTMSequence::direction m_direction;
+                    ngraph::op::RecurrentSequenceDirection m_direction;
                     std::int64_t m_hidden_size;
                     float m_clip_threshold;
                     std::vector<std::string> m_activations;

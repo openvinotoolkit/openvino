@@ -1113,7 +1113,7 @@ TEST(attributes, lstm_sequence_op)
     const auto B = make_shared<op::Parameter>(element::f32, Shape{1, 12});
 
     const auto hidden_size = 3;
-    const auto lstm_direction = op::LSTMSequence::direction::FORWARD;
+    const auto lstm_direction = op::RecurrentSequenceDirection::FORWARD;
     const auto weights_format = op::LSTMWeightsFormat::ICOF;
     const std::vector<float> activations_alpha = {1, 2, 3};
     const std::vector<float> activations_beta = {4, 5, 6};

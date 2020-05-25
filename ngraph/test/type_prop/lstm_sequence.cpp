@@ -32,17 +32,18 @@ TEST(type_prop, lstm_sequence)
     const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{2});
     const auto hidden_size = 3;
 
-    const auto lstm_sequence = make_shared<op::LSTMSequence>(X,
-                                                             initial_hidden_state,
-                                                             initial_cell_state,
-                                                             sequence_lengths,
-                                                             W,
-                                                             R,
-                                                             B,
-                                                             hidden_size,
-                                                             op::LSTMSequence::direction::FORWARD);
+    const auto lstm_sequence =
+        make_shared<op::LSTMSequence>(X,
+                                      initial_hidden_state,
+                                      initial_cell_state,
+                                      sequence_lengths,
+                                      W,
+                                      R,
+                                      B,
+                                      hidden_size,
+                                      op::RecurrentSequenceDirection::FORWARD);
     EXPECT_EQ(lstm_sequence->get_hidden_size(), hidden_size);
-    EXPECT_EQ(lstm_sequence->get_direction(), op::LSTMSequence::direction::FORWARD);
+    EXPECT_EQ(lstm_sequence->get_direction(), op::RecurrentSequenceDirection::FORWARD);
     EXPECT_EQ(lstm_sequence->get_weights_format(), op::LSTMWeightsFormat::IFCO);
     EXPECT_TRUE(lstm_sequence->get_activations_alpha().empty());
     EXPECT_TRUE(lstm_sequence->get_activations_beta().empty());
