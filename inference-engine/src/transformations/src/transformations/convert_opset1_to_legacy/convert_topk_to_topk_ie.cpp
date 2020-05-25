@@ -29,18 +29,32 @@ void ngraph::pass::ConvertTopKToTopKIE::convert_topk_to_topk_ie() {
         // but due to not all legacy operations support dynamic input shapes and dynamic shape can break pipeline we
         // need to unsqueeze constant manually.
         Output<Node> unsqueezed_k;
+        NodeVector new_ops;
         if (auto k_const = std::dynamic_pointer_cast<opset1::Constant>(topk->input_value(1).get_node_shared_ptr())) {
             auto k_value = k_const->cast_vector<int64_t>();
             unsqueezed_k = opset1::Constant::create(element::i64, Shape{1}, k_value);
         } else {
             unsqueezed_k = std::make_shared<opset1::Unsqueeze>(topk->input_value(1), opset1::Constant::create(element::i64, Shape{1}, {0}));
+            new_ops.push_back(unsqueezed_k.get_node_shared_ptr());
         }
 
-        auto new_topk = std::make_shared<ngraph::op::TopKIE>(topk->input_value(0), unsqueezed_k, topk->get_axis(), topk->get_mode(),
+        auto topk_ie = std::make_shared<ngraph::op::TopKIE>(topk->input_value(0), unsqueezed_k, topk->get_axis(), topk->get_mode(),
                                                              topk->get_sort_type());
-        new_topk->set_friendly_name(topk->get_friendly_name());
-        ngraph::copy_runtime_info(topk, {unsqueezed_k.get_node_shared_ptr(), new_topk});
-        ngraph::replace_node(topk, new_topk);
+        new_ops.push_back(topk_ie);
+
+        Output<Node> index_output;
+        // insert Convert if index element type not equal to i32
+        if (topk->get_index_element_type() == element::i32) {
+            index_output = topk_ie->output(1);
+        } else {
+            index_output = std::make_shared<opset1::Convert>(topk_ie->output(1), topk->get_index_element_type());
+            new_ops.push_back(index_output.get_node_shared_ptr());
+        }
+
+        topk_ie->set_friendly_name(topk->get_friendly_name());
+        ngraph::copy_runtime_info(topk, {unsqueezed_k.get_node_shared_ptr(), topk_ie});
+        topk->output(0).replace(topk_ie->output(0));
+        topk->output(1).replace(index_output);
         return true;
     };
 
