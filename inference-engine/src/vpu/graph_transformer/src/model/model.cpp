@@ -394,7 +394,7 @@ StageDependency ModelObj::addStageDependency(const Stage& stage, const Data& dat
     std::shared_ptr<StageDependencyEdge> edge(new StageDependencyEdge);
     edge->_ptrPosInModel = _stageDependencyEdgePtrList.emplace(_stageDependencyEdgePtrList.end(), edge);
 
-    edge->_data = data;
+    edge->_dependency = data;
     edge->_dependentStage = stage;
 
     data->_dependentStagesEdges.push_back(edge);
