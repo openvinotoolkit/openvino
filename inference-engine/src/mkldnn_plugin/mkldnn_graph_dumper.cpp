@@ -9,6 +9,7 @@
 #include "exec_graph_info.hpp"
 #include "mkldnn_debug.h"
 #include "generic_ie.hpp"
+#include <ngraph/variant.hpp>
 
 #include <vector>
 #include <string>
@@ -109,7 +110,7 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
         }
 
         for (auto && kvp : meta_data)
-            return_node->get_rt_info()[kvp.first] = InferenceEngine::Parameter(kvp.second).asVariant();
+            return_node->get_rt_info()[kvp.first] = std::make_shared<::ngraph::VariantWrapper<std::string>>(kvp.second);
         return_node->set_friendly_name(node->getName());
 
         return return_node;
