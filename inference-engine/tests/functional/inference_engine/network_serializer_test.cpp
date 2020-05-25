@@ -64,8 +64,6 @@ TEST_P(CNNNetworkSerializerTest, Serialize) {
 }
 
 TEST_P(CNNNetworkSerializerTest, TopoSortResultUnique) {
-    InferenceEngine::Core ie;
-
     InferenceEngine::CNNNetwork network(ngraph::builder::subgraph::makeConvPoolRelu());
     auto sorted = InferenceEngine::Serialization::TopologicalSort(network);
 
