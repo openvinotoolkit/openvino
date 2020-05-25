@@ -316,8 +316,7 @@ StageInput ModelObj::addStageInput(
     if (data->_producerEdge != nullptr) {
         IE_ASSERT(stage->_parentStageEdge == nullptr);
         IE_ASSERT(data->_producerEdge->_producer->_parentStageEdge == nullptr);
-        ++data->_producerEdge->_producer->_nextStages[stage];
-        ++stage->_prevStages[data->_producerEdge->_producer];
+        setStagesOrder(data->producerEdge()->producer(), stage);
     }
 
     if (stage->_prevStages.empty()) {
@@ -381,8 +380,7 @@ StageOutput ModelObj::addStageOutput(
     for (const auto& consumerEdge : data->_consumerEdges) {
         IE_ASSERT(stage->_parentStageEdge == nullptr);
         IE_ASSERT(consumerEdge->_consumer->_parentStageEdge == nullptr);
-        ++consumerEdge->_consumer->_prevStages[stage];
-        ++stage->_nextStages[consumerEdge->_consumer];
+        setStagesOrder(stage, consumerEdge->consumer());
 
         _initialStages.erase(consumerEdge->_consumer);
     }
@@ -405,8 +403,7 @@ StageDependency ModelObj::addStageDependency(const Stage& stage, const Data& dat
         "Adding stage dependency for {} with type {} failed: data {} with usage {} should have producer, "
         "but actually it doesn't", stage->name(), stage->type(), data->name(), data->usage());
 
-    ++data->_producerEdge->_producer->_nextStages[stage];
-    ++stage->_prevStages[data->_producerEdge->_producer];
+    setStagesOrder(data->producerEdge()->producer(), stage);
 
     return edge;
 }
@@ -501,19 +498,7 @@ void ModelObj::replaceStageInput(
     //
 
     if (edge->_input->_producerEdge != nullptr) {
-        auto it1 = edge->_input->_producerEdge->_producer->_nextStages.find(edge->_consumer);
-        IE_ASSERT(it1 != edge->_input->_producerEdge->_producer->_nextStages.end());
-        --it1->second;
-        if (it1->second <= 0) {
-            edge->_input->_producerEdge->_producer->_nextStages.erase(it1);
-        }
-
-        auto it2 = edge->_consumer->_prevStages.find(edge->_input->_producerEdge->_producer);
-        IE_ASSERT(it2 != edge->_consumer->_prevStages.end());
-        --it2->second;
-        if (it2->second <= 0) {
-            edge->_consumer->_prevStages.erase(it2);
-        }
+        removeStagesOrder(edge->input()->producer(), edge->consumer());
     }
 
     //
@@ -530,8 +515,7 @@ void ModelObj::replaceStageInput(
     if (newInput->_producerEdge != nullptr) {
         IE_ASSERT(edge->_consumer->_parentStageEdge == nullptr);
         IE_ASSERT(newInput->_producerEdge->_producer->_parentStageEdge == nullptr);
-        ++newInput->_producerEdge->_producer->_nextStages[edge->_consumer];
-        ++edge->_consumer->_prevStages[newInput->_producerEdge->_producer];
+        setStagesOrder(newInput->producerEdge()->producer(), edge->consumer());
 
         _initialStages.erase(edge->_consumer);
     }
@@ -608,19 +592,7 @@ void ModelObj::replaceStageOutput(
     //
 
     for (const auto& consumerEdge : edge->_output->_consumerEdges) {
-        auto it1 = consumerEdge->_consumer->_prevStages.find(edge->_producer);
-        IE_ASSERT(it1 != consumerEdge->_consumer->_prevStages.end());
-        --it1->second;
-        if (it1->second <= 0) {
-            consumerEdge->_consumer->_prevStages.erase(it1);
-        }
-
-        auto it2 = edge->_producer->_nextStages.find(consumerEdge->_consumer);
-        IE_ASSERT(it2 != edge->_producer->_nextStages.end());
-        --it2->second;
-        if (it2->second <= 0) {
-            edge->_producer->_nextStages.erase(it2);
-        }
+        removeStagesOrder(edge->producer(), consumerEdge->consumer());
 
         if (consumerEdge->_consumer->_prevStages.empty()) {
             _initialStages.emplace(consumerEdge->_consumer);
@@ -643,8 +615,7 @@ void ModelObj::replaceStageOutput(
     for (const auto& consumerEdge : newOutput->_consumerEdges) {
         IE_ASSERT(edge->_producer->_parentStageEdge == nullptr);
         IE_ASSERT(consumerEdge->_consumer->_parentStageEdge == nullptr);
-        ++consumerEdge->_consumer->_prevStages[edge->_producer];
-        ++edge->_producer->_nextStages[consumerEdge->_consumer];
+        setStagesOrder(edge->producer(), consumerEdge->consumer());
 
         _initialStages.erase(consumerEdge->_consumer);
     }
@@ -1822,6 +1793,31 @@ void ModelObj::reorderStages(
         const StageComparator& comparator) {
     _nextStagesComparator = comparator;
     _resetStageOrder = true;
+}
+
+void ModelObj::setStagesOrder(const Stage& parent, const Stage& child) {
+    ++parent->_nextStages[child];
+    ++child->_prevStages[parent];
+}
+
+void ModelObj::removeStagesOrder(const Stage& parent, const Stage& child) {
+    auto parentNextStage = parent->_nextStages.find(child);
+    VPU_THROW_UNLESS(parentNextStage != parent->_nextStages.end(),
+                     "removeStagesOrder failed: parent {} with type {} doesn't have {} with type {} as its next stage",
+                     parent->name(), parent->type(), child->name(), child->type());
+    --parentNextStage->second;
+    if (parentNextStage->second <= 0) {
+        parent->_nextStages.erase(parentNextStage);
+    }
+
+    auto childPrevStage = child->_prevStages.find(parent);
+    VPU_THROW_UNLESS(childPrevStage != child->_prevStages.end(),
+                     "removeStagesOrder failed: child {} with type {} doesn't have {} with type {} as its previous stage",
+                     child->name(), child->type(), parent->name(), parent->type());
+    --childPrevStage->second;
+    if (childPrevStage->second <= 0) {
+        child->_prevStages.erase(childPrevStage);
+    }
 }
 
 void ModelObj::runDFS(

@@ -288,6 +288,10 @@ public:
 
     void reorderStages(const StageComparator& comparator = {});
 
+    void setStagesOrder(const Stage& parent, const Stage& child);
+
+    void removeStagesOrder(const Stage& parent, const Stage& child);
+
     //
     // Nodes accessors
     //
