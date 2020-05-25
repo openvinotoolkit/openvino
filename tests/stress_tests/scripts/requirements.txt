@@ -1,2 +1,3 @@
 pymongo
 Jinja2
+PyYAML

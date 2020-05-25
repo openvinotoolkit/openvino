@@ -5,9 +5,12 @@
 
 """
 Upload metrics gathered by MemCheckTests into Mongo DB
-Usage: ./scrips/memcheck_upload.py https://ci.intel.com/job/memchek/1234/ \
+Usage: ./scrips/memcheck_upload.py \
+    https://ci.intel.com/job/memcheck/1234/ \
     ./gtest-parallel-logs/**/*.log \
-    --artifact_root ./gtest-parallel-logs --dryrun
+    --artifact_root=./gtest-parallel-logs \
+    --manifest=manifest.yml \
+    --dryrun
 """
 
 import json
@@ -21,9 +24,11 @@ from inspect import getsourcefile
 from glob import glob
 import xml.etree.ElementTree as ET
 import hashlib
+import yaml
 from pymongo import MongoClient
 
 
+PRODUCT_NAME = 'dldt'
 DATABASE = 'memcheck'
 RE_GTEST_MODEL_XML = re.compile(r'<model[^>]*>')
 RE_GTEST_CUR_MEASURE = re.compile(
@@ -42,6 +47,12 @@ def abs_path(relative_path):
     """
     return os.path.realpath(
         os.path.join(os.path.dirname(getsourcefile(lambda: 0)), relative_path))
+
+
+def _path2url(path):
+    """ Ensure URL path separator is used
+    """
+    return path.replace(os.sep, '/')
 
 
 def parse_memcheck_log(log_path):
@@ -97,7 +108,7 @@ def create_memcheck_records(logs, build_url, artifact_root, append=None):
         if not data:
             continue
         data['build_url'] = build_url
-        data['log_path'] = os.path.relpath(log, artifact_root)
+        data['log_path'] = _path2url(os.path.relpath(log, artifact_root))
         if append:
             data.update(append)
 
@@ -204,31 +215,53 @@ def main():
                         help=f'Collection name in {DATABASE} database to upload.',
                         choices=["commit", "nightly", "weekly"])
     parser.add_argument('--artifact_root', required=True,
-                        help=f'A root directory to strip from log path before upload.')
+                        help='A root directory to strip from log path before upload.')
+    parser.add_argument('--manifest', help='Build manifest to extract build information')
     parser.add_argument('--append', help='JSON to append to each item.')
     args = parser.parse_args()
 
     logging.basicConfig(format="{file}: [ %(levelname)s ] %(message)s".format(
         file=os.path.basename(__file__)), level=logging.INFO, stream=sys.stdout)
 
+    append = {}
+
+    if args.manifest:
+        with open(args.manifest, 'r') as manifest_file:
+            manifest = yaml.safe_load(manifest_file)
+        repo_trigger = next(
+            repo for repo in manifest['components'][PRODUCT_NAME]['repository'] if repo['trigger'])
+        # parse OS name/version
+        product_type_str = manifest['components'][PRODUCT_NAME]['product_type']
+        product_type = product_type_str.split('_')
+        if len(product_type) != 5 or product_type[2] != 'ubuntu':
+            logging.error('Product type %s is not supported', product_type_str)
+            sys.exit(-1)
+        # prepare commit information to append
+        append.update({
+            'os_name': product_type[2],
+            'os_version': [product_type[3], product_type[4]],
+            'commit_sha': repo_trigger['revision'],
+            'commit_date': repo_trigger['commit_time'],
+            'repo_url': repo_trigger['url'],
+            'target_branch': repo_trigger['target_branch'],
+            'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
+        })
+
     if args.append:
         with open(args.append, 'r') as append_file:
-            append = json.load(append_file)
-    else:
-        append = None
+            append.update(json.load(append_file))
 
     logs = list(globber(args.log))
     records = create_memcheck_records(
         logs, args.build_url, args.artifact_root, append=append)
     logging.info('Prepared %d records', len(records))
-    if len(records) != len(logs):
-        logging.warning(
-            'Skipped %d logs of %d', len(logs) - len(records), len(logs))
     if not args.dryrun:
         upload_memcheck_records(records, args.db_url, args.db_collection)
         logging.info('Uploaded to %s', args.db_url)
     else:
         print(json.dumps(records, sort_keys=True, indent=4))
+    if len(records) != len(logs):
+        logging.warning('Skipped %d logs of %d', len(logs) - len(records), len(logs))
 
 
 if __name__ == "__main__":
