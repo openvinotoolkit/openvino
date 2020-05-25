@@ -15,21 +15,25 @@ static std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> in
                                                       InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32) {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params.front(),
-                                                          ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4},
-                                                                                           ngraph::Shape{1, 32, 1, 32}), false);
+    params.front()->set_friendly_name("Param_1");
+    auto const1 = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{1, 32, 1, 32});
+    const1->set_friendly_name("Const_1");
+    auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params.front(), const1, false);
+    reshape1->set_friendly_name("Reshape_1");
     auto conv1 = ngraph::builder::makeConvolution(reshape1, ngPrc, {1, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 4);
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    conv1->set_friendly_name("Conv_1");
     std::vector<size_t> stride{1, 1}, padB{0, 0}, padE = padB, kernel{1, 2};
     auto pool1 = std::make_shared<ngraph::opset1::MaxPool>(conv1, stride, padB, padE, kernel,
                                                                ngraph::op::RoundingType::FLOOR,
                                                                ngraph::op::PadType::EXPLICIT);
+    pool1->set_friendly_name("Pool_1");
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(pool1);
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(relu1,
-                                                              ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2},
-                                                                                               ngraph::Shape{1, 116}), false);
+    relu1->set_friendly_name("Relu_1");
+    auto const2 = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, 116});
+    const2->set_friendly_name("Const_2");
+    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(relu1, const2, false);
+    reshape2->set_friendly_name("Reshape_2");
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape2)};
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     return fnPtr;

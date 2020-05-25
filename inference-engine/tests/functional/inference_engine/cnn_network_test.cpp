@@ -21,7 +21,9 @@ TEST_F(CNNNetworkTests, throwsOnInitWithNullNgraph) {
 
 TEST_F(CNNNetworkTests, throwsOnUninitializedGetPrecision) {
     CNNNetwork network;
+    IE_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(network.getPrecision(), InferenceEngine::details::InferenceEngineException);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(CNNNetworkTests, throwsOnUninitializedGetOutputsInfo) {

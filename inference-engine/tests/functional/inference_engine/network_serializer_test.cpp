@@ -4,11 +4,13 @@
 
 #include <string>
 #include <gtest/gtest.h>
+#include <network_serializer.h>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/network_utils.hpp"
 #include "functional_test_utils/test_model/test_model.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
 
 class CNNNetworkSerializerTest
         : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<InferenceEngine::Precision> {
@@ -59,6 +61,24 @@ TEST_P(CNNNetworkSerializerTest, Serialize) {
         CommonTestUtils::removeIRFiles(xmlFilePath, binFileName);
         throw;
     }
+}
+
+TEST_P(CNNNetworkSerializerTest, TopoSortResultUnique) {
+    InferenceEngine::CNNNetwork network(ngraph::builder::subgraph::makeConvPoolRelu());
+    auto sorted = InferenceEngine::Serialization::TopologicalSort(network);
+
+    std::vector<std::string> actualLayerNames;
+    for (auto&& layer : sorted) {
+        IE_SUPPRESS_DEPRECATED_START
+        actualLayerNames.emplace_back(layer->name);
+        IE_SUPPRESS_DEPRECATED_END
+    }
+
+    std::vector<std::string> expectedLayerNames = {
+            "Param_1", "Const_1", "Reshape_1", "Conv_1", "Pool_1", "Relu_1", "Const_2", "Reshape_2"
+    };
+
+    ASSERT_EQ(expectedLayerNames, actualLayerNames);
 }
 
 std::string getTestCaseName(testing::TestParamInfo<InferenceEngine::Precision> params) {
