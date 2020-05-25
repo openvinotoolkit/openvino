@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from extensions.ops.identity import IdentityOp
+from extensions.ops.identity import Identity
 from mo.front.extractor import FrontExtractorOp
 from mo.graph.graph import Node
 
@@ -25,5 +25,5 @@ class CopyExt(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
-        IdentityOp.update_node_stat(node, {})
+        Identity.update_node_stat(node, {})
         return cls.enabled

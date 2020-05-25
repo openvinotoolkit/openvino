@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.identity import IdentityOp
+from extensions.ops.identity import Identity
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Graph
 
@@ -33,7 +33,7 @@ class SplitToIdentity(FrontReplacementOp):
     def replace_sub_graph(self, graph: Graph, match: dict):
         node = match['op']
 
-        identity = IdentityOp(graph, {'name': node.soft_get('name', node.id)}).create_node()
+        identity = Identity(graph, {'name': node.soft_get('name', node.id)}).create_node()
         node.in_port(0).get_connection().set_destination(identity.in_port(0))
 
         for idx, port in node.out_ports().items():
