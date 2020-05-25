@@ -72,13 +72,9 @@ function (fetch_models_and_validation_set)
         list(GET MODEL_CONFIG_LST 2 repo_name)
         list(GET MODEL_CONFIG_LST 3 branch_name)
 
-        string(FIND ${folder_name} "model" IS_MODEL)
-        if(${folder_name} MATCHES "model*")
-            set(FOLDER_NAME "/models/src")
-        endif()
         add_lfs_repo(
             "${folder_name}"
-            ${TEMP}${FOLDER_NAME}/${folder_name}
+            "${TEMP}/models"
             "${git_url}:${repo_name}"
             "${branch_name}")
     endforeach(loop_var)
