@@ -1345,6 +1345,13 @@ IE_CPU.onnx_dyn_shapes_model_flatten
 IE_CPU.onnx_dyn_shapes_slice_10_default_axes
 IE_CPU.fused_clamp_float
 
+# GRUCell operation has a form that is not supported
+IE_CPU.onnx_model_gru_defaults_fwd
+IE_CPU.onnx_model_gru_fwd_activations
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len
+IE_CPU.onnx_model_gru_rev_clip
+IE_CPU.onnx_model_gru_reverse
+IE_CPU.onnx_model_gru_fwd_bias_initial_h
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
