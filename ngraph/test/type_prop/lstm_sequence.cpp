@@ -23,14 +23,24 @@ using namespace ngraph;
 
 TEST(type_prop, lstm_sequence)
 {
-    const auto X = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
-    const auto W = make_shared<op::Parameter>(element::f32, Shape{1, 12, 4});
-    const auto R = make_shared<op::Parameter>(element::f32, Shape{1, 12, 3});
-    const auto initial_hidden_state = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    const auto initial_cell_state = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
-    const auto B = make_shared<op::Parameter>(element::f32, Shape{1, 12});
-    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{2});
+    const auto batch_size = 2;
+    const auto num_directions = 1;
+    const auto seq_length = 1;
+    const auto input_size = 4;
     const auto hidden_size = 3;
+
+    const auto X =
+        make_shared<op::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
+    const auto initial_hidden_state =
+        make_shared<op::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+    const auto initial_cell_state =
+        make_shared<op::Parameter>(element::f32, Shape{batch_size, num_directions, hidden_size});
+    const auto sequence_lengths = make_shared<op::Parameter>(element::i32, Shape{batch_size});
+    const auto W = make_shared<op::Parameter>(element::f32,
+                                              Shape{num_directions, 4 * hidden_size, input_size});
+    const auto R = make_shared<op::Parameter>(element::f32,
+                                              Shape{num_directions, 4 * hidden_size, hidden_size});
+    const auto B = make_shared<op::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
     const auto lstm_sequence = make_shared<op::LSTMSequence>(X,
                                                              initial_hidden_state,
@@ -52,9 +62,10 @@ TEST(type_prop, lstm_sequence)
     EXPECT_EQ(lstm_sequence->get_clip_threshold(), 0.f);
     EXPECT_FALSE(lstm_sequence->get_input_forget());
     EXPECT_EQ(lstm_sequence->get_output_element_type(0), element::f32);
-    EXPECT_EQ(lstm_sequence->get_output_shape(0), (Shape{1, 1, 2, 3}));
+    EXPECT_EQ(lstm_sequence->get_output_shape(0),
+              (Shape{batch_size, num_directions, seq_length, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(1), element::f32);
-    EXPECT_EQ(lstm_sequence->get_output_shape(1), (Shape{1, 2, 3}));
+    EXPECT_EQ(lstm_sequence->get_output_shape(1), (Shape{batch_size, num_directions, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), element::f32);
-    EXPECT_EQ(lstm_sequence->get_output_shape(2), (Shape{1, 2, 3}));
+    EXPECT_EQ(lstm_sequence->get_output_shape(2), (Shape{batch_size, num_directions, hidden_size}));
 }
