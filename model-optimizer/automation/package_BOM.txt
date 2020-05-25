@@ -608,6 +608,7 @@ extensions/ops/elementwise.py
 extensions/ops/embedding_bag.py
 extensions/ops/Enter.py
 extensions/ops/Exit.py
+extensions/ops/ExtractImagePatches.py
 extensions/ops/fakequantize.py
 extensions/ops/gather.py
 extensions/ops/GatherNd.py
@@ -938,6 +939,7 @@ mo/utils/ir_reader/extenders/convert_extender.py
 mo/utils/ir_reader/extenders/deconvolution_extender.py
 mo/utils/ir_reader/extenders/deformable_convolution_extender.py
 mo/utils/ir_reader/extenders/experimental_extender.py
+mo/utils/ir_reader/extenders/ExtractImagePatches_extender.py
 mo/utils/ir_reader/extenders/fakequantize_extender.py
 mo/utils/ir_reader/extenders/GRUCell_extender.py
 mo/utils/ir_reader/extenders/interpolate_extender.py
