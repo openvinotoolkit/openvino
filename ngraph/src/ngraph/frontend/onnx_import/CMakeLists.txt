@@ -110,6 +110,8 @@ add_library(onnx_importer SHARED
         op/global_max_pool.cpp
         op/global_max_pool.hpp
         op/greater.hpp
+        op/gru.cpp
+        op/gru.hpp
         op/hard_sigmoid.cpp
         op/hard_sigmoid.hpp
         op/hardmax.cpp
@@ -177,6 +179,8 @@ add_library(onnx_importer SHARED
         op/resize.hpp
         op/reverse_sequence.cpp
         op/reverse_sequence.hpp
+        op/rnn.cpp
+        op/rnn.hpp
         op/roi_align.cpp
         op/roi_align.hpp
         op/round.cpp
