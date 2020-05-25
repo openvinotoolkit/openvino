@@ -239,6 +239,8 @@ add_library(onnx_importer SHARED
         utils/onnx_importer_visibility.hpp
         utils/pooling_factory.cpp
         utils/pooling_factory.hpp
+        utils/recurrent.cpp
+        utils/recurrent.hpp
         utils/reduction.cpp
         utils/reduction.hpp
         utils/reshape.cpp
