@@ -7,7 +7,7 @@
 namespace LayerTestsUtils {
 
 LayerTestsCommon::LayerTestsCommon() {
-    core = PluginCache::get().ie(targetDevice).get();
+    core = PluginCache::get().ie(targetDevice);
 }
 
 void LayerTestsCommon::Run() {

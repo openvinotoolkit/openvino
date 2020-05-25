@@ -293,7 +293,7 @@ private:
 
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
-    InferenceEngine::Core *core = nullptr;
+    std::shared_ptr<InferenceEngine::Core> core;
     InferenceEngine::CNNNetwork cnnNetwork;
     InferenceEngine::InferRequest inferRequest;
     RefMode refMode = RefMode::INTERPRETER;

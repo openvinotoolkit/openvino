@@ -53,7 +53,11 @@ void vpuLayersTests::TearDown() {
         }
     }
 
-    _vpuPluginPtr = {};
+    _exeNetwork = {};
+    _inferRequest = {};
+    _refBlob = {};
+
+    TestsCommon::TearDown();
 }
 
 bool vpuLayersTests::CheckMyriadX() {
@@ -229,7 +233,7 @@ void vpuLayersTests::makeSingleLayerNetworkImpl(const LayerParams& layerParams,
 }
 
 void vpuLayersTests::readNetwork(const std::string& model, const WeightsBlob::Ptr& modelWeights) {
-    _cnnNetwork = PluginCache::get().ie()->ReadNetwork(model, modelWeights);
+    _cnnNetwork = _vpuPluginPtr->ieCore()->ReadNetwork(model, modelWeights);
 
     ASSERT_NO_THROW(_inputsInfo = _cnnNetwork.getInputsInfo());
     ASSERT_NO_THROW(_outputsInfo = _cnnNetwork.getOutputsInfo());
