@@ -157,6 +157,16 @@ public:
             const StageOutput& edge,
             const Data& newOutput);
 
+    void replaceStageDependency(
+            const StageDependency& edge,
+            const Data& newDependency);
+
+    void replaceDependentStage(
+            const StageDependency& edge,
+            const Stage& newDependentStage);
+
+    void removeStageDependency(const StageDependency& edge);
+
     //
     // Stage <-> Stage edges
     //

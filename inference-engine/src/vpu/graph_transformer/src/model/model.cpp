@@ -389,6 +389,22 @@ StageOutput ModelObj::addStageOutput(
 }
 
 StageDependency ModelObj::addStageDependency(const Stage& stage, const Data& data) {
+    for (const auto& dependentStageEdge : data->dependentStagesEdges()) {
+        VPU_THROW_UNLESS(dependentStageEdge->dependentStage() != stage,
+                         "Adding stage dependency for {} with type {} failed: data {} with usage {} is already its dependency",
+                         stage->name(), stage->type(), data->name(), data->usage());
+    }
+
+    for (const auto& input : stage->inputs()) {
+        VPU_THROW_UNLESS(data != input,
+                         "Adding stage dependency for {} with type {} failed: data {} with usage {} is already its input",
+                         stage->name(), stage->type(), data->name(), data->usage());
+    }
+
+    VPU_THROW_UNLESS(data->producer() != nullptr,
+                     "Adding stage dependency for {} with type {} failed: data {} with usage {} should have producer, "
+                     "but actually it doesn't", stage->name(), stage->type(), data->name(), data->usage());
+
     _resetStageOrder = true;
 
     std::shared_ptr<StageDependencyEdge> edge(new StageDependencyEdge);
@@ -398,10 +414,6 @@ StageDependency ModelObj::addStageDependency(const Stage& stage, const Data& dat
     edge->_dependentStage = stage;
 
     data->_dependentStagesEdges.push_back(edge);
-
-    VPU_THROW_UNLESS(data->_producerEdge != nullptr,
-        "Adding stage dependency for {} with type {} failed: data {} with usage {} should have producer, "
-        "but actually it doesn't", stage->name(), stage->type(), data->name(), data->usage());
 
     setStagesOrder(data->producerEdge()->producer(), stage);
 
@@ -619,6 +631,103 @@ void ModelObj::replaceStageOutput(
 
         _initialStages.erase(consumerEdge->_consumer);
     }
+}
+
+void ModelObj::replaceStageDependency(
+        const StageDependency& edge,
+        const Data& newDependency) {
+    const auto previousDependency = edge->dependency();
+    const auto dependentStage = edge->dependentStage();
+
+    for (const auto& dependentStageEdge : newDependency->dependentStagesEdges()) {
+        VPU_THROW_UNLESS(dependentStageEdge->dependentStage() != dependentStage,
+            "replaceStageDependency failed for dependency {} with usage {} and dependentStage {} with type {}: "
+            "new dependency {} with usage {} is already dependency for dependent stage", previousDependency->name(), previousDependency->usage(),
+            dependentStage->name(), dependentStage->type(), newDependency->name(), newDependency->usage());
+    }
+
+    for (const auto& input : dependentStage->inputs()) {
+        VPU_THROW_UNLESS(newDependency != input,
+            "replaceStageDependency failed for dependency {} with usage {} and dependentStage {} with type {}: "
+            "new dependency {} with usage {} is already input for dependent stage", previousDependency->name(), previousDependency->usage(),
+            dependentStage->name(), dependentStage->type(), newDependency->name(), newDependency->usage());
+    }
+
+    VPU_THROW_UNLESS(newDependency->producer() != nullptr,
+        "replaceStageDependency failed for dependency {} with usage {} and dependentStage {} with type {}: "
+        "newDependency {} with usage {} has no producer", previousDependency->name(), previousDependency->usage(),
+        dependentStage->name(), dependentStage->type(), newDependency->name(), newDependency->usage());
+
+    VPU_THROW_UNLESS(previousDependency->producer() != nullptr,
+        "replaceStageDependency failed for dependency {} with usage {} and dependentStage {} with type {}: "
+        "previous dependency has no producer",
+        previousDependency->name(), previousDependency->usage(), dependentStage->name(), dependentStage->type());
+
+    _resetStageOrder = true;
+
+    previousDependency->_dependentStagesEdges.erase(edge);
+
+    removeStagesOrder(previousDependency->producer(), dependentStage);
+
+    edge->_dependency = newDependency;
+    newDependency->_dependentStagesEdges.push_back(edge);
+
+    setStagesOrder(newDependency->producerEdge()->producer(), dependentStage);
+}
+
+void ModelObj::replaceDependentStage(
+        const StageDependency& edge,
+        const Stage& newDependentStage) {
+    const auto dependency = edge->dependency();
+    const auto previousDependentStage = edge->dependentStage();
+
+    for (const auto& dependentStageEdge : dependency->dependentStagesEdges()) {
+        VPU_THROW_UNLESS(dependentStageEdge->dependentStage() != newDependentStage,
+            "replaceDependentStage failed for dependency {} with usage {} and dependentStage {} with type {}: "
+            "new dependent stage {} with type {} is already dependent stage for dependency", dependency->name(), dependency->usage(),
+            previousDependentStage->name(), previousDependentStage->type(), newDependentStage->name(), newDependentStage->type());
+    }
+
+    for (const auto& input : newDependentStage->inputs()) {
+        VPU_THROW_UNLESS(dependency != input,
+            "replaceDependentStage failed for dependency {} with usage {} and dependentStage {} with type {}: "
+            "new dependent stage {} with type {} already has dependency as its input", dependency->name(), dependency->usage(),
+            previousDependentStage->name(), previousDependentStage->type(), newDependentStage->name(), newDependentStage->type());
+    }
+
+    VPU_THROW_UNLESS(dependency->producer() != nullptr,
+        "replaceDependentStage failed for dependency {} with usage {} and dependentStage {} with type {}: "
+        "dependency has no producer",
+        dependency->name(), dependency->usage(), previousDependentStage->name(), previousDependentStage->type());
+
+    _resetStageOrder = true;
+
+    removeStagesOrder(dependency->producer(), previousDependentStage);
+
+    edge->_dependentStage = newDependentStage;
+
+    setStagesOrder(dependency->producer(), newDependentStage);
+}
+
+void ModelObj::removeStageDependency(const StageDependency& edge) {
+    const auto dependency = edge->dependency();
+    const auto dependentStage = edge->dependentStage();
+
+    VPU_THROW_UNLESS(dependency->producer(),
+        "removeStageDependency failed for dependency {} with usage {} and dependentStage {} with type {}: dependency has no producer",
+        dependency->name(), dependency->usage(), dependentStage->name(), dependentStage->type());
+
+    _resetStageOrder = true;
+
+    dependency->_dependentStagesEdges.erase(edge);
+
+    removeStagesOrder(dependency->producer(), dependentStage);
+
+    VPU_THROW_UNLESS(edge->_ptrPosInModel != _stageDependencyEdgePtrList.end(),
+        "removeStageDependency failed for dependency {} with usage {} and dependentStage {} with type {}: no such edge in Model's DataToShapeEdges list",
+        dependency->name(), dependency->usage(), dependentStage->name(), dependentStage->type());
+
+    _stageDependencyEdgePtrList.erase(edge->_ptrPosInModel);
 }
 
 ModelObj::InjectStageHelper::~InjectStageHelper() {
