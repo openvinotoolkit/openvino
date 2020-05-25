@@ -736,11 +736,13 @@ void network_impl::transfer_memory_to_device(std::shared_ptr<primitive_inst> ins
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
         // Allocate and transfer memory
+        auto& mem_pool = inst_mem.get_engine()->get_memory_pool();
         auto device_mem = inst_mem.get_engine()->allocate_memory(
             inst_mem.get_layout(),
             allocation_type::usm_device,
             inst_mem.get_net_id());
         dynamic_cast<gpu::gpu_usm&>(*device_mem).copy_from_other(dynamic_cast<gpu::gpu_usm&>(inst_mem));
+        mem_pool.release_memory(&inst_mem, node.id());
         instance->set_output_memory(*device_mem);
     }
 }
