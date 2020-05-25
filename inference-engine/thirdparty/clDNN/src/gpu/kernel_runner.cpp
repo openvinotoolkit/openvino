@@ -189,6 +189,7 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
         batch_end = batch_start + current_compilation_batch;
 
         std::vector<gpu::kernel> kernels;
+        std::vector<std::chrono::nanoseconds> kernel_run_times;
 
         for (auto it = batch_start; it < batch_end; it++) {
             kernels.push_back(kernel(context, it->kernels[0].kernelString, program_id, false, true));
@@ -202,7 +203,6 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
         int i = 0;
         for (auto it = batch_start; it < batch_end; it++) {
             std::vector<event_impl::ptr> events;
-            auto kernel_run_time = std::chrono::nanoseconds::zero();
             int num_of_runs = 0;
 
             for (int iteration = 0; iteration < runs_per_kernel; iteration++) {
@@ -222,7 +222,7 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
                     auto profiling_intervals = event->get_profiling_info();
                     for (auto const& profiling_interval : profiling_intervals) {
                         if (profiling_interval.name == "executing") {
-                            kernel_run_time += profiling_interval.value->value();
+                            kernel_run_times.push_back(profiling_interval.value->value());
                             num_of_runs++;
                             break;
                         }
@@ -231,11 +231,13 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
             }
 
             if (num_of_runs > 0) {
-                run_times.push_back(kernel_run_time / num_of_runs);
+                std::sort(kernel_run_times.begin(), kernel_run_times.end());
+                run_times.push_back(kernel_run_times[0]);
                 num_of_kernels_run += 1;
             } else {
                 run_times.push_back(std::chrono::nanoseconds::max());
             }
+            kernel_run_times.clear();
             i++;
         }
 

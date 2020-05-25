@@ -33,8 +33,8 @@ public:
     std::vector<std::chrono::nanoseconds> run_kernels(const kernel_selector::KernelsData& kernelsData) override;
 
 private:
-    const int compilation_batch_size = 50;
-    const int runs_per_kernel = 15;
+    const int compilation_batch_size = 9;
+    const int runs_per_kernel = 5;
 
     void prepare_kernel_args(const kernel_selector::KernelsData& kernels_data,
                              gpu::kernel::kernel_arguments_data& args);

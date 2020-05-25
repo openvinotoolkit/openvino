@@ -28,6 +28,7 @@ public:
     virtual ~ConvolutionKernel_bfyx_os_iyx_osv16() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetTunedKernelsDataByIndex(const Params& params, const optional_params& options, int autoTuneIndex = -1) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 

@@ -61,6 +61,7 @@ public:
 private:
     Entry LoadKernel_v1(const Params& params, uint32_t computeUnitsCount);
     Entry LoadKernel_v2(const Params& params, uint32_t computeUnitsCount);
+    Entry LoadKernel_v2_wa(const Params& params, uint32_t computeUnitsCount, std::string wa_name);
 
     bool RemoveKernel_v1(const Params& params, uint32_t computeUnitsCount);
     bool RemoveKernel_v2(const Params& params, uint32_t computeUnitsCount);

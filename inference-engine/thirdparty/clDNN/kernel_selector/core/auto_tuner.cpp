@@ -109,8 +109,19 @@ TuningCache::Entry TuningCache::LoadKernel(const Params& params, bool update) {
 
 TuningCache::Entry TuningCache::LoadKernel(const Params& params, uint32_t computeUnitsCount, bool update) {
     bool oldVersion = false;
+    Entry result = std::make_tuple<std::string, int>("", 0);
+
+    // Work-around for not all kernels supporting fused-ops
+    if (std::get<0>(result).empty() && params.GetType() == KernelType::CONVOLUTION) {
+        auto base_params_ptr = static_cast<const base_params*>(&params);
+        if (base_params_ptr && base_params_ptr->fused_ops.empty()) {
+            result = LoadKernel_v2_wa(params, computeUnitsCount, ";no_fused_ops");
+        }
+    }
     // Try to load from version 2
-    auto result = LoadKernel_v2(params, computeUnitsCount);
+    if (std::get<0>(result).empty()) {
+        result = LoadKernel_v2(params, computeUnitsCount);
+    }
     // Try to load from version 1
     if (std::get<0>(result).empty() || update) {
         auto result_v1 = LoadKernel_v1(params, computeUnitsCount);
@@ -176,13 +187,47 @@ TuningCache::Entry TuningCache::LoadKernel_v2(const Params& params, uint32_t com
     return std::make_tuple(prog[0].GetString(), prog[1].GetInt());
 }
 
+TuningCache::Entry TuningCache::LoadKernel_v2_wa(const Params& params, uint32_t computeUnitsCount, std::string wa_name) {
+    Entry result = std::make_tuple<std::string, int>("", 0);
+
+    auto kTypeStr = toString(params.GetType());
+    auto paramStr = params.to_cache_string_v2() + wa_name;
+    auto computeUnitsStr = std::to_string(computeUnitsCount);
+
+    auto v2It = cache.FindMember(version2Marker);
+    if (v2It == cache.MemberEnd())
+        return result;
+
+    auto computeUnitsIt = v2It->value.FindMember(computeUnitsStr.c_str());
+    if (computeUnitsIt == v2It->value.MemberEnd())
+        return result;
+
+    auto kTypeIt = computeUnitsIt->value.FindMember(kTypeStr.c_str());
+    if (kTypeIt == computeUnitsIt->value.MemberEnd())
+        return result;
+
+    auto paramIt = kTypeIt->value.FindMember(paramStr.c_str());
+    if (paramIt == kTypeIt->value.MemberEnd())
+        return result;
+
+    auto& prog = paramIt->value;
+    return std::make_tuple(prog[0].GetString(), prog[1].GetInt());
+}
+
 void TuningCache::StoreKernel(const Params& params, const std::string& implementationName, int tuneIndex) {
     StoreKernel(params, params.engineInfo.computeUnitsCount, implementationName, tuneIndex);
 }
 
 void TuningCache::StoreKernel(const Params& params, uint32_t computeUnitsCount, const std::string& implementationName, int tuneIndex) {
     auto kTypeStr = toString(params.GetType());
-    auto paramStr = params.to_cache_string_v2();
+    std::string wa_name = "";
+    if (params.GetType() == KernelType::CONVOLUTION) {
+        auto base_params_ptr = static_cast<const base_params*>(&params);
+        if (base_params_ptr && base_params_ptr->fused_ops.empty()) {
+            wa_name = ";no_fused_ops";
+        }
+    }
+    auto paramStr = params.to_cache_string_v2() + wa_name;
     auto computeUnitsStr = std::to_string(computeUnitsCount);
     auto& v2Cache = cache[version2Marker];
 

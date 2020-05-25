@@ -219,7 +219,6 @@ JitConstants ConvolutionKernel_bfyx_os_iyx_osv16::GetJitConstants(const convolut
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 
-
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", runInfo.lws2));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", runInfo.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_HEIGHT", runInfo.cldnnStyle.blockHeight));
@@ -242,6 +241,13 @@ WeightsLayout ConvolutionKernel_bfyx_os_iyx_osv16::GetPreferredWeightsLayout(
 KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsData(const Params& params,
                                                                 const optional_params& options) const {
     return GetTunedKernelsDataByIndex(params, options);
+}
+
+KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetTunedKernelsDataByIndex(const Params& params,
+                                                                            const optional_params& options,
+                                                                            const int autoTuneIndex) const {
+    auto autoTuneOption = GetAutoTuneOptions(params, autoTuneIndex);
+    return GetCommonKernelsData(params, options, autoTuneOption.exeMode, autoTuneIndex);
 }
 
 KernelsData ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsDataForAutoTune(const Params& params,

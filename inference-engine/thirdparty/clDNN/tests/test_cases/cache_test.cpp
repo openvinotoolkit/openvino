@@ -77,7 +77,7 @@ R"__a({
     "version_2": {
         "__EUs__": {
             "CONVOLUTION": {
-                "F32_BFYX_v3_p0_0_v3_p0_0_v16_p0_0_v1_p0_0;F32_BFYX_v3_p0_0_v3_p0_0_v16_p0_0_v1_p0_0;1_1_1;1_1_1;1_1_1;0_0_0;1;1": ["fused_conv_eltwise_gpu_ref", 0]
+                "F32_BFYX_v3_p0_0_v3_p0_0_v16_p0_0_v1_p0_0;F32_BFYX_v3_p0_0_v3_p0_0_v16_p0_0_v1_p0_0;1_1_1;1_1_1;1_1_1;0_0_0;1;1;no_fused_ops": ["fused_conv_eltwise_gpu_ref", 0]
             }
         }
     },
