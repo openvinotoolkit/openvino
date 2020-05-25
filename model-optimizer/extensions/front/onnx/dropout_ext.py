@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from extensions.ops.identity import IdentityOp
+from extensions.ops.identity import Identity
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.utils.error import Error
@@ -32,5 +32,5 @@ class DropoutFrontExtractor(FrontExtractorOp):
             raise Error('Dropout node {} has more than one consumer. Unsupported.', node.name)
         if not is_test:
             raise Error('Dropout node {} has is_test: 0. This means training mode which is not supported.', node.name)
-        IdentityOp.update_node_stat(node)
+        Identity.update_node_stat(node)
         return cls.enabled
