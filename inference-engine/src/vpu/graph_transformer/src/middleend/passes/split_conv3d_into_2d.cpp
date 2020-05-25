@@ -158,6 +158,76 @@ void PassImpl::run(const Model& model) {
         }
 
         //
+        // If kernel size is 1x1x1, then simply reshape the input/output
+        // tensors into 2D ones like:
+        //     N x C x D x H x W  -->  N x C x (D * H) * W
+        //
+
+        if (weightsShape[0] == 1 && weightsShape[1] == 1 && weightsShape[2] == 1 &&
+                 strides[0] == 1 &&      strides[1] == 1 &&      strides[2] == 1 &&
+               dilations[0] == 1 &&    dilations[1] == 1 &&    dilations[2] == 1 &&
+              pads_begin[0] == 0 &&   pads_begin[1] == 0 &&   pads_begin[2] == 0 &&
+                pads_end[0] == 0 &&     pads_end[0] == 0 &&     pads_end[2] == 0) {
+            model->disconnectStage(stage);
+
+            DataDesc output2dDesc(outputDesc.type(), DimsOrder::NCHW, {OW, OH*OD, OC, ON});
+            Data output2d = model->duplicateData(output, "@2d", output2dDesc);
+
+            _stageBuilder->addReshapeStage(model,
+                                           stage->name() + "@reshape_output",
+                                           stage->origLayer(),
+                                           output2d,
+                                           output);
+
+            DataDesc input2dDesc(inputDesc.type(), DimsOrder::NCHW, {IW, IH*ID, IC, I_N});
+            Data input2d = model->duplicateData(output2d, "@2d", input2dDesc);
+
+            auto weightsContent = weights->content();
+            VPU_THROW_UNLESS(weightsContent != nullptr, "need weights content");
+
+            Data weights2d = model->duplicateData(weights, "@2d",
+                                                  DataDesc({1, 1, KI, KO}),
+                                                  weightsContent);
+
+            Stage conv2d = _stageBuilder->addConvolutionStage(model,
+                                                              stage->name() + "@conv2d",
+                                                              stage->origLayer(),
+                                                              input2d,
+                                                              output2d,
+                                                              weights2d,
+                                                              biases,
+                                                              model->addFakeData());  // scales
+
+            conv2d->attrs().set<int>("kernelSizeX", 1);
+            conv2d->attrs().set<int>("kernelSizeY", 1);
+
+            conv2d->attrs().set<int>("kernelStrideX", 1);
+            conv2d->attrs().set<int>("kernelStrideY", 1);
+
+            conv2d->attrs().set<int>("padLeft",   0);
+            conv2d->attrs().set<int>("padRight",  0);
+            conv2d->attrs().set<int>("padTop",    0);
+            conv2d->attrs().set<int>("padBottom", 0);
+
+            conv2d->attrs().set<int>("dilationX", 1);
+            conv2d->attrs().set<int>("dilationY", 1);
+
+            conv2d->attrs().set<int>("groupSize", groups);
+
+            conv2d->attrs().set<bool>("tryHW", try_hw != 0);
+
+            _stageBuilder->addReshapeStage(model,
+                                           stage->name() + "@reshape_input",
+                                           stage->origLayer(),
+                                           input,
+                                           input2d);
+
+            model->removeStage(stage);
+
+            continue;
+        }
+
+        //
         // Replace the ConvND stage with sub-graph of 2D ConvStub stages
         //
         // Create the sub-graph in reverse order: from output to input node
