@@ -184,12 +184,12 @@ NodeVector op::LSTMSequence::lstm_pass(bool is_reverse) const
         X = make_shared<op::v0::ReverseSequence>(X, seq_lengths, 0 /*batch_axis*/, 1 /*seq_axis*/);
     }
 
-    NodeVector in_seqs = builder::opset1::split(X, X->get_shape().at(1), {1});
+    NodeVector in_seqs = builder::opset1::split(X, X->get_shape().at(1), 1);
 
     for (auto& in_x : in_seqs)
     {
         // Remove empty dim, after above split.
-        in_x = builder::squeeze(in_x, {1});
+        in_x = builder::opset1::squeeze(in_x, {1});
     }
 
     int32_t time_step{1};
