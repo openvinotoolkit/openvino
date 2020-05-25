@@ -53,7 +53,7 @@ PoolingKernelBase::DispatchData PoolingKernelGPU_b_fs_yx_fsv16_imad::SetDefault(
     runInfo.gws0 = x;
     runInfo.gws1 = y;
     // we got b_fs_yx_fsv16 format, we process 16 features per workitem
-    runInfo.gws2 = CeilDiv(f, FEATURE_SLICE_SIZE) * params.output.Batch().v;
+    runInfo.gws2 = CeilDiv(f, FEATURE_SLICE_SIZE) * b;
 
     auto local = GetOptimalLocalWorkGroupSizes({ runInfo.gws0, runInfo.gws1, runInfo.gws2 }, params.engineInfo);
 
