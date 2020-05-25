@@ -35,5 +35,13 @@ enum class CONVERSION_RESULT {
     NONE
 };
 
+/*
+ * check_constant function checks how given constant performs elementwise operation with given input
+ * CONVERSION_RESULT has several types:
+ *      SCALE_SHIFT - constant applies only per-channel
+ *      POWER - constant applies as single value
+ *      NONE - default return value
+ */
+
 INFERENCE_ENGINE_API_CPP(CONVERSION_RESULT)
 check_constant(const std::shared_ptr<ngraph::op::Constant> & constant, const ngraph::PartialShape & shape);

@@ -96,7 +96,13 @@ ngraph::graph_rewrite_callback get_callback() {
             }
         }
 
-        auto constant_broadcast_output = [](ngraph::PartialShape data_pshape, ngraph::Shape const_shape) -> bool {
+        /* This lambda checks data and constant shapes for broadcasting
+           For example:
+                1. data_shape{1, 64, 64} and const_shape{64, 1, 1} - constant broadcasts data_shape zero dimension
+                2. data_shape{DYN, 64, 64} and const_shape{1, 1, 64} - constant do not broadcasts data_shape
+                3. data_shape{64, 64} and const_shape{1, 1, 1} - constant broadcasts data_shape with additional dimension
+        */
+        auto constant_broadcast_output = [](const ngraph::PartialShape & data_pshape, const ngraph::Shape & const_shape) -> bool {
             if (data_pshape.rank().is_dynamic() || const_shape.size() > data_pshape.rank().get_length()) {
                 return true;
             }
@@ -133,32 +139,11 @@ ngraph::graph_rewrite_callback get_callback() {
         if (((std::is_same<T, ngraph::opset1::Add>() && ngraph::op::util::constantIsEqualTo(const_node, 0)) ||
             (std::is_same<T, ngraph::opset1::Multiply>() && ngraph::op::util::constantIsEqualTo(const_node, 1))) &&
             !constant_broadcast_output(data_node.get_partial_shape(), const_node->get_shape())) {
-            bool has_result_output = false;
-            for (const auto & output : lin_op->output(0).get_target_inputs()) {
-                if (dynamic_cast<ngraph::op::Result*>(output.get_node())) {
-                    has_result_output = true;
-                }
-            }
-
-            auto parent = data_node.get_node_shared_ptr();
-            size_t consumers_count = 0;
-            for (const auto &output : parent->outputs()) {
-                consumers_count += output.get_target_inputs().size();
-            }
-
-            if (!has_result_output || consumers_count == 1) {
-                if (!std::dynamic_pointer_cast<ngraph::op::Parameter>(parent)) {
-                    parent->set_friendly_name(lin_op->get_friendly_name());
-                }
-                // TODO: due to ngraph::replace_node function limitations we have to reconnect output port consumers to the new input
-                // using replace_source_output method
-                for (auto &input : lin_op->output(0).get_target_inputs()) {
-                    input.replace_source_output(data_node);
-                }
+            bool ret_status = ngraph::replace_output_update_name(lin_op->output(0), data_node);
+            if (ret_status) {
                 return true;
             }
         }
-
 
         auto res = check_constant(const_node, data_node.get_partial_shape());
 

@@ -43,17 +43,18 @@ void op::Eltwise::validate_and_infer_types() {
         return;
     }
 
-    std::vector<ngraph::Dimension> shape1(get_input_partial_shape(0));
-    std::vector<ngraph::Dimension> shape2(get_input_partial_shape(1));
+    std::vector<Dimension> shape1(get_input_partial_shape(0));
+    std::vector<Dimension> shape2(get_input_partial_shape(1));
 
-    std::vector<ngraph::Dimension> output_shape(ngraph::PartialShape::dynamic(std::max(shape1.size(), shape2.size())));
+    std::vector<Dimension> output_shape(PartialShape::dynamic(std::max(shape1.size(), shape2.size())));
     auto output_shape_it = output_shape.rbegin();
 
     auto shape1_it = shape1.rbegin(), shape2_it = shape2.rbegin();
     while (shape1_it != shape1.rend() || shape2_it != shape2.rend()) {
-        if (shape1_it != shape1.rend() && shape2_it != shape2.rend() &&
-            shape1_it->is_static() && shape2_it->is_static()) {
-            *output_shape_it = (shape1_it->get_length() > shape2_it->get_length() ? *shape1_it : *shape2_it);
+        if (shape1_it != shape1.rend() && shape2_it != shape2.rend()) {
+            if (shape1_it->is_static() && shape2_it->is_static()) {
+                *output_shape_it = (shape1_it->get_length() > shape2_it->get_length() ? *shape1_it : *shape2_it);
+            }
         } else if (shape1_it != shape1.rend()) {
             *output_shape_it = *shape1_it;
         } else if (shape2_it != shape2.rend()) {
