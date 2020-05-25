@@ -23,7 +23,7 @@ endif()
 
 
 if (ENABLE_DATA)
-    add_models_repo(${ENABLE_DATA} "data:inference-engine/open-source-data.git")
+    add_models_repo(${ENABLE_DATA} "data:git@github.com:openvinotoolkit/testdata.git")
     set(MODELS_PATH "${TEMP}/data/src/data")
     set(DATA_PATH "${MODELS_PATH}")
 endif()

@@ -68,8 +68,9 @@ function (fetch_models_and_validation_set)
         string(REPLACE ":" ";" MODEL_CONFIG_LST ${loop_var})
 
         list(GET MODEL_CONFIG_LST 0 folder_name)
-        list(GET MODEL_CONFIG_LST 1 repo_name)
-        list(GET MODEL_CONFIG_LST 2 branch_name)
+        list(GET MODEL_CONFIG_LST 1 git_url)
+        list(GET MODEL_CONFIG_LST 2 repo_name)
+        list(GET MODEL_CONFIG_LST 3 branch_name)
 
         string(FIND ${folder_name} "model" IS_MODEL)
         if(${folder_name} MATCHES "model*")
@@ -78,7 +79,7 @@ function (fetch_models_and_validation_set)
         add_lfs_repo(
             "${folder_name}"
             ${TEMP}${FOLDER_NAME}/${folder_name}
-            "git@gitlab-icv.inn.intel.com:${repo_name}"
+            "${git_url}:${repo_name}"
             "${branch_name}")
     endforeach(loop_var)
 endfunction()
