@@ -179,9 +179,9 @@ public:
         auto reader = getReaderPtr();
         return reader->read(model, weights, exts);
     }
-    std::vector<std::string> getDataFileExts() const override {
+    std::vector<std::string> getDataFileExtensions() const override {
         auto reader = getReaderPtr();
-        return reader->getDataFileExts();
+        return reader->getDataFileExtensions();
     }
     std::string getName() const {
         return name;
@@ -391,7 +391,7 @@ public:
                     auto pathWoExt = modelPath;
                     auto pos = modelPath.rfind('.');
                     if (pos != std::string::npos) pathWoExt = modelPath.substr(0, pos);
-                    for (const auto& ext : reader->getDataFileExts()) {
+                    for (const auto& ext : reader->getDataFileExtensions()) {
                         bPath = pathWoExt + "." + ext;
                         if (!FileUtils::fileExist(bPath)) {
                             bPath.clear();

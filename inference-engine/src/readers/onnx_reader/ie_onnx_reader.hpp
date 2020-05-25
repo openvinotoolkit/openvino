@@ -39,7 +39,7 @@ public:
         THROW_IE_EXCEPTION << "ONNX reader cannot read model with weights!";
     }
 
-    std::vector<std::string> getDataFileExts() const override {
+    std::vector<std::string> getDataFileExtensions() const override {
         return {};
     }
 };

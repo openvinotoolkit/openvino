@@ -13,17 +13,6 @@
 #include <ie_api.h>
 
 namespace InferenceEngine {
-/**
- * @def INFERENCE_ENGINE_READER_API(TYPE)
- * @brief Defines Inference Engine Extension API method
- */
-
-#if defined(_WIN32) && defined(IMPLEMENT_INFERENCE_ENGINE_READER_API)
-#define INFERENCE_ENGINE_READER_API(TYPE) extern "C" __declspec(dllexport) TYPE
-#else
-#define INFERENCE_ENGINE_READER_API(TYPE) INFERENCE_ENGINE_API(TYPE)
-#endif
-
 
 /**
  * @brief IReader an abstract interface for Inference Engine readers
@@ -57,9 +46,9 @@ public:
     /**
      * @brief Returns all supported extensions for data files
      *
-     * @return vector of file extensions
+     * @return vector of file extensions, for example the reader for OpenVINO IR returns {"bin"}
      */
-    virtual std::vector<std::string> getDataFileExts() const = 0;
+    virtual std::vector<std::string> getDataFileExtensions() const = 0;
 };
 
 /**
@@ -69,6 +58,6 @@ public:
  * @param resp Response description
  * @return Status code
  */
-INFERENCE_ENGINE_READER_API(StatusCode) CreateReader(IReader*& reader, ResponseDesc* resp) noexcept;
+INFERENCE_PLUGIN_API(StatusCode) CreateReader(IReader*& reader, ResponseDesc* resp) noexcept;
 
 }  // namespace InferenceEngine

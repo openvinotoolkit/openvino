@@ -50,7 +50,7 @@ CNNNetwork IRReader::read(std::istream& model, std::istream& weights, const std:
     return CNNNetwork(parser.parse(root, weights));
 }
 
-INFERENCE_ENGINE_READER_API(StatusCode) InferenceEngine::CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) InferenceEngine::CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
     try {
         reader = new IRReader();
         return OK;
