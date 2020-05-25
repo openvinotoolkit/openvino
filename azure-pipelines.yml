@@ -7,11 +7,15 @@ jobs:
   variables:
     BUILD_TYPE: Release
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.6'
   - script: |
       whoami
       uname -a
-      lsb_release
+      which python3
       gcc --version
+      lsb_release
       env
       cat /proc/cpuinfo
       cat /proc/meminfo
@@ -33,7 +37,7 @@ jobs:
   - task: CMake@1
     inputs:
       workingDirectory: dldt-build
-      cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON
+      cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=/usr/bin/python3.6 -DENABLE_TESTS=ON
   - script: make -j12
     workingDirectory: dldt-build
     displayName: 'Build IE'
@@ -118,6 +122,7 @@ jobs:
   - script: |
       whoami
       uname -a
+      which python3
       gcc --version
       env
       xcrun --sdk macosx --show-sdk-version
