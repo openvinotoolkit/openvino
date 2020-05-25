@@ -67,7 +67,6 @@ namespace ngraph
                         element::i32, Shape{batch_size}, m_map[OpInput::X]->get_shape().at(0));
                 }
                 // The initial value of the hidden.
-                // Shape [num_directions, batch_size, hidden_size]
                 if (ng_inputs.size() > 5 && !ng_inputs.at(5)->is_null())
                 {
                     m_map[OpInput::INIT_H] = ng_inputs.at(5);
@@ -162,6 +161,11 @@ namespace ngraph
             {
                 OutputVector h_list;
 
+                // back-up nodes which we may later modify.
+                std::shared_ptr<ngraph::Node> orig_W = m_args.at(OpInput::W);
+                std::shared_ptr<ngraph::Node> orig_R = m_args.at(OpInput::R);
+                std::shared_ptr<ngraph::Node> orig_B = m_args.at(OpInput::B);
+
                 std::shared_ptr<ngraph::Node> X = m_args.at(OpInput::X);
                 std::shared_ptr<ngraph::Node> H_t =
                     prepare_input(m_args.at(OpInput::INIT_H), is_reverse);
@@ -212,6 +216,12 @@ namespace ngraph
                     H_t = get_masked_node(H, time_step, 0, H_t);
                     time_step++;
                 }
+
+                // Get back original nodes.
+                m_args.at(OpInput::W) = orig_W;
+                m_args.at(OpInput::R) = orig_R;
+                m_args.at(OpInput::B) = orig_B;
+
                 // The tensor that concats all the intermediate output values of the hidden.
                 // It has shape [seq_length, batch_size, hidden_size]
                 std::shared_ptr<ngraph::Node> Y{std::make_shared<default_opset::Concat>(h_list, 0)};

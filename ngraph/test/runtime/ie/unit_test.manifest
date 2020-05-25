@@ -1352,6 +1352,7 @@ IE_CPU.onnx_model_gru_fwd_mixed_seq_len
 IE_CPU.onnx_model_gru_rev_clip
 IE_CPU.onnx_model_gru_reverse
 IE_CPU.onnx_model_gru_fwd_bias_initial_h
+IE_CPU.onnx_model_gru_bidirectional
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
