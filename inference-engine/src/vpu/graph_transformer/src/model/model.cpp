@@ -1591,6 +1591,35 @@ DataToDataAllocation ModelObj::connectDataWithDataImpl(
     return edge;
 }
 
+namespace {
+
+bool isStageDependencyNeeded(
+        const Stage& dependentStage,
+        const Data& dependency) {
+    const auto& dependencyProducer = dependency->producer();
+
+    if (dependencyProducer == nullptr) {
+        return false;
+    }
+
+    // Check one level above, it covers current cases while checking all the levels might be computationally expensive
+    for (const auto& prevStage : dependencyProducer->prevStages()) {
+        if (prevStage == dependentStage) {
+            return false;
+        }
+    }
+
+    for (const auto& prevStage : dependentStage->prevStages()) {
+        if (prevStage == dependencyProducer) {
+            return false;
+        }
+    }
+
+    return dependentStage == dependencyProducer ? false : true;
+}
+
+} // namespace
+
 DataToShapeAllocation ModelObj::connectDataWithShape(
         const Data& parent,
         const Data& child) {
@@ -1608,16 +1637,11 @@ DataToShapeAllocation ModelObj::connectDataWithShape(
     parent->_childDataToShapeEdges.push_back(edge);
     child->_parentDataToShapeEdge = edge;
 
-    const auto& parentStage = parent->producer();
-    const auto& childStage = child->producer();
+    const auto& childProducer = child->producer();
 
-    const auto& areStagesDifferent = [](const Stage& lhs, const Stage& rhs) {
-        return lhs && rhs && lhs != rhs;
-    };
-
-    if (areStagesDifferent(parentStage, childStage)) {
+    if (childProducer && isStageDependencyNeeded(childProducer, parent)) {
         // Shape and data are produced from different stages, make sure that shape is calculated before data
-        addStageDependency(childStage, parent);
+        addStageDependency(childProducer, parent);
     }
 
     return edge;
@@ -1626,18 +1650,41 @@ DataToShapeAllocation ModelObj::connectDataWithShape(
 void ModelObj::replaceDataToShapeParent(
         const DataToShapeAllocation& edge,
         const Data& newParent) {
-    auto oldParent = edge->parent();
-    auto child = edge->child();
+    const auto oldParent = edge->parent();
+    const auto child = edge->child();
 
     oldParent->_childDataToShapeEdges.erase(edge);
     edge->_parent = newParent;
     newParent->_childDataToShapeEdges.push_back(edge);
+
+    const auto& childProducer = child->producer();
+
+    if (childProducer != nullptr) {
+        const auto& dependentStagesEdges = oldParent->dependentStagesEdges();
+
+        const auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(), [&childProducer](const StageDependency& edge) {
+            return edge->dependentStage() == childProducer;
+        });
+
+        if (it != dependentStagesEdges.end()) {
+            const auto edge = *it;
+            removeStageDependency(edge);
+        }
+
+        if (isStageDependencyNeeded(childProducer, newParent)) {
+            // Shape and data are produced from different stages, make sure that shape is calculated before data
+            addStageDependency(childProducer, newParent);
+        }
+    }
 }
 
 void ModelObj::replaceDataToShapeChild(
         const DataToShapeAllocation& edge,
         const Data& newChild) {
-    edge->_child->_parentDataToShapeEdge = nullptr;
+    const auto parent = edge->parent();
+    const auto oldChild = edge->child();
+
+    oldChild->_parentDataToShapeEdge = nullptr;
     edge->_child = newChild;
 
     VPU_THROW_UNLESS(newChild->_parentDataToShapeEdge == nullptr,
@@ -1645,6 +1692,28 @@ void ModelObj::replaceDataToShapeChild(
         newChild->name(), newChild->usage(), newChild->_parentDataToShapeEdge->parent()->name(), newChild->_parentDataToShapeEdge->parent()->usage());
 
     newChild->_parentDataToShapeEdge = edge;
+
+    const auto& oldChildProducer = oldChild->producer();
+
+    if (oldChildProducer != nullptr) {
+        const auto &dependentStagesEdges = parent->dependentStagesEdges();
+
+        const auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(), [&oldChildProducer](const StageDependency &edge) {
+            return edge->dependentStage() == oldChildProducer;
+        });
+
+        if (it != dependentStagesEdges.end()) {
+            const auto edge = *it;
+            removeStageDependency(edge);
+        }
+    }
+
+    const auto& newChildProducer = newChild->producer();
+
+    if (newChildProducer && isStageDependencyNeeded(newChildProducer, parent)) {
+        // Shape and data are produced from different stages, make sure that shape is calculated before data
+        addStageDependency(newChildProducer, parent);
+    }
 }
 
 void ModelObj::replaceDataToDataParent(
@@ -1718,8 +1787,26 @@ void ModelObj::disconnectDatas(const DataToShapeAllocation& edge) {
     child->_parentDataToShapeEdge = nullptr;
     parent->_childDataToShapeEdges.erase(edge);
 
-    IE_ASSERT(edge->_ptrPosInModel != _shapeEdgePtrList.end());
+    VPU_THROW_UNLESS(edge->_ptrPosInModel != _shapeEdgePtrList.end(),
+        "disconnect Datas (parent {} with usage {} and child {} with usage {}) with DataToShape connection failed: "
+        "no such edge in Model's DataToShapeEdges list", parent->name(), parent->usage(), child->name(), child->usage());
+
     _shapeEdgePtrList.erase(edge->_ptrPosInModel);
+
+    const auto& childProducer = child->producer();
+
+    if (childProducer != nullptr) {
+        const auto &dependentStagesEdges = parent->dependentStagesEdges();
+
+        const auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(), [&childProducer](const StageDependency &edge) {
+            return edge->dependentStage() == childProducer;
+        });
+
+        if (it != dependentStagesEdges.end()) {
+            const auto edge = *it;
+            removeStageDependency(edge);
+        }
+    }
 }
 
 void ModelObj::disconnectStage(const Stage& stage) {
