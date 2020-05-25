@@ -71,7 +71,9 @@ TEST_P(CNNNetworkSerializerTest, TopoSortResultUnique) {
 
     std::vector<std::string> actualLayerNames;
     for (auto&& layer : sorted) {
+        IE_SUPPRESS_DEPRECATED_START
         actualLayerNames.emplace_back(layer->name);
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     std::vector<std::string> expectedLayerNames = {
