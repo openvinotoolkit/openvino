@@ -24,13 +24,22 @@ void ngraph::pass::ConvertTopKToTopKIE::convert_topk_to_topk_ie() {
         if (topk->input(1).get_partial_shape().rank().get_length() == 1) {
             return false;
         }
-        auto unsqueezed_k = std::make_shared<opset1::Unsqueeze>(topk->input(1).get_source_output().get_node_shared_ptr(),
-                                                                        opset1::Constant::create(element::i64, Shape{1}, {0}));
+
+        // WA: if we replace TopK second input with Unsqueeze operation we will get dynamic shape until first CF pass
+        // but due to not all legacy operations support dynamic input shapes and dynamic shape can break pipeline we
+        // need to unsqueeze constant manually.
+        Output<Node> unsqueezed_k;
+        if (auto k_const = std::dynamic_pointer_cast<opset1::Constant>(topk->input_value(1).get_node_shared_ptr())) {
+            auto k_value = k_const->cast_vector<int64_t>();
+            unsqueezed_k = opset1::Constant::create(element::i64, Shape{1}, k_value);
+        } else {
+            unsqueezed_k = std::make_shared<opset1::Unsqueeze>(topk->input_value(1), opset1::Constant::create(element::i64, Shape{1}, {0}));
+        }
 
         auto new_topk = std::make_shared<ngraph::op::TopKIE>(topk->input_value(0), unsqueezed_k, topk->get_axis(), topk->get_mode(),
                                                              topk->get_sort_type());
         new_topk->set_friendly_name(topk->get_friendly_name());
-        ngraph::copy_runtime_info(topk, {unsqueezed_k, new_topk});
+        ngraph::copy_runtime_info(topk, {unsqueezed_k.get_node_shared_ptr(), new_topk});
         ngraph::replace_node(topk, new_topk);
         return true;
     };
