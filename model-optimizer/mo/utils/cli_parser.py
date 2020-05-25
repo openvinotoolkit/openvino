@@ -1011,7 +1011,7 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
     Returns
     -------
     The function returns a dictionary e.g.
-    mean = { 'data: np.array, 'info': np.array }, scale = { 'data: np.array, 'info': np.array }, input = "data, info" ->
+    mean = { 'data': np.array, 'info': np.array }, scale = { 'data': np.array, 'info': np.array }, input = "data, info" ->
      { 'data': { 'mean': np.array, 'scale': np.array }, 'info': { 'mean': np.array, 'scale': np.array } }
 
     """
@@ -1032,6 +1032,17 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
     if type(mean_values) is dict and type(scale_values) is dict:
         if not mean_values and not scale_values:
             return res
+
+        for inp_scale in scale_values.keys():
+            if inp_scale not in inputs:
+                raise Error("Specified scale_values name '{}' do not match to any of inputs: {}. "
+                            "Please set 'scale_values' that correspond to values from input.".format(inp_scale, inputs))
+
+        for inp_mean in mean_values.keys():
+            if inp_mean not in inputs:
+                raise Error("Specified mean_values name '{}' do not match to any of inputs: {}. "
+                            "Please set 'mean_values' that correspond to values from input.".format(inp_mean, inputs))
+
         for inp in inputs:
             inp, port = split_node_in_port(inp)
             if inp in mean_values or inp in scale_values:
