@@ -57,6 +57,10 @@ def get_onnx_autopad(auto_pad):
     return auto_pad
 
 
+def get_onnx_opset_version(node: Node):
+    return node.graph.graph.get('fw_opset_version', 0)
+
+
 def get_onnx_datatype_as_numpy(value):
     datatype_to_numpy = {
         1: np.float32,

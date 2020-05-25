@@ -120,7 +120,11 @@ class ClampQuantizeMark(MiddleReplacementPattern):
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         clamp = match['clamp']
         quantize = match['quantize']
-        clamp_min, clamp_max = clamp['min'], clamp['max']
+        clamp_min = clamp.in_port(1).data.get_value()
+        clamp_max = clamp.in_port(2).data.get_value()
+        if clamp_min is None or clamp_max is None:
+            log.debug('ReluQuantizeFuse: cannot fuse because Clamp op has dynamic input on the 1st or 2nd port')
+            return
 
         if not clamp.has_valid('quantized_to_fuse_count'):
             clamp['quantized_to_fuse_count'] = 0

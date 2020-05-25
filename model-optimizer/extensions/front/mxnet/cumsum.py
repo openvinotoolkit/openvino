@@ -38,7 +38,7 @@ class CumSumFrontReplacer(FrontReplacementOp):
 
         node.in_port(0).get_connection().set_destination(cumsum_node.in_port(0))
         if node.has_valid('mx_out_type') and node['mx_out_type'] is not None:
-            rename_node(node=cumsum_node, name=name + '/Clamp')
+            rename_node(node=cumsum_node, name=name + '/CumSum')
             convert = Cast(graph, {'name': name, 'dst_type': node['mx_out_type']}).create_node()
             rename_node(convert, name)
             cumsum_node.out_port(0).connect(convert.in_port(0))

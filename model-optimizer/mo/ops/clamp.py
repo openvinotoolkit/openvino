@@ -19,13 +19,13 @@ from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
-class Clamp(Op):
-    op = 'Clamp'
+class AttributedClamp(Op):
+    op = 'AttributedClamp'
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': 'Clamp',
+            'op': self.op,
             'version': 'opset1',
             'infer': copy_shape_infer,
             'in_ports_count': 1,
@@ -37,3 +37,16 @@ class Clamp(Op):
             'max',
             'min'
         ]
+
+
+class Clamp(Op):
+    op = 'Clamp'
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'type': None,
+            'op': self.op,
+            'infer': copy_shape_infer,
+            'in_ports_count': 3,
+            'out_ports_count': 1,
+        }, attrs)

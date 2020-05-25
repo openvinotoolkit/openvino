@@ -28,6 +28,7 @@ from extensions.ops.scatter import Scatter
 from extensions.ops.split import Split, VariadicSplit
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
+from mo.ops.clamp import AttributedClamp
 from mo.ops.convolution import Convolution
 from mo.ops.deconvolution import Deconvolution
 from mo.ops.op import Op
@@ -53,6 +54,7 @@ custom_ops = {
     'Split': Split,
     'Subtract': Sub,
     'VariadicSplit': VariadicSplit,
+    'Clamp': AttributedClamp,
 }
 
 

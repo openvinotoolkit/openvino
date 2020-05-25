@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.ops.clamp import Clamp
+from mo.ops.clamp import AttributedClamp
 from mo.utils.unittest.graph import build_graph
 
 
@@ -41,7 +41,7 @@ class TestClampOp(unittest.TestCase):
                                 ('node_1', 'clamp_node'),
                                 ('clamp_node', 'node_3')
                             ])
-        clamp_node = Clamp(graph, self.nodes_attributes['clamp_node']).add_node()
+        clamp_node = AttributedClamp(graph, self.nodes_attributes['clamp_node']).add_node()
         self.assertEqual(clamp_node.type, 'Clamp')
-        self.assertEqual(clamp_node.op, 'Clamp')
+        self.assertEqual(clamp_node.op, 'AttributedClamp')
         self.assertEqual(clamp_node.infer, copy_shape_infer)

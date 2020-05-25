@@ -12,6 +12,7 @@ extensions/back/ActivationsNormalizer.py
 extensions/back/AvgPool.py
 extensions/back/blob_normalizer.py
 extensions/back/CellNormalizer.py
+extensions/back/ClampNormalizer.py
 extensions/back/compress_quantized_weights.py
 extensions/back/ConvolutionNormalizer.py
 extensions/back/CorrectName.py
@@ -72,6 +73,7 @@ extensions/back/UselessConcatRemoval.py
 extensions/front/__init__.py
 extensions/front/ArgMaxSqueeze.py
 extensions/front/ATenToEmbeddingBag.py
+extensions/front/AttributedClampNormalizer.py
 extensions/front/AttributedGatherNormalizer.py
 extensions/front/AttributedPadToPad.py
 extensions/front/binary_quantize_normalization.py

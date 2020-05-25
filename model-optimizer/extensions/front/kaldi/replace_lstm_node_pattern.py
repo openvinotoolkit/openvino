@@ -22,13 +22,14 @@ from extensions.ops.split import Split
 from mo.front.caffe.extractors.utils import input_as_const
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Node, Graph, Port
 from mo.ops.assign import Assign
 from mo.ops.broadcast import Broadcast
 from mo.ops.clamp import Clamp
-from mo.ops.crop import Crop
 from mo.ops.concat import Concat
 from mo.ops.const import Const
+from mo.ops.crop import Crop
 from mo.ops.read_value import ReadValue
 from mo.ops.result import Result
 from mo.ops.scale_shift import ScaleShiftOp
@@ -238,10 +239,10 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         join_forget_remember_sum.in_port(1).connect(join_remember_candidates_mul.out_port(0))
 
         # (7)Eltwise(sum) -> Clamp
-        join_forget_clamp = Clamp(graph, {'name': 'join_forget_clamp',
-                                          'max': node.clip_value,
-                                          'min': -node.clip_value}).create_node()
-        join_forget_clamp.in_port(0).connect(join_forget_remember_sum.out_port(0))
+        join_forget_clamp = create_op_with_const_inputs(graph, Clamp, {1: np.array(-node.clip_value, dtype=np.float32),
+                                                                       2: np.array(node.clip_value, dtype=np.float32)},
+                                                        {'name': 'join_forget_clamp'},
+                                                        join_forget_remember_sum)
         #
         # Clamp -> (2)Memory(state)
         next_lstm_state = Assign(graph, {'name': 'next_lstm_state',

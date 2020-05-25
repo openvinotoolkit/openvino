@@ -13,10 +13,11 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
 from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.clamp import Clamp
+from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
+from mo.ops.clamp import Clamp, AttributedClamp
 
 
 class ClipFrontExtractor(FrontExtractorOp):
@@ -25,9 +26,12 @@ class ClipFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {
-            'min': onnx_attr(node, 'min', 'f', -3.4028234663852886e+38),
-            'max': onnx_attr(node, 'max', 'f', 3.4028234663852886e+38),
-        }
-        Clamp.update_node_stat(node, attrs)
+        if get_onnx_opset_version(node) < 11:
+            attrs = {
+                'min': onnx_attr(node, 'min', 'f', np.finfo(np.float32).min),
+                'max': onnx_attr(node, 'max', 'f', np.finfo(np.float32).max),
+            }
+            AttributedClamp.update_node_stat(node, attrs)
+        else:
+            Clamp.update_node_stat(node)
         return cls.enabled
