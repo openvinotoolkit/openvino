@@ -160,7 +160,7 @@ namespace ngraph
                 RecurrentSequence::recurrent_sequence_pass(const RecurrentCellFunction& kernel,
                                                            bool is_reverse)
             {
-                NodeVector h_list;
+                OutputVector h_list;
 
                 std::shared_ptr<ngraph::Node> X = m_args.at(OpInput::X);
                 std::shared_ptr<ngraph::Node> H_t =
@@ -184,7 +184,8 @@ namespace ngraph
                 NGRAPH_CHECK(x_pshape.rank().is_static() && x_pshape[0].is_static(),
                              "RecurrentSequence input X must have static outermost dimension.");
 
-                NodeVector in_seq_steps = builder::opset1::split(X, X->get_shape().at(0));
+                OutputVector in_seq_steps =
+                    as_output_vector(builder::opset1::split(X, X->get_shape().at(0)));
 
                 for (auto& in_x : in_seq_steps)
                 {
