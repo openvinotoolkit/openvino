@@ -52,7 +52,7 @@ void ngraph::pass::ConvertTopKToTopKIE::convert_topk_to_topk_ie() {
         }
 
         topk_ie->set_friendly_name(topk->get_friendly_name());
-        ngraph::copy_runtime_info(topk, {unsqueezed_k.get_node_shared_ptr(), topk_ie});
+        ngraph::copy_runtime_info(topk, new_ops);
         topk->output(0).replace(topk_ie->output(0));
         topk->output(1).replace(index_output);
         return true;
