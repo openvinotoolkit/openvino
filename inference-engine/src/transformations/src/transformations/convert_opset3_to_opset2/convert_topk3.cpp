@@ -13,18 +13,10 @@
 #include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertTopK3::convert_topk3() {
-    auto input = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
-    auto k = ngraph::opset3::Constant::create(element::i64, Shape{}, {10});
-    auto topk = std::make_shared<ngraph::opset3::TopK>(input, k, 0, "min", "value", element::i64);
-    // this is a temporary workaround to avoid bug that TopK-3 does not have clone_with_new_inputs so the TopK-3 clone
-    // generates TopK-1 operation
-    auto topk_v1 = std::make_shared<ngraph::opset1::TopK>(input, k, 0, "min", "value", element::i64);
+    auto topk = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::TopK>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-        std::shared_ptr<ngraph::op::v1::TopK> topk = std::dynamic_pointer_cast<ngraph::opset3::TopK> (m.get_match_root());
-        if (!topk) {
-            topk = std::dynamic_pointer_cast<ngraph::opset1::TopK> (m.get_match_root());
-        }
+        auto topk = std::dynamic_pointer_cast<ngraph::opset3::TopK> (m.get_match_root());
         if (!topk) {
             return false;
         }
@@ -51,6 +43,4 @@ void ngraph::pass::ConvertTopK3::convert_topk3() {
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(topk, "ConvertTopK3");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
-    auto m2 = std::make_shared<ngraph::pattern::Matcher>(topk_v1, "ConvertTopK3");
-    this->add_matcher(m2, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

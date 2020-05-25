@@ -10,6 +10,7 @@
 #include <ie_api.h>
 
 #include "ngraph/op/op.hpp"
+#include "ngraph/op/topk.hpp"
 
 namespace ngraph {
 namespace op {
@@ -19,24 +20,26 @@ public:
     static constexpr NodeTypeInfo type_info{"TopKIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
 
-    TopKIE(const Output<Node> &data,
-           const Output<Node> &k,
+    TopKIE(const Output<Node>& data,
+           const Output<Node>& k,
            const int64_t axis,
-           const std::string& mode,
-           const std::string& sort,
-           const Shape& output_shape);
+           const ngraph::op::TopKMode mode,
+           const ngraph::op::TopKSortType sort);
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
-    int64_t get_axis();
-    std::string get_mode();
-    std::string get_sort_type();
-    Shape get_output_shape();
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    int64_t axis;
-    std::string mode, sort_type;
-    Shape output_shape;
+    int64_t get_axis() { return m_axis;}
+
+    ngraph::op::TopKMode get_mode() { return m_mode; }
+
+    ngraph::op::TopKSortType get_sort_type() { return m_sort_type; }
+
+private:
+    int64_t m_axis;
+    ngraph::op::TopKMode m_mode;
+    ngraph::op::TopKSortType m_sort_type;
 };
 
 }  // namespace op
