@@ -49,6 +49,15 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
             Compare(reinterpret_cast<const std::int32_t *>(expectedBuffer),
                     reinterpret_cast<const std::int32_t *>(actualBuffer), size, 0);
             break;
+        case InferenceEngine::Precision::U8:
+            Compare(reinterpret_cast<const std::uint8_t *>(expectedBuffer),
+                    reinterpret_cast<const std::uint8_t *>(actualBuffer), size, std::uint8_t(0));
+            break;
+        case InferenceEngine::Precision::I8:
+            Compare(reinterpret_cast<const std::int8_t *>(expectedBuffer),
+                    reinterpret_cast<const std::int8_t *>(actualBuffer), size, std::int8_t(0));
+            break;
+
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
     }
