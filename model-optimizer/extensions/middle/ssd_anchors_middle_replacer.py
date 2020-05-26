@@ -112,6 +112,15 @@ class SsdAnchorMiddleReshape(MiddleReplacementPattern):
 
 class SsdAnchorsMiddleReplacer(MiddleReplacementPattern):
 
+    """
+    Replacing sub-graph with all anchors to sub-graph which calculates prior boxes values by formulas:
+
+    value[i] = xmin = value[i] - (value[i + 2] / 2)
+    value[i + 1] = ymin = value[i + 1] - (value[i + 3] / 2)
+    value[i + 2] = xmax = value[i] + (value[i + 2] / 2)
+    value[i + 3] = ymax = value[i + 1] + (value[i + 3] / 2)
+    """
+
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == 'mxnet' and graph.graph['cmd_params'].enable_ssd_gluoncv]
 
@@ -155,31 +164,31 @@ class SsdAnchorsMiddleReplacer(MiddleReplacementPattern):
 
         #xmin
         xmin = Sub(graph, dict(name=value.name + '/Sub_1')).create_node()
-        third_index_div = create_op_node_with_second_input(graph, Div, int64_array([2]), op_attrs=dict(
+        div_1 = create_op_node_with_second_input(graph, Div, int64_array([2]), op_attrs=dict(
             name=value.name + '/Div_1'))
-        third_index_div.in_port(0).connect(value.out_port(2))
+        div_1.in_port(0).connect(value.out_port(2))
         xmin.in_port(0).connect(value.out_port(0))
-        xmin.in_port(1).connect(third_index_div.out_port(0))
+        xmin.in_port(1).connect(div_1.out_port(0))
 
         #ymin
         ymin = Sub(graph, dict(name=value.name + '/Sub_2')).create_node()
-        fourth_index_div = create_op_node_with_second_input(graph, Div, int64_array([2]), op_attrs=dict(
+        div_2 = create_op_node_with_second_input(graph, Div, int64_array([2]), op_attrs=dict(
             name=value.name + '/Div_2'))
-        fourth_index_div.in_port(0).connect(value.out_port(3))
+        div_2.in_port(0).connect(value.out_port(3))
         ymin.in_port(0).connect(value.out_port(1))
-        ymin.in_port(1).connect(fourth_index_div.out_port(0))
+        ymin.in_port(1).connect(div_2.out_port(0))
 
         #xmax
         xmax = Add(graph, dict(name=value.name + '/Add_1')).create_node()
-        xmax.in_port(0).connect(third_index_div.out_port(0))
+        xmax.in_port(0).connect(div_1.out_port(0))
         xmax.in_port(1).connect(value.out_port(0))
 
         #ymax
         ymax = Add(graph, dict(name=value.name + '/Add_2')).create_node()
-        ymax.in_port(0).connect(fourth_index_div.out_port(0))
+        ymax.in_port(0).connect(div_2.out_port(0))
         ymax.in_port(1).connect(value.out_port(1))
 
-        concat_slice_value = Concat(graph, dict(name='Concat', in_ports_count=4, axis=1)).create_node()
+        concat_slice_value = Concat(graph, dict(name=value.name + '/Concat', in_ports_count=4, axis=1)).create_node()
         concat_slice_value.in_port(0).connect(xmin.out_port(0))
         concat_slice_value.in_port(1).connect(ymin.out_port(0))
         concat_slice_value.in_port(2).connect(xmax.out_port(0))
