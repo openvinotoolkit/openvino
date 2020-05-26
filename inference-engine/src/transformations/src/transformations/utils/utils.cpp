@@ -49,12 +49,12 @@ bool get_single_value(const std::shared_ptr<op::Constant>& const_node, float& va
 }
 
 std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::Constant>& constant,
-                                         const Shape& shape) {
+                                         const PartialShape& shape) {
     auto const_shape = constant->get_shape();
-    if (const_shape.size() == shape.size()) {
+    if (const_shape.size() == shape.rank().get_length()) {
         return constant;
     }
-    int cnt = shape.size() - const_shape.size();
+    int64_t cnt = shape.rank().get_length() - const_shape.size();
     for (int i = 0; i < cnt; ++i) {
         const_shape.insert(const_shape.begin(), 1);
     }
