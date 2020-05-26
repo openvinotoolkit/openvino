@@ -66,7 +66,13 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         // todo: calculate proper scale factor where we need to expand it a bit to be safe to stay in int16 weights
         // set the initial value
         float result = activation_scale_factor;
-        if (layer.isIdentity()) {
+        if (layer.isConcatAlignIdentity()) {
+            // for concat align identity we cannot use arb scale factor due to later potential factorisation into gna-copy
+            // layer that is not quantizeable
+            auto concatAlign = CNNNetPrevLayer(layer.operator const InferenceEngine::CNNLayer *());
+            auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(concatAlign);
+            return quant->_src_quant.scale;
+        } else if (layer.isIdentity()) {
 // #define accurate_identity_scale_factor
 #ifdef accurate_identity_scale_factor
             // searching more accurate scale factor for identity
@@ -118,7 +124,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         // TODO: current approach set input scale factor for true input layer(s) equals to provided factor,
         auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer);
 
-        if (InferenceEngine::details::CaselessEq<std::string>()(cnnLayer->type, "Memory")) {
+        if (LayerInfo(cnnLayer).isMemory()) {
              if (CNNNetHasPrevLayer(cnnLayer)) {
                 auto prevLayer = CNNNetPrevLayer(cnnLayer);
                 auto prevInfo = LayerInfo(prevLayer);
@@ -231,13 +237,34 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             quant->_dst_quant.scale = quant->_src_quant.scale;
             return ScaleFactorUpdateResult();
         }
+        QuantizedLayerParams * inputQuant = nullptr;
+        for (int i = 0; CNNNetHasPrevLayer(cnnLayer, i); i++) {
+            // by default layer is pass thru its scale factor
+            auto inputLayer = CNNNetPrevLayer(cnnLayer, i);
+            if (LayerInfo(inputLayer).isLink()) {
+                gnalog() << "[QUANTISATION] : " << LAYER_NAME(inputLayer) << "  skipped input scale factor from layer: " << LAYER_NAME(inputLayer) << "\n";
+                continue;
+            }
+            auto inputQuantCurrent = InferenceEngine::getInjectedData<QuantizedLayerParams>(CNNNetPrevLayer(cnnLayer, i));
+
+            if (inputQuant != nullptr) {
+                // compare scales
+                if (fp32eq(inputQuantCurrent->_dst_quant.scale, inputQuant->_dst_quant.scale)) {
+                    THROW_GNA_LAYER_EXCEPTION(cnnLayer) << "Quantisation failed, due to multiple non consistent input scale factors";
+                }
+                continue;
+            }
+            inputQuant = inputQuantCurrent;
+        }
 
         // by default layer is pass thru its scale factor
-        auto inputQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(CNNNetPrevLayer(cnnLayer));
         if (!inputQuant) {
-            THROW_GNA_EXCEPTION << "layer: " << CNNNetPrevLayer(cnnLayer)->name << "not quantized";
+            THROW_GNA_LAYER_EXCEPTION(cnnLayer)
+                << "Qunatisation failed, no suitable input layer to propogate scale factor";
         }
-        quant->_dst_quant.scale = inputQuant->_dst_quant.scale;
+
+        // for generated weights it's scale factor known a priori
+        quant->_dst_quant.scale = inputQuant->_dst_quant.scale * quant->_weights_quant.scale;
         quant->_src_quant.scale = inputQuant->_dst_quant.scale;
 
         if (layerInfo.isActivation()) {
@@ -341,6 +368,34 @@ class ScaleFactorPerLayer<InferenceEngine::EltwiseLayer*> {
 
 template<>
 class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
+    void requantiseActivation(InferenceEngine::CNNLayer * activation, float scaleFactor) {
+        LayerInfo info(activation);
+        if (!info.isActivation()) {
+            THROW_GNA_LAYER_EXCEPTION(activation) << "cannot requantize non activation layer";
+        }
+        auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*activation);
+
+        // requantize activation by just changing it's output scale factor
+        quantData->_dst_quant.scale = scaleFactor;
+
+        // TODO: fix link traversal and make this sort of identites non requatizeable
+        if (info.isConcatAlignIdentity()) {
+            // get concat align input activation
+            auto concat_align = CNNNetPrevLayer(activation, 0);
+            auto might_be_link = CNNNetPrevLayer(concat_align, 0);
+            if (LayerInfo(might_be_link).isLink()) {
+                might_be_link = CNNNetPrevLayer(concat_align, 1);
+            }
+            // requantize concat_align
+            auto quantDataForConcatAlign = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concat_align);
+            quantDataForConcatAlign->_src_quant.scale =  scaleFactor;
+
+            // requantize concat_align input
+            auto quantDataForConcatAlignActivation = InferenceEngine::getInjectedData<QuantizedLayerParams>(*might_be_link);
+            quantDataForConcatAlignActivation->_dst_quant.scale = scaleFactor;
+        }
+    }
+
  public:
     bool operator()(InferenceEngine::ConcatLayer* concatLayer, int weightsSize, ScaleFactorUpdateResult &result) {
         if ( !concatLayer ) {
@@ -381,15 +436,25 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
 
         // possible case when some of the concat inputs are free to select scale ex: const->concat<-affine
         if (quantParams1->_dst_quant.scale == 1.0) {
-            quantParams1->_weights_quant = quantParams0->_dst_quant;
-            quantParams1->_dst_quant     = quantParams0->_dst_quant;
-
+            // if not const - that might be un initialized memory subgraph
+            if (infoIn1.isConst()) {
+                quantParams1->_weights_quant = quantParams0->_dst_quant;
+            }
+            if (infoIn1.isActivation()) {
+                requantiseActivation(in1.get(), quantParams0->_dst_quant.scale);
+            }
+            quantParams1->_dst_quant  = quantParams0->_dst_quant;
             sourceQuantParams = quantParams0;
         }
 
         if (quantParams0->_dst_quant.scale == 1.0) {
-            quantParams0->_weights_quant = quantParams1->_dst_quant;
-            quantParams0->_dst_quant     = quantParams1->_dst_quant;
+            if (infoIn0.isConst()) {
+                quantParams0->_weights_quant = quantParams1->_dst_quant;
+            }
+            if (infoIn0.isActivation()) {
+                requantiseActivation(in0.get(), quantParams1->_dst_quant.scale);
+            }
+            quantParams0->_dst_quant = quantParams1->_dst_quant;
             sourceQuantParams = quantParams1;
         }
 
@@ -397,12 +462,11 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
             auto in0LayerInfo = LayerInfo(in0);
             auto in1LayerInfo = LayerInfo(in1);
             if (in0LayerInfo.isActivation()) {
-                quantParams0->_weights_quant = quantParams1->_dst_quant;
-                quantParams0->_dst_quant = quantParams1->_dst_quant;
+                //quantParams0->_weights_quant = quantParams1->_dst_quant;
+                requantiseActivation(in0.get(), quantParams1->_dst_quant.scale);
                 sourceQuantParams = quantParams1;
             } else if (in1LayerInfo.isActivation()) {
-                quantParams1->_weights_quant = quantParams0->_dst_quant;
-                quantParams1->_dst_quant = quantParams0->_dst_quant;
+                requantiseActivation(in1.get(), quantParams0->_dst_quant.scale);
                 sourceQuantParams = quantParams0;
             } else {
                 THROW_GNA_EXCEPTION << "Concat quantization for this case need to be implemented!!! \n";
@@ -441,6 +505,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                       gnalog() << "... OK,  need requantize\n";
                   }, true, [&restartedLayer, &concatLayer, &concatIdxToUpdate](InferenceEngine::CNNLayer *from) {
                     // aborting UFS once found functional layer, and using only specified input of concat
+                    // TODO: avoid traverse over link layers - this might result in incorrect behavior
                     return make_upstream_order(restartedLayer == nullptr ? from : nullptr,
                                                from == concatLayer ? concatIdxToUpdate : -1);
                 });
@@ -452,8 +517,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
 
         auto restarLayerInfo = LayerInfo(restartedLayer);
         if (restarLayerInfo.isActivation()) {
-            // requantize activation by just changing it's output scale factor
-            quantDataForConCatInput->_dst_quant.scale = sourceQuantParams->_dst_quant.scale;
+            requantiseActivation(restartedLayer.get(), sourceQuantParams->_dst_quant.scale);
         }
 
         result = ScaleFactorUpdateResult(restartedLayer.get());

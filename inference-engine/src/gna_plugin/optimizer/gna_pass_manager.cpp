@@ -24,6 +24,7 @@
 #include <ie_util_internal.hpp>
 #include <graph_tools.hpp>
 #include <net_pass.h>
+#include <frontend/quantization.h>
 
 #include "gna_plugin_log.hpp"
 #include "frontend/quantized_layer_params.hpp"
@@ -778,9 +779,16 @@ void InsertConcatAligningFilterPass::run() {
                                                                  dims,
                                                                  concatInput->getLayout()));
 
-                auto filterWithQuant = quantized ?
-                                       InferenceEngine::injectData<QuantizedLayerParams>(concatAligningFilter) :
-                                       concatAligningFilter;
+                auto filterWithQuant = concatAligningFilter;
+
+                if (quantized) {
+                    filterWithQuant = InferenceEngine::injectData<QuantizedLayerParams>(concatAligningFilter);
+                    auto quantizedFilter = InferenceEngine::getInjectedData<QuantizedLayerParams>(filterWithQuant);
+                    // we know weights will be quantized in advance when they are generated
+                    float weightsStub[] = {0.f, 1.f};
+                    quantizedFilter->_weights_quant.scale
+                        = ScaleFactorForQuantization(weightsStub, MAX_VAL_2B_WEIGHT, sizeof(weightsStub) / sizeof (*weightsStub));
+                }
                 outData->getCreatorLayer() = filterWithQuant;
                 filterWithQuant->outData.push_back(outData);
 

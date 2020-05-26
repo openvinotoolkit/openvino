@@ -368,7 +368,7 @@ void Regression::Matchers::CustomMatcher::checkResult() {
                 maxAverageDiff = std::max(maxAverageDiff, avgDiff / avgFrames);
 
                 //TODO: add test_log parse from command line
-// #define TEST_LOG
+#define TEST_LOG
 #ifdef TEST_LOG
                 auto threshold_similarity_max = config.nearValue - maxDiff;
                 auto threshold_similarity_avg = config.nearAvgValue - avgDiff / avgFrames;

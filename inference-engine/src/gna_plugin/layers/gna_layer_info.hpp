@@ -10,8 +10,25 @@
 #include "inference_engine.hpp"
 #include "details/caseless.hpp"
 #include "ie_algorithm.hpp"
-#include "gna-api.h"
+#include "gna_graph_tools.hpp"
 
+
+
+template <class T>
+using getLargetIntType = std::conditional<std::numeric_limits<T>::is_integer || sizeof(T) == 4, uint32_t, uint64_t>;
+
+/**
+ * Pads value to arbitrary alignment
+ */
+#ifndef ALIGN
+# define ALIGN(value, pad)   ((static_cast<getLargetIntType<decltype(value)>::type>((value) + pad -1) / pad) * pad)
+#endif
+/**
+ * Pads value to 64
+ */
+#ifndef ALIGN64
+# define ALIGN64(value)    ALIGN(value, 64)
+#endif
 
 namespace GNAPluginNS {
 
@@ -106,6 +123,9 @@ class LayerInfo {
     bool isConcatAlignFilter() const noexcept {
         return isOfType("ConcatAlignFilter");
     }
+    bool isLink() const noexcept {
+        return isOfType("Link");
+    }
     bool isAffineFilter() const noexcept {
         return isOfType("AffineFilter");
     }
@@ -175,6 +195,14 @@ class LayerInfo {
     }
     bool isIdentity() const noexcept {
         return isOfType("identity");
+    }
+    // identity attached to concat align filter
+    bool isConcatAlignIdentity() const noexcept {
+        if (!isOfType("identity")) {
+            return false;
+        }
+        auto prev = CNNNetPrevLayer(layer, 0);
+        return LayerInfo(prev).isConcatAlignFilter();
     }
     bool isFullyConnected() const noexcept {
         return isOfType("FullyConnected") || isOfType("InnerProduct");

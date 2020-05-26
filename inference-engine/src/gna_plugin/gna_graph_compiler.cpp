@@ -1318,7 +1318,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
 
     genFilterWeights(
         num_rows_in,
-        -(num_rows_out-num_rows_in),
+        static_cast<int>(num_rows_in) - num_rows_out,
         ptr_weights,
         ptr_biases,
         quantized == nullptr ? 1 : quantized->_weights_quant.scale);
