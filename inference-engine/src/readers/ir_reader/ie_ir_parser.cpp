@@ -1466,11 +1466,11 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Constant>::cre
     if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
         THROW_IE_EXCEPTION << "Cannot create Constant op " << layerParsePrms.name << " size attribute and shape size are inconsistent!";
 
-    std::vector<char> data(size);
+    auto constant = std::make_shared<ngraph::op::Constant>(port.precision, shape);
+    char* data = const_cast<char*>(reinterpret_cast<const char*>(constant->get_data_ptr()));
     binStream.seekg(offset, std::ios::beg);
-    binStream.read(data.data(), size);
-
-    return std::make_shared<ngraph::op::Constant>(port.precision, shape, data.data());
+    binStream.read(data, size);
+    return constant;
 }
 
 // Power layer
