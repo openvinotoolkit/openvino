@@ -9,6 +9,9 @@
 
 // #define GNA_DEBUG
 #ifdef  GNA_DEBUG
+
+#define GNA_HEAP_PROFILER
+
 #include <iostream>
 /**
  * @brief used for creating graphviz charts, and layers dump

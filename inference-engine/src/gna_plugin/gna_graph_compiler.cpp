@@ -1084,10 +1084,6 @@ void GNAGraphCompiler::genAffineFilter(InferenceEngine::CNNLayerPtr layer,
                      size_t output_sz,
                      size_t input_data_offset,
                      size_t output_data_offset) {
-    auto filterLayer = dynamic_cast<InferenceEngine::WeightableLayer*> (layer.get());
-    if (filterLayer == nullptr) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "should be weightable layer";
-    }
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
 
     IE_ASSERT(!layer->outData.empty());
@@ -1178,12 +1174,7 @@ void GNAGraphCompiler::genAffineFilter(InferenceEngine::CNNLayerPtr layer,
 }
 
 void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr layer) {
-    auto filterLayer = dynamic_cast<InferenceEngine::WeightableLayer*> (layer.get());
-
-    if (filterLayer == nullptr) {
-        return;
-    }
-
+    auto filterLayer = layer;
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
 
     void* ptr_inputs = nullptr;
@@ -1197,8 +1188,9 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     auto inputs = layer->insData.begin()->lock();
 
     uint32_t num_columns_in = FROM_IR_DIM(inputs, 2);
+    uint32_t num_rows_in =FROM_IR_DIM(inputs, 1);
+
     uint32_t num_rows_out = FROM_IR_DIM(outputs, 1);
-    uint32_t num_rows_in = filterLayer->_weights->size() / num_rows_out;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
 
     auto numRowsPadded = filterLayer->GetParamAsInt("num_rows_padded");
@@ -1231,7 +1223,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
                                ptr_outputs);
 
 
-        size_t num_data_bytes_in = num_rows_copied * num_rows_copied * num_columns_in
+        size_t num_data_bytes_in = num_rows_copied * num_columns_in
             * inputs->getPrecision().size();
         // need to reserve full tensor so using original size with assumption of identity activation attached to filter lateron
         size_t num_data_bytes_out = num_rows_out * num_columns_in * inputs->getPrecision().size();
@@ -1249,8 +1241,6 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
 
     // affine filter with zero padded for output - note it's input always starts from 64 bit alligned boundary due to split aligned filter
     // we are improving it by inserting copy layer of size that covers most of elements - remained max of 32x31 affine filter
-    // TODO: always use gen weights routine
-    bool genWeights = false;
     if (policy.ConcatAlignmentPolicy == Policy::ConcatAlignment::FAST &&  0 != numRowsPadded && numRowsPadded + num_rows_in > 32) {
         // we cannot  we use copy layer that time - lets consider factorizing this Filter By 3 filters kernels
         auto outputOffset = filterLayer->GetParamAsInt("output_offset");
@@ -1296,12 +1286,11 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
         // making sure activation tensor size reduced as well
         filterLayer->params["rows_remained"] = std::to_string(num_rows_out);
         num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
-        genWeights = true;
     }
 
     filterLayer->params["rows_copied_offset"] = std::to_string(num_rows_copied * inputs->getPrecision().size());
 
-    auto biasPrecision = filterLayer->_biases ? filterLayer->_biases->getTensorDesc().getPrecision() : outputs->getPrecision();
+    auto biasPrecision = outputs->getPrecision();
     auto& currentComponent = dnnComponents.addComponent(layer->name, "affine");
 
     dnn->InitAffineComponent(currentComponent,
@@ -1310,8 +1299,8 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
         num_rows_out,
         inputs->getPrecision().size(),
         outputs->getPrecision().size(),
-        genWeights ? (gnaFlags->sw_fp32 ? 4 : 1) : filterLayer->_weights->getTensorDesc().getPrecision().size(),
-        genWeights ? (gnaFlags->sw_fp32 ? 4 : 8) : biasPrecision.size(),
+        gnaFlags->sw_fp32 ? 4 : 1,
+        gnaFlags->sw_fp32 ? 4 : 8,
         quantized == nullptr ? 1 : quantized->_weights_quant.scale,
         quantized == nullptr ? 1 : quantized->_dst_quant.scale,
         ptr_inputs,
@@ -1327,46 +1316,12 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     connectInput(layer, ptr_inputs, num_data_bytes_in, num_rows_copied * inputs->getPrecision().size(), 0);
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
-    if (!genWeights) {
-        auto weightsElementSize = filterLayer->_weights->getTensorDesc().getPrecision().size();
-        auto elementsIn = (num_rows_in + num_padding) * num_columns_in;
-        auto paddedWeights = elementsIn * num_rows_out;
-        auto paddedWeightsSize = paddedWeights * weightsElementSize;
-
-        // TODO: this can be improved to not generate unneeded weights at all
-
-        size_t weights_stride = (num_rows_in + num_rows_copied) * weightsElementSize;
-        size_t weights_offset = weights_stride * num_rows_copied + num_rows_copied * weightsElementSize;
-
-        gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void *data, size_t size) {
-            size_t roffset = weights_offset;
-            size_t woffset = 0;
-            for (int i = 0; i < num_rows_out && size > woffset; i++) {
-                ie_memcpy(reinterpret_cast<uint8_t *>(data) + woffset,
-                          size - woffset,
-                          filterLayer->_weights->cbuffer().as<const uint8_t *>() + roffset,
-                          num_rows_in * weightsElementSize);
-                roffset += weights_stride;
-                woffset += elementsIn * weightsElementSize;
-            }
-        }, 64);
-
-        if (filterLayer->_biases) {
-            gnamem->readonly().push_ptr(ptr_biases,
-                                        filterLayer->_biases->cbuffer().as<const void *>(),
-                                        filterLayer->_biases->byteSize(),
-                                        64);
-        } else {
-            gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
-        }
-    } else {
-        genFilterWeights(
-            num_rows_in,
-            -(num_rows_out-num_rows_in),
-            ptr_weights,
-            ptr_biases,
-            quantized == nullptr ? 1 : quantized->_weights_quant.scale);
-    }
+    genFilterWeights(
+        num_rows_in,
+        -(num_rows_out-num_rows_in),
+        ptr_weights,
+        ptr_biases,
+        quantized == nullptr ? 1 : quantized->_weights_quant.scale);
 }
 
 void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer) {

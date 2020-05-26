@@ -16,6 +16,10 @@
 
 #include <gna-api.h>
 
+#ifdef  GNA_HEAP_PROFILER
+# include <iomanip>
+#endif
+
 namespace GNAPluginNS {
 namespace memory {
 /**
@@ -205,8 +209,15 @@ class GNAMemory : public GNAMemRequestsQueue {
         // count total size and size of read/write regions
         _rw_section_size = 0;
         _ro_section_size = 0;
+
+#ifdef GNA_HEAP_PROFILER
+        std::cout << "-------------------------------------------\n" <<
+                     "-- GNA HEAP PROFILING                 -----\n\n";
+
+#endif
         for (auto &re : _future_heap) {
             auto current = ALIGN(re._num_elements * re._element_size + re._padding, re._alignment);
+
 #ifdef GNA_HEAP_PROFILER
             std::cout << "chunk: " << " region: " << re._region << ", " <<
                     "type: " << (re._type  == REQUEST_STORE ? "store " : re._type == REQUEST_BIND ? "bind  " : "alloc ") <<

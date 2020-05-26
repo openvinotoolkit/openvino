@@ -73,6 +73,12 @@ class GnaPluginTestEnvironment {
         matchAffineWeights,
         matchAffineWeightsSize,
         saveAffineWeights,
+        matchGnaAlloc,
+    };
+    /// designates type for matching single value
+    enum MatchValue {
+        matchEq,
+        matchLe
     };
     enum {
         kUnset = -1,
@@ -115,6 +121,8 @@ class GnaPluginTestEnvironment {
     std::vector<uint16_t>* transposedData;
     std::vector<DnnActivationType> pwlsToMatchWith;
     size_t matched_weight_size = 0;
+    size_t matched_gna_alloc_size = 0;
+    MatchValue matched_gna_alloc_type = matchEq;
     size_t nCopyLayersToMatch = -1;
 };
 
@@ -529,6 +537,25 @@ class GNAWeightsMatcher : public GNAPropagateMatcher {
         if (getMatcher().type == GnaPluginTestEnvironment::matchAffineWeightsSize) {
             _env.matched_weight_size = weights_size;
         }
+        if (getMatcher().type == GnaPluginTestEnvironment::matchGnaAlloc) {
+            _env.matched_gna_alloc_size = weights_size;
+            _env.matched_gna_alloc_type = GnaPluginTestEnvironment::matchEq;
+        }
+        return *this;
+    }
+    GNAWeightsMatcher & LessThan(size_t sz) {
+        getMatcher().type = GnaPluginTestEnvironment::matchGnaAlloc;
+        _env.matched_gna_alloc_size = sz;
+        _env.matched_gna_alloc_type = GnaPluginTestEnvironment::matchLe;
+
+        return *this;
+    }
+    GNAWeightsMatcher & And() {
+        GNAPropagateMatcher::And();
+        return *this;
+    }
+    GNAWeightsMatcher & gnaAllocRequestedSize() {
+        getMatcher().type = GnaPluginTestEnvironment::matchGnaAlloc;
         return *this;
     }
 };

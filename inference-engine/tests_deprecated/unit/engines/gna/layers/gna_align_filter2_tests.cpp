@@ -161,6 +161,9 @@ TEST_P(GNAAlignFilterTest, concatWith_2_Inputs_Small_mem_footprint) {
         .size()
         .equals_to(expected_affine_size)
         .And()
+        .gnaAllocRequestedSize()
+        .LessThan(expected_affine_size * 8) // very rough estimation
+        .And()
         .copy_inserted_into_nnet()
         .times(expected_copy_layers);
 }
@@ -216,8 +219,8 @@ INSTANTIATE_TEST_CASE_P(
         Policy::ConcatAlignment::ENABLED,
         Policy::ConcatAlignment::FAST_ZERO_OFFSET,
         Policy::ConcatAlignment::FAST),
-    // Size of first Split layer output
+    // Size of first concat input
     testing::Values(64, 32, 31, 49),
-    // Size of second Split layer output
+    // Size of second concat input
     testing::Values(64, 32, 31, 73, 65)),
     GNAAlignFilterTest::getTestName);

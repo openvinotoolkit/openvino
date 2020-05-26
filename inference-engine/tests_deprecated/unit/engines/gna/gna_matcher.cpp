@@ -66,6 +66,33 @@ public:
     }
 };
 
+template<class T>
+class OptionalMatcher {
+    T _value;
+    GnaPluginTestEnvironment::MatchValue _matchType;
+ public:
+    OptionalMatcher(const T & value, GnaPluginTestEnvironment::MatchValue matchType) : _value(value), _matchType(matchType) {
+    }
+    template <typename Lhs>
+    operator Matcher<Lhs>() const {
+        if (_value) {
+            switch (_matchType) {
+                case GnaPluginTestEnvironment::matchEq :
+                    return Eq(_value);
+                case GnaPluginTestEnvironment::matchLe :
+                    return Le(_value);
+                default:
+                    THROW_GNA_EXCEPTION << "Unknown value matching type: " << _matchType;
+            }
+        }
+        return _;
+    }
+};
+
+template <typename T>
+inline OptionalMatcher<T> Optional(T x, GnaPluginTestEnvironment::MatchValue matchType) { return OptionalMatcher<T>(x, matchType); }
+
+
 void GNAPropagateMatcher :: match() {
     try {
         // matching gna propagate forward call.
@@ -240,8 +267,9 @@ void GNAPropagateMatcher :: match() {
 
         if (_env.config[GNA_CONFIG_KEY(DEVICE_MODE)].compare(GNA_CONFIG_VALUE(SW_FP32)) != 0 &&
             !_env.matchThrows) {
+
 #if GNA_LIB_VER == 1 // TODO: GNA2: handle new API
-            EXPECT_CALL(mockApi, GNAAlloc(_,_,_)).WillOnce(Invoke([&data](
+            EXPECT_CALL(mockApi, GNAAlloc(_, Optional(_env.matched_gna_alloc_size, _env.matched_gna_alloc_type),_)).WillOnce(Invoke([&data](
                 intel_gna_handle_t nGNADevice,   // handle to GNA accelerator
                 uint32_t           sizeRequested,
                 uint32_t*          sizeGranted
@@ -264,7 +292,7 @@ void GNAPropagateMatcher :: match() {
                 EXPECT_CALL(mockApi, gmmSetThreads(_)).Times(0);
             }
 #else
-            EXPECT_CALL(mockApi, Gna2MemoryAlloc(_, _, _)).WillOnce(Invoke([&data](
+            EXPECT_CALL(mockApi, Gna2MemoryAlloc(Optional(_env.matched_gna_alloc_size, _env.matched_gna_alloc_type), _, _)).WillOnce(Invoke([&data](
                 uint32_t sizeRequested,
                 uint32_t *sizeGranted,
                 void **memoryAddress
@@ -331,6 +359,9 @@ void GNAPropagateMatcher :: match() {
                         break;
                     case GnaPluginTestEnvironment::saveAffineWeights:
                         SaveWeights(combined, _env.transposedData, _env.transposedArgsForSaving);
+                        break;
+                    case GnaPluginTestEnvironment::matchGnaAlloc :
+                        //  gna-aloc matched if set automatically
                         break;
                     default:
 #if GNA_LIB_VER == 1 // TODO: GNA2: handle new API

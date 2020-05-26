@@ -731,7 +731,7 @@ void InsertConcatAligningFilterPass::run() {
                 // insert the filter
                 auto filterName = std::string("ConcatAlignFilter_") + std::to_string(numOfFilterLayers++);
                 auto concatAligningFilter =
-                    std::make_shared<WeightableLayer>(LayerParams({filterName, "ConcatAlignFilter", Precision::FP32}));
+                    std::make_shared<CNNLayer>(LayerParams({filterName, "ConcatAlignFilter", Precision::FP32}));
 
                 if (dims.size() != 2) {
                     THROW_GNA_EXCEPTION << "unsupported concat input    a of dims.size()=" << dims.size() << ", layer=" << prevLayer->name;
@@ -752,7 +752,7 @@ void InsertConcatAligningFilterPass::run() {
                 // encodes original output size
                 concatAligningFilter->params["original_num_rows"] = std::to_string(num_rows_in);
 
-                std::vector<float> filterWeights(num_rows_out * num_rows_in, 0.f);
+             /*   std::vector<float> filterWeights(num_rows_out * num_rows_in, 0.f);
 
                 auto identityIdx = num_rows_padded * num_rows_in;
                 for (int i = 0; i != num_rows_in; i++) {
@@ -768,6 +768,7 @@ void InsertConcatAligningFilterPass::run() {
                 concatAligningFilter->_weights->allocate();
 
                 CopyVectorToBlob(concatAligningFilter->_weights, filterWeights);
+                */
 
                 // modifying output rows to be used - to avoid modification to original concat we are store num of elements in params
                 dims[1] = num_rows_out;
