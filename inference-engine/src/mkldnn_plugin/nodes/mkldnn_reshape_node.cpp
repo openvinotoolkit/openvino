@@ -26,32 +26,101 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
+    // The reshape implementation do nothing, just report correct layout config.
+    // Additional auto inserted reorders will do all required routine if following
+    // nodes doesn't natively support specified layout.
+    //
+    // The default and mandatory config is:
+    //    plain_input -> plain_output[inplace]
+    //
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     precision = getCnnLayer()->outData[0]->getPrecision();
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+
+    auto& inDims = getParentEdgeAt(0)->getDims();
+    auto& outDims = getChildEdgeAt(0)->getDims();
 
     // Current reshape implementation is simple memory reinterpret,
     // same precision on input and output is required
     if (inputDataType != outputDataType)
         inputDataType = outputDataType;
 
-    auto& outDims = getChildEdgeAt(0)->getDims();
-    memory::format outFormat = MKLDNNMemory::GetPlainFormat(outDims);
-    InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = true;
-    config.inConfs.resize(getParentEdges().size());
-    for (size_t i = 0; i <getParentEdges().size(); i++) {
-        config.inConfs[i].inPlace = -1;
-        config.inConfs[i].constant = false;
-        config.inConfs[i].desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType,
-                                                  MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
+    auto get_plain_layout = [] (const MKLDNNDims &dims) {
+        return MKLDNNMemory::GetPlainFormat(dims);
+    };
+
+    auto get_tail_c_layout = [] (const MKLDNNDims &dims) {
+        switch (dims.ndims()) {
+            case 2: return memory::nc;
+            case 3: return memory::nwc;
+            case 4: return memory::nhwc;
+            case 5: return memory::ndhwc;
+            default: return memory::format_undef;
+        }
+    };
+
+    auto get_blocked_4c_layout = [] (const MKLDNNDims &dims) {
+        switch (dims.ndims()) {
+            case 2: return memory::nc; // blocked 2D is the same as plain 2D
+            case 3: return memory::nCw4c;
+            case 4: return memory::nChw4c;
+            case 5: return memory::nCdhw4c;
+            default: return memory::format_undef;
+        }
+    };
+
+    auto get_blocked_8c_layout = [] (const MKLDNNDims &dims) {
+        switch (dims.ndims()) {
+            case 2: return memory::nc; // blocked 2D is the same as plain 2D
+            case 3: return memory::nCw8c;
+            case 4: return memory::nChw8c;
+            case 5: return memory::nCdhw8c;
+            default: return memory::format_undef;
+        }
+    };
+
+    auto get_blocked_16c_layout = [] (const MKLDNNDims &dims) {
+        switch (dims.ndims()) {
+            case 2: return memory::nc; // blocked 2D is the same as plain 2D
+            case 3: return memory::nCw16c;
+            case 4: return memory::nChw16c;
+            case 5: return memory::nCdhw16c;
+            default: return memory::format_undef;
+        }
+    };
+
+    auto add_reshape_config = [&] (memory::format in_format, memory::format out_format) {
+        InferenceEngine::LayerConfig config;
+        config.dynBatchSupport = true;
+        config.inConfs.resize(1);
+        config.inConfs[0].inPlace = -1;
+        config.inConfs[0].constant = false;
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, in_format);
+
+        config.outConfs.resize(1);
+        config.outConfs[0].inPlace = 0;
+        config.outConfs[0].constant = false;
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, out_format);
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, out_format);
+    };
+
+    // Default plain layout config [d0,d1,d2,...,dn] like NCHW
+    add_reshape_config(get_plain_layout(inDims), get_plain_layout(outDims));
+
+    // Not trivial layouts which permute second dimension (channels) NC...
+    if (inDims.ndims() > 1 && inDims.ndims() < 6 &&
+        outDims.ndims() > 1 && outDims.ndims() < 6) {
+        if (inDims[0] == inDims[0] && inDims[1] == inDims[1]) {
+            // Permuted layout config [d0,d2,...,dn,d1] like NHWC
+            add_reshape_config(get_tail_c_layout(inDims), get_tail_c_layout(outDims));
+
+            // Blocked layout config [d0,d1/B,...,dn,B] like NCHW4c, NCHW8c or NCHW16c
+            add_reshape_config(get_blocked_16c_layout(inDims), get_blocked_16c_layout(outDims));
+            add_reshape_config(get_blocked_8c_layout(inDims), get_blocked_8c_layout(outDims));
+            add_reshape_config(get_blocked_4c_layout(inDims), get_blocked_4c_layout(outDims));
+        }
     }
-    config.outConfs.resize(1);
-    config.outConfs[0].inPlace = 0;
-    config.outConfs[0].constant = false;
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, outFormat);
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormat);
 }
 
 void MKLDNNReshapeNode::createPrimitive() {

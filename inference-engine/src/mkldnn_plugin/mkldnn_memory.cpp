@@ -575,6 +575,11 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             order = {0, 1};
             blkDims = dims;
             break;
+        case memory::nwc:
+            layout = Layout::CHW;
+            order = {0, 2, 1};
+            blkDims = dims;
+            break;
         case memory::tnc:
             layout = Layout::CHW;
             order = {0, 1, 2};
@@ -644,6 +649,41 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
                        static_cast<size_t>(dims[3]),
                        static_cast<size_t>(dims[4]),
                        static_cast<size_t>(dims[1])};
+            break;
+        case memory::nCw4c:
+            order = {0, 1, 2, 1};
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 4 + (blkDims[1] % 4 ? 1 : 0);
+            blkDims.push_back(4);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::nCw8c:
+            order = {0, 1, 2, 1};
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
+            blkDims.push_back(8);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::nCw16c:
+            order = {0, 1, 2, 1};
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
+            blkDims.push_back(16);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::nChw4c:
+            order = {0, 1, 2, 3, 1};
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 4 + (blkDims[1] % 4 ? 1 : 0);
+            blkDims.push_back(4);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::nCdhw4c:
+            order = {0, 1, 2, 3, 4, 1};
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 4 + (blkDims[1] % 4 ? 1 : 0);
+            blkDims.push_back(4);
+            layout = Layout::BLOCKED;
             break;
         case memory::oIhw8i:
         case memory::nChw8c:
