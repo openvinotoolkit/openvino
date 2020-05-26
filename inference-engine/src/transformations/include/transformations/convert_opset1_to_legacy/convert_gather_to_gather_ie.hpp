@@ -27,6 +27,13 @@ class INFERENCE_ENGINE_API_CLASS(ConvertGatherToGatherIE);
 }  // namespace pass
 }  // namespace ngraph
 
+/*
+ * Description:
+ *     This transformation converts opset1::Gather to legacy GatherIE
+ *     GatherIE takes axes as value and if indices input has empty shape (scalar)
+ *     we unsqueeze indices input and squeeze GatherIE output.
+ */
+
 class ngraph::pass::ConvertGatherToGatherIE : public ngraph::pass::GraphRewrite {
 public:
     ConvertGatherToGatherIE() : GraphRewrite() {

@@ -11,10 +11,7 @@
 #include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertGatherToGatherIE::convert_gather_to_gather_ie() {
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
-    auto input_1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
-    auto input_2 = std::make_shared<pattern::op::Label>(element::i64, Shape{});
-    auto gather = std::make_shared<ngraph::opset1::Gather>(input_0, input_1, input_2);
+    auto gather = std::make_shared<pattern::op::Label>(element::f32, Shape{1}, pattern::has_class<opset1::Gather>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
         auto gather = std::dynamic_pointer_cast<ngraph::opset1::Gather>(m.get_match_root());
@@ -22,37 +19,36 @@ void ngraph::pass::ConvertGatherToGatherIE::convert_gather_to_gather_ie() {
             return false;
         }
 
-        auto axes_node = gather->input(2).get_source_output().get_node_shared_ptr();
-        auto axes_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(axes_node);
+        auto axes_constant = std::dynamic_pointer_cast<ngraph::opset1::Constant>(gather->input_value(2).get_node_shared_ptr());
         if (!axes_constant) {
             return false;
         }
-        auto axis = axes_constant->get_vector<int64_t>()[0];
+        auto axis = axes_constant->cast_vector<int64_t>()[0];
 
         // vector of new created nGraph operations
         NodeVector new_ops;
 
         // if the input with indices is scalar we need to unsqueeze it to 1D so plugins which do not support 0D can
         // execute this layer. Then we need to squeeze the axis dimension to restore original shape of gather output
-        auto indices = gather->input(1).get_source_output();
-        auto gather_output_shape = gather->output(0).get_shape();
+        auto indices = gather->input_value(1);
+        const auto indices_rank = indices.get_partial_shape().rank();
+        if (indices_rank.is_dynamic()) {
+            return false;
+        }
+
         bool squeeze_gather_output = false;
-        if (indices.get_shape().empty()) {
+        if (indices_rank.get_length() == 0) {
             squeeze_gather_output = true;
-            gather_output_shape.insert(gather_output_shape.begin() + axis, 1);
-            indices = std::make_shared<ngraph::opset1::Unsqueeze>(indices.get_node_shared_ptr(),
-                                                                  opset1::Constant::create(element::i64, Shape{1}, {0}));
+            indices = std::make_shared<ngraph::opset1::Unsqueeze>(indices, opset1::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(indices.get_node_shared_ptr());
         }
-        auto gather_ie = std::make_shared<ngraph::op::GatherIE>(gather->input(0).get_source_output(),
-                                                                indices,
-                                                                axis,
-                                                                gather_output_shape);
+
+        auto gather_ie = std::make_shared<ngraph::op::GatherIE>(gather->input_value(0), indices, axis);
         new_ops.push_back(gather_ie);
 
         if (squeeze_gather_output) {
             auto sq = std::make_shared<ngraph::opset1::Squeeze>(gather_ie,
-                                                                op::Constant::create(element::i64, Shape{1}, {axis}));
+                                                                opset1::Constant::create(element::i64, Shape{1}, {axis}));
             sq->set_friendly_name(gather->get_friendly_name());
             new_ops.push_back(sq);
 
