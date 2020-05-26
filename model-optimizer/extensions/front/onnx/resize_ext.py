@@ -16,8 +16,9 @@
 
 from extensions.ops.upsample import UpsampleOp
 from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr
+from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
 from mo.graph.graph import Node
+from mo.utils.error import Error
 
 
 class ResizeExtractor(FrontExtractorOp):
@@ -26,6 +27,9 @@ class ResizeExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
+        onnx_opset_version = get_onnx_opset_version(node)
+        if onnx_opset_version is not None and onnx_opset_version >= 11:
+            raise Error("ONNX Resize operation from opset {} is not supported.".format(onnx_opset_version))
         mode = onnx_attr(node, 'mode', 's', default=b'nearest').decode()
         UpsampleOp.update_node_stat(node, {'mode': mode})
         return cls.enabled
