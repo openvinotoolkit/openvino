@@ -14,52 +14,47 @@
 #include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertTopKToTopKIE::convert_topk_to_topk_ie() {
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto k = std::make_shared<pattern::op::Label>(element::i64, Shape{});
-    auto topk = std::make_shared<ngraph::opset1::TopK>(input_0, k, 0, "min", "none");
+    auto topk = std::make_shared<pattern::op::Label>(element::f32, Shape{1}, pattern::has_class<opset1::TopK>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
-        auto topk = std::dynamic_pointer_cast<ngraph::opset1::TopK>(m.get_match_root());
-        if (!topk) {
+        auto topk = std::dynamic_pointer_cast<opset1::TopK>(m.get_match_root());
+        if (!topk || topk->input(1).get_partial_shape().rank().is_dynamic()) {
             return false;
         }
-        if (topk->input(1).get_shape().size() == 1) {
+        if (topk->input(1).get_partial_shape().rank().get_length() == 1) {
             return false;
         }
-        auto unsqueezed_k = std::make_shared<ngraph::opset1::Unsqueeze>(topk->input(1).get_source_output().get_node_shared_ptr(),
-                                                                        opset1::Constant::create(element::i64, Shape{1}, {0}));
 
-        std::string mode;
-        switch (topk->get_mode()) {
-            case ngraph::opset1::TopK::Mode::MAX:
-                mode = "max";
-                break;
-            case ngraph::opset1::TopK::Mode::MIN:
-                mode = "min";
-                break;
-            default:
-                return false;
-        }
-        std::string sort_type;
-        switch (topk->get_sort_type()) {
-            case ngraph::opset1::TopK::SortType::NONE:
-                sort_type = "none";
-                break;
-            case ngraph::opset1::TopK::SortType::SORT_INDICES:
-                sort_type = "index";
-                break;
-            case ngraph::opset1::TopK::SortType::SORT_VALUES:
-                sort_type = "value";
-                break;
-            default:
-                return false;
+        // WA: if we replace TopK second input with Unsqueeze operation we will get dynamic shape until first CF pass
+        // but due to not all legacy operations support dynamic input shapes and dynamic shape can break pipeline we
+        // need to unsqueeze constant manually.
+        Output<Node> unsqueezed_k;
+        NodeVector new_ops;
+        if (auto k_const = std::dynamic_pointer_cast<opset1::Constant>(topk->input_value(1).get_node_shared_ptr())) {
+            auto k_value = k_const->cast_vector<int64_t>();
+            unsqueezed_k = opset1::Constant::create(element::i64, Shape{1}, k_value);
+        } else {
+            unsqueezed_k = std::make_shared<opset1::Unsqueeze>(topk->input_value(1), opset1::Constant::create(element::i64, Shape{1}, {0}));
+            new_ops.push_back(unsqueezed_k.get_node_shared_ptr());
         }
 
-        auto new_topk = std::make_shared<ngraph::op::TopKIE>(topk->input(0).get_source_output(), unsqueezed_k, topk->get_axis(), mode,
-                                                             sort_type, topk->output(0).get_shape());
-        new_topk->set_friendly_name(topk->get_friendly_name());
-        ngraph::copy_runtime_info(topk, {unsqueezed_k, new_topk});
-        ngraph::replace_node(topk, new_topk);
+        auto topk_ie = std::make_shared<ngraph::op::TopKIE>(topk->input_value(0), unsqueezed_k, topk->get_axis(), topk->get_mode(),
+                                                             topk->get_sort_type());
+        new_ops.push_back(topk_ie);
+
+        Output<Node> index_output;
+        // insert Convert if index element type not equal to i32
+        if (topk->get_index_element_type() == element::i32) {
+            index_output = topk_ie->output(1);
+        } else {
+            index_output = std::make_shared<opset1::Convert>(topk_ie->output(1), topk->get_index_element_type());
+            new_ops.push_back(index_output.get_node_shared_ptr());
+        }
+
+        topk_ie->set_friendly_name(topk->get_friendly_name());
+        ngraph::copy_runtime_info(topk, new_ops);
+        topk->output(0).replace(topk_ie->output(0));
+        topk->output(1).replace(index_output);
         return true;
     };
 

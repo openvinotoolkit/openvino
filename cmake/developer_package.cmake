@@ -172,8 +172,8 @@ endif()
 set(CMAKE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX})
 set(CMAKE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX})
 
-if (WIN32)
-    # Support CMake multiconfiguration for Visual Studio build
+if (WIN32 OR CMAKE_GENERATOR STREQUAL "Xcode")
+    # Support CMake multiconfiguration for Visual Studio or Xcode build
     set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
 else ()
     if (${CMAKE_BUILD_TYPE} STREQUAL "Debug" )
@@ -187,10 +187,6 @@ message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
 
 if(NOT UNIX)
-    if (WIN32)
-        # set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-        # set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
-    endif()
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
     set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
@@ -205,6 +201,10 @@ else()
 endif()
 
 if(APPLE)
+    # WA for Xcode generator + object libraries issue:
+    # https://gitlab.kitware.com/cmake/cmake/issues/20260
+    # http://cmake.3232098.n2.nabble.com/XCODE-DEPEND-HELPER-make-Deletes-Targets-Before-and-While-They-re-Built-td7598277.html
+    set(CMAKE_XCODE_GENERATE_TOP_LEVEL_PROJECT_ONLY ON)
     set(CMAKE_MACOSX_RPATH ON)
 endif()
 
