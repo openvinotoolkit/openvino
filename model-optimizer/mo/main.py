@@ -92,7 +92,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
                         continue
                 lines.append('\t{}: \t{}'.format(desc, getattr(argv, op, 'NONE')))
     lines.append('Model Optimizer version: \t{}'.format(get_version()))
-    print('\n'.join(lines))
+    print('\n'.join(lines), flush=True)
 
 
 def prepare_ir(argv: argparse.Namespace):
