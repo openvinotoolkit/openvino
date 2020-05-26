@@ -852,7 +852,7 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_linear_before_r
                                              -0.9442929f,
                                              0.33684915f,
                                          });
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 2);
 }
 
 // RNNLikeSequenceOp test fixture for test setup reuse
