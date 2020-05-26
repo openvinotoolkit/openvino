@@ -24,8 +24,8 @@ class ResizeExtractor(FrontExtractorOp):
     op = 'Resize'
     enabled = True
 
-    @staticmethod
-    def extract(node: Node):
+    @classmethod
+    def extract(cls, node: Node):
         mode = onnx_attr(node, 'mode', 's', default=b'nearest').decode()
         UpsampleOp.update_node_stat(node, {'mode': mode})
-        return __class__.enabled
+        return cls.enabled
