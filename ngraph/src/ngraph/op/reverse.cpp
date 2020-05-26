@@ -142,7 +142,7 @@ void op::v1::Reverse::validate_and_infer_types()
         const auto rank = input_rank.get_length();
         const auto rev_axes_node = input_value(1).get_node_shared_ptr();
 
-        if (rev_axes_node->is_constant())
+        if (is_type<op::v0::Constant>(rev_axes_node))
         {
             const auto rev_axes_constant = as_type_ptr<op::Constant>(rev_axes_node);
 

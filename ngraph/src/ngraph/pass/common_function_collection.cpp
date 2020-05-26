@@ -17,6 +17,7 @@
 #include <sstream>
 
 #include "common_function_collection.hpp"
+#include "ngraph/op/constant.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -48,13 +49,12 @@ bool pass::CommonFunctionCollection::run_on_module(vector<shared_ptr<Function>>&
     {
         for (const shared_ptr<Node>& n : current_function->get_ordered_ops())
         {
-            if (n->is_constant() || n->is_parameter())
+            if (is_type<op::v0::Constant>(n) || is_type<op::v0::Parameter>(n))
             {
                 continue;
             }
-            if (n->is_op())
+            if (auto op = std::dynamic_pointer_cast<op::Op>(n))
             {
-                auto op = std::static_pointer_cast<op::Op>(n);
                 auto annotations = op->get_op_annotations();
                 // If an op is passed through, do not add it to the common function
                 // collection so that the emitter can decide to eliminate it if desired

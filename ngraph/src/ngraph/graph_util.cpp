@@ -138,7 +138,7 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
                           std::shared_ptr<Node> replacement,
                           const std::vector<int64_t>& output_order)
 {
-    if (target->is_output())
+    if (is_type<op::v0::Result>(target))
     {
         throw ngraph_error("Result nodes cannot be replaced.");
     }
@@ -193,7 +193,7 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
 void ngraph::replace_node(const std::shared_ptr<Node>& target,
                           const OutputVector& replacement_values)
 {
-    if (target->is_output())
+    if (is_type<op::v0::Result>(target))
     {
         throw ngraph_error("Result nodes cannot be replaced.");
     }
@@ -266,7 +266,7 @@ bool ngraph::is_post_dominated(Node* X, Node* Y)
     {
         ngraph::Node* curr = stack.top();
         visited.insert(curr);
-        if (curr->is_output())
+        if (is_type<op::v0::Result>(curr))
         {
             return false;
         }
@@ -649,7 +649,7 @@ bool ngraph::is_used(Node* node)
         ngraph::Node* n = stack.top();
         if (instances_seen.count(n) == 0)
         {
-            if (n->is_output())
+            if (is_type<op::v0::Result>(n))
             {
                 return true;
             }
@@ -683,9 +683,8 @@ bool ngraph::possibly_overwritten(Node* node)
     {
         for (auto& input : output.get_target_inputs())
         {
-            if (input.get_node()->is_op())
+            if (auto op = dynamic_cast<op::Op*>(input.get_node()))
             {
-                auto op = static_cast<ngraph::op::Op*>(input.get_node());
                 if (auto op_annotations = op->get_op_annotations())
                 {
                     for (auto oi_pair : op_annotations->get_in_place_oi_pairs())
@@ -722,7 +721,7 @@ bool ngraph::is_valid_rank(const std::shared_ptr<Node>& node, std::vector<size_t
 
 bool ngraph::compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2)
 {
-    if (!(n1->is_constant() && n2->is_constant()))
+    if (!(is_type<op::v0::Constant>(n1) && is_type<op::v0::Constant>(n2)))
     {
         return false;
     }

@@ -29,22 +29,6 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(op, is_op)
-{
-    auto arg0 = make_shared<op::Parameter>(element::f32, Shape{1});
-    ASSERT_NE(nullptr, arg0);
-    EXPECT_TRUE(arg0->is_parameter());
-}
-
-TEST(op, is_parameter)
-{
-    auto arg0 = make_shared<op::Parameter>(element::f32, Shape{1});
-    ASSERT_NE(nullptr, arg0);
-    auto t0 = make_shared<op::Add>(arg0, arg0);
-    ASSERT_NE(nullptr, t0);
-    EXPECT_FALSE(t0->is_parameter());
-}
-
 TEST(op, provenance_tag)
 {
     auto node = make_shared<op::Parameter>(element::f32, Shape{1});

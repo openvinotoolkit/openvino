@@ -52,7 +52,6 @@ namespace ngraph
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
-                bool is_parameter() const override { return true; }
                 void validate_and_infer_types() override;
 
                 bool get_cacheable() const { return m_cacheable; }

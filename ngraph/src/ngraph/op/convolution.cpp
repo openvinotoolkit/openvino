@@ -614,7 +614,7 @@ void op::v1::ConvolutionBackpropFilters::validate_and_infer_types()
     PartialShape forward_result_shape;
     PartialShape filters_shape{PartialShape::dynamic()};
 
-    if (input_value(2).get_node_shared_ptr()->is_constant())
+    if (is_type<op::v0::Constant>(input_value(2).get_node_shared_ptr()))
     {
         filters_shape = get_filters_shape();
     }
@@ -628,7 +628,7 @@ void op::v1::ConvolutionBackpropFilters::validate_and_infer_types()
         delta_et,
         ").");
 
-    if (input_value(1).get_node_shared_ptr()->is_constant())
+    if (is_type<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
     {
         forward_result_shape =
             infer_convolution_forward(this,

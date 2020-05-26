@@ -7,6 +7,7 @@
 #include <queue>
 #include <assert.h>
 
+#include <ngraph/op/constant.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
@@ -75,7 +76,7 @@ void check_rt_info(const std::shared_ptr<ngraph::Function> & f) {
 
     std::ostringstream err_log;
     for (auto & op : f->get_ops()) {
-        if (op->is_constant()) continue;
+        if (ngraph::is_type<ngraph::op::v0::Constant>(op)) continue;
 
         const auto & rt_info = op->get_rt_info();
         for (const auto & attr_name : attrs_to_check) {

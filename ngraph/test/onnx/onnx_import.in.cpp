@@ -365,6 +365,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_op_in_unknown_domain)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
 {
+    // Add node type info to avoid export NullNode from onnx importer
+    static NodeTypeInfo null_type_info{"NullNode", 0};
     onnx_import::register_operator(
         "TestMissingInOut", 1, "com.intel.ai", [](const onnx_import::Node& node) -> NodeVector {
             NodeVector ng_inputs{node.get_ng_inputs()};
@@ -373,7 +375,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
             std::shared_ptr<ngraph::Node> C = ng_inputs.at(2);
 
             A = A * C;
-            if (!B->is_null())
+            if (!B->get_type_info().is_castable(null_type_info))
             {
                 B = B / C;
             }
@@ -390,7 +392,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
 
             for (const auto& ng_input : ng_inputs)
             {
-                if (!ng_input->is_null())
+                if (!ng_input->get_type_info().is_castable(null_type_info))
                 {
                     result = ng_input * result;
                 }

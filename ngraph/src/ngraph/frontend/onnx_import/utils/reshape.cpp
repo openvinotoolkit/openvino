@@ -102,7 +102,7 @@ namespace ngraph
                              node_shape);
 
                 // If node is a Constant, recreate as Constant with Shape{}
-                if (node->is_constant())
+                if (is_type<op::v0::Constant>(node))
                 {
                     const auto value =
                         ngraph::as_type_ptr<default_opset::Constant>(node)->get_data_ptr();

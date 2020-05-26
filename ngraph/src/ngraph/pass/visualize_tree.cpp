@@ -353,7 +353,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
     vector<string> attributes;
     attributes.push_back("shape=box");
 
-    if (node->is_output())
+    if (is_type<op::v0::Result>(node))
     {
         attributes.push_back("color=crimson");
         attributes.push_back("penwidth=1.5");

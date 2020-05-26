@@ -29,9 +29,8 @@ bool pass::PropagateCacheability::run_on_function(shared_ptr<Function> function)
 {
     for (auto& node : function->get_ordered_ops())
     {
-        if (node->is_op())
+        if (auto op = dynamic_pointer_cast<op::Op>(node))
         {
-            auto op = static_pointer_cast<op::Op>(node);
             NGRAPH_DEBUG << "propagate cacheability: node is " << node->get_name();
             auto op_annotations = op->get_op_annotations();
             if (!op_annotations)
@@ -40,7 +39,7 @@ bool pass::PropagateCacheability::run_on_function(shared_ptr<Function> function)
                 op_annotations = op_annotations_factory();
                 op->set_op_annotations(op_annotations);
             }
-            if (node->is_parameter())
+            if (is_type<op::v0::Parameter>(node))
             {
                 auto parameter = static_pointer_cast<op::Parameter>(node);
                 op_annotations->set_cacheable(parameter->get_cacheable());
@@ -54,9 +53,8 @@ bool pass::PropagateCacheability::run_on_function(shared_ptr<Function> function)
                 {
                     auto input_value_node = input.get_source_output().get_node_shared_ptr();
                     NGRAPH_DEBUG << "propagate cacheability: arg is " << *input_value_node;
-                    if (input_value_node->is_op())
+                    if (auto arg_op = dynamic_pointer_cast<op::Op>(input_value_node))
                     {
-                        auto arg_op = static_pointer_cast<op::Op>(input_value_node);
                         auto arg_op_annotations = arg_op->get_op_annotations();
                         NGRAPH_CHECK(arg_op_annotations);
                         if (!arg_op_annotations->is_cacheable())

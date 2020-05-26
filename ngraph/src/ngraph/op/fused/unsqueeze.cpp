@@ -42,7 +42,7 @@ void op::Unsqueeze::pre_validate_and_infer_types()
 
     const auto axes_node = input_value(1).get_node_shared_ptr();
 
-    if (data_rank.is_dynamic() || !axes_node->is_constant())
+    if (data_rank.is_dynamic() || !is_type<op::v0::Constant>(axes_node))
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
         return;

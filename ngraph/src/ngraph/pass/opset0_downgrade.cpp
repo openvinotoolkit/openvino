@@ -121,7 +121,7 @@ namespace
 
     shared_ptr<Node> op_cast(shared_ptr<op::v1::AvgPoolBackprop> node)
     {
-        NGRAPH_CHECK(node->input_value(1).get_node_shared_ptr()->is_constant());
+        NGRAPH_CHECK(is_type<op::v0::Constant>(node->input_value(1).get_node_shared_ptr()));
         const auto forward_arg_shape =
             static_pointer_cast<op::Constant>(node->input_value(1).get_node_shared_ptr())
                 ->get_shape_val();
@@ -154,7 +154,7 @@ namespace
         shared_ptr<Node> replacement_node;
 
         if (arg_rank.is_static() && arg_rank.get_length() == 0 &&
-            !target_shape_input.get_node_shared_ptr()->is_constant())
+            !is_type<op::v0::Constant>(target_shape_input.get_node_shared_ptr()))
         {
             replacement_node = make_shared<op::DynBroadcast>(
                 arg,
@@ -171,7 +171,7 @@ namespace
                          *node);
             const auto& arg_shape = arg_pshape.to_shape();
 
-            NGRAPH_CHECK(target_shape_input.get_node_shared_ptr()->is_constant());
+            NGRAPH_CHECK(is_type<op::v0::Constant>(target_shape_input.get_node_shared_ptr()));
             auto target_shape = node->get_output_shape(0);
             NGRAPH_CHECK(node->get_broadcast_axes().first);
 
@@ -272,7 +272,7 @@ namespace
 
     shared_ptr<Node> op_cast(shared_ptr<op::v1::ConvolutionBackpropFilters> node)
     {
-        NGRAPH_CHECK(node->input_value(2).get_node_shared_ptr()->is_constant());
+        NGRAPH_CHECK(is_type<op::v0::Constant>(node->input_value(2).get_node_shared_ptr()));
         auto filters_shape =
             static_pointer_cast<op::Constant>(node->input_value(2).get_node_shared_ptr())
                 ->get_shape_val();
@@ -310,7 +310,7 @@ namespace
 
         const auto target_shape_input = node->input_value(1).get_node_shared_ptr();
         const auto input_rank = node->get_input_partial_shape(0).rank();
-        if (target_shape_input->is_constant() && node->get_output_partial_shape(0).is_static() &&
+        if (is_type<op::v0::Constant>(target_shape_input) && node->get_output_partial_shape(0).is_static() &&
             input_rank.is_static())
         {
             const auto output_shape = node->get_output_shape(0);
@@ -354,7 +354,7 @@ namespace
 
     shared_ptr<Node> op_cast(shared_ptr<op::v1::GenerateMask> node)
     {
-        NGRAPH_CHECK(node->input_value(1).get_node_shared_ptr()->is_constant());
+        NGRAPH_CHECK(is_type<op::v0::Constant>(node->input_value(1).get_node_shared_ptr()));
         auto mask_shape =
             static_pointer_cast<op::Constant>(node->input_value(1).get_node_shared_ptr())
                 ->get_shape_val();
@@ -560,7 +560,7 @@ namespace
         auto off_value = node->input_value(3);
         const auto axis = node->get_axis();
 
-        NGRAPH_CHECK(depth->is_constant(), "depth input must be constant", *node);
+        NGRAPH_CHECK(is_type<op::v0::Constant>(depth), "depth input must be constant", *node);
         const auto output_pshape = node->get_output_partial_shape(0);
         NGRAPH_CHECK(output_pshape.is_static(), "output shape must be static", *node);
         const auto output_shape = output_pshape.to_shape();
@@ -668,7 +668,7 @@ namespace
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Reverse> node)
     {
         auto axes_node = node->input_value(1).get_node_shared_ptr();
-        NGRAPH_CHECK(axes_node->is_constant(),
+        NGRAPH_CHECK(is_type<op::v0::Constant>(axes_node),
                      "Unable to convert Reverse:v1 to Reverse:v0 "
                      "if reduction axes are not constant. Node: ",
                      *node);
@@ -836,7 +836,7 @@ namespace
         const auto data_shape = data_pshape.to_shape();
 
         const auto order_node = node->input_value(1).get_node_shared_ptr();
-        NGRAPH_CHECK(order_node->is_constant(),
+        NGRAPH_CHECK(is_type<op::v0::Constant>(order_node),
                      "Unable to convert Transpose:v1 to Reshape:v0 "
                      "if order node is not constant. Node: ",
                      *node);
@@ -866,7 +866,7 @@ namespace
     {
         const auto split_lengths = node->input_value(2).get_node_shared_ptr();
 
-        NGRAPH_CHECK(split_lengths->is_constant(),
+        NGRAPH_CHECK(is_type<op::v0::Constant>(split_lengths),
                      "Unable to convert VariadicSplit:v1 to Split:v0 "
                      "if 'split_lengths' input is not constant. Node: ",
                      *node);

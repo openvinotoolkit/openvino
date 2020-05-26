@@ -67,7 +67,7 @@ std::shared_ptr<Function>
 
     for (auto old_node : f->get_ordered_ops())
     {
-        if (old_node->is_parameter())
+        if (is_type<op::v0::Parameter>(old_node))
         {
             continue;
         }

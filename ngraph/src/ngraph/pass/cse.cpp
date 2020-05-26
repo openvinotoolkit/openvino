@@ -303,7 +303,7 @@ bool ngraph::pass::CommonSubexpressionElimination::run_on_function(shared_ptr<ng
 
     for (auto n : f->get_ordered_ops())
     {
-        if (n->is_output() || n->is_parameter())
+        if (is_type<op::v0::Result>(n) || is_type<op::v0::Parameter>(n))
         {
             continue;
         }

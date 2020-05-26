@@ -58,7 +58,7 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
             auto input = reduce->input_value(0);
 
             auto axes_node = reduce->input_value(1).get_node_shared_ptr();
-            if (!axes_node->is_constant()) {
+            if (!is_type<op::v0::Constant>(axes_node)) {
                 return false;
             }
 

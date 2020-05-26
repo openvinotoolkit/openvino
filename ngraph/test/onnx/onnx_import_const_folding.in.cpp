@@ -44,7 +44,7 @@ namespace
 
         for (auto ng_node : ng_function->get_ordered_ops())
         {
-            if (ng_node->is_constant())
+            if (is_type<op::v0::Constant>(ng_node))
             {
                 const auto folded_node = as_type_ptr<default_opset::Constant>(ng_node);
                 const auto output_values = folded_node->cast_vector<T>();

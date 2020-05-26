@@ -75,7 +75,7 @@ namespace ngraph
                     attrs.mode = mode;
                     attrs.align_corners = false;
 
-                    if (scales->is_constant() && data_shape.is_static())
+                    if (is_type<ngraph::op::v0::Constant>(scales) && data_shape.is_static())
                     {
                         const auto scales_const =
                             as_type_ptr<default_opset::Constant>(scales->shared_from_this());

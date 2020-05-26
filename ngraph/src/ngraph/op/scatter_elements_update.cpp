@@ -91,7 +91,7 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types()
                           " and: ",
                           updates_shape);
 
-    if (input_value(3).get_node_shared_ptr()->is_constant() && data_shape.rank().is_static())
+    if (is_type<op::v0::Constant>(input_value(3).get_node_shared_ptr()) && data_shape.rank().is_static())
     {
         const auto axis_input = as_type_ptr<op::v0::Constant>(input_value(3).get_node_shared_ptr());
         auto axis = axis_input->cast_vector<int64_t>().at(0);

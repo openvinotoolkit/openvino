@@ -119,7 +119,7 @@ void ngraph::op::v1::GenerateMask::validate_and_infer_types()
 
     PartialShape mask_shape{PartialShape::dynamic()};
 
-    if (input_value(1).get_node_shared_ptr()->is_constant())
+    if (is_type<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
     {
         mask_shape = get_mask_shape();
     }

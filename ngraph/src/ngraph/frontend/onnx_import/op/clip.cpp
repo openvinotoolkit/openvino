@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "clip.hpp"
+#include "core/null_node.hpp"
 #include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
 
@@ -57,7 +58,7 @@ namespace ngraph
 
                     // If second input is provided, assign to min input, otherwise set lowest
                     // numeric limit of double as min input.
-                    if (inputs.size() > 1 && !inputs.at(1)->is_null())
+                    if (inputs.size() > 1 && !is_type<NullNode>(inputs.at(1)))
                     {
                         min = inputs.at(1);
                     }
@@ -69,7 +70,7 @@ namespace ngraph
 
                     // If third input is provided, assign to max input, otherwise set maximum
                     // numeric limit of double as max input.
-                    if (inputs.size() == 3 && !inputs.at(2)->is_null())
+                    if (inputs.size() == 3 && !is_type<NullNode>(inputs.at(2)))
                     {
                         max = inputs.at(2);
                     }

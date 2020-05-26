@@ -167,7 +167,7 @@ namespace ngraph
                     if (inputs.size() >= 4) // axes input provided
                     {
                         axes = inputs.at(3);
-                        NGRAPH_CHECK(axes->is_constant(), "Axes input must be constant");
+                        NGRAPH_CHECK(is_type<ngraph::op::v0::Constant>(axes), "Axes input must be constant");
                     }
                     else
                     {

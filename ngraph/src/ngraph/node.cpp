@@ -299,16 +299,6 @@ const std::deque<descriptor::Output>& Node::get_outputs() const
     return m_outputs;
 }
 
-bool Node::is_output() const
-{
-    return false;
-}
-
-bool Node::is_constant() const
-{
-    return false;
-}
-
 const std::string& Node::description() const
 {
     // Terrible transitional kludge to keep description working while we change

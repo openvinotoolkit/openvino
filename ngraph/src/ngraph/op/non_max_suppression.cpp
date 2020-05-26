@@ -178,7 +178,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
 
     const auto max_output_boxes_per_class = input_value(2).get_node_shared_ptr();
     if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
-        max_output_boxes_per_class->is_constant())
+        is_type<op::v0::Constant>(max_output_boxes_per_class))
     {
         const auto num_boxes = num_boxes_boxes.get_length();
         const auto max_output_boxes_per_class = max_boxes_output_from_input();
@@ -388,7 +388,7 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
 
     const auto max_output_boxes_per_class = input_value(2).get_node_shared_ptr();
     if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
-        max_output_boxes_per_class->is_constant())
+        is_type<op::v0::Constant>(max_output_boxes_per_class))
     {
         const auto num_boxes = num_boxes_boxes.get_length();
         const auto max_output_boxes_per_class = max_boxes_output_from_input();

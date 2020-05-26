@@ -642,7 +642,7 @@ void op::v1::AvgPoolBackprop::validate_and_infer_types()
 
     PartialShape forward_arg_shape{PartialShape::dynamic()};
 
-    if (input_value(1).get_node_shared_ptr()->is_constant())
+    if (is_type<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
     {
         forward_arg_shape = get_forward_arg_shape();
     }

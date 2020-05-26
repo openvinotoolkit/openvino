@@ -192,7 +192,7 @@ void op::util::BroadcastBase::validate_and_infer_types()
                                   " doesn't match rank of input tensor ",
                                   arg_shape.size());
 
-            if (shape_constant && input_value(2).get_node_shared_ptr()->is_constant())
+            if (shape_constant && is_type<op::v0::Constant>(input_value(2).get_node_shared_ptr()))
             {
                 auto target_shape = shape_constant->get_shape_val();
                 auto axes_mapping_val =

@@ -545,7 +545,7 @@ bool ngraph::pass::ReshapeSinking::run_on_function(shared_ptr<ngraph::Function> 
     {
         NGRAPH_DEBUG << "Start: Processing node " << n->get_name();
         // collect all Result nodes for a sanity check
-        if (n->is_output())
+        if (is_type<op::v0::Result>(n))
         {
             results.push_back(n);
         }

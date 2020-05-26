@@ -481,7 +481,7 @@ TEST(autobroadcast, axes_mapping_from_bcast_axes)
     const AxisSet broadcast_axes{0, 2};
 
     auto axes_mapping = builder::opset1::get_axes_mapping_output(output_shape, broadcast_axes);
-    EXPECT_TRUE(axes_mapping.get_node()->is_constant());
+    EXPECT_TRUE(is_type<op::v0::Constant>(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
     EXPECT_EQ(axes_mapping_shape.size(), 2);
     EXPECT_EQ(axes_mapping_shape, (Shape{1, 3}));
@@ -494,7 +494,7 @@ TEST(autobroadcast, axes_mapping_from_bcast_axes_scalar)
     const AxisSet broadcast_axes{0, 1, 2, 3};
 
     auto axes_mapping = builder::opset1::get_axes_mapping_output(output_shape, broadcast_axes);
-    EXPECT_TRUE(axes_mapping.get_node()->is_constant());
+    EXPECT_TRUE(is_type<op::v0::Constant>(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
     EXPECT_EQ(axes_mapping_shape.size(), 0);
     EXPECT_EQ(axes_mapping_shape, (Shape{}));
@@ -507,7 +507,7 @@ TEST(autobroadcast, axes_mapping_from_bcast_axes_identical)
     const AxisSet broadcast_axes{};
 
     auto axes_mapping = builder::opset1::get_axes_mapping_output(output_shape, broadcast_axes);
-    EXPECT_TRUE(axes_mapping.get_node()->is_constant());
+    EXPECT_TRUE(is_type<op::v0::Constant>(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
     EXPECT_EQ(axes_mapping_shape.size(), output_shape.size());
     EXPECT_EQ(axes_mapping_shape, (Shape{0, 1, 2, 3}));
@@ -521,7 +521,7 @@ TEST(autobroadcast, axes_mapping_start_match_axis)
 
     auto axes_mapping =
         builder::opset1::get_axes_mapping_output(output_shape, input_shape, start_match_axis);
-    EXPECT_TRUE(axes_mapping.get_node()->is_constant());
+    EXPECT_TRUE(is_type<op::v0::Constant>(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
     EXPECT_EQ(axes_mapping_shape.size(), 2);
     EXPECT_EQ(axes_mapping_shape, (Shape{1, 2}));
@@ -535,7 +535,7 @@ TEST(autobroadcast, axes_mapping_start_match_axis_scalar)
 
     auto axes_mapping =
         builder::opset1::get_axes_mapping_output(output_shape, input_shape, start_match_axis);
-    EXPECT_TRUE(axes_mapping.get_node()->is_constant());
+    EXPECT_TRUE(is_type<op::v0::Constant>(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
     EXPECT_EQ(axes_mapping_shape.size(), 0);
     EXPECT_EQ(axes_mapping_shape, (Shape{}));
@@ -549,7 +549,7 @@ TEST(autobroadcast, axes_mapping_start_match_axis_identical)
 
     auto axes_mapping =
         builder::opset1::get_axes_mapping_output(output_shape, input_shape, start_match_axis);
-    EXPECT_TRUE(axes_mapping.get_node()->is_constant());
+    EXPECT_TRUE(is_type<op::v0::Constant>(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
     EXPECT_EQ(axes_mapping_shape.size(), output_shape.size());
     EXPECT_EQ(axes_mapping_shape, (Shape{0, 1, 2, 3}));

@@ -18,6 +18,7 @@
 #include <memory>
 #include <vector>
 
+#include "core/null_node.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/builder/quantization/quantized_linear_convolution.hpp"
@@ -235,7 +236,7 @@ namespace ngraph
                     std::shared_ptr<ngraph::Node> conv_node = nullptr;
 
                     // no bias param
-                    if (inputs.size() == 9 && !inputs.at(8)->is_null())
+                    if (inputs.size() == 9 && !is_type<NullNode>(inputs.at(8)))
                     {
                         auto bias = inputs.at(8);
                         conv_node = make_ng_quant_conv(

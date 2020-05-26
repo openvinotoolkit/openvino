@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <memory>
 
+#include "core/null_node.hpp"
 #include "default_opset.hpp"
 #include "dequantize_linear.hpp"
 #include "ngraph/axis_set.hpp"
@@ -41,7 +42,7 @@ namespace ngraph
                     std::shared_ptr<ngraph::Node> x = inputs.at(0);
                     std::shared_ptr<ngraph::Node> x_scale = inputs.at(1);
                     std::shared_ptr<ngraph::Node> zero_point;
-                    if (inputs.size() == 3 && !inputs.at(2)->is_null())
+                    if (inputs.size() == 3 && !is_type<NullNode>(inputs.at(2)))
                     {
                         zero_point = inputs.at(2);
                     }

@@ -442,7 +442,6 @@ namespace ngraph
                         get_data_ptr());
                 }
 
-                bool is_constant() const override { return true; }
                 bool get_all_data_elements_bitwise_identical() const
                 {
                     return m_all_elements_bitwise_identical;

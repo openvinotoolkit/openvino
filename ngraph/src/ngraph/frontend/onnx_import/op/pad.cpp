@@ -113,7 +113,7 @@ namespace ngraph
                             data->get_element_type(), ngraph::Shape{}, {0});
                     }
 
-                    if (pads->is_constant())
+                    if (is_type<ngraph::op::v0::Constant>(pads))
                     {
                         std::vector<std::int64_t> pads_vector =
                             ngraph::as_type_ptr<default_opset::Constant>(pads)
