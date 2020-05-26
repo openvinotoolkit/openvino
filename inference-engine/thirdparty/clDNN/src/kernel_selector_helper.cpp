@@ -206,6 +206,8 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::bfwzyx;
         case kernel_selector::data_layout::b_fs_yx_fsv4:
             return cldnn::format::b_fs_yx_fsv4;
+        case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv16:
+            return cldnn::format::bs_fs_yx_bsv16_fsv16;
         case kernel_selector::data_layout::nv12:
             return cldnn::format::nv12;
         case kernel_selector::data_layout::image_2d_rgba:

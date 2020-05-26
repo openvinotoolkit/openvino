@@ -195,7 +195,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                 uint out_idx = OUTPUT_GET_INDEX(batch, f, or + r, oc + c);
             #elif OUTPUT_LAYOUT_B_FS_YX_FSV4 == 1
                 uint out_idx = output_idx_offset + r * output_row_size_bytes + (c*PACK);
-            #elif OUTPUT_LAYOUT_B_FS_YX_FSV16 == 1
+            #elif OUTPUT_LAYOUT_B_FS_YX_FSV16 == 1 || OUTPUT_LAYOUT_BS_FS_YX_BSV16_FSV16 == 1
                 uint out_idx = OUTPUT_GET_INDEX(batch, f, or + r, oc + c);
             #else
                 #error "Incorrect output layout"

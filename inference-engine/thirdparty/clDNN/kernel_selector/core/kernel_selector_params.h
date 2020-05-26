@@ -440,7 +440,8 @@ struct base_activation_params {
 struct FusedOpsConfiguration {
     enum class LoadType {
         LT_UNALIGNED = 0,
-        LT_ALIGNED_READ = 1
+        LT_ALIGNED_READ = 1,
+        FEATURE_SHUFFLE = 2
     };
 
     enum class BoundaryCheck {

@@ -157,6 +157,7 @@ private:
                                         const layout &weights_layout,
                                         std::shared_ptr<const convolution> conv);
     bool convolution_bs_fs_yx_bsv16_fsv16_opt(const layout &input_layout,
+                                              const layout& weights_layout,
                                               std::shared_ptr<const convolution> conv);
     bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
                                        const layout& weights_layout,

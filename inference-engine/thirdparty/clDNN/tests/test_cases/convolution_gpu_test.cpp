@@ -8307,6 +8307,25 @@ using convolution_random_test_fsv4_input_u8s8f32 = convolution_random_test_fsv4_
 using convolution_scale_random_test_s8s8f32 = convolution_scale_random_test<int8_t, int8_t, float>;
 using convolution_scale_random_test_u8s8f32 = convolution_scale_random_test<uint8_t, int8_t, float>;
 
+INSTANTIATE_TEST_CASE_P(
+    bs_fs_yx_bsv16_fsv16,
+    convolution_scale_random_test_u8s8f32,
+    testing::Combine(
+        testing::Values(16, 32),                                                           // batch
+        testing::Values(32, 128),                                                          // input features
+        testing::Values(32, 64),                                                           // output features
+        testing::Values(std::pair<size_t, size_t>(4, 4), std::pair<size_t, size_t>(9, 9)), // input x, y
+        testing::Values(std::pair<size_t, size_t>(1, 1), std::pair<size_t, size_t>(3, 3)), // filter x, y
+        testing::Values(std::pair<int, int>(1, 1),
+                        std::pair<int, int>(2, 2),
+                        std::pair<int, int>(3, 3)),                                        // strides x, y
+        testing::Values(std::pair<int, int>(0, 0)),                                        // offsets x, y
+        testing::Values(std::pair<int, int>(1, 1)),                                        // dilation x, y
+        testing::Values(false, true),                                                      // bias
+        testing::Values(format::bs_fs_yx_bsv16_fsv16)                                      // input format
+    ),
+    to_string_convolution_random_params<convolution_random_test_params>);
+
 struct params_generator : std::vector<convolution_random_test_all_params> {
     params_generator& smoke_test_params(format::type input_format, bool asymm_weights = false, bool asymm_data = false, bool padded_input = false) {
         std::vector<size_t> batches = { 1, 2 };

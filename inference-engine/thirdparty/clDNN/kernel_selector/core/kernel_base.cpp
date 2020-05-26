@@ -99,12 +99,15 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
 
             bool can_use_preload = fused_dep_codegen.CanPreloadData(c);
             can_all_use_preload &= can_use_preload;
-
+            bool can_preload_eltwise = true;
+            if (params.fused_ops[i].GetType() == FusedOpType::ELTWISE &&
+                c.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE)
+                can_preload_eltwise = false;
             fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
             fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
-            if (can_use_preload)
+            if (can_use_preload && can_preload_eltwise)
                 fused_ops_preload += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
-            if (c.allow_for_partial_preload && !can_use_preload)
+            if ((c.allow_for_partial_preload && !can_use_preload) || !can_preload_eltwise)
                 fused_ops_calc += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
             fused_ops_calc += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
         }
