@@ -18,9 +18,8 @@
 #include <istream>
 #include <mutex>
 
-#include <details/ie_so_pointer.hpp>
 #include "ie_blob_stream.hpp"
-#include <ie_reader.hpp>
+#include <ie_reader_ptr.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include "cpp/ie_cnn_net_reader.h"
 #include "cpp/ie_plugin_cpp.hpp"
@@ -134,27 +133,14 @@ Parameter copyParameterValue(const Parameter & value) {
 
 }  // namespace
 
-namespace details {
-
-template <>
-class SOCreatorTrait<IReader> {
-public:
-    /**
-     * @brief A name of the fabric for creating IReader object in DLL
-     */
-    static constexpr auto name = "CreateReader";
-};
-
-}  // namespace details
-
 class Reader: public IReader {
 private:
-    InferenceEngine::details::SOPointer<IReader> ptr;
+    InferenceEngine::IReaderPtr ptr;
     std::once_flag readFlag;
     std::string name;
     std::string location;
 
-    InferenceEngine::details::SOPointer<IReader> getReaderPtr() {
+    InferenceEngine::IReaderPtr getReaderPtr() {
         std::call_once(readFlag, [&] () {
             FileUtils::FilePath libraryName = FileUtils::toFilePath(location);
             FileUtils::FilePath readersLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
@@ -164,13 +150,13 @@ private:
                     << FileUtils::fromFilePath(::FileUtils::makeSharedLibraryName({}, libraryName)) << " is in "
                     << getIELibraryPath();
             }
-            ptr = InferenceEngine::details::SOPointer<IReader>(readersLibraryPath);
+            ptr = IReaderPtr(readersLibraryPath);
         });
 
         return ptr;
     }
 
-    InferenceEngine::details::SOPointer<IReader> getReaderPtr() const {
+    InferenceEngine::IReaderPtr getReaderPtr() const {
         return const_cast<Reader*>(this)->getReaderPtr();
     }
 
@@ -388,8 +374,6 @@ public:
 
     CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
-        IE_SUPPRESS_DEPRECATED_START
-        ResponseDesc desc;
 
         std::ifstream modelStream(modelPath, std::ios::binary);
         if (!modelStream.is_open())
