@@ -1602,6 +1602,10 @@ bool isStageDependencyNeeded(
         return false;
     }
 
+    if (dependentStage == dependencyProducer) {
+        return false;
+    }
+
     // Check one level above, it covers current cases while checking all the levels might be computationally expensive
     for (const auto& prevStage : dependencyProducer->prevStages()) {
         if (prevStage == dependentStage) {
@@ -1615,7 +1619,7 @@ bool isStageDependencyNeeded(
         }
     }
 
-    return dependentStage == dependencyProducer ? false : true;
+    return true;
 }
 
 } // namespace
