@@ -22,7 +22,7 @@ class INFERENCE_ENGINE_API_CLASS(ConvertOneHotToOneHotIE);
 
 class ngraph::pass::ConvertOneHotToOneHotIE: public ngraph::pass::GraphRewrite {
 public:
-    ConvertOneHotToOneHotIE() : is_f16(false), GraphRewrite() {
+    ConvertOneHotToOneHotIE() : GraphRewrite(), is_f16(false) {
         convert_one_hot();
     }
 
