@@ -17,38 +17,59 @@
 
 namespace LayerTestsDefinitions {
     std::string ReshapeLayerTest::getTestCaseName(testing::TestParamInfo<reshapeParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes, outFormShapes;
+    InferenceEngine::Precision inputPrecision;
+    ShapeConfig shapeConfig;
+    bool specialZero, synBatch;
     std::string targetDevice;
-    std::map<std::string, std::string> config;
-    bool specialZero;
-    std::tie(specialZero, netPrecision, inputShapes, outFormShapes, targetDevice, config) = obj.param;
+
+    std::tie(inputPrecision, shapeConfig, specialZero, synBatch, targetDevice) = obj.param;
+
     std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "specialZero=" << specialZero << "_";
-    result << "netPRC=" << netPrecision.name() << "_";
-    result << "targetDevice=" << targetDevice;
+    result << obj.index << "_";
+    result << "is=" << CommonTestUtils::vec2str(shapeConfig.first) << "_";
+    result << "os=" << CommonTestUtils::vec2str(shapeConfig.second) << "_";
+    result << "ip=" << inputPrecision << "_";
+    result << "specZero=" << specialZero << "_";
+    result << "dynBatch=" << synBatch << "_";
+    result << "dev=" << targetDevice;
     return result.str();
 }
 
 void ReshapeLayerTest::SetUp() {
-    InferenceEngine::SizeVector inputShapes, outFormShapes;
-    bool specialZero;
-    InferenceEngine::Precision netPrecision;
-    std::tie(specialZero, netPrecision, inputShapes, outFormShapes, targetDevice, configuration) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes});
-    auto paramIn = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
-    auto constNode = std::make_shared<ngraph::opset1::Constant>(
-            ngraph::element::Type_t::i64, ngraph::Shape{outFormShapes.size()}, outFormShapes);
-    auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(
-            std::make_shared<ngraph::opset1::Reshape>(paramIn[0], constNode, specialZero));
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape)};
-    function = std::make_shared<ngraph::Function>(results, paramsIn, "Reshape");
+    InferenceEngine::Precision inputPrecision;
+    ShapeConfig shapeConfig;
+    bool specialZero, dynBatch;
+
+    std::tie(inputPrecision, shapeConfig, specialZero, dynBatch, targetDevice) = this->GetParam();
+    auto inShape = shapeConfig.first;
+    auto outShape = shapeConfig.second;
+
+    /* TODO: WA. The CNNNetwork loses original precision info during some internal fallback logic.
+                 So we have to restore it manually.  */
+    outPrc = inputPrecision;
+
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
+
+    using namespace ngraph::opset1;
+    using ngraph::element::Type_t;
+    using ngraph::Shape;
+    using std::make_shared;
+
+    auto input1 = make_shared<Parameter>(ngPrc, Shape(inShape));
+    auto input2 = make_shared<Constant>(Type_t::i64, Shape{outShape.size()}, outShape);
+    auto reshape = make_shared<Reshape>(input1, input2, specialZero);
+    auto result = make_shared<Result>(reshape);
+
+    function = make_shared<ngraph::Function>(
+            ngraph::ResultVector {result},
+            ngraph::ParameterVector {input1},
+            "Reshape");
+
+    configuration[CONFIG_KEY(DYN_BATCH_ENABLED)] = dynBatch ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
 }
 
-TEST_P(ReshapeLayerTest, CompareWithRefsDynamicBath) {
+TEST_P(ReshapeLayerTest, CompareWithRefs) {
     Run();
 }
+
 }  // namespace LayerTestsDefinitions
