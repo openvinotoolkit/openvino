@@ -22,8 +22,8 @@ jobs:
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev
       python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
-      # For Python API tests, should be in requirements.txt
-      python3 -m pip install pytest==5.4.2
+      # For running Python API tests
+      python3 -m pip install -r ./inference-engine/ie_bridges/python/src/requirements-dev.txt
     displayName: 'Install dependencies'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
