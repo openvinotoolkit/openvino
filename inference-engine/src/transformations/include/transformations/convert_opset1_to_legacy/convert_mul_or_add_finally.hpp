@@ -70,9 +70,12 @@ ngraph::graph_rewrite_callback get_callback() {
                       "Unsupported template parameter. Only Add or Multiply allowed!");
 
         auto lin_op = std::dynamic_pointer_cast<T> (m.get_match_root());
-        if (!lin_op) {
+        if (!lin_op || lin_op->output(0).get_partial_shape().rank().is_dynamic()) {
             return false;
         }
+
+        const auto output_shape = lin_op->output(0).get_partial_shape();
+        const auto output_shape_rank = output_shape.rank().get_length();
 
         if (!lin_op->get_element_type().is_real()) {
             return convert_to_eltwise<T>(lin_op,
@@ -93,39 +96,58 @@ ngraph::graph_rewrite_callback get_callback() {
             }
         }
 
-        // Check that eltwise is not useless otherwise we remove it
-        if ((std::is_same<T, ngraph::opset1::Add>() && ngraph::op::util::constantIsEqualTo(const_node, 0)) ||
-            (std::is_same<T, ngraph::opset1::Multiply>() && ngraph::op::util::constantIsEqualTo(const_node, 1))) {
-            bool has_result_output = false;
-            for (const auto & output : lin_op->output(0).get_target_inputs()) {
-                if (dynamic_cast<ngraph::op::Result*>(output.get_node())) {
-                    has_result_output = true;
-                }
+        /* This lambda checks data and constant shapes for broadcasting
+           For example:
+                1. data_shape{1, 64, 64} and const_shape{64, 1, 1} - constant broadcasts data_shape zero dimension
+                2. data_shape{DYN, 64, 64} and const_shape{1, 1, 64} - constant do not broadcasts data_shape
+                3. data_shape{64, 64} and const_shape{1, 1, 1} - constant broadcasts data_shape with additional dimension
+        */
+        auto constant_broadcast_output = [](const ngraph::PartialShape & data_pshape, const ngraph::Shape & const_shape) -> bool {
+            if (data_pshape.rank().is_dynamic() || const_shape.size() > data_pshape.rank().get_length()) {
+                return true;
             }
 
-            auto parent = data_node.get_node_shared_ptr();
-            size_t consumers_count = 0;
-            for (const auto &output : parent->outputs()) {
-                consumers_count += output.get_target_inputs().size();
+            std::vector<ngraph::Dimension> data_shape(data_pshape);
+
+            auto const_shape_it = const_shape.rbegin();
+            auto data_shape_it = data_shape.rbegin();
+
+            while (const_shape_it != const_shape.rend()) {
+                auto data_dim = *data_shape_it;
+                auto const_dim = *const_shape_it;
+
+                /* DATA DIM - CONST DIM - CONSTANT BROADCAST OUTPUT
+                   DYN      - 64        - TRUE
+                   DYN      - 1         - FALSE
+                   64       - 1         - FALSE
+                   1        - 64        - TRUE
+                   64       - 64        - FALSE
+                */
+                if ((data_dim.is_dynamic() && const_dim != 1) ||
+                    (data_dim.is_static() && data_dim.get_length() == 1 && const_dim != 1)) {
+                    return true;
+                }
+
+                ++const_shape_it;
+                ++data_shape_it;
             }
 
-            if (!has_result_output || consumers_count == 1) {
-                if (!std::dynamic_pointer_cast<ngraph::op::Parameter>(parent)) {
-                    parent->set_friendly_name(lin_op->get_friendly_name());
-                }
-                // TODO: due to ngraph::replace_node function limitations we have to reconnect output port consumers to the new input
-                // using replace_source_output method
-                for (auto &input : lin_op->output(0).get_target_inputs()) {
-                    input.replace_source_output(data_node);
-                }
+            return false;
+        };
+
+        // Check that eltwise is not useless and do not broadcast output otherwise we remove it
+        if (((std::is_same<T, ngraph::opset1::Add>() && ngraph::op::util::constantIsEqualTo(const_node, 0)) ||
+            (std::is_same<T, ngraph::opset1::Multiply>() && ngraph::op::util::constantIsEqualTo(const_node, 1))) &&
+            !constant_broadcast_output(data_node.get_partial_shape(), const_node->get_shape())) {
+            bool ret_status = ngraph::replace_output_update_name(lin_op->output(0), data_node);
+            if (ret_status) {
                 return true;
             }
         }
 
+        auto res = check_constant(const_node, data_node.get_partial_shape());
 
-        auto res = check_constant(const_node, data_node.get_shape());
-
-        if (res == CONVERSION_RESULT::NONE || (res == CONVERSION_RESULT::SCALE_SHIFT && lin_op->get_shape().size() < 4)) {
+        if (res == CONVERSION_RESULT::NONE || (res == CONVERSION_RESULT::SCALE_SHIFT && output_shape_rank < 4)) {
             return convert_to_eltwise<T>(lin_op,
                                          lin_op->input(0).get_source_output(),
                                          lin_op->input(1).get_source_output());
@@ -140,12 +162,12 @@ ngraph::graph_rewrite_callback get_callback() {
             std::shared_ptr<ngraph::op::ScaleShiftIE> scaleshift;
             if (std::is_same<T, ngraph::opset1::Add>()) {
                 auto weights = ngraph::opset1::Constant::create(weights_et, weights_shape, {1});
-                scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, ngraph::op::util::normalize_constant(weights, lin_op->get_shape()),
-                                                                                   ngraph::op::util::normalize_constant(const_node, lin_op->get_shape()));
+                scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, ngraph::op::util::normalize_constant(weights, output_shape),
+                                                                                   ngraph::op::util::normalize_constant(const_node, output_shape));
             } else {
                 auto bias = ngraph::opset1::Constant::create(weights_et, weights_shape, {0});
-                scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, ngraph::op::util::normalize_constant(const_node, lin_op->get_shape()),
-                                                                                   ngraph::op::util::normalize_constant(bias, lin_op->get_shape()));
+                scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, ngraph::op::util::normalize_constant(const_node, output_shape),
+                                                                                   ngraph::op::util::normalize_constant(bias, output_shape));
             }
 
             scaleshift->set_friendly_name(lin_op->get_friendly_name());
