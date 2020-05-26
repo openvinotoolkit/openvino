@@ -427,6 +427,8 @@ extensions/front/tf/sign_ext.py
 extensions/front/tf/SizeReplacer.py
 extensions/front/tf/slice_ext.py
 extensions/front/tf/softmax_ext.py
+extensions/front/tf/softplus.py
+extensions/front/tf/softplus_ext.py
 extensions/front/tf/space_to_batch.py
 extensions/front/tf/space_to_batch_ext.py
 extensions/front/tf/space_to_depth_ext.py
