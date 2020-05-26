@@ -188,7 +188,7 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
     // Clean up undeallocated shapes
     //
 
-    for (auto data : model->datas()) {
+    for (const auto& data : model->datas()) {
         if (data->childDataToShapeEdges().empty()) {
             continue;
         }
