@@ -18,7 +18,7 @@ jobs:
       cat /proc/meminfo
       vmstat -s
       df
-      ls ls -alR /usr
+      ls -alR /usr
     displayName: 'System properties'
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev
