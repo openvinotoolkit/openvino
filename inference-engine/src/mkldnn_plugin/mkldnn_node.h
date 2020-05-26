@@ -77,7 +77,19 @@ enum Type {
     ScatterUpdate,
     ScatterElementsUpdate,
     ScatterNDUpdate,
-    Interpolate
+    Interpolate,
+    ReduceAnd,
+    ReduceL1,
+    ReduceL2,
+    ReduceLogSum,
+    ReduceLogSumExp,
+    ReduceMax,
+    ReduceMean,
+    ReduceMin,
+    ReduceOr,
+    ReduceProd,
+    ReduceSum,
+    ReduceSumSquare
 };
 
 Type TypeFromName(const std::string type);
@@ -168,6 +180,30 @@ static std::string NameFromType(Type type) {
             return "ScatterNDUpdate";
         case Interpolate:
             return "Interpolate";
+        case ReduceAnd:
+            return "ReduceAnd";
+        case ReduceL1:
+            return "ReduceL1";
+        case ReduceL2:
+            return "ReduceL2";
+        case ReduceLogSum:
+            return "ReduceLogSum";
+        case ReduceLogSumExp:
+            return "ReduceLogSumExp";
+        case ReduceMax:
+            return "ReduceMax";
+        case ReduceMean:
+            return "ReduceMean";
+        case ReduceMin:
+            return "ReduceMin";
+        case ReduceOr:
+            return "ReduceOr";
+        case ReduceProd:
+            return "ReduceProd";
+        case ReduceSum:
+            return "ReduceSum";
+        case ReduceSumSquare:
+            return "ReduceSumSquare";
         default:
             return "Unknown";
     }
