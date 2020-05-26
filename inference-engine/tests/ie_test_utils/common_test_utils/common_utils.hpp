@@ -13,6 +13,9 @@ namespace CommonTestUtils {
 
 template<typename vecElementType>
 inline std::string vec2str(const std::vector<vecElementType> &vec) {
+    if (vec.empty())
+        return "()";
+
     std::ostringstream result;
     result << "(";
     std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<vecElementType>(result, "."));
