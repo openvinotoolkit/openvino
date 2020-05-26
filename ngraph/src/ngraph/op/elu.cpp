@@ -46,10 +46,8 @@ bool ngraph::op::v0::Elu::visit_attributes(AttributeVisitor& visitor)
 
 void op::v0::Elu::validate_and_infer_types()
 {
-    const PartialShape& data_pshape = get_input_partial_shape(0);
-
     set_output_size(1);
-    set_output_type(0, get_input_element_type(0), data_pshape);
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::Elu::clone_with_new_inputs(const OutputVector& new_args) const
