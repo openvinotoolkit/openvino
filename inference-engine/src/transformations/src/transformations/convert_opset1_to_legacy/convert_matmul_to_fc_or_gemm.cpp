@@ -23,7 +23,7 @@ void ngraph::pass::ConvertMatMulToFCorGemm::convert_matmul() {
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
     auto matmul = std::make_shared<ngraph::opset1::MatMul>(input_0, input_1);
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
         if (!matmul) {
             return false;

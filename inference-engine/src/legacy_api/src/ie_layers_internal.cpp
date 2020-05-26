@@ -124,7 +124,7 @@ Paddings getPaddingsImpl(const CNNLayer& layer) {
 int getNumIteration(const TensorIterator& tensorIterator) {
     using PortMap = TensorIterator::PortMap;
     const auto isIterable = [](const PortMap& rule) { return rule.axis != -1; };
-    const auto getNumIterations = [&tensorIterator](const PortMap& rule, const DataPtr& iterableData) -> int {
+    const auto getNumIterations = [](const PortMap& rule, const DataPtr& iterableData) -> int {
         if (iterableData == nullptr) {
             THROW_IE_EXCEPTION << ": Iteration over an invalid data object (null pointer dereference)";
         }

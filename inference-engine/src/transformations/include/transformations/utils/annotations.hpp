@@ -21,12 +21,12 @@ public:
 
     explicit EltwiseAttrs(std::shared_ptr<EltwiseAttrs> & attrs):
         m_has_constant_input(attrs->has_constant_input()),
-        m_consumers_count(attrs->get_consumers_count()),
-        m_const_input_id(attrs->get_const_input_id()) {}
+        m_const_input_id(attrs->get_const_input_id()),
+        m_consumers_count(attrs->get_consumers_count()) {}
 
     EltwiseAttrs(size_t constant_input_id, size_t consumers_count):
-        m_const_input_id(constant_input_id),
         m_has_constant_input(true),
+        m_const_input_id(constant_input_id),
         m_consumers_count(consumers_count) {}
 
     bool has_constant_input() {

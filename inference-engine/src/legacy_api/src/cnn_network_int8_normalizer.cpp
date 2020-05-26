@@ -935,7 +935,6 @@ void CNNNetworkInt8Normalizer::QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr
     if (weights) {
         const float* weight = static_cast<const float*>(weights->buffer());
 
-        WeightableLayer* pConv = dynamic_cast<WeightableLayer*>(target_layer.get());
         ConvolutionLayer* pConv1 = dynamic_cast<ConvolutionLayer*>(target_layer.get());
 
         if (pConv1 != nullptr && pConv1->_group == 0) {

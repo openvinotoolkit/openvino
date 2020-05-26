@@ -325,7 +325,6 @@ const std::vector<impl_desc_type>& MKLDNNFullyConnectedNode::getPrimitivesPriori
 
 std::shared_ptr<mkldnn::primitive_attr> MKLDNNFullyConnectedNode::initPrimitiveAttr() {
     auto attr = std::make_shared<mkldnn::primitive_attr>(mkldnn::primitive_attr());
-    bool scaled = false;
     if (wScale != nullptr) {
        float* wScaleData = static_cast<float*>(wScale->buffer());
 

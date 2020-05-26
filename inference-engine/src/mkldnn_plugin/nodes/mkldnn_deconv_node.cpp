@@ -177,10 +177,6 @@ void MKLDNNDeconvolutionNode::createDescriptor(const std::vector<InferenceEngine
                                                const std::vector<InferenceEngine::TensorDesc> &outputDesc) {
     MKLDNNMemoryDesc in_candidate(inputDesc[0]);
     MKLDNNMemoryDesc out_candidate(outputDesc[0]);
-    auto in_fmt = in_candidate.getFormat();
-    auto out_fmt = out_candidate.getFormat();
-    int O_IND = withGroups ? 1 : 0;
-    int I_IND = withGroups ? 2 : 1;
 
     // grouping and autoblicking is not compatible
     if ((withGroups && !isDW) && (in_candidate.blocksExtended() || out_candidate.blocksExtended()))

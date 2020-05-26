@@ -67,7 +67,7 @@ static std::vector<DataPtr> get_outputs(details::CNNNetworkImpl* _network) {
 }
 
 ConstTransformer::ConstTransformer(details::CNNNetworkImpl* _network)
-        : inputs(get_inputs(_network)), outputs(get_outputs(_network)), network(_network) {
+        : network(_network), inputs(get_inputs(_network)), outputs(get_outputs(_network)) {
     if (!_network)
         THROW_IE_EXCEPTION << "[ERROR]: Failed to init ConstTransformer with null pointer of network";
 }
@@ -86,7 +86,7 @@ ConstTransformer::ConstTransformer(ICNNNetwork* _network) {
 }
 
 ConstTransformer::ConstTransformer(std::vector<DataPtr> &_inputs, std::vector<DataPtr> &_outputs)
-        : inputs(_inputs), outputs(_outputs), network(nullptr) {
+        : network(nullptr), inputs(_inputs), outputs(_outputs) {
     if (inputs.empty() || outputs.empty())
         THROW_IE_EXCEPTION << "[ERROR]: Failed to init ConstTransformer with empty list of inputs or outputs";
 }

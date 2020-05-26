@@ -17,7 +17,6 @@ void getConvOutShape(const std::vector<size_t> &inShape,
     outShape.resize(inShape.size(), 1lu);
     outShape[0] = inShape[0];
     outShape[1] = params.out_c;
-    size_t in_size = inShape.size();
     for (int i = 0; i < params.kernel.size() && i + 2 < outShape.size(); i++) {
         outShape[i + 2] =
                 (inShape[i + 2] + params.pads_begin[i] + params.pads_end[i] -
@@ -58,7 +57,6 @@ void getPoolOutShape(const std::vector<size_t> &inShape,
     outShape.resize(inShape.size(), 1lu);
     outShape[0] = inShape[0];
     outShape[1] = inShape[1];
-    size_t in_size = inShape.size();
     for (int i = 0; i < params.kernel.size() && i + 2 < outShape.size(); i++) {
         outShape[i + 2] =
                 (inShape[i + 2] + params.pads_begin[i] + params.pads_end[i] - params.kernel[i]) / params.stride[i] +

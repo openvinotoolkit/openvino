@@ -62,7 +62,6 @@ public:
         auto full_dims = full_blob->GetDims();
         auto part_dims = part_blob->GetDims();
 
-        bool simple_copy = port_map.axis == -1;
         if (port_map.axis == -1) {
             // simple copy mode. No iteration through this tensor
             reorders.emplace_back(from->GetPrimitive(), to->GetPrimitive());
@@ -132,13 +131,8 @@ class BackEdgePortHelper : public PortMapHelper {
 public:
     BackEdgePortHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const mkldnn::engine& eng, int n_iter) {
         auto mem_desc =  from->GetDescriptor();
-
-
         mem_holder.emplace_back(mkldnn::memory::primitive_desc(mem_desc, eng));
-        auto &temp_mem = mem_holder.back();
-
         reorders.emplace_back(from->GetPrimitive(), to->GetPrimitive());
-
         iter_count = n_iter;
     }
 

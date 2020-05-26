@@ -52,7 +52,7 @@ struct MetricType;
 #define IE_SET_METRIC_RETURN(name, ...)                                                                       \
     typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::name>::type _##name##_value = \
         __VA_ARGS__;                                                                                          \
-    return std::move(_##name##_value)
+    return _##name##_value
 
 /**
  * @def        IE_SET_METRIC(name, ...)

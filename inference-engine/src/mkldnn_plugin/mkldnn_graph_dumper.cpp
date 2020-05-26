@@ -52,7 +52,6 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
 
         for (int i = 0; i < ch_edges.size(); i++) {
             auto edge = node->getChildEdgeAt(i);
-            int out_port = edge->getInputNum();
             int in_port = edge->getOutputNum();
             auto ch_node = edge->getChild();
             auto ch  = node2layer[ch_node];

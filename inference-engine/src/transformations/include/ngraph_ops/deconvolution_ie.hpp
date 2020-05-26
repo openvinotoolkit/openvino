@@ -48,8 +48,6 @@ public:
 
     std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
 
-    std::shared_ptr<Node> copy(const OutputVector & new_args) const;
-
     /// \return The data batch shape.
     const PartialShape get_output_shape() { return m_output_shape; }
     void set_output_shape(const Shape& output_shape) { m_output_shape = output_shape; }

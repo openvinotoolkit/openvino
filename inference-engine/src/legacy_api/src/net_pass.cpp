@@ -304,19 +304,6 @@ void RemoveLayer(CNNLayerPtr& layer) {
 /****  Converter Passes  ************************************/
 /************************************************************/
 
-static RNNSequenceLayer::CellType cell_type_from_name(std::string& layer_type) {
-    RNNSequenceLayer::CellType res;
-    if (layer_type == "LSTMCell")
-        res = RNNSequenceLayer::LSTM;
-    else if (layer_type == "GRUCell")
-        res = RNNSequenceLayer::GRU;
-    else if (layer_type == "RNNCell")
-        res = RNNSequenceLayer::RNN;
-    else
-        THROW_IE_EXCEPTION << "Unknown Cell type (" << layer_type << "). Expected LSTMCell|GRUCell|RNNCell";
-    return res;
-}
-
 static std::string cell_name(RNNSequenceLayer::CellType type) {
     std::string res;
     switch (type) {
@@ -777,20 +764,6 @@ static void _link_with_clip(CNNLayerPtr src, CNNLayerPtr dst, const float clip_v
         _link(clip, dst, 0, dst_port);
     }
 }
-
-static Blob::Ptr make_partial_copy(Blob::Ptr src, size_t off, size_t size) {
-    auto res = make_plain_blob(src->getTensorDesc().getPrecision(), {size});
-    res->allocate();
-
-    size_t elem_size = src->getTensorDesc().getPrecision().size();
-    auto src_ptr = src->buffer().as<uint8_t*>();
-    auto dst_ptr = res->buffer().as<uint8_t*>();
-
-    ie_memcpy(dst_ptr, res->byteSize(), src_ptr + off * elem_size, size * elem_size);
-
-    return res;
-}
-
 static Blob::Ptr wrap_as_tensor(Blob::Ptr src, SizeVector dims) {
     auto res = make_blob_with_precision(
         TensorDesc {src->getTensorDesc().getPrecision(), dims, TensorDesc::getLayoutByDims(dims)}, src->buffer());

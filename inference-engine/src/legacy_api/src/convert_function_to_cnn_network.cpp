@@ -447,12 +447,6 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
-    auto one_from = [](const std::string& desc, const std::vector<std::string>& descs) -> bool {
-        for (const auto& d : descs) {
-            if (details::CaselessEq<std::string>()(d, desc)) return true;
-        }
-        return false;
-    };
     LayerParams attrs = {node->get_friendly_name(), node->description(),
                          details::convertPrecision(node->get_output_element_type(0))};
     if (creators.find(node->description()) != creators.end())

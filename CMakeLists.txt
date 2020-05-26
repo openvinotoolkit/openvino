@@ -9,8 +9,13 @@ cmake_policy(SET CMP0054 NEW)
 # See https://blog.kitware.com/cmake-3-13-0-available-for-download/
 
 if (APPLE)
-    # due to https://cmake.org/cmake/help/v3.12/policy/CMP0068.html
-    cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
+    if(CMAKE_GENERATOR STREQUAL "Xcode")
+        # due to https://gitlab.kitware.com/cmake/cmake/issues/14254
+        cmake_minimum_required(VERSION 3.12.0 FATAL_ERROR)
+    else()
+        # due to https://cmake.org/cmake/help/v3.12/policy/CMP0068.html
+        cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
+    endif()
 else()
     cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
 endif()

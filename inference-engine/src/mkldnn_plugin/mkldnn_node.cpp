@@ -139,9 +139,9 @@ void MKLDNNNode::AddNode(const std::string& name, CreatorByLayerFunction factory
 
 MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
         MKLDNNWeightsSharing::Ptr &w_cache)
-        : cnnLayer(layer), name(layer->name), typeStr(layer->type), type(TypeFromName(layer->type)), engine(eng),
-          selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
-          profilingTask(name), weightCache(w_cache) {
+        : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
+          weightCache(w_cache), cnnLayer(layer), engine(eng), name(layer->name), typeStr(layer->type),
+          type(TypeFromName(layer->type)), profilingTask(name) {
     if (!layer->outData.empty()) {
         for (const auto& outData : layer->outData) {
             outDims.emplace_back(outData->getDims());

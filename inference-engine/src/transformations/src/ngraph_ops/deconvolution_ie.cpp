@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/deconvolution_ie.hpp"
-
 #include <algorithm>
 #include <memory>
 #include <vector>
+
+#include "ngraph_ops/deconvolution_ie.hpp"
 
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
@@ -31,8 +31,8 @@ op::DeconvolutionIE::DeconvolutionIE(const Output<Node>& data,
         , m_pads_begin(pads_begin)
         , m_pads_end(pads_end)
         , m_auto_pad(auto_pad)
-        , m_group(group)
-        , m_output_shape(output_shape) {
+        , m_output_shape(output_shape)
+        , m_group(group) {
     constructor_validate_and_infer_types();
 }
 
@@ -52,8 +52,8 @@ op::DeconvolutionIE::DeconvolutionIE(const Output<Node>& data,
         , m_pads_begin(pads_begin)
         , m_pads_end(pads_end)
         , m_auto_pad(auto_pad)
-        , m_group(group)
-        , m_output_shape(output_shape) {
+        , m_output_shape(output_shape)
+        , m_group(group) {
     constructor_validate_and_infer_types();
 }
 
@@ -83,30 +83,5 @@ shared_ptr<Node> op::DeconvolutionIE::copy_with_new_args(const NodeVector& new_a
                                           m_output_shape,
                                           m_group,
                                           m_auto_pad);
-    }
-}
-
-shared_ptr<Node> op::DeconvolutionIE::copy(const OutputVector& new_args) const {
-    if (new_args.size() == 2) {
-        return make_shared<DeconvolutionIE>(new_args.at(0),
-                                            new_args.at(1),
-                                            m_strides,
-                                            m_pads_begin,
-                                            m_pads_end,
-                                            m_dilations,
-                                            m_output_shape,
-                                            m_group,
-                                            m_auto_pad);
-    } else {
-        return make_shared<DeconvolutionIE>(new_args.at(0),
-                                            new_args.at(1),
-                                            new_args.at(2),
-                                            m_strides,
-                                            m_pads_begin,
-                                            m_pads_end,
-                                            m_dilations,
-                                            m_output_shape,
-                                            m_group,
-                                            m_auto_pad);
     }
 }

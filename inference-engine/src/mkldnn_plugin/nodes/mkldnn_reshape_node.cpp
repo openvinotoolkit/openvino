@@ -36,7 +36,6 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     if (inputDataType != outputDataType)
         inputDataType = outputDataType;
 
-    auto& inDims = getParentEdgeAt(0)->getDims();
     auto& outDims = getChildEdgeAt(0)->getDims();
     memory::format outFormat = MKLDNNMemory::GetPlainFormat(outDims);
     InferenceEngine::LayerConfig config;

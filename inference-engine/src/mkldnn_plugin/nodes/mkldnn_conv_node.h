@@ -61,7 +61,6 @@ private:
     void addZeroPoints(mkldnn::primitive_attr& attr) const;
 
     bool withBiases;
-    bool withActivation;
     bool withSum;
     bool withDWConv;
     bool isDW;

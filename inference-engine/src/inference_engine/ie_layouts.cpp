@@ -10,17 +10,17 @@
 using namespace InferenceEngine;
 
 TensorDesc::TensorDesc(const Precision& precision, SizeVector dims, Layout layout)
-    : blockingDesc(dims, layout), precision(precision) {
+    : precision(precision), blockingDesc(dims, layout) {
     this->dims = dims;
     this->layout = layout;
 }
 
-TensorDesc::TensorDesc(const Precision& precision, Layout layout): blockingDesc(), precision(precision) {
+TensorDesc::TensorDesc(const Precision& precision, Layout layout): precision(precision), blockingDesc() {
     this->layout = layout;
 }
 
 TensorDesc::TensorDesc(const Precision& precision, SizeVector dims, const BlockingDesc& blockDesc)
-    : dims(dims), blockingDesc(blockDesc), precision(precision) {
+    : dims(dims), precision(precision), blockingDesc(blockDesc) {
     if (dims.size() == 0 || blockingDesc.getBlockDims().size() == 0) {
         layout = Layout::SCALAR;
         return;

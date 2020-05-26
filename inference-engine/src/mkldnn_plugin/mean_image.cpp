@@ -24,8 +24,6 @@ void MeanImage::Load(const MKLDNNDims& inputDims, InputInfo::Ptr inputInfo) {
         THROW_IE_EXCEPTION << "channels mismatch between mean and input";
     }
 
-    ResponseDesc resp;
-
     switch (pp.getMeanVariant()) {
         case MEAN_VALUE: {
             // mean image common value per channel (1x1xC)
