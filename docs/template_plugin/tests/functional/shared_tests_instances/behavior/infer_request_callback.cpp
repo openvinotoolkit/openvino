@@ -15,15 +15,13 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<std::map<std::string, std::string>> configs = {
-        {{{}}}
+        {}
 };
-
-const std::vector<std::string> devices{CommonTestUtils::DEVICE_CPU};
 
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CallbackTests,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
-            ::testing::ValuesIn(devices),
+            ::testing::Values("TEMPLATE"),
             ::testing::ValuesIn(configs)),
         CallbackTests::getTestCaseName);
 }  // namespace

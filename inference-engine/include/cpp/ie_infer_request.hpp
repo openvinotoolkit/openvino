@@ -35,7 +35,7 @@ class CompletionCallbackWrapper : public ICompletionCallbackWrapper {
 public:
     explicit CompletionCallbackWrapper(const T& lambda): lambda(lambda) {}
 
-    void call(InferenceEngine::IInferRequest::Ptr /*request*/, InferenceEngine::StatusCode /*code*/) const
+    void call(InferenceEngine::IInferRequest::Ptr request, InferenceEngine::StatusCode code) const
         noexcept override {
         lambda();
     }
