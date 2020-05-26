@@ -397,6 +397,7 @@ static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr &layer) {
     auto reshape = std::make_shared<ReshapeLayer>(
             LayerParams{layer->name, "Reshape", precision});
     reshape->shape = std::vector<int>(shape.begin(), shape.end());
+    reshape->params = layer->params; // additional metadata
 
     // replacement
     auto &input_to_map = in_data->getInputTo();
