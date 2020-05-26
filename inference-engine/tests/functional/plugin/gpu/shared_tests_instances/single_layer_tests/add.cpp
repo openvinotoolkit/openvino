@@ -35,7 +35,7 @@ const auto addition_params = ::testing::Combine(
                                       ::testing::ValuesIn(secondaryInputTypes),
                                       ::testing::ValuesIn(additionTypes),
                                       ::testing::ValuesIn(netPrecisions),
-                                      ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                      ::testing::Values(CommonTestUtils::DEVICE_GPU),
                                       ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(CompareWithRefs, AddLayerTest, addition_params, AddLayerTest::getTestCaseName);

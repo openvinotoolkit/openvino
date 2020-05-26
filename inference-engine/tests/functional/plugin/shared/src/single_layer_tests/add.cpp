@@ -15,34 +15,91 @@
 #include "single_layer_tests/add.hpp"
 
 namespace LayerTestsDefinitions {
-    std::string AddLayerTest::getTestCaseName(testing::TestParamInfo<addParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    std::vector<InferenceEngine::SizeVector> inputShapes;
-    std::string targetDevice;
-    std::map<std::string, std::string> config;
-    std::tie(netPrecision, inputShapes, targetDevice, config) = obj.param;
-    std::ostringstream result;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "netPRC=" << netPrecision.name() << "_";
-    result << "targetDevice=" << targetDevice;
-    return result.str();
+    using namespace AddTestDefinitions;
+
+    std::string AddLayerTest::getTestCaseName(testing::TestParamInfo<AddParamsTuple> obj) {
+        std::vector<std::vector<size_t>> inputShapes;
+        InferenceEngine::Precision netPrecision;
+        SecondaryInputType secondaryInputType;
+        AdditionType additionType;
+        std::string targetName;
+        std::map<std::string, std::string> additional_config;
+
+        std::tie(inputShapes, secondaryInputType, additionType, netPrecision, targetName, additional_config) = obj.param;
+        std::ostringstream results;
+
+        results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+        results << "secondaryInputType=" << SecondaryInputType_to_string(secondaryInputType) << "_";
+        results << "addType=" << AdditionType_to_string(additionType) << "_";
+        results << "netPRC=" << netPrecision.name() << "_";
+        results << "targetDevice=" << targetName;
+        return results.str();
 }
 
 void AddLayerTest::SetUp() {
-    std::vector<InferenceEngine::SizeVector> inputShapes;
+    std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
-    std::tie(netPrecision, inputShapes, targetDevice, configuration) = this->GetParam();
+    SecondaryInputType secondaryInputType;
+    AdditionType additionType;
+    std::map<std::string, std::string> additional_config;
+    std::tie(inputShapes, secondaryInputType, additionType, netPrecision, targetDevice, additional_config) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes});
-    auto paramIn = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
-    IE_ASSERT(paramIn.size() == 2);
-    auto add = std::make_shared<ngraph::opset1::Add>(paramsIn[0], paramsIn[1]);
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(add)};
-    function = std::make_shared<ngraph::Function>(results, paramsIn, "Add");
+
+    configuration.insert(additional_config.begin(), additional_config.end());
+    auto input = ngraph::builder::makeParams(ngPrc, {inputShapes[0]}); 
+
+    std::vector<size_t> shape_input_secondary;
+    switch(additionType) {
+    case AdditionType::SCALAR:
+        shape_input_secondary = std::vector<size_t>({1});
+        break;
+    case AdditionType::VECTOR:
+        shape_input_secondary = inputShapes[0];
+        break;
+    default:
+        FAIL() << "Unsupported AdditionType: " << AdditionType_to_string(additionType); 
+    }
+
+    std::shared_ptr<ngraph::Node> secondary_input;
+    switch(secondaryInputType) {
+    case SecondaryInputType::CONSTANT:
+        secondary_input = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, std::vector<float>{-1.0f});
+        break;
+    case SecondaryInputType::PARAMETER:
+        input.push_back(ngraph::builder::makeParams(ngPrc, {shape_input_secondary})[0]);
+        secondary_input = input[1];
+        break;
+    default:
+        FAIL() << "Unsupported secondaryInputType: " << SecondaryInputType_to_string(secondaryInputType);
+    }
+
+    auto add = std::make_shared<ngraph::opset1::Add>(input[0], secondary_input);
+    function = std::make_shared<ngraph::Function>(add, input, "addition");
 }
 
 TEST_P(AddLayerTest, CompareWithRefs) {
     Run();
+}
+
+const char* AddTestDefinitions::SecondaryInputType_to_string(SecondaryInputType input_type) {
+    switch (input_type) {
+    case SecondaryInputType::CONSTANT:
+        return "CONSTANT";
+    case SecondaryInputType::PARAMETER:
+        return "PARAMETER";
+    default:
+        return "NOT_SUPPORTED_INPUT_LAYER_TYPE";
+    }
+}
+
+const char* AddTestDefinitions::AdditionType_to_string(AdditionType multiplication_type) {
+    switch (multiplication_type) {
+    case AdditionType::SCALAR:
+        return "SCALAR";
+    case AdditionType::VECTOR:
+        return "VECTOR";
+    default:
+        return "NOT_SUPPORTED_ADDITION_TYPE";
+    }
 }
 }  // namespace LayerTestsDefinitions
