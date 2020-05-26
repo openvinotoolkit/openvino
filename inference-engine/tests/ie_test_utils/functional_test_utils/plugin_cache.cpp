@@ -10,6 +10,12 @@
 #include <gtest/gtest.h>
 #include <ie_plugin_config.hpp>
 
+//#define IE_VERBOSE 1
+
+#ifndef IE_VERBOSE
+#define IE_VERBOSE 0
+#endif
+
 namespace {
 class TestListener : public testing::EmptyTestEventListener {
 public:
@@ -31,18 +37,18 @@ PluginCache &PluginCache::get() {
 std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &deviceToCheck) {
     std::lock_guard<std::mutex> lock(g_mtx);
     if (std::getenv("DISABLE_PLUGIN_CACHE") != nullptr) {
-#ifndef NDEBUG
+#if IE_VERBOSE
         std::cout << "'DISABLE_PLUGIN_CACHE' environment variable is set. New Core object will be created!"
                   << std::endl;
 #endif
         return std::make_shared<InferenceEngine::Core>();
     }
-#ifndef NDEBUG
+#if IE_VERBOSE
     std::cout << "Access PluginCache ie core. IE Core use count: " << ie_core.use_count() << std::endl;
 #endif
 
     if (!ie_core) {
-#ifndef NDEBUG
+#if IE_VERBOSE
         std::cout << "Created ie core." << std::endl;
 #endif
         ie_core = std::make_shared<InferenceEngine::Core>();
@@ -61,11 +67,13 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
                 std::exit(EXIT_FAILURE);
             }
 
+#if IE_VERBOSE
             std::cout << "Available devices for " << deviceToCheck << ":" << std::endl;
 
             for (const auto &device : availableDevices) {
                 std::cout << "    " << device << std::endl;
             }
+#endif
         }
     }
     return ie_core;
@@ -74,7 +82,7 @@ std::shared_ptr<InferenceEngine::Core> PluginCache::ie(const std::string &device
 void PluginCache::reset() {
     std::lock_guard<std::mutex> lock(g_mtx);
 
-#ifndef NDEBUG
+#if IE_VERBOSE
     std::cout << "Reset PluginCache. IE Core use count: " << ie_core.use_count() << std::endl;
 #endif
 
