@@ -15,13 +15,12 @@
 
 namespace MKLDNNPlugin {
 
-class MKLDNNExtensionUtils {
-public:
-    static uint8_t sizeOfDataType(mkldnn::memory::data_type dataType);
-    static mkldnn::memory::data_type IEPrecisionToDataType(InferenceEngine::Precision prec);
-    static InferenceEngine::Precision DataTypeToIEPrecision(mkldnn::memory::data_type dataType);
-    static InferenceEngine::TensorDesc getUninitTensorDesc(const InferenceEngine::TensorDesc& desc);
-    static bool initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2);
+namespace MKLDNNExtensionUtils {
+    uint8_t sizeOfDataType(mkldnn::memory::data_type dataType);
+    mkldnn::memory::data_type IEPrecisionToDataType(InferenceEngine::Precision prec);
+    InferenceEngine::Precision DataTypeToIEPrecision(mkldnn::memory::data_type dataType);
+    InferenceEngine::TensorDesc getUninitTensorDesc(const InferenceEngine::TensorDesc& desc);
+    bool initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2);
 };
 
 }  // namespace MKLDNNPlugin
