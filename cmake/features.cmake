@@ -12,6 +12,9 @@ if(X86_64)
 else()
     set(ENABLE_MKL_DNN_DEFAULT OFF)
 endif()
+
+ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
+
 ie_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ${ENABLE_MKL_DNN_DEFAULT})
 
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "WIN32 OR X86_64;NOT APPLE;NOT MINGW" OFF)
