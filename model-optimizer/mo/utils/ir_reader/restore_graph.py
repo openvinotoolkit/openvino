@@ -73,7 +73,6 @@ def save_restored_graph(graph: Graph, path: str, meta_data, name=None):
     # List items order matters, do not change it.
     transformation_list = [
         ConvolutionWithGroupsResolver,
-        TopKNormalizer,
         StridedSliceMasksNormalizer,
         PackBinaryWeights,
         BlobNormalizer,
