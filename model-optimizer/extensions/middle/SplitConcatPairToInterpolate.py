@@ -20,8 +20,8 @@ from typing import Optional
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph, Node
+from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
@@ -53,6 +53,9 @@ def get_concat_after_split(split: Node) -> Optional[Node]:
 
 
 def get_interpolate_pattern(split: Node) -> dict:
+    split_shape = split.in_port(0).data.get_shape()
+    if split_shape is None or len(split_shape) < 4:
+        return {}
     concat = get_concat_after_split(split)
     if concat is None:
         return {}
@@ -91,7 +94,11 @@ def replace_interpolate_pattern(graph: Graph, match: dict):
                                        'new_axis_mask': int64_array([0]),
                                        'shrink_axis_mask': int64_array([0]),
                                        'ellipsis_mask': int64_array([0]),
-                                       }).create_node([shape_node, slice_begin, slice_end])
+                                       }).create_node()
+    shape_node.out_port(0).connect(strided_slice_node.in_port(0))
+    slice_begin.out_port(0).connect(strided_slice_node.in_port(1))
+    slice_end.out_port(0).connect(strided_slice_node.in_port(2))
+
     strided_slice_node.out_port(0).connect(mul_node.in_port(0))
 
     interp_node = Interpolate(graph, dict(name=split_node_name + '/Interpolate_',
@@ -106,7 +113,7 @@ def replace_interpolate_pattern(graph: Graph, match: dict):
     split_connection.get_source().connect(shape_node.in_port(0))
 
 
-class SplitConcatPairToInterpolate(FrontReplacementSubgraph):
+class SplitConcatPairToInterpolate(MiddleReplacementPattern):
     """
     This transformation looks for Interpolation layer implemented using simple operations, i.e. Split and Concat,
     and replaces found pattern with a sequence of Shape, StridedSlice, Const, Mul, Interpolate.
@@ -146,6 +153,12 @@ class SplitConcatPairToInterpolate(FrontReplacementSubgraph):
     by number of output ports of 'split'.
     """
     enabled = True
+    force_clean_up = True
+
+    def run_before(self):
+        from extensions.middle.InterpolateSequenceToInterpolate import InterpolateSequenceToInterpolate
+        from extensions.middle.UselessSplitEraser import UselessSplitEraser
+        return [InterpolateSequenceToInterpolate, UselessSplitEraser]
 
     def find_and_replace_pattern(self, graph: Graph):
         log.debug('Enabled replacement of a pair of Split and Concat with Interpolate.')

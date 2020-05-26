@@ -21,13 +21,13 @@ from mo.middle.replacement import MiddleReplacementPattern
 class UselessSplitEraser(MiddleReplacementPattern):
     enabled = True
 
-    def run_after(self):
-        from extensions.middle.pass_separator import PreMiddleStart
-        return [PreMiddleStart]
-
-    def run_before(self):
-        from extensions.middle.pass_separator import MiddleStart
-        return [MiddleStart]
+    # def run_after(self):
+    #     from extensions.middle.pass_separator import PreMiddleStart
+    #     return [PreMiddleStart]
+    #
+    # def run_before(self):
+    #     from extensions.middle.pass_separator import MiddleStart
+    #     return [MiddleStart]
 
     def pattern(self):
         return dict(
