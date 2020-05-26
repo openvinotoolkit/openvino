@@ -1353,6 +1353,7 @@ IE_CPU.onnx_model_gru_rev_clip
 IE_CPU.onnx_model_gru_reverse
 IE_CPU.onnx_model_gru_fwd_bias_initial_h
 IE_CPU.onnx_model_gru_bidirectional
+IE_CPU.onnx_model_gru_fwd_linear_before_reset
 
 # RNNCell operation has a form that is not supported
 IE_CPU.onnx_model_rnn_defaults_fwd

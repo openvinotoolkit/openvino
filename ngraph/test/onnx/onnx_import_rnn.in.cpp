@@ -806,6 +806,55 @@ NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_bidirectional)
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 6);
 }
 
+NGRAPH_TEST_F(${BACKEND_NAME}, GRUSequenceOp, onnx_model_gru_fwd_linear_before_reset)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/gru_fwd_linear_before_reset.prototxt"));
+
+    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+
+    test_case.add_input<float>(in_X);
+    test_case.add_input<float>(in_W);
+    test_case.add_input<float>(in_R);
+    test_case.add_input<float>(in_B);
+
+    // Y
+    test_case.add_expected_output<float>(
+        Shape{4, 1, 3, 5},
+        std::vector<float>{
+            -0.32330805f, -0.06708707f, 0.9148428f,   -0.5182527f,  0.15030569f,  -0.29070354f,
+            0.20353599f,  0.36028495f,  -0.5524303f,  0.15076958f,  -0.3330416f,  -0.2412689f,
+            0.90464234f,  -0.46817362f, 0.08000847f,  -0.63514394f, 0.25109228f,  0.7674645f,
+            -0.7781104f,  -0.07633221f, -0.5679979f,  0.32793444f,  0.18232828f,  -0.756521f,
+            0.07898282f,  -0.7205035f,  -0.02278003f, -0.14991446f, -0.86801296f, 0.4434091f,
+            -0.8497459f,  0.35516143f,  0.8932138f,   -0.8957482f,  0.4693949f,   -0.74337614f,
+            0.43600178f,  0.51654255f,  -0.8376663f,  -0.18606272f, -0.8050637f,  0.06592449f,
+            0.13366115f,  -0.8945458f,  -0.66395104f, 0.140306f,    0.42112982f,  -0.15852913f,
+            -0.74940586f, -0.7907575f,  -0.89268315f, 0.5274858f,   0.97432905f,  -0.89276016f,
+            0.15256537f,  -0.91766477f, 0.22483218f,  0.9143838f,   -0.9442929f,  0.33684915f,
+        });
+    // Y_h
+    test_case.add_expected_output<float>(Shape{1, 3, 5},
+                                         std::vector<float>{
+                                             0.140306f,
+                                             0.42112982f,
+                                             -0.15852913f,
+                                             -0.74940586f,
+                                             -0.7907575f,
+                                             -0.89268315f,
+                                             0.5274858f,
+                                             0.97432905f,
+                                             -0.89276016f,
+                                             0.15256537f,
+                                             -0.91766477f,
+                                             0.22483218f,
+                                             0.9143838f,
+                                             -0.9442929f,
+                                             0.33684915f,
+                                         });
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS);
+}
+
 // RNNLikeSequenceOp test fixture for test setup reuse
 class RNNSequenceOp : public testing::Test
 {
