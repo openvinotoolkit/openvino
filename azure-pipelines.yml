@@ -37,7 +37,7 @@ jobs:
   - task: CMake@1
     inputs:
       workingDirectory: dldt-build
-      cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=/usr/bin/python3.6 -DENABLE_TESTS=ON
+      cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=$(USEPYTHONVERSION_PYTHONLOCATION)/bin/python3.6 -DENABLE_TESTS=ON
   - script: make -j12
     workingDirectory: dldt-build
     displayName: 'Build IE'
@@ -101,6 +101,9 @@ jobs:
       export MODELS_PATH=`pwd`/../testdata
       export LD_LIBRARY_PATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib
       export PYTHONPATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib/python_api/python3.6
+      export PATH=$(USEPYTHONVERSION_PYTHONLOCATION)/Scripts:$PATH
+      env
+      ls ls -alR $(USEPYTHONVERSION_PYTHONLOCATION)
       cd ../inference-engine/ie_bridges/python/tests
       pytest
     workingDirectory: dldt-build
