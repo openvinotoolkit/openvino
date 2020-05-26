@@ -53,6 +53,7 @@
 #include "ngraph/runtime/reference/cum_sum.hpp"
 #include "ngraph/runtime/reference/dequantize.hpp"
 #include "ngraph/runtime/reference/dot.hpp"
+#include "ngraph/runtime/reference/elu.hpp"
 #include "ngraph/runtime/reference/embedding_lookup.hpp"
 #include "ngraph/runtime/reference/erf.hpp"
 #include "ngraph/runtime/reference/exp.hpp"
@@ -310,6 +311,17 @@ protected:
                                 args[1]->get_data_ptr<const T>(),
                                 out[0]->get_data_ptr<T>(),
                                 element_count);
+            break;
+        }
+        case OP_TYPEID::Elu:
+        {
+            const op::Elu* elu_node = static_cast<const op::Elu*>(&node);
+
+            size_t element_count = shape_size(node.get_output_shape(0));
+            reference::elu<T>(args[0]->get_data_ptr<const T>(),
+                              out[0]->get_data_ptr<T>(),
+                              element_count,
+                              elu_node->get_alpha());
             break;
         }
         case OP_TYPEID::AvgPool:
@@ -1429,7 +1441,6 @@ protected:
         case OP_TYPEID::DynPad:
         case OP_TYPEID::DynReplaceSlice:
         case OP_TYPEID::DynSlice:
-        case OP_TYPEID::Elu:
         case OP_TYPEID::FakeQuantize:
         case OP_TYPEID::Gather:
         case OP_TYPEID::Gelu:
