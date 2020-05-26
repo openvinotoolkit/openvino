@@ -62,7 +62,7 @@ public:
      *
      * @return CNNNetwork
      */
-    CNNNetwork read(std::istream& model, std::istream& weights, const std::vector<IExtensionPtr>& exts) const override;
+    CNNNetwork read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const override;
 
     std::vector<std::string> getDataFileExtensions() const override {
         return {"bin"};

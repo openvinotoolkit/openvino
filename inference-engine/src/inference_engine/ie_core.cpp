@@ -18,7 +18,6 @@
 #include <istream>
 #include <mutex>
 
-#include "ie_blob_stream.hpp"
 #include <ie_reader_ptr.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include "cpp/ie_cnn_net_reader.h"
@@ -175,7 +174,7 @@ public:
         auto reader = getReaderPtr();
         return reader->read(model, exts);
     }
-    CNNNetwork read(std::istream& model, std::istream& weights, const std::vector<IExtensionPtr>& exts) const override {
+    CNNNetwork read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const override {
         auto reader = getReaderPtr();
         return reader->read(model, weights, exts);
     }
@@ -374,8 +373,6 @@ public:
 
     CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
         IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
-        IE_SUPPRESS_DEPRECATED_START
-        ResponseDesc desc;
 
         std::ifstream modelStream(modelPath, std::ios::binary);
         if (!modelStream.is_open())
@@ -401,11 +398,18 @@ public:
                     }
                 }
                 if (!bPath.empty()) {
-                    std::ifstream binStream;
-                    binStream.open(bPath, std::ios::binary);
-                    if (!binStream.is_open())
-                        THROW_IE_EXCEPTION << "Weights file " << bPath << " cannot be opened!";
-                    return reader->read(modelStream, binStream, extensions);
+                    int64_t fileSize = FileUtils::fileSize(bPath);
+
+                    if (fileSize < 0)
+                        THROW_IE_EXCEPTION << "filesize for: " << bPath << " - " << fileSize
+                            << "<0. Please, check weights file existence.";
+
+                    auto ulFileSize = static_cast<size_t>(fileSize);
+
+                    TBlob<uint8_t>::Ptr weightsPtr(new TBlob<uint8_t>(TensorDesc(Precision::U8, {ulFileSize}, Layout::C)));
+                    weightsPtr->allocate();
+                    FileUtils::readAllFile(bPath, weightsPtr->buffer(), ulFileSize);
+                    return reader->read(modelStream, weightsPtr, extensions);
                 }
                 return reader->read(modelStream, extensions);
             }
@@ -416,13 +420,12 @@ public:
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const override {
         IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
         std::istringstream modelStream(model);
-        details::BlobStream binStream(weights);
 
         for (auto it = readers.begin(); it != readers.end(); it++) {
             auto reader = it->second;
             if (reader->supportModel(modelStream)) {
                 if (weights)
-                    return reader->read(modelStream, binStream, extensions);
+                    return reader->read(modelStream, weights, extensions);
                 return reader->read(modelStream, extensions);
             }
         }

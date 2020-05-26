@@ -4,7 +4,6 @@
 
 #include <file_utils.h>
 #include <ie_cnn_net_reader_impl.h>
-#include <ie_blob_stream.hpp>
 
 #include <fstream>
 #include <map>
@@ -42,9 +41,8 @@ StatusCode CNNNetReaderImpl::SetWeights(const TBlob<uint8_t>::Ptr& weights, Resp
             // It's time to perform actual reading of V10 network and instantiate CNNNetworkNGraphImpl
             IRParser parser(_version, extensions);
             pugi::xml_node root = xmlDoc->document_element();
-            details::BlobStream blobStream(weights);
-            network = parser.parse(root, blobStream);
-        } else if (weights) {
+            network = parser.parse(root, weights);
+        } else {
             _parser->SetWeights(weights);
         }
     } catch (const InferenceEngineException& iee) {

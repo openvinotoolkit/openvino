@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ie_reader.hpp>
+#include <ie_blob.h>
 
 namespace InferenceEngine {
 
@@ -35,7 +36,7 @@ public:
      *
      * @return CNNNetwork
      */
-    CNNNetwork read(std::istream& model, std::istream& weights, const std::vector<IExtensionPtr>& exts) const override {
+    CNNNetwork read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const override {
         THROW_IE_EXCEPTION << "ONNX reader cannot read model with weights!";
     }
 

@@ -473,8 +473,10 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
 
 template <typename BlobType>
 inline Blob::Ptr GetTypedBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, const WeightSegment& segment) {
-    if (segment.getEnd() > weights->size())
-        THROW_IE_EXCEPTION << "segment size(" << segment.getEnd() << ") exceeds given buffer limits(" << weights->size() <<"). Please, validate weights file";
+    if (!weights ||segment.getEnd() > weights->size()) {
+        uint64_t size = weights ? weights->size() : 0;
+        THROW_IE_EXCEPTION << "segment size(" << segment.getEnd() << ") exceeds given buffer limits(" << size <<"). Please, validate weights file";
+    }
 
     size_t noOfElement = segment.size / sizeof(BlobType);
     // RanC: TODO: IR does not provide me with weight slayout.
@@ -526,7 +528,7 @@ void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
             if (lprms.blobs.find("weights") != lprms.blobs.end()) {
                 if (lprms.prms.type == "BinaryConvolution") {
                     auto segment = lprms.blobs["weights"];
-                    if (segment.getEnd() > weights->size())
+                    if (!weights || segment.getEnd() > weights->size())
                         THROW_IE_EXCEPTION << "segment exceeds given buffer limits. Please, validate weights file";
                     size_t noOfElement = segment.size;
                     SizeVector w_dims({noOfElement});
