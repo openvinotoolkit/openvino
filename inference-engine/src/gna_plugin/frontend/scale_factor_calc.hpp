@@ -515,11 +515,6 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 }
             }
 
-            // TODO: findout why ???
-            if (weightsSize == 1) {
-                quant->_weights_quant.scale *= MAX_OUT_MULTIPLIER;
-            }
-
             double weights_reducer = 1.0;
             auto conv = dynamic_cast<InferenceEngine::ConvolutionLayer*>(wl);
             if (conv) {
@@ -530,7 +525,6 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             }
             quant->_weights_quant.scale /= weights_reducer;
         }
-
 
         double tmp_dst_quant_scale = quant->_weights_quant.scale * quantDataForInputLayer->_dst_quant.scale;
 

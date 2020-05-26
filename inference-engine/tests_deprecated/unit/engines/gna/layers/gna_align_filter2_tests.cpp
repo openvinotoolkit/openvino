@@ -19,15 +19,13 @@ class GNAAlignFilterTest : public GNATest<>,
  public:
 
     static std::string getTestName(const testing::TestParamInfo<GNAAlignFilterTestParams>& params) {
-        std::string test_name;
-        if (std::get<1>(params.param) == GNAPluginNS::Policy::ConcatAlignment::FAST) {
-            test_name += "fast_";
-        }
-        test_name += "concat_of(" + std::to_string(std::get<2>(params.param));
-        test_name += "_" + std::to_string(std::get<3>(params.param));
-        test_name += ")_on_";
-        test_name += std::get<0>(params.param).name();
-        return test_name;
+        std::stringstream test_name;
+        test_name << std::get<1>(params.param);
+        test_name << "_concat_of[" << std::get<2>(params.param);
+        test_name << "_" << std::get<3>(params.param);
+        test_name << "]_on_";
+        test_name << std::get<0>(params.param).name();
+        return test_name.str();
     }
 
  protected:
@@ -73,7 +71,7 @@ TEST_P(GNAAlignFilterTest, concatWith_2_Inputs_Small_mem_footprint) {
         auto firstFilter_frac = sz % 32;
         auto firstFilter_N = ALIGN(firstFilter_frac, 8);
 
-        return {copy_N, firstFilter_N   * firstFilter_frac};
+        return {copy_N, firstFilter_N  * firstFilter_frac};
     };
 
     auto getNumCopyElements = [&getFastAffineFilterParams](size_t sz) {
@@ -82,6 +80,12 @@ TEST_P(GNAAlignFilterTest, concatWith_2_Inputs_Small_mem_footprint) {
     auto getsNumFilterWeights = [&getFastAffineFilterParams](size_t sz) {
         return getFastAffineFilterParams(sz).second;
     };
+    auto getsStandaloneFilterWeights = [](size_t input_sz, size_t output_sz) {
+        return ALIGN(input_sz, 8) * output_sz;
+    };
+
+    bool has1stFilter   = (concat_inputs[0] % 32) != 0  ? 1 : 0;
+    bool has2ndFilter  = has1stFilter;
 
     switch(alignmentPolicy) {
         case  Policy::ConcatAlignment::ENABLED : {
@@ -92,23 +96,55 @@ TEST_P(GNAAlignFilterTest, concatWith_2_Inputs_Small_mem_footprint) {
 
             auto secondFilter = ALIGN(concat_inputs[1], 8) * (extraLeftElementsForSecond + concat_inputs[1]);
 
-            expected_affine_size = firstFilter + secondFilter;
+            expected_affine_size = (has1stFilter ? firstFilter : 0) + (has2ndFilter ? secondFilter : 0);
             break;
         }
-        case   Policy::ConcatAlignment::FAST  : {
-
-            expected_copy_layers = getNumCopyElements(concat_inputs[0]);
-            expected_affine_size = getsNumFilterWeights(concat_inputs[0]);
+        case   Policy::ConcatAlignment::FAST_ZERO_OFFSET : {
+            if (has1stFilter) {
+                expected_copy_layers = getNumCopyElements(concat_inputs[0]);
+                expected_affine_size = getsNumFilterWeights(concat_inputs[0]);
+            }
 
             // calculation size for second filter
-            auto offset = ALIGN(concat_inputs[0], 32) - 32;
-            auto zerolen = concat_inputs[0] - offset;
-            auto second_output_len = zerolen + concat_inputs[1];
+            if (has2ndFilter) {
+                auto offset = ALIGN(concat_inputs[0], 32) - 32;
+                auto zerolen = concat_inputs[0] - offset;
+                auto second_output_len = zerolen + concat_inputs[1];
 
-            expected_affine_size += second_output_len  * ALIGN(concat_inputs[1], 8);
+                expected_affine_size += second_output_len * ALIGN(concat_inputs[1], 8);
+            }
             break;
         }
+        case Policy::ConcatAlignment::FAST:  {
+            if (has1stFilter) {
+                expected_copy_layers = getNumCopyElements(concat_inputs[0]);
+                expected_affine_size = getsNumFilterWeights(concat_inputs[0]);
+            }
 
+            // calculation size for second concat input
+            if (has2ndFilter) {
+                //first filter
+                auto offset_sz = ALIGN(concat_inputs[0], 32) - concat_inputs[0];
+                auto input_sz = std::min(concat_inputs[1], offset_sz);
+                auto output_sz = 32;
+
+                //second filter - weights are shared
+                auto remained_size = concat_inputs[1] - input_sz;
+                auto numfilters2 = remained_size / 32;
+                auto input2_sz = ALIGN(32 + input_sz, 8);
+                auto output2_sz = 32;
+
+                //third filter
+                auto input3_sz = input_sz + remained_size % 32;
+                auto output3_sz = remained_size % 32;
+
+                expected_affine_size
+                    += getsStandaloneFilterWeights(input_sz, output_sz)
+                    + (numfilters2 ? getsStandaloneFilterWeights(input2_sz, output2_sz) : 0)
+                    + getsStandaloneFilterWeights(input3_sz, output3_sz);
+            }
+            break;
+        }
         default : {
             FAIL() << "unsupported align policy: " << alignmentPolicy;
         }
@@ -164,7 +200,7 @@ TEST_P(GNAAlignFilterTest, concatWith_2_Inputs_accurate) {
             .withPolicy(alignmentPolicy)
             .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR)) + "_0", 1.0f)
             .withGNAConfig(std::string(GNA_CONFIG_KEY(SCALE_FACTOR)) + "_1", 1.0f)
-            .withGNAConfig(GNA_CONFIG_KEY(PRECISION), "I16")
+            .withGNAConfig(GNA_CONFIG_KEY(PRECISION), precision.name())
             .propagate_forward()
             .called();
     }
@@ -174,11 +210,14 @@ INSTANTIATE_TEST_CASE_P(
     GNALayerTests,
     GNAAlignFilterTest,
     testing::Combine(
-    testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16),
+    testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::I16, InferenceEngine::Precision::I8),
     //fast or not fast alignment policy
-    testing::Values(GNAPluginNS::Policy::ConcatAlignment::FAST, GNAPluginNS::Policy::ConcatAlignment::ENABLED),
+    testing::Values(
+        Policy::ConcatAlignment::ENABLED,
+        Policy::ConcatAlignment::FAST_ZERO_OFFSET,
+        Policy::ConcatAlignment::FAST),
     // Size of first Split layer output
-    testing::Values(31, 49),
+    testing::Values(64, 32, 31, 49),
     // Size of second Split layer output
-    testing::Values(31, 73)),
+    testing::Values(64, 32, 31, 73, 65)),
     GNAAlignFilterTest::getTestName);

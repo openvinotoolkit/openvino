@@ -156,8 +156,15 @@ class WeightsSizeMatcher : public ::testing::MatcherInterface<const intel_nnet_t
 
         size_t sizeTotal = 0;
         std::stringstream ss;
+        std::map<void*, int> sharedWeights;
+
         for(int i = 0; i < foo->nLayers; i++) {
             if (foo->pLayers[i].nLayerKind != INTEL_AFFINE && eMatchKind == eEqAffine) continue;
+            auto affine = (intel_affine_func_t*)foo->pLayers[i].pLayerStruct;
+            if (sharedWeights.count(affine->pWeights)) {
+                sharedWeights[affine->pWeights]++;
+                continue;
+            }
 
             auto affineWeightsSize = foo->pLayers[i].nOutputRows *
                 (foo->pLayers[i].nLayerKind == INTEL_AFFINE_DIAGONAL ? 1 : foo->pLayers[i].nInputRows);
@@ -165,6 +172,7 @@ class WeightsSizeMatcher : public ::testing::MatcherInterface<const intel_nnet_t
             sizeTotal += affineWeightsSize;
             ss << "[" << i << "]: " << affineWeightsSize << ", ";
 
+            sharedWeights[affine->pWeights] = 0;
         }
 
         if (eMatchKind == eEqAffine &&  sizeTotal != expected_weights_size) {

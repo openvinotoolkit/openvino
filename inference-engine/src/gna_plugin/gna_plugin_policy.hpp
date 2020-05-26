@@ -38,7 +38,8 @@ class Policy {
         DISABLED,
         DISABLED_FOR_FP32,
         ENABLED,
-        FAST
+        FAST_ZERO_OFFSET, // optimized only zero-offset case
+        FAST // fully optimized
     } ConcatAlignmentPolicy = ConcatAlignment::FAST;
 };
 
@@ -57,6 +58,7 @@ inline std::ostream& operator<<(std::ostream& os, Policy::ConcatAlignment policy
         case Policy::ConcatAlignment::DISABLED   : os << "DISABLED";    break;
         case Policy::ConcatAlignment::DISABLED_FOR_FP32   : os << "DISABLED_FOR_FP32";    break;
         case Policy::ConcatAlignment::ENABLED   : os << "ENABLED";    break;
+        case Policy::ConcatAlignment::FAST_ZERO_OFFSET   : os << "FAST_ZERO_OFFSET";    break;
         case Policy::ConcatAlignment::FAST   : os << "FAST";    break;
         default    : os.setstate(std::ios_base::failbit);
     }

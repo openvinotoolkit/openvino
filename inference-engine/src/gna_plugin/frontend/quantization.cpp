@@ -121,6 +121,11 @@ float ScaleFactorForQuantization(void *ptr_float_memory, float target_max, size_
         scale_factor = target_max / max;
     }
 
+    // extending dynamic range by using row multiplier
+    if (target_max == MAX_VAL_1B_WEIGHT) {
+        scale_factor *= MAX_OUT_MULTIPLIER;
+    }
+
     return (scale_factor);
 }
 

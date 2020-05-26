@@ -27,6 +27,7 @@
 #include "gna_device.hpp"
 #include "gna_data_types.hpp"
 #include "gna_plugin_policy.hpp"
+#include "backend/gna_hash_combine.hpp"
 
 namespace GNAPluginNS {
 class GNAGraphCompiler {
@@ -95,11 +96,40 @@ public:
     * @param isQuantized - information about layer quantization
     */
     void FillWeightOfAligningFilter(InferenceEngine::CNNLayerPtr layer, void* ptrWeights, size_t offset, bool isQuantized = false);
-
     void CreateLayerPrimitive(InferenceEngine::CNNLayerPtr);
-
     void AffinePrimitive(InferenceEngine::CNNLayerPtr, bool isDiag = false);
     void AffineFilterPrimitive(InferenceEngine::CNNLayerPtr);
+
+    // weights, biases storage for gen gna_primitive
+    struct WB {
+        void *pWeights;
+        void *pBiases;
+    };
+    std::list<WB> weightsHolder;
+    std::unordered_map <std::vector<size_t>, std::list<WB>::iterator , hash_combine_t> cachedFilterWeights;
+    size_t genFilters = 0;
+
+    /**
+     * @brief generates affine filter that implements left-shift of given layers input
+     * @param input_sz   - number of input elements
+     * @prama left_shift - number of elements filter will do shifting
+     * @param output_sz  - number of outputs
+     * @param input_data_offset - offset in input_tensor where to start copy
+     * @param output_data_offset - offset in otuput_tensor where to copy to
+     */
+    void genAffineFilter(InferenceEngine::CNNLayerPtr layer,
+        size_t input_sz,
+        size_t left_shift,
+        size_t output_sz,
+        size_t input_data_offset,
+        size_t output_data_offset);
+
+    void genFilterWeights(size_t input_sz,
+                          int left_shift,
+                          void *&pWeights,
+                          void *&pBiases,
+                          float weightScale);
+
     void ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr);
     void DiagonalPrimitive(InferenceEngine::CNNLayerPtr);
     void ConstPrimitive(InferenceEngine::CNNLayerPtr);
@@ -113,6 +143,18 @@ public:
     void SplitPrimitive(InferenceEngine::CNNLayerPtr);
     void SlicePrimitive(InferenceEngine::CNNLayerPtr);
     void PWLPrimitive(InferenceEngine::CNNLayerPtr);
+    void genPWLPrimitive(int num_rows,
+                         int num_columns,
+                         InferenceEngine::Precision input_precision,
+                         InferenceEngine::Precision output_precision,
+                         std::string type,
+                         float negative_slope,
+                         std::string activationName,
+                         float input_pwl_scale_factor,
+                         float output_pwl_scale_factor,
+                         void *&ptr_inputs,
+                         void *&ptr_outputs);
+
     void CopyPrimitive(InferenceEngine::CNNLayerPtr);
 
     void Reset();

@@ -1013,6 +1013,170 @@ void GNAGraphCompiler::FillWeightOfAligningFilter(InferenceEngine::CNNLayerPtr l
         }, 64);
 }
 
+void GNAGraphCompiler:: genFilterWeights(size_t input_sz,
+                                         int left_shift,
+                                         void *&pWeights,
+                                         void *&pBiases,
+                                         float weightScale) {
+    size_t output_sz = input_sz - left_shift;
+
+    // do we need new weight pattern generation as well for that filter or not
+    std::vector<size_t> _key = {input_sz, output_sz};
+    auto cachedPattern = cachedFilterWeights.find(_key);
+
+    if (cachedPattern == cachedFilterWeights.end()) {
+        weightsHolder.push_back({});
+
+        cachedPattern = cachedFilterWeights.insert({_key, std::prev(weightsHolder.end())}).first;
+        auto & newWeights = *(cachedPattern->second);
+        newWeights.pWeights = &newWeights.pWeights;
+        newWeights.pBiases  = &newWeights.pBiases;
+
+        size_t weightsElementSize; // will be 127 or 1.f initialized
+
+        if (gnaFlags->sw_fp32) {
+            weightsElementSize = 4;
+        } else {
+            // possible always use int8 for that
+            weightsElementSize = 1;
+        }
+
+        auto weightSize = ALIGN(input_sz, 8) * output_sz * weightsElementSize;
+        gnamem->readonly().push_initializer(
+                newWeights.pWeights,
+                weightSize,
+                [output_sz, weightsElementSize, left_shift, input_sz](void* data, size_t size) {
+                    size_t woffset;
+                    if (left_shift < 0) {
+                        woffset = -left_shift * ALIGN(input_sz, 8);
+                    } else {
+                        woffset = left_shift;
+                    }
+                    size_t weightStride = 1 + ALIGN(input_sz, 8);
+                    // iterating while offset within weights
+                    for (;woffset < output_sz * ALIGN(input_sz, 8);) {
+                        if (weightsElementSize == 1) {
+                            reinterpret_cast<uint8_t *>(data)[woffset] = 127;
+                        } else {
+                            reinterpret_cast<float *>(data)[woffset] = 1.0f;
+                        }
+                        woffset += weightStride;
+                    }
+                }, 64);
+
+        if (gnaFlags->sw_fp32) {
+            gnamem->readonly().push_value(newWeights.pBiases, 0.0f, output_sz, 64);
+        } else {
+            intel_compound_bias_t biasValue = {
+                0, static_cast<uint8_t>(weightScale / 127)
+            };
+            gnamem->readonly().push_value(newWeights.pBiases, biasValue, output_sz, 64);
+        }
+    }
+
+    gnamem->bind_ptr(pWeights, cachedPattern->second->pWeights);
+    gnamem->bind_ptr(pBiases, cachedPattern->second->pBiases);
+}
+
+void GNAGraphCompiler::genAffineFilter(InferenceEngine::CNNLayerPtr layer,
+                     size_t input_sz,
+                     size_t left_shift,
+                     size_t output_sz,
+                     size_t input_data_offset,
+                     size_t output_data_offset) {
+    auto filterLayer = dynamic_cast<InferenceEngine::WeightableLayer*> (layer.get());
+    if (filterLayer == nullptr) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "should be weightable layer";
+    }
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+
+    IE_ASSERT(!layer->outData.empty());
+    IE_ASSERT(!layer->insData.empty());
+    auto outputs = *layer->outData.begin();
+    auto inputs = layer->insData.begin()->lock();
+
+    void* ptr_inputs = nullptr;
+    void* ptr_outputs = nullptr;
+    void* ptr_weights = nullptr;
+    void* ptr_biases = nullptr;
+
+    auto& currentComponent = dnnComponents.addComponent(layer->name + "_gen_" + std::to_string(genFilters++), "affine");
+    size_t weightsElementSize; // will be 127 or 1.f initialized
+    size_t biasElementSize;    // will be zero initialized always
+
+    if (gnaFlags->sw_fp32) {
+        weightsElementSize = 4;
+        biasElementSize = 4;
+    } else {
+        // possible always use int8 for that
+        weightsElementSize = 1;
+        biasElementSize = 8;
+    }
+
+    auto input_sz_aligned = ALIGN(input_sz, 8);
+
+    dnn->InitAffineComponent(currentComponent,
+                             input_sz_aligned,
+                             1,
+                             output_sz,
+                             inputs->getPrecision().size(),
+                             outputs->getPrecision().size(),
+                             weightsElementSize,
+                             biasElementSize,
+                             quantized == nullptr ? 1 : quantized->_weights_quant.scale,
+                             quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+                             ptr_inputs,
+                             ptr_outputs,
+                             ptr_weights,
+                             ptr_biases,
+                             false);
+
+    // bind this pointers to certain weights
+    genFilterWeights(input_sz, left_shift, ptr_weights, ptr_biases, quantized == nullptr ? 1 : quantized->_weights_quant.scale);
+
+    size_t num_data_bytes_in = ALIGN(input_sz, 8) * inputs->getPrecision().size();
+    size_t num_data_bytes_out = output_sz * outputs->getPrecision().size();
+
+    connectInput(layer, ptr_inputs,  input_sz, input_data_offset * inputs->getPrecision().size());
+    gnamem->reserve_ptr(ptr_outputs, num_data_bytes_out, 64);
+
+    //generate identity activation
+    auto isNonFunctional = [](CNNLayerPtr l) {
+        return LayerInfo(l).isNonFunctional();
+    };
+    auto identity = CNNNetGetNextLayerSkipCertain(layer, 0, 0, isNonFunctional);
+    auto identityOutputs = *identity.first->outData.begin();
+
+    auto quantizedIdentity = InferenceEngine::getInjectedData<QuantizedLayerParams>(identity.first);
+    float output_pwl_scale_factor = quantizedIdentity != nullptr ? quantizedIdentity->_dst_quant.scale : 1.0f;
+    float input_pwl_scale_factor  = quantizedIdentity != nullptr ? quantizedIdentity->_src_quant.scale : 1.0f;
+
+    void *pwl_inputs = 0;
+    void *pwl_outputs = 0;
+
+    genPWLPrimitive(
+        output_sz,
+        1,
+        outputs->getPrecision(),
+        identityOutputs->getPrecision(),
+        "identity",
+        0.0f,
+        layer->name + "_gen_identity_" + std::to_string(genFilters - 1),
+        input_pwl_scale_factor,
+        output_pwl_scale_factor,
+        pwl_inputs,
+        pwl_outputs);
+
+    gnamem->bind_ptr(pwl_inputs, ptr_outputs, 0, num_data_bytes_out);
+
+    size_t num_data_bytes_identity_out = output_sz * identityOutputs->getPrecision().size();
+    // proper connection would be to add full output offset of given pwl primitive
+    auto globalOffset = identity.first->GetParamAsInt("output_offset");
+    identity.first->params["output_offset"] = std::to_string(globalOffset + output_data_offset * identityOutputs->getPrecision().size());
+    connectOutput(identity.first, pwl_outputs, num_data_bytes_identity_out);
+    identity.first->params["output_offset"] = std::to_string(globalOffset);
+}
+
 void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto filterLayer = dynamic_cast<InferenceEngine::WeightableLayer*> (layer.get());
 
@@ -1040,9 +1204,11 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     auto numRowsPadded = filterLayer->GetParamAsInt("num_rows_padded");
     // number of rows we handled by inserting copy layer
     uint32_t num_rows_copied = 0;
+
     // in case of left alignment succeed, but due to number of elements not multiple of 8 we need to insert align_filter
     // we are improving it by inserting copy layer of size that covers most of elements - remained max of 32x31 affine filter
-    if (policy.ConcatAlignmentPolicy == Policy::ConcatAlignment::FAST &&  0 == numRowsPadded && ALIGN(num_rows_in, 32) > 32) {
+    if ((policy.ConcatAlignmentPolicy == Policy::ConcatAlignment::FAST_ZERO_OFFSET ||
+         policy.ConcatAlignmentPolicy == Policy::ConcatAlignment::FAST) &&  0 == numRowsPadded && ALIGN(num_rows_in, 32) > 32) {
         // can we use copy at all
         num_rows_copied = ALIGN(num_rows_in, 32) - 32;
 
@@ -1080,8 +1246,60 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
         num_rows_in  -= num_rows_copied;
         num_rows_out -= num_rows_copied;
     }
-    filterLayer->params["rows_copied_offset"] = std::to_string(num_rows_copied * inputs->getPrecision().size());
 
+    // affine filter with zero padded for output - note it's input always starts from 64 bit alligned boundary due to split aligned filter
+    // we are improving it by inserting copy layer of size that covers most of elements - remained max of 32x31 affine filter
+    // TODO: always use gen weights routine
+    bool genWeights = false;
+    if (policy.ConcatAlignmentPolicy == Policy::ConcatAlignment::FAST &&  0 != numRowsPadded && numRowsPadded + num_rows_in > 32) {
+        // we cannot  we use copy layer that time - lets consider factorizing this Filter By 3 filters kernels
+        auto outputOffset = filterLayer->GetParamAsInt("output_offset");
+
+        // 1 - st filter copies number of elements required to get 32b aligned ptr on output - this generated in common code as last filter in chain
+        auto first_filter_input_sz = 32 - numRowsPadded;
+        auto first_filter_input_sz_aligned = ALIGN(32 - numRowsPadded, 8);
+        auto first_filter_output_sz = 32;
+
+        // 2-nd filters copy 32 x K elements of input by using ap-to 63x32 filter
+        // weights of that filters are shared
+        auto second_filter_input_sz_aligned = ALIGN(32 + first_filter_input_sz, 8);
+        auto second_filter_output_sz = 32;
+        auto second_filters_num = (num_rows_in - first_filter_input_sz) / 32 ;
+
+        // 3rd filter copies remained < 32 elements using traditional filter mechanism
+        auto third_filter_output_sz = (num_rows_in - first_filter_input_sz) % 32;
+
+        if (third_filter_output_sz > 0) {
+            auto third_filter_input_sz = first_filter_input_sz + third_filter_output_sz;
+            auto third_filter_input_offset = 32 * second_filters_num;
+            auto third_filter_output_offset = first_filter_output_sz + third_filter_input_offset;
+
+            genAffineFilter(layer,
+                            third_filter_input_sz,
+                            first_filter_input_sz,
+                            third_filter_output_sz,
+                            third_filter_input_offset,
+                            third_filter_output_offset);
+        }
+
+        for (int k = 0; k != second_filters_num; k++) {
+            genAffineFilter(layer,
+                second_filter_input_sz_aligned,
+                first_filter_input_sz,
+                second_filter_output_sz,
+                32 * k,
+                first_filter_output_sz + 32 * k);
+        }
+
+        num_rows_in  = first_filter_input_sz;
+        num_rows_out = first_filter_output_sz;
+        // making sure activation tensor size reduced as well
+        filterLayer->params["rows_remained"] = std::to_string(num_rows_out);
+        num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
+        genWeights = true;
+    }
+
+    filterLayer->params["rows_copied_offset"] = std::to_string(num_rows_copied * inputs->getPrecision().size());
 
     auto biasPrecision = filterLayer->_biases ? filterLayer->_biases->getTensorDesc().getPrecision() : outputs->getPrecision();
     auto& currentComponent = dnnComponents.addComponent(layer->name, "affine");
@@ -1092,8 +1310,8 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
         num_rows_out,
         inputs->getPrecision().size(),
         outputs->getPrecision().size(),
-        filterLayer->_weights->getTensorDesc().getPrecision().size(),
-        biasPrecision.size(),
+        genWeights ? (gnaFlags->sw_fp32 ? 4 : 1) : filterLayer->_weights->getTensorDesc().getPrecision().size(),
+        genWeights ? (gnaFlags->sw_fp32 ? 4 : 8) : biasPrecision.size(),
         quantized == nullptr ? 1 : quantized->_weights_quant.scale,
         quantized == nullptr ? 1 : quantized->_dst_quant.scale,
         ptr_inputs,
@@ -1109,7 +1327,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     connectInput(layer, ptr_inputs, num_data_bytes_in, num_rows_copied * inputs->getPrecision().size(), 0);
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
-    {
+    if (!genWeights) {
         auto weightsElementSize = filterLayer->_weights->getTensorDesc().getPrecision().size();
         auto elementsIn = (num_rows_in + num_padding) * num_columns_in;
         auto paddedWeights = elementsIn * num_rows_out;
@@ -1117,30 +1335,37 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
 
         // TODO: this can be improved to not generate unneeded weights at all
 
-        size_t weights_stride =  (num_rows_in + num_rows_copied) * weightsElementSize;
-        size_t weights_offset = weights_stride * num_rows_copied +  num_rows_copied * weightsElementSize;
+        size_t weights_stride = (num_rows_in + num_rows_copied) * weightsElementSize;
+        size_t weights_offset = weights_stride * num_rows_copied + num_rows_copied * weightsElementSize;
 
-        gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void* data, size_t size) {
+        gnamem->readonly().push_initializer(ptr_weights, paddedWeightsSize, [=](void *data, size_t size) {
             size_t roffset = weights_offset;
             size_t woffset = 0;
-            for (int i = 0; i < num_rows_out && size >= woffset; i++) {
-                ie_memcpy(reinterpret_cast<uint8_t*>(data) + woffset,
+            for (int i = 0; i < num_rows_out && size > woffset; i++) {
+                ie_memcpy(reinterpret_cast<uint8_t *>(data) + woffset,
                           size - woffset,
-                          filterLayer->_weights->cbuffer().as<const uint8_t*>() + roffset,
+                          filterLayer->_weights->cbuffer().as<const uint8_t *>() + roffset,
                           num_rows_in * weightsElementSize);
                 roffset += weights_stride;
                 woffset += elementsIn * weightsElementSize;
             }
-         }, 64);
-    }
+        }, 64);
 
-    if (filterLayer->_biases) {
-        gnamem->readonly().push_ptr(ptr_biases,
-            filterLayer->_biases->cbuffer().as<const void*>(),
-            filterLayer->_biases->byteSize(),
-            64);
+        if (filterLayer->_biases) {
+            gnamem->readonly().push_ptr(ptr_biases,
+                                        filterLayer->_biases->cbuffer().as<const void *>(),
+                                        filterLayer->_biases->byteSize(),
+                                        64);
+        } else {
+            gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+        }
     } else {
-        gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+        genFilterWeights(
+            num_rows_in,
+            -(num_rows_out-num_rows_in),
+            ptr_weights,
+            ptr_biases,
+            quantized == nullptr ? 1 : quantized->_weights_quant.scale);
     }
 }
 
@@ -1232,65 +1457,22 @@ void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer)
         gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
     }
 }
+void GNAGraphCompiler::genPWLPrimitive(
+    int num_rows,
+    int num_columns,
+    Precision input_precision,
+    Precision output_precision,
+    std::string type,
+    float negative_slope,
+    std::string activationName,
+    float input_pwl_scale_factor,
+    float output_pwl_scale_factor,
+    void *&ptr_inputs,
+    void *&ptr_outputs) {
 
-void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
-    auto* generic = dynamic_cast<GenericLayer*>(layer.get());
-    std::string type;
+    size_t num_data_bytes_out = num_columns * num_rows * input_precision.size();
+    size_t num_data_bytes_in  = num_columns * num_rows * output_precision.size();
     std::vector<intel_pwl_segment_t> ptr_pwl_segments;
-    uint32_t num_rows;
-    uint32_t num_columns;
-    void* ptr_inputs = nullptr;
-    void* ptr_outputs = nullptr;
-
-    do {
-        if (generic == nullptr) {
-            type = layer->type;
-            break;
-        }
-
-        if (InferenceEngine::details::CaselessEq<string>()(layer->type, "activation")) {
-            type = generic->GetParamAsString("type");
-            break;
-        } else {
-            type = layer->type;
-            break;
-        }
-    } while (false);
-
-    IE_ASSERT(!layer->insData.empty());
-    IE_ASSERT(!layer->outData.empty());
-    auto inputs = layer->insData.begin()->lock();
-    auto outputs = *layer->outData.begin();
-    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-    float output_pwl_scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
-    float input_pwl_scale_factor = quantized != nullptr ? quantized->_src_quant.scale : 1.0f;
-
-    auto orientation = kDnnInterleavedOrientation;
-
-    if (inputs->getDims().size() == 4) {
-        uint32_t w_dim_in = FROM_IR_DIM(inputs, 1);
-        uint32_t h_dim_in = FROM_IR_DIM(inputs, 2);
-        uint32_t c_dim_in = FROM_IR_DIM(inputs, 3);
-
-        num_columns = (w_dim_in == 1) ? h_dim_in * c_dim_in : w_dim_in * c_dim_in;
-        num_rows = 1;
-    } else {
-        num_columns = FROM_IR_DIM(inputs, 2);
-        num_rows = FROM_IR_DIM(inputs, 1);
-    }
-
-    // TODO: solve this by layer level transformations
-    auto concatAlignFilter = CNNNetPrevLayer(layer, 0);
-    if (LayerInfo(concatAlignFilter).isConcatAlignFilter()) {
-        auto rowsCopiedOffset = concatAlignFilter->GetParamAsInt("rows_copied_offset");
-        if (rowsCopiedOffset != 0) {
-            num_rows -= rowsCopiedOffset / outputs->getPrecision().size();
-            layer->params["output_offset"] = std::to_string(rowsCopiedOffset);
-        }
-    }
-
-    size_t num_data_bytes_out = num_columns * num_rows * outputs->getPrecision().size();
-    size_t num_data_bytes_in = num_columns * num_rows * inputs->getPrecision().size();
 
     static InferenceEngine::details::caseless_unordered_map<std::string, DnnActivationType> supportedActivations = {
         {"sigmoid", kActSigmoid},
@@ -1313,17 +1495,12 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         THROW_GNA_EXCEPTION << "Activation function type not yet supported: " << type;
     }
     auto activation_type = DnnActivation::fromType(it->second);
-    if (it->second == kActRelu) {
-        auto reluLayer = dynamic_cast<ReLULayer*>(layer.get());
-        activation_type.negative_slope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
-    } else {
-        activation_type.negative_slope = 0.0f;
-    }
+    activation_type.negative_slope = negative_slope;
 
     string actName = "unknown";
 
 #ifdef PLOT
-#define GET_ACTIVATION_NAME(name)\
+    #define GET_ACTIVATION_NAME(name)\
 case name:\
     actName = #name;\
     break
@@ -1346,7 +1523,7 @@ case name:\
     }
 #endif
 
-    auto& currentComponent = dnnComponents.addComponent(layer->name, actName);
+    auto& currentComponent = dnnComponents.addComponent(activationName, actName);
 
     intel_pwl_segment_t* ptr_pwl_segments_target = nullptr;
 
@@ -1355,60 +1532,140 @@ case name:\
         // now that scale factors are known, create PWL approximations to activation functions
         if (gnaFlags->uniformPwlDesign) {
             switch (activation_type) {
-            case kActSigmoid:ptr_pwl_segments.resize(SIGMOID_NUM_SEGMENTS);
-                break;
-            case kActTanh:ptr_pwl_segments.resize(TANH_NUM_SEGMENTS);
-                break;
-            case kActRelu:ptr_pwl_segments.resize(RELU_NUM_SEGMENTS);
-                break;
-            case kActLeakyRelu:ptr_pwl_segments.resize(RELU_NUM_SEGMENTS);
-                break;
-            case kActKaldiLstmClipping:
-            case kActIdentity:ptr_pwl_segments.resize(IDENTITY_NUM_SEGMENTS);
-                break;
-            case kActSoftSign:ptr_pwl_segments.resize(SOFTSIGN_NUM_SEGMENTS);
-                break;
-            case kActCustom:
-            default:
-                THROW_GNA_EXCEPTION << "Activation function type not yet supported " << activation_type;
+                case kActSigmoid:ptr_pwl_segments.resize(SIGMOID_NUM_SEGMENTS);
+                    break;
+                case kActTanh:ptr_pwl_segments.resize(TANH_NUM_SEGMENTS);
+                    break;
+                case kActRelu:ptr_pwl_segments.resize(RELU_NUM_SEGMENTS);
+                    break;
+                case kActLeakyRelu:ptr_pwl_segments.resize(RELU_NUM_SEGMENTS);
+                    break;
+                case kActKaldiLstmClipping:
+                case kActIdentity:ptr_pwl_segments.resize(IDENTITY_NUM_SEGMENTS);
+                    break;
+                case kActSoftSign:ptr_pwl_segments.resize(SOFTSIGN_NUM_SEGMENTS);
+                    break;
+                case kActCustom:
+                default:
+                    THROW_GNA_EXCEPTION << "Activation function type not yet supported " << activation_type;
             }
             PwlDesign16(activation_type,
-                &*ptr_pwl_segments.begin(),
-                static_cast<uint32_t>(ptr_pwl_segments.size()),
-                input_pwl_scale_factor,
-                output_pwl_scale_factor);
+                        &*ptr_pwl_segments.begin(),
+                        static_cast<uint32_t>(ptr_pwl_segments.size()),
+                        input_pwl_scale_factor,
+                        output_pwl_scale_factor);
         } else {
             PwlDesignOpt16(activation_type,
-                ptr_pwl_segments,
-                input_pwl_scale_factor,
-                output_pwl_scale_factor);
+                           ptr_pwl_segments,
+                           input_pwl_scale_factor,
+                           output_pwl_scale_factor);
         }
         ptr_pwl_segments_target = reinterpret_cast<intel_pwl_segment_t*>(&ptr_pwl_segments_target);
     }
 
-    dnn->InitPiecewiseLinearComponent(currentComponent,
-        activation_type,
-        orientation,
-        num_rows,
-        num_columns,
-        inputs->getPrecision().size(),
-        outputs->getPrecision().size(),
-        ptr_pwl_segments.size(),
-        output_pwl_scale_factor,
-        input_pwl_scale_factor,
-        ptr_inputs,
-        ptr_outputs,
-        ptr_pwl_segments_target);
+    auto orientation = kDnnInterleavedOrientation;
 
-    connectInput(layer, ptr_inputs, num_data_bytes_in);
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
+    dnn->InitPiecewiseLinearComponent(currentComponent,
+                                      activation_type,
+                                      orientation,
+                                      num_rows,
+                                      num_columns,
+                                      input_precision.size(),
+                                      output_precision.size(),
+                                      ptr_pwl_segments.size(),
+                                      output_pwl_scale_factor,
+                                      input_pwl_scale_factor,
+                                      ptr_inputs,
+                                      ptr_outputs,
+                                      ptr_pwl_segments_target);
 
     if (ptr_pwl_segments_target != nullptr) {
         gnamem->readonly().push_local_ptr(ptr_pwl_segments_target,
-            &ptr_pwl_segments.front(),
-            ptr_pwl_segments.size() * sizeof(intel_pwl_segment_t),
-            64);
+                                          &ptr_pwl_segments.front(),
+                                          ptr_pwl_segments.size() * sizeof(intel_pwl_segment_t),
+                                          64);
     }
+}
+void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
+    auto* generic = dynamic_cast<GenericLayer*>(layer.get());
+    std::string type;
+    uint32_t num_rows;
+    uint32_t num_columns;
+    void* ptr_inputs = nullptr;
+    void* ptr_outputs = nullptr;
+
+    do {
+        if (generic == nullptr) {
+            type = layer->type;
+            break;
+        }
+        if (InferenceEngine::details::CaselessEq<string>()(layer->type, "activation")) {
+            type = generic->GetParamAsString("type");
+            break;
+        } else {
+            type = layer->type;
+            break;
+        }
+    } while (false);
+
+    IE_ASSERT(!layer->insData.empty());
+    IE_ASSERT(!layer->outData.empty());
+    auto inputs = layer->insData.begin()->lock();
+    auto outputs = *layer->outData.begin();
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+
+    float output_pwl_scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+    float input_pwl_scale_factor = quantized != nullptr ? quantized->_src_quant.scale : 1.0f;
+
+    if (inputs->getDims().size() == 4) {
+        uint32_t w_dim_in = FROM_IR_DIM(inputs, 1);
+        uint32_t h_dim_in = FROM_IR_DIM(inputs, 2);
+        uint32_t c_dim_in = FROM_IR_DIM(inputs, 3);
+
+        num_columns = (w_dim_in == 1) ? h_dim_in * c_dim_in : w_dim_in * c_dim_in;
+        num_rows = 1;
+    } else {
+        num_columns = FROM_IR_DIM(inputs, 2);
+        num_rows = FROM_IR_DIM(inputs, 1);
+    }
+
+    // TODO: solve this by layer level transformations
+    auto concatAlignFilter = CNNNetPrevLayer(layer, 0);
+    if (LayerInfo(concatAlignFilter).isConcatAlignFilter()) {
+        if (concatAlignFilter->params.count("rows_copied_offset")) {
+            auto rowsCopiedOffset = concatAlignFilter->GetParamAsInt("rows_copied_offset");
+            if (rowsCopiedOffset != 0) {
+                num_rows -= rowsCopiedOffset / outputs->getPrecision().size();
+                layer->params["output_offset"] = std::to_string(rowsCopiedOffset);
+            }
+        }
+
+        if (concatAlignFilter->params.count("rows_remained")) {
+            auto rowsRemained = concatAlignFilter->GetParamAsInt("rows_remained");
+            num_rows = rowsRemained;
+        }
+    }
+
+    auto reluLayer = dynamic_cast<ReLULayer*>(layer.get());
+    float negativeSlope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
+
+    genPWLPrimitive(num_rows,
+        num_columns,
+        inputs->getPrecision(),
+        outputs->getPrecision(),
+        type,
+        negativeSlope,
+        layer->name,
+        input_pwl_scale_factor,
+        output_pwl_scale_factor,
+        ptr_inputs,
+        ptr_outputs);
+
+    size_t num_data_bytes_out = num_columns * num_rows * outputs->getPrecision().size();
+    size_t num_data_bytes_in  = num_columns * num_rows * inputs->getPrecision().size();
+
+    connectInput(layer, ptr_inputs,  num_data_bytes_in);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
 }
 
 void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
@@ -1747,6 +2004,9 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             gnamem->bind_ptr(ptr, &cropLayerInfoItem.gna_ptr, offset);
             return CNNNetPrevLayer(prevLayer);
         }
+    } else if (layerInfoObj.isConcatAlignFilter()) {
+         //auto rowsCopiedOffset = prevLayer->GetParamAsInt("rows_copied_offset");
+         //offset += rowsCopiedOffset;
     }
     auto prevDnnLayer = dnnComponents.findComponent(prevLayer);
 
