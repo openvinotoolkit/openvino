@@ -492,7 +492,6 @@ extensions/middle/AnchorToPriorBox.py
 extensions/middle/ApplyNHWCtoNCHWpermutation.py
 extensions/middle/ApplyPermutations.py
 extensions/middle/ArgMaxToTopK.py
-extensions/middle/ATenToEmbeddingBag.py
 extensions/middle/AttributedTileNormalizer.py
 extensions/middle/BiasAddBroadcasting.py
 extensions/middle/BinarizeWeightsM1P1.py
@@ -516,6 +515,7 @@ extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
 extensions/middle/EltwiseInputNormalization.py
 extensions/middle/EltwiseInputReshape.py
+extensions/middle/EmbeddingBagResolver.py
 extensions/middle/FakeSplitOutputs.py
 extensions/middle/FusedBatchNormNonConstant.py
 extensions/middle/FusedBatchNormTraining.py
