@@ -404,7 +404,7 @@ public:
                     std::ifstream binStream;
                     binStream.open(bPath, std::ios::binary);
                     if (!binStream.is_open())
-                        THROW_IE_EXCEPTION << "Model file " << bPath << " cannot be opened!";
+                        THROW_IE_EXCEPTION << "Weights file " << bPath << " cannot be opened!";
                     return reader->read(modelStream, binStream, extensions);
                 }
                 return reader->read(modelStream, extensions);
