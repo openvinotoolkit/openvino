@@ -77,9 +77,6 @@ std::shared_ptr<ngraph::Node> ngraph::op::GenericIE::copy_with_new_args(const ng
 }
 
 void ngraph::op::GenericIE::validate_and_infer_types() {
-    if (!reshape)
-        return;
-
     // Try to find extension with shape inference inplementation and apply it
     for (const auto& ext : extensions) {
         IE_SUPPRESS_DEPRECATED_START

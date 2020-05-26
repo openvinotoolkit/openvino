@@ -18,7 +18,7 @@
 #include "exec_graph_info.hpp"
 #include "xml_parse_utils.h"
 #include "ie_ngraph_utils.hpp"
-#include "ie_parameter.hpp"
+#include <ngraph/variant.hpp>
 
 namespace InferenceEngine {
 namespace Serialization {
@@ -429,13 +429,10 @@ void FillXmlDocWithExecutionNGraph(const InferenceEngine::ICNNNetwork& network,
     netXml.append_attribute("name").set_value(network.getName().c_str());
 
     pugi::xml_node layers = netXml.append_child("layers");
-
-    std::map<std::shared_ptr<ngraph::Node>, size_t> matching;
-    for (size_t i = 0; i < ordered.size(); i++) {
-        matching[ordered[i]] = i;
-    }
+    std::unordered_map<std::shared_ptr<ngraph::Node>, size_t> matching;
 
     for (size_t i = 0; i < ordered.size(); ++i) {
+        matching[ordered[i]] = i;
         const std::shared_ptr<ngraph::Node> node = ordered[i];
         auto params = node->get_rt_info();
 
@@ -444,22 +441,22 @@ void FillXmlDocWithExecutionNGraph(const InferenceEngine::ICNNNetwork& network,
             THROW_IE_EXCEPTION << node->get_friendly_name() << " does not define "
                                << ExecGraphInfoSerialization::LAYER_TYPE << " attribute.";
         }
-        InferenceEngine::Parameter layerTypeValue = layerTypeVariant->second;
+        using VariantString = ngraph::VariantImpl<std::string>;
+        auto layerTypeValueStr = std::dynamic_pointer_cast<VariantString>(layerTypeVariant->second);
+        IE_ASSERT(layerTypeValueStr != nullptr);
         params.erase(layerTypeVariant);
 
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("name").set_value(node->get_friendly_name().c_str());
-        layer.append_attribute("type").set_value(layerTypeValue.as<std::string>().c_str());
+        layer.append_attribute("type").set_value(layerTypeValueStr->get().c_str());
         layer.append_attribute("id").set_value(i);
 
         if (!params.empty()) {
             pugi::xml_node data = layer.append_child("data");
 
             for (const auto& it : params) {
-                InferenceEngine::Parameter param = it.second;
-                if (!param.is<std::string>())
-                    continue;
-                data.append_attribute(it.first.c_str()).set_value(param.as<std::string>().c_str());
+                if (auto strValue = std::dynamic_pointer_cast<VariantString>(it.second))
+                    data.append_attribute(it.first.c_str()).set_value(strValue->get().c_str());
             }
         }
 
