@@ -114,7 +114,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
         ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice).GetExecGraphInfo(),
                          InferenceEngine::details::InferenceEngineException);
     }
-        IE_SUPPRESS_DEPRECATED_END
+    IE_SUPPRESS_DEPRECATED_END
     function.reset();
 }
 
