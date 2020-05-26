@@ -38,7 +38,13 @@ TEST(TransformationTests, DepthToSpaceFusionDepthFirst) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0});
         ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::DepthToSpaceFusion().run_on_function(f);
+        auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
+            return true;
+        };
+
+        auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
+        depth_to_space_transform.setCallback(callback);
+        depth_to_space_transform.run_on_function(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -66,7 +72,13 @@ TEST(TransformationTests, DepthToSpaceFusionBlockFirst) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0});
         ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::DepthToSpaceFusion().run_on_function(f);
+        auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
+            return true;
+        };
+
+        auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
+        depth_to_space_transform.setCallback(callback);
+        depth_to_space_transform.run_on_function(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
