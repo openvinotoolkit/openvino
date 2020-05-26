@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,19 +73,6 @@ public:
         transformer.transform(*cnnNetworkImp);
 
         return InferenceEngine::CNNNetwork(cnnNetworkImp);
-    }
-
-    std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
-        const ::ngraph::element::Type type,
-        const ngraph::Output<ngraph::Node>& input,
-        const float low = 0.f,
-        const float hight = 1.f) {
-        auto inputLowConst = std::make_shared<ngraph::op::Constant>(type, ngraph::Shape{ 1, 1, 1, 1 }, std::vector<float>({ low }));
-        auto inputHighConst = std::make_shared<ngraph::op::Constant>(type, ngraph::Shape{ 1, 1, 1, 1 }, std::vector<float>({ hight }));
-        auto outputLowConst = std::make_shared<ngraph::op::Constant>(type, ngraph::Shape{ 1, 1, 1, 1 }, std::vector<float>({ low }));
-        auto outputHighConst = std::make_shared<ngraph::op::Constant>(type, ngraph::Shape{ 1, 1, 1, 1 }, std::vector<float>({ hight }));
-        auto fakeQuantize = std::make_shared<ngraph::opset1::FakeQuantize>(input, inputLowConst, inputHighConst, outputLowConst, outputHighConst, 256ul);
-        return fakeQuantize;
     }
 
     static std::string toString(const InferenceEngine::details::LayerTransformation::Params& params) {

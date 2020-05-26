@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,7 @@ using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+        InferenceEngine::Precision::FP32
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
@@ -33,7 +32,3 @@ INSTANTIATE_TEST_CASE_P(LPT, ConcatWithIntermediateTransformation,
         ::testing::ValuesIn(multiChannelValues)),
     ConcatWithIntermediateTransformation::getTestCaseName);
 }  // namespace
-
-
-
-

@@ -1,6 +1,8 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "low_precision_transformations/concat_transformation.hpp"
 
 #include <memory>
 #include <tuple>
@@ -13,11 +15,8 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-
 #include "ngraph_functions/pass/convert_prc.hpp"
-
-#include "low_precision_transformations/concat_transformation.hpp"
-
+#include "ngraph_functions/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -40,15 +39,15 @@ void ConcatTransformation::SetUp() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
-    auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto paramNode1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-    const auto fakeQuantize1 = makeFakeQuantize(ngPrecision, paramNode1->output(0));
+    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(paramNode1, ngPrecision, 256ul, { 1ul });
 
     const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2] / 2, inputShape[3] / 2 };
     const auto paramNode2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
+    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(paramNode2, ngPrecision, 256ul, { 1ul });
 
-    const auto fakeQuantize2 = makeFakeQuantize(ngPrecision, paramNode2->output(0));
     const auto interpolateShape = std::make_shared<ngraph::op::Constant>(
         ngraph::element::i64,
         ngraph::Shape{ 2 },
@@ -95,10 +94,6 @@ void ConcatTransformation::validate() {
 
 TEST_P(ConcatTransformation, CompareWithRefImpl) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 };
 
 }  // namespace LayerTestsDefinitions

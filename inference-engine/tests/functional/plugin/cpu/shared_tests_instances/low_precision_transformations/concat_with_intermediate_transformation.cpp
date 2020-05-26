@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,3 @@ INSTANTIATE_TEST_CASE_P(LPT, ConcatWithIntermediateTransformation,
         ::testing::ValuesIn(multiChannelValues)),
     ConcatWithIntermediateTransformation::getTestCaseName);
 }  // namespace
-
-
-
-

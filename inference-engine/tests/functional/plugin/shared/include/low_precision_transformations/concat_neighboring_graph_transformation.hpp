@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ namespace LayerTestsDefinitions {
 class ConcatNeighboringGraphTransformation : public LayerTestsUtils::LayerTransformation<LayerTestsUtils::LayerTransformationParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj);
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
     void SetUp() override;

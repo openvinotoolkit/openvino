@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,14 +11,15 @@
 
 #include <ie_core.hpp>
 #include <ie_common.h>
+
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "low_precision_transformations/network_helper.hpp"
 #include "low_precision_transformations/concat.hpp"
-
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+#include "ngraph_functions/builders.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -39,8 +40,8 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestP
         netPrecision.name() << "_" <<
         targetDevice << "_" <<
         toString(params) <<
-        (transparentIntermediate ? "" : "notTransparentIntermediate") <<
-        (multichannel ? "multichannel" : "");
+        (transparentIntermediate ? "" : "_notTransparentIntermediate") <<
+        (multichannel ? "_multichannel" : "");
 
     return result.str();
 }
@@ -54,15 +55,13 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestP
 */
 
 void ConcatWithIntermediateTransformation::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::IE);
-
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params trasformationParams;
     bool transparentIntermediate;
     bool multichannel;
     std::tie(netPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
-    auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const std::vector<size_t> inputShape1 = {
         inputShape[0],
@@ -73,14 +72,14 @@ void ConcatWithIntermediateTransformation::SetUp() {
 
     const auto paramNode1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
     paramNode1->set_friendly_name("input1");
-    const auto fakeQuantize1 = makeFakeQuantize(ngPrecision, paramNode1->output(0), 0.f, 3.f);
+    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(paramNode1, ngPrecision, 256ul, { 1ul }, { 0.f }, { 3.f }, { 0.f }, { 3.f });
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
     const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
     const auto paramNode2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
     paramNode2->set_friendly_name("input2");
 
-    const auto fakeQuantize2 = makeFakeQuantize(ngPrecision, paramNode2->output(0), 0.f, 9.f);
+    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(paramNode2, ngPrecision, 256ul, { 1ul }, { 0.f }, { 9.f }, { 0.f }, { 9.f });
     fakeQuantize2->set_friendly_name("fakeQuantize2");
 
     const std::vector<size_t> kernel = { 3, 3 };
@@ -190,10 +189,6 @@ void ConcatWithIntermediateTransformation::validate() {
 
 TEST_P(ConcatWithIntermediateTransformation, CompareWithRefImpl) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 };
 
 }  // namespace LayerTestsDefinitions
