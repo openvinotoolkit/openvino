@@ -33,7 +33,6 @@ class SoftPlus(FrontReplacementOp):
         add_node = create_op_node_with_second_input(graph, Add, int64_array([1]), {'name': softplus.name + '/Add'})
         log_node = Log(graph, {'name': softplus.name + '/Log'}).create_node()
 
-        #exp_node.in_port(0).connect(softplus.in_port(0).get_source())
         softplus.in_port(0).get_connection().set_destination(exp_node.in_port(0))
         add_node.in_port(0).connect(exp_node.out_port(0))
         log_node.in_port(0).connect(add_node.out_port(0))
