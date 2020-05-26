@@ -1130,6 +1130,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     std::string op_decls = "";
     auto vec_size = conf.vec_size;
     auto idx = conf.bfzyx_idx_order;
+    std::string shuffle_var = conf.shuffle_var_name;
 
     out_var = GetOutputVarName(in_var);
     out_type = desc.output_tensor.GetDType();
@@ -1177,17 +1178,17 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             }
 
             auto post_scale = p->per_tensor_output_scale ? Broadcast(std::to_string(p->out_scale), tmp_type, vec_size)
-                                                         : ConvertToType(GetInputVarName(p->out_scale_idx, is_shuffled), tmp_type, vec_size);
+                                                         : ConvertToType(GetInputVarName(p->out_scale_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
             auto post_shift = p->per_tensor_output_shift ? Broadcast(std::to_string(p->out_shift), tmp_type, vec_size)
-                                                         : ConvertToType(GetInputVarName(p->out_shift_idx, is_shuffled), tmp_type, vec_size);
+                                                         : ConvertToType(GetInputVarName(p->out_shift_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
             auto pre_scale = p->per_tensor_input_scale ? Broadcast(std::to_string(p->in_scale), tmp_type, vec_size)
-                                                       : ConvertToType(GetInputVarName(p->in_scale_idx, is_shuffled), tmp_type, vec_size);
+                                                       : ConvertToType(GetInputVarName(p->in_scale_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
             auto pre_shift = p->per_tensor_input_shift ? Broadcast(std::to_string(p->in_shift), tmp_type, vec_size)
-                                                       : ConvertToType(GetInputVarName(p->in_shift_idx, is_shuffled), tmp_type, vec_size);
+                                                       : ConvertToType(GetInputVarName(p->in_shift_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
             auto in_lo = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_lo), tmp_type, vec_size)
-                                                   : ConvertToType(GetInputVarName(p->in_range_lo_idx, is_shuffled), tmp_type, vec_size);
+                                                   : ConvertToType(GetInputVarName(p->in_range_lo_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
             auto in_hi = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_hi), tmp_type, vec_size)
-                                                   : ConvertToType(GetInputVarName(p->in_range_hi_idx, is_shuffled), tmp_type, vec_size);
+                                                   : ConvertToType(GetInputVarName(p->in_range_hi_idx, is_shuffled, shuffle_var), tmp_type, vec_size);
 
             if (p->has_clamp) {
                 op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = min(max(" + in_lo + ", " + in_converted + "), " + in_hi + ");";
@@ -1367,10 +1368,10 @@ std::string FusedOpsCodeGenerator::GetInputPtrName(size_t input_id) const {
     return GetTypeStr() + std::to_string(desc.op_id) + "_input" + std::to_string(input_id);
 }
 
-std::string FusedOpsCodeGenerator::GetInputVarName(size_t input_id, bool is_shuffled) const {
+std::string FusedOpsCodeGenerator::GetInputVarName(size_t input_id, bool is_shuffled, std::string shuffle_var) const {
     if (is_shuffled)
         return "intel_sub_group_shuffle(" + GetTypeStr() + std::to_string(desc.op_id) + "_data" +
-               std::to_string(input_id) + ", i)";
+               std::to_string(input_id) + ", " + shuffle_var + ")";
     return GetTypeStr() + std::to_string(desc.op_id) + "_data" + std::to_string(input_id);
 }
 

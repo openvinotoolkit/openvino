@@ -69,6 +69,7 @@ JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetJitConstants(c
                                              input_dt,
                                              1,
                                              LoadType::FEATURE_SHUFFLE};
+        conf_scalar.SetShuffleVarName("i");
         mem_consts.Merge(MakeFusedOpsJitConstants(params, {conf_scalar}));
     }
 
