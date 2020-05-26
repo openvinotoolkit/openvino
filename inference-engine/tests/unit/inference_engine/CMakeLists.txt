@@ -9,6 +9,8 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
             unitTestUtils
+        DEPENDENCIES
+            extension_tests
         ADD_CPPLINT
         LABELS
             IE
