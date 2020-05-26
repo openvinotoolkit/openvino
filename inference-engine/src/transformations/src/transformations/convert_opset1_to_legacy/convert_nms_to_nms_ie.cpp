@@ -13,45 +13,51 @@
 #include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertNMSToNMSIE::convert_nms_to_nms_ie() {
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 4});
-    auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1});
-    auto max_per_class = std::make_shared<pattern::op::Label>(element::i64, Shape{});
-    auto iou_threshold = std::make_shared<pattern::op::Label>(element::f32, Shape{});
-    auto score_threshold = std::make_shared<pattern::op::Label>(element::f32, Shape{});
-    auto nms = std::make_shared<ngraph::opset1::NonMaxSuppression>(input_0, input_1, max_per_class, iou_threshold,
-                                                                   score_threshold);
+    auto nms = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset1::NonMaxSuppression>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
-        auto nms = std::dynamic_pointer_cast<ngraph::opset1::NonMaxSuppression>(m.get_match_root());
+        auto nms = std::dynamic_pointer_cast<opset1::NonMaxSuppression>(m.get_match_root());
         if (!nms) {
             return false;
         }
-        if (nms->input(2).get_shape().size() == 1 && nms->input(3).get_shape().size() == 1 &&
-            nms->input(4).get_shape().size() == 1) {
+
+        const auto max_output_boxes_per_class_rank = nms->input(2).get_partial_shape().rank();
+        const auto iou_threshold_rank = nms->input(3).get_partial_shape().rank();
+        const auto score_threshold_rank = nms->input(4).get_partial_shape().rank();
+        // Check that required ranks are not dynamic
+        if (max_output_boxes_per_class_rank.is_dynamic() ||
+            iou_threshold_rank.is_dynamic() ||
+            score_threshold_rank.is_dynamic()) {
+            return false;
+        }
+
+        if (max_output_boxes_per_class_rank.get_length() == 1 &&
+            iou_threshold_rank.get_length() == 1 &&
+            score_threshold_rank.get_length() == 1) {
             return false;
         }
 
         // vector of new nGraph operations
         NodeVector new_ops;
 
-        auto new_max_per_class = nms->input(2).get_source_output();
-        if (nms->input(2).get_shape().empty()) {
+        auto new_max_per_class = nms->input_value(2);
+        if (max_output_boxes_per_class_rank.get_length() == 0) {
             new_max_per_class = std::make_shared<ngraph::op::Unsqueeze>(
-                    nms->input(2).get_source_output().get_node_shared_ptr(),
+                    nms->input_value(2),
                     opset1::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(new_max_per_class.get_node_shared_ptr());
         }
-        auto new_iou_threshold = nms->input(3).get_source_output();
-        if (nms->input(3).get_shape().empty()) {
+        auto new_iou_threshold = nms->input_value(3);
+        if (iou_threshold_rank.get_length() == 0) {
             new_iou_threshold = std::make_shared<ngraph::op::Unsqueeze>(
-                    nms->input(3).get_source_output().get_node_shared_ptr(),
+                    nms->input_value(3),
                     opset1::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(new_iou_threshold.get_node_shared_ptr());
         }
-        auto new_score_threshold = nms->input(4).get_source_output();
-        if (nms->input(4).get_shape().empty()) {
+        auto new_score_threshold = nms->input_value(4);
+        if (score_threshold_rank.get_length() == 0) {
             new_score_threshold = std::make_shared<ngraph::op::Unsqueeze>(
-                    nms->input(4).get_source_output().get_node_shared_ptr(),
+                    nms->input_value(4),
                     opset1::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(new_score_threshold.get_node_shared_ptr());
         }
@@ -67,12 +73,11 @@ void ngraph::pass::ConvertNMSToNMSIE::convert_nms_to_nms_ie() {
                 throw ngraph_error("NonMaxSuppression layer " + nms->get_friendly_name() +
                                    " has unsupported box encoding");
         }
-        auto new_nms = std::make_shared<ngraph::op::NonMaxSuppressionIE>(nms->input(0).get_source_output(),
-                                                                         nms->input(1).get_source_output(),
+        auto new_nms = std::make_shared<ngraph::op::NonMaxSuppressionIE>(nms->input_value(0),
+                                                                         nms->input_value(1),
                                                                          new_max_per_class,
                                                                          new_iou_threshold,
                                                                          new_score_threshold,
-                                                                         nms->output(0).get_shape(),
                                                                          center_point_box,
                                                                          nms->get_sort_result_descending());
         new_ops.push_back(new_nms);
