@@ -285,6 +285,8 @@ protected:
     virtual void Validate();
 
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
+    /// designates strategy pattern for threshold
+    virtual float threshold(const InferenceEngine::Precision & precision);
 
 private:
     void ConfigureNetwork() const;

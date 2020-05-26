@@ -27,7 +27,7 @@ float CNNLayer::ie_parse_float(const std::string& str) {
         std::stringstream val_stream(str);
         val_stream.imbue(std::locale("C"));
         val_stream >> res;
-        if (!val_stream.eof()) THROW_IE_EXCEPTION;
+        if (!val_stream.eof()) THROW_IE_EXCEPTION << "cannot parse string as float: " << str;
         return res;
     }
 }

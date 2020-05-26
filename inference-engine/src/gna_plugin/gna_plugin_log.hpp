@@ -7,7 +7,7 @@
 #include <ostream>
 #include <details/ie_exception.hpp>
 
-// #define GNA_DEBUG
+#define GNA_DEBUG
 #ifdef  GNA_DEBUG
 
 #define GNA_HEAP_PROFILER

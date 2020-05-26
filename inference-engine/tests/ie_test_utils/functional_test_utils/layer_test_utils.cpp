@@ -17,6 +17,10 @@ void LayerTestsCommon::Run() {
     LoadNetwork();
     Infer();
     Validate();
+
+    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
+        PluginCache::get().reset();
+    }
 }
 
 LayerTestsCommon::~LayerTestsCommon() {
@@ -42,12 +46,16 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
     const auto &size = actual->size();
     switch (precision) {
         case InferenceEngine::Precision::FP32:
-            Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer),
-                    size, 1e-2f);
+            Compare(reinterpret_cast<const float *>(expectedBuffer),
+                    reinterpret_cast<const float *>(actualBuffer),
+                    size,
+                    threshold(precision));
             break;
         case InferenceEngine::Precision::I32:
             Compare(reinterpret_cast<const std::int32_t *>(expectedBuffer),
-                    reinterpret_cast<const std::int32_t *>(actualBuffer), size, 0);
+                    reinterpret_cast<const std::int32_t *>(actualBuffer),
+                    size,
+                    static_cast<std::int32_t>(threshold(precision)));
             break;
         default:
             FAIL() << "Comparator for " << precision << " precision isn't supported";
@@ -155,6 +163,15 @@ void LayerTestsCommon::Compare(const std::vector<std::vector<std::uint8_t>>& exp
         const auto& expected = expectedOutputs[outputIndex];
         const auto& actual = actualOutputs[outputIndex];
         Compare(expected, actual);
+    }
+}
+
+float LayerTestsCommon::threshold(const InferenceEngine::Precision & precision) {
+    switch (precision) {
+        case InferenceEngine::Precision::FP32: return 1e-2f;
+        case InferenceEngine::Precision::I32: return 0.f;
+        default:
+            return 0.f;
     }
 }
 

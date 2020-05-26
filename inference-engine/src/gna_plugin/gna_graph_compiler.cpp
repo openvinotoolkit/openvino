@@ -1054,7 +1054,7 @@ void GNAGraphCompiler:: genFilterWeights(size_t input_sz,
                     }
                     size_t weightStride = 1 + ALIGN(input_sz, 8);
                     // iterating while offset within weights
-                    for (;woffset < output_sz * ALIGN(input_sz, 8);) {
+                    for (; woffset < output_sz * ALIGN(input_sz, 8);) {
                         if (weightsElementSize == 1) {
                             reinterpret_cast<uint8_t *>(data)[woffset] = 127;
                         } else {
@@ -1188,7 +1188,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     auto inputs = layer->insData.begin()->lock();
 
     uint32_t num_columns_in = FROM_IR_DIM(inputs, 2);
-    uint32_t num_rows_in =FROM_IR_DIM(inputs, 1);
+    uint32_t num_rows_in = FROM_IR_DIM(inputs, 1);
 
     uint32_t num_rows_out = FROM_IR_DIM(outputs, 1);
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
@@ -1254,7 +1254,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
         // weights of that filters are shared
         auto second_filter_input_sz_aligned = ALIGN(32 + first_filter_input_sz, 8);
         auto second_filter_output_sz = 32;
-        auto second_filters_num = (num_rows_in - first_filter_input_sz) / 32 ;
+        auto second_filters_num = (num_rows_in - first_filter_input_sz) / 32;
 
         // 3rd filter copies remained < 32 elements using traditional filter mechanism
         auto third_filter_output_sz = (num_rows_in - first_filter_input_sz) % 32;
