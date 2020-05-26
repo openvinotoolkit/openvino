@@ -25,30 +25,30 @@ from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph
 
 graph_node_attrs_for_2d_spatial_case = {
-        'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-        'placeholder_data': {
-            'value': None,
-            'shape': int64_array([1, 100, 120, 150]),
-            'kind': 'data',
-            'data_type': None
-        },
-        'split': {'type': 'Split', 'kind': 'op', 'op': 'Split', 'num_splits': 3},
-        'split_axis_const': {
-            'kind': 'op',
-            'value': np.array(3, dtype=np.int64),
-            'op': 'Const',
-            'type': 'Const'
-        },
-        'split_axis_const_data': {'value': None, 'shape': np.array(3, dtype=np.int64).shape, 'kind': 'data'},
-        'concat': {'type': 'Concat', 'kind': 'op', 'axis': 3},
-        'split_data_0': {'value': None, 'shape': int64_array([1, 100, 120, 50]), 'kind': 'data'},
-        'split_data_1': {'value': None, 'shape': int64_array([1, 100, 120, 50]), 'kind': 'data'},
-        'split_data_2': {'value': None, 'shape': int64_array([1, 100, 120, 50]), 'kind': 'data'},
-        'concat_data': {'value': None, 'shape': int64_array([1, 100, 120, 300]), 'kind': 'data'},
-        'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
-        'abs_data': {'value': None, 'shape': int64_array([1, 100, 120, 300]), 'kind': 'data'},
-        'output': {'kind': 'op', 'op': 'Result'},
-    }
+    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_data': {
+        'value': None,
+        'shape': int64_array([1, 100, 120, 150]),
+        'kind': 'data',
+        'data_type': None
+    },
+    'split': {'type': 'Split', 'kind': 'op', 'op': 'Split', 'num_splits': 3},
+    'split_axis_const': {
+        'kind': 'op',
+        'value': np.array(3, dtype=np.int64),
+        'op': 'Const',
+        'type': 'Const'
+    },
+    'split_axis_const_data': {'value': None, 'shape': np.array(3, dtype=np.int64).shape, 'kind': 'data'},
+    'concat': {'type': 'Concat', 'kind': 'op', 'axis': 3},
+    'split_data_0': {'value': None, 'shape': int64_array([1, 100, 120, 50]), 'kind': 'data'},
+    'split_data_1': {'value': None, 'shape': int64_array([1, 100, 120, 50]), 'kind': 'data'},
+    'split_data_2': {'value': None, 'shape': int64_array([1, 100, 120, 50]), 'kind': 'data'},
+    'concat_data': {'value': None, 'shape': int64_array([1, 100, 120, 300]), 'kind': 'data'},
+    'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+    'abs_data': {'value': None, 'shape': int64_array([1, 100, 120, 300]), 'kind': 'data'},
+    'output': {'kind': 'op', 'op': 'Result'},
+}
 
 
 graph_node_attrs_for_3d_spatial_case = {
@@ -79,33 +79,36 @@ graph_node_attrs_for_3d_spatial_case = {
 
 
 graph_edges = [
-        ('placeholder', 'placeholder_data'),
-        ('placeholder_data', 'split', {'in': 0}),
-        ('split_axis_const', 'split_axis_const_data'),
-        ('split_axis_const_data', 'split', {'in': 1}),
-        ('split', 'split_data_0', {'out': 0}),
-        ('split', 'split_data_1', {'out': 1}),
-        ('split', 'split_data_2', {'out': 2}),
-        ('split_data_0', 'concat', {'in': 0}),
-        ('split_data_0', 'concat', {'in': 1}),
-        ('split_data_1', 'concat', {'in': 2}),
-        ('split_data_1', 'concat', {'in': 3}),
-        ('split_data_2', 'concat', {'in': 4}),
-        ('split_data_2', 'concat', {'in': 5}),
-        ('concat', 'concat_data'),
-        ('concat_data', 'abs'),
-        ('abs', 'abs_data'),
-        ('abs_data', 'output')
-    ]
+    ('placeholder', 'placeholder_data'),
+    ('placeholder_data', 'split', {'in': 0}),
+    ('split_axis_const', 'split_axis_const_data'),
+    ('split_axis_const_data', 'split', {'in': 1}),
+    ('split', 'split_data_0', {'out': 0}),
+    ('split', 'split_data_1', {'out': 1}),
+    ('split', 'split_data_2', {'out': 2}),
+    ('split_data_0', 'concat', {'in': 0}),
+    ('split_data_0', 'concat', {'in': 1}),
+    ('split_data_1', 'concat', {'in': 2}),
+    ('split_data_1', 'concat', {'in': 3}),
+    ('split_data_2', 'concat', {'in': 4}),
+    ('split_data_2', 'concat', {'in': 5}),
+    ('concat', 'concat_data'),
+    ('concat_data', 'abs'),
+    ('abs', 'abs_data'),
+    ('abs_data', 'output')
+]
 
 
 ref_graph_edges = [
         ('placeholder', 'placeholder_data'),
         ('placeholder_data', 'interpolate', {'in': 0}),
         ('placeholder_data', 'shape'),
-        ('shape', 'sslice', {'in': 0}),
-        ('slice_begin', 'sslice', {'in': 1}),
-        ('slice_end', 'sslice', {'in': 2}),
+        ('shape', 'shape_data'),
+        ('shape_data', 'sslice', {'in': 0}),
+        ('slice_begin', 'slice_begin_data'),
+        ('slice_begin_data', 'sslice', {'in': 1}),
+        ('slice_end', 'slice_end_data'),
+        ('slice_end_data', 'sslice', {'in': 2}),
         ('sslice', 'sslice_data'),
         ('scales', 'scales_data'),
         ('sslice_data', 'mul', {'in': 0}),
@@ -120,210 +123,222 @@ ref_graph_edges = [
 
 
 ref_graph_node_attrs_for_2d_spatial_case_1 = {
-        'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-        'placeholder_data': {
-            'value': None,
-            'shape': int64_array([1, 100, 120, 150]),
-            'kind': 'data',
-            'data_type': None
-        },
-        'interpolate': {
-            'type': 'Interpolate',
-            'kind': 'op',
-            'op': 'Interpolate',
-            'axes': int64_array([3]),
-            'mode': 'nearest'
-        },
-        'shape': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
-        'slice_begin': {
-            'type': 'Const',
-            'op': 'Const',
-            'kind': 'op',
-            'value': int64_array([3]),
-            'shape': int64_array([1])
-        },
-        'slice_end': {'type': 'Const', 'op': 'Const', 'kind': 'op', 'value': int64_array([4])},
-        'sslice': {
-            'kind': 'op',
-            'type': 'StridedSlice',
-            'op': 'StridedSlice',
-            'begin_mask': int64_array([1]),
-            'end_mask': int64_array([1]),
-            'new_axis_mask': int64_array([0]),
-            'shrink_axis_mask': int64_array([0]),
-            'ellipsis_mask': int64_array([0]),
-        },
-        'sslice_data': {'kind': 'data', 'shape': None},
-        'scales': {
-            'type': 'Const',
-            'op': 'Const',
-            'kind': 'op',
-            'value': int64_array([2]),
-            'shape': int64_array([1])
-        },
-        'scales_data': {'kind': 'data', 'shape': None},
-        'mul': {'kind': 'op', 'op': 'Mul', 'type': 'Multiply'},
-        'mul_data': {'kind': 'data', 'shape': None},
-        'interpolate_data': {'value': None, 'shape': int64_array([1, 100, 120, 300]), 'kind': 'data'},
-        'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
-        'abs_data': {'value': None, 'shape': int64_array([1, 100, 120, 300]), 'kind': 'data'},
-        'output': {'kind': 'op', 'op': 'Result'},
-    }
+    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_data': {
+        'value': None,
+        'shape': int64_array([1, 100, 120, 150]),
+        'kind': 'data',
+        'data_type': None
+    },
+    'interpolate': {
+        'type': 'Interpolate',
+        'kind': 'op',
+        'op': 'Interpolate',
+        'axes': int64_array([3]),
+        'mode': 'nearest'
+    },
+    'shape': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
+    'shape_data': {'kind': 'data', 'shape': None, 'value': None},
+    'slice_begin': {
+        'type': 'Const',
+        'op': 'Const',
+        'kind': 'op',
+        'value': int64_array([3]),
+        'shape': int64_array([1])
+    },
+    'slice_begin_data': {'kind': 'data', 'shape': None, 'value': None},
+    'slice_end': {'type': 'Const', 'op': 'Const', 'kind': 'op', 'value': int64_array([4])},
+    'slice_end_data': {'kind': 'data', 'shape': None, 'value': None},
+    'sslice': {
+        'kind': 'op',
+        'type': 'StridedSlice',
+        'op': 'StridedSlice',
+        'begin_mask': int64_array([1]),
+        'end_mask': int64_array([1]),
+        'new_axis_mask': int64_array([0]),
+        'shrink_axis_mask': int64_array([0]),
+        'ellipsis_mask': int64_array([0]),
+    },
+    'sslice_data': {'kind': 'data', 'shape': None},
+    'scales': {
+        'type': 'Const',
+        'op': 'Const',
+        'kind': 'op',
+        'value': int64_array([2]),
+        'shape': int64_array([1])
+    },
+    'scales_data': {'kind': 'data', 'shape': None},
+    'mul': {'kind': 'op', 'op': 'Mul', 'type': 'Multiply'},
+    'mul_data': {'kind': 'data', 'shape': None},
+    'interpolate_data': {'value': None, 'shape': int64_array([1, 100, 120, 300]), 'kind': 'data'},
+    'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+    'abs_data': {'value': None, 'shape': int64_array([1, 100, 120, 300]), 'kind': 'data'},
+    'output': {'kind': 'op', 'op': 'Result'},
+}
 
 ref_graph_node_attrs_for_2d_spatial_case_2 = {
-        'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-        'placeholder_data': {
-            'value': None,
-            'shape': int64_array([1, 100, 120, 150]),
-            'kind': 'data',
-            'data_type': None
-        },
-        'interpolate': {
-            'type': 'Interpolate',
-            'kind': 'op',
-            'op': 'Interpolate',
-            'axes': int64_array([2]),
-            'mode': 'nearest'
-        },
-        'shape': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
-        'slice_begin': {
-            'type': 'Const',
-            'op': 'Const',
-            'kind': 'op',
-            'value': int64_array([2]),
-            'shape': int64_array([1])
-        },
-        'slice_end': {'type': 'Const', 'op': 'Const', 'kind': 'op', 'value': int64_array([3])},
-        'sslice': {
-            'kind': 'op',
-            'type': 'StridedSlice',
-            'op': 'StridedSlice',
-            'begin_mask': int64_array([1]),
-            'end_mask': int64_array([1]),
-            'new_axis_mask': int64_array([0]),
-            'shrink_axis_mask': int64_array([0]),
-            'ellipsis_mask': int64_array([0]),
-        },
-        'sslice_data': {'kind': 'data', 'shape': None},
-        'scales': {
-            'type': 'Const',
-            'op': 'Const',
-            'kind': 'op',
-            'value': int64_array([2]),
-            'shape': int64_array([1])
-        },
-        'scales_data': {'kind': 'data', 'shape': None},
-        'mul': {'kind': 'op', 'op': 'Mul', 'type': 'Multiply'},
-        'mul_data': {'kind': 'data', 'shape': None},
-        'interpolate_data': {'value': None, 'shape': int64_array([1, 100, 240, 150]), 'kind': 'data'},
-        'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
-        'abs_data': {'value': None, 'shape': int64_array([1, 100, 240, 150]), 'kind': 'data'},
-        'output': {'kind': 'op', 'op': 'Result'},
-    }
+    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_data': {
+        'value': None,
+        'shape': int64_array([1, 100, 120, 150]),
+        'kind': 'data',
+        'data_type': None
+    },
+    'interpolate': {
+        'type': 'Interpolate',
+        'kind': 'op',
+        'op': 'Interpolate',
+        'axes': int64_array([2]),
+        'mode': 'nearest'
+    },
+    'shape': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
+    'shape_data': {'kind': 'data', 'shape': None, 'value': None},
+    'slice_begin': {
+        'type': 'Const',
+        'op': 'Const',
+        'kind': 'op',
+        'value': int64_array([2]),
+        'shape': int64_array([1])
+    },
+    'slice_begin_data': {'kind': 'data', 'shape': None, 'value': None},
+    'slice_end': {'type': 'Const', 'op': 'Const', 'kind': 'op', 'value': int64_array([3])},
+    'slice_end_data': {'kind': 'data', 'shape': None, 'value': None},
+    'sslice': {
+        'kind': 'op',
+        'type': 'StridedSlice',
+        'op': 'StridedSlice',
+        'begin_mask': int64_array([1]),
+        'end_mask': int64_array([1]),
+        'new_axis_mask': int64_array([0]),
+        'shrink_axis_mask': int64_array([0]),
+        'ellipsis_mask': int64_array([0]),
+    },
+    'sslice_data': {'kind': 'data', 'shape': None},
+    'scales': {
+        'type': 'Const',
+        'op': 'Const',
+        'kind': 'op',
+        'value': int64_array([2]),
+        'shape': int64_array([1])
+    },
+    'scales_data': {'kind': 'data', 'shape': None},
+    'mul': {'kind': 'op', 'op': 'Mul', 'type': 'Multiply'},
+    'mul_data': {'kind': 'data', 'shape': None},
+    'interpolate_data': {'value': None, 'shape': int64_array([1, 100, 240, 150]), 'kind': 'data'},
+    'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+    'abs_data': {'value': None, 'shape': int64_array([1, 100, 240, 150]), 'kind': 'data'},
+    'output': {'kind': 'op', 'op': 'Result'},
+}
 
 
 ref_graph_node_attrs_for_3d_spatial_case_1 = {
-        'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-        'placeholder_data': {
-            'value': None,
-            'shape': int64_array([1, 3, 100, 120, 150]),
-            'kind': 'data',
-            'data_type': None
-        },
-        'interpolate': {
-            'type': 'Interpolate',
-            'kind': 'op',
-            'op': 'Interpolate',
-            'axes': int64_array([4]),
-            'mode': 'nearest'
-        },
-        'shape': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
-        'slice_begin': {
-            'type': 'Const',
-            'op': 'Const',
-            'kind': 'op',
-            'value': int64_array([4]),
-            'shape': int64_array([1])
-        },
-        'slice_end': {'type': 'Const', 'op': 'Const', 'kind': 'op', 'value': int64_array([5])},
-        'sslice': {
-            'kind': 'op',
-            'type': 'StridedSlice',
-            'op': 'StridedSlice',
-            'begin_mask': int64_array([1]),
-            'end_mask': int64_array([1]),
-            'new_axis_mask': int64_array([0]),
-            'shrink_axis_mask': int64_array([0]),
-            'ellipsis_mask': int64_array([0]),
-        },
-        'sslice_data': {'kind': 'data', 'shape': None},
-        'scales': {
-            'type': 'Const',
-            'op': 'Const',
-            'kind': 'op',
-            'value': int64_array([2]),
-            'shape': int64_array([1])
-        },
-        'scales_data': {'kind': 'data', 'shape': None},
-        'mul': {'kind': 'op', 'op': 'Mul', 'type': 'Multiply'},
-        'mul_data': {'kind': 'data', 'shape': None},
-        'interpolate_data': {'value': None, 'shape': int64_array([1, 3, 100, 120, 300]), 'kind': 'data'},
-        'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
-        'abs_data': {'value': None, 'shape': int64_array([1, 3, 100, 120, 300]), 'kind': 'data'},
-        'output': {'kind': 'op', 'op': 'Result'},
-    }
+    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_data': {
+        'value': None,
+        'shape': int64_array([1, 3, 100, 120, 150]),
+        'kind': 'data',
+        'data_type': None
+    },
+    'interpolate': {
+        'type': 'Interpolate',
+        'kind': 'op',
+        'op': 'Interpolate',
+        'axes': int64_array([4]),
+        'mode': 'nearest'
+    },
+    'shape': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
+    'shape_data': {'kind': 'data', 'shape': None, 'value': None},
+    'slice_begin': {
+        'type': 'Const',
+        'op': 'Const',
+        'kind': 'op',
+        'value': int64_array([4]),
+        'shape': int64_array([1])
+    },
+    'slice_begin_data': {'kind': 'data', 'shape': None, 'value': None},
+    'slice_end': {'type': 'Const', 'op': 'Const', 'kind': 'op', 'value': int64_array([5])},
+    'slice_end_data': {'kind': 'data', 'shape': None, 'value': None},
+    'sslice': {
+        'kind': 'op',
+        'type': 'StridedSlice',
+        'op': 'StridedSlice',
+        'begin_mask': int64_array([1]),
+        'end_mask': int64_array([1]),
+        'new_axis_mask': int64_array([0]),
+        'shrink_axis_mask': int64_array([0]),
+        'ellipsis_mask': int64_array([0]),
+    },
+    'sslice_data': {'kind': 'data', 'shape': None},
+    'scales': {
+        'type': 'Const',
+        'op': 'Const',
+        'kind': 'op',
+        'value': int64_array([2]),
+        'shape': int64_array([1])
+    },
+    'scales_data': {'kind': 'data', 'shape': None},
+    'mul': {'kind': 'op', 'op': 'Mul', 'type': 'Multiply'},
+    'mul_data': {'kind': 'data', 'shape': None},
+    'interpolate_data': {'value': None, 'shape': int64_array([1, 3, 100, 120, 300]), 'kind': 'data'},
+    'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+    'abs_data': {'value': None, 'shape': int64_array([1, 3, 100, 120, 300]), 'kind': 'data'},
+    'output': {'kind': 'op', 'op': 'Result'},
+}
 
 
 ref_graph_node_attrs_for_3d_spatial_case_2 = {
-        'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-        'placeholder_data': {
-            'value': None,
-            'shape': int64_array([1, 3, 100, 120, 150]),
-            'kind': 'data',
-            'data_type': None
-        },
-        'interpolate': {
-            'type': 'Interpolate',
-            'kind': 'op',
-            'op': 'Interpolate',
-            'axes': int64_array([3]),
-            'mode': 'nearest'
-        },
-        'shape': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
-        'slice_begin': {
-            'type': 'Const',
-            'op': 'Const',
-            'kind': 'op',
-            'value': int64_array([4]),
-            'shape': int64_array([1])
-        },
-        'slice_end': {'type': 'Const', 'op': 'Const', 'kind': 'op', 'value': int64_array([5])},
-        'sslice': {
-            'kind': 'op',
-            'type': 'StridedSlice',
-            'op': 'StridedSlice',
-            'begin_mask': int64_array([1]),
-            'end_mask': int64_array([1]),
-            'new_axis_mask': int64_array([0]),
-            'shrink_axis_mask': int64_array([0]),
-            'ellipsis_mask': int64_array([0]),
-        },
-        'sslice_data': {'kind': 'data', 'shape': None},
-        'scales': {
-            'type': 'Const',
-            'op': 'Const',
-            'kind': 'op',
-            'value': int64_array([2]),
-            'shape': int64_array([1])
-        },
-        'scales_data': {'kind': 'data', 'shape': None},
-        'mul': {'kind': 'op', 'op': 'Mul', 'type': 'Multiply'},
-        'mul_data': {'kind': 'data', 'shape': None},
-        'interpolate_data': {'value': None, 'shape': int64_array([1, 3, 100, 240, 150]), 'kind': 'data'},
-        'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
-        'abs_data': {'value': None, 'shape': int64_array([1, 3, 100, 240, 150]), 'kind': 'data'},
-        'output': {'kind': 'op', 'op': 'Result'},
-    }
+    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_data': {
+        'value': None,
+        'shape': int64_array([1, 3, 100, 120, 150]),
+        'kind': 'data',
+        'data_type': None
+    },
+    'interpolate': {
+        'type': 'Interpolate',
+        'kind': 'op',
+        'op': 'Interpolate',
+        'axes': int64_array([3]),
+        'mode': 'nearest'
+    },
+    'shape': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
+    'shape_data': {'kind': 'data', 'shape': None, 'value': None},
+    'slice_begin': {
+        'type': 'Const',
+        'op': 'Const',
+        'kind': 'op',
+        'value': int64_array([4]),
+        'shape': int64_array([1])
+    },
+    'slice_begin_data': {'kind': 'data', 'shape': None, 'value': None},
+    'slice_end': {'type': 'Const', 'op': 'Const', 'kind': 'op', 'value': int64_array([5])},
+    'slice_end_data': {'kind': 'data', 'shape': None, 'value': None},
+    'sslice': {
+        'kind': 'op',
+        'type': 'StridedSlice',
+        'op': 'StridedSlice',
+        'begin_mask': int64_array([1]),
+        'end_mask': int64_array([1]),
+        'new_axis_mask': int64_array([0]),
+        'shrink_axis_mask': int64_array([0]),
+        'ellipsis_mask': int64_array([0]),
+    },
+    'sslice_data': {'kind': 'data', 'shape': None},
+    'scales': {
+        'type': 'Const',
+        'op': 'Const',
+        'kind': 'op',
+        'value': int64_array([2]),
+        'shape': int64_array([1])
+    },
+    'scales_data': {'kind': 'data', 'shape': None},
+    'mul': {'kind': 'op', 'op': 'Mul', 'type': 'Multiply'},
+    'mul_data': {'kind': 'data', 'shape': None},
+    'interpolate_data': {'value': None, 'shape': int64_array([1, 3, 100, 240, 150]), 'kind': 'data'},
+    'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+    'abs_data': {'value': None, 'shape': int64_array([1, 3, 100, 240, 150]), 'kind': 'data'},
+    'output': {'kind': 'op', 'op': 'Result'},
+}
 
 
 class SplitConcatPairToInterpolateTest(unittest.TestCase):
