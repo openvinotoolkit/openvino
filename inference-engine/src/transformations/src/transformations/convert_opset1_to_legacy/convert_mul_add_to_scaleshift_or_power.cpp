@@ -17,11 +17,11 @@
 #include "ngraph_ops/scaleshift.hpp"
 
 CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>& constant,
-                                 const ngraph::Shape& shape) {
-    if (!constant) return CONVERSION_RESULT::NONE;
+                                 const ngraph::PartialShape& shape) {
+    if (!constant || shape.rank().is_dynamic()) return CONVERSION_RESULT::NONE;
 
     auto const_shape = constant->get_shape();
-    auto input_shape = shape;
+    std::vector<ngraph::Dimension> input_shape(shape);
 
     // In case of scalar we will convert it to Power
     if (const_shape.empty() || (const_shape.size() == 1 && const_shape[0] == 1)) {
@@ -47,7 +47,7 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
 
         if (idx == feature_index && *in_it == 1) {
             is_power = true;
-        } else if (idx == feature_index && *in_it != *out_it) {
+        } else if (idx == feature_index && (out_it->is_dynamic() || *in_it != out_it->get_length())) {
             return CONVERSION_RESULT::NONE;
         }
     }
@@ -95,6 +95,11 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
             const_weights_node = ngraph::as_type_ptr<ngraph::opset1::Constant>(mul_input_0);
         }
 
+        if (add_node->get_output_partial_shape(0).rank().is_dynamic() ||
+            mul_node->get_output_partial_shape(0).rank().is_dynamic()) {
+            return false;
+        }
+
         // Check that eltwise is not useless otherwise we remove it
         if (ngraph::op::util::constantIsEqualTo(const_weights_node, 1) &&
             ngraph::op::util::constantIsEqualTo(const_bias_node, 0)) {
@@ -124,11 +129,14 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
             }
         }
 
-        auto res1 = check_constant(const_weights_node, data_node.get_shape());
-        auto res2 = check_constant(const_bias_node, mul_node->get_output_shape(0));
+        auto res1 = check_constant(const_weights_node, data_node.get_partial_shape());
+        auto res2 = check_constant(const_bias_node, mul_node->get_output_partial_shape(0));
+
+        const auto output_shape = add_node->get_output_partial_shape(0);
+        const auto output_shape_rank = output_shape.rank().get_length();
 
         if (res1 == CONVERSION_RESULT::NONE || res2 == CONVERSION_RESULT::NONE ||
-            ((res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) && add_node->get_shape().size() < 4)) {
+            ((res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) && output_shape_rank < 4)) {
             return false;
         }
 
@@ -136,8 +144,8 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
         if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) {
             NodeVector new_ops;
 
-            auto weights_in = ngraph::op::util::normalize_constant(const_weights_node, add_node->get_shape());
-            auto biases_in = ngraph::op::util::normalize_constant(const_bias_node, add_node->get_shape());
+            auto weights_in = ngraph::op::util::normalize_constant(const_weights_node, output_shape);
+            auto biases_in = ngraph::op::util::normalize_constant(const_bias_node, output_shape);
             new_ops.push_back(weights_in);
             new_ops.push_back(biases_in);
 
