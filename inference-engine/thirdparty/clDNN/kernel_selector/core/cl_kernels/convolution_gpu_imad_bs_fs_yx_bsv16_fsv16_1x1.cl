@@ -118,7 +118,7 @@ KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_1x1)(
             OUTPUT_TYPE res = FUSED_OPS_RESULT;
             results[i] = res;
 #else
-            output[dst_index + i] = dequantized;
+            results[i] = TO_OUTPUT_TYPE(dequantized);
 #endif
         }
 

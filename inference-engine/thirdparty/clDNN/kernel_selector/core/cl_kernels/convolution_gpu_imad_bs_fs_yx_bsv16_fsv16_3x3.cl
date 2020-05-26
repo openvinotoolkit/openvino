@@ -125,7 +125,7 @@ uint split_idx)
             OUTPUT_TYPE res = FUSED_OPS_RESULT;
             results[i] = res;
 #else
-            output[dst_index + i * 16] = dequantized;
+            results[i] = TO_OUTPUT_TYPE(dequantized);
 
 #endif
         }

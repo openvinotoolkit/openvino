@@ -8306,27 +8306,7 @@ using convolution_random_test_fsv4_input_u8s8f32 = convolution_random_test_fsv4_
 
 using convolution_scale_random_test_s8s8f32 = convolution_scale_random_test<int8_t, int8_t, float>;
 using convolution_scale_random_test_u8s8f32 = convolution_scale_random_test<uint8_t, int8_t, float>;
-#if 0
-// test parameters for bs_fs_yx_bsv16_fsv16
-INSTANTIATE_TEST_CASE_P(
-    bs_fs_yx_bsv16_fsv16,
-    convolution_scale_random_test_u8s8f32,
-    testing::Combine(
-        testing::Values(16, 32),                                                           // batch
-        testing::Values(32, 128),                                                          // input features
-        testing::Values(32, 64),                                                           // output features
-        testing::Values(std::pair<size_t, size_t>(4, 4), std::pair<size_t, size_t>(9, 9)), // input x, y
-        testing::Values(std::pair<size_t, size_t>(1, 1), std::pair<size_t, size_t>(3, 3)), // filter x, y
-        testing::Values(std::pair<int, int>(1, 1),
-                        std::pair<int, int>(2, 2),
-                        std::pair<int, int>(3, 3)),                                        // strides x, y
-        testing::Values(std::pair<int, int>(0, 0)),                                        // offsets x, y
-        testing::Values(std::pair<int, int>(1, 1)),                                        // dilation x, y
-        testing::Values(false, true),                                                      // bias
-        testing::Values(format::bs_fs_yx_bsv16_fsv16)                                      // input format
-    ),
-    to_string_convolution_random_params<convolution_random_test_params>);
-#endif
+
 struct params_generator : std::vector<convolution_random_test_all_params> {
     params_generator& smoke_test_params(format::type input_format, bool asymm_weights = false, bool asymm_data = false, bool padded_input = false) {
         std::vector<size_t> batches = { 1, 2 };
@@ -8397,38 +8377,21 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
     }
 
     params_generator& bs_test_params(format::type input_format, bool asymm_weights = false, bool asymm_data = false, bool padded_input = false) {
-        std::vector<size_t> batches = { 16, 32 };
-        std::vector<size_t> input_features = { 32, 128 };
-        std::vector<size_t> output_features = { 32, 64 };
-        std::vector<int> strides = { 1, 2, 3 };
-        for (auto b : batches) {
-            for (auto i : input_features) {
-                for (auto o : output_features) {
-                    for (auto s : strides) {
-                        // 1x1
-                        push_back(convolution_random_test_all_params{
-                        //              input     filter    stride    offset  dilation  bias  groups
-                        //              x  y      x  y      x  y      x  y      x  y
-                             b, i, o, { 4, 4 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
-                        push_back(convolution_random_test_all_params{
-                             b, i, o, { 9, 9 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
-                        push_back(convolution_random_test_all_params{
-                             b, i, o, { 4, 4 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, false, 1, input_format, asymm_weights, asymm_data, padded_input });
-                        push_back(convolution_random_test_all_params{
-                             b, i, o, { 9, 9 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, false, 1, input_format, asymm_weights, asymm_data, padded_input });
-                        // 3x3
-                        push_back(convolution_random_test_all_params{
-                             b, i, o, { 4, 4 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
-                        push_back(convolution_random_test_all_params{
-                             b, i, o, { 9, 9 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
-                        push_back(convolution_random_test_all_params{
-                             b, i, o, { 4, 4 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, false, 1, input_format, asymm_weights, asymm_data, padded_input });
-                        push_back(convolution_random_test_all_params{
-                             b, i, o, { 9, 9 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, false, 1, input_format, asymm_weights, asymm_data, padded_input });
-                    }
-                }
-	    }
-	}
+        std::vector<int> strides = { 1, 2 };
+        for (auto s : strides) {
+            // 1x1
+            push_back(convolution_random_test_all_params{
+            //      feature   input     filter    stride    offset  dilation  bias  groups
+            //batch in  out   x  y      x  y      x  y      x  y      x  y
+                16, 32, 32, { 4, 4 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+            push_back(convolution_random_test_all_params{
+                16, 32, 32, { 9, 9 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+            // 3x3
+            push_back(convolution_random_test_all_params{
+                16, 32, 32, { 4, 4 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+            push_back(convolution_random_test_all_params{
+                16, 32, 32, { 9, 9 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+        }
         return *this;
     }
 
