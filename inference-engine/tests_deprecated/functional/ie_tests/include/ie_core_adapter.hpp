@@ -34,6 +34,10 @@ public:
     InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
         const std::map<std::string, std::string>& config = {});
 
+    std::shared_ptr<InferenceEngine::Core>& ieCore() {
+        return m_ieCore;
+    }
+
 private:
     std::shared_ptr<InferenceEngine::Core> m_ieCore;
     std::string m_deviceName;
