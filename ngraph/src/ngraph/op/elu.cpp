@@ -13,18 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
-#include "ngraph/op/fused/elu.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/builder/make_constant.hpp"
-#include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/exp.hpp"
-#include "ngraph/op/maximum.hpp"
-#include "ngraph/op/minimum.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/subtract.hpp"
+#include "ngraph/op/elu.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -32,7 +25,7 @@ using namespace ngraph;
 constexpr NodeTypeInfo op::Elu::type_info;
 
 op::Elu::Elu(const Output<Node>& data, const double alpha)
-    : FusedOp({data})
+    : Op({data})
     , m_alpha{alpha}
 {
     constructor_validate_and_infer_types();
@@ -44,21 +37,10 @@ bool ngraph::op::v0::Elu::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-NodeVector op::Elu::decompose_op() const
+void op::v0::Elu::validate_and_infer_types()
 {
-    auto data = input_value(0);
-    shared_ptr<Node> alpha_node =
-        make_shared<op::Constant>(data.get_element_type(), Shape{}, vector<double>{m_alpha});
-
-    alpha_node = builder::numpy_broadcast(alpha_node, data.get_shape());
-
-    shared_ptr<ngraph::Node> zero_node =
-        builder::make_constant(data.get_element_type(), data.get_shape(), 0);
-
-    return {make_shared<ngraph::op::Maximum>(data, zero_node) +
-            alpha_node *
-                make_shared<ngraph::op::Exp>(make_shared<ngraph::op::Minimum>(data, zero_node)) -
-            alpha_node};
+    set_output_size(1);
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::Elu::clone_with_new_inputs(const OutputVector& new_args) const

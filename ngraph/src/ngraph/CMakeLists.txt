@@ -189,6 +189,8 @@ set (SRC
     op/divide.hpp
     op/dot.cpp
     op/dot.hpp
+    op/elu.cpp
+    op/elu.hpp
     op/embeddingbag_offsets_sum.cpp
     op/embeddingbag_offsets_sum.hpp
     op/embedding_lookup.cpp
@@ -430,8 +432,6 @@ set (SRC
     op/fused/hard_sigmoid.hpp
     op/fused/depth_to_space.cpp
     op/fused/depth_to_space.hpp
-    op/fused/elu.cpp
-    op/fused/elu.hpp
     op/fused/fake_quantize.cpp
     op/fused/fake_quantize.hpp
     op/fused/gelu.cpp
