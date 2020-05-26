@@ -317,10 +317,10 @@ void CNNNetworkNGraphImpl::addOutput(const string& dataName) {
 }
 
 size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
-    // TODO Provide adequate implementation.
-    // The original code from CNNNetworkImpl just gets the first input and returns the first dimension.
-    // This is not correct in general. We can follow the same semantics, but order of inputs should be
-    // guaranteed to be the same.
+    // TODO: Provide adequate implementation. The original code from CNNNetworkImpl just gets
+    //       the first input and returns the first dimension. This is not correct in general.
+    //       We can follow the same semantics, but order of inputs should be guaranteed to be
+    //       the same.
     if (cnnNetwork) {
         return cnnNetwork->getBatchSize();
     }
@@ -330,7 +330,7 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
     auto shape = _ngraph_function->get_parameters()[0]->get_shape();
 
     // WA: for speech recognition layouts (copy-past from CNNNetwork)
-    if (shape.size() == 3 || shape.size() == 1) {
+    if (shape.size() == 3 || shape.size() == 1 || shape.size() == 0) {
         return 1;
     }
     return shape[0];
