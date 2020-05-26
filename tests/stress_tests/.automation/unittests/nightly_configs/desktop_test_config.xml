@@ -17,6 +17,6 @@
     <models>
         <value>public/alexnet/FP32/alexnet.xml</value>
         <value>public/mobilenet-ssd/FP32/mobilenet-ssd.xml</value>
-        <value>public/mtcnn-r/FP32/mtcnn-r.xml</value>
+        <value>public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml</value>
     </models>
 </attributes>
