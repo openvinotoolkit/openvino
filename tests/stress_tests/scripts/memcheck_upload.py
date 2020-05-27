@@ -165,8 +165,6 @@ def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIME
 def create_memcheck_report(records, db_url, db_collection, output_path):
     """ Create memcheck timeline HTML report for records.
     """
-    if db_collection == 'pre_commit':
-        db_collection = 'commit'  # pre-commit jobs building report from past commits
     records.sort(
         key=lambda item: f"{item['status']}{item['device']}{item['model']}{item['test_name']}")
     timelines = query_timeline(records, db_url, db_collection)
