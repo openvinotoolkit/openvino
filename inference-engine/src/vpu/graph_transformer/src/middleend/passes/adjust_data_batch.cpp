@@ -11,8 +11,6 @@
 #include <unordered_map>
 #include <memory>
 
-#define NGRAPH_CPU_DEBUG_TRACER 1
-
 namespace vpu {
 
 namespace {
