@@ -46,7 +46,7 @@ void CNNNetwork::AddExtension(InferenceEngine::IShapeInferExtensionPtr extension
 }
 
 CNNLayer::CNNLayer(const LayerParams& prms)
-    : name(prms.name), type(prms.type), precision(prms.precision), userValue({0}), node(nullptr) {}
+    : node(nullptr), name(prms.name), type(prms.type), precision(prms.precision), userValue({0}) {}
 
 CNNLayer::CNNLayer(const CNNLayer& other)
     : node(other.node), name(other.name), type(other.type), precision(other.precision),

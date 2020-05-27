@@ -19,6 +19,10 @@
 #include "ie_layers.h"
 #include "xml_parse_utils.h"
 
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wunused-variable"
+#endif
+
 namespace InferenceEngine {
 
 using namespace details;
