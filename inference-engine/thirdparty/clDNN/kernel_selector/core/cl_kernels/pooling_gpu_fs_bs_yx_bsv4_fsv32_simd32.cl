@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,28 +15,35 @@
 
 #include "include/include_all.cl"
 
+#define ACTIVATION_VEC4 MAKE_VECTOR_TYPE(ACTIVATION_TYPE, 4)
+#define TO_ACTIVATION_VEC4 CAT(convert_, ACTIVATION_VEC4)
+
+#define ACCUMULATOR_VEC4 MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4)
+
+#define OUTPUT_VEC4 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4)
+#define TO_OUTPUT_VEC4 CAT(convert_, OUTPUT_VEC4)
+
 #if MAX_POOLING
-    #define INIT_VAL CHAR_MIN
-#elif AVG_POOLING
-    #define INIT_VAL 0
+    #define INIT_VAL ACCUMULATOR_VAL_MIN
 #else
-#error
+    #error
 #endif
 
-
-inline int FUNC(apply_pooling)(int tmp, int in)
+inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TYPE in)
 {
 #if MAX_POOLING
-    return max(tmp, in);
-#elif AVG_POOLING
-    return tmp + in;
+    return ACCUMULATOR_MAX_FUNC(tmp, in);
 #endif
 }
 
 __attribute__((intel_reqd_sub_group_size(32)))
 KERNEL(pooling_gpu_fs_bs_yx_bsv4_fsv32_simd32)(
-    const __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output)
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+)
 {
     const uint x    = (uint)get_group_id(0);
     const uint y    = (uint)get_group_id(1);
@@ -45,7 +52,6 @@ KERNEL(pooling_gpu_fs_bs_yx_bsv4_fsv32_simd32)(
     const uint aligned32_features = ((INPUT0_FEATURE_NUM + 31) / 32) * 32;
     const uint f = ((bf * 32) % aligned32_features) + (get_sub_group_local_id() % 8) * 4;
     const uint b = 4 * ((bf * 32) / aligned32_features) + (get_sub_group_local_id() / 8);
-    
     if (x >= OUTPUT_SIZE_X)
     {
         return;
@@ -53,8 +59,8 @@ KERNEL(pooling_gpu_fs_bs_yx_bsv4_fsv32_simd32)(
 
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
-    
-    int4 result = INIT_VAL;
+
+    ACCUMULATOR_VEC4 result = INIT_VAL;
 
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
         offset_y + POOL_SIZE_Y < 0 || offset_y >= INPUT0_SIZE_Y)
@@ -81,23 +87,38 @@ KERNEL(pooling_gpu_fs_bs_yx_bsv4_fsv32_simd32)(
             int int_data = as_int(input_uint[0]);
 
             char4 input_data = zero ? (char4)(INIT_VAL,INIT_VAL,INIT_VAL,INIT_VAL) : as_char4(int_data);
-            result[0] = FUNC_CALL(apply_pooling)((int)result[0], (int)input_data[0]);
-            result[1] = FUNC_CALL(apply_pooling)((int)result[1], (int)input_data[1]);
-            result[2] = FUNC_CALL(apply_pooling)((int)result[2], (int)input_data[2]);
-            result[3] = FUNC_CALL(apply_pooling)((int)result[3], (int)input_data[3]);
+            result[0] = FUNC_CALL(apply_pooling)(result[0], TO_ACCUMULATOR_TYPE(input_data[0]));
+            result[1] = FUNC_CALL(apply_pooling)(result[1], TO_ACCUMULATOR_TYPE(input_data[1]));
+            result[2] = FUNC_CALL(apply_pooling)(result[2], TO_ACCUMULATOR_TYPE(input_data[2]));
+            result[3] = FUNC_CALL(apply_pooling)(result[3], TO_ACCUMULATOR_TYPE(input_data[3]));
         }
     }
 
-    char4 char_res;
-    for(uint op = 0; op < 4; op++)
-    {
-        char_res[op] = ACTIVATION(convert_char(result[op]), ACTIVATION_PARAMS);
-    }
+    OUTPUT_VEC4 final_result;
+
+    #if HAS_FUSED_OPS
+        ACTIVATION_VEC4 pool_result;
+        pool_result = TO_ACTIVATION_VEC4(TO_OUTPUT_VEC4(result));
+        FUSED_OPS;
+        final_result = FUSED_OPS_RESULT;
+    #else
+        char4 pool_result;
+        for(uint op = 0; op < 4; op++)
+        {
+            pool_result[op] = ACTIVATION(TO_OUTPUT_TYPE(result[op]), ACTIVATION_PARAMS);
+        }
+        final_result = TO_OUTPUT_VEC4(pool_result);
+    #endif
 
     const uint output_pos = GET_DATA_FS_BS_YX_BSV4_FSV32_INDEX(OUTPUT, b, f, y, x);
-
-    __global uint* output_uint = (__global uint*)(output + output_pos);
-    output_uint[0] = as_uint(char_res);
+    *((__global OUTPUT_VEC4*)(output + output_pos)) = final_result;
 }
 
 #undef INIT_VAL
+#undef ACCUMULATOR_VEC4
+
+#undef ACTIVATION_VEC4
+#undef TO_ACTIVATION_VEC4
+
+#undef OUTPUT_VEC4
+#undef TO_OUTPUT_VEC4
