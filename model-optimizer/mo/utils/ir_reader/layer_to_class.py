@@ -233,6 +233,21 @@ def assign_add_output_result(op: Node):
     op.out_port(0).connect(tmp_result.in_port(0))
 
 
+def topk_add_output_result(op: Node):
+    """
+    Function adds necessary output result node for TopK node
+    :param op:
+    :return:
+    """
+    if op.out_port(0).disconnected():
+        output = Result(op.graph, {'name': op.name + '/Result_port_0/',
+                                   'remove_from_xml': op.has_and_set('remove_values_output')}).create_node()
+        op.out_port(0).get_connection().set_destination(output.in_port(0))
+    if op.out_port(1).disconnected():
+        output = Result(op.graph, {'name': op.name + '/Result_port_1/'}).create_node()
+        op.out_port(1).get_connection().set_destination(output.in_port(0))
+
+
 def copy_input_blobs(op: Node, copy_op: Node):
     """
     Function copy input blob data nodes from restored graph to copied one
@@ -260,6 +275,7 @@ preprocessing_op_nodes = {
 postprocessing_op_nodes = {
     'Assign': assign_add_output_result,
     'TensorIterator': ti_add_edge_attrs,
+    'TopK': topk_add_output_result,
 }
 
 
