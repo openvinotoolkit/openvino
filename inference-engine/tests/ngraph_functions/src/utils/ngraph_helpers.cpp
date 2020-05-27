@@ -98,7 +98,7 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
     const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers, true, true);
     for (const auto &op : foldedFunc->get_ops()) {
         NGRAPH_CHECK(ngraph::is_type<ngraph::op::v0::Constant>(op) || ngraph::is_type<ngraph::op::v0::Result>(op) ||
-                     ngraph::is_type<ngraph::op::v0::Result>(op),
+                     ngraph::is_type<ngraph::op::v0::Parameter>(op),
                      "Function was not fully folded to constant state!\n",
                      "At least one non constant node with type ", op->get_type_name(),
                      " present in function.");
