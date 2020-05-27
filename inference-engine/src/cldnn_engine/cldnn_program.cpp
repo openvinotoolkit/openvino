@@ -4473,9 +4473,8 @@ void Program::CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::
                     axis = static_cast<int32_t>(data[0]);
                     break;
                 }
-                default: {
+                default:
                     THROW_IE_EXCEPTION << layer->name << " Incorrect CumSum axes input Precision";
-                }
             }
         }
     }
