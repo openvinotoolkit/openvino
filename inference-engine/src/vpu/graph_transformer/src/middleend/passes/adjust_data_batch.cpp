@@ -3,7 +3,6 @@
 //
 #include "vpu/stages/iteration_rule.hpp"
 #include "vpu/middleend/pass_manager.hpp"
-#include <ngraph/pass/visualize_tree.hpp>
 #include "vpu/model/data_contents/replicated_data_content.hpp"
 
 #include <utility>
@@ -182,7 +181,7 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
                     if (withBatch) {
                         const auto rule = IterationRule{Dim::N, 0, 1, -1};
                         startIterationComponents.emplace(std::make_pair(loopStartInputs.size() - 1, rule), loopStartOutputs.size() - 1);
-                    } else if (!withBatch) {
+                    } else {
                         // do not allocate extra memory since there cannot be back-edge connection
                         input->attrs().set<Data>("start-shared-allocation", loopStartOutput);
                     }
