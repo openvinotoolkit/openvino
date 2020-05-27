@@ -204,7 +204,7 @@ struct KernelData {
     std::shared_ptr<Params> params;
     std::vector<clKernelData> kernels;
     std::vector<size_t> internalBufferSizes;
-    Datatype intenralBufferDataType = Datatype::UNSUPPORTED;
+    Datatype internalBufferDataType = Datatype::UNSUPPORTED;
     float estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     uint64_t runTime = std::numeric_limits<uint64_t>::max();  // kernel run time in nanoseconds
 
