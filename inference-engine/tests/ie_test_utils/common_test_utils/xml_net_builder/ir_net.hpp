@@ -75,9 +75,9 @@ protected:
 private:
     Port(std::weak_ptr<Layer> parent, size_t id, const std::vector<size_t> &shape,
          std::map<std::string, std::string> common_attributes = {})
-            : m_parent(std::move(parent)),
-              m_id(id),
+            : m_id(id),
               m_shape(shape),
+              m_parent(std::move(parent)),
               m_common_attributes(std::move(common_attributes)) {}
 };
 
@@ -235,9 +235,9 @@ private:
     std::weak_ptr<IRNet> m_parent;
 
     Layer(std::weak_ptr<IRNet> parent, size_t id, std::map<std::string, std::string> common_attributes = {})
-            : m_parent(std::move(parent)),
-              m_id(id),
-              m_common_attributes(std::move(common_attributes)) {
+            : m_id(id),
+              m_common_attributes(std::move(common_attributes)),
+              m_parent(std::move(parent)) {
     }
 };
 
@@ -303,7 +303,7 @@ public:
         // convert to string
         std::stringstream ss;
         doc.print(ss, "    ");
-        return std::move(ss.str());
+        return ss.str();
     }
 
 protected:
