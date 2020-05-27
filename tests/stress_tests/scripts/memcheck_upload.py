@@ -201,7 +201,8 @@ def main():
     parser.add_argument('--db_url', required=not is_dryrun,
                         help='MongoDB URL in a for "mongodb://server:port".')
     parser.add_argument('--db_collection', required=not is_dryrun,
-                        help=f'Collection name in {DATABASE} database to upload')
+                        help=f'Collection name in {DATABASE} database to upload.',
+                        choices=["commit", "nightly", "weekly"])
     parser.add_argument('--artifact_root', required=True,
                         help=f'A root directory to strip from log path before upload.')
     parser.add_argument('--append', help='JSON to append to each item.')
