@@ -1,9 +1,9 @@
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "vpu/stages/iteration_rule.hpp"
 #include "vpu/middleend/pass_manager.hpp"
+#include <ngraph/pass/visualize_tree.hpp>
 #include "vpu/model/data_contents/replicated_data_content.hpp"
 
 #include <utility>
@@ -11,6 +11,8 @@
 #include <set>
 #include <unordered_map>
 #include <memory>
+
+#define NGRAPH_CPU_DEBUG_TRACER 1
 
 namespace vpu {
 
@@ -144,16 +146,29 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
                 // if producer exists, data object should be passed to LoopStart in any case
                 // to be sure producer will be executed before loop starts
                 const bool hasProducer = input->producer() != nullptr;
-                if (withBatch || hasProducer) {
-                    loopStartInputs.push_back(input);
+
+                if (withBatch || hasProducer)
+                {
+                    //----------------
+                    // PROBLEM: sees that its input data has no producer and considers it an input of the
+                    // subgraph, adding it to the loopEndInputs list
+                    //----------------
 
                     // data object needs to be kept alive during whole loop execution
                     // otherwise some stage may overwrite this input and on the next iteration stage will get corrupted data
                     // to do so mark this data object as LoopEnd input
-                    loopEndInputs.push_back(input);
 
                     // LoopStart stage requires corresponding between inputs and outputs data object
                     // to propagate data order requirements
+                    bool repeate = false;
+                    for (int i = 0; i < loopEndOutputs.size(); i++) {
+                        repeate = (loopEndOutputs[i] == input);
+                        if (repeate) break;
+                    }
+                    if (!repeate) {
+                        loopStartInputs.push_back(input);
+                        loopEndInputs.push_back(input);
+                    }
                     auto outputDescriptor = input->desc();
                     if (withBatch) {
                         outputDescriptor.setDim(Dim::N, 1);
@@ -167,7 +182,7 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
                     if (withBatch) {
                         const auto rule = IterationRule{Dim::N, 0, 1, -1};
                         startIterationComponents.emplace(std::make_pair(loopStartInputs.size() - 1, rule), loopStartOutputs.size() - 1);
-                    } else {
+                    } else if (!withBatch) {
                         // do not allocate extra memory since there cannot be back-edge connection
                         input->attrs().set<Data>("start-shared-allocation", loopStartOutput);
                     }
@@ -180,7 +195,8 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
         for (const auto& outputEdge : stage->outputEdges()) {
             const auto originalOutput = outputEdge->output();
             auto descriptor = originalOutput->desc();
-            descriptor.setDim(Dim::N, 1);
+            if (batchInfo.hasOutput(outputEdge))
+                descriptor.setDim(Dim::N, 1);
 
             const auto output = model->duplicateData(
                 originalOutput,
@@ -191,8 +207,10 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
             if (isOutputData(subgraph, originalOutput)) {
                 loopEndInputs.push_back(output);
                 loopEndOutputs.push_back(originalOutput);
+
                 const auto rule = IterationRule{Dim::N, 0, 1, -1};
-                endIterationComponents.emplace(std::make_pair(loopEndOutputs.size() - 1, rule), loopEndInputs.size() - 1);
+                if (loopEndInputs.size() > 0 && loopEndOutputs.size() == loopEndInputs.size())
+                    endIterationComponents.emplace(std::make_pair(loopEndInputs.size() - 1, rule), loopEndOutputs.size() - 1);
             } else {
                 for (const auto& consumerEdge : originalOutput->consumerEdges()) {
                     model->replaceStageInput(consumerEdge, output);
