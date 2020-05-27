@@ -25,8 +25,8 @@ class LinearComponentFrontExtractor(FrontExtractorOp):
     op = 'linearcomponent'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         pb = node.parameters
         collect_until_token(pb, b'<Params>')
         weights, weights_shape = read_binary_matrix(pb)
@@ -39,4 +39,4 @@ class LinearComponentFrontExtractor(FrontExtractorOp):
         embed_input(mapping_rule, 1, 'weights', weights)
 
         FullyConnected.update_node_stat(node, mapping_rule)
-        return __class__.enabled
+        return cls.enabled
