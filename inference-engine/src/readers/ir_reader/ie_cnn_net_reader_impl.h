@@ -44,6 +44,8 @@ public:
 
     StatusCode ReadNetwork(const void* model, size_t size, ResponseDesc* resp) noexcept override;
 
+    StatusCode ReadNetwork(const pugi::xml_node& root, ResponseDesc* resp);
+
     StatusCode SetWeights(const TBlob<uint8_t>::Ptr& weights, ResponseDesc* resp) noexcept override;
 
     StatusCode ReadWeights(const char* filepath, ResponseDesc* resp) noexcept override;
@@ -51,6 +53,10 @@ public:
     ICNNNetwork* getNetwork(ResponseDesc* resp) noexcept override {
         IE_PROFILING_AUTO_SCOPE(CNNNetReaderImpl::getNetwork)
         return network.get();
+    }
+
+    std::shared_ptr<ICNNNetwork> getNetwork() {
+        return network;
     }
 
     bool isParseSuccess(ResponseDesc* resp) noexcept override {
