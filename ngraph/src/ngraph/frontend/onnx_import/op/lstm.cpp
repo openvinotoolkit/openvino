@@ -244,12 +244,10 @@ namespace ngraph
                         attributes.m_clip_threshold,
                         attributes.m_input_forget);
 
-                    const auto Y =
-                        std::make_shared<ngraph::opset0::GetOutputElement>(lstmSequence, 0);
-                    const auto Y_h =
-                        std::make_shared<ngraph::opset0::GetOutputElement>(lstmSequence, 1);
-                    const auto Y_c =
-                        std::make_shared<ngraph::opset0::GetOutputElement>(lstmSequence, 2);
+                    const auto lstmSequenceOutputs = lstmSequence->outputs();
+                    const auto Y = lstmSequenceOutputs.at(0);
+                    const auto Y_h = lstmSequenceOutputs.at(1);
+                    const auto Y_c = lstmSequenceOutputs.at(2);
 
                     return {builder::opset1::reorder_axes(Y, {2, 1, 0, 3}),
                             builder::opset1::reorder_axes(Y_h, {1, 0, 2}),
