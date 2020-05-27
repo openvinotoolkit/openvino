@@ -15,25 +15,25 @@
 #include "single_layer_tests/add.hpp"
 
 namespace LayerTestsDefinitions {
-    using namespace AddTestDefinitions;
+using namespace AddTestDefinitions;
 
-    std::string AddLayerTest::getTestCaseName(testing::TestParamInfo<AddParamsTuple> obj) {
-        std::vector<std::vector<size_t>> inputShapes;
-        InferenceEngine::Precision netPrecision;
-        SecondaryInputType secondaryInputType;
-        AdditionType additionType;
-        std::string targetName;
-        std::map<std::string, std::string> additional_config;
+std::string AddLayerTest::getTestCaseName(testing::TestParamInfo<AddParamsTuple> obj) {
+    std::vector<std::vector<size_t>> inputShapes;
+    InferenceEngine::Precision netPrecision;
+    SecondaryInputType secondaryInputType;
+    AdditionType additionType;
+    std::string targetName;
+    std::map<std::string, std::string> additional_config;
 
-        std::tie(inputShapes, secondaryInputType, additionType, netPrecision, targetName, additional_config) = obj.param;
-        std::ostringstream results;
+    std::tie(inputShapes, secondaryInputType, additionType, netPrecision, targetName, additional_config) = obj.param;
+    std::ostringstream results;
 
-        results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-        results << "secondaryInputType=" << SecondaryInputType_to_string(secondaryInputType) << "_";
-        results << "addType=" << AdditionType_to_string(additionType) << "_";
-        results << "netPRC=" << netPrecision.name() << "_";
-        results << "targetDevice=" << targetName;
-        return results.str();
+    results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    results << "secondaryInputType=" << SecondaryInputType_to_string(secondaryInputType) << "_";
+    results << "addType=" << AdditionType_to_string(additionType) << "_";
+    results << "netPRC=" << netPrecision.name() << "_";
+    results << "targetDevice=" << targetName;
+    return results.str();
 }
 
 void AddLayerTest::SetUp() {
@@ -92,8 +92,8 @@ const char* AddTestDefinitions::SecondaryInputType_to_string(SecondaryInputType 
     }
 }
 
-const char* AddTestDefinitions::AdditionType_to_string(AdditionType multiplication_type) {
-    switch (multiplication_type) {
+const char* AddTestDefinitions::AdditionType_to_string(AdditionType addition_type) {
+    switch (addition_type) {
     case AdditionType::SCALAR:
         return "SCALAR";
     case AdditionType::VECTOR:

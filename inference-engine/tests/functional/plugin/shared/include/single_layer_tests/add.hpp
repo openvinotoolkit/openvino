@@ -25,7 +25,7 @@ namespace AddTestDefinitions {
         VECTOR
     };
     const char* SecondaryInputType_to_string(SecondaryInputType input_type);
-    const char* AdditionType_to_string(AdditionType multiplication_type);
+    const char* AdditionType_to_string(AdditionType addition_type);
 } // namespace AddTestDefinitions
 
 using AddParamsTuple = typename std::tuple<

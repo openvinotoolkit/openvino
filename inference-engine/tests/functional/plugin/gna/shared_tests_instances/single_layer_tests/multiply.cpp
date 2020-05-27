@@ -35,21 +35,21 @@ std::map<std::string, std::string> additional_config = {
 };
 
 const auto multiply_params_constant = ::testing::Combine(
-    ::testing::ValuesIn(inShapes),
-    ::testing::Values(SecondaryInputType::CONSTANT),
-    ::testing::ValuesIn(multiplicationTypes),
-    ::testing::ValuesIn(netPrecisions),
-    ::testing::Values(CommonTestUtils::DEVICE_GNA),
-    ::testing::Values(additional_config));
+                                               ::testing::ValuesIn(inShapes),
+                                               ::testing::Values(SecondaryInputType::CONSTANT),
+                                               ::testing::ValuesIn(multiplicationTypes),
+                                               ::testing::ValuesIn(netPrecisions),
+                                               ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                               ::testing::Values(additional_config));
 
 const auto multiply_params_parameter = ::testing::Combine(
-    ::testing::ValuesIn(inShapes),
-    ::testing::Values(SecondaryInputType::PARAMETER),
-    ::testing::ValuesIn(multiplicationTypes),
-    ::testing::ValuesIn(netPrecisions),
-    ::testing::Values(CommonTestUtils::DEVICE_GNA),
-    ::testing::Values(additional_config));
+                                                ::testing::ValuesIn(inShapes),
+                                                ::testing::Values(SecondaryInputType::PARAMETER),
+                                                ::testing::ValuesIn(multiplicationTypes),
+                                                ::testing::ValuesIn(netPrecisions),
+                                                ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                                ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(multilpy_constant, MultiplyLayerTest, multiply_params_constant, MultiplyLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(DISABLED_multilpy_parameter, MultiplyLayerTest, multiply_params_parameter, MultiplyLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(CompareWithRefs_constant, MultiplyLayerTest, multiply_params_constant, MultiplyLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_CompareWithRefs_parameter, MultiplyLayerTest, multiply_params_parameter, MultiplyLayerTest::getTestCaseName);
 }  // namespace

@@ -15,41 +15,41 @@
 #include "single_layer_tests/subtract.hpp"
 
 namespace LayerTestsDefinitions {
-    using namespace SubtractTestDefinitions;
+using namespace SubtractTestDefinitions;
 
-    std::string SubtractLayerTest::getTestCaseName(testing::TestParamInfo<subtractParamsTuple> obj) {
-        std::vector<std::vector<size_t>> inputShapes;
-        InferenceEngine::Precision netPrecision;
-        SecondaryInputType secondaryInputType;
-        SubtractionType SubtractionType;
-        std::string targetName;
-        std::map<std::string, std::string> additional_config;
+std::string SubtractLayerTest::getTestCaseName(testing::TestParamInfo<SubtractParamsTuple> obj) {
+    std::vector<std::vector<size_t>> inputShapes;
+    InferenceEngine::Precision netPrecision;
+    SecondaryInputType secondaryInputType;
+    SubtractionType SubtractionType;
+    std::string targetName;
+    std::map<std::string, std::string> additional_config;
 
-        std::tie(inputShapes, secondaryInputType, SubtractionType, netPrecision, targetName, additional_config) = obj.param;
-        std::ostringstream results;
+    std::tie(inputShapes, secondaryInputType, SubtractionType, netPrecision, targetName, additional_config) = obj.param;
+    std::ostringstream results;
 
-        results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-        results << "secondaryInputType=" << SecondaryInputType_to_string(secondaryInputType) << "_";
-        results << "subtractType=" << SubtractionType_to_string(SubtractionType) << "_";
-        results << "netPRC=" << netPrecision.name() << "_";
-        results << "targetDevice=" << targetName;
-        return results.str();
+    results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    results << "secondaryInputType=" << SecondaryInputType_to_string(secondaryInputType) << "_";
+    results << "subtractType=" << SubtractionType_to_string(SubtractionType) << "_";
+    results << "netPRC=" << netPrecision.name() << "_";
+    results << "targetDevice=" << targetName;
+    return results.str();
 }
 
 void SubtractLayerTest::SetUp() {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
     SecondaryInputType secondaryInputType;
-    SubtractionType SubtractionType;
+    SubtractionType subtractionType;
     std::map<std::string, std::string> additional_config;
-    std::tie(inputShapes, secondaryInputType, SubtractionType, netPrecision, targetDevice, additional_config) = this->GetParam();
+    std::tie(inputShapes, secondaryInputType, subtractionType, netPrecision, targetDevice, additional_config) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     configuration.insert(additional_config.begin(), additional_config.end());
     auto input = ngraph::builder::makeParams(ngPrc, {inputShapes[0]}); 
 
     std::vector<size_t> shape_input_secondary;
-    switch(SubtractionType) {
+    switch(subtractionType) {
     case SubtractionType::SCALAR:
         shape_input_secondary = std::vector<size_t>({1});
         break;
@@ -57,7 +57,7 @@ void SubtractLayerTest::SetUp() {
         shape_input_secondary = inputShapes[0];
         break;
     default:
-        FAIL() << "Unsupported SubtractionType: " << SubtractionType_to_string(SubtractionType); 
+        FAIL() << "Unsupported SubtractionType: " << SubtractionType_to_string(subtractionType); 
     }
 
     std::shared_ptr<ngraph::Node> secondary_input;

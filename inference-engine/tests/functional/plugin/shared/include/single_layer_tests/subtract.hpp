@@ -25,21 +25,21 @@ namespace SubtractTestDefinitions {
         VECTOR
     };
     const char* SecondaryInputType_to_string(SecondaryInputType input_type);
-    const char* SubtractionType_to_string(SubtractionType multiplication_type);
+    const char* SubtractionType_to_string(SubtractionType subtraction_type);
 } // namespace SubtractTestDefinitions
 
-using subtractParamsTuple = typename std::tuple<
+using SubtractParamsTuple = typename std::tuple<
     std::vector<std::vector<size_t>>,             // input shapes
-    SubtractTestDefinitions::SecondaryInputType, // type of secondary input node
-    SubtractTestDefinitions::SubtractionType,   // type of multiplication (vector, scalar)
+    SubtractTestDefinitions::SecondaryInputType,  // type of secondary input node
+    SubtractTestDefinitions::SubtractionType,     // type of multiplication (vector, scalar)
     InferenceEngine::Precision,                   // Network precision
     std::string,                                  // Device name
     std::map<std::string, std::string>>;          // Additional network configuration
 
-class SubtractLayerTest : public testing::WithParamInterface<subtractParamsTuple>,
-                           public LayerTestsUtils::LayerTestsCommon {
+class SubtractLayerTest : public testing::WithParamInterface<SubtractParamsTuple>,
+                          public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<subtractParamsTuple> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<SubtractParamsTuple> obj);
 protected:
     void SetUp() override;
 };

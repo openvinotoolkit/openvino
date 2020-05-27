@@ -34,12 +34,12 @@ std::vector<MultiplicationType> multiplicationTypes = { MultiplicationType::SCAL
 std::map<std::string, std::string> additional_config = {};
 
 const auto multiply_params = ::testing::Combine(
-    ::testing::ValuesIn(inShapes),
-    ::testing::ValuesIn(secondaryInputTypes),
-    ::testing::ValuesIn(multiplicationTypes),
-    ::testing::ValuesIn(netPrecisions),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-    ::testing::Values(additional_config));
+                                      ::testing::ValuesIn(inShapes),
+                                      ::testing::ValuesIn(secondaryInputTypes),
+                                      ::testing::ValuesIn(multiplicationTypes),
+                                      ::testing::ValuesIn(netPrecisions),
+                                      ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                      ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(multilpy, MultiplyLayerTest, multiply_params, MultiplyLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(CompareWithRefs, MultiplyLayerTest, multiply_params, MultiplyLayerTest::getTestCaseName);
 }  // namespace
