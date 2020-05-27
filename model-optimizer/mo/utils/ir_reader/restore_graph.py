@@ -20,7 +20,6 @@ from extensions.back.ConvolutionNormalizer import ConvolutionNormalizer, Convolu
 from extensions.back.PackBinaryWeights import PackBinaryWeights
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement
 from extensions.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
-from extensions.back.TopKNormalizer import TopKNormalizer
 from extensions.back.blob_normalizer import BlobNormalizer
 from extensions.back.kaldi_remove_memory_output import KaldiRemoveMemoryOutputBackReplacementPattern
 from mo.graph.graph import Graph
