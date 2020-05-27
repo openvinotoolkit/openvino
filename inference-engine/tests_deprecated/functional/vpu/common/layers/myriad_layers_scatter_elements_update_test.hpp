@@ -331,7 +331,6 @@ private:
                     <layer id="3" name="axis" type="Input">
                         <output>
                             <port id="0" precision="I32">
-                                <dim>1</dim>
                             </port>
                         </output>
                     </layer>
@@ -347,7 +346,6 @@ private:
                                 __UPDATES_DIMS__
                             </port>
                             <port id="3" precision="I32">
-                                <dim>1</dim>
                             </port>
                         </input>
                         <output>
