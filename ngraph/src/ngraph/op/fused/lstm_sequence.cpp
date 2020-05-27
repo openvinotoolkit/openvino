@@ -70,39 +70,39 @@ shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector&
     if (new_args.size() == 8)
     {
         return make_shared<op::v0::LSTMSequence>(new_args.at(0), // X
-                                         new_args.at(1), // initial_hidden_state
-                                         new_args.at(2), // initial_cell_state
-                                         new_args.at(3), // sequence_lengths
-                                         new_args.at(4), // W
-                                         new_args.at(5), // R
-                                         new_args.at(6), // B
-                                         new_args.at(7), // P
-                                         m_hidden_size,
-                                         m_direction,
-                                         m_weights_format,
-                                         m_activations_alpha,
-                                         m_activations_beta,
-                                         m_activations,
-                                         m_clip_threshold,
-                                         m_input_forget);
+                                                 new_args.at(1), // initial_hidden_state
+                                                 new_args.at(2), // initial_cell_state
+                                                 new_args.at(3), // sequence_lengths
+                                                 new_args.at(4), // W
+                                                 new_args.at(5), // R
+                                                 new_args.at(6), // B
+                                                 new_args.at(7), // P
+                                                 m_hidden_size,
+                                                 m_direction,
+                                                 m_weights_format,
+                                                 m_activations_alpha,
+                                                 m_activations_beta,
+                                                 m_activations,
+                                                 m_clip_threshold,
+                                                 m_input_forget);
     }
     else if (new_args.size() == 7)
     {
         return make_shared<op::v0::LSTMSequence>(new_args.at(0), // X
-                                         new_args.at(1), // initial_hidden_state
-                                         new_args.at(2), // initial_cell_state
-                                         new_args.at(3), // sequence_lengths
-                                         new_args.at(4), // W
-                                         new_args.at(5), // R
-                                         new_args.at(6), // B
-                                         m_hidden_size,
-                                         m_direction,
-                                         m_weights_format,
-                                         m_activations_alpha,
-                                         m_activations_beta,
-                                         m_activations,
-                                         m_clip_threshold,
-                                         m_input_forget);
+                                                 new_args.at(1), // initial_hidden_state
+                                                 new_args.at(2), // initial_cell_state
+                                                 new_args.at(3), // sequence_lengths
+                                                 new_args.at(4), // W
+                                                 new_args.at(5), // R
+                                                 new_args.at(6), // B
+                                                 m_hidden_size,
+                                                 m_direction,
+                                                 m_weights_format,
+                                                 m_activations_alpha,
+                                                 m_activations_beta,
+                                                 m_activations,
+                                                 m_clip_threshold,
+                                                 m_input_forget);
     }
     else
     {
@@ -111,17 +111,17 @@ shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector&
 }
 
 shared_ptr<Node> op::v0::LSTMSequence::get_masked_node(const Output<Node>& data,
-                                                   int32_t time_step,
-                                                   size_t batch_axis,
-                                                   const Output<Node>& default_value) const
+                                                       int32_t time_step,
+                                                       size_t batch_axis,
+                                                       const Output<Node>& default_value) const
 {
     Output<Node> mask_value = default_value;
     // Create zero mask value node.
     if (!mask_value.get_node_shared_ptr())
     {
         mask_value = opset3::Constant::create(data.get_element_type(),
-                                          data.get_shape(),
-                                          vector<float>(shape_size(data.get_shape()), 0.f));
+                                              data.get_shape(),
+                                              vector<float>(shape_size(data.get_shape()), 0.f));
     }
 
     // Create predicate nodes. The condition is whether current time step value
@@ -243,8 +243,8 @@ NodeVector op::v0::LSTMSequence::lstm_pass(bool is_reverse) const
 }
 
 shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
-                                                 bool is_reverse,
-                                                 size_t num_direction_axis) const
+                                                     bool is_reverse,
+                                                     size_t num_direction_axis) const
 {
     // In bidirectional mode inputs are stacked together, so we must split them.
     shared_ptr<Node> tmp = node.get_node_shared_ptr();
