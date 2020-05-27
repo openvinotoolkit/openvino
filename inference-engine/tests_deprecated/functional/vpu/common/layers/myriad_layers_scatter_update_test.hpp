@@ -76,8 +76,8 @@ protected:
         SizeVector outputShape = inputShape;  // copy
         const int outputNDims = inputNDims;
 
-        SizeVector axisShape = { 1 };
-        const int axisNDims = 1;
+        SizeVector axisShape = {};
+        const int axisNDims = 0;
 
         // E.g.:
         //    {N, C, H, W} could be shape of `input` and `output`
@@ -251,8 +251,11 @@ private:
                                 const std::vector<ie_fp16>& updatesData,
                                 const std::vector<int32_t>& axisData) {
         // yet we only support axis == 0
-        IE_ASSERT(axisShape.size() == 1);
-        IE_ASSERT(axisShape[0] == 1);
+        IE_ASSERT(axisShape.size() == 0 ||
+                  axisShape.size() == 1);
+        if (axisShape.size() > 0) {
+            IE_ASSERT(axisShape[0] == 1);
+        }
         IE_ASSERT(axisData[0] == 0);
 
         // copy `input` to `output`
@@ -400,7 +403,6 @@ private:
                     <layer id="3" name="axis" type="Input">
                         <output>
                             <port id="0" precision="I32">
-                                <dim>1</dim>
                             </port>
                         </output>
                     </layer>
@@ -416,7 +418,6 @@ private:
                                 __UPDATES_DIMS__
                             </port>
                             <port id="3" precision="I32">
-                                <dim>1</dim>
                             </port>
                         </input>
                         <output>
