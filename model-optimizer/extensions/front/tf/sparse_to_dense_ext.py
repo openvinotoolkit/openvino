@@ -22,8 +22,7 @@ class SparseToDenseFrontExtractor(FrontExtractorOp):
     op = 'SparseToDense'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         SparseToDense.update_node_stat(node)
-
-        return __class__.enabled
+        return cls.enabled
