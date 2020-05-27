@@ -208,4 +208,3 @@ class TestSelect(unittest.TestCase):
             (flag, resp) = compare_graphs(graph, graph_ref, 'select_output', check_op_attrs=True)
             self.assertTrue(flag, resp)
         self.assertTrue(np.array_equal(graph.nodes['select_output']['value'], graph_ref.nodes['select_output']['value']))
-        print("OK")
