@@ -1116,7 +1116,7 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
                     }
                 )
             return res
-    # mean and scale are specified without inputs, return list, order is not guaranteed (?)
+    # mean and/or scale are specified without inputs
     return list(zip_longest(mean_values, scale_values))
 
 
