@@ -12,7 +12,7 @@ using namespace ngraph;
 constexpr NodeTypeInfo op::OneHotIE::type_info;
 
 op::OneHotIE::OneHotIE(const Output<ngraph::Node>& input, int axis, int depth, float on_value, float off_value, element::Type type)
-        : Op({input}), m_axis(axis), m_depth(depth), m_on_value(on_value), m_off_value(off_value), m_type(type) {
+        : Op({input}), m_type(type), m_axis(axis), m_depth(depth), m_off_value(off_value), m_on_value(on_value) {
     constructor_validate_and_infer_types();
 }
 

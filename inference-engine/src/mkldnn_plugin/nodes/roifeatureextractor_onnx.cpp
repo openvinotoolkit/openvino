@@ -394,15 +394,6 @@ private:
     int pooled_width_ = 0;
     std::vector<int> pyramid_scales_;
     int sampling_ratio_ = 0;
-
-    int channels = 0;
-    int height = 0;
-    int width = 0;
-
-    int nn = 0;
-    int nc = 0;
-    int nh = 0;
-    int nw = 0;
 };
 
 REG_FACTORY_FOR(ExperimentalDetectronROIFeatureExtractorImpl, ExperimentalDetectronROIFeatureExtractor);

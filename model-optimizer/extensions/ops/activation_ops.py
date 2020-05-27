@@ -18,7 +18,7 @@ import numpy as np
 
 from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.graph.graph import Graph, Node
-from mo.ops.clamp import Clamp
+from mo.ops.clamp import AttributedClamp
 from mo.ops.op import Op
 
 activation_ops = ['Sigmoid', 'Tanh', 'ReLU6', 'Exp', 'Elu', 'LogicalNot', 'Floor', 'Ceiling']
@@ -95,7 +95,7 @@ class Atan(Activation):
     operation = staticmethod(lambda x: np.arctan(x))
 
 
-class ReLU6(Clamp):
+class ReLU6(AttributedClamp):
     op = 'ReLU6'
 
     def __init__(self, graph: Graph, attrs: dict):
