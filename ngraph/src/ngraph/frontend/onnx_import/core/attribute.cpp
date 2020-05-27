@@ -22,6 +22,34 @@ namespace ngraph
 {
     namespace onnx_import
     {
+        namespace detail
+        {
+            namespace attribute
+            {
+                template <>
+                Graph get_value(const ONNX_NAMESPACE::AttributeProto& attribute)
+                {
+                    if (attribute.type() != ONNX_NAMESPACE::AttributeProto_AttributeType_GRAPH)
+                    {
+                        throw error::attribute::InvalidData{attribute.type()};
+                    }
+                    return get_graph(attribute.g());
+                }
+
+                Graph get_graph(const ONNX_NAMESPACE::GraphProto& graph)
+                {
+                    ONNX_NAMESPACE::ModelProto model_proto;
+                    *(model_proto.mutable_graph()) = graph;
+                    // We're creating here a model with unset `opset_import` field. This shouldn't
+                    // be a problem, since we add ONNX opset as a default available opset. Moreover
+                    // if we encounter a node absent in current available opsets we will try
+                    // to add it's domain to available opsets.
+                    Model model{model_proto};
+                    return Graph{graph, model};
+                }
+            }
+        }
+
         std::vector<Graph> Attribute::get_graph_array(Model& model) const
         {
             std::vector<Graph> result;

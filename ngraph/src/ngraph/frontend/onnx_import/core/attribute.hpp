@@ -77,6 +77,8 @@ namespace ngraph
         {
             namespace attribute
             {
+                Graph get_graph(const ONNX_NAMESPACE::GraphProto& graph);
+
                 template <typename T>
                 inline T get_value(const ONNX_NAMESPACE::AttributeProto& attribute)
                 {
@@ -235,6 +237,8 @@ namespace ngraph
                     }
                 }
 
+                template <>
+                Graph get_value(const ONNX_NAMESPACE::AttributeProto& attribute);
             } // namespace attribute
 
         } // namespace detail
