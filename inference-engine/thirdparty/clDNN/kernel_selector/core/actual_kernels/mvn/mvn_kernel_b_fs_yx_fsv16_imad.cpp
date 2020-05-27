@@ -310,7 +310,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
             kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         }
     }
-    kd.intenralBufferDataType = Datatype::F32;
+    kd.internalBufferDataType = Datatype::F32;
     kd.estimatedTime = estimated_time;
 
     return {kd};

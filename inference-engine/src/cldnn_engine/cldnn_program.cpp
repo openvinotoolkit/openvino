@@ -62,6 +62,7 @@
 #include <api/select.hpp>
 #include <api/grn.hpp>
 #include <api/ctc_greedy_decoder.hpp>
+#include <api/cum_sum.hpp>
 
 #include <chrono>
 #include <cmath>
@@ -595,6 +596,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "GRN", GRN },
         { "CTCGreedyDecoder", CTCGreedyDecoder },
         { "PriorBoxClustered", PriorBoxClustered },
+        { "CumSum", CumSum },
     };
     auto it = LayerNameToType.find(str);
     if (it != LayerNameToType.end())
@@ -1274,6 +1276,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case CTCGreedyDecoder: CreateCTCGreedyDecoderPrimitive(topology, layer);
             break;
         case PriorBoxClustered: CreatePriorBoxClusteredPrimitive(topology, layer);
+            break;
+        case CumSum: CreateCumSumPrimitive(topology, layer);
             break;
         default: THROW_CLDNN_EXCEPTION("Unknown Layer Type: " << layer->type);
     }
@@ -4354,6 +4358,80 @@ void Program::CreateCTCGreedyDecoderPrimitive(cldnn::topology& topology, Inferen
     AddPrimitiveToProfiler(layerName, layer);
 }
 
+inline cldnn::cum_sum::cum_sum_axis CumSumAxisFromIEAxis(int axis, unsigned sz) {
+    if (axis < 0)
+        axis += sz;
+    if (axis < 0 || axis >= sz)
+        THROW_CLDNN_EXCEPTION("CumSum axis is not correspond to number of dimensions");
+
+    // Difference in dimension ordering between IE and clDNN,
+    // reverse spatial dimensions after batch and feature.
+    unsigned cldnn_axis = axis;
+    if (axis >= 2) {
+        auto spatial_axis = axis - 2;
+        // Default and minimum number of dimensions is 4
+        auto spatial_size = std::max(sz, 4u) - 2;
+        cldnn_axis = spatial_size - spatial_axis - 1 + 2;
+    }
+
+    switch (cldnn_axis) {
+        case 0:
+            return cldnn::cum_sum::cum_sum_axis::along_b;
+        case 1:
+            return cldnn::cum_sum::cum_sum_axis::along_f;
+        case 2:
+            return cldnn::cum_sum::cum_sum_axis::along_x;
+        case 3:
+            return cldnn::cum_sum::cum_sum_axis::along_y;
+        case 4:
+            return cldnn::cum_sum::cum_sum_axis::along_z;
+        case 5:
+            return cldnn::cum_sum::cum_sum_axis::along_w;
+        default: THROW_CLDNN_EXCEPTION("Unsupported cumsum axis: " << axis);
+            break;
+    }
+
+    return cldnn::cum_sum::cum_sum_axis::along_f;  // shouldn't get here
+}
+
+void Program::CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, {1, 2});
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto cumSum = as<InferenceEngine::GenericLayer*> (layer);
+
+    auto exclusive = cumSum->GetParamAsBool("exclusive", false);
+    auto reverse = cumSum->GetParamAsBool("reverse", false);
+
+    auto layerName = layer_type_name_ID(layer);
+
+    size_t dimNumber = cumSum->insData[0].lock()->getTensorDesc().getDims().size();
+    int32_t axis = 0;
+    if (inputPrimitives.size() == 2) {
+        auto axesInput = layer->insData[1].lock();
+        auto axesInputCreator = axesInput->getCreatorLayer().lock();
+        if (axesInputCreator->blobs.size() == 1) {
+            auto constantBlob = axesInputCreator->blobs.begin()->second;
+            auto axesPrecision = constantBlob->getTensorDesc().getPrecision();
+            if (axesPrecision == InferenceEngine::Precision::I32) {
+                auto data = constantBlob->buffer().as<int32_t*>();
+                axis = data[0];
+            } else {
+                THROW_IE_EXCEPTION << layer->name << " Incorrect CumSum axes input Precision";
+            }
+        }
+    }
+
+    auto primitive = cldnn::cum_sum(
+            layerName,
+            inputPrimitives[0],
+            CumSumAxisFromIEAxis(axis, dimNumber),
+            exclusive,
+            reverse);
+
+    topology.add(primitive);
+    AddPrimitiveToProfiler(layerName, layer);
+}
+
 void Program::CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
     ValidateLayer(layer, 2);
     auto pbcLayer = as<InferenceEngine::GenericLayer*>(layer);
@@ -4405,6 +4483,7 @@ void Program::CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, Infere
     topology.add(priorBoxPrim);
     AddPrimitiveToProfiler(priorBoxLayerName, layer);
 }
+
 bool Program::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitLayer) const {
     if (splitLayer->outData.size() != 2) return false;  // split into 2
 
