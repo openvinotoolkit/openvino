@@ -88,6 +88,13 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_DUMP_PASS("initial");
 
     //
+    // Convert shape notation
+    //
+
+    ADD_PASS(convertShapeNotation);
+    ADD_DUMP_PASS("convertShapeNotation");
+
+    //
     // Replace Global AvgPooling with ReduceMean
     //
 
