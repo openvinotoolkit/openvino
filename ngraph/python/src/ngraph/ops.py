@@ -2706,8 +2706,7 @@ def roi_pooling(
 
 
 @nameable_op
-def scatter_nd_update(data, indices, updates, name=None):
-    # type: (NodeInput, NodeInput, NodeInput, str) -> Node
+def scatter_nd_update(data: NodeInput, indices: NodeInput, updates: NodeInput, name: Optional[str] = None):
     """Return a node which produces a ScatterNDUpdate operation.
 
     ScatterNDUpdate creates a copy of the first input tensor
