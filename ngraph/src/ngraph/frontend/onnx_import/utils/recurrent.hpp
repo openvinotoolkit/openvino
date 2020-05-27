@@ -35,7 +35,7 @@ namespace ngraph
             ///
             /// \brief      This class describes a recurrent operation input name
             ///
-            enum class NGRAPH_API OpInput
+            enum class OpInput
             {
                 X,           // Packed input sequences.
                              // Shape: [seq_length, batch_size, input_size]
@@ -53,7 +53,7 @@ namespace ngraph
             ///
             /// \brief      This structure aggregates operator's inptus in a key-value map.
             ///
-            struct NGRAPH_API OpInputMap
+            struct OpInputMap
             {
                 using container_type = std::map<OpInput, std::shared_ptr<ngraph::Node>>;
 
@@ -72,7 +72,7 @@ namespace ngraph
             ///
             /// \brief      This structure aggregates operator's attributes.
             ///
-            struct NGRAPH_API OpAttributes
+            struct OpAttributes
             {
                 explicit OpAttributes(const Node& node);
                 virtual ~OpAttributes() = default;
@@ -112,7 +112,7 @@ namespace ngraph
             ///                         the same as RNN operator. Especially the cell/kernel should
             ///                         have input related to hidden cell state.
             ///
-            class NGRAPH_API RecurrentSequence
+            class RecurrentSequence
             {
             public:
                 ///
