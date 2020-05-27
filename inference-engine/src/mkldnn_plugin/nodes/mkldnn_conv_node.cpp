@@ -24,9 +24,9 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
 MKLDNNConvolutionNode::MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache), withBiases(false), withSum(false),  dw_conv_iw(0), dw_conv_ih(0),
-        dw_conv_oc(0), dw_conv_in_dt(memory::data_type::data_undef), isDW(false), isMerged(false), withActivation(false),
-        isGrouped(false), baseInputsNumber(1), eltwisePrecision(Precision::FP32), withDWConv(false), groupNum(1lu) {
+        : MKLDNNNode(layer, eng, cache), withBiases(false), withSum(false), withDWConv(false), isDW(false), isMerged(false),
+          isGrouped(false), dw_conv_oc(0), dw_conv_ih(0), dw_conv_iw(0), dw_conv_in_dt(memory::data_type::data_undef),
+          groupNum(1lu), baseInputsNumber(1), eltwisePrecision(Precision::FP32) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
     });
@@ -736,7 +736,6 @@ void MKLDNNConvolutionNode::addZeroPoints(mkldnn::primitive_attr& attr) const {
 }
 
 void MKLDNNConvolutionNode::addScaleToPrimitiveAttr(mkldnn::primitive_attr attr) const {
-    bool scaled = false;
     if (wScale != nullptr) {
         float* wScaleData = static_cast<float*>(wScale->buffer());
 
