@@ -104,8 +104,7 @@ int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
     file = fopen(binaryPath, "rb");
 
     if(file == NULL) {
-        if(usb_loglevel)
-            perror(binaryPath);
+        mvLog(MVLOG_ERROR, "Cannot open file by path: %s", binaryPath);
         return -7;
     }
 
@@ -114,15 +113,13 @@ int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
     rewind(file);
     if(file_size <= 0 || !(image_buffer = (char*)malloc(file_size)))
     {
-        if(usb_loglevel)
-            perror("buffer");
+        mvLog(MVLOG_ERROR, "cannot allocate image_buffer. file_size = %ld", file_size);
         fclose(file);
         return -3;
     }
     if(fread(image_buffer, 1, file_size, file) != file_size)
     {
-        if(usb_loglevel)
-            perror(binaryPath);
+        mvLog(MVLOG_ERROR, "cannot read file to image_buffer");
         fclose(file);
         free(image_buffer);
         return -7;
@@ -158,8 +155,8 @@ int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
         rc = usb_boot(deviceDesc->name, image_buffer, file_size);
         free(image_buffer);
 
-        if(!rc && usb_loglevel > 1) {
-            fprintf(stderr, "Boot successful, device address %s\n", deviceDesc->name);
+        if(!rc) {
+            mvLog(MVLOG_DEBUG, "Boot successful, device address %s", deviceDesc->name);
         }
         return rc;
     } else {
@@ -249,7 +246,7 @@ libusb_device_handle *usbLinkOpen(const char *path)
     if (libusb_rc < 0)
     {
         if(last_open_dev_err[0])
-            fprintf(stderr, "%s\n", last_open_dev_err);
+            mvLog(MVLOG_ERROR, "Last opened device name: %s", last_open_dev_err);
 
         usb_close_device(h);
         usb_free_device(dev);
