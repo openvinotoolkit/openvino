@@ -192,8 +192,7 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
         for (const auto& outputEdge : stage->outputEdges()) {
             const auto originalOutput = outputEdge->output();
             auto descriptor = originalOutput->desc();
-            if (batchInfo.hasOutput(outputEdge))
-                descriptor.setDim(Dim::N, 1);
+            descriptor.setDim(Dim::N, 1);
 
             const auto output = model->duplicateData(
                 originalOutput,
