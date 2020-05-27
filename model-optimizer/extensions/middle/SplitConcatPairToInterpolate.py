@@ -157,8 +157,7 @@ class SplitConcatPairToInterpolate(MiddleReplacementPattern):
 
     def run_before(self):
         from extensions.middle.InterpolateSequenceToInterpolate import InterpolateSequenceToInterpolate
-        from extensions.middle.UselessSplitEraser import UselessSplitEraser
-        return [InterpolateSequenceToInterpolate, UselessSplitEraser]
+        return [InterpolateSequenceToInterpolate]
 
     def find_and_replace_pattern(self, graph: Graph):
         log.debug('Enabled replacement of a pair of Split and Concat with Interpolate.')
