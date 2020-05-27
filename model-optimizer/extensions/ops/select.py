@@ -47,16 +47,14 @@ class Select(Op):
         a_shape = node.in_port(1).data.get_shape()
         b_shape = node.in_port(2).data.get_shape()
         node.out_port(0).data.set_shape(broadcast_shape(a_shape, b_shape))
+        np.broadcast(resulting_tensors[0], resulting_tensors[1])
         # Case with unknown condition
         if condition_value is not None:
-            if condition_value.size != 1:
-                output_value = np.where(condition_value, resulting_tensors[0], resulting_tensors[1])
-                if np.any(output_value == None):
-                    # If any element of output value is None that means that we use the value from 'then' or 'else' tensor
-                    # which is not defined, this means that we cannot perform value propagation.
-                    output_value = None
-            else:
-                output_value = resulting_tensors[not np.bool(condition_value.item(0))]
+            output_value = np.where(condition_value, resulting_tensors[0], resulting_tensors[1])
+            if np.any(output_value == None):
+                # If any element of output value is None that means that we use the value from 'then' or 'else' tensor
+                # which is not defined, this means that we cannot perform value propagation.
+                output_value = None
 
             if output_value is not None:
                 node.out_port(0).data.set_value(np.array(output_value))

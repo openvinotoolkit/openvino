@@ -151,29 +151,33 @@ class TestSelect(unittest.TestCase):
         self.assertTrue(flag, resp)
 
     @generate(*[
-        ([5, 6], [5, 6], [5, 6], np.ones(np.array([5, 6]), dtype=np.float),
-         np.zeros([5, 6], dtype=np.float), np.ones([5, 6], dtype=np.float),
-         np.ones([5, 6], dtype=np.float)),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], np.ones([15, 3, 5], dtype=np.float),
-         np.zeros([15, 3, 5], dtype=np.float), np.ones([15, 3, 5], dtype=np.float),
-         np.ones([15, 3, 5], dtype=np.float)),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], np.ones([15, 3, 5], dtype=np.float),
-         None, np.ones([15, 3, 5], dtype=np.float), np.ones([15, 3, 5], dtype=np.float)),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], np.ones([15, 3, 5], dtype=np.float),
-         np.ones([15, 3, 5], dtype=np.float), None, None),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], np.zeros([15, 3, 5], dtype=np.float),
-         None, np.ones([15, 3, 5], dtype=np.float), None),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], np.zeros([15, 3, 5], dtype=np.float),
-         np.ones([15, 3, 5], dtype=np.float), None, np.ones([15, 3, 5], dtype=np.float)),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], np.array([True], np.bool),
-         np.zeros([15, 3, 5], dtype=np.float), np.ones([15, 3, 5], dtype=np.float),
-         np.ones([15, 3, 5], dtype=np.float)),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], np.array([False], np.bool),
-         np.zeros([15, 3, 5], dtype=np.float), np.ones([15, 3, 5], dtype=np.float),
-         np.zeros([15, 3, 5], dtype=np.float)),
+        ([5, 6], [5, 6], [5, 6], lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.ones(x, dtype=np.float)),
+        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.ones(x, dtype=np.float)),
+        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.ones(x, dtype=np.float),
+         lambda x: None, lambda x: np.ones(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float)),
+        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.ones(x, dtype=np.float), lambda x: None, lambda x: None),
+        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.zeros(x, dtype=np.float),
+         lambda x: None, lambda x: np.ones(x, dtype=np.float), lambda x: None),
+        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.zeros(x, dtype=np.float),
+         lambda x: np.ones(x, dtype=np.float), lambda x: None, lambda x: np.ones(x, dtype=np.float)),
+        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.array([True], np.bool),
+         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.ones(x, dtype=np.float)),
+        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.array([False], np.bool),
+         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.zeros(x, dtype=np.float)),
     ])
     def test_select_infer_condition_with_value(self, else_data_shape, than_data_shape, select_output_shape,
                                                condition_value, else_value, than_value, output_value):
+        condition_value = condition_value(select_output_shape)
+        else_value = else_value(else_data_shape)
+        than_value = than_value(than_data_shape)
+        output_value = output_value(select_output_shape)
         graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
                                        update_nodes_attributes=[('condition_data', {'shape': np.array(select_output_shape),
                                                                                     'value': condition_value}),
@@ -188,7 +192,7 @@ class TestSelect(unittest.TestCase):
 
         graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
                                            update_nodes_attributes=[
-                                               ('condition_data', {'shape': np.array(else_data_shape),
+                                               ('condition_data', {'shape': np.array(select_output_shape),
                                                                    'value': condition_value}),
                                                ('else_data', {'shape': np.array(else_data_shape),
                                                               'value': else_value}),
@@ -204,3 +208,4 @@ class TestSelect(unittest.TestCase):
             (flag, resp) = compare_graphs(graph, graph_ref, 'select_output', check_op_attrs=True)
             self.assertTrue(flag, resp)
         self.assertTrue(np.array_equal(graph.nodes['select_output']['value'], graph_ref.nodes['select_output']['value']))
+        print("OK")
