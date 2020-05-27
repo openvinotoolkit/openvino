@@ -1105,11 +1105,11 @@ TEST(attributes, lstm_sequence_op)
 {
     FactoryRegistry<Node>::get().register_factory<opset1::LSTMSequence>();
 
-    const auto batch_size = 2;
-    const auto num_directions = 1;
-    const auto seq_length = 1;
-    const auto input_size = 4;
-    const auto hidden_size = 3;
+    const auto batch_size = 4;
+    const auto num_directions = 2;
+    const auto seq_length = 8;
+    const auto input_size = 16;
+    const auto hidden_size = 64;
 
     const auto X =
         make_shared<op::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
@@ -1124,7 +1124,7 @@ TEST(attributes, lstm_sequence_op)
                                               Shape{num_directions, 4 * hidden_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
-    const auto lstm_direction = op::LSTMSequence::direction::FORWARD;
+    const auto lstm_direction = op::LSTMSequence::direction::BIDIRECTIONAL;
     const auto weights_format = op::LSTMWeightsFormat::ICOF;
     const std::vector<float> activations_alpha = {1, 2, 3};
     const std::vector<float> activations_beta = {4, 5, 6};
