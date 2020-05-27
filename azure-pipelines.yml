@@ -5,7 +5,7 @@ jobs:
     #vmImage: 'ubuntu-18.04'
     name: LIN_VMSS_VENV_F8S_WU2
   variables:
-    BUILD_TYPE: Release
+    BUILD_TYPE: Debug
   steps:
   - script: |
       whoami
@@ -113,7 +113,7 @@ jobs:
   variables:
     CC: gcc
     CXX: g++
-    BUILD_TYPE: Release
+    BUILD_TYPE: Debug
   steps:
   - task: UsePythonVersion@0
     inputs:
@@ -204,7 +204,7 @@ jobs:
     #vmImage: 'vs2017-win2016'
     name: WIN_VMSS_VENV_F8S_WU2
   variables:
-    BUILD_TYPE: Release
+    BUILD_TYPE: Debug
     BUILD_DIR: D:\dldt-build
   steps:
   - script: |
