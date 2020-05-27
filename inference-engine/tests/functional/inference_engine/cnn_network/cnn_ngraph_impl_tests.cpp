@@ -4,8 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <cnn_network_ngraph_impl.hpp>
-#include "tests_common.hpp"
+#include <cnn_network_impl.hpp>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -28,13 +27,14 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+#include "cnn_network_ngraph_impl.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
 
-class CNNNGraphImplTests : public TestsCommon {};
+IE_SUPPRESS_DEPRECATED_START
 
-TEST_F(CNNNGraphImplTests, TestConvertNetwork) {
+TEST(CNNNGraphImplTests, TestConvertNetwork) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -56,7 +56,7 @@ TEST_F(CNNNGraphImplTests, TestConvertNetwork) {
     ASSERT_EQ(cnnRefNet, cnnNet.getCNNNetwork());
 }
 
-TEST_F(CNNNGraphImplTests, TestResultWithNotEqualName) {
+TEST(CNNNGraphImplTests, TestResultWithNotEqualName) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -77,7 +77,7 @@ TEST_F(CNNNGraphImplTests, TestResultWithNotEqualName) {
     ASSERT_NO_THROW(cnnNet.getCNNNetwork());
 }
 
-TEST_F(CNNNGraphImplTests, TestGetOutputAfterConvertNetwork) {
+TEST(CNNNGraphImplTests, TestGetOutputAfterConvertNetwork) {
     const std::string testLayerName = "testReLU";
     std::shared_ptr<ngraph::Function> ngraph;
     {
@@ -104,7 +104,7 @@ TEST_F(CNNNGraphImplTests, TestGetOutputAfterConvertNetwork) {
     ASSERT_EQ(2, outs.size());
 }
 
-TEST_F(CNNNGraphImplTests, TestSetCurrentBatch) {
+TEST(CNNNGraphImplTests, TestSetCurrentBatch) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -126,7 +126,7 @@ TEST_F(CNNNGraphImplTests, TestSetCurrentBatch) {
     ASSERT_NE(nullptr, cnnNet.getFunction());
 }
 
-TEST_F(CNNNGraphImplTests, TestSetBatch) {
+TEST(CNNNGraphImplTests, TestSetBatch) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -154,7 +154,7 @@ TEST_F(CNNNGraphImplTests, TestSetBatch) {
     ASSERT_EQ(2, cnnNet.getCNNNetwork()->getBatchSize());
 }
 
-TEST_F(CNNNGraphImplTests, TestSaveAffinity) {
+TEST(CNNNGraphImplTests, TestSaveAffinity) {
     const std::string testAffinity = "testAffinity";
     std::shared_ptr<ngraph::Function> ngraph;
     {
@@ -179,7 +179,7 @@ TEST_F(CNNNGraphImplTests, TestSaveAffinity) {
     ASSERT_EQ(cnnLayer->affinity, testAffinity);
 }
 
-TEST_F(CNNNGraphImplTests, TestAddOutput) {
+TEST(CNNNGraphImplTests, TestAddOutput) {
     const std::string testLayerName = "testReLU";
     std::shared_ptr<ngraph::Function> ngraph;
     {
@@ -211,7 +211,7 @@ TEST_F(CNNNGraphImplTests, TestAddOutput) {
     ASSERT_TRUE(outputs.find(testLayerName) != outputs.end());
 }
 
-TEST_F(CNNNGraphImplTests, TestAddOutputFromConvertedNetwork) {
+TEST(CNNNGraphImplTests, TestAddOutputFromConvertedNetwork) {
     const std::string testLayerName = "testReLU";
     std::shared_ptr<ngraph::Function> ngraph;
     {
@@ -244,7 +244,7 @@ TEST_F(CNNNGraphImplTests, TestAddOutputFromConvertedNetwork) {
     ASSERT_TRUE(outputs.find(testLayerName) != outputs.end());
 }
 
-TEST_F(CNNNGraphImplTests, ConstantAsInternalAndExternalLayer) {
+TEST(CNNNGraphImplTests, ConstantAsInternalAndExternalLayer) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -266,7 +266,7 @@ TEST_F(CNNNGraphImplTests, ConstantAsInternalAndExternalLayer) {
     ASSERT_EQ(4, cnnNet.layerCount());
 }
 
-TEST_F(CNNNGraphImplTests, SaveInputInfoAfterConversion) {
+TEST(CNNNGraphImplTests, SaveInputInfoAfterConversion) {
     std::string name = "param";
     std::shared_ptr<ngraph::Function> ngraph;
     {
@@ -297,7 +297,7 @@ TEST_F(CNNNGraphImplTests, SaveInputInfoAfterConversion) {
     ASSERT_EQ(inputInfo->getPreProcess().getResizeAlgorithm(), ResizeAlgorithm::RESIZE_AREA);
 }
 
-TEST_F(CNNNGraphImplTests, SaveAttributesAfterConversion) {
+TEST(CNNNGraphImplTests, SaveAttributesAfterConversion) {
     std::string name = "prelu";
     std::shared_ptr<ngraph::Function> ngraph;
     {
@@ -330,7 +330,7 @@ TEST_F(CNNNGraphImplTests, SaveAttributesAfterConversion) {
     ASSERT_EQ(layer->params["test"], "2");
 }
 
-TEST_F(CNNNGraphImplTests, SavePrimitivesPriority) {
+TEST(CNNNGraphImplTests, SavePrimitivesPriority) {
     std::string model = R"V0G0N(
 <net name="Activation" version="10">
     <layers>
@@ -391,7 +391,7 @@ TEST_F(CNNNGraphImplTests, SavePrimitivesPriority) {
         ASSERT_EQ("cpu:avx2", cnnLayer->params["PrimitivesPriority"]);
 }
 
-TEST_F(CNNNGraphImplTests, ReadFromCNNNetReader) {
+TEST(CNNNGraphImplTests, ReadFromCNNNetReader) {
     std::string model = R"V0G0N(
 <net name="Activation" version="10">
     <layers>
@@ -447,7 +447,7 @@ TEST_F(CNNNGraphImplTests, ReadFromCNNNetReader) {
     ASSERT_EQ(2, network.layerCount());
 }
 
-TEST_F(CNNNGraphImplTests, CanChangeInputPrecision) {
+TEST(CNNNGraphImplTests, CanChangeInputPrecision) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 16, 16});
@@ -493,7 +493,7 @@ TEST_F(CNNNGraphImplTests, CanChangeInputPrecision) {
     }
 }
 
-TEST_F(CNNNGraphImplTests, CanChangeInputLayout) {
+TEST(CNNNGraphImplTests, CanChangeInputLayout) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 16, 16});
@@ -539,7 +539,7 @@ TEST_F(CNNNGraphImplTests, CanChangeInputLayout) {
     }
 }
 
-TEST_F(CNNNGraphImplTests, CanChangeOutputPrecision) {
+TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 16, 16});
@@ -585,7 +585,7 @@ TEST_F(CNNNGraphImplTests, CanChangeOutputPrecision) {
     }
 }
 
-TEST_F(CNNNGraphImplTests, CanChangeOutputLayout) {
+TEST(CNNNGraphImplTests, CanChangeOutputLayout) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 16, 16});
@@ -631,7 +631,7 @@ TEST_F(CNNNGraphImplTests, CanChangeOutputLayout) {
     }
 }
 
-TEST_F(CNNNGraphImplTests, TestCheckStats) {
+TEST(CNNNGraphImplTests, TestCheckStats) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -651,3 +651,5 @@ TEST_F(CNNNGraphImplTests, TestCheckStats) {
     ASSERT_EQ(NOT_FOUND, cnnNet.getStats(&_stats, nullptr));
     ASSERT_EQ(nullptr, _stats);
 }
+
+IE_SUPPRESS_DEPRECATED_END

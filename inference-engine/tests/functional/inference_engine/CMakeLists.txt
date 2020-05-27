@@ -10,6 +10,9 @@ add_subdirectory(extension_lib)
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        INCLUDES
+            # TODO: remove after removing `cnn_network_ngraph_imp.hpp`
+            ${IE_MAIN_SOURCE_DIR}/src/inference_engine
         EXCLUDED_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/extension_lib
         LINK_LIBRARIES

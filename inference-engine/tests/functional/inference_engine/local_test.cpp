@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include <single_layer_common.hpp>
 
 #include <ie_core.hpp>
 #include <net_pass.h>
@@ -20,10 +19,10 @@ class LocaleTests : public ::testing::Test {
         <layer name="data" type="Input" precision="FP32" id="0">
             <output>
                 <port id="0">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                    <dim>5</dim>
+                    <dim>5</dim>
                 </port>
             </output>
         </layer>
@@ -34,18 +33,18 @@ class LocaleTests : public ::testing::Test {
 
             <input>
                 <port id="1">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                    <dim>5</dim>
+                    <dim>5</dim>
                 </port>
             </input>
             <output>
                 <port id="2">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                    <dim>5</dim>
+                    <dim>5</dim>
                 </port>
             </output>
         </layer>
@@ -53,24 +52,24 @@ class LocaleTests : public ::testing::Test {
             <data coeff="0.77,0.33"/>
             <input>
                 <port id="1">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                    <dim>5</dim>
+                    <dim>5</dim>
                 </port>
                 <port id="2">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                    <dim>5</dim>
+                    <dim>5</dim>
                 </port>
             </input>
             <output>
                 <port id="3">
-                    <dim>_IN_</dim>
-                    <dim>_IC_</dim>
-                    <dim>_IH_</dim>
-                    <dim>_IW_</dim>
+                    <dim>2</dim>
+                    <dim>3</dim>
+                    <dim>5</dim>
+                    <dim>5</dim>
                 </port>
             </output>
         </layer>
@@ -97,7 +96,6 @@ class LocaleTests : public ::testing::Test {
 
 </net>
 )V0G0N";
-
 
     std::string _model_LSTM = R"V0G0N(
  <net batch="1" name="model" version="2">
@@ -196,7 +194,6 @@ class LocaleTests : public ::testing::Test {
 )V0G0N";
 
 protected:
-
     void SetUp() override {
         originalLocale  = setlocale(LC_ALL, nullptr);
     }
@@ -204,27 +201,17 @@ protected:
         setlocale(LC_ALL, originalLocale.c_str());
     }
 
-    std::string getModel() const {
-        std::string model = _model;
-
-        REPLACE_WITH_NUM(model, "_IN_", 2);
-        REPLACE_WITH_NUM(model, "_IC_", 3);
-        REPLACE_WITH_NUM(model, "_IH_", 4);
-        REPLACE_WITH_NUM(model, "_IW_", 5);
-
-        return model;
-    }
-
     void testBody(bool isLSTM = false) const {
         InferenceEngine::Core core;
 
         // This model contains layers with float attributes.
         // Conversion from string may be affected by locale.
-        std::string model = isLSTM ? _model_LSTM : getModel();
+        std::string model = isLSTM ? _model_LSTM : _model;
         auto blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {3360}, Layout::C));
         blob->allocate();
         auto net = core.ReadNetwork(model, blob);
 
+        IE_SUPPRESS_DEPRECATED_START
         if (!isLSTM) {
             auto power_layer = dynamic_pointer_cast<PowerLayer>(net.getLayerByName("power"));
             ASSERT_EQ(power_layer->scale, 0.75f);
@@ -252,6 +239,7 @@ protected:
             ASSERT_EQ(lstmcell_layer->GetParamAsFloat("min"), -ref_coeff);
             ASSERT_EQ(lstmcell_layer->GetParamAsFloat("max"),  ref_coeff);
         }
+        IE_SUPPRESS_DEPRECATED_END
     }
 };
 
