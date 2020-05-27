@@ -18,7 +18,6 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/fused_op.hpp"
 
 namespace ngraph
 {
@@ -30,7 +29,7 @@ namespace ngraph
             /// x <  0 => f(x) = alpha * (exp(x) - 1.)
             /// x >= 0 => f(x) = x
             ///
-            class NGRAPH_API Elu : public ngraph::op::util::FusedOp
+            class NGRAPH_API Elu : public ngraph::op::Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Elu", 0};
@@ -43,7 +42,7 @@ namespace ngraph
                 Elu(const Output<Node>& data, const double alpha);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual NodeVector decompose_op() const override;
+                void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
