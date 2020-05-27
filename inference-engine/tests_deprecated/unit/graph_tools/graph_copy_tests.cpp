@@ -151,6 +151,9 @@ using FP32_2_FP32 = GNAPluginNS::frontend::QuantPair<_FP32_2_FP32 , _FP32_2_FP32
 
 TEST_F(GraphCopyTests, canQuantizeTopology) {
 
+    SET_TYPE(4, "link");
+    SET_TYPE(5, "link");
+
     auto iclone = ModelQuantizer<FP32_2_FP32>().quantize(*mockNet, std::vector<float >({1.0f, 1.0f}));
     auto clone = CNNNetwork(iclone);
 
