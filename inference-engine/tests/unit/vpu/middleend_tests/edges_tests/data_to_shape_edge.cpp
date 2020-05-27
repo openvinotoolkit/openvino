@@ -114,15 +114,14 @@ TEST_F(DataToShapeEdgeProcessingTests, DataToShapeEdgeSharesMemory) {
 
     ASSERT_NO_THROW(_middleEnd->run(model));
 
-    Stage shapeProducer = nullptr;
-    for (const auto& stage : model->getStages()) {
-        // Find shape produced stage
-        if (stage->numOutputs() == 2) {
-            shapeProducer = stage;
-        }
-    }
+    // Find shape producer
+    auto it = std::find_if(model->getStages().begin(), model->getStages().end(), [](const Stage& stage) {
+        return stage->numOutputs() == 2;
+    });
 
-    ASSERT_NE(shapeProducer, nullptr);
+    ASSERT_NE(it, model->getStages().end());
+
+    auto shapeProducer = *it;
 
     const auto& data = shapeProducer->output(0);
     const auto& shape = shapeProducer->output(1);
@@ -147,15 +146,14 @@ TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingOnceSharesMemory) {
 
     ASSERT_NO_THROW(_middleEnd->run(model));
 
-    Stage shapeProducer = nullptr;
-    for (const auto& stage : model->getStages()) {
-        // Find shape produced stage
-        if (stage->numOutputs() == 2) {
-            shapeProducer = stage;
-        }
-    }
+    // Find shape producer
+    auto it = std::find_if(model->getStages().begin(), model->getStages().end(), [](const Stage& stage) {
+        return stage->numOutputs() == 2;
+    });
 
-    ASSERT_NE(shapeProducer, nullptr);
+    ASSERT_NE(it, model->getStages().end());
+
+    auto shapeProducer = *it;
 
     const auto& data = shapeProducer->output(0);
     const auto& shape = shapeProducer->output(1);
@@ -183,15 +181,14 @@ TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingOnceHasCorrectExecutionOrd
 
     ASSERT_NO_THROW(_middleEnd->run(model));
 
-    Stage shapeProducer = nullptr;
-    for (const auto& stage : model->getStages()) {
-        // Find shape produced stage
-        if (stage->numOutputs() == 2) {
-            shapeProducer = stage;
-        }
-    }
+    // Find shape producer
+    auto it = std::find_if(model->getStages().begin(), model->getStages().end(), [](const Stage& stage) {
+        return stage->numOutputs() == 2;
+    });
 
-    ASSERT_NE(shapeProducer, nullptr);
+    ASSERT_NE(it, model->getStages().end());
+
+    auto shapeProducer = *it;
 
     const auto dataProcessor = shapeProducer->output(0)->singleConsumer();
     const auto shapeProcessor = shapeProducer->output(1)->singleConsumer();
@@ -212,15 +209,14 @@ TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingTwiceSharesMemory) {
 
     ASSERT_NO_THROW(_middleEnd->run(model));
 
-    Stage shapeProducer = nullptr;
-    for (const auto& stage : model->getStages()) {
-        // Find shape produced stage
-        if (stage->numOutputs() == 2) {
-            shapeProducer = stage;
-        }
-    }
+    // Find shape producer
+    auto it = std::find_if(model->getStages().begin(), model->getStages().end(), [](const Stage& stage) {
+        return stage->numOutputs() == 2;
+    });
 
-    ASSERT_NE(shapeProducer, nullptr);
+    ASSERT_NE(it, model->getStages().end());
+
+    auto shapeProducer = *it;
 
     const auto& data = shapeProducer->output(0);
     const auto& shape = shapeProducer->output(1);
@@ -257,15 +253,14 @@ TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingTwiceHasCorrectExecutionOr
 
     ASSERT_NO_THROW(_middleEnd->run(model));
 
-    Stage shapeProducer = nullptr;
-    for (const auto& stage : model->getStages()) {
-        // Find shape produced stage
-        if (stage->numOutputs() == 2) {
-            shapeProducer = stage;
-        }
-    }
+    // Find shape producer
+    auto it = std::find_if(model->getStages().begin(), model->getStages().end(), [](const Stage& stage) {
+        return stage->numOutputs() == 2;
+    });
 
-    ASSERT_NE(shapeProducer, nullptr);
+    ASSERT_NE(it, model->getStages().end());
+
+    auto shapeProducer = *it;
 
     const auto dataFirstProcessor = shapeProducer->output(0)->singleConsumer();
     const auto shapeFirstProcessor = shapeProducer->output(1)->singleConsumer();
@@ -276,6 +271,125 @@ TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingTwiceHasCorrectExecutionOr
     const auto shapeSecondProcessor = shapeFirstProcessor->output(0)->singleConsumer();
 
     ASSERT_TRUE(checkExecutionOrder(model, {shapeSecondProcessor->id(), dataSecondProcessor->id()}));
+}
+
+TEST_F(DataToShapeEdgeProcessingTests, ReplaceDataToShapeParentReplacesConnections) {
+    //
+    //                    -> [Shape] -> (ShapeProc) -> [Shape]
+    //                                                    |
+    // [Input] -> (Stage) -> [Data]  -> (DataProc)  -> [Data]
+    //                                                    |
+    //                    -> [Shape] -> (ShapeProc) -> [Shape]
+    //
+
+    const auto& desc = DataDesc({1});
+
+    _testModel.createInputs({desc});
+    _testModel.createOutputs({desc, desc, desc});
+
+    const auto dataAndShapeParent = _testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate(desc),
+                                                                               OutputInfo::intermediate(desc),
+                                                                               OutputInfo::intermediate(desc)});
+    const auto firstShapeProcessor = _testModel.addStage({InputInfo::fromPrevStage(0).output(0)}, {OutputInfo::fromNetwork(0)});
+    const auto dataProcessor = _testModel.addStage({InputInfo::fromPrevStage(0).output(1)}, {OutputInfo::fromNetwork(1)});
+    const auto secondShapeProcessor = _testModel.addStage({InputInfo::fromPrevStage(0).output(2)}, {OutputInfo::fromNetwork(2)});
+
+    const auto& model = _testModel.getBaseModel();
+    const auto& processedData = dataProcessor->output(0);
+    const auto& initialShape = firstShapeProcessor->output(0);
+    const auto& finalShape = secondShapeProcessor->output(0);
+    ASSERT_NO_THROW(model->connectDataWithShape(initialShape, processedData));
+
+    const auto& dataToShapeEdge = processedData->parentDataToShapeEdge();
+    ASSERT_NE(dataToShapeEdge, nullptr);
+
+    ASSERT_NO_THROW(model->replaceDataToShapeParent(dataToShapeEdge, finalShape));
+
+    ASSERT_TRUE(initialShape->childDataToShapeEdges().empty());
+    ASSERT_EQ(finalShape->childDataToShapeEdges().front(), dataToShapeEdge);
+    ASSERT_EQ(dataToShapeEdge->parent(), finalShape);
+
+    ASSERT_TRUE(initialShape->dependentStagesEdges().empty());
+    ASSERT_FALSE(finalShape->dependentStagesEdges().empty());
+
+    const auto& stageDependencyEdge = finalShape->dependentStagesEdges().front();
+    ASSERT_EQ(stageDependencyEdge->dependentStage(), dataProcessor);
+    ASSERT_EQ(stageDependencyEdge->dependency(), finalShape);
+}
+
+TEST_F(DataToShapeEdgeProcessingTests, ReplaceDataToShapeChildReplacesConnections) {
+    //
+    //                    -> [Data]  -> (DataProc)  -> [Data]
+    //                                                    |
+    // [Input] -> (Stage) -> [Shape] -> (ShapeProc) -> [Shape]
+    //                                                    |
+    //                    -> [Data]  -> (DataProc)  -> [Data]
+    //
+
+    const auto& desc = DataDesc({1});
+
+    _testModel.createInputs({desc});
+    _testModel.createOutputs({desc, desc, desc});
+
+    const auto dataAndShapeParent = _testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate(desc),
+                                                                                     OutputInfo::intermediate(desc),
+                                                                                     OutputInfo::intermediate(desc)});
+    const auto firstDataProcessor = _testModel.addStage({InputInfo::fromPrevStage(0).output(0)}, {OutputInfo::fromNetwork(0)});
+    const auto shapeProcessor = _testModel.addStage({InputInfo::fromPrevStage(0).output(1)}, {OutputInfo::fromNetwork(1)});
+    const auto secondDataProcessor = _testModel.addStage({InputInfo::fromPrevStage(0).output(2)}, {OutputInfo::fromNetwork(2)});
+
+    const auto& model = _testModel.getBaseModel();
+    const auto& processedShape = shapeProcessor->output(0);
+    const auto& initialData = firstDataProcessor->output(0);
+    const auto& finalData = secondDataProcessor->output(0);
+    ASSERT_NO_THROW(model->connectDataWithShape(processedShape, initialData));
+
+    const auto& dataToShapeEdge = processedShape->childDataToShapeEdges().front();
+    ASSERT_NE(dataToShapeEdge, nullptr);
+
+    ASSERT_NO_THROW(model->replaceDataToShapeChild(dataToShapeEdge, finalData));
+
+    ASSERT_EQ(initialData->parentDataToShapeEdge(), nullptr);
+    ASSERT_EQ(finalData->parentDataToShapeEdge(), dataToShapeEdge);
+    ASSERT_EQ(dataToShapeEdge->child(), finalData);
+
+    ASSERT_FALSE(processedShape->dependentStagesEdges().empty());
+    const auto& stageDependencyEdge = processedShape->dependentStagesEdges().front();
+
+    ASSERT_EQ(stageDependencyEdge->dependentStage(), secondDataProcessor);
+    ASSERT_EQ(stageDependencyEdge->dependency(), processedShape);
+}
+
+TEST_F(DataToShapeEdgeProcessingTests, DisconnectDatasRemovesConnections) {
+    //
+    //                    -> [Shape] -> (ShapeProc) -> [Shape]
+    // [Input] -> (Stage)                                 |
+    //                    -> [Data]  -> (DataProc)  -> [Data]
+    //
+
+    const auto& desc = DataDesc({1});
+
+    _testModel.createInputs({desc});
+    _testModel.createOutputs({desc, desc});
+
+    const auto dataAndShapeParent = _testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate(desc),
+                                                                                     OutputInfo::intermediate(desc)});
+    const auto dataProcessor = _testModel.addStage({InputInfo::fromPrevStage(0).output(0)}, {OutputInfo::fromNetwork(0)});
+    const auto shapeProcessor = _testModel.addStage({InputInfo::fromPrevStage(0).output(1)}, {OutputInfo::fromNetwork(1)});
+
+    const auto& model = _testModel.getBaseModel();
+    const auto& processedData = dataProcessor->output(0);
+    const auto& processedShape = shapeProcessor->output(0);
+    ASSERT_NO_THROW(model->connectDataWithShape(processedShape, processedData));
+
+    const auto& dataToShapeEdge = processedShape->childDataToShapeEdges().front();
+    ASSERT_NE(dataToShapeEdge, nullptr);
+
+    ASSERT_NO_THROW(model->disconnectDatas(dataToShapeEdge));
+
+    ASSERT_EQ(processedData->parentDataToShapeEdge(), nullptr);
+    ASSERT_TRUE(processedShape->childDataToShapeEdges().empty());
+    ASSERT_TRUE(processedShape->dependentStagesEdges().empty());
 }
 
 } // namespace vpu
