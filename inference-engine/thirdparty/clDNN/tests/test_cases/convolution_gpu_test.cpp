@@ -7637,9 +7637,10 @@ INSTANTIATE_TEST_CASE_P(convolution_depthwise_gpu_bfyx,
 INSTANTIATE_TEST_CASE_P(convolution_grouped_fsv4_fsv16,
                         convolution_grouped_gpu,
                         ::testing::Values(
-                            // Input X size, Input Y size, Input features, Output features, Kernel size X, Kernel size
-                            // Y, Groups number, Stride, Output padding, Batch, Input data format
+                            // Input X size, Input Y size, Input features, Output features, Kernel size X, Kernel size Y,
+                            // Groups number, Stride, Output padding, Batch, Input data format
                             // Format: b_fs_yx_fsv4
+                            TestParamType_grouped_convolution_gpu(4, 4, 16, 17, 3, 3, 1, 1, 1, format::b_fs_yx_fsv4),
                             TestParamType_grouped_convolution_gpu(4, 4, 16, 16, 3, 3, 4, 1, 1, format::b_fs_yx_fsv4),
                             TestParamType_grouped_convolution_gpu(4, 4, 8, 4, 2, 2, 2, 1, 4, format::b_fs_yx_fsv4),
                             TestParamType_grouped_convolution_gpu(8, 8, 16, 16, 4, 4, 4, 1, 1, format::b_fs_yx_fsv4),
@@ -7648,6 +7649,7 @@ INSTANTIATE_TEST_CASE_P(convolution_grouped_fsv4_fsv16,
                             TestParamType_grouped_convolution_gpu(3, 3, 48, 96, 2, 2, 2, 8, 1, format::b_fs_yx_fsv4),
                             TestParamType_grouped_convolution_gpu(6, 6, 8, 26, 3, 3, 2, 4, 1, format::b_fs_yx_fsv4),
                             // Format: b_fs_yx_fsv16
+                            TestParamType_grouped_convolution_gpu(4, 4, 16, 17, 3, 3, 1, 1, 1, format::b_fs_yx_fsv16),
                             TestParamType_grouped_convolution_gpu(4, 4, 16, 16, 3, 3, 4, 1, 1, format::b_fs_yx_fsv16),
                             TestParamType_grouped_convolution_gpu(4, 4, 8, 4, 2, 2, 2, 1, 4, format::b_fs_yx_fsv16),
                             TestParamType_grouped_convolution_gpu(8, 8, 16, 16, 4, 4, 4, 1, 1, format::b_fs_yx_fsv16),

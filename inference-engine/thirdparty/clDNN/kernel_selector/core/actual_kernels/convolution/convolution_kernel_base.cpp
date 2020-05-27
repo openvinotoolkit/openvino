@@ -207,12 +207,24 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                                                         const optional_params& options,
                                                         const std::string exeMode,
                                                         int autoTuneIndex) const {
-    if (!Validate(params, options)) {
+    KernelData kd = KernelData::Default<convolution_params>(params);
+    convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
+
+    bool succeed = UpdateWeightsParams(newParams,
+                                       options,
+                                       GetPreferredWeightsLayout(newParams),
+                                       kd.weightsReorderParams,
+                                       GetSupportedKey(),
+                                       newParams.groups,
+                                       newParams.transposed);
+
+    if (!succeed) {
         return {};
     }
 
-    KernelData kd = KernelData::Default<convolution_params>(params);
-    convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
+    if (!Validate(params, options)) {
+        return {};
+    }
 
     if (NeedPaddedInput()) {
         kd.reorderInput = CovolutionUpdateInputParams(newParams);
@@ -224,18 +236,6 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
 
     if (!CheckWorkGroups(runInfo)) {
         // Internal Error - wrong calculation of global/local work group sizes
-        return {};
-    }
-
-    bool succeed = UpdateWeightsParams(newParams,
-                                       options,
-                                       GetPreferredWeightsLayout(newParams),
-                                       kd.weightsReorderParams,
-                                       GetSupportedKey(),
-                                       newParams.groups,
-                                       newParams.transposed);
-
-    if (!succeed) {
         return {};
     }
 
