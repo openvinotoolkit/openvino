@@ -144,8 +144,7 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
                 // to be sure producer will be executed before loop starts
                 const bool hasProducer = input->producer() != nullptr;
 
-                if (withBatch || hasProducer)
-                {
+                if (withBatch || hasProducer) {
                     //----------------
                     // PROBLEM: sees that its input data has no producer and considers it an input of the
                     // subgraph, adding it to the loopEndInputs list
@@ -205,8 +204,9 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
                 loopEndOutputs.push_back(originalOutput);
 
                 const auto rule = IterationRule{Dim::N, 0, 1, -1};
-                if (loopEndInputs.size() > 0 && loopEndOutputs.size() == loopEndInputs.size())
+                if (loopEndInputs.size() > 0 && loopEndOutputs.size() == loopEndInputs.size()) {
                     endIterationComponents.emplace(std::make_pair(loopEndInputs.size() - 1, rule), loopEndOutputs.size() - 1);
+                }
             } else {
                 for (const auto& consumerEdge : originalOutput->consumerEdges()) {
                     model->replaceStageInput(consumerEdge, output);
