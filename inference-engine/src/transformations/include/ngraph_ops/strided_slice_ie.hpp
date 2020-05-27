@@ -27,12 +27,11 @@ public:
                  const std::vector<int64_t>& end_mask,
                  const std::vector<int64_t>& new_axis_mask,
                  const std::vector<int64_t>& shrink_axis_mask,
-                 const std::vector<int64_t>& ellipsis_mask,
-                 const Shape& output_shape);
+                 const std::vector<int64_t>& ellipsis_mask);
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
 
     const std::vector<int64_t>& get_begin_mask() const { return m_begin_mask; }
     const std::vector<int64_t>& get_end_mask() const { return m_end_mask; }
@@ -46,7 +45,6 @@ protected:
     const std::vector<int64_t> m_new_axis_mask;
     const std::vector<int64_t> m_shrink_axis_mask;
     const std::vector<int64_t> m_ellipsis_mask;
-    Shape m_output_shape;
 };
 
 }  // namespace op

@@ -19,6 +19,13 @@ class INFERENCE_ENGINE_API_CLASS(ConvertStridedSliceToStridedSliceIE);
 }  // namespace pass
 }  // namespace ngraph
 
+/*
+ * Description:
+ *     This transformation converts opset1::StridedSlice to legacy StridedSliceIE
+ *     StridedSliceIE takes begin, end and strides inputs ony in i32 precision.
+ *     Inputs with precision != i32 are converted with Convert operation.
+ */
+
 class ngraph::pass::ConvertStridedSliceToStridedSliceIE: public ngraph::pass::GraphRewrite {
 public:
     ConvertStridedSliceToStridedSliceIE() : GraphRewrite() {

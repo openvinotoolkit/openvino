@@ -33,8 +33,6 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
         auto end_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->get_argument(2));
         auto stride_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->get_argument(3));
 
-        auto output_shape = slice->get_output_shape(0);
-
         auto partial_input_shape = slice->get_input_partial_shape(0);
 
         if (!begin_node || !end_node || !stride_node || partial_input_shape.is_dynamic()) {
@@ -42,6 +40,7 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
         }
 
         auto input_shape = slice->get_input_shape(0);
+        auto output_shape = slice->get_output_shape(0);
         // MKLDNN: "Crop supports only 2d, 4d and 5d blobs."
         if (input_shape.size() != 2 && input_shape.size() != 4 && input_shape.size() != 5) {
             return false;

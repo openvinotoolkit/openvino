@@ -13,53 +13,43 @@
 #include <ngraph/rt_info.hpp>
 
 void ngraph::pass::ConvertStridedSliceToStridedSliceIE::convert_strided_slice_to_strided_slice_ie() {
-    auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto m_begin = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
-    auto m_end = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
-    auto m_stride = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
-    std::vector<int64_t> begin_mask = {0, 0, 0, 0};
-    std::vector<int64_t> end_mask = {0, 0, 0, 0};
-    auto m_slice = std::make_shared<ngraph::opset1::StridedSlice>(data, m_begin, m_end, m_stride, begin_mask, end_mask);
+    auto slice = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset1::StridedSlice>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-        auto strided_slice = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice> (m.get_match_root());
-        if (!strided_slice) {
+        auto slice = std::dynamic_pointer_cast<opset1::StridedSlice> (m.get_match_root());
+        if (!slice) {
             return false;
         }
 
-        auto data_node = strided_slice->get_argument(0);
-        auto begin_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(strided_slice->get_argument(1));
-        auto end_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(strided_slice->get_argument(2));
-        auto stride_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(strided_slice->get_argument(3));
-
-        auto output_shape = strided_slice->get_output_shape(0);
+        auto data_node = slice->input_value(0);
+        auto begin_node = std::dynamic_pointer_cast<opset1::Constant>(slice->input_value(1).get_node_shared_ptr());
+        auto end_node = std::dynamic_pointer_cast<opset1::Constant>(slice->input_value(2).get_node_shared_ptr());
+        auto stride_node = std::dynamic_pointer_cast<opset1::Constant>(slice->input_value(3).get_node_shared_ptr());
 
         if (!begin_node || !end_node || !stride_node) {
             return false;
         }
 
-        auto shrink_axis_mask = strided_slice->get_shrink_axis_mask();
-        auto new_axis_mask = strided_slice->get_new_axis_mask();
-        auto ellipsis_mask = strided_slice->get_ellipsis_mask();
-        auto begin_mask = strided_slice->get_begin_mask();
-        auto end_mask = strided_slice->get_end_mask();
+        auto converted_begin = std::make_shared<opset1::Convert>(begin_node, element::i32);
+        auto converted_end = std::make_shared<opset1::Convert>(end_node, element::i32);
+        auto converted_stride = std::make_shared<opset1::Convert>(stride_node, element::i32);
 
-        auto converted_begin = std::make_shared<ngraph::opset1::Convert>(begin_node, ngraph::element::Type_t::i32);
-        auto converted_end = std::make_shared<ngraph::opset1::Convert>(end_node, ngraph::element::Type_t::i32);
-        auto converted_stride = std::make_shared<ngraph::opset1::Convert>(stride_node, ngraph::element::Type_t::i32);
+        auto slice_ie = std::make_shared<ngraph::op::StridedSliceIE>(data_node,
+                                                                     converted_begin,
+                                                                     converted_end,
+                                                                     converted_stride,
+                                                                     slice->get_begin_mask(),
+                                                                     slice->get_end_mask(),
+                                                                     slice->get_new_axis_mask(),
+                                                                     slice->get_shrink_axis_mask(),
+                                                                     slice->get_ellipsis_mask());
+        slice_ie->set_friendly_name(slice->get_friendly_name());
 
-        auto strided_slice_ie = std::make_shared<ngraph::op::StridedSliceIE>(data_node,
-                                                                             converted_begin, converted_end,
-                                                                             converted_stride,
-                                                                             begin_mask, end_mask, new_axis_mask, shrink_axis_mask, ellipsis_mask,
-                                                                             output_shape);
-        strided_slice_ie->set_friendly_name(strided_slice->get_friendly_name());
-
-        ngraph::copy_runtime_info(strided_slice, {converted_begin, converted_end, converted_stride, strided_slice_ie});
-        ngraph::replace_node(strided_slice, strided_slice_ie);
+        ngraph::copy_runtime_info(slice, {converted_begin, converted_end, converted_stride, slice_ie});
+        ngraph::replace_node(slice, slice_ie);
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_slice, "ConvertStridedSliceToStridedSliceIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(slice, "ConvertStridedSliceToStridedSliceIE");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }
