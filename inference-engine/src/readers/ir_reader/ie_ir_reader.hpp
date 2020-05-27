@@ -33,7 +33,7 @@ namespace InferenceEngine {
  * All methods here do not throw exceptions and return a StatusCode and ResponseDesc object.
  * Alternatively, to use methods that throw exceptions, refer to the CNNNetReader wrapper class.
  */
-class INFERENCE_ENGINE_API_CLASS(IRReader): public IReader {
+class IRReader: public IReader {
 public:
     IRReader() = default;
 
