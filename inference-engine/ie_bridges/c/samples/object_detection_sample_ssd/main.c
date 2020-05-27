@@ -561,11 +561,11 @@ int main(int argc, char **argv) {
     size_t num_channels = input_tensor_dims.dims[1];
     size_t image_size = input_tensor_dims.dims[3] * input_tensor_dims.dims[2];
 
-    ie_blob_buffer_t blob_buffer;
-    status = ie_blob_get_buffer(imageInput, &blob_buffer);
+    ie_blob_map_t blob_rwmap = {NULL, NULL};
+    status = ie_blob_rwmap(imageInput, &blob_rwmap);
     if (status != OK)
         goto err;
-    unsigned char *data = (unsigned char *)(blob_buffer.buffer);
+    unsigned char *data = (unsigned char *)(blob_rwmap.rw_buffer);
 
     /** Iterate over all input images **/
     int image_id, pid, ch, k;
@@ -582,6 +582,7 @@ int main(int argc, char **argv) {
         image_free(&images[image_id]);
     }
     free(images);
+    ie_blob_unmap(&blob_rwmap);
     ie_blob_free(&imageInput);
 
     if (imInfoInputName != NULL) {
@@ -591,13 +592,14 @@ int main(int argc, char **argv) {
         dimensions_t imInfoDim;
         status |= ie_blob_get_dims(input2, &imInfoDim);
         //Fill input tensor with values
-        ie_blob_buffer_t info_blob_buffer;
-        status |= ie_blob_get_buffer(input2, &info_blob_buffer);
+        ie_blob_map_t info_blob_rwmap = {NULL, NULL};
+        status |= ie_blob_rwmap(input2, &info_blob_rwmap);
         if (status != OK) {
+            ie_blob_unmap(&info_blob_rwmap);
             ie_blob_free(&input2);
             goto err;
         }
-        float *p = (float *)(info_blob_buffer.buffer);
+        float *p = (float *)(info_blob_rwmap.rw_buffer);
         for (image_id = 0; image_id < batchSize; ++image_id) {
             p[image_id * imInfoDim.dims[1] + 0] = (float)input_height;
             p[image_id * imInfoDim.dims[1] + 1] = (float)input_width;
@@ -606,6 +608,7 @@ int main(int argc, char **argv) {
                 p[image_id * imInfoDim.dims[1] + k] = 1.0f;  // all scale factors are set to 1.0
             }
         }
+        ie_blob_unmap(&info_blob_rwmap);
         ie_blob_free(&input2);
     }
     // -----------------------------------------------------------------------------------------------------
@@ -625,11 +628,11 @@ int main(int argc, char **argv) {
     if (status != OK)
         goto err;
 
-    ie_blob_buffer_t output_blob_buffer;
-    status = ie_blob_get_cbuffer(output_blob, &output_blob_buffer);
+    ie_blob_map_t output_blob_rmap = {NULL, NULL};
+    status = ie_blob_rmap(output_blob, &output_blob_rmap);
     if (status != OK)
         goto err;
-    const float* detection = (float *)(output_blob_buffer.cbuffer);
+    const float *detection = (float *)(output_blob_rmap.r_buffer);
 
     int **classes = (int **)calloc(image_num, sizeof(int *));
     rectangle_t **boxes = (rectangle_t **)calloc(image_num, sizeof(rectangle_t *));
@@ -670,6 +673,7 @@ int main(int argc, char **argv) {
         }
         printf("\n");
     }
+    ie_blob_unmap(&output_blob_rmap);
     /** Adds rectangles to the image and save **/
     int batch_id;
     for (batch_id = 0; batch_id < batchSize; ++batch_id) {
@@ -732,6 +736,10 @@ err:
         ie_blob_free(&imageInput);
     if (output_blob)
         ie_blob_free(&output_blob);
+    if (blob_rwmap.memory)
+        ie_blob_unmap(&blob_rwmap);
+    if (output_blob_rmap.memory)
+        ie_blob_unmap(&output_blob_rmap);
 
     return EXIT_FAILURE;
 }

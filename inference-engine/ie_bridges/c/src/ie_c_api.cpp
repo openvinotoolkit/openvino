@@ -19,6 +19,7 @@
 #include "details/ie_exception.hpp"
 #include "ie_compound_blob.h"
 #include "c_api/ie_c_api.h"
+#include "ie_locked_memory.hpp"
 
 namespace IE = InferenceEngine;
 
@@ -61,6 +62,19 @@ struct ie_blob {
 struct ie_network {
     IE::CNNNetwork object;
 };
+
+/**
+ * @struct ie_locked_memory 
+ * @brief This is for <void*> data and allows casting to any pointers
+ */
+struct ie_locked_memory {
+    union{
+       IE::LockedMemory<void> *rw_object;
+       IE::LockedMemory<void> *w_object;
+       IE::LockedMemory<const void> *r_object;
+    };
+};
+
 
 std::map<IE::StatusCode, IEStatusCode> status_map = {{IE::StatusCode::GENERAL_ERROR, IEStatusCode::GENERAL_ERROR},
                                                         {IE::StatusCode::INFER_NOT_STARTED, IEStatusCode::INFER_NOT_STARTED},
@@ -1696,5 +1710,96 @@ void ie_blob_free(ie_blob_t **blob) {
     if (blob) {
         delete *blob;
         *blob = NULL;
+    }
+}
+
+IEStatusCode ie_blob_rwmap(const ie_blob_t *blob, ie_blob_map_t *blob_rwmap) {
+    if (blob == nullptr || blob_rwmap == nullptr) {
+        return IEStatusCode::GENERAL_ERROR;
+    }
+
+    try {
+        IE::MemoryBlob::Ptr memory_blob = IE::as<IE::MemoryBlob>(blob->object);
+        if (memory_blob) {
+            std::unique_ptr<ie_locked_memory_t> rw_locked_memory (new ie_locked_memory_t);
+            rw_locked_memory->rw_object = new IE::LockedMemory<void> (memory_blob->rwmap());
+
+            blob_rwmap->memory = rw_locked_memory.release();
+            blob_rwmap->rw_buffer = *(blob_rwmap->memory->rw_object);
+        } else {
+            return IEStatusCode::UNEXPECTED;
+        }
+    } catch (const IE::details::InferenceEngineException& e) {
+        return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
+    } catch (...) {
+        return IEStatusCode::UNEXPECTED;
+    }
+
+    return IEStatusCode::OK;
+}
+
+IEStatusCode ie_blob_wmap(const ie_blob_t *blob, ie_blob_map_t *blob_wmap) {
+    if (blob == nullptr || blob_wmap == nullptr) {
+        return IEStatusCode::GENERAL_ERROR;
+    }
+
+    try {
+        IE::MemoryBlob::Ptr memory_blob = IE::as<IE::MemoryBlob>(blob->object);
+        if (memory_blob) {
+            std::unique_ptr<ie_locked_memory_t> w_locked_memory (new ie_locked_memory_t);
+            w_locked_memory->w_object = new IE::LockedMemory<void> (memory_blob->wmap());
+
+            blob_wmap->memory = w_locked_memory.release();
+            blob_wmap->w_buffer = *(blob_wmap->memory->w_object);
+        } else {
+            return IEStatusCode::UNEXPECTED;
+        }
+    } catch (const IE::details::InferenceEngineException& e) {
+        return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
+    } catch (...) {
+        return IEStatusCode::UNEXPECTED;
+    }
+
+    return IEStatusCode::OK;
+}
+
+IEStatusCode ie_blob_rmap(const ie_blob_t *blob, ie_blob_map_t *blob_rmap) {
+    if (blob == nullptr || blob_rmap == nullptr) {
+        return IEStatusCode::GENERAL_ERROR;
+    }
+
+    try {
+        IE::MemoryBlob::Ptr memory_blob = IE::as<IE::MemoryBlob>(blob->object);
+        if (memory_blob) {
+            std::unique_ptr<ie_locked_memory_t> r_locked_memory (new ie_locked_memory_t);
+            r_locked_memory->r_object = new IE::LockedMemory<const void> (memory_blob->rmap());
+
+            blob_rmap->memory = r_locked_memory.release();
+            blob_rmap->r_buffer = *(blob_rmap->memory->r_object);
+        } else {
+            return IEStatusCode::UNEXPECTED;
+        }
+    } catch (const IE::details::InferenceEngineException& e) {
+        return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
+    } catch (...) {
+        return IEStatusCode::UNEXPECTED;
+    }
+
+    return IEStatusCode::OK;
+}
+
+void ie_blob_unmap(ie_blob_map_t *blob_map) {
+    if (blob_map) {
+        if (blob_map->memory) {
+            if (blob_map->memory->rw_object) {
+                delete blob_map->memory->rw_object;
+                blob_map->memory->rw_object = NULL;
+            }
+
+            delete blob_map->memory;
+            blob_map->memory = NULL;
+        }
+
+        blob_map->rw_buffer = NULL;
     }
 }

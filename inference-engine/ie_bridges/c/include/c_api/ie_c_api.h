@@ -44,6 +44,16 @@
     #endif
 #endif
 
+#if defined(_WIN32)
+    # define INFERENCE_ENGINE_C_DEPRECATED(msg) __declspec(deprecated(msg))
+#elif defined __INTEL_COMPILER
+    # define INFERENCE_ENGINE_C_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#elif defined(__GNUC__)
+    # define INFERENCE_ENGINE_C_DEPRECATED(msg) __attribute__((deprecated((msg))))
+#else
+    # define INFERENCE_ENGINE_C_DEPRECATED(msg)
+#endif
+
 #ifndef INFERENCE_ENGINE_C_API_CALLBACK
 #define INFERENCE_ENGINE_C_API_CALLBACK
 #endif
@@ -53,6 +63,7 @@ typedef struct ie_network ie_network_t;
 typedef struct ie_executable ie_executable_network_t;
 typedef struct ie_infer_request ie_infer_request_t;
 typedef struct ie_blob ie_blob_t;
+typedef struct ie_locked_memory ie_locked_memory_t;
 
 /**
  * @struct ie_version
@@ -275,6 +286,7 @@ typedef struct input_shapes {
 }input_shapes_t;
 
 /**
+ * @deprecated Use ie_blob_map_t structure instead
  * @struct ie_blob_buffer
  * @brief Represents copied data from the given blob.
  */
@@ -302,6 +314,19 @@ typedef struct ie_available_devices {
     char **devices;
     size_t num_devices;
 }ie_available_devices_t;
+
+/**
+ * @struct ie_blob_map_t
+ * @brief Represents mapped buffer in the virtual process space from blob memory.
+ */
+typedef struct ie_blob_map {
+    ie_locked_memory_t *memory;
+    union {
+        void *rw_buffer;       // read/write access to the memory
+        void *w_buffer;        // write only direction access to the memory
+        const void *r_buffer;  // read only access to the memory
+    };
+}ie_blob_map_t;
 
 /**
  * @brief Returns number of version that is exported. Use the ie_version_free() to free memory.
@@ -969,22 +994,27 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_byte_size(ie_blob_t *b
 INFERENCE_ENGINE_C_API(void) ie_blob_deallocate(ie_blob_t **blob);
 
 /**
+ * @deprecated Cast to memory blob and use ie_blob_rwmap()/ie_blob_wmap() API instead.
+ * Blob can represent compound blob, which do not refer to the only solid memory.
  * @brief Gets access to the allocated memory .
  * @ingroup Blob
  * @param blob A pointer to the blob.
  * @param blob_buffer A pointer to the copied data from the given blob.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_get_buffer(const ie_blob_t *blob, ie_blob_buffer_t *blob_buffer);
+INFERENCE_ENGINE_C_API(INFERENCE_ENGINE_C_DEPRECATED("use ie_blob_rwmap()/ie_blob_wmap() API instead") IE_NODISCARD IEStatusCode)
+ie_blob_get_buffer(const ie_blob_t *blob, ie_blob_buffer_t *blob_buffer);
 
 /**
+ * @deprecated Cast to memory blob and use  ie_blob_rmap() API instead.
  * @brief Gets read-only access to the allocated memory.
  * @ingroup Blob
  * @param blob A pointer to the blob.
  * @param blob_cbuffer A pointer to the coped data from the given pointer to the blob and the data is read-only.
  * @return Status code of the operation: OK(0) for success
  */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_get_cbuffer(const ie_blob_t *blob, ie_blob_buffer_t *blob_cbuffer);
+INFERENCE_ENGINE_C_API(INFERENCE_ENGINE_C_DEPRECATED("use ie_blob_rmap() API instead") IE_NODISCARD IEStatusCode)
+ie_blob_get_cbuffer(const ie_blob_t *blob, ie_blob_buffer_t *blob_cbuffer);
 
 /**
  * @brief Gets dimensions of blob's tensor.
@@ -1019,6 +1049,86 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_get_precision(const ie
  * @param blob A pointer to the blob pointer to release memory.
  */
 INFERENCE_ENGINE_C_API(void) ie_blob_free(ie_blob_t **blob);
+
+/**
+ * @brief Gets read/write access to the memory in virtual space of the process.
+ * The blob memory in general case can be allocated on remote device.
+ * This function maps remote memory to the memory in the virtual process space and
+ * upload changed content to device after called the ie_blob_unmap().
+ *
+ * To avoid extra copy of data, you can use ie_blob_wmap() and ie_blob_rmap() functions.
+ *
+ * In case of memory originally allocated on the host, this function get rwmap pointer in ie_blob_map_t
+ * which will transparently refer to original memory address. No extra copy will happen
+ *
+ * In general case, pointer received from that locked memory becomes invalid just after
+ * destruction of locked memory. Keep locked memory alive while you need to address memory
+ * in the process on the host.
+ *
+ * @param blob A pointer to the blob.
+ * @param blob_rwmap A pointer to the memory in the virtual process space from blob memory mapped.
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_rwmap(const ie_blob_t *blob, ie_blob_map_t *blob_rwmap);
+
+/**
+ * @brief Gets "write only direction" access to the memory in virtual space of the process.
+ * This function maps remote memory to the memory in the virtual process space and
+ * upload changed content to device after called the ie_blob_unmap().
+ *
+ * The blob memory in general case can be allocated on remote device.
+ * This function does not copy of the content from the device to the memory in the virtual process
+ * space, the content of the memory just after calling of this functin is not specified. After called ie_blob_unmap() to
+ * destruct locked memory, content will be upload host memory.
+ * In the same time there is no abilities to restrict reading from the memory, you need to care of
+ * reading from memory got by ie_blob_rmap(), it might have sence in some cases like filling of content and
+ * before uploading to device
+ *
+ * To access data stored in the blob, you can use ie_blob_rwmap() and ie_blob_rmap() functions.
+ *
+ * In case of memory originally allocated on the host, this function get wmap pointer in ie_blob_map_t which will
+ * transparently refer to original memory address. No extra copy will happen
+ *
+ * In general case, pointer received from that locked memory becomes invalid just after destruction
+ * of locked memory. Keep locked memory alive while you need to address memory in the
+ * process on the host.
+ *
+ * @param blob A pointer to the blob.
+ * @param blob_wmap A pointer to the mapped memory in the virtual process space from blob memory.
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_wmap(const ie_blob_t *blob, ie_blob_map_t *blob_wmap);
+
+/**
+ * @brief Gets read only access to the memory in virtual space of the process.
+ * The function copies remote memory to the memory in the virtual process space.
+ *
+ * The blob memory in general case can be allocated on remote device.
+ * This function copies remote memory to the memory in the virtual process space and after called the ie_blob_unmap()
+ * to destruct locked memory it will not upload host memory back, bacause it is expected that
+ * content is not changed.
+ *
+ * To have an ability change content, you can use ie_blob_rwmap() and ie_blob_wmap() functions.
+ *
+ * In case of memory originally allocated on the host, this function get rmap pointer in ie_blob_map_t which will
+ * transparently refer to original memory address. No extra copy will happen
+ *
+ * In general case, pointer received from that locked memory becomes invalid just after destruction
+ * of locked memory. Keep locked memory alive while you need to address memory in the
+ * process on the host.
+ *
+ * @param blob A pointer to the blob
+ * @param blob_rmap A pointer to the mapped memory in the virtual process space from blob memory.
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_rmap(const ie_blob_t *blob, ie_blob_map_t *blob_rmap);
+
+/**
+ * @brief upload changed content to host memory if has write access to the locked memory and
+ * destruct the locked memory in ie_blob_map_t 
+ * @param blob_map A pointer to the ie_blob_map_t to unmap.
+ */
+INFERENCE_ENGINE_C_API(void) ie_blob_unmap(ie_blob_map_t *blob_map);
 
 /** @} */ // end of Blob
 

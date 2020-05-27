@@ -39,17 +39,21 @@ struct classify_res *output_blob_to_classify_res(ie_blob_t *blob, size_t *n) {
 
     struct classify_res *cls = (struct classify_res *)malloc(sizeof(struct classify_res) * (*n));
 
-    ie_blob_buffer_t blob_cbuffer;
-    status = ie_blob_get_cbuffer(blob, &blob_cbuffer);
-    if (status != OK)
+    ie_blob_map_t blob_rmap = {NULL, NULL};
+    status = ie_blob_rmap(blob, &blob_rmap);
+    if (status != OK) {
+        ie_blob_unmap(&blob_rmap);
         return NULL;
-    float *blob_data = (float*) (blob_cbuffer.cbuffer);
+    }
+    const float *blob_data = (const float*) (blob_rmap.r_buffer);
 
     size_t i;
     for (i = 0; i < *n; ++i) {
         cls[i].class_id = i;
         cls[i].probability = blob_data[i];
     }
+
+    ie_blob_unmap(&blob_rmap);
 
     return cls;
 }
@@ -124,7 +128,7 @@ err:
 int main(int argc, char **argv) {
     // ------------------------------ Parsing and validation of input args ---------------------------------
     if (argc != 5) {
-        printf("Usage : ./hello_classification <path_to_model> <path_to_image> <image_size> <device_name>\n");
+        printf("Usage : ./hello_nv12_input_classification_c <path_to_model> <path_to_image> <image_size> <device_name>\n");
         return EXIT_FAILURE;
     }
 

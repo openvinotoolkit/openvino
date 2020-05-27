@@ -65,9 +65,9 @@ void Mat2Blob(const cv::Mat& img, ie_blob_t *blob)
     size_t channels = dimenison.dims[1];
     size_t width = dimenison.dims[3];
     size_t height = dimenison.dims[2];
-    ie_blob_buffer_t buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(blob, &buffer));
-    uint8_t *blob_data = (uint8_t *)(buffer.buffer);
+    ie_blob_map_t blob_rwmap = {nullptr, nullptr};
+    IE_EXPECT_OK(ie_blob_rwmap(blob, &blob_rwmap));
+    uint8_t *blob_data = (uint8_t *)(blob_rwmap.rw_buffer);
     cv::Mat resized_image;
     cv::resize(img, resized_image, cv::Size(width, height));
 
@@ -79,6 +79,8 @@ void Mat2Blob(const cv::Mat& img, ie_blob_t *blob)
             }
         }
     }
+
+    ie_blob_unmap(&blob_rwmap);
 }
 
 size_t find_device(ie_available_devices_t avai_devices, const char *device_name) {
@@ -108,10 +110,11 @@ void completion_callback(void *args) {
     printf("async infer callback...\n");
     IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
 
-    ie_blob_buffer_t buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
-    float *output_data = (float *)(buffer.buffer);
+    ie_blob_map_t blob_rmap = {nullptr, nullptr};
+    IE_EXPECT_OK(ie_blob_rmap(output_blob, &blob_rmap));
+    const float *output_data = (const float *)(blob_rmap.r_buffer);
     EXPECT_NEAR(output_data[9], 0.f, 1.e-5);
+    ie_blob_unmap(&blob_rmap);
 
     ie_blob_free(&output_blob);
 
@@ -1020,10 +1023,11 @@ TEST(ie_infer_request_infer, infer) {
     EXPECT_EQ(dim_res.ranks, 2);
     EXPECT_EQ(dim_res.dims[1], 10);
 
-    ie_blob_buffer_t buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
-    float *output_data = (float *)(buffer.buffer);
+    ie_blob_map_t blob_rmap = {nullptr, nullptr};
+    IE_EXPECT_OK(ie_blob_rmap(output_blob, &blob_rmap));
+    const float *output_data = (const float *)(blob_rmap.r_buffer);
     EXPECT_NEAR(output_data[9], 0.f, 1.e-5);
+    ie_blob_unmap(&blob_rmap);
 
     ie_blob_free(&output_blob);
     ie_blob_free(&blob);
@@ -1070,10 +1074,11 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitFinish) {
         IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
         EXPECT_NE(nullptr, output_blob);
 
-        ie_blob_buffer_t buffer;
-        IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
-        float *output_data = (float *)(buffer.buffer);
+        ie_blob_map_t blob_rmap = {nullptr, nullptr};
+        IE_EXPECT_OK(ie_blob_rmap(output_blob, &blob_rmap));
+        const float *output_data = (const float *)(blob_rmap.r_buffer);
         EXPECT_NEAR(output_data[9], 0.f, 1.e-5);
+        ie_blob_unmap(&blob_rmap);
     }
 
     ie_blob_free(&output_blob);
@@ -1125,10 +1130,11 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitTime) {
 
         IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
 
-        ie_blob_buffer_t buffer;
-        IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
-        float *output_data = (float *)(buffer.buffer);
+        ie_blob_map_t blob_rmap = {nullptr, nullptr};
+        IE_EXPECT_OK(ie_blob_rmap(output_blob, &blob_rmap));
+        const float *output_data = (const float *)(blob_rmap.r_buffer);
         EXPECT_NEAR(output_data[9], 0.f, 1.e-5);
+        ie_blob_unmap(&blob_rmap);
     }
 
     ie_blob_free(&output_blob);
@@ -1406,48 +1412,6 @@ TEST(ie_blob_byte_size, getByteSize) {
     ie_blob_deallocate(&blob);
 }
 
-TEST(ie_blob_get_buffer, getBuffer) {
-
-    dimensions_t dim_t;
-    dim_t.ranks = 4 ;
-    dim_t.dims[0] = 1, dim_t.dims[1] = 3, dim_t.dims[2] = 4, dim_t.dims[3] = 4;
-    tensor_desc tensor;
-    tensor.dims = dim_t ;
-    tensor.precision = precision_e::U8;
-    tensor.layout = layout_e::NCHW;
-
-    ie_blob_t *blob = nullptr;
-    IE_EXPECT_OK(ie_blob_make_memory(&tensor, &blob));
-    EXPECT_NE(nullptr, blob);
-
-    ie_blob_buffer_t blob_buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(blob, &blob_buffer));
-    EXPECT_NE(nullptr, blob_buffer.buffer);
-
-    ie_blob_deallocate(&blob);
-}
-
-TEST(ie_blob_get_cbuffer, getBuffer) {
-
-    dimensions_t dim_t;
-    dim_t.ranks = 4 ;
-    dim_t.dims[0] = 1, dim_t.dims[1] = 3, dim_t.dims[2] = 4, dim_t.dims[3] = 4;
-    tensor_desc tensor;
-    tensor.dims = dim_t ;
-    tensor.precision = precision_e::U8;
-    tensor.layout = layout_e::NCHW;
-
-    ie_blob_t *blob = nullptr;
-    IE_EXPECT_OK(ie_blob_make_memory(&tensor, &blob));
-    EXPECT_NE(nullptr, blob);
-
-    ie_blob_buffer_t blob_cbuffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(blob, &blob_cbuffer));
-    EXPECT_NE(nullptr, blob_cbuffer.cbuffer);
-
-    ie_blob_deallocate(&blob);
-}
-
 TEST(ie_infer_set_completion_callback, setCallback) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -1656,9 +1620,10 @@ TEST(ie_blob_make_memory_nv12, NV12BlobInvalidAfterDeallocateYPlane) {
     IE_EXPECT_OK(ie_blob_make_memory_nv12(blob_y, blob_uv, &blob_nv12));
 
     ie_blob_deallocate(&blob_y);
-    ie_blob_buffer_t buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(blob_nv12, &buffer));
-    EXPECT_EQ(nullptr, buffer.buffer);
+    ie_blob_map_t blob_rmap = {nullptr, nullptr};
+    IE_EXPECT_NOT_OK(ie_blob_rmap(blob_nv12, &blob_rmap));
+    EXPECT_EQ(nullptr, blob_rmap.r_buffer);
+    ie_blob_unmap(&blob_rmap);
 
     ie_blob_deallocate(&blob_uv);
     ie_blob_free(&blob_nv12);
@@ -1678,9 +1643,10 @@ TEST(ie_blob_make_memory_nv12, NV12BlobInvalidAfterDeallocateUVPlane) {
     IE_EXPECT_OK(ie_blob_make_memory_nv12(blob_y, blob_uv, &blob_nv12));
 
     ie_blob_deallocate(&blob_uv);
-    ie_blob_buffer_t buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(blob_nv12, &buffer));
-    EXPECT_EQ(nullptr, buffer.buffer);
+    ie_blob_map_t blob_rmap = {nullptr, nullptr};
+    IE_EXPECT_NOT_OK(ie_blob_rmap(blob_nv12, &blob_rmap));
+    EXPECT_EQ(nullptr, blob_rmap.r_buffer);
+    ie_blob_unmap(&blob_rmap);
 
     ie_blob_deallocate(&blob_y);
     ie_blob_free(&blob_nv12);
@@ -1736,10 +1702,11 @@ TEST(ie_blob_make_memory_nv12, inferRequestWithNV12Blob) {
     ie_blob_t *output_blob = nullptr;
     IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
 
-    ie_blob_buffer_t buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
-    float *output_data = (float *)(buffer.buffer);
+    ie_blob_map_t blob_rmap = {nullptr, nullptr};
+    IE_EXPECT_OK(ie_blob_rmap(output_blob, &blob_rmap));
+    const float *output_data = ( const float *)(blob_rmap.r_buffer);
     EXPECT_NEAR(output_data[1], 0.f, 1.e-5);
+    ie_blob_unmap(&blob_rmap);
 
     ie_blob_free(&output_blob);
     ie_blob_free(&blob_nv12);
@@ -1925,9 +1892,10 @@ TEST(ie_blob_make_memory_i420, I420BlobInvalidAfterDeallocateYPlane) {
     IE_EXPECT_OK(ie_blob_make_memory_i420(blob_y, blob_u, blob_v, &blob_i420));
 
     ie_blob_deallocate(&blob_y);
-    ie_blob_buffer_t i420_buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(blob_i420, &i420_buffer));
-    EXPECT_EQ(nullptr, i420_buffer.buffer);
+    ie_blob_map_t i420_rmap = {nullptr, nullptr};
+    IE_EXPECT_NOT_OK(ie_blob_rmap(blob_i420, &i420_rmap));
+    EXPECT_EQ(nullptr, i420_rmap.r_buffer);
+    ie_blob_unmap(&i420_rmap);
 
     ie_blob_deallocate(&blob_u);
     ie_blob_deallocate(&blob_v);
@@ -1950,9 +1918,10 @@ TEST(ie_blob_make_memory_i420, I420BlobInvalidAfterDeallocateUPlane) {
     IE_EXPECT_OK(ie_blob_make_memory_i420(blob_y, blob_u, blob_v, &blob_i420));
 
     ie_blob_deallocate(&blob_u);
-    ie_blob_buffer_t i420_buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(blob_i420, &i420_buffer));
-    EXPECT_EQ(nullptr, i420_buffer.buffer);
+    ie_blob_map_t i420_rmap = {nullptr, nullptr};
+    IE_EXPECT_NOT_OK(ie_blob_rmap(blob_i420, &i420_rmap));
+    EXPECT_EQ(nullptr, i420_rmap.r_buffer);
+    ie_blob_unmap(&i420_rmap);
 
     ie_blob_deallocate(&blob_y);
     ie_blob_deallocate(&blob_v);
@@ -1975,9 +1944,10 @@ TEST(ie_blob_make_memory_i420, I420BlobInvalidAfterDeallocateVPlane) {
     IE_EXPECT_OK(ie_blob_make_memory_i420(blob_y, blob_u, blob_v, &blob_i420));
 
     ie_blob_deallocate(&blob_v);
-    ie_blob_buffer_t i420_buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(blob_i420, &i420_buffer));
-    EXPECT_EQ(nullptr, i420_buffer.buffer);
+    ie_blob_map_t i420_rmap = {nullptr, nullptr};
+    IE_EXPECT_NOT_OK(ie_blob_rmap(blob_i420, &i420_rmap));
+    EXPECT_EQ(nullptr, i420_rmap.r_buffer);
+    ie_blob_unmap(&i420_rmap);
 
     ie_blob_deallocate(&blob_y);
     ie_blob_deallocate(&blob_u);
@@ -2037,10 +2007,11 @@ TEST(ie_blob_make_memory_i420, inferRequestWithI420) {
     ie_blob_t *output_blob = nullptr;
     IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
 
-    ie_blob_buffer_t buffer;
-    IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
-    float *output_data = (float *)(buffer.buffer);
+    ie_blob_map_t blob_rmap = {nullptr, nullptr};
+    IE_EXPECT_OK(ie_blob_rmap(output_blob, &blob_rmap));
+    const float *output_data = (const float *)(blob_rmap.r_buffer);
     EXPECT_NEAR(output_data[1], 0.f, 1.e-5);
+    ie_blob_unmap(&blob_rmap);
 
     ie_blob_free(&output_blob);
     ie_blob_free(&blob_i420);
@@ -2052,6 +2023,91 @@ TEST(ie_blob_make_memory_i420, inferRequestWithI420) {
     ie_network_free(&network);
     ie_core_free(&core);
     free(img_data);
+}
+
+TEST(ie_blob_rwmap, blobRWMap) {
+    dimensions_t dim_t;
+    dim_t.ranks = 4 ;
+    dim_t.dims[0] = 1, dim_t.dims[1] = 3, dim_t.dims[2] = 4, dim_t.dims[3] = 4;
+    tensor_desc tensor;
+    tensor.dims = dim_t ;
+    tensor.precision = precision_e::U8;
+    tensor.layout = layout_e::NCHW;
+
+    ie_blob_t *blob = nullptr;
+    IE_EXPECT_OK(ie_blob_make_memory(&tensor, &blob));
+    EXPECT_NE(nullptr, blob);
+
+    ie_blob_map_t blob_rwmap = {nullptr, nullptr}, blob_rmap = {nullptr, nullptr};
+    IE_EXPECT_OK(ie_blob_rwmap(blob, &blob_rwmap));
+    EXPECT_NE(nullptr, blob_rwmap.rw_buffer);
+
+    uint8_t *blob_rwdata = (uint8_t *)(blob_rwmap.rw_buffer);
+    blob_rwdata[0] = 1;
+    blob_rwdata[1] = 2;
+    ie_blob_unmap(&blob_rwmap);
+
+    IE_EXPECT_OK(ie_blob_rmap(blob, &blob_rmap));
+    EXPECT_NE(nullptr, blob_rmap.r_buffer);
+    const uint8_t *blob_rdata = (const uint8_t *)(blob_rmap.r_buffer);
+    EXPECT_EQ(1, blob_rdata[0]);
+    EXPECT_EQ(2, blob_rdata[1]);
+    ie_blob_unmap(&blob_rmap);
+
+    ie_blob_deallocate(&blob);
+}
+
+TEST(ie_blob_wmap, blobWMap) {
+    dimensions_t dim_t;
+    dim_t.ranks = 4 ;
+    dim_t.dims[0] = 1, dim_t.dims[1] = 3, dim_t.dims[2] = 4, dim_t.dims[3] = 4;
+    tensor_desc tensor;
+    tensor.dims = dim_t ;
+    tensor.precision = precision_e::U8;
+    tensor.layout = layout_e::NCHW;
+
+    ie_blob_t *blob = nullptr;
+    IE_EXPECT_OK(ie_blob_make_memory(&tensor, &blob));
+    EXPECT_NE(nullptr, blob);
+
+    ie_blob_map_t blob_wmap = {nullptr, nullptr}, blob_rmap = {nullptr, nullptr};
+    IE_EXPECT_OK(ie_blob_wmap(blob, &blob_wmap));
+    EXPECT_NE(nullptr, blob_wmap.w_buffer);
+
+    uint8_t *blob_wdata = (uint8_t *)(blob_wmap.w_buffer);
+    blob_wdata[0] = 1;
+    blob_wdata[1] = 2;
+    ie_blob_unmap(&blob_wmap);
+
+    IE_EXPECT_OK(ie_blob_rmap(blob, &blob_rmap));
+    EXPECT_NE(nullptr, blob_rmap.r_buffer);
+    const uint8_t *blob_rdata = (const uint8_t *)(blob_rmap.r_buffer);
+    EXPECT_EQ(1, blob_rdata[0]);
+    EXPECT_EQ(2, blob_rdata[1]);
+    ie_blob_unmap(&blob_rmap);
+
+    ie_blob_deallocate(&blob);
+}
+
+TEST(ie_blob_rmap, blobRMap) {
+    dimensions_t dim_t;
+    dim_t.ranks = 4 ;
+    dim_t.dims[0] = 1, dim_t.dims[1] = 3, dim_t.dims[2] = 4, dim_t.dims[3] = 4;
+    tensor_desc tensor;
+    tensor.dims = dim_t ;
+    tensor.precision = precision_e::U8;
+    tensor.layout = layout_e::NCHW;
+
+    ie_blob_t *blob = nullptr;
+    IE_EXPECT_OK(ie_blob_make_memory(&tensor, &blob));
+    EXPECT_NE(nullptr, blob);
+
+    ie_blob_map_t blob_rmap = {nullptr, nullptr};;
+    IE_EXPECT_OK(ie_blob_rmap(blob, &blob_rmap));
+    EXPECT_NE(nullptr, blob_rmap.r_buffer);
+    ie_blob_unmap(&blob_rmap);
+
+    ie_blob_deallocate(&blob);
 }
 
 int main(int argc, char *argv[]){
