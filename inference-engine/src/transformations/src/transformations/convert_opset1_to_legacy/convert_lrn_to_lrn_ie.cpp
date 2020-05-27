@@ -57,7 +57,7 @@ void ngraph::pass::ConvertLRNToLRNIE::convert_lrn() {
                                                             region);
 
         lrn_ie->set_friendly_name(lrn->get_friendly_name());
-        ngraph:copy_runtime_info(lrn, lrn_ie);
+        ngraph::copy_runtime_info(lrn, lrn_ie);
         ngraph::replace_node(lrn, lrn_ie);
         return true;
     };

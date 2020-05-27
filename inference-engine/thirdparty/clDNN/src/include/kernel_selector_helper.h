@@ -79,6 +79,7 @@ using sample_type = kernel_selector::ResampleType;
 using border_type = kernel_selector::BorderType;
 using gather_axis = kernel_selector::GatherAxis;
 using reduce_mode = kernel_selector::ReduceMode;
+using cum_sum_axis = kernel_selector::CumSumAxis;
 
 using data_tensor = kernel_selector::DataTensor;
 using weights_tensor = kernel_selector::WeightsTensor;
