@@ -246,7 +246,7 @@ void MyriadInferRequest::GetResult() {
             auto shapeRank = dynOutputDesc.getDims().size();
             ieOutDims.resize(shapeRank);
             for (size_t idx = 0; idx < shapeRank; ++idx) {
-                ieOutDims[idx] = shapePtr[shapeRank - idx - 1];
+                ieOutDims[idx] = shapePtr[idx];
             }
 
             outData->setDims(ieOutDims);

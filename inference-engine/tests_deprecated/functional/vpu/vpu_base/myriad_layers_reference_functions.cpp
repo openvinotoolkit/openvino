@@ -3006,6 +3006,6 @@ void ref_nonZero(const InferenceEngine::Blob::Ptr& src,
         }
     }
 
-    outDimsPtr[0] = numNonZeros;
-    outDimsPtr[1] = src->getTensorDesc().getDims().size();
+    outDimsPtr[0] = src->getTensorDesc().getDims().size();
+    outDimsPtr[1] = numNonZeros;
 }

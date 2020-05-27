@@ -124,9 +124,12 @@ TEST_F(DataToShapeEdgeProcessingTests, DataToShapeEdgeSharesMemory) {
     auto shapeProducer = *it;
 
     const auto& data = shapeProducer->output(0);
-    const auto& shape = shapeProducer->output(1);
+    ASSERT_NE(data->parentDataToShapeEdge(), nullptr);
+    const auto& edge = data->parentDataToShapeEdge();
+    ASSERT_NE(edge->parent(), nullptr);
 
-    const auto& shapeDataLocation = shape->dataLocation();
+    const auto& shapeDataLocation = edge->parent()->dataLocation();
+
     const auto& dataShapeLocation = data->shapeLocation();
 
     ASSERT_EQ(shapeDataLocation.location, dataShapeLocation.dimsLocation);
@@ -156,18 +159,22 @@ TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingOnceSharesMemory) {
     auto shapeProducer = *it;
 
     const auto& data = shapeProducer->output(0);
-    const auto& shape = shapeProducer->output(1);
+    ASSERT_NE(data->parentDataToShapeEdge(), nullptr);
+    auto edge = data->parentDataToShapeEdge();
+    ASSERT_NE(edge->parent(), nullptr);
 
-    const auto& shapeDataLocation = shape->dataLocation();
+    const auto& shapeDataLocation = edge->parent()->dataLocation();
     const auto& dataShapeLocation = data->shapeLocation();
 
     ASSERT_EQ(shapeDataLocation.location, dataShapeLocation.dimsLocation);
     ASSERT_EQ(shapeDataLocation.offset, dataShapeLocation.dimsOffset);
 
     const auto& processedData = data->singleConsumer()->output(0);
-    const auto& processedShape = shape->singleConsumer()->output(0);
+    ASSERT_NE(processedData->parentDataToShapeEdge(), nullptr);
+    edge = processedData->parentDataToShapeEdge();
+    ASSERT_NE(edge->parent(), nullptr);
 
-    const auto& processedShapeDataLocation = processedShape->dataLocation();
+    const auto& processedShapeDataLocation = edge->parent()->dataLocation();
     const auto& processedDataShapeLocation = processedData->shapeLocation();
 
     ASSERT_EQ(processedShapeDataLocation.location, processedDataShapeLocation.dimsLocation);
@@ -191,9 +198,11 @@ TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingOnceHasCorrectExecutionOrd
     auto shapeProducer = *it;
 
     const auto dataProcessor = shapeProducer->output(0)->singleConsumer();
-    const auto shapeProcessor = shapeProducer->output(1)->singleConsumer();
+    ASSERT_NE(shapeProducer->output(0)->parentDataToShapeEdge(), nullptr);
+    const auto& edge = shapeProducer->output(0)->parentDataToShapeEdge();
+    ASSERT_NE(edge->parent(), nullptr);
 
-    ASSERT_TRUE(checkExecutionOrder(model, {shapeProcessor->id(), dataProcessor->id()}));
+    ASSERT_TRUE(checkExecutionOrder(model, {edge->parent()->producer()->id(), dataProcessor->id()}));
 }
 
 TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingTwiceDoesntThrow) {
@@ -219,27 +228,33 @@ TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingTwiceSharesMemory) {
     auto shapeProducer = *it;
 
     const auto& data = shapeProducer->output(0);
-    const auto& shape = shapeProducer->output(1);
+    ASSERT_NE(data->parentDataToShapeEdge(), nullptr);
+    auto edge = data->parentDataToShapeEdge();
+    ASSERT_NE(edge->parent(), nullptr);
 
-    const auto& shapeDataLocation = shape->dataLocation();
+    const auto& shapeDataLocation = edge->parent()->dataLocation();
     const auto& dataShapeLocation = data->shapeLocation();
 
     ASSERT_EQ(shapeDataLocation.location, dataShapeLocation.dimsLocation);
     ASSERT_EQ(shapeDataLocation.offset, dataShapeLocation.dimsOffset);
 
     const auto& dataProcessedOnce = data->singleConsumer()->output(0);
-    const auto& shapeProcessedOnce = shape->singleConsumer()->output(0);
+    ASSERT_NE(dataProcessedOnce->parentDataToShapeEdge(), nullptr);
+    edge = dataProcessedOnce->parentDataToShapeEdge();
+    ASSERT_NE(edge->parent(), nullptr);
 
-    auto processedShapeDataLocation = shapeProcessedOnce->dataLocation();
+    auto processedShapeDataLocation = edge->parent()->dataLocation();
     auto processedDataShapeLocation = dataProcessedOnce->shapeLocation();
 
     ASSERT_EQ(processedShapeDataLocation.location, processedDataShapeLocation.dimsLocation);
     ASSERT_EQ(processedShapeDataLocation.offset, processedDataShapeLocation.dimsOffset);
 
     const auto dataProcessedTwice = dataProcessedOnce->singleConsumer()->output(0);
-    const auto shapeProcessedTwice = shapeProcessedOnce->singleConsumer()->output(0);
+    ASSERT_NE(dataProcessedTwice->parentDataToShapeEdge(), nullptr);
+    edge = dataProcessedTwice->parentDataToShapeEdge();
+    ASSERT_NE(edge->parent(), nullptr);
 
-    processedShapeDataLocation = shapeProcessedTwice->dataLocation();
+    processedShapeDataLocation = edge->parent()->dataLocation();
     processedDataShapeLocation = dataProcessedTwice->shapeLocation();
 
     ASSERT_EQ(processedShapeDataLocation.location, processedDataShapeLocation.dimsLocation);
@@ -263,14 +278,18 @@ TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingTwiceHasCorrectExecutionOr
     auto shapeProducer = *it;
 
     const auto dataFirstProcessor = shapeProducer->output(0)->singleConsumer();
-    const auto shapeFirstProcessor = shapeProducer->output(1)->singleConsumer();
+    ASSERT_NE(shapeProducer->output(0)->parentDataToShapeEdge(), nullptr);
+    auto edge = shapeProducer->output(0)->parentDataToShapeEdge();
+    ASSERT_NE(edge->parent(), nullptr);
 
-    ASSERT_TRUE(checkExecutionOrder(model, {shapeFirstProcessor->id(), dataFirstProcessor->id()}));
+    ASSERT_TRUE(checkExecutionOrder(model, {edge->parent()->producer()->id(), dataFirstProcessor->id()}));
 
     const auto dataSecondProcessor = dataFirstProcessor->output(0)->singleConsumer();
-    const auto shapeSecondProcessor = shapeFirstProcessor->output(0)->singleConsumer();
+    ASSERT_NE(dataSecondProcessor->input(0)->parentDataToShapeEdge(), nullptr);
+    edge = dataSecondProcessor->input(0)->parentDataToShapeEdge();
+    ASSERT_NE(edge->parent(), nullptr);
 
-    ASSERT_TRUE(checkExecutionOrder(model, {shapeSecondProcessor->id(), dataSecondProcessor->id()}));
+    ASSERT_TRUE(checkExecutionOrder(model, {edge->parent()->producer()->id(), dataSecondProcessor->id()}));
 }
 
 TEST_F(DataToShapeEdgeProcessingTests, ReplaceDataToShapeParentReplacesConnections) {

@@ -119,6 +119,12 @@ public:
     Pass::Ptr adjustDataBatch();
 
     //
+    // Dynamic shape adaptation
+    //
+
+    Pass::Ptr convertShapeNotation();
+
+    //
     // HW stages tiling
     //
 

@@ -86,8 +86,8 @@ void staticShapeNonZeroReference(const InType* input, OutType* outIndices, OutTy
         }
     }
 
-    outShape[0] = nonZeroCount;
-    outShape[1] = inputShape.size();
+    outShape[0] = inputShape.size();
+    outShape[1] = nonZeroCount;
 }
 
 template <element::Type_t InType>
