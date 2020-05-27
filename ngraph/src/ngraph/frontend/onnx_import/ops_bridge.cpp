@@ -305,6 +305,7 @@ namespace ngraph
             REGISTER_OPERATOR("Less", 1, less);
             REGISTER_OPERATOR("Log", 1, log);
             REGISTER_OPERATOR("LogSoftmax", 1, log_softmax);
+            REGISTER_OPERATOR("Loop", 1, loop);
             REGISTER_OPERATOR("LpNormalization", 1, lp_norm);
             REGISTER_OPERATOR("LRN", 1, lrn);
             REGISTER_OPERATOR("LSTM", 1, lstm);
