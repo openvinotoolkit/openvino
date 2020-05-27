@@ -215,6 +215,7 @@ public:
         GRN,
         CTCGreedyDecoder,
         PriorBoxClustered,
+        CumSum,
         NO_TYPE
     };
     using GenericBlobMap = std::map<cldnn::primitive_id, cldnn::primitive_id>;
@@ -370,6 +371,7 @@ private:
     void CreateGRNPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateCTCGreedyDecoderPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
 };
 
 }  // namespace CLDNNPlugin

@@ -3,7 +3,7 @@ jobs:
   timeoutInMinutes: 0
   pool:
     #vmImage: 'ubuntu-18.04'
-    name: LIN_VMSS_VENV_F8S_WE
+    name: LIN_VMSS_VENV_F8S_WU2
   variables:
     BUILD_TYPE: Release
   steps:
@@ -186,7 +186,7 @@ jobs:
   timeoutInMinutes: 0
   pool:
     #vmImage: 'vs2017-win2016'
-    name: WIN_VMSS_VENV_F8S_WE
+    name: WIN_VMSS_VENV_F8S_WU2
   variables:
     BUILD_TYPE: Release
     BUILD_DIR: D:\dldt-build
