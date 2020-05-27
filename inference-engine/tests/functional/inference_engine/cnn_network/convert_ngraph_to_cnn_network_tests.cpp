@@ -4,8 +4,6 @@
 
 #include <gtest/gtest.h>
 
-#include "tests_common.hpp"
-
 #include <convert_function_to_cnn_network.hpp>
 #include <cpp/ie_cnn_network.h>
 
@@ -17,9 +15,7 @@
 using namespace testing;
 using namespace InferenceEngine;
 
-using ConvertFunctionToCNNNetworkTests = TestsCommon;
-
-TEST_F(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
+TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
@@ -34,9 +30,9 @@ TEST_F(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
+    ASSERT_ANY_THROW(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl));
     try {
         auto net = InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
-        FAIL();
     } catch (InferenceEngine::details::InferenceEngineException &err) {
         const std::string ref_msg = "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
         const std::string resp_msg = err.what();
@@ -44,7 +40,7 @@ TEST_F(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
     }
 }
 
-TEST_F(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
+TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});

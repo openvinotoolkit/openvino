@@ -9,11 +9,11 @@
 #include "cnn_network_impl.hpp"
 #include  <tests_common.hpp>
 #include "ie_format_parser.h"
+#include "ie_blob_proxy.hpp"
 #include <string>
 #include "pugixml.hpp"
 #include "xml_parse_utils.h"
 #include "mean_image.h"
-#include "ie_blob_proxy.hpp"
 
 #include "common_test_utils/xml_net_builder/xml_father.hpp"
 
@@ -296,8 +296,7 @@ xml().node("net").attr("name", "AlexNet").attr("version", x)\
         std::vector<T> meanValues = MeanImage<T>::getValue();
         std::copy(meanValues.begin(), meanValues.end(), (T *) binBlobFloat->data());
         InferenceEngine::SizeVector dims_dst = {MT_HEIGHT, MT_WIDTH * sizeof(T), MT_CHANNELS};
-        typename InferenceEngine::TBlobProxy<uint8_t>::Ptr binBlob(new
-                                                                           InferenceEngine::TBlobProxy<uint8_t>(
+        typename InferenceEngine::TBlobProxy<uint8_t>::Ptr binBlob(new InferenceEngine::TBlobProxy<uint8_t>(
                 InferenceEngine::Precision::FP32, InferenceEngine::CHW, binBlobFloat, 0, dims_dst));
         return binBlob;
     }
