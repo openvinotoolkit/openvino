@@ -66,6 +66,20 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params) con
     jit.AddConstant(MakeJitConstant("IN_IDX", "INPUT0_GET_INDEX(" + input_order + ")"));
     jit.AddConstant(MakeJitConstant("OUT_IDX", "OUTPUT_GET_INDEX(" + output_order + ")"));
 
+    if (!params.fused_ops.empty()) {
+        if (out_idx.size() == 4)
+            std::swap(out_idx[2], out_idx[3]);
+        else if (out_idx.size() == 5)
+            std::swap(out_idx[2], out_idx[4]);
+        else if (out_idx.size() == 6) {
+            std::swap(out_idx[2], out_idx[5]);
+            std::swap(out_idx[3], out_idx[4]);
+        }
+
+        FusedOpsConfiguration conf = {"", out_idx, "input_var", GetUnitType(params), 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
     return jit;
 }
 
@@ -85,7 +99,7 @@ KernelsData PermuteKernelRef::GetKernelsData(const Params& params, const optiona
     kernel.workGroups.global = {in.X().v, in.Y().v * in.Z().v * in.W().v, in.Feature().v * in.Batch().v};
     kernel.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.workGroups.global, params.engineInfo);
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc(1, false, false);
+    kernel.arguments = GetArgsDesc(1, false, false, false, false, GetFusedPrimitiveInputsCount(params));
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

@@ -360,6 +360,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<mvn>();
 
             should_fuse |= input_data.is_type<deconvolution>();
+            
+            should_fuse |= input_data.is_type<permute>();
 
             should_fuse |= input_data.is_type<activation>();
 
@@ -395,6 +397,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<mvn>() && mvn_supports_fusings(input_data.as<mvn>());
 
             should_fuse |= input_data.is_type<deconvolution>();
+            
+            should_fuse |= input_data.is_type<permute>();
 
             should_fuse |= input_data.is_type<activation>();
 
@@ -467,6 +471,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                             input_data.get_dependency(0).get_output_layout().data_type == data_types::i8 ||
                             input_data.get_output_layout().data_type == out_layout.data_type);
 
+            should_fuse |= input_data.is_type<permute>() &&
+                            quantize_node.get_scale_shift_opt();
+
             if (!should_fuse)
                 return;
 
@@ -487,11 +494,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             bool can_fuse_parent1 = (parent1->is_type<convolution>() && conv_supports_fusings(parent1->as<convolution>())) ||
                                     (parent1->is_type<mvn>() && mvn_supports_fusings(parent1->as<mvn>())) ||
-                                    (parent1->is_type<deconvolution>());
+                                    (parent1->is_type<deconvolution>()) || (parent1->is_type<permute>());
 
             bool can_fuse_parent2 = (parent2->is_type<convolution>() && conv_supports_fusings(parent2->as<convolution>())) ||
                                     (parent2->is_type<mvn>() && mvn_supports_fusings(parent2->as<mvn>())) ||
-                                    (parent2->is_type<deconvolution>());
+                                    (parent2->is_type<deconvolution>()) || (parent2->is_type<permute>());
 
             std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 
