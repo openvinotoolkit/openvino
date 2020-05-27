@@ -11,15 +11,24 @@
 
 namespace LayerTestsDefinitions {
 
-class NormalizeTransformation : public LayerTestsUtils::LayerTransformation {
+typedef std::tuple<
+    InferenceEngine::Precision,
+    InferenceEngine::SizeVector,
+    std::string,
+    InferenceEngine::details::LayerTransformation::Params,
+    bool,
+    bool> NormalizeTransformationParams;
+
+class NormalizeTransformation :
+    public testing::WithParamInterface<NormalizeTransformationParams>,
+    public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<NormalizeTransformationParams> obj);
 
 protected:
     void SetUp() override;
 
 private:
-    std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(const ngraph::Output<ngraph::Node>& output);
     void validate();
 };
 
