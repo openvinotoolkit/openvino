@@ -42,10 +42,6 @@ void op::v3::ExtractImagePatches::validate_and_infer_types()
 {
     const PartialShape input_Pshape = get_input_partial_shape(0);
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).is_dynamic() ||
-                              get_input_element_type(0).is_integral_number(),
-                          "input tensor must be an integral number.");
     NODE_VALIDATION_CHECK(this, input_Pshape.rank() == 4, "input tensor must be 4D tensor.");
 
     NODE_VALIDATION_CHECK(this,
