@@ -4437,11 +4437,45 @@ void Program::CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::
         if (axesInputCreator->blobs.size() == 1) {
             auto constantBlob = axesInputCreator->blobs.begin()->second;
             auto axesPrecision = constantBlob->getTensorDesc().getPrecision();
-            if (axesPrecision == InferenceEngine::Precision::I32) {
-                auto data = constantBlob->buffer().as<int32_t*>();
-                axis = data[0];
-            } else {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect CumSum axes input Precision";
+            switch (axesPrecision) {
+                case InferenceEngine::Precision::U8: {
+                    auto data = constantBlob->buffer().as<uint8_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
+                case InferenceEngine::Precision::I8: {
+                    auto data = constantBlob->buffer().as<int8_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
+                case InferenceEngine::Precision::U16: {
+                    auto data = constantBlob->buffer().as<uint16_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
+                case InferenceEngine::Precision::I16: {
+                    auto data = constantBlob->buffer().as<int16_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
+                case InferenceEngine::Precision::I32: {
+                    auto data = constantBlob->buffer().as<int32_t*>();
+                    axis = data[0];
+                    break;
+                }
+                case InferenceEngine::Precision::U64: {
+                    auto data = constantBlob->buffer().as<uint64_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
+                case InferenceEngine::Precision::I64: {
+                    auto data = constantBlob->buffer().as<int64_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
+                default: {
+                    THROW_IE_EXCEPTION << layer->name << " Incorrect CumSum axes input Precision";
+                }
             }
         }
     }
