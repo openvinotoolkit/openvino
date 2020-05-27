@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -3232,8 +3232,213 @@ TEST(gemm_gpu, basic_smarcink2) {
     auto output_ptr = output.pointer<float>();
 
     EXPECT_EQ(output_ptr.size(), (uint32_t)8);
-    for (uint32_t i = 0; i < out_data.size(); ++i) {         
+    for (uint32_t i = 0; i < out_data.size(); ++i) {
         EXPECT_FLOAT_EQ(output_ptr[i], out_data[i]);
     }
 }
 
+struct gemm_int8_test_params {
+    size_t m_size;
+    size_t n_size;
+    size_t k_size;
+    size_t b0_num;
+    size_t f0_num;
+    size_t b1_num;
+    size_t f1_num;
+    size_t b2_num;
+    size_t f2_num;
+    size_t b_out_num;
+    size_t f_out_num;
+    bool transpose_input0;
+    bool transpose_input1;
+    float alpha;
+    float beta;
+    std::string kernel_name;
+};
+
+#define CASE_GEMM_INT8_NN_TRANSPOSITION 64, 64, 64, 1, 2, 1, 2, 1, 2, 1, 2, false, false, 1.5f, 2.0f
+#define CASE_GEMM_INT8_NT_TRANSPOSITION 32, 64, 32, 2, 1, 2, 1, 2, 1, 2, 1, false, true, 1.7f, 1.3f
+#define CASE_GEMM_INT8_TN_TRANSPOSITION 128, 64, 32, 2, 2, 2, 2, 2, 2, 2, 2, true, false, 1.0f, 0.0f
+#define CASE_GEMM_INT8_TT_TRANSPOSITION 32, 32, 32, 1, 1, 1, 1, 1, 1, 1, 1, true, true, 1.2f, 0.5f
+
+#define CASE_GEMM_INT8_BROADCAST_1 32, 32, 32, 1, 2, 1, 1, 1, 1, 1, 2, false, false, 1.5f, 2.0f
+#define CASE_GEMM_INT8_BROADCAST_2 32, 32, 64, 2, 1, 1, 1, 1, 1, 2, 1, false, false, 1.7f, 1.3f
+#define CASE_GEMM_INT8_BROADCAST_3 64, 32, 32, 1, 2, 2, 1, 1, 2, 2, 2, false, false, 1.0f, 1.5f
+#define CASE_GEMM_INT8_BROADCAST_4 32, 64, 32, 1, 1, 2, 2, 2, 2, 2, 2, false, false, 1.2f, 0.5f
+
+#define CASE_GEMM_INT8_LEFTOVERS_1 13, 21, 17, 1, 1, 1, 1, 1, 1, 1, 1, false, false, 1.5f, 2.0f
+#define CASE_GEMM_INT8_LEFTOVERS_2 33, 31, 69, 1, 1, 1, 1, 1, 1, 1, 1, false, false, 1.6f, 1.0f
+#define CASE_GEMM_INT8_LEFTOVERS_3 55, 17, 24, 1, 1, 1, 1, 1, 1, 1, 1, false, false, 1.0f, 1.5f
+#define CASE_GEMM_INT8_LEFTOVERS_4 63, 63, 63, 1, 1, 1, 1, 1, 1, 1, 1, false, false, 1.0f, 1.0f
+
+#define CASE_GEMM_INT8_COMBO_1 8, 8, 32, 1, 2, 1, 1, 1, 1, 1, 2, false, false, 1.5f, 2.0f
+#define CASE_GEMM_INT8_COMBO_2 16, 16, 64, 2, 1, 1, 1, 1, 1, 2, 1, false, true, 1.7f, 0.0f
+#define CASE_GEMM_INT8_COMBO_3 11, 31, 21, 7, 15, 7, 15, 7, 15, 7, 15, true, false, 1.0f, 1.5f
+#define CASE_GEMM_INT8_COMBO_4 32, 32, 32, 3, 6, 3, 6, 3, 6, 3, 6, true, true, 1.2f, 4.0f
+
+template <typename T>
+class GemmInt8Test : public ::testing::TestWithParam<T> {
+public:
+
+    float tolerance = 0.0f;
+
+    inline size_t getGemmIndex(size_t x, size_t y, size_t f, size_t b, size_t x_size, size_t y_size, size_t f_num, size_t b_num,
+                               size_t x_pitch, size_t y_pitch, size_t f_pitch, size_t b_pitch) {
+        return (x % x_size) * x_pitch + (y % y_size) * y_pitch + (f % f_num) * f_pitch + (b % b_num) * b_pitch;
+    }
+
+    void execute(T& p) {
+        const auto& engine = get_test_engine();
+
+        auto y0_size = p.m_size;
+        auto y0_pitch = p.k_size;
+        auto x0_size = p.k_size;
+        auto x0_pitch = 1;
+        auto f0_pitch = y0_size * x0_size;
+        auto b0_pitch = p.f0_num * f0_pitch;
+
+        auto y1_size = p.k_size;
+        auto y1_pitch = p.n_size;
+        auto x1_size = p.n_size;
+        auto x1_pitch = 1;
+        auto f1_pitch = y1_size * x1_size;
+        auto b1_pitch = p.f1_num * f1_pitch;
+
+        auto y2_size = p.m_size;
+        auto y2_pitch = p.n_size;
+        auto x2_size = p.n_size;
+        auto x2_pitch = 1;
+        auto f2_pitch = y2_size * x2_size;
+        auto b2_pitch = p.f2_num * f2_pitch;
+
+        auto y_out_size = p.m_size;
+        auto y_out_pitch = p.n_size;
+        auto x_out_size = p.n_size;
+        auto x_out_pitch = 1;
+        auto f_out_pitch = y_out_size * x_out_size;
+        auto b_out_pitch = p.f_out_num * f_out_pitch;
+
+        if (p.transpose_input0) {
+            y0_size = p.k_size;
+            y0_pitch = p.m_size;
+            x0_size = p.m_size;
+            x0_pitch = 1;
+        }
+
+        if (p.transpose_input1) {
+            y1_size = p.n_size;
+            y1_pitch = p.k_size;
+            x1_size = p.k_size;
+            x1_pitch = 1;
+        }
+
+        auto input0_size = tensor((int)p.b0_num, (int)p.f0_num, (int)x0_size, (int)y0_size);
+        auto input0_data = generate_random_4d<int8_t>(p.b0_num, p.f0_num, x0_size, y0_size, -128, 127, 1);
+        auto input0_data_bfyx = flatten_4d(format::bfyx, input0_data);
+        auto input0_mem = memory::allocate(engine, { data_types::i8, format::bfyx, input0_size });
+        set_values(input0_mem, input0_data_bfyx);
+
+        auto input1_size = tensor((int)p.b1_num, (int)p.f1_num, (int)x1_size, (int)y1_size);
+        auto input1_data = generate_random_4d<uint8_t>(p.b1_num, p.f1_num, x1_size, y1_size, 0, 255, 1);
+        auto input1_data_bfyx = flatten_4d(format::bfyx, input1_data);
+        auto input1_mem = memory::allocate(engine, { data_types::u8, format::bfyx, input1_size });
+        set_values(input1_mem, input1_data_bfyx);
+
+        auto input2_size = tensor((int)p.b2_num, (int)p.f2_num, (int)x2_size, (int)y2_size);
+        auto input2_data = generate_random_4d<int8_t>(p.b2_num, p.f2_num, x2_size, y2_size, -128, 127, 1);
+        auto input2_data_bfyx = flatten_4d(format::bfyx, input2_data);
+        auto input2_mem = memory::allocate(engine, { data_types::i8, format::bfyx, input2_size });
+        set_values(input2_mem, input2_data_bfyx);
+
+        std::vector<float> out_data(p.b_out_num * p.f_out_num * p.m_size * p.n_size);
+
+        for (size_t b = 0; b < p.b_out_num; ++b) {
+            for (size_t f = 0; f < p.f_out_num; ++f) {
+                for (size_t i = 0; i < p.m_size; ++i) {
+                    for (size_t j = 0; j < p.n_size; ++j) {
+                        size_t input2_data_index = getGemmIndex(j, i, f, b, x2_size, y2_size, p.f2_num, p.b2_num, x2_pitch, y2_pitch, f2_pitch, b2_pitch);
+                        size_t out_data_index = getGemmIndex(j, i, f, b, x_out_size, y_out_size, p.f_out_num, p.b_out_num,
+                                                          x_out_pitch, y_out_pitch, f_out_pitch, b_out_pitch);
+                        out_data[out_data_index] = 0;
+
+                        for (size_t k = 0; k < p.k_size; ++k) {
+                            size_t input0_data_index = getGemmIndex(k * (!p.transpose_input0) + i * p.transpose_input0, i * (!p.transpose_input0) +
+                            k * p.transpose_input0, f, b, x0_size, y0_size, p.f0_num, p.b0_num, x0_pitch, y0_pitch, f0_pitch, b0_pitch);
+                            size_t input1_data_index = getGemmIndex(j * (!p.transpose_input1) + k * p.transpose_input1, k * (!p.transpose_input1) +
+                            j * p.transpose_input1, f, b, x1_size, y1_size, p.f1_num, p.b1_num, x1_pitch, y1_pitch, f1_pitch, b1_pitch);
+
+                            out_data[out_data_index] += (float)(input0_data_bfyx[input0_data_index]) * (float)(input1_data_bfyx[input1_data_index]);
+                        }
+
+                        out_data[out_data_index] *= p.alpha;
+                        out_data[out_data_index] += p.beta * (float)(input2_data_bfyx[input2_data_index]);
+                    }
+                }
+            }
+        }
+
+        topology topology;
+        topology.add(input_layout("input0", input0_mem.get_layout()));
+        topology.add(input_layout("input1", input1_mem.get_layout()));
+        topology.add(input_layout("input2", input2_mem.get_layout()));
+        topology.add(gemm("output", { "input0", "input1", "input2" }, data_types::f32, p.transpose_input0, p.transpose_input1, p.alpha, p.beta));
+
+        build_options options;
+        implementation_desc gemm_int8_impl = { format::bfyx, p.kernel_name };
+        options.set_option(build_option::force_implementations({ {"output", gemm_int8_impl} }));
+
+        network network(engine, topology, options);
+        network.set_input_data("input0", input0_mem);
+        network.set_input_data("input1", input1_mem);
+        network.set_input_data("input2", input2_mem);
+        auto outputs = network.execute();
+
+        auto output = outputs.at("output").get_memory();
+        auto output_ptr = output.pointer<float>();
+
+        EXPECT_EQ(output_ptr.size(), (size_t)(p.b_out_num * p.f_out_num * p.m_size * p.n_size));
+        for (size_t i = 0; i < out_data.size(); ++i) {
+            EXPECT_FLOAT_EQ(output_ptr[i], out_data[i]);
+        }
+    }
+};
+
+class gemm_int8_transposition_tests : public ::GemmInt8Test<gemm_int8_test_params> {};
+TEST_P(gemm_int8_transposition_tests, basic) { auto p = GetParam(); tolerance = 1e-5f; execute(p); }
+
+INSTANTIATE_TEST_CASE_P(gemm_gpu, gemm_int8_transposition_tests, ::testing::ValuesIn(std::vector <gemm_int8_test_params> {
+                        gemm_int8_test_params{ CASE_GEMM_INT8_NN_TRANSPOSITION, "gemm_mmad_int8" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_NT_TRANSPOSITION, "gemm_mmad_int8" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_TN_TRANSPOSITION, "gemm_mmad_int8" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_TT_TRANSPOSITION, "gemm_mmad_int8" },
+}), );
+
+class gemm_int8_broadcast_tests : public ::GemmInt8Test<gemm_int8_test_params> {};
+TEST_P(gemm_int8_broadcast_tests, basic) { auto p = GetParam(); tolerance = 1e-5f; execute(p); }
+
+INSTANTIATE_TEST_CASE_P(gemm_gpu, gemm_int8_broadcast_tests, ::testing::ValuesIn(std::vector <gemm_int8_test_params> {
+                        gemm_int8_test_params{ CASE_GEMM_INT8_BROADCAST_1, "gemm_mmad_int8" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_BROADCAST_2, "gemm_mmad_int8" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_BROADCAST_3, "gemm_mmad_int8" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_BROADCAST_4, "gemm_mmad_int8" },
+}), );
+
+class gemm_int8_leftovers_tests : public ::GemmInt8Test<gemm_int8_test_params> {};
+TEST_P(gemm_int8_leftovers_tests, basic) { auto p = GetParam(); tolerance = 1e-5f; execute(p); }
+
+INSTANTIATE_TEST_CASE_P(gemm_gpu, gemm_int8_leftovers_tests, ::testing::ValuesIn(std::vector <gemm_int8_test_params> {
+                        gemm_int8_test_params{ CASE_GEMM_INT8_LEFTOVERS_1, "gemm_mmad_int8" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_LEFTOVERS_2, "gemm_mmad_int8" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_LEFTOVERS_3, "gemm_mmad_int8" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_LEFTOVERS_4, "gemm_mmad_int8" },
+}), );
+
+class gemm_int8_combo_tests : public ::GemmInt8Test<gemm_int8_test_params> {};
+TEST_P(gemm_int8_combo_tests, basic) { auto p = GetParam(); tolerance = 1e-5f; execute(p); }
+
+INSTANTIATE_TEST_CASE_P(gemm_gpu, gemm_int8_combo_tests, ::testing::ValuesIn(std::vector <gemm_int8_test_params> {
+                        gemm_int8_test_params{ CASE_GEMM_INT8_COMBO_1, "gemm_mmad_int8" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_COMBO_2, "gemm_mmad_int8" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_COMBO_3, "gemm_mmad_int8" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_COMBO_4, "gemm_mmad_int8" },
+}), );
