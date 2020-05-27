@@ -78,7 +78,6 @@ public:
                 << "and only FP32 and I32 are supported!";
         }
 
-        StatusCode retcode = OK;
         switch (outData[0]->getTensorDesc().getPrecision()) {
         case Precision::FP32: {
             range((inData[RANGE_START]->cbuffer().as<float*>() +

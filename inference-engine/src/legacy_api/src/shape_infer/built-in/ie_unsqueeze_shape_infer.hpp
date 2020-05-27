@@ -43,7 +43,6 @@ public:
         SizeVector outShape;
         if (idx_dims.size() > 1) THROW_IE_EXCEPTION << " Index vector should be 1 dimension";
 
-        size_t max = data_dims.size();
         switch (inBlobs[UNSQUEEZE_INDEXES]->getTensorDesc().getPrecision()) {
         case Precision::FP32: {
             procIndices<float>(inBlobs, UNSQUEEZE_INDEXES, data_dims, outShape, idx_dims);
