@@ -37,6 +37,8 @@ public:
             }
         }
         explicit DisableReshape(const std::shared_ptr<const ngraph::Function>& graph) {
+            IE_ASSERT(graph);
+
             for (auto& op : graph->get_ops()) {
                 addOp(op);
             }

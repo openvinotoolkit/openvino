@@ -61,7 +61,7 @@ public:
     CNNLayer::Ptr createLayer(const std::shared_ptr<ngraph::Node>& layer) const override;
 
     bool canCreate(const std::shared_ptr<ngraph::Node>& node) const override {
-        auto castedPtr = std::dynamic_pointer_cast<NGT>(node);
+        auto castedPtr = ngraph::as_type_ptr<NGT>(node);
         return castedPtr != nullptr;
     }
 
