@@ -46,7 +46,7 @@ TEST_F(StageDependencyEdgeProcessingTests, AddStageDependencyDoesNotAssertOnOutp
     ASSERT_NO_THROW(model->addStageDependency(dependentStage, dependencyProducer->output(0)));
 }
 
-TEST_F(StageDependencyEdgeProcessingTests, NetWithTwoStagesHasCorrectExecOrder) {
+TEST_F(StageDependencyEdgeProcessingTests, DISABLED_NetWithTwoStagesHasCorrectExecOrder) {
     //
     //                    -> [Data] -> (Stage) -> [Data] -> (Stage) -> [Output]
     // [Input] -> (Stage)                            |
@@ -73,7 +73,7 @@ TEST_F(StageDependencyEdgeProcessingTests, NetWithTwoStagesHasCorrectExecOrder) 
     ASSERT_TRUE(checkExecutionOrder(model, {dependencyProducer->id(), dependentStage->id()}));
 }
 
-TEST_F(StageDependencyEdgeProcessingTests, NetWithThreeStagesHasCorrectExecOrder) {
+TEST_F(StageDependencyEdgeProcessingTests, DISABLED_NetWithThreeStagesHasCorrectExecOrder) {
     //
     //                    -> [Data] -> (Stage) -> [Data] -> (Stage) -> [Data] -> (Stage) -> [Output]
     // [Input] -> (Stage)                                                 |

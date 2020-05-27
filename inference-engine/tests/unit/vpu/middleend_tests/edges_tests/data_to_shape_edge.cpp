@@ -176,7 +176,7 @@ TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingOnceSharesMemory) {
     ASSERT_EQ(processedShapeDataLocation.offset, processedDataShapeLocation.dimsOffset);
 }
 
-TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingOnceHasCorrectExecutionOrder) {
+TEST_F(DataToShapeEdgeProcessingTests, DISABLED_ShapeProcessingOnceHasCorrectExecutionOrder) {
     setupNetWithShapeBeingProcessedOnce();
 
     const auto& model = _testModel.getBaseModel();
@@ -250,7 +250,7 @@ TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingTwiceSharesMemory) {
     ASSERT_EQ(processedShapeDataLocation.offset, processedDataShapeLocation.dimsOffset);
 }
 
-TEST_F(DataToShapeEdgeProcessingTests, ShapeProcessingTwiceHasCorrectExecutionOrder) {
+TEST_F(DataToShapeEdgeProcessingTests, DISABLED_ShapeProcessingTwiceHasCorrectExecutionOrder) {
     setupNetWithShapeBeingProcessedTwice();
 
     const auto& model = _testModel.getBaseModel();
