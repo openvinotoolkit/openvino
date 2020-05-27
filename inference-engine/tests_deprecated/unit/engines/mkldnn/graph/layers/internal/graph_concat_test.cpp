@@ -1102,8 +1102,9 @@ protected:
             std::string model = getModel(p);
 
             InferenceEngine::Core core;
-            ASSERT_THROW(core.ReadNetwork(model, InferenceEngine::Blob::CPtr()), 
-                         InferenceEngine::details::InferenceEngineException);
+            // TODO: check InferenceEngine::details::InferenceEngineException when RTTI issue will be resolved
+            ASSERT_THROW(core.ReadNetwork(model, InferenceEngine::Blob::CPtr()),
+                         std::exception);
         } catch (const InferenceEngine::details::InferenceEngineException &e) {
             FAIL() << e.what();
         }

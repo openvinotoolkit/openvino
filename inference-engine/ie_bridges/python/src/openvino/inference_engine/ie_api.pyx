@@ -11,6 +11,7 @@ from libc.stdint cimport int64_t, uint8_t, int8_t, int32_t, uint16_t, int16_t
 from libc.string cimport memcpy
 
 import os
+from fnmatch import fnmatch
 from pathlib import Path
 import threading
 import warnings
@@ -268,20 +269,23 @@ cdef class IECore:
             net.impl = self.impl.readNetwork(xml_buffer, bin_buffer, len(weights))
             free(xml_buffer)
         else:
+            weights_ = "".encode()
             if isinstance(model, Path) and isinstance(weights, Path):
                 if not model.is_file():
                     raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
-                if not weights.is_file():
-                    raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
+                if model.suffix != ".onnx":
+                    if not weights.is_file():
+                        raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
+                    weights_ = bytes(weights)
                 model_ = bytes(model)
-                weights_ = bytes(weights)
             else:
                 if not os.path.isfile(model):
                     raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
-                if not os.path.isfile(weights):
-                    raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
+                if not fnmatch(model, "*.onnx"):
+                    if not os.path.isfile(weights):
+                        raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
+                    weights_ = weights.encode()
                 model_ = model.encode()
-                weights_ = weights.encode()
             net.impl =  self.impl.readNetwork(model_, weights_)
         return net
 

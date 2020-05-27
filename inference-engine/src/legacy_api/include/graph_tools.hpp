@@ -189,9 +189,10 @@ inline void UnorderedDFS(std::unordered_set<CNNLayer*>& visited, const Inference
         }
 
         // visit parents
-        for (auto&& input : cnnLayer->insData) {
+        for (size_t i = 0; i < cnnLayer->insData.size(); i++) {
+            auto& input = cnnLayer->insData[i];
             if (!input.lock()) {
-                THROW_IE_EXCEPTION << "Data inserted into layer " << cnnLayer->name << " is nullptr";
+                THROW_IE_EXCEPTION << "Data " << i << " inserted into layer " << cnnLayer->name << " is nullptr";
             } else {
                 auto creatorLayer = input.lock()->getCreatorLayer().lock();
                 if (creatorLayer) {

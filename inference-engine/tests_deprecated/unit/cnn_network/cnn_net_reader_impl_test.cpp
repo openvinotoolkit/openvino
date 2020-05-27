@@ -2291,7 +2291,9 @@ TEST_F(CNNNetReaderImplTest, ReadInThreads) {
         threads.push_back(std::thread([i, model]{
                     InferenceEngine::Core core;
                     /** Read network model **/
-                    CNNNetwork network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+                    auto blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {9728}, Layout::C));
+                    blob->allocate();
+                    CNNNetwork network = core.ReadNetwork(model, blob);
                     // -----------------------------------------------------------------------------------------------------
 
                     // --------------------------- 3. Configure input & output ---------------------------------------------

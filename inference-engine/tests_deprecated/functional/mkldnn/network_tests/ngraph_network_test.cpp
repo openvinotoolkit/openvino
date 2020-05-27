@@ -7,7 +7,6 @@
 #include <tests_common_func.hpp>
 #include <memory>
 #include "xml_helper.hpp"
-#include <ie_ir_reader.hpp>
 #include <ie_core.hpp>
 
 #define XBYAK_NO_OP_NAMES
@@ -54,12 +53,9 @@ struct ngraph_network_param {
 class smoke_NGraphNetworkTest : public TestsCommon, public TestsCommonFunc {
 protected:
     Blob::Ptr classifyV7(ngraph_network_param p, size_t batch_size = 1, float threshold = 0.005f) {
-        IRReader reader;
-        auto ngraph = reader.read(p.v7model());
-
-        auto network = CNNNetwork(ngraph);
-
         Core ie;
+        CNNNetwork network = ie.ReadNetwork(p.v7model());
+
         ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "CPU");
         InferRequest inferRequest = exeNetwork.CreateInferRequest();
 

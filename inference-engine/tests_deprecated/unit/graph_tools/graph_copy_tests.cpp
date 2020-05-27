@@ -278,6 +278,7 @@ TEST(CNNSpecificGraphCopyTests, copyPreprocess) {
 
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
+
     ASSERT_NO_THROW(network = core.ReadNetwork(SINGLE_LAYER_MODEL, InferenceEngine::Blob::CPtr()));
 
     //copy the network
@@ -330,7 +331,7 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithDeconvolution) {
                     <dim>4</dim>
                 </port>
             </output>
-            <weights offset="5517824" size="12288"/>
+            <weights offset="0" size="12288"/>
         </layer>
         </layers>
         <edges>
@@ -341,7 +342,9 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithDeconvolution) {
 
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
-    ASSERT_NO_THROW(network = core.ReadNetwork(SINGLE_LAYER_MODEL, InferenceEngine::Blob::CPtr()));
+    auto blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {12288}, Layout::C));
+    blob->allocate();
+    ASSERT_NO_THROW(network = core.ReadNetwork(SINGLE_LAYER_MODEL, blob));
 
     // copy the network
     struct EmptyStruct {};

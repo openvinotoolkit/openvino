@@ -4,6 +4,7 @@
 
 #include <file_utils.h>
 #include <ie_cnn_net_reader_impl.h>
+#include <ie_blob_stream.hpp>
 
 #include <fstream>
 #include <map>
@@ -16,7 +17,7 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include "details/os/os_filesystem.hpp"
 #include "ie_format_parser.h"
-#include "ie_ir_reader.hpp"
+#include "ie_ir_parser.hpp"
 #include "ie_profiling.hpp"
 #include "ie_plugin.hpp"
 #include "parsers.h"
@@ -39,10 +40,10 @@ StatusCode CNNNetReaderImpl::SetWeights(const TBlob<uint8_t>::Ptr& weights, Resp
     try {
         if (_version == 10) {
             // It's time to perform actual reading of V10 network and instantiate CNNNetworkNGraphImpl
-            IRReader v10Reader(extensions);
-            std::stringstream model;
-            xmlDoc->save(model);
-            network = std::make_shared<CNNNetworkNGraphImpl>(v10Reader.read(model.str(), weights));
+            IRParser parser(_version, extensions);
+            pugi::xml_node root = xmlDoc->document_element();
+            details::BlobStream blobStream(weights);
+            network = parser.parse(root, blobStream);
         } else if (weights) {
             _parser->SetWeights(weights);
         }
@@ -122,13 +123,9 @@ StatusCode CNNNetReaderImpl::ReadNetwork(const char* filepath, ResponseDesc* res
     return OK;
 }
 
-StatusCode CNNNetReaderImpl::ReadNetwork() {
-    description.clear();
-
+StatusCode CNNNetReaderImpl::ReadNetwork(const pugi::xml_node& const_root, ResponseDesc * desc) {
     try {
-        // check which version it is...
-        pugi::xml_node root = xmlDoc->document_element();
-
+        pugi::xml_node root = *const_cast<pugi::xml_node*>(&const_root);
         _version = GetFileVersion(root);
         if (_version < 2) THROW_IE_EXCEPTION << "deprecated IR version: " << _version;
         if (_version == 10) {
@@ -147,13 +144,36 @@ StatusCode CNNNetReaderImpl::ReadNetwork() {
             THROW_IE_EXCEPTION << "cannot parse future versions: " << _version;
         }
     } catch (const std::string& err) {
-        description = err;
         parseSuccess = false;
-        return GENERAL_ERROR;
+        return DescriptionBuffer(desc) << err;
     } catch (const InferenceEngineException& e) {
         description = e.what();
         parseSuccess = false;
-        return GENERAL_ERROR;
+        return DescriptionBuffer(desc) << e.what();
+    } catch (const std::exception& e) {
+        description = e.what();
+        parseSuccess = false;
+        return DescriptionBuffer(desc) << e.what();
+    } catch (...) {
+        parseSuccess = false;
+        return DescriptionBuffer(UNEXPECTED, desc) << "Unknown exception thrown";
+    }
+
+    return OK;
+}
+
+StatusCode CNNNetReaderImpl::ReadNetwork() {
+    description.clear();
+
+    try {
+        // check which version it is...
+        pugi::xml_node root = xmlDoc->document_element();
+
+        ResponseDesc resp;
+        StatusCode ret = ReadNetwork(root, &resp);
+        if (ret != OK)
+            description = resp.msg;
+        return ret;
     } catch (const std::exception& e) {
         description = e.what();
         parseSuccess = false;

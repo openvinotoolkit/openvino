@@ -138,6 +138,18 @@ public:
         net->getOutputsInfo(out_info_map);
 
         IE_ASSERT(in_info_map.size() == inputs.size()) << "TI body. There are unlinked inputs";
+        for (auto& it : net->allLayers()) {
+            auto layer = it.second;
+            if (layer->type == "Input" || !layer->insData.empty())
+                continue;
+            if (!holder)
+                holder = std::make_shared<Data>("const_holder", Precision::UNSPECIFIED);
+            holder->getInputTo()[it.first] = layer;
+        }
+    }
+
+    DataPtr getHolder() {
+        return holder;
     }
 
     void setWeights(const WBlob& weights) {
@@ -155,6 +167,7 @@ private:
     pugi::xml_node& body;
     FormatParser parser;
     Precision default_precision;
+    DataPtr holder;
 
     PortMap inputs;
     PortMap outputs;
@@ -253,6 +266,8 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
 
     auto res = std::make_shared<TensorIterator>(layerParsePrms.prms);
     res->body.inputs = inputs;
+    if (auto holder = parser->getHolder())
+        res->body.inputs.emplace_back(holder);
     res->body.outputs = outputs;
     res->input_port_map = in_ports_maping;
     res->output_port_map = out_ports_maping;

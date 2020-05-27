@@ -96,10 +96,7 @@ TEST_F(BehaviorPluginTest, smoke_llocateNullBlob) {
 // Load incorrect network to Plugin
 TEST_P(BehaviorPluginTest, canNotLoadNetworkWithoutWeights) {
     InferenceEngine::Core core;
-    CNNNetwork network = core.ReadNetwork(GetParam().model_xml_str, Blob::CPtr());
-
-    IExecutableNetwork::Ptr exeNetwork;
-    ASSERT_THROW(core.LoadNetwork(network, GetParam().device, {}), InferenceEngineException);
+    ASSERT_THROW(core.ReadNetwork(GetParam().model_xml_str, Blob::CPtr()), InferenceEngineException);
 }
 
 bool static compare_two_files_lexicographically(const std::string& name_a, const std::string& name_b) {

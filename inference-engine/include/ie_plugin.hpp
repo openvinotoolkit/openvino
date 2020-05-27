@@ -25,28 +25,6 @@
 #include "ie_iexecutable_network.hpp"
 #include "ie_version.hpp"
 
-/**
- * @def INFERENCE_PLUGIN_API(type)
- * @brief Defines Inference Engine Plugin API method
- * @param type A plugin type
- */
-
-#if defined(_WIN32)
-#ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#define INFERENCE_PLUGIN_API(type) extern "C" __declspec(dllexport) type
-#else
-#define INFERENCE_PLUGIN_API(type) extern "C" type
-#endif
-#elif (__GNUC__ >= 4)  // NOLINT
-#ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#define INFERENCE_PLUGIN_API(type) extern "C" __attribute__((visibility("default"))) type
-#else
-#define INFERENCE_PLUGIN_API(type) extern "C" type
-#endif
-#else
-#define INFERENCE_PLUGIN_API(TYPE) extern "C" TYPE
-#endif
-
 namespace InferenceEngine {
 
 /**

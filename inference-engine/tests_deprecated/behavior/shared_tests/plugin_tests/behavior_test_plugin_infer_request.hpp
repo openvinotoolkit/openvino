@@ -42,10 +42,7 @@ TEST_P(BehaviorPluginTestInferRequest, SetEmptyConfig) {
 // Load incorrect network to Plugin to get executable network
 TEST_P(BehaviorPluginTestInferRequest, canNotLoadNetworkToGetExeNetworkWithoutWeights) {
     InferenceEngine::Core core;
-    CNNNetwork network = core.ReadNetwork(GetParam().model_xml_str, Blob::CPtr());
-
-    ASSERT_THROW(core.LoadNetwork(network, GetParam().device, GetParam().config),
-                 InferenceEngineException);
+    ASSERT_THROW(core.ReadNetwork(GetParam().model_xml_str, Blob::CPtr()), InferenceEngineException);
 }
 
 // Load correct network to Plugin to get executable network
