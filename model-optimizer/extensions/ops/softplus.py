@@ -14,15 +14,17 @@
  limitations under the License.
 """
 
-from mo.front.extractor import FrontExtractorOp
-from extensions.ops.softplus import SoftPlus
+from mo.graph.graph import Graph
+from mo.ops.op import Op
 
 
-class SoftPlusExtractor(FrontExtractorOp):
-    op = 'Softplus'
-    enabled = True
+class SoftPlus(Op):
+    op = 'SoftPlus'
 
-    @classmethod
-    def extract(cls, node):
-        SoftPlus.update_node_stat(node, {})
-        return cls.enabled
+    def __init__(self, graph: Graph, attrs: dict):
+        mandatory_props = {
+            'op': __class__.op,
+            'type': None,
+            'infer': None
+        }
+        super().__init__(graph, mandatory_props, attrs)

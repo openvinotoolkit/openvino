@@ -16,21 +16,21 @@
 
 from extensions.ops.activation_ops import Exp, Log
 from extensions.ops.elementwise import Add
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import float_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 
 
 class SoftPlus(FrontReplacementOp):
-    op = 'Softplus'
+    op = 'SoftPlus'
     enabled = True
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         softplus = match['op']
 
         exp_node = Exp(graph, {'name': softplus.name + '/Exp'}).create_node()
-        add_node = create_op_node_with_second_input(graph, Add, int64_array([1]), {'name': softplus.name + '/Add'})
+        add_node = create_op_node_with_second_input(graph, Add, float_array([1.0]), {'name': softplus.name + '/Add'})
         log_node = Log(graph, {'name': softplus.name + '/Log'}).create_node()
 
         softplus.in_port(0).get_connection().set_destination(exp_node.in_port(0))

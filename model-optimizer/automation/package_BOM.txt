@@ -311,6 +311,7 @@ extensions/front/onnx/shape_ext.py
 extensions/front/onnx/slice_ext.py
 extensions/front/onnx/softmax_ext.py
 extensions/front/onnx/softmaxONNX_to_softmax.py
+extensions/front/onnx/softplus_ext.py
 extensions/front/onnx/split_ext.py
 extensions/front/onnx/squeeze_ext.py
 extensions/front/onnx/top_k_ext.py
@@ -331,6 +332,7 @@ extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
 extensions/front/scatter_normalizer.py
 extensions/front/softmax.py
+extensions/front/softplus.py
 extensions/front/softsign_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/squared_difference.py
@@ -427,7 +429,6 @@ extensions/front/tf/sign_ext.py
 extensions/front/tf/SizeReplacer.py
 extensions/front/tf/slice_ext.py
 extensions/front/tf/softmax_ext.py
-extensions/front/tf/softplus.py
 extensions/front/tf/softplus_ext.py
 extensions/front/tf/space_to_batch.py
 extensions/front/tf/space_to_batch_ext.py

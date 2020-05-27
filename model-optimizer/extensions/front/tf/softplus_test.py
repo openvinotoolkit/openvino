@@ -16,7 +16,7 @@
 
 import unittest
 
-from extensions.front.tf.softplus import SoftPlus
+from extensions.front.softplus import SoftPlus
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph
