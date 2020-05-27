@@ -192,7 +192,7 @@ of the tool and can not be applied to the current version of Model Optimizer.
 
 1. Run the following command:
 <pre>
-    safety check -r requirements_file
+    cat requirements_file | docker run -i --rm pyupio/safety safety check --stdin
 </pre>
 
 > **NOTE**: here <code>requirements_file</code> is one of the following: <code>requirements.txt</code>, <code>requirements_caffe.txt</code>, <code>requirements_tf.txt</code>, <code>requirements_mxnet.txt</code>, <code>requirements_dev.txt</code>.
