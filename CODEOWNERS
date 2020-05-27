@@ -10,8 +10,11 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 # QA Tests:
 /tests/  @openvinotoolkit/openvino-tests-maintainers
 
-# IE in general:
+# IE Core:
 /inference-engine/  @openvinotoolkit/openvino-ie-maintainers
+/inference-engine/src/transformations/  @GlebKazantaev @ichuraev
+/inference-engine/src/legacy_api/  @openvinotoolkit/openvino-ngraph-maintainers
+/inference-engine/src/ir_readers/  @openvinotoolkit/openvino-ngraph-maintainers
 
 # IE CPU:
 /inference-engine/src/mkldnn_plugin/  @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino-ie-cpu-developers
@@ -40,6 +43,8 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 # IE Tests:
 /inference-engine/tests/  @openvinotoolkit/openvino-ie-tests-maintainers
 /inference-engine/tests_deprecated/  @openvinotoolkit/openvino-ie-tests-maintainers
+/inference-engine/tests/functional/inference_engine/ngraph_reader  @openvinotoolkit/openvino-ngraph-maintainers
+/inference-engine/tests/functional/inference_engine/transformations  @openvinotoolkit/openvino-ngraph-maintainers
 
 # MO:
 /model-optimizer/  @openvinotoolkit/openvino-mo-maintainers
