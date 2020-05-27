@@ -249,7 +249,7 @@ libusb_device_handle *usbLinkOpen(const char *path)
     if (libusb_rc < 0)
     {
         if(last_open_dev_err[0])
-            mvLog(MVLOG_ERROR, "Last opened device name: %s", last_open_dev_err);
+            mvLog(MVLOG_DEBUG, "Last opened device name: %s", last_open_dev_err);
 
         usb_close_device(h);
         usb_free_device(dev);

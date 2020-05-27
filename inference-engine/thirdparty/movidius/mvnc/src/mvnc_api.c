@@ -680,6 +680,10 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         return NC_INVALID_PARAMETERS;
     }
 
+    bootOptions_t bootOptions = {0};
+    bootOptions.memType = 0;
+    bootOptions.wdEnable = watchdogInterval > 0;
+
 #ifdef NO_BOOT
     XLinkDeviceState_t state = X_LINK_BOOTED;
     if (watchdogInterval > 0) {
@@ -846,8 +850,8 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
             return NC_MVCMD_NOT_FOUND;
         }
 
-        rc = XLinkBoot(&deviceDescToBoot, mv_cmd_file_path);
-        if (rc) {
+        sc = bootDevice(&deviceDescToBoot, mv_cmd_file_path, bootOptions);
+        if (sc) {
             mvLog(MVLOG_WARN, "%s() XLinkBootRemote returned error %s for %s",
                   __func__, XLinkErrorToStr(rc), d->dev_addr);
             free(handler);
@@ -929,9 +933,8 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         XLinkFindAllSuitableDevices(X_LINK_ANY_STATE, deviceDesc, beforeBootDevices,
                                     NC_MAX_DEVICES, &numberOfDevicesBeforeBoot);
 
-        // Boot device
-        rc = XLinkBoot(&deviceDescToBoot, mv_cmd_file_path);
-        if (rc) {
+        sc = bootDevice(&deviceDescToBoot, mv_cmd_file_path, bootOptions);
+        if (sc) {
             mvLog(MVLOG_WARN, "%s() XLinkBootRemote returned error %s for %s",
                   __func__, XLinkErrorToStr(rc), d->dev_addr);
         } else {
@@ -1099,11 +1102,15 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     d->device_mon_stream_id = deviceMonitorStreamId;
 
 #if !(defined(NO_BOOT))
-    wd_error_t wd_rc = xlink_device_create(&d->watchdog_device, d);
-    if (wd_rc) {
-        mvLog(MVLOG_WARN, "watchdog is not started for device %p", d->xlink);
+    if(bootOptions.wdEnable) {
+        wd_error_t wd_rc = xlink_device_create(&d->watchdog_device, d);
+        if (wd_rc) {
+            mvLog(MVLOG_ERROR, "failed to start watchdog for device %p", d->xlink);
+        } else {
+            watchdog_register_device(deviceOpenParams.watchdogHndl, d->watchdog_device);
+        }
     } else {
-        watchdog_register_device(deviceOpenParams.watchdogHndl, d->watchdog_device);
+        mvLog(MVLOG_WARN, "watchdog is not started for device %p", d->xlink);
     }
 #endif
 
@@ -1667,7 +1674,6 @@ static ncStatus_t destroyDeviceHandle(struct ncDeviceHandle_t **deviceHandlePtr)
 
     return NC_OK;
 }
-
 
 ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr, WatchdogHndl_t* watchdogHndl) {
     int found = 0;
