@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "low_precision_transformations/concat_transformation.hpp"
+#include "low_precision_transformations/concat_neighboring_graph_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -22,11 +22,11 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamU8I8()
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, ConcatTransformation,
+INSTANTIATE_TEST_CASE_P(LPT, ConcatNeighboringGraphTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 1024, 16, 16 })),
+        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues)),
-    ConcatTransformation::getTestCaseName);
+    ConcatNeighboringGraphTransformation::getTestCaseName);
 }  // namespace

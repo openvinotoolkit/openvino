@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "low_precision_transformations/concat_transformation.hpp"
+#include "low_precision_transformations/concat_with_intermediate_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -19,11 +19,16 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamGpu()
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, ConcatTransformation,
+const std::vector<bool> transparentIntermediates = { true, false };
+const std::vector<bool> multiChannelValues = { true, false };
+
+INSTANTIATE_TEST_CASE_P(LPT, ConcatWithIntermediateTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 1024, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues)),
-    ConcatTransformation::getTestCaseName);
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(transparentIntermediates),
+        ::testing::ValuesIn(multiChannelValues)),
+    ConcatWithIntermediateTransformation::getTestCaseName);
 }  // namespace

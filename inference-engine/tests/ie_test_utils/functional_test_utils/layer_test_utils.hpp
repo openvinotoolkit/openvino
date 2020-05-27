@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -249,7 +249,6 @@ protected:
         for (std::size_t i = 0; i < size; ++i) {
             const auto &ref = expected[i];
             const auto &res = actual[i];
-
             const auto absoluteDifference = std::abs(res - ref);
             if (absoluteDifference <= threshold) {
                 continue;
@@ -281,6 +280,7 @@ protected:
     InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED;
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
+    float threshold;
 
     virtual void Validate();
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+﻿// Copyright (C) 2019-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -39,7 +39,7 @@ enum CompareType{
  * @param ref Pointer to reference blob
  * @param resSize Size of considered blob
  * @param refSize Size of reference blob
- * @param compareType Defines an algorithm of comparision
+ * @param compareType Defines an algorithm of comparison
  * @param thr1 First threshold of difference
  * @param thr2 Second threshold of difference
  * @param printData A flag if data printing is demanded
@@ -473,6 +473,32 @@ InferenceEngine::Blob::Ptr inline createAndFillBlob(const InferenceEngine::Tenso
 #undef CASE
         default:
             THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();
+    }
+    return blob;
+}
+
+InferenceEngine::Blob::Ptr inline createAndFillBlobConsistently(
+    const InferenceEngine::TensorDesc &td,
+    const uint32_t range,
+    const int32_t start_from,
+    const int32_t resolution) {
+    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
+    blob->allocate();
+    switch (td.getPrecision()) {
+#define CASE(X) case X: CommonTestUtils::fill_data_consistently<X>(blob, range, start_from, resolution); break;
+        CASE(InferenceEngine::Precision::FP32)
+        CASE(InferenceEngine::Precision::FP16)
+        CASE(InferenceEngine::Precision::U8)
+        CASE(InferenceEngine::Precision::U16)
+        CASE(InferenceEngine::Precision::I8)
+        CASE(InferenceEngine::Precision::I16)
+        CASE(InferenceEngine::Precision::I64)
+        CASE(InferenceEngine::Precision::BIN)
+        CASE(InferenceEngine::Precision::I32)
+        CASE(InferenceEngine::Precision::BOOL)
+#undef CASE
+    default:
+        THROW_IE_EXCEPTION << "Wrong precision specified: " << td.getPrecision().name();
     }
     return blob;
 }
