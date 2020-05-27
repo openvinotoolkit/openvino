@@ -48,7 +48,7 @@ InferenceEngine::details::SharedObjectLoader::Ptr cnnReaderLoader;
 
 InferenceEngine::details::SharedObjectLoader::Ptr createCnnReaderLoader() {
     std::call_once(flag, [&] () {
-        FileUtils::FilePath libraryName = FileUtils::toFilePath(std::string("inference_engine_ir_readers") + std::string(IE_BUILD_POSTFIX));
+        FileUtils::FilePath libraryName = FileUtils::toFilePath(std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
         FileUtils::FilePath irReadersLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
         if (!FileUtils::fileExist(irReadersLibraryPath)) {
@@ -200,7 +200,7 @@ void registerReaders() {
     auto onnxReader = std::make_shared<Reader>("ONNX", std::string("inference_engine_onnx_reader") + std::string(IE_BUILD_POSTFIX));
     readers.emplace("onnx", onnxReader);
     readers.emplace("prototxt", onnxReader);
-    auto irReader = std::make_shared<Reader>("IR", std::string("inference_engine_ir_readers") + std::string(IE_BUILD_POSTFIX));
+    auto irReader = std::make_shared<Reader>("IR", std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
     readers.emplace("xml", irReader);
 }
 

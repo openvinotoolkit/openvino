@@ -149,7 +149,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     # dynamic libraries
     inference_engine_lp_transformations
     inference_engine_transformations
-    inference_engine_ir_readers
+    inference_engine_ir_reader
     ${CMAKE_DL_LIBS})
 
 if(TARGET libGNAStubs)
