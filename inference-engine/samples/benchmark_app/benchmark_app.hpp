@@ -49,7 +49,8 @@ static const char infer_num_streams_message[] = "Optional. Number of streams to 
                                                 "very small networks. See sample's README for more details.";
 
 /// @brief message for enforcing of BF16 execution where it is possible
-static const char enforce_bf16_message[] = "Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.";
+static const char enforce_bf16_message[] = "Optional, \"YES\" or \"NO\". Enforcing of floating point operations execution in bfloat16 precision " \
+                                           "where it is acceptable.";
 
 /// @brief message for user library argument
 static const char custom_cpu_library_message[] = "Required for CPU custom layers. Absolute path to a shared library with the kernels implementations.";
@@ -149,7 +150,7 @@ DEFINE_uint32(nthreads, 0, infer_num_threads_message);
 DEFINE_string(nstreams, "", infer_num_streams_message);
 
 /// @brief Enforces bf16 execution with bfloat16 precision on systems having this capability
-DEFINE_bool(enforcebf16, false, enforce_bf16_message);
+DEFINE_string(enforcebf16, "YES", enforce_bf16_message);
 
 /// @brief Define parameter for batch size <br>
 /// Default is 0 (that means don't specify)

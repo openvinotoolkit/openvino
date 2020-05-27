@@ -92,6 +92,7 @@ DECLARE_METRIC_KEY(FULL_DEVICE_NAME, std::string);
  *
  * The possible values:
  *  - "FP32" - device can support FP32 models
+ *  - "BF16" - device can support BF16 models
  *  - "FP16" - device can support FP16 models
  *  - "INT8" - device can support models with INT8 layers
  *  - "BIN" - device can support models with BIN layers
@@ -100,6 +101,7 @@ DECLARE_METRIC_KEY(FULL_DEVICE_NAME, std::string);
 DECLARE_METRIC_KEY(OPTIMIZATION_CAPABILITIES, std::vector<std::string>);
 
 DECLARE_METRIC_VALUE(FP32);
+DECLARE_METRIC_VALUE(BF16);
 DECLARE_METRIC_VALUE(FP16);
 DECLARE_METRIC_VALUE(INT8);
 DECLARE_METRIC_VALUE(BIN);

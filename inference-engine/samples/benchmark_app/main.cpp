@@ -244,7 +244,7 @@ int main(int argc, char *argv[]) {
                     device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
 
                 if (isFlagSetInCommandLine("enforcebf16"))
-                    device_config[CONFIG_KEY(ENFORCE_BF16)] = FLAGS_enforcebf16 ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+                    device_config[CONFIG_KEY(ENFORCE_BF16)] = FLAGS_enforcebf16;
 
                 if (isFlagSetInCommandLine("pin")) {
                     // set to user defined value

@@ -98,10 +98,10 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                 i++;
             }
 
-            if (with_cpu_x86_bfloat16() && isFloatModel) {
+            if (_cfg.enforceBF16 && isFloatModel) {
                 BF16Transformer bf16Transformer;
                 CNNNetwork cnnetwork(_clonedNetwork);
-                if (cfg.enforceBF16 == true) {
+                if (_cfg.enforceBF16 == true) {
                     bf16Transformer.convertToBFloat16(cnnetwork);
                 } else {
                     bf16Transformer.optimizeToFloat(cnnetwork);
