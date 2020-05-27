@@ -17,6 +17,7 @@ import numpy as np
 
 from extensions.middle.InsertLayoutPropagationTransposes import mark_as_correct_data_layout
 from extensions.ops.normalize_l2 import NormalizeL2Op
+from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.front.tf.replacement import FrontReplacementFromConfigFileGeneral
@@ -96,12 +97,18 @@ class InpaintTransformation(FrontReplacementFromConfigFileGeneral):
         maximum = match['max']
 
         eip.out_port(0).disconnect()
-        new_reshape = create_op_node_with_second_input(graph, Reshape, int64_array([1, -1, 3 * 3 * 96]), input_node=eip)
-        normalize_l2 = create_op_node_with_second_input(graph, NormalizeL2Op, int64_array([-1]), {'eps_mode': 'max', 'eps': maximum.in_port(1).get_source().node.value})
+        new_reshape = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 3 * 3 * 96]), input_node=eip)
+        normalize_l2 = create_op_node_with_second_input(graph, NormalizeL2Op, int64_array([1]),
+                                                        {'eps_mode': 'max', 
+                                                         'eps': maximum.in_port(1).get_source().node.value})
         normalize_l2.in_port(0).connect(new_reshape.out_port(0))
-        div.out_port(0).get_connection().set_source(normalize_l2.out_port(0))
+        final_reshape = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 3, 3, 96]), input_node=normalize_l2)
+        mark_as_correct_data_layout(final_reshape)
+        transpose = create_op_node_with_second_input(graph, Transpose, int64_array([1, 2, 3, 0]), input_node=final_reshape)
+        mark_as_correct_data_layout(transpose)
+        div.out_port(0).get_connection().set_source(transpose.out_port(0))
 
-        rename_nodes([(div, div.id + '/TBR'), (normalize_l2, div.soft_get('name', div.id))])
+        rename_nodes([(div, div.id + '/TBR'), (final_reshape, div.soft_get('name', div.id))])
 
     @staticmethod
     def optimize_eip2(graph: Graph, match: dict):
