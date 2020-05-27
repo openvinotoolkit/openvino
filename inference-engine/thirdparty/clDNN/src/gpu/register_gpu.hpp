@@ -174,6 +174,7 @@ REGISTER_GPU(resample);
 REGISTER_GPU(non_max_suppression);
 REGISTER_GPU(grn);
 REGISTER_GPU(ctc_greedy_decoder);
+REGISTER_GPU(cum_sum);
 
 #undef REGISTER_GPU
 
