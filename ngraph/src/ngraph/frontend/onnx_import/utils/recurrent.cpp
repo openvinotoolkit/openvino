@@ -119,8 +119,8 @@ namespace ngraph
 
             RecurrentSequence::RecurrentSequence(OpInputMap& args,
                                                  ngraph::op::RecurrentSequenceDirection direction)
-                : m_args{args}
-                , m_direction{direction}
+                : m_args(args)
+                , m_direction(direction)
             {
             }
 
