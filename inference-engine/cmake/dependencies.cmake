@@ -23,7 +23,7 @@ endif()
 
 
 if (ENABLE_DATA)
-    add_models_repo(${ENABLE_DATA} "data:git@github.com:openvinotoolkit/testdata.git")
+    add_models_repo(${ENABLE_DATA} "data:https://github.com/openvinotoolkit/testdata.git")
     set(MODELS_PATH "${TEMP}/models/src/data")
     set(DATA_PATH "${MODELS_PATH}")
 endif()
