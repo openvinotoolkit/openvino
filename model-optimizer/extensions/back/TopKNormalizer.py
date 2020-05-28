@@ -19,7 +19,7 @@ from extensions.back.ScalarConstNormalize import ScalarNormalize
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.ops.reshape import Reshape
 from mo.ops.result import Result
 
@@ -57,6 +57,16 @@ class TopKNormalizer(BackReplacementPattern):
         reshape = create_op_node_with_second_input(graph, Reshape, int64_array([]) if is_scalar else int64_array([1]),
                                                    {'override_output_shape': True})
         node.in_port(1).get_connection().insert_node(reshape)
+
+        TopKNormalizer.normalize_outputs(node, graph)
+
+    @staticmethod
+    def normalize_outputs(node: Node, graph: Graph = None):
+        """
+        This function adds missed outputs for TopK node.
+        """
+        if graph == None:
+            graph = node.graph
 
         if node.out_port(0).disconnected():
             output = Result(graph, {'name': node.name + '/Result_port_0/',
