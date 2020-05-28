@@ -29,6 +29,7 @@ addIeTarget(
 
 target_include_directories(${TARGET_NAME} PUBLIC
         ${PUBLIC_HEADERS_DIR}
+        ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
         )
 
 target_link_libraries(${TARGET_NAME}
