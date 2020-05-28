@@ -261,6 +261,15 @@ PyObject* InferenceEnginePython::IENetwork::getFunction() {
     }
 }
 
+const std::map <std::string, InferenceEngine::InputInfo::Ptr> InferenceEnginePython::IENetwork::getInputsInfo() {
+    std::map <std::string, InferenceEngine::InputInfo::Ptr> inputs;
+    const InferenceEngine::InputsDataMap &inputsInfo = actual->getInputsInfo();
+    for (auto &in : inputsInfo) {
+        inputs[in.first] = in.second;
+    }
+    return inputs;
+}
+
 const std::map <std::string, InferenceEngine::DataPtr> InferenceEnginePython::IENetwork::getInputs() {
     std::map <std::string, InferenceEngine::DataPtr> inputs;
     const InferenceEngine::InputsDataMap &inputsInfo = actual->getInputsInfo();
@@ -457,6 +466,17 @@ std::map <std::string, InferenceEngine::DataPtr> InferenceEnginePython::IEExecNe
     std::map <std::string, InferenceEngine::DataPtr> pyInputs;
     for (const auto &item : inputsDataMap) {
         pyInputs[item.first] = item.second->getInputData();
+    }
+    return pyInputs;
+}
+
+std::map <std::string, InferenceEngine::InputInfo::CPtr> InferenceEnginePython::IEExecNetwork::getInputsInfo() {
+    InferenceEngine::ConstInputsDataMap inputsDataMap;
+    InferenceEngine::ResponseDesc response;
+    IE_CHECK_CALL(actual->GetInputsInfo(inputsDataMap, &response));
+    std::map <std::string, InferenceEngine::InputInfo::CPtr> pyInputs;
+    for (const auto &item : inputsDataMap) {
+        pyInputs[item.first] = item.second;
     }
     return pyInputs;
 }

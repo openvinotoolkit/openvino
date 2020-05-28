@@ -12,6 +12,7 @@ is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
 path_to_img = image_path()
 
+
 def read_image():
     import cv2
     n, c, h, w = (1, 3, 32, 32)
@@ -36,7 +37,7 @@ def test_input_blobs(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=2)
-    td = ie.IETensorDesc("FP32", (1, 3, 32, 32), "NCHW")
+    td = ie.TensorDesc("FP32", (1, 3, 32, 32), "NCHW")
     assert executable_network.requests[0].input_blobs['data'].tensor_desc == td
 
 
@@ -44,7 +45,7 @@ def test_output_blobs(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=2)
-    td = ie.IETensorDesc("FP32", (1, 10), "NC")
+    td = ie.TensorDesc("FP32", (1, 10), "NC")
     assert executable_network.requests[0].output_blobs['fc_out'].tensor_desc == td
 
 
@@ -54,8 +55,8 @@ def test_inputs_deprecated(device):
     executable_network = ie_core.load_network(net, device, num_requests=2)
     with warnings.catch_warnings(record=True) as w:
         inputs = executable_network.requests[0].inputs
-    assert "'inputs' property of InferRequest is deprecated. Please instead use 'input_blobs' property." in str(
-        w[-1].message)
+    assert "'inputs' property of InferRequest is deprecated. " \
+           "Please instead use 'input_blobs' property." in str(w[-1].message)
     del executable_network
     del ie_core
     del net
@@ -394,7 +395,7 @@ def test_set_batch_size(device):
     ie_core.set_config({"DYN_BATCH_ENABLED": "YES"}, device)
     net = ie_core.read_network(test_net_xml, test_net_bin)
     net.batch_size = 10
-    data = np.zeros(shape=net.inputs['data'].shape)
+    data = np.zeros(shape=net.input_info['data'].input_data.shape)
     exec_net = ie_core.load_network(net, device)
     data[0] = read_image()[0]
     request = exec_net.requests[0]
@@ -422,7 +423,7 @@ def test_set_zero_batch_size(device):
 def test_set_negative_batch_size(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
-    exec_net =  ie_core.load_network(net, device, num_requests=1)
+    exec_net = ie_core.load_network(net, device, num_requests=1)
     request = exec_net.requests[0]
     with pytest.raises(ValueError) as e:
         request.set_batch(-1)
@@ -437,15 +438,15 @@ def test_blob_setter(device):
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net_1 = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
-    net.inputs['data'].layout = "NHWC"
+    net.input_info['data'].layout = "NHWC"
     exec_net_2 = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
     img = read_image()
     res_1 = np.sort(exec_net_1.infer({"data": img})['fc_out'])
 
     img = np.transpose(img, axes=(0, 2, 3, 1)).astype(np.float32)
-    tensor_desc = ie.IETensorDesc("FP32", [1, 3, 32, 32], "NHWC")
-    img_blob = ie.IEBlob(tensor_desc, img)
+    tensor_desc = ie.TensorDesc("FP32", [1, 3, 32, 32], "NHWC")
+    img_blob = ie.Blob(tensor_desc, img)
     request = exec_net_2.requests[0]
     request.set_blob('data', img_blob)
     request.infer()

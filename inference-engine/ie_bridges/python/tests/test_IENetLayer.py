@@ -7,6 +7,7 @@ from conftest import model_path
 
 test_net_xml, test_net_bin = model_path()
 
+
 def test_name():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
@@ -27,6 +28,7 @@ def test_precision_getter(recwarn):
     assert len(recwarn) == 1
     assert recwarn.pop(DeprecationWarning)
 
+
 def test_precision_setter(recwarn):
     warnings.simplefilter("always")
     ie = IECore()
@@ -35,6 +37,7 @@ def test_precision_setter(recwarn):
     assert net.layers['27'].precision == "I8"
     assert len(recwarn) == 1
     assert recwarn.pop(DeprecationWarning)
+
 
 def test_affinuty_getter():
     ie = IECore()
@@ -56,6 +59,7 @@ def test_blobs():
     assert isinstance(net.layers['19/Fused_Add_'].blobs["weights"], numpy.ndarray)
     assert net.layers['19/Fused_Add_'].blobs["biases"].size != 0
     assert net.layers['19/Fused_Add_'].blobs["weights"].size != 0
+
 
 def test_weights(recwarn):
     warnings.simplefilter("always")
@@ -123,6 +127,7 @@ def test_out_data():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     assert isinstance(net.layers['27'].out_data[0], DataPtr)
+
 
 def test_in_data():
     ie = IECore()

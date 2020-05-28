@@ -7,6 +7,7 @@ from conftest import model_path
 
 test_net_xml, test_net_bin = model_path()
 
+
 def test_init_plugin(device):
     with warnings.catch_warnings(record=True) as w:
         plugin = IEPlugin(device, None)

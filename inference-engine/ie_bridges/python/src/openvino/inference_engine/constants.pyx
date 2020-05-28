@@ -16,6 +16,7 @@
 from .cimport ie_api_impl_defs as C
 
 import numpy as np
+from enum import Enum
 
 supported_precisions = ["FP32", "FP16", "I64", "U64", "I32", "I16", "I8", "U16", "U8"]
 
@@ -54,6 +55,28 @@ layout_str_to_enum = {'ANY': C.Layout.ANY,
                       }
 
 
+class MeanVariant(Enum):
+    MEAN_IMAGE = 0
+    MEAN_VALUE = 1
+    NONE = 2
+
+
+class ResizeAlgorithm(Enum):
+    NO_RESIZE = 0
+    RESIZE_BILINEAR = 1
+    RESIZE_AREA = 2
+
+
+class ColorFormat(Enum):
+    RAW = 0
+    RGB = 1
+    BGR = 2
+    RGBX = 3
+    BGRX = 4
+    NV12 = 5
+    I420 = 6
+
+
 cpdef enum StatusCode:
     OK = 0
     GENERAL_ERROR = -1
@@ -68,6 +91,7 @@ cpdef enum StatusCode:
     NOT_ALLOCATED = -10
     INFER_NOT_STARTED = -11
     NETWORK_NOT_READ = -12
+
 
 cpdef enum WaitMode:
     RESULT_READY = -1

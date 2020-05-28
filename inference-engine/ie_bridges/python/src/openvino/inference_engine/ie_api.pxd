@@ -1,5 +1,5 @@
 from .cimport ie_api_impl_defs as C
-from .ie_api_impl_defs cimport Blob, TensorDesc
+from .ie_api_impl_defs cimport CBlob, CTensorDesc, InputInfo, CPreProcessChannel, CPreProcessInfo
 
 from pathlib import Path
 
@@ -8,18 +8,18 @@ from libcpp.vector cimport vector
 from libcpp cimport bool
 from libcpp.memory cimport unique_ptr, shared_ptr
 
-cdef class IEBlob:
-    cdef Blob.Ptr _ptr
+cdef class Blob:
+    cdef CBlob.Ptr _ptr
     cdef public object _array_data
     cdef public object _initial_shape
 
 cdef class BlobBuffer:
-    cdef Blob.Ptr ptr
+    cdef CBlob.Ptr ptr
     cdef char*format
     cdef vector[Py_ssize_t] shape
     cdef vector[Py_ssize_t] strides
-    cdef reset(self, Blob.Ptr &, vector[size_t] representation_shape = ?)
-    cdef char*_get_blob_format(self, const TensorDesc & desc)
+    cdef reset(self, CBlob.Ptr &, vector[size_t] representation_shape = ?)
+    cdef char*_get_blob_format(self, const CTensorDesc & desc)
 
     cdef public:
         total_stride, item_size
@@ -76,5 +76,17 @@ cdef class CDataPtr:
 cdef class IENetLayer:
     cdef C.CNNLayerPtr _ptr
 
-cdef class IETensorDesc:
-    cdef C.TensorDesc impl
+cdef class TensorDesc:
+    cdef C.CTensorDesc impl
+
+cdef class InputInfoPtr:
+    cdef InputInfo.Ptr _ptr
+
+cdef class InputInfoCPtr:
+    cdef InputInfo.CPtr _ptr
+
+cdef class PreProcessInfo:
+    cdef CPreProcessInfo* _ptr
+
+cdef class PreProcessChannel:
+    cdef CPreProcessChannel.Ptr _ptr
