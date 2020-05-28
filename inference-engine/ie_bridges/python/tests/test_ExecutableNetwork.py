@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import pytest
+import warnings
 
 from openvino.inference_engine import ie_api as ie
 from conftest import model_path, image_path
@@ -48,9 +49,9 @@ def test_infer_net_from_buffer(device):
     img = read_image()
     res = exec_net.infer({'data': img})
     res2 = exec_net2.infer({'data': img})
+    del ie_core
     del exec_net
     del exec_net2
-    del ie_core
     assert np.allclose(res['fc_out'], res2['fc_out'], atol=1E-4, rtol=1E-4)
 
 
@@ -66,13 +67,32 @@ def test_infer_wrong_input_name(device):
     del ie_core
 
 
-def test_inputs(device):
+def test_input_info(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device, num_requests=5)
-    assert len(exec_net.inputs) == 1
-    assert "data" in exec_net.inputs
-    assert isinstance(exec_net.inputs['data'], ie.DataPtr)
+    assert isinstance(exec_net.input_info['data'], ie.InputInfoCPtr)
+    assert exec_net.input_info['data'].name == "data"
+    assert exec_net.input_info['data'].precision == "FP32"
+    assert isinstance(exec_net.input_info['data'].input_data, ie.DataPtr)
+    del exec_net
+    del ie_core
+
+
+def test_inputs_deprecated(device):
+    ie_core = ie.IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie_core.load_network(net, device, num_requests=5)
+    with warnings.catch_warnings(record=True) as w:
+        assert len(exec_net.inputs) == 1
+        assert "data" in exec_net.inputs
+        assert isinstance(exec_net.inputs['data'], ie.DataPtr)
+    assert len(w) == 3
+    for i in range (len(w)):
+        assert "'inputs' property of ExecutableNetwork class is deprecated. " \
+            "To access DataPtrs user need to use 'input_data' property " \
+            "of InputInfoCPtr objects which " \
+            "can be acessed by 'input_info' property." in str(w[i].message)
     del exec_net
     del ie_core
 
@@ -202,11 +222,11 @@ def test_plugin_accessible_after_deletion(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, device)
-    del ie_core
     img = read_image()
     res = exec_net.infer({'data': img})
     assert np.argmax(res['fc_out'][0]) == 2
     del exec_net
+    del ie_core
 
 
 def test_exec_graph(device):
@@ -258,8 +278,7 @@ def test_multi_out_data(device):
     del ie_core
     pass
 
-# TODO: return when cvs-29487 will be fixed
-@pytest.mark.skip(reason="get_metric('NETWORK_NAME') returns wrong name, problem somewhere in ngraph")
+
 def test_get_metric(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
