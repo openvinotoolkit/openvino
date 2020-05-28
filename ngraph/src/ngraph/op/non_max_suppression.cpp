@@ -86,20 +86,20 @@ shared_ptr<Node>
     else if (new_args.size() == 3)
     {
         return make_shared<op::v1::NonMaxSuppression>(
-                new_args.at(0),
-                new_args.at(1),
-                op::Constant::create(element::i32, Shape{}, {0}),
-                op::Constant::create(element::f32, Shape{}, {.0f}),
-                op::Constant::create(element::f32, Shape{}, {.0f}),
-                m_box_encoding,
-                m_sort_result_descending);
+            new_args.at(0),
+            new_args.at(1),
+            new_args.at(2),
+            op::Constant::create(element::f32, Shape{}, {.0f}),
+            op::Constant::create(element::f32, Shape{}, {.0f}),
+            m_box_encoding,
+            m_sort_result_descending);
     }
     else
     {
         return make_shared<op::v1::NonMaxSuppression>(
             new_args.at(0),
             new_args.at(1),
-            new_args.at(2),
+            op::Constant::create(element::i32, Shape{}, {0}),
             op::Constant::create(element::f32, Shape{}, {.0f}),
             op::Constant::create(element::f32, Shape{}, {.0f}),
             m_box_encoding,
