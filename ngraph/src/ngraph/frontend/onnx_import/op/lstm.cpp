@@ -243,10 +243,9 @@ namespace ngraph
                         attributes.m_clip_threshold,
                         attributes.m_input_forget);
 
-                    const auto lstmSequenceOutputs = lstmSequence->outputs();
-                    const auto Y = lstmSequenceOutputs.at(0);
-                    const auto Y_h = lstmSequenceOutputs.at(1);
-                    const auto Y_c = lstmSequenceOutputs.at(2);
+                    const auto Y = lstmSequence->output(0);
+                    const auto Y_h = lstmSequence->output(1);
+                    const auto Y_c = lstmSequence->output(2);
 
                     return {builder::opset1::reorder_axes(Y, {2, 1, 0, 3}),
                             builder::opset1::reorder_axes(Y_h, {1, 0, 2}),
