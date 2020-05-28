@@ -34,7 +34,6 @@
 #include "ngraph_ops/nms_ie.hpp"
 #include "ngraph_ops/crop_ie.hpp"
 #include "ngraph_ops/selu_ie.hpp"
-#include "ngraph_ops/strided_slice_ie.hpp"
 #include "ngraph_ops/rnn_cell_ie.hpp"
 #include "ngraph_ops/topk_ie.hpp"
 #include "generic_ie.hpp"
@@ -555,7 +554,6 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Split>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::StridedSlice>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::StridedSliceIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Squeeze>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Sqrt>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Subtract>>(),
