@@ -14,7 +14,8 @@
 #include <ngraph/function.hpp>
 #include <ie_plugin_config.hpp>
 #include <ngraph/function.hpp>
-
+#include <ngraph_functions/subgraph_builders.hpp>
+#include "gtest/gtest.h"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 
@@ -27,14 +28,15 @@
 #include "ngraph_functions/pass/convert_prc.hpp"
 
 
-namespace LayerTestsUtils {
+namespace BehaviorTestsUtils {
     typedef std::tuple<
             InferenceEngine::Precision,         // Network precision
             std::string,                        // Device name
             std::map<std::string, std::string>  // Config
     > BehaviorParams;
 
-class BehaviorTestsCommon : public CommonTestUtils::TestsCommon {
+class BehaviorTestsCommon : public testing::WithParamInterface<BehaviorParams>,
+                            public CommonTestUtils::TestsCommon {
 public:
     virtual std::string getTestCaseName(testing::TestParamInfo<BehaviorParams> obj);
     void SetUp() override;
@@ -44,9 +46,35 @@ protected:
 
     ~BehaviorTestsCommon() override;
 
+    std::shared_ptr<ngraph::Function> function;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
 };
+
+    std::string BehaviorTestsCommon::getTestCaseName(testing::TestParamInfo<BehaviorParams> obj){
+        std::tie(netPrecision, targetDevice, configuration) = obj.param;
+        std::ostringstream result;
+        result << "netPRC=" << netPrecision.name() << "_";
+        result << "targetDevice=" << targetDevice;
+        if (!configuration.empty()) {
+            for (auto& configItem : configuration) {
+                result << "configItem=" << configItem.first << "_" << configItem.second << "_";
+            }
+        }
+        return result.str();
+    }
+
+    void BehaviorTestsCommon::SetUp() {
+        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+        function = ngraph::builder::subgraph::makeConvPoolRelu();
+    }
+
+    void BehaviorTestsCommon::TearDown() {
+        if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
+            PluginCache::get().reset();
+        }
+    }
+
 
 }  // namespace LayerTestsUtils

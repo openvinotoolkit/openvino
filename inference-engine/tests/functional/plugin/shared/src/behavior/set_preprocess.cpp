@@ -15,35 +15,10 @@
 #include "ie_preprocess.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "behavior/set_preprocess.hpp"
+#include "common_test_utils/behavior_test_utils.hpp"
 
-namespace LayerTestsDefinitions {
-    std::string PreProcessTests::getTestCaseName(testing::TestParamInfo<PreProcessParams> obj) {
-        InferenceEngine::Precision  netPrecision;
-        std::string targetDevice;
-        std::map<std::string, std::string> configuration;
-        std::tie(netPrecision, targetDevice, configuration) = obj.param;
-        std::ostringstream result;
-        result << "netPRC=" << netPrecision.name() << "_";
-        result << "targetDevice=" << targetDevice;
-        if (!configuration.empty()) {
-            result << "configItem=" << configuration.begin()->first << "_" << configuration.begin()->second;
-        }
-        return result.str();
-    }
-
-    void PreProcessTests::SetUp() {
-        InferenceEngine::Precision netPrecision;
-        std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
-        function = ngraph::builder::subgraph::makeConvPoolRelu();
-    }
-
-    void PreProcessTests::TearDown() {
-        if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
-            PluginCache::get().reset();
-        }
-    }
-
-TEST_P(PreProcessTests, SetPreProcessToInputInfo) {
+namespace BehaviorTestsUtils {
+TEST_P(BehaviorTestsCommon, SetPreProcessToInputInfo) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
@@ -68,7 +43,7 @@ TEST_P(PreProcessTests, SetPreProcessToInputInfo) {
     function.reset();
     }
 
-TEST_P(PreProcessTests, SetPreProcessToInferRequest) {
+TEST_P(BehaviorTestsCommon, SetPreProcessToInferRequest) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
