@@ -181,7 +181,12 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
     {
 
         InferenceEngine::Core core;
-        CNNNetwork network = core.ReadNetwork(GetParam().model_xml_str, Blob::CPtr());
+        IE_SUPPRESS_DEPRECATED_START
+        CNNNetReader reader;
+        reader.ReadNetwork(GetParam().model_xml_str.data(), GetParam().model_xml_str.length());
+
+        CNNNetwork network = reader.getNetwork();
+        IE_SUPPRESS_DEPRECATED_END
         ASSERT_GE(startup_devices.unbooted, 1);
 
         ExecutableNetwork ret;
@@ -214,7 +219,12 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        CNNNetwork network = core.ReadNetwork(GetParam().model_xml_str, Blob::CPtr());
+        IE_SUPPRESS_DEPRECATED_START
+        CNNNetReader reader;
+        reader.ReadNetwork(GetParam().model_xml_str.data(), GetParam().model_xml_str.length());
+
+        CNNNetwork network = reader.getNetwork();
+        IE_SUPPRESS_DEPRECATED_END
         ASSERT_GE(startup_devices.unbooted, 1);
 
         ExecutableNetwork ret;
