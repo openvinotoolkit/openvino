@@ -349,7 +349,7 @@ protected:
         V2NetBuilder model = V2NetBuilder::buildNetworkWithOneInput(
                 "Activation_Only", inout.inDims[0], p.precision)
                 .addLayer("Activation", p.precision, &params, inout);
-        return model.finish();
+        return model.finish(false);
     }
 };
 
