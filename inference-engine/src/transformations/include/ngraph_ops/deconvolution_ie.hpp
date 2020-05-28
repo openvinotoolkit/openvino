@@ -26,31 +26,28 @@ public:
     DeconvolutionIE(const Output<Node>& data,
                     const Output<Node>& filters,
                     const Strides& strides,
+                    const Strides& dilations,
                     const CoordinateDiff& pads_begin,
                     const CoordinateDiff& pads_end,
-                    const Strides& dilations,
-                    const Shape& output_shape,
                     const size_t& group = 1,
-                    const PadType& auto_pad = PadType::EXPLICIT);
+                    const PadType& auto_pad = PadType::EXPLICIT,
+                    const CoordinateDiff& output_padding = {});
 
     DeconvolutionIE(const Output<Node>& data,
                     const Output<Node>& filters,
                     const Output<Node>& bias,
                     const Strides& strides,
+                    const Strides& dilations,
                     const CoordinateDiff& pads_begin,
                     const CoordinateDiff& pads_end,
-                    const Strides& dilations,
-                    const Shape& output_shape,
                     const size_t& group = 1,
-                    const PadType& auto_pad = PadType::EXPLICIT);
+                    const PadType& auto_pad = PadType::EXPLICIT,
+                    const CoordinateDiff& output_padding = {});
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
 
-    /// \return The data batch shape.
-    const PartialShape get_output_shape() { return m_output_shape; }
-    void set_output_shape(const Shape& output_shape) { m_output_shape = output_shape; }
     /// \return The strides from the forward prop.
     const Strides& get_strides() const { return m_strides; }
     void set_strides(const Strides& strides) { m_strides = strides; }
@@ -75,8 +72,8 @@ protected:
     Strides m_dilations;
     CoordinateDiff m_pads_begin;
     CoordinateDiff m_pads_end;
+    CoordinateDiff m_output_padding;
     PadType m_auto_pad;
-    Shape m_output_shape;
     size_t m_group;
 };
 

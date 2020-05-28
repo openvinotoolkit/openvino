@@ -124,10 +124,9 @@ void ngraph::pass::ConvertConvolutions::convert_convolution_backprop_data() {
         auto deconv_ie = std::make_shared<ngraph::op::DeconvolutionIE>(deconv->input_value(0),
                                                                        deconv->input_value(1),
                                                                        deconv->get_strides(),
+                                                                       deconv->get_dilations(),
                                                                        deconv->get_pads_begin(),
                                                                        deconv->get_pads_end(),
-                                                                       deconv->get_dilations(),
-                                                                       deconv->output(0).get_shape(),
                                                                        1 /* groups */,
                                                                        deconv->get_auto_pad());
         deconv_ie->set_friendly_name(deconv->get_friendly_name());
@@ -182,12 +181,12 @@ void ngraph::pass::ConvertConvolutions::convert_group_convolution_backprop_data(
         auto conv_ie = std::make_shared<ngraph::op::DeconvolutionIE>(gconv->input_value(0),
                                                                      reshape,
                                                                      gconv->get_strides(),
+                                                                     gconv->get_dilations(),
                                                                      gconv->get_pads_begin(),
                                                                      gconv->get_pads_end(),
-                                                                     gconv->get_dilations(),
-                                                                     gconv->output(0).get_shape(),
                                                                      group,
-                                                                     gconv->get_auto_pad());
+                                                                     gconv->get_auto_pad(),
+                                                                     gconv->get_output_padding());
         conv_ie->set_friendly_name(gconv->get_friendly_name());
         ngraph::copy_runtime_info(gconv, conv_ie);
         ngraph::replace_node(gconv, conv_ie);
