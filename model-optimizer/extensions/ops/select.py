@@ -47,7 +47,6 @@ class Select(Op):
         a_shape = node.in_port(1).data.get_shape()
         b_shape = node.in_port(2).data.get_shape()
         node.out_port(0).data.set_shape(broadcast_shape(a_shape, b_shape))
-        np.broadcast(resulting_tensors[0], resulting_tensors[1])
         # Case with unknown condition
         if condition_value is not None:
             output_value = np.where(condition_value, resulting_tensors[0], resulting_tensors[1])
