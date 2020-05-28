@@ -4,6 +4,5 @@ pyenchant==1.6.11
 astroid==2.1.0
 pylint==2.1.1
 Sphinx==1.6.5
-safety==1.8.5
 test-generator==0.1.1
 defusedxml>=0.5.0
