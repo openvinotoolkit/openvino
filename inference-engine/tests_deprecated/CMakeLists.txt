@@ -8,8 +8,6 @@
 
 enable_testing()
 
-add_subdirectory(mock_engine)
-
 add_subdirectory(helpers)
 
 if (ENABLE_GAPI_TESTS)

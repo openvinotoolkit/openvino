@@ -4,6 +4,8 @@
 
 set(TARGET_NAME unitTestUtils)
 
+add_subdirectory(mocks/mock_engine)
+
 list(APPEND EXPORT_DEPENDENCIES
         commonTestUtils_s
         inference_engine_s
