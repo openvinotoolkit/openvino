@@ -4,12 +4,10 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
+
 #include <ie_version.hpp>
-#include <cnn_network_impl.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 
-#include "unit_test_utils/mocks/mock_icnn_network.hpp"
-#include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/mock_plugin_impl.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
@@ -63,7 +61,9 @@ protected:
         mockExeNetworkTS = make_shared<MockExecutableNetworkThreadSafe>();
         EXPECT_CALL(*mock_plugin_impl.get(), LoadExeNetworkImpl(_, _)).WillOnce(Return(mockExeNetworkTS));
         EXPECT_CALL(*mockExeNetworkTS.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
+        IE_SUPPRESS_DEPRECATED_START
         sts = plugin->LoadNetwork(exeNetwork, mockNotEmptyNet, {}, &dsc);
+        IE_SUPPRESS_DEPRECATED_END
         ASSERT_EQ((int) StatusCode::OK, sts) << dsc.msg;
         ASSERT_NE(exeNetwork, nullptr) << dsc.msg;
         sts = exeNetwork->CreateInferRequest(request, &dsc);
@@ -72,8 +72,7 @@ protected:
 };
 
 MATCHER_P(blob_in_map_pointer_is_same, ref_blob, "") {
-    auto a = arg.begin()->second.get();
-    return (float *) (arg.begin()->second->buffer()) == (float *) (ref_blob->buffer());
+    return reinterpret_cast<float*>(arg.begin()->second->buffer()) == reinterpret_cast<float*>(ref_blob->buffer());
 }
 
 TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithInCorrectName) {
