@@ -241,8 +241,7 @@ def topk_add_output_result(op: Node):
     :param op:
     :return:
     """
-    assert op.soft_get('type') == 'TopK', 'Wrong operation type, {} instead of TopK!' \
-                                            ''.format(op.soft_get('type'))
+    assert op.soft_get('type') == 'TopK', 'Wrong operation type, {} instead of TopK!'.format(op.soft_get('type'))
 
     TopKNormalizer.normalize_outputs(op)
 
