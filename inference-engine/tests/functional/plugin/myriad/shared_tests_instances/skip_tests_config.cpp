@@ -17,5 +17,8 @@ std::vector<std::string> disabledTestPatterns() {
             ".*ActivationLayerTest\\.CompareWithRefs/Log.*netPRC=FP32.*",
             ".*ActivationLayerTest\\.CompareWithRefs/Sigmoid.*netPRC=FP32.*",
             ".*ActivationLayerTest\\.CompareWithRefs/Relu.*netPRC=FP32.*",
+
+            // TODO: currently this tests are not applicable to myriadPlugin
+            ".*Behavior.*ExecGraphTests.*"
     };
 }
