@@ -41,7 +41,7 @@
         <value>public/face-recognition-resnet50-arcface/FP32/face-recognition-resnet50-arcface.xml</value>
         <value>public/densenet-161-tf/FP32/densenet-161-tf.xml</value>
         <value>public/octave-resnet-200-0.125/FP32/octave-resnet-200-0.125.xml</value>
-        <value>public/mtcnn-p/FP32/mtcnn-p.xml</value>
+        <value>public/mtcnn/mtcnn-p/FP32/mtcnn-p.xml</value>
         <value>public/se-resnext-101/FP32/se-resnext-101.xml</value>
         <value>public/efficientnet-b5/FP32/efficientnet-b5.xml</value>
         <value>public/densenet-169-tf/FP32/densenet-169-tf.xml</value>
@@ -63,7 +63,7 @@
         <value>public/deeplabv3/FP32/deeplabv3.xml</value>
         <value>public/yolo-v3-tf/FP32/yolo-v3-tf.xml</value>
         <value>public/resnet-152/FP32/resnet-152.xml</value>
-        <value>public/mtcnn-o/FP32/mtcnn-o.xml</value>
+        <value>public/mtcnn/mtcnn-o/FP32/mtcnn-o.xml</value>
         <value>public/octave-se-resnet-50-0.125/FP32/octave-se-resnet-50-0.125.xml</value>
         <value>public/yolo-v1-tiny-tf/FP32/yolo-v1-tiny-tf.xml</value>
         <value>public/resnet-50/FP32/resnet-50.xml</value>
@@ -85,7 +85,7 @@
         <value>public/mobilenet-ssd/FP32/mobilenet-ssd.xml</value>
         <value>public/se-resnext-50/FP32/se-resnext-50.xml</value>
         <value>public/caffenet/FP32/caffenet.xml</value>
-        <value>public/mtcnn-r/FP32/mtcnn-r.xml</value>
+        <value>public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml</value>
         <value>public/faster_rcnn_resnet50_coco/FP32/faster_rcnn_resnet50_coco.xml</value>
         <value>public/se-resnet-50/FP32/se-resnet-50.xml</value>
         <value>public/mask_rcnn_resnet50_atrous_coco/FP32/mask_rcnn_resnet50_atrous_coco.xml</value>

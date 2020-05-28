@@ -52,6 +52,8 @@ struct IENetwork {
 
     const std::vector <InferenceEngine::CNNLayerPtr> getLayers();
 
+    const std::map<std::string, InferenceEngine::InputInfo::Ptr> getInputsInfo();
+
     const std::map<std::string, InferenceEngine::DataPtr> getInputs();
 
     const std::map<std::string, InferenceEngine::DataPtr> getOutputs();
@@ -134,6 +136,7 @@ struct IEExecNetwork {
     void infer();
     void exportNetwork(const std::string & model_file);
 
+    std::map<std::string, InferenceEngine::InputInfo::CPtr> getInputsInfo();
     std::map<std::string, InferenceEngine::DataPtr> getInputs();
     std::map<std::string, InferenceEngine::CDataPtr> getOutputs();
 

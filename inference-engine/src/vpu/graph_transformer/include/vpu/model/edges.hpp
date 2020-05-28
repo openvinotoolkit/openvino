@@ -45,7 +45,7 @@ private:
 class StageDependencyEdge final :
         public EnableHandle,
         public EnableCustomAttributes {
-VPU_MODEL_ATTRIBUTE(Data, data, nullptr)
+VPU_MODEL_ATTRIBUTE(Data, dependency, nullptr)
 VPU_MODEL_ATTRIBUTE(Stage, dependentStage, nullptr)
 
 private:
