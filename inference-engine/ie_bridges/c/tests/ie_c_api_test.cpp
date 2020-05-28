@@ -11,6 +11,7 @@
 #include <c_api/ie_c_api.h>
 #include <inference_engine.hpp>
 #include "test_model_repo.hpp"
+#include <fstream>
 
 std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml"),
             bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin"),
@@ -278,6 +279,55 @@ TEST(ie_core_read_network, networkRead) {
     EXPECT_NE(nullptr, network);
 
     ie_network_free(&network);
+    ie_core_free(&core);
+}
+
+TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    std::string xml_content;
+    {
+        std::ifstream xml_file(xml);
+        if (xml_file) {
+            xml_file.seekg(0, std::ifstream::end);
+            xml_content.resize(xml_file.tellg());
+            if (xml_content.size() > 0) {
+                xml_file.seekg(0, std::ifstream::beg);
+                xml_file.read(&xml_content[0], xml_content.size());
+            }
+        }
+    }
+
+    std::vector<char> model_content;
+    {
+        std::ifstream model_file(bin, std::ifstream::binary);
+        if (model_file) {
+            model_file.seekg(0, std::ifstream::end);
+            model_content.resize(model_file.tellg());
+            if (model_content.size() > 0) {
+                model_file.seekg(0, std::ifstream::beg);
+                model_file.read(&model_content[0], model_content.size());
+            }
+        }
+    }
+
+    tensor_desc_t model_desc { ANY, { 1, { model_content.size() } }, U8 };
+    ie_blob_t *model_blob = nullptr;
+    IE_EXPECT_OK(ie_blob_make_memory_from_preallocated(&model_desc, model_content.data(), model_content.size(), &model_blob));
+    EXPECT_NE(nullptr, model_blob);
+
+    if (model_blob != nullptr) {
+        ie_network_t *network = nullptr;
+        IE_EXPECT_OK(ie_core_read_network_from_memory(core, xml_content.data(), xml_content.size(), model_blob, &network));
+        EXPECT_NE(nullptr, network);
+        if (network != nullptr) {
+            ie_network_free(&network);
+        }
+        ie_blob_free(&model_blob);
+    }
+
     ie_core_free(&core);
 }
 
