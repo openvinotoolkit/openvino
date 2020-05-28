@@ -25,7 +25,7 @@ from mo.utils.unittest.graph import build_graph
 class TestSoftPlus(unittest.TestCase):
     nodes = {
         'node_1': {'shape': int64_array([1, 2, 3, 4]), 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
-        'softplus': {'value': None, 'kind': 'op', 'op': 'Softplus'},
+        'softplus': {'value': None, 'kind': 'op', 'op': 'SoftPlus'},
         'exp': {'value': None, 'kind': 'op', 'op': 'Exp'},
         'add': {'value': None, 'kind': 'op', 'op': 'Add'},
         'add_const': {'value': None, 'kind': 'op', 'op': 'Const'},
