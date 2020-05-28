@@ -2,20 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
 #include <tuple>
 #include <vector>
 #include <string>
 
 #include <ie_core.hpp>
-#include <cpp_interfaces/exception2status.hpp>
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ie_preprocess.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "behavior/set_preprocess.hpp"
 

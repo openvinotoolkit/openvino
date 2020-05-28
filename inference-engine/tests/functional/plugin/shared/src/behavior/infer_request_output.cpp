@@ -9,17 +9,12 @@
 
 #include <ie_core.hpp>
 #include <cpp_interfaces/exception2status.hpp>
-#include <thread>
-
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-
-#include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "behavior/infer_request_output.hpp"
-
 
 namespace LayerTestsDefinitions {
     std::string InferRequestOutputTests::getTestCaseName(testing::TestParamInfo<InferRequestOutputParams> obj) {
