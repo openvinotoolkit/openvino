@@ -40,7 +40,7 @@ public:
         data_dims[2] = static_cast<size_t>(state_size);
         outShapes.push_back(data_dims);
 
-        for (int i = 1; i < 2 + ns; i++) {
+        for (int i = 1; i < 1 + ns; i++) {
             outShapes.push_back(inShapes[i]);
         }
     }
