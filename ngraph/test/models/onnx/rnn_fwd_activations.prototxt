@@ -20,7 +20,7 @@ graph {
     }
     attribute {
       name: "activations"
-      strings: "tanh"
+      strings: "Relu"
       type: STRINGS
     }
   }
