@@ -34,11 +34,18 @@ std::shared_ptr<Node> op::NonMaxSuppressionIE::clone_with_new_inputs(const ngrap
 }
 
 void op::NonMaxSuppressionIE::validate_and_infer_types() {
+    auto squeeze_input = [](const Output<Node> & input) -> std::shared_ptr<Node> {
+        return std::make_shared<opset1::Squeeze>(input, opset1::Constant::create(element::i64, Shape{1}, {0}));
+    };
+
     // Calculate output shape using opset1::NonMaxSuppression
+    auto max_output_boxes_per_class = std::dynamic_pointer_cast<opset1::Constant>(input_value(2).get_node_shared_ptr());
     auto nms = std::make_shared<opset1::NonMaxSuppression>(input_value(0),
             input_value(1),
-            std::make_shared<opset1::Squeeze>(input_value(2), opset1::Constant::create(element::i64, Shape{1}, {0})),
-            std::make_shared<opset1::Squeeze>(input_value(3), opset1::Constant::create(element::i64, Shape{1}, {0})),
-            std::make_shared<opset1::Squeeze>(input_value(4), opset1::Constant::create(element::i64, Shape{1}, {0})));
+            /* second input is used for output calculation and only if it's Constant output shape won't be dynamic */
+            max_output_boxes_per_class ? opset1::Constant::create(element::i64, Shape{}, max_output_boxes_per_class->cast_vector<int64_t>()) :
+            squeeze_input(input_value(2)),
+            squeeze_input(input_value(3)),
+            squeeze_input(input_value(4)));
     set_output_type(0, nms->output(0).get_element_type(), nms->output(0).get_partial_shape());
 }

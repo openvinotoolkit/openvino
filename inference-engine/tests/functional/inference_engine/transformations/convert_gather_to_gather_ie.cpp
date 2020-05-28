@@ -33,6 +33,7 @@ TEST(TransformationTests, ConvertGatherToGatherIEStatic1) {
         pass::InitNodeInfo().run_on_function(f);
         pass::ConvertGatherToGatherIE().run_on_function(f);
         ASSERT_NO_THROW(check_rt_info(f));
+        ASSERT_TRUE(f->get_output_partial_shape(0).is_static()) << "Shape " << f->get_output_partial_shape(0) << " should be static";
     }
 
     {
@@ -60,6 +61,7 @@ TEST(TransformationTests, ConvertGatherToGatherIEStatic2) {
         pass::InitNodeInfo().run_on_function(f);
         pass::ConvertGatherToGatherIE().run_on_function(f);
         ASSERT_NO_THROW(check_rt_info(f));
+        ASSERT_TRUE(f->get_output_partial_shape(0).is_static()) << "Shape " << f->get_output_partial_shape(0) << " should be static";
     }
 
     {
