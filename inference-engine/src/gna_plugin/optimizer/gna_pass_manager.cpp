@@ -609,31 +609,6 @@ void InsertIdentityLayerPass::run() {
     }
 }
 
-/**
- * @brief returns previous layers and insData index for it
- * @tparam T
- * @param origin
- * @param acceptanceCriteria
- * @param idx
- */
-// give previous layers while skipping certain layer according to expression
-template <class T>
-std::vector<std::pair<CNNLayerPtr, int> > CNNNetGetPrevLayersSkip(CNNLayerPtr origin, const T &acceptanceCriteria, int idx = -1) {
-    std::vector<std::pair<CNNLayerPtr, int> > prevLayers;
-    for (int i = idx == -1 ? 0 : idx; CNNNetHasPrevLayer(origin.get(), i) && (idx == -1 || i == idx); i++) {
-        auto prevLayer = CNNNetPrevLayer(origin, i);
-        if (acceptanceCriteria(prevLayer)) {
-            prevLayers.push_back({prevLayer, CNNLayerFindOutDataIdx(origin, i)});
-        } else {
-            // if for some input we need to look in upper layers - original index not used here intentionally
-            auto prevPrevLayers = CNNNetGetPrevLayersSkip(prevLayer, acceptanceCriteria);
-            prevLayers.insert(prevLayers.end(), prevPrevLayers.begin(), prevPrevLayers.end());
-        }
-    }
-
-    return prevLayers;
-}
-
 void InsertCopyLayerPass::run() {
     for (auto & l : *pLayers) {
         if (l->insData.empty()) continue;
@@ -1082,6 +1057,78 @@ void RemoveConstPass::run() {
     }
     ConstTransformer transformer(implNetwork);
     transformer.fullTrim();
+}
+
+void RemoveIdentityPass::run() {
+    for (auto &l : *pLayers) {
+        if (l->insData.empty()) continue;
+
+        auto isNonFunctional = [](CNNLayerPtr ptr) {
+            return LayerInfo(ptr).isNonFunctional();
+        };
+        auto eltwise = dynamic_cast<InferenceEngine::EltwiseLayer *>(l.get());
+        auto concat = dynamic_cast<InferenceEngine::ConcatLayer *>(l.get());
+
+        if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput())
+            continue;
+        gnalog() << "CNNNetPrevLayer skip non functional from :: " << l->name;
+        auto prevLayersReached = CNNNetGetPrevLayersSkip(l, [](CNNLayerPtr ptr) {
+            return !LayerInfo(ptr).isNonFunctional();
+        });
+        prevLayersReached.erase(std::remove_if(prevLayersReached.begin(),
+                                               prevLayersReached.end(),
+                                               [] (const std::pair<CNNLayerPtr, int> & candidate) {
+            return LayerInfo(candidate.first).isLink();
+        }), prevLayersReached.end());
+
+        if (prevLayersReached.size() != 1 && eltwise == nullptr && concat == nullptr) {
+            std::stringstream layers;
+            for (auto && prevLayer : prevLayersReached) {
+                layers << prevLayer.first->name;
+                layers << ", ";
+            }
+            THROW_GNA_LAYER_EXCEPTION(l) << "unsupported case: connected to "
+            << (prevLayersReached.empty() ? "zero" : "multiple") << " outputs : " << layers.str();
+        }
+        auto prevLayer = prevLayersReached.front().first;
+        auto outDataIdx = prevLayersReached.front().second;
+        gnalog() << ", reached " << prevLayer->name << " at " << outDataIdx << std::endl;
+
+        if (!LayerInfo(prevLayer).has32BOutput())
+            continue;
+
+        std::vector<CNNLayerPtr> resultSet = CNNNetGetAllNextLayersSkipCertain(prevLayer, outDataIdx, isNonFunctional);
+
+        // now result set should have all needed layers
+        // checking that result set consist of identity already
+        CNNLayerPtr  alreadyIdentity;
+        for (auto &&res : resultSet) {
+            if (LayerInfo(res).isIdentity()) {
+                alreadyIdentity = res;
+                break;
+            }
+        }
+        if (!alreadyIdentity) {
+            continue;
+        } else {
+            // just figure out how to connect to that identity already
+            // 1nd stage - disconnect given layer from previous
+            auto directPrev = l->insData.front().lock()->getCreatorLayer().lock();
+            auto oDataIdx = CNNLayerFindOutDataIdx(directPrev, 0);
+            auto &inputTo = directPrev->outData[oDataIdx]->getInputTo();
+            for (auto inIterator = inputTo.begin(); inIterator != inputTo.end(); inIterator++) {
+                if (inIterator->second == l) {
+                    inputTo.erase(inIterator);
+                    break;
+                }
+            }
+            l->insData.clear();
+
+            // now setting up new connection
+            l->insData.push_back(alreadyIdentity->outData.front());
+            alreadyIdentity->outData.front()->getInputTo()[l->name] = l;
+        }
+    }
 }
 
 int PassManager::run(int index) {

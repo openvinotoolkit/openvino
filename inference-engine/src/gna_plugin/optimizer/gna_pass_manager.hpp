@@ -149,6 +149,11 @@ DECL_PASS_BEFORE_COPY(UnrollTI);
 */
 DECL_PASS_BEFORE_COPY(RemoveConst);
 
+/**
+ * @brief removed extra identity layer for multi-output
+ */
+DECL_PASS(RemoveIdentity);
+
 struct PassManagerSettings {
     Policy policy;
     /// @brief whether to run passes before copy

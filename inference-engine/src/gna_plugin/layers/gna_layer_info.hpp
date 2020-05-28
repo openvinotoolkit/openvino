@@ -107,6 +107,9 @@ class LayerInfo {
     bool isConcatAlignFilter() const noexcept {
         return isOfType("ConcatAlignFilter");
     }
+    bool isLink() const noexcept {
+        return isOfType("Link");
+    }
     bool isAffineFilter() const noexcept {
         return isOfType("AffineFilter");
     }
