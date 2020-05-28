@@ -4,9 +4,11 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
+
 #include <ie_version.hpp>
 #include <cpp/ie_plugin_cpp.hpp>
-#include "cpp_interfaces/base/ie_plugin_base.hpp"
+#include <cpp_interfaces/base/ie_plugin_base.hpp>
+
 #include "unit_test_utils/mocks/cpp_interfaces/mock_plugin_impl.hpp"
 
 using namespace ::testing;
@@ -14,12 +16,11 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+IE_SUPPRESS_DEPRECATED_START
 class PluginBaseTests: public ::testing::Test {
- protected:
+protected:
     std::shared_ptr<MockPluginImpl> mock_impl;
-    IE_SUPPRESS_DEPRECATED_START
     shared_ptr<IInferencePlugin> plugin;
-    IE_SUPPRESS_DEPRECATED_END
     ResponseDesc dsc;
     virtual void TearDown() {
     }
@@ -37,12 +38,10 @@ TEST_F(PluginBaseTests, canReportVersion) {
     EXPECT_STREQ(V->description, "version");
     EXPECT_EQ(V->apiVersion.major, 2);
     EXPECT_EQ(V->apiVersion.minor, 1);
-
 }
 
 TEST_F(PluginBaseTests, canForwardLoadExeNetwork) {
-    EXPECT_CALL(*mock_impl.get(), LoadExeNetwork(_,_,_)).Times(1);
-
+    EXPECT_CALL(*mock_impl.get(), LoadExeNetwork(_, _, _)).Times(1);
     ICNNNetwork * network = nullptr;
     IExecutableNetwork::Ptr exeNetwork = nullptr;
     ASSERT_EQ(OK, plugin->LoadNetwork(exeNetwork, *network, {}, &dsc));
@@ -50,17 +49,16 @@ TEST_F(PluginBaseTests, canForwardLoadExeNetwork) {
 
 
 TEST_F(PluginBaseTests, canReportErrorInLoadExeNetwork) {
-    EXPECT_CALL(*mock_impl.get(), LoadExeNetwork(_,_,_)).WillOnce(Throw(std::runtime_error("compare")));
+    EXPECT_CALL(*mock_impl.get(), LoadExeNetwork(_, _, _)).WillOnce(Throw(std::runtime_error("compare")));
 
     ICNNNetwork * network = nullptr;
     IExecutableNetwork::Ptr exeNetwork = nullptr;
     ASSERT_NE(plugin->LoadNetwork(exeNetwork, *network, {}, &dsc), OK);
-
     ASSERT_STREQ(dsc.msg, "compare");
 }
 
 TEST_F(PluginBaseTests, canCatchUnknownErrorInLoadExeNetwork) {
-    EXPECT_CALL(*mock_impl.get(), LoadExeNetwork(_,_,_)).WillOnce(Throw(5));
+    EXPECT_CALL(*mock_impl.get(), LoadExeNetwork(_, _, _)).WillOnce(Throw(5));
     ICNNNetwork * network = nullptr;
     IExecutableNetwork::Ptr exeNetwork = nullptr;
     ASSERT_EQ(UNEXPECTED, plugin->LoadNetwork(exeNetwork, *network, {}, nullptr));
@@ -86,41 +84,40 @@ TEST_F(PluginBaseTests, canCatchUnknownErrorInSetConfig) {
     ASSERT_EQ(UNEXPECTED, plugin->SetConfig(config, nullptr));
 }
 
-using InferencePluginTests = testing::Test;
-
-TEST_F(InferencePluginTests, throwsOnNullptrCreation) {
+TEST(InferencePluginTests, throwsOnNullptrCreation) {
     InferenceEnginePluginPtr nulptr;
     InferencePlugin plugin;
     ASSERT_THROW(plugin = InferencePlugin(nulptr), details::InferenceEngineException);
 }
 
-TEST_F(InferencePluginTests, throwsOnUninitializedGetVersion) {
+TEST(InferencePluginTests, throwsOnUninitializedGetVersion) {
     InferencePlugin plg;
     ASSERT_THROW(plg.GetVersion(), details::InferenceEngineException);
 }
 
-TEST_F(InferencePluginTests, throwsOnUninitializedLoadNetwork) {
+TEST(InferencePluginTests, throwsOnUninitializedLoadNetwork) {
     InferencePlugin plg;
     QueryNetworkResult r;
     ASSERT_THROW(plg.LoadNetwork(CNNNetwork(), {}), details::InferenceEngineException);
 }
 
-TEST_F(InferencePluginTests, throwsOnUninitializedImportNetwork) {
+TEST(InferencePluginTests, throwsOnUninitializedImportNetwork) {
     InferencePlugin plg;
     ASSERT_THROW(plg.ImportNetwork({}, {}), details::InferenceEngineException);
 }
 
-TEST_F(InferencePluginTests, throwsOnUninitializedAddExtension) {
+TEST(InferencePluginTests, throwsOnUninitializedAddExtension) {
     InferencePlugin plg;
     ASSERT_THROW(plg.AddExtension(IExtensionPtr()), details::InferenceEngineException);
 }
 
-TEST_F(InferencePluginTests, throwsOnUninitializedSetConfig) {
+TEST(InferencePluginTests, throwsOnUninitializedSetConfig) {
     InferencePlugin plg;
     ASSERT_THROW(plg.SetConfig({{}}), details::InferenceEngineException);
 }
 
-TEST_F(InferencePluginTests, nothrowsUninitializedCast) {
+TEST(InferencePluginTests, nothrowsUninitializedCast) {
     InferencePlugin plg;
     ASSERT_NO_THROW(auto plgPtr = static_cast<InferenceEnginePluginPtr>(plg));
 }
+IE_SUPPRESS_DEPRECATED_END

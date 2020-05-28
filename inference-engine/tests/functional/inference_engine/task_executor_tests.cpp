@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <future>
+
 #include <gtest/gtest.h>
-#include <gmock/gmock-spec-builders.h>
+
 #include <threading/ie_cpu_streams_executor.hpp>
 #include <threading/ie_immediate_executor.hpp>
 #include <ie_system_conf.h>
-#include <ie_common.h>
-#include <future>
 
 using namespace ::testing;
 using namespace std;
@@ -74,7 +74,7 @@ TEST_P(TaskExecutorTests, canRunMultipleTasksWithExceptionInside) {
         futures.emplace_back(async(taskExecutor, [] { throw std::bad_alloc(); }));
     }
 
-    for (auto &f:futures) {
+    for (auto &f : futures) {
         f.wait();
         EXPECT_THROW(f.get(), std::bad_alloc);
     }

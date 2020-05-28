@@ -3,21 +3,16 @@
 //
 
 #include <gtest/gtest.h>
-#include <gmock/gmock-spec-builders.h>
 
 #include <initializer_list>
 #include <string>
-#include <utility>
 #include <unordered_set>
-#include <unordered_map>
 
 #include <ie_algorithm.hpp>
 #include <ie_util_internal.hpp>
-#include <tests_common.hpp>
 #include <graph_transformer.h>
 #include "util_test.hpp"
 #include "graph_tools.hpp"
-#include "gna_graph_tools.hpp"
 
 namespace {
 bool checkLayers(const std::vector<IE::CNNLayerPtr>& layers, std::initializer_list<const char*> layersToCheck) {

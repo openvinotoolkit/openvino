@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include <gmock/gmock-spec-builders.h>
 #include "low_precision_transformations/eltwise.hpp"
 
 #include <ie_data.h>

@@ -8,14 +8,8 @@
 using namespace ::testing;
 using namespace std;
 using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
-class ExecutorManagerTests : public ::testing::Test {
-public:
-    ExecutorManagerImpl _manager;
-};
-
-TEST_F(ExecutorManagerTests, canCreateSingleExecutorManager) {
+TEST(ExecutorManagerTests, canCreateSingleExecutorManager) {
     ExecutorManager *executorManager1 = ExecutorManager::getInstance();
 
     ExecutorManager *executorManager2 = ExecutorManager::getInstance();
@@ -23,7 +17,8 @@ TEST_F(ExecutorManagerTests, canCreateSingleExecutorManager) {
     ASSERT_EQ(executorManager1, executorManager2);
 }
 
-TEST_F(ExecutorManagerTests, createDifferentExecutorsForDifferentDevices) {
+TEST(ExecutorManagerTests, createDifferentExecutorsForDifferentDevices) {
+    ExecutorManagerImpl _manager;
     auto executor1 = _manager.getExecutor("CPU");
     auto executor2 = _manager.getExecutor("GPU");
 
@@ -31,7 +26,8 @@ TEST_F(ExecutorManagerTests, createDifferentExecutorsForDifferentDevices) {
     ASSERT_EQ(2, _manager.getExecutorsNumber());
 }
 
-TEST_F(ExecutorManagerTests, returnTheSameExecutorForTheSameDevice) {
+TEST(ExecutorManagerTests, returnTheSameExecutorForTheSameDevice) {
+    ExecutorManagerImpl _manager;
     auto executor1 = _manager.getExecutor("CPU");
     auto executor2 = _manager.getExecutor("GPU");
 

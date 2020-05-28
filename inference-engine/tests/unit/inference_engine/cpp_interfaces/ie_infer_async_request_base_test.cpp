@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
 #include <gmock/gmock-generated-actions.h>
-#include <ie_version.hpp>
+
 #include <cpp/ie_infer_request.hpp>
 #include <cpp_interfaces/exception2status.hpp>
 #include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
@@ -13,6 +13,7 @@
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 #include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_async_infer_request_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iasync_infer_request_internal.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -21,6 +22,186 @@ using namespace InferenceEngine::details;
 
 constexpr const char* MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
 constexpr const char* MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME;
+
+class InferRequestBaseTests : public ::testing::Test {
+protected:
+    std::shared_ptr<MockIAsyncInferRequestInternal> mock_impl;
+    shared_ptr<IInferRequest> request;
+    ResponseDesc dsc;
+
+    virtual void TearDown() {
+    }
+
+    virtual void SetUp() {
+        mock_impl.reset(new MockIAsyncInferRequestInternal());
+        request = details::shared_from_irelease(new InferRequestBase<MockIAsyncInferRequestInternal>(mock_impl));
+    }
+};
+
+// StartAsync
+TEST_F(InferRequestBaseTests, canForwardStartAsync) {
+    EXPECT_CALL(*mock_impl.get(), StartAsync()).Times(1);
+    ASSERT_EQ(OK, request->StartAsync(&dsc));
+}
+
+TEST_F(InferRequestBaseTests, canReportErrorInStartAsync) {
+    EXPECT_CALL(*mock_impl.get(), StartAsync()).WillOnce(Throw(std::runtime_error("compare")));
+    ASSERT_NE(request->StartAsync(&dsc), OK);
+    ASSERT_STREQ(dsc.msg, "compare");
+}
+
+TEST_F(InferRequestBaseTests, canCatchUnknownErrorInStartAsync) {
+    EXPECT_CALL(*mock_impl.get(), StartAsync()).WillOnce(Throw(5));
+    ASSERT_EQ(UNEXPECTED, request->StartAsync(nullptr));
+}
+
+// GetUserData
+TEST_F(InferRequestBaseTests, canForwardGetUserData) {
+    void **data = nullptr;
+    EXPECT_CALL(*mock_impl.get(), GetUserData(data)).Times(1);
+    ASSERT_EQ(OK, request->GetUserData(data, &dsc));
+}
+
+TEST_F(InferRequestBaseTests, canReportErrorInGetUserData) {
+    EXPECT_CALL(*mock_impl.get(), GetUserData(_)).WillOnce(Throw(std::runtime_error("compare")));
+    ASSERT_NE(request->GetUserData(nullptr, &dsc), OK);
+    ASSERT_STREQ(dsc.msg, "compare");
+}
+
+TEST_F(InferRequestBaseTests, canCatchUnknownErrorInGetUserData) {
+    EXPECT_CALL(*mock_impl.get(), GetUserData(_)).WillOnce(Throw(5));
+    ASSERT_EQ(UNEXPECTED, request->GetUserData(nullptr, nullptr));
+}
+
+// SetUserData
+TEST_F(InferRequestBaseTests, canForwardSetUserData) {
+    void *data = nullptr;
+    EXPECT_CALL(*mock_impl.get(), SetUserData(data)).Times(1);
+    ASSERT_EQ(OK, request->SetUserData(data, &dsc));
+}
+
+TEST_F(InferRequestBaseTests, canReportErrorInSetUserData) {
+    EXPECT_CALL(*mock_impl.get(), SetUserData(_)).WillOnce(Throw(std::runtime_error("compare")));
+    ASSERT_NE(request->SetUserData(nullptr, &dsc), OK);
+    ASSERT_STREQ(dsc.msg, "compare");
+}
+
+TEST_F(InferRequestBaseTests, canCatchUnknownErrorInSetUserData) {
+    EXPECT_CALL(*mock_impl.get(), SetUserData(_)).WillOnce(Throw(5));
+    ASSERT_EQ(UNEXPECTED, request->SetUserData(nullptr, nullptr));
+}
+
+// Wait
+TEST_F(InferRequestBaseTests, canForwardWait) {
+    int64_t ms = 0;
+    EXPECT_CALL(*mock_impl.get(), Wait(ms)).WillOnce(Return(StatusCode::OK));
+    ASSERT_EQ(OK, request->Wait(ms, &dsc)) << dsc.msg;
+}
+
+TEST_F(InferRequestBaseTests, canReportErrorInWait) {
+    EXPECT_CALL(*mock_impl.get(), Wait(_)).WillOnce(Throw(std::runtime_error("compare")));
+    int64_t ms = 0;
+    ASSERT_NE(request->Wait(ms, &dsc), OK);
+    ASSERT_STREQ(dsc.msg, "compare");
+}
+
+TEST_F(InferRequestBaseTests, canCatchUnknownErrorInWait) {
+    EXPECT_CALL(*mock_impl.get(), Wait(_)).WillOnce(Throw(5));
+    int64_t ms = 0;
+    ASSERT_EQ(UNEXPECTED, request->Wait(ms, nullptr));
+}
+
+// Infer
+TEST_F(InferRequestBaseTests, canForwardInfer) {
+    EXPECT_CALL(*mock_impl.get(), Infer()).Times(1);
+    ASSERT_EQ(OK, request->Infer(&dsc));
+}
+
+TEST_F(InferRequestBaseTests, canReportErrorInInfer) {
+    EXPECT_CALL(*mock_impl.get(), Infer()).WillOnce(Throw(std::runtime_error("compare")));
+    ASSERT_NE(request->Infer(&dsc), OK);
+    ASSERT_STREQ(dsc.msg, "compare");
+}
+
+TEST_F(InferRequestBaseTests, canCatchUnknownErrorInInfer) {
+    EXPECT_CALL(*mock_impl.get(), Infer()).WillOnce(Throw(5));
+    ASSERT_EQ(UNEXPECTED, request->Infer(nullptr));
+}
+
+// GetPerformanceCounts
+TEST_F(InferRequestBaseTests, canForwardGetPerformanceCounts) {
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> info;
+    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts(Ref(info))).Times(1);
+    ASSERT_EQ(OK, request->GetPerformanceCounts(info, &dsc));
+}
+
+TEST_F(InferRequestBaseTests, canReportErrorInGetPerformanceCounts) {
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> info;
+    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts(_)).WillOnce(Throw(std::runtime_error("compare")));
+    ASSERT_NE(request->GetPerformanceCounts(info, &dsc), OK);
+    ASSERT_STREQ(dsc.msg, "compare");
+}
+
+TEST_F(InferRequestBaseTests, canCatchUnknownErrorInGetPerformanceCounts) {
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> info;
+    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts(_)).WillOnce(Throw(5));
+    ASSERT_EQ(UNEXPECTED, request->GetPerformanceCounts(info, nullptr));
+}
+
+// GetBlob
+TEST_F(InferRequestBaseTests, canForwardGetBlob) {
+    Blob::Ptr data;
+    const char *name = "";
+    EXPECT_CALL(*mock_impl.get(), GetBlob(name, Ref(data))).Times(1);
+    ASSERT_EQ(OK, request->GetBlob(name, data, &dsc));
+}
+
+TEST_F(InferRequestBaseTests, canReportErrorInGetBlob) {
+    EXPECT_CALL(*mock_impl.get(), GetBlob(_, _)).WillOnce(Throw(std::runtime_error("compare")));
+    Blob::Ptr data;
+    ASSERT_NE(request->GetBlob(nullptr, data, &dsc), OK);
+    ASSERT_STREQ(dsc.msg, "compare");
+}
+
+TEST_F(InferRequestBaseTests, canCatchUnknownErrorInGetBlob) {
+    Blob::Ptr data;
+    EXPECT_CALL(*mock_impl.get(), GetBlob(_, _)).WillOnce(Throw(5));
+    ASSERT_EQ(UNEXPECTED, request->GetBlob(nullptr, data, nullptr));
+}
+
+// SetBlob
+TEST_F(InferRequestBaseTests, canForwardSetBlob) {
+    Blob::Ptr data;
+    const char *name = "";
+    EXPECT_CALL(*mock_impl.get(), SetBlob(name, Ref(data))).Times(1);
+    ASSERT_EQ(OK, request->SetBlob(name, data, &dsc));
+}
+
+TEST_F(InferRequestBaseTests, canReportErrorInSetBlob) {
+    EXPECT_CALL(*mock_impl.get(), SetBlob(_, _)).WillOnce(Throw(std::runtime_error("compare")));
+    Blob::Ptr data;
+    ASSERT_NE(request->SetBlob(nullptr, data, &dsc), OK);
+    ASSERT_STREQ(dsc.msg, "compare");
+}
+
+TEST_F(InferRequestBaseTests, canCatchUnknownErrorInSetBlob) {
+    Blob::Ptr data;
+    EXPECT_CALL(*mock_impl.get(), SetBlob(_, _)).WillOnce(Throw(5));
+    ASSERT_EQ(UNEXPECTED, request->SetBlob(nullptr, data, nullptr));
+}
+
+// SetCompletionCallback
+TEST_F(InferRequestBaseTests, canForwardSetCompletionCallback) {
+    InferenceEngine::IInferRequest::CompletionCallback callback = nullptr;
+    EXPECT_CALL(*mock_impl.get(), SetCompletionCallback(callback)).Times(1);
+    ASSERT_NO_THROW(request->SetCompletionCallback(callback));
+}
+
+TEST_F(InferRequestBaseTests, canReportErrorInSetCompletionCallback) {
+    EXPECT_CALL(*mock_impl.get(), SetCompletionCallback(_)).WillOnce(Throw(std::runtime_error("compare")));
+    ASSERT_NO_THROW(request->SetCompletionCallback(nullptr));
+}
+
 
 class InferRequestTests : public ::testing::Test {
 protected:
@@ -153,7 +334,7 @@ TEST_F(InferRequestTests, throwsIfGetPerformanceCountsReturnNotOK) {
 
 MATCHER_P(blob_in_map_pointer_is_same, ref_blob, "") {
     auto a = arg.begin()->second.get();
-    return (float *) (arg.begin()->second->buffer()) == (float *) (ref_blob->buffer());
+    return reinterpret_cast<float*>(arg.begin()->second->buffer()) == reinterpret_cast<float*>(ref_blob->buffer());
 }
 
 // SetInput
@@ -290,77 +471,4 @@ TEST_F(InferRequestTests, failToSetInputWithEmptyDimensions) {
     auto blobMap = getBlobMapWithEmptyDimensions();
     auto exceptionMessage = getExceptionMessage([&]() { InferRequest->SetInput(blobMap); });
     ASSERT_EQ(_inputDataIsEmptyError, exceptionMessage.substr(0, _inputDataIsEmptyError.size()));
-}
-
-using InferRequestCPPTests = ::testing::Test;
-
-TEST_F(InferRequestCPPTests, throwsOnInitWithNull) {
-    IInferRequest::Ptr nlptr = nullptr;
-    ASSERT_THROW(InferRequest req(nlptr), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedSetBlob) {
-    InferRequest req;
-    ASSERT_THROW(req.SetBlob({}, {}), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedGetBlob) {
-    InferRequest req;
-    ASSERT_THROW(req.GetBlob({}), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedSetBlobPreproc) {
-    InferRequest req;
-    ASSERT_THROW(req.SetBlob({}, {}, {}), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedGetPreProcess) {
-    InferRequest req;
-    ASSERT_THROW(req.GetPreProcess({}), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedInfer) {
-    InferRequest req;
-    ASSERT_THROW(req.Infer(), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedGetPerformanceCounts) {
-    InferRequest req;
-    ASSERT_THROW(req.GetPerformanceCounts(), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedSetInput) {
-    InferRequest req;
-    ASSERT_THROW(req.SetInput({{}}), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedSetOutput) {
-    InferRequest req;
-    ASSERT_THROW(req.SetOutput({{}}), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedSetBatch) {
-    InferRequest req;
-    ASSERT_THROW(req.SetBatch({}), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedStartAsync) {
-    InferRequest req;
-    ASSERT_THROW(req.StartAsync(), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedWait) {
-    InferRequest req;
-    ASSERT_THROW(req.Wait({}), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedSetCompletionCallback) {
-    InferRequest req;
-    std::function<void(InferRequest, StatusCode)> f;
-    ASSERT_THROW(req.SetCompletionCallback(f), InferenceEngine::details::InferenceEngineException);
-}
-
-TEST_F(InferRequestCPPTests, throwsOnUninitializedCast) {
-    InferRequest req;
-    ASSERT_THROW(auto & ireq = static_cast<IInferRequest::Ptr&>(req), InferenceEngine::details::InferenceEngineException);
 }

@@ -12,12 +12,13 @@
 #include <unistd.h>
 #endif  // _WIN32
 
-#include "tests_common.hpp"
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+
 #include <string>
-#include "ie_plugin_dispatcher.hpp"
 #include <fstream>
+
+#include "ie_plugin_dispatcher.hpp"
 
 #include "unit_test_utils/mocks/mock_plugin_dispatcher.hpp"
 
@@ -29,6 +30,7 @@ public:
     const std::string nameExt(const std::string& name) { return name + IE_BUILD_POSTFIX;}
 };
 
+IE_SUPPRESS_DEPRECATED_START
 TEST_F(PluginDispatcherTests, canLoadMockPlugin) {
     PluginDispatcher dispatcher({ "", "./", "./lib" });
     ASSERT_NO_THROW(dispatcher.getPluginByName(nameExt("mock_engine")));
@@ -94,8 +96,7 @@ TEST_F(PluginDispatcherTests, throwsOnUnknownPlugin) {
     ASSERT_THROW(dispatcher.getPluginByName(nameExt("unknown_plugin")), InferenceEngine::details::InferenceEngineException);
 }
 
-ACTION(ThrowException)
-{
+ACTION(ThrowException) {
     THROW_IE_EXCEPTION << "Exception!";
 }
 
@@ -136,8 +137,9 @@ TEST_F(PluginDispatcherTests, libMKLDNNPluginSymbolsExposure) {
                 FAIL() << " Visibility is not hidden and there are symbols exposure:\n" << result << std::endl;
         }
     }
-
 }
 #endif
 
 #endif
+
+IE_SUPPRESS_DEPRECATED_END

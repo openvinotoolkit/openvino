@@ -9,7 +9,6 @@
 #include <cpp_interfaces/base/ie_executable_network_base.hpp>
 #include <cpp_interfaces/impl/ie_memory_state_internal.hpp>
 
-#include "unit_test_utils/mocks/mock_icnn_network.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_imemory_state_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 
@@ -30,7 +29,6 @@ class MemoryStateTests : public ::testing::Test {
 };
 
 TEST_F(MemoryStateTests, ExecutableNetworkCanConvertOneMemoryStateFromCppToAPI) {
-
     auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
     std::vector<IMemoryStateInternal::Ptr> toReturn(1);
     toReturn[0] = mockMemoryStateInternal;
@@ -42,7 +40,6 @@ TEST_F(MemoryStateTests, ExecutableNetworkCanConvertOneMemoryStateFromCppToAPI) 
 }
 
 TEST_F(MemoryStateTests, ExecutableNetworkCanConvertZeroMemoryStateFromCppToAPI) {
-
     auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
     std::vector<IMemoryStateInternal::Ptr> toReturn;
 
@@ -53,7 +50,6 @@ TEST_F(MemoryStateTests, ExecutableNetworkCanConvertZeroMemoryStateFromCppToAPI)
 }
 
 TEST_F(MemoryStateTests, ExecutableNetworkCanConvert2MemoryStatesFromCPPtoAPI) {
-
     auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
@@ -66,7 +62,6 @@ TEST_F(MemoryStateTests, ExecutableNetworkCanConvert2MemoryStatesFromCPPtoAPI) {
 }
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesReset) {
-
     auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
@@ -79,7 +74,6 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesReset) {
 }
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesExceptionsFromReset) {
-
     auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
@@ -92,7 +86,6 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesExceptionsFromReset) {
 }
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesGetName) {
-
     auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
@@ -105,7 +98,6 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesGetName) {
 }
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithZeroLen) {
-
     auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
@@ -122,7 +114,6 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithZeroLen) {
 
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfOne) {
-
     auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
@@ -139,7 +130,6 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfOne) {
 }
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfTwo) {
-
     auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
@@ -156,7 +146,6 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfTwo) {
 }
 
 TEST_F(MemoryStateTests, MemoryStateCanPropagateSetState) {
-
     auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     Blob::Ptr saver;
@@ -175,7 +164,6 @@ TEST_F(MemoryStateTests, MemoryStateCanPropagateSetState) {
 }
 
 TEST_F(MemoryStateTests, MemoryStateCanPropagateGetLastState) {
-
     auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
     std::vector<IMemoryStateInternal::Ptr> toReturn;
 
@@ -198,19 +186,16 @@ TEST_F(MemoryStateTests, MemoryStateCanPropagateGetLastState) {
 class MemoryStateInternalMockImpl : public MemoryStateInternal {
  public:
     using MemoryStateInternal::MemoryStateInternal;
-    MOCK_METHOD0(Reset, void ());
+    MOCK_METHOD0(Reset, void());
 };
 
 TEST_F(MemoryStateTests, MemoryStateInternalCanSaveName) {
-
     IMemoryStateInternal::Ptr pState(new MemoryStateInternalMockImpl("name"));
-
     ASSERT_STREQ(pState->GetName().c_str(), "name");
 }
 
 
 TEST_F(MemoryStateTests, MemoryStateInternalCanSaveState) {
-
     IMemoryStateInternal::Ptr pState(new MemoryStateInternalMockImpl("name"));
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
@@ -225,7 +210,6 @@ TEST_F(MemoryStateTests, MemoryStateInternalCanSaveState) {
 
 
 TEST_F(MemoryStateTests, MemoryStateInternalCanSaveStateByReference) {
-
     IMemoryStateInternal::Ptr pState(new MemoryStateInternalMockImpl("name"));
     float data[] = {123, 124, 125};
     auto stateBlob = make_shared_blob<float>({ Precision::FP32, {3}, C }, data, sizeof(data) / sizeof(*data));
