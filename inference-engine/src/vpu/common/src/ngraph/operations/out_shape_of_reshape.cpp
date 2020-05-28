@@ -93,11 +93,78 @@ bool setShapeToHostTensorData(const HostTensorPtr& data, const Shape& shape) {
         return false;
     }
     size_t outputRank = data->get_shape()[0];
+    if (shape.size() != outputRank) {
+        return false;
+    }
 
     for (int i = 0; i < outputRank; i++) {
         dataPtr[i] = shape[i];
     }
     return true;
+}
+
+bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& shape) {
+    bool rc = false;
+    switch (data->get_element_type()) {
+        case element::Type_t::i8:
+            rc = getShapeFromHostTensorData<element::Type_t::i8>(data, shape);
+            break;
+        case element::Type_t::i16:
+            rc = getShapeFromHostTensorData<element::Type_t::i16>(data, shape);
+            break;
+        case element::Type_t::i32:
+            rc = getShapeFromHostTensorData<element::Type_t::i32>(data, shape);
+            break;
+        case element::Type_t::i64:
+            rc = getShapeFromHostTensorData<element::Type_t::i64>(data, shape);
+            break;
+        case element::Type_t::u8:
+            rc = getShapeFromHostTensorData<element::Type_t::u8>(data, shape);
+            break;
+        case element::Type_t::u16:
+            rc = getShapeFromHostTensorData<element::Type_t::u16>(data, shape);
+            break;
+        case element::Type_t::u32:
+            rc = getShapeFromHostTensorData<element::Type_t::u32>(data, shape);
+            break;
+        case element::Type_t::u64:
+            rc = getShapeFromHostTensorData<element::Type_t::u64>(data, shape);
+            break;
+        default: rc = false;
+    }
+    return rc;
+}
+
+bool setShapeToHostTensorData(const HostTensorPtr& data, const Shape& shape) {
+    bool rc = false;
+    switch (data->get_element_type()) {
+        case element::Type_t::i8:
+            rc = setShapeToHostTensorData<element::Type_t::i8>(data, shape);
+            break;
+        case element::Type_t::i16:
+            rc = setShapeToHostTensorData<element::Type_t::i16>(data, shape);
+            break;
+        case element::Type_t::i32:
+            rc = setShapeToHostTensorData<element::Type_t::i32>(data, shape);
+            break;
+        case element::Type_t::i64:
+            rc = setShapeToHostTensorData<element::Type_t::i64>(data, shape);
+            break;
+        case element::Type_t::u8:
+            rc = setShapeToHostTensorData<element::Type_t::u8>(data, shape);
+            break;
+        case element::Type_t::u16:
+            rc = setShapeToHostTensorData<element::Type_t::u16>(data, shape);
+            break;
+        case element::Type_t::u32:
+            rc = setShapeToHostTensorData<element::Type_t::u32>(data, shape);
+            break;
+        case element::Type_t::u64:
+            rc = setShapeToHostTensorData<element::Type_t::u64>(data, shape);
+            break;
+        default: rc = false;
+    }
+    return rc;
 }
 
 bool evaluateOutShapeOfReshape(
@@ -111,60 +178,11 @@ bool evaluateOutShapeOfReshape(
     Shape inputShape;
     Shape outputShape;
 
-    switch (inDataShapeTensor->get_element_type()) {
-        case element::Type_t::i8:
-            if (!getShapeFromHostTensorData<element::Type_t::i8>(inDataShapeTensor, inputShape)) return false;
-            break;
-        case element::Type_t::i16:
-            if (!getShapeFromHostTensorData<element::Type_t::i16>(inDataShapeTensor, inputShape)) return false;
-            break;
-        case element::Type_t::i32:
-            if (!getShapeFromHostTensorData<element::Type_t::i32>(inDataShapeTensor, inputShape)) return false;
-            break;
-        case element::Type_t::i64:
-            if (!getShapeFromHostTensorData<element::Type_t::i64>(inDataShapeTensor, inputShape)) return false;
-            break;
-        case element::Type_t::u8:
-            if (!getShapeFromHostTensorData<element::Type_t::u8>(inDataShapeTensor, inputShape)) return false;
-            break;
-        case element::Type_t::u16:
-            if (!getShapeFromHostTensorData<element::Type_t::u16>(inDataShapeTensor, inputShape)) return false;
-            break;
-        case element::Type_t::u32:
-            if (!getShapeFromHostTensorData<element::Type_t::u32>(inDataShapeTensor, inputShape)) return false;
-            break;
-        case element::Type_t::u64:
-            if (!getShapeFromHostTensorData<element::Type_t::u64>(inDataShapeTensor, inputShape)) return false;
-            break;
-        default: return false;
+    if (!getShapeFromHostTensorData(inDataShapeTensor, inputShape)) {
+        return false;
     }
-
-    switch (outShapeDescriptorTensor->get_element_type()) {
-        case element::Type_t::i8:
-            if (!getShapeFromHostTensorData<element::Type_t::i8>(outShapeDescriptorTensor, outputShape)) return false;
-            break;
-        case element::Type_t::i16:
-            if (!getShapeFromHostTensorData<element::Type_t::i16>(outShapeDescriptorTensor, outputShape)) return false;
-            break;
-        case element::Type_t::i32:
-            if (!getShapeFromHostTensorData<element::Type_t::i32>(outShapeDescriptorTensor, outputShape)) return false;
-            break;
-        case element::Type_t::i64:
-            if (!getShapeFromHostTensorData<element::Type_t::i64>(outShapeDescriptorTensor, outputShape)) return false;
-            break;
-        case element::Type_t::u8:
-            if (!getShapeFromHostTensorData<element::Type_t::u8>(outShapeDescriptorTensor, outputShape)) return false;
-            break;
-        case element::Type_t::u16:
-            if (!getShapeFromHostTensorData<element::Type_t::u16>(outShapeDescriptorTensor, outputShape)) return false;
-            break;
-        case element::Type_t::u32:
-            if (!getShapeFromHostTensorData<element::Type_t::u32>(outShapeDescriptorTensor, outputShape)) return false;
-            break;
-        case element::Type_t::u64:
-            if (!getShapeFromHostTensorData<element::Type_t::u64>(outShapeDescriptorTensor, outputShape)) return false;
-            break;
-        default: return false;
+    if (!getShapeFromHostTensorData(outShapeDescriptorTensor, outputShape)) {
+        return false;
     }
 
     if (std::any_of(outputShape.begin(), outputShape.end(), [](int64_t value) { return value < -1; })) {
@@ -225,32 +243,8 @@ bool evaluateOutShapeOfReshape(
         }
     }
 
-    switch (outShapeTensor->get_element_type()) {
-        case element::Type_t::i8:
-            if (!setShapeToHostTensorData<element::Type_t::i8>(outShapeTensor, outputShape)) return false;
-            break;
-        case element::Type_t::i16:
-            if (!setShapeToHostTensorData<element::Type_t::i16>(outShapeTensor, outputShape)) return false;
-            break;
-        case element::Type_t::i32:
-            if (!setShapeToHostTensorData<element::Type_t::i32>(outShapeTensor, outputShape)) return false;
-            break;
-        case element::Type_t::i64:
-            if (!setShapeToHostTensorData<element::Type_t::i64>(outShapeTensor, outputShape)) return false;
-            break;
-        case element::Type_t::u8:
-            if (!setShapeToHostTensorData<element::Type_t::u8>(outShapeTensor, outputShape)) return false;
-            break;
-        case element::Type_t::u16:
-            if (!setShapeToHostTensorData<element::Type_t::u16>(outShapeTensor, outputShape)) return false;
-            break;
-        case element::Type_t::u32:
-            if (!setShapeToHostTensorData<element::Type_t::u32>(outShapeTensor, outputShape)) return false;
-            break;
-        case element::Type_t::u64:
-            if (!setShapeToHostTensorData<element::Type_t::u64>(outShapeTensor, outputShape)) return false;
-            break;
-        default: return false;
+    if (!setShapeToHostTensorData(outShapeTensor, outputShape)) {
+        return false;
     }
 
     return true;
