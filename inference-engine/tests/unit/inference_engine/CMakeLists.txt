@@ -10,6 +10,8 @@ addIeTargetTest(
         LINK_LIBRARIES
             unitTestUtils
         ADD_CPPLINT
+        DEPENDENCIES
+            mock_engine
         LABELS
             IE
 )
