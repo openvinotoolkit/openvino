@@ -20,6 +20,7 @@ from typing import Optional
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
@@ -82,22 +83,18 @@ def replace_interpolate_pattern(graph: Graph, match: dict):
     mul_node = Mul(graph, dict(name=split_node_name + '/Mul_')).create_node()
     scales_node.out_port(0).connect(mul_node.in_port(1))
 
-    slice_begin = Const(graph, dict(name=split_node_name + '/slice_begin_',
-                                    value=int64_array([axis]))).create_node()
-    slice_end = Const(graph, dict(name=split_node_name + '/slice_end_',
-                                  value=int64_array([axis + 1]))).create_node()
-
-    strided_slice_node = StridedSlice(graph,
-                                      {'name': split_node_name + '/StridedSlice_',
-                                       'begin_mask': int64_array([1]),
-                                       'end_mask': int64_array([1]),
-                                       'new_axis_mask': int64_array([0]),
-                                       'shrink_axis_mask': int64_array([0]),
-                                       'ellipsis_mask': int64_array([0]),
-                                       }).create_node()
+    strided_slice_node = create_op_with_const_inputs(graph,
+                                                     StridedSlice,
+                                                     {1: int64_array([axis]), 2: int64_array([axis + 1])},
+                                                     {
+                                                        'name': split_node_name + '/StridedSlice_',
+                                                        'begin_mask': int64_array([1]),
+                                                        'end_mask': int64_array([1]),
+                                                        'new_axis_mask': int64_array([0]),
+                                                        'shrink_axis_mask': int64_array([0]),
+                                                        'ellipsis_mask': int64_array([0])
+                                                     })
     shape_node.out_port(0).connect(strided_slice_node.in_port(0))
-    slice_begin.out_port(0).connect(strided_slice_node.in_port(1))
-    slice_end.out_port(0).connect(strided_slice_node.in_port(2))
 
     strided_slice_node.out_port(0).connect(mul_node.in_port(0))
 
