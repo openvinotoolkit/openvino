@@ -1776,7 +1776,7 @@ void BucketizeValidator::parseParams(CNNLayer* layer) {
         THROW_IE_EXCEPTION << layer->name << " Layer is not instance of Bucketize class";
     }
 
-    casted->with_right_bound = casted->GetParamAsBool("with_right_bound");
+    casted->with_right_bound = casted->GetParamAsBool("with_right_bound", true);
 }
 
 void BucketizeValidator::checkParams(const CNNLayer* layer) {
