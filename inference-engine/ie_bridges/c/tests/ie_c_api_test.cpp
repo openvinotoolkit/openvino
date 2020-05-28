@@ -11,6 +11,7 @@
 #include <c_api/ie_c_api.h>
 #include <inference_engine.hpp>
 #include "test_model_repo.hpp"
+#include <fstream>
 
 std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml"),
             bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin"),
@@ -277,6 +278,46 @@ TEST(ie_core_read_network, networkRead) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
+    ie_network_free(&network);
+    ie_core_free(&core);
+}
+
+TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    std::string xml_content;
+    {
+        std::ifstream xml_file(xml);
+        while (xml_file)
+        {
+            char ch;
+            xml_file >> ch;
+            xml_content += ch;
+        }
+    }
+
+    std::vector<uint8_t> model_content;
+    {
+        std::ifstream model_file(bin, std::ifstream::binary);
+        while (model_file)
+        {
+            uint8_t ch((uint8_t)model_file.get());
+            model_content.push_back(ch);
+        }
+    }
+    
+    tensor_desc_t model_desc { C, { 1, { model_content.size() } }, U8 };
+    ie_blob_t *model_blob = nullptr;
+    IE_EXPECT_OK(ie_blob_make_memory_from_preallocated(&model_desc, model_content.data(), model_content.size(), &model_blob));
+    EXPECT_NE(nullptr, model_blob);
+
+    ie_network_t *network = nullptr;
+    IE_EXPECT_OK(ie_core_read_network_from_memory(core, xml_content.data(), model_blob, &network));
+    EXPECT_NE(nullptr, network);
+
+    ie_blob_free(&model_blob);
     ie_network_free(&network);
     ie_core_free(&core);
 }
