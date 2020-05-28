@@ -38,6 +38,8 @@ from mo.utils.class_registration import update_registration
 from mo.utils.import_extensions import import_by_path
 from mo.utils.ir_reader.extender import Extender
 
+from extensions.back.TopKNormalizer import TopKNormalizer
+
 # Operations not registred in collect_ops() function
 custom_ops = {
     'AvgPool': Pooling,
@@ -235,17 +237,14 @@ def assign_add_output_result(op: Node):
 
 def topk_add_output_result(op: Node):
     """
-    Function adds necessary output result node for TopK node
+    Function adds missed output result nodes for TopK node
     :param op:
     :return:
     """
-    if op.out_port(0).disconnected():
-        output = Result(op.graph, {'name': op.name + '/Result_port_0/',
-                                   'remove_from_xml': op.has_and_set('remove_values_output')}).create_node()
-        op.out_port(0).get_connection().set_destination(output.in_port(0))
-    if op.out_port(1).disconnected():
-        output = Result(op.graph, {'name': op.name + '/Result_port_1/'}).create_node()
-        op.out_port(1).get_connection().set_destination(output.in_port(0))
+    assert op.soft_get('type') == 'TopK', 'Wrong operation type, {} instead of TopK!' \
+                                            ''.format(op.soft_get('type'))
+
+    TopKNormalizer.normalize_outputs(op)
 
 
 def copy_input_blobs(op: Node, copy_op: Node):
