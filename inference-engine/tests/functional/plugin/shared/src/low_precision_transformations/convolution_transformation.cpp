@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision_transformations/convolution_transformation.hpp"
+
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -13,10 +15,8 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-
 #include "ngraph_functions/pass/convert_prc.hpp"
-
-#include "low_precision_transformations/convolution_transformation.hpp"
+#include "ngraph_functions/builders.hpp"
 
 
 namespace LayerTestsDefinitions {
@@ -38,6 +38,8 @@ std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<Co
 }
 
 void ConvolutionTransformation::SetUp() {
+    threshold = 0.1f;
+
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
@@ -46,8 +48,14 @@ void ConvolutionTransformation::SetUp() {
     std::tie(netPrecision, inputShape, targetDevice, params, fqOnActivations, fqOnWeights) = this->GetParam();
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
+    const float k = 50.f;
+
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
-    const auto fakeQuantizeOnActivations = fqOnActivations ? makeFakeQuantize(precision, input->output(0), 0.f, 255.f) : nullptr;
+    const auto fakeQuantizeOnActivations = fqOnActivations ?
+        ngraph::builder::makeFakeQuantize(
+            input, precision, 256ul, { 1ul },
+            { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k }) :
+        nullptr;
 
     auto weights = ngraph::opset1::Constant::create(
         precision,
@@ -55,8 +63,12 @@ void ConvolutionTransformation::SetUp() {
         std::vector<float>(inputShape[1] * inputShape[1], 1));
 
     const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
-        fqOnActivations ? fakeQuantizeOnActivations->output(0) : input->output(0),
-        fqOnWeights ? makeFakeQuantize(precision, weights->output(0), -128.f / 4.f, 127.f / 4.f) : weights->output(0),
+        fakeQuantizeOnActivations == nullptr ? input : fakeQuantizeOnActivations,
+        fqOnWeights ?
+            ngraph::builder::makeFakeQuantize(
+                weights, precision, 255ul, { 1ul },
+                { -128.f / k }, { 127.f / k }, { -128.f / k }, { 127.f / k }) :
+            weights->output(0),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },

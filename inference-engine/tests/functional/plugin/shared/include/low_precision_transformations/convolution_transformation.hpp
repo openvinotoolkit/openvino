@@ -20,7 +20,9 @@ typedef std::tuple<
     bool  // fqOnWeights
 > ConvolutionTransformationParams;
 
-class ConvolutionTransformation : public LayerTestsUtils::LayerTransformation<ConvolutionTransformationParams> {
+class ConvolutionTransformation :
+    public testing::WithParamInterface<ConvolutionTransformationParams>,
+    public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj);
 
