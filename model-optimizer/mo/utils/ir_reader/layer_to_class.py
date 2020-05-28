@@ -19,6 +19,7 @@ import os
 
 import numpy as np
 
+from extensions.back.TopKNormalizer import TopKNormalizer
 from extensions.ops.Cast import Cast
 from extensions.ops.ReduceOps import ReduceOp
 from extensions.ops.activation_ops import Activation
@@ -37,8 +38,6 @@ from mo.ops.result import Result
 from mo.utils.class_registration import update_registration
 from mo.utils.import_extensions import import_by_path
 from mo.utils.ir_reader.extender import Extender
-
-from extensions.back.TopKNormalizer import TopKNormalizer
 
 # Operations not registred in collect_ops() function
 custom_ops = {
