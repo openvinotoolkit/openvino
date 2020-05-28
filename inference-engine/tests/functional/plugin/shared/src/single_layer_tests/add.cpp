@@ -61,7 +61,7 @@ void AddLayerTest::SetUp() {
     }
 
     std::shared_ptr<ngraph::Node> secondary_input;
-    switch(secondaryInputType) {
+    switch (secondaryInputType) {
     case SecondaryInputType::CONSTANT:
         secondary_input = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, std::vector<float>{-1.0f});
         break;
