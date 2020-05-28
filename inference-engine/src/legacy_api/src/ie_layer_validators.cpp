@@ -1776,7 +1776,7 @@ void BucketizeValidator::parseParams(CNNLayer* layer) {
         THROW_IE_EXCEPTION << layer->name << " Layer is not instance of Bucketize class";
     }
 
-    casted->with_right_bound = casted->GetParamAsBool("with_right_bound");
+    casted->with_right_bound = casted->GetParamAsBool("with_right_bound", true);
 }
 
 void BucketizeValidator::checkParams(const CNNLayer* layer) {
@@ -3105,19 +3105,20 @@ void ScatterUpdateValidator::checkShapes(const CNNLayer* layer, const vector<Siz
     if (inShapes[UPDATES].size() < 1)
         THROW_IE_EXCEPTION << layer->name << " 'Updates' tensor rank must be >= 1";
 
-    if (!(inShapes[AXIS].size() == 1 && inShapes[AXIS][0] == 1))
-        THROW_IE_EXCEPTION << layer->name << " 'Axis' tensor must be 1D array of 1 element";
+    if (!(inShapes[AXIS].size() == 0 ||
+         (inShapes[AXIS].size() == 1 && inShapes[AXIS][0] == 1)))
+        THROW_IE_EXCEPTION << layer->name << " 'Axis' tensor must be scalar, or 1D array of 1 element";
 
     if (inShapes[UPDATES].size() != inShapes[INDICES].size() + inShapes[DATA].size() - 1)
         THROW_IE_EXCEPTION << layer->name << " Incorrect number of 'indexes' and 'updates' tensors dimension";
 
     Precision inIdxPrecision = layer->insData[INDICES].lock()->getTensorDesc().getPrecision();
-    if (inIdxPrecision != Precision::FP32 && inIdxPrecision != Precision::I32)
-        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Indices' precision. Only FP32 or I32 are supported!";
+    if (inIdxPrecision != Precision::I32 && inIdxPrecision != Precision::I64)
+        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Indices' precision. Only I32 or I64 are supported!";
 
     Precision inAxisPrecision = layer->insData[AXIS].lock()->getTensorDesc().getPrecision();
-    if (inAxisPrecision != Precision::FP32 && inAxisPrecision != Precision::I32)
-        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Axis' precision. Only FP32 or I32 are supported!";
+    if (inAxisPrecision != Precision::I32 && inAxisPrecision != Precision::I64)
+        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Axis' precision. Only I32 or I64 are supported!";
 
     if (layer->insData[DATA].lock()->getTensorDesc().getPrecision() !=
         layer->insData[UPDATES].lock()->getTensorDesc().getPrecision())
@@ -3157,8 +3158,9 @@ void ScatterElementsUpdateValidator::checkShapes(const CNNLayer* layer, const ve
     if (inShapes[UPDATES].size() < 1)
         THROW_IE_EXCEPTION << layer->name << " 'Updates' tensor rank must be >= 1";
 
-    if (!(inShapes[AXIS].size() == 1 && inShapes[AXIS][0] == 1))
-        THROW_IE_EXCEPTION << layer->name << " 'Axis' tensor must be 1D array of 1 element";
+    if (!(inShapes[AXIS].size() == 0 ||
+         (inShapes[AXIS].size() == 1 && inShapes[AXIS][0] == 1)))
+        THROW_IE_EXCEPTION << layer->name << " 'Axis' tensor must be scalar, or 1D array of 1 element";
 
     if (inShapes[INDICES].size() != inShapes[DATA].size())
         THROW_IE_EXCEPTION << layer->name << " Incorrect number of 'indexes' tensors dimension";
@@ -3167,12 +3169,12 @@ void ScatterElementsUpdateValidator::checkShapes(const CNNLayer* layer, const ve
         THROW_IE_EXCEPTION << layer->name << " Incorrect number of 'updates' tensors dimension";
 
     Precision inIdxPrecision = layer->insData[INDICES].lock()->getTensorDesc().getPrecision();
-    if (inIdxPrecision != Precision::FP32 && inIdxPrecision != Precision::I32 && inIdxPrecision != Precision::I64)
-        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Indices' precision. Only FP32 or I32 or I64 are supported!";
+    if (inIdxPrecision != Precision::I32 && inIdxPrecision != Precision::I64)
+        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Indices' precision. Only I32 or I64 are supported!";
 
     Precision inAxisPrecision = layer->insData[AXIS].lock()->getTensorDesc().getPrecision();
-    if (inAxisPrecision != Precision::FP32 && inAxisPrecision != Precision::I32 && inIdxPrecision != Precision::I64)
-        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Axis' precision. Only FP32 or I32 or I64 are supported!";
+    if (inAxisPrecision != Precision::I32 && inIdxPrecision != Precision::I64)
+        THROW_IE_EXCEPTION << layer->name << " Incorrect input 'Axis' precision. Only I32 or I64 are supported!";
 
     if (layer->insData[DATA].lock()->getTensorDesc().getPrecision() !=
         layer->insData[UPDATES].lock()->getTensorDesc().getPrecision())

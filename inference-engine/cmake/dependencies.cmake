@@ -23,7 +23,7 @@ endif()
 
 
 if (ENABLE_DATA)
-    add_models_repo(${ENABLE_DATA} "data:git@github.com:openvinotoolkit/testdata.git")
+    add_models_repo(${ENABLE_DATA} "data:https://github.com/openvinotoolkit/testdata.git")
     set(MODELS_PATH "${TEMP}/models/src/data")
     set(DATA_PATH "${MODELS_PATH}")
 endif()
@@ -46,21 +46,33 @@ endif()
 ## enable cblas_gemm from OpenBLAS package
 if (ENABLE_MKL_DNN AND GEMM STREQUAL "OPENBLAS")
     if(AARCH64)
-        reset_deps_cache(OpenBLAS_DIR)
+        if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+            set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+        elseif(DEFINED THIRDPARTY_SERVER_PATH)
+            set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+        else()
+            message(WARNING "OpenBLAS is not found!")
+        endif()
 
-        RESOLVE_DEPENDENCY(OpenBLAS
-                ARCHIVE_LIN "keembay/openblas_0.3.7_yocto_kmb.tar.xz"
-                TARGET_PATH "${TEMP}/openblas_0.3.7_yocto_kmb"
-                ENVIRONMENT "OpenBLAS_DIR")
+        if(DEFINED IE_PATH_TO_DEPS)
+            reset_deps_cache(OpenBLAS_DIR)
 
-        update_deps_cache(OpenBLAS_DIR "${OpenBLAS}/lib/cmake/openblas" "Path to OpenBLAS package folder")
+            RESOLVE_DEPENDENCY(OpenBLAS
+                    ARCHIVE_LIN "keembay/openblas_0.3.7_yocto_kmb.tar.xz"
+                    TARGET_PATH "${TEMP}/openblas_0.3.7_yocto_kmb"
+                    ENVIRONMENT "OpenBLAS_DIR")
 
-        find_package(OpenBLAS QUIET)
+            update_deps_cache(OpenBLAS_DIR "${OpenBLAS}/lib/cmake/openblas" "Path to OpenBLAS package folder")
 
-        if(OpenBLAS_FOUND)
-            set(BLAS_FOUND TRUE)
-            set(BLAS_INCLUDE_DIRS ${OpenBLAS_INCLUDE_DIRS})
-            set(BLAS_LIBRARIES ${OpenBLAS_LIBRARIES})
+            find_package(OpenBLAS QUIET)
+
+            if(OpenBLAS_FOUND)
+                set(BLAS_FOUND TRUE)
+                set(BLAS_INCLUDE_DIRS ${OpenBLAS_INCLUDE_DIRS})
+                set(BLAS_LIBRARIES ${OpenBLAS_LIBRARIES})
+            endif()
+
+            unset(IE_PATH_TO_DEPS)
         endif()
     endif()
 

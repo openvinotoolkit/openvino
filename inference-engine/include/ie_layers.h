@@ -1774,7 +1774,7 @@ public:
     /**
      * @brief Indicates whether the intervals include the right or the left bucket edge.
      */
-    bool with_right_bound = false;
+    bool with_right_bound = true;
 
     /**
     * @brief Creates a new BucketizeLayer instance.
