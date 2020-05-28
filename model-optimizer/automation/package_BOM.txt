@@ -436,7 +436,6 @@ extensions/front/tf/sparse_segment_sum_ext.py
 extensions/front/tf/sparse_to_dense_ext.py
 extensions/front/tf/sparse_weighted_sum.py
 extensions/front/tf/split_ext.py
-extensions/front/tf/SplitConcatPairToInterpolate.py
 extensions/front/tf/ssd_support.json
 extensions/front/tf/ssd_support_api_v1.14.json
 extensions/front/tf/ssd_support_api_v1.15.json
@@ -568,6 +567,7 @@ extensions/middle/SliceConverter.py
 extensions/middle/SliceLikeToStridedSlice.py
 extensions/middle/space_to_depth.py
 extensions/middle/sparse_reshape.py
+extensions/middle/SplitConcatPairToInterpolate.py
 extensions/middle/ssd_anchors_to_const.py
 extensions/middle/SwapAxesMiddleReplacer.py
 extensions/middle/TensorIterator_utils.py
