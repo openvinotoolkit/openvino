@@ -44,7 +44,6 @@
 #include <transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
 #include <transformations/pull_transpose_through_fq.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_strided_slice_to_strided_slice_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
