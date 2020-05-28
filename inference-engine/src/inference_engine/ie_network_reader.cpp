@@ -97,7 +97,7 @@ namespace {
 std::multimap<std::string, Reader::Ptr> readers;
 
 void registerReaders() {
-    IE_PROFILING_AUTO_SCOPE(details::refisterReaders)
+    IE_PROFILING_AUTO_SCOPE(details::registerReaders)
     static bool initialized = false;
     static std::mutex readerMutex;
     std::lock_guard<std::mutex> lock(readerMutex);
