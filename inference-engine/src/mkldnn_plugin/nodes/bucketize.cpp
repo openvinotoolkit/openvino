@@ -29,25 +29,40 @@ public:
             // check one attribute
             with_right = layer->GetParamAsBool("with_right_bound");
 
-            // check precisions for input tensors
-            Precision input_tensor_precision = layer->insData[INPUT_TENSOR_PORT].lock()->getTensorDesc().getPrecision();
-            if (input_tensor_precision != Precision::FP32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision of the input. Only FP32 is supported!";
+            auto input = layer->insData[INPUT_TENSOR_PORT].lock();
+            if (!input) {
+                THROW_IE_EXCEPTION << "Missing input for " << layer->name << " layer";
             }
-            if (with_bins) {
-                Precision input_bins_precision = layer->insData[INPUT_BINS_PORT].lock()->getTensorDesc().getPrecision();
-                if (input_bins_precision != Precision::FP32) {
-                    THROW_IE_EXCEPTION << layer->name
-                                       << " Incorrect input precision of the boundaries tensor. Only FP32 is supported!";
-                }
+            auto boundaries = layer->insData[INPUT_BINS_PORT].lock();
+            if (!boundaries) {
+                THROW_IE_EXCEPTION << "Missing boundaries input for " << layer->name << " layer";
+            }
+
+            // check precisions for input and output tensors
+            input_precision = input->getTensorDesc().getPrecision();
+            if (input_precision != Precision::FP32 && input_precision != Precision::I32 &&
+                input_precision != Precision::I64) {
+                THROW_IE_EXCEPTION << layer->name
+                    << " Incorrect input precision of the input. Only FP32, I32 and I64 are supported!";
+            }
+            boundaries_precision = boundaries->getTensorDesc().getPrecision();
+            if (boundaries_precision != Precision::FP32 && boundaries_precision != Precision::I32 &&
+                boundaries_precision != Precision::I64) {
+                THROW_IE_EXCEPTION << layer->name
+                    << " Incorrect input precision of the boundaries tensor. Only FP32, I32 and I64 are supported!";
+            }
+            output_precision = layer->outData[OUTPUT_TENSOR_PORT]->getTensorDesc().getPrecision();
+            if (output_precision != Precision::I32 && output_precision != Precision::I64) {
+                THROW_IE_EXCEPTION << layer->name
+                    << " Incorrect precision of the output tensor. Only I32 and I64 are supported!";
             }
 
             // check dimensions of input tensors
-            SizeVector input_tensor_dims = layer->insData[INPUT_TENSOR_PORT].lock()->getTensorDesc().getDims();
+            SizeVector input_tensor_dims = input->getTensorDesc().getDims();
             if (input_tensor_dims.size() < 1) {
                 THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions of the input.";
             }
-            SizeVector input_bin_dims = layer->insData[INPUT_BINS_PORT].lock()->getTensorDesc().getDims();
+            SizeVector input_bin_dims = boundaries->getTensorDesc().getDims();
             if (input_bin_dims.size() != 1) {
                 THROW_IE_EXCEPTION << layer->name << " Incorrect dimensions of the boundaries tensor.";
             }
@@ -56,12 +71,8 @@ public:
             }
             num_bin_values = input_bin_dims[0];
 
-            num_values = 1;
-            for (size_t ind = 0; ind < input_tensor_dims.size(); ind++) {
-                num_values *= input_tensor_dims[ind];
-            }
+            num_values = std::accumulate(input_tensor_dims.begin(), input_tensor_dims.end(), 1, std::multiplies<size_t>());
 
-            // TODO: check that dense shape value is set
             addConfig(layer,
             { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
             { DataConfigurator(ConfLayout::PLN) });
@@ -72,46 +83,131 @@ public:
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
-        const float *input_tensor_ptr = inputs[INPUT_TENSOR_PORT]->cbuffer().as<const float *>() +
-            inputs[INPUT_TENSOR_PORT]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        const float *input_bins_ptr = nullptr;
-        if (with_bins) {
-            input_bins_ptr = inputs[INPUT_BINS_PORT]->cbuffer().as<const float *>() +
-                inputs[INPUT_BINS_PORT]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        }
-        int *output_tensor_ptr = outputs[OUTPUT_TENSOR_PORT]->cbuffer().as<int *>() +
-            inputs[OUTPUT_TENSOR_PORT]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        auto precision_mask = getPrecisionMask(input_precision, boundaries_precision, output_precision);
 
-        if (with_bins == false) {
-            for (size_t ind = 0; ind < num_values; ind++) {
-                output_tensor_ptr[ind] = 0;
-            }
-            return OK;
-        }
-
-        for (size_t ind = 0; ind < num_values; ind++) {
-            float value = input_tensor_ptr[ind];
-
-            // find a bin to which value belongs
-            output_tensor_ptr[ind] = -1;
-            for (size_t bin_ind = 0; bin_ind < num_bin_values; bin_ind++) {
-                if (with_right && value <= input_bins_ptr[bin_ind]) {
-                    output_tensor_ptr[ind] = static_cast<int>(bin_ind);
-                    break;
-                } else if (!with_right && value < input_bins_ptr[bin_ind]) {
-                    output_tensor_ptr[ind] = static_cast<int>(bin_ind);
-                    break;
-                }
-            }
-            if (output_tensor_ptr[ind] == -1) {
-                output_tensor_ptr[ind] = static_cast<int>(num_bin_values);
-            }
+        switch (precision_mask) {
+        case getPrecisionMask(Precision::FP32, Precision::FP32, Precision::I32):
+            bucketize<PrecisionTrait<Precision::FP32>::value_type,
+                PrecisionTrait<Precision::FP32>::value_type,
+                PrecisionTrait<Precision::I32>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::FP32, Precision::FP32, Precision::I64):
+            bucketize<PrecisionTrait<Precision::FP32>::value_type,
+                PrecisionTrait<Precision::FP32>::value_type,
+                PrecisionTrait<Precision::I64>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::FP32, Precision::I32, Precision::I32):
+            bucketize<PrecisionTrait<Precision::FP32>::value_type,
+                PrecisionTrait<Precision::I32>::value_type,
+                PrecisionTrait<Precision::I32>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::FP32, Precision::I32, Precision::I64):
+            bucketize<PrecisionTrait<Precision::FP32>::value_type,
+                PrecisionTrait<Precision::I32>::value_type,
+                PrecisionTrait<Precision::I64>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::FP32, Precision::I64, Precision::I32):
+            bucketize<PrecisionTrait<Precision::FP32>::value_type,
+                PrecisionTrait<Precision::I64>::value_type,
+                PrecisionTrait<Precision::I32>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::FP32, Precision::I64, Precision::I64):
+            bucketize<PrecisionTrait<Precision::FP32>::value_type,
+                PrecisionTrait<Precision::I64>::value_type,
+                PrecisionTrait<Precision::I64>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::I32, Precision::FP32, Precision::I32):
+            bucketize<PrecisionTrait<Precision::I32>::value_type,
+                PrecisionTrait<Precision::FP32>::value_type,
+                PrecisionTrait<Precision::I32>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::I32, Precision::FP32, Precision::I64):
+            bucketize<PrecisionTrait<Precision::I32>::value_type,
+                PrecisionTrait<Precision::FP32>::value_type,
+                PrecisionTrait<Precision::I64>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::I32, Precision::I32, Precision::I32):
+            bucketize<PrecisionTrait<Precision::I32>::value_type,
+                PrecisionTrait<Precision::I32>::value_type,
+                PrecisionTrait<Precision::I32>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::I32, Precision::I32, Precision::I64):
+            bucketize<PrecisionTrait<Precision::I32>::value_type,
+                PrecisionTrait<Precision::I32>::value_type,
+                PrecisionTrait<Precision::I64>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::I32, Precision::I64, Precision::I32):
+            bucketize<PrecisionTrait<Precision::I32>::value_type,
+                PrecisionTrait<Precision::I64>::value_type,
+                PrecisionTrait<Precision::I32>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::I32, Precision::I64, Precision::I64):
+            bucketize<PrecisionTrait<Precision::I32>::value_type,
+                PrecisionTrait<Precision::I64>::value_type,
+                PrecisionTrait<Precision::I64>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::I64, Precision::FP32, Precision::I32):
+            bucketize<PrecisionTrait<Precision::I64>::value_type,
+                PrecisionTrait<Precision::FP32>::value_type,
+                PrecisionTrait<Precision::I32>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::I64, Precision::FP32, Precision::I64):
+            bucketize<PrecisionTrait<Precision::I64>::value_type,
+                PrecisionTrait<Precision::FP32>::value_type,
+                PrecisionTrait<Precision::I64>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::I64, Precision::I32, Precision::I32):
+            bucketize<PrecisionTrait<Precision::I64>::value_type,
+                PrecisionTrait<Precision::I32>::value_type,
+                PrecisionTrait<Precision::I32>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::I64, Precision::I32, Precision::I64):
+            bucketize<PrecisionTrait<Precision::I64>::value_type,
+                PrecisionTrait<Precision::I32>::value_type,
+                PrecisionTrait<Precision::I64>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::I64, Precision::I64, Precision::I32):
+            bucketize<PrecisionTrait<Precision::I64>::value_type,
+                PrecisionTrait<Precision::I64>::value_type,
+                PrecisionTrait<Precision::I32>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        case getPrecisionMask(Precision::I64, Precision::I64, Precision::I64):
+            bucketize<PrecisionTrait<Precision::I64>::value_type,
+                PrecisionTrait<Precision::I64>::value_type,
+                PrecisionTrait<Precision::I64>::value_type>(inputs[0], inputs[1], outputs[0]);
+            break;
+        default:
+            return GENERAL_ERROR;
         }
 
         return OK;
     }
 
 private:
+    template <typename T, typename T_BOUNDARIES, typename T_IND>
+    void bucketize(Blob::Ptr input, Blob::Ptr boundaries, Blob::Ptr output) {
+        const auto *input_data = input->cbuffer().as<const T *>();
+        const auto *boundaries_data = boundaries->cbuffer().as<const T_BOUNDARIES *>();
+        auto *output_data = output->buffer().as<T_IND *>();
+
+        if (with_bins == false) {
+            memset(output_data, 0, num_values * sizeof(T_IND));
+            return;
+        }
+
+        // boundaries are assumed to be sorted and to have unique elements
+        parallel_for(num_values, [&](size_t ind) {
+            T value = input_data[ind];
+            if (with_right) {
+                auto low = std::lower_bound(boundaries_data, boundaries_data + num_bin_values, value);
+                output_data[ind] = static_cast<T_IND>(low - boundaries_data);
+            } else {
+                auto up = std::upper_bound(boundaries_data, boundaries_data + num_bin_values, value);
+                output_data[ind] = static_cast<T_IND>(up - boundaries_data);
+            }
+        });
+    }
+
     const size_t INPUT_TENSOR_PORT = 0;
     const size_t INPUT_BINS_PORT = 1;
     const size_t OUTPUT_TENSOR_PORT = 0;
@@ -120,6 +216,10 @@ private:
     size_t num_bin_values = 0;
     bool with_right = false;
     bool with_bins = false;
+
+    Precision input_precision;
+    Precision boundaries_precision;
+    Precision output_precision;
 };
 
 REG_FACTORY_FOR(BucketizeImpl, Bucketize);
