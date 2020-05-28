@@ -936,6 +936,7 @@ mo/utils/ir_engine/ir_engine.py
 mo/utils/ir_reader/__init__.py
 mo/utils/ir_reader/extender.py
 mo/utils/ir_reader/extenders/binary_convolution_extender.py
+mo/utils/ir_reader/extenders/bucketize_extender.py
 mo/utils/ir_reader/extenders/conv_extender.py
 mo/utils/ir_reader/extenders/convert_extender.py
 mo/utils/ir_reader/extenders/deconvolution_extender.py

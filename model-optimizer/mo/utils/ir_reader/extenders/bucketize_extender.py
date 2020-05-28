@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,19 +13,16 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 
-import numpy as np
-
-from extensions.ops.bucketize import Bucketize
-from mo.front.extractor import FrontExtractorOp
+from mo.utils.graph import Node
+from mo.utils.ir_reader.extender import Extender
 
 
-class BucketizeFrontExtractor(FrontExtractorOp):
+class BucketizeExtender(Extender):
     op = 'Bucketize'
-    enabled = True
 
-    @classmethod
-    def extract(cls, node):
-        boundaries = np.array(node.pb.attr['boundaries'].list.f, dtype=np.float)
-        Bucketize.update_node_stat(node, {'boundaries': boundaries, 'with_right_bound': False, 'output_type': np.int32})
-        return cls.enabled
+    @staticmethod
+    def extend(op: Node):
+        if op.get_opset() != "extension":
+            op['output_type'] = destination_type_to_np_data_type(op.output_type)
