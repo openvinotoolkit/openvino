@@ -139,18 +139,22 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                           "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
                           max_boxes_ps);
 
-    const auto iou_threshold_ps = get_input_partial_shape(3);
-    NODE_VALIDATION_CHECK(this,
-                          iou_threshold_ps.is_dynamic() || is_scalar(iou_threshold_ps.to_shape()),
-                          "Expected a scalar for the 'iou_threshold' input. Got: ",
-                          iou_threshold_ps);
+    if (get_inputs().size() >= 4) {
+        const auto iou_threshold_ps = get_input_partial_shape(3);
+        NODE_VALIDATION_CHECK(this,
+                              iou_threshold_ps.is_dynamic() || is_scalar(iou_threshold_ps.to_shape()),
+                              "Expected a scalar for the 'iou_threshold' input. Got: ",
+                              iou_threshold_ps);
+    }
 
-    const auto score_threshold_ps = get_input_partial_shape(4);
-    NODE_VALIDATION_CHECK(this,
-                          score_threshold_ps.is_dynamic() ||
-                              is_scalar(score_threshold_ps.to_shape()),
-                          "Expected a scalar for the 'score_threshold' input. Got: ",
-                          score_threshold_ps);
+    if (get_inputs().size() >= 5) {
+        const auto score_threshold_ps = get_input_partial_shape(4);
+        NODE_VALIDATION_CHECK(this,
+                              score_threshold_ps.is_dynamic() ||
+                                  is_scalar(score_threshold_ps.to_shape()),
+                              "Expected a scalar for the 'score_threshold' input. Got: ",
+                              score_threshold_ps);
+    }
 
     const auto num_batches_boxes = boxes_ps[0];
     const auto num_batches_scores = scores_ps[0];
@@ -349,18 +353,22 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
                           "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
                           max_boxes_ps);
 
-    const auto iou_threshold_ps = get_input_partial_shape(3);
-    NODE_VALIDATION_CHECK(this,
-                          iou_threshold_ps.is_dynamic() || is_scalar(iou_threshold_ps.to_shape()),
-                          "Expected a scalar for the 'iou_threshold' input. Got: ",
-                          iou_threshold_ps);
+    if (get_inputs().size() >= 4) {
+        const auto iou_threshold_ps = get_input_partial_shape(3);
+        NODE_VALIDATION_CHECK(this,
+                              iou_threshold_ps.is_dynamic() || is_scalar(iou_threshold_ps.to_shape()),
+                              "Expected a scalar for the 'iou_threshold' input. Got: ",
+                              iou_threshold_ps);
+    }
 
-    const auto score_threshold_ps = get_input_partial_shape(4);
-    NODE_VALIDATION_CHECK(this,
-                          score_threshold_ps.is_dynamic() ||
-                              is_scalar(score_threshold_ps.to_shape()),
-                          "Expected a scalar for the 'score_threshold' input. Got: ",
-                          score_threshold_ps);
+    if (get_inputs().size() >= 5) {
+        const auto score_threshold_ps = get_input_partial_shape(4);
+        NODE_VALIDATION_CHECK(this,
+                              score_threshold_ps.is_dynamic() ||
+                                  is_scalar(score_threshold_ps.to_shape()),
+                              "Expected a scalar for the 'score_threshold' input. Got: ",
+                              score_threshold_ps);
+    }
 
     const auto num_batches_boxes = boxes_ps[0];
     const auto num_batches_scores = scores_ps[0];
