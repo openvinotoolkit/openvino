@@ -4086,10 +4086,10 @@ struct permute_params {
 #define CASE_PERMUTE_S8_1 {1, 15, 4, 5}, {5, 4, 15, 1}, {3, 2, 1, 0}, tensor{0}, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_PERMUTE_S8_2 {1, 16, 1, 2}, {1, 1, 16, 2}, {2, 0, 1, 3}, tensor{0}, data_types::i8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 #define CASE_PERMUTE_S8_3 {1, 16, 2, 2}, {2, 2, 16, 1}, {2, 3, 1, 0}, tensor{0}, data_types::i8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
-#define CASE_PERMUTE_u8_0 {1, 15, 4, 5}, {15, 5, 1, 4}, {1, 3, 0, 2}, tensor{0}, data_types::u8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_PERMUTE_u8_1 {1, 15, 16, 16}, {15, 16, 1, 16}, {1, 2, 0, 3}, tensor{0}, data_types::u8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_PERMUTE_u8_2 {1, 32, 5, 4}, {1, 32, 5, 4}, {0, 1, 2, 3}, tensor{0}, data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
-#define CASE_PERMUTE_u8_3 {1, 16, 4, 5}, {5, 4, 16, 1}, {3, 2, 1, 0}, tensor{0}, data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_PERMUTE_U8_0 {1, 15, 4, 5}, {15, 5, 1, 4}, {1, 3, 0, 2}, tensor{0}, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_PERMUTE_U8_1 {1, 15, 16, 16}, {15, 16, 1, 16}, {1, 2, 0, 3}, tensor{0}, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_PERMUTE_U8_2 {1, 32, 5, 4}, {1, 32, 5, 4}, {0, 1, 2, 3}, tensor{0}, data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_PERMUTE_U8_3 {1, 16, 4, 5}, {5, 4, 16, 1}, {3, 2, 1, 0}, tensor{0}, data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
 
 // 3d
 #define CASE_PERMUTE_F32_3D_0 {1, 15, 4, 4, 5}, {1, 15, 4, 4, 5}, {0, 1, 2, 3, 4}, tensor{0}, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
@@ -4108,10 +4108,10 @@ struct permute_params {
 #define CASE_PERMUTE_S8_3D_1 {2, 15, 4, 3, 4}, {4, 4, 15, 2, 3}, {4, 2, 1, 0, 3}, tensor{0}, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_PERMUTE_S8_3D_2 {2, 16, 4, 4, 3}, {2, 4, 3, 16, 4}, {0, 3, 4, 1, 2}, tensor{0}, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_PERMUTE_S8_3D_3 {1, 32, 4, 2, 1}, {2, 32, 4, 1, 1}, {3, 1, 2, 4, 0}, tensor{0}, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_PERMUTE_u8_3D_0 {16, 16, 1, 1, 1}, {1, 1, 16, 16, 1}, {2, 4, 0, 1, 3}, tensor{0}, data_types::u8, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_PERMUTE_u8_3D_1 {16, 16, 1, 1, 1}, {1, 1, 1, 16, 16}, {4, 3, 2, 1, 0}, tensor{0}, data_types::u8, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_PERMUTE_u8_3D_2 {2, 16, 4, 4, 3}, {4, 2, 4, 3, 16}, {3, 0, 2, 4, 1}, tensor{0}, data_types::u8, format::bfzyx, data_types::f32, format::bfzyx
-#define CASE_PERMUTE_u8_3D_3 {1, 32, 4, 2, 1}, {1, 2, 32, 1, 4}, {4, 3, 1, 0, 2}, tensor{0}, data_types::u8, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_PERMUTE_U8_3D_0 {16, 16, 1, 1, 1}, {1, 1, 16, 16, 1}, {2, 4, 0, 1, 3}, tensor{0}, data_types::u8, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_PERMUTE_U8_3D_1 {16, 16, 1, 1, 1}, {1, 1, 1, 16, 16}, {4, 3, 2, 1, 0}, tensor{0}, data_types::u8, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_PERMUTE_U8_3D_2 {2, 16, 4, 4, 3}, {4, 2, 4, 3, 16}, {3, 0, 2, 4, 1}, tensor{0}, data_types::u8, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_PERMUTE_U8_3D_3 {1, 32, 4, 2, 1}, {1, 2, 32, 1, 4}, {4, 3, 1, 0, 2}, tensor{0}, data_types::u8, format::bfzyx, data_types::f32, format::bfzyx
 
 class PermuteFusingTest : public ::BaseFusingTest<permute_params> {
 public:
@@ -4178,10 +4178,10 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_activation_scale_eltwise,
                             permute_params{CASE_PERMUTE_S8_2, 2, 5},
                             permute_params{CASE_PERMUTE_S8_3, 2, 5},
                                                                  
-                            permute_params{CASE_PERMUTE_u8_0, 2, 5},
-                            permute_params{CASE_PERMUTE_u8_1, 2, 5},
-                            permute_params{CASE_PERMUTE_u8_2, 2, 5},
-                            permute_params{CASE_PERMUTE_u8_3, 2, 5},
+                            permute_params{CASE_PERMUTE_U8_0, 2, 5},
+                            permute_params{CASE_PERMUTE_U8_1, 2, 5},
+                            permute_params{CASE_PERMUTE_U8_2, 2, 5},
+                            permute_params{CASE_PERMUTE_U8_3, 2, 5},
                             
                             permute_params{CASE_PERMUTE_F32_3D_0, 2, 5},
                             permute_params{CASE_PERMUTE_F32_3D_1, 2, 5},
@@ -4200,10 +4200,10 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_activation_scale_eltwise,
                             permute_params{CASE_PERMUTE_S8_3D_2, 2, 5},
                             permute_params{CASE_PERMUTE_S8_3D_3, 2, 5},
                                                                  
-                            permute_params{CASE_PERMUTE_u8_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_u8_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_u8_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_u8_3D_3, 2, 5},
+                            permute_params{CASE_PERMUTE_U8_3D_0, 2, 5},
+                            permute_params{CASE_PERMUTE_U8_3D_1, 2, 5},
+                            permute_params{CASE_PERMUTE_U8_3D_2, 2, 5},
+                            permute_params{CASE_PERMUTE_U8_3D_3, 2, 5},
                         }), );
 
 class permute_quant_f32_eltwise_quant_i8: public PermuteFusingTest {};
@@ -4378,10 +4378,10 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv,
                             permute_params{CASE_PERMUTE_S8_2, 2, 7},
                             permute_params{CASE_PERMUTE_S8_3, 2, 7},
                                                                  
-                            permute_params{CASE_PERMUTE_u8_0, 2, 7},
-                            permute_params{CASE_PERMUTE_u8_1, 2, 7},
-                            permute_params{CASE_PERMUTE_u8_2, 2, 7},
-                            permute_params{CASE_PERMUTE_u8_3, 2, 7},
+                            permute_params{CASE_PERMUTE_U8_0, 2, 7},
+                            permute_params{CASE_PERMUTE_U8_1, 2, 7},
+                            permute_params{CASE_PERMUTE_U8_2, 2, 7},
+                            permute_params{CASE_PERMUTE_U8_3, 2, 7},
                             
                             permute_params{CASE_PERMUTE_F32_3D_0, 2, 7},
                             permute_params{CASE_PERMUTE_F32_3D_1, 2, 7},
@@ -4400,8 +4400,8 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv,
                             permute_params{CASE_PERMUTE_S8_3D_2, 2, 7},
                             permute_params{CASE_PERMUTE_S8_3D_3, 2, 7},
                                                                     
-                            permute_params{CASE_PERMUTE_u8_3D_0, 2, 7},
-                            permute_params{CASE_PERMUTE_u8_3D_1, 2, 7},
-                            permute_params{CASE_PERMUTE_u8_3D_2, 2, 7},
-                            permute_params{CASE_PERMUTE_u8_3D_3, 2, 7},
+                            permute_params{CASE_PERMUTE_U8_3D_0, 2, 7},
+                            permute_params{CASE_PERMUTE_U8_3D_1, 2, 7},
+                            permute_params{CASE_PERMUTE_U8_3D_2, 2, 7},
+                            permute_params{CASE_PERMUTE_U8_3D_3, 2, 7},
                         }), );
