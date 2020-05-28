@@ -46,10 +46,10 @@ void AddLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     configuration.insert(additional_config.begin(), additional_config.end());
-    auto input = ngraph::builder::makeParams(ngPrc, {inputShapes[0]}); 
+    auto input = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
 
     std::vector<size_t> shape_input_secondary;
-    switch(additionType) {
+    switch (additionType) {
     case AdditionType::SCALAR:
         shape_input_secondary = std::vector<size_t>({1});
         break;
@@ -57,7 +57,7 @@ void AddLayerTest::SetUp() {
         shape_input_secondary = inputShapes[0];
         break;
     default:
-        FAIL() << "Unsupported AdditionType: " << AdditionType_to_string(additionType); 
+        FAIL() << "Unsupported AdditionType: " << AdditionType_to_string(additionType);
     }
 
     std::shared_ptr<ngraph::Node> secondary_input;

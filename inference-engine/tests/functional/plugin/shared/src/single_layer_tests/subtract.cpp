@@ -46,10 +46,10 @@ void SubtractLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     configuration.insert(additional_config.begin(), additional_config.end());
-    auto input = ngraph::builder::makeParams(ngPrc, {inputShapes[0]}); 
+    auto input = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
 
     std::vector<size_t> shape_input_secondary;
-    switch(subtractionType) {
+    switch (subtractionType) {
     case SubtractionType::SCALAR:
         shape_input_secondary = std::vector<size_t>({1});
         break;
@@ -57,11 +57,11 @@ void SubtractLayerTest::SetUp() {
         shape_input_secondary = inputShapes[0];
         break;
     default:
-        FAIL() << "Unsupported SubtractionType: " << SubtractionType_to_string(subtractionType); 
+        FAIL() << "Unsupported SubtractionType: " << SubtractionType_to_string(subtractionType);
     }
 
     std::shared_ptr<ngraph::Node> secondary_input;
-    switch(secondaryInputType) {
+    switch (secondaryInputType) {
     case SecondaryInputType::CONSTANT:
         secondary_input = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, std::vector<float>{-1.0f});
         break;

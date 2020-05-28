@@ -53,7 +53,7 @@ void MultiplyLayerTest::SetUp() {
     auto input = ngraph::builder::makeParams(ngPrc, {shape_input});
 
     std::vector<size_t> shape_input_secondary;
-    switch(multiplicationType) {
+    switch (multiplicationType) {
     case MultiplicationType::SCALAR:
         shape_input_secondary = std::vector<size_t>({1});
         break;
@@ -61,11 +61,11 @@ void MultiplyLayerTest::SetUp() {
         shape_input_secondary = std::vector<size_t>(1, input_dim);
         break;
     default:
-        FAIL() << "Unsupported MultiplicationType: " << MultiplicationType_to_string(multiplicationType); 
+        FAIL() << "Unsupported MultiplicationType: " << MultiplicationType_to_string(multiplicationType);
     }
 
     std::shared_ptr<ngraph::Node> secondary_input;
-    switch(secondaryInputType) {
+    switch (secondaryInputType) {
     case SecondaryInputType::CONSTANT:
         secondary_input = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, std::vector<float>{-1.0f});
         break;
