@@ -243,6 +243,10 @@ bool checkExecutionOrder(const Model& model, const std::vector<int>& execOrder) 
     auto it = execOrder.begin();
 
     for (const auto& stage : model->getStages()) {
+        if (it == execOrder.end()) {
+            return true;
+        }
+
         if (stage->id() == *it) {
             ++it;
         }
