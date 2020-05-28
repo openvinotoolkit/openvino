@@ -151,15 +151,17 @@ __attribute__((intel_reqd_sub_group_size(16))) KERNEL(pooling_gpu_bs_fs_yx_bsv16
     }
 #endif  // AVG_POOLING
     OUT_VEC16 final_result = (OUTPUT_TYPE)(0);
-#if HAS_FUSED_OPS
-    //FUSED_OPS_LOAD_PER_SCALE
+#if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
     FUSED_OPS_PRELOAD
 #endif
     __attribute__((opencl_unroll_hint(16)))
     for (uint i = 0; i < 16; ++i) {
 #if HAS_FUSED_OPS
-        
-        FUSED_OPS;
+#if FUSED_OPS_CAN_USE_PRELOAD
+        FUSED_OPS_CALC
+#else
+        FUSED_OPS
+#endif
         final_result[i] = FUSED_OPS_RESULT;
 #else
         final_result[i] = pool_result[i];
