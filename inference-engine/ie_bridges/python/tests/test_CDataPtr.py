@@ -6,6 +6,7 @@ from conftest import model_path
 
 test_net_xml, test_net_bin = model_path()
 
+
 def test_name(device):
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
