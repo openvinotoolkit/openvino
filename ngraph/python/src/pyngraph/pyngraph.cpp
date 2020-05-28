@@ -31,7 +31,6 @@
 #include "pyngraph/ops/util/regmodule_pyngraph_op_util.hpp"
 #include "pyngraph/partial_shape.hpp"
 #include "pyngraph/passes/regmodule_pyngraph_passes.hpp"
-#include "pyngraph/runtime/regmodule_pyngraph_runtime.hpp"
 #include "pyngraph/serializer.hpp"
 #include "pyngraph/shape.hpp"
 #include "pyngraph/strides.hpp"
@@ -63,7 +62,6 @@ PYBIND11_MODULE(_pyngraph, m)
 #endif
     regmodule_pyngraph_op_util(m_op);
     regmodule_pyngraph_op(m_op);
-    regmodule_pyngraph_runtime(m);
     regmodule_pyngraph_passes(m);
     regmodule_pyngraph_util(m);
 }
