@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -472,7 +472,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                             input_data.get_output_layout().data_type == out_layout.data_type);
 
             should_fuse |= input_data.is_type<permute>() &&
-                            quantize_node.get_scale_shift_opt();
+                           quantize_node.get_scale_shift_opt();
 
             if (!should_fuse)
                 return;

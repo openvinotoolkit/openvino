@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2019 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 #include "include/include_all.cl"
 
 KERNEL (permute_ref)(
-    const __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
 #endif
