@@ -117,16 +117,16 @@ def main():
             log.error("Please try to specify cpu extensions library path in sample's command line parameters using -l "
                       "or --cpu_extension command line argument")
             sys.exit(1)
-    assert len(net.inputs.keys()) == 1, "Sample supports only single input topologies"
+    assert len(net.input_info.keys()) == 1, "Sample supports only single input topologies"
     assert len(net.outputs) == 1, "Sample supports only single output topologies"
 
     log.info("Preparing input blobs")
-    input_blob = next(iter(net.inputs))
+    input_blob = next(iter(net.input_info))
     out_blob = next(iter(net.outputs))
     net.batch_size = len(args.input)
 
     # Read and pre-process input images
-    n, c, h, w = net.inputs[input_blob].shape
+    n, c, h, w = net.input_info[input_blob].input_data.shape
     images = np.ndarray(shape=(n, c, h, w))
     for i in range(n):
         image = cv2.imread(args.input[i])
@@ -143,7 +143,7 @@ def main():
 
     # create one inference request for asynchronous execution
     request_id = 0
-    infer_request = exec_net.requests[request_id];
+    infer_request = exec_net.requests[request_id]
 
     num_iter = 10
     request_wrap = InferReqWrap(infer_request, request_id, num_iter)
