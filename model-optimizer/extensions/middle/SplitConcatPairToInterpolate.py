@@ -54,7 +54,7 @@ def get_concat_after_split(split: Node) -> Optional[Node]:
 
 def get_interpolate_pattern(split: Node) -> dict:
     split_shape = split.in_port(0).data.get_shape()
-    if split_shape is None or len(split_shape) < 4:
+    if split_shape is None or len(split_shape) < 4 or len(split_shape) > 5:
         return {}
     concat = get_concat_after_split(split)
     if concat is None:
