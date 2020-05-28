@@ -42,7 +42,6 @@
 #include "ngraph_ops/scaleshift.hpp"
 #include "ngraph_ops/tile_ie.hpp"
 #include "ngraph_ops/topk_ie.hpp"
-#include "ngraph_ops/strided_slice_ie.hpp"
 #include "ngraph_ops/rnn_cell_ie.hpp"
 #include "ngraph_ops/hard_sigmoid_ie.hpp"
 #include "generic_ie.hpp"
@@ -2114,17 +2113,10 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Sqrt>::createLayer(const std::shared_ptr
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v1::StridedSlice>::createLayer(
         const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "StridedSlice operation has a form that is not supported." << layer->get_friendly_name()
-                       << " should be converted to StridedSliceIE operation";
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::StridedSliceIE>::createLayer(
-        const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "StridedSlice",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::StridedSliceLayer>(params);
-    auto castedLayer = std::dynamic_pointer_cast<ngraph::op::StridedSliceIE>(layer);
+    auto castedLayer = std::dynamic_pointer_cast<ngraph::op::v1::StridedSlice>(layer);
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
     std::string value;
