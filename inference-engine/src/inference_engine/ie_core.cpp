@@ -19,7 +19,8 @@
 #include <mutex>
 
 #include "ie_blob_stream.hpp"
-#include <ie_reader_ptr.hpp>
+#include <ie_reader.hpp>
+#include <details/ie_so_pointer.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include "cpp/ie_cnn_net_reader.h"
 #include "cpp/ie_plugin_cpp.hpp"
@@ -133,14 +134,30 @@ Parameter copyParameterValue(const Parameter & value) {
 
 }  // namespace
 
+namespace details {
+
+/**
+ * @brief This class defines the name of the fabric for creating an IReader object in DLL
+ */
+template <>
+class SOCreatorTrait<IReader> {
+public:
+    /**
+     * @brief A name of the fabric for creating IReader object in DLL
+     */
+    static constexpr auto name = "CreateReader";
+};
+
+}  // namespace details
+
 class Reader: public IReader {
 private:
-    InferenceEngine::IReaderPtr ptr;
+    InferenceEngine::details::SOPointer<IReader> ptr;
     std::once_flag readFlag;
     std::string name;
     std::string location;
 
-    InferenceEngine::IReaderPtr getReaderPtr() {
+    InferenceEngine::details::SOPointer<IReader> getReaderPtr() {
         std::call_once(readFlag, [&] () {
             FileUtils::FilePath libraryName = FileUtils::toFilePath(location);
             FileUtils::FilePath readersLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
@@ -150,13 +167,13 @@ private:
                     << FileUtils::fromFilePath(::FileUtils::makeSharedLibraryName({}, libraryName)) << " is in "
                     << getIELibraryPath();
             }
-            ptr = IReaderPtr(readersLibraryPath);
+            ptr = InferenceEngine::details::SOPointer<IReader>(readersLibraryPath);
         });
 
         return ptr;
     }
 
-    InferenceEngine::IReaderPtr getReaderPtr() const {
+    InferenceEngine::details::SOPointer<IReader> getReaderPtr() const {
         return const_cast<Reader*>(this)->getReaderPtr();
     }
 
