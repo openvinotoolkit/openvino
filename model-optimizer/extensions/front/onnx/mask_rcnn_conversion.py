@@ -16,6 +16,8 @@
 
 import numpy as np
 
+from extensions.front.onnx.softmaxONNX_to_softmax import SoftmaxONNXFrontReplacer
+from extensions.ops.Cast import Cast
 from extensions.ops.detectionoutput_onnx import ExperimentalDetectronDetectionOutput
 from extensions.ops.parameter import Parameter
 from extensions.ops.roifeatureextractor_onnx import ExperimentalDetectronROIFeatureExtractor
@@ -29,7 +31,7 @@ from mo.ops.reshape import Reshape
 input_fpn_heads = ('486', '454', '422', '390')
 
 
-class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral):
+class ONNXMaskRCNNTransformation(FrontReplacementFromConfigFileGeneral):
     """
     This transformation performs 3 actions:
     1. Replaces a sub-graph calculating ROIAlign over FPN heads with a single ExperimentalDetectronROIFeatureExtractor
@@ -41,6 +43,11 @@ class ObjectDetectionAPIOutputReplacement(FrontReplacementFromConfigFileGeneral)
     ExperimentalDetectronDetectionOutput node.
     """
     replacement_id = 'ONNXMaskRCNNReplacement'
+
+    def run_before(self):
+        # the node "2774" which is used in this transformation is of op SoftMaxONNX. But operations of op SoftMaxONNX
+        # will be replaced with a transformation SoftmaxONNXFrontReplacer
+        return [SoftmaxONNXFrontReplacer]
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
         insert_ExperimentalDetectronROIFeatureExtractor2(graph)
@@ -80,6 +87,9 @@ def insert_do(graph: Graph, replacement_descriptions):
     old_do_output_nodes = [Node(graph, node_id) for node_id in do_outputs]
     for old_node, new_port in zip(old_do_output_nodes, do_output_ports):
         old_node.out_port(0).get_connection().set_source(new_port)
+    # the consumer of the second output port of the ExperimentalDetectronDetectionOutput is the Mul node which second
+    # input is of type int64 so it is necessary to insert Cast to have data types match
+    do_node.out_port(1).get_connection().insert_node(Cast(graph, {'dst_type': np.int64}).create_node())
 
 
 def insert_ExperimentalDetectronROIFeatureExtractor1(graph: Graph):
