@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/ngraph.hpp>
 
@@ -27,7 +27,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(MulAddVerification);
+class TRANSFORMATIONS_API MulAddVerification;
 
 }  // namespace pass
 }  // namespace ngraph
