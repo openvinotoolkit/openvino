@@ -17,6 +17,7 @@
 import unittest
 
 import numpy as np
+from generator import generator, generate
 
 from extensions.middle.ConvertGroupedStridedSlice import ConvertGroupedStridedSlice
 from mo.front.common.partial_infer.utils import int64_array
@@ -82,7 +83,24 @@ nodes_attributes = {
     'sslice_2/unsqueeze_const_data': {'kind': 'data', 'value': None, 'shape': None},
 }
 
+one_strided_slice_case_node_attributes = {
+    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
+    'sslice': {'type': None, 'kind': 'op', 'op': 'StridedSlice', 'slices': None,
+               'shrink_axis_mask': np.array([0, 0, 0, 0])},
+    'sslice_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'op_output': {'kind': 'op', 'op': 'Result'},
+}
 
+one_strided_slice_case_edges = [
+    ('placeholder', 'placeholder_data'),
+    ('placeholder_data', 'sslice'),
+    ('sslice', 'sslice_data'),
+    ('sslice_data', 'op_output'),
+]
+
+
+@generator
 class ConvertGroupedStridedSliceTests(unittest.TestCase):
     def test_1(self):
         graph = build_graph(nodes_attributes,
@@ -602,6 +620,37 @@ class ConvertGroupedStridedSliceTests(unittest.TestCase):
         pattern.find_and_replace_pattern(graph)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    # Test for the case when there is only 1 StridedSlice.
+    @generate(*[(np.array([1, 227, 227, 54]),
+                 np.array([slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1), slice(0, 18, 1)]),
+                 np.array([1, 227, 227, 18])),
+                (np.array([57, 16, 100, 23]),
+                 np.array([slice(3, 16, 1), slice(0, 16, 1), slice(0, 100, 1), slice(0, 23, 1)]),
+                 np.array([13, 16, 100, 23])),
+                (np.array([16, 800, 1024, 17]),
+                 np.array([slice(0, 16, 1), slice(0, 800, 1), slice(13, 817, 1), slice(0, 17, 1)]),
+                 np.array([16, 800, 804, 17]))])
+    def test_9(self, input_shape, slices, output_shape):
+        graph = build_graph(nodes_attrs=one_strided_slice_case_node_attributes,
+                            edges=one_strided_slice_case_edges,
+                            update_attributes={
+                                'placeholder_data': {'shape': input_shape},
+                                'sslice': {'slices': slices},
+                                'sslice_data': {'shape': output_shape},
+                            })
+        graph.graph['layout'] = 'NHWC'
+        graph_ref = build_graph(nodes_attrs=one_strided_slice_case_node_attributes,
+                                edges=one_strided_slice_case_edges,
+                                update_attributes={
+                                    'placeholder_data': {'shape': input_shape},
+                                    'sslice': {'slices': slices},
+                                    'sslice_data': {'shape': output_shape},
+                                })
+        pattern = ConvertGroupedStridedSlice()
+        pattern.find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'op_output', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
 

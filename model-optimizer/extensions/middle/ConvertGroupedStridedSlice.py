@@ -70,7 +70,7 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
 
             # Get all StridedSlice consumers
             out_nodes = [node for node in input_data.out_nodes() if node.op == 'StridedSlice' and node.in_node(0).name == input_data.name]
-            if len(out_nodes) < 1:
+            if len(out_nodes) <= 1:
                 continue
 
             valid_for_replacement = True
