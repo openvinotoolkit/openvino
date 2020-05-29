@@ -62,10 +62,10 @@ def next_step(additional_info='', step_id=0):
 
 
 def config_network_inputs(ie_network: IENetwork):
-    input_info = ie_network.inputs
+    input_info = ie_network.input_info
 
     for key in input_info.keys():
-        if is_image(input_info[key]):
+        if is_image(input_info[key].input_data):
             # Set the precision of input data provided by the user
             # Should be called before load of the network to the plugin
             input_info[key].precision = 'U8'
@@ -261,7 +261,7 @@ def update_shapes(shapes, shapes_string: str, inputs_info):
 def adjust_shapes_batch(shapes, batch_size: int, inputs_info):
     updated = False
     for name, data in inputs_info.items():
-        layout = data.layout
+        layout = data.input_data.layout
         batch_index = layout.index('N') if 'N' in layout else -1
         if batch_index != -1 and shapes[name][batch_index] != batch_size:
             shapes[name][batch_index] = batch_size
