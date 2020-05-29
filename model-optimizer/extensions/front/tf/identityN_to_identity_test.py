@@ -61,3 +61,20 @@ class TestIdentityN(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output0', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+    def test_identityN_unused_ports(self):
+            graph = build_graph(nodes, [
+                *connect('placeholder_0', '0:identityN'),
+                *connect('placeholder_1', '1:identityN'),
+                *connect('identityN:0', 'output0'),
+            ], nodes_with_edges_only=True)
+
+            IdentityN_to_Identity().find_and_replace_pattern(graph)
+
+            graph_ref = build_graph(nodes, [
+                *connect('placeholder_0', 'identity0'),
+                *connect('identity0', 'output0'),
+            ], nodes_with_edges_only=True)
+
+            (flag, resp) = compare_graphs(graph, graph_ref, 'output0', check_op_attrs=True)
+            self.assertTrue(flag, resp)
