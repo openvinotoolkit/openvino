@@ -32,6 +32,10 @@ target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api onnx_im
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
+# developer package
+
+ie_developer_export_targets(${TARGET_NAME})
+
 # install
 
 install(TARGETS ${TARGET_NAME}
