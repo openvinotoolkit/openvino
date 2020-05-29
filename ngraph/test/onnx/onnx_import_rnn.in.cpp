@@ -39,6 +39,7 @@ using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
 
+// ONNX LSTM tests (implemented by nGraph LSTMCell and LSTMSequence)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_with_clip)
 {
     auto function = onnx_import::import_onnx_model(
