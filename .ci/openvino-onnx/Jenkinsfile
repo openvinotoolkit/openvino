@@ -1,0 +1,263 @@
+// INTEL CONFIDENTIAL
+// Copyright 2018-2020 Intel Corporation All Rights Reserved.
+// The source code contained or described herein and all documents related to the
+// source code ("Material") are owned by Intel Corporation or its suppliers or
+// licensors. Title to the Material remains with Intel Corporation or its
+// suppliers and licensors. The Material may contain trade secrets and proprietary
+// and confidential information of Intel Corporation and its suppliers and
+// licensors, and is protected by worldwide copyright and trade secret laws and
+// treaty provisions. No part of the Material may be used, copied, reproduced,
+// modified, published, uploaded, posted, transmitted, distributed, or disclosed
+// in any way without Intel's prior express written permission.
+// No license under any patent, copyright, trade secret or other intellectual
+// property right is granted to or conferred upon you by disclosure or delivery of
+// the Materials, either expressly, by implication, inducement, estoppel or
+// otherwise. Any license under such intellectual property rights must be express
+// and approved by Intel in writing.
+
+OPENVINO_REPO_ADDRESS = "https://github.com/postrational/openvino"
+JENKINS_GITHUB_CREDENTIAL_ID = "7157091e-bc04-42f0-99fd-dc4da2922a55"
+DOCKER_CONTAINER_PREFIX = "jenkins_ngraph-onnx_ci"
+DOCKER_CONTAINER_NAME="${DOCKER_CONTAINER_PREFIX}_${BUILD_NUMBER}"
+BASE_IMAGE_TAG = "latest"
+DOCKER_HOME = "/home/ci_user"
+CI_FILES_PATH = ".ci/openvino-onnx"
+if(DOCKER_REGISTRY.trim() == "") {throw new Exception("Missing Docker registry url!");}
+
+
+def getGitPrInfo(String project) {
+    def gitPrInfo = [
+        prAuthorEmail : "",
+        commitAuthorEmail : "",
+        commitHash : "",
+        commitSubject : ""
+    ]
+    try {
+        dir ("${WORKDIR}/${project}") {
+            gitPrInfo.prAuthorEmail = sh (script: 'git log -1 --pretty="format:%ae" ', returnStdout: true).trim()
+            gitPrInfo.commitAuthorEmail = sh (script: 'git log -1 --pretty="format:%ce" ', returnStdout: true).trim()
+            gitPrInfo.commitSubject = sh (script: 'git log -1 --pretty="format:%H" ', returnStdout: true).trim()
+            gitPrInfo.commitHash = sh (script: 'git log -1 --pretty="format:%s" ', returnStdout: true).trim()
+        }
+    }
+    catch(e) {
+        echo "Failed to retrieve ${project} git repository information!"
+        echo "ERROR: ${e}"
+    }
+    return gitPrInfo
+}
+
+def notifyByEmail(def gitPrInfo) {
+    stage('Notify') {
+        String notifyPeople = "${gitPrInfo.prAuthorEmail}, ${gitPrInfo.commitAuthorEmail}"
+        emailext (
+            subject: "OpenVino CI: PR ${CHANGE_ID} ${currentBuild.result}!",
+            body: """
+                    Status: ${currentBuild.result}
+                    Pull Request Title: ${CHANGE_TITLE}
+                    Pull Request: ${CHANGE_URL}>${CHANGE_ID}
+                    Branch: ${CHANGE_BRANCH}
+                    Commit Hash: ${gitPrInfo.commitSubject}
+                    Commit Subject: ${gitPrInfo.commitHash}
+                    Jenkins Build: ${RUN_DISPLAY_URL}> ${BUILD_NUMBER}
+            """,
+            to: "${notifyPeople}"
+        )
+    }
+}
+
+def gitClone(String label, String address, String branch) {
+    repositoryName = address.split("/").last().replace(".git","")
+
+    sh  label: label,
+        script:
+    """
+        git clone \
+            -b ${branch} \
+            --single-branch \
+            --no-tags \
+            --dissociate \
+            --depth 1 \
+            --verbose \
+            ${address} \
+            ${WORKDIR}/${repositoryName}
+    """
+}
+
+def gitSubmoduleUpdate(String repository_name) {
+    dir ("${WORKDIR}/${repository_name}") {
+        sh  label: "Init ${repository_name} submodules",
+            script:
+        """
+            git submodule init && git submodule update \
+                --init \
+                --no-fetch \
+                --recursive 
+        """
+    }
+}
+
+def runDockerContainer(String imageName) {
+             CONTAINER_ID = sh (
+                    script: """
+                            docker run -id --privileged \
+                                    --name ${DOCKER_CONTAINER_NAME} \
+                                    --volume ${WORKDIR}:${DOCKER_HOME} \
+                                    ${imageName}:${BASE_IMAGE_TAG} tail -f /dev/null
+                            """,
+                    returnStdout: true
+                    ).trim()
+}
+
+def buildDockerImage() {
+    sh """
+        docker build --tag=openvino-onnx-ci  --file=.ci/openvino-onnx/Dockerfile \
+        --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
+        --build-arg https_proxy=http://proxy-chain.intel.com:912/ --no-cache .
+    """
+}
+
+
+def dockerPull(String imageName) {
+    sh """
+        docker pull ${imageName}:${BASE_IMAGE_TAG}
+    """
+}
+
+def runTests() {
+    sh """
+        docker exec -w ${DOCKER_HOME}/ngraph/python ${CONTAINER_ID} tox
+    """
+}
+
+def dockerRemove(String container_ID) {
+    sh """
+        docker rm -f ${container_ID} || true
+    """
+}
+
+def runContainerCommand(String command, String dir="${DOCKER_HOME}") {
+    sh """
+        docker exec -w ${dir} ${CONTAINER_ID} ${command}
+    """
+}
+
+def buildOpenVino() {
+    runContainerCommand("mkdir build")
+    runContainerCommand("cmake \
+                            -DCMAKE_BUILD_TYPE=Debug \
+                            -DENABLE_VALIDATION_SET=OFF \
+                            -DENABLE_OPENCV=OFF \
+                            -DENABLE_VPU=OFF \
+                            -DENABLE_DLIA=OFF \
+                            -DENABLE_GNA=OFF \
+                            -DENABLE_CPPLINT=OFF \
+                            -DENABLE_TESTS=ON \
+                            -DENABLE_BEH_TESTS=OFF \
+                            -DENABLE_FUNCTIONAL_TESTS=ON \
+                            -DENABLE_MKL_DNN=ON \
+                            -DENABLE_CLDNN=OFF \
+                            -DENABLE_PROFILING_ITT=OFF \
+                            -DENABLE_SAMPLES=OFF \
+                            -DENABLE_SPEECH_DEMO=OFF \
+                            -DENABLE_PYTHON=ON \
+                            -DPYTHON_EXECUTABLE=`which python` \
+                            -DNGRAPH_ONNX_IMPORT_ENABLE=ON \
+                            -DNGRAPH_IE_ENABLE=ON \
+                            -DNGRAPH_INTERPRETER_ENABLE=ON \
+                            -DNGRAPH_DEBUG_ENABLE=OFF \
+                            -DCMAKE_INSTALL_PREFIX=${DOCKER_HOME}/dist \
+                            -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON \
+                            -DNGRAPH_COMPONENT_PREFIX=${DOCKER_HOME}/deployment_tools/ngraph \
+                            -S ${DOCKER_HOME} -B ${DOCKER_HOME}/build")
+    runContainerCommand("make -j \$(nproc) -C ${DOCKER_HOME}/build install ")
+
+
+    // sh """
+    //     docker exec -w ${DOCKER_HOME} ${CONTAINER_ID} -c 'mkdir build && cd build && \
+    //             cmake .. \
+    //                 -DCMAKE_BUILD_TYPE=Debug \
+    //                 -DENABLE_VALIDATION_SET=OFF \
+    //                 -DENABLE_VPU=OFF \
+    //                 -DENABLE_DLIA=OFF \
+    //                 -DENABLE_GNA=OFF \
+    //                 -DENABLE_OPENCV=OFF \
+    //                 -DENABLE_CPPLINT=OFF \
+    //                 -DENABLE_TESTS=OFF \
+    //                 -DENABLE_BEH_TESTS=OFF \
+    //                 -DENABLE_FUNCTIONAL_TESTS=OFF \
+    //                 -DENABLE_MKL_DNN=ON \
+    //                 -DENABLE_CLDNN=OFF \
+    //                 -DENABLE_PROFILING_ITT=OFF \
+    //                 -DENABLE_SAMPLES=OFF \
+    //                 -DENABLE_SPEECH_DEMO=OFF \
+    //                 -DENABLE_PYTHON=ON \
+    //                 -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+    //                 -DNGRAPH_ONNX_IMPORT_ENABLE=ON \
+    //                 -DNGRAPH_IE_ENABLE=ON \
+    //                 -DNGRAPH_INTERPRETER_ENABLE=ON \
+    //                 -DNGRAPH_DEBUG_ENABLE=OFF \
+    //                 -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON \
+    //                 -DCMAKE_INSTALL_PREFIX=/openvino/dist && \
+    //             make -j \$(nproc) install'
+    // """
+    }
+
+pipeline {
+    agent {
+        label "OpenVino"
+    }
+    environment {
+        PROJECT_NAME = "openvino"
+        WORKDIR = "${WORKSPACE}/${BUILD_NUMBER}"
+        String imageName = "${DOCKER_REGISTRY}/ubuntu_20_04_onnx.dockerfile"
+    }
+    options {
+        skipDefaultCheckout true
+    }
+    stages {
+        stage("Clone repository") {
+            steps{
+                dir("${WORKDIR}") {
+                    checkout scm
+                }
+                gitSubmoduleUpdate(PROJECT_NAME)
+            }
+        }
+        stage("Build docker image") {
+            steps{
+                dir("${WORKDIR}") {
+                    buildDockerImage()
+                }
+            }
+        }
+        // stage("Run docker container") {
+        //     steps{
+        //         dockerPull("${imageName}")
+        //         runDockerContainer("${imageName}")
+        //     }
+        // }
+        // stage("Build project") {
+        //     steps{
+        //         buildOpenVino()
+        //     }
+        // }
+        // stage("Run tests") {
+        //     steps{
+        //         runTests()
+        //     }
+        // }
+    }
+    post {
+        failure {
+            script {
+                gitPrInfo = getGitPrInfo(PROJECT_NAME)
+                notifyByEmail(gitPrInfo)
+            }
+        }
+        // cleanup {
+        //     // dockerRemove("${CONTAINER_ID}")
+        //     // deleteDir()
+        // }
+    }
+}
