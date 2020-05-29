@@ -172,6 +172,8 @@ void ConcatWithIntermediateTransformation::validate() {
         children = CNNNetworkHelper::getChildren(*concat);
         EXPECT_EQ(1ul, children.size());
         EXPECT_EQ("ScaleShift", children[0]->type);
+
+        checkParentPrecision(children[0], params.updatePrecisions);
     } else {
         std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*intermediate);
         EXPECT_EQ(2ul, children.size());

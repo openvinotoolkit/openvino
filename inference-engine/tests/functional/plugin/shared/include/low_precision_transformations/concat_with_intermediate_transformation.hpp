@@ -20,7 +20,9 @@ typedef std::tuple<
     // multichannel
     bool> ConcatWithIntermediateTransformationParams;
 
-class ConcatWithIntermediateTransformation : public LayerTestsUtils::LayerTransformation<ConcatWithIntermediateTransformationParams> {
+class ConcatWithIntermediateTransformation :
+    public testing::WithParamInterface<ConcatWithIntermediateTransformationParams>,
+    public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConcatWithIntermediateTransformationParams> obj);
 
