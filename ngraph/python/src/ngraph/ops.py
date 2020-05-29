@@ -472,11 +472,11 @@ def lstm_sequence(
 ) -> Node:
     """Return a node which performs LSTMSequence operation.
 
-    :param X: The input tensor. Shape: [seq_length, batch_size, input_size].
+    :param X: The input tensor. Shape: [batch_size, seq_length, input_size].
     :param initial_hidden_state:    The hidden state tensor.
-                                    Shape: [num_directions, batch_size, hidden_size].
+                                    Shape: [batch_size, num_directions, hidden_size].
     :param initial_cell_state:      The cell state tensor.
-                                    Shape: [num_directions, batch_size, hidden_size].
+                                    Shape: [batch_size, num_directions, hidden_size].
     :param sequence_lengths:        Specifies real sequence lengths for each batch element.
                                     Shape: [batch_size]. Integer type.
     :param W: Tensor with weights for matrix multiplication operation with input portion of data.
