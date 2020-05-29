@@ -323,7 +323,6 @@ IEStatusCode ie_core_read_network_from_memory(ie_core_t *core, const char *xml_c
         network_result->object = core->object.ReadNetwork(std::string(xml_content, xml_content + xml_content_size), weight_blob->object);
         *network = network_result.release();
     } catch (const IE::details::InferenceEngineException& e) {
-        std::cerr << e.what() << std::endl;
         return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
     } catch (...) {
         return IEStatusCode::UNEXPECTED;
