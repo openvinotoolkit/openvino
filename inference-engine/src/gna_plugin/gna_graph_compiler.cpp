@@ -351,6 +351,10 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
 
+    if (num_columns_in > 8) {
+        THROW_GNA_EXCEPTION << "GNA colomns_in should be less than 8 and now colomns_in = " << num_columns_in;
+    }
+
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
     void* ptr_weights = nullptr;
