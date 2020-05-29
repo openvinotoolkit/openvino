@@ -163,6 +163,39 @@ void MKLDNNQuantizeNode::init() {
             binarizationOutputMask[i] = outputHighData[isOutputHighBroadcasted ? 0 : i] == 1.f ? 0xffffffff : 0x00000000;
         }
     } else {
+        auto allElementsAreEqual = [&](const float* data, size_t size) {
+            if (size == 0)
+                return true;
+
+            auto first = data[0];
+            for (int i = 1; i < size; i++) {
+                if (data[i] != first)
+                    return false;
+            }
+
+            return true;
+        };
+
+        if (allElementsAreEqual(inputLowData, inputLowAxisSize)) {
+            inputLowAxisSize = 1;
+            isInputLowBroadcasted = true;
+        }
+
+        if (allElementsAreEqual(inputHighData, inputHighAxisSize)) {
+            inputHighAxisSize = 1;
+            isInputHighBroadcasted = true;
+        }
+
+        if (allElementsAreEqual(outputLowData, outputLowAxisSize)) {
+            outputLowAxisSize = 1;
+            isOutputLowBroadcasted = true;
+        }
+
+        if (allElementsAreEqual(outputHighData, outputHighAxisSize)) {
+            outputHighAxisSize = 1;
+            isOutputHighBroadcasted = true;
+        }
+
         cropLow.resize(inputLowAxisSize);
         cropHigh.resize(inputHighAxisSize);
         inputScale.resize(std::max(inputLowAxisSize, inputHighAxisSize));

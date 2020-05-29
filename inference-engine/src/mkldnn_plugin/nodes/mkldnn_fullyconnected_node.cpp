@@ -103,7 +103,9 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
     MKLDNNDims inDims(fcLayer->input()->getDims());
 
     if (inDims.ndims() == 2) {
-        weightsDims = {fcLayer->_out_num, static_cast<size_t>(inDims.size(1))};
+        weightsDims = {fcLayer->_out_num, static_cast<size_t>(inDims[1])};
+    } else if (inDims.ndims() == 3) {
+        weightsDims = {fcLayer->_out_num, static_cast<size_t>(inDims[2])};
     } else if (inDims.ndims() == 4) {
         weightsDims = {fcLayer->_out_num, static_cast<size_t>(inDims[1]), static_cast<size_t>(inDims[2]),
                        static_cast<size_t>(inDims[3])};
@@ -196,7 +198,8 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
         if (depthwiseNode) {
             if (initWeights) {
                 auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(depthwiseNode->getCnnLayer().get());
-                MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(getChildEdgeAt(0)->getDims()[1], 16))});
+                int ndims = getParentEdgeAt(0)->getDims().ndims();
+                MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(ndims == 3 ? getChildEdgeAt(0)->getDims()[2] : getChildEdgeAt(0)->getDims()[1], 16))});
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                 PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
@@ -206,7 +209,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
                                                         depthwiseLayer->_weights->size() *
                                                         MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
-                if (depthwiseNode->isBroadcast()) {
+                if (depthwiseNode->isBroadcast() || ndims == 3) {
                     float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[0];
                     for (int i = 1; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
                         static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
@@ -222,7 +225,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
                                                                 depthwiseLayer->_biases->size() *
                                                                 MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
-                    if (depthwiseNode->isBroadcast()) {
+                    if (depthwiseNode->isBroadcast() || ndims == 3) {
                         float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[0];
                         for (int i = 1; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
                             static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
@@ -270,6 +273,8 @@ memory::format MKLDNNFullyConnectedNode::weightsFormatForSrcFormat(memory::forma
         case memory::format::x:
             return memory::format::x;
         case memory::format::nc:
+        case memory::format::tnc:
+        case memory::format::ntc:
             return memory::format::oi;
         case memory::format::nchw:
             return memory::format::oihw;
