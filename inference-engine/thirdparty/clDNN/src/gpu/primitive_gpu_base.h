@@ -67,7 +67,7 @@ struct typed_primitive_gpu_impl : public typed_primitive_impl<PType> {
         }
 
         for (auto size : kd.internalBufferSizes) {
-            auto dtype = from_data_type(kd.intenralBufferDataType);
+            auto dtype = from_data_type(kd.internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
             layout expected_layout = {dtype,
                                       format::bfyx,  // simple linear format (flatten to x channel)

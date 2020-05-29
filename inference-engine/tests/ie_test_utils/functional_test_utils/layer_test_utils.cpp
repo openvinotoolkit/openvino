@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2019-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 
 namespace LayerTestsUtils {
 
-LayerTestsCommon::LayerTestsCommon() {
-    core = PluginCache::get().ie(targetDevice).get();
+LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
+    core = PluginCache::get().ie(targetDevice);
 }
 
 void LayerTestsCommon::Run() {
@@ -43,7 +43,7 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
     switch (precision) {
         case InferenceEngine::Precision::FP32:
             Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer),
-                    size, 1e-2f);
+                    size, threshold);
             break;
         case InferenceEngine::Precision::I32:
             Compare(reinterpret_cast<const std::int32_t *>(expectedBuffer),

@@ -53,7 +53,6 @@ void MKLDNNMemory::Create(memory::dims dims, memory::data_type data_type, memory
 
 void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bool pads_zeroing) {
     auto primitive_desc = memory::primitive_desc(desc, eng);
-    uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(desc.data.data_type));
 
     if (data == nullptr) {
         prim.reset(new memory(primitive_desc));

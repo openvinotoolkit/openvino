@@ -47,7 +47,7 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
 INFERENCE_ENGINE_API_CPP(bool) get_single_value(const std::shared_ptr<op::Constant> & const_node, float & value);
 
 INFERENCE_ENGINE_API_CPP(std::shared_ptr<ngraph::Node>) normalize_constant(const std::shared_ptr<op::Constant> & constant,
-                                                 const Shape & shape);
+                                                                           const PartialShape & shape);
 
 INFERENCE_ENGINE_API_CPP(std::shared_ptr<ngraph::Node>) broadcastTo(const Output<Node>& input, const Shape& shape);
 
