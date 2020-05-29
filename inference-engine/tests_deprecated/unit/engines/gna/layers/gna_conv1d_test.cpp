@@ -108,5 +108,5 @@ INSTANTIATE_TEST_CASE_P(
                 testing::Values(1, 3, 9, 16, 24, 32, 42, 64),
                 testing::Values(0, 1),
                 testing::Values(0),
-                testing::Values(32, 128, 512)),
+                testing::Values(2, 4, 6, 8)),
         GNAConv1DTest::getTestName);

@@ -486,6 +486,10 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
 
+    if (num_columns_in > 8) {
+        THROW_GNA_EXCEPTION << "Columns_in should be not greater than 8 and now columns_in = " << num_columns_in;
+    }
+
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
         * outputs->getPrecision().size();
 
@@ -984,6 +988,7 @@ void GNAGraphCompiler::EltwisePrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_columns_in = in_4b_batch;
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
+
 
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
