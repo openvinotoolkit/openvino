@@ -7,7 +7,7 @@
 # define MKLDNN_EXTENSION_NODE(__prim, __type)
 #endif
 
-#if GraphGen(Gen_Unsqueeze)
+#if GraphGen(Gen_PriorBox)
 MKLDNN_EXTENSION_NODE(PriorBoxImpl, PriorBox);
 #endif
 

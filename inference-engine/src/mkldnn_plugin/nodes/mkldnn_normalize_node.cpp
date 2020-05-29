@@ -1491,6 +1491,7 @@ bool MKLDNNNormalizeNode::created() const {
     return getType() == Normalize;
 }
 
-#if GraphGen(Gen_Normalize)
+#if GraphGen(Gen_Normalize) || \
+    GraphGen(Gen_NormalizeL2)
 REG_MKLDNN_PRIM_FOR(MKLDNNNormalizeNode, Normalize);
 #endif

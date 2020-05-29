@@ -141,6 +141,10 @@ macro(ie_register_plugins)
         list(GET name 0 device_name)
         list(GET name 1 name)
 
+        if(NOT name IN_LIST IE_REGISTER_POSSIBLE_PLUGINS)
+            continue()
+        endif()
+
         # create plugin file
         set(config_file_name "${CMAKE_BINARY_DIR}/plugins/${name}.xml")
         get_shared_library_name(${name} library_name)

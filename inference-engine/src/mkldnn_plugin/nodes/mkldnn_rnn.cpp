@@ -513,7 +513,13 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
         strm.submit({exec_after.begin(), exec_after.end()});
 }
 
-#if GraphGen(Gen_RNN)
+#if GraphGen(Gen_RNN) || \
+    GraphGen(Gen_LSTMCell) || \
+    GraphGen(Gen_GRUCell) || \
+    GraphGen(Gen_RNNCell) || \
+    GraphGen(Gen_LSTMSequence) || \
+    GraphGen(Gen_GRUSequence) || \
+    GraphGen(Gen_RNNSequence)
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNN);
 #endif
 

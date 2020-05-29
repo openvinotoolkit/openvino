@@ -428,6 +428,7 @@ const mkldnn::memory& MKLDNNFullyConnectedNode::getBias() const {
     return baseInputsNumber > 2 ? getParentEdgeAt(2)->getMemory().GetPrimitive() : internalBlobMemory[1]->GetPrimitive();
 }
 
-#if GraphGen(Gen_FullyConnected)
+#if GraphGen(Gen_FullyConnected) || \
+    GraphGen(Gen_InnerProduct)
 REG_MKLDNN_PRIM_FOR(MKLDNNFullyConnectedNode, FullyConnected);
 #endif

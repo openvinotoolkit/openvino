@@ -475,6 +475,7 @@ bool MKLDNNQuantizeNode::created() const {
     return getType() == Quantize;
 }
 
-#if GraphGen(Gen_Quantize)
+#if GraphGen(Gen_Quantize) || \
+    GraphGen(Gen_FakeQuantize)
 REG_MKLDNN_PRIM_FOR(MKLDNNQuantizeNode, Quantize);
 #endif

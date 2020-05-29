@@ -654,6 +654,7 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
     }
 }
 
-#if GraphGen(Gen_Concat)
+#if GraphGen(Gen_Concat) || \
+    GraphGen(Gen_Concatenation)
 REG_MKLDNN_PRIM_FOR(MKLDNNConcatNode, Concat);
 #endif

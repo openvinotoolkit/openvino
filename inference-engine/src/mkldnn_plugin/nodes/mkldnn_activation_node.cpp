@@ -235,6 +235,18 @@ MKLDNNMemoryDesc MKLDNNActivationNode::getDstMemDesc(mkldnn::primitive_desc_iter
                                                             {blocked_dims, order, offset, dimOffsets, strides}));
 }
 
-#if GraphGen(Gen_Activation)
+#if GraphGen(Gen_Activation) || \
+    GraphGen(Gen_Relu) || \
+    GraphGen(Gen_ReLU) || \
+    GraphGen(Gen_GELU) || \
+    GraphGen(Gen_ELU) || \
+    GraphGen(Gen_Sigmoid) || \
+    GraphGen(Gen_Logistic) || \
+    GraphGen(Gen_TanH) || \
+    GraphGen(Gen_ReLU6) || \
+    GraphGen(Gen_Exp) || \
+    GraphGen(Gen_Not) || \
+    GraphGen(Gen_Clamp) || \
+    GraphGen(Gen_Swish)
 REG_MKLDNN_PRIM_FOR(MKLDNNActivationNode, Activation);
 #endif

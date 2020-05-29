@@ -124,6 +124,7 @@ void MKLDNNSoftMaxNode::createDescriptor(const std::vector<InferenceEngine::Tens
     descs.push_back(desc);
 }
 
-#if GraphGen(Gen_Softmax)
+#if GraphGen(Gen_Softmax) || \
+    GraphGen(Gen_SoftMax)
 REG_MKLDNN_PRIM_FOR(MKLDNNSoftMaxNode, Softmax);
 #endif

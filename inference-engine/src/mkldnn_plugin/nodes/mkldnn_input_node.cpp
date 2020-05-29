@@ -155,6 +155,7 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
     }
 }
 
-#if GraphGen(Gen_Input)
+#if GraphGen(Gen_Input) || \
+    GraphGen(Gen_MemoryInput)
 REG_MKLDNN_PRIM_FOR(MKLDNNInputNode, Input);
 #endif

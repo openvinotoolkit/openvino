@@ -332,6 +332,7 @@ void MKLDNNPoolingNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeight
     attr.set_post_ops(ops);
 }
 
-#if GraphGen(Gen_Pooling)
+#if GraphGen(Gen_Pooling) || \
+    GraphGen(Gen_MaxPool)
 REG_MKLDNN_PRIM_FOR(MKLDNNPoolingNode, Pooling);
 #endif

@@ -196,6 +196,8 @@ void MKLDNNDepthwiseNode::initOptimalPrimitiveDescriptor() {
     initDescriptor(config);
 }
 
-#if GraphGen(Gen_Depthwise)
+#if GraphGen(Gen_Depthwise) || \
+    GraphGen(Gen_ScaleShift) || \
+    GraphGen(Gen_PReLU)
 REG_MKLDNN_PRIM_FOR(MKLDNNDepthwiseNode, Depthwise);
 #endif

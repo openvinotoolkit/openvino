@@ -530,6 +530,7 @@ void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
     }
 }
 
-#if GraphGen(Gen_Split)
+#if GraphGen(Gen_Split) || \
+    GraphGen(Gen_Slice)
 REG_MKLDNN_PRIM_FOR(MKLDNNSplitNode, Split);
 #endif

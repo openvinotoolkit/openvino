@@ -2695,6 +2695,7 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
     return true;
 }
 
-#if GraphGen(Gen_Eltwise)
+#if GraphGen(Gen_Eltwise) || \
+    GraphGen(Gen_Add)
 REG_MKLDNN_PRIM_FOR(MKLDNNEltwiseNode, Eltwise);
 #endif
