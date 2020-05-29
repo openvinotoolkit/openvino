@@ -234,17 +234,6 @@ def assign_add_output_result(op: Node):
     op.out_port(0).connect(tmp_result.in_port(0))
 
 
-def topk_add_output_result(op: Node):
-    """
-    Function adds missed output result nodes for TopK node
-    :param op:
-    :return:
-    """
-    assert op.soft_get('type') == 'TopK', 'Wrong operation type, {} instead of TopK!'.format(op.soft_get('type'))
-
-    TopKNormalizer.normalize_outputs(op)
-
-
 def copy_input_blobs(op: Node, copy_op: Node):
     """
     Function copy input blob data nodes from restored graph to copied one
@@ -272,7 +261,7 @@ preprocessing_op_nodes = {
 postprocessing_op_nodes = {
     'Assign': assign_add_output_result,
     'TensorIterator': ti_add_edge_attrs,
-    'TopK': topk_add_output_result,
+    'TopK': TopKNormalizer.normalize_outputs,
 }
 
 
