@@ -91,7 +91,6 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
     auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, input3, false);
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-        // disable the transformation for all plugins, except CPU
         if (!transformation_callback(std::make_shared<ngraph::opset3::DepthToSpace>())) {
             return false;
         }
@@ -102,12 +101,12 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
         }
 
         auto permute = std::dynamic_pointer_cast<ngraph::opset3::Transpose>(reshape_after->input_value(0).get_node_shared_ptr());
-        if (!permute) {
+        if (!permute || permute->get_output_target_inputs(0).size() != 1) {
             return false;
         }
 
         auto reshape_before = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(permute->input_value(0).get_node_shared_ptr());
-        if (!reshape_before) {
+        if (!reshape_before || reshape_before->get_output_target_inputs(0).size() != 1) {
             return false;
         }
 
@@ -117,7 +116,7 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
         auto p_shape_reshape_after = reshape_after->get_output_partial_shape(0);
 
         if (p_shape_input.is_dynamic() || p_shape_reshape_before.is_dynamic() ||
-                p_shape_permute.is_dynamic() || p_shape_reshape_after.is_dynamic()) {
+            p_shape_permute.is_dynamic() || p_shape_reshape_after.is_dynamic()) {
             return false;
         }
 
@@ -130,6 +129,7 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
             return false;
         }
 
+        // input shape: [ batch, C, spatial_dims], expected_shape = spatial_dims.size() * 2 + 2
         size_t expected_shape_size = (shape_input.size() - 2) * 2 + 2;
         if (shape_input.size() != shape_reshape_after.size() || shape_reshape_before.size() != expected_shape_size ||
             shape_permute.size() != expected_shape_size) {
@@ -137,7 +137,7 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
         }
 
         ngraph::AxisVector permutation;
-        if (auto input_const = as_type_ptr<op::Constant>(permute->input_value(1).get_node_shared_ptr())) {
+        if (auto input_const = std::dynamic_pointer_cast<opset3::Constant>(permute->input_value(1).get_node_shared_ptr())) {
             permutation = input_const->get_axis_vector_val();
         } else {
             return false;
@@ -154,8 +154,8 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
         }
 
         auto depth_to_space =
-                std::make_shared<ngraph::opset3::DepthToSpace>(reshape_before->input_value(0).get_node_shared_ptr(), mode, block_size);
-        depth_to_space->set_friendly_name(reshape_before->get_friendly_name());
+                std::make_shared<ngraph::opset3::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
+        depth_to_space->set_friendly_name(reshape_after->get_friendly_name());
         ngraph::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
         ngraph::replace_node(reshape_after, depth_to_space);
         return true;

@@ -20,7 +20,6 @@ void ngraph::pass::ConvertSpaceToDepth::convert() {
             return false;
         }
 
-        // disable the transformation for CPU plug-in
         if (transformation_callback(std_node)) {
             return false;
         }

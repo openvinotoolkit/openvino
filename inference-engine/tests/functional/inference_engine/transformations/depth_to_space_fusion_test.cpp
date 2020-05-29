@@ -13,7 +13,7 @@
 #include <map>
 
 #include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph_ops/fully_connected.hpp>
 #include <transformations/depth_to_space_fusion.hpp>
@@ -27,14 +27,14 @@ using namespace testing;
 TEST(TransformationTests, DepthToSpaceFusionDepthFirst) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input0 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
-        auto shape_reshape_before = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {1, 32, 2, 2, 720, 480});
-        auto permutation = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {0, 1, 4, 2, 5, 3});
-        auto shape_reshape_after = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 32, 1440, 960});
+        auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
+        auto shape_reshape_before = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {1, 32, 2, 2, 720, 480});
+        auto permutation = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {0, 1, 4, 2, 5, 3});
+        auto shape_reshape_after = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 32, 1440, 960});
 
-        auto reshape_before = std::make_shared<ngraph::opset1::Reshape> (input0, shape_reshape_before, false);
-        auto permute = std::make_shared<ngraph::opset1::Transpose> (reshape_before, permutation);
-        auto reshape_after = std::make_shared<ngraph::opset1::Reshape> (permute, shape_reshape_after, false);
+        auto reshape_before = std::make_shared<ngraph::opset3::Reshape> (input0, shape_reshape_before, false);
+        auto permute = std::make_shared<ngraph::opset3::Transpose> (reshape_before, permutation);
+        auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, shape_reshape_after, false);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0});
         ngraph::pass::InitNodeInfo().run_on_function(f);
@@ -49,8 +49,8 @@ TEST(TransformationTests, DepthToSpaceFusionDepthFirst) {
     }
 
     {
-        auto input0 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
-        auto depth_to_space = std::make_shared<ngraph::opset1::DepthToSpace>(input0, ngraph::opset1::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
+        auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
+        auto depth_to_space = std::make_shared<ngraph::opset3::DepthToSpace>(input0, ngraph::opset3::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{depth_to_space}, ngraph::ParameterVector{input0});
     }
 
@@ -61,14 +61,14 @@ TEST(TransformationTests, DepthToSpaceFusionDepthFirst) {
 TEST(TransformationTests, DepthToSpaceFusionBlockFirst) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto input0 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
-        auto shape_reshape_before = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {1, 2, 2, 32, 720, 480});
-        auto permutation = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {0, 3, 4, 1, 5, 2});
-        auto shape_reshape_after = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 32, 1440, 960});
+        auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
+        auto shape_reshape_before = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {1, 2, 2, 32, 720, 480});
+        auto permutation = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {0, 3, 4, 1, 5, 2});
+        auto shape_reshape_after = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 32, 1440, 960});
 
-        auto reshape_before = std::make_shared<ngraph::opset1::Reshape> (input0, shape_reshape_before, false);
-        auto permute = std::make_shared<ngraph::opset1::Transpose> (reshape_before, permutation);
-        auto reshape_after = std::make_shared<ngraph::opset1::Reshape> (permute, shape_reshape_after, false);
+        auto reshape_before = std::make_shared<ngraph::opset3::Reshape> (input0, shape_reshape_before, false);
+        auto permute = std::make_shared<ngraph::opset3::Transpose> (reshape_before, permutation);
+        auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, shape_reshape_after, false);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0});
         ngraph::pass::InitNodeInfo().run_on_function(f);
@@ -83,9 +83,100 @@ TEST(TransformationTests, DepthToSpaceFusionBlockFirst) {
     }
 
     {
-        auto input0 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
-        auto depth_to_space = std::make_shared<ngraph::opset1::DepthToSpace>(input0, ngraph::opset1::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
+        auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
+        auto depth_to_space = std::make_shared<ngraph::opset3::DepthToSpace>(input0, ngraph::opset3::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST, 2);
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{depth_to_space}, ngraph::ParameterVector{input0});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, DepthToSpaceFusionDynamicShape) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
+        auto shape_reshape_before = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{6});
+        auto permutation = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {0, 3, 4, 1, 5, 2});
+        auto shape_reshape_after = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 32, 1440, 960});
+
+        auto reshape_before = std::make_shared<ngraph::opset3::Reshape> (input0, shape_reshape_before, false);
+        auto permute = std::make_shared<ngraph::opset3::Transpose> (reshape_before, permutation);
+        auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, shape_reshape_after, false);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0, shape_reshape_before});
+        ngraph::pass::InitNodeInfo().run_on_function(f);
+        auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
+            return true;
+        };
+
+        // transformation won't be applied because of shape_reshape_before is dynamic, the graph will remain the same
+        auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
+        depth_to_space_transform.setCallback(callback);
+        depth_to_space_transform.run_on_function(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
+        auto shape_reshape_before = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{6});
+        auto permutation = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {0, 3, 4, 1, 5, 2});
+        auto shape_reshape_after = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 32, 1440, 960});
+
+        auto reshape_before = std::make_shared<ngraph::opset3::Reshape> (input0, shape_reshape_before, false);
+        auto permute = std::make_shared<ngraph::opset3::Transpose> (reshape_before, permutation);
+        auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, shape_reshape_after, false);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0, shape_reshape_before});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, DepthToSpaceFusionSeveralConsumers) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
+        auto shape_reshape_before = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {1, 2, 2, 32, 720, 480});
+        auto permutation = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {0, 3, 4, 1, 5, 2});
+        auto shape_reshape_after = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 32, 1440, 960});
+
+        auto reshape_before = std::make_shared<ngraph::opset3::Reshape> (input0, shape_reshape_before, false);
+        auto permute = std::make_shared<ngraph::opset3::Transpose> (reshape_before, permutation);
+        auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, shape_reshape_after, false);
+
+        // additional consumers, not output of the function
+        auto result = std::make_shared<ngraph::opset3::Result> (reshape_before);
+        auto result_2 = std::make_shared<ngraph::opset3::Result> (permute);
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0});
+        ngraph::pass::InitNodeInfo().run_on_function(f);
+        auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
+            return true;
+        };
+
+        // transformation won't be applied because of reshape_before has several consumers, the graph will remain the same
+        auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
+        depth_to_space_transform.setCallback(callback);
+        depth_to_space_transform.run_on_function(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
+        auto shape_reshape_before = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {1, 2, 2, 32, 720, 480});
+        auto permutation = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{6}, {0, 3, 4, 1, 5, 2});
+        auto shape_reshape_after = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 32, 1440, 960});
+
+        auto reshape_before = std::make_shared<ngraph::opset3::Reshape> (input0, shape_reshape_before, false);
+        auto permute = std::make_shared<ngraph::opset3::Transpose> (reshape_before, permutation);
+        auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, shape_reshape_after, false);
+
+        // additional consumers, not output of the function
+        auto result = std::make_shared<ngraph::opset3::Result> (reshape_before);
+        auto result_2 = std::make_shared<ngraph::opset3::Result> (permute);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0});
     }
 
     auto res = compare_functions(f, f_ref);
