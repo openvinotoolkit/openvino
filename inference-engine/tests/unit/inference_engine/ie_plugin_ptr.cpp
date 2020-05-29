@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "tests_common.hpp"
-
 #include <ie_plugin_ptr.hpp>
+#include <common_test_utils/test_constants.hpp>
 #include "details/ie_so_loader.h"
 
-#include "../tests_deprecated/mock_engine/mock_plugin.hpp"
+#include "unit_test_utils/mocks/mock_engine/mock_plugin.hpp"
 #include "unit_test_utils/mocks/mock_error_listener.hpp"
 #include "unit_test_utils/mocks/mock_iinference_plugin.hpp"
 
@@ -19,20 +18,25 @@ using namespace InferenceEngine::details;
 
 IE_SUPPRESS_DEPRECATED_START
 
-class PluginTest: public TestsCommon {
+class PluginTest: public ::testing::Test {
 protected:
     unique_ptr<SharedObjectLoader> sharedObjectLoader;
     std::function<IInferencePlugin*(IInferencePlugin*)> createPluginEngineProxy;
-    InferenceEnginePluginPtr getPtr() ;
-    virtual void SetUp() {
+    InferenceEnginePluginPtr getPtr();
 
+    std::string get_mock_engine_name() {
+        std::string mockEngineName("mock_engine");
+        return CommonTestUtils::pre + mockEngineName + IE_BUILD_POSTFIX + CommonTestUtils::ext;
+    }
+
+    virtual void SetUp() {
         std::string libraryName = get_mock_engine_name();
         sharedObjectLoader.reset(new SharedObjectLoader(libraryName.c_str()));
         createPluginEngineProxy = make_std_function<IInferencePlugin*(IInferencePlugin*)>("CreatePluginEngineProxy");
     }
     template <class T>
     std::function<T> make_std_function(const std::string& functionName) {
-        std::function <T> ptr (reinterpret_cast<T*>(sharedObjectLoader->get_symbol(functionName.c_str())));
+        std::function <T> ptr(reinterpret_cast<T*>(sharedObjectLoader->get_symbol(functionName.c_str())));
         return ptr;
     }
 
@@ -43,7 +47,7 @@ protected:
 TEST_F(PluginTest, canCreatePlugin) {
     auto ptr = make_std_function<IInferencePlugin*(IInferencePlugin*)>("CreatePluginEngineProxy");
 
-    unique_ptr<IInferencePlugin, std::function<void (IInferencePlugin*)>> smart_ptr(ptr(nullptr), [](IInferencePlugin *p) {
+    unique_ptr<IInferencePlugin, std::function<void(IInferencePlugin*)>> smart_ptr(ptr(nullptr), [](IInferencePlugin *p) {
         p->Release();
     });
 
@@ -62,8 +66,7 @@ TEST_F(PluginTest, shouldThrowExceptionIfPluginNotExist) {
 
 ACTION_TEMPLATE(CallListenerWithErrorMessage,
                 HAS_1_TEMPLATE_PARAMS(int, k),
-                AND_1_VALUE_PARAMS(pointer))
-{
+                AND_1_VALUE_PARAMS(pointer)) {
     InferenceEngine::IErrorListener & data = ::std::get<k>(args);
     data.onError(pointer);
 }
@@ -71,7 +74,7 @@ ACTION_TEMPLATE(CallListenerWithErrorMessage,
 InferenceEnginePluginPtr PluginTest::getPtr() {
     InferenceEnginePluginPtr smart_ptr(get_mock_engine_name());
     return smart_ptr;
-};
+}
 
 TEST_F(PluginTest, canSetConfiguration) {
     InferenceEnginePluginPtr ptr = getPtr();
@@ -86,3 +89,5 @@ TEST_F(PluginTest, canSetConfiguration) {
 
     ASSERT_STREQ(reinterpret_cast<MockPlugin*>(*ptr)->config["key"].c_str(), "value");
 }
+
+IE_SUPPRESS_DEPRECATED_END
