@@ -11,7 +11,9 @@
 
 namespace LayerTestsDefinitions {
 
-class ConcatNeighboringGraphTransformation : public LayerTestsUtils::LayerTransformation<LayerTestsUtils::LayerTransformationParams> {
+class ConcatNeighboringGraphTransformation :
+    public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
+    public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
