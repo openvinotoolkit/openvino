@@ -17,8 +17,9 @@
 #include "behavior/set_preprocess.hpp"
 #include "common_test_utils/behavior_test_utils.hpp"
 
-namespace BehaviorTestsUtils {
-TEST_P(BehaviorTestsCommon, SetPreProcessToInputInfo) {
+using PreprocessBehTest = BehaviorTestsUtils::PreprocessBehTest;
+
+TEST_P(PreprocessBehTest, SetPreProcessToInputInfo) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
@@ -43,7 +44,7 @@ TEST_P(BehaviorTestsCommon, SetPreProcessToInputInfo) {
     function.reset();
     }
 
-TEST_P(BehaviorTestsCommon, SetPreProcessToInferRequest) {
+TEST_P(PreprocessBehTest, SetPreProcessToInferRequest) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
@@ -70,5 +71,3 @@ TEST_P(BehaviorTestsCommon, SetPreProcessToInferRequest) {
     }
     function.reset();
     }
-
-} // namespace LayerTestsDefinitions

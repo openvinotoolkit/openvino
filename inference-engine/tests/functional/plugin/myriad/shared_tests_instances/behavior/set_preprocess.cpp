@@ -5,7 +5,7 @@
 #include "multi-device/multi_device_config.hpp"
 
 #include "behavior/set_preprocess.hpp"
-
+/*
 using namespace LayerTestsDefinitions;
 
 namespace {
@@ -35,3 +35,4 @@ namespace {
                                     ::testing::ValuesIn(multiConfigs)),
                             PreProcessTests::getTestCaseName);
 }  // namespace
+*/
