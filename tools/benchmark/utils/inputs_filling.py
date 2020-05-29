@@ -47,13 +47,13 @@ def set_inputs(paths_to_input, batch_size, input_info, requests):
 def get_inputs(paths_to_input, batch_size, input_info, requests):
     input_image_sizes = {}
     for key in sorted(input_info.keys()):
-        if is_image(input_info[key]):
-            input_image_sizes[key] = (input_info[key].shape[2], input_info[key].shape[3])
+        if is_image(input_info[key].input_data):
+            input_image_sizes[key] = (input_info[key].input_data.shape[2], input_info[key].input_data.shape[3])
         logger.info("Network input '{}' precision {}, dimensions ({}): {}".format(key,
-                                                                                  input_info[key].precision,
-                                                                                  input_info[key].layout,
+                                                                                  input_info[key].input_data.precision,
+                                                                                  input_info[key].input_data.layout,
                                                                                   " ".join(str(x) for x in
-                                                                                           input_info[key].shape)))
+                                                                                           input_info[key].input_data.shape)))
 
     images_count = len(input_image_sizes.keys())
     binaries_count = len(input_info) - images_count
@@ -102,31 +102,31 @@ def get_inputs(paths_to_input, batch_size, input_info, requests):
         input_data = {}
         keys = list(sorted(input_info.keys()))
         for key in keys:
-            if is_image(input_info[key]):
+            if is_image(input_info[key].input_data):
                 # input is image
                 if len(image_files) > 0:
                     input_data[key] = fill_blob_with_image(image_files, request_id, batch_size, keys.index(key),
-                                                           len(keys), input_info[key])
+                                                           len(keys), input_info[key].input_data)
                     continue
 
             # input is binary
             if len(binary_files):
                 input_data[key] = fill_blob_with_binary(binary_files, request_id, batch_size, keys.index(key),
-                                                        len(keys), input_info[key])
+                                                        len(keys), input_info[key].input_data)
                 continue
 
             # most likely input is image info
-            if is_image_info(input_info[key]) and len(input_image_sizes) == 1:
+            if is_image_info(input_info[key].input_data) and len(input_image_sizes) == 1:
                 image_size = input_image_sizes[list(input_image_sizes.keys()).pop()]
                 logger.info("Fill input '" + key + "' with image size " + str(image_size[0]) + "x" +
                             str(image_size[1]))
-                input_data[key] = fill_blob_with_image_info(image_size, input_info[key])
+                input_data[key] = fill_blob_with_image_info(image_size, input_info[key].input_data)
                 continue
 
             # fill with random data
             logger.info("Fill input '{}' with random values ({} is expected)".format(key, "image" if is_image(
-                input_info[key]) else "some binary data"))
-            input_data[key] = fill_blob_with_random(input_info[key])
+                input_info[key].input_data) else "some binary data"))
+            input_data[key] = fill_blob_with_random(input_info[key].input_data)
 
         requests_input_data.append(input_data)
 
