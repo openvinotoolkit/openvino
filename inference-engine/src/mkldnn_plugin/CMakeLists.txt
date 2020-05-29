@@ -300,11 +300,21 @@ if(CPU_GRAPHS)
             "${CMAKE_COMMAND}"
             -D "ACTUAL_GRAPH=${exec_graph_file_actual}"
             -D "REF_GRAPH=${exec_graph_file_ref}"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/check.cmake"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/exec_graph_check.cmake"
             COMMENT
             "Check that execution graph for ${graph_file_name} is valid"
             VERBATIM)
     endforeach()
+
+    add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+        COMMAND
+        "${CMAKE_COMMAND}"
+        -D "ACTUAL_LIBRARY=$<TARGET_FILE:MKLDNNPlugin>"
+        -D "REF_LIBRARY=$<TARGET_FILE:cpu_reference>"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/compression_info.cmake"
+        COMMENT
+        "Compression status ..."
+        VERBATIM)
 else()
     ie_cpu_plugin_build(TARGET_NAME "MKLDNNPlugin"
                         DEVICE_NAME "CPU"
