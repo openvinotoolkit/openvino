@@ -181,6 +181,8 @@ namespace
             break;
             TYPE_CASE(bf16)(arg1, arg2, out);
             break;
+            TYPE_CASE(f16)(arg1, arg2, out);
+            break;
             TYPE_CASE(f32)(arg1, arg2, out);
             break;
             TYPE_CASE(f64)(arg1, arg2, out);
