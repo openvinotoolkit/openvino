@@ -39,7 +39,7 @@ TEST(TransformationTests, DepthToSpaceFusionDepthFirst) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0});
         ngraph::pass::InitNodeInfo().run_on_function(f);
         auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
-            return !!std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node);
+            return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
         };
 
         auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
@@ -73,7 +73,7 @@ TEST(TransformationTests, DepthToSpaceFusionBlockFirst) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0});
         ngraph::pass::InitNodeInfo().run_on_function(f);
         auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
-            return !!std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node);
+            return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
         };
 
         auto depth_to_space_transform = ngraph::pass::DepthToSpaceFusion();
@@ -107,7 +107,7 @@ TEST(TransformationTests, DepthToSpaceFusionDynamicShape) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0, shape_reshape_before});
         ngraph::pass::InitNodeInfo().run_on_function(f);
         auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
-            return !!std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node);
+            return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
         };
 
         // transformation won't be applied because of shape_reshape_before is dynamic, the graph will remain the same
@@ -151,8 +151,8 @@ TEST(TransformationTests, DepthToSpaceFusionSeveralConsumers) {
         auto result_2 = std::make_shared<ngraph::opset3::Result> (permute);
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_after}, ngraph::ParameterVector{input0});
         ngraph::pass::InitNodeInfo().run_on_function(f);
-        const auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
-            return !!std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node);
+        auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
+            return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
         };
 
         // transformation won't be applied because of reshape_before has several consumers, the graph will remain the same
