@@ -9,7 +9,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32
 };
 
-// TODO: support InferRequest in GNAPlugin
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTests,
         ::testing::Combine(
                 ::testing::ValuesIn(netPrecisions),

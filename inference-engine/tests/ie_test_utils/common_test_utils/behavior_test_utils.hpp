@@ -63,6 +63,12 @@ public:
         if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
             PluginCache::get().reset();
         }
+        configuration.clear();
+        function.reset();
+    }
+
+    ~BehaviorTestsBasic() {
+        configuration.clear();
     }
 
     std::shared_ptr<ngraph::Function> function;
