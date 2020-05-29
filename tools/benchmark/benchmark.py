@@ -66,7 +66,7 @@ class Benchmark:
 
         ie_network = self.ie.read_network(xml_filename, bin_filename)
 
-        input_info = ie_network.inputs
+        input_info = ie_network.input_info
 
         if not input_info:
             raise AttributeError('No inputs info is provided')
