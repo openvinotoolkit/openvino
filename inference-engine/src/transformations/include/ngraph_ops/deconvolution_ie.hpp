@@ -31,7 +31,8 @@ public:
                     const CoordinateDiff& pads_end,
                     const size_t& group = 1,
                     const PadType& auto_pad = PadType::EXPLICIT,
-                    const CoordinateDiff& output_padding = {});
+                    const CoordinateDiff& output_padding = {},
+                    const std::shared_ptr<Node> & output_shape = nullptr);
 
     DeconvolutionIE(const Output<Node>& data,
                     const Output<Node>& filters,
@@ -42,7 +43,8 @@ public:
                     const CoordinateDiff& pads_end,
                     const size_t& group = 1,
                     const PadType& auto_pad = PadType::EXPLICIT,
-                    const CoordinateDiff& output_padding = {});
+                    const CoordinateDiff& output_padding = {},
+                    const std::shared_ptr<Node> & output_shape = nullptr);
 
     void validate_and_infer_types() override;
 
@@ -75,6 +77,7 @@ protected:
     CoordinateDiff m_output_padding;
     PadType m_auto_pad;
     size_t m_group;
+    std::shared_ptr<Node> m_output_shape;
 };
 
 }  // namespace op

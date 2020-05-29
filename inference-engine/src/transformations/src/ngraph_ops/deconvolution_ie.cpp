@@ -26,7 +26,8 @@ op::DeconvolutionIE::DeconvolutionIE(const Output<Node>& data,
                                      const CoordinateDiff& pads_end,
                                      const size_t& group,
                                      const PadType& auto_pad,
-                                     const CoordinateDiff& output_padding)
+                                     const CoordinateDiff& output_padding,
+                                     const std::shared_ptr<Node> & output_shape)
         : Op({data, filters})
         , m_strides(strides)
         , m_dilations(dilations)
@@ -34,7 +35,8 @@ op::DeconvolutionIE::DeconvolutionIE(const Output<Node>& data,
         , m_pads_end(pads_end)
         , m_auto_pad(auto_pad)
         , m_group(group)
-        , m_output_padding(output_padding) {
+        , m_output_padding(output_padding)
+        , m_output_shape(output_shape) {
     constructor_validate_and_infer_types();
 }
 
@@ -47,7 +49,8 @@ op::DeconvolutionIE::DeconvolutionIE(const Output<Node>& data,
                                      const CoordinateDiff& pads_end,
                                      const size_t& group,
                                      const PadType& auto_pad,
-                                     const CoordinateDiff& output_padding)
+                                     const CoordinateDiff& output_padding,
+                                     const std::shared_ptr<Node> & output_shape)
         : Op({data, filters, bias})
         , m_strides(strides)
         , m_dilations(dilations)
@@ -55,7 +58,8 @@ op::DeconvolutionIE::DeconvolutionIE(const Output<Node>& data,
         , m_pads_end(pads_end)
         , m_auto_pad(auto_pad)
         , m_group(group)
-        , m_output_padding(output_padding) {
+        , m_output_padding(output_padding)
+        , m_output_shape(output_shape) {
     constructor_validate_and_infer_types();
 }
 
@@ -74,8 +78,15 @@ void op::DeconvolutionIE::validate_and_infer_types() {
         reshape_dims.insert(reshape_dims.end(), weights_shape.begin() + 2, weights_shape.end());
         weights = std::make_shared<opset1::Reshape>(weights, opset1::Constant::create(element::i64, Shape{reshape_dims.size()}, reshape_dims), true);
     }
-    auto conv = std::make_shared<opset1::GroupConvolutionBackpropData>(input_value(0), weights, m_strides, m_pads_begin, m_pads_end, m_dilations, m_auto_pad);
-    set_output_type(0, conv->output(0).get_element_type(), conv->output(0).get_partial_shape());
+    Output<Node> conv;
+    if (m_output_shape) {
+        conv = std::make_shared<opset1::GroupConvolutionBackpropData>(input_value(0), weights, m_output_shape,
+                m_strides, m_pads_begin, m_pads_end, m_dilations, m_auto_pad, m_output_padding);
+    } else {
+        conv = std::make_shared<opset1::GroupConvolutionBackpropData>(input_value(0), weights,
+                m_strides, m_pads_begin, m_pads_end, m_dilations, m_auto_pad, m_output_padding);
+    }
+    set_output_type(0, conv.get_element_type(), conv.get_partial_shape());
 }
 
 shared_ptr<Node> op::DeconvolutionIE::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
@@ -87,7 +98,9 @@ shared_ptr<Node> op::DeconvolutionIE::clone_with_new_inputs(const ngraph::Output
                                             m_pads_begin,
                                             m_pads_end,
                                             m_group,
-                                            m_auto_pad);
+                                            m_auto_pad,
+                                            m_output_padding,
+                                            m_output_shape);
     } else if (new_args.size() == 3) {
         return make_shared<DeconvolutionIE>(new_args.at(0),
                                             new_args.at(1),
@@ -97,7 +110,9 @@ shared_ptr<Node> op::DeconvolutionIE::clone_with_new_inputs(const ngraph::Output
                                             m_pads_begin,
                                             m_pads_end,
                                             m_group,
-                                            m_auto_pad);
+                                            m_auto_pad,
+                                            m_output_padding,
+                                            m_output_shape);
     }
     throw ngraph::ngraph_error("Unexpected number of arguments");
 }
