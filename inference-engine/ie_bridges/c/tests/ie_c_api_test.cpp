@@ -300,32 +300,32 @@ TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
         }
     }
 
-    std::vector<char> model_content;
+    std::vector<char> weights_content;
     {
-        std::ifstream model_file(bin, std::ifstream::binary);
-        if (model_file) {
-            model_file.seekg(0, std::ifstream::end);
-            model_content.resize(model_file.tellg());
-            if (model_content.size() > 0) {
-                model_file.seekg(0, std::ifstream::beg);
-                model_file.read(&model_content[0], model_content.size());
+        std::ifstream weights_file(bin, std::ifstream::binary);
+        if (weights_file) {
+            weights_file.seekg(0, std::ifstream::end);
+            weights_content.resize(weights_file.tellg());
+            if (weights_content.size() > 0) {
+                weights_file.seekg(0, std::ifstream::beg);
+                weights_file.read(&weights_content[0], weights_content.size());
             }
         }
     }
 
-    tensor_desc_t model_desc { ANY, { 1, { model_content.size() } }, U8 };
-    ie_blob_t *model_blob = nullptr;
-    IE_EXPECT_OK(ie_blob_make_memory_from_preallocated(&model_desc, model_content.data(), model_content.size(), &model_blob));
-    EXPECT_NE(nullptr, model_blob);
+    tensor_desc_t weights_desc { ANY, { 1, { weights_content.size() } }, U8 };
+    ie_blob_t *weights_blob = nullptr;
+    IE_EXPECT_OK(ie_blob_make_memory_from_preallocated(&weights_desc, weights_content.data(), weights_content.size(), &weights_blob));
+    EXPECT_NE(nullptr, weights_blob);
 
-    if (model_blob != nullptr) {
+    if (weights_blob != nullptr) {
         ie_network_t *network = nullptr;
-        IE_EXPECT_OK(ie_core_read_network_from_memory(core, xml_content.data(), xml_content.size(), model_blob, &network));
+        IE_EXPECT_OK(ie_core_read_network_from_memory(core, xml_content.data(), xml_content.size(), weights_blob, &network));
         EXPECT_NE(nullptr, network);
         if (network != nullptr) {
             ie_network_free(&network);
         }
-        ie_blob_free(&model_blob);
+        ie_blob_free(&weights_blob);
     }
 
     ie_core_free(&core);
