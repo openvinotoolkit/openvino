@@ -55,7 +55,7 @@ class MemoryOffset(Op):
             elif pair_node.has_valid('element_size'):
                 # TODO Add here real batch
                 node.out_port(0).data.set_shape(np.array([1, pair_node['element_size']]))
-            elif pair_node.in_port(0).get_source().node.has_valid('out-size') :
+            elif pair_node.in_port(0).get_source().node.has_valid('out-size'):
                 out_size = pair_node.in_port(0).get_source().node['out-size']
                 node.out_port(0).data.set_shape(np.array([1, out_size]))
             elif pair_node.in_port(0).get_source().node.op in ["Add", "ReLU"] and \

@@ -39,7 +39,7 @@ class AddShiftFrontExtractor(FrontExtractorOp):
         return cls.enabled
 
 
-class FixedShiftComponentFrontExtractor(FrontExtractorOp):
+class FixedBiasComponentFrontExtractor(FrontExtractorOp):
     op = 'fixedbiascomponent'
     enabled = True
 
@@ -52,7 +52,9 @@ class FixedShiftComponentFrontExtractor(FrontExtractorOp):
         read_placeholder(pb, 1)
 
         mapping_rule = {
-            'layout': 'NCHW'
+            'layout': 'NCHW',
+            'bias_term': True,
+            'out-size': biases.shape[0],
         }
         embed_input(mapping_rule, 1, 'biases', biases)
 

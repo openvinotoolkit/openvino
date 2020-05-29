@@ -55,7 +55,8 @@ class FixedScaleComponentFrontExtractor(FrontExtractorOp):
         read_placeholder(pb, 1)
 
         mapping_rule = {
-            'layout': 'NCHW'
+            'layout': 'NCHW',
+            'out-size': weights.shape[0],
         }
         embed_input(mapping_rule, 1, 'weights', weights)
 
