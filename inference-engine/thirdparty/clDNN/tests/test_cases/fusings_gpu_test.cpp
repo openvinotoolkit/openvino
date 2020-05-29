@@ -692,7 +692,7 @@ TEST_P(conv_fp32_quantize_u8, basic) {
                  reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = 1.0f;
     execute(p);
 }
 
@@ -701,6 +701,9 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_quantize_u8,
                                 // For now only b_fs_yx_fsv16 supports this case
                                 bc_test_params{CASE_CONV_FP32_2, 2, 3},
                                 bc_test_params{CASE_CONV_FP32_3, 2, 3},
+
+                                bc_test_params{CASE_CONV_FP16_2, 2, 3},
+                                bc_test_params{CASE_CONV_FP16_3, 2, 3},
                         }), );
 
 class conv_fp32_scale_quantize_i8 : public ConvFusingTest {};
@@ -731,6 +734,9 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_quantize_i8,
                                 // For now only b_fs_yx_fsv16 supports this case
                                 bc_test_params{CASE_CONV_FP32_2, 2, 4},
                                 bc_test_params{CASE_CONV_FP32_3, 2, 4},
+
+                                bc_test_params{CASE_CONV_FP16_2, 2, 4},
+                                bc_test_params{CASE_CONV_FP16_3, 2, 4},
                         }), );
 
 class conv_fp32_scale_activation_quantize_i8 : public ConvFusingTest {};
@@ -751,7 +757,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8, basic) {
                  reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-2f;
+    tolerance = 1.0f;
     execute(p);
 }
 
@@ -760,36 +766,42 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8,
                                 // For now only b_fs_yx_fsv16 supports this case
                                 bc_test_params{CASE_CONV_FP32_2, 2, 5},
                                 bc_test_params{CASE_CONV_FP32_3, 2, 5},
+
+                                bc_test_params{CASE_CONV_FP16_2, 2, 5},
+                                bc_test_params{CASE_CONV_FP16_3, 2, 5},
                         }), );
 
-class conv_fp32_scale_activation_quantize_i8_eltwise_fp32 : public ConvFusingTest {};
-TEST_P(conv_fp32_scale_activation_quantize_i8_eltwise_fp32, basic) {
+class conv_fp32_scale_activation_quantize_u8_eltwise_fp32 : public ConvFusingTest {};
+TEST_P(conv_fp32_scale_activation_quantize_u8_eltwise_fp32, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
                  data("bias", get_mem(get_bias_layout(p))),
-                 data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+                 data("in_lo", get_mem(get_per_channel_layout(p), 0)),
                  data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
-                 data("out_lo", get_mem(get_single_element_layout(p), -127)),
-                 data("out_hi", get_mem(get_single_element_layout(p), 127)),
+                 data("out_lo", get_mem(get_single_element_layout(p), 0)),
+                 data("out_hi", get_mem(get_single_element_layout(p), 255)),
                  data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count()/255)),
                  data("eltwise_data", get_mem(get_output_layout(p))),
                  convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
                  scale("scale", "conv_prim", "scale_data"),
                  activation("activation_scale", "scale", activation_func::exp),
-                 quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
-                 eltwise("sum", { "quantize", "eltwise_data"}, eltwise_mode::sum,  data_types::f32),
+                 quantize("quantize", "activation_scale", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
+                 eltwise("sum", { "quantize", "eltwise_data"}, eltwise_mode::sum,  p.default_type),
                  reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
-    tolerance = 1e-2f;
+    tolerance = 1.0f;
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_eltwise_fp32,
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_u8_eltwise_fp32,
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 // For now only b_fs_yx_fsv16 supports this case
                                 bc_test_params{CASE_CONV_FP32_2, 2, 6},
                                 bc_test_params{CASE_CONV_FP32_3, 2, 6},
+
+                                bc_test_params{CASE_CONV_FP16_2, 2, 6},
+                                bc_test_params{CASE_CONV_FP16_3, 2, 6},
                         }), );
 
 class conv_fp32_scale_activation_quantize_i8_activation : public ConvFusingTest {};
@@ -811,7 +823,7 @@ TEST_P(conv_fp32_scale_activation_quantize_i8_activation, basic) {
                  activation("activation_quantize", "quantize", activation_func::relu),
                  reorder("reorder_bfyx", "activation_quantize", p.default_format, data_types::f32)
     );
-    tolerance = 1e-2f;
+    tolerance = 1.0f;
     execute(p);
 }
 
@@ -819,6 +831,9 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_acti
                         ::testing::ValuesIn(std::vector<bc_test_params>{
                                 bc_test_params{CASE_CONV_FP32_2, 2, 6},
                                 bc_test_params{CASE_CONV_FP32_3, 2, 6},
+
+                                bc_test_params{CASE_CONV_FP16_2, 2, 6},
+                                bc_test_params{CASE_CONV_FP16_3, 2, 6},
                         }), );
 
 
@@ -2486,8 +2501,8 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_quantize_i8,
         mvn_test_params{ CASE_MVN_3D_U8_2, 2, 4 },
 }), );
 
-class mvn_scale_activation_quantize_i8_eltwise_fp32_quantize_i8 : public MVNFusingTest {};
-TEST_P(mvn_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, basic) {
+class mvn_scale_activation_quantize_u8_eltwise_fp32_quantize_i8 : public MVNFusingTest {};
+TEST_P(mvn_scale_activation_quantize_u8_eltwise_fp32_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2495,18 +2510,18 @@ TEST_P(mvn_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p))),
         scale("scale", "mvn", "scale_data"),
         activation("act", "scale", activation_func::hyperbolic_tan),
-        data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_low", get_mem(get_per_channel_layout(p), 0)),
         data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
-        data("out_low", get_mem(get_single_element_layout(p), -127, 127)),
-        data("out_high", get_mem(get_single_element_layout(p), -127, 127)),
-        quantize("quant", "act", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
+        data("out_low", get_mem(get_single_element_layout(p), 0)),
+        data("out_high", get_mem(get_single_element_layout(p), 255)),
+        quantize("quant", "act", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
         data("eltw_data", get_mem(layout{ data_types::i8, p.input_format, p.input_size })),
         eltwise("eltw", {"quant", "eltw_data"}, eltwise_mode::sum, data_types::f32),
         data("in_low2", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_high2", get_mem(get_per_channel_layout(p), 1, max_random)),
-        data("out_low2", get_mem(get_single_element_layout(p), -127, 127)),
-        data("out_high2", get_mem(get_single_element_layout(p), -127, 127)),
-        quantize("quant2", "eltw", "in_low2", "in_high2", "out_low2", "out_high2", 255, data_types::i8),
+        data("out_low2", get_mem(get_single_element_layout(p), -128)),
+        data("out_high2", get_mem(get_single_element_layout(p), 127)),
+        quantize("quant2", "eltw", "in_low2", "in_high2", "out_low2", "out_high2", 256, data_types::i8),
         reorder("reorder_bfyx", "quant2", format::bfyx, data_types::f32)
     );
 
@@ -2514,7 +2529,7 @@ TEST_P(mvn_scale_activation_quantize_i8_eltwise_fp32_quantize_i8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_activation_quantize_i8_eltwise_fp32_quantize_i8,
+INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_activation_quantize_u8_eltwise_fp32_quantize_i8,
     ::testing::ValuesIn(std::vector<mvn_test_params>{
         // Full using for fp input not supported yet, it may lead to output padding and non-optimal kernel
         // mvn_test_params{ CASE_MVN_F32_1, 2, 7 },
@@ -3461,7 +3476,7 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("scale1_data", get_mem(get_per_channel_layout(p), 1.f / p.kernel.count())),
-        data("in1_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in1_lo", get_mem(get_per_channel_layout(p), 0)),
         data("in1_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out1_lo", get_mem(get_single_element_layout(p), 0)),
         data("out1_hi", get_mem(get_single_element_layout(p), 255)),

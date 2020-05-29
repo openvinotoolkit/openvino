@@ -18,6 +18,8 @@
 #include "kernel_selector_utils.h"
 #include <string>
 
+static const size_t sub_group_size = 32;
+
 namespace kernel_selector {
 ParamsKey QuantizeKernelRef::GetSupportedKey() const {
     ParamsKey k;
@@ -43,21 +45,34 @@ CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params, 
 
     auto output = params.output;
 
-    runInfo.gws0 = output.Batch().v;
-    runInfo.gws1 = params.packed_binary_output ? CeilDiv(output.Feature().v, 32) : output.Feature().v;
-    runInfo.gws2 = Align(output.X().v * output.Y().v * output.Z().v, 16);
+    if (output.GetLayout() == DataLayout::b_fs_yx_fsv16 && !params.packed_binary_output) {
+        runInfo.gws0 = output.Batch().v;
+        runInfo.gws1 = Align(output.Feature().v, sub_group_size);
+        runInfo.gws2 = output.Y().v * output.X().v * output.Z().v;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 16;
+        runInfo.lws0 = 1;
+        runInfo.lws1 = sub_group_size;
+        runInfo.lws2 = 1;
+    } else {
+        runInfo.gws0 = output.Batch().v;
+        runInfo.gws1 = params.packed_binary_output ? CeilDiv(output.Feature().v, 32) : output.Feature().v;
+        runInfo.gws2 = Align(output.X().v * output.Y().v * output.Z().v, 16);
+
+        runInfo.lws0 = 1;
+        runInfo.lws1 = 1;
+        runInfo.lws2 = 16;
+    }
 
     runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     return runInfo;
 }
 
-JitConstants QuantizeKernelRef::GetJitConstants(const quantize_params& params) const {
-    JitConstants jit = Parent::GetJitConstants(params);
+JitConstants QuantizeKernelRef::GetJitConstants(const quantize_params& params, const CommonDispatchData& runInfo) const {
+    JitConstants jit = Parent::GetJitConstants(params, runInfo);
+    if (params.output.GetLayout() == DataLayout::b_fs_yx_fsv16 && !params.packed_binary_output) {
+        jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
+    }
     return jit;
 }
 

@@ -25,9 +25,11 @@ public:
     using common_kernel_base::common_kernel_base;
     virtual ~QuantizeKernelBase() {}
 
-    virtual JitConstants GetJitConstants(const quantize_params& params) const;
-    virtual CommonDispatchData SetDefault(const quantize_params& params, const optional_params&) const = 0;
     bool Validate(const Params& p, const optional_params& o) const override;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+
+protected:
+    virtual JitConstants GetJitConstants(const quantize_params& params, const CommonDispatchData& runInfo) const;
+    virtual CommonDispatchData SetDefault(const quantize_params& params, const optional_params&) const = 0;
 };
 }  // namespace kernel_selector

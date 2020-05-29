@@ -22,12 +22,47 @@ namespace kernel_selector {
 // quantize_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct quantize_params : public base_params {
-    quantize_params() : base_params(KernelType::QUANTIZE),
-    levels(0), packed_binary_output(false), scale_shift_opt(false) {}
+    quantize_params()
+    : base_params(KernelType::QUANTIZE)
+    , levels(0)
+    , packed_binary_output(false)
+    , scale_shift_opt(false)
+    , has_post_scale(true)
+    , has_post_shift(true)
+    , has_pre_shift(true)
+    , has_clamp(true)
+    , per_tensor_input_range(false)
+    , per_tensor_input_scale(false)
+    , per_tensor_input_shift(false)
+    , per_tensor_output_scale(false)
+    , per_tensor_output_shift(false)
+    , in_lo(0.0f)
+    , in_hi(0.0f)
+    , in_scale(0.0f)
+    , in_shift(0.0f)
+    , out_scale(0.0f)
+    , out_shift(0.0f) { }
 
     int levels;
     bool packed_binary_output;
     bool scale_shift_opt;
+    bool has_post_scale;
+    bool has_post_shift;
+    bool has_pre_shift;
+    bool has_clamp;
+
+    bool per_tensor_input_range;
+    bool per_tensor_input_scale;
+    bool per_tensor_input_shift;
+    bool per_tensor_output_scale;
+    bool per_tensor_output_shift;
+
+    float in_lo;
+    float in_hi;
+    float in_scale;
+    float in_shift;
+    float out_scale;
+    float out_shift;
 
     virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();

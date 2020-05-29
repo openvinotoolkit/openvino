@@ -76,11 +76,13 @@ bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) co
         return false;
     }
 
+
     if (params.output.GetLayout() != params.inputs[0].GetLayout())
         return false;
 
-    if (!params.fused_ops.empty() && params.output.GetLayout() != DataLayout::bfyx &&
-        params.output.GetLayout() != DataLayout::bfzyx)
+    if (!params.fused_ops.empty() &&
+        ((params.output.GetLayout() != DataLayout::bfyx && params.output.GetLayout() != DataLayout::bfzyx) ||
+        ((params.output.X().v * params.output.Y().v) % 4 != 0)))
         return false;
 
     return true;

@@ -111,9 +111,6 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
             if (levels == 2 || levels > 256 || quantize_node.get_scale_shift_opt() || quantize_node.is_constant())
                 return;
 
-            if (quantize_node.input().get_output_layout().data_type == data_types::f16)
-                return;
-
             auto &input_low = quantize_node.get_dependency(1).template as<data>();
             auto &input_high = quantize_node.get_dependency(2).template as<data>();
             auto &output_low = quantize_node.get_dependency(3).template as<data>();
