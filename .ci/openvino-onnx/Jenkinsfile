@@ -1,0 +1,179 @@
+// INTEL CONFIDENTIAL
+// Copyright 2018-2020 Intel Corporation All Rights Reserved.
+// The source code contained or described herein and all documents related to the
+// source code ("Material") are owned by Intel Corporation or its suppliers or
+// licensors. Title to the Material remains with Intel Corporation or its
+// suppliers and licensors. The Material may contain trade secrets and proprietary
+// and confidential information of Intel Corporation and its suppliers and
+// licensors, and is protected by worldwide copyright and trade secret laws and
+// treaty provisions. No part of the Material may be used, copied, reproduced,
+// modified, published, uploaded, posted, transmitted, distributed, or disclosed
+// in any way without Intel's prior express written permission.
+// No license under any patent, copyright, trade secret or other intellectual
+// property right is granted to or conferred upon you by disclosure or delivery of
+// the Materials, either expressly, by implication, inducement, estoppel or
+// otherwise. Any license under such intellectual property rights must be express
+// and approved by Intel in writing.
+
+JENKINS_GITHUB_CREDENTIAL_ID = "7157091e-bc04-42f0-99fd-dc4da2922a55"
+DOCKER_CONTAINER_PREFIX = "jenkins_ngraph-onnx_ci"
+DOCKER_CONTAINER_NAME="${DOCKER_CONTAINER_PREFIX}_${BUILD_NUMBER}"
+BASE_IMAGE_TAG = "latest"
+DOCKER_HOME = "/home/ci_user"
+CI_FILES_PATH = ".ci/openvino-onnx"
+if(DOCKER_REGISTRY.trim() == "") {throw new Exception("Missing Docker registry url!");}
+
+
+def getGitPrInfo(String project) {
+    def gitPrInfo = [
+        prAuthorEmail : "",
+        commitAuthorEmail : "",
+        commitHash : "",
+        commitSubject : ""
+    ]
+    try {
+        dir ("${WORKDIR}/${project}") {
+            gitPrInfo.prAuthorEmail = sh (script: 'git log -1 --pretty="format:%ae" ', returnStdout: true).trim()
+            gitPrInfo.commitAuthorEmail = sh (script: 'git log -1 --pretty="format:%ce" ', returnStdout: true).trim()
+            gitPrInfo.commitSubject = sh (script: 'git log -1 --pretty="format:%H" ', returnStdout: true).trim()
+            gitPrInfo.commitHash = sh (script: 'git log -1 --pretty="format:%s" ', returnStdout: true).trim()
+        }
+    }
+    catch(e) {
+        echo "Failed to retrieve ${project} git repository information!"
+        echo "ERROR: ${e}"
+    }
+    return gitPrInfo
+}
+
+def notifyByEmail(def gitPrInfo) {
+    stage('Notify') {
+        String notifyPeople = "${gitPrInfo.prAuthorEmail}, ${gitPrInfo.commitAuthorEmail}"
+        emailext (
+            subject: "OpenVino CI: PR ${CHANGE_ID} ${currentBuild.result}!",
+            body: """
+                    Status: ${currentBuild.result}
+                    Pull Request Title: ${CHANGE_TITLE}
+                    Pull Request: ${CHANGE_URL}
+                    Branch: ${CHANGE_BRANCH}
+                    Commit Hash: ${gitPrInfo.commitSubject}
+                    Commit Subject: ${gitPrInfo.commitHash}
+                    Jenkins Build: ${RUN_DISPLAY_URL}
+            """,
+            to: "${notifyPeople}"
+        )
+    }
+}
+
+def gitClone(String label, String address, String branch) {
+    repositoryName = address.split("/").last().replace(".git","")
+
+    sh  label: label,
+        script:
+    """
+        git clone \
+            -b ${branch} \
+            --single-branch \
+            --no-tags \
+            --dissociate \
+            --depth 1 \
+            --verbose \
+            ${address} \
+            ${WORKDIR}/${repositoryName}
+    """
+}
+
+def gitSubmoduleUpdate(String repository_name) {
+    dir ("${WORKDIR}/${repository_name}") {
+        sh  label: "Init ${repository_name} submodules",
+            script:
+        """
+            git submodule init && git submodule update \
+                --init \
+                --no-fetch \
+                --recursive 
+        """
+    }
+}
+
+def runDockerContainer(String imageName) {
+             CONTAINER_ID = sh (
+                    script: """
+                            docker run -id --privileged \
+                                    --name ${DOCKER_CONTAINER_NAME} \
+                                    --volume ${WORKDIR}:${DOCKER_HOME} \
+                                    ${imageName}:${BASE_IMAGE_TAG} tail -f /dev/null
+                            """,
+                    returnStdout: true
+                    ).trim()
+}
+
+def buildDockerImage() {
+    sh """
+        docker build --tag=openvino-onnx-ci  --file=.ci/openvino-onnx/Dockerfile \
+        --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
+        --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
+    """
+}
+
+
+def dockerPull(String imageName) {
+    sh """
+        docker pull ${imageName}:${BASE_IMAGE_TAG}
+    """
+}
+
+def dockerRemove(String container_ID) {
+    sh """
+        docker rm -f ${container_ID} || true
+    """
+}
+
+def runContainerCommand(String command, String dir="${DOCKER_HOME}") {
+    sh """
+        docker exec -w ${dir} ${CONTAINER_ID} ${command}
+    """
+}
+
+pipeline {
+    agent {
+        label "OpenVino"
+    }
+    environment {
+        PROJECT_NAME = "openvino"
+        WORKDIR = "${WORKSPACE}/${BUILD_NUMBER}"
+        String imageName = "${DOCKER_REGISTRY}/ubuntu_20_04_onnx.dockerfile"
+    }
+    options {
+        skipDefaultCheckout true
+    }
+    stages {
+        stage("Clone repository") {
+            steps{
+                dir("${WORKDIR}") {
+                    checkout scm
+                }
+                gitSubmoduleUpdate(PROJECT_NAME)
+            }
+        }
+        stage("Build docker image") {
+            steps{
+                dir("${WORKDIR}") {
+                    buildDockerImage()
+                }
+            }
+        }
+    }
+    post {
+        failure {
+            script {
+                gitPrInfo = getGitPrInfo(PROJECT_NAME)
+                notifyByEmail(gitPrInfo)
+            }
+        }
+        cleanup {
+            dockerRemove("${CONTAINER_ID}")
+            deleteDir()
+        }
+    }
+}
