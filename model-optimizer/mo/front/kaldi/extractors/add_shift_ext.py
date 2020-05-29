@@ -19,6 +19,7 @@ from mo.front.caffe.extractors.utils import embed_input
 from mo.front.extractor import FrontExtractorOp
 from mo.front.kaldi.utils import read_binary_vector, read_learning_info
 from mo.ops.scale_shift import ScaleShiftOp
+from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, collect_until_token
 
 
 class AddShiftFrontExtractor(FrontExtractorOp):
@@ -34,5 +35,26 @@ class AddShiftFrontExtractor(FrontExtractorOp):
         mapping_rule = {'bias_term': bias_term}
         embed_input(mapping_rule, 1, 'weights', np.ones(biases.shape))
         embed_input(mapping_rule, 2, 'biases', biases)
+        ScaleShiftOp.update_node_stat(node, mapping_rule)
+        return cls.enabled
+
+
+class FixedShiftComponentFrontExtractor(FrontExtractorOp):
+    op = 'fixedbiascomponent'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        pb = node.parameters
+        collect_until_token(pb, b'<Bias>')
+        biases = read_binary_vector(pb)
+        find_next_tag(pb)
+        read_placeholder(pb, 1)
+
+        mapping_rule = {
+            'layout': 'NCHW'
+        }
+        embed_input(mapping_rule, 1, 'biases', biases)
+
         ScaleShiftOp.update_node_stat(node, mapping_rule)
         return cls.enabled

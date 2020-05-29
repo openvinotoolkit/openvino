@@ -40,3 +40,24 @@ class NaturalGradientPerElementScaleComponentFrontExtractor(FrontExtractorOp):
 
         ScaleShiftOp.update_node_stat(node, mapping_rule)
         return cls.enabled
+
+
+class FixedScaleComponentFrontExtractor(FrontExtractorOp):
+    op = 'fixedscalecomponent'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        pb = node.parameters
+        collect_until_token(pb, b'<Scales>')
+        weights = read_binary_vector(pb)
+        find_next_tag(pb)
+        read_placeholder(pb, 1)
+
+        mapping_rule = {
+            'layout': 'NCHW'
+        }
+        embed_input(mapping_rule, 1, 'weights', weights)
+
+        ScaleShiftOp.update_node_stat(node, mapping_rule)
+        return cls.enabled
