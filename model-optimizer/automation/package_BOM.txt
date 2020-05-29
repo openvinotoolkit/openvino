@@ -29,6 +29,7 @@ extensions/back/GatherNormalizer.py
 extensions/back/GroupedConvWeightsNormalize.py
 extensions/back/I64ToI32.py
 extensions/back/insert_compatibility_l2normalization.py
+extensions/back/InterpolateReshape.py
 extensions/back/InterpolateToInterpOrResample.py
 extensions/back/kaldi_remove_memory_output.py
 extensions/back/LeakyReLUMutation.py
