@@ -6,8 +6,6 @@
 
 #include "behavior/infer_request_input.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {

@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <common_test_utils/behavior_test_utils.hpp>
 #include "multi-device/multi_device_config.hpp"
 
-#include "common_test_utils/behavior_test_utils.hpp"
-
-using namespace BehaviorTestsUtils;
+#include "behavior/set_preprocess.hpp"
 
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {

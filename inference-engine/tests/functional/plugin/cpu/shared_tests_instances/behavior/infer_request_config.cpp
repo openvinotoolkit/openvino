@@ -6,8 +6,6 @@
 
 #include "behavior/infer_request_config.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,
@@ -23,7 +21,7 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> InConfigs = {
-            {},
+            configs.front(),
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA}},
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "8"}},

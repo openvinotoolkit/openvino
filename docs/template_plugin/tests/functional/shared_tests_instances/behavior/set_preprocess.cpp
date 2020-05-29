@@ -5,8 +5,6 @@
 #include "multi-device/multi_device_config.hpp"
 
 #include "behavior/set_preprocess.hpp"
-/*
-using namespace LayerTestsDefinitions;
 
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -18,12 +16,11 @@ namespace {
             {}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreProcessTests,
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessBehTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values("TEMPLATE"),
                                     ::testing::ValuesIn(configs)),
-                            PreProcessTests::getTestCaseName);
+                            PreprocessBehTest::getTestCaseName);
 
 }  // namespace
- */

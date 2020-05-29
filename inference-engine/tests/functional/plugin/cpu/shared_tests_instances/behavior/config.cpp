@@ -5,17 +5,18 @@
 #include "multi-device/multi_device_config.hpp"
 
 #include "behavior/config.hpp"
-
-using namespace LayerTestsDefinitions;
-
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,
             InferenceEngine::Precision::FP16
     };
 
+    const std::vector<std::map<std::string, std::string>> conf = {
+            {}
+    };
+
     const std::vector<std::map<std::string, std::string>> Configs = {
-            {},
+            conf.front(),
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA}},
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "8"}},
@@ -25,7 +26,6 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> MultiConfigs = {
-            {},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
                     {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
                                                                                       InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
@@ -71,6 +71,25 @@ namespace {
                     {InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_LIMIT, "NAN"}}
     };
 
+    const std::vector<std::map<std::string, std::string>> multiconf = {
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
+    };
+
+
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CorrectConfigAPITests,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                    ::testing::ValuesIn(conf)),
+                            CorrectConfigAPITests::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, CorrectConfigAPITests,
+                            ::testing::Combine(
+                                    ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                    ::testing::ValuesIn(multiconf)),
+                            CorrectConfigAPITests::getTestCaseName);
+
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
@@ -99,26 +118,4 @@ namespace {
                                     ::testing::ValuesIn(multiinconfigs)),
                             IncorrectConfigAPITests::getTestCaseName);
 
-
-    const std::vector<std::map<std::string, std::string>> conf = {
-            {}
-    };
-
-    const std::vector<std::map<std::string, std::string>> multiconf = {
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU}}
-    };
-
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CorrectConfigAPITests,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                    ::testing::ValuesIn(conf)),
-                            CorrectConfigAPITests::getTestCaseName);
-
-    INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, CorrectConfigAPITests,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(multiconf)),
-                            CorrectConfigAPITests::getTestCaseName);
 } // namespace

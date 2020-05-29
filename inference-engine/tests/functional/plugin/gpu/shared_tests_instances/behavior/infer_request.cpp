@@ -7,13 +7,7 @@
 #include "behavior/infer_request.hpp"
 #include "ie_plugin_config.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
-    const std::string generateMulti() {
-        return CommonTestUtils::DEVICE_MULTI + std::string(":") + CommonTestUtils::DEVICE_GPU;
-    }
-
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,
             InferenceEngine::Precision::FP16
@@ -29,7 +23,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, InferRequestTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(generateMulti()),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::Values(std::map<std::string, std::string>
                                             ({{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}}))),
                             InferRequestTests::getTestCaseName);

@@ -6,8 +6,6 @@
 #include "vpu/vpu_plugin_config.hpp"
 #include "behavior/config.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {

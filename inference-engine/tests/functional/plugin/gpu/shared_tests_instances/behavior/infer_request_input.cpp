@@ -6,14 +6,7 @@
 
 #include "behavior/infer_request_input.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
-
-    const std::string generateMulti() {
-        return CommonTestUtils::DEVICE_MULTI + std::string(":") + CommonTestUtils::DEVICE_GPU;
-    }
-
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP16,
             InferenceEngine::Precision::U8,
@@ -42,7 +35,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, InferRequestInputTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(generateMulti()),
+                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
                                     ::testing::ValuesIn(multiConfigs)),
                             InferRequestInputTests::getTestCaseName);
 

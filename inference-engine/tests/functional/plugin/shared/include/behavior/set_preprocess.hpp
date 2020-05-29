@@ -2,33 +2,68 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
-#include <tuple>
 #include <vector>
-#include <string>
-#include <memory>
-#include "ie_extension.h"
-#include <condition_variable>
+
+#include <ie_core.hpp>
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "functional_test_utils/blob_utils.hpp"
+#include "ie_preprocess.hpp"
+#include "common_test_utils/behavior_test_utils.hpp"
 
-namespace LayerTestsDefinitions {
-    typedef std::tuple<
-            InferenceEngine::Precision,         // Network precision
-            std::string,                        // Device name
-            std::map<std::string, std::string>  // Config
-    > PreProcessParams;
+using PreprocessBehTest = BehaviorTestsUtils::BehaviorTestsBasic;
 
-class PreProcessTests : public testing::WithParamInterface<PreProcessParams>,
-        public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<PreProcessParams> obj);
+TEST_P(PreprocessBehTest, SetPreProcessToInputInfo) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
 
-protected:
-    void SetUp() override;
-    void TearDown() override;
-};
+    auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
+    preProcess.setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
 
-}  // namespace LayerTestsDefinitions
+    // Get Core from cache
+    auto ie = PluginCache::get().ie();
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    auto req = execNet.CreateInferRequest();
+    {
+        InferenceEngine::ConstInputsDataMap inputsMap = execNet.GetInputsInfo();
+        const auto &name = inputsMap.begin()->second->name();
+        const InferenceEngine::PreProcessInfo *info = &req.GetPreProcess(name.c_str());
+        ASSERT_EQ(info->getResizeAlgorithm(), InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
+        ASSERT_PREPROCESS_INFO_EQ(preProcess, *info);
+    }
+    function.reset();
+}
+
+TEST_P(PreprocessBehTest, SetPreProcessToInferRequest) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+
+    auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
+    preProcess.setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
+
+    // Get Core from cache
+    auto ie = PluginCache::get().ie();
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    auto req = execNet.CreateInferRequest();
+    InferenceEngine::ConstInputsDataMap inputsMap = execNet.GetInputsInfo();
+    const auto &name = inputsMap.begin()->second->name();
+    auto inputBlob = FuncTestUtils::createAndFillBlob(
+            cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+    req.SetBlob(cnnNet.getInputsInfo().begin()->first, inputBlob);
+    {
+        const InferenceEngine::PreProcessInfo *info = &req.GetPreProcess(name.c_str());
+        ASSERT_EQ(cnnNet.getInputsInfo().begin()->second->getPreProcess().getResizeAlgorithm(),
+                  info->getResizeAlgorithm());
+    }
+    function.reset();
+}

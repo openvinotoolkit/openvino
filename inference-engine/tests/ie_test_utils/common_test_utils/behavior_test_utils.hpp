@@ -35,24 +35,8 @@ namespace BehaviorTestsUtils {
             std::map<std::string, std::string>  // Config
     > BehaviorParams;
 
-class BehaviorTestsCommon : public testing::WithParamInterface<BehaviorParams>,
-                            public CommonTestUtils::TestsCommon {
-public:
-     void SetUp() override;
-     void TearDown() override;
-protected:
-    BehaviorTestsCommon();
-
-    ~BehaviorTestsCommon() override;
-
-    std::string getTestCaseName(testing::TestParamInfo<BehaviorParams> obj);
-    std::shared_ptr<ngraph::Function> function;
-    InferenceEngine::Precision netPrecision;
-    std::string targetDevice;
-    std::map<std::string, std::string> configuration;
-};
-
-class BehaviorTestsBasic : public BehaviorTestsCommon {
+class BehaviorTestsBasic : public testing::WithParamInterface<BehaviorParams>,
+                           public CommonTestUtils::TestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<BehaviorParams> obj) {
         InferenceEngine::Precision  netPrecision;
@@ -70,19 +54,21 @@ public:
         return result.str();
     }
 
-    void SetUp() {
+    void SetUp()  override {
         std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
         function = ngraph::builder::subgraph::makeConvPoolRelu();
     }
 
-    void TearDown() {
+    void TearDown() override {
         if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
             PluginCache::get().reset();
         }
     }
+
+    std::shared_ptr<ngraph::Function> function;
+    InferenceEngine::Precision netPrecision;
+    std::string targetDevice;
+    std::map<std::string, std::string> configuration;
 };
-
-
-using PreprocessBehTest = BehaviorTestsBasic;
 
 }  // namespace BehaviorTestsUtils

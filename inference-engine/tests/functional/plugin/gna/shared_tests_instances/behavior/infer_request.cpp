@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-
 #include "behavior/infer_request.hpp"
 #include "ie_plugin_config.hpp"
-
-using namespace LayerTestsDefinitions;
-
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32
