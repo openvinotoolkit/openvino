@@ -258,9 +258,9 @@ def test_lstm_sequence_operator_bidirectional(dtype):
     num_directions = 2
     seq_length = 2
 
-    X_shape = [seq_length, batch_size, input_size]
-    H_t_shape = [num_directions, batch_size, hidden_size]
-    C_t_shape = [num_directions, batch_size, hidden_size]
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    C_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
     W_shape = [num_directions, 4 * hidden_size, input_size]
     R_shape = [num_directions, 4 * hidden_size, hidden_size]
@@ -323,9 +323,9 @@ def test_lstm_sequence_operator_reverse(dtype):
     num_directions = 1
     seq_length = 2
 
-    X_shape = [seq_length, batch_size, input_size]
-    H_t_shape = [num_directions, batch_size, hidden_size]
-    C_t_shape = [num_directions, batch_size, hidden_size]
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    C_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
     W_shape = [num_directions, 4 * hidden_size, input_size]
     R_shape = [num_directions, 4 * hidden_size, hidden_size]
@@ -389,9 +389,9 @@ def test_lstm_sequence_operator_forward(dtype):
     num_directions = 1
     seq_length = 2
 
-    X_shape = [seq_length, batch_size, input_size]
-    H_t_shape = [num_directions, batch_size, hidden_size]
-    C_t_shape = [num_directions, batch_size, hidden_size]
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    C_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
     W_shape = [num_directions, 4 * hidden_size, input_size]
     R_shape = [num_directions, 4 * hidden_size, hidden_size]
