@@ -89,7 +89,7 @@ inline __m256  _v512_extract_high(const __m512& v)
 { return _mm512_extractf32x8_ps(v, 1); }
 
 inline __m256d _v512_extract_high(const __m512d& v)
-{ return _mm512_extractf64x4_pd(v, 1); }
+{ return _mm512_mask_extractf64x4_pd(_mm256_setzero_pd(), (__mmask8) -1, v, 1); }
 
 inline __m256i _v512_extract_low(const __m512i& v)
 { return _mm512_castsi512_si256(v); }
@@ -1936,7 +1936,7 @@ OPENCV_HAL_IMPL_AVX512_EXPAND_Q(v_int32x16,  schar, _mm512_cvtepi8_epi32)
 /* pack */
 // 16
 inline v_int8x64 v_pack(const v_int16x32& a, const v_int16x32& b)
-{ return v_int8x64(_mm512_permutexvar_epi64(_v512_set_epu64(7, 5, 3, 1, 6, 4, 2, 0), _mm512_packs_epi16(a.val, b.val))); }
+{ return v_int8x64(_mm512_mask_permutexvar_epi64(_mm512_setzero_si512(), (__mmask8)-1, _v512_set_epu64(7, 5, 3, 1, 6, 4, 2, 0), _mm512_packs_epi16(a.val, b.val))); }
 
 inline v_uint8x64 v_pack(const v_uint16x32& a, const v_uint16x32& b)
 {
@@ -1946,7 +1946,7 @@ inline v_uint8x64 v_pack(const v_uint16x32& a, const v_uint16x32& b)
 
 inline v_uint8x64 v_pack_u(const v_int16x32& a, const v_int16x32& b)
 {
-    return v_uint8x64(_mm512_permutexvar_epi64(_v512_set_epu64(7, 5, 3, 1, 6, 4, 2, 0), _mm512_packus_epi16(a.val, b.val)));
+    return v_uint8x64(_mm512_mask_permutexvar_epi64(_mm512_setzero_si512(), (__mmask8)-1, _v512_set_epu64(7, 5, 3, 1, 6, 4, 2, 0), _mm512_packus_epi16(a.val, b.val)));
 }
 
 inline void v_pack_store(schar* ptr, const v_int16x32& a)
@@ -2007,7 +2007,9 @@ void v_rshr_pack_store(schar* ptr, const v_int16x32& a)
 
 // 32
 inline v_int16x32 v_pack(const v_int32x16& a, const v_int32x16& b)
-{ return v_int16x32(_mm512_permutexvar_epi64(_v512_set_epu64(7, 5, 3, 1, 6, 4, 2, 0), _mm512_packs_epi32(a.val, b.val))); }
+{ return v_int16x32(_mm512_mask_permutexvar_epi64(_mm512_setzero_si512(), (__mmask8) -1,
+						  _v512_set_epu64(7, 5, 3, 1, 6, 4, 2, 0),
+						  _mm512_packs_epi32(a.val, b.val))); }
 
 inline v_uint16x32 v_pack(const v_uint32x16& a, const v_uint32x16& b)
 {
@@ -2016,7 +2018,9 @@ inline v_uint16x32 v_pack(const v_uint32x16& a, const v_uint32x16& b)
 }
 
 inline v_uint16x32 v_pack_u(const v_int32x16& a, const v_int32x16& b)
-{ return v_uint16x32(_mm512_permutexvar_epi64(_v512_set_epu64(7, 5, 3, 1, 6, 4, 2, 0), _mm512_packus_epi32(a.val, b.val))); }
+{ return v_uint16x32(_mm512_mask_permutexvar_epi64(_mm512_setzero_si512(), (__mmask8) -1,
+						   _v512_set_epu64(7, 5, 3, 1, 6, 4, 2, 0),
+						   _mm512_packus_epi32(a.val, b.val))); }
 
 inline void v_pack_store(short* ptr, const v_int32x16& a)
 { v_store_low(ptr, v_pack(a, a)); }
@@ -2118,7 +2122,7 @@ void v_rshr_pack_store(int* ptr, const v_int64x8& a)
 
 // pack boolean
 inline v_uint8x64 v_pack_b(const v_uint16x32& a, const v_uint16x32& b)
-{ return v_uint8x64(_mm512_permutexvar_epi64(_v512_set_epu64(7, 5, 3, 1, 6, 4, 2, 0), _mm512_packs_epi16(a.val, b.val))); }
+{ return v_uint8x64(_mm512_mask_permutexvar_epi64(_mm512_setzero_si512(), (__mmask8) -1, _v512_set_epu64(7, 5, 3, 1, 6, 4, 2, 0), _mm512_packs_epi16(a.val, b.val))); }
 
 inline v_uint8x64 v_pack_b(const v_uint32x16& a, const v_uint32x16& b,
                            const v_uint32x16& c, const v_uint32x16& d)
@@ -3069,9 +3073,7 @@ static inline v_uint16x32 v_mulhi(const v_uint16x32& a, uint16_t b)
 
 static inline v_int16x32 v_mulhrs(const v_int16x32& a, const v_int16x32& b)
 {
-    v_int16x32 r;
-    r.val = _mm512_mulhrs_epi16(a.val, b.val);
-    return r;
+    return v_int16x32(_mm512_mulhrs_epi16(a.val, b.val));
 }
 
 static inline v_int16x32 v_mulhrs(const v_int16x32& a, short b)
@@ -3103,6 +3105,188 @@ static inline v_float32x16 operator* (const v_float32x16& a, float b)
 {
     return a * v512_setall_f32(b);
 }
+
+template<int mask, int shift>
+static inline v_uint8x64 v_mask_blend_shiftleft(const v_uint8x64& a, const v_uint8x64& b)
+{
+    return v_uint8x64(_mm512_mask_blend_epi16(mask,
+                                              a.val, _mm512_bslli_epi128(b.val, shift)));
+}
+
+template<int mask, int shift>
+static inline v_uint8x64 v_mask_blend_shiftright(const v_uint8x64& a, const v_uint8x64& b)
+{
+    return v_uint8x64(_mm512_mask_blend_epi16(mask,
+                                              _mm512_bsrli_epi128(a.val, shift), b.val));
+}
+
+static inline v_uint8x64 v_packus(const v_int16x32& a, const v_int16x32& b)
+{
+    return v_uint8x64(_mm512_packus_epi16(a.val, b.val));
+}
+
+
+#define word(b0, b1, b2, b3)                 \
+        (((uint32_t)((uint8_t)(b0)) << 0*8)  \
+      | ((uint32_t)((uint8_t)(b1))  << 1*8)  \
+      | ((uint32_t)((uint8_t)(b2))  << 2*8)  \
+      | ((uint32_t)((uint8_t)(b3))  << 3*8))
+
+static inline v_uint8x64 v_setr_s8(char b0, char b1, char b2, char b3, char b4,
+                                   char b5, char b6, char b7, char b8, char b9,
+                                   char b10, char b11, char b12, char b13, char b14,
+                                   char b15, char b16, char b17, char b18, char b19,
+                                   char b20, char b21, char b22, char b23, char b24,
+                                   char b25, char b26, char b27, char b28, char b29,
+                                   char b30, char b31, char b32, char b33, char b34,
+                                   char b35, char b36, char b37, char b38, char b39,
+                                   char b40, char b41, char b42, char b43, char b44,
+                                   char b45, char b46, char b47, char b48, char b49,
+                                   char b50, char b51, char b52, char b53, char b54,
+                                   char b55, char b56, char b57, char b58, char b59,
+                                   char b60, char b61, char b62, char b63)
+{
+    return v_uint8x64(_mm512_setr_epi32(word(b0, b1, b2, b3), word(b4, b5, b6, b7), word(b8, b9, b10, b11),
+                                        word(b12, b13, b14, b15), word(b16, b17, b18, b19), word(b20, b21, b22, b23),
+                                        word(b24, b25, b26, b27), word(b28, b29, b30, b31), word(b32, b33, b34, b35),
+                                        word(b36, b37, b38, b39), word(b40, b41, b42, b43), word(b44, b45, b46, b47),
+                                        word(b48, b49, b50, b51), word(b52, b53, b54, b55), word(b56, b57, b58, b59),
+                                        word(b60, b61, b62, b63)));
+}
+
+static inline v_uint64x8 v_set_s64(int b7, int b6, int b5, int b4, int b3, int b2, int b1, int b0)
+{
+    return v_uint64x8(_mm512_set_epi64(b7, b6, b5, b4, b3, b2, b1, b0));
+}
+
+static inline v_uint32x16 v_set_s32(int b15, int b14, int b13, int b12, int b11, int b10, int b9, int b8,
+                                    int b7, int b6, int b5, int b4, int b3, int b2, int b1, int b0)
+{
+    return v_uint32x16(_mm512_set_epi32(b15, b14, b13, b12, b11, b10, b9, b8, b7, b6, b5, b4, b3, b2, b1, b0));
+}
+
+static inline v_uint8x64 v_shuffle_s8(const v_uint8x64& a, const v_uint8x64& mask)
+{
+    return v_uint8x64(_mm512_shuffle_epi8(a.val, mask.val));
+}
+static inline v_int16x32 v_load_ccache_expand(const uchar* ptr)
+{
+    return v_int16x32(_mm512_cvtepu8_epi16(_mm256_lddqu_si256((const __m256i*)ptr)));                         \
+}
+static inline __m512i v512_insert_epi16(__m512i target, const uchar x, const int index)
+{
+    return _mm512_mask_set1_epi16(target, 1UL << index, x);
+}
+static inline __m512i v512_insert_epi32(__m512i target, const int32_t x, const int index)
+{
+    return _mm512_mask_set1_epi32(target, 1UL << index, x);
+}
+
+static inline void v_gather_channel(v_uint8x64& vec, const uint8_t tmp[], const short mapsx[],
+                                    int chanNum, int c, int x, int shift)
+{
+    __m256i vec1 = _mm256_setzero_si256();
+    __m256i vec2 = _mm256_setzero_si256();
+
+    vec1 = _mm256_insert_epi32(vec1, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 0] + c)]), 0);
+    vec1 = _mm256_insert_epi32(vec1, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 1] + c)]), 1);
+    vec1 = _mm256_insert_epi32(vec1, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 2] + c)]), 2);
+    vec1 = _mm256_insert_epi32(vec1, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 3] + c)]), 3);
+    vec1 = _mm256_insert_epi32(vec1, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 4] + c)]), 4);
+    vec1 = _mm256_insert_epi32(vec1, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 5] + c)]), 5);
+    vec1 = _mm256_insert_epi32(vec1, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 6] + c)]), 6);
+    vec1 = _mm256_insert_epi32(vec1, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 7] + c)]), 7);
+
+    vec2 = _mm256_insert_epi32(vec2, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 0] + 1) + c)]), 0);
+    vec2 = _mm256_insert_epi32(vec2, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 1] + 1) + c)]), 1);
+    vec2 = _mm256_insert_epi32(vec2, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 2] + 1) + c)]), 2);
+    vec2 = _mm256_insert_epi32(vec2, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 3] + 1) + c)]), 3);
+    vec2 = _mm256_insert_epi32(vec2, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 4] + 1) + c)]), 4);
+    vec2 = _mm256_insert_epi32(vec2, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 5] + 1) + c)]), 5);
+    vec2 = _mm256_insert_epi32(vec2, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 6] + 1) + c)]), 6);
+    vec2 = _mm256_insert_epi32(vec2, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 7] + 1) + c)]), 7);
+
+    vec.val = _mm512_inserti32x8(_mm512_castsi256_si512(vec1), vec2, 1);
+}
+
+static inline v_uint8x64 v_permutex2_s64(const v_uint8x64& a, const v_uint8x64& b, const v_uint64x8& idxs)
+{
+    return v_uint8x64(_mm512_permutex2var_epi64(a.val, idxs.val, b.val));
+}
+
+static inline v_uint8x64 v_permutex_s32(const v_uint8x64& a, const v_uint64x8 idxs)
+{
+    return v_uint8x64(_mm512_permutexvar_epi32(idxs.val, a.val));
+}
+
+static inline v_uint8x64 v_permutex2_s32(const v_uint8x64& a, const v_uint8x64& b, const v_uint32x16 idxs)
+{
+    return v_uint8x64(_mm512_permutex2var_epi32(a.val, idxs.val, b.val));
+}
+
+#if defined(__GNUC__)
+
+int _mm512_cvtsi512_si32(__m512i a)
+{
+    __v16si b = (__v16si)a;
+    return b[0];
+}
+
+#endif
+
+template <int index>
+static inline int v512_extract_epi32(__m512i target)
+{
+    return _mm512_cvtsi512_si32(_mm512_mask_alignr_epi32(_mm512_setzero_si512(), (__mmask16)-1, target, target, index));
+}
+
+template <int index>
+static inline int v512_extract_epi16(__m512i target)
+{
+    return (v512_extract_epi32<index/2>(target) >> (index % 2 ? 16 : 0)) & 0xFFFF;
+}
+
+namespace {
+    template<int chanNum>
+    static inline v_int16x32 v_gather_chan(const uchar src[], const v_int16x32& index, int channel, int pos) {
+        v_int16x32 r;
+
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<0>(index.val) + pos) + channel]), 0);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<1>(index.val) + pos) + channel]), 1);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<2>(index.val) + pos) + channel]), 2);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<3>(index.val) + pos) + channel]), 3);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<4>(index.val) + pos) + channel]), 4);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<5>(index.val) + pos) + channel]), 5);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<6>(index.val) + pos) + channel]), 6);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<7>(index.val) + pos) + channel]), 7);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<8>(index.val) + pos) + channel]), 8);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<9>(index.val) + pos) + channel]), 9);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<10>(index.val) + pos) + channel]), 10);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<11>(index.val) + pos) + channel]), 11);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<12>(index.val) + pos) + channel]), 12);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<13>(index.val) + pos) + channel]), 13);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<14>(index.val) + pos) + channel]), 14);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<15>(index.val) + pos) + channel]), 15);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<16>(index.val) + pos) + channel]), 16);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<17>(index.val) + pos) + channel]), 17);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<18>(index.val) + pos) + channel]), 18);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<19>(index.val) + pos) + channel]), 19);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<20>(index.val) + pos) + channel]), 20);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<21>(index.val) + pos) + channel]), 21);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<22>(index.val) + pos) + channel]), 22);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<23>(index.val) + pos) + channel]), 23);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<24>(index.val) + pos) + channel]), 24);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<25>(index.val) + pos) + channel]), 25);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<26>(index.val) + pos) + channel]), 26);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<27>(index.val) + pos) + channel]), 27);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<28>(index.val) + pos) + channel]), 28);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<29>(index.val) + pos) + channel]), 29);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<30>(index.val) + pos) + channel]), 30);
+        r.val = v512_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(v512_extract_epi16<31>(index.val) + pos) + channel]), 31);
+
+        return r;
+    }
+}  // namespace
 
 CV_CPU_OPTIMIZATION_HAL_NAMESPACE_END
 

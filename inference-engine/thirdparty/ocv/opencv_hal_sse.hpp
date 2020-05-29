@@ -371,6 +371,12 @@ inline v_float32x4 v_reinterpret_as_f32(const v_float64x2& a) {return v_float32x
 inline v_float64x2 v_reinterpret_as_f64(const v_float32x4& a) {return v_float64x2(_mm_castps_pd(a.val)); }
 
 //////////////// PACK ///////////////
+static inline v_uint8x16 v_packus(const v_int16x8& a, const v_int16x8& b) {
+    v_uint8x16 res;
+    res.val = _mm_packus_epi16(a.val, b.val);
+    return res;
+}
+
 inline v_uint8x16 v_pack(const v_uint16x8& a, const v_uint16x8& b)
 {
     __m128i delta = _mm_set1_epi16(255);
@@ -1526,7 +1532,17 @@ inline _Tpwsvec v_load_expand(const _Tps* ptr) \
 { \
     __m128i a = _mm_loadl_epi64((const __m128i*)ptr); \
     return _Tpwsvec(_mm_srai_##wsuffix(_mm_unpacklo_##suffix(a, a), shift)); \
-}
+}\
+inline _Tpwuvec v_expand_low(const _Tpuvec& a) {             \
+    _Tpwuvec res;                                            \
+    res.val = _mm_cvtepu8_epi16(a.val);                      \
+    return res;                                              \
+}                                                            \
+inline  _Tpwuvec v_expand_high(const _Tpuvec& a) {           \
+    _Tpwuvec res;                                            \
+    res.val = _mm_unpackhi_epi8(a.val, _mm_setzero_si128()); \
+    return res;                                              \
+}                                                            \
 
 OPENCV_HAL_IMPL_SSE_EXPAND(v_uint8x16, v_uint16x8, uchar, v_int8x16, v_int16x8, schar, epi8, epi16, 8)
 OPENCV_HAL_IMPL_SSE_EXPAND(v_uint16x8, v_uint32x4, ushort, v_int16x8, v_int32x4, short, epi16, epi32, 16)
@@ -2921,6 +2937,12 @@ static inline v_int16x8 v_saturate_s16(const v_int32x4& a) {
     return r;
 }
 
+static inline v_uint8x16 v_packus_s16(const v_int16x8& a, const v_int16x8& b) {
+    v_uint8x16 r;
+    r.val = _mm_packus_epi16(a.val, b.val);
+    return r;
+}
+
 // for each j=index[k], load two chars src[j] and src[j+1]
 static inline v_uint8x16 v_gather_pairs(const uchar src[], const v_int16x8& index) {
     v_uint8x16 r;
@@ -3028,6 +3050,47 @@ static inline v_float32x4 operator- (float a, const v_float32x4& b) {
 
 static inline v_float32x4 operator* (const v_float32x4& a, float b) {
     return a * v_setall_f32(b);
+}
+
+template<int mask, int shift>
+static inline v_uint8x16 v_blend_shiftleft(const v_uint8x16& a, const v_uint8x16& b) {
+    v_uint8x16 res;
+    res.val = _mm_blend_epi16(a.val, _mm_slli_si128(b.val, shift), mask /*0xCC 0b11001100*/);
+    return res;
+}
+
+template<int mask, int shift>
+static inline v_uint8x16 v_blend_shiftright(const v_uint8x16& a, const v_uint8x16& b) {
+    v_uint8x16 res;
+    res.val = _mm_blend_epi16(_mm_srli_si128(a.val, shift), b.val, mask /*0xCC 0b11001100*/);
+    return res;
+}
+
+static inline v_uint8x16 v_setr_s8(char b0, char b1, char b2, char b3, char b4,
+                                   char b5, char b6, char b7, char b8, char b9,
+                                   char b10, char b11, char b12, char b13, char b14,
+                                   char b15) {
+    v_uint8x16 res;
+    res.val = _mm_setr_epi8(b0, b1, b2, b3, b4, b5, b6, b7, b8,
+                            b9, b10, b11, b12, b13, b14, b15);
+    return res;
+}
+
+
+static inline v_uint8x16 v_shuffle_s8(const v_uint8x16& a, const v_uint8x16& mask) {
+    v_uint8x16 res;
+    res.val = _mm_shuffle_epi8(a.val, mask.val);
+    return res;
+}
+
+static inline void v_gather_channel(v_uint8x16& vec, const uint8_t tmp[], const short mapsx[],
+                                    int chanNum, int c, int x, int shift)
+{
+    vec.val = _mm_insert_epi32(vec.val, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 0] + c)]), 0);
+    vec.val = _mm_insert_epi32(vec.val, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 1] + c)]), 1);
+
+    vec.val = _mm_insert_epi32(vec.val, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 0] + 1) + c)]), 2);
+    vec.val = _mm_insert_epi32(vec.val, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 1] + 1) + c)]), 3);
 }
 
 //! @}
