@@ -14,6 +14,7 @@ set_source_files_properties(${SOURCE} PROPERTIES CYTHON_IS_CXX ON)
 # create target
 
 cython_add_module(${TARGET_NAME} ${SOURCE})
+set(INSTALLED_TARGETS ${TARGET_NAME})
 
 file(GLOB OTHER_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.pyx)
@@ -26,6 +27,7 @@ foreach(PYX_FILE ${OTHER_SOURCES})
     add_dependencies(${TARGET_NAME} ${PYX_NAME})
     target_include_directories(${PYX_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(${PYX_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
+    list(APPEND INSTALLED_TARGETS ${PYX_NAME})
 endforeach()
 
 function(python_disable_deprecated_warnings)
@@ -64,7 +66,7 @@ endif()
 
 # install
 
-install(TARGETS ${TARGET_NAME}
+install(TARGETS ${INSTALLED_TARGETS}
         RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
         ARCHIVE DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
         LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION})
