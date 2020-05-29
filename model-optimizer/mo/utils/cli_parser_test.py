@@ -345,6 +345,15 @@ class TestingMeanScaleGetter(unittest.TestCase):
             for j in range(0, len(exp_res[i])):
                 np.array_equal(exp_res[i][j], result[i][j])
 
+    def test_scale_do_not_match_input(self):
+        scale_values = parse_tuple_pairs("input_not_present(255),input2(255)")
+        mean_values = parse_tuple_pairs("input1(255),input2(255)")
+        self.assertRaises(Error, get_mean_scale_dictionary, mean_values, scale_values, "input1,input2")
+
+    def test_mean_do_not_match_input(self):
+        scale_values = parse_tuple_pairs("input1(255),input2(255)")
+        mean_values = parse_tuple_pairs("input_not_present(255),input2(255)")
+        self.assertRaises(Error, get_mean_scale_dictionary, mean_values, scale_values, "input1,input2")
 
 class TestSingleTupleParsing(unittest.TestCase):
     def test_get_values_ideal(self):

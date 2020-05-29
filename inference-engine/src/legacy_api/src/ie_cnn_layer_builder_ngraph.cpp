@@ -42,7 +42,6 @@
 #include "ngraph_ops/scaleshift.hpp"
 #include "ngraph_ops/tile_ie.hpp"
 #include "ngraph_ops/topk_ie.hpp"
-#include "ngraph_ops/strided_slice_ie.hpp"
 #include "ngraph_ops/rnn_cell_ie.hpp"
 #include "ngraph_ops/hard_sigmoid_ie.hpp"
 #include "generic_ie.hpp"
@@ -1638,37 +1637,8 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::TopK>::createLayer(const std::shared
     auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::TopK>(layer);
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
-    auto mode = castedLayer->get_mode();
-    std::string str_mode;
-    switch (mode) {
-    case ngraph::op::v1::TopK::Mode::MIN:
-        str_mode = "min";
-        break;
-    case ngraph::op::v1::TopK::Mode::MAX:
-        str_mode = "max";
-        break;
-    default:
-        THROW_IE_EXCEPTION << "Unsupported TopK mode";
-    }
-
-    auto sort = castedLayer->get_sort_type();
-    std::string str_sort;
-    switch (sort) {
-    case ngraph::op::v1::TopK::SortType::NONE:
-        str_sort = "none";
-        break;
-    case ngraph::op::v1::TopK::SortType::SORT_VALUES:
-        str_sort = "value";
-        break;
-    case ngraph::op::v1::TopK::SortType::SORT_INDICES:
-        str_sort = "index";
-        break;
-    default:
-        THROW_IE_EXCEPTION << "Unsupported TopK sort type";
-    }
-
-    res->params["mode"] = str_mode;
-    res->params["sort"] = str_sort;
+    res->params["mode"] = ngraph::as_string<ngraph::op::v1::TopK::Mode>(castedLayer->get_mode());;
+    res->params["sort"] = ngraph::as_string<ngraph::op::v1::TopK::SortType>(castedLayer->get_sort_type());
     res->params["axis"] = asString(castedLayer->get_axis());
 
     return res;
@@ -1682,8 +1652,8 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TopKIE>::createLayer(const std::shared_p
     auto castedLayer = ngraph::as_type_ptr<ngraph::op::TopKIE>(layer);
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
-    res->params["mode"] = castedLayer->get_mode();
-    res->params["sort"] = castedLayer->get_sort_type();
+    res->params["mode"] = ngraph::as_string<ngraph::op::v1::TopK::Mode>(castedLayer->get_mode());;
+    res->params["sort"] = ngraph::as_string<ngraph::op::v1::TopK::SortType>(castedLayer->get_sort_type());
     res->params["axis"] = asString(castedLayer->get_axis());
 
     return res;
@@ -2143,17 +2113,10 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Sqrt>::createLayer(const std::shared_ptr
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v1::StridedSlice>::createLayer(
         const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "StridedSlice operation has a form that is not supported." << layer->get_friendly_name()
-                       << " should be converted to StridedSliceIE operation";
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::StridedSliceIE>::createLayer(
-        const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "StridedSlice",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::StridedSliceLayer>(params);
-    auto castedLayer = std::dynamic_pointer_cast<ngraph::op::StridedSliceIE>(layer);
+    auto castedLayer = std::dynamic_pointer_cast<ngraph::op::v1::StridedSlice>(layer);
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
     std::string value;

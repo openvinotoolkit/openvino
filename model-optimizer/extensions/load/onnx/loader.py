@@ -63,6 +63,10 @@ class ONNXLoader(Loader):
         graph.graph['layout'] = 'NCHW'
         graph.graph['fw'] = 'onnx'
         graph.graph['feature_dim'] = 1
+        if hasattr(model_proto, 'opset_import'):
+            graph.graph['fw_opset_version'] = model_proto.opset_import[0].version   # pylint: disable=no-member
+        else:
+            graph.graph['fw_opset_version'] = None
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
         extract_node_attrs(graph, lambda node: onnx_op_extractor(node, check_for_duplicates(onnx_op_extractors)))

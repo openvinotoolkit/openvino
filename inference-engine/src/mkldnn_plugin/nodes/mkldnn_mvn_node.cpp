@@ -737,7 +737,6 @@ void MKLDNNMVNNode::mvn_pln(const float* src_data, float* dst_data, const SizeVe
         blk_size = 4;
     }
 
-    size_t dims_size = dims.size();
     size_t N = 0; size_t C = 0; size_t D = 0; size_t H = 0; size_t W = 0;
     std::tie(N, C, D, H, W) = get5dShapes(dims);
 

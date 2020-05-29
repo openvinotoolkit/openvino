@@ -87,7 +87,7 @@ class NormalizationConvConvEltwiseTests: public TestsCommon,
 
     std::string getModel(conv_conv_eltwise_params p) {
         std::string model = layers_t;
-        
+
         std::string s_dims;
         for (auto& dim : p.in) {
             s_dims += "\n                    <dim>";
@@ -132,7 +132,10 @@ protected:
 
             InferenceEngine::Core ie;
             InferenceEngine::CNNNetwork network;
-            ASSERT_NO_THROW(network = ie.ReadNetwork(model, InferenceEngine::Blob::CPtr()));
+            auto blob = InferenceEngine::make_shared_blob<uint8_t>(InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                                                                               {9}, InferenceEngine::Layout::C));
+            blob->allocate();
+            ASSERT_NO_THROW(network = ie.ReadNetwork(model, blob));
 
             int maxSign = 0x7F;
             int maxUnsign = 0xFF;
@@ -156,7 +159,7 @@ TEST_P(NormalizationConvConvEltwiseTests, TestsConvConvEltwise) {}
 INSTANTIATE_TEST_CASE_P(
         TestsConvConvEltwise, NormalizationConvConvEltwiseTests,
         ::testing::Values(
-                conv_conv_eltwise_params{{1, 16, 4, 4}, 
+                conv_conv_eltwise_params{{1, 16, 4, 4},
                                      { {1, 1}, {1, 1}, {0, 0}, {0, 0}, {1, 1}, "", 1, 32, true },
                                      {"sum", {}} },
                 conv_conv_eltwise_params{{1, 16, 4, 4, 4},

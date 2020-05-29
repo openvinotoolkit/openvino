@@ -316,7 +316,7 @@ private:
         size_t work_amount_dst = dstStrides[0] * dst_dims[0] / dst_dims[dims_size_1];
 
         parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t i, start = 0, end = 0;
+            size_t start = 0, end = 0;
             SizeVector counters(dims_size_1, 0);
             splitter(work_amount_dst, nthr, ithr, start, end);
             int src_idx = begin_dms[dims_size_1];
@@ -352,7 +352,7 @@ private:
         size_t work_amount_dst = dstStrides[0] * dst_dims[0];
 
         parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t i, start = 0, end = 0;
+            size_t start = 0, end = 0;
             SizeVector counters(dims_size, 0);
             splitter(work_amount_dst, nthr, ithr, start, end);
             int src_idx = 0;

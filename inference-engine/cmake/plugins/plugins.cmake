@@ -84,8 +84,8 @@ function(ie_add_plugin)
     if(TARGET inference_engine_preproc)
         add_dependencies(${IE_PLUGIN_NAME} inference_engine_preproc)
     endif()
-    if(TARGET inference_engine_ir_readers)
-        add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_readers)
+    if(TARGET inference_engine_ir_reader)
+        add_dependencies(${IE_PLUGIN_NAME} inference_engine_ir_reader)
     endif()
 
     # install rules

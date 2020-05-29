@@ -37,16 +37,24 @@ void op::Eltwise::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, data1_et, data2_et),
                           "Element types for first and second do not match :", data1_et, " and ", data2_et);
 
-    auto shape1 = get_input_partial_shape(0).to_shape();
-    auto shape2 = get_input_partial_shape(1).to_shape();
+    if (get_input_partial_shape(0).rank().is_dynamic() ||
+        get_input_partial_shape(1).rank().is_dynamic()) {
+        set_output_type(0, et_result, PartialShape::dynamic());
+        return;
+    }
 
-    ngraph::Shape output_shape(std::max(shape1.size(), shape2.size()));
+    std::vector<Dimension> shape1(get_input_partial_shape(0));
+    std::vector<Dimension> shape2(get_input_partial_shape(1));
+
+    std::vector<Dimension> output_shape(PartialShape::dynamic(std::max(shape1.size(), shape2.size())));
     auto output_shape_it = output_shape.rbegin();
 
     auto shape1_it = shape1.rbegin(), shape2_it = shape2.rbegin();
     while (shape1_it != shape1.rend() || shape2_it != shape2.rend()) {
         if (shape1_it != shape1.rend() && shape2_it != shape2.rend()) {
-            *output_shape_it = std::max(*shape1_it, *shape2_it);
+            if (shape1_it->is_static() && shape2_it->is_static()) {
+                *output_shape_it = (shape1_it->get_length() > shape2_it->get_length() ? *shape1_it : *shape2_it);
+            }
         } else if (shape1_it != shape1.rend()) {
             *output_shape_it = *shape1_it;
         } else if (shape2_it != shape2.rend()) {
@@ -61,5 +69,5 @@ void op::Eltwise::validate_and_infer_types() {
         }
     }
 
-    set_output_type(0, data1_et, PartialShape(output_shape));
+    set_output_type(0, et_result, output_shape);
 }

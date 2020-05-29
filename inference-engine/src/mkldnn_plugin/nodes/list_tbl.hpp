@@ -107,6 +107,10 @@ MKLDNN_EXTENSION_NODE(MathImpl, Tan);
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronTopKROIsImpl, ExperimentalDetectronTopKROIs);
 #endif
 
+#if GraphGen(ExtractImagePatches)
+MKLDNN_EXTENSION_NODE(ExtractImagePatchesImpl, ExtractImagePatches);
+#endif
+
 #if GraphGen(Gen_ReverseSequence)
 MKLDNN_EXTENSION_NODE(ReverseSequenceImpl, ReverseSequence);
 #endif

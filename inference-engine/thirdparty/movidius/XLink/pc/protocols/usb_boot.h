@@ -6,8 +6,6 @@
 extern "C" {
 #endif
 
-extern int usb_loglevel;
-
 #define AUTO_VID                    0
 #define AUTO_PID                    0
 #define AUTO_UNBOOTED_PID           -1
