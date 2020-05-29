@@ -10,8 +10,9 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 
-bool ngraph::pass::DepthToSpaceFusion::check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
-                                                         const AxisVector& permutation, const ngraph::Shape& shape_reshape_after, size_t& possible_block_size) {
+bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
+                       const ngraph::AxisVector& permutation, const ngraph::Shape& shape_reshape_after,
+                       size_t& possible_block_size) {
     bool is_transformation_valid = true;
     uint64_t spatial_dims = shape_input.size() - 2;
     possible_block_size = shape_reshape_before[1];
@@ -29,7 +30,7 @@ bool ngraph::pass::DepthToSpaceFusion::check_block_first(const ngraph::Shape& sh
     is_transformation_valid &= (expected_shape == shape_reshape_before);
 
     // x'' = transpose(x', [0,  K + 1,  K + 2, 1, K + 3, 2, K + 4, 3, ..., K + (K + 1), K])
-    AxisVector expected_permutation = {0, spatial_dims + 1};
+    ngraph::AxisVector expected_permutation = {0, spatial_dims + 1};
     for (uint64_t i = 2; i < shape_input.size(); ++i) {
         expected_permutation.push_back(spatial_dims + i);
         expected_permutation.push_back(i - 1);
@@ -45,8 +46,9 @@ bool ngraph::pass::DepthToSpaceFusion::check_block_first(const ngraph::Shape& sh
     return is_transformation_valid;
 }
 
-bool ngraph::pass::DepthToSpaceFusion::check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
-                                                         const AxisVector& permutation, const ngraph::Shape& shape_reshape_after, size_t& possible_block_size) {
+bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
+                       const ngraph::AxisVector& permutation, const ngraph::Shape& shape_reshape_after,
+                       size_t& possible_block_size) {
     bool is_transformation_valid = true;
     uint64_t spatial_dims = shape_input.size() - 2;
     possible_block_size = shape_reshape_before[2];
@@ -63,7 +65,7 @@ bool ngraph::pass::DepthToSpaceFusion::check_depth_first(const ngraph::Shape& sh
     is_transformation_valid &= (expected_shape == shape_reshape_before);
 
     // x'' = transpose(x', [0,  1,  K + 2, 2, K + 3, 3, K + 4, 4, ..., K + (K + 1), K + 1])
-    AxisVector expected_permutation = {0, 1};
+    ngraph::AxisVector expected_permutation = {0, 1};
     for (uint64_t i = 2; i < shape_input.size(); ++i) {
         expected_permutation.push_back(spatial_dims + i);
         expected_permutation.push_back(i);

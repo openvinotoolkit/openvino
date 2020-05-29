@@ -28,8 +28,4 @@ public:
 
 private:
     void depth_to_space_fusion();
-    static bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
-                           const AxisVector& permutation, const ngraph::Shape& shape_reshape_after, size_t& possible_block_size);
-    static bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
-                           const AxisVector& permutation, const ngraph::Shape& shape_reshape_after, size_t& possible_block_size);
 };
