@@ -191,6 +191,8 @@ namespace
             break;
             TYPE_CASE(u64)(args, out, concatenation_axis);
             break;
+            TYPE_CASE(f16)(args, out, concatenation_axis);
+            break;
             TYPE_CASE(f32)(args, out, concatenation_axis);
             break;
             TYPE_CASE(f64)(args, out, concatenation_axis);
