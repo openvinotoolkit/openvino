@@ -1131,13 +1131,19 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     auto vec_size = conf.vec_size;
     auto idx = conf.bfzyx_idx_order;
     std::string shuffle_var = conf.shuffle_var_name;
+    bool is_shuffled = false;
 
     out_var = GetOutputVarName(in_var);
     out_type = desc.output_tensor.GetDType();
 
+    if (conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE &&
+        (desc.GetType() == KernelType::SCALE || desc.GetType() == KernelType::QUANTIZE)) {
+        is_shuffled = true;
+    }
+
     std::vector<std::string> in_vars_converted;
     for (size_t i = 0; i < desc.tensors.size(); i++) {
-        auto in_name = GetInputVarName(i);
+        auto in_name = GetInputVarName(i, is_shuffled, shuffle_var);
         if (desc.tensors[0].GetDType() != desc.output_tensor.GetDType()) {
             in_name = ConvertToOutputType(in_name, vec_size);
         }
@@ -1162,11 +1168,6 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             auto p = desc.GetOpParams<quantize_fuse_params>();
             if (!p)
                 throw std::runtime_error("[clDNN] Quantize fuse params can't be nullptr");
-
-            bool is_shuffled = false;
-            if (conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE) {
-                is_shuffled = true;
-            }
 
             std::string in_converted = in_var;
             Datatype tmp_type = Datatype::F32;
