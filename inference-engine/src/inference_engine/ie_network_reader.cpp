@@ -103,9 +103,11 @@ void registerReaders() {
     std::lock_guard<std::mutex> lock(readerMutex);
     if (initialized) return;
     // TODO: Read readers info from XML
+#ifdef ONNX_IMPORT_ENABLE
     auto onnxReader = std::make_shared<Reader>("ONNX", std::string("inference_engine_onnx_reader") + std::string(IE_BUILD_POSTFIX));
     readers.emplace("onnx", onnxReader);
     readers.emplace("prototxt", onnxReader);
+#endif
     auto irReader = std::make_shared<Reader>("IR", std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
     readers.emplace("xml", irReader);
     initialized = true;
