@@ -6,7 +6,7 @@
 
 #include "ngraph/visibility.hpp"
 
-#ifdef TRANSFORMATIONS_DLL_EXPORTS // defined if we are building the transformations library
+#ifdef inference_engine_transformations_EXPORTS
 #define TRANSFORMATIONS_API NGRAPH_HELPER_DLL_EXPORT
 #else
 #define TRANSFORMATIONS_API NGRAPH_HELPER_DLL_IMPORT

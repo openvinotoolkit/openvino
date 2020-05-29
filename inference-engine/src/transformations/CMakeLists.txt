@@ -23,7 +23,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-target_compile_definitions(${TARGET_NAME} PRIVATE TRANSFORMATIONS_DLL_EXPORTS)
+target_compile_definitions(${TARGET_NAME} PRIVATE inference_engine_transformations_EXPORTS)
 
 target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES})
 
