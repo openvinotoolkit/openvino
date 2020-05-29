@@ -894,24 +894,62 @@ static void calcRowLinearC(const cv::gapi::fluid::View  & in,
         }
     }
 
-    #ifdef HAVE_SSE
-    if (with_cpu_x86_sse42()) {
+#ifdef HAVE_AVX512
+    if (with_cpu_x86_avx512_core()) {
         if (std::is_same<T, uint8_t>::value) {
-            if (inSz.width >= 16 && outSz.width >= 8) {
-                calcRowLinear_8UC<numChan>(dst,
-                                   reinterpret_cast<const uint8_t**>(src0),
-                                   reinterpret_cast<const uint8_t**>(src1),
-                                   reinterpret_cast<const short*>(alpha),
-                                   reinterpret_cast<const short*>(clone),
-                                   reinterpret_cast<const short*>(mapsx),
-                                   reinterpret_cast<const short*>(beta),
-                                   reinterpret_cast<uint8_t*>(tmp),
-                                   inSz, outSz, lpi);
+            if (inSz.width >= 64 && outSz.width >= 32) {
+                avx512::calcRowLinear_8UC<numChan>(dst,
+                                                   reinterpret_cast<const uint8_t**>(src0),
+                                                   reinterpret_cast<const uint8_t**>(src1),
+                                                   reinterpret_cast<const short*>(alpha),
+                                                   reinterpret_cast<const short*>(clone),
+                                                   reinterpret_cast<const short*>(mapsx),
+                                                   reinterpret_cast<const short*>(beta),
+                                                   reinterpret_cast<uint8_t*>(tmp),
+                                                   inSz, outSz, lpi);
                 return;
             }
         }
     }
-    #endif  // HAVE_SSE
+#endif
+
+#ifdef HAVE_AVX2
+    if (with_cpu_x86_avx2()) {
+        if (std::is_same<T, uint8_t>::value) {
+            if (inSz.width >= 32 && outSz.width >= 16) {
+                avx::calcRowLinear_8UC<numChan>(dst,
+                                                reinterpret_cast<const uint8_t**>(src0),
+                                                reinterpret_cast<const uint8_t**>(src1),
+                                                reinterpret_cast<const short*>(alpha),
+                                                reinterpret_cast<const short*>(clone),
+                                                reinterpret_cast<const short*>(mapsx),
+                                                reinterpret_cast<const short*>(beta),
+                                                reinterpret_cast<uint8_t*>(tmp),
+                                                inSz, outSz, lpi);
+                return;
+            }
+        }
+    }
+#endif
+
+#ifdef HAVE_SSE
+    if (with_cpu_x86_sse42()) {
+        if (std::is_same<T, uint8_t>::value) {
+            if (inSz.width >= 16 && outSz.width >= 8) {
+                calcRowLinear_8UC<numChan>(dst,
+                                           reinterpret_cast<const uint8_t**>(src0),
+                                           reinterpret_cast<const uint8_t**>(src1),
+                                           reinterpret_cast<const short*>(alpha),
+                                           reinterpret_cast<const short*>(clone),
+                                           reinterpret_cast<const short*>(mapsx),
+                                           reinterpret_cast<const short*>(beta),
+                                           reinterpret_cast<uint8_t*>(tmp),
+                                           inSz, outSz, lpi);
+                return;
+            }
+        }
+    }
+#endif  // HAVE_SSE
 
     auto length = out[0].get().length();
 
