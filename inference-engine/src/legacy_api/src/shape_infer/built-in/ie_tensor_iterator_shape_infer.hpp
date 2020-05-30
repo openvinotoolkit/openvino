@@ -92,7 +92,6 @@ public:
         if (!_body_reshaper)
             THROW_IE_EXCEPTION << "Request of apply reshape results while shape infer was not finished";
         _body_reshaper->apply();
-        _body_reshaper.reset(); // WA: reset _body_reshaper to release ownership for input data
     }
 
 private:
